@@ -47,6 +47,7 @@ class Menu {
     var showInventoryLabel = true
     var inventoryLabelY = 73
     private weak var lastSlotClicked: MenuSlot?
+    var mouseClick = false              // set by MenuInput around a mouse click: only mice double-click
     private var lastSlotClickAt: Double = 0
     var lastClickButton = 0, lastClickShift = false    // how the last button was pressed (recipe tiles: 1 / max / stack)
 
@@ -120,7 +121,7 @@ class Menu {
         // Double left click with a stack on the cursor gathers the same item from the screen's slots, up to a full
         // stack (reference; every click was single).
         let now = CFAbsoluteTimeGetCurrent()
-        let double = button == 0 && !shift && lastSlotClicked === slot && now - lastSlotClickAt < 0.3
+        let double = mouseClick && button == 0 && !shift && lastSlotClicked === slot && now - lastSlotClickAt < 0.3
         lastSlotClicked = slot; lastSlotClickAt = now
         if double && !carried.isEmpty && carried.maxStack > 1, slot.container != nil {
             if case .normal = slot.kind {

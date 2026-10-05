@@ -114,7 +114,7 @@ extension Game {
         let shift = input.shift
         if input.leftClicked || input.rightClicked {
             let b = input.leftClicked ? 0 : 1
-            if let s = m.slotAt(mouse, L) { m.click(s, button: b, shift: shift) }
+            if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
             else if !m.inside(mouse, L) && !carried.isEmpty {
                 if b == 0 { dropItem(carried); carried = .empty }
                 else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
