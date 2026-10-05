@@ -175,7 +175,16 @@ extension Mob {
     }
 
     // Knockback taken (ironclads barely budge, deck guns not at all).
-    var knockbackTaken: Float { kind == .soldierIronclad ? 0.15 : (kind == .deckGun ? 0 : 1) }
+    // 1 - knockback resistance (reference: iron golems and deep stalkers 1, siegebeasts 0.75, tuskers 0.6).
+    var knockbackTaken: Float {
+        switch kind {
+        case .soldierIronclad: return 0.15
+        case .deckGun, .ironGolem, .warden: return 0
+        case .ravager: return 0.25
+        case .hoglin, .zoglin: return 0.4
+        default: return 1
+        }
+    }
 
     // Wakes every soldier within `r` and tells them where the player was.
     func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 24) {
