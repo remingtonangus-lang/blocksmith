@@ -33,13 +33,13 @@ extension Game {
     private func airCruise(_ r: BaseRecord, _ a: V3, _ c: V3, clear: Float = 22) -> Float {
         var top: Float = 0
         let n = max(1, Int(simd_length(V2(c.x - a.x, c.z - a.z)) / 8))
-        let reach = Float(CapitalBase.A + 10)
+        let reach: Float = 40                               // the towers (main and side) stand within ~35 of the centre
         for k in 0...n {
             let p = a + (c - a) * (Float(k) / Float(n))
             let x = Int(floor(p.x)), z = Int(floor(p.z))
             let h = world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height
             top = max(top, Float(max(h, SEA)) + clear)
-            if abs(p.x - Float(r.cx)) < reach && abs(p.z - Float(r.cz)) < reach { top = max(top, Float(r.y0 + 74)) }
+            if simd_length(V2(p.x - Float(r.cx), p.z - Float(r.cz))) < reach { top = max(top, Float(r.y0 + 74)) }
         }
         return min(top, Float(CH - 30))
     }
