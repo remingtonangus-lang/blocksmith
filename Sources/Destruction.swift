@@ -124,12 +124,16 @@ enum Collapse {
 
     // What fails around `holes` (cells just emptied). Reads the world only.
     // `seeds`: built cells to check besides those next to the holes (a whole scene, for the harness's oracle).
-    static func analyze(_ w: World, around holes: [IVec3], seeds extra: [IVec3] = [], cap: Int = Collapse.cap) -> Result {
+    // `restore`: cells read as holding these blocks instead of what the world has (the holes filled back in, to ask
+    // what stood before the damage; no necks are judged then).
+    static func analyze(_ w: World, around holes: [IVec3], seeds extra: [IVec3] = [], cap: Int = Collapse.cap,
+                        restore: [IVec3: BlockID] = [:]) -> Result {
         var res = Result()
         // Block reads with the last chunk kept (the search reads neighbours of neighbours: mostly the same chunk).
         var lastKey = ChunkKey(x: Int.min, z: Int.min)
         var lastChunk: Chunk?
         func block(_ c: IVec3) -> BlockID {
+            if !restore.isEmpty, let b = restore[c] { return b }
             if c.y < 0 { return BEDROCK }
             if c.y >= CH { return AIR }
             let k = ChunkKey(x: floorDiv(c.x, CS), z: floorDiv(c.z, CS))
@@ -289,7 +293,7 @@ enum Collapse {
             }
             // Necks: a layer the damage narrowed, against what stands above it (not in a structure bigger than the
             // search: what stands above the neck isn't all known). Only layers holding a hole under one of its cells.
-            guard open else { continue }
+            guard open && restore.isEmpty else { continue }
             var layers = Set<Int>()
             for h in holeSet {
                 if let g = table.get(h + up), compOf[Int(g)] == compId { layers.insert(h.y) }
@@ -299,6 +303,40 @@ enum Collapse {
             if let t = neck(w, comp: comp, holes: holeSet, layers: layers.sorted()) { res.tip.append(t) }
         }
         return res
+    }
+
+    // Stand-ins for emptied cells when asking what stood before the damage. Every hole held a block (blasts, mining and
+    // smashing only empty solid cells): one beside built blocks holds what its strongest built neighbour is made of (a
+    // wall's hole was most likely the wall's own material), one beside terrain only was terrain (stone), and a crater's
+    // inner cells take the material of the filled cells round them, from the rim in (left empty, a blast through a
+    // bridge would read as a cut already made, and the cut bridge would stand).
+    static func standIns(_ w: World, _ holes: [IVec3]) -> [IVec3: BlockID] {
+        var out: [IVec3: BlockID] = [:]
+        var left = Array(holes.prefix(4000))
+        let holeSet = Set(left)
+        var pass = 0
+        while !left.isEmpty && pass < 24 {
+            var next: [IVec3] = []
+            var fills: [(IVec3, BlockID)] = []
+            for h in left {
+                var best: BlockID = AIR, bestS: Float = -1, ground = false
+                for d in dirs6 {
+                    let n = h + d
+                    let b = out[n] ?? (holeSet.contains(n) ? AIR : w.rawBlock(n.x, n.y, n.z))
+                    if BlockMaterial.anchors(b) { ground = true; continue }
+                    guard built(b) else { continue }
+                    let st = BlockMaterial.strength(b)
+                    if st > bestS { best = b; bestS = st }
+                }
+                if best == AIR && ground { best = STONE }
+                if best != AIR { fills.append((h, best)) } else { next.append(h) }
+            }
+            if fills.isEmpty { break }
+            for (h, b) in fills { out[h] = b }       // after the pass: a fill spreads one cell a pass, evenly
+            left = next
+            pass += 1
+        }
+        return out
     }
 
     // A binary min-heap of (cost, cell index) for the support search.

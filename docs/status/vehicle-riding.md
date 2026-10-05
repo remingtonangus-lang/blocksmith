@@ -161,3 +161,9 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   column of magenta specks frozen in mid-air) and the late frigate shot looks at the biggest wreck; the collapse
   shots are one snap.sh line each so `[fastshots collapse_frigate_40]` works. collapsecheck reports what a tick over
   30 ms spent its time on (support search, laying down, hull split, wreck steps, the rest).
+- As-built rule (Debris.swift collapse, Destruction.swift `restore:` and `standIns`): structcheck found every generated
+  structure kind with blocks the support analysis can't hold up as built (a monument's hall roofs, 3400 blocks; end
+  city overhangs; ruins), and one mined block brought such a structure down whole. A collapse now runs the search a
+  second time with the holes filled back in (each hole holds its strongest built neighbour's material, terrain beside
+  terrain, a crater filled from the rim in); what failed then too stands, unless the cut took what joined it to the rest
+  (the pillar under an old overhang). Oracle: collapsecheck relic.

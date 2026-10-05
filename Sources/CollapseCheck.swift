@@ -42,7 +42,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,massive,desert,frigate,wreck,dropship").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,massive,desert,relic,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -58,6 +58,7 @@ enum CollapseCheck {
             switch n {
             case "wreck": wreckScene(r, st)
             case "dropship": dropshipScene(r, st)
+            case "relic": relicScene(r, st)
             default: collapseScene(r, st, name: n)
             }
             r.note(String(format: "scene took %.0f s", CFAbsoluteTimeGetCurrent() - ts))
@@ -203,6 +204,18 @@ enum CollapseCheck {
             st.ship = d
             st.box = (IVec3(o.x - 40, o.y - 4, o.z - 40), IVec3(o.x + 40, o.y + 40, o.z + 40))
             st.view = (V3(Float(o.x + 24), Float(o.y + 6), Float(o.z + 24)), atan2f(24, 24), 0.1)
+        case "relic":
+            // As generated (world gen's long overhangs and hulks the support analysis can't hold up): a 3x3 brick pillar
+            // 9 high with a 3-wide arm reaching 14 out from it (bricks reach 6), and a brick hulk floating in the air.
+            let top = o.y + 8
+            for dz in -1...1 { for dx in -1...1 {
+                let x = o.x + dx, z = o.z + dz
+                fill(w, IVec3(x, w.topY(x, z) + 1, z), IVec3(x, top, z), brick)
+            } }
+            fill(w, IVec3(o.x + 2, top, o.z - 1), IVec3(o.x + 14, top, o.z + 1), brick)
+            fill(w, IVec3(o.x - 14, o.y + 10, o.z - 2), IVec3(o.x - 11, o.y + 12, o.z + 1), brick)
+            st.box = (IVec3(o.x - 18, o.y - 2, o.z - 6), IVec3(o.x + 18, top + 6, o.z + 6))
+            st.view = (V3(Float(o.x), Float(o.y + 6), Float(o.z + 30)), 0, -0.05)
         case "wreck":
             w.ships.spawnCapital("crawler", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
             guard let s = w.ships.capitals.first(where: { $0.role == "crawler" }), let cs = w.ships.capState[s.id] else { return false }
@@ -397,6 +410,47 @@ enum CollapseCheck {
         // Far from spawn the desert scene's ticks are the world streaming in round it (p95 15-19 ms with the analysis
         // at 0.1 ms, runs of 9a45968 and e496302): its own check is the search time above.
         if name == "desert" { r.note("(streaming, not judged) " + tickLine) } else { r.check(p95 < 16 && worst < 120, tickLine) }
+    }
+
+    // Generated structures stand as built: mining into an overhang that was never held, or into a hulk that touches
+    // nothing, brings nothing down (a monument's 3400 blocks fell to one mined block); cutting what did hold them does.
+    static func relicScene(_ r: RideCheck.Report, _ st: Stage) {
+        let w = st.world, g = st.game, o = st.origin
+        let idle = RideCheck.Bot()
+        let agent = Agent(game: g, world: w)
+        for _ in 0..<60 { agent.step(idle) }
+        let top = o.y + 8
+        var arm: [IVec3] = [], hulk: [IVec3] = [], base: [IVec3] = []
+        for x in (o.x + 2)...(o.x + 14) { for z in (o.z - 1)...(o.z + 1) { arm.append(IVec3(x, top, z)) } }
+        for y in (o.y + 10)...(o.y + 12) { for z in (o.z - 2)...(o.z + 1) { for x in (o.x - 14)...(o.x - 11) { hulk.append(IVec3(x, y, z)) } } }
+        for dz in -1...1 { for dx in -1...1 { let x = o.x + dx, z = o.z + dz; base.append(IVec3(x, w.topY(x, z) + 1, z)) } }
+        func standing(_ cells: [IVec3]) -> Int { cells.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count }
+        let before = floating(st)
+        r.note("as built: \(before.0) blocks the analysis can't hold up (\(before.1))")
+        r.check(before.0 > 20, "the scene has an overhang and a hulk the analysis can't hold up as built (\(before.0) blocks)")
+        func mine(_ c: IVec3, _ secs: Int) {
+            let b = w.rawBlock(c.x, c.y, c.z)
+            if b != AIR { g.breakBlock(c, b, drop: false) }
+            for _ in 0..<(secs * 60) { agent.step(idle) }
+        }
+        let arm0 = standing(arm), hulk0 = standing(hulk)
+        mine(IVec3(o.x + 14, top, o.z), 4)
+        r.check(standing(arm) == arm0 - 1, "mining the tip of an old overhang brings nothing else down (\(standing(arm)) of \(arm0 - 1) arm blocks stand)")
+        mine(IVec3(o.x + 7, top, o.z + 1), 4)
+        r.check(standing(arm) == arm0 - 2, "nor mining into its middle (\(standing(arm)) of \(arm0 - 2))")
+        mine(hulk[0], 4)
+        r.check(standing(hulk) == hulk0 - 1, "mining a floating hulk brings nothing else down (\(standing(hulk)) of \(hulk0 - 1))")
+        r.check(w.ships.asBuiltKept > 0, "the as-built rule held them (\(w.ships.asBuiltKept) blocks kept)")
+        // The pillar's foot mined out: what it held, the old overhang with it, comes down.
+        for c in base { let b = w.rawBlock(c.x, c.y, c.z); if b != AIR { g.breakBlock(c, b, drop: false) } }
+        var t = 0
+        while t < 30 * 60 && (t < 120 || w.ships.list.contains(where: { $0.debris }) || !w.ships.collapseQueue.isEmpty) { agent.step(idle); t += 1 }
+        let armLeft = standing(arm)
+        r.check(armLeft * 4 <= arm0, "cut from its pillar, the old overhang falls with it (\(armLeft) of \(arm0) arm blocks left up there)")
+        r.check(!w.ships.list.contains { $0.debris }, "every piece is laid back into the world once it rests")
+        let after = floating(st, besides: before.2)
+        r.check(after.0 == 0, "no new floating leftovers (\(after.0) unsupported blocks\(after.1.isEmpty ? "" : ", first at " + after.1))")
+        r.check(standing(hulk) == hulk0 - 1, "the hulk still floats as built (\(standing(hulk)) of \(hulk0 - 1))")
     }
 
     static func wreckScene(_ r: RideCheck.Report, _ st: Stage) {

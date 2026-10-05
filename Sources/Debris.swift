@@ -9,10 +9,49 @@ extension ShipManager {
     // Runs the support analysis round cells just emptied (an explosion's holes, a block a falling piece broke) and sets
     // whatever fails moving. Returns the number of bodies made.
     @discardableResult
-    func collapse(around holes: [IVec3], game: Game?, from blast: V3? = nil, seeds: [IVec3] = [], only: Set<IVec3>? = nil) -> Int {
+    // `asBuilt`: what already stood unsupported before the damage (as the world generated it: a monument's hall roofs,
+    // an end city's overhangs, a ruin's arches) stands on; only what the damage cut from its support falls. Off for the
+    // gaps a settle check leaves (what rested on falling debris goes with it).
+    func collapse(around holes: [IVec3], game: Game?, from blast: V3? = nil, seeds: [IVec3] = [], only: Set<IVec3>? = nil,
+                  asBuilt: Bool = true) -> Int {
         guard !holes.isEmpty || !seeds.isEmpty else { return 0 }
         let t0 = CFAbsoluteTimeGetCurrent()
         var r = Collapse.analyze(world, around: holes, seeds: seeds)
+        if asBuilt && only == nil && !holes.isEmpty && !r.falling.isEmpty {
+            // The same search with the holes filled back in: pieces that fail then too were never held, and stay.
+            let falling = r.falling.flatMap { $0 }
+            let before = Collapse.analyze(world, around: [], seeds: falling, restore: Collapse.standIns(world, holes))
+            if !before.falling.isEmpty {
+                var pre = Set<IVec3>()
+                for p in before.falling { for c in p { pre.insert(c) } }
+                var now = falling.filter { !pre.contains($0) }
+                // As-built pieces stay unless the damage cut what joined them to the rest (the pillar under an old
+                // overhang mined away): one that touched what now falls, or a hole that met the ground or the standing
+                // structure, and touches neither any longer, goes with the rest. (A generated hulk that never touched
+                // anything, mined into, keeps standing as it stood.)
+                let fallingSet = Set(falling), gone = Set(now), holeSet = Set(holes)
+                func holds(_ n: IVec3) -> Bool {
+                    if holeSet.contains(n) || gone.contains(n) { return false }
+                    let b = world.rawBlock(n.x, n.y, n.z)
+                    return BlockMaterial.anchors(b) || (Collapse.built(b) && !fallingSet.contains(n))
+                }
+                var linkHoles = Set<IVec3>()
+                for h in holes where Collapse.dirs6.contains(where: { holds(h + $0) }) { linkHoles.insert(h) }
+                let stay = falling.filter { pre.contains($0) }
+                for piece in Collapse.pieces(stay) {
+                    var cut = false, joined = false
+                    for c in piece {
+                        for d in Collapse.dirs6 {
+                            let n = c + d
+                            if gone.contains(n) || linkHoles.contains(n) { cut = true } else if holds(n) { joined = true }
+                        }
+                        if joined { break }
+                    }
+                    if cut && !joined { now += piece } else { asBuiltKept += piece.count }
+                }
+                r.falling = now.isEmpty ? [] : Collapse.pieces(now)
+            }
+        }
         if let keep = only {
             // A settle check cuts only the blocks just laid down, never the structure they came to rest on.
             var kept: [[IVec3]] = []
@@ -41,7 +80,7 @@ extension ShipManager {
         if only != nil && !r.falling.isEmpty {
             var gaps: [IVec3] = []
             for p in r.falling { gaps += p }
-            queueCollapse(gaps, from: nil)
+            queueCollapse(gaps, from: nil, asBuilt: false)
         }
         collapseMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         spentMs["support", default: 0] += collapseMs
@@ -51,8 +90,8 @@ extension ShipManager {
 
     // Holes to check next frame: every blast of a frame is checked together, at most one check a frame (a salvo on a
     // big building can't stack up a dozen 6000-cell searches in one frame).
-    func queueCollapse(_ holes: [IVec3], from: V3?) {
-        if collapseQueue.count < 64 { collapseQueue.append((holes, from)) }
+    func queueCollapse(_ holes: [IVec3], from: V3?, asBuilt: Bool = true) {
+        if collapseQueue.count < 64 { collapseQueue.append((holes, from, asBuilt)) }
     }
 
     // World cells into a free-moving body (keeps their place; pieces under Collapse.minPiece blocks just break).
@@ -117,14 +156,15 @@ extension ShipManager {
             // This frame's blasts together (holes of later frames wait).
             var holes: [IVec3] = []
             var from: V3?
-            var n = 0
+            var n = 0, asBuilt = true
             while n < collapseQueue.count && holes.count < 4000 {
                 holes += collapseQueue[n].0
                 from = from ?? collapseQueue[n].1
+                asBuilt = asBuilt && collapseQueue[n].2
                 n += 1
             }
             collapseQueue.removeFirst(n)
-            collapse(around: holes, game: game, from: from)
+            collapse(around: holes, game: game, from: from, asBuilt: asBuilt)
         } else if !settleQueue.isEmpty {
             // Pieces just laid down: whatever of them overhangs further than it spans breaks off and falls again (a
             // toppled tower lying across its own stump).

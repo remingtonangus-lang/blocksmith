@@ -620,7 +620,8 @@ final class ShipManager {
     var capState: [Int: CapitalState] = [:]
     // Destruction (Destruction.swift, Debris.swift, Wrecks.swift).
     var smashed: [IVec3] = []        // world blocks debris broke this frame (ShipPhysics.step)
-    var collapseQueue: [([IVec3], V3?)] = []   // blast holes waiting for their support check (one check per frame)
+    var collapseQueue: [([IVec3], V3?, Bool)] = []   // blast holes waiting for their support check (one a frame), as-built rule
+    var asBuiltKept = 0              // blocks left standing because they stood unsupported before the damage (harness)
     var collapseMs: Double = 0       // the last support analysis (harness)
     var settleQueue: [IVec3] = []    // blocks of debris just laid down, checked next frame (Debris.swift)
     var worstBakeMs: Double = 0      // the slowest laying-down of a body (harness)
