@@ -191,6 +191,11 @@ func _map() -> void:
 	await _settle(20)
 
 func _journal() -> void:
+	var md = Game.missions
+	if md and md.completed.is_empty():
+		for path in MissionDirector.MISSIONS.slice(0, 12):
+			var m = load(path).new()
+			md.completed.append(m.id)          # a journal with a few chapters written in it
 	if Game.get("menus"):
 		Game.menus.open_journal()
 	await _settle(15)
