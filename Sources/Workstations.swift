@@ -172,7 +172,7 @@ final class GrindstoneMenu: Menu {
             o.damage = max(0, d - remain)
             let curses = (Enchant.list(a) + Enchant.list(b)).filter { Enchant.def($0.0).curse }
             o.ench = Enchant.pack(curses)
-            o.repairCost = 0
+            o.repairCost = Enchant.list(o).reduce(0) { r, _ in r * 2 + 1 }      // rebuilt from what's left (each curse kept)
             let xp = (Enchant.list(a) + Enchant.list(b)).filter { !Enchant.def($0.0).curse }.reduce(0) { $0 + Enchant.def($1.0).minCost($1.1) }
             return (o, xp)
         }
@@ -181,7 +181,7 @@ final class GrindstoneMenu: Menu {
         let keep = Enchant.list(s).filter { Enchant.def($0.0).curse }
         var o = s
         o.ench = Enchant.pack(keep)
-        o.repairCost = 0
+        o.repairCost = keep.reduce(0) { r, _ in r * 2 + 1 }      // prior work rebuilt from the curses kept (reference; it was 0)
         if Items.key(s.item) == "enchanted_book" && keep.isEmpty { o = ItemStack(Items.id("book"), 1) }
         let xp = Enchant.list(s).filter { !Enchant.def($0.0).curse }.reduce(0) { $0 + Enchant.def($1.0).minCost($1.1) }
         return (o, xp)
