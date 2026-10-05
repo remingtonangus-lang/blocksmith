@@ -68,6 +68,27 @@ func _process(_delta: float) -> void:
 	for r in rows.slice(0, 30):
 		print("  %-46s main %4d  shadow %4d  (%d nodes)" % r)
 	_rows = rows
+	var veg: Node = G.world.vegetation
+	if veg:
+		var kinds := {}
+		for c in veg.get_children():
+			var nm: String = c.get_class()
+			var surf := 0
+			var kids := 1
+			if c is MultiMeshInstance3D and (c as MultiMeshInstance3D).multimesh and (c as MultiMeshInstance3D).multimesh.mesh:
+				surf = (c as MultiMeshInstance3D).multimesh.mesh.get_surface_count()
+			elif c.get_child_count() > 0:
+				nm = "Node3D(super)"
+				kids = c.get_child_count()
+				for cc in c.get_children():
+					if cc is MultiMeshInstance3D and (cc as MultiMeshInstance3D).multimesh.mesh:
+						surf += (cc as MultiMeshInstance3D).multimesh.mesh.get_surface_count()
+			if not kinds.has(nm):
+				kinds[nm] = [0, 0, 0]
+			kinds[nm][0] += 1
+			kinds[nm][1] += kids
+			kinds[nm][2] += surf
+		print("vegetation children: %s (count, instances, surfaces)" % kinds)
 	if DisplayServer.get_name() == "headless":
 		_finish()
 		return

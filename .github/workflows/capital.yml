@@ -192,6 +192,10 @@ jobs:
           test -d Alabaster.app/Contents/MacOS || { echo "export failed"; exit 1; }
           # The official template is universal: keep only the Apple Silicon slice.
           for b in Alabaster.app/Contents/MacOS/*; do lipo "$b" -thin arm64 -output "$b.arm64" && mv "$b.arm64" "$b"; done
+          # The pad bridge for GIP pads macOS has no driver for (PowerA 20D6:2074); a build error must not
+          # block the release, so it is reported and skipped.
+          if swiftc -O -target arm64-apple-macos13 ../tools/padbridge/main.swift -o Alabaster.app/Contents/MacOS/padbridge -framework IOUSBHost -framework IOKit 2> ../../ci-padbridge.log; then
+            echo "padbridge built"; else echo "padbridge FAILED to build:"; cat ../../ci-padbridge.log; fi
           codesign --force --deep -s - Alabaster.app
           codesign -dv Alabaster.app 2>&1 | head -5
           lipo -info Alabaster.app/Contents/MacOS/* || true
@@ -209,6 +213,7 @@ jobs:
           tail -12 ci/mac_benchmark.log
           cp ~/Library/Logs/CapitalGame/game.log ci/mac_game.log 2>/dev/null || true
           cp ~/Library/Logs/CapitalGame/benchmark.json ci/ 2>/dev/null || true
+          cp ci-padbridge.log ci/ 2>/dev/null || true
           grep -q "smoke: ok" ci/mac_smoke.log
       - name: Publish to the capital-latest pre-release
         env:

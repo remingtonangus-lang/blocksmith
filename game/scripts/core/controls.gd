@@ -62,6 +62,31 @@ func _ready() -> void:
 	_bridge = PacketPeerUDP.new()
 	if _bridge.bind(47731, "127.0.0.1") != OK:
 		_bridge = null
+	_start_bridge_later()
+
+
+var _bridge_pid := -1
+
+
+## On macOS, when no pad shows up a moment after start, run the bundled pad bridge (Contents/MacOS/padbridge);
+## it idles until a GIP pad is plugged in and is stopped when the game quits. `--no-padbridge` turns it off.
+func _start_bridge_later() -> void:
+	if OS.get_name() != "macOS" or DisplayServer.get_name() == "headless" or Settings.has_arg("no-padbridge"):
+		return
+	await get_tree().create_timer(1.5).timeout
+	if pad_id >= 0 or bridge_active or _bridge == null:
+		return
+	var exe := OS.get_executable_path().get_base_dir().path_join("padbridge")
+	if not FileAccess.file_exists(exe):
+		return
+	_bridge_pid = OS.create_process(exe, [])
+	G.log_line("pad bridge started (pid %d): no pad seen by the engine" % _bridge_pid)
+
+
+func _notification(what: int) -> void:
+	if (what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE) and _bridge_pid > 0:
+		OS.kill(_bridge_pid)
+		_bridge_pid = -1
 
 
 func _build_input_map() -> void:

@@ -41,8 +41,14 @@ IOHIDManager, but **without libusb**. The PowerA pad is a GIP device with vendor
 driver claims it, so neither GameController nor SDL's HID paths can open it. From the source alone: Godot will most
 likely **not** see it. `--padcheck` records what the engine actually sees (`padcheck.json`; the macOS CI runner has no
 pad, so this needs one run on the Mac). The fallback is the pad bridge (`game/tools/padbridge`, a userspace GIP driver
-over IOUSBHost that sends pad state to the game over UDP 127.0.0.1:47731); `Controls.gd` already reads it as a
-virtual pad.
+over IOUSBHost that sends pad state to the game over UDP 127.0.0.1:47731); `Controls.gd` reads it as a virtual pad.
+The bridge (`game/tools/padbridge/main.swift`) is compiled on the macOS runner into `Alabaster.app/Contents/MacOS/
+padbridge` (its build log is `ci/ci-padbridge.log` on capital-shots); the game starts it by itself 1.5 s after
+launch when the engine sees no pad (`--no-padbridge` turns that off) and stops it on quit. It opens interface 0 of
+20D6:2074 (other GIP pads: `padbridge VID PID` in hex), sends the GIP power-on, parses input reports 0x20 and the
+guide report 0x07 (acknowledged) and keeps the game's virtual pad alive every 0.5 s. Untested on real hardware:
+the cloud session has no pad and no Mac. If the pad still does nothing, `game.log` says whether the bridge started,
+and running `Alabaster.app/Contents/MacOS/padbridge` in Terminal prints what it finds.
 
 ## CI (`.github/workflows/capital.yml`)
 - Linux (ubuntu-24.04): official Godot 4.7.2 headless import + `tests/run_tests.gd`, screenshot shots under xvfb with
