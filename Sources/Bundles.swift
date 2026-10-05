@@ -49,7 +49,7 @@ extension Menu {
         let s = slot.stack
         if Bundles.isBundle(carried) {
             if s.isEmpty {
-                guard case let (nb, out)? = Bundles.takeOut(carried), slot.accepts(out) else { return false }
+                guard case let (nb, out)? = Bundles.takeOut(carried), slot.accepts(out), out.count <= slotLimit(slot, out) else { return false }
                 carried = nb; slot.stack = out
             } else {
                 let (nb, rest) = Bundles.insert(carried, s)

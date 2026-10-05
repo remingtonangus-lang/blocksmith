@@ -127,7 +127,9 @@ final class BeaconMenu: Menu {
         case 6: secondary = primary
         default:
             guard !pay[0].isEmpty, let p = primary else { return }
-            pay[0] = .empty
+            var paid = pay[0]                                    // one item pays (not the whole slot)
+            paid.count -= 1
+            pay[0] = paid.count > 0 ? paid : .empty
             be.mob = p.key
             be.secondary = secondary?.key ?? ""
             game.sfx(.beaconPower, 0.9)

@@ -191,7 +191,8 @@ class Menu {
                 slot.stack = s
                 carried.count -= n
                 if carried.count <= 0 { carried = .empty }
-            } else if slot.accepts(carried) {
+            } else if slot.accepts(carried) && carried.count <= slotLimit(slot, carried) {
+                // Only a stack the slot can hold swaps in (64 books swapped into the enchanting slot became one book).
                 slot.stack = carried
                 carried = s
             }
