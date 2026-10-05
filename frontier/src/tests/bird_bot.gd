@@ -166,7 +166,10 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 	res.errors = errs
 	if errs.size() > 0:
 		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
-	print("  birds: %s" % str(res))
+	res["metrics"] = {}
+	for k in res.keys():
+		if not k in ["bot", "ok", "failures", "errors", "metrics"]:
+			res.metrics[k] = str(res[k])
 	return res
 
 static func _wait(tree: SceneTree, s: float) -> void:

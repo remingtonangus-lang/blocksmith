@@ -35,10 +35,10 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "birds", "missions", "camp", "encounters", "social", "openworld", "presentation", "living", "systems", "ui", "footik", "cover", "melee"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "birds", "horsework", "missions", "camp", "encounters", "social", "openworld", "presentation", "living", "systems", "ui", "footik", "cover", "melee"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
-		if b == "ride" or b == "gaits":
+		if b == "ride" or b == "gaits" or b == "horsework":
 			var hb = load("res://src/tests/horse_bot.gd").new()
 			add_child(hb)
 			res = await hb.run(b, seconds, self)
@@ -1639,6 +1639,8 @@ static func _metrics(res: Dictionary) -> String:
 		if res.has(k):
 			var v = res[k]
 			out += ("  %s=%.1f" % [k, v]) if typeof(v) == TYPE_FLOAT else ("  %s=%s" % [k, str(v)])
+	for k in res.get("metrics", {}):
+		out += "  %s=%s" % [k, str(res.metrics[k])]
 	if res.has("completed"):
 		out += "  missions=%d" % res.completed.size()
 	if res.has("choices"):

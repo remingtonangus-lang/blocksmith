@@ -69,6 +69,16 @@ var bond_xp := 0.0
 var bond_level := 1
 var _stamina_base := -1.0                   # stamina_max before the bond bonus
 var saddlebags: Array = []                   # [{item, count}]
+var carcass: Node3D = null                   # an Animal carcass laid over the horse behind the saddle
+var carry_kg := 0.0                          # load (carcass): slower top speed, faster stamina drain
+var jump_assist := true                      # ridden at a trot or faster, the horse takes low obstacles on its own
+var jumps := 0
+var obstacle_hits := 0
+var bucks := 0
+var rears := 0
+var _obst := {}                              # last obstacle probe: {d, h} ahead, or empty
+var _obst_t := 0.0
+var _obst_hit_latch := false                 # one crash per obstacle
 # AI / misc
 var call_target: Node3D = null
 var hitch_point = null                       # Vector3 or null
@@ -160,6 +170,7 @@ func setup(seed: int, breed_name: String = "") -> void:
 
 func _ready() -> void:
 	all.append(self)
+	add_to_group("interactable")
 	yaw = rotation.y
 	_prev_pos = global_position
 	_cam_target = global_position + Vector3(0, 2.3, 0)
@@ -221,6 +232,7 @@ func _physics_process(dt: float) -> void:
 		_fallen(dt)
 		return
 	var ctl := _control(dt)          # {dir: Vector3 (world, may be ZERO), speed: target, brake: bool, jump: bool}
+	_obstacles(ctl, dt)
 	_steer(ctl, dt)
 	_move(dt)
 	_vertical(ctl, dt)
@@ -435,6 +447,8 @@ func _steer(c: Dictionary, dt: float) -> void:
 			target *= clampf(1.0 - slope_deg / 45.0 * 0.75, 0.25, 1.0)
 		else:
 			target *= clampf(1.0 + slope_deg / 60.0 * 0.5, 0.55, 1.05)
+	if carry_kg > 0.0:
+		target *= clampf(1.0 - carry_kg / 450.0, 0.7, 1.0)      # a carcass over the back slows the horse
 	if water_depth > 0.35 and not swimming:
 		target = minf(target, lerpf(pace_speed(2), pace_speed(0), clampf((water_depth - 0.35) / 1.0, 0.0, 1.0)))
 	if swimming:
@@ -499,10 +513,14 @@ func _vertical(c: Dictionary, dt: float) -> void:
 		floor_y = maxf(g, wl - 1.05)
 	if c.jump and not airborne and not swimming and _mount_t < 0.0:
 		if absf(speed) > 2.5 and stamina > 10.0:
-			vy = 4.7
+			# high enough to clear the obstacle ahead (when there is one) with 35 cm to spare
+			var h: float = float(_obst.get("h", 0.0))
+			vy = maxf(4.7, sqrt(2.0 * GRAVITY * (h + 0.35)))
 			airborne = true
 			stamina -= 6.0
+			jumps += 1
 			visual.play_action("jump")
+			Game.log_event("horse_jump", {"h": snappedf(h, 0.01), "speed": snappedf(speed, 0.1)})
 	if airborne:
 		vy -= GRAVITY * dt
 		p.y += vy * dt
@@ -656,6 +674,7 @@ func _cores(dt: float) -> void:
 		drain = 2.8 * 100.0 / stamina_max             # ~35 s of flat-out gallop on a full bar
 	if swimming:
 		drain += 3.0
+	drain *= 1.0 + carry_kg / 160.0
 	if drain > 0.0:
 		stamina = maxf(stamina - drain * dt, 0.0)
 		stamina_core = maxf(stamina_core - drain * 0.01 * dt, 0.0)
@@ -738,7 +757,15 @@ func _frighten(amount: float, from: Vector3, kind: String) -> void:
 		_react_cooldown = 4.0
 		spooked.emit(kind)
 		if state == State.RIDDEN:
-			if _try_action("rear"):
+			var buck: bool = (kind == "predator" or fear > 1.0) and _rng.randf() < 0.45
+			if buck and _try_action("buck"):
+				bucks += 1
+				speed *= 0.5
+				Game.log_event("horse_buck", {"kind": kind})
+				if _rng.randf() < THROW_CHANCE[clampi(bond_level - 1, 0, 3)] * 1.5:
+					_throw_rider()
+			elif _try_action("rear"):
+				rears += 1
 				speed *= 0.3
 				var chance: float = THROW_CHANCE[clampi(bond_level - 1, 0, 3)] * (1.3 if kind == "predator" else 1.0)
 				if _rng.randf() < chance:
@@ -756,6 +783,78 @@ func _fear_update(dt: float) -> void:
 		for n in get_tree().get_nodes_in_group("predator"):
 			if n is Node3D and n.global_position.distance_to(global_position) < 25.0:
 				_frighten(0.35, n.global_position, "predator")
+
+# ================================================================== obstacles: jumps, refusals, crashes
+## Probe for a low obstacle ahead (log, fence, wall < 1.4 m): a ray at knee height that hits and one at
+## 1.6 m that does not. Ridden at a trot or faster the horse jumps it (rider's jump, or the jump assist); a
+## nervous young horse may refuse a high one; running into one at speed without jumping stumbles or falls.
+func _obstacles(c: Dictionary, dt: float) -> void:
+	_obst_t -= dt
+	var v := absf(speed)
+	if _obst_t <= 0.0:
+		_obst_t = 0.05
+		_obst = _probe_obstacle() if v > 1.5 and not airborne else {}
+		if _obst.is_empty():
+			_obst_hit_latch = false
+	if _obst.is_empty() or airborne or swimming:
+		return
+	var d: float = float(_obst.d)
+	var h: float = float(_obst.h)
+	var reach := 2.6 + v * 0.18
+	if v > 3.5 and d < reach and d > 0.6 and h < 1.4:
+		var wants: bool = c.jump or (jump_assist and (rider != null or state == State.FREE)) or _flee_time > 0.0
+		if wants and h > 1.05 and bond_level <= 1 and _refuse_cd <= 0.0 and _rng.randf() < 0.3:
+			_refuse_cd = 3.0
+			_try_action("refuse")
+			speed *= 0.2
+			Game.log_event("horse_refuse", {"h": h})
+			return
+		if wants:
+			c.jump = true
+			return
+	if d < 1.45 + v * 0.06 and v > 5.5 and not _obst_hit_latch:
+		obstacle_hits += 1
+		_obst_hit_latch = true
+		Game.log_event("horse_obstacle_hit", {"h": snappedf(h, 0.01), "speed": snappedf(v, 0.1)})
+		if v > 9.0:
+			_fall("obstacle")
+		else:
+			_stumble()
+			speed *= 0.3
+
+func _probe_obstacle() -> Dictionary:
+	if not is_inside_tree():
+		return {}
+	var space := get_world_3d().direct_space_state
+	var fwd := forward() * signf(speed if speed != 0.0 else 1.0)
+	var p := global_position
+	var ex: Array[RID] = [get_rid()]
+	if Game.terrain != null and Game.terrain.get("_coll_body") != null:
+		ex.append(Game.terrain._coll_body.get_rid())
+	if rider is CollisionObject3D:
+		ex.append(rider.get_rid())
+	var L := 6.0
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0, 0.35, 0) + fwd * 1.0, p + Vector3(0, 0.35, 0) + fwd * L)
+	q.collision_mask = 1
+	q.exclude = ex
+	var low := space.intersect_ray(q)
+	if low.is_empty() or low.normal.y > 0.6:
+		return {}
+	var d: float = (low.position - p).dot(fwd)
+	var q2 := PhysicsRayQueryParameters3D.create(p + Vector3(0, 1.6, 0) + fwd * 1.0, p + Vector3(0, 1.6, 0) + fwd * (d + 0.8))
+	q2.collision_mask = 1
+	q2.exclude = ex
+	if not space.intersect_ray(q2).is_empty():
+		return {}                              # a wall: too high to jump
+	# top of the obstacle: cast down just past the near face
+	var top_from: Vector3 = low.position + fwd * 0.15 + Vector3(0, 1.3, 0)
+	var q3 := PhysicsRayQueryParameters3D.create(top_from, top_from + Vector3(0, -1.6, 0))
+	q3.collision_mask = 1
+	q3.exclude = ex
+	var top := space.intersect_ray(q3)
+	var g := ground_at(low.position.x, low.position.z)
+	var h: float = (top.position.y - g) if not top.is_empty() else 1.2
+	return {"d": d, "h": h}
 
 # ================================================================== falls, stumbles, death
 func _stumble() -> void:
@@ -919,12 +1018,84 @@ func dismount(side: float = 0.0, thrown := false) -> bool:
 		else:
 			_rider_ik.start_dismount(r, _seated_from)     # dismount clip: the visual climbs down, then it frees itself
 	_rider_ik = null
-	# auto-hitch near a post
+	# auto-hitch at a town hitch rail (settlement "hitch" spots) or a hitching post node
+	var sett = Game.main.get("settlements") if Game.main != null else null
+	if sett != null and sett.has_method("nearest_spot"):
+		var spot: Dictionary = sett.nearest_spot(global_position, "hitch", 7.0)
+		if not spot.is_empty():
+			var o: Vector3 = spot.transform.origin
+			hitch(o + spot.transform.basis.z * 1.1)
+			Game.log_event("horse_hitched", {"at": [snappedf(o.x, 0.1), snappedf(o.z, 0.1)]})
 	for post in get_tree().get_nodes_in_group("hitching_post"):
 		if post is Node3D and post.global_position.distance_to(global_position) < 5.0:
 			hitch(post.global_position)
 			break
 	return true
+
+# ================================================================== carcass on the horse, saddlebags
+## Lay a carcass (Animal) over the horse's back behind the saddle: it rides on the lumbar spine, across the
+## horse, in its lying pose; its weight slows the horse and drains stamina faster.
+func carry(a: Node3D) -> bool:
+	if carcass != null or a == null or visual == null or visual.skeleton == null:
+		return false
+	carcass = a
+	carry_kg = float(a.call("carcass_kg")) if a.has_method("carcass_kg") else 40.0
+	a.set("carried_by", self)
+	a.set_physics_process(false)
+	if a is CollisionObject3D:
+		a.collision_layer = 0
+		a.collision_mask = 0
+	var sk: Skeleton3D = visual.skeleton
+	var ba := BoneAttachment3D.new()
+	ba.name = "CarcassMount"
+	ba.bone_name = "spine_lumbar"
+	sk.add_child(ba)
+	a.reparent(ba, false)
+	var bi := sk.find_bone("spine_lumbar")
+	var rest := sk.get_bone_global_rest(bi)
+	var sz: Vector3 = a.get("spec").size if a.get("spec") != null else Vector3(0.4, 0.8, 1.2)
+	# across the back, lying on its side, centred behind the cantle
+	var at := Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(sz.z * 0.1, 1.5 - sz.x * 0.35, 0.42))
+	a.transform = rest.affine_inverse() * at
+	var mv = a.get("model_vis")
+	if mv != null:
+		mv.set_locomotion("carcass_pose", 1.0)
+	Game.log_event("horse_carry", {"species": str(a.get("species")), "kg": snappedf(carry_kg, 0.1)})
+	return true
+
+## Take the carcass down onto the ground beside the horse.
+func unload() -> Node3D:
+	if carcass == null or not is_instance_valid(carcass):
+		carcass = null
+		carry_kg = 0.0
+		return null
+	var a := carcass
+	var mount := a.get_parent()
+	var side_pt := global_transform * Vector3(-1.2, 0, 0.4)
+	side_pt.y = ground_at(side_pt.x, side_pt.z)
+	a.reparent(get_parent(), false)
+	a.global_transform = Transform3D(Basis(Vector3.UP, yaw + PI * 0.5), side_pt)
+	a.set("carried_by", null)
+	a.set_physics_process(true)
+	if mount != null and mount.name == "CarcassMount":
+		mount.queue_free()
+	carcass = null
+	carry_kg = 0.0
+	Game.log_event("horse_unload", {"species": str(a.get("species"))})
+	return a
+
+func interact_prompt() -> String:
+	if rider != null or state == State.DEAD:
+		return ""
+	if carcass != null and is_instance_valid(carcass):
+		return "Take down the %s" % str(carcass.get("spec").name).to_lower()
+	return "Open the saddlebags"
+
+func interact(_who: Node) -> void:
+	if carcass != null:
+		unload()
+		return
+	Satchel.open(self)
 
 func _dismount_point(side: float) -> Vector3:
 	var pt := global_transform * Vector3(side * 1.05, 0.0, 0.0)
