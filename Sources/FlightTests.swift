@@ -333,12 +333,22 @@ enum FlightTests {
             var bank: Float = 0
             input.strafe = -1
             tag = "planeplayer-left"
-            _ = step(5) { _ in bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y)); return false }
+            func turnedSince(_ y: Float) -> Float {
+                var d = s.yaw - y
+                while d > Float.pi { d -= 2 * Float.pi }
+                while d < -Float.pi { d += 2 * Float.pi }
+                return d
+            }
+            var at3: Float = 0
+            _ = step(5) { t in
+                bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y))
+                if t < 3 { at3 = turnedSince(yaw0) }
+                return false
+            }
             input = MoveInput()
-            var turned = s.yaw - yaw0
-            while turned > Float.pi { turned -= 2 * Float.pi }
-            while turned < -Float.pi { turned += 2 * Float.pi }
-            check(bank > 0.15 && turned > 0.2, "A banks it into a left turn", String(format: "bank %.2f, turned %.2f rad", bank, turned))
+            let turned = turnedSince(yaw0)
+            check(bank > 0.15 && turned > 0.5 && at3 > 0.2, "A banks it into a left turn",
+                  String(format: "bank %.2f, turned %.2f rad (%.2f in the first 3 s)", bank, turned, at3))
             _ = step(6)
             check(upright(s) > 0.9, "let go, the wings level out", String(format: "upright %.2f", upright(s)))
             g.leaveHelm()

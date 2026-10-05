@@ -139,6 +139,14 @@ final class FlightModel {
         // way round: adverse yaw turned the Heron right on a left stick, flighttest planeplayer).
         let rudder: Float = -FlightModel.rho * fin * sp * sp * steer * 0.08
         apply(rightW * (vane + rudder), at: tail)
+        // Turn coordinator (yaw damper): the nose follows the bank at the coordinated rate g tan(bank) / v (the fin
+        // alone left 3 s of adverse yaw before a turn began: flighttest planeplayer-left).
+        if sp > 10 {
+            let bankNow: Float = asinf(max(-1, min(1, -rightW.y)))           // > 0: right wing down, turning right
+            let wantRate: Float = -ShipTuning.g * tanf(max(-1.0, min(1.0, bankNow))) / sp
+            let yawErr: Float = wantRate - s.angVel.y
+            T += V3(0, 1, 0) * (yawErr * s.inertiaDiag.y * 1.5)
+        }
         // Dihedral: wings level out by themselves with the stick centred.
         if abs(steer) < 0.1 {
             let up = s.dirToWorld(upL), fw = s.dirToWorld(fwdL)
