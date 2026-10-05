@@ -238,3 +238,10 @@ Work order from this round:
 - 2026-10-05: character round 3 (worktree agent): skin shader (pores, regional roughness, wrap-light scatter for
   Mobile/no-SSS, two-lobe spec), NPC L/R face-shape merge, hat crowns clear the skull, aprons share skirt weights,
   hashed-alpha strand beards/updos, clip library never loads on the main thread at spawn.
+- 2026-10-05: me: storm sky closes into one grey deck with faint shadows; minimap arrow/route/frame were hidden
+  under the map texture (fixed) + live contours; brass stat dials; prompts follow device/rebinding; town buildings
+  drive interior audio (reverb, indoor beds, saloon crowd; oracle in --bot systems); human foot IK (--bot footik:
+  ankles 13.2/3.7 cm -> 7.5/7.5 cm on a 15 degree slope); terrain far patches stop casting shadows.
+- 2026-10-05: merged writer presentation round (conversation cameras, title/results cards, medals, gold, outfits,
+  any-sheriff turn-ins), character round 3, geometry budget (tree LODs, closer impostor hand-off), settlements
+  round (prop decimation, interior culling, town-life layers). Container restart mid-session: agents resumed.
