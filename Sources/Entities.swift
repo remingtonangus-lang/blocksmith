@@ -139,7 +139,10 @@ final class ItemEntityManager {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
-            let light = max(0.08, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            // The cave fill (Shaders.caveFill): an item on a dark cave floor shows like the floor around it.
+            let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
+            let fill: Float = max(0.08, (0.05 + 0.2 * Settings.shared.lightBrightness) * near)
+            let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let copies = e.stack.count > 32 ? 3 : (e.stack.count > 1 ? 2 : 1)
             for k in 0..<copies {
                 let off = V3(Float(k) * 0.06, Float(k) * 0.05, Float(k) * -0.05)

@@ -1300,7 +1300,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Skylight keeps a moonlit floor like the terrain's night ambient (the held block was a black cube on a
             // moonlit meadow: blind critic, run 395 torches).
             let skyK: Float = 0.12 + 0.88 * daylight          // ~0.22 at night: 0.38 read 3x the terrain (critic, run 417)
-            let light = max(0.12, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+            let fill: Float = max(0.12, 0.05 + 0.2 * Settings.shared.lightBrightness)     // the cave fill at arm's length
+            let light = max(fill, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount
