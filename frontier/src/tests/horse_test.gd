@@ -4,7 +4,7 @@ extends Node3D
 ##   godot --path frontier --resolution 960x540 res://scenes/horse_test.tscn -- --out DIR [--only a,b] [--quit 600]
 ## Shots: rest, front34, rear34, head, head34, walk, trot, canter, gallop, coats, tack, actions
 
-const SHOTS := ["rest", "front34", "head", "head34", "walk", "trot", "canter", "gallop", "coats", "rear34", "actions"]
+const SHOTS := ["rest", "front34", "head", "head34", "shoulder", "walk", "trot", "canter", "gallop", "coats", "rear34", "actions"]
 
 var out_dir := "user://horse_shots"
 var cam: Camera3D
@@ -56,7 +56,7 @@ func _env() -> void:
 	sun = DirectionalLight3D.new()
 	sun.light_energy = 2.4
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 30.0
+	sun.directional_shadow_max_distance = 60.0
 	sun.rotation = Vector3(deg_to_rad(-42), deg_to_rad(-35), 0)
 	add_child(sun)
 	var g := MeshInstance3D.new()
@@ -120,7 +120,7 @@ func _shot(s: String) -> void:
 	await get_tree().process_frame
 	var t0 := Time.get_ticks_msec()
 	match s:
-		"rest", "front34", "rear34", "head", "head34":
+		"rest", "front34", "rear34", "head", "head34", "shoulder":
 			var v := _horse(int(Game.args.get("seed", 3)), str(Game.args.get("breed", "quarter")), Vector3.ZERO, 0.0,
 				str(Game.args.get("coat", "")), not Game.args.has("notack"))
 			_pose(v, "idle", 0.0)
@@ -130,7 +130,8 @@ func _shot(s: String) -> void:
 				"front34": _look(Vector3(-3.2, 1.7, -4.2), Vector3(0, 1.05, -0.3), 38)
 				"rear34": _look(Vector3(-3.0, 1.8, 4.0), Vector3(0, 1.0, 0.1), 38)
 				"head": _look(Vector3(-1.5, 1.85, -1.75), Vector3(0, 1.72, -1.28), 32)
-				"head34": _look(Vector3(-0.55, 1.95, -2.55), Vector3(0, 1.7, -1.3), 34)
+				"head34": _look(Vector3(-1.1, 1.95, -2.6), Vector3(0, 1.7, -1.3), 34)
+				"shoulder": _look(Vector3(-2.2, 1.4, -1.2), Vector3(0, 1.15, -0.45), 34)
 		"walk", "trot", "canter", "gallop":
 			var n := 5
 			for i in n:
@@ -160,8 +161,8 @@ func _shot(s: String) -> void:
 				var v := _horse(40 + i, "mustang", Vector3.ZERO, 0.0, "", false)
 				var L := v.action_length(acts[i])
 				_pose(v, acts[i], L * 0.45)
-			_grid_layout(3)
-			_look(Vector3(-13.0, 5.0, 4.0), Vector3(0, 0.9, 1.0), 36)
+			_grid_layout(3, 4.4, 3.6)
+			_look(Vector3(-15.0, 5.5, 4.4), Vector3(1.8, 0.9, 1.2), 38)
 	await _save(s)
 	print("HORSE_TEST: %s %.1f s" % [s, (Time.get_ticks_msec() - t0) / 1000.0])
 
@@ -171,11 +172,11 @@ func _strip_layout(n: int) -> void:
 	for i in n:
 		horses[i].position = Vector3(0, 0, (float(i) - (n - 1) * 0.5) * 2.75)
 
-func _grid_layout(cols: int) -> void:
+func _grid_layout(cols: int, dx := 3.2, dz := 2.9) -> void:
 	for i in horses.size():
 		var r := i / cols
 		var c := i % cols
-		horses[i].position = Vector3(r * 3.2, 0, (float(c) - (cols - 1) * 0.5) * 2.9)
+		horses[i].position = Vector3(r * dx, 0, (float(c) - (cols - 1) * 0.5) * dz)
 
 # ------------------------------------------------------------------ gait oracle on the bare animation
 func _oracle() -> void:

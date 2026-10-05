@@ -146,6 +146,7 @@ func setup(seed: int, breed_name: String = "") -> void:
 	visual.scale = Vector3.ONE * float(stats.scale)
 	if visual.ik:
 		visual.ik.ground_fn = ground_at
+		visual.ik.modification_processed.connect(_on_ik_done)
 	for g in PACE_NAMES:
 		var info := visual.gait_info(g)
 		var sp: float = float(info.get("speed", DEFAULT_SPEEDS[g])) * float(stats.scale)
@@ -223,13 +224,21 @@ func _physics_process(dt: float) -> void:
 	_care(dt)
 	_fear_update(dt)
 	_animate(dt)
-	if record_gait and visual != null:
-		var s := {"t": _t, "pos": {}, "ground": {}}
-		for leg in ["LF", "RF", "LH", "RH"]:
-			var p := visual.sole_world(leg)
-			s.pos[leg] = p
-			s.ground[leg] = ground_at(p.x, p.z)
-		gait_samples.append(s)
+	if record_gait and visual != null and (visual.ik == null or not visual.ik.enabled):
+		_record_sample(false)
+
+## Gait oracle samples: hoof soles as rendered (after foot IK when it runs).
+func _record_sample(post_ik: bool) -> void:
+	var s := {"t": _t, "pos": {}, "ground": {}}
+	for leg in ["LF", "RF", "LH", "RH"]:
+		var p: Vector3 = visual.ik.post_soles.get(leg, visual.sole_world(leg)) if post_ik else visual.sole_world(leg)
+		s.pos[leg] = p
+		s.ground[leg] = ground_at(p.x, p.z)
+	gait_samples.append(s)
+
+func _on_ik_done() -> void:
+	if record_gait:
+		_record_sample(true)
 
 func _process(dt: float) -> void:
 	if state == State.RIDDEN and rider != null:
@@ -582,11 +591,11 @@ func _animate(dt: float) -> void:
 	gait = st
 	# lead follows the turn direction (flying change after a sustained turn)
 	if gait in ["canter", "gallop"]:
-		var want_right := yaw_rate < -0.12
-		var want_left := yaw_rate > 0.12
+		var want_right := yaw_rate < -0.22
+		var want_left := yaw_rate > 0.22
 		if (want_right and not lead_right) or (want_left and lead_right):
 			_lead_timer += dt
-			if _lead_timer > 0.5:
+			if _lead_timer > 0.9:
 				lead_right = want_right
 				_lead_timer = 0.0
 		else:

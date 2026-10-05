@@ -262,3 +262,5 @@ func _gaits(res: Dictionary) -> void:
 			_fail(res, "gait %s: feet slide %.1f cm per stance" % [gk, r.slide_cm_avg])
 	horse.debug_pace = -1
 	player.intent.move = Vector2.ZERO
+	if horse.visual.ik:
+		print("  foot IK: %d solves, last offsets %s" % [horse.visual.ik.calls, str(horse.visual.ik.offsets)])

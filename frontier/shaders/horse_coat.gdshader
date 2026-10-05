@@ -176,11 +176,11 @@ void fragment() {
 	col = mix(col, hc * (0.85 + 0.15 * vnoise(vec3(p.x * 300.0, p.z * 30.0, p.y * 300.0))), hoof);
 
 	// ---- hair: fine streaks along the hair flow (backwards and down), muscle definition from curvature/AO
-	vec3 flow_p = vec3(p.x * 160.0, p.y * 18.0 - p.z * 10.0, p.z * 160.0 + p.y * 20.0);
-	float streak = mix(1.0, 0.86 + 0.28 * vnoise(flow_p), lod_detail * (1.0 - hoof));
+	vec3 flow_p = vec3(p.x * 70.0, p.y * 9.0 - p.z * 5.0, p.z * 70.0 + p.y * 10.0);
+	float streak = mix(1.0, 0.92 + 0.16 * vnoise(flow_p), lod_detail * (1.0 - hoof));
 	col *= streak;
-	col *= mix(0.84, 1.08, curv);
-	float occl = mix(0.55, 1.0, ao);
+	col *= mix(0.9, 1.05, curv);
+	float occl = mix(0.65, 1.0, ao);
 
 	// ---- dirt (dust everywhere, more on legs/belly), mud splashes (legs and belly), wet, sweat
 	float low = smoothstep(1.25, 0.15, p.z);
@@ -198,13 +198,13 @@ void fragment() {
 	ALBEDO = col;
 	AO = occl;
 	AO_LIGHT_AFFECT = 0.35;
-	float r = mix(0.52, 0.36, sheen);
+	float r = mix(0.66, 0.5, sheen);
 	r = mix(r, 0.82, dust * 0.8);
 	r = mix(r, 0.9, m);
 	r = mix(r, 0.18, w * (1.0 - m));
 	r = mix(r, 0.3, hoof * 0.5);
 	ROUGHNESS = r;
-	SPECULAR = mix(0.42, 0.6, w);
-	RIM = sheen * 0.35 * (1.0 - dust);
+	SPECULAR = mix(0.32, 0.6, w);
+	RIM = sheen * 0.22 * (1.0 - dust);
 	RIM_TINT = 0.6;
 }

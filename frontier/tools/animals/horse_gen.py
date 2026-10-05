@@ -292,7 +292,7 @@ def build_prims():
     ell((-0.045, 1.48, 1.51), (0.009, 0.022, 0.012), ["head"], k=0.008, op="s", axis=tuple(fd), side=(1, 0.0, -0.4))  # nostril
     rc((-0.032, 1.395, 1.452), (-0.012, 1.485, 1.442), 0.0055, 0.004, ["head"], k=0.006, op="s")      # mouth line
     ell((-0.094, 1.19, 1.840), (0.024, 0.05, 0.02), ["head"], k=0.025, axis=(0, 0.85, -0.2))            # orbit ridge
-    ell((-0.106, 1.21, 1.805), (0.021, 0.023, 0.021), ["head"], k=0.008, op="s")                        # eye socket
+    ell((-0.097, 1.21, 1.805), (0.019, 0.022, 0.02), ["head"], k=0.008, op="s")                         # eye socket
     ear_a, ear_b = V(-0.056, 1.11, 1.965), V(-0.082, 1.145, 2.115)
     ax = ear_b - ear_a
     rc(tuple(ear_a - ax * 0.15), tuple(ear_a + ax * 0.45), 0.024, 0.026, ["ear_L"], k=0.025, sx=1.25)
@@ -326,7 +326,7 @@ def build_prims():
     ell((-0.165, 0.50, 1.04), (0.075, 0.13, 0.13), ["humerus_L", "scapula_L"], k=0.09, axis=(0, 1, -0.4))  # triceps
     ell((-0.155, 0.77, 1.12), (0.06, 0.065, 0.07), ["scapula_L", "humerus_L"], k=0.07)                 # point of shoulder
     rc((-0.16, 0.70, 1.12), (-0.165, 0.50, 0.90), 0.065, 0.058, ["humerus_L"], k=0.07)               # upper arm
-    ell((-0.08, 0.745, 1.0), (0.085, 0.15, 0.08), ["spine_withers", "humerus_L"], k=0.07, axis=(0, 0.35, -1))  # pectorals
+    ell((-0.075, 0.745, 1.06), (0.08, 0.12, 0.075), ["spine_withers", "humerus_L"], k=0.08, axis=(0, 0.35, -1))  # pectorals
     rc((-0.152, 0.455, 0.915), (-0.152, 0.46, 0.88), 0.036, 0.032, ["forearm_L", "humerus_L"], k=0.06)  # point of elbow
     rc((-0.158, 0.485, 0.85), (-0.145, 0.49, 0.56), 0.066, 0.04, ["forearm_L"], k=0.04, sx=0.88)     # forearm
     rc((-0.16, 0.515, 0.82), (-0.148, 0.505, 0.62), 0.042, 0.027, ["forearm_L"], k=0.04)             # extensor bulge
@@ -1784,14 +1784,14 @@ def build_hair(prims, arm, mat):
     head_prims = sub_prims(prims, V(-0.3, 1.0, 1.5), V(0.3, 1.6, 2.2))
     Pp, Np = V(0, 1.115, 1.985), V(0, 1.50, 1.50)
     fd = (Np - Pp) / np.linalg.norm(Np - Pp)
-    for k in range(9):
-        x = (k - 4) * 0.009
+    for k in range(13):
+        x = (k - 6) * 0.007
         r = V(x, 1.10 + rng.uniform(-0.01, 0.01), 0)
         r[2] = surface_top(head_prims, x, r[1])
-        L = rng.uniform(0.14, 0.21)
+        L = rng.uniform(0.15, 0.23)
         pts = []
         p = r + V(0, 0, -0.01)
-        d = (fd + V(x * 2.0, 0, 0.35))
+        d = (fd + V(x * 2.0, 0, 0.05))
         d /= np.linalg.norm(d)
         for j in range(6):
             pts.append(p.copy())
@@ -1883,7 +1883,7 @@ def build_eyes(arm):
         bm.free()
         ob = bpy.data.objects.new("Eye_" + ("L" if sx < 0 else "R"), me)
         bpy.context.scene.collection.objects.link(ob)
-        ob.data.transform(Matrix.Translation(Vector((sx * 0.1, 1.212, 1.805))))
+        ob.data.transform(Matrix.Translation(Vector((sx * 0.087, 1.212, 1.805))))
         shade_smooth(ob)
         obs.append(ob)
     eye = obs[0]
