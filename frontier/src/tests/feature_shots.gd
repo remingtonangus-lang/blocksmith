@@ -5,9 +5,13 @@ extends Node
 
 const LIST := ["town_hud", "face_closeup", "gunfight_nerve", "riding", "wildlife", "camp_night", "dialogue",
 	"map", "journal", "shop", "poker", "satchel", "weapon_wheel"]
+## With --vr_sim the run takes the VR view instead: head camera, HUD/menu sheets, hands, guns (src/tests/vr_shots.gd).
+const VR_LIST := ["vr_hud", "vr_menu", "vr_hands", "vr_gun_aim", "vr_fire", "vr_two_hand", "vr_reload", "vr_nerve", "vr_riding",
+	"vr_door"]
 
 var main: Node
 var _spawned: Array = []
+var _vrs: VRShots
 
 func run(m: Node) -> void:
 	main = m
@@ -18,14 +22,17 @@ func run(m: Node) -> void:
 		main._spawn_player()
 		for i in 3:
 			await get_tree().process_frame
-	for name in LIST:
+	_vrs = VRShots.new(self)
+	for name in (VR_LIST if Game.is_vr else LIST):
 		if only != "" and not only.split(",").has(name):
 			continue
 		var t0 := Time.get_ticks_msec()
 		await call("_" + name)
 		await _capture(dir.path_join(name + ".png"))
 		_cleanup()
-		print("feature shot: %s (%d ms)" % [name, Time.get_ticks_msec() - t0])
+		print("feature shot: %s (%d ms)  draws %d objects %d prims %d [%s, %s]" % [name, Time.get_ticks_msec() - t0,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), RenderingServer.get_current_rendering_method(), Game.quality_name])
 	get_tree().quit(0)
 
 # ------------------------------------------------------------------ helpers
@@ -94,6 +101,9 @@ func _cleanup() -> void:
 		Horse.player_horse.dismount()
 	if Game.missions and Game.missions.cine:
 		Game.missions.cine_end()
+
+	if _vrs != null:
+		_vrs.reset()
 
 # ------------------------------------------------------------------ scenarios
 func _town_hud() -> void:
@@ -237,3 +247,69 @@ func _weapon_wheel() -> void:
 		wheel._pick()
 		wheel._ctl.queue_redraw()
 	await _settle(10)
+
+# ------------------------------------------------------------------ VR (--vr_sim; scenes in vr_shots.gd)
+func _ground(x: float, z: float) -> float:
+	return Game.world.height(x, z)
+
+func _vr_target(pos: Vector3, seed: int) -> Node3D:
+	var h := _human(pos + Vector3(0, 0.3, 0), {"seed": seed, "role": "gunman", "faction": "bandit", "name": "Road Agent", "weapon": "merriman_lever"})
+	return h
+
+func _vr_hud() -> void:
+	await _town_hud()
+	await _vrs.hud(110.0)
+
+func _vr_menu() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _vrs.menu(60.0)
+
+func _vr_hands() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.hands(60.0)
+
+func _vr_gun_aim() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.gun_aim(60.0)
+
+func _vr_fire() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.gun_aim(60.0, true)
+
+func _vr_two_hand() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.two_hand(60.0)
+
+func _vr_reload() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.reload(60.0)
+
+func _vr_nerve() -> void:
+	_place(500.0, 1500.0, 60.0, 15.0)
+	await _settle(10)
+	await _vrs.nerve(60.0)
+
+func _vr_riding() -> void:
+	await _riding()
+	await _vrs.riding()
+
+func _vr_door() -> void:
+	var c := _town("bitter_spring")
+	var st = main.get("settlements")
+	var door: TownDoor = st.nearest_door(Vector3(c.x, Game.world.height(c.x, c.z), c.z), 200.0) if st != null else null
+	if door == null:
+		return
+	var front := door.global_transform * Vector3(door.width * 0.5 * door.hinge_sign, 0.0, -1.0)
+	var fz := door.global_basis.z                 # face the door from its -Z side
+	var yaw := rad_to_deg(atan2(fz.x, -fz.z))
+	_place(front.x, front.z, yaw, 11.0)
+	await _settle(20)
+	await _vrs.reach(yaw, door.global_transform * Vector3(door.width * 0.85 * door.hinge_sign, 1.0, -0.05), false)

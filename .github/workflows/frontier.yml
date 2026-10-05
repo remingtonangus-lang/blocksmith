@@ -233,6 +233,16 @@ jobs:
           perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
           ls snaps/features/
 
+      - name: VR shots (desktop VR simulator on the studio set)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          mkdir -p snaps/vr
+          # --vr_sim drives the real VR rig (head, controllers, panels, hands, guns) without a headset; see frontier/design/VR.md
+          perl -e 'alarm shift; exec @ARGV' 540 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 res://scenes/vr_studio.tscn -- --out "$PWD/snaps/vr" --res 1920x1080 --watchdog 500 2>&1 | tee vr.log | grep -E "vr_studio|WATCHDOG|SCRIPT ERROR" || true
+          ls snaps/vr/
+
       - name: Audio evidence (verify report from the audio build)
         if: ${{ !cancelled() }}
         env:
@@ -290,7 +300,7 @@ jobs:
             echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
             echo "GPU probe: $(cat probe/result.txt 2>/dev/null)"; echo
-            for f in *.png features/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            for f in *.png features/*.png vr/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
             echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A

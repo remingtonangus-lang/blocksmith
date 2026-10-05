@@ -70,7 +70,7 @@ func setup(quality: Dictionary) -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 1.0
 	env.tonemap_white = 6.0
-	env.glow_enabled = true
+	env.glow_enabled = quality.get("glow", true)
 	env.glow_intensity = 0.35
 	env.glow_bloom = 0.04
 	env.glow_hdr_threshold = 1.4
@@ -115,11 +115,13 @@ func setup(quality: Dictionary) -> void:
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.shadow_enabled = float(quality.get("shadow_distance", 300.0)) > 0.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if int(quality.get("shadow_splits", 4)) == 2 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.directional_shadow_max_distance = quality.get("shadow_distance", 300.0)
 	sun.directional_shadow_split_1 = 0.06
 	sun.directional_shadow_split_2 = 0.18
 	sun.directional_shadow_split_3 = 0.45
+	if int(quality.get("shadow_splits", 4)) == 2:
+		sun.directional_shadow_split_1 = 0.25    # quest: 2 cascades over 60 m (near 15 m sharp)
 	sun.directional_shadow_blend_splits = true
 	sun.directional_shadow_fade_start = 0.85
 	sun.shadow_blur = 1.2
