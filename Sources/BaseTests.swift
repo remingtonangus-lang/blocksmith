@@ -282,11 +282,17 @@ enum BaseTests {
                 let gunners = FlightCrew.seats.filter { $0.ship === k }.compactMap { $0.mob }.filter { $0.station == .passenger }
                 let mags = gunners.map { $0.soldierBrain.mag }
                 g.survival = true
-                pinAt = shot + V3(0, 0.1, 0)
+                // On top of whatever stands there (a forest canopy hides a player on the floor from the air).
+                pinAt = V3(shot.x, Float(w.topY(Int(floor(shot.x)), Int(floor(shot.z))) + 1), shot.z)
                 let fired = sim(20) { zip(gunners, mags).contains { m, n in m.soldierBrain.mag < n || m.soldierBrain.reload > 0 } }
                 g.survival = false
                 pinAt = watchPos
-                check(fired != nil, "its door gunners fire on a player below", String(format: "%d gunners, after %.0f s", gunners.count, fired ?? -1))
+                let state = gunners.map { m -> String in
+                    let br = m.soldierBrain
+                    return String(format: "%@ aggro %@ sees %@ seen %.0f s ago react %.1f mag %d %.0f blocks, lock %.1f", m.kind.key, m.aggro ? "y" : "n",
+                                  br.sees ? "y" : "n", br.seenAgo, br.react, br.mag, simd_length(m.pos - g.player.pos), m.lockTime)
+                }.joined(separator: "; ")
+                check(fired != nil, "its door gunners fire on a player below", String(format: "%d gunners, after %.0f s: ", gunners.count, fired ?? -1) + state)
             }
             let back = sim(150) { (rec().airPhase ?? 0) >= 5 || rec().air == nil }
             check(back != nil && rec().air != nil, "it circles and flies back over the pad", String(format: "after %.0f s, phase %d", back ?? -1, rec().airPhase ?? -1))
