@@ -547,6 +547,14 @@ enum CoopTest {
         var shot2 = 20
         c.withSeat(1, g) { shot2 = g.health; g.health = 20; g.player.vel = .zero }
         check(shot2 < 20 && g.arms.slugs.isEmpty, "an enemy round fired at player 2 hits player 2 (\(shot2))")
+        // Conjurer fangs under player 2 bite player 2 (world hazards hurt only player 1 before).
+        c.withSeat(1, g) { g.lastHurtAt = -10 }
+        let hpBefore = g.health
+        g.fangs.append(Fang(pos: c.seatPlayer(1, g).pos, delay: 0, owner: nil))
+        for _ in 0..<3 { g.tick(1.0 / 60) }
+        var bit2 = 20
+        c.withSeat(1, g) { bit2 = g.health; g.health = 20; g.player.vel = .zero }
+        check(bit2 < 20 && g.health == hpBefore, "conjurer fangs bite player 2 (\(bit2)), not player 1")
         g.survival = false
         p1.vel = .zero
         // One pause for both.
