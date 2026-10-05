@@ -1830,6 +1830,20 @@ final class Game {
             }
             anchorSpawn = nil
         }
+        // A bed spawn (bed y + 0.6, Farming.trySleep) whose bed is gone: back to the world spawn (reference "no home
+        // bed"; you respawned on the empty spot). Only checked while that chunk is loaded.
+        let sp = spawnPoint
+        if abs(sp.y - floorf(sp.y) - 0.6) < 0.01 {
+            let ow = dimensionState(.overworld).world
+            let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
+            if ow.isLoaded(bx, bz) {
+                let k = Blocks.key(Blocks.groupBase[Int(ow.block(bx, by, bz))])
+                if !k.hasSuffix("_bed") && !k.hasSuffix("_bed_head") {
+                    spawnPoint = settleSpawn(findSpawn())
+                    onToast?("You have no home bed or charged rebirth anchor")
+                }
+            }
+        }
         if dim.dim != .overworld { changeDimension(to: .overworld, at: spawnPoint) }
         player.pos = spawnPoint
         player.vel = .zero
@@ -1990,7 +2004,7 @@ final class Game {
         if sleeping > 0 {
             timeSinceRest = 0
             sleeping += Float(dt)
-            if sleeping > 2.5 && coop.othersAsleep(self) {
+            if sleeping > 5 && coop.othersAsleep(self) {             // 100 ticks in bed (reference; it was 2.5 s)
                 // Skip to morning.
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH

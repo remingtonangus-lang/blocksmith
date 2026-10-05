@@ -374,6 +374,14 @@ extension Game {
         }
         // Beds: sleep through the night and set the respawn point.
         if bkey.hasSuffix("_bed") || bkey.hasSuffix("_bed_head") {
+            // Beds explode outside the overworld (reference: power 5 with fire, no spawn set); they set the
+            // Emberdeep spawn before, so a respawn put you in the overworld at Emberdeep coordinates.
+            if world.dim != .overworld {
+                breakBedPartner(t.hit, b)
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+                Explosion.explode(at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 0.5, Float(t.hit.z) + 0.5), power: 5, game: self, fire: true)
+                return true
+            }
             trySleep(at: t.hit)
             return true
         }
@@ -443,11 +451,14 @@ extension Game {
 
     func trySleep(at p: IVec3) {
         let night = (dayFraction > 0.52 && dayFraction < 0.98) || weather.thunder > 0.5
-        spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)
+        spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)     // y + 0.6 marks a bed spawn (respawn())
+        anchorSpawn = nil                                    // the newest respawn point wins
         achieve("sleep")
         onToast?("Respawn point set")
         guard night else { onToast?("You can only sleep at night"); return }
-        if mobs.mobs.contains(where: { $0.kind.hostile && simd_length($0.pos - player.pos) < 8 }) {
+        // Monsters within 8 blocks across and 5 up or down of the bed (reference box; it was a sphere round the player).
+        let bc = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)
+        if mobs.mobs.contains(where: { $0.kind.hostile && $0.health > 0 && abs($0.pos.x - bc.x) <= 8 && abs($0.pos.y - bc.y) <= 5 && abs($0.pos.z - bc.z) <= 8 }) {
             onToast?("You may not rest now; there are monsters nearby")
             return
         }
