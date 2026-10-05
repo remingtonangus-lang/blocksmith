@@ -81,8 +81,15 @@ enum PathFinder {
     }
 
     // A door (open or shut) in the cell at feet or head height.
+    // Per block state (string compares on the shape and key ran for every cell a search or a walking mob looked at).
+    static let doorTable: [Bool] = (0..<Blocks.count).map { Blocks.shape[$0] == "door" }
+    static let woodDoorTable: [Bool] = (0..<Blocks.count).map {
+        Blocks.shape[$0] == "door" && !Blocks.key(Blocks.groupBase[$0]).hasPrefix("iron_")
+    }
+    @inline(__always) static func isDoor(_ b: BlockID) -> Bool { Int(b) < doorTable.count && doorTable[Int(b)] }
+
     @inline(__always) static func hasDoor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
-        Blocks.shape[Int(blk(w, x, y, z))] == "door" || Blocks.shape[Int(blk(w, x, y + 1, z))] == "door"
+        isDoor(blk(w, x, y, z)) || isDoor(blk(w, x, y + 1, z))
     }
 
     // Where to aim inside a door cell: the middle of the gap beside an open door's panel (the cell centre left
@@ -91,7 +98,7 @@ enum PathFinder {
     static func doorAim(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> (Float, Float) {
         guard hasDoor(w, x, y, z) else { return (0.5, 0.5) }
         var fx: Float = 0.5, fz: Float = 0.5
-        for yy in [y, y + 1] where Blocks.shape[Int(blk(w, x, yy, z))] == "door" {
+        for yy in y...(y + 1) where isDoor(blk(w, x, yy, z)) {
             boxes.removeAll(keepingCapacity: true)
             w.collisionBoxes(x, yy, z, &boxes)
             for (lo, hi) in boxes {
@@ -104,9 +111,7 @@ enum PathFinder {
         return (fx, fz)
     }
 
-    static func isWoodDoor(_ b: BlockID) -> Bool {
-        Blocks.shape[Int(b)] == "door" && !Blocks.key(Blocks.groupBase[Int(b)]).hasPrefix("iron_")
-    }
+    static func isWoodDoor(_ b: BlockID) -> Bool { Int(b) < woodDoorTable.count && woodDoorTable[Int(b)] }
 
     static let powderSnow: BlockID = Blocks.has("powder_snow") ? Blocks.id("powder_snow") : AIR
 
