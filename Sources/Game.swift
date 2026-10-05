@@ -971,6 +971,7 @@ final class Game {
                                               damage: 2 + (power > 0 ? 0.5 * Float(power) + 0.5 : 0))
                     a.punch = Enchant.level(.punch, h)
                     a.flame = Enchant.level(.flame, h) > 0
+                    a.crit = f >= 1                              // a fully drawn bow always crits (reference)
                     if let i = ammo, Potions.potion(of: inventory.main[i].item) != nil { a.tip = inventory.main[i].item }
                     let plain = ammo.map { Items.key(inventory.main[$0].item) == "arrow" } ?? true
                     a.pickup = survival && !(infinity && plain)

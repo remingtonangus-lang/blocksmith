@@ -213,6 +213,7 @@ final class ItemRegistry {
         item("clock", "Clock", "compass", 0xF2C94A, ["c": 0x3F76E4, "d": 0x404040])
         item("bow", "Bow", "bow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("shears", "Shears", "shears", 0xD8D8D8, ["d": 0x5A3D1F], stack: 1)
+        defs[Int(id("shears"))].tool = .shears          // (it stayed .none: shearing never dropped grass, leaves or vines)
         item("shield", "Shield", "shield", 0x9A7A4A, ["a": 0x5A5A5A], stack: 1)
         item("crossbow", "Crossbow", "crossbow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("trident", "Trident", "trident", 0x4AA89A, stack: 1)
@@ -353,7 +354,7 @@ final class ItemRegistry {
                 ("shovel", "Shovel", .shovel, swordDmg[i] - 1.5, 1),
                 ("pickaxe", "Pickaxe", .pickaxe, swordDmg[i] - 2, 1.2),
                 ("axe", "Axe", .axe, axeDmg[i], axeSpd[i]),
-                ("hoe", "Hoe", .hoe, 1, Float(i == 6 ? 2 : (i == 0 || i == 3 ? 1 : i + 1))),
+                ("hoe", "Hoe", .hoe, 1, Float(i == 6 ? 2 : (i == 0 || i == 3 ? 1 : min(4, i + 1)))),   // diamond / netherite 4
             ]
             for k in kinds {
                 var d = ItemDef("\(t.0)_\(k.0)", "\(t.1) \(k.1)")

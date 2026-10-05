@@ -11,6 +11,13 @@ enum Mining {
         return need != .none && t == need
     }
 
+    // Blocks a sword cuts faster (x1.5): leaves, plants, gourds, vines, cocoa.
+    static func swordEfficient(_ b: BlockID, _ key: String) -> Bool {
+        if Blocks.render[Int(b)] == RenderType.cross.rawValue { return true }
+        if key.hasSuffix("leaves") || key.hasSuffix("vines") || key.hasSuffix("vine") || key.hasSuffix("_plant") { return true }
+        return ["pumpkin", "carved_pumpkin", "jack_o_lantern", "melon", "cocoa", "moss_block", "moss_carpet"].contains(key)
+    }
+
     static func canHarvest(_ b: BlockID, _ tool: ItemStack) -> Bool {
         if !Blocks.requiresTool[Int(b)] { return true }
         return correctTool(b, tool) && tool.def.tier >= Int(Blocks.harvestLevel[Int(b)])
@@ -23,13 +30,23 @@ enum Mining {
         if h == 0 { return 0 }
         var speed: Float = 1
         let key = Blocks.key(b)
-        if correctTool(b, tool) {
+        let t: ToolType = tool.isEmpty ? .none : tool.def.tool
+        let eff = Enchant.level(.efficiency, tool)
+        // Reference speeds (fidelity audit): cobweb is a flat 15 for any sword or shears (a sword used its tier speed);
+        // shears cut leaves at 15, wool at 5, vines at 2 (they were never shears at all); a sword is 1.5 only on the
+        // blocks it is good at (leaves, plants, gourds, vines, cocoa), not on stone or dirt.
+        if key == "cobweb" && (t == .sword || t == .shears) { speed = 15 }
+        else if t == .shears {
+            if key.hasSuffix("leaves") { speed = 15 }
+            else if key.hasSuffix("_wool") { speed = 5 }
+            else if key == "vine" || key == "glow_lichen" { speed = 2 }
+            if speed > 1 && eff > 0 { speed += Float(eff * eff + 1) }
+        }
+        else if correctTool(b, tool) {
             speed = tool.def.toolSpeed
-            let eff = Enchant.level(.efficiency, tool)
             if eff > 0 { speed += Float(eff * eff + 1) }
         }
-        else if !tool.isEmpty && tool.def.tool == .sword { speed = key == "cobweb" ? 15 : 1.5 }
-        else if !tool.isEmpty && tool.def.tool == .shears && key.hasSuffix("leaves") { speed = 15 }
+        else if t == .sword && Loot.swordEfficient(b, key) { speed = 1.5 }
         if inWater { speed /= 5 }
         if !onGround { speed /= 5 }
         let perTick = speed / h / (canHarvest(b, tool) ? 30 : 100)

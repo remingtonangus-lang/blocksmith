@@ -20,6 +20,7 @@ final class Arrow {
     var returning = false          // Loyalty: flying back to the player
     // Split screen: the seat that shot it (a returning trident flew into whichever player's turn moved it).
     var seat = -1
+    var crit = false               // a fully drawn bow's arrow (adds up to half again)
     init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) {
         pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage
         if fromPlayer { seat = Coop.liveSeat }
@@ -239,7 +240,7 @@ final class ProjectileManager {
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
-                if a.fromPlayer && Rand.float(in: 0..<1) < 0.25 { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }
+                if a.crit { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }       // only a full draw (it was a 25 % roll on any shot)
                 if let m = hitMob, m.kind == .enderman, a.trident == nil {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {
