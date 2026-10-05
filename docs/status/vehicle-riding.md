@@ -172,3 +172,9 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   world blocks under a moving deck (every step back to a post read as a ledge); b02edf4 skips it for mobs on a deck.
   Also from the rebase: integration's citadel rebuild fix kept (2e844e5); the troops overlap oracle now tells a
   one-tick graze at the ramp's foot (0.08) from being stuck in a block.
+- HANDOFF (2026-10-05 ~12:20 UTC, usage out): claude/bs-destruction (rebased on playtest fcaeb04) is NOT merged yet.
+  Last pushed d876ec3 (collapse queue folds holes past 64; relic test finds the pillar foot); its CI run 37304754050 was
+  still queued. Before it: crew/troops/board/frigate ride scenes PASS (b02edf4: crew walk back to posts, c7eb1af's
+  world-block ledge probe skipped aboard), interiorcheck PASS (no bare halls), collapsecheck failed only mine + relic
+  (both addressed in d876ec3). Next: read run 37304754050 (collapsecheck all scenes, heavy lane); if green, fast-forward
+  claude/blocksmith-playtest; then paste scratch pr9_section text (destruction/wrecks/frigates) into PR #9's list.
