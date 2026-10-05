@@ -1397,9 +1397,13 @@ final class Game {
                 var box = ItemStack(Items.item(forBlock: b) ?? 0, 1)
                 if be.container.slots.contains(where: { !$0.isEmpty }) { box.contents = be.container.slots }
                 if box.item != 0 { drops.spawn(box, at: center) }
+                be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
                 return
             }
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
+            // Emptied too: a screen still open on it (player 2's, or one the block was broken under) shares this
+            // container, and the spilled items could be taken from it a second time.
+            be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
         }
         if drop {
             for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
@@ -1498,7 +1502,11 @@ final class Game {
             let k = Boats.itemKey(m.variant, chest: m.chested)
             if Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         }
-        if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
+        if let c = m.cargo {
+            for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }
+            c.slots = Array(repeating: .empty, count: c.slots.count)     // an open pack screen shares it (no second take)
+            m.cargo = nil
+        }
         if let e = m.equip {
             // Worn gear drops 8.5% (+1% per looting level) from mobs, always from armor stands.
             for s in e where !s.isEmpty && (m.kind == .armorStand || Rand.float(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }

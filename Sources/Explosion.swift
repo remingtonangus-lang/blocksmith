@@ -46,6 +46,7 @@ enum Explosion {
             }
             if let be = w.blockEntities.removeValue(forKey: b) {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)) }
+                be.container.slots = Array(repeating: .empty, count: be.container.slots.count)   // an open screen shares it
             }
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
