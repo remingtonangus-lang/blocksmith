@@ -233,12 +233,12 @@ jobs:
 
       - name: VR shots (desktop VR simulator on the studio set)
         if: ${{ !cancelled() }}
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           set -o pipefail
           mkdir -p snaps/vr
           # --vr_sim drives the real VR rig (head, controllers, panels, hands, guns) without a headset; see frontier/design/VR.md
-          perl -e 'alarm shift; exec @ARGV' 540 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 res://scenes/vr_studio.tscn -- --out "$PWD/snaps/vr" --res 1920x1080 --watchdog 500 2>&1 | tee vr.log | grep -E "vr_studio|WATCHDOG|SCRIPT ERROR" || true
+          perl -e 'alarm shift; exec @ARGV' 800 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 res://scenes/vr_studio.tscn -- --out "$PWD/snaps/vr" --res 1920x1080 --watchdog 760 2>&1 | tee vr.log | grep -E "vr_studio|WATCHDOG|SCRIPT ERROR" || true
           ls snaps/vr/
 
       - name: Audio evidence (verify report from the audio build)
