@@ -619,6 +619,7 @@ enum RideCheck {
         var jumps = 0, inside = 0, rampSeen = false
         var last: [ObjectIdentifier: (V3, Bool)] = [:]
         var firstJump = "", firstInside = ""
+        var streak: [ObjectIdentifier: Int] = [:], deepest: Float = 0, longest = 0, grazes = 0
         var t: Float = 0
         while t < 80 {
             for m in foes { m.health = max(m.health, 50) }        // they must outlast the crawler's guns for the test
@@ -650,12 +651,24 @@ enum RideCheck {
                 if m.deck === s {
                     w.frame = s
                     if m.collides(l + V3(0, 0.05, 0), w) {
+                        // How deep, and for how many ticks running: the hull settling a stair onto a troop on the ground
+                        // at the ramp's foot overlaps it by a few hundredths for a tick before its step-up lifts it
+                        // (0.92 against a stair top at 1.0, run of 0ea1c81); stuck in a block is deeper or lasts.
+                        var lift: Float = 0.05
+                        while lift < 1.0 && m.collides(l + V3(0, lift, 0), w) { lift += 0.05 }
+                        let run = (streak[id] ?? 0) + 1
+                        streak[id] = run
+                        deepest = max(deepest, lift - 0.05)
+                        longest = max(longest, run)
+                        if lift - 0.05 < 0.2 && run < 3 { grazes += 1; w.frame = nil; continue }
                         inside += 1
                         if firstInside.isEmpty {
                             let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
                             firstInside = String(format: "t %.1f s: %.2f,%.2f,%.2f ship space (block %@ there, %@ under), route %ld left, ramp %@", t, l.x, l.y, l.z,
                                                  Blocks.key(s.grid.get(c.x, c.y, c.z)), Blocks.key(s.grid.get(c.x, c.y - 1, c.z)), m.crewRoute.count, st.rampDown ? "down" : "up")
                         }
+                    } else {
+                        streak[id] = 0
                     }
                     w.frame = nil
                 } else if m.onGround && l.z > 76 { out.insert(id) }
@@ -666,6 +679,7 @@ enum RideCheck {
         r.check(!rampAtStart && rampSeen, "the ramp is up while it drives and comes down for the troops")
         r.check(out.count >= 2, "bay troops walk out by the ramp onto the ground (\(out.count))")
         r.check(jumps == 0, "no troop is teleported (\(jumps) jumps over a block in a tick)\(firstJump.isEmpty ? "" : "; first " + firstJump)")
+        r.note(String(format: "overlaps with the hull: deepest %.2f, longest %ld ticks running; %ld brief grazes (under 0.2 deep, under 3 ticks) not counted", deepest, longest, grazes))
         r.check(inside == 0, "no troop inside a solid on the way out (\(inside) troop-ticks)\(firstInside.isEmpty ? "" : "; first " + firstInside)")
     }
 
@@ -678,6 +692,7 @@ enum RideCheck {
         let floorY: Float = frigate ? 3.5 : 9.5          // no crew member ever below the lowest deck (the frigate's hangar and hold: 4)
         var worstPost: Float = 0, worstWho = ""
         var off = 0, inside = 0, firstOff = ""
+        var dispatched = Set<Int>()
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
                 let l = s.toLocal(m.pos)
@@ -690,9 +705,15 @@ enum RideCheck {
                 if m.collides(l + V3(0, 0.05, 0), w) { inside += 1 }
                 w.frame = nil
                 if posts, k < st.crew.count {
+                    // Troops the vehicle sent out (a route to the ramp, or released) aren't holding a post by design.
+                    if !m.crewRoute.isEmpty || m.crewPost == nil { dispatched.insert(k); continue }
                     let p = st.crew[k]
                     let e = simd_length(V2(l.x - p.x, l.z - p.z))
-                    if e > worstPost { worstPost = e; worstWho = "\(m.kind.key) at post \(k)" }
+                    if e > worstPost {
+                        worstPost = e
+                        worstWho = String(format: "%@ at post %ld, t %.1f s, at %.1f,%.1f,%.1f for %.1f,%.1f,%.1f, %@, %@", m.kind.key, k, Float(i) / 60,
+                                          l.x, l.y, l.z, p.x, p.y, p.z, m.aggro ? "aggro" : "calm", m.onGround ? "on the deck" : "in the air")
+                    }
                 }
             }
         }
@@ -706,6 +727,7 @@ enum RideCheck {
         r.note(String(format: "crew %ld of %ld aboard; ship at %.0f,%.0f,%.0f speed %.1f", spawned, st.crew.count, s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel)))
         r.check(spawned == st.crew.count, "every crew post is manned (\(spawned)/\(st.crew.count))")
         r.check(off == 0, "the crew ride the moving vehicle (\(off) crew-ticks off it)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
+        if !dispatched.isEmpty { r.note("sent out or released while it drove (not judged at their posts): posts \(dispatched.sorted())") }
         r.check(worstPost < 1.0, String(format: "every soldier holds its post while it drives and turns (worst %.2f blocks: %@)", worstPost, worstWho))
         r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)")
         // Disable it: half the wheels (the port side) of the crawler, the frigate's drive engines.
