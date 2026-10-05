@@ -23,6 +23,8 @@ uniform vec4 entry_info[32];     // x lod_end (impostor fully in), y tree height
 uniform float lod_band = 15.0;
 uniform float far_end = 2500.0;
 uniform float shadow_end = 330.0;    // impostors stop casting beyond this (the shadow distance)
+uniform float tree_shadow_begin = 55.0;   // ... and start where the meshes' LOD 2 (which casts nothing) begins
+uniform float shrub_shadow_begin = 30.0;
 uniform float max_lod = 4.0;         // atlas cells are 16-px aligned: mips up to 4 never mix neighbouring cells
 uniform float translucency = 0.6;
 uniform float self_shadow_min = 0.12;     // darkest a leaf deep in shadow inside its own crown gets (direct light)
@@ -67,7 +69,9 @@ void vertex() {
 	vec3 tv;
 	if (shadow_pass) {
 		tv = INV_VIEW_MATRIX[2].xyz;                       // towards the light
-		vis *= step(d, shadow_end);
+		// cast from where the mesh LOD that stops casting begins, complementing the casting LOD's fade-out
+		float sb = info.z > 3.5 ? shrub_shadow_begin : tree_shadow_begin;
+		vis = smoothstep(sb - lod_band, sb, d) * step(d, shadow_end);
 	} else {
 		tv = CAMERA_POSITION_WORLD - origin;
 	}

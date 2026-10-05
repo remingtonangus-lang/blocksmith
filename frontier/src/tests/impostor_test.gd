@@ -3,7 +3,7 @@ extends Node3D
 ## the atlases, then renders every species twice side by side, full mesh (left) and impostor (right), under the game
 ## sky at a chosen distance, so the hand-off can be judged.
 ##   godot --path frontier res://scenes/impostor_test.tscn -- [--out DIR] [--species a,b] [--dist M] [--fov DEG]
-##         [--yaw DEG] [--time H] [--rebake] [--no_lineup]
+##         [--yaw DEG] [--time H] [--rebake] [--no_lineup] [--lod 0|1|2 (mesh LOD shown next to the impostor)]
 ## Writes DIR/impostor_albedo.png (colour over grey), DIR/impostor_normal.png, DIR/impostor_lineup.png.
 
 const VARIANTS := 3     # = vegetation.gd VARIANTS
@@ -20,12 +20,19 @@ func _ready() -> void:
 	veg._leaf_tex = TreeGen.make_leaf_atlas()
 	var gen := TreeGen.new()
 	var all: Array = TreeGen.SPECIES.keys()
+	var lod := int(Game.args.get("lod", 0))
+	var shown := {}
 	for sp in all:
 		var vs := []
+		var ls := []
 		for v in VARIANTS:
-			vs.append(gen.build(sp, hash(sp) + v * 7919, 0))
+			var lods: Array = gen.build_lods(sp, hash(sp) + v * 7919)
+			vs.append(lods[0])
+			ls.append(lods)
 		veg._meshes[sp] = vs
+		veg._lod_meshes[sp] = ls
 		veg._mats[sp] = veg._make_materials(sp)
+		shown[sp] = ls[0][lod]
 	var ib := ImpostorBaker.new()
 	if not ib.bake(self, veg._meshes, all, VARIANTS):
 		print("IMPOSTOR FAIL: bake")
@@ -72,8 +79,9 @@ func _ready() -> void:
 	var top := 0.0
 	for sp in names:
 		var si := all.find(sp)
-		var m: ArrayMesh = veg._meshes[sp][0]
+		var m: ArrayMesh = shown[sp]
 		for mt in m.get_surface_count():
+			m.surface_get_material(mt).set_shader_parameter("lod_start", -1.0)
 			m.surface_get_material(mt).set_shader_parameter("lod_end", 1e6)
 		var w := maxf(m.get_aabb().size.x, 1.5)
 		top = maxf(top, m.get_aabb().end.y)

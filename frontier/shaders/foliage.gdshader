@@ -1,6 +1,7 @@
 // Trees and shrubs (meshes from src/world/tree_gen.gd). One shader for bark and leaf cards:
 // layered wind (trunk sway, branch bob, leaf flutter) from vertex COLOR, alpha-scissored leaf atlas tinted per
-// species and per instance, translucency for back-lit leaves, dithered hand-off to the impostor at lod_end.
+// species and per instance, translucency for back-lit leaves. Each LOD draws in [lod_start, lod_end] with dithered
+// cross-fades at both ends that exactly complement the neighbouring LOD (or the impostor past the last one).
 // src/world/impostor_baker.gd compiles this same source with IMPOSTOR_BAKE defined to render the impostor atlases:
 // unshaded, no wind, no fade, neutral per-instance tint; INSTANCE_CUSTOM.x picks albedo (0) or normal (1) output.
 shader_type spatial;
@@ -23,8 +24,9 @@ uniform float alpha_cut = 0.45;
 uniform float sway = 1.0;           // species stiffness multiplier
 uniform float tree_height = 12.0;
 uniform float translucency = 0.6;
-uniform float lod_end = 200.0;      // the impostor has fully taken over here (per instance)
-uniform float lod_band = 15.0;      // dithered cross-fade over [lod_end - lod_band, lod_end]
+uniform float lod_start = -1.0;     // fades in over [lod_start - lod_band, lod_start] (per instance; < 0: no fade-in)
+uniform float lod_end = 200.0;      // fades out over [lod_end - lod_band, lod_end]: the next LOD / impostor takes over
+uniform float lod_band = 15.0;
 
 global uniform vec2 wind_dir;
 global uniform float wind_strength;
@@ -33,6 +35,7 @@ varying float v_inst_rand;
 varying float v_ao;
 varying float v_cloud;
 varying float v_fade;
+varying float v_fade_in;
 varying flat float v_bake_normal;
 varying float v_bake_depth;
 
@@ -48,6 +51,7 @@ void vertex() {
 	v_bake_depth = vz / max(INSTANCE_CUSTOM.y, 0.05);
 	v_cloud = 1.0;
 	v_fade = 0.0;
+	v_fade_in = 1.0;
 #else
 	v_inst_rand = fract(sin(dot(wpos0.xz, vec2(12.9898, 78.233))) * 43758.5453);
 	float w = COLOR.r * sway;
@@ -70,7 +74,8 @@ void vertex() {
 	// hand over to the impostor: dither out over the band (fragment), collapse once it is fully gone
 	float dcam = distance(wpos0, LOD_CAMERA_POS);
 	v_fade = smoothstep(lod_end - lod_band, lod_end, dcam);
-	VERTEX *= step(dcam, lod_end);
+	v_fade_in = lod_start < 0.0 ? 1.0 : smoothstep(lod_start - lod_band, lod_start, dcam);
+	VERTEX *= step(dcam, lod_end) * step(lod_start - lod_band, dcam);
 	v_cloud = cloud_shade((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 #endif
 	v_ao = mix(0.55, 1.0, clamp(COLOR.r * 1.2, 0.0, 1.0));
@@ -82,7 +87,8 @@ vec3 srgb_to_linear(vec3 c) {
 
 void fragment() {
 #ifndef IMPOSTOR_BAKE
-	if (v_fade > 0.0 && lod_dither(FRAGCOORD.xy) < v_fade) discard;
+	float dth = lod_dither(FRAGCOORD.xy);
+	if (dth < v_fade || dth >= v_fade_in) discard;
 #endif
 	vec3 alb;
 	float ao;

@@ -1210,6 +1210,12 @@ func _benchmark() -> void:
 		"render_scale": get_viewport().scaling_3d_scale, "commit": str(Game.args.get("commit", "")), "segments": []}
 	var all := PackedFloat32Array()
 	var load_t0 := Time.get_ticks_msec()
+	# --bench_segments forest,desert: run only these; --bench_settle N: streaming frames before recording (default 30;
+	# prims per frame need only a few, which keeps software-renderer geometry measurements short)
+	if Game.args.has("bench_segments"):
+		var only: PackedStringArray = str(Game.args["bench_segments"]).split(",")
+		segs = segs.filter(func(sg): return only.has(sg.name))
+	var settle := int(Game.args.get("bench_settle", 30))
 	for sg in segs:
 		var a: Vector3 = sg.from
 		var b: Vector3 = sg.to
@@ -1223,7 +1229,9 @@ func _benchmark() -> void:
 			cam.global_position = a + Vector3(0, sg.get("up", 2.0), 0)
 		if main.vegetation and main.vegetation.has_method("settle_now"):
 			main.vegetation.settle_now()
-		for i in 30:
+		if main.scatter != null and main.scatter.has_method("settle_now"):
+			main.scatter.settle_now()
+		for i in settle:
 			await get_tree().process_frame
 		_frame_ms = PackedFloat32Array()
 		_spikes = 0
