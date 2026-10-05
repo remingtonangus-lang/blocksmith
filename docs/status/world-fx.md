@@ -92,9 +92,14 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 
 ## State / next
 
-- Rebased on playtest 983ea14; heavy lane ([full]) running on 71cfc20 before the first fast-forward into playtest.
+- 2026-10-05: rebased onto playtest bff7650; heavy lane on the previous rebase (6f38b43) green after one perf rerun
+  (flight24 resident peak is noisy on slow runners: 725 MB first, passing on the rerun; playtest alone 606 MB).
+  Fast-forward into playtest once the heavy lane on bff7650 is green.
+- Item art: blind critic rounds 1-6 (tools 4 -> 7.5-8, items 3-5 -> 7.5-8, page 2 4 -> 7-7.5; Gemini and Claude).
+  Round 6 fixes pushed: two-tone spawn eggs, brighter duskium, plank lines, recess-only verdigris, coal / charcoal,
+  rib chops, coiled lead, crossbow, glider wings, leather cap. Next: round 7 critic; third-person hold check.
 - Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
-  `Game.fx.storm` (a wind load for their support analysis: a storm could bring down weak spans), `World.scorch` and
-  charcoal (burnt blocks could count as weak), `Waves.height` (wrecks afloat).
-- Next: bug hunting in this area (flood edge cases: villages in valleys, caves, saves mid-flood; snow on stairs/slabs;
-  fire in structures), a storm-at-sea shot of the Capital frigate (kinematic: does not roll; stream D/B own it).
+  `Game.fx.storm` (a wind load for their support analysis), `World.scorch` and charcoal (burnt blocks could count as
+  weak), `Waves.height` (wrecks afloat).
+- Next in this area: flood edge cases (villages in valleys, caves, saves mid-flood), snow on stairs / slabs, fire in
+  structures.
