@@ -168,6 +168,7 @@ final class QuestControls {
         if inMenu {
             // Menus: the left stick moves the pad cursor as on the Mac; the laser is the mouse.
             p.lx = L.stick.x; p.ly = L.stick.y
+            p.rx = R.stick.x; p.ry = R.stick.y          // scrolling lists, flipping crafting-book pages, panning the map
             p.lt = L.trigger; p.rt = 0
             p.lb = L.squeeze > 0.6; p.rb = false
             menuPointer(R)

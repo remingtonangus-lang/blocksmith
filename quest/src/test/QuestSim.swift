@@ -204,6 +204,9 @@ enum QuestSim {
         game.paused = true
         check(pm.rows.contains { $0.1 == "host:vr" } && !pm.rows.contains { $0.1 == "photo" },
               "VR options: the pause menu lists \(PauseMenu.hostEntry?.0 ?? "-") (and no Photo Mode)")
+        frames(30) { _ in idleHands(); sim.hands[1].stick = V2(0, -1) }      // the right stick scrolls the list
+        check(pm.scroll > 0, "VR menus: the right stick scrolls the pause menu (scroll \(pm.scroll))")
+        frames(3) { _ in idleHands() }
         pm.act("host:vr", back: false)
         let snap0 = QuestSettings.snapAngle
         pm.act("q_snap", back: false)
