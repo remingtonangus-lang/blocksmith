@@ -1555,7 +1555,11 @@ final class Game {
         soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
-        if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Rand.int(in: 0...1))) }
+        // Reference: animals 1-3, monsters their own value, baby zombies 2.5x (12); other babies none.
+        if m.killedByPlayer {
+            if !m.baby { addXP(m.kind.hostile || xp == 0 ? xp : Rand.int(in: 1...3)) }
+            else if m.isZombie { addXP(Int(Float(xp) * 2.5)) }
+        }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
         audioMobDied(m)
     }
