@@ -35,7 +35,8 @@ enum QuestSettings {
     private static func store(_ v: Bool, _ k: String) { d.set(v, forKey: k); lock.lock(); bools[k] = v; lock.unlock() }
     static func clearCache() { lock.lock(); floats.removeAll(); ints.removeAll(); bools.removeAll(); lock.unlock() }
 
-    static var refreshRate: Float { get { float("quest.refreshRate", 72) } set { store(newValue, "quest.refreshRate") } }
+    // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
+    static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
     // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
     static var renderDistance: Int { get { d.object(forKey: "renderDistance") == nil ? 8 : d.integer(forKey: "renderDistance") } set { d.set(newValue, forKey: "renderDistance") } }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }

@@ -63,7 +63,7 @@ reacts to the ship turning and changing speed (not to cruising).
 **Pause → VR Comfort & Controls** (A or trigger on a row; the stick left/right steps a value): Turning (Snap / Smooth),
 Snap Angle (15-90°) or Smooth Turn Speed, Movement (Smooth / Teleport: push the left stick forward, aim the arc, release),
 Move Direction (Controller / Head), Comfort Vignette (Off / Low / Medium / High), Ship Deck Ring, Seated Mode (leaning
-doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 120 Hz), Foveated Rendering, HUD Position (Middle / Low / Lower), Texture Detail (High 128 px / Medium 64 px, next launch), Auto Render Distance (on: if frames are missed at the headset's limit the render distance steps down for the session, with a message).
+doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 120 Hz; 90 by default), Foveated Rendering, HUD Position (Middle / Low / Lower), Texture Detail (High 128 px / Medium 64 px, next launch), Auto Render Distance (on: if frames are missed at the headset's limit the render distance steps down for the session, with a message).
 
 ## Milestones
 
@@ -83,7 +83,7 @@ doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 12
 (each step depends on the one before; a `adb logcat -s Blocksmith` capture from launch to the first problem is the
 most useful report):
 1. **Starts at all (M1).** logcat shows `Blocksmith Quest 6f520c1 ... starting`, `xr: runtime ...`, `xr: Vulkan device
-   ...`, `xr: LOCAL_FLOOR space` (or STAGE/LOCAL), `xr: swapchain WxH x2 layers`, `xr: refresh rates [...], using 72 Hz`,
+   ...`, `xr: LOCAL_FLOOR space` (or STAGE/LOCAL), `xr: swapchain WxH x2 layers`, `xr: refresh rates [...], using 90 Hz`,
    `xr: session state 5` (FOCUSED). In the headset: an immersive scene opens (not a flat window). A crash here shows
    as `FATAL:` or a native backtrace in `adb logcat` (unfiltered: `adb logcat -d | grep -A40 "Fatal signal"`).
 2. **Loading scene, then the world (M2).** While the world generates (several seconds), a sky-blue scene with eight
