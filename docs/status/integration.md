@@ -208,3 +208,5 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   trailing closure; the fast -Onone lane does not catch it). Fixed with a named nested function; also fixed five
   races from the thread-safety audit (map epoch, music generation token, sound evict, World.alive lock, bench
   timing) and the first fidelity-audit items (shears/sword/hoe speeds, full-draw bow crits). Pushed with [full].
+- 11:40 UTC: run 685 (d31579b) still queued (no macOS runner): cancelled, superseded by this push (fidelity drops /
+  mob speeds, precheck Type.member() resolution, per-half subtitles).
