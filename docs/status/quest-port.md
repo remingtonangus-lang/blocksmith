@@ -89,7 +89,8 @@ most useful report):
 2. **Loading scene, then the world (M2).** While the world generates (several seconds), a sky-blue scene with eight
    coloured cubes circling you and a progress bar 2 m ahead; then a new world appears around you at the right scale (blocks ~1 m, eyes at player
    height), both eyes agree (no double vision), head turns and leans track with no swim. logcat `load: ...` lines
-   with timings, then a `perf:` line every 5 s (fps, missed frames, worst frame, cpu/gpu ms, sections, draws, chunks). The number to report: fps (72
+   with timings, then a `perf:` line every 5 s (fps, missed frames, worst frame with its own cpu / tick / world streaming /
+   record / gpu split, average cpu/gpu ms, sections, draws, chunks). The number to report: fps (72
    expected) and GPU ms (< 13.8 ms needed).
 3. **Controls (M3)** per the table above: left stick walks, right stick snap-turns, A jumps, the right hand's laser
    targets blocks (outline), right trigger breaks, right grip places, Y opens the inventory as a panel the laser

@@ -354,6 +354,8 @@ final class FrameStats {
     }
     private var frames = 0, missed = 0
     private var sumCPU = 0.0, sumTick = 0.0, sumRecord = 0.0, sumGPU = 0.0, worstFrame = 0.0
+    // The worst frame's own split (where a hitch went): cpu, game tick, world streaming within it, record, gpu.
+    private var worstCPU = 0.0, worstTick = 0.0, worstWorld = 0.0, worstRecord = 0.0, worstGPU = 0.0
     private var since = CFAbsoluteTimeGetCurrent()
     private var lastLowered = 0.0
     private(set) var lastLine = ""
@@ -363,7 +365,11 @@ final class FrameStats {
     func add(frame: Double, cpu: Double, tick: Double, record: Double, gpu: Double, target: Double, scene: SceneRenderer, game: Game?, rate: Float) {
         frames += 1
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
-        worstFrame = max(worstFrame, frame * 1000)
+        if frame * 1000 > worstFrame {
+            worstFrame = frame * 1000
+            worstCPU = cpu; worstTick = tick; worstRecord = record; worstGPU = gpu
+            worstWorld = (game?.world.perf.updateSeconds ?? 0) * 1000
+        }
         if target > 0 && frame > target * 1.5 { missed += 1 }
         let now = CFAbsoluteTimeGetCurrent()
         guard now - since >= 5 else { return }
@@ -371,8 +377,8 @@ final class FrameStats {
         fps = Double(frames) / (now - since)
         gpuAvg = sumGPU / n; cpuAvg = sumCPU / n
         let w = game?.world
-        lastLine = String(format: "perf: %.1f fps (display %.0f Hz), missed %d, worst %.1f ms | cpu %.2f ms (tick %.2f, record %.2f) | gpu %.2f ms | sections %d, draws %d, quads %d, cull %.2f ms | chunks %d, jobs %d, mobs %d | mesh slabs %d MB, resident %d MB",
-                          fps, rate, missed, worstFrame, sumCPU / n, sumTick / n, sumRecord / n, sumGPU / n,
+        lastLine = String(format: "perf: %.1f fps (display %.0f Hz), missed %d, worst %.1f ms (cpu %.1f: tick %.1f incl. world %.1f, record %.1f; gpu %.1f) | cpu %.2f ms (tick %.2f, record %.2f) | gpu %.2f ms | sections %d, draws %d, quads %d, cull %.2f ms | chunks %d, jobs %d, mobs %d | mesh slabs %d MB, resident %d MB",
+                          fps, rate, missed, worstFrame, worstCPU, worstTick, worstWorld, worstRecord, worstGPU, sumCPU / n, sumTick / n, sumRecord / n, sumGPU / n,
                           scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs,
                           w?.chunks.count ?? 0, w?.pendingJobs ?? 0, game?.mobs.mobs.count ?? 0, MeshArena.shared.slabBytes >> 20,
                           FrameStats.residentMB())
