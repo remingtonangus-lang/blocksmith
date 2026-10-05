@@ -1738,7 +1738,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let im = m as? InventoryMenu, game.effects.any {
                 var y = o.y
                 // Left of the recipe-book toggle (the list ran under it: run 362 inventory shot), and of the open book.
-                let right: Float = im.book.open ? o.x - 126 * s : o.x - 26 * s
+                // Clear of the "Craft" label too, which is wider than its button (inventory shot: the list touched it).
+                let craftLabel: Float = 4 * s + textWidth("Craft", s) + 3 * s
+                let right: Float = im.book.open ? o.x - 126 * s : o.x - max(26 * s, craftLabel)
                 for (e, a) in game.effects.active {
                     let bw = 120 * s
                     let bx = right - bw
@@ -1907,8 +1909,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                         itemIcon(ItemStack(Items.id("book"), 1), x + s, y + s, 16 * s, counts: false)
                         // The inventory's way into its crafting book (LB/RB too): labelled, an icon alone was easy to miss.
                         if m is InventoryMenu {
+                            // Right-aligned to the button: centred, the label (wider than the button) ran under the panel.
                             let lw = textWidth("Craft", s)
-                            text("Craft", x + (Float(sl.w) * s - lw) / 2, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
+                            text("Craft", x + Float(sl.w) * s - lw, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
                         }
                     } else if id >= RecipeBook.base {
                         let k = book.page * RecipeBook.perPage + id - RecipeBook.base
