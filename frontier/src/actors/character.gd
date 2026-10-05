@@ -227,6 +227,8 @@ var tree: AnimationTree
 var _bs_max := 4.05
 var _aim_w := 0.0
 var _aim_target := 0.0
+var _seat_w := 0.0
+var _seat_target := 0.0
 var _dead := false
 var _lod_acc := 0.0
 var _lod_frame := 0
@@ -269,7 +271,14 @@ func _ensure_tree() -> void:
 		if not LOWER_BODY.has(bn):
 			upper.set_filter_path(NodePath("Skeleton:" + bn), true)
 	root.add_node("upper", upper, Vector2(400, 100))
-	root.connect_node("upper", 0, "loco_ts")
+	var sit := AnimationNodeAnimation.new()
+	sit.animation = CharacterFactory.ANIM_LIB_NAME + "/sit_idle"
+	root.add_node("sit", sit, Vector2(200, -150))
+	var seated := AnimationNodeBlend2.new()
+	root.add_node("seated", seated, Vector2(300, -50))
+	root.connect_node("seated", 0, "loco_ts")
+	root.connect_node("seated", 1, "sit")
+	root.connect_node("upper", 0, "seated")
 	root.connect_node("upper", 1, "aim_kind")
 	var hit_anim := AnimationNodeAnimation.new()
 	hit_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/hit_front"
@@ -302,6 +311,7 @@ func set_locomotion(speed: float, state := "", _on_floor := true) -> void:
 	var blend := minf(speed, _bs_max)
 	tree.set("parameters/loco/blend_position", blend)
 	tree.set("parameters/loco_ts/scale", clampf(speed / _bs_max, 1.0, 1.8) if speed > _bs_max else 1.0)
+	_seat_target = 1.0 if state == "mounted" else 0.0
 	if state == "mounted":
 		tree.set("parameters/loco/blend_position", 0.0)
 
@@ -358,6 +368,8 @@ func _physics_tick_anim(delta: float) -> void:
 		return
 	_aim_w = move_toward(_aim_w, _aim_target, delta * 6.0)
 	tree.set("parameters/upper/blend_amount", _aim_w)
+	_seat_w = move_toward(_seat_w, _seat_target, delta * 4.0)
+	tree.set("parameters/seated/blend_amount", _seat_w)
 	# animation LOD: full rate near the camera, every 3rd/6th frame further out
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var every := 1
