@@ -135,9 +135,7 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
 
 ## Open / for other sessions
 
-- Capital frigate (integration session's file): the deckhouse ladder at (-6, 15..20, 66) ends a block short of the
-  bridge deck (the deck is z 53-64, y 21): nobody can climb onto the bridge. Extending the bridge deck to z 66 (or the
-  ladder) fixes it.
+- (none: the old deckhouse-ladder note went with the old Capital frigate hull, rebuilt 2026-10-05.)
 
 ## State
 
@@ -155,3 +153,7 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
 - Open: a Capital base has 34 blocks the support analysis finds unsupported untouched (capital stone and trim, light
   panels; the main tower's landing pad reaches ~22 blocks off the terrace, capital stone spans 14, and its braces hang
   from the pad rather than running to the tower wall). `--structcheck` unstable class measures it per structure.
+- 2026-10-05: destruction + frigates on claude/bs-destruction (cdd5a35): collapsecheck, interiorcheck PASS; ridecheck
+  frigatecrash failed (the touchdown blasts cut the new hull's hangar deck, 4 blocks over the keel, and hurt the rider):
+  touchdown blasts now spare the landing ship and its riders. Also: citadel rebuild remeshes async (basetest cost was
+  red on playtest itself), flying warships read "Warship" on the HUD, interior doorways framed in trim.

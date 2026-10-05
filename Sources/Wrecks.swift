@@ -71,7 +71,9 @@ extension ShipManager {
             guard w.isLoaded(c.x, c.z), Blocks.replaceable[Int(w.rawBlock(c.x, c.y, c.z))] else { continue }
             _ = w.setBlockAsync(c.x, c.y, c.z, chest)
             let be = BlockEntity(.chest)
-            var r2 = SRng(UInt64(bitPattern: Int64(c.x &* 73856093 ^ c.z &* 19349663 ^ c.y &* 83492791)) | 1)
+            let hx: Int = c.x &* 73856093, hz: Int = c.z &* 19349663, hy: Int = c.y &* 83492791
+            let h: Int = hx ^ hz ^ hy
+            var r2 = SRng(UInt64(bitPattern: Int64(h)) | 1)
             Loot.fill(be.container, table: Wrecks.salvageTable, rng: &r2)
             w.blockEntities[c] = be
         }

@@ -55,6 +55,11 @@ extension HullBuilder {
                     let dz = zm
                     for yy in (y + 1)...(y + 2) { set(sx * (c + 1), yy, dz, AIR) }
                     if get(sx * (c + 1), y + 3, dz) == st.wall { set(sx * (c + 1), y + 3, dz, st.trim) }
+                    // Jambs in trim too: down a corridor a bare one-wide gap in a wall of the same panels hardly shows
+                    // (ship_frigate_corridor read as a blank tube); framed, every doorway reads from the far end.
+                    for jz in [dz - 1, dz + 1] { for yy in (y + 1)...(y + 3) where get(sx * (c + 1), yy, jz) == st.wall {
+                        set(sx * (c + 1), yy, jz, st.trim)
+                    } }
                     roomCells.append((grid(sx * (c + 2), y + 1, dz), kind))
                     furnish(kind, sx: sx, xi: c + 2, xo: xo, y: y, h: h, za: za + 1, zb: zb - 1, door: dz, style: st, rng: &rng, inside: inside)
                 }

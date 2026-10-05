@@ -1292,7 +1292,9 @@ extension ShipManager {
                 st.mainCharge = 0
                 let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
-                var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+                let lead: V3 = t.vel * (dist / 260)
+                let aim: V3 = t.point + lead - mw
+                var dir = simd_normalize(aim)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
                 sh.gravity = 1.5

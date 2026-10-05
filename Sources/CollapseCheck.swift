@@ -314,10 +314,23 @@ enum CollapseCheck {
         var halfY0: Float = 0, lowest: Float = .greatestFiniteMagnitude
         let limit = name == "frigate" ? 150 : 40
         var settledFor = 0
+        // Particles drawn with the "missing" texture (magenta specks in the shots), with the first one's make-up.
+        let missingLayer = Int(Tex.id("missing"))
+        var magenta = 0, magentaFirst = ""
+        ParticleManager.airBits = 0
         for i in 0..<(limit * 60) {
             let a = CFAbsoluteTimeGetCurrent()
             agent.step(idle)
             ticks.append((CFAbsoluteTimeGetCurrent() - a) * 1000)
+            if i % 20 == 0 {
+                for q in g.particles.list where q.layer == missingLayer {
+                    magenta += 1
+                    if magentaFirst.isEmpty {
+                        magentaFirst = String(format: "at %.0f,%.0f,%.0f size %.2f gravity %.1f life %.1f colour %.2f,%.2f,%.2f%@", q.pos.x, q.pos.y, q.pos.z,
+                                              q.size, q.gravity, q.maxLife, q.color.x, q.color.y, q.color.z, q.glow ? " glow" : "")
+                    }
+                }
+            }
             let bodies = w.ships.list.filter { $0.debris }
             maxBodies = max(maxBodies, bodies.count)
             // (A big section of a flying capital comes down kinematic, as the vessel would, not as a debris body.)
@@ -340,6 +353,7 @@ enum CollapseCheck {
         r.note(String(format: "blasts %.0f ms; %ld collapses, %ld hull splits, up to %ld debris bodies, %ld blocks laid back; tick mean %.2f p95 %.2f worst %.1f ms over %ld ticks; last analysis %.1f ms",
                       blastMs, ms.collapses, ms.hullSplits, maxBodies, ms.bakedBlocks, mean, p95, worst, ticks.count, ms.collapseMs))
         r.note(String(format: "slowest laying-down %.1f ms, slowest hull split %.1f ms", ms.worstBakeMs, ms.worstSplitMs))
+        r.check(magenta == 0, "no particle draws the missing texture (\(magenta) seen\(magentaFirst.isEmpty ? "" : ", first " + magentaFirst); \(ParticleManager.airBits) bits of air skipped)")
         let left = st.watch.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count
         switch name {
         case "frigate":
