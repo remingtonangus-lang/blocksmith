@@ -13,6 +13,7 @@ const WALK := 1.45
 const JOG := 3.5
 const SPRINT := 6.0
 
+var loco := LocoAccents.new()       # turn-in-place / stop one-shots over the gait blend
 var role := "townsfolk"            # townsfolk, lawman, gunman, rancher, worker, shopkeeper...
 var faction := "civilian"          # civilian, law, outfit, shale, syndicate, bandit
 var display_name := "Stranger"
@@ -297,6 +298,8 @@ func _physics_process_impl(dt: float) -> void:
 				str(ActorLOD.far(self)), _ghost_t, _path_i, _path.size(), rt.phase if rt else "-", brain.debug_state])
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
+		if not ActorLOD.far(self):
+			loco.tick(visual, facing, speed, dt, intent.aim_at != null or anchored or Melee.is_down(self))
 	if visual.has_method("set_aim"):
 		var kind := ""
 		if intent.aim_at != null and gun and not gun.weapons.is_empty():
