@@ -1132,9 +1132,30 @@ final class World {
         fires[p] = 0
     }
 
+    // Reference fire odds per block (FireBlock: ignite, burn). Logs catch slowly and last; leaves, wool and plants go
+    // fast. Every flammable block burned at a flat 1 in 5 a fire tick.
+    static let fireOdds: [(ignite: UInt8, burn: UInt8)] = {
+        var out = [(ignite: UInt8, burn: UInt8)](repeating: (0, 0), count: Blocks.count)
+        for i in 0..<Blocks.count where Blocks.flammable[i] && Int(Blocks.groupBase[i]) == i {
+            let k = Blocks.key(Blocks.groupBase[i])
+            var o: (UInt8, UInt8) = (5, 20)                                         // planks, stairs, slabs, fences...
+            if k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem") || k.hasSuffix("_hyphae") || k == "coal_block" { o = (5, 5) }
+            else if k.hasSuffix("_leaves") || k.hasSuffix("_wool") || k == "dried_kelp_block" || k.hasPrefix("azalea") { o = (30, 60) }
+            else if k == "bookshelf" || k == "lectern" || k == "bee_nest" || k == "chiseled_bookshelf" { o = (30, 20) }
+            else if k.hasSuffix("_carpet") || k == "hay_block" { o = (60, 20) }
+            else if k == "tnt" { o = (15, 100) }
+            else if k.hasSuffix("vine") || k.hasSuffix("vines") { o = (15, 100) }
+            else if k == "scaffolding" { o = (60, 60) }
+            else if Blocks.render[i] == RenderType.cross.rawValue { o = (60, 100) }       // grass, ferns, flowers, bushes
+            for s in i..<Blocks.count where Int(Blocks.groupBase[s]) == i { out[s] = o }
+        }
+        return out
+    }()
+
     func fireTick() {
         if fires.isEmpty { return }
         let fl = Blocks.flammable
+        let odds = World.fireOdds
         for (p, age) in fires {
             let b = block(p.x, p.y, p.z)
             if b != FIRE { fires.removeValue(forKey: p); continue }
@@ -1156,20 +1177,28 @@ final class World {
                 // left behind with no block to open.
                 guard fl[Int(nb)], blockEntities[q] == nil else { continue }
                 anyFlammable = true
-                if Rand.int(in: 0..<5) == 0 {
+                // Burns away with burnOdds in 300 (250 above and below); the fire takes its place on 5 in age + 10.
+                if Rand.int(in: 0..<(d.y != 0 ? 250 : 300)) < Int(odds[Int(nb)].burn) {
                     onIgnite?(q, nb)
-                    if Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
+                    if Rand.int(in: 0..<(age + 10)) < 5 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
                 }
             }
             // Spread to air next to flammable blocks nearby.
             if anyFlammable && Rand.int(in: 0..<3) == 0 {
                 let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
-                    setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
+                if block(q.x, q.y, q.z) == AIR {
+                    // Catches by the most flammable neighbour's ignite odds (reference (ignite + 40 + 7 x difficulty) /
+                    // (age + 30) against 100, taking normal difficulty).
+                    var ig = 0
+                    for e in World.allDirs { ig = max(ig, Int(odds[Int(block(q.x + e.x, q.y + e.y, q.z + e.z))].ignite)) }
+                    if ig > 0 && Rand.int(in: 0..<100) < (ig + 54) * 10 / (age + 30) {
+                        setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
+                    }
                 }
             }
             let supported = Blocks.opaque[Int(below)] || anyFlammable
-            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
+            // No age cap: fire on a log burns until the log is gone (it went out after 30 steps whatever it stood on).
+            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable)) {
                 setBlockAsync(p.x, p.y, p.z, AIR)
                 fires.removeValue(forKey: p)
             } else {

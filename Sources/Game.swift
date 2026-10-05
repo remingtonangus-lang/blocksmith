@@ -2029,7 +2029,7 @@ final class Game {
         lavaTimer += dt
         if lavaTimer >= (dim.dim == .nether ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
         fireTimer += dt
-        if fireTimer >= Rand.double(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
+        if fireTimer >= Rand.double(in: 1.5...2.0) { fireTimer = 0; world.fireTick() }      // 30 + rand(10) ticks (reference)
         portalTick(Float(dt))
         endPortalTick()
         updateEyes(Float(dt))
