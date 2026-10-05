@@ -401,7 +401,9 @@ final class World {
     func remeshArea(x0: Int, z0: Int, x1: Int, z1: Int, y0: Int, y1: Int) {
         for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
             guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-            for sy in max(0, y0 >> 4)...min(NSEC - 1, y1 >> 4) { remeshSync(c, sy) }
+            let lo = max(0, y0 >> 4), hi = min(NSEC - 1, y1 >> 4)
+            guard lo <= hi else { continue }                    // wholly above or below the world: nothing to remesh
+            for sy in lo...hi { remeshSync(c, sy) }
         } }
     }
 
@@ -454,6 +456,7 @@ final class World {
 
     // Chips a block to `level` (keeps the face of the first hit); remeshes around it now.
     func chip(_ p: IVec3, level: Int, face: Int) {
+        guard p.y >= 0 && p.y < CH else { return }             // as chipAsync (the harness chipped above the world top)
         let cur = damage[p]
         let lv = max(level, Int((cur ?? 0) & 31))
         guard lv > 0 && lv < 8 else { return }

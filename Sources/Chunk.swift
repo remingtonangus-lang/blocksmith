@@ -72,14 +72,17 @@ struct BlockStore {
         while top > 0 && full[top - 1] == AIR { top -= 1 }
         let keep = (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section
         data = keep >= full.count ? full : Array(full[0..<keep])
+        // Whole sections only (the mesher copies stored rows a section at a time): a short input is padded with air.
+        if data.count < keep { data.append(contentsOf: repeatElement(AIR, count: keep - data.count)) }
     }
 
     var count: Int { CSQ * CH }             // logical size
     var storedCount: Int { data.count }     // everything at or above this index is AIR
 
     @inline(__always) subscript(i: Int) -> BlockID {
-        get { i < data.count ? data[i] : AIR }
+        get { UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR }      // a negative index reads as air too
         set {
+            guard i >= 0 && i < CSQ * CH else { return }
             if i >= data.count {
                 if newValue == AIR { return }
                 let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
