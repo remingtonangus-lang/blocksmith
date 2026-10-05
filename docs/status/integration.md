@@ -139,6 +139,20 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   helm APIs. Mob vertex buffers now grow to 16 MB and draw nearest first (2ab6bf7), so bigger crews are fine; the
   Capital soldier rig is 190 parts close up, so keep crews modest per deck in view. Original names only (public repo).
 
+## Run 634 (4d315cd, heavy) read-out
+- Red: perf (flight24 resident peak 722 MB vs baseline 512, gate 1.4x; run 605 had 675), ridecheck crew (trooper 1.88
+  off post 0; also red on run 605, so from the soldier merge, not the horizon ring), basetest "citadel update stays
+  cheap" (2.6 / 1.3 ms, both rebuild scenes), smoke 8c (player 2 circled: 7 blocks net, not gating). Green: checks,
+  play, smoke rd 8/16/24/24f.
+- Memory: flight8 125 -> 242 MB since the 2026-10-02 baseline at the same chunk counts: the 128 px textures and Fancy.
+  The emissive mask was a full 128 px slice per layer (37 MB GPU + 37 MB CPU at start-up), now one per glowing layer.
+  Baseline left as is; if the gate still trips after this, re-baseline only the resident_peak_mb rows with the reason.
+- Crew: calm crawler troopers strolled round their world-space spawn point (stream D's stroll circle / homing) while the
+  hull drove off; crew with a post aboard now keep watch. Citadel rebuild: setBlockAsync (stream D: both in your files,
+  small; shout in STATUS if you'd rather have it another way).
+- Verified at 128 px: citadel_far trees whole (no bare trunks or leaf plates round the site); horizon_ring_evening reads
+  as faint far ground in the haze. base_patrol frames the camera on a leaf canopy (patrol not in view): stream D's shot.
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
