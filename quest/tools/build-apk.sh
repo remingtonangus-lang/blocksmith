@@ -91,7 +91,8 @@ sed -i "s|@PKGLIBS@|$ROOT/$PKG/libs|" "$PKG/Package.swift"
 echo "== swift build ($SDK, $TRIPLE)"
 # The full log goes to a file (a `head` on the pipe would SIGPIPE the build under pipefail); errors are shown below.
 (cd "$PKG" && swift build -c release --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith \
-  > "$ROOT/build/quest-swift-build.log" 2>&1) || { grep -E "error:" -A3 build/quest-swift-build.log | head -200; tail -40 build/quest-swift-build.log; exit 1; }
+  > "$ROOT/build/quest-swift-build.log" 2>&1) || { tail -15 build/quest-swift-build.log; echo "== compiler errors"
+       sed 's/\x1b\[[0-9;]*m//g' build/quest-swift-build.log | grep -E "error:" -A3 | grep -v "Command line:\|^ *$" | head -120; exit 1; }
 grep -E "Compiling|Linking|Build complete" build/quest-swift-build.log | tail -5
 # (find -print -quit, not `| head -1`: head closing the pipe fails the assignment under pipefail and exits silently)
 SO=$(find "$PKG/.build" -name libblocksmith.so -ipath "*release*" -print -quit || true)

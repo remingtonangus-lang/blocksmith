@@ -20,7 +20,7 @@ private func redirectOutputToLogcat(logFile: String?) {
     if let path = logFile {
         let prev = path.replacingOccurrences(of: ".log", with: ".prev.log")
         _ = unlink(prev); _ = rename(path, prev)
-        fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
+        fd = creat(path, 0o644)          // = open(O_WRONLY|O_CREAT|O_TRUNC); Bionic's variadic open is not imported
     }
     let cap = 8 << 20
     var written = 0
@@ -48,7 +48,7 @@ private func redirectOutputToLogcat(logFile: String?) {
                     if fd >= 0 && written < cap {
                         line[line.count - 1] = 10                  // the terminator becomes the newline
                         written += line.count
-                        _ = line.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+                        _ = line.withUnsafeBytes { write(fd, $0.baseAddress!, $0.count) }
                     }
                     line.removeAll(keepingCapacity: true)
                 } else if line.count < 4000 { line.append(buf[i]) }
