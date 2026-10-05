@@ -4,10 +4,15 @@ Owner: session D. Scope: soldier models (dress uniforms, ranks, gear, weapons), 
 crew-station pose hooks, and the backwards-arms bug. Not in scope (other streams): base layouts, ship hulls,
 vehicle physics, controller code.
 
-## State (2026-10-04, standing order: never stop; queue = soldiers -> reactive bases -> aircraft -> bug hunting)
+## State (2026-10-05, standing order: never stop; queue = soldiers -> reactive bases -> aircraft -> bug hunting)
 - Soldiers: DONE and merged into claude/blocksmith-playtest (d3a9c7c). posecheck 474 checks green.
-- Reactive bases (Future ideas #2): first pass on claude/bs-capital-soldiers, being tuned through --basetest.
-- Aircraft (Future ideas #8): first pass on claude/bs-capital-soldiers, being tuned through --flighttest traces.
+- Reactive bases (Future ideas #2): on claude/bs-capital-soldiers (rebased on playtest 2026-10-05). Patrol, air
+  patrol, lockdown crews and dropships green; crawler return and the wall rebuild being fixed through the focused
+  release run (`[fast: ... --basetest all]`, ~50 s for the whole suite).
+- Aircraft (Future ideas #8): on the same branch. --flighttest heli / plane green, player phase down to its landing.
+- Bug hunting: `--behaviorsim --site citadel` (soldier stuck / spinning / in-wall / fall oracles round a citadel,
+  gunshots outside every 3 min); first run found calm soldiers flipping at their post radius (fixed: stroll area 7,
+  walk home past 12 to within 5).
 
 ## What exists (code map)
 - `Sources/SoldierRig.swift`: the jointed soldier model and all stances.
@@ -75,11 +80,10 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   structures.place) and restores only cells that are now air / liquid / fire with their original block, bottom up,
   ~1 block/s per pilot (2 pilots at the site in the console stance); time away is caught up on return. Wrecks,
   debris and player builds in a crater are left alone.
-- Cost: `BaseWatch.tickMs` (once-a-second update) 0.25 ms avg in the unoptimized CI build; worst 19 ms when a
-  dropship hull is built on the main thread (CapitalShips.callDropship): TODO build it off-thread like spawnCapital.
-- Checks: `--basetest patrol|crawler|lockdown|rebuild` (and `...shot` variants for pictures). The unoptimized fast
-  lane runs ~88 ms a tick with a full garrison, so only patrol/lockdown fit a fast-lane run; crawler and rebuild
-  belong to the heavy lane (snap.sh shots shard).
+- Cost: `BaseWatch.tickMs` (once-a-second update) 0.03 ms avg in the release build (0.2-0.3 unoptimized); dropship
+  hulls build on a worker thread; a Kestrel launch costs 0.8 ms (release).
+- Checks: `--basetest patrol|crawler|lockdown|rebuild|air|all` (and `...shot` variants for pictures). Unoptimized,
+  only single phases fit a fast-lane run; a `[fast: ...]` marker builds release and runs the whole suite in ~50 s.
 
 ## Aircraft (FlightModel.swift, Aircraft.swift, FlightTests.swift)
 - `Ship.flight` (FlightModel) for ships with rotor heads (helicopters) or role "capplane"; older wing builds keep
