@@ -433,7 +433,9 @@ extension Game {
             return true
         }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
-            guard !m.baby, m.breedCooldown <= 0, m.inLove <= 0 else { return false }
+            // Reference: feeding a baby takes 10 % off the time it still needs to grow up.
+            if m.baby { m.age += max(1, (1200 - m.age) * 0.1); consumeHeld(); particles.hearts(at: m.pos + V3(0, m.height, 0)); return true }
+            guard m.breedCooldown <= 0, m.inLove <= 0 else { return false }
             m.inLove = 30
             consumeHeld()
             particles.hearts(at: m.pos + V3(0, m.height, 0))

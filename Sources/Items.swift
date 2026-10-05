@@ -82,7 +82,7 @@ final class ItemRegistry {
 
     // Item that a given block state drops/picks as (its group's block item), or nil.
     func item(forBlock b: BlockID) -> ItemID? {
-        let base = Int(Blocks.groupBase[Int(b)])
+        let base = Int(Blocks.groupBase[Int(Blocks.dry[Int(b)])])      // a waterlogged state drops its dry item
         let i = forBlock[base]
         return i == 0 ? nil : i
     }

@@ -178,12 +178,13 @@ final class World {
 
     // Changes a block and remeshes: the sections around the block synchronously (no holes, correct
     // AO), everything its light could reach in the background.
-    func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
+    func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
+        let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -218,6 +219,14 @@ final class World {
         scheduleFluid(around: IVec3(x, y, z))
     }
 
+    // Waterlogging rules for every write: a full cube (double slab) holds no water, and a waterlogged block that is
+    // removed (broken, blown up, pushed away) leaves its water behind (reference).
+    @inline(__always) static func storedState(_ id: BlockID, replacing old: BlockID) -> BlockID {
+        if Blocks.wetInvalid[Int(id)] { return Blocks.dry[Int(id)] }
+        if id == AIR && old != AIR && Blocks.isWaterlogged(old) { return WATER }
+        return id
+    }
+
     // Cells whose support may have changed: this one and the one above (falling blocks, standing plants), the one below
     // (hanging plants), and the four beside it when a solid block went (vines clinging to it). Game.gravityTick.
     @inline(__always) func queueSupportChecks(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
@@ -230,11 +239,12 @@ final class World {
 
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
-    func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
+    func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
+        let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -1054,6 +1064,11 @@ final class World {
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
 
+    // Waterlogged states whose shape closes the floor (bottom slabs and stairs): their water can't pour down.
+    static let wetFloor: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.isWaterlogged(BlockID(i)) && Blocks.collBoxes[i].contains { $0.y0 == 0 && $0.x0 == 0 && $0.z0 == 0 && $0.x1 == 16 && $0.z1 == 16 }
+    }
+
     static let basaltID: BlockID = Blocks.has("basalt") && Blocks.has("soul_soil") && Blocks.has("blue_ice") ? Blocks.id("basalt") : AIR
     static let soulSoilID: BlockID = Blocks.has("soul_soil") ? Blocks.id("soul_soil") : AIR
     static let blueIceID: BlockID = Blocks.has("blue_ice") ? Blocks.id("blue_ice") : AIR
@@ -1137,7 +1152,8 @@ final class World {
                 onFluidEvent?(p)
                 continue
             }
-            if p.y > 0 && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
+            if p.y > 0 && !World.wetFloor[Int(cur)]
+                && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
                 setFluid(IVec3(p.x, p.y - 1, p.z), fall)
                 continue
             }

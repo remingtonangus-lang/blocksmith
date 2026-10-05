@@ -1230,7 +1230,8 @@ final class Playthrough {
         }
         guard let b = w else { return }
         check(b.phase == 1, "blight: charging after the summon")
-        let feet = V3(Float(ax) + 0.5, Float(gy), Float(az) + 14.5)
+        // Inside the cleared arena (it stood at +14.5, past the cleared 12 blocks, under whatever grew there).
+        let feet = V3(Float(ax) + 0.5, Float(gy), Float(az) + 10.5)
         game.player.flying = false
         game.player.pos = feet
         _ = tick(12)
@@ -1291,6 +1292,10 @@ final class Playthrough {
         }
         let t = simSeconds - fightStart
         check(b.health <= 0, String(format: "blight: defeated in %.0f s (%ld arrows for %ld damage, %ld sword hits)", t, arrows, arrowDmg, swings))
+        if b.health > 0 {
+            let sees = world.canSee(game.player.eye, b.pos + V3(0, 1.75, 0))
+            info("blight sight: player sees it \(sees), player \(game.player.pos), blight \(b.pos), phase \(b.phase), arena floor y \(gy)")
+        }
         check(armoredArrows == 0 || armoredArrowDmg == 0, "blight: arrows bounce off its armour below half health (\(armoredArrowDmg) damage from \(armoredArrows))")
         info("blight fight: player took \(damageTaken - dmgStart) damage (healed by the test); \(landed) of \(swings) sword hits landed for \(swordDmg)")
         collect(near: b.pos, 24)

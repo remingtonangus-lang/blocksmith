@@ -205,6 +205,7 @@ final class Game {
     private var raidTimer: Float = 0
     var contactTimer: Float = 0
     var frostTimers: [IVec3: Float] = [:]     // frosted ice waiting for its next melt tick (GameBlocks)
+    var frostAcc: Float = 0
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
     var walkBob: Float = 0
@@ -1226,6 +1227,8 @@ final class Game {
             supported = true
         }
         let solid = Blocks.collide[Int(id)]
+        // Placed into a water source, a waterloggable block holds the water (reference).
+        if existing == WATER && Blocks.wet[Int(id)] != AIR { id = Blocks.wet[Int(id)] }
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
@@ -1519,8 +1522,9 @@ final class Game {
             t += 0.05
         }
         if k == "bucket", let f = fluidHit {
-            let lava = Blocks.fluidKind[Int(world.block(f.x, f.y, f.z))] == 2
-            world.setBlock(f.x, f.y, f.z, AIR)
+            let cur = world.block(f.x, f.y, f.z)
+            let lava = Blocks.fluidKind[Int(cur)] == 2
+            world.setBlock(f.x, f.y, f.z, Blocks.isWaterlogged(cur) ? Blocks.dry[Int(cur)] : AIR)      // drains a waterlogged block
             sfx(lava ? .fizz : .splash, 0.4)
             if survival {
                 consumeHeld()
@@ -1528,6 +1532,17 @@ final class Game {
                 if !rest.isEmpty { dropItem(rest) }
             }
             return true
+        }
+        // Water poured onto a waterloggable block (stairs, slabs, fences, walls, panes, ladders, lanterns) fills it.
+        if k == "water_bucket", dim.dim != .nether, let tg = target {
+            let tb = world.block(tg.hit.x, tg.hit.y, tg.hit.z)
+            let wb = Blocks.wet[Int(tb)]
+            if wb != AIR && !Blocks.wetInvalid[Int(wb)] {
+                world.setBlock(tg.hit.x, tg.hit.y, tg.hit.z, wb)
+                sfx(.bucketEmpty, 0.8, at: V3(Float(tg.hit.x), Float(tg.hit.y), Float(tg.hit.z)) + 0.5)
+                if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
+                return true
+            }
         }
         if k == "water_bucket" || k == "lava_bucket" {
             var at: IVec3?
@@ -1638,7 +1653,9 @@ final class Game {
         captainDied(m)
         soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
-        let xp = m.sized ? m.slimeSize : m.spec.xp
+        var xp = m.sized ? m.slimeSize : m.spec.xp
+        // Each equipped piece adds 1-3 (reference, monsters with experience only).
+        if xp > 0 && m.kind.hostile, let e = m.equip { for s in e where !s.isEmpty { xp += Rand.int(in: 1...3) } }
         // Reference: animals 1-3, monsters their own value, baby zombies 2.5x (12); other babies none.
         if m.killedByPlayer {
             if !m.baby { addXP(m.kind.hostile || xp == 0 ? xp : Rand.int(in: 1...3)) }
@@ -1741,12 +1758,17 @@ final class Game {
         var amount = amount
         if attacker != nil || type == .projectile || type == .explosion {
             // Reference difficulty scaling of mob damage: easy min(x/2+1, x), hard x*1.5 (blasts always scale).
+            // Half points round up at random so the average holds (a hard zombie hits 4.5: 4 or 5).
+            let a = Float(amount)
+            var scaled: Float = a
             switch difficulty {
             case 0: return
-            case 1: amount = min(amount / 2 + 1, amount)
-            case 3: amount = amount * 3 / 2
+            case 1: scaled = min(a / 2 + 1, a)
+            case 3: scaled = a * 1.5
             default: break
             }
+            let whole = floorf(scaled)
+            amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
         }
         damage(amount, cause, type: type, attacker: attacker)
         if knockback > 0 {

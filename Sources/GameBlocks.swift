@@ -207,12 +207,21 @@ extension Game {
         } }
     }
 
+    // 20 times a second (the reference tick), counting down in place and melting the due ones after the pass.
     func frostedIceTick(_ dt: Float) {
-        guard !frostTimers.isEmpty else { return }
-        for (q, t0) in frostTimers {
-            let t = t0 - dt
-            if t > 0 { frostTimers[q] = t } else { frostTimers[q] = nil; meltFrosted(q) }
+        guard !frostTimers.isEmpty else { frostAcc = 0; return }
+        frostAcc += dt
+        guard frostAcc >= 0.05 else { return }
+        let step = frostAcc
+        frostAcc = 0
+        var due: [IVec3] = []
+        var i = frostTimers.values.startIndex          // values mutated in place: no copy of the table
+        while i != frostTimers.values.endIndex {
+            frostTimers.values[i] -= step
+            if frostTimers.values[i] <= 0 { due.append(frostTimers.keys[i]) }
+            frostTimers.values.formIndex(after: &i)
         }
+        for q in due { frostTimers[q] = nil; meltFrosted(q) }
     }
 
     // One reference frosted-ice tick: lit above 11 - age, it ages a step with 1/3 chance (always with fewer than 4
@@ -224,7 +233,7 @@ extension Game {
         let b = world.block(q.x, q.y, q.z)
         guard fi != AIR, b != AIR, Blocks.groupBase[Int(b)] == fi else { return }
         let age = Int(b) - Int(fi)
-        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+        let dirs = World.allDirs
         var n = 0
         for d in dirs where Blocks.groupBase[Int(world.block(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
         let l = world.lightAt(q.x, q.y, q.z)

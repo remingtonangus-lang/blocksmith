@@ -625,7 +625,7 @@ enum RideCheck {
         st.testTurn = 1
         let idle = Bot()
         let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
-        var worstPost: Float = 0, worstWho = ""
+        var worstPost: Float = 0, worstWho = "", worstWhen = ""
         var off = 0, inside = 0, firstOff = ""
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
@@ -641,7 +641,12 @@ enum RideCheck {
                 if posts, k < st.crew.count {
                     let p = st.crew[k]
                     let e = simd_length(V2(l.x - p.x, l.z - p.z))
-                    if e > worstPost { worstPost = e; worstWho = "\(m.kind.key) at post \(k)" }
+                    if e > worstPost {
+                        worstPost = e; worstWho = "\(m.kind.key) at post \(k)"
+                        worstWhen = String(format: "tick %ld: ship-space %.2f,%.2f,%.2f, post %.2f,%.2f,%.2f, aggro %@, free %@, route %ld, ground %@, ship speed %.1f",
+                                           i, l.x, l.y, l.z, p.x, p.y, p.z, m.aggro ? "yes" : "no", m.crewFree ? "yes" : "no", m.crewRoute.count,
+                                           m.onGround ? "yes" : "no", simd_length(s.vel))
+                    }
                 }
             }
         }
@@ -656,6 +661,7 @@ enum RideCheck {
         r.check(spawned == st.crew.count, "every crew post is manned (\(spawned)/\(st.crew.count))")
         r.check(off == 0, "the crew ride the moving vehicle (\(off) crew-ticks off it)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(worstPost < 1.0, String(format: "every soldier holds its post while it drives and turns (worst %.2f blocks: %@)", worstPost, worstWho))
+        if worstPost >= 1.0 { r.note("ride crew worst post: " + worstWhen) }
         r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)")
         // Disable it: half the wheels (the port side) of the crawler, the frigate's drive engines.
         let kinds = ShipParts.kinds

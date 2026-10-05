@@ -55,7 +55,7 @@ extension Game {
                 let wet = Blocks.fluidKind[Int(b)] == 1
                 let k = Blocks.key(Blocks.groupBase[Int(b)])
                 if wet || k == "kelp" || k == "kelp_plant" || k == "seagrass" || k == "tall_seagrass" {
-                    world.setBlockAsync(n.x, n.y, n.z, AIR)
+                    world.setBlockAsync(n.x, n.y, n.z, Blocks.isWaterlogged(b) ? Blocks.dry[Int(b)] : AIR)     // drains a waterlogged block
                     soaked += 1
                     queue.append((n, dist + 1))
                 }

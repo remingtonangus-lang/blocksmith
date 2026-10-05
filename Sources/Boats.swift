@@ -169,7 +169,7 @@ extension Mob {
         var landed = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
         // Ramming a wall at speed breaks the boat (reference: falls > 3 blocks onto land also break it).
-        if (hit.x || hit.z) && simd_length(V2(vel.x, vel.z)) > 12 && surface == nil { health = 0 }
+        if (hit.x || hit.z) && simd_length(V2(vel.x, vel.z)) > 12 && surface == nil && Boats.slipperiness(below) < 0.9 { health = 0 }      // ice runs reach 40-70 b/s
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))

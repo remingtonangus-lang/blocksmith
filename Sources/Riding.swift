@@ -20,7 +20,7 @@ extension Game {
         case .wolf where !m.tamed && key == "bone": tameTry(); return true
         case .nautilus where !m.tamed && key == "pufferfish": tameTry(); return true
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
-        case .ocelot where !m.tamed && (key == "cod" || key == "salmon"):
+        case .ocelot where m.owner == nil && (key == "cod" || key == "salmon"):         // trusting ocelots breed on fish
             consumeHeld()
             if Rand.int(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
             return true
@@ -110,11 +110,15 @@ extension Game {
         // Pets: dye a wolf collar, sit / stand.
         if m.tamed && (m.kind == .wolf || m.kind == .cat) {
             if key.hasSuffix("_dye"), let i = BlockRegistry.colors.firstIndex(where: { "\($0.0)_dye" == key }) { m.collar = i; consumeHeld(); return true }
-            if !(MobKind.animalFood[m.kind]?.contains(key) ?? false) || m.health >= m.spec.health * (m.kind == .wolf ? 5 : 1) {
-                m.sitting.toggle(); return true
+            // Reference: food heals a hurt pet (twice its nutrition), breeds a healthy adult one, and anything else
+            // makes it sit or stand. (Food at full health toggled sitting, so tamed wolves and cats never bred.)
+            let isFood = MobKind.animalFood[m.kind]?.contains(key) ?? false
+            let maxHP = m.kind == .wolf ? 40 : m.spec.health
+            if isFood && m.health < maxHP {
+                let heal = 2 * (held.def.food?.hunger ?? 2)
+                m.health = min(maxHP, m.health + heal); consumeHeld(); particles.hearts(at: pos); return true
             }
-            // Heal with food.
-            m.health = min(m.kind == .wolf ? 40 : m.spec.health, m.health + 4); consumeHeld(); particles.hearts(at: pos); return true
+            if !isFood || (!m.baby && (m.breedCooldown > 0 || m.inLove > 0)) { m.sitting.toggle(); return true }
         }
         // Saddles and chests.
         let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
@@ -202,6 +206,15 @@ extension Mob {
             if Items.key(g.held.item) == "warped_fungus_on_a_stick" { speed = 2.5 * stickBoost(dt); yaw = g.player.yaw }
         case .llama, .traderLlama:
             speed = 0            // llamas can't be steered
+            // Taming by riding like a horse, against a temper of 30 (reference; they could never be tamed).
+            if !tamed {
+                jumpCharge += dt
+                if jumpCharge > 1 {
+                    jumpCharge = 0
+                    if Rand.int(in: 0..<30) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
+                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
+                }
+            }
         default:
             // Untamed: buck the rider off unless the taming roll succeeds.
             if !tamed {

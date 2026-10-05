@@ -135,7 +135,9 @@ extension Mob {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .bee {
-                        g.applyEffect(.poison, amp: 0, seconds: 10)
+                        let poison: [Float] = [0, 0, 10, 18]                 // none on easy, 18 s on hard (reference)
+                        let s = poison[max(0, min(3, g.difficulty))]
+                        if s > 0 { g.applyEffect(.poison, amp: 0, seconds: s) }
                         health = 0                                   // bees die after stinging
                     }
                     if kind == .goat { g.player.vel += simd_normalize(V3(player.x - pos.x, 0.3, player.z - pos.z)) * 10; aggro = false }

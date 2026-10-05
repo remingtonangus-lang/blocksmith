@@ -644,7 +644,7 @@ final class Mob {
                     g.projectiles.fireball(from: from, dir: dir, big: false, byPlayer: false)
                     g.sfx(.fireball, 0.6, at: from)
                     volley -= 1
-                    attackCooldown = volley > 0 ? 0.3 : 3
+                    attackCooldown = volley > 0 ? 0.3 : 8        // reference: 5 s rest + 3 s charge between volleys
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
             if Rand.float(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.2...1.4), Rand.float(in: -0.4...0.4))) }
@@ -777,7 +777,11 @@ final class Mob {
                     attackCooldown = 1
                     g.hurtPlayer(meleeDamage, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
-                    if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
+                    if kind == .caveSpider {
+                        let poison: [Float] = [0, 0, 7, 15]                 // none on easy, 15 s on hard (reference)
+                        let s = poison[max(0, min(3, g.difficulty))]
+                        if s > 0 { g.applyEffect(.poison, amp: 0, seconds: s) }
+                    }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
             } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -1232,7 +1236,7 @@ final class Mob {
         if kind == .wither {
             // Invulnerable while charging; takes hits normally otherwise and starts breaking blocks.
             if phase == 1 { return }
-            health -= damage
+            health -= armorReduced(damage)              // its 4 natural armour points
             hurt = 0.4
             breakTimer = 1
             return
@@ -1818,7 +1822,7 @@ final class MobManager {
         for m in mobs where m.health > 0 { kindIndex[m.kind.rawValue].append(m) }
     }
     static let breedFood: [MobKind: [String]] = [
-        .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds"],
+        .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "torchflower_seeds", "pitcher_pod"],
         .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
     ]
 

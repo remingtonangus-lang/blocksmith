@@ -10,6 +10,17 @@ add docs/status/<stream>.md and a link here.
 > compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
 > sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
 
+## HANDOFF (2026-10-05 ~12:35 UTC, integration session stopped: usage nearly gone)
+- Pushed as a WIP batch (not compile-checked by CI yet): fidelity rounds 5 (enchantments / movement) and 6 (mobs /
+  animals), stonecutter paging, and waterlogging (twin states: Blocks.registerWaterlogged, World.storedState / wetFloor,
+  Mesher water in twin cells, buckets, placement, sponge, saveKey). A subagent hazard audit of waterlogging was still
+  running and did NOT report: first job next session is to read the fast lane, fix compile errors, then re-audit twins
+  (name->id maps, liquid checks in mining/raycast, Circuit/Pathfinding treating twins as water).
+- Run 692 (1b8f474) heavy: play red (Blight fight dealt/took 0; player stood outside the cleared arena, moved to +10.5,
+  sight diagnostic added) and tours red (ridecheck crew trooper 3.96 off post 0; diagnostic added; this push runs
+  `[fast: --ridecheck --scenes crew]`). Not done: StructWriter waterlogging (gencheck leak risk), PR #9 body update
+  (draft in the session scratchpad, rounds 5-6 + waterlogging; re-write from STATUS.md rounds if lost).
+
 ## HANDOFF (2026-10-03 ~12:00 UTC, builder session parked by Remington; supersedes the notes below)
 
 **State.** Branch `claude/blocksmith-playtest`. PLAYTEST READY on PR #9: `745768b` (run 424, fully green after one perf

@@ -145,7 +145,7 @@ final class SaveManager {
             if b < map.count, map[b] != 0 { idx[i] = map[b] - 1; continue }
             let m = UInt16(names.count)
             if b < map.count { map[b] = m + 1 }
-            names.append(Blocks.key(BlockID(b)))
+            names.append(Blocks.saveKey(BlockID(b)))
             idx[i] = m
         }
         var d = Data()

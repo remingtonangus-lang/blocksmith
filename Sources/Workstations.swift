@@ -147,6 +147,8 @@ final class StonecutterMenu: Menu {
         all = opts
         options = Array(all.dropFirst(page * 12).prefix(12))
         more?.hidden = pages <= 1
+        // The pad cursor never rests on the hidden button.
+        if let mo = more, mo.hidden, let i = slots.firstIndex(where: { $0 === mo }), game.menuCursor == i { game.menuCursor = 0 }
         out[0] = selected >= 0 && selected < options.count && !s.isEmpty ? ItemStack(options[selected].0, options[selected].1) : .empty
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {

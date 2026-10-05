@@ -91,8 +91,10 @@ enum RulesCheck {
         if Items.has("carved_pumpkin") {
             let keep = g.inventory.armor[0], hp = g.health
             g.inventory.armor[0] = ItemStack(Items.id("carved_pumpkin"), 1)
+            g.lastHurtAt = -10
+            g.health = 20
             g.damage(4, "rulescheck")
-            check(!g.inventory.armor[0].isEmpty, "a worn carved pumpkin survives a hit")
+            check(g.health < 20 && !g.inventory.armor[0].isEmpty, "a worn carved pumpkin survives a hit (health \(g.health))")
             g.inventory.armor[0] = keep
             g.health = hp
         }
@@ -127,6 +129,35 @@ enum RulesCheck {
             check(t < 40, "frosted ice melts by day in seconds (\(Int(t)) s, sky light \(l.sky))")
             g.frostTimers[q] = nil
             g.time = keepT
+        }
+
+        // Waterlogging: twins keep the dry name and drop, save under their own name, leave water when removed, a
+        // double slab holds none, a bottom slab keeps its water from pouring down while a fence lets it.
+        if Blocks.has("oak_slab") && Blocks.has("oak_fence") && Blocks.has("oak_slab[double]") {
+            let slab = Blocks.id("oak_slab"), fence = Blocks.id("oak_fence")
+            let ws = Blocks.wet[Int(slab)], wf = Blocks.wet[Int(fence)]
+            check(ws != AIR && wf != AIR && Blocks.key(ws) == "oak_slab" && Items.item(forBlock: ws) == Items.item(forBlock: slab)
+                  && Blocks.saveKey(ws).hasSuffix("~wl") && Blocks.id(Blocks.saveKey(ws)) == ws && Blocks.dry[Int(ws)] == slab,
+                  "waterlogged twins: same name and drop, own save name")
+            if ws != AIR && wf != AIR {
+                let x = site()
+                let q = IVec3(x, floorY + 1, cz)
+                w.setBlock(q.x, q.y, q.z, ws)
+                w.setBlock(q.x, q.y, q.z, AIR)
+                check(w.block(q.x, q.y, q.z) == WATER, "a removed waterlogged slab leaves water")
+                let dbl = Blocks.wet[Int(Blocks.id("oak_slab[double]"))]
+                w.setBlock(q.x, q.y, q.z, dbl)
+                check(w.block(q.x, q.y, q.z) == Blocks.id("oak_slab[double]"), "a double slab holds no water")
+                for (b, name, pours) in [(ws, "bottom slab", false), (wf, "fence", true)] {
+                    let x2 = site()
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] { w.setBlock(x2 + d.x, floorY + 1, cz + d.z, STONE) }
+                    w.setBlock(x2, floorY + 1, cz, b)
+                    w.scheduleFluid(around: IVec3(x2, floorY + 1, cz))
+                    for _ in 0..<30 { w.fluidTick() }
+                    let below = Blocks.isLiquid(w.block(x2, floorY, cz))
+                    check(below == pours, "water in a waterlogged \(name) \(pours ? "pours" : "stays") (below wet: \(below))")
+                }
+            }
         }
 
         g.survival = keepSurvival

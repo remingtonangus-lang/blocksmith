@@ -227,6 +227,7 @@ enum Mesher {
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase
         let rRail = RenderType.rail.rawValue
+        let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
 
@@ -433,6 +434,26 @@ enum Mesher {
                             }
                         }
                         continue
+                    }
+                    // Water held in a waterlogged block (and round kelp / seagrass): drawn like a source cell beside the
+                    // block's own model, its surface and the sides open to air (the reference's waterlogged look).
+                    if fkT[bi] == 1 && rt != rLiquid {
+                        let waterTop = fkT[Int(R[i + RL])] != 1
+                        for f in 0..<6 {
+                            let nb = Int(R[i + offs[f]])
+                            if fkT[nb] == 1 || opaqueT[nb] { continue }
+                            if collideT[nb] && layerT[nb] != translucent { continue }
+                            let flat = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
+                            let layer = Int(texT[waterTex + f])
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                let px = CT[ci] * 16, pz = CT[ci + 2] * 16
+                                var py = CT[ci + 1] * 16
+                                if waterTop && py == 16 { py = 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], 1) }
+                                let (u, v) = faceUV(f, px, py, pz)
+                                vert(true, bx16 + px, by16 + py, bz16 + pz, f, 3, u, v, layer, 3, flat, false)
+                            }
+                        }
                     }
                     if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
