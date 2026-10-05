@@ -55,6 +55,11 @@ func setup(b: Human, opts: Dictionary) -> void:
 	Game.noise.connect(_on_noise)
 
 func _physics_process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_physics_process_impl(dt)
+	Game.acc("brain", _pt0)
+
+func _physics_process_impl(dt: float) -> void:
 	if body == null or not body.alive:
 		return
 	think_t -= dt

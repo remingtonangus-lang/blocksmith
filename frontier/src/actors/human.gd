@@ -33,6 +33,12 @@ var stuck_events := 0
 var nav: NavigationAgent3D
 
 static func spawn(parent: Node, pos: Vector3, opts: Dictionary = {}) -> Human:
+	var t0 := Time.get_ticks_usec()
+	var h := _spawn(parent, pos, opts)
+	Game.prof("Human.spawn " + str(opts.get("role", "")), t0)
+	return h
+
+static func _spawn(parent: Node, pos: Vector3, opts: Dictionary = {}) -> Human:
 	var h := Human.new()
 	h.seed = int(opts.get("seed", randi()))
 	h.role = opts.get("role", "townsfolk")
@@ -156,6 +162,11 @@ func _build_visual(opts: Dictionary) -> void:
 	add_child(visual)
 
 func _physics_process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_physics_process_impl(dt)
+	Game.acc("human", _pt0)
+
+func _physics_process_impl(dt: float) -> void:
 	if not alive:
 		_dead_tick(dt)
 		return
@@ -199,7 +210,10 @@ func _physics_process(dt: float) -> void:
 		velocity.y = -0.5
 	else:
 		velocity.y -= 9.81 * dt
-	move_and_slide()
+	if ActorLOD.far(self):
+		ActorLOD.glide(self, dt)        # beyond physics range: walk the heightmap kinematically
+	else:
+		move_and_slide()
 	visual.rotation.y = facing
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
@@ -312,6 +326,8 @@ func _dead_tick(dt: float) -> void:
 		ragdoll_t += dt
 		visual.rotation.x = lerpf(0.0, -PI * 0.5, minf(ragdoll_t * 1.6, 1.0))
 		visual.position.y = lerpf(0.0, 0.25, minf(ragdoll_t * 1.6, 1.0))
-	if not is_on_floor():
+	if ActorLOD.far(self):
+		global_position.y = Game.world.height(global_position.x, global_position.z)   # bodies stay on the ground
+	elif not is_on_floor():
 		velocity = Vector3(0, velocity.y - 9.81 * dt, 0)
 		move_and_slide()

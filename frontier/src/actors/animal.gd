@@ -56,6 +56,12 @@ var skinned := false
 var alive := true
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
+	var t0 := Time.get_ticks_usec()
+	var an := _spawn(parent, pos, sp, seed)
+	Game.prof("Animal.spawn " + sp, t0)
+	return an
+
+static func _spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
 	var a := Animal.new()
 	a.species = sp
 	a.spec = SPECIES[sp]
@@ -156,7 +162,9 @@ func is_active_now() -> bool:
 
 func _physics_process(dt: float) -> void:
 	if not alive:
-		if not is_on_floor():
+		if ActorLOD.far(self):
+			global_position.y = Game.world.height(global_position.x, global_position.z)
+		elif not is_on_floor():
 			velocity.y -= 9.81 * dt
 			move_and_slide()
 		return
@@ -298,7 +306,10 @@ func _move(dt: float) -> void:
 	velocity.x = dir.x * speed
 	velocity.z = dir.z * speed
 	velocity.y = -0.5 if is_on_floor() else velocity.y - 9.81 * dt
-	move_and_slide()
+	if ActorLOD.far(self):
+		ActorLOD.glide(self, dt)
+	else:
+		move_and_slide()
 	visual.rotation.y = heading
 	if visual.has_method("set_gait"):
 		visual.set_gait(speed)

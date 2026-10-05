@@ -794,6 +794,11 @@ func _save_settings() -> void:
 
 # ------------------------------------------------------------------------------------------------ frame
 func _process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(dt)
+	Game.prof("audio_director.gd _process", _pt0)
+
+func _process_impl(dt: float) -> void:
 	_game_time += dt
 	if not _queue.is_empty():
 		var i := 0

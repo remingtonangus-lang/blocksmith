@@ -101,6 +101,17 @@ func arg_f(key: String, default: float) -> float:
 	return float(args.get(key, default))
 
 ## Feature kill-switches for perf attribution: --disable vfog,ssr,ssao,ssil,grass,trees,shadows,scatter,water,clouds
+## --prof: report any single operation slower than 15 ms (spawns, builds) with a label.
+func prof(label: String, t0_usec: int) -> void:
+	if args.has("prof"):
+		var ms := (Time.get_ticks_usec() - t0_usec) / 1000.0
+		if ms > 15.0:
+			print("PROF %s %.1f ms" % [label, ms])
+
+var prof_acc := {}                # label -> usec accumulated this frame (--prof)
+func acc(label: String, t0_usec: int) -> void:
+	prof_acc[label] = int(prof_acc.get(label, 0)) + Time.get_ticks_usec() - t0_usec
+
 func disabled(feature: String) -> bool:
 	return str(args.get("disable", "")).split(",").has(feature)
 

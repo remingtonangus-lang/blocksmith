@@ -172,7 +172,9 @@ func set_hat_visible(v: bool) -> void:
 
 # --- internals -----------------------------------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
 	_physics_tick_anim(delta)
+	Game.acc("charanim", _pt0)
 	if auto_blink:
 		_next_blink -= delta
 		if _next_blink <= 0.0:
@@ -234,9 +236,33 @@ var _lod_acc := 0.0
 var _lod_frame := 0
 var _game_mode := false
 
+const TREE_CLIPS := ["idle", "walk_brisk", "jog", "run", "sprint", "sit_idle", "pistol_aim_two_hand", "rifle_aim",
+	"hit_front", "hit_back", "hit_left", "hit_right", "hit_head"]
+static var _tree_lib: AnimationLibrary
+static var _tree_frame := -1
+
+## Only the clips the gameplay tree uses: AnimationMixer binds every track of every clip it holds, per instance.
+static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
+	if _tree_lib == null:
+		_tree_lib = AnimationLibrary.new()
+		for c in TREE_CLIPS:
+			if full.has_animation(c):
+				_tree_lib.add_animation(c, full.get_animation(c))
+	return _tree_lib
+
 func _ensure_tree() -> void:
 	if tree != null or anim == null or skeleton == null:
 		return
+	# one tree build per frame across all characters (a crowd entering view would otherwise build them all at once)
+	var f := Engine.get_process_frames()
+	if _tree_frame == f:
+		return
+	_tree_frame = f
+	var t0 := Time.get_ticks_usec()
+	_build_tree()
+	Game.prof("AnimationTree build", t0)
+
+func _build_tree() -> void:
 	_game_mode = true
 	model.rotation.y = PI                  # glTF characters face +Z; gameplay forward is -Z
 	var ms := motion_scale()
@@ -294,7 +320,7 @@ func _ensure_tree() -> void:
 	tree.name = "AnimationTree"
 	add_child(tree)
 	tree.root_node = tree.get_path_to(skeleton.get_parent())
-	tree.add_animation_library(CharacterFactory.ANIM_LIB_NAME, anim.get_animation_library(CharacterFactory.ANIM_LIB_NAME))
+	tree.add_animation_library(CharacterFactory.ANIM_LIB_NAME, _gameplay_library(anim.get_animation_library(CharacterFactory.ANIM_LIB_NAME)))
 	tree.root_motion_track = NodePath("Skeleton:Root")
 	tree.tree_root = root
 	tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL

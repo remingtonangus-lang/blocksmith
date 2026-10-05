@@ -19,6 +19,11 @@ func _ready() -> void:
 		Game.missions._load_dialogue("res://design/dialogue/encounters.json")
 
 func _process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(dt)
+	Game.prof("encounters.gd _process", _pt0)
+
+func _process_impl(dt: float) -> void:
 	if Game.player == null or Game.missions == null or Game.missions.active != null or active != "":
 		return
 	_t -= dt * (1.0 + clampf(float(Game.player.get("speed")), 0.0, 10.0) / 4.0)

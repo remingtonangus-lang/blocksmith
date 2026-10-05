@@ -39,6 +39,7 @@ func load_all() -> bool:
 		return false
 	height_image = Image.create_from_data(res, res, false, Image.FORMAT_R16, heights)
 	control_image = Image.create_from_data(ctrl_res, ctrl_res, false, Image.FORMAT_RGBA8, control)
+	_bake_water()
 	ok = true
 	print("world: loaded %dx%d heights in %d ms" % [res, res, Time.get_ticks_msec() - t0])
 	return true
@@ -85,15 +86,51 @@ func in_bounds(x: float, z: float, margin: float = 0.0) -> bool:
 func is_water(x: float, z: float) -> bool:
 	return water_level(x, z) > height(x, z) + 0.05
 
-## Water surface height at x,z (lake or nearest river), or -INF if dry land.
+## Water surface height at x,z (lake or river), or -INF if dry land. O(1): rivers are baked into a 4 m grid.
 func water_level(x: float, z: float) -> float:
 	var best := -INF
 	if height(x, z) < lake_level:
 		best = lake_level
-	var r := river_at(x, z)
-	if not r.is_empty() and r.dist < r.width * 0.5:
-		best = maxf(best, r.surface)
+	var ix := clampi(int((x + size_m * 0.5) / WATER_CELL), 0, _water_res - 1)
+	var iz := clampi(int((z + size_m * 0.5) / WATER_CELL), 0, _water_res - 1)
+	var w := _water[iz * _water_res + ix]
+	if w > -1.0e8:
+		best = maxf(best, w)
 	return best
+
+const WATER_CELL := 4.0
+var _water := PackedFloat32Array()
+var _water_res := 0
+
+## Rasterise every river ribbon (surface height inside half its width) into a grid once at load.
+func _bake_water() -> void:
+	var t0 := Time.get_ticks_msec()
+	_water_res = int(size_m / WATER_CELL)
+	_water.resize(_water_res * _water_res)
+	_water.fill(-1.0e9)
+	var half := size_m * 0.5
+	for rv in features.get("rivers", []):
+		var pts: Array = rv.points
+		for i in range(pts.size() - 1):
+			var a := Vector2(pts[i][0], pts[i][1])
+			var b := Vector2(pts[i + 1][0], pts[i + 1][1])
+			var wa: float = rv.width[i] * 0.5
+			var wb: float = rv.width[i + 1] * 0.5
+			var r := maxf(wa, wb)
+			var x0 := clampi(int((minf(a.x, b.x) - r + half) / WATER_CELL), 0, _water_res - 1)
+			var x1 := clampi(int((maxf(a.x, b.x) + r + half) / WATER_CELL), 0, _water_res - 1)
+			var z0 := clampi(int((minf(a.y, b.y) - r + half) / WATER_CELL), 0, _water_res - 1)
+			var z1 := clampi(int((maxf(a.y, b.y) + r + half) / WATER_CELL), 0, _water_res - 1)
+			var ab := b - a
+			var l2 := maxf(ab.length_squared(), 0.001)
+			for iz in range(z0, z1 + 1):
+				for ix in range(x0, x1 + 1):
+					var p := Vector2((ix + 0.5) * WATER_CELL - half, (iz + 0.5) * WATER_CELL - half)
+					var t := clampf((p - a).dot(ab) / l2, 0.0, 1.0)
+					if p.distance_to(a + ab * t) < lerpf(wa, wb, t):
+						var k := iz * _water_res + ix
+						_water[k] = maxf(_water[k], lerpf(float(rv.surface[i]), float(rv.surface[i + 1]), t))
+	print("world: water grid baked in %d ms" % (Time.get_ticks_msec() - t0))
 
 var _river_cache: Array = []
 var _river_grid := {}          # Vector2i(128 m cell) -> Array of [river index, segment index]

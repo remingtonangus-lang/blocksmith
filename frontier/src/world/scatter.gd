@@ -82,6 +82,11 @@ var _results := {}
 var _mutex := Mutex.new()
 
 func _process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(dt)
+	Game.prof("scatter.gd _process", _pt0)
+
+func _process_impl(dt: float) -> void:
 	if world == null or _meshes.is_empty():
 		return
 	# finish completed worker jobs (cheap: buffers + shapes)

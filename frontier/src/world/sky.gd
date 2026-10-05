@@ -157,6 +157,11 @@ func set_weather(w: int, instant := false) -> void:
 		cover = cover_t; dark = dark_t; rain = rain_t; fog = fog_t; dust = dust_t; wet = rain_t
 
 func _process(dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(dt)
+	Game.prof("sky.gd _process", _pt0)
+
+func _process_impl(dt: float) -> void:
 	if not paused:
 		hours += dt * time_scale / 3600.0
 		if hours >= 24.0:

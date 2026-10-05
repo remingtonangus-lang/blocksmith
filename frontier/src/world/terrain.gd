@@ -185,6 +185,11 @@ func _build_patch() -> ArrayMesh:
 	return m
 
 func _process(_dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(_dt)
+	Game.prof("terrain.gd _process", _pt0)
+
+func _process_impl(_dt: float) -> void:
 	if camera == null or world == null:
 		return
 	var cp := camera.global_position
@@ -288,6 +293,9 @@ func ensure_collision_at(p: Vector3) -> void:
 			if not _coll_tiles.has(k):
 				_coll_tiles[k] = _build_coll_tile(k)
 
+func has_collision_at(p: Vector3) -> bool:
+	return _coll_tiles.has(Vector2i(floori((p.x + world.size_m * 0.5) / COLL_TILE), floori((p.z + world.size_m * 0.5) / COLL_TILE)))
+
 ## Cheap variant for spawns: only the single tile under p (the focus ring fills in the rest over frames).
 func ensure_tile(p: Vector3) -> void:
 	var k := Vector2i(floori((p.x + world.size_m * 0.5) / COLL_TILE), floori((p.z + world.size_m * 0.5) / COLL_TILE))
@@ -295,6 +303,12 @@ func ensure_tile(p: Vector3) -> void:
 		_coll_tiles[k] = _build_coll_tile(k)
 
 func _build_coll_tile(k: Vector2i) -> CollisionShape3D:
+	var t0 := Time.get_ticks_usec()
+	var r := _build_coll_tile_impl(k)
+	Game.prof("collision tile", t0)
+	return r
+
+func _build_coll_tile_impl(k: Vector2i) -> CollisionShape3D:
 	# 33x33 samples at 2 m (64 m tile); one shared sample row/column with neighbours
 	var samples := int(COLL_TILE / world.cell) + 1
 	var ix0 := k.x * (samples - 1)

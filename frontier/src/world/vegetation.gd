@@ -163,6 +163,11 @@ func _setup_billboards() -> void:
 	_bill_mesh = st.commit()
 
 func _process(_dt: float) -> void:
+	var _pt0 := Time.get_ticks_usec()
+	_process_impl(_dt)
+	Game.prof("vegetation.gd _process", _pt0)
+
+func _process_impl(_dt: float) -> void:
 	if world == null or camera == null:
 		return
 	var cp := camera.global_position
