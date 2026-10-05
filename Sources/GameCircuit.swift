@@ -193,7 +193,8 @@ extension Game {
         let c = be.container
         var moved = false
         let target = p + Game.hopperOut[out]
-        if let t = world.blockEntities[target], t.kind != .spawner {
+        // Not into campfires or item frames (a campfire turned whatever arrived into its smelt result or nothing).
+        if let t = world.blockEntities[target], t.kind != .spawner, t.kind != .campfire, t.kind != .frame {
             for i in 0..<c.count where !c[i].isEmpty {
                 let one = c[i].with(count: 1)
                 let ok: Bool

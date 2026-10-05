@@ -799,7 +799,8 @@ final class Game {
         }
         if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
         // Punching a filled item frame takes the item out first.
-        if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {
+        if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit],
+           be.kind == .frame, be.container.count > 0, !be.container[0].isEmpty {
             drops.spawn(be.container[0], at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             be.container[0] = .empty
             blockSound(.itemFrameRemove, at: t.hit, 0.7)
@@ -2070,7 +2071,10 @@ final class Game {
                 let b = world.block(p.x, p.y, p.z)
                 let base = Blocks.groupBase[Int(b)]
                 let facing = b - base
-                let other = Blocks.key(base) == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
+                // Only a furnace swaps (a stale furnace entity under another block took that block's state as a facing).
+                let key = Blocks.key(base)
+                guard key == "furnace" || key == "lit_furnace", facing < 4 else { continue }
+                let other = key == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
                 world.setBlock(p.x, p.y, p.z, other + facing)
             }
         }
