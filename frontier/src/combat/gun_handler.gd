@@ -29,6 +29,21 @@ var accuracy_bonus := 0.0              # 0..1, from aiming time / skill
 var _aim_time := 0.0
 var rng := RandomNumberGenerator.new()
 var is_player := false
+# condition (1 clean .. 0 fouled) and special ammunition (src: QUALITY_BAR 8 "weapon wear/cleaning, ammo types")
+const WEAR := {"pistol": 0.0025, "rifle": 0.002, "shotgun": 0.004}
+const AMMO_VARIANTS := {"revolver": ["revolver_express"], "repeater": ["repeater_express"],
+	"rifle": ["rifle_express", "rifle_split"], "shotgun": ["shotgun_slug"], "varmint": []}
+const AMMO_MODS := {
+	"revolver_express": {"name": "Express", "damage": 1.18, "range": 1.25, "velocity": 1.2},
+	"repeater_express": {"name": "Express", "damage": 1.15, "range": 1.25, "velocity": 1.2},
+	"rifle_express": {"name": "Express", "damage": 1.12, "range": 1.2, "velocity": 1.15},
+	"rifle_split": {"name": "Split-point", "damage": 1.25, "range": 0.85, "velocity": 0.95, "pelt": -1},
+	"shotgun_slug": {"name": "Slug", "pellets": 1, "damage": 6.0, "range": 4.0, "falloff": 2.5, "spread": 0.3},
+}
+var condition := {}                    # weapon id -> 0..1
+var ammo_sel := {}                     # ammo base -> selected variant ("" standard)
+var loaded := {}                       # weapon id -> variant the rounds in the clip are ("" standard)
+var jams := 0
 
 func setup(actor: Node3D, dmg: Damageable, player := false) -> void:
 	owner_actor = actor
@@ -43,6 +58,60 @@ func weapon_id() -> String:
 
 func def() -> Dictionary:
 	return Weapons.get_def(weapon_id())
+
+func cond(id := "") -> float:
+	return float(condition.get(id if id != "" else weapon_id(), 1.0))
+
+func loaded_variant(id := "") -> String:
+	return str(loaded.get(id if id != "" else weapon_id(), ""))
+
+## The current weapon's numbers after the loaded ammunition and its condition (a fouled gun throws wider, hits a
+## little softer and reloads slower).
+func effective_def() -> Dictionary:
+	var d := def().duplicate()
+	var m: Dictionary = AMMO_MODS.get(loaded_variant(), {})
+	if not m.is_empty():
+		d.damage = float(d.damage) * float(m.get("damage", 1.0))
+		d.range = float(d.range) * float(m.get("range", 1.0))
+		d.falloff = float(d.falloff) * float(m.get("falloff", m.get("range", 1.0)))
+		d.velocity = float(d.velocity) * float(m.get("velocity", 1.0))
+		if m.has("pellets"):
+			d.pellets = int(m.pellets)
+		if m.has("spread"):
+			d.spread = float(d.spread) * float(m.spread)
+			d.aim_spread = float(d.aim_spread) * float(m.spread)
+		d.pelt_penalty = int(m.get("pelt", 0))
+	var c := cond()
+	var foul := clampf((0.6 - c) / 0.6, 0.0, 1.0)
+	d.spread = float(d.spread) * (1.0 + foul * 0.9)
+	d.aim_spread = float(d.aim_spread) * (1.0 + foul * 1.4)
+	d.damage = float(d.damage) * (1.0 - foul * 0.12)
+	return d
+
+func ammo_name(id := "") -> String:
+	var v := loaded_variant(id)
+	return str(AMMO_MODS[v].name) if AMMO_MODS.has(v) else ""
+
+## Cycle the ammunition the next reload uses for the current weapon's calibre (standard -> variants owned).
+func cycle_ammo() -> String:
+	return cycle_ammo_base(str(def().ammo))
+
+func cycle_ammo_base(base: String) -> String:
+	var opts: Array = [""]
+	for v in AMMO_VARIANTS.get(base, []):
+		if int(ammo.get(v, 0)) > 0:
+			opts.append(v)
+	var i := opts.find(str(ammo_sel.get(base, "")))
+	var nxt: String = opts[(i + 1) % opts.size()]
+	ammo_sel[base] = nxt
+	return nxt
+
+func clean(id := "") -> void:
+	condition[id if id != "" else weapon_id()] = 1.0
+
+func clean_all() -> void:
+	for w in weapons:
+		condition[w] = 1.0
 
 func select(i: int) -> void:
 	if i >= 0 and i < weapons.size() and i != current:
@@ -74,9 +143,24 @@ func fire(origin: Vector3, target_dir: Vector3, aimed: bool, spread_scale := 1.0
 		empty.emit(id)
 		start_reload()
 		return []
-	var d := def()
+	var d := effective_def()
+	# a badly fouled gun can jam: the round stays, the action must be cleared (clean the gun to stop it)
+	var c := cond(id)
+	if c < 0.3 and rng.randf() < (0.3 - c) * 0.35:
+		jams += 1
+		cooldown = 1.4
+		if is_player:
+			Game.say("Jammed. That iron needs cleaning.", 2.5)
+		if Game.audio != null and Game.audio.has_sound("gun_jam"):
+			Game.audio.play("gun_jam", origin)
+		Game.log_event("jam", {"weapon": id, "condition": snappedf(c, 0.01)})
+		return []
 	clip[id] -= 1
 	cooldown = d.cock_time
+	var wet := 0.0
+	if Game.sky != null:
+		wet = float(Game.sky.get("wet"))
+	condition[id] = maxf(c - float(WEAR.get(d.kind, 0.0025)) * (1.0 + wet * 0.8), 0.0)
 	var spread_deg: float = (d.aim_spread if aimed else d.spread) * lerpf(1.0, 0.55, accuracy_bonus) * spread_scale
 	var results := []
 	for p in int(d.pellets):
@@ -127,7 +211,7 @@ func _trace(origin: Vector3, dir: Vector3, d: Dictionary) -> Dictionary:
 		if not hit.is_empty():
 			var dist := travelled + pos.distance_to(hit.position)
 			var info := {"position": hit.position, "normal": hit.normal, "distance": dist, "direction": step.normalized(),
-				"collider": hit.collider, "weapon": weapon_id(), "attacker": owner_actor}
+				"collider": hit.collider, "weapon": weapon_id(), "attacker": owner_actor, "ammo": loaded_variant()}
 			var col = hit.collider
 			if col != null and col.has_meta("damageable"):
 				var target: Damageable = col.get_meta("damageable")
@@ -150,25 +234,34 @@ func start_reload() -> void:
 	if reloading or clip.get(id, 0) >= d.capacity or ammo.get(d.ammo, 0) <= 0:
 		return
 	reloading = true
-	_reload_t = d.get("reload_all", d.get("reload_each", 0.6))
+	_reload_t = float(d.get("reload_all", d.get("reload_each", 0.6))) * _reload_scale()
+
+func _reload_scale() -> float:
+	return 1.0 + clampf((0.6 - cond()) / 0.6, 0.0, 1.0) * 0.5
 
 func _reload_step() -> void:
 	var id := weapon_id()
 	var d := def()
-	var have: int = ammo.get(d.ammo, 0)
+	# rounds come from the selected special box while it lasts (the clip is then that kind), else standard
+	var pool: String = d.ammo
+	var sel := str(ammo_sel.get(d.ammo, ""))
+	if sel != "" and int(ammo.get(sel, 0)) > 0:
+		pool = sel
+	loaded[id] = "" if pool == d.ammo else pool
+	var have: int = ammo.get(pool, 0)
 	if d.has("reload_all"):
 		var n := mini(d.capacity - clip[id], have)
 		clip[id] += n
-		ammo[d.ammo] = have - n
+		ammo[pool] = have - n
 		reloading = false
 	else:
 		if have > 0 and clip[id] < d.capacity:
 			clip[id] += 1
-			ammo[d.ammo] = have - 1
-		if clip[id] >= d.capacity or ammo[d.ammo] <= 0:
+			ammo[pool] = have - 1
+		if clip[id] >= d.capacity or ammo[pool] <= 0:
 			reloading = false
 		else:
-			_reload_t = d.reload_each
+			_reload_t = d.reload_each * _reload_scale()
 	if not reloading:
 		reloaded.emit(id)
 

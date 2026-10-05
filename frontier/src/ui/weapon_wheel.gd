@@ -39,6 +39,12 @@ func _process(dt: float) -> void:
 			if stick.length() > 0.4:
 				_aim = stick.normalized() * 120.0
 			_pick()
+			# Reload while the wheel is open: next loading for the highlighted weapon's calibre (used at next reload)
+			if Input.is_action_just_pressed("reload") and _sel >= 0 and _entries[_sel].kind == "weapon":
+				var w: String = player.gun.weapons[int(_entries[_sel].idx)]
+				var base := str(Weapons.get_def(w).ammo)
+				var v: String = player.gun.cycle_ammo_base(base)
+				_ammo_note = "Next load: " + (str(player.gun.AMMO_MODS[v].name) if v != "" else "Standard")
 			_ctl.queue_redraw()
 	elif _held > 0.0:
 		if open:
@@ -49,6 +55,8 @@ func _process(dt: float) -> void:
 				g.select((g.current + 1) % g.weapons.size())
 		_held = 0.0
 
+var _ammo_note := ""
+
 func _input(event: InputEvent) -> void:
 	if open and event is InputEventMouseMotion:
 		_aim += event.relative
@@ -56,6 +64,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _open() -> void:
+	_ammo_note = ""
 	open = true
 	_aim = Vector2.ZERO
 	_sel = -1
@@ -123,6 +132,10 @@ func _draw_wheel() -> void:
 	_ctl.draw_circle(c, 260.0, Color(UITheme.PAPER, 0.92))
 	_ctl.draw_arc(c, 260.0, 0, TAU, 96, UITheme.INK, 3.0)
 	_ctl.draw_arc(c, 150.0, 0, TAU, 64, UITheme.INK_SOFT, 1.5)
+	var note := _ammo_note if _ammo_note != "" else "[R] change ammunition"
+	var nf := UITheme.font("italic")
+	var nw := nf.get_string_size(InputGlyphs.sub(note), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	_ctl.draw_string(nf, c + Vector2(-nw * 0.5, 300.0), InputGlyphs.sub(note), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITheme.PAPER)
 	_ctl.draw_arc(c, 252.0, 0, TAU, 96, UITheme.INK_SOFT, 1.0)
 	for ring in [0, 1]:
 		var idxs := []

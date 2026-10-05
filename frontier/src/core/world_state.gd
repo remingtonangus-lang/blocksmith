@@ -162,6 +162,9 @@ func use_item(id: String) -> bool:
 			if Game.player and Game.player.damageable:
 				Game.player.damageable.heal(35.0)
 				Game.player.stamina = Game.player.STAMINA_MAX
+		"gun_oil":
+			if Game.player and Game.player.gun:
+				Game.player.gun.clean_all()
 	return true
 
 ## Price multiplier at shops: honourable folk get small discounts, outlaws pay more.
@@ -181,7 +184,9 @@ func save_game(slot := "auto") -> bool:
 		"weather": Game.sky.weather if Game.sky else 1,
 		"player": {"pos": [p.global_position.x, p.global_position.y, p.global_position.z], "yaw": p.facing,
 			"health": p.damageable.health if p.damageable else 100.0,
-			"ammo": p.gun.ammo if p.gun else {}, "clip": p.gun.clip if p.gun else {}, "weapons": p.gun.weapons if p.gun else []},
+			"ammo": p.gun.ammo if p.gun else {}, "clip": p.gun.clip if p.gun else {}, "weapons": p.gun.weapons if p.gun else [],
+			"condition": p.gun.condition if p.gun else {}, "ammo_sel": p.gun.ammo_sel if p.gun else {},
+			"loaded": p.gun.loaded if p.gun else {}},
 	}
 	var f := FileAccess.open("user://saves/%s.json" % slot, FileAccess.WRITE)
 	if f == null:
@@ -229,5 +234,8 @@ func load_game(slot := "auto") -> bool:
 		for w in d.player.weapons:
 			ws.append(str(w))
 		p.gun.weapons = ws
+		p.gun.condition = d.player.get("condition", {})
+		p.gun.ammo_sel = d.player.get("ammo_sel", {})
+		p.gun.loaded = d.player.get("loaded", {})
 	Game.log_event("loaded", {"slot": slot})
 	return true

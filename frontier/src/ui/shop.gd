@@ -10,7 +10,12 @@ const CATALOG := {
 		["ammo_repeater", "Repeater Cartridges (box of 24)", 1.4], ["ammo_shotgun", "Shotgun Shells (box of 12)", 1.1]],
 	"gunsmith": [["ammo_revolver", ".44 Cartridges (box of 24)", 1.0], ["ammo_repeater", "Repeater Cartridges (box of 24)", 1.2],
 		["ammo_rifle", "Rifle Cartridges (box of 10)", 1.6], ["ammo_shotgun", "Shotgun Shells (box of 12)", 0.9],
-		["ammo_varmint", ".22 Rimfire (box of 50)", 0.6], ["gun_sheridan_dao", "Sheridan Double Action", 60.0],
+		["ammo_varmint", ".22 Rimfire (box of 50)", 0.6], ["gun_oil", "Gun Oil & Cleaning Rod", 0.75],
+		["ammo_revolver_express", "Express .44 Cartridges (box of 12)", 1.6],
+		["ammo_repeater_express", "Express Repeater Cartridges (box of 12)", 1.8],
+		["ammo_rifle_express", "Express Rifle Cartridges (box of 10)", 2.6],
+		["ammo_rifle_split", "Split-Point Rifle Cartridges (box of 10)", 2.2],
+		["ammo_shotgun_slug", "Shotgun Slugs (box of 8)", 1.5], ["gun_sheridan_dao", "Sheridan Double Action", 60.0],
 		["gun_calder_double", "Calder Double-Barrel", 70.0], ["gun_bowden_bolt", "Bowden Bolt Rifle", 150.0],
 		["gun_pellman_varmint", "Pellman .22 Varmint", 40.0], ["gun_brennan_pump", "Brennan Slide-Action", 110.0]],
 	"butcher": [],
@@ -59,7 +64,8 @@ func buy(id: String, base: float) -> bool:
 	st.add_money(-p)
 	if id.begins_with("ammo_"):
 		var kind_ammo := id.substr(5)
-		var n: int = {"revolver": 24, "repeater": 24, "rifle": 10, "shotgun": 12, "varmint": 50}.get(kind_ammo, 12)
+		var n: int = {"revolver": 24, "repeater": 24, "rifle": 10, "shotgun": 12, "varmint": 50, "revolver_express": 12,
+			"repeater_express": 12, "rifle_express": 10, "rifle_split": 10, "shotgun_slug": 8}.get(kind_ammo, 12)
 		if Game.player and Game.player.gun:
 			Game.player.gun.ammo[kind_ammo] = int(Game.player.gun.ammo.get(kind_ammo, 0)) + n
 	elif id.begins_with("gun_"):

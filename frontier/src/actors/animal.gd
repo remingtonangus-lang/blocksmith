@@ -450,6 +450,7 @@ func _on_damaged(info: Dictionary) -> void:
 	shots_taken += 1
 	hit_zones.append(info.get("zone", "chest"))
 	killer_weapon = info.get("weapon", "")
+	killer_ammo = str(info.get("ammo", ""))
 	threat = info.get("attacker")
 	if spec.diet == "predator" or species == "black_bear":
 		if threat != null and rng.randf() < float(spec.get("attack_player", 0.2)) + 0.3:
@@ -483,7 +484,12 @@ func interact(_who: Node) -> void:
 		Game.hud.notice("%s pelt — %s" % [spec.name, ["", "poor", "good", "perfect"][r.quality]], 3.5)
 
 ## Pelt quality 1 (poor) .. 3 (perfect): right weapon for the size, one clean shot, head/heart hit.
+var killer_ammo := ""     # special ammunition of the killing shot (split-point tears the hide: one grade down)
+
 func pelt_quality() -> int:
+	return maxi(_pelt_grade() - (1 if killer_ammo == "rifle_split" else 0), 1)
+
+func _pelt_grade() -> int:
 	var big: bool = spec.size.z > 1.3
 	var ok_weapon := true
 	var wdef: Dictionary = Weapons.get_def(killer_weapon) if killer_weapon != "" else {}

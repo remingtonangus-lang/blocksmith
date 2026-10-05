@@ -21,7 +21,7 @@ static func read(key: String) -> void:
 		Game.get_meta("news").open_last()
 	elif key.begins_with("treasure_map_") and Game.has_meta("treasure"):
 		Game.get_meta("treasure").open_map(int(key.substr(13)))
-const USABLE := ["tonic_health", "tonic_nerve", "jerky", "coffee", "cooked_meat"]
+const USABLE := ["tonic_health", "tonic_nerve", "jerky", "coffee", "cooked_meat", "gun_oil"]
 
 static func open() -> void:
 	var menus = Game.get("menus")

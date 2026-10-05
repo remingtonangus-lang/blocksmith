@@ -142,7 +142,10 @@ func _process(dt: float) -> void:
 	if gun != null and gun.drawn:
 		var d: Dictionary = gun.def()
 		ammo_label.text = "%d  |  %d" % [gun.clip.get(gun.weapon_id(), 0), gun.ammo.get(d.ammo, 0)]
-		weapon_label.text = d.name + ("  — reloading" if gun.reloading else "")
+		var an: String = gun.ammo_name() if gun.has_method("ammo_name") else ""
+		var c: float = gun.cond() if gun.has_method("cond") else 1.0
+		var state := "" if c > 0.6 else ("  · worn" if c > 0.3 else "  · fouled")
+		weapon_label.text = d.name + ("  · " + an if an != "" else "") + state + ("  — reloading" if gun.reloading else "")
 	else:
 		ammo_label.text = ""
 		weapon_label.text = ""
