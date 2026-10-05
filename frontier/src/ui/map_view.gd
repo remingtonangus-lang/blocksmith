@@ -80,6 +80,12 @@ func _draw() -> void:
 		for m in md.available():
 			if m.start_pos != Vector3.ZERO:
 				draw_circle(_uv_to_screen(_world_to_uv(m.start_pos)), 9.0, UITheme.OXBLOOD)
+	# route
+	if menus and menus.route.size() > 1:
+		var rp := PackedVector2Array()
+		for wpt in menus.route:
+			rp.append(_uv_to_screen(_world_to_uv(wpt)))
+		draw_polyline(rp, UITheme.OXBLOOD, 3.0, true)
 	# waypoint
 	if menus and menus.waypoint != Vector3.INF:
 		var wp := _uv_to_screen(_world_to_uv(menus.waypoint))

@@ -21,6 +21,8 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	Game.world = world
+	Game.roads = RoadGraph.new()
+	Game.roads.build(world)
 	_apply_viewport_quality()
 	camera = Camera3D.new()
 	camera.name = "MainCamera"

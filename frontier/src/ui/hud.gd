@@ -168,6 +168,25 @@ func _draw_map_overlay() -> void:
 	# frame: ink border with a brass inner rule
 	map_panel.draw_rect(Rect2(Vector2.ZERO, s), UITheme.INK, false, 4.0)
 	map_panel.draw_rect(Rect2(Vector2(5, 5), s - Vector2(10, 10)), UITheme.BRASS, false, 1.5)
+	# GPS route in red ink (world -> inset: same transform as the map shader)
+	var mn = Game.get("menus")
+	if mn != null and mn.route.size() > 1 and Game.world:
+		var yaw0: float = player.cam_yaw if "cam_yaw" in player else 0.0
+		var zoom: float = map_mat.get_shader_parameter("zoom")
+		var pts := PackedVector2Array()
+		var pp: Vector3 = player.global_position
+		for wpt in mn.route:
+			var dx: float = (wpt.x - pp.x) / Game.world.size_m
+			var dz: float = (wpt.z - pp.z) / Game.world.size_m
+			# inverse of q = (c*px + s*py, -s*px + c*py)
+			var cy := cos(yaw0)
+			var sn := sin(yaw0)
+			var qx: float = dx / (zoom * 2.0)
+			var qz: float = dz / (zoom * 2.0)
+			var px: float = cy * qx - sn * qz
+			var py: float = sn * qx + cy * qz
+			pts.append(s * 0.5 + Vector2(px, py) * s)
+		map_panel.draw_polyline(pts, UITheme.OXBLOOD, 3.0, true)
 	# player marker: a small arrowhead pointing where the body faces relative to the camera
 	var face: float = player.get("facing") if player.get("facing") != null else 0.0
 	var yaw: float = player.cam_yaw if "cam_yaw" in player else 0.0
