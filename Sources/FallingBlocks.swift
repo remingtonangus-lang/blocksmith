@@ -35,15 +35,23 @@ extension Game {
         }
     }
 
+    // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
+    // for every cell the gravity queue holds, thousands a tick while water flows (bench fluids: worst tick 31 ms).
+    static let hardened: [BlockID] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(BlockID(i))
+        guard k.hasSuffix("_concrete_powder") else { return 0 }
+        let c = String(k.dropLast("_powder".count))
+        return Blocks.has(c) ? Blocks.id(c) : 0
+    }
+
     // Concrete powder touching water becomes concrete.
     func hardenConcrete(_ p: IVec3) {
         let b = world.block(p.x, p.y, p.z)
-        let k = Blocks.key(b)
-        guard k.hasSuffix("_concrete_powder") else { return }
+        let c = Game.hardened[Int(b)]
+        guard c != 0 else { return }
         for d in World.allDirs where d.y >= 0 {
             if Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
-                let c = String(k.dropLast("_powder".count))
-                if Blocks.has(c) { world.setBlock(p.x, p.y, p.z, Blocks.id(c)) }
+                world.setBlock(p.x, p.y, p.z, c)
                 return
             }
         }
