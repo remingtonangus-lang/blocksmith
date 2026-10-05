@@ -162,9 +162,38 @@ extension Game {
         return true
     }
 
-    // Experience orbs fly to the nearby player; modelled as going straight to them.
+    // Experience orbs (reference): they lie where they fell for 5 minutes, drift to a living player within 8 blocks and
+    // are collected within 1. They used to go straight to anyone within 16, so the XP dropped at a death went back to
+    // the dying player (then zeroed) and was lost.
     func addXPOrbs(_ n: Int, at: V3) {
-        if simd_length(player.pos - at) < 16 { addXP(n) }
+        guard n > 0 else { return }
+        xpOrbs.append(XPOrb(pos: at, amount: n, age: 0, dim: world.dim))
+    }
+
+    func xpOrbTick(_ dt: Float) {
+        guard !xpOrbs.isEmpty else { return }
+        for i in xpOrbs.indices where xpOrbs[i].dim == world.dim {
+            xpOrbs[i].age += dt
+            let o = xpOrbs[i]
+            let seat = coop.nearestSeat(o.pos, self)
+            var to = coop.seatPlayer(seat, self).pos + V3(0, 0.6, 0) - o.pos
+            let d = simd_length(to)
+            if d < 8 && d > 0.01 {
+                to /= d
+                xpOrbs[i].pos += to * min(d, (9 - d) * 1.5 * dt)
+            }
+            if d < 1 {
+                var took = false
+                coop.withSeat(seat, self) { if self.alive { self.addXP(o.amount); took = true } }
+                if took { xpOrbs[i].age = 1e9; sfx(.xp, 0.4, at: o.pos) }
+            }
+            if Rand.float(in: 0..<1) < dt * 6 {
+                particles.add(Particle(pos: xpOrbs[i].pos + V3(Rand.float(in: -0.15...0.15), Rand.float(in: 0...0.2), Rand.float(in: -0.15...0.15)),
+                                       vel: V3(0, 0.3, 0), life: 0.5, maxLife: 0.5, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                       size: 0.08, gravity: 0, color: V3(0.6, 1, 0.3), collide: false, glow: true))
+            }
+        }
+        xpOrbs.removeAll { $0.age > 300 }
     }
 
     // Glass bottles fill from water; cauldrons take and give water.

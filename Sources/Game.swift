@@ -121,6 +121,7 @@ final class Game {
     weak var riding: Mob?          // the minecart the player sits in
     var riderPush: Float = 0
     var clouds: [AcidCloud] = []
+    var xpOrbs: [XPOrb] = []           // experience orbs on the ground (GamePotions.xpOrbTick)
     var fangs: [Fang] = []         // conjurer fangs
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
@@ -1810,8 +1811,8 @@ final class Game {
                 c[i] = .empty
             }
         }
-        if lostXP > 0 { addXPOrbs(lostXP, at: at) }
         xpLevel = 0; xpPoints = 0
+        if lostXP > 0 { addXPOrbs(lostXP, at: at) }                // lies there as orbs (Game.xpOrbs)
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
@@ -2037,6 +2038,7 @@ final class Game {
         hazardTick(Float(dt))
         effectTick(Float(dt))
         cloudTick(Float(dt))
+        xpOrbTick(Float(dt))
         fangTick(Float(dt))
         bobberTick(Float(dt))
         fallingTick(Float(dt))
