@@ -97,8 +97,10 @@ enum CraftBook {
             }
             guard ok else { break }
             var returns: [ItemStack] = []
+            var used: [ItemStack] = []
             for (j, n) in take {
                 var s = inv[j]
+                used.append(s)
                 let key = Items.key(s.item)
                 s.count -= n
                 // Buckets give their bucket back, bottles their bottle.
@@ -106,7 +108,7 @@ enum CraftBook {
                 if key == "honey_bottle", Items.has("glass_bottle") { returns.append(ItemStack(Items.id("glass_bottle"), n)) }
                 inv[j] = s.count > 0 ? s : .empty
             }
-            let rest = g.inventory.add(r.result)
+            let rest = g.inventory.add(Recipes.keepContents(r.result, used))
             if !rest.isEmpty { g.dropItem(rest) }
             for b in returns { let left = g.inventory.add(b); if !left.isEmpty { g.dropItem(left) } }
             made += 1

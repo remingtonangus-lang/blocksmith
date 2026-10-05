@@ -284,6 +284,7 @@ final class CraftingGrid {
             return sp.0
         }
         guard let r = recipe else { return nil }
+        let result = Recipes.keepContents(r.result, Array(grid.slots))
         for i in 0..<grid.count where !grid[i].isEmpty {
             var s = grid[i]
             let key = Items.key(s.item)
@@ -293,7 +294,7 @@ final class CraftingGrid {
             grid[i] = s
         }
         update()
-        return r.result
+        return result
     }
 }
 

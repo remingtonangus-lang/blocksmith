@@ -9,7 +9,7 @@ extension Game {
         let result: ItemStack
         var keep = Set<Int>()
         if let sp = Fireworks.craft(grid) { result = sp.0; keep = sp.keep }
-        else if let r = Recipes.match(grid.map { $0.item }, 3, 3) { result = r.result }
+        else if let r = Recipes.match(grid.map { $0.item }, 3, 3) { result = Recipes.keepContents(r.result, grid) }
         else { sfx(.crafterFail, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
         for i in 0..<9 where !grid[i].isEmpty && !keep.contains(i) {
             var s = be.container[i]

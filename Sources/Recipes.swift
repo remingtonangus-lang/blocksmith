@@ -11,6 +11,20 @@ struct Recipe {
 }
 
 enum Recipes {
+    // Dyeing a shell box or a bundle keeps what is inside it (and its name): the plain recipe result came out empty
+    // and the contents were gone. Every craft path runs its result through this with the ingredients it used.
+    static func keepContents(_ result: ItemStack, _ from: [ItemStack]) -> ItemStack {
+        func holder(_ s: ItemStack) -> Bool {
+            let k = Items.key(s.item)
+            return k.hasSuffix("shulker_box") || k.hasSuffix("bundle")
+        }
+        guard holder(result), let src = from.first(where: { !$0.isEmpty && holder($0) && ($0.contents != nil || $0.label != nil) }) else { return result }
+        var out = result
+        out.contents = src.contents
+        out.label = src.label
+        return out
+    }
+
     static let tags: [String: [String]] = [
         "planks": ["oak_planks", "birch_planks", "spruce_planks", "crimson_planks", "warped_planks", "acacia_planks", "dark_oak_planks",
                    "jungle_planks", "mangrove_planks", "cherry_planks", "bamboo_planks", "pale_oak_planks"],
