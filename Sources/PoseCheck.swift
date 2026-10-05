@@ -131,6 +131,8 @@ enum PoseCheck {
         for u: Float in [0.1, 0.3, 0.5, 0.7, 0.9] {
             stances.append(("reload \(u)", true, { m, b in m.aggro = true; b.reloadTotal = 2; b.reload = 2 * (1 - u) }))
         }
+        // A door gunner: a passenger seat, aiming (sidearms stay holstered in a seat: no pistol case).
+        stances.append(("aim seated", false, { m, b in b.station = .passenger; b.seat = 0.45; m.aggro = true; b.aimHold = 1 }))
         for st in StationPose.allCases where st != StationPose.none {
             stances.append(("station \(st)", st != .seated && st != .passenger, { _, b in b.station = st; b.seat = 0.45 }))
         }
@@ -140,6 +142,7 @@ enum PoseCheck {
                 // Every weapon for the aim stances; the rank's own weapons for the rest.
                 let own = (0..<12).map { _ in Soldier.pickGun(k) }.contains(gi)
                 for s in stances where own || s.name.hasPrefix("aim") || s.name == "firing" || s.name == "low ready" {
+                    if s.name == "aim seated" && gi == Guns.pistol { continue }
                     let m = make(k, gun: gi)
                     s.set(m, m.soldierBrain)
                     let rig = SoldierRig.build(m)

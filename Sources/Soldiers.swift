@@ -248,8 +248,19 @@ extension Mob {
             }
         }
         if hurt > 0.35 && !aggro { aggro = true; alertGarrison(g, g.player.pos) }
-        // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift).
-        if b.station == .seated || b.station == .passenger { strafe = 0; return 0 }
+        // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift). Passengers
+        // with a long arm are door gunners: turned in the seat (FlightCrew), they fire at the player in sight.
+        if b.station == .seated || b.station == .passenger {
+            strafe = 0
+            if b.station == .passenger && sees && aggro && b.gun != Guns.pistol {
+                b.react -= dt
+                let tp = target - eye
+                let flat: Float = simd_length(V2(tp.x, tp.z))
+                b.pitch += (max(-0.9, min(1.0, atan2f(tp.y, flat))) - b.pitch) * min(1, dt * 8)
+                soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            }
+            return 0
+        }
         // Turret crews stay at their guns whatever happens round them.
         if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
         guard aggro && canTarget else {

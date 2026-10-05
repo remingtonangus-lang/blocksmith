@@ -121,6 +121,10 @@ enum FlightCrew {
             m.pos = s.toWorld(st.local + V3(0, 0.02, 0))
             m.vel = s.velocity(at: m.pos)
             m.yaw = s.yaw
+            // A door gunner turns in the seat toward what it is shooting at.
+            if m.station == .passenger, m.aggro, let b = m.brain, b.aimHold > 0, let ls = b.lastSeen {
+                m.yaw = atan2f(-(ls.x - m.pos.x), -(ls.z - m.pos.z))
+            }
             m.onGround = true
         }
     }
