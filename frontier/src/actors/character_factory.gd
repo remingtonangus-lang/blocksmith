@@ -60,6 +60,8 @@ static func _is_ready(id: String) -> bool:
 
 
 static func available() -> bool:
+	if Game.disabled("characters"):
+		return false
 	return not catalog().is_empty()
 
 

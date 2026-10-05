@@ -157,13 +157,32 @@ jobs:
           "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
           grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
 
+      - name: GPU probe (find features the CI GPU cannot render)
+        id: gpuprobe
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          # The paravirtual GPU + MoltenVK has lost the device on some character/horse materials. Find the smallest
+          # set of kill-switches that renders a frame with Ruth, her horse and townsfolk, and use it for the
+          # evidence renders below (real Macs render everything through Metal; the Mac monitor checks that).
+          mkdir -p snaps/probe
+          safe="none"
+          for flags in "" "sss" "horse" "characters" "sss,horse" "sss,horse,characters"; do
+            name="probe_${flags:-all}"; name="${name//,/_}"
+            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --player --at town:bitter_spring --yaw 110 --frames 20 --watchdog 240 ${flags:+--disable $flags} > "snaps/probe/$name.log" 2>&1 || true
+            if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo "renders with --disable '${flags}'"; safe="$flags"; break; fi
+            echo "lost the device with --disable '${flags}'"; grep -m3 -E "device was lost|ERROR" "snaps/probe/$name.log" || true
+          done
+          echo "FRONTIER_DISABLE=${safe/none/sss,horse,characters}" >> $GITHUB_ENV
+          echo "gpu probe: --disable '${safe}'" | tee snaps/probe/result.txt
+
       - name: Benchmark (High preset, 1920x1080)
         id: bench
         if: ${{ !cancelled() }}
         timeout-minutes: 12
         run: |
           set -o pipefail
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
           test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
 
       - name: Perf attribution (only for commits tagged [perf])
@@ -182,7 +201,7 @@ jobs:
           set -o pipefail
           # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
           # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
           ls snaps/*.png
 
       - name: Feature shots (HUD, combat, menus, wildlife, riding, camp, dialogue)
@@ -191,7 +210,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps/features
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
           ls snaps/features/
 
       - name: Audio evidence (verify report from the audio build)
@@ -250,7 +269,8 @@ jobs:
           {
             echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
-            for f in *.png features/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            echo "GPU probe: $(cat probe/result.txt 2>/dev/null)"; echo
+            for f in *.png features/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
             echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A

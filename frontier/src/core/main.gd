@@ -186,6 +186,8 @@ func _spawn_player() -> void:
 	terrain.foci.append(player)
 	Game.player = player
 	# --- horses (src/actors/horse.gd): the player's horse stands beside the spawn point ---
+	if Game.disabled("horse"):
+		return
 	var horse := Horse.spawn(int(Game.args.get("horse_seed", 1899)), str(Game.args.get("horse_breed", "quarter")))
 	var hp := spawn + Vector3(3.2, 0.0, -1.5)
 	hp.y = world.height(hp.x, hp.z)
@@ -198,6 +200,8 @@ func _spawn_player() -> void:
 
 func _apply_viewport_quality() -> void:
 	var vp := get_viewport()
+	if Game.disabled("sss"):
+		RenderingServer.sub_surface_scattering_set_quality(RenderingServer.SUB_SURFACE_SCATTERING_QUALITY_DISABLED)
 	var q := Game.quality
 	var scale: float = q.render_scale
 	if Game.args.has("render_scale"):

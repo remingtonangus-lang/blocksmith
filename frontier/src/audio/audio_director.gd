@@ -744,7 +744,7 @@ func _update_voices(dt: float) -> void:
 			viseme.emit(v.actor, str(e[1]), float(e[2]) if e.size() > 2 else 1.0)
 			v.idx += 1
 		var p = v.player
-		if p is AudioStreamPlayer3D and v.actor is Node3D and is_instance_valid(v.actor):
+		if p is AudioStreamPlayer3D and is_instance_valid(v.actor) and v.actor is Node3D:
 			(p as AudioStreamPlayer3D).global_position = (v.actor as Node3D).global_position + Vector3.UP * 1.6
 		if v.t >= v.dur:
 			viseme.emit(v.actor, "rest", 0.0)
