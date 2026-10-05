@@ -135,8 +135,10 @@ class Menu {
         case .result:
             if shift {
                 // Craft as many as possible straight into the inventory.
+                // Stops when the next result wouldn't fit (reference; the overflow was thrown on the ground).
                 for _ in 0..<64 {
-                    guard let r = takeResult(slot) else { break }
+                    let next = slot.stack
+                    guard !next.isEmpty, CraftBook.room(game, for: next) >= next.count, let r = takeResult(slot) else { break }
                     let rest = game.inventory.add(r)
                     if !rest.isEmpty { game.dropItem(rest); break }
                 }
