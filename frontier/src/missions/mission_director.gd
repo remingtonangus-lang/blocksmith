@@ -118,7 +118,8 @@ func _ready() -> void:
 	_load_dialogue("res://design/dialogue/companions.json")
 	# world reactivity systems (social talk + gossip, newspapers); main.gd may add them itself later
 	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"],
-			["legendary", "res://src/systems/legendary.gd"], ["treasure", "res://src/systems/treasure.gd"]]:
+			["legendary", "res://src/systems/legendary.gd"], ["treasure", "res://src/systems/treasure.gd"],
+			["presentation", "res://src/missions/presentation.gd"], ["outfits", "res://src/systems/outfits.gd"]]:
 		if not Game.has_meta(sys[0]):
 			var n: Node = load(sys[1]).new()
 			n.name = "Sys_" + sys[0]
@@ -160,6 +161,9 @@ func available() -> Array:
 			out.append(m)
 	return out
 
+func _pres():
+	return Game.get_meta("presentation") if Game.has_meta("presentation") else null
+
 func start(m: Mission) -> void:
 	if active != null:
 		return
@@ -167,7 +171,9 @@ func start(m: Mission) -> void:
 	_abort = false
 	Game.log_event("mission_start", {"id": m.id})
 	mission_started.emit(m.id)
-	if Game.hud:
+	if _pres():
+		_pres().begin(m)               # the title card and the tally
+	elif Game.hud:
 		Game.hud.notice(m.title, 5.0)
 	_start_snap = _snapshot()
 	_decisions = []
@@ -224,6 +230,8 @@ func start(m: Mission) -> void:
 	if ok:
 		completed.append(m.id)
 		Game.log_event("mission_complete", {"id": m.id})
+		if _pres():
+			_pres().finish(m)          # the results card, objectives and medal
 		if Game.state and not autopilot:
 			Game.state.save_game("auto")
 		mission_completed.emit(m.id)
@@ -397,41 +405,86 @@ func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds if not autopilot else minf(seconds, 0.2)).timeout
 
 # ------------------------------------------------------------------ cinematics
-## Enter a letterboxed dialogue scene: the camera frames each speaker (shot / reverse shot over the listener's
-## shoulder) with a slow dolly drift; player control and HUD pause until cine_end().
+## Enter a letterboxed dialogue scene. The camera opens on a two-shot of the pair, then cuts to an over-the-shoulder
+## shot of whoever speaks (reverse shot on each change of speaker; the same speaker again keeps the shot and its slow
+## dolly drift). Shallow depth of field on Forward+ (practical camera attributes focused on the speaker). Speaker and
+## listener turn to face each other and look at each other; the speaker plays a talk gesture now and then
+## (FrontierCharacter clips talk_directions / shrug, or a procedural nod on stand-ins), the listener nods.
+## Player control and HUD pause until cine_end(). `cine_test` lets bots run the camera logic headless.
+var cine_test := false
+var cine_log: Array = []          # [{kind: "two"|"ots"|"hold", speaker, listener, cam, focus}] for bots
+var _cine_first := true
+var _cine_speaker: Node3D = null
+var _cine_lines := 0
+var _cine_side := Vector3.RIGHT
+
 func cine_begin() -> void:
-	if Game.headless or autopilot or cine or resuming or _abort:
+	if ((Game.headless or autopilot) and not cine_test) or cine or resuming or _abort:
 		return
 	cine = true
+	_cine_first = true
+	_cine_speaker = null
+	_cine_lines = 0
+	cine_log.clear()
 	_cine_cam = Camera3D.new()
-	_cine_cam.fov = 40.0
-	_cine_cam.attributes = Game.camera.attributes if Game.camera else null
+	_cine_cam.fov = 38.0
+	_cine_cam.attributes = _dof_attributes()
 	add_child(_cine_cam)
-	_cine_cam.global_transform = Game.camera.global_transform
+	if Game.camera:
+		_cine_cam.global_transform = Game.camera.global_transform
 	_cine_cam.make_current()
 	if Game.hud:
 		Game.hud.cinematic = true
-		var layer := CanvasLayer.new()
-		layer.layer = 11
-		add_child(layer)
-		for top in [true, false]:
-			var r := ColorRect.new()
-			r.color = Color.BLACK
-			r.anchor_right = 1.0
-			if top:
-				r.anchor_bottom = 0.0
-				r.offset_bottom = 0.0
-			else:
-				r.anchor_top = 1.0
-				r.anchor_bottom = 1.0
-			layer.add_child(r)
-			_bars.append(r)
-			var tw := create_tween()
-			tw.tween_property(r, "offset_bottom" if top else "offset_top", 120.0 if top else -120.0, 0.6)
-		_bars.append(layer)
+	var layer := CanvasLayer.new()
+	layer.layer = 11
+	layer.name = "Letterbox"
+	add_child(layer)
+	for top in [true, false]:
+		var r := ColorRect.new()
+		r.color = Color.BLACK
+		r.anchor_right = 1.0
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if top:
+			r.anchor_bottom = 0.0
+			r.offset_bottom = 0.0
+		else:
+			r.anchor_top = 1.0
+			r.anchor_bottom = 1.0
+		layer.add_child(r)
+		_bars.append(r)
+		var tw := create_tween()
+		tw.tween_property(r, "offset_bottom" if top else "offset_top", 120.0 if top else -120.0, 0.6)
+	_bars.append(layer)
 	if Game.player:
 		Game.player.set("bot_driven", true)
 		Game.player.intent.move = Vector2.ZERO
+
+## Practical camera attributes for the scene: the gameplay camera's exposure, plus near/far blur around the speaker
+## (only the Forward+ renderer draws it; the mobile/compatibility paths ignore it).
+func _dof_attributes() -> CameraAttributes:
+	var base = Game.camera.attributes if Game.camera else null
+	var a := CameraAttributesPractical.new()
+	if base is CameraAttributesPractical:
+		a.exposure_multiplier = base.exposure_multiplier
+		a.exposure_sensitivity = base.exposure_sensitivity
+		a.auto_exposure_enabled = base.auto_exposure_enabled
+		a.auto_exposure_scale = base.auto_exposure_scale
+		a.auto_exposure_speed = base.auto_exposure_speed
+		a.auto_exposure_min_sensitivity = base.auto_exposure_min_sensitivity
+		a.auto_exposure_max_sensitivity = base.auto_exposure_max_sensitivity
+	elif base != null:
+		return base
+	a.dof_blur_far_enabled = true
+	a.dof_blur_far_distance = 3.5
+	a.dof_blur_far_transition = 5.0
+	a.dof_blur_near_enabled = true
+	a.dof_blur_near_distance = 0.7
+	a.dof_blur_near_transition = 0.5
+	a.dof_blur_amount = 0.09
+	return a
+
+static func dof_drawn() -> bool:
+	return RenderingServer.get_current_rendering_method() == "forward_plus"
 
 func cine_end() -> void:
 	if not cine:
@@ -447,32 +500,127 @@ func cine_end() -> void:
 	_bars.clear()
 	if Game.hud:
 		Game.hud.cinematic = false
+	for n in [_cine_speaker, _last_speaker]:
+		if n != null and is_instance_valid(n) and n.get("visual") != null and n.visual.has_method("clear_look"):
+			n.visual.clear_look()
 	if Game.player and not Game.args.has("bot"):
 		Game.player.set("bot_driven", false)
 
-func _frame(speaker: Node3D, listener: Node3D) -> void:
-	if not cine or speaker == null or not is_instance_valid(speaker):
-		return
-	var face := speaker.global_position + Vector3(0, 1.58, 0)
-	var other := listener.global_position + Vector3(0, 1.55, 0) if listener != null and is_instance_valid(listener) else face + Vector3(2, 0, 2)
-	var axis := (face - other)
-	axis.y = 0
+static func _eye(n: Node3D) -> Vector3:
+	return n.global_position + Vector3(0, 1.58, 0)
+
+## Camera transform for a shot (pure; bots check it). kind "two": side-on, both in frame; "ots": over the listener's
+## shoulder onto the speaker. side_ref is the side of the line of action the camera keeps for the whole scene
+## (the 180° rule): every shot sits on that side, whichever of the two is speaking.
+static func shot_for(face: Vector3, other: Vector3, kind: String, side_ref := Vector3.ZERO) -> Transform3D:
+	var axis := face - other
+	axis.y = 0.0
 	if axis.length() < 0.3:
 		axis = Vector3(0, 0, 1)
+	var sep := axis.length()
 	axis = axis.normalized()
 	var side := axis.cross(Vector3.UP).normalized()
-	# over the listener's shoulder, slightly off-axis, at eye height; alternate sides for variety
-	var flip := 1.0 if (hash(speaker.name) % 2 == 0) else -1.0
-	var cam_pos := other - axis * 0.9 + side * 0.55 * flip + Vector3(0, 0.08, 0)
-	var dist := cam_pos.distance_to(face)
-	if dist < 1.2:
-		cam_pos = face - axis * 2.2 + side * 0.4
-	var from := Transform3D(Basis(), cam_pos).looking_at(face, Vector3.UP)
-	var to := Transform3D(Basis(), cam_pos + side * 0.12 * flip + axis * 0.15).looking_at(face + Vector3(0, -0.02, 0), Vector3.UP)
+	if side_ref != Vector3.ZERO and side.dot(side_ref) < 0.0:
+		side = -side
+	if kind == "two":
+		var mid := (face + other) * 0.5
+		var cam := mid + side * (sep * 1.1 + 2.0) + Vector3(0, 0.05, 0)
+		return Transform3D(Basis(), cam).looking_at(mid + Vector3(0, -0.05, 0), Vector3.UP)
+	# over the listener's shoulder: behind and beside them, at eye height, looking at the speaker's face
+	# far enough back that the listener is a shoulder and a hat brim at the frame edge, and the aim pushed a touch
+	# toward the listener; the camera stands wide of the listener so the speaker lands on the far third
+	var cam_pos := other - axis * 1.3 + side * 1.0 + Vector3(0, 0.12, 0)
+	if cam_pos.distance_to(face) < 1.6:
+		cam_pos = face - axis * 2.4 + side * 0.6
+	return Transform3D(Basis(), cam_pos).looking_at(face + side * 0.12 + Vector3(0, -0.04, 0), Vector3.UP)
+
+func _frame(speaker: Node3D, listener: Node3D, emotion := "") -> void:
+	if not cine or speaker == null or not is_instance_valid(speaker):
+		return
+	var face := _eye(speaker)
+	var other := _eye(listener) if listener != null and is_instance_valid(listener) else face + Vector3(1.6, 0, 1.6)
+	var kind := "ots"
+	if _cine_first:
+		kind = "two"
+		var ax := face - other
+		ax.y = 0.0
+		_cine_side = ax.normalized().cross(Vector3.UP) if ax.length() > 0.1 else Vector3.RIGHT
+	elif speaker == _cine_speaker:
+		kind = "hold"
+	_cine_first = false
+	_cine_speaker = speaker
+	_cine_lines += 1
+	_face_pair(speaker, listener)
+	_gesture(speaker, listener, emotion)
+	if kind == "hold":
+		cine_log.append({"kind": kind, "speaker": str(speaker.name)})
+		return
+	var from := shot_for(face, other, kind, _cine_side)
+	var drift := Vector3(0, 0, 0)
+	if kind == "ots":
+		var axis := (face - other)
+		axis.y = 0.0
+		drift = axis.normalized() * 0.18
+	var to := Transform3D(from.basis, from.origin + drift).looking_at(face if kind == "ots" else (face + other) * 0.5, Vector3.UP)
 	_cine_from = from
 	_cine_to = to
 	_cine_t = 0.0
-	_cine_cam.global_transform = from
+	_cine_cam.global_transform = from            # a cut, not a pan
+	var focus := from.origin.distance_to(face)
+	var a = _cine_cam.attributes
+	if a is CameraAttributesPractical:
+		a.dof_blur_far_distance = focus + (2.5 if kind == "two" else 1.2)
+		a.dof_blur_near_distance = maxf(focus - (1.6 if kind == "two" else 0.9), 0.2)
+	cine_log.append({"kind": kind, "speaker": str(speaker.name), "listener": str(listener.name) if listener else "",
+		"cam": from, "focus": face})
+
+## Turn the pair to face each other and look at each other's eyes.
+func _face_pair(speaker: Node3D, listener: Node3D) -> void:
+	if listener == null or not is_instance_valid(listener):
+		return
+	for pair in [[speaker, listener], [listener, speaker]]:
+		var a: Node3D = pair[0]
+		var b: Node3D = pair[1]
+		var to := b.global_position - a.global_position
+		to.y = 0.0
+		if to.length() < 0.05:
+			continue
+		if a is Human:
+			a.intent.face = to
+		elif a == Game.player:
+			var yaw := atan2(-to.x, -to.z)
+			Game.player.facing = yaw
+			if Game.player.get("visual") != null:
+				Game.player.visual.rotation.y = yaw
+		var v = a.get("visual")
+		if v != null and v.has_method("look_at_node"):
+			v.look_at_node(b, 0.7)
+
+## A talk gesture for the speaker (every other line, picked by mood), a nod for the listener.
+func _gesture(speaker: Node3D, listener: Node3D, emotion: String) -> void:
+	var v = speaker.get("visual")
+	if v != null and _cine_lines % 2 == 1:
+		var clip := "talk_directions" if emotion in ["angry", "tense", "afraid", ""] else ("shrug" if emotion in ["dry", "amused", "tired"] else "talk_directions")
+		var played := 0.0
+		if v.has_method("play_action"):
+			played = v.play_action(clip, true)
+		if played <= 0.0:
+			_nod(v, 0.12)
+			clip = "nod" if not v.has_method("play_action") else "look"
+		cine_log.append({"kind": "gesture", "speaker": str(speaker.name), "clip": clip})
+	if listener != null and is_instance_valid(listener):
+		var lv = listener.get("visual")
+		if lv != null:
+			_nod(lv, 0.07)
+
+## A procedural nod: tip the head (or a stand-in's whole figure) forward and back.
+func _nod(v: Node3D, amount: float) -> void:
+	if v.has_method("play_action"):
+		return                        # full characters answer through their look-at and the talk clips
+	var r0 := v.rotation.x
+	var tw := v.create_tween()
+	tw.tween_property(v, "rotation:x", r0 - amount, 0.18)
+	tw.tween_property(v, "rotation:x", r0, 0.25)
 
 # ------------------------------------------------------------------ strangers: markers in the world
 var _stranger_t := 0.0
@@ -541,14 +689,15 @@ func say_async(line_id: String, speaker_node: Node3D = null) -> float:
 		var d = Game.audio.play_voice(line_id, speaker_node)
 		if typeof(d) == TYPE_FLOAT and d > 0.0:
 			dur = d + 0.25
+	# who they're talking to: the last one who spoke (if someone else), else Ruth (or, for Ruth, the last NPC)
+	var listener: Node3D = _last_speaker if (_last_speaker != speaker_node and _last_speaker != null and is_instance_valid(_last_speaker)) else (Game.player if speaker_node != Game.player else null)
 	if cine and speaker_node != null:
-		var listener: Node3D = _last_speaker if _last_speaker != speaker_node else (Game.player if speaker_node != Game.player else null)
 		_cine_dur = dur + 0.5
-		_frame(speaker_node, listener)
+		_frame(speaker_node, listener, str(l.get("emotion", "")))
+	elif speaker_node is Human and listener != null:
+		speaker_node.intent.face = listener.global_position - speaker_node.global_position
 	if speaker_node != null:
 		_last_speaker = speaker_node
-		if speaker_node is Human:
-			speaker_node.intent.face = (_last_speaker if _last_speaker != speaker_node and _last_speaker != null else Game.player).global_position - speaker_node.global_position
 	if Game.hud:
 		Game.hud.subtitle(spk.get("name", ""), l.line, dur)
 	Game.log_event("say", {"id": line_id})

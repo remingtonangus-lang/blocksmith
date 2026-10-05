@@ -13,6 +13,10 @@ const MAPS := [
 	{"n": 3, "title": "The Last Map", "riddle": "The padres rang their bell for the last time in sixty-one. Stand in the chapel door and walk sixty paces toward the noon sun. The gold is under the dead mesquite.", "place": "san_lazaro", "kind": "south"},
 ]
 const GOLD_BARS := 3
+## Who buys gold: the Linden Exchange (honest price, asks questions: not while Ruth is wanted) and Tobias Greer at
+## his trading post (a fence: less, and no questions).
+const BUYERS := {"bank": {"town": "port_linden", "building": "bank", "name": "Linden Exchange teller", "price": 180.0, "honest": true},
+	"fence": {"town": "greer_post", "building": "trading_post", "name": "Tobias Greer", "price": 125.0, "honest": false}}
 
 var spots: Array = []         # DigSpot nodes, one per map
 var _placed := false
@@ -71,6 +75,12 @@ func _process(dt: float) -> void:
 	_t = 1.0
 	if not _placed:
 		_placed = true
+		for k in BUYERS.keys():
+			var g := GoldBuyer.new()
+			g.kind = k
+			g.name = "GoldBuyer_%s" % k
+			g.position = buyer_pos(k)
+			Game.main.add_child(g)
 		for m in MAPS:
 			var d := DigSpot.new()
 			d.n = int(m.n)
@@ -107,6 +117,35 @@ func dig(n: int) -> String:
 	Game.log_event("treasure_dug", {"n": n, "found": found})
 	return found
 
+static func buyer_pos(kind: String) -> Vector3:
+	var P = load("res://src/missions/places.gd")
+	var bi: Dictionary = BUYERS[kind]
+	var fallback := Mission.place(str(bi.town), 6.0, -4.0)
+	var b: Dictionary = P.building(str(bi.town), str(bi.building))
+	for sp in ["teller", "shop_counter", "bartender"]:
+		var s: Dictionary = P.spot(b, sp)
+		if not s.is_empty():
+			return P.at(s, fallback)
+	return P.door_out(b, fallback)
+
+## Sell every gold bar to a buyer ("bank" or "fence"). Returns the money paid (0 if refused or nothing to sell).
+func sell_gold(kind: String) -> float:
+	var st = Game.state
+	var bi: Dictionary = BUYERS.get(kind, {})
+	var n := int(st.inventory.get("gold_bar", 0)) if st else 0
+	if bi.is_empty() or n <= 0:
+		return 0.0
+	if bool(bi.honest) and (int(st.wanted) > 0 or st.standing <= -40.0):
+		Game.say("\"The Exchange doesn't buy from people on posters, madam.\"", 3.0)
+		Game.log_event("gold_refused", {"buyer": kind})
+		return 0.0
+	var paid := float(bi.price) * n
+	st.inventory["gold_bar"] = 0
+	st.add_money(paid)
+	Game.log_event("gold_sold", {"buyer": kind, "bars": n, "paid": paid})
+	Game.say("%s pays $%d for %d bar%s of gold." % [bi.name, int(paid), n, "" if n == 1 else "s"], 4.0)
+	return paid
+
 ## The map, on paper.
 func open_map(n: int) -> void:
 	var menus = Game.get("menus")
@@ -127,6 +166,22 @@ func open_map(n: int) -> void:
 	v.add_child(r)
 	v.add_child(menus._button("Fold it away", menus.back))
 	menus._push(p)
+
+class GoldBuyer extends Node3D:
+	var kind := "bank"
+
+	func _ready() -> void:
+		add_to_group("interactable")
+
+	func interact_prompt() -> String:
+		if Game.state == null or int(Game.state.inventory.get("gold_bar", 0)) <= 0:
+			return ""
+		var bi: Dictionary = BUYERS[kind]
+		return "Sell your gold to the %s ($%d a bar)" % [bi.name, int(bi.price)]
+
+	func interact(_who: Node) -> void:
+		if Game.has_meta("treasure"):
+			Game.get_meta("treasure").sell_gold(kind)
 
 class DigSpot extends Node3D:
 	var n := 1

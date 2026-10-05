@@ -121,6 +121,12 @@ runner, Metal) and the Mac monitor.
   `src/ai/bounties.gd`); four legendary animals with clue trails, unique pelts and outfits from the trapper at
   Greer's Post (`src/systems/legendary.gd`); a three-map treasure chain drawn over the real terrain to gold bars
   (`src/systems/treasure.gd`); insulting/shoving a lawman is a fined misdemeanour; satchel reads papers and maps.
+- **Mission presentation** (`--bot presentation`): conversation camera (two-shot open, cut per speaker to an
+  over-the-shoulder shot on one side of the line, letterbox, practical DOF on Forward+, the pair facing and looking
+  at each other, talk clips / nods); title cards (chapter, region, story date) and results cards (time, accuracy,
+  head shots, 2-3 optional objectives per main mission rated gold/silver/bronze in WorldState and the journal;
+  `src/missions/presentation.gd`); gold sells at the Linden Exchange or to Greer; legendary outfits retint Ruth
+  (`src/systems/outfits.gd`); bounties turn in at any sheriff. Feature shots `mission_talk`, `results_card`.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

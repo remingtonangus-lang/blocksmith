@@ -45,6 +45,7 @@ var town_id := ""
 var posters: Array = []        # roster entries (dictionaries with name, crime, reward, pos, gang, id...) on this board
 var active: Dictionary = {}
 var stage := ""                # "", "travel", "fight", "carry", "proof"
+var auto_turn_in := true        # bots: autopilot hands the outlaw in here at once (false: the bot carries him elsewhere)
 var rng := RandomNumberGenerator.new()
 
 func setup(tid: String) -> void:
@@ -112,7 +113,15 @@ func _fines() -> float:
 			t += float(Game.state.bounties[k])
 	return t
 
+## The board whose bounty is under way (any sheriff can take the turn-in).
+static func running_board():
+	var b = Game.get_meta("bounty_active") if Game.has_meta("bounty_active") else null
+	return b if b != null and is_instance_valid(b) and not b.active.is_empty() else null
+
 func interact_prompt() -> String:
+	var rb = running_board()
+	if active.is_empty() and rb != null and rb.stage in ["carry", "proof"]:
+		return "Turn in %s to the sheriff of %s" % [rb.active.name, county_name(town_id)]
 	if not active.is_empty():
 		if stage in ["carry", "proof"]:
 			return "Turn in %s to the sheriff" % active.name
@@ -138,6 +147,10 @@ func pay_fines() -> bool:
 	return true
 
 func interact(_who: Node) -> void:
+	var rb = running_board()
+	if active.is_empty() and rb != null and rb.stage in ["carry", "proof"]:
+		rb._turn_in(town_id)
+		return
 	if not active.is_empty():
 		if stage in ["carry", "proof"]:
 			_turn_in()
@@ -178,6 +191,7 @@ func accept(i: int) -> void:
 		return
 	active = posters.pop_at(i)
 	stage = "travel"
+	Game.set_meta("bounty_active", self)
 	Game.log_event("bounty_accept", {"name": active.name, "reward": active.reward, "id": active.get("id", "")})
 	if Game.get("menus"):
 		Game.menus.set_waypoint(active.pos)
@@ -300,8 +314,8 @@ func _hunt() -> void:
 	active["group"] = group
 	if Game.get("menus"):
 		Game.menus.set_waypoint(global_position)
-	md.set_objective("Take %s to the sheriff in %s%s" % [b.name, str(town_id).replace("_", " ").capitalize(), " — he's tied across your saddle" if alive else ""])
-	if md.autopilot:
+	md.set_objective("Take %s to any sheriff (nearest: %s)%s" % [b.name, str(town_id).replace("_", " ").capitalize(), " — he's tied across your saddle" if alive else ""])
+	if md.autopilot and auto_turn_in:
 		md._teleport_player(global_position + Vector3(1.0, 0, 1.0))
 		await get_tree().physics_frame
 		_turn_in()
@@ -328,11 +342,13 @@ func _carry(h: Human) -> void:
 				h.visual.rotation = Vector3(0, p.facing, 0)
 		await get_tree().physics_frame
 
-func _turn_in() -> void:
+## Hand the outlaw (or the proof) to a sheriff: this board's, or any other county seat's (at_town).
+func _turn_in(at_town := "") -> void:
 	if active.is_empty():
 		return
 	var b := active
 	var alive := stage == "carry"
+	b["turned_in_at"] = at_town if at_town != "" else town_id
 	if not alive and Game.state:
 		Game.state.inventory["proof_%s" % str(b.get("id", "outlaw"))] = maxi(int(Game.state.inventory.get("proof_%s" % str(b.get("id", "outlaw")), 0)) - 1, 0)
 	_pay(b, alive)
@@ -349,6 +365,8 @@ func _turn_in() -> void:
 	Game.missions.set_objective("")
 	active = {}
 	stage = ""
+	if Game.has_meta("bounty_active") and Game.get_meta("bounty_active") == self:
+		Game.remove_meta("bounty_active")
 	refresh()
 
 func _abandon(group: Array, fire: Node3D) -> void:
@@ -367,9 +385,10 @@ func _pay(b: Dictionary, alive: bool) -> void:
 	Game.state.add_money(amount)
 	if alive:
 		Game.state.good_deed("bring_alive")
-	Game.log_event("bounty_paid", {"name": b.name, "alive": alive, "amount": amount, "id": b.get("id", "")})
+	var where := str(b.get("turned_in_at", town_id))
+	Game.log_event("bounty_paid", {"name": b.name, "alive": alive, "amount": amount, "id": b.get("id", ""), "at": where})
 	if Game.has_meta("news"):
-		Game.get_meta("news").record("bounty", {"name": b.name, "alive": alive, "amount": amount, "town": town_id, "id": b.get("id", "")})
+		Game.get_meta("news").record("bounty", {"name": b.name, "alive": alive, "amount": amount, "town": where, "id": b.get("id", "")})
 	Game.say("Bounty on %s collected: $%d%s" % [b.name, int(amount), " (alive)" if alive else ""], 5.0)
 	if Game.get("menus"):
 		Game.menus.clear_waypoint()
