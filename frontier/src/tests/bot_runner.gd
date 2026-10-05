@@ -4,6 +4,8 @@ extends Node
 ## failed oracle.
 ##   --bot road      ride/walk the road network from town to town (default)
 ##   --bot explore   wander between random reachable points (curiosity)
+##   --bot ride      mount the player's horse and ride town to town along a road at canter/gallop (horse_bot.gd)
+##   --bot gaits     ride each gait on a road, gait oracle (footfall beats/order) + foot-slide metric
 ##   --bot all       every bot in sequence
 ##   --seconds N     time per bot (default 90)
 ##   --report PATH   JSON report path (default user://bot_report.json)
@@ -33,10 +35,15 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
-		if b == "missions":
+		if b == "ride" or b == "gaits":
+			var hb = load("res://src/tests/horse_bot.gd").new()
+			add_child(hb)
+			res = await hb.run(b, seconds, self)
+			hb.queue_free()
+		elif b == "missions":
 			res = await _run_missions()
 		elif b == "town":
 			res = await _run_town(seconds)

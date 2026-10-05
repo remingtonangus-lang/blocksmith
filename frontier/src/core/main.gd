@@ -168,6 +168,16 @@ func _spawn_player() -> void:
 	player.setup(camera)
 	terrain.foci.append(player)
 	Game.player = player
+	# --- horses (src/actors/horse.gd): the player's horse stands beside the spawn point ---
+	var horse := Horse.spawn(int(Game.args.get("horse_seed", 1899)), str(Game.args.get("horse_breed", "quarter")))
+	var hp := spawn + Vector3(3.2, 0.0, -1.5)
+	hp.y = world.height(hp.x, hp.z)
+	add_child(horse)
+	horse.global_position = hp
+	horse.yaw = deg_to_rad(90.0)
+	Horse.player_horse = horse
+	terrain.foci.append(horse)
+	# --- end horses ---
 
 func _apply_viewport_quality() -> void:
 	var vp := get_viewport()

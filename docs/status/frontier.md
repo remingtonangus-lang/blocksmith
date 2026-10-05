@@ -85,19 +85,24 @@ runner, Metal) and the Mac monitor.
   Content: ~190 synthesized SFX/ambience ids (~800 files), 16 original music tracks rendered with FluidSynth
   (FluidR3 GM, MIT), Kokoro-82M TTS (Apache-2.0) for Ruth + NPC barks (`design/dialogue/`), CC0/PD Commons recordings
   in CI. CI job `audio` in frontier-assets.yml publishes `audio.zip`; `tools/fetch_assets.sh audio` fetches it.
+- **Horses** (`frontier/design/HORSES.md`): procedural horse generator
+  `frontier/tools/animals/horse_gen.py` (Blender bpy: SDF anatomy → mesh/LODs, rig, weights, mane/tail cards, eyes,
+  stock-saddle tack, IK-solved gait cycles + idles/actions → `horse.glb` + `horse_gaits.json`; CI job `animals` in
+  frontier-assets.yml → `animals.zip`, `fetch_assets.sh animals`), `Horse` riding controller, `HorseVisual`
+  (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
+  oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Characters: MakeHuman CC0 + Blender (bpy) pipeline, CMU mocap retarget, CharacterFactory API.
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
-- Horse: SDF-modelled horse with rig, keyframed gaits from footfall tables, riding controller, coat shader, IK.
 - Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
 - Chapter 2 "Paper and Iron": 5 missions, dialogue choices, follow verb, poker minigame.
 
 ## Ranked gaps
 (Provisional self-assessment until the first blind critic round; gap = weight × (10 − score).)
 1. Characters and faces (3 × 9): capsule stand-ins — waiting on the character pipeline.
-2. Horses (3 × 9): no horse yet — waiting on the horse agent.
+2. Horses (3 × 5): procedural horse with gaits (oracle-checked footfalls), riding, IK, care, bonding; close-up anatomy, hair physics and rider animation missing.
 3. Animation and locomotion (3 × 9): no skeletal animation yet.
 4. AI and towns (3 × 7): towns are empty discs until the settlement kit lands; routines need building spots.
 5. Writing and missions (3 × 7): 2 of ~40 missions; no cinematics/camera direction.
@@ -116,3 +121,4 @@ runner, Metal) and the Mac monitor.
 - 2026-10-04: audio workstream (worktree): director + generators + score + TTS + Commons pipeline; first CI audio
   build pending (frontier.yml should also fetch audio on asset-cache hits, see AUDIO.md gaps).
 - 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.
+- 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
