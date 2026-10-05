@@ -53,7 +53,7 @@ def main():
     ap.add_argument("images", nargs="+")
     ap.add_argument("--context", default="")
     ap.add_argument("--seed", type=int, default=None)
-    ap.add_argument("--model", default="gemini-flash-latest,gemini-2.5-flash")
+    ap.add_argument("--model", default="gemini-flash-latest,gemini-3.8-flash,gemini-flash-lite-latest")
     ap.add_argument("--out")
     a = ap.parse_args()
     rng = random.Random(a.seed)
