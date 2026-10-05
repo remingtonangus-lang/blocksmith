@@ -15,7 +15,7 @@ enum ItemModels {
     struct Quad { var p: (V3, V3, V3, V3); var uv: (V2, V2, V2, V2); var n: V3 }
 
     private static let lock = NSLock()
-    private static var masks: [Int: [Float]] = [:]
+    private static var masks: [Int: [UInt8]] = [:]          // alpha 0...255 (bytes: 2 MB for every item, not 8.6)
     private static var meshes: [Int: [Quad]] = [:]
 
     // Texture names of every sprite item (item_<name>, or a shared sprite such as a potion bottle).
@@ -40,7 +40,7 @@ enum ItemModels {
     static func capture(layer: Int, name: String, px: [V4], n: Int) {
         guard !Bench.abNoItemArt, itemLayerNames.contains(name), n > 0, px.count >= n * n else { return }
         // Alpha at the centres of a G x G grid (bilinear between texel centres).
-        var m = [Float](repeating: 0, count: G * G)
+        var m = [UInt8](repeating: 0, count: G * G)
         for j in 0..<G { for i in 0..<G {
             let fx = (Float(i) + 0.5) / Float(G) * Float(n) - 0.5, fy = (Float(j) + 0.5) / Float(G) * Float(n) - 0.5
             let x0 = max(0, min(n - 1, Int(floorf(fx)))), y0 = max(0, min(n - 1, Int(floorf(fy))))
@@ -48,7 +48,8 @@ enum ItemModels {
             let tx = simd_clamp(fx - Float(x0), 0, 1), ty = simd_clamp(fy - Float(y0), 0, 1)
             let top = px[y0 * n + x0].w * (1 - tx) + px[y0 * n + x1].w * tx
             let bot = px[y1 * n + x0].w * (1 - tx) + px[y1 * n + x1].w * tx
-            m[j * G + i] = top * (1 - ty) + bot * ty
+            let v: Float = top * (1 - ty) + bot * ty
+            m[j * G + i] = UInt8((simd_clamp(v, 0, 1) * 255).rounded())
         } }
         lock.lock(); masks[layer] = m; lock.unlock()
     }
@@ -105,7 +106,7 @@ enum ItemModels {
     }
 
     // Local space: the icon in the XY plane, x right and y up, centred, 1 x 1; z toward the icon's front.
-    static func build(_ m: [Float]) -> [Quad] {
+    static func build(_ m: [UInt8]) -> [Quad] {
         let h: Float = thickness / 2
         var q: [Quad] = []
         q.append(Quad(p: (V3(-0.5, -0.5, h), V3(0.5, -0.5, h), V3(0.5, 0.5, h), V3(-0.5, 0.5, h)),
@@ -113,7 +114,7 @@ enum ItemModels {
         q.append(Quad(p: (V3(0.5, -0.5, -h), V3(-0.5, -0.5, -h), V3(-0.5, 0.5, -h), V3(0.5, 0.5, -h)),
                       uv: (V2(1, 1), V2(0, 1), V2(0, 0), V2(1, 0)), n: V3(0, 0, -1)))
         // Alpha at grid point (i, j) (sample centres; 0 outside, so every contour closes).
-        func a(_ i: Int, _ j: Int) -> Float { i >= 0 && j >= 0 && i < G && j < G ? m[j * G + i] : 0 }
+        func a(_ i: Int, _ j: Int) -> Float { i >= 0 && j >= 0 && i < G && j < G ? Float(m[j * G + i]) / 255 : 0 }
         let g = Float(G)
         func uvAt(_ i: Float, _ j: Float) -> V2 { V2((i + 0.5) / g, (j + 0.5) / g) }
         // Gradient of the bilinear field at grid coordinates (fi, fj), by central differences.
