@@ -176,6 +176,12 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   Its heavy lane was still queued: cancelled, 01f1b95 carries it plus the rest of the split-screen audit, the collision
   sweep and World.update quiet-frame costs from the 076df09 bench (per mob 7.8 us, update p50 0.89 ms at rd 24).
 
+- 10:35 UTC: run 676 (01f1b95) fast lane: build clean, smoke rd 8 PASS (p50 7.95 ms, resident peak 281 MB); cooptest
+  1 FAILED ("an enemy round fired at player 2": a round fired across from the side, likely stopped by terrain; now fired
+  straight down over player 2's head). Heavy lane still queued: cancelled; 1a6f386 carries it plus 21 commits (a code
+  review's six findings, NaN quarantines, pathfinder cursor, O(1) needsMesh, mineshafts / ravines vs aquifers,
+  structcheck / village / life / collisiontest gating).
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
