@@ -538,6 +538,11 @@ func _on_damaged(info: Dictionary) -> void:
 	if Game.state and info.get("attacker") == Game.player and damageable.alive and faction in ["civilian", "law"] \
 		and not (brain.aggressive and brain.target == Game.player):
 		Game.state.crime("assault", global_position, self)
+	# a shot to the gun arm can knock the gun from the hand
+	if info.get("zone", "") == "arm" and not info.get("melee", false) and damageable.alive and gun != null and gun.drawn \
+			and not gun.weapons.is_empty() and randf() < float(info.get("disarm_chance", 0.65)):
+		_disarm(info)
+		return
 	if brain and brain.has_method("on_damaged"):
 		brain.on_damaged(info)
 	if visual.has_method("hit") and damageable.alive:
@@ -545,6 +550,31 @@ func _on_damaged(info: Dictionary) -> void:
 	# flinch: a small shove in the hit direction
 	var d: Vector3 = info.get("direction", Vector3.ZERO)
 	velocity += Vector3(d.x, 0, d.z) * 1.5
+
+## Gun shot out of the hand: it drops at their feet; a brave man puts his fists up, the rest give up.
+func _disarm(info: Dictionary) -> void:
+	var w := gun.weapon_id()
+	var loaded: int = int(gun.clip.get(w, 0))
+	gun.drawn = false
+	gun.reloading = false
+	gun.weapons = []
+	gun.clip.erase(w)
+	if holder != null and is_instance_valid(holder):
+		holder.queue_free()
+		holder = null
+	var fwd := Vector3(-sin(facing), 0, -cos(facing))
+	DroppedGun.drop(global_position + fwd * 0.6 + Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3)), w, loaded)
+	if visual.has_method("hit"):
+		visual.hit(info)
+	Game.log_event("disarmed", {"npc": str(name), "weapon": w, "by": str(info.get("attacker").name) if info.get("attacker") else ""})
+	var att = info.get("attacker")
+	if brain != null:
+		brain.aggressive = false
+		if att != null and brain.bravery >= 0.7 and att.global_position.distance_to(global_position) < 12.0:
+			brain.start_fistfight(att)
+		else:
+			brain.state = brain.State.SURRENDER
+			brain.target = att
 
 func _on_died(info: Dictionary) -> void:
 	alive = false

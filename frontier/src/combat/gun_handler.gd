@@ -132,12 +132,12 @@ func aim_tick(aiming: bool, dt: float) -> void:
 	accuracy_bonus = clampf(_aim_time / 0.8, 0.0, 1.0)
 
 func can_fire() -> bool:
-	return drawn and cooldown <= 0.0 and not reloading and clip.get(weapon_id(), 0) > 0
+	return weapon_id() != "" and drawn and cooldown <= 0.0 and not reloading and clip.get(weapon_id(), 0) > 0
 
 ## Fire toward `target_dir` from `origin`. aimed = steadier. Returns the list of hit infos.
 func fire(origin: Vector3, target_dir: Vector3, aimed: bool, spread_scale := 1.0) -> Array:
 	var id := weapon_id()
-	if not drawn or cooldown > 0.0 or reloading:
+	if id == "" or not drawn or cooldown > 0.0 or reloading:
 		return []
 	if clip.get(id, 0) <= 0:
 		empty.emit(id)
@@ -230,6 +230,8 @@ func _trace(origin: Vector3, dir: Vector3, d: Dictionary) -> Dictionary:
 
 func start_reload() -> void:
 	var id := weapon_id()
+	if id == "":
+		return
 	var d := def()
 	if reloading or clip.get(id, 0) >= d.capacity or ammo.get(d.ammo, 0) <= 0:
 		return
@@ -241,6 +243,9 @@ func _reload_scale() -> float:
 
 func _reload_step() -> void:
 	var id := weapon_id()
+	if id == "":                 # disarmed mid-reload
+		reloading = false
+		return
 	var d := def()
 	# rounds come from the selected special box while it lasts (the clip is then that kind), else standard
 	var pool: String = d.ammo
