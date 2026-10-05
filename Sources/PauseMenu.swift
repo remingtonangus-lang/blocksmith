@@ -445,7 +445,7 @@ final class PauseMenu: Menu {
             } else { g.onToast?("A world with that name already exists") }
             resetCursor = true
         case "w_copy":
-            if selWorld == currentWorld { g.saveNow() }
+            if selWorld == currentWorld { g.saveNow(); SaveIO.flush() }      // chunk writes are queued: on disk before the copy
             if let n = WorldStore.copy(selWorld) { g.onToast?("Copied to \(n)"); page = stack.popLast() ?? .worlds; resetCursor = true }
             else { g.onToast?("Couldn't copy the world") }
         case "w_delete":
