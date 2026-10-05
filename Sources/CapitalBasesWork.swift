@@ -106,15 +106,22 @@ extension Game {
             let wp = dist < 18 ? target : leader.pos + to / dist * 18
             leader.soldierBrain.order = ground(wp)
             for (i, m) in members.enumerated() where i > 0 { m.soldierBrain.order = ground(leader.pos + slot(i)) }
+            // No way on (a cliff, water, a wall): after 12 s they search where they stand.
+            pt.blocked = leader.gaveUp(leader.soldierBrain.order ?? wp) ? (pt.blocked ?? 0) + dt : 0
             if dist < 5 { pt.phase = 2; pt.t = 0; b.note("\(r.key) patrol reached the noise") }
-            else if pt.t > 200 { pt.phase = 2; pt.t = 0; b.note("\(r.key) patrol stopped short (\(Int(dist)) blocks)") }
+            else if pt.t > 200 || (pt.blocked ?? 0) > 12 {
+                b.note("\(r.key) patrol stopped short (\(Int(dist)) blocks\((pt.blocked ?? 0) > 12 ? ", no way on" : ""))")
+                pt.phase = 2; pt.t = 0; pt.blocked = 0
+                pt.target = [leader.pos.x, leader.pos.y, leader.pos.z]
+            }
         case 2:
             // Search round the spot.
-            if Int(pt.t) % 6 == 0 {
-                for m in members {
-                    let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 2...8)
-                    m.soldierBrain.order = ground(target + V3(cosf(a) * d, 0, sinf(a) * d))
-                }
+            for m in members {
+                // A new spot every 6 s, or at once when the last one can't be reached.
+                let stuck = m.soldierBrain.order.map { m.gaveUp($0) } ?? true
+                guard Int(pt.t) % 6 == 0 || stuck else { continue }
+                let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 2...8)
+                m.soldierBrain.order = ground(target + V3(cosf(a) * d, 0, sinf(a) * d))
             }
             if pt.t > 30 { pt.phase = 3; pt.t = 0; b.note("\(r.key) patrol returning") }
         default:
@@ -135,6 +142,19 @@ extension Game {
                 }
                 let wp = dist < 18 ? post : m.pos + to / dist * 18
                 m.soldierBrain.order = dist < 18 ? post : ground(wp)
+                // No way back for 25 s (fallen into a ravine, cut off by water): it holds where it is as a new post
+                // (long citadel behaviour sim: patrol members pushed at unreachable waypoints for minutes).
+                let id = ObjectIdentifier(m)
+                if let o = m.soldierBrain.order, m.gaveUp(o) { b.noWay[id, default: 0] += dt } else { b.noWay[id] = nil }
+                if (b.noWay[id] ?? 0) > 25 {
+                    b.noWay[id] = nil
+                    let br = m.soldierBrain
+                    br.order = nil; br.ready = false
+                    m.home = m.pos
+                    b.posts.removeValue(forKey: id)
+                    members.removeAll { $0 === m }
+                    b.note("\(r.key) patrol: a \(m.kind.key) found no way back (\(Int(dist)) blocks out), holds there")
+                }
             }
             if members.isEmpty || pt.t > 240 {
                 b.note("\(r.key) patrol back (\(Int(pt.t)) s)")
