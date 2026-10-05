@@ -95,7 +95,7 @@ static func knock_down(n: Node3D, by: Node3D = null) -> void:
 	if tree == null:
 		return
 	tree.create_timer(4.0, false).timeout.connect(func():
-		if not is_instance_valid(n):
+		if not is_instance_valid(n) or n.get_meta("hogtied", false):
 			return
 		var v = n.get("visual")
 		if v != null and v.has_method("play_action"):

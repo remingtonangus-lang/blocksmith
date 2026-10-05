@@ -31,6 +31,7 @@ flagship, Meta Quest 3 gets the same game in VR.
 | Mount / call horse | F / H | Y / D-pad up |
 | Map / journal / pause | M / J / Esc | View / — / Menu |
 | Punch (jab / cross; hold Aim with no gun out to guard) | F | B |
+| Lasso (throw / let go; pull away to drag down, Interact to hogtie) | L | D-pad left |
 | Take cover / leave (aim pops up or peeks; fire without aiming blind-fires) | X | RB |
 | Camera shoulder | V | R3 |
 | Greet / antagonize / defuse (facing someone) | E / T / N | Y / D-pad right / D-pad down |

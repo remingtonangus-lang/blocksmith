@@ -34,7 +34,7 @@ static func ensure() -> void:
 	_key("journal", [KEY_J], [], [])
 	_key("satchel", [KEY_I], [], [])
 	_key("cover", [KEY_X], [JOY_BUTTON_RIGHT_SHOULDER], [])   # tuck into cover / leave it
-	_key("lasso", [KEY_L], [], [])
+	_key("lasso", [KEY_L], [JOY_BUTTON_DPAD_LEFT], [])   # D-pad left fishes only with a rod at the water
 	_key("melee", [KEY_F], [JOY_BUTTON_B], [])
 	_ui_pad()
 

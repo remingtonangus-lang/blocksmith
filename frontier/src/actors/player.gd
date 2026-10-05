@@ -27,7 +27,7 @@ var invert_y := false
 var pad_sens := 2.6
 var base_fov := 62.0           # settings > Field of view (aiming narrows from here)
 var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
-	"interact": false, "crouch": false, "cover": false, "melee": false}
+	"interact": false, "crouch": false, "cover": false, "melee": false, "lasso": false}
 var bot_driven := false
 var stamina := STAMINA_MAX
 var health := 100.0
@@ -106,6 +106,10 @@ func _setup_combat() -> void:
 		var cs: CollisionShape3D = a.get_child(0)
 		_hitboxes.append([cs, cs.position.y])
 	cover = PlayerCover.new(self)
+	lasso = Lasso.new()
+	lasso.name = "Lasso"
+	add_child(lasso)
+	lasso.setup(self)
 	gun = GunHandler.new()
 	gun.name = "Guns"
 	add_child(gun)
@@ -318,6 +322,8 @@ func _read_human_intent(dt: float) -> void:
 		intent.cover = true
 	if Input.is_action_just_pressed("melee"):
 		intent.melee = true
+	if Input.is_action_just_pressed("lasso") and not (busy != null):
+		intent.lasso = true
 	var assist: bool = intent.aim and Accessibility.assist_on() and camera != null
 	if assist and not _aim_prev:
 		AimAssist.snap(self)
@@ -357,6 +363,15 @@ func _physics_process(dt: float) -> void:
 		intent.fire = false
 		intent.melee = false
 	_melee(dt)
+	if intent.get("lasso", false):
+		intent.lasso = false
+		if lasso.caught != null:
+			lasso.release()
+		elif not Melee.is_down(self):
+			lasso.throw(cam_yaw if intent.aim else facing)
+	# hogtie a downed catch close by (Interact)
+	if intent.interact and lasso.caught != null and lasso.hogtie():
+		intent.interact = false
 	_combat(dt)
 	_interactions()
 	var mv: Vector2 = intent.move
@@ -498,6 +513,7 @@ func _fist_threat() -> bool:
 	return false
 
 var cover: PlayerCover
+var lasso: Lasso
 var _hitboxes: Array = []
 var _crouch_k := 0.0
 var _crouch_act := ""
