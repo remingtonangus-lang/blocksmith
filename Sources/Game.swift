@@ -344,7 +344,10 @@ final class Game {
         dragonKilled = m.dragonKilled ?? false
         gateways = m.gateways ?? 0
         seenCredits = m.seenCredits ?? false
-        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) { maps = mm }
+        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) {
+            // Only well-formed maps (a damaged file's colours were indexed as 128 x 128 and its scale shifted by).
+            maps = mm.filter { $0.value.colors.count == 128 * 128 && (0...4).contains($0.value.scale) }
+        }
         effects.load(m.effects)
         absorption = m.absorption ?? 0
         if let e = m.enchantSeed { enchantSeed = e }
