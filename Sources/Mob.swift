@@ -1770,6 +1770,7 @@ final class MobManager {
     var populateTimer: Float = 0.5
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
+    static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
@@ -1796,6 +1797,16 @@ final class MobManager {
         for m in mobs where game.seatOwns(m.pos) {
             let before = m.pos
             m.update(dt, game: game)
+            // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
+            // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
+            let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
+            if !sane || !m.yaw.isFinite {
+                MobManager.quarantined += 1
+                if MobManager.quarantined <= 5 { print("mob NaN quarantine: \(m.kind.key) at \(before) (\(MobManager.quarantined) so far)") }
+                m.pos = before.x.isFinite && before.y.isFinite && before.z.isFinite ? before : p
+                m.vel = .zero
+                if !m.yaw.isFinite { m.yaw = 0 }
+            }
             // Footsteps for walking mobs near the listener (size sets the stride and loudness).
             let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
             if game.sound != nil && m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
