@@ -65,6 +65,12 @@ extension Game {
             let cell = IVec3(Int(floor(next.x)), Int(floor(next.y)), Int(floor(next.z)))
             let b = world.block(cell.x, cell.y, cell.z)
             if next.y < 0 { f.dead = true; continue }
+            // Concrete powder sets where it first meets water (reference; it sank to the bottom first).
+            if Blocks.fluidKind[Int(b)] == 1 && Int(f.block) < Game.hardened.count && Game.hardened[Int(f.block)] != 0 {
+                world.setBlock(cell.x, cell.y, cell.z, Game.hardened[Int(f.block)])
+                f.dead = true
+                continue
+            }
             if Blocks.collide[Int(b)] && !Blocks.isLiquid(b) {
                 // Land in the cell above.
                 let at = IVec3(cell.x, cell.y + 1, cell.z)
