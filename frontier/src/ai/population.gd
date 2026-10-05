@@ -197,6 +197,8 @@ func _spawn_town_resident(r: Dictionary, place: bool) -> bool:
 	if b.kind == "home":
 		indoors[r.key] = true
 		return false
+	if b.kind in ["play", "stagger", "patrol"] and not nav_ready(r.town):
+		return false                     # these walk between navmesh points: wait for the town's navmesh
 	var pp: Vector3 = Game.player.global_position
 	var hs := home_spot(r)
 	var from_home: bool = indoors.has(r.key) and not place and not hs.is_empty() and \
@@ -225,8 +227,11 @@ func _spawn_town_resident(r: Dictionary, place: bool) -> bool:
 	metrics.spawned += 1
 	if not from_home:
 		if not rt.place_now():
-			var p := snap(idx.center)
-			h.global_position = (p if p != Vector3.INF else idx.center) + Vector3(0, 0.1, 0)
+			var jr := RandomNumberGenerator.new()
+			jr.seed = int(r.seed)
+			var c: Vector3 = idx.center + Vector3(jr.randf_range(-6.0, 6.0), 0.0, jr.randf_range(-6.0, 6.0))
+			var p := snap(c)
+			h.global_position = (p if p != Vector3.INF else c) + Vector3(0, 0.1, 0)
 	return true
 
 ## The block of the day for a resident right now.

@@ -231,7 +231,9 @@ func _physics_process_impl(dt: float) -> void:
 			if not nav.is_navigation_finished():
 				next = nav.get_next_path_position()
 		var to := Vector3(next.x - global_position.x, 0, next.z - global_position.z)
-		if Vector3(tp.x - global_position.x, 0, tp.z - global_position.z).length() > 0.6:
+		if in_town and to.length() < 0.05:
+			pass                 # walked the path to the closest reachable point: stand (the brain decides what next)
+		elif Vector3(tp.x - global_position.x, 0, tp.z - global_position.z).length() > 0.6:
 			want = to.normalized()
 			tspeed = float(intent.speed)
 			if intent.crouch:
@@ -272,7 +274,11 @@ func _physics_process_impl(dt: float) -> void:
 		move_and_slide()
 	if in_town:
 		_town_tick(dt)
-	visual.rotation.y = facing
+		if Game.args.has("trace") and str(name).begins_with(str(Game.args.trace)) and Engine.get_physics_frames() % 30 == 0:
+			var rt = brain.get("routine")
+			print("TRACE %s pos %s tgt %s want %s spd %.2f far %s ghost %.1f path %d/%d phase %s state %s" % [name,
+				str(global_position.snapped(Vector3.ONE * 0.01)), str(target), str(want.snapped(Vector3.ONE * 0.01)), speed,
+				str(ActorLOD.far(self)), _ghost_t, _path_i, _path.size(), rt.phase if rt else "-", brain.debug_state])
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
 	if visual.has_method("set_aim"):

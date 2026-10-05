@@ -48,6 +48,7 @@ var combat_t := 0.0             # seconds since this engagement started (reactio
 var routine: TownRoutine = null
 var calm_t := 0.0               # FLEE/COWER/WATCH/REPORT/ALERT wear off back to the routine
 var flee_goal := Vector3.INF     # a doorway to run inside through when shooting starts
+var flee_inside := true
 var report_to: Node3D = null
 var report_pos := Vector3.ZERO
 var report_kind := ""
@@ -177,6 +178,7 @@ func _on_noise(pos: Vector3, radius: float, source: Node) -> void:
 			if source != null and source is Node3D:
 				target = source
 			flee_goal = _shelter(pos) if routine != null else Vector3.INF
+			flee_inside = true
 			if flee_goal == Vector3.INF and rng.randf() > bravery and d < 25.0:
 				state = State.COWER
 			else:
@@ -495,6 +497,7 @@ func _react_to_player() -> void:
 			if Game.population:
 				Game.population.remember(key, "threatened")
 			flee_goal = _shelter(p.global_position) if routine != null and rng.randf() < 0.5 else Vector3.INF
+			flee_inside = true
 			state = State.FLEE if flee_goal != Vector3.INF or rng.randf() < 0.4 else State.COWER
 			target_last_seen = p.global_position
 			calm_t = rng.randf_range(20.0, 35.0)
@@ -735,7 +738,7 @@ func _flee(dt: float) -> void:
 		if Vector2(flee_goal.x - body.global_position.x, flee_goal.z - body.global_position.z).length() < 0.9:
 			flee_goal = Vector3.INF
 			state = State.COWER
-			if Game.population:
+			if Game.population and flee_inside:
 				Game.population.stat("fled_inside", 1)
 		return
 	if routine != null:
@@ -743,6 +746,18 @@ func _flee(dt: float) -> void:
 		if calm_t <= 0.0:
 			state = State.ROUTINE
 			return
+		# townsfolk with no doorway to run to: run 25 m away along the navmesh once, then crouch
+		var away2 := body.global_position - target_last_seen
+		away2.y = 0.0
+		if away2.length() < 0.1:
+			away2 = Vector3(1, 0, 0)
+		var dest: Vector3 = Game.population.snap(body.global_position + away2.normalized() * 25.0) if Game.population else Vector3.INF
+		if dest == Vector3.INF:
+			state = State.COWER
+			return
+		flee_goal = dest
+		flee_inside = false
+		return
 	var from := target_last_seen if target != null else body.global_position + Vector3(1, 0, 0)
 	var away := (body.global_position - from)
 	away.y = 0

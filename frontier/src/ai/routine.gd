@@ -124,7 +124,15 @@ func _plan(dt: float) -> void:
 		return
 	if not _choose():
 		wait_t = rng.randf_range(2.0, 5.0)
+		fails += 1
+		if fails >= 3:
+			# nowhere free for this block (saloon full...): take to the street, or go home
+			fails = 0
+			var k: String = block.get("kind", "")
+			block = {"key": "loiter|", "kind": "loiter", "bid": "", "types": []} if k != "loiter" else \
+				{"key": "home|" + str(res.home), "kind": "home", "bid": res.home, "types": []}
 		return
+	fails = 0
 	phase = "walk"
 	t = 0.0
 	var d := Vector2(goal.x - body.global_position.x, goal.z - body.global_position.z).length()
@@ -260,7 +268,7 @@ func _walk(_dt: float) -> void:
 		near = 0.7
 	var flat := Vector2(to.x, to.z).length()
 	var done: bool = t > 1.0 and body.path_done()
-	if (flat < near or (done and flat < 1.2 and task != "point")) and absf(to.y) < 1.3:
+	if (flat < near or (done and (flat < 1.2 or task == "point"))) and absf(to.y) < 1.3:
 		pop.stat("reached", 1)
 		_arrive(false)
 		return
