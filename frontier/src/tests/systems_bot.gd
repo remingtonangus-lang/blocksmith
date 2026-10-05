@@ -69,6 +69,32 @@ static func run(runner: Node) -> Dictionary:
 		res.checks["encounters"] = enc.history.duplicate()
 		if enc.history.size() < enc.TYPES.size():
 			_fail(res, "only %d/%d encounters ran" % [enc.history.size(), enc.TYPES.size()])
+	# 5b. hold-up and store robbery: hands up, rob, crime logged, shop shuts its door
+	var rb = Game.get("robbery")
+	if rb == null:
+		_fail(res, "no robbery system")
+	else:
+		var vic: Human = Human.spawn(Game.main, p.global_position + Vector3(4, 0.3, 0), {"seed": 777, "role": "townsfolk", "faction": "civilian", "name": "Mark"})
+		await tree.physics_frame
+		rb.react(vic)
+		var m3: float = st.money
+		var crimes_before: int = st.crimes_log.size()
+		if vic.brain.state != vic.brain.State.SURRENDER:
+			_fail(res, "held-up civilian did not raise their hands")
+		elif vic.interact_prompt().begins_with("Rob"):
+			vic.interact(p)
+			if st.money <= m3 or st.crimes_log.size() <= crimes_before:
+				_fail(res, "robbing a held-up civilian paid nothing or logged no crime")
+		else:
+			_fail(res, "no rob prompt on a surrendered civilian")
+		if shops.size() > 0:
+			var take: float = rb.rob_shop(shops[0])
+			if take <= 0.0 or rb.shop_open(shops[0]):
+				_fail(res, "store robbery paid nothing or the shop stayed open")
+		res.checks["robbery"] = rb.history.duplicate()
+		vic.queue_free()
+		for cty in st.bounties.keys():
+			st.pay_bounty(cty)           # settle up so the law doesn't interfere with the next checks
 	# 6. a bounty end to end (autopilot): accept, travel, gang, custody, paid 1.5x
 	var boards := tree.get_nodes_in_group("interactable").filter(func(n): return n.has_method("accept"))
 	if boards.is_empty():

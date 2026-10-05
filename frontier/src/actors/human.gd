@@ -223,9 +223,14 @@ func _physics_process(dt: float) -> void:
 func interact_prompt() -> String:
 	if not alive or brain == null or brain.state in [brain.State.COMBAT, brain.State.FLEE]:
 		return ""
+	if has_meta("held_up") and not has_meta("robbed") and brain.state == brain.State.SURRENDER:
+		return "Rob %s" % display_name
 	return "Greet %s" % display_name if faction in ["civilian", "law"] else ""
 
 func interact(_who: Node) -> void:
+	if has_meta("held_up") and not has_meta("robbed") and Game.get("robbery"):
+		Game.robbery.rob(self)
+		return
 	if Game.missions:
 		var lines := ["bark_greet_01", "bark_greet_02", "bark_greet_03"]
 		Game.missions.say(lines[seed % lines.size()], self)

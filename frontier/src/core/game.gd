@@ -45,6 +45,7 @@ var wildlife: Node
 var camp: Node
 var roads: RoadGraph
 var encounters: Node
+var robbery: Node              # hold-ups and store robberies (src/systems/robbery.gd)
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()

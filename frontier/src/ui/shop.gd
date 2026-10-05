@@ -26,9 +26,21 @@ func setup(k: String, town: String) -> void:
 	add_to_group("interactable")
 
 func interact_prompt() -> String:
+	var rb = Game.get("robbery")
+	if rb and not rb.shop_open(self):
+		return "The %s is shut to you" % title.to_lower()
+	if rb and Game.player and Game.player.intent.get("aim", false):
+		return "Rob the %s" % title.to_lower()
 	return "Shop at the %s" % title.to_lower()
 
 func interact(_who: Node) -> void:
+	var rb = Game.get("robbery")
+	if rb and not rb.shop_open(self):
+		Game.say("\"We don't serve you here. Not after last time.\"", 3.0)
+		return
+	if rb and Game.player and Game.player.intent.get("aim", false):
+		rb.rob_shop(self)
+		return
 	open_ui()
 
 func price(base: float) -> float:
