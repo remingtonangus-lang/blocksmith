@@ -120,6 +120,8 @@ done
 "$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
 # Vehicle riding: bots ride the crawler and the frigates through Game.tick (decks, boarding, crew, disabled vehicles).
 "$BIN" --ridecheck --seed 12345 --out snaps
+# Capital ship interiors: every room, chest and the helm walkable from the hangar (ShipInteriors.swift).
+"$BIN" --interiorcheck
 # Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
 "$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck        # gating: plants that lose their support pop (Remington, 2026-10-05)
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder

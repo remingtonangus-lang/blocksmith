@@ -1640,6 +1640,7 @@ if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--collapsecheck") { exit(CollapseCheck.run()) }
+if CommandLine.arguments.contains("--interiorcheck") { exit(InteriorCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 if CommandLine.arguments.contains("--collisiontest") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }

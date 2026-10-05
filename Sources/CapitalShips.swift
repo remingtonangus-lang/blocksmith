@@ -128,6 +128,7 @@ final class HullBuilder {
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
     var crew: [V3] = []                  // crew posts, grid coordinates (feet)
     var crewRoles: [CrewRole] = []       // per post (missing entries are troops)
+    var roomCells: [(IVec3, ShipRoom)] = []   // interior rooms: the cell just inside each doorway (grid coordinates, feet)
     // A crew post at builder coordinates (x relative to the centreline).
     func post(_ x: Int, _ y: Int, _ z: Int, _ role: CrewRole) {
         crew.append(V3(Float(x + ox) + 0.5, Float(y), Float(z) + 0.5))
@@ -314,6 +315,27 @@ enum Capital {
             hb.set(26, 27, z, Blocks.id("chest") + 3)
             hb.chests.append((hb.grid(26, 27, z), i % 2 == 0 ? "steelhold_armory" : "steelhold_supply"))
         }
+        // Decks of corridors and rooms above the hangar (Remington 2026-10-05: a warship you can walk through, like the
+        // citadel): the crew deck on the hangar's ceiling (46), a second deck (51) and the command deck over the rail
+        // cannon's tube (66), each a corridor down the centreline with quarters, mess, armory, medbay, brig, storage,
+        // briefing and engineering rooms off it; ladder wells join them (the hangar and bridge ladders stay).
+        let style = InteriorStyle(floor: deck, wall: panel, trim: stripe, light: light, bed: "gray",
+                                  armoryLoot: "steelhold_armory", supplyLoot: "steelhold_supply")
+        let inside: (Int, Int, Int) -> Bool = { x, y, z in Capital.frigateInside(x, y, z) }
+        hb.interiorDeck(y: 46, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.mess, .quarters, .quarters, .armory, .medbay, .storage, .quarters, .briefing],
+                        style: style, seed: 0x5F01, inside: inside)
+        hb.interiorDeck(y: 51, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.quarters, .quarters, .storage, .brig, .quarters, .armory, .engineering],
+                        style: style, seed: 0x5F02, inside: inside)
+        hb.interiorDeck(y: 66, h: 4, hw: 29, z0: 142, z1: 358, rooms: [.briefing, .quarters, .engineering, .armory, .quarters, .storage],
+                        style: style, seed: 0x5F03, inside: inside)
+        // The second deck's ceiling (the rail cannon's tube runs in the space above it, under the command deck).
+        for z in 142...358 { for x in -29...29 where inside(x, 56, z) && hb.get(x, 56, z) == AIR { hb.set(x, 56, z, panel) } }
+        // Wells: crew deck to the second at both ends of the corridor; the second deck to the command deck clear of
+        // the gun tube (in the end rooms, beside their doors).
+        hb.ladderWell(x: -1, z: 144, y0: 46, y1: 51, back: -1)
+        hb.ladderWell(x: 1, z: 356, y0: 46, y1: 51, back: 1)
+        hb.ladderWell(x: 8, z: 146, y0: 51, y1: 66, back: 1)
+        hb.ladderWell(x: -8, z: 354, y0: 51, y1: 66, back: -1)
         // Bridge: floor 76 in the tower, armoured glass round the front, the helm, consoles, the captain's chest.
         hb.fill(-9, 9, 76, 76, 298, 335, deck)
         for x in -8...8 { for y in 80...84 { hb.set(x, y, 296 + Int(ceilf(Float(y - 72) * 0.5)), glass) } }
