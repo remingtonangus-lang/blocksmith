@@ -18,6 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  FRONTIER_RDRIVER: ""            # e.g. "--rendering-driver vulkan" once the GPU probe finds a working combo
   GODOT_VERSION: 4.7.1
   GODOT_TAG: 4.7.1-stable
 
@@ -104,8 +105,8 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps
-          "$GODOT" --path frontier --rendering-driver vulkan --resolution 1280x720 -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
-          grep -q "BOTS PASS" bots.log
+          "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
+          grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
 
       - name: Benchmark (High preset, 1920x1080)
         id: bench
@@ -113,8 +114,8 @@ jobs:
         timeout-minutes: 12
         run: |
           set -o pipefail
-          "$GODOT" --path frontier --rendering-driver vulkan --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
-          test -f snaps/benchmark.json
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
+          test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
 
       - name: Screenshot tour (High preset)
         id: tour
@@ -124,7 +125,7 @@ jobs:
           set -o pipefail
           # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
           # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
-          "$GODOT" --path frontier --rendering-driver vulkan --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
           mkdir -p snaps/metal
           "$GODOT" --path frontier --resolution 1280x720 -- --tour "$PWD/snaps/metal" --only bitter_spring_street --quality high --frames 20 --watchdog 300 2>&1 | tee tour_metal.log | grep -E "shot:|Using Device" || true
           ls snaps/*.png
