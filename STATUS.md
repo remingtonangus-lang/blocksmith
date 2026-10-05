@@ -236,7 +236,7 @@ code); mechanics, names and numbers follow the reference game.
       Block Chipping). Next: collision shrinks with the damage, ships' blocks too, finer mining animation.
 
 ## Playtest report (Remington, 2026-10-05, TV + controller): fix in order, each with a regression check
-1. [ ] P0 mobs invisible in real play (not in the CI renderer). Checks: --mobcheck (every kind alone, Fancy / Fast /
+1. [x] P0 mobs invisible in real play (not in the CI renderer; mobcheck gating and green since run 563; confirm on the Mac). Checks: --mobcheck (every kind alone, Fancy / Fast /
        70 % world scale; a live survival night through Game.tick, each spawned kind drawn alone and after a save/load;
        NaN / zero-scale state). Diagnostics: F3 "Mobs:" line and every voice bug note's "Mob drawing" row (mobs, near,
        vertices written / drawn, path, culled, dropped). Likely cause (2a00dd3): the 4 MB mob buffer filled with far
@@ -253,6 +253,11 @@ Remington after playing on the Mac ("the game works like a dream"):
 6. [x] Your own music: ~/Library/Application Support/Blocksmith/Music (mp3 / m4a / wav / aiff) as the soundtrack or mixed
        with the built-in one; shuffle, volume, Next Track (Y on the pause menu, N, Options > Audio); --musiccheck. No music
        in the repository.
+Since (bug hunting, run 634 read-out): Fancy glow mask only for glowing layers (-37 MB GPU); vehicle crews keep their
+posts; citadel rebuild remeshes in the background; patrols draw on the garrison (`?? .none` compared with nil; precheck
+rule); villagers / golems don't stroll into caves; village cave sealing counts a floor at the fill depth; horizon ring per
+world seed; kelpcheck gating; gravity queue's concrete test by table; bench mobprof profile (mob tick 10x / 4x the
+2026-10-02 baseline: find out where).
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
