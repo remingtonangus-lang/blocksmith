@@ -172,6 +172,7 @@ func set_hat_visible(v: bool) -> void:
 
 # --- internals -----------------------------------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	_physics_tick_anim(delta)
 	if auto_blink:
 		_next_blink -= delta
 		if _next_blink <= 0.0:
@@ -212,3 +213,167 @@ func _collect_face_meshes(n: Node) -> void:
 		face_meshes.append(n)
 	for c in n.get_children():
 		_collect_face_meshes(c)
+
+
+# --- gameplay driver -----------------------------------------------------------------------------------------------
+# Humans and the player call these each tick; the first call switches the character from clip playback (look-dev,
+# cutscenes) to an AnimationTree: speed-matched locomotion blend space, upper-body aim layer, additive-style hit
+# one-shots, then death clips. Far characters update their animation at a reduced rate.
+const LOCO_POINTS := [["idle", 0.0], ["walk_brisk", 1.139], ["jog", 2.692], ["run", 3.338], ["sprint", 4.05]]
+const LOWER_BODY := ["Root", "Hips", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes", "RightUpperLeg",
+	"RightLowerLeg", "RightFoot", "RightToes"]
+
+var tree: AnimationTree
+var _bs_max := 4.05
+var _aim_w := 0.0
+var _aim_target := 0.0
+var _dead := false
+var _lod_acc := 0.0
+var _lod_frame := 0
+var _game_mode := false
+
+func _ensure_tree() -> void:
+	if tree != null or anim == null or skeleton == null:
+		return
+	_game_mode = true
+	model.rotation.y = PI                  # glTF characters face +Z; gameplay forward is -Z
+	var ms := motion_scale()
+	var root := AnimationNodeBlendTree.new()
+	var bs := AnimationNodeBlendSpace1D.new()
+	bs.min_space = 0.0
+	bs.max_space = 8.0
+	bs.sync = true
+	for p in LOCO_POINTS:
+		var a := AnimationNodeAnimation.new()
+		a.animation = CharacterFactory.ANIM_LIB_NAME + "/" + str(p[0])
+		bs.add_blend_point(a, float(p[1]) * ms, -1, StringName(str(p[0])))
+	_bs_max = float(LOCO_POINTS[-1][1]) * ms
+	root.add_node("loco", bs, Vector2(0, 0))
+	var ts := AnimationNodeTimeScale.new()
+	root.add_node("loco_ts", ts, Vector2(200, 0))
+	root.connect_node("loco_ts", 0, "loco")
+	var aim_p := AnimationNodeAnimation.new()
+	aim_p.animation = CharacterFactory.ANIM_LIB_NAME + "/pistol_aim_two_hand"
+	var aim_r := AnimationNodeAnimation.new()
+	aim_r.animation = CharacterFactory.ANIM_LIB_NAME + "/rifle_aim"
+	root.add_node("aim_p", aim_p, Vector2(0, 200))
+	root.add_node("aim_r", aim_r, Vector2(0, 300))
+	var aim_kind := AnimationNodeBlend2.new()
+	root.add_node("aim_kind", aim_kind, Vector2(200, 250))
+	root.connect_node("aim_kind", 0, "aim_p")
+	root.connect_node("aim_kind", 1, "aim_r")
+	var upper := AnimationNodeBlend2.new()
+	upper.filter_enabled = true
+	for b in skeleton.get_bone_count():
+		var bn := skeleton.get_bone_name(b)
+		if not LOWER_BODY.has(bn):
+			upper.set_filter_path(NodePath("Skeleton:" + bn), true)
+	root.add_node("upper", upper, Vector2(400, 100))
+	root.connect_node("upper", 0, "loco_ts")
+	root.connect_node("upper", 1, "aim_kind")
+	var hit_anim := AnimationNodeAnimation.new()
+	hit_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/hit_front"
+	root.add_node("hit_anim", hit_anim, Vector2(400, 300))
+	var hit := AnimationNodeOneShot.new()
+	hit.fadein_time = 0.06
+	hit.fadeout_time = 0.25
+	root.add_node("hit", hit, Vector2(600, 100))
+	root.connect_node("hit", 0, "upper")
+	root.connect_node("hit", 1, "hit_anim")
+	root.connect_node("output", 0, "hit")
+	tree = AnimationTree.new()
+	tree.name = "AnimationTree"
+	add_child(tree)
+	tree.root_node = tree.get_path_to(skeleton.get_parent())
+	tree.add_animation_library(CharacterFactory.ANIM_LIB_NAME, anim.get_animation_library(CharacterFactory.ANIM_LIB_NAME))
+	tree.root_motion_track = NodePath("Skeleton:Root")
+	tree.tree_root = root
+	tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	anim.stop()
+	tree.active = true
+
+## speed in m/s over ground; state "idle"/"walk"/"run"/"sprint"/"mounted"; on_floor false = airborne.
+func set_locomotion(speed: float, state := "", _on_floor := true) -> void:
+	if _dead:
+		return
+	_ensure_tree()
+	if tree == null:
+		return
+	var blend := minf(speed, _bs_max)
+	tree.set("parameters/loco/blend_position", blend)
+	tree.set("parameters/loco_ts/scale", clampf(speed / _bs_max, 1.0, 1.8) if speed > _bs_max else 1.0)
+	if state == "mounted":
+		tree.set("parameters/loco/blend_position", 0.0)
+
+## kind: "" (none), "pistol", "rifle". Raises the upper body into an aim pose over the locomotion.
+func set_aim(kind: String) -> void:
+	_ensure_tree()
+	if tree == null:
+		return
+	_aim_target = 0.0 if kind == "" else 1.0
+	tree.set("parameters/aim_kind/blend_amount", 1.0 if kind in ["rifle", "repeater", "shotgun"] else 0.0)
+
+## A flinch in the direction of the hit (world-space direction the bullet travelled; zone from Damageable).
+func hit(info: Dictionary) -> void:
+	if _dead:
+		return
+	_ensure_tree()
+	if tree == null:
+		return
+	var clip := "hit_front"
+	if str(info.get("zone", "")) == "head":
+		clip = "hit_head"
+	else:
+		var d: Vector3 = info.get("direction", Vector3.ZERO)
+		if d.length() > 0.01:
+			var fwd := -global_transform.basis.z
+			var right := global_transform.basis.x
+			var f := fwd.dot(-d)            # hit coming from the front when the shot travels against our facing
+			var r := right.dot(-d)
+			if absf(r) > absf(f):
+				clip = "hit_right" if r > 0.0 else "hit_left"
+			else:
+				clip = "hit_front" if f > 0.0 else "hit_back"
+	(tree.tree_root as AnimationNodeBlendTree).get_node("hit_anim").animation = CharacterFactory.ANIM_LIB_NAME + "/" + clip
+	tree.set("parameters/hit/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+
+func die(info: Dictionary) -> void:
+	if _dead:
+		return
+	_dead = true
+	var clip := "death_collapse"
+	var d: Vector3 = info.get("direction", Vector3.ZERO)
+	if d.length() > 0.01:
+		clip = "death_forward" if (-global_transform.basis.z).dot(d) > 0.3 else ("death_back" if (-global_transform.basis.z).dot(d) < -0.3 else "death_collapse")
+	if tree:
+		tree.active = false
+	if anim:
+		anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+		play(clip, 0.12)
+	auto_blink = false
+	clear_look()
+
+func _physics_tick_anim(delta: float) -> void:
+	if tree == null or not tree.active:
+		return
+	_aim_w = move_toward(_aim_w, _aim_target, delta * 6.0)
+	tree.set("parameters/upper/blend_amount", _aim_w)
+	# animation LOD: full rate near the camera, every 3rd/6th frame further out
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var every := 1
+	if cam:
+		var dist := cam.global_position.distance_to(global_position)
+		every = 1 if dist < 35.0 else (3 if dist < 90.0 else 6)
+	_lod_acc += delta
+	_lod_frame += 1
+	if _lod_frame % every == 0:
+		tree.advance(_lod_acc)
+		_lod_acc = 0.0
+
+func revive() -> void:
+	_dead = false
+	auto_blink = true
+	if anim:
+		anim.stop()
+	if tree:
+		tree.active = true
