@@ -902,8 +902,10 @@ final class Mob {
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
         // Calm soldiers walking straight (no path to an order or stroll goal) stop at a ledge rather than step off it
-        // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks).
-        if kind.steelhold && !aggro && speed > 0 && onGround && !onPath {
+        // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks). Not aboard a vehicle: the probe
+        // reads world blocks, and under a moving hull's deck there are none, so crew shoved off their posts could never
+        // walk back (ridecheck crew: 1.8-3.0 blocks off for good); crew have their own ledge guard in the hull's frame.
+        if kind.steelhold && !aggro && speed > 0 && onGround && !onPath && deck == nil {
             let a = pos + forward * (halfW + 0.45)
             if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
         }
