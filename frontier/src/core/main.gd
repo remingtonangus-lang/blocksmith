@@ -32,7 +32,7 @@ func _ready() -> void:
 	camera.name = "MainCamera"
 	camera.fov = 62.0
 	camera.near = 0.08
-	camera.far = 12000.0
+	camera.far = 40000.0
 	add_child(camera)
 	camera.make_current()
 	Game.camera = camera
@@ -56,6 +56,11 @@ func _ready() -> void:
 	if not Game.disabled("water"):
 		water.setup(world)
 	print("boot: %s %d ms" % ["water", Time.get_ticks_msec() - t0])
+	if not Game.headless and not Game.disabled("backdrop"):
+		var bd := Backdrop.new()
+		bd.name = "Backdrop"
+		add_child(bd)
+		bd.build(world)
 	if not Game.headless and not Game.disabled("roads"):
 		var road_mesh := RoadMesh.new()
 		road_mesh.name = "Roads"
