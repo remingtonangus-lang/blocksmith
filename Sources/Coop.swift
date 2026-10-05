@@ -90,6 +90,10 @@ struct SeatState {
     var mapRow = 0                     // their held map's scan row (shared, two held maps each filled every other row)
     var hideHUD = false                // F1 / F3 are per half (player 1's hid player 2's HUD too)
     var showDebug = false
+    var bookTab: CraftCategory = .craftable    // the crafting book's last tab, Show All and craft flash (shared statics)
+    var bookShowAll = true
+    var bookFlashItem: ItemID = 0
+    var bookFlashAt: Double = -10
     // Per-player state kept outside Game.
     var padLook = PadLook()
     var wheel = WeaponWheel()
@@ -475,6 +479,8 @@ extension Game {
         swap(&MenuNav.shared, &s.menuNav)
         swap(&Turrets.shared, &s.turrets)
         swap(&CombatHUD.shared, &s.combatHUD)
+        swap(&CraftingBookMenu.lastTab, &s.bookTab); swap(&CraftingBookMenu.showAll, &s.bookShowAll)
+        swap(&CraftBook.flashItem, &s.bookFlashItem); swap(&CraftBook.flashAt, &s.bookFlashAt)
         s.gun.exchange(arms)
         s.pad.exchange()
         s.ship.exchange(world.ships)
