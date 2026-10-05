@@ -229,3 +229,31 @@ func _apply_viewport_quality() -> void:
 
 func _exit_tree() -> void:
 	CharacterFactory.shutdown()
+	_clear_static_caches()
+
+## Static vars holding Resources (materials, meshes, textures, scenes) outlive the rendering server at teardown and
+## corrupt the heap on exit ("double free" / "corrupted size" aborts after a clean run). Drop them while servers live.
+func _clear_static_caches() -> void:
+	Horse.player_horse = null
+	Horse.all = []
+	Horse._road_segs = []
+	Nerve._ink_tex = null
+	WeaponFX._pool = []
+	WeaponFX._meshes = {}
+	WeaponFX._smoke_mat = null
+	WeaponModel._cache = {}
+	Ragdoll._active = []
+	Effects._mat = null
+	Effects._chip_mat = null
+	Effects._spark_mat = null
+	Effects._flash_mat = null
+	Effects._hole_tex = {}
+	Effects._decals = []
+	Effects._tints = {}
+	GunGear._leather = null
+	GunGear._leather_dark = null
+	GunGear._brass = null
+	UITheme._fonts = {}
+	TownMats._mats = {}
+	SignText._atlases = {}
+	TownProps._meshes = {}

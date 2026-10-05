@@ -225,3 +225,7 @@ Work order from this round:
   colour-vision correction, text size), Satchel in the pause menu; the FOV setting now drives the camera.
 - 2026-10-05: merged wildlife (11 species), writer round (social/gossip/newspapers/companions), character memory
   pass (NPC look ~7 MB), VR hands/guns + `--vr_sim`, baked tree impostors. Character warm-up is one look at a time.
+- 2026-10-05: OPEN: intermittent native heap corruption — `--bot openworld` aborts at exit ~1 run in 3 ("corrupted
+  size vs. prev_size", main thread, after workers exit); one worker-thread SIGSEGV seen mid-missions once in ~6 runs.
+  Static Resource caches are now cleared in main._exit_tree (didn't fix it). Needs a symbolised engine build
+  (debug Godot on CI) to locate; CI judges bots on their PASS lines, so it doesn't redden runs.
