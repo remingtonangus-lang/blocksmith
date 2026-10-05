@@ -20,8 +20,10 @@ enum FlightTests {
     static func trace(_ tag: String, _ s: Ship, _ t: Float) {
         guard let f = s.flight, Int(t * 60) % 60 == 0 else { return }
         let up = s.dirToWorld(V3(0, 1, 0)), fw = s.dirToWorld(s.fwd)
-        print(String(format: "flighttrace %@ t=%.0f y=%.1f v=%.1f vy=%.1f nose=%.2f up=%.2f yaw=%.2f rpm=%.2f col=%.2f cyc=%.2f,%.2f ped=%.2f T=%.0f L=%.0f a=%.2f%@",
-                     tag, t, s.pos.y, simd_length(s.vel), s.vel.y, fw.y, up.y, s.yaw, f.rpm, f.collective, f.cyclic.x, f.cyclic.y, f.pedal,
+        let rw = s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0))))
+        let bank: Float = asinf(max(-1, min(1, -rw.y)))              // > 0: right wing down
+        print(String(format: "flighttrace %@ t=%.0f y=%.1f v=%.1f vy=%.1f nose=%.2f up=%.2f bank=%+.2f yaw=%.2f rpm=%.2f col=%.2f cyc=%.2f,%.2f ped=%.2f T=%.0f L=%.0f a=%.2f%@",
+                     tag, t, s.pos.y, simd_length(s.vel), s.vel.y, fw.y, up.y, bank, s.yaw, f.rpm, f.collective, f.cyclic.x, f.cyclic.y, f.pedal,
                      f.thrust, f.lift, f.alpha, f.stalled ? " STALL" : ""))
     }
 
@@ -330,7 +332,8 @@ enum FlightTests {
             let yaw0 = s.yaw
             var bank: Float = 0
             input.strafe = -1
-            _ = step(3) { _ in bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y)); return false }
+            tag = "planeplayer-left"
+            _ = step(5) { _ in bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y)); return false }
             input = MoveInput()
             var turned = s.yaw - yaw0
             while turned > Float.pi { turned -= 2 * Float.pi }
