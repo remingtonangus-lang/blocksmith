@@ -52,8 +52,15 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 
 ## Item art (Remington's TV playtest, 2026-10-05)
 
-- **Icons** (ItemHD.swift): every `item_` layer at the GPU resolution. Vector designs for tools (7 tiers x 6 kinds),
-  armour (7 x 4) and ~40 common items; Scale2x x3 + bevel light + drop shadow for the rest. Licences:
+- **Icons** (ItemHD.swift, ItemHDFamilies.swift, ItemHDGear.swift): every `item_` layer at the GPU resolution, drawn
+  from signed-distance vector designs: tools (7 tiers x 6 kinds, tier silhouettes: knapped stone lashed with cord,
+  rubies on gold, copper rivets, duskium spikes, a crossguard per tier), armour (7 x 4), and one design per sprite
+  family coloured by the sprite's own colours (ingots, gems, dusts and dyes, food, buckets, bottles, carts, boats,
+  discs, sherds... about 300 items); overlay pairs split from one canvas (potions, spawn eggs, tipped arrows).
+  Shading: rounded or chamfered body per part, studio-environment reflections on metal, contact shadows, seams, a dark
+  outline and drop shadow. Items without a design: Scale2x art, softened, lit from its silhouette's distance field,
+  the same outline. Block icons: the same outline, drop shadow and a lit top rim. Preview without a Mac:
+  `tools/itemlab.py`; blind critic: `tools/item_critic.py` (Gemini, labels shuffled). Licences:
   docs/qa/items/LICENSES.md (all procedural). Before/after sheets: docs/qa/items/{before,after}, harness
   `--itemsheet tools|items|blocks|enchanted[:scale[:page]]`.
 - **Models** (ItemModels.swift): every sprite item extruded from its icon (32 x 32 mask captured at texture build):

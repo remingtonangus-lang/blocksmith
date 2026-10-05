@@ -6,7 +6,7 @@ startup; no external images, models or fonts are used.
 | Asset | Source | Licence |
 |---|---|---|
 | Tool and armour icons (7 tiers x sword, pickaxe, axe, shovel, hoe, spear; 7 sets x 4 pieces) | `Sources/ItemHD.swift` vector designs (signed-distance shapes, procedural materials) | original, part of Blocksmith |
-| Common item icons (food, ingots, gems, dusts, bow, buckets, compass, clock, ...) | `Sources/ItemHD.swift` (`common`) | original, part of Blocksmith |
+| Item icons by sprite family (food, ingots, gems, dusts and dyes, buckets, bottles, carts, boats, discs, keys, ...) and overlay pairs (potions, spawn eggs, tipped arrows) | `Sources/ItemHDFamilies.swift`, `Sources/ItemHDGear.swift` | original, part of Blocksmith |
 | Every other item icon | Blocksmith's own 16 px pixel art (`ItemArt.swift`, `ItemShapes.swift`) scaled with Scale2x (EPX, a public-domain algorithm) and relit | original, part of Blocksmith |
 | 3D item models | extruded from the icons at runtime (`Sources/ItemModels.swift`) | original, part of Blocksmith |
 
