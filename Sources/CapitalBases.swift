@@ -296,12 +296,32 @@ extension Game {
             r.dropshipCD = 75
             let dir = simd_normalize(V3(r.centre.x - src.x, 0, r.centre.z - src.z) + V3(0.3, 0, 0.7))
             let from = r.centre + dir * 170 + V3(0, 60, 0)
-            if world.ships.callDropship(faction: .steelhold, from: from, to: r.plaza, game: self) {
+            if world.ships.callDropship(faction: .steelhold, from: from, to: dropZone(r), game: self) {
                 r.dropships += 1
                 b.note("\(r.key) dropship \(r.dropships) called")
             }
         }
         if Int(r.calm) % 8 == 0 && r.calm < 40 { sfx(.gun(10), 1.2, at: r.centre) }
+    }
+
+    // Where a dropship sets its troops down: dry, open ground at plaza level beside the reflecting pool (the plaza's
+    // centre is the pool: troops landed there swam in it, run 68beaf1).
+    func dropZone(_ r: BaseRecord) -> V3 {
+        let c = r.plaza
+        for rad in stride(from: Float(10), through: 26, by: 4) {
+            for k in 0..<8 {
+                let a = Float(k) / 8 * 2 * Float.pi + 0.3
+                let x = c.x + cosf(a) * rad, z = c.z + sinf(a) * rad
+                let ix = Int(floor(x)), iz = Int(floor(z))
+                guard world.isLoaded(ix, iz) else { continue }
+                let top = world.topY(ix, iz)
+                guard abs(Float(top + 1) - c.y) < 3, !Blocks.isLiquid(world.block(ix, top, iz)), Blocks.collide[Int(world.block(ix, top, iz))] else { continue }
+                var open = true
+                for dy in 1...4 where Blocks.collide[Int(world.block(ix, top + dy, iz))] || Blocks.isLiquid(world.block(ix, top + dy, iz)) { open = false }
+                if open { return V3(x, Float(top + 1), z) }
+            }
+        }
+        return c
     }
 
     // After a lockdown: crews leave the turrets and everyone goes back to their posts.
