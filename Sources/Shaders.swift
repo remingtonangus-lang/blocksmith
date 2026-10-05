@@ -48,13 +48,13 @@ struct SectionRec { packed_float3 origin; uint tint; };
 // Cave fill (playtest 2026-10-05: caves were black without torches): a cool minimum light so walls, ores and mobs
 // read a few blocks away in the dark, fading with distance so a cave stays dark and moody; torches stay far brighter.
 // u.dimTint.w is Options > Video > Brightness (0 moody, 0.5 default, 1 bright), which also lifts the light curve a little.
-static float3 caveFill(float3 lit, float dist, constant Uniforms& u) {
+static float3 caveFill(float3 lit, float dist, constant Uniforms& u, float ao = 1.0) {
     float b = u.dimTint.w;
     float g = (b - 0.5) * 0.8;
     lit = saturate(lit + lit * (1.0 - lit) * g);
     float near = mix(1.0, 0.45, smoothstep(5.0, 30.0, dist));
     float fl = max(0.035, (0.05 + 0.2 * b) * near);
-    return max(lit, float3(0.8, 0.9, 1.12) * fl);
+    return max(lit, float3(0.8, 0.9, 1.12) * fl * mix(0.5, 1.0, ao));   // corners stay darker (Fancy passes its AO)
 }
 
 vertex ChunkOut chunkVS(uint vid [[vertex_id]],

@@ -266,7 +266,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
     // Floor a little higher and cooler: unlit cave walls averaged 4/255 (blind critic, run 362 dripstone caves).
-    lit = mix(caveFill(lit, length(in.rel), u), u.dimTint.rgb, u.sunDir.w);
+    lit = mix(caveFill(lit, length(in.rel), u, in.ao), u.dimTint.rgb, u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
