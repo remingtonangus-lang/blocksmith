@@ -130,7 +130,7 @@ extension Game {
         fx.smokeTimer -= dt
         if fx.smokeTimer > 0 { return }
         fx.smokeTimer = max(0.04, 0.5 / Float(min(12, 1 + fires.count / 8)))
-        guard let (p, _) = fires.randomElement() else { return }
+        guard let (p, _) = fires.pick() else { return }          // through Rand (replayable)
         let c = V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5)
         let d = simd_length(c - player.pos)
         if d > 128 || d < 6 { return }

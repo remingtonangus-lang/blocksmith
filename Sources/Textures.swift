@@ -1078,6 +1078,7 @@ enum TextureGen {
                 } else {
                     px = HDTex.detailed(src, salt: layer, n: n).px
                 }
+                ItemModels.capture(layer: layer, name: name, px: px, n: n)     // 3D item models (ItemModels.swift)
                 let base = li * n * n * 4
                 for i in 0..<(n * n) {
                     let c = simd_clamp(px[i], V4(repeating: 0), V4(repeating: 1))

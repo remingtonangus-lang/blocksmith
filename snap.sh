@@ -202,6 +202,14 @@ done
 "$BIN" --snapshot snaps/itemsheet_blocks.png --seed 12345 --rd 2 --itemsheet blocks:2
 "$BIN" --snapshot snaps/itemsheet_enchanted_tv.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet enchanted:4
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
+# Item models (ItemModels.swift): held in first person (tool, enchanted tool, food, bow), every tool tier dropped on a
+# stage in daylight, and dropped items in a torch-lit cave.
+"$BIN" --snapshot snaps/held_sword.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold iron_sword
+"$BIN" --snapshot snaps/held_pickaxe_ench.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold diamond_pickaxe:ench
+"$BIN" --snapshot snaps/held_apple.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold apple
+"$BIN" --snapshot snaps/held_bow.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold bow
+"$BIN" --snapshot snaps/dropgrid.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.28 --up 1.6 --stage --dropgrid
+"$BIN" --snapshot snaps/drops_cave.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --torches --drops
 "$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25

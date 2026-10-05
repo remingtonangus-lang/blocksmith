@@ -50,6 +50,21 @@ struct EntityWriter {
         n += 6
     }
 
+    // The same with explicit texture coordinates (item model side walls) and the enchantment glint flag (uv.w).
+    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ ua: V2, _ ub: V2, _ uc: V2, _ ud: V2, _ layer: Int, _ color: V4, glint: Float = 0) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer)
+        let va = EntityVert(pos: V4(a, l), uv: V4(ua.x, ua.y, 0, glint), color: color)
+        let vc = EntityVert(pos: V4(c, l), uv: V4(uc.x, uc.y, 0, glint), color: color)
+        out[n] = va
+        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(ub.x, ub.y, 0, glint), color: color)
+        out[n + 2] = vc
+        out[n + 3] = va
+        out[n + 4] = vc
+        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(ud.x, ud.y, 0, glint), color: color)
+        n += 6
+    }
+
     // Axis-aligned textured cube (block icon in the world), faces shaded like terrain.
     mutating func cube(center c: V3, half h: Float, yaw: Float, block b: BlockID, light: Float, tint: V3 = V3(1, 1, 1)) {
         let cy = cosf(yaw), sy = sinf(yaw)
@@ -187,7 +202,12 @@ final class ItemEntityManager {
     }
 
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, time: Float) {
-        for e in items {
+        // Item models (ItemModels.swift) for the nearest 32 within 24 blocks (both faces only past 12), sprites beyond.
+        var nearIdx: [Int] = []
+        for (k, e) in items.enumerated() where simd_length_squared(e.pos - eye) < 24 * 24 { nearIdx.append(k) }
+        if nearIdx.count > 32 { nearIdx.sort { simd_length_squared(items[$0].pos - eye) < simd_length_squared(items[$1].pos - eye) }; nearIdx.removeLast(nearIdx.count - 32) }
+        let modelled = Set(nearIdx)
+        for (idx, e) in items.enumerated() {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
@@ -204,7 +224,17 @@ final class ItemEntityManager {
                     wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
-                    wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
+                    if modelled.contains(idx) && ItemModels.has(layer) {
+                        // Upright, turning slowly; tools a little larger (they read at a distance by their silhouette).
+                        let yaw = e.age * 1.3 + e.spin + Float(k) * 0.5
+                        let s: Float = ItemModels.isTool(e.stack.def) ? 0.46 : 0.38
+                        let ax = V3(cosf(yaw), 0, -sinf(yaw)) * s, ay = V3(0, s, 0), az = V3(sinf(yaw), 0, cosf(yaw)) * s
+                        let full = simd_length_squared(c) < 12 * 12
+                        ItemModels.write(&wr, layer: layer, o: c + off + V3(0, 0.1, 0), ax: ax, ay: ay, az: az, light: light,
+                                         glint: e.stack.ench != 0, full: full)
+                    } else {
+                        wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
+                    }
                 }
             }
         }

@@ -172,6 +172,7 @@ enum Snapshot {
             if Items.has(parts[0]) {
                 var st = ItemStack(Items.id(parts[0]), 1)
                 if let gi = Guns.index(st.item) { st.tag = Guns.all[gi].mag; game.arms.heldGun = gi; game.arms.heldSlot = game.selected }
+                if parts.contains("ench") { st.ench = 1 }               // ":ench": with the enchantment glint
                 game.inventory.held = st
                 if parts.count > 1 && parts[1] == "aim" { game.arms.aim = 1 }
             }
@@ -565,9 +566,15 @@ enum Snapshot {
         if CommandLine.arguments.contains("--drops") {
             // A few dropped items and a half-broken block in front of the camera.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            // The floor under the camera (a cave view's items land in the cave, not on the surface far above).
+            func floorY(_ x: Int, _ z: Int) -> Int {
+                var y = Int(floor(pos.y))
+                for _ in 0..<16 where y > 1 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+                return Blocks.collide[Int(world.block(x, y - 1, z))] ? y : world.topY(x, z) + 1
+            }
             for (i, n) in ["diamond", "oak_log", "iron_pickaxe", "apple", "cobblestone", "torch"].enumerated() {
                 let p = pos + f * (3 + Float(i % 3)) + V3(Float(i / 3) * 1.2 - 0.6, 0, 0)
-                let y = world.topY(Int(floor(p.x)), Int(floor(p.z))) + 1
+                let y = floorY(Int(floor(p.x)), Int(floor(p.z)))
                 game.drops.spawn(ItemStack(Items.id(n), i == 4 ? 40 : 1), at: V3(p.x, Float(y), p.z), vel: .zero)
             }
             game.target = nil
@@ -576,6 +583,24 @@ enum Snapshot {
             game.mineProgress = 0.55
         }
 
+        if CommandLine.arguments.contains("--dropgrid") {
+            // Every tool tier dropped in rows in front of the camera (item models: ItemModels.swift), an enchanted one at
+            // the end of each row.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            for (row, kind) in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear"].enumerated() {
+                for (col, tier) in ItemHD.tiers.enumerated() where Items.has("\(tier)_\(kind)") {
+                    let p = pos + f * (2.5 + Float(row) * 0.9) + r * (Float(col) - 3) * 0.75
+                    var y = Int(floor(pos.y))
+                    for _ in 0..<16 where y > 1 && !Blocks.collide[Int(world.block(Int(floor(p.x)), y - 1, Int(floor(p.z))))] { y -= 1 }
+                    // With --stage (flattened later) the items sit on the stage's floor.
+                    if CommandLine.arguments.contains("--stage") { y = Int(floor(pos.y - (Float(arg("--up") ?? "") ?? 0))) }
+                    var st = ItemStack(Items.id("\(tier)_\(kind)"), 1)
+                    if col == ItemHD.tiers.count - 1 && row % 2 == 0 { st.ench = 1 }
+                    game.drops.spawn(st, at: V3(p.x, Float(y), p.z), vel: .zero)
+                }
+            }
+            game.target = nil
+        }
         if CommandLine.arguments.contains("--flood") {
             // Fluid test: a spring on the ground and one hanging in the air, then simulate 12 s of flow.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z)) - 8

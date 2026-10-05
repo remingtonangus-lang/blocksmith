@@ -5346,6 +5346,7 @@ enum HDTex {
         }
         if let g = table[name] { return g }
         if let g = WearArt.hd(name) { return g }
+        if let g = ItemHD.generator(name, src) { return g }            // item icons (ItemHD.swift)
         if let g = crop(name) { return g }
         if let g = door(name) { return g }
         if let g = bed(name) { return g }
