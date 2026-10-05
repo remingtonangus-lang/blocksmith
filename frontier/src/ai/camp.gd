@@ -65,6 +65,11 @@ func _ready() -> void:
 	_load_table()
 	_build_fire()
 	_build_props()
+	(func():
+		ledger = ledger_funds()
+		for k in STOCKS.keys():
+			if stock(k) > 0:
+				_build_stock_props(k)).call_deferred()
 
 func _load_table() -> void:
 	var j = JSON.parse_string(FileAccess.get_file_as_string(TABLE))
@@ -226,9 +231,17 @@ func _routine(id: String, h: Human) -> void:
 	elif hour < 6.0:
 		h.intent.move_to = center + Vector3(-5.0 + float(COMPANIONS.keys().find(id)) * 1.6, 0, 5.5)
 	else:
-		h.intent.move_to = spot
+		# the day's chores, at the camp's own spots
+		var ch := chore_for(id, hour)
+		if ch.is_empty():
+			h.intent.move_to = spot
+			h.intent.face = (spot + Vector3(0.7, 0, 0)) - h.global_position
+		else:
+			chore_now[id] = ch
+			h.intent.move_to = ch.spot
+			if h.global_position.distance_to(ch.spot) < 1.2:
+				h.intent.face = ch.face - h.global_position
 		h.intent.speed = Human.WALK
-		h.intent.face = (spot + Vector3(0.7, 0, 0)) - h.global_position
 
 func activity(id: String) -> String:
 	if id == "doc":
@@ -266,7 +279,7 @@ func context() -> Dictionary:
 		present.append(id)
 	return {"flags": st.flags if st else {}, "chapter": chapter(), "standing": st.standing if st else 0.0,
 		"money": st.money if st else 0.0, "bounty": bounty, "kills": st.kills if st else {}, "crimes": crimes,
-		"items": st.inventory if st else {}, "members": present}
+		"items": st.inventory if st else {}, "members": present, "morale": morale()}
 
 func chapter() -> int:
 	var c := 0
@@ -315,6 +328,10 @@ func matches(when: Dictionary, ctx: Dictionary) -> bool:
 				if int(ctx.kills.get("outlaw", 0)) < int(v): return false
 			"recent_crime":
 				if not ctx.crimes.has(str(v)): return false
+			"morale_min":
+				if float(ctx.get("morale", 50.0)) < float(v): return false
+			"morale_max":
+				if float(ctx.get("morale", 50.0)) > float(v): return false
 			"item_prefix":
 				var any := false
 				for it in ctx.items.keys():
@@ -395,10 +412,45 @@ func open_menu() -> void:
 	if has_meat:
 		add.call("Cook meat at the fire", cook)
 	add.call("Sleep until morning", sleep)
-	add.call("Put $5 in the camp ledger", func():
+	add.call("The camp ledger (%s morale, $%.2f in hand)" % [morale_band(morale()), ledger_funds()], open_ledger)
+	v.add_child(menus._button("Get up", menus.back))
+	menus._push(p)
+
+## The ledger: give money or food, spend it on the camp's stocks, draw the morning's supplies.
+func open_ledger() -> void:
+	var menus = Game.get("menus")
+	if menus == null:
+		return
+	var p: PanelContainer = menus._paper_panel(Vector2(700, 0))
+	var v := VBoxContainer.new()
+	p.add_child(v)
+	v.add_child(UITheme.label("The Camp Ledger", 44, "display", UITheme.INK, false))
+	v.add_child(UITheme.label("In hand $%.2f   ·   morale %d (%s)" % [ledger_funds(), int(morale()), morale_band(morale())], 22, "italic", UITheme.INK_SOFT, false))
+	v.add_child(HSeparator.new())
+	var add := func(text: String, cb: Callable):
+		v.add_child(menus._button(text, func():
+			menus.back()
+			cb.call()
+			open_ledger()))
+	add.call("Give $5", func():
 		if not contribute(5.0):
 			Game.say("You haven't got five dollars to spare.", 3.0))
-	v.add_child(menus._button("Get up", menus.back))
+	add.call("Give $20", func():
+		if not contribute(20.0):
+			Game.say("You haven't got twenty dollars to spare.", 3.0))
+	add.call("Give Hap your meat and fish", donate_food)
+	for k in STOCKS.keys():
+		var lvl := stock(k)
+		var kk: String = k
+		if lvl < 3:
+			add.call("Stock up %s to level %d ($%d from the ledger)" % [STOCKS[k].label.to_lower(), lvl + 1, int(STOCKS[k].costs[lvl])], func():
+				if upgrade(kk) < 0:
+					Game.say("The ledger can't cover it yet.", 2.5))
+		else:
+			v.add_child(UITheme.label("%s: fully stocked" % STOCKS[k].label, 22, "body", UITheme.INK, false))
+	if stock("medicine") > 0 or stock("ammo") > 0:
+		add.call("Draw today's supplies", take_supplies)
+	v.add_child(menus._button("Close the ledger", menus.back))
 	menus._push(p)
 
 ## Sit down at the fire: the camp's conversation for right now (or a bark from whoever's there).
@@ -447,7 +499,7 @@ func eat_stew() -> bool:
 		return false
 	stew_day = day
 	if Game.player and Game.player.damageable:
-		Game.player.damageable.heal(60.0)
+		Game.player.damageable.heal(60.0 + 20.0 * stock("provisions"))
 		Game.player.stamina = Game.player.STAMINA_MAX
 	Game.log_event("camp_activity", {"what": "stew"})
 	await Game.missions.say("camp_act_stew", members.get("hap"))
@@ -517,12 +569,188 @@ func contribute(amount: float) -> bool:
 	if Game.state == null or Game.state.money < amount:
 		return false
 	Game.state.add_money(-amount)
-	ledger += amount
+	_set_ledger(ledger_funds() + amount)
+	_morale_bump(amount * 0.2)
 	Game.state.good_deed("donation")
 	if ledger >= 40.0 and not upgrades.has("ammo_box"):
 		upgrades["ammo_box"] = true
 		Game.say("Hap built an ammunition box. Take what you need.", 4.0)
 	return true
+
+# ------------------------------------------------------------------ the camp ledger, stocks, chores, morale
+## Three stocks the ledger buys: provisions (Hap's stew heals more), medicine (Doc leaves tonics in his chest each
+## morning) and ammunition (the ammo crate refills each morning). Each level adds props by the chuck wagon.
+const STOCKS := {
+	"provisions": {"label": "Provisions", "costs": [20.0, 45.0, 80.0], "at": Vector3(-4.0, 0, 7.6)},
+	"medicine": {"label": "Medicine", "costs": [25.0, 50.0, 90.0], "at": Vector3(-1.6, 0, -4.2)},
+	"ammo": {"label": "Ammunition", "costs": [30.0, 60.0, 100.0], "at": Vector3(4.2, 0, 4.6)},
+}
+const FOOD_VALUE := {"meat_": 1.5, "fish_": 1.0, "cooked_meat": 2.0}
+## Who does what, by the hour: [from hour, spot type, activity] (spot types from the camp's settlement spots).
+const CHORES := {
+	"hap": [[5.0, "campfire", "cook"], [10.0, "work", "chop"], [14.0, "campfire", "cook"]],
+	"billy": [[5.5, "trough", "water the horses"], [9.0, "corral", "work the horses"], [15.0, "hitch", "tack"]],
+	"del": [[7.0, "wagon_seat", "accounts"], [11.0, "campfire_seat", "solitaire"], [16.0, "campfire_seat", "solitaire"]],
+	"doc": [[6.0, "campfire_seat", "coffee"], [9.0, "wagon_seat", "reading"], [14.0, "campfire_seat", "mending"]],
+	"joseph": [[5.0, "corral", "horses"], [8.0, "work", "chop"], [13.0, "hitch", "tack"]],
+}
+
+var _stock_props := {}          # stock -> [MeshInstance3D]
+var _spots_cache: Array = []
+var chore_now := {}             # companion -> {spot, activity}
+
+func stock(kind: String) -> int:
+	return int(Game.state.flags.get("camp_stock", {}).get(kind, 0)) if Game.state else 0
+
+func ledger_funds() -> float:
+	return float(Game.state.flags.get("camp_ledger", ledger)) if Game.state else ledger
+
+func _set_ledger(v: float) -> void:
+	ledger = v
+	if Game.state:
+		Game.state.flags["camp_ledger"] = v
+
+## Donate food from the satchel: meat, fish and cooked portions go into provisions (their worth into the ledger).
+func donate_food() -> float:
+	if Game.state == null:
+		return 0.0
+	var worth := 0.0
+	for k in Game.state.inventory.keys():
+		var key := str(k)
+		var n := int(Game.state.inventory[k])
+		if n <= 0:
+			continue
+		for pre in FOOD_VALUE.keys():
+			if key.begins_with(pre):
+				worth += float(FOOD_VALUE[pre]) * n
+				Game.state.inventory[k] = 0
+				break
+	if worth > 0.0:
+		_set_ledger(ledger_funds() + worth)
+		_morale_bump(3.0)
+		Game.log_event("camp_donation", {"food": worth})
+		Game.say("Hap takes the food into the chuck wagon. The ledger says $%.2f." % worth, 3.0)
+	return worth
+
+## Spend the ledger on the next level of a stock. Returns the new level (or -1 if the ledger can't cover it).
+func upgrade(kind: String) -> int:
+	var s: Dictionary = STOCKS.get(kind, {})
+	var lvl := stock(kind)
+	if s.is_empty() or lvl >= 3:
+		return -1
+	var cost: float = s.costs[lvl]
+	if ledger_funds() < cost:
+		return -1
+	_set_ledger(ledger_funds() - cost)
+	var all: Dictionary = Game.state.flags.get("camp_stock", {})
+	all[kind] = lvl + 1
+	Game.state.flags["camp_stock"] = all
+	_morale_bump(8.0)
+	_build_stock_props(kind)
+	Game.log_event("camp_upgrade", {"stock": kind, "level": lvl + 1})
+	Game.say("%s stocked up (level %d)." % [s.label, lvl + 1], 3.0)
+	return lvl + 1
+
+## Morning issue: Doc's chest gives tonics, the ammo crate refills (once a day each).
+func take_supplies() -> Dictionary:
+	var got := {}
+	var day: int = Game.sky.day if Game.sky else 0
+	if Game.state == null or int(Game.state.flags.get("camp_issue_day", -1)) == day:
+		return got
+	Game.state.flags["camp_issue_day"] = day
+	if stock("medicine") > 0:
+		Game.state.add_item("tonic_health", stock("medicine"))
+		got["tonic_health"] = stock("medicine")
+	if stock("ammo") > 0 and Game.player and Game.player.get("gun"):
+		for k in ["revolver", "repeater"]:
+			Game.player.gun.ammo[k] = int(Game.player.gun.ammo.get(k, 0)) + 12 * stock("ammo")
+		got["rounds"] = 24 * stock("ammo")
+	Game.log_event("camp_supplies", got)
+	return got
+
+func _build_stock_props(kind: String) -> void:
+	var old: Array = _stock_props.get(kind, [])
+	for m in old:
+		if is_instance_valid(m):
+			m.queue_free()
+	var made := []
+	var s: Dictionary = STOCKS[kind]
+	var col: Color = {"provisions": Color(0.72, 0.62, 0.45), "medicine": Color(0.9, 0.88, 0.82), "ammo": Color(0.32, 0.36, 0.26)}[kind]
+	for i in stock(kind) * 2:
+		var off: Vector3 = s.at + Vector3((i % 3) * 0.7, floorf(i / 3.0) * 0.5, 0.0)
+		if Game.headless:
+			made.append(null)
+			continue
+		var m := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(0.6, 0.45, 0.45) if kind != "provisions" else Vector3(0.55, 0.6, 0.55)
+		m.mesh = b
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = col.darkened(0.08 * (i % 2))
+		mat.roughness = 0.9
+		m.material_override = mat
+		_props.add_child(m)
+		var p := center + off
+		m.global_position = Vector3(p.x, Game.world.height(p.x, p.z) + off.y + b.size.y * 0.5, p.z)
+		made.append(m)
+	_stock_props[kind] = made
+
+func stock_prop_count(kind: String) -> int:
+	return (_stock_props.get(kind, []) as Array).size()
+
+# morale: 0..100 from what the camp has, who's still in it, and how Ruth stands
+func _morale_bump(v: float) -> void:
+	if Game.state:
+		Game.state.flags["camp_morale_bonus"] = clampf(float(Game.state.flags.get("camp_morale_bonus", 0.0)) + v, -30.0, 30.0)
+
+func morale() -> float:
+	if Game.state == null:
+		return 50.0
+	var f: Dictionary = Game.state.flags
+	var m := 45.0
+	for k in STOCKS.keys():
+		m += 4.0 * stock(k)
+	m += clampf(float(Game.state.standing) * 0.2, -15.0, 15.0)
+	m += float(f.get("camp_morale_bonus", 0.0))
+	if f.get("hap_alive", true) == false:
+		m -= 20.0
+	if f.get("del_left", false):
+		m -= 8.0
+	if f.get("joseph_left", false):
+		m -= 8.0
+	var day: int = Game.sky.day if Game.sky else 0
+	if stew_day == day:
+		m += 5.0
+	return clampf(m, 0.0, 100.0)
+
+static func morale_band(m: float) -> String:
+	return "low" if m < 35.0 else ("high" if m >= 70.0 else "fair")
+
+## The settlement's camp spots (campfire, campfire_seat, work/chop, corral, hitch, trough, wagon_seat).
+func camp_spots() -> Array:
+	if _spots_cache.is_empty() and Game.main and Game.main.get("settlements") and Game.main.settlements.has_method("get_town"):
+		var t: Dictionary = Game.main.settlements.get_town("caddell_camp")
+		_spots_cache = t.get("spots", [])
+	return _spots_cache
+
+## Where a companion's chore puts them now: {spot: Vector3, face: Vector3, activity}.
+func chore_for(id: String, hour: float) -> Dictionary:
+	var plan: Array = CHORES.get(id, [])
+	var cur: Array = []
+	for c in plan:
+		if hour >= float(c[0]):
+			cur = c
+	if cur.is_empty():
+		return {}
+	var want := str(cur[1])
+	var nth := COMPANIONS.keys().find(id)
+	var cands := camp_spots().filter(func(sp): return str(sp.type) == want)
+	if cands.is_empty():
+		var fb: Vector3 = center + Vector3(COMPANIONS[id].spot)
+		return {"spot": fb, "face": fb + Vector3(0.7, 0, 0), "activity": str(cur[2]), "from_spot": false}
+	var sp: Dictionary = cands[nth % cands.size()]
+	var tr: Transform3D = sp.transform
+	return {"spot": tr.origin, "face": tr.origin - tr.basis.z * 2.0, "activity": str(cur[2]), "from_spot": true}
 
 # ------------------------------------------------------------------ self-test (bot_runner --bot camp)
 ## Picks the right talk for staged situations, then sits at the fire and does each activity for real.

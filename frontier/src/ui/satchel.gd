@@ -10,7 +10,8 @@ const NAMES := {"tonic_health": "Dr. Ambrose's Restorative Tonic", "tonic_nerve"
 	"gold_bar": "Gold bar", "pelt_legend_grey_widow": "The Grey Widow's pelt", "pelt_legend_ironhide": "Old Ironhide's hide",
 	"pelt_legend_pale_ghost": "The Pale Ghost's pelt", "pelt_legend_sable_king": "The Sable King's hide",
 	"outfit_grey_widow": "Grey Widow Coat", "outfit_ironhide": "Ironhide Bearskin Coat",
-	"outfit_pale_ghost": "Pale Ghost Hat Band and Vest", "outfit_sable_king": "Sable King Gloves and Riding Hat"}
+	"outfit_pale_ghost": "Pale Ghost Hat Band and Vest", "outfit_sable_king": "Sable King Gloves and Riding Hat",
+	"horse_oats": "Horse oats (5 lb sack)", "apple": "Apple", "carrot": "Carrots"}
 ## Papers and maps open to be read (newspaper: the last edition bought; maps: the hand-drawn sheet).
 static func readable(key: String) -> bool:
 	return key == "newspaper" or key.begins_with("treasure_map_")

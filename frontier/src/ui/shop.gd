@@ -5,7 +5,8 @@ extends Node3D
 
 const CATALOG := {
 	"general": [["tonic_health", "Dr. Ambrose's Restorative Tonic", 2.5], ["tonic_nerve", "Steady-Hand Bitters", 3.0],
-		["jerky", "Beef Jerky", 0.4], ["fishing_rod", "Split-Cane Fishing Rod & Tackle", 6.0], ["coffee", "Arbuckle-style Coffee, 1 lb", 0.75], ["ammo_revolver", ".44 Cartridges (box of 24)", 1.2],
+		["jerky", "Beef Jerky", 0.4], ["fishing_rod", "Split-Cane Fishing Rod & Tackle", 6.0], ["coffee", "Arbuckle-style Coffee, 1 lb", 0.75],
+		["horse_oats", "Horse Oats, 5 lb sack", 0.5], ["apple", "Apples (for the horse, or not)", 0.15], ["carrot", "Carrots, a bunch", 0.1],
 		["ammo_repeater", "Repeater Cartridges (box of 24)", 1.4], ["ammo_shotgun", "Shotgun Shells (box of 12)", 1.1]],
 	"gunsmith": [["ammo_revolver", ".44 Cartridges (box of 24)", 1.0], ["ammo_repeater", "Repeater Cartridges (box of 24)", 1.2],
 		["ammo_rifle", "Rifle Cartridges (box of 10)", 1.6], ["ammo_shotgun", "Shotgun Shells (box of 12)", 0.9],

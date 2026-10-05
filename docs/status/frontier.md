@@ -127,6 +127,14 @@ runner, Metal) and the Mac monitor.
   head shots, 2-3 optional objectives per main mission rated gold/silver/bronze in WorldState and the journal;
   `src/missions/presentation.gd`); gold sells at the Linden Exchange or to Greer; legendary outfits retint Ruth
   (`src/systems/outfits.gd`); bounties turn in at any sheriff. Feature shots `mission_talk`, `results_card`.
+- **Living world** (`--bot living`): horse bond 1-4 from brushing, feeding (oats, apples, carrots from the general
+  store), calming and patting raises stamina and courage, cuts the chance of a throw and widens whistle range; dirt
+  and mud brush off (`src/systems/horse_care.gd`). Train and stage tickets between stations with a ticket card, the
+  hours passing and the horse coming along; map-table fast travel at Willow Bend to discovered places
+  (`src/systems/travel.gd`). Camp ledger (money and food buy provisions, medicine and ammo stock with prop boxes),
+  daily supplies, companions' chores at camp spots, morale-coloured barks (`src/ai/camp.gd`). Temperature by
+  altitude, hour, season and the southern heat; breath fog, stamina and health drain, outfit warmth
+  (`src/systems/climate.gd`).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

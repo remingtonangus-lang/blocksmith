@@ -21,6 +21,9 @@ const PACE_NAMES := ["walk", "trot", "canter", "gallop"]
 const DEFAULT_SPEEDS := {"walk": 1.67, "trot": 3.75, "canter": 6.36, "gallop": 12.77}
 const GRAVITY := 9.81
 const BOND_XP := [0.0, 150.0, 450.0, 1000.0]
+## Bond effects (levels 1-4): chance a rearing horse throws its rider, whistle range, stamina bonus, fear decay.
+const THROW_CHANCE := [0.35, 0.15, 0.05, 0.0]
+const WHISTLE_RANGE := [180.0, 300.0, 480.0, 800.0]
 const MOUNT_TIME := 1.25         # matches RiderIK.MOUNT_TIME (the mount clip)
 const SEAT_DROP := 0.78          # rider origin (feet) below the saddle seat point
 
@@ -64,6 +67,7 @@ var sweat := 0.0
 var fear := 0.0
 var bond_xp := 0.0
 var bond_level := 1
+var _stamina_base := -1.0                   # stamina_max before the bond bonus
 var saddlebags: Array = []                   # [{item, count}]
 # AI / misc
 var call_target: Node3D = null
@@ -247,7 +251,7 @@ func _process(dt: float) -> void:
 			_ride_camera(dt)
 	elif rider == null and player_horse == self and Game.player != null and Game.player.get("on_horse") == null:
 		if not Game.player.get("bot_driven") and Input.is_action_just_pressed("whistle"):
-			call_to(Game.player)
+			whistle(Game.player)
 	if rider == null and Game.player != null and Game.player.get("on_horse") == null and not Game.player.get("bot_driven"):
 		if Input.is_action_just_pressed("mount") and global_position.distance_to(Game.player.global_position) < 2.8:
 			if _nearest_to_player():
@@ -668,6 +672,10 @@ func _cores(dt: float) -> void:
 		if bond_xp >= BOND_XP[i]:
 			lvl = i + 1
 	bond_level = lvl
+	# a bonded horse goes further: +10% stamina per level above the first
+	if _stamina_base < 0.0:
+		_stamina_base = stamina_max
+	stamina_max = _stamina_base * (1.0 + 0.1 * float(bond_level - 1))
 
 func _care(dt: float) -> void:
 	var v := absf(speed)
@@ -732,7 +740,8 @@ func _frighten(amount: float, from: Vector3, kind: String) -> void:
 		if state == State.RIDDEN:
 			if _try_action("rear"):
 				speed *= 0.3
-				if bond_level <= 1 and _rng.randf() < 0.35:
+				var chance: float = THROW_CHANCE[clampi(bond_level - 1, 0, 3)] * (1.3 if kind == "predator" else 1.0)
+				if _rng.randf() < chance:
 					_throw_rider()
 		else:
 			_try_action("shy")
@@ -742,7 +751,7 @@ func _frighten(amount: float, from: Vector3, kind: String) -> void:
 			_flee_time = 4.0 + fear * 2.0
 
 func _fear_update(dt: float) -> void:
-	fear = maxf(fear - dt * 0.22, 0.0)
+	fear = maxf(fear - dt * (0.22 + 0.06 * float(bond_level - 1)), 0.0)     # a bonded horse settles sooner
 	if int(_t * 2.0) != int((_t - dt) * 2.0):
 		for n in get_tree().get_nodes_in_group("predator"):
 			if n is Node3D and n.global_position.distance_to(global_position) < 25.0:
@@ -792,6 +801,17 @@ func _throw_rider() -> void:
 		r.velocity = forward() * maxf(absf(speed) * 0.6, 2.0) + Vector3(0, 3.0, 0)
 
 # ================================================================== calling, hitching
+## Ruth whistles: within the bond's whistle range the horse comes; beyond it she can't hear. Returns true if called.
+func whistle(target: Node3D) -> bool:
+	var d := global_position.distance_to(target.global_position)
+	if d > float(WHISTLE_RANGE[clampi(bond_level - 1, 0, 3)]):
+		Game.say("Too far off for her to hear the whistle.", 2.5)
+		Game.log_event("whistle", {"heard": false, "dist": snappedf(d, 1.0), "bond": bond_level})
+		return false
+	call_to(target)
+	Game.log_event("whistle", {"heard": true, "dist": snappedf(d, 1.0), "bond": bond_level})
+	return true
+
 ## Whistle: the horse comes to `target` (paths around steep ground/water; teleports closer if far or stuck).
 func call_to(target: Node3D) -> void:
 	if state == State.DEAD or state == State.RIDDEN:

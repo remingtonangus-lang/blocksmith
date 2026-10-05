@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui", "footik", "cover", "melee"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "living", "systems", "ui", "footik", "cover", "melee"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -55,6 +55,8 @@ func run(m: Node) -> void:
 			res = await _run_openworld()
 		elif b == "presentation":
 			res = await _run_presentation()
+		elif b == "living":
+			res = await _run_living()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -1238,6 +1240,250 @@ func _run_presentation() -> Dictionary:
 			_fail(res, "turn-in at any sheriff: %s" % lines.back())
 		b_from.auto_turn_in = true
 	md.autopilot = false
+	for ln in lines:
+		print("  " + ln)
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
+## Living-world bot: horse bond and care (brush, feed, calm, pat; bond levels raise stamina, courage and whistle
+## range; mud on the coat cleaned), travel (train and stage counters, fare, hours, arrival with the horse, refusal
+## when wanted, discovery and the camp map table), camp life (ledger, food, stocks with props, supplies, chores at
+## camp spots, morale-coloured barks) and temperature (cold at altitude at night, heat in the Ocotillo, breath fog,
+## drain, outfit warmth).
+func _run_living() -> Dictionary:
+	var res := {"bot": "living", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var err0: int = Game.error_logger.take().size()
+	var md: MissionDirector = Game.missions
+	var st = Game.state
+	for i in 150:
+		await get_tree().process_frame
+	var lines := []
+	st.money = 500.0
+	# ---------------------------------------------------------------- 1. horse bond
+	var hc = Game.get_meta("horse_care") if Game.has_meta("horse_care") else null
+	var h: Horse = Horse.player_horse if is_instance_valid(Horse.player_horse) else null
+	if hc == null or h == null:
+		_fail(res, "no horse or horse care (%s, %s)" % [hc, h])
+	else:
+		if h.rider != null:
+			md.dismount_player()
+		h.bond_xp = 0.0
+		st.flags["horse_bond_xp"] = 0.0
+		h._cores(0.0)
+		var st1: float = h.stamina_max
+		h.dirt = 0.8
+		h.mud = 0.6
+		var cleaned: float = hc.brush()
+		var spot_ok: bool = h.get_node_or_null("CareSpot") != null
+		for it in ["horse_oats", "apple", "carrot"]:
+			st.add_item(it, 2)
+		var fed := 0
+		for it in ["horse_oats", "apple", "carrot"]:
+			if hc.feed(it):
+				fed += 1
+		hc.calm()
+		var patted: bool = hc.pat()
+		var xp1: float = h.bond_xp
+		# reach level 4 and compare
+		h.fear = 1.0
+		h._fear_update(1.0)
+		var fear_l1: float = h.fear
+		var far := Game.player.global_position + Vector3(380.0, 0, 0)
+		var lvl1 := h.bond_level
+		h.global_position = far
+		var heard1: bool = h.whistle(Game.player)
+		h.bond_xp = 1100.0
+		h._cores(0.0)
+		h.global_position = far
+		h.state = Horse.State.FREE
+		var heard4: bool = h.whistle(Game.player)
+		h.fear = 1.0
+		h._fear_update(1.0)
+		var fear_l4: float = h.fear
+		var st4: float = h.stamina_max
+		var saved_xp := float(st.flags.get("horse_bond_xp", 0.0))
+		for i in 3:
+			await get_tree().create_timer(1.1).timeout
+		saved_xp = float(st.flags.get("horse_bond_xp", 0.0))
+		lines.append("horse: care spot %s; brushed %.2f of dirt+mud off (now %.2f); fed %d kinds, calmed, patted %s -> bond xp %.0f (level %d)" % [
+			spot_ok, cleaned, h.dirt + h.mud, fed, patted, xp1, lvl1])
+		lines.append("bond 1 vs 4: whistle at 380 m heard %s / %s (range %d / %d m); stamina %d / %d; fear after 1 s %.2f / %.2f; throw chance %.2f / %.2f; saved xp %.0f" % [
+			heard1, heard4, int(h.WHISTLE_RANGE[0]), int(h.WHISTLE_RANGE[3]), int(st1), int(st4), fear_l1, fear_l4, h.THROW_CHANCE[0], h.THROW_CHANCE[3], saved_xp])
+		if not spot_ok or cleaned < 1.3 or h.dirt + h.mud > 0.01 or fed != 3 or not patted or xp1 < 60.0 or heard1 or not heard4 \
+				or st4 < st1 * 1.29 or fear_l4 >= fear_l1 or saved_xp < 1100.0:
+			_fail(res, "horse bond: %s / %s" % [lines[-2], lines[-1]])
+		h.global_position = Game.player.global_position + Vector3(3, 0, 2)
+		h.state = Horse.State.FREE
+	# ---------------------------------------------------------------- 2. travel
+	var tv = Game.get_meta("travel") if Game.has_meta("travel") else null
+	if tv == null:
+		_fail(res, "no travel system")
+	else:
+		var trains: int = tv.counters.filter(func(c): return c.mode == "train").size()
+		var stages: int = tv.counters.filter(func(c): return c.mode == "stage").size()
+		md._teleport_player(tv.counter_pos("train", "bitter_spring"))
+		st.wanted = 2
+		var refused: bool = not await tv.travel("train", "bitter_spring", "port_linden")
+		st.wanted = 0
+		var f: Dictionary = tv.fare("train", "bitter_spring", "port_linden")
+		var m0: float = st.money
+		var h0: float = Game.sky.hours + Game.sky.day * 24.0
+		var went: bool = await tv.travel("train", "bitter_spring", "port_linden")
+		var dh: float = Game.sky.hours + Game.sky.day * 24.0 - h0
+		var arrive_d: float = Game.player.global_position.distance_to(tv.counter_pos("train", "port_linden"))
+		var horse_d: float = Horse.player_horse.global_position.distance_to(Game.player.global_position) if is_instance_valid(Horse.player_horse) else -1.0
+		for i in 3:
+			await get_tree().create_timer(1.1).timeout
+		var disc: bool = tv.discovered().has("port_linden")
+		for i in 6:
+			if not load("res://src/missions/places.gd").spot(load("res://src/missions/places.gd").building("port_linden", "depot"), "ticket_agent").is_empty():
+				break
+			await get_tree().create_timer(1.0).timeout
+		await get_tree().create_timer(2.2).timeout
+		var from_spot: bool = load("res://src/missions/places.gd").spot(load("res://src/missions/places.gd").building("port_linden", "depot"), "ticket_agent").size() > 0
+		# each railroad clerk stands at his town's depot (towns whose layout found room for one)
+		var depots := []
+		var depot_bad := 0
+		for town in tv.TRAIN_STOPS:
+			var dep: Dictionary = tv.any_building(town, "depot")
+			var where := "depot"
+			if dep.is_empty():
+				dep = tv.any_building(town, "post")
+				where = "telegraph office"
+			if dep.is_empty():
+				dep = tv.any_building(town, "water_tower")
+				where = "water tower"
+			var ck: Array = tv.counters.filter(func(c): return c.mode == "train" and c.town == town)
+			if dep.is_empty() or ck.is_empty():
+				depots.append("%s none" % town)
+				depot_bad += 1
+				continue
+			var dd: float = Vector2(ck[0].global_position.x - dep.transform.origin.x, ck[0].global_position.z - dep.transform.origin.z).length()
+			depots.append("%s %s %.1f m" % [town, where, dd])
+			if dd > 16.0:
+				depot_bad += 1
+		var pl_clerk: Array = tv.counters.filter(func(c): return c.mode == "train" and c.town == "port_linden")
+		var clerk_d: float = pl_clerk[0].global_position.distance_to(tv.counter_pos("train", "port_linden")) if pl_clerk.size() > 0 else -1.0
+		lines.append("travel: counters train %d, stage %d (Port Linden depot ticket_agent spot %s, clerk %.1f m from where it should stand; clerk to depot: %s); refused while wanted %s; train to Port Linden %s for $%.2f (fare $%.2f), %.1f hours passed (%.1f), arrived %.1f m from the agent, horse %.1f m away, Port Linden discovered %s" % [
+			trains, stages, from_spot, clerk_d, ", ".join(depots), refused, went, m0 - st.money, f.price, dh, f.hours, arrive_d, horse_d, disc])
+		if trains != 3 or stages != 5 or not refused or not went or absf(m0 - st.money - float(f.price)) > 0.01 or absf(dh - float(f.hours)) > 0.05 \
+				or arrive_d > 6.0 or horse_d < 0.0 or horse_d > 8.0 or not disc or clerk_d < 0.0 or clerk_d > 0.6 or depot_bad > 0:
+			_fail(res, "travel: %s" % lines.back())
+		var sf: Dictionary = tv.fare("stage", "port_linden", "coldwater")
+		var sw: bool = await tv.travel("stage", "port_linden", "coldwater")
+		tv.discovered()["greer_post"] = true
+		var dests: Array = tv.destinations()
+		md._teleport_player(Mission.place("caddell_camp", 3.0, -2.0))
+		var rode: bool = await tv.travel("ride", "caddell_camp", "greer_post")
+		var at_greer: float = Game.player.global_position.distance_to(Mission.place("greer_post"))
+		var table_ok := get_tree().get_nodes_in_group("interactable").any(func(n): return str(n.name) == "MapTable")
+		lines.append("stage to Coldwater %s ($%.2f, %.1f h); map table %s, destinations %s; rode to Greer's %s (%.0f m from the post)" % [sw, sf.price, sf.hours, table_ok, ", ".join(dests), rode, at_greer])
+		if not sw or not table_ok or not dests.has("greer_post") or not rode or at_greer > 40.0:
+			_fail(res, "fast travel: %s" % lines.back())
+	# ---------------------------------------------------------------- 3. camp life
+	var camp = Game.get("camp")
+	if camp == null:
+		_fail(res, "no camp")
+	else:
+		md._teleport_player(Mission.place("caddell_camp", 4.0, 4.0))
+		for i in 30:
+			await get_tree().physics_frame
+		st.flags["camp_ledger"] = 0.0
+		st.flags["camp_stock"] = {}
+		st.flags["camp_morale_bonus"] = 0.0
+		var mor0: float = camp.morale()
+		camp.contribute(50.0)
+		st.add_item("meat_mule_deer", 4)
+		var food: float = camp.donate_food()
+		var l1: int = camp.upgrade("provisions")
+		var l2: int = camp.upgrade("ammo")
+		var too_much: int = camp.upgrade("medicine")
+		var props_p: int = camp.stock_prop_count("provisions")
+		var props_a: int = camp.stock_prop_count("ammo")
+		var ammo0: int = int(Game.player.gun.ammo.get("revolver", 0))
+		var sup: Dictionary = camp.take_supplies()
+		var again: Dictionary = camp.take_supplies()
+		var mor1: float = camp.morale()
+		var ch: Dictionary = camp.chore_for("hap", 6.0)
+		var ch2: Dictionary = camp.chore_for("billy", 10.0)
+		var ctx: Dictionary = camp.context()
+		ctx["morale"] = 85.0
+		var hi := false
+		var lo := false
+		for i in 60:
+			if str(camp.pick_bark("hap", ctx).get("line", "")) == "camp_hap_morale_high":
+				hi = true
+		ctx["morale"] = 20.0
+		for i in 60:
+			if str(camp.pick_bark("hap", ctx).get("line", "")) == "camp_hap_morale_low":
+				lo = true
+		lines.append("camp: gave $50 + food worth $%.2f; provisions -> %d, ammo -> %d, medicine refused (%d); props %d/%d; supplies %s (again %s), revolver +%d; morale %.0f -> %.0f (%s)" % [
+			food, l1, l2, too_much, props_p, props_a, JSON.stringify(sup), JSON.stringify(again), int(Game.player.gun.ammo.get("revolver", 0)) - ammo0, mor0, mor1, camp.morale_band(mor1)])
+		lines.append("chores: Hap at 6:00 -> %s at a camp spot %s; Billy at 10:00 -> %s (%s); morale barks high %s low %s" % [
+			ch.get("activity", "?"), ch.get("from_spot", false), ch2.get("activity", "?"), ch2.get("from_spot", false), hi, lo])
+		if food != 6.0 or l1 != 1 or l2 != 1 or too_much != -1 or (not Game.headless and (props_p != 2 or props_a != 2)) or props_p != 2 \
+				or int(sup.get("rounds", 0)) != 24 or not again.is_empty() or mor1 <= mor0 or ch.is_empty() or not hi or not lo:
+			_fail(res, "camp life: %s / %s" % [lines[-2], lines[-1]])
+	# ---------------------------------------------------------------- 4. temperature and clothing
+	var cl = Game.get_meta("climate") if Game.has_meta("climate") else null
+	if cl == null:
+		_fail(res, "no climate system")
+	else:
+		var C = cl.get_script()
+		var peak := Mission.place("trapper_cabin_n")
+		for r in [200.0, 500.0, 900.0]:
+			for k in 12:
+				var q := Mission.place("trapper_cabin_n") + Vector3(cos(TAU * k / 12.0) * r, 0, sin(TAU * k / 12.0) * r)
+				q.y = Game.world.height(q.x, q.z)
+				if q.y > peak.y and not Game.world.is_water(q.x, q.z):
+					peak = q
+		var hot := Mission.place("san_lazaro")
+		var t_peak_night: float = C.temperature(peak, 2.0, "CLEAR", 4)
+		var t_desert_noon: float = C.temperature(hot, 15.0, "CLEAR", 2)
+		var t_valley_noon: float = C.temperature(Mission.place("bitter_spring"), 13.0, "FAIR", 1)
+		lines.append("temperature: Kestrel %.0f m at 2 a.m. in winter %.1f °C; San Lazaro at 3 p.m. %.1f °C; Bitter Spring at 1 p.m. in October %.1f °C" % [peak.y, t_peak_night, t_desert_noon, t_valley_noon])
+		if t_peak_night > -2.0 or t_desert_noon < 32.0 or t_valley_noon < 12.0 or t_valley_noon > 26.0:
+			_fail(res, "temperature model: %s" % lines.back())
+		# live: cold on the mountain at night in her own clothes, then in the bearskin coat
+		st.flags.erase("outfit_worn")
+		md.completed.append("c4_coldwater")
+		Game.sky.set_time(2.0)
+		md._teleport_player(peak)
+		Game.player.stamina = Game.player.STAMINA_MAX
+		var hp0: float = Game.player.damageable.health
+		for i in 4:
+			await get_tree().create_timer(1.05).timeout
+		var cold_own: float = cl.cold
+		var breath: bool = cl.breath_on
+		var stam_after: float = Game.player.stamina
+		var hp_after: float = Game.player.damageable.health
+		st.add_item("outfit_ironhide", 1)
+		st.flags["outfit_worn"] = "ironhide"
+		for i in 2:
+			await get_tree().create_timer(1.05).timeout
+		var cold_coat: float = cl.cold
+		# heat in the Ocotillo at 3 p.m.: the bearskin is too much, the Pale Ghost vest is not
+		md.completed.erase("c4_coldwater")
+		Game.sky.set_time(15.0)
+		md._teleport_player(hot)
+		for i in 2:
+			await get_tree().create_timer(1.05).timeout
+		var heat_coat: float = cl.heat
+		st.add_item("outfit_pale_ghost", 1)
+		st.flags["outfit_worn"] = "pale_ghost"
+		for i in 2:
+			await get_tree().create_timer(1.05).timeout
+		var heat_vest: float = cl.heat
+		st.flags.erase("outfit_worn")
+		lines.append("climate live: mountain night cold %.2f in her own clothes (breath fog %s, stamina %.0f -> %.0f, health %.0f -> %.0f), %.2f in the Ironhide coat; desert afternoon heat %.2f in the coat, %.2f in the Pale Ghost vest" % [
+			cold_own, breath, Game.player.STAMINA_MAX, stam_after, hp0, hp_after, cold_coat, heat_coat, heat_vest])
+		if cold_own <= 0.0 or not breath or stam_after >= Game.player.STAMINA_MAX or hp_after >= hp0 or cold_coat >= cold_own \
+				or heat_coat <= 0.0 or heat_vest >= heat_coat:
+			_fail(res, "climate: %s" % lines.back())
 	for ln in lines:
 		print("  " + ln)
 	var errs: Array = Game.error_logger.take().slice(err0)
