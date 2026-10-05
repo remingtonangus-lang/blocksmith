@@ -502,8 +502,19 @@ def main():
 
     # mesa terracing in the desert (after erosion so the steps stay crisp)
     desert1 = masks1['desert']
-    terr = np.floor(h1 / 18.0) * 18.0 + smoothstep(0.0, 1.0, (h1 % 18.0) / 18.0) ** 3 * 18.0
-    h1 = h1 * (1 - desert1 * 0.7) + terr * desert1 * 0.7
+    # strata: warp the height before stepping so ledges wander across the face; strata thickness varies by region;
+    # each step is a flat-ish tread and a steep riser (cap rock over softer beds), strongest in the desert core
+    warp = fbm(n1, 24, 4, SEED + 55) * 9.0 + fbm(n1, 96, 3, SEED + 56) * 3.0
+    period = 30.0 + np.clip(fbm(n1, 6, 2, SEED + 57) * 0.5 + 0.5, 0.0, 1.0) * 22.0
+    hw = h1 + warp
+    frac = (hw % period) / period
+    riser = smoothstep(0.68, 0.97, frac) ** 1.3          # thick cap-rock cliff over a long talus/tread
+    terr = np.floor(hw / period) * period + (frac * 0.3 + riser * 0.7) * period - warp
+    wmask = desert1 ** 1.5
+    h1 = h1 * (1 - wmask * 0.7) + terr * wmask * 0.7
+    # soften the comb of parallel erosion rills on the desert slopes (keeps the big ledges)
+    soft = ndimage.gaussian_filter(h1, 1.3)
+    h1 = h1 * (1 - wmask * 0.6) + soft * wmask * 0.6
 
     # 3. lake on the east edge
     ys, xs = np.mgrid[0:n1, 0:n1].astype(np.float32) / n1
