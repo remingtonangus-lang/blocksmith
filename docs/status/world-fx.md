@@ -37,9 +37,15 @@ soldiers / reactive bases / aircraft, E Quest port, a local Mac session for the 
   layers pile up to a depth that grows with the snowfall (up to 7, drifting per column; leaves hold one), then melt back
   to one layer (faster in sun; block light 12+ melts everything). New blocks `snow_layers_2...7`.
 
+- **Plumes**: big fires send up large dark smoke puffs seen from 128 blocks (fireSmoke), smoke and flames lean with
+  the wind (ParticleManager.drift); smouldering charcoal smokes and sheds embers.
+- **Stars** follow the sun alone and hide behind rain clouds (they shone through a noon thunderstorm).
+- **Flood vs the fluid sim**: flood_water never flows, feeds or becomes ordinary water (World.fluidTick skips it).
+- **Idle cost**: on dry days the flood model only trickle-samples (16 cells a step, to find flood water from a save).
+
 ## Checks
 
-`Blocksmith --snapshot snaps/fx_end.png --seed 12345 --time 0.3 --rd 8 --fxtest cracks,fire,flood,snow,storm --out snaps`
+`Blocksmith --snapshot snaps/fx_end.png --seed 12345 --time 0.3 --rd 8 --fxtest cracks,fire,flood,snow,storm,wildfire --out snaps`
 (snap.sh checks shard; focused runs via a `[fast: <args>]` marker in the head commit message: the workflow takes the
 FIRST `[fast: ` in the message, so never quote the marker literally elsewhere in it - run 471 ran `Blocksmith ARGS`). Report: snaps/fxtest.md; shots
 fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_storm_ship.
@@ -52,8 +58,9 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 | burning house, wind 13 b/s | peak 186 burning, 82 charred, spreads downwind 242 / upwind 64; fire tick mean 0.02 ms, worst 0.95 ms; frame 4.3 ms |
 | fire cap (plank field lit all over) | 1500 burning (cap), tick mean 1.6 ms, worst 1.9 ms |
 | flood, 10 min heavy rain on a river valley | 9,145 flood blocks (3,955 shoreline), 740 of 4,096 cells, model step worst 2.5 ms; frame 5.3 ms; recedes to 652 after 15 min, 264 after 30 |
-| snow, 4 min snowstorm then 10 min sun | mean depth 0.98 -> 4.34 -> 0.99 layers; chunk pass worst 4.3 ms |
-| gunboat in a full storm | max tilt 11.2 deg (1.2 calm), afloat and upright; ship step worst 0.06 ms; frame 5.9 ms |
+| snow, 4 min snowstorm then 10 min sun | mean depth 0.98 -> 4.34 -> 0.99 layers; chunk pass mean 0.04-0.07 ms, p95 0.06-0.14 ms (World.bulkSet) |
+| gunboat in a full storm | max tilt 11.4 deg (1.2 calm), afloat and upright; lightning on it 129 -> 126 hull blocks; frame 5.9 ms |
+| wildfire (dry thunderstorm over savanna, gale) | 20 strikes in 4 min, peak 1,138 burning, 4,049 burned, out 10 min after; tick p95 0.8 ms |
 
 Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thunderstorm over a burning plank field with
 400 damaged blocks: weather.tick_ms p50/p95/max, fire / flood / storm worst, decal quads. Not gated.
