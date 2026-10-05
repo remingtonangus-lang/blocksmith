@@ -25,7 +25,7 @@ final class SentryBolt {
 
 // Lingering dragon breath: 6 damage per second to a player standing in it.
 // Lingering potions leave the same kind of cloud carrying the potion's effects.
-struct XPOrb { var pos: V3; var amount: Int; var age: Float; var dim: Dim }
+struct XPOrb: Codable { var pos: V3; var amount: Int; var age: Float; var dim: Dim }      // saved in xporbs.json
 
 struct AcidCloud {
     var pos: V3; var radius: Float; var time: Float; var tick: Float = 0

@@ -347,6 +347,9 @@ final class Game {
         dragonKilled = m.dragonKilled ?? false
         gateways = m.gateways ?? 0
         seenCredits = m.seenCredits ?? false
+        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("xporbs.json")), let o = try? JSONDecoder().decode([XPOrb].self, from: d) {
+            xpOrbs = o.filter { $0.amount > 0 && $0.age < 300 }
+        }
         if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) {
             // Only well-formed maps (a damaged file's colours were indexed as 128 x 128 and its scale shifted by).
             maps = mm.filter { $0.value.colors.count == 128 * 128 && (0...4).contains($0.value.scale) }
@@ -379,6 +382,9 @@ final class Game {
         mobs.save(to: world.save)
         drops.save(to: world.save)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
+        // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
+        let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
+        if let d = try? JSONEncoder().encode(orbs) { try? d.write(to: s.dir.appendingPathComponent("xporbs.json"), options: .atomic) }
         s.saveMeta(meta)
     }
 
