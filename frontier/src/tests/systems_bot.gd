@@ -36,6 +36,7 @@ static func run(runner: Node) -> Dictionary:
 		_fail(res, "bounty paid but still wanted")
 	# 3. items
 	p.damageable.health = 30.0
+	st.add_item("tonic_health")   # self-contained: earlier bots (encounters) may have given the satchel's tonics away
 	if not st.use_item("tonic_health") or p.damageable.health <= 30.0:
 		_fail(res, "health tonic did nothing")
 	# 4. economy round trip: buy cartridges at the gunsmith, sell a pelt at the butcher

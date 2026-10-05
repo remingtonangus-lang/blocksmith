@@ -487,10 +487,15 @@ func open_map() -> void:
 	map_view.offset_right = -60
 	map_view.offset_bottom = -60
 	map_view.focus_mode = Control.FOCUS_ALL
+	map_view.clip_contents = true   # the paper stays inside its frame; the margin carries the hint
 	map_view.menus = self
 	root.add_child(map_view)
 	var hint := UITheme.label("Click / A: set waypoint     Scroll / triggers: zoom     Drag / stick: pan     Esc / B: close", 22, "italic", UITheme.PAPER)
-	hint.position = Vector2(70, 18)
+	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hint.offset_top = -48
+	hint.offset_bottom = -14
 	root.add_child(hint)
 	_push(root)
 
