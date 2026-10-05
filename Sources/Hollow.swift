@@ -242,7 +242,9 @@ extension Game {
         }
         for b in bullets {
             b.age += dt
-            let to = player.eye - V3(0, 0.4, 0) - b.pos
+            // Homes on the nearest player (split screen: player 2 too).
+            let seat = coop.nearestSeat(b.pos, self)
+            let to = coop.seatPlayer(seat, self).eye - V3(0, 0.4, 0) - b.pos
             let d = simd_length(to)
             if d > 0.01 {
                 let want: V3 = to * (4 / d)
@@ -253,8 +255,10 @@ extension Game {
             if Rand.float(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
             if d < 0.7 {
                 b.dead = true
-                hurtPlayer(4, from: b.pos, cause: "was shot by Shellsentry", knockback: 0.3)
-                applyEffect(.levitation, amp: 0, seconds: 10)
+                coop.withSeat(seat, self) {
+                    self.hurtPlayer(4, from: b.pos, cause: "was shot by Shellsentry", knockback: 0.3)
+                    self.applyEffect(.levitation, amp: 0, seconds: 10)
+                }
             } else if b.age > 12 || Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))))] {
                 b.dead = true
                 particles.explosion(at: b.pos, power: 0.2)

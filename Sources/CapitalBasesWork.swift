@@ -254,11 +254,14 @@ extension Game {
             let (p, id) = q.removeFirst()
             let cur = world.block(p.x, p.y, p.z)
             guard open(cur) else { continue }
-            // Not into the player.
-            let pp = player.pos
-            if abs(pp.x - (Float(p.x) + 0.5)) < 0.9 && abs(pp.z - (Float(p.z) + 0.5)) < 0.9 && Float(p.y) + 1 > pp.y && Float(p.y) < pp.y + 1.8 {
-                skipped.append((p, id)); continue
+            // Not into a player (split screen: either of them).
+            let bx: Float = Float(p.x) + 0.5, bz: Float = Float(p.z) + 0.5, by = Float(p.y)
+            let inBody = (0..<max(1, coop.seatCount)).contains { (i: Int) -> Bool in
+                let pp = coop.seatPlayer(i, self).pos
+                let flat: Bool = abs(pp.x - bx) < 0.9 && abs(pp.z - bz) < 0.9
+                return flat && by + 1 > pp.y && by < pp.y + 1.8
             }
+            if inBody { skipped.append((p, id)); continue }
             // Re-meshed in the background (a synchronous remesh of the sections round each block cost ~0.8 ms, two a
             // second: the citadel update averaged 2.6 ms, --basetest run 634); water beside it settles as usual.
             world.setBlockAsync(p.x, p.y, p.z, id)

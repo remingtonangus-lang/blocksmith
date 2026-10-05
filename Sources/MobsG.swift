@@ -151,8 +151,11 @@ extension Game {
                 fangs[i].bit = true
                 let c = fangs[i].pos
                 sfx(.fangs, 0.6, at: c)
-                if simd_length(V2(player.pos.x - c.x, player.pos.z - c.z)) < 0.9 && abs(player.pos.y - c.y) < 1.5 {
-                    hurtPlayer(6, from: c, cause: "was slain by Conjurer", knockback: 0.2, type: .magic)
+                coop.eachSeat(self) {
+                    let pp = self.player.pos
+                    if simd_length(V2(pp.x - c.x, pp.z - c.z)) < 0.9 && abs(pp.y - c.y) < 1.5 {
+                        self.hurtPlayer(6, from: c, cause: "was slain by Conjurer", knockback: 0.2, type: .magic)
+                    }
                 }
                 for m in mobs.mobs where m !== fangs[i].owner && !m.raider && m.kind != .evoker && m.kind != .vex
                     && simd_length(V2(m.pos.x - c.x, m.pos.z - c.z)) < 0.5 + m.halfW && abs(m.pos.y - c.y) < 1.5 {

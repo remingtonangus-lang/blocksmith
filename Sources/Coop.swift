@@ -432,6 +432,7 @@ extension Game {
         drops.update(f, game: self)
         projectiles.update(f, game: self)
         portalTick(f)
+        endPortalTick()                                   // they can step into a Hollow rift or gateway too
         hazardTick(f)
         effectTick(f)
         // Their own fishing bobber and held map (both ran only in seat 0's turn: player 2's bobber hung where it was
