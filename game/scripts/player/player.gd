@@ -198,7 +198,37 @@ func _physics_process(delta: float) -> void:
 		var av := get_platform_angular_velocity()
 		rotation.y += av.y * delta
 	move_and_slide()
+	_hold_deck(mv)
 	_footsteps(delta, on_floor)
+
+
+var _deck: Node3D = null
+var _deck_local := Vector3.ZERO
+
+
+## Standing still on a moving vehicle (crawler deck, frigate, truck bed): keep the spot in the deck's own frame.
+## Platform velocity alone let the player creep 1.5 m sideways in 20 s on a turning crawler.
+func _hold_deck(mv: Vector2) -> void:
+	var floor_body: Node3D = null
+	if is_on_floor():
+		for k in get_slide_collision_count():
+			var c := get_slide_collision(k)
+			if c.get_normal().y > 0.6 and c.get_collider() is Node3D:
+				var n := c.get_collider() as Node3D
+				if n is RigidBody3D or n is AnimatableBody3D or n.is_in_group("vehicles"):
+					floor_body = n
+					break
+	if floor_body == null or not is_instance_valid(floor_body):
+		_deck = null
+		return
+	if floor_body != _deck or mv.length() > 0.1 or Input.is_action_pressed("jump"):
+		_deck = floor_body
+		_deck_local = floor_body.global_transform.affine_inverse() * global_position
+		return
+	var want := floor_body.global_transform * _deck_local
+	# Horizontal only: the floor contact keeps the height.
+	global_position.x = want.x
+	global_position.z = want.z
 
 
 func _footsteps(delta: float, on_floor: bool) -> void:

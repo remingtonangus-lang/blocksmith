@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 13
+const GEN_VERSION := 14
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -499,6 +499,9 @@ const ROADS := [
 	["fort_lumen", "front", "Front Track", "capital"], ["cinder_camp", "cinder_outpost", "Ash Track", "cinder"],
 	["cinder_outpost", "front", "Red Track", "cinder"],
 ]
+## Roads meet walled bases at their gates, not their centres (Front Track ran from Fort Lumen's centre through
+## its barracks; the patrol crawler hit the block and threw its passenger off the deck).
+const ROAD_GATES := {"fort_lumen": Vector2(95, 95)}
 const ROAD_CELL := 64.0
 const ROAD_HALF := 5.0
 
@@ -536,8 +539,8 @@ func _build_roads() -> void:
 			astar.set_point_weight_scale(Vector2i(gx, gz), cost)
 	_road_grid = {}
 	for r in ROADS:
-		var a: Vector2 = SITE_XZ[r[0]]
-		var b: Vector2 = SITE_XZ[r[1]]
+		var a: Vector2 = SITE_XZ[r[0]] + ROAD_GATES.get(r[0], Vector2.ZERO)
+		var b: Vector2 = SITE_XZ[r[1]] + ROAD_GATES.get(r[1], Vector2.ZERO)
 		var ia := Vector2i(clampi(int((a.x + HALF) / ROAD_CELL), 0, gn - 1), clampi(int((a.y + HALF) / ROAD_CELL), 0, gn - 1))
 		var ib := Vector2i(clampi(int((b.x + HALF) / ROAD_CELL), 0, gn - 1), clampi(int((b.y + HALF) / ROAD_CELL), 0, gn - 1))
 		astar.set_point_solid(ia, false)

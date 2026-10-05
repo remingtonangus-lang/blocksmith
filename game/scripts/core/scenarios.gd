@@ -99,12 +99,28 @@ func _tick_ride(_delta: float) -> void:
 	var c: Crawler = data["c"]
 	var p: Player = G.player
 	var local := c.global_transform.affine_inverse() * p.global_position
+	if OS.get_environment("RIDE_TRACE") != "" and int(t * 2.0) != int((t - _delta) * 2.0):
+		var e := c.global_transform.basis.get_euler()
+		if t > 13.9 and t < 14.8:
+			var q := PhysicsShapeQueryParameters3D.new()
+			var sp := SphereShape3D.new()
+			sp.radius = 5.0
+			q.shape = sp
+			q.transform = Transform3D(Basis.IDENTITY, c.global_position + Vector3(0, 1, 0))
+			q.exclude = [c.get_rid(), p.get_rid()]
+			for h in c.get_world_3d().direct_space_state.intersect_shape(q, 8):
+				var col: Object = h["collider"]
+				print("    touching %s" % [col.get_path() if col is Node else col])
+		print("  ride t %.1f pos %s local %s roll %.1f pitch %.1f yaw rate %.2f speed %.1f on floor %s" % [t, c.global_position, local, rad_to_deg(e.z), rad_to_deg(e.x), c.angular_velocity.y, c.linear_velocity.length(), p.is_on_floor()])
 	if t > 1.0 and (absf(local.x) > 1.8 or local.z < -1.5 or local.z > 5.2 or local.y < 2.0):
 		_done(false, "fell off the deck at %.1f s (local %s, crawler moved %.0f m)" % [t, local, c.global_position.distance_to(data["start"])])
 		return
+	if t > 1.5 and not data.has("landed"):
+		data["landed"] = local
 	if t > 20.0:
 		var moved := c.global_position.distance_to(data["start"])
-		_done(moved > 40.0, "rode %.0f m, ended at deck position %s" % [moved, local])
+		var drift := Vector2(local.x - data["landed"].x, local.z - data["landed"].z).length()
+		_done(moved > 40.0 and drift < 0.5, "rode %.0f m, drifted %.2f m on the deck (ended at %s)" % [moved, drift, local])
 
 
 # ------------------------------------------------------------------------------------------------ drive
