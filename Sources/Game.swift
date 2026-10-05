@@ -100,6 +100,7 @@ final class Game {
     var sleeping: Float = 0        // > 0 while in bed (seconds)
     var leafQueue: [IVec3] = []
     var placedLeaves = Set<IVec3>()
+    var saplingStage = Set<IVec3>()      // saplings at stage 1 (Farming.saplingAdvance)
     var bowCharge: Float = 0
     var portalTime: Float = 0
     var portalCooldown: Float = 0

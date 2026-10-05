@@ -292,7 +292,7 @@ final class BlockRegistry {
         }
         func column(_ n: String, _ disp: String, side: String, top: String, bottom: String? = nil, h: Float = 2,
                     tool: ToolType = .axe, snd: SoundMat = .wood) {
-            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd)
+            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd, req: tool == .pickaxe)   // stone pillars need a pickaxe
         }
         func leaves(_ n: String, _ disp: String, _ t: String, tint: UInt8) {
             var d = BlockDef(n, disp)
@@ -346,7 +346,7 @@ final class BlockRegistry {
         var cactus = BlockDef("cactus", "Cactus")
         cactus.tex = ["cactus_side", "cactus_side", "cactus_top", "cactus_bottom", "cactus_side", "cactus_side"]
         cactus.render = .model; cactus.opaque = false; cactus.layer = .cutout; cactus.hardness = 0.4; cactus.sound = .plant
-        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]
+        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]; cactus.randomTicks = true
         add(cactus)
         cube("snow_block", "Snow Block", "snow", h: 0.2, tool: .shovel, snd: .snow)
         cube("stone_bricks", "Stone Bricks", "stone_bricks", h: 1.5, req: true)
@@ -690,9 +690,13 @@ final class BlockRegistry {
     func family(_ tex: String, _ n: String, _ disp: String, h: Float, tool: ToolType, req: Bool, snd: SoundMat,
                 stairs: Bool, slab: Bool, fence: Bool, wall: Bool) {
         let t = (tex == "sandstone") ? ["sandstone", "sandstone", "sandstone_top", "sandstone_bottom", "sandstone", "sandstone"] : [tex]
-        func base(_ name: String, _ display: String) -> BlockDef {
+        // Reference hardness: stairs, walls and fences take the full block's; slabs are 2 or the block's if harder
+        // (deeprock 3.5, hollow stone brick 3). Every stone family used 2.
+        let full: Float = has(tex) ? def(id(tex)).hardness : h
+        let slabH: Float = max(h, full)
+        func base(_ name: String, _ display: String, _ hh: Float) -> BlockDef {
             var d = BlockDef(name, display)
-            d.tex = t; d.render = .model; d.opaque = false; d.hardness = h; d.tool = tool; d.requiresTool = req; d.sound = snd
+            d.tex = t; d.render = .model; d.opaque = false; d.hardness = hh; d.tool = tool; d.requiresTool = req; d.sound = snd
             d.skyStop = true
             return d
         }
@@ -701,7 +705,7 @@ final class BlockRegistry {
             for top in [false, true] {
                 for (k, dir) in ["north", "south", "west", "east"].enumerated() {
                     let name = !top && k == 0 ? "\(n)_stairs" : "\(n)_stairs[\(dir)\(top ? ",top" : "")]"
-                    var d = base(name, "\(disp) Stairs")
+                    var d = base(name, "\(disp) Stairs", full)
                     d.group = "\(n)_stairs"; d.hidden = top || k != 0; d.shape = "stairs"
                     var st = steps[k]
                     if top { st.y0 = 0; st.y1 = 8 }
@@ -712,7 +716,7 @@ final class BlockRegistry {
         }
         if slab {
             for (k, part) in ["bottom", "top", "double"].enumerated() {
-                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab")
+                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab", slabH)
                 d.group = "\(n)_slab"; d.hidden = k != 0; d.shape = "slab"
                 d.boxes = [k == 0 ? Box(0, 0, 0, 16, 8, 16) : (k == 1 ? Box(0, 8, 0, 16, 16, 16) : Box(0, 0, 0, 16, 16, 16))]
                 add(d)
@@ -720,13 +724,13 @@ final class BlockRegistry {
         }
         if fence {
             var d = BlockDef(n == "nether_brick" ? "nether_brick_fence" : "\(n)_fence", "\(disp) Fence")
-            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = false
             add(d)
         }
         if wall {
             var d = BlockDef("\(n)_wall", "\(disp) Wall")
-            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = true
             add(d)
         }

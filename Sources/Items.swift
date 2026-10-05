@@ -417,7 +417,7 @@ final class ItemRegistry {
         add(ely)
         // Durability / combat numbers for the weapon items above.
         for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
-                                   ("carrot_on_a_stick", 25, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
+                                   ("carrot_on_a_stick", 25, 1, 4), ("warped_fungus_on_a_stick", 100, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
             defs[Int(id(n))].durability = dur
             defs[Int(id(n))].attack = atk
             defs[Int(id(n))].attackSpeed = spd

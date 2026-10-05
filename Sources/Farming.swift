@@ -80,8 +80,8 @@ extension Game {
             guard stage < maxStage else { return }
             let l = world.lightAt(p.x, p.y, p.z)
             guard max(l.sky, l.block) >= 9 else { return }
-            let below = Blocks.key(world.block(p.x, p.y - 1, p.z))
-            let f: Float = below == "farmland_moist" ? 4 : 2
+            if key == "beetroots" && Rand.int(in: 0..<3) == 0 { return }       // beetroots only grow on a 2/3 roll
+            let f = cropGrowth(p, Blocks.groupBase[Int(b)])
             if Rand.float(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }
@@ -96,7 +96,25 @@ extension Game {
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case _ where key.hasSuffix("_sapling") || key == "mangrove_propagule":
             let l = world.lightAt(p.x, p.y + 1, p.z)
-            if max(l.sky, l.block) >= 9 && Rand.int(in: 0..<7) == 0 { growTree(p, key) }
+            if max(l.sky, l.block) >= 9 && Rand.int(in: 0..<7) == 0 { saplingAdvance(p, key) }
+        case "cactus":
+            // One block per 16 random ticks, up to 3 tall (it had no random ticks: cacti never grew).
+            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
+            var h = 1
+            while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
+        case "bamboo":
+            // The top shoot grows on a 1/3 roll in light 9+, to 12-16 blocks per stalk (reference).
+            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<3) == 0 else { return }
+            let l = world.lightAt(p.x, p.y + 1, p.z)
+            guard max(l.sky, l.block) >= 9 else { return }
+            var h = 1
+            while h < 16 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5)
+            if h < cap { world.setBlock(p.x, p.y + 1, p.z, b) }
+        case "sweet_berry_bush":
+            let l = world.lightAt(p.x, p.y + 1, p.z)
+            if stage < 3 && max(l.sky, l.block) >= 9 && Rand.int(in: 0..<5) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "farmland":
             let wet = waterNear(p)
             let isWet = Blocks.key(b) == "farmland_moist"
@@ -117,6 +135,30 @@ extension Game {
             }
         default: break
         }
+    }
+
+    // Reference crop growth factor: 1, plus 3 (moist) or 1 (dry) for the farmland under the crop and a quarter of
+    // that for each of the 8 around it, halved when the same crop grows diagonally or on two crossing sides (it only
+    // looked at the block underneath: mixed irrigated rows grew at about half speed).
+    func cropGrowth(_ p: IVec3, _ crop: BlockID) -> Float {
+        var f: Float = 1
+        for dz in -1...1 { for dx in -1...1 {
+            let k = Blocks.key(world.block(p.x + dx, p.y - 1, p.z + dz))
+            var g: Float = k == "farmland_moist" ? 3 : (k == "farmland" ? 1 : 0)
+            if dx != 0 || dz != 0 { g /= 4 }
+            f += g
+        } }
+        func same(_ dx: Int, _ dz: Int) -> Bool { Blocks.groupBase[Int(world.block(p.x + dx, p.y, p.z + dz))] == crop }
+        let ns = same(0, -1) || same(0, 1), we = same(-1, 0) || same(1, 0)
+        let diag = same(-1, -1) || same(1, -1) || same(1, 1) || same(-1, 1)
+        if diag || (ns && we) { f /= 2 }
+        return f
+    }
+
+    // Saplings have two stages (reference): a growth roll or a bone meal success moves a fresh one to stage 1, the next
+    // grows the tree (trees grew on the first). Stage 1 is remembered for this session only.
+    func saplingAdvance(_ p: IVec3, _ key: String) {
+        if saplingStage.remove(p) != nil { growTree(p, key) } else { saplingStage.insert(p) }
     }
 
     private func waterNear(_ p: IVec3) -> Bool {
@@ -291,11 +333,12 @@ extension Game {
                 let maxStage = bkey == "beetroots" ? 3 : 7
                 let st = Int(b - Blocks.groupBase[Int(b)])
                 if st < maxStage {
-                    world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + Rand.int(in: 2...5))))
+                    let step = bkey == "beetroots" ? Rand.int(in: 2...5) / 3 : Rand.int(in: 2...5)     // beetroot: +1 on 3 in 4
+                    if step > 0 { world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + step))) }
                     used = true
                 }
             } else if bkey.hasSuffix("_sapling") {
-                if Rand.float(in: 0..<1) < 0.45 { growTree(t.hit, bkey) }
+                if Rand.float(in: 0..<1) < 0.45 { saplingAdvance(t.hit, bkey) }
                 used = true
             } else if b == GRASS {
                 for _ in 0..<24 {
