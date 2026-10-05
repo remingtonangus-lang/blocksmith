@@ -29,7 +29,7 @@ python3 - "$ROOT" > "$OUT/features.txt" <<'PY'
 import json, os, re, sys, glob
 root = sys.argv[1]
 def count(pattern, path):
-    return len(re.findall(pattern, open(os.path.join(root, path)).read()))
+    return len(re.findall(pattern, open(os.path.join(root, path)).read(), re.M))
 w = json.load(open(os.path.join(root, "data/world/features.json")))
 print("world: %.0f km2, towns %d, points of interest %d, roads %d, rivers %d, railroad yes" % ((w["size_m"]/1000)**2, len(w["towns"]), len(w["pois"]), len(w["roads"]), len(w["rivers"])))
 print("terrain material layers:", len(json.load(open(os.path.join(root, "assets/ext/packed/packed.json")))["terrain_layers"]) if os.path.exists(os.path.join(root,"assets/ext/packed/packed.json")) else "?")
@@ -37,13 +37,22 @@ print("tree/shrub species:", count(r'^\t"\w+": \{"height"', "src/world/tree_gen.
 print("scatter models (CC0 photogrammetry):", count(r'^\t"\w+": \{"density"', "src/world/scatter.gd"))
 print("firearms:", count(r'^\t"\w+": \{"name"', "src/combat/weapons.gd"))
 print("wildlife species:", count(r'^\t"\w+": \{"name"', "src/actors/animal.gd"))
-print("missions:", len(re.findall(r'res://src/missions/', open(os.path.join(root, "src/missions/mission_director.gd")).read())))
-lines = sum(len(json.load(open(f))["lines"]) for f in glob.glob(os.path.join(root, "design/dialogue/*.json")))
+print("missions:", len(re.findall(r'"res://src/missions/ch\d+/', open(os.path.join(root, "src/missions/mission_director.gd")).read())))
+lines = sum(len(json.load(open(f)).get("lines", [])) for f in glob.glob(os.path.join(root, "design/dialogue/*.json")))
+barks = sum(len(json.load(open(f)).get("barks", [])) for f in glob.glob(os.path.join(root, "design/dialogue/*.json")))
+print("ambient barks:", barks)
 print("dialogue lines written:", lines)
-for name, path in (("character models", "assets/ext/characters"), ("horse models", "assets/ext/animals"), ("audio files", "assets/ext/audio"), ("weapon models", "assets/ext/weapons")):
+for name, path, alt in (("character models", "assets/ext/characters", "assets/characters_out"), ("animal models", "assets/ext/animals", "assets/animals_out"), ("audio files", "assets/ext/audio", ""), ("weapon models", "assets/ext/weapons", "assets/weapons_out")):
     p = os.path.join(root, path)
+    if not os.path.isdir(p) and alt:
+        p = os.path.join(root, alt)
     n = sum(len(f) for _, _, f in os.walk(p)) if os.path.isdir(p) else 0
     print("%s: %d files" % (name, n))
+sysf = {"shops": "src/ui/shop.gd", "roadside encounters": "src/ai/encounters.gd", "bounty boards": "src/ai/bounties.gd",
+        "hold-ups/robbery": "src/systems/robbery.gd", "camp": "src/ai/camp.gd", "poker": "src/minigames/poker.gd",
+        "horse riding/care": "src/actors/horse.gd", "save/load": "src/core/world_state.gd", "fishing": "src/systems/fishing.gd"}
+print("systems present:", ", ".join(k for k, v in sysf.items() if os.path.exists(os.path.join(root, v))))
+print("systems absent:", ", ".join(k for k, v in sysf.items() if not os.path.exists(os.path.join(root, v))) or "-")
 print("bots/oracles:", ", ".join(sorted(set(re.findall(r'"(\w+)"', re.search(r'\["road".*?\]', open(os.path.join(root, "src/tests/bot_runner.gd")).read()).group(0))))))
 PY
 ls "$OUT" | head -40
