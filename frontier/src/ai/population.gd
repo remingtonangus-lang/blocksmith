@@ -69,6 +69,8 @@ func _process(dt: float) -> void:
 	_travellers(0.5, ref_pos())
 
 func _tick(fill: bool) -> void:
+	if Game.disabled("town_people"):
+		return
 	var pp: Vector3 = ref_pos()
 	var near := 0
 	for k in residents.keys():

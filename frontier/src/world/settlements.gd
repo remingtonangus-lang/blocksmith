@@ -120,7 +120,7 @@ func _plan_settlement(f: Dictionary, is_town: bool) -> void:
 		"nav_regions": [], "nav_state": "none", "is_town": is_town, "state": "far", "plan": plan, "detail": null,
 		"specs": plan.specs.size()}
 	_paint_ground(plan)
-	var far := _far_shell(plan)
+	var far := _far_shell(plan) if not Game.disabled("town_far") else MeshKit.new()
 	if not far.is_empty():
 		stats.far_tris += far.tris
 		var fm := _mesh_node(far.commit(TownMats.get_all(), TownMats.plain_keys() + ["far"]), "Far", FAR_BEGIN, 0.0,
@@ -384,9 +384,18 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	var root := Node3D.new()
 	root.name = "Detail"
 	var surfaces := 0
+	# kill-switches for GPU bisection (--disable town_interiors,town_props,town_lights,town_signs,town_doors,town_far,
+	# town_people,town_probes,town_shadows,town_exterior,rail)
+	var no_int := Game.disabled("town_interiors")
+	var no_props := Game.disabled("town_props")
+	var no_shadow := Game.disabled("town_shadows")
+	var no_ext := Game.disabled("town_exterior")
 	for m in res.meshes:
 		var mesh: ArrayMesh = m[1]
 		if mesh.get_surface_count() == 0:
+			continue
+		var mname := str(m[0])
+		if (no_int and mname.begins_with("Int_")) or (no_shadow and m[4]) or (no_ext and mname.begins_with("Ext_")):
 			continue
 		# shadow casters: one position-only proxy per cell (SHADOWS_ONLY); the detailed mesh casts none
 		var mi := _mesh_node(mesh, m[0], m[2], m[3], GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if m[4] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
@@ -399,6 +408,8 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 		surfaces += (m[1] as MultiMesh).mesh.get_surface_count()
 	stats["surfaces"] = stats.get("surfaces", 0) + surfaces
 	for m in res.mms:
+		if no_props or (no_int and str(m[0]).begins_with("IP_")):
+			continue
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = m[0]
 		mmi.multimesh = m[1]
@@ -436,7 +447,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			rec.body = body
 			root.add_child(body)
 		rec.erase("boxes")
-		if rec.has("probe"):
+		if rec.has("probe") and not Game.disabled("town_probes") and not no_int:
 			var pr := ReflectionProbe.new()
 			pr.name = "Probe"
 			pr.transform = rec.transform * Transform3D(Basis.IDENTITY, rec.probe.center)
@@ -460,7 +471,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 		t.buildings.append(rec.id)
 		t.spots.append_array(rec.spots)
 		stats.buildings += 1
-	for dm in res.doors:
+	for dm in ([] if Game.disabled("town_doors") else res.doors):
 		var mm: MultiMesh = dm[0]
 		var mmi2 := MultiMeshInstance3D.new()
 		mmi2.multimesh = mm
@@ -492,7 +503,8 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			if dsp.leaves.size() == 2 and leaf.sign < 0.0 and doors.has(dsp.id):
 				d.partner = doors[dsp.id]
 				doors[dsp.id].partner = d
-	_make_lights(root, light_specs)
+	if not Game.disabled("town_lights"):
+		_make_lights(root, light_specs)
 	# hitching rails: markers in the "hitching_post" group (horses auto-hitch within 5 m on dismount)
 	for sp in t.spots:
 		if sp.type == "hitch":
@@ -500,6 +512,8 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			hp.name = "HitchingPost"
 			hp.transform = sp.transform
 			hp.add_to_group("hitching_post")
+			hp.set_meta("rail", sp.get("rail", sp.transform.origin))
+			hp.set_meta("fronts", sp.get("fronts", ""))
 			root.add_child(hp)
 	# interiors per building: shown only while the camera is inside or within INT_NEAR of the footprint
 	var by_num := {}
@@ -1239,6 +1253,16 @@ func _self_test() -> void:
 		for s in t.spots:
 			st[s.type] = st.get(s.type, 0) + 1
 		print("town %s: %d structures %s, %d doors, %d spots %s" % [id, t.buildings.size(), str(types), t.doors.size(), t.spots.size(), str(st)])
+		var fronted := {}
+		for sp in t.spots:
+			if sp.type == "hitch" and str(sp.get("fronts", "")) != "":
+				fronted[sp.fronts] = true
+		var unhitched := []
+		for bid in t.buildings:
+			if str(buildings[bid].type) in ["saloon", "store", "cantina"] and not fronted.has(bid):
+				unhitched.append(str(bid).get_file())
+		print("  hitching rails: %d saloons/stores served, without one: %s; depot: %s" % [fronted.size(), str(unhitched),
+			str(types.has("depot"))])
 		if Game.args.has("list"):
 			for bid in t.buildings:
 				var b: Dictionary = buildings[bid]

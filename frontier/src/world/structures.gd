@@ -723,7 +723,7 @@ func _s_street_kit() -> void:
 			"trough":
 				trough(x, z, 2.2, it.get("yaw90", false))
 			"hitch":
-				hitching_rail(x, z, it.get("len", 3.0))
+				hitching_rail(x, z, it.get("len", 3.0), true, str(it.get("fronts", "")))
 			"barrels":
 				var g := ground_local(x, z)
 				prop("barrel_03", Vector3(x, g, z), rng.randf() * 360.0, 1.0, true)

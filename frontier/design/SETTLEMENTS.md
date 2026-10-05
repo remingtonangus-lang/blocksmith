@@ -50,7 +50,11 @@ unchanged API).
 - Lights: OmniLights per lamp/porch/room/fire, culled beyond 140 m, distance-faded at 45–80 m, at most two shadowed
   lights per town; lit windows and lamp glass are emissive materials driven by the night factor.
 - Interior ReflectionProbes (one per furnished building, update once, interior ambient colour).
-- Numbers (cloud software renderer, 960×540; whole frame incl. terrain/vegetation): see the status note.
+- Numbers (cloud software renderer): Bitter Spring main street, Low, 640×360, settlements on, no residents: 218 draw
+  calls, 1.80M primitives for the whole frame (was 675 draws / 20.5M prims before the prop decimation, interior
+  culling and door merge).
+- Kill-switches for GPU bisection: `--disable town_exterior,town_interiors,town_props,town_lights,town_signs,
+  town_doors,town_far,town_probes,town_shadows,town_people,rail` (any subset).
 
 ## API for town life / AI (`Game.main.settlements`)
 ```
@@ -77,6 +81,11 @@ desk_customer, shopkeeper, shop_counter, work, teller, bank_customer, banker_des
 barber, barber_chair, bath, sheriff_desk, cell_bunk, telegrapher, cook, preacher, teacher, ticket_agent,
 ticket_customer, platform, stall, corral, trough, hitch, porch_sit, outhouse, bench, campfire, campfire_seat,
 wagon_seat, well, pump, water_tower, pier_end, fishing.
+`hitch` spots (two per hitching rail, in front of every saloon, store, hotel, livery, sheriff, cantina, cafe and
+smithy on a main street) carry `rail` (world point on the rail bar) and `fronts` (the building id); the rails are
+also `hitching_post` Marker3Ds with the same metadata. Rail towns always get a depot (slid along either side of the
+track until the footprint is free) with a `ticket_agent` spot; `--settlements_test --build <ids>` prints hitch
+coverage and whether a depot was built.
 
 Doors: `TownDoor.interact(by)` toggles (opens away from `by`), `open_from(pos, hold)` for NPCs walking through
 (auto-closes), `push(from)` for saloon batwings (spring back), `is_open()`, signals `opened`/`closed`.

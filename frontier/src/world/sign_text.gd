@@ -110,6 +110,8 @@ static func _load_cache(fnt: String) -> Dictionary:
 
 ## Emit `s` centred at c (kit-local frame), reading along `dir`, facing `out`; fits cap height h and width maxw.
 static func add(kit: MeshKit, s: String, c: Vector3, dir: Vector3, out: Vector3, h: float, maxw: float, col: Color, fnt := "Rye") -> void:
+	if Game.disabled("town_signs"):
+		return
 	var a := atlas(fnt)
 	if a.glyphs.is_empty():
 		return
