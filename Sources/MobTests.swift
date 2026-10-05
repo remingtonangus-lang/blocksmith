@@ -355,6 +355,16 @@ enum MobTests {
         check(!night.isEmpty && bad.isEmpty, "spawn night monsters placed legally", "\(night.count): " + kinds.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key)" }.joined(separator: " ")
               + (bad.isEmpty ? "" : " | bad " + bad.prefix(6).joined(separator: " ")))
         check(mm.count(.monster, near: pos) <= SpawnCategory.monster.cap + 16, "spawn monster cap", "\(mm.count(.monster, near: pos))")
+        // One spawn attempt places at most 4 monsters (reference cluster size; it could place 12). Jockey riders count
+        // with their mounts, so the riders are left out.
+        mm.mobs.removeAll()
+        var biggest = 0
+        for _ in 0..<300 {
+            let before = mm.mobs.filter { $0.mount == nil }.count
+            mm.trySpawnHostile(game)
+            biggest = max(biggest, mm.mobs.filter { $0.mount == nil }.count - before)
+        }
+        check(biggest <= 4, "spawn at most 4 monsters an attempt", "biggest \(biggest)")
         let packs = Dictionary(grouping: night.filter { $0.kind != .slime }) { m in "\(m.kind.key)\(Int(floor(m.pos.x / 12))),\(Int(floor(m.pos.z / 12)))" }
         check(packs.values.contains { $0.count >= 2 }, "spawn monsters come in packs", "biggest \(packs.values.map { $0.count }.max() ?? 0)")
 
