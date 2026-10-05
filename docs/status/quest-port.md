@@ -255,3 +255,9 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 
 HANDOFF 2026-10-05: local branch claude/quest-port in worktree blocksmith-playtest holds the clean merge (committed, NOT pushed:
 no GitHub credentials in the headless session). Next: `git push origin claude/quest-port`, wait for quest.yml, adb install -r.
+
+2026-10-05 (task 15): DONE in code, NOT pushed (no GitHub credentials; no gh/adb here). (1) Quest Reclined Mode: Options > Reclined Mode
+(QuestSettings.reclined, saved); Recenter View / Meta-button recenter then tilts the rig (QuestRig.tilt) so the gaze pitch is level;
+implies seated leaning. Not yet checked on a headset or in QuestSim. (2) Placement: held place cooldown 0.25 -> 0.2 s (4 ticks), and
+the double-tap-jump fly toggle is ignored while right-click is held / within 0.4 s of a placement (Game.swift). Also committed on
+claude/blocksmith-playtest (edeca149). Next: push both branches, wait for CI, adb install -r the Quest APK.
