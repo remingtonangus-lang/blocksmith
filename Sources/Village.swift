@@ -238,7 +238,9 @@ enum Village {
                 guard w.get(x, yy, z) == AIR else { yy -= 1; continue }
                 var b = yy
                 while b > depth && w.get(x, b, z) == AIR { b -= 1 }
-                if b > depth && Blocks.collide[Int(w.get(x, b, z))] { for f in (b + 1)...yy { w.set(x, f, z, DIRT) } }
+                // A floor at the depth itself counts (`b > depth` left pockets floored there open: a seed 777 villager
+                // spent the behaviour sim in one 6 below its house, run 634).
+                if b >= depth && Blocks.collide[Int(w.get(x, b, z))] { for f in (b + 1)...yy { w.set(x, f, z, DIRT) } }
                 yy = b - 1
             }
         } }

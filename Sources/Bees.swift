@@ -10,23 +10,34 @@ struct HiveRecord: Codable { var p: [Int]; var bees: [Bool]; var t: [Float] }
 
 extension MobManager {
     // Bees currently inside hives: nectar flag and seconds spent inside.
+    // Nest and hive block groups (an ID test, not the block key's string, for every loaded hive).
+    static let hiveBases: (BlockID, BlockID) = (Blocks.has("bee_nest") ? Blocks.groupBase[Int(Blocks.id("bee_nest"))] : AIR,
+                                                Blocks.has("beehive") ? Blocks.groupBase[Int(Blocks.id("beehive"))] : AIR)
+
+    // Twice a second with the time since (bees stay inside 30-120 s): every frame it built each loaded hive's block
+    // key string and rewrote the dictionary while iterating it, copying it whole (per-tick allocation hunt).
     func hiveTick(_ dt: Float, _ g: Game) {
         guard !hives.isEmpty else { return }
+        hiveTimer += dt
+        guard hiveTimer >= 0.5 else { return }
+        let step = hiveTimer
+        hiveTimer = 0
         let w = g.world
-        var gone: [IVec3] = []
+        let (nest, hive) = MobManager.hiveBases
+        var changed: [(IVec3, [(nectar: Bool, time: Float)])] = []
         for (h, var bees) in hives {
             guard w.isLoaded(h.x, h.z) else { continue }
-            for i in bees.indices { bees[i].time += dt }
-            let key = Blocks.key(Blocks.groupBase[Int(w.block(h.x, h.y, h.z))])
-            let broken = key != "bee_nest" && key != "beehive"
+            for i in bees.indices { bees[i].time += step }
+            let base = Blocks.groupBase[Int(w.block(h.x, h.y, h.z))]
+            let broken = base != nest && base != hive
             let day = g.daylight > 0.5 && !g.isRainingAt(V3(Float(h.x), Float(h.y + 1), Float(h.z)))
             var keep: [(nectar: Bool, time: Float)] = []
             for b in bees {
                 if broken || (day && b.time > (b.nectar ? 120 : 30)) { releaseBee(w, from: h, angry: broken) } else { keep.append(b) }
             }
-            if keep.isEmpty { gone.append(h) } else { hives[h] = keep }
+            changed.append((h, keep))
         }
-        for h in gone { hives[h] = nil }
+        for (h, keep) in changed { hives[h] = keep.isEmpty ? nil : keep }
     }
 
     func releaseBee(_ w: World, from h: IVec3, angry: Bool) {

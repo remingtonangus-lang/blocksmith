@@ -132,8 +132,11 @@ extension Game {
         func coord(_ i: Int, _ base: Float) -> Float? {
             guard i < a.count else { return nil }
             let s = a[i]
-            if s.hasPrefix("~") { return base + (Float(s.dropFirst()) ?? 0) }
-            return Float(s)
+            // Finite and inside 30 million blocks: "nan", "inf" or 1e20 parsed fine and then trapped in the first
+            // Int(floor()) of a block coordinate.
+            let v: Float? = s.hasPrefix("~") ? base + (Float(s.dropFirst()) ?? 0) : Float(s)
+            guard let r = v, r.isFinite, abs(r) < 30_000_000 else { return nil }
+            return r
         }
         switch cmd {
         case "help", "?":

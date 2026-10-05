@@ -832,7 +832,7 @@ final class Mob {
                 speed = spec.speed * 2
                 // Far from its target, an angry voidwalker blinks closer (reference teleport-towards).
                 if dist > 16 && Rand.float(in: 0..<1) < dt * 0.5 {
-                    let back = simd_normalize(V3(pos.x - player.x, 0, pos.z - player.z))
+                    let back = simd_normalize(V3(pos.x - player.x + 1e-4, 0, pos.z - player.z))     // straight above: no NaN
                     let to = player + back * Rand.float(in: 3...8)
                     let x = Int(floor(to.x)), z = Int(floor(to.z))
                     let top = w.topY(x, z)
@@ -931,6 +931,8 @@ final class Mob {
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
+            if abs(vel.x) < 1e-5 { vel.x = 0 }          // settled: no subnormal tail for `!= 0` tests to see
+            if abs(vel.z) < 1e-5 { vel.z = 0 }
         }
         if kind == .drowned && inWater && canTarget {
             vel.y += ((player.y - pos.y) * 2 - vel.y) * min(1, dt * 3)
@@ -975,7 +977,9 @@ final class Mob {
                 while up <= 1.01 && collides(l + V3(0, up, 0), w) { up += 0.1 }
                 if up <= 1.01 { l.y += up; pos = s.toWorld(l) }
             }
-            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
+            // A length test, not `!= 0`: a crew member's velocity decays geometrically into subnormal floats at its post,
+            // and normalizing those gave NaN, which trapped in the collision test (Int(floor(NaN)); level frigate decks).
+            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && lv.x * lv.x + lv.z * lv.z > 1e-6 {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
                 let h = simd_normalize(V2(lv.x, lv.z))
                 let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
@@ -1109,12 +1113,30 @@ final class Mob {
         }
     }
 
+    // Natural ground (stone, soil, sand, gravel, ores; not leaves): what a cave has overhead and a house doesn't.
+    static let earth: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.opaque[i] && Blocks.fullCollide[i] && ShipParts.natural[i] && !Blocks.key(Blocks.groupBase[i]).hasSuffix("_leaves")
+    }
+
+    // Under natural ground: the first solid block over the head (up to 7 above the feet) is stone, soil and the like.
+    static func underground(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        for yy in (y + 2)...(y + 8) {
+            let b = Int(w.block(x, yy, z))
+            if Blocks.collide[b] || Blocks.opaque[b] { return earth[b] }
+        }
+        return false
+    }
+
     func strollGoal(_ w: World, within area: (V3, Float)? = nil) -> V3? {
         var pr = PathProfile()
         pr.tall = max(1, min(3, Int(ceilf(height - 0.05))))
         pr.span = halfW > 0.5 ? 2 : 1
         pr.doors = opensDoors
         let y0 = Int(floor(pos.y + 0.01))
+        // Villagers and golems don't stroll into caves: a goal with natural ground overhead is passed over (a stroll
+        // a block or two down at a time led a villager 6 blocks under its village into a cave it had no way out of:
+        // behaviour sim seed 777, 121 give-ups on its way to bed, run 634). One already underground strolls as before.
+        let caveShy = (kind == .villager || kind == .ironGolem) && !Mob.underground(w, Int(floor(pos.x)), y0, Int(floor(pos.z)))
         for _ in 0..<6 {
             let ang: Float = Rand.float(in: 0..<(2 * .pi))
             let d: Float = Rand.float(in: 3...9)
@@ -1131,7 +1153,7 @@ final class Mob {
             let off: Float = pr.span == 2 ? 1 : 0.5
             for dy in [0, 1, -1, 2, -2] {
                 let g = V3(Float(x) + off, Float(y0 + dy), Float(z) + off)
-                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(g) { return g }
+                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, y0 + dy, z)) { return g }
             }
         }
         return nil
@@ -1747,6 +1769,7 @@ final class MobManager {
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
+    var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)

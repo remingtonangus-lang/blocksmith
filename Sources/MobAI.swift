@@ -67,10 +67,25 @@ extension Mob {
     }
 
     // Something this mob should keep away from, if any (position of the threat).
+    // What each kind shies away from, built once (threat() runs every frame for these kinds; set and array literals
+    // in it allocated on every call).
+    private enum Shy {
+        static let catLike: [MobKind] = [.cat, .ocelot]
+        static let wolf: [MobKind] = [.wolf]
+        static let rabbitFoes: [MobKind] = [.wolf, .fox, .ocelot, .cat]
+        static let foxFoes: [MobKind] = [.wolf, .polarBear]
+        static let llamas: [MobKind] = [.llama, .traderLlama]
+        static let piglinFoes: [MobKind] = [.zombifiedPiglin, .zoglin]
+        static let rabbitLures: Set<String> = ["carrot", "golden_carrot", "dandelion"]
+        static let ocelotLures: Set<String> = ["cod", "salmon"]
+        static let soulFire: Set<String> = ["soul_fire", "soul_torch", "soul_wall_torch", "soul_lantern", "soul_campfire"]
+        static let hoglinRepel: Set<String> = ["warped_fungus", "nether_portal", "respawn_anchor"]
+    }
+
     func threat(_ g: Game) -> V3? {
         let player = g.player.pos
         let alive = g.alive && g.survival
-        func near(_ kinds: Set<MobKind>, _ r: Float, tamedOnly: Bool = false) -> V3? {
+        func near(_ kinds: [MobKind], _ r: Float, tamedOnly: Bool = false) -> V3? {
             var best: V3?
             var bd = r
             for k in kinds { for o in g.mobs.of(k) where o !== self && o.health > 0 {
@@ -82,27 +97,27 @@ extension Mob {
         }
         switch kind {
         case .creeper:
-            return near([.cat, .ocelot], 6)
+            return near(Shy.catLike, 6)
         case .skeleton, .stray, .bogged:
-            return near([.wolf], 6)
+            return near(Shy.wolf, 6)
         case .rabbit:
-            if alive && simd_length(player - pos) < 8 && !["carrot", "golden_carrot", "dandelion"].contains(Items.key(g.held.item)) { return player }
-            return near([.wolf, .fox, .ocelot, .cat], 10)
+            if alive && simd_length(player - pos) < 8 && !Shy.rabbitLures.contains(Items.key(g.held.item)) { return player }
+            return near(Shy.rabbitFoes, 10)
         case .fox:
-            if tamed { return near([.wolf, .polarBear], 8) }
+            if tamed { return near(Shy.foxFoes, 8) }
             if alive && !g.player.sneaking && simd_length(player - pos) < 16 { return player }
-            return near([.wolf, .polarBear], 8)
+            return near(Shy.foxFoes, 8)
         case .ocelot:
             if !tamed && alive && !g.player.sneaking && simd_length(player - pos) < 16
-                && !["cod", "salmon"].contains(Items.key(g.held.item)) { return player }
+                && !Shy.ocelotLures.contains(Items.key(g.held.item)) { return player }
             return nil
         case .wolf:
             if tamed || aggro { return nil }
-            return near([.llama, .traderLlama], 8)
+            return near(Shy.llamas, 8)
         case .piglin:
-            return near([.zombifiedPiglin, .zoglin], 6) ?? repellent(g, ["soul_fire", "soul_torch", "soul_wall_torch", "soul_lantern", "soul_campfire"])
+            return near(Shy.piglinFoes, 6) ?? repellent(g, Shy.soulFire)
         case .hoglin:
-            return repellent(g, ["warped_fungus", "nether_portal", "respawn_anchor"])
+            return repellent(g, Shy.hoglinRepel)
         default:
             return nil
         }

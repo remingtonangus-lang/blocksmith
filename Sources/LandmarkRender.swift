@@ -41,6 +41,7 @@ extension Renderer {
         let hdrK: Float = hdrActive ? 1.6 : 1
         let place: Float = far * 0.93
         var smoke = landmarkSmoke
+        landmarkSmoke = []                       // uniquely held now: removeAll keeps the buffer instead of copying it
         smoke.removeAll(keepingCapacity: true)
         // Every impostor vertex goes onto a shell just inside the far plane, along its own direction (same size on
         // screen), the radius growing a little with the true distance so nearer faces still cover farther ones. The shell

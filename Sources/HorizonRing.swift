@@ -14,6 +14,7 @@ final class HorizonRing {
     static var range: Float { Float(spacing * cells) }
 
     struct Snapshot {
+        var seed: UInt64 = 0                     // the world it was sampled from
         var x0 = 0, z0 = 0                       // world position of sample (0, 0)
         var n = 0                                // samples per side
         var h: [Float] = []
@@ -41,28 +42,32 @@ final class HorizonRing {
         building = true
         wantKey = (kx, kz)
         seed = g.world.seed
+        // Another world (a different save loaded): its first ring is built now, not left showing the last world's.
+        let fresh = snap?.seed != seed
+        let sd = seed
         lock.unlock()
         let s = HorizonRing.spacing, n = HorizonRing.cells * 2 + 1
         let x0 = kx * 256 + 128 - HorizonRing.cells * s, z0 = kz * 256 + 128 - HorizonRing.cells * s
         // The first ring is built here and now (once, at load: a snapshot or the first frame has it); later ones in the
         // background while the old ring stays up.
-        if current() == nil {
-            let out = HorizonRing.sample(gen, x0: x0, z0: z0, n: n, s: s)
+        if fresh {
+            let out = HorizonRing.sample(gen, seed: sd, x0: x0, z0: z0, n: n, s: s)
             lock.lock(); snap = out; building = false; lock.unlock()
             return
         }
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let out = HorizonRing.sample(gen, x0: x0, z0: z0, n: n, s: s)
+            let out = HorizonRing.sample(gen, seed: sd, x0: x0, z0: z0, n: n, s: s)
             guard let self else { return }
             self.lock.lock()
-            self.snap = out
+            // A build for a world left meanwhile is dropped (the next request starts the new world's).
+            if out.seed == self.seed { self.snap = out } else { self.wantKey = (Int.min, Int.min) }
             self.building = false
             self.lock.unlock()
         }
     }
 
-    static func sample(_ gen: WorldGen, x0: Int, z0: Int, n: Int, s: Int) -> Snapshot {
-        var out = Snapshot(x0: x0, z0: z0, n: n, h: [], c: [])
+    static func sample(_ gen: WorldGen, seed: UInt64, x0: Int, z0: Int, n: Int, s: Int) -> Snapshot {
+        var out = Snapshot(seed: seed, x0: x0, z0: z0, n: n, h: [], c: [])
         out.h.reserveCapacity(n * n)
         out.c.reserveCapacity(n * n)
         for j in 0..<n {
@@ -89,7 +94,7 @@ extension Renderer {
                       hdrK: Float, project p: (V3) -> V4) {
         let ring = HorizonRing.shared
         ring.request(game, eye: eye)
-        guard let s = ring.current(), s.n > 1 else { return }
+        guard let s = ring.current(), s.n > 1, s.seed == game.world.seed else { return }
         let sp = Float(HorizonRing.spacing)
         let range = HorizonRing.range
         let inner = loaded * 0.8                 // under the loaded terrain it is hidden anyway; this fills streaming gaps

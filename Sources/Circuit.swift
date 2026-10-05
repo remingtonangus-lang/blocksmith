@@ -362,13 +362,16 @@ final class Circuit {
             for e in due { scheduledSet.remove(e.p) }
             for e in due { fire(e.p) }
         }
-        var n = 0
-        while !dirty.isEmpty && n < 20000 {
-            let p = dirty.removeFirst()
+        // First in, first out by a read index (removeFirst() moved the whole queue each time: quadratic in a big
+        // circuit's 20,000 updates); updates may append more, which this tick still reaches up to the cap.
+        var head = 0
+        while head < dirty.count && head < 20000 {
+            let p = dirty[head]
+            head += 1
             dirtySet.remove(p)
             update(p)
-            n += 1
         }
+        if head > 0 { dirty.removeFirst(head) }
         periodic()
     }
 

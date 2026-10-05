@@ -178,7 +178,9 @@ extension Game {
 
     // An officer and the soldiers nearest the gate; fresh ones march out of the barracks if the garrison is thin.
     private func formPatrol(_ r: BaseRecord, _ b: BaseWatch, size: Int) -> [Mob] {
-        var gar = garrison(r, b).filter { !$0.aggro && $0.kind != .soldierMarksman && $0.kind != .soldierIronclad && ($0.brain?.station ?? .none) == .none }
+        // Typed: `?? .none` / `== .none` read as Optional.none, so every soldier at StationPose.none failed the test and
+        // patrols were always fresh troops from the barracks (compiler warning on the fast lane).
+        var gar = garrison(r, b).filter { !$0.aggro && $0.kind != .soldierMarksman && $0.kind != .soldierIronclad && ($0.brain?.station ?? StationPose.none) == StationPose.none }
         gar.sort { simd_length($0.pos - r.gate) < simd_length($1.pos - r.gate) }
         var team: [Mob] = []
         if let i = gar.firstIndex(where: { $0.kind == .soldierOfficer }) { team.append(gar.remove(at: i)) }
@@ -257,7 +259,10 @@ extension Game {
             if abs(pp.x - (Float(p.x) + 0.5)) < 0.9 && abs(pp.z - (Float(p.z) + 0.5)) < 0.9 && Float(p.y) + 1 > pp.y && Float(p.y) < pp.y + 1.8 {
                 skipped.append((p, id)); continue
             }
-            world.setBlock(p.x, p.y, p.z, id)
+            // Re-meshed in the background (a synchronous remesh of the sections round each block cost ~0.8 ms, two a
+            // second: the citadel update averaged 2.6 ms, --basetest run 634); water beside it settles as usual.
+            world.setBlockAsync(p.x, p.y, p.z, id)
+            world.scheduleFluid(around: p)
             if away <= 5 {
                 particles.blockBreak(id, at: p)
                 sfx(.place(soundMat(id)), 0.7, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))

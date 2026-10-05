@@ -222,7 +222,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float mv = vnoise(wq3.xz * 0.11 + wq3.y * 0.07) * 0.7 + vnoise(wq3.xz * 0.37 - wq3.y * 0.13) * 0.3;
     albedo *= 0.93 + 0.14 * mv;
     uint layer = uint(in.layer);
-    float4 m = float4(mats[layer]) / 255.0;          // x spec, y shininess/255, z metal, w can get wet
+    float4 m = float4(mats[layer * 2]) / 255.0;      // x spec, y shininess/255, z metal, w can get wet
     float3 n = normalize(in.nrm);
     float3 v = normalize(in.rel);
     float skyL = in.light.x, blkL = in.light.y;
@@ -302,7 +302,8 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         float g = fract(sin(dot(tq, float2(12.9898, 78.233))) * 43758.5453);
         col += u.sunColor.rgb * step(0.975, g) * ndl * shadow * sunVis * 3.0;
     }
-    float e = emis.sample(texSampler, in.uv, layer).r;
+    uchar4 es = mats[layer * 2 + 1];                 // emissive slice (0: the dark one), sampled unbranched
+    float e = emis.sample(texSampler, in.uv, uint(es.x) | (uint(es.y) << 8)).r;
     // Lava keeps its orange body (a strong boost clips it to flat yellow); other emitters glow harder.
     // In full daylight emitters need far less boost (they'd clip to white); at night/underground they glow.
     float eK = mix(2.4, 0.8, sunVis * saturate(u.params.y));

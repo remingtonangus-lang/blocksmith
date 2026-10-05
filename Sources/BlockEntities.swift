@@ -30,9 +30,23 @@ final class BlockEntity: Codable {
         return c
     }()
 
+    // Container slots per kind (a switch: the old ternary chain had no wooden-shelf case, so shelves got none).
+    static func slotCount(_ k: Kind) -> Int {
+        switch k {
+        case .chest, .shulker: return 27
+        case .shelf: return 6
+        case .furnace, .display: return 3
+        case .hopper, .brewing: return 5
+        case .campfire: return 4
+        case .frame, .lectern, .pot: return 1
+        case .dispenser, .crafter: return 9
+        default: return 0
+        }
+    }
+
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser || k == .crafter ? 9 : 0))))
+        items = Array(repeating: .empty, count: BlockEntity.slotCount(k))
         // Item frames keep their rotation (45 degree steps) in `delay`: they start upright (the spawner default of 10
         // turned every framed item a quarter turn).
         if k == .frame { delay = 0 }
@@ -43,6 +57,9 @@ final class BlockEntity: Codable {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
         items = try c.decode([ItemStack].self, forKey: .items)
+        // Wooden shelves were made with no slots (the count had no .display case: using one indexed past the end);
+        // saved ones come back with their three.
+        if kind == .display && items.count < 3 { items += Array(repeating: .empty, count: 3 - items.count) }
         burn = (try? c.decode(Int.self, forKey: .burn)) ?? 0
         burnMax = (try? c.decode(Int.self, forKey: .burnMax)) ?? 0
         cook = (try? c.decode(Int.self, forKey: .cook)) ?? 0

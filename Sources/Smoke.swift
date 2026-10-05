@@ -40,6 +40,7 @@ enum Smoke {
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
         var frameMs: [Double] = []
+        var worst: (ms: Double, frame: Int, tickMs: Double) = (0, 0, 0)
         frameMs.reserveCapacity(frames)
         var minCov = 1.0, peak = residentMB(), maxMobs = 0, maxDropped = 0
         let start = CFAbsoluteTimeGetCurrent()
@@ -158,8 +159,12 @@ enum Smoke {
             if coop {
                 // Player 2: the same walk and jumps, veering right; their own inventory at 15 s (not the pause).
                 var q = p
-                // Turning as player 1 does (-0.1 sat inside the look dead zone: player 2 walked into one tree for 50 s).
-                q.lx = 0.45; q.rx = -0.25; q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
+                // A zigzag: half a second's turn right, then left five seconds later, so a tree or wall in the way is
+                // left behind (-0.1 sat inside the look dead zone: player 2 walked into one tree for 50 s, run 563) and
+                // the walk still gets somewhere (a steady -0.25 walked an 8-block circle: 7 blocks from the start, run 634).
+                let turn = i % 600
+                q.lx = 0.45; q.rx = turn < 30 ? -0.6 : (turn >= 300 && turn < 330 ? 0.6 : 0)
+                q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
                 game.coop.simulated[1] = q
                 if i % 600 == 0 {
                     // Where player 2 is and what holds them (run 509: they moved 12 blocks in 60 s).
@@ -173,25 +178,38 @@ enum Smoke {
                 }
             }
             let b = CFAbsoluteTimeGetCurrent()
-            progress.set(i, "Game.tick")
-            game.tick(dt)
-            progress.set(i, "renderFrame")
-            if i > flyAt {
-                // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
-                let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
-                game.player.pos += f * Float(20 * dt)
-                let gy = Float(world.topY(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.z))) + 12)
-                if game.player.pos.y < gy { game.player.pos.y = gy }
+            var tickEnd = b
+            // One autorelease pool per frame, as the app's MTKView draw callback gets from the run loop: this loop has
+            // none, so every autoreleased Metal object piled up until exit (resident grew ~20 MB/s while streaming,
+            // runs 605-634, with Metal memory flat).
+            let made: Bool = autoreleasepool {
+                progress.set(i, "Game.tick")
+                game.tick(dt)
+                tickEnd = CFAbsoluteTimeGetCurrent()
+                progress.set(i, "renderFrame")
+                if i > flyAt {
+                    // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
+                    let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+                    game.player.pos += f * Float(20 * dt)
+                    let gy = Float(world.topY(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.z))) + 12)
+                    if game.player.pos.y < gy { game.player.pos.y = gy }
+                }
+                guard let cmd = r.queue.makeCommandBuffer() else { return false }
+                let fence = MeshArena.frameSubmitted()
+                cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
+                r.renderFrame(cmd, final: target.rpd, width: W, height: H)
+                cmd.commit()
+                progress.set(i, "GPU wait")
+                cmd.waitUntilCompleted()
+                return true
             }
-            guard let cmd = r.queue.makeCommandBuffer() else { print("smoke: no command buffer"); return 2 }
-            let fence = MeshArena.frameSubmitted()
-            cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
-            r.renderFrame(cmd, final: target.rpd, width: W, height: H)
-            cmd.commit()
-            progress.set(i, "GPU wait")
-            cmd.waitUntilCompleted()
+            if !made { print("smoke: no command buffer"); return 2 }
             progress.set(i + 1, "frame done")
             frameMs.append((CFAbsoluteTimeGetCurrent() - b) * 1000)
+            if frameMs[frameMs.count - 1] > worst.ms {
+                // Which frame was the worst and where its time went (runs 605-634: 300-840 ms, nothing said which).
+                worst = (frameMs[frameMs.count - 1], i, (tickEnd - b) * 1000)
+            }
             let pp = game.player.pos
             guard pp.x.isFinite && pp.y.isFinite && pp.z.isFinite else {
                 print("smoke rd \(rd): FAIL player position became \(pp) at \(String(format: "%.1f", t)) s"); return 1
@@ -202,6 +220,10 @@ enum Smoke {
                              rd, game.fancyGraphics ? "Fancy" : "Fast", t, frameMs.last ?? 0, residentMB(),
                              Double(device.currentAllocatedSize) / 1_048_576, game.mobs.mobs.count, Bench.coverage(world, pp) * 100))
                 print("smoke rd \(rd) mob drawing: " + MobDrawStats.line)      // mobs were invisible in real play (2026-10-05)
+                // What lives in memory (resident grew ~20 MB/s while flying, runs 605-634): chunks alive vs loaded, and
+                // the long-lived collections.
+                let stashed: Int = game.mobs.stored.values.reduce(0) { $0 + $1.count }
+                print("smoke rd \(rd) memory: chunks alive \(Chunk.alive), loaded \(world.chunks.count); stashed mobs \(stashed); map cells \(MapCache.shared.cellCount); block entities \(world.blockEntities.count); gravity queue \(world.gravityQueue.count); fluid pending \(world.fluidPending.count); jobs \(world.pendingJobs)")
                 fflush(stdout)
             }
             if i % 30 == 0 {
@@ -218,6 +240,8 @@ enum Smoke {
         let sorted = frameMs.sorted()
         func pct(_ q: Double) -> Double { sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * q))] }
         let dist = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+        print(String(format: "smoke rd %ld: worst frame %.0f ms at %.1f s (frame %ld): Game.tick %.0f ms, render + GPU %.0f ms; frames over 100 ms: %ld",
+                     rd, worst.ms, Double(worst.frame) * dt, worst.frame, worst.tickMs, worst.ms - worst.tickMs, frameMs.filter { $0 > 100 }.count))
         print(String(format: "smoke rd %ld: %ld frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %ld, travelled %.0f blocks, resident peak %.0f MB, menu %@",
                      rd, frames, wall, pct(0.5), pct(0.95), pct(0.99), sorted.last ?? 0, minCov * 100, maxMobs, dist, peak,
                      game.menu == nil && !game.paused ? "closed" : "STILL OPEN"))

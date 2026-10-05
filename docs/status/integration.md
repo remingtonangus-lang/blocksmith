@@ -126,6 +126,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   terrain (nothing is drawn there), so their haze-coloured feet read as a pale disc. A fix needs far terrain (a coarse
   horizon ring), not impostor tweaks; parked.
 
+## Fast-lane shots and leaves
+- Fast-lane shots render at 32 px textures (BLOCKSMITH_TEXRES=32): leaves vanish at mid range there (citadel_far on
+  e7124b3 looked like a forest of bare trunks, horizon_ring showed leafless sticks), while the 128 px game and the heavy
+  lane draw them. Judge trees on heavy-lane shots only. (Players can't pick 32 px: textureRes is not in Options.)
+
 ## Frigates (session B request, 2026-10-05 ~02:50 UTC)
 - Session B: go ahead with BOTH frigate hulls on claude/bs-frigates (CapitalFrigate.swift and the Stormwarden
   warfrigate); the integration session is not editing CapitalFrigate.swift and will not touch it meanwhile. Please keep:
@@ -134,12 +139,42 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   helm APIs. Mob vertex buffers now grow to 16 MB and draw nearest first (2ab6bf7), so bigger crews are fine; the
   Capital soldier rig is 190 parts close up, so keep crews modest per deck in view. Original names only (public repo).
 
+## Run 634 (4d315cd, heavy) read-out
+- Red: perf (flight24 resident peak 722 MB vs baseline 512, gate 1.4x; run 605 had 675), ridecheck crew (trooper 1.88
+  off post 0; also red on run 605, so from the soldier merge, not the horizon ring), basetest "citadel update stays
+  cheap" (2.6 / 1.3 ms, both rebuild scenes), smoke 8c (player 2 circled: 7 blocks net, not gating). Green: checks,
+  play, smoke rd 8/16/24/24f.
+- Memory: flight8 125 -> 242 MB since the 2026-10-02 baseline at the same chunk counts: the 128 px textures and Fancy.
+  The emissive mask was a full 128 px slice per layer (37 MB GPU + 37 MB CPU at start-up), now one per glowing layer.
+  Baseline left as is; if the gate still trips after this, re-baseline only the resident_peak_mb rows with the reason.
+- Crew: calm crawler troopers strolled round their world-space spawn point (stream D's stroll circle / homing) while the
+  hull drove off; crew with a post aboard now keep watch. Citadel rebuild: setBlockAsync (stream D: both in your files,
+  small; shout in STATUS if you'd rather have it another way).
+- Verified at 128 px: citadel_far trees whole (no bare trunks or leaf plates round the site); horizon_ring_evening reads
+  as faint far ground in the haze. base_patrol frames the camera on a leaf canopy (patrol not in view): stream D's shot.
+
+- Session log 08:10-08:40 UTC: run 651 (7264bb4) superseded by 076df09 while still queued (no runner had started it);
+  run 652 (076df09) superseded by aada510 after its fast lane (emissive glow shots checked) and before its heavy build
+  started. Also pushed: horizon ring per world seed, villagers/golems don't stroll into caves, village cave sealing
+  counts a floor at the fill depth.
+
+- 08:55 UTC: cancelled runs 651 (7264bb4) and 657 (aada510): superseded by later pushes but still queued for macOS
+  runners ahead of run 658 (pushing over a queued run does not cancel it; cancel it explicitly).
+
+- 09:10 UTC: cancelled run 658 (fcaeb04) after its fast lane passed (no warnings) and before its heavy build got a
+  runner: one heavy run on the next push covers it and ~25 later commits instead of two queue cycles.
+
 ## Next
+- Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
+  rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
+  (WorldMap Minimap.lines + CombatHUD + HudExtras concatenations, ContextPrompts strings: one inout buffer, cached
+  prompt text); hotbar block icons rebuild their boxes and uv arrays per slot per frame (cache per BlockID); block
+  outline / crack / sky / arm arrays in Renderer.encode (static lets); flashes sorted twice per Fancy frame.
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
   to 16 MB and draw nearest first (2ab6bf7), but a cheaper LOD 0 (merge trim/buttons/badges into fewer boxes, or LOD 1
   from ~8 blocks) would save CPU and memory. The behaviour-sim trace now prints why idle citadel soldiers spin.
 - Checked on run 509 (639eb75): citadel_turret (twin 42 cm gunhouse on its barbette, soldiers drawn on the plaza)
   and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
-- structcheck / fortresstest on the new citadel (walkability: ladders, doors, pad, skyways; mobs not in blocks).
-- Make --ridetest gating once it passes (or hand it to stream B).
+- (Done) structcheck covers the citadel: 9 checked, 99 POIs, 333 mobs, no issues (run 634).
+- (Done) --ridecheck gates the tours lane (its crew failure turned run 634 red).

@@ -33,7 +33,7 @@ final class Vibrant {
     private(set) var raysTex: MTLTexture?
     private var size = (0, 0)
 
-    init(device: MTLDevice, library lib: MTLLibrary, finalFormat: MTLPixelFormat, emissive mask: [UInt8]) throws {
+    init(device: MTLDevice, library lib: MTLLibrary, finalFormat: MTLPixelFormat, emissive mask: [UInt8], slots: [Int]) throws {
         self.device = device
         let hdrF = MTLPixelFormat.rgba16Float
         func pipe(_ vs: String, _ fs: String?, color: MTLPixelFormat?, depth: MTLPixelFormat = .depth32Float,
@@ -97,12 +97,15 @@ final class Vibrant {
         shadowMap = device.makeTexture(descriptor: sd)!
         shadowStatic = device.makeTexture(descriptor: sd)!
 
-        // Emissive mask (R8) per texture layer, with box-filtered mips like the colour atlas.
+        // Emissive mask (R8), with box-filtered mips like the colour atlas: one slice per glowing layer (emitters and
+        // ores, `slots`), slice 0 dark for every other layer. A slice for each of the ~1700 layers held 37 MB on the GPU
+        // and as much again on the CPU while it was built, nearly all of it zero (run 634's flight24 memory gate).
         let S = TextureGen.size, layers = Tex.count
+        let slices = max(1, mask.count / (S * S))
         let ed = MTLTextureDescriptor()
         ed.textureType = .type2DArray
         ed.pixelFormat = .r8Unorm
-        ed.width = S; ed.height = S; ed.arrayLength = layers
+        ed.width = S; ed.height = S; ed.arrayLength = slices
         var lv = 0, sz = S
         while sz >= 1 { lv += 1; sz /= 2 }
         ed.mipmapLevelCount = lv
@@ -111,15 +114,15 @@ final class Vibrant {
         var cur = mask, cs = S
         for level in 0..<lv {
             cur.withUnsafeBytes { raw in
-                for l in 0..<layers {
+                for l in 0..<slices {
                     em.replace(region: MTLRegionMake2D(0, 0, cs, cs), mipmapLevel: level, slice: l,
                                      withBytes: raw.baseAddress! + l * cs * cs, bytesPerRow: cs, bytesPerImage: cs * cs)
                 }
             }
             if cs == 1 { break }
             let ns = cs / 2
-            var next = [UInt8](repeating: 0, count: ns * ns * layers)
-            for l in 0..<layers { for y in 0..<ns { for x in 0..<ns {
+            var next = [UInt8](repeating: 0, count: ns * ns * slices)
+            for l in 0..<slices { for y in 0..<ns { for x in 0..<ns {
                 let b = l * cs * cs
                 // Typed steps: the one-line 4-term sum timed out the type checker on the Mac (Swift 6.3).
                 let r0: Int = b + (2 * y) * cs + 2 * x
@@ -132,7 +135,15 @@ final class Vibrant {
             cur = next; cs = ns
         }
         emissive = em
-        let mats = Vibrant.materialTable(layers: layers)
+        // Per layer two uchar4s: the material, then the emissive slice (x low byte, y high byte).
+        let table = Vibrant.materialTable(layers: layers)
+        var mats = [UInt8](repeating: 0, count: layers * 8)
+        for l in 0..<layers {
+            for c in 0..<4 { mats[l * 8 + c] = table[l * 4 + c] }
+            let slot = l < slots.count ? slots[l] : 0
+            mats[l * 8 + 4] = UInt8(slot & 255)
+            mats[l * 8 + 5] = UInt8((slot >> 8) & 255)
+        }
         materials = device.makeBuffer(bytes: mats, length: max(16, mats.count), options: .storageModeShared)!
     }
 
@@ -159,12 +170,21 @@ final class Vibrant {
         return mode
     }
 
-    // Emissive mask (R8, S x S per layer) for layers first..<first+count, from their full-size RGBA (`base` holds just
-    // those layers), written into `out` (all layers). The renderer calls it once per batch of built layers.
-    static func emissiveMask(_ base: [UInt8], first: Int, count: Int, modes mode: [Float], into out: inout [UInt8]) {
+    // The emissive slice of each layer: 1, 2, ... for the layers that glow in order, 0 (the dark slice) for the rest.
+    static func emissiveSlots(_ mode: [Float]) -> (slots: [Int], count: Int) {
+        var slots = [Int](repeating: 0, count: mode.count)
+        var n = 1
+        for l in mode.indices where mode[l] != 0 { slots[l] = n; n += 1 }
+        return (slots, n)
+    }
+
+    // Emissive mask (R8, S x S per slice) for layers first..<first+count, from their full-size RGBA (`base` holds just
+    // those layers), written into `out` at each glowing layer's slice. The renderer calls it once per batch of layers.
+    static func emissiveMask(_ base: [UInt8], first: Int, count: Int, modes mode: [Float], slots: [Int], into out: inout [UInt8]) {
         let S = TextureGen.size
         for lb in 0..<count where mode[first + lb] != 0 {
             let l = first + lb
+            let o = slots[l] * S * S
             for i in 0..<(S * S) {
                 let p = (lb * S * S + i) * 4
                 let r = Float(base[p]) / 255, g = Float(base[p + 1]) / 255, b = Float(base[p + 2]) / 255, a = Float(base[p + 3]) / 255
@@ -179,7 +199,7 @@ final class Vibrant {
                     let t = simd_clamp((mx - mn - 0.2) / 0.3, 0, 1)
                     e = t * 0.05
                 }
-                out[l * S * S + i] = UInt8(min(255, e * 255))
+                out[o + i] = UInt8(min(255, e * 255))
             }
         }
     }

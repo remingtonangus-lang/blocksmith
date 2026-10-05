@@ -23,6 +23,8 @@ final class MapCache {
     private var marksWorld = ""
     private var scanTimer: Double = 0
 
+    var cellCount: Int { lock.lock(); defer { lock.unlock() }; return cells.count }     // smoke memory line
+
     static func key(_ cx: Int, _ cz: Int) -> Int64 { (Int64(cx) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
 
     // Switches to a generator (new world or dimension): the cache restarts.

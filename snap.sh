@@ -37,7 +37,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 # Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
-"$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18
+"$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18 --strict
 # Structure walkability: every structure kind in every dimension, 3 seeds x 3 instances (report: snaps/structcheck.md).
 "$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md
 # Issue gallery: the first ten structcheck views, from the walk's closest cell toward an unreachable chest or bed.
@@ -125,7 +125,7 @@ done
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
 "$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
-"$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
+"$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest        # gating: split screen seat checks (green since run 563)
 "$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
 "$BIN" --snapshot snaps/tv_coop_side.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop --splitside
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12

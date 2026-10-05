@@ -82,6 +82,7 @@ enum Bench {
             case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
+            case "mobprof": mobLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
                 flight(device, seed, rd: Int(name.dropFirst(6)) ?? 16, seconds: quick ? 5 : 12, speed: 20)
             default: print("bench: unknown scene \(s)")
@@ -406,6 +407,23 @@ enum Bench {
         print("bench edit: break mean \(f(b.mean)) ms max \(f(b.max)) ms, place mean \(f(p.mean)) ms max \(f(p.max)) ms (synchronous remesh)")
     }
 
+    // The mobs scene's 150 mobs ticking for `seconds`, for perf/profile.sh (the scene itself takes about a second; run
+    // 634: tick 0.31 ms empty and 6.7 us a mob, 10x and 4x the 2026-10-02 baseline, with nothing saying where).
+    static func mobLoop(_ device: MTLDevice, _ seed: UInt64, seconds: Double) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        let kinds: [MobKind] = [.cow, .sheep, .pig, .chicken, .zombie, .skeleton, .spider, .rabbit, .wolf, .horse]
+        for i in 0..<150 {
+            let x = Int(floor(pos.x)) + (i % 15) * 2 - 15, z = Int(floor(pos.z)) + (i / 15) * 3 - 15
+            let y = game.mobs.grassSurface(world, x, z) ?? (world.topY(x, z) + 1)
+            game.mobs.mobs.append(Mob(kinds[i % kinds.count], at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
+        }
+        let a = now
+        var n = 0
+        while now - a < seconds { game.player.pos = pos; game.tick(1.0 / 60); n += 1 }
+        print("bench mobprof: \(n) ticks in \(f(seconds, 0)) s, \(game.mobs.mobs.count) mobs alive")
+    }
+
     static func mobs(_ device: MTLDevice, _ seed: UInt64) {
         let (world, game, pos) = setup(device, seed, rd: 6)
         _ = world.loadSync(center: pos, radius: 6)
@@ -559,10 +577,15 @@ enum Bench {
             pos.y = want > pos.y ? want : max(want, pos.y - 6 * Float(dt))
             game.player.pos = pos
             game.player.vel = .zero
-            let b = now
-            game.tick(dt)
-            let tk = now - b
-            let (e, g) = r.benchFrame(target)
+            // A pool per frame, as the app's draw callback has (this loop had none: every autoreleased Metal object
+            // stayed until exit and counted in resident_peak_mb, the memory gate run 634 failed).
+            let (tk, e, g): (Double, Double, Double) = autoreleasepool {
+                let b = now
+                game.tick(dt)
+                let tk = now - b
+                let (e, g) = r.benchFrame(target)
+                return (tk, e, g)
+            }
             tick.append(tk * 1000); enc.append(e * 1000); gpu.append(g * 1000); cull.append(r.cullSeconds * 1000)
             upd.append(world.perf.updateSeconds * 1000)
             est.append(max(tk + e, g) * 1000)

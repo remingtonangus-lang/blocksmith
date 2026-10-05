@@ -1,3 +1,4 @@
+import Foundation
 import Metal
 
 let CS = 16          // chunk width/depth
@@ -129,7 +130,14 @@ final class Chunk {
     var dirty = false              // a section's version changed since World.update last looked at this chunk
     var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
 
+    // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
+    // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.
+    static let aliveLock = NSLock()
+    private(set) static var alive = 0
+    deinit { Chunk.aliveLock.lock(); Chunk.alive -= 1; Chunk.aliveLock.unlock() }
+
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {
+        Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
         self.cz = cz
         self.blocks = BlockStore(blocks)

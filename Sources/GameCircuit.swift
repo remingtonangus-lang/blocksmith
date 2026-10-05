@@ -185,12 +185,14 @@ extension Game {
         sfx(.click, 0.5, at: from)
     }
 
+    static let hopperOut: [IVec3] = [IVec3(0, -1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
+
     // One hopper step: push one item out, then pull one in from above (container or dropped items).
     func hopperTransfer(_ p: IVec3, out: Int) -> Bool {
         let be = world.blockEntities[p] ?? { let e = BlockEntity(.hopper); world.blockEntities[p] = e; return e }()
         let c = be.container
         var moved = false
-        let target = p + [IVec3(0, -1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)][out]
+        let target = p + Game.hopperOut[out]
         if let t = world.blockEntities[target], t.kind != .spawner {
             for i in 0..<c.count where !c[i].isEmpty {
                 let one = ItemStack(c[i].item, 1)
@@ -208,7 +210,7 @@ extension Game {
         // Pull from above.
         let above = p + IVec3(0, 1, 0)
         if let src = world.blockEntities[above], src.kind != .spawner {
-            let range: [Int] = src.kind == .furnace ? [2] : Array(0..<src.container.count)
+            let range: Range<Int> = src.kind == .furnace ? 2..<3 : 0..<src.container.count      // a range: no array per tick
             for i in range where !src.container[i].isEmpty {
                 let one = ItemStack(src.container[i].item, 1)
                 if c.add(one).isEmpty {

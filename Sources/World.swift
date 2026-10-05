@@ -481,8 +481,12 @@ final class World {
 
         if World.deterministic { workQueue.waitUntilAllOperationsAreFinished() }
         lock.lock()
-        var gr = genResults; genResults.removeAll(keepingCapacity: true)
-        var mr = meshResults; meshResults.removeAll(keepingCapacity: true)
+        // Taken by swap: copying then removeAll(keepingCapacity:) on the shared buffer allocated a fresh one of the full
+        // capacity twice a frame, results or not, while the workers waited on this lock.
+        var gr: [(ChunkKey, Produced)] = []
+        var mr: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
+        if !genResults.isEmpty { swap(&gr, &genResults) }
+        if !meshResults.isEmpty { swap(&mr, &meshResults) }
         lock.unlock()
         if World.deterministic {
             gr.sort { (a: (ChunkKey, Produced), b: (ChunkKey, Produced)) -> Bool in a.0.x != b.0.x ? a.0.x < b.0.x : a.0.z < b.0.z }

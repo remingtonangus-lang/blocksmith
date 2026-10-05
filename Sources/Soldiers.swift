@@ -266,8 +266,12 @@ extension Mob {
         guard aggro && canTarget else {
             b.aimTime = 0
             if let sp = followOrder(g) { return sp }
-            // Garrison duty: stroll near the post; marksmen keep watch.
-            if r == 2 {
+            // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
+            // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
+            // drove away: ridecheck crew, a trooper 1.9 blocks off post 0, runs 605 and 634).
+            let aboard = crewPost != nil && deck != nil
+            if r == 2 || aboard {
+                if aboard { wanderGoal = nil; moving = false }
                 if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
                 return 0
             }
