@@ -357,7 +357,7 @@ func dress_main_street(s0: float, s1: float, off: float, lots: Array) -> void:
 		var curb: Vector2 = p + f * (spec.get("porch", 2.8) + 1.4)
 		if typ in ["saloon", "hotel", "store", "livery", "sheriff", "cantina", "restaurant", "smithy"]:
 			var sx := Vector2(-f.y, f.x)
-			items.append({"k": "hitch", "x": curb.x + sx.x * 1.5, "z": curb.y + sx.y * 1.5, "len": 3.0})
+			items.append({"k": "hitch", "x": curb.x + sx.x * 1.5, "z": curb.y + sx.y * 1.5, "len": 3.0, "fronts": str(spec.get("id", ""))})
 			if typ in ["saloon", "livery", "store"]:
 				items.append({"k": "trough", "x": curb.x - sx.x * 2.6, "z": curb.y - sx.y * 2.6})
 		elif rng.randf() < 0.3:
@@ -549,17 +549,27 @@ func _depot(name: String, along_offset := 0.0, with_tower := true) -> void:
 	if nrm.dot(-near) < 0.0:
 		nrm = -nrm                     # towards the town centre
 	var front := near + nrm * 8.2      # depot front wall (platform 4.5 m, track clearance)
-	var ok := add({"style": "depot", "type": "depot", "name": name + " depot", "sign": name, "w": 18.0, "d": 7.0, "porch": 4.5,
-		"wall": "paint", "paint": Color(0.88, 0.8, 0.6), "trim": Color(0.42, 0.25, 0.16), "furnished": true, "role": "station_agent", "raise": 0.65},
-		front, -nrm, 4.5, true, 0.5, 0.5, 3.0)
-	if not ok:
-		for k in [12.0, -12.0, 24.0, -24.0, 36.0]:
+	# a depot is required (travel tickets): slide along the track on the town side, then the far side, until the
+	# footprint is free (dense towns crowd the nearest stretch of line)
+	var ok := false
+	var placed_nrm := nrm
+	for side: float in [1.0, -1.0]:
+		var sn := nrm * side
+		var f0 := near + sn * 8.2
+		for k: float in [0.0, 12.0, -12.0, 24.0, -24.0, 36.0, -36.0, 48.0, -48.0, 62.0, -62.0, 78.0, -78.0, 96.0, -96.0]:
+			var fp := f0 + dir * k
 			if add({"style": "depot", "type": "depot", "name": name + " depot", "sign": name, "w": 18.0, "d": 7.0, "porch": 4.5,
 					"wall": "paint", "paint": Color(0.88, 0.8, 0.6), "trim": Color(0.42, 0.25, 0.16), "furnished": true, "role": "station_agent", "raise": 0.65},
-					front + dir * k, -nrm, 4.5, true, 0.5, 0.5, 3.0):
-				front += dir * k
+					fp, -sn, 4.5, true, 0.5, 0.5, 3.0):
+				front = fp
+				placed_nrm = sn
 				ok = true
 				break
+		if ok:
+			break
+	nrm = placed_nrm
+	if not ok:
+		push_warning("town_layout: no room for the %s depot beside the track" % name)
 	if ok:
 		var join := Vector2(front.x, 0.0)
 		street(front + nrm * 8.0, join, 9.0)

@@ -621,7 +621,9 @@ func porch_rail(x0: float, x1: float, z: float, y: float, gaps: Array, h := 0.95
 		solid(Vector3(s[0], y, z - 0.06), Vector3(s[1], y + h, z + 0.06))
 	paint(col_wall)
 
-func hitching_rail(xc: float, z: float, length := 3.0, outside := true) -> void:
+## Hitching rail along local x at (xc, z). Two "hitch" spots on the street side (stand here, horse tied to the rail),
+## extras: `rail` (world point on the rail bar), `fronts` (id of the saloon/store/livery it serves, "" if none).
+func hitching_rail(xc: float, z: float, length := 3.0, outside := true, fronts := "") -> void:
 	paint(Color(0.85, 0.8, 0.72))
 	var y0 := ground_local(xc, z)
 	for sx: float in [-1.0, 1.0]:
@@ -630,8 +632,9 @@ func hitching_rail(xc: float, z: float, length := 3.0, outside := true) -> void:
 		ext.box("planks_brown", Vector3(px - 0.06, gy - 0.2, z - 0.06), Vector3(px + 0.06, y0 + 1.0, z + 0.06), MeshKit.F_SIDES | MeshKit.F_PY)
 	ext.cyl("log", Vector3(xc - length * 0.5 - 0.1, y0 + 0.95, z), Vector3(xc + length * 0.5 + 0.1, y0 + 0.95, z), 0.06, 7, true)
 	solid(Vector3(xc - length * 0.5 - 0.06, y0, z - 0.06), Vector3(xc + length * 0.5 + 0.06, y0 + 1.0, z + 0.06))
-	spot("hitch", Vector3(xc - length * 0.25, y0, z - 0.8), Vector3(0, 0, 1))
-	spot("hitch", Vector3(xc + length * 0.25, y0, z - 0.8), Vector3(0, 0, 1))
+	for sxx: float in [-0.25, 0.25]:
+		spot("hitch", Vector3(xc + length * sxx, y0, z - 0.8), Vector3(0, 0, 1),
+			{"rail": xf * Vector3(xc + length * sxx, y0 + 0.95, z), "fronts": fronts})
 	paint(col_wall)
 
 func trough(xc: float, z: float, length := 2.2, yaw90 := false) -> void:

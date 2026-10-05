@@ -26,7 +26,7 @@ var stats := {"chunks": 0, "built": 0, "far_tris": 0}
 func setup(w: WorldData, skip: Array) -> void:
 	world = w
 	var rail = w.features.get("rail", null)
-	if rail == null or Game.args.has("no_rail"):
+	if rail == null or Game.args.has("no_rail") or Game.disabled("rail"):
 		return
 	var cur := PackedVector3Array()
 	var last_skipped := Vector3.INF
