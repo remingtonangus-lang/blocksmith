@@ -35,7 +35,7 @@ enum ItemHD {
         "turtle": Mat(kind: .leather, base: hex(0x4FA046), dark: hex(0x1F4A1C), light: hex(0x9AD88A)),
         // Common items (soft: smooth diffuse with a gentle highlight).
         "apple": Mat(kind: .soft, base: hex(0xD8282A), dark: hex(0x6A0E12), light: hex(0xFF9A8A)),
-        "leaf": Mat(kind: .soft, base: hex(0x52A63A), dark: hex(0x1E4A16), light: hex(0xA8E08A)),
+        "leaf": Mat(kind: .soft, base: hex(0x5CB842), dark: hex(0x2A6420), light: hex(0xB4EC94)),   // (lighter: the apple leaf read near-black on grass)
         "stem": Mat(kind: .wood, base: hex(0x6A4A2A), dark: hex(0x2E1E10), light: hex(0x9A7448)),
         "crust": Mat(kind: .soft, base: hex(0xC8883E), dark: hex(0x6A3A12), light: hex(0xF0C27A)),
         "emerald": Mat(kind: .gem, base: hex(0x2ECC5A), dark: hex(0x0A5A22), light: hex(0xC8FFD8)),

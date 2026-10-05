@@ -257,8 +257,12 @@ final class ItemEntityManager {
                         let r2: Float = 0.70710678
                         let ax = (tool ? (rt - upv) * r2 : rt) * s, ay = (tool ? (rt + upv) * r2 : upv) * s, az = fwd * s
                         let full = simd_length_squared(c) < 12 * 12
-                        let lift: Float = tool ? 0.07 : 0.1
-                        drawn = ItemModels.write(&wr, layer: layer, o: c + off + V3(0, lift, 0), ax: ax, ay: ay, az: az, light: light,
+                        // Close over the ground, a gentle bob (the general 0.06-0.18 hover left the 3D items floating
+                        // well above their shadows: blind critic, dropped round 2): a level tool's middle 0.05-0.1 up,
+                        // an upright item's 0.2-0.25 (about its half height).
+                        let rest: Float = tool ? 0.075 : 0.225
+                        let hover: Float = rest + sinf(e.age * 2.5 + e.spin) * 0.025 - bob
+                        drawn = ItemModels.write(&wr, layer: layer, o: c + off + V3(0, hover, 0), ax: ax, ay: ay, az: az, light: light,
                                                  glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
                     }
                     if !drawn {

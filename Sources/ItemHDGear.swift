@@ -9,6 +9,15 @@ extension ItemHD {
         func soft(_ h: UInt32) -> String { M("soft", h) }
         let up = V2(0.707, -0.707), rt = V2(0.707, 0.707)
         switch s.mask {
+        case "banner":
+            // Dyed cloth on a crossbar: the pole showing below a swallowtail hem, a bound top edge and two soft folds.
+            cv.add(cap(cv, V2(0.5, 0.08), V2(0.5, 0.94), 0.03), ys, "handle", r: 0.03)
+            cv.add(cap(cv, V2(0.18, 0.12), V2(0.82, 0.12), 0.032), xs, "handle", r: 0.03)
+            cv.add(cv.poly([V2(0.24, 0.15), V2(0.76, 0.15), V2(0.76, 0.84), V2(0.5, 0.72), V2(0.24, 0.84)]), xs, soft(base), r: 0.04)
+            for fx: Float in [0.38, 0.62] {
+                cv.add(cap(cv, V2(fx, 0.24), V2(fx, 0.7), 0.012), xs, soft(darker(base, 0.82)), r: 0.012)
+            }
+            cv.add(rect(cv, 0.23, 0.14, 0.77, 0.21), xs, soft(darker(base, 0.88)), r: 0.02)
         case "stick":
             handle(cv, V2(0.2, 0.84), V2(0.8, 0.16), 0.045)
             cv.add(cap(cv, V2(0.48, 0.52), V2(0.62, 0.54), 0.025), zero, "handle", r: 0.025)
