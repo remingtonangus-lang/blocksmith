@@ -918,7 +918,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let q: [V3] = [lo - r, lo + r, hi + r, hi - r]
                 for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: V4(1.0, 0.85, 0.5, 0.18))) }
             }
-            let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)
+            let starAlpha = simd_clamp((0.6 - game.clearSkyDaylight) / 0.35, 0, 1) * (1 - min(1, game.weather.rain))     // clouds hide them
             if !underwater && starAlpha > 0 && hasSky {
                 var sp = StarParams(rot: rotationZ(Float(game.dayFraction * 2 * .pi)), tint: V4(1, 1, 1, starAlpha))
                 enc.setRenderPipelineState(starPipe)

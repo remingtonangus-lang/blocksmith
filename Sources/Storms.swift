@@ -306,3 +306,13 @@ extension World {
         } }
     }
 }
+
+extension Game {
+    // Daylight from the sun alone (no overcast, no lightning): what the stars follow. Rain clouds hide them on top
+    // (the overcast-dimmed daylight let them shine through a thunderstorm at noon: fx_wildfire, run 516).
+    var clearSkyDaylight: Float {
+        if !dim.dim.hasSky { return daylight }
+        let t = simd_clamp((sunDir.y + 0.12) / 0.4, 0, 1)
+        return 0.12 + 0.88 * t * t * (3 - 2 * t)
+    }
+}
