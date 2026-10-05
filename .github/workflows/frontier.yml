@@ -150,35 +150,47 @@ jobs:
       - name: Bots (oracles)
         id: bots
         if: ${{ !cancelled() }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           set -o pipefail
           mkdir -p snaps
-          "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
-          grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
+          # the story run (42 missions) alone outgrew one shared watchdog: run it beside the other bots (3 cores)
+          mkdir -p "$RUNNER_TEMP/home_missions"   # own user:// (saves, sign atlas cache) for the parallel process
+          HOME="$RUNNER_TEMP/home_missions" "$GODOT" --headless --path frontier -- --bot missions --seconds 75 --report "$PWD/snaps/bot_report_missions.json" --watchdog 900 > bots_missions.log 2>&1 &
+          MPID=$!
+          "$GODOT" --headless --path frontier -- --bot road,explore,ride,gaits,town,gunfight,hunt,camp,encounters,social,systems --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 900 > bots_world.log 2>&1 || true
+          wait $MPID || true
+          cat bots_world.log bots_missions.log > bots.log
+          grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" bots.log || true
+          ok=$(grep -c "BOTS PASS" bots.log || true)
+          [ "$ok" = "2" ] && echo "BOTS ALL PASS" >> bots.log
+          grep -q "BOTS ALL PASS" bots.log || { grep -vE "^\s*$" bots.log | grep -vi navigation | tail -40; false; }
 
       - name: GPU probe (find features the CI GPU cannot render)
         id: gpuprobe
         if: ${{ !cancelled() }}
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: |
           # The paravirtual GPU + MoltenVK loses the device on something in the scene. The least restrictive set that
           # renders is used for the evidence renders below (real Macs render everything through Metal).
           # A hung GPU blocks the engine's own watchdog, so each attempt gets a hard external timeout.
           mkdir -p snaps/probe
-          try() {   # $1 = disable flags, $2 = extra args; prints OK on success
-            local name="probe_${1:-all}${2:+_player}"; name="${name//,/_}"; name="${name// /}"
-            perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --watchdog 140 ${1:+--disable $1} $2 > "snaps/probe/$name.log" 2>&1 || true
-            if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo OK; fi
+          try() {   # $1 = disable flags, $2 = extra args, $3 = hard timeout (s); prints OK on success
+            local name="probe_${1:-all}${2:+_player}"; name="${name//,/_}"; name="${name// /}"; local lim="${3:-150}"
+            perl -e 'alarm shift; exec @ARGV' "$lim" "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --watchdog $((lim - 10)) ${1:+--disable $1} $2 2>&1 | perl -MTime::HiRes=time -pe 'BEGIN{$t=time} printf "%6.1f ", time-$t' > "snaps/probe/$name.log" || true
+            if [ -f "snaps/probe/$name.png" ] && ! grep -qE "device was lost|Lost VkDevice" "snaps/probe/$name.log"; then echo OK; fi
           }
-          # 3ba9a99 bisection: still lost with every world feature off, renders once Godot's screen-space subsurface
-          # scattering (character skin) is off too, so actor features are tried first; the full set is the fallback.
-          safe=""
-          if [ "$(try "" --player)" != OK ]; then
-            safe="sss,horse,characters,settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
-            for flags in sss sss,horse sss,horse,characters; do
-              if [ "$(try "$flags" --player)" = OK ]; then safe="$flags"; echo "player renders with --disable '$flags'"; break; fi
-              echo "player lost with --disable '$flags'"
+          # 3ba9a99: every single world-feature disable still hung (no output after "world built" until the alarm);
+          # all world features + sss off rendered. 8323304: sss/horse/characters off with the world on still hung.
+          # So: one long attempt (slow first-frame shader compiles, or a real hang?), then world features with actors off.
+          A="sss,horse,characters"
+          safe="$A,settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
+          if [ "$(try "" --player 360)" = OK ]; then safe=""; echo "everything renders given 360 s"
+          elif [ "$(try "$A" --player)" = OK ]; then safe="$A"; echo "renders with --disable $A"
+          else
+            for f in settlements backdrop water roads cloudshadows scatter trees grass vfog; do
+              if [ "$(try "$A,$f" --player)" = OK ]; then safe="$A,$f"; echo "renders with --disable $safe"; break; fi
+              echo "still hung with --disable $A,$f"
             done
           fi
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
@@ -252,7 +264,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHORT=${GITHUB_SHA::7}
-          BOTS=$(grep -c "BOTS PASS" bots.log || true)
+          BOTS=$(grep -c "BOTS ALL PASS" bots.log || true)
           FPS=$(python3 -c "import json;d=json.load(open('snaps/benchmark.json'));o=d['overall'];print('%.0f fps avg, %.0f fps 1%% low, p99 %.1f ms, RSS %.0f MB'%(o['fps'],o['low1'],o['p99'],d['memory']['rss_mb']))" 2>/dev/null || echo "n/a")
           NOTES="Rolling build of Sable River (Frontier) from claude/frontier-game @ ${SHORT}.
 
@@ -287,7 +299,7 @@ jobs:
 
       - name: Fail if bots failed
         if: ${{ !cancelled() }}
-        run: grep -q "BOTS PASS" bots.log
+        run: grep -q "BOTS ALL PASS" bots.log
 
   quest:
     runs-on: ubuntu-latest
