@@ -85,21 +85,30 @@ extension HullBuilder {
             set(sx * x, y + 1, z, chest)
             chests.append((grid(sx * x, y + 1, z), loot))
         }
-        // A light in the middle of the ceiling.
-        let lx = (xi + xo) / 2, lz = (za + zb) / 2
-        if inside(sx * lx, y + h, lz) && get(sx * lx, y + h, lz) == AIR { set(sx * lx, y + h, lz, st.light) }
+        // Ceiling lights down the middle of the room, one every six blocks of depth.
+        let lz = (za + zb) / 2
+        for lx in stride(from: min(xo, xi + 2), through: xo, by: 6) where inside(sx * lx, y + h, lz) && get(sx * lx, y + h, lz) == AIR {
+            set(sx * lx, y + h, lz, st.light)
+        }
+        // Furniture stands in lines along z, from the hull side in every four blocks (a deep room is furnished all the
+        // way across, not just at its far wall: ship_warfrigate_room read as an empty hall), with an aisle straight in
+        // from the doorway and a walkway along the corridor wall.
+        let rows = Array(stride(from: xo, through: xi + 2, by: -4))
+        func aisle(_ z: Int) -> Bool { z == door }
         switch kind {
         case .quarters, .medbay:
-            // Bunks along the hull side, heads toward +z; a locker at the end.
+            // Bunks, heads toward +z; a locker at the end.
             let foot = Blocks.has("\(st.bed)_bed") ? Blocks.id("\(st.bed)_bed") : AIR
             let head = Blocks.has("\(st.bed)_bed_head") ? Blocks.id("\(st.bed)_bed_head") : AIR
-            var z = za
-            while z + 1 <= zb && foot != AIR {
-                if clearOfDoor(xo, z) && free(xo, z) && free(xo, z + 1) {
-                    set(sx * xo, y + 1, z, foot)
-                    set(sx * xo, y + 1, z + 1, head)
+            for x in rows where foot != AIR {
+                var z = za
+                while z + 1 <= zb {
+                    if !aisle(z) && !aisle(z + 1) && clearOfDoor(x, z) && free(x, z) && free(x, z + 1) {
+                        set(sx * x, y + 1, z, foot)
+                        set(sx * x, y + 1, z + 1, head)
+                    }
+                    z += 3
                 }
-                z += 3
             }
             if kind == .medbay {
                 put(xo, zb, StyleBlocks.cauldron)
@@ -108,16 +117,15 @@ extension HullBuilder {
                 locker(xi, zb, st.supplyLoot)
             }
         case .mess:
-            // A long table down the middle with seats either side.
-            let tx = (xi + xo) / 2
-            for z in (za + 1)...max(za + 1, zb - 1) where clearOfDoor(tx, z) {
-                put(tx, z, StyleBlocks.table)
+            // Long tables with a galley stove and stores at the hull end.
+            for x in rows.count > 1 ? Array(rows.dropFirst()) : rows {
+                for z in (za + 1)...max(za + 1, zb - 1) where !aisle(z) && clearOfDoor(x, z) { put(x, z, StyleBlocks.table) }
             }
             put(xo, za, StyleBlocks.furnace)
             put(xo, zb, StyleBlocks.barrel)
         case .armory:
-            // Weapon racks (bars) along the hull side, ammunition chests at the ends.
-            for z in za...zb where clearOfDoor(xo, z) { put(xo, z, StyleBlocks.bars) }
+            // Weapon racks (bars) in lines, ammunition chests at the ends.
+            for x in rows { for z in za...zb where !aisle(z) && clearOfDoor(x, z) { put(x, z, StyleBlocks.bars) } }
             locker(xi, za, st.armoryLoot)
             locker(xi, zb, st.armoryLoot)
         case .brig:
@@ -126,9 +134,11 @@ extension HullBuilder {
             for z in za...zb where clearOfDoor(cx, z) { put(cx, z, StyleBlocks.bars); put(cx, z, StyleBlocks.bars, 2) }
             put(xo, (za + zb) / 2, StyleBlocks.barrel)
         case .storage:
-            for z in za...zb where clearOfDoor(xo, z) {
-                put(xo, z, rng.range(0, 2) == 0 ? StyleBlocks.barrel : StyleBlocks.crate)
-            }
+            // Rows of barrels and crates, stacked two high against the hull.
+            for x in rows { for z in za...zb where !aisle(z) && clearOfDoor(x, z) {
+                put(x, z, rng.range(0, 2) == 0 ? StyleBlocks.barrel : StyleBlocks.crate)
+                if x == xo && rng.range(0, 3) == 0 { put(x, z, StyleBlocks.crate, 2) }
+            } }
             locker(xi, zb, st.supplyLoot)
         case .briefing:
             // A map table with consoles round it.
@@ -137,7 +147,7 @@ extension HullBuilder {
             put(tx, tz - 1, StyleBlocks.table)
             put(xo, tz, StyleBlocks.console)
         case .engineering:
-            for z in stride(from: za, through: zb, by: 2) where clearOfDoor(xo, z) { put(xo, z, StyleBlocks.console) }
+            for x in rows { for z in stride(from: za, through: zb, by: 2) where !aisle(z) && clearOfDoor(x, z) { put(x, z, StyleBlocks.console) } }
             put(xi, zb, StyleBlocks.crate)
         }
     }
