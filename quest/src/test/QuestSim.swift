@@ -197,6 +197,14 @@ enum QuestSim {
               "VR weapon wheel: opened \(opened), picked \(Items.key(game.held.item)), body turned \(rig.bodyYaw - yW) rad")
         game.inventory.main[0] = .empty; game.inventory.main[1] = .empty
 
+        // 8c. Holding Y opens the world map (a tap still opens the inventory, checked above).
+        frames(72) { _ in idleHands(); sim.hands[0].button2 = true }
+        let mapOpen = game.menu is MapMenu
+        frames(3) { _ in idleHands() }
+        check(mapOpen && !(game.menu is InventoryMenu || game.menu is CreativeMenu), "VR map: holding Y opened \(mapOpen ? "the world map" : String(describing: game.menu.map { type(of: $0) }))")
+        if game.menu != nil { game.closeMenu() }
+        frames(3) { _ in idleHands() }
+
         // 9. The pause menu's VR page: the snap angle option changes the next snap turn.
         QuestOptions.install(QuestOptions.Hooks(recenter: { rig.needsRecenter = true }))
         let pm = PauseMenu(game: game)

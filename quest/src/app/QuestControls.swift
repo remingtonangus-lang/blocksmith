@@ -32,6 +32,7 @@ final class QuestControls {
     private var snapArmed = true
     private var flickArmed = true
     private var flick = 0                      // 1 up, -1 down (a short D-pad press)
+    private var yHold: Float = 0, yLong = false, yPulse = 0
     private var flickTime: Float = 0
     private var vignette: Float = 0            // current strength 0...1
     private var turnFlash: Float = 0
@@ -158,7 +159,20 @@ final class QuestControls {
         p.a = R.button1
         p.b = R.button2
         p.x = L.button1
-        p.y = L.button2
+        // Y: a tap opens the inventory (sent when it is let go); held, it is the pad's View held: the world map.
+        if inMenu {
+            p.y = L.button2
+            yHold = L.button2 ? yHold : 0; yLong = false; yPulse = 0
+        } else {
+            if L.button2 { yHold += dt } else {
+                if yHold > 0 && !yLong { yPulse = 3 }
+                yHold = 0; yLong = false
+            }
+            if yHold > 0.35 { yLong = true }
+            p.view = yLong
+            p.y = yPulse > 0
+            if yPulse > 0 { yPulse -= 1 }
+        }
         p.lb = L.squeeze > 0.6
         p.rb = R.stickClick
         p.l3 = L.stickClick

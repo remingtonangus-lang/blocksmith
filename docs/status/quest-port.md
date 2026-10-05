@@ -40,7 +40,7 @@ Stop: `adb shell am force-stop com.blocksmith.quest`
 | Right stick left/right | snap turn 45° (or smooth turn) |
 | Right stick flick up / down | fly toggle (D-pad up) / drop item (D-pad down) |
 | A / B | jump / sneak (in menus: select / back) |
-| X / Y | pick block or reload / inventory |
+| X / Y | pick block or reload / inventory (tap); hold Y: world map |
 | Left grip | hotbar left (LB) |
 | Right stick click | hotbar right; hold: weapon wheel, then push the right stick at a gun and let go (no turning while held) |
 | Left stick click | sprint (L3) |
