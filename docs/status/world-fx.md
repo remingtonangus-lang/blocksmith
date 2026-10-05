@@ -106,6 +106,8 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 - Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
   `Game.fx.storm` (a wind load for their support analysis), `World.scorch` and charcoal (burnt blocks could count as
   weak), `Waves.height` (wrecks afloat).
+- Held/dropped critic round 2 (docs/qa/items/critic.md): apple 4 -> 6, dropped 2 -> 5, shield 6; dropped items now
+  rest close over the ground; banners drawn as vectors (the last pixel-art family; explorer_mark overlay remains).
 - Code review (no compiler here): flood retries roofed columns until water reaches their opening; snow lies on
   Chunk.rainTop; the model-face inner sample uses the face's gradients; fire doesn't go out in the rain under glass.
 - Dropped items cast a contact shadow in Fast graphics too (Fancy already did).
