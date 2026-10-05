@@ -361,7 +361,8 @@ extension Mob {
         let d = simd_length(V2(o.x - pos.x, o.z - pos.z))
         // No way there (the path finder gave it up): wait instead of pushing into whatever is in the way; the citadel
         // re-routes the patrol (basePatrol) and the order is tried again when the give-up runs out.
-        if gaveUp(o) { moving = false; return 0 }
+        // Station orders (turret crews, workers) are short moves the straight walk manages: they keep going.
+        if b.orderStation == .none && gaveUp(o) { moving = false; return 0 }
         if d > (b.orderStation == .none ? 1.6 : 0.9) {
             if b.station != .none { b.station = .none }
             face(o)
