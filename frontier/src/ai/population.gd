@@ -532,6 +532,25 @@ func near_walker(body: Human, r: float) -> Human:
 			return o
 	return null
 
+## Someone standing idle on the street (wall lean, hitch rail) within 60 m, nobody visiting them yet.
+func idler_to_join(body: Human) -> Human:
+	var best: Human = null
+	var bd := 60.0
+	for k in residents:
+		var o: Human = residents[k]
+		if o == body or not is_instance_valid(o) or not o.alive:
+			continue
+		var rt = o.brain.get("routine")
+		if rt == null or rt.phase != "at" or rt.seated or rt.spot.is_empty() or rt.partner != null:
+			continue
+		if not str(rt.spot.get("type", "")) in ["lean_wall", "hitch", "trough"] or rt.dwell - rt.t < 30.0:
+			continue
+		var d := o.global_position.distance_to(body.global_position)
+		if d < bd:
+			bd = d
+			best = o
+	return best
+
 func neighbour(body: Human, r: float) -> Human:
 	for k in residents:
 		var o: Human = residents[k]

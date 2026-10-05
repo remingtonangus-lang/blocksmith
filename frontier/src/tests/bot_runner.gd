@@ -219,7 +219,7 @@ func _run_bot(kind: String, seconds: float) -> Dictionary:
 func _run_town(seconds: float) -> Dictionary:
 	var res := {"bot": "town", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
 		"frame_spikes": 0, "errors": [], "npcs": 0, "npc_minutes": 0.0}
-	var t := Game.world.town("bitter_spring")
+	var t := Game.world.town(str(Game.args.get("town", "bitter_spring")))      # --town port_linden etc.
 	var p := Vector3(t.x, 0, t.z)
 	p.y = Game.world.height(p.x, p.z) + 1.0
 	Game.terrain.ensure_collision_at(p)

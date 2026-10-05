@@ -161,6 +161,17 @@ func _choose() -> bool:
 			if spot.is_empty():
 				spot = pop.claim_street(self)
 		"loiter":
+			# sometimes walk over to someone idling on the street and stop for a talk
+			if rng.randf() < 0.35:
+				var o: Human = pop.idler_to_join(body)
+				if o != null:
+					var ofw := Vector3(-sin(o.facing), 0.0, -cos(o.facing))
+					var g: Vector3 = pop.snap(o.global_position + ofw * 1.1)
+					if g != Vector3.INF and g.distance_to(o.global_position) < 1.6:
+						goal = g
+						partner = o
+						task = "join"
+						return true
 			spot = pop.claim_street(self)
 		"porch":
 			if bid != "":
@@ -240,6 +251,10 @@ func _walk(_dt: float) -> void:
 	if k == "stagger" and activity != "walk_wounded":
 		_set_activity("walk_wounded")
 	var to := goal - body.global_position
+	if task == "join" and (partner == null or not is_instance_valid(partner) or partner.brain.routine == null or partner.brain.routine.phase != "at"):
+		partner = null
+		phase = "plan"
+		return
 	var near := 0.5 if task == "spot" else 1.0
 	if task == "home":
 		near = 0.7
@@ -288,6 +303,20 @@ func _arrive(instant: bool) -> void:
 		pop.went_home(self)
 		return
 	var k: String = block.get("kind", "")
+	if task == "join" and partner != null and is_instance_valid(partner):
+		var o := partner
+		partner = null
+		_start_chat(o)
+		dwell = rng.randf_range(15.0, 35.0)
+		var pr: TownRoutine = o.brain.routine
+		o.intent.face = body.global_position - o.global_position
+		if pr != null:
+			pr.partner = body
+			pr._set_activity(["talk_1", "talk_2"][rng.randi() % 2])
+			pr.t = minf(pr.t, pr.dwell - dwell)       # the one being visited stays for the talk
+			if o.visual.has_method("look_at_node"):
+				o.visual.look_at_node(body, 0.6)
+		return
 	if task == "spot":
 		body.anchor_to(spot.transform, 0.0 if instant else 0.45)
 		seated = spot.has("sit_height") and str(spot.type) != "bath"

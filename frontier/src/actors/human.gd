@@ -445,12 +445,12 @@ func _ghost_tick(dt: float) -> void:
 	velocity = Vector3.ZERO
 	_last_pos = global_position
 
-## Climb a small lip (boardwalk edge, threshold, porch step up to 0.3 m) that the capsule would treat as a wall.
+## Climb a small lip (boardwalk edge, threshold, porch step up to 0.4 m) that the capsule would treat as a wall.
 func _step_up(dt: float) -> void:
 	var motion := Vector3(velocity.x, 0.0, velocity.z) * dt * 2.0
 	if motion.length() < 0.001 or not test_move(global_transform, motion):
 		return
-	var lift := Vector3(0, 0.32, 0)
+	var lift := Vector3(0, 0.4, 0)
 	if test_move(global_transform, lift):
 		return
 	var raised := global_transform.translated(lift)
