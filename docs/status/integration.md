@@ -88,6 +88,19 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - great_ruin structcheck clean. Photo mode verified (photo_dof). The volcano streak was the impostor drawn through
   the loaded cone (identical with --nolod): impostors now sit on a shell beyond all loaded terrain.
 
+## Playtest report (Remington, 2026-10-05): in order, each with a regression check
+1. P0 mobs invisible in game. Harness shots draw mobs in Fancy; ruled out by reading: the landmark pass (simple
+   pipe has an HDR variant; impostor depth sits on a shell past the loaded terrain), the 64-block cull, the scratch
+   ring budget (landmarks ~100 KB), co-op despawn (single player unchanged), pixel formats (bgra8 fixed).
+   --mobcheck (98d01b3 + live phase 95b7d4f): every kind alone, Fancy and Fast; then a 45 s survival night through
+   Game.tick, every spawned kind viewed alone and again after a JSON save/load, NaN/zero-scale state. Not gating
+   until the cause is found. Mobs now get night vision's lift (they did not).
+2. Mobs calm on death and respawn (Game.calmMobs, e2cc215); --mobtests checks every kind both times.
+3. Crafting book opens on its first tile; the inventory's crafting is the same book, 2x2 (08e2970); --padtest.
+4. Cave fill + Options > Video > Brightness (0d6ebee); shots cave_dark(_moody/_bright/_fast/_mobs).
+- CI: macOS runners backed up (runs 525/528/532/534 queued); cancelled 532 and 534 (both superseded by 95b7d4f,
+  which carries the same mobcheck and every fix).
+
 ## Next
 - Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
   citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
