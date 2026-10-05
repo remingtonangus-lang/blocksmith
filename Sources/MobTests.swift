@@ -570,6 +570,11 @@ enum MobTests {
         // A wooden shelf's block entity holds its three items (it was made with none: using a shelf indexed past the end).
         let shelfSlots = BlockEntity(.display).container.count
         check(shelfSlots == 3, "a wooden shelf holds three items", "\(shelfSlots) slots")
+        // Renaming a stack in the anvil names the whole stack (it kept one item and deleted the rest).
+        if Items.has("diamond") {
+            let named = Enchant.combine(ItemStack(Items.id("diamond"), 64), .empty, rename: "Shiny", creative: true)?.out.count ?? 0
+            check(named == 64, "an anvil rename keeps the whole stack", "\(named) of 64")
+        }
         let agers: [String] = ["copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
         let ages: Bool = agers.allSatisfy { (k: String) -> Bool in
             guard Blocks.has(k) else { return false }
