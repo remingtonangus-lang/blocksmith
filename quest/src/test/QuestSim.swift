@@ -38,9 +38,9 @@ enum QuestSim {
         let controls = QuestControls(app: host, game: game, panel: try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH))
         host.controls = controls
         let wr = WorldRenderer(scene: scene, game: game)
-        wr.extraOpaque = { s, eye in controls.drawOpaque(s, eye: eye) }
-        wr.extraOverlay = { s, eye in controls.drawOverlay(s, eye: eye) }
-        wr.prePass = { s in controls.recordPanel(s) }
+        wr.extraOpaque = { s, eye in AllocCount.measure("drawOpaque") { controls.drawOpaque(s, eye: eye) } }
+        wr.extraOverlay = { s, eye in AllocCount.measure("drawOverlay") { controls.drawOverlay(s, eye: eye) } }
+        wr.prePass = { s in AllocCount.measure("recordPanel") { controls.recordPanel(s) } }
         game.paused = false
         game.survival = false
         game.player.flying = false
@@ -62,11 +62,11 @@ enum QuestSim {
         func frames(_ n: Int, _ body: (Int) -> Void = { _ in }) {
             for i in 0..<n {
                 body(i)
-                rig.update(xr: sim, game: game)
-                controls.update(dt: dt)
+                AllocCount.measure("rig.update") { rig.update(xr: sim, game: game) }
+                AllocCount.measure("controls.update") { controls.update(dt: dt) }
                 game.tick(Double(dt))
                 game.world.update(center: game.player.pos)
-                controls.afterTick(dt: dt)
+                AllocCount.measure("controls.afterTick") { controls.afterTick(dt: dt) }
             }
         }
         // A 41 x 41 stone platform 30 blocks above the spawn, so locomotion doesn't depend on the terrain (jungle trees).
@@ -326,6 +326,7 @@ enum QuestSim {
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_hurt.png"))
         game.hurtFlash = 0
         PadManager.shared.touch = nil
+        AllocCount.report("questsim allocations (frame thread)")
     }
 
     static func shipRide(game: Game, host: SimHost, frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void,

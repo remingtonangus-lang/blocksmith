@@ -162,6 +162,16 @@ the log) instead of hanging in an empty scene.
 - Pause > VR Comfort & Controls > Touch Controls: a reference page of every Touch button; the pad / keyboard
   reference, key binding and button mapping rows are hidden in the headset.
 
+**QUEST APK READY 37295092290** (2026-10-05, versionCode 45, commit 72f84a8): everything in 42, plus:
+- Fewer hitches: tables the game used to build the first time something happened (the first footstep, the first
+  block change, the first vehicle) are built on the loading screen (5-7 ms each, a missed frame); sounds not
+  synthesized yet play a moment later instead of being synthesized inside the frame.
+- The frame thread registers with the runtime as the app's main and render thread (XR_KHR_android_thread_settings):
+  check logcat for `xr: frame thread <tid> registered (main 0, renderer 0)` (0 = success).
+- Game ticks allocate almost nothing now (median 219 -> 5 heap allocations a tick: mob collision); the playtest
+  branch's NaN-trap and wooden shelf crash fixes.
+- Check: perf lines' worst frame after the first minute (was 20.8 ms on versionCode 13).
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,

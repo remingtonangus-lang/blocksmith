@@ -403,19 +403,43 @@ final class QuestControls {
         }
     }
 
+    // Vertex scratch for the per-frame overlay geometry (controllers, laser, arc, rings, screen effects): taken, filled,
+    // pushed to the GPU scratch and handed back, so drawing allocates nothing once warm (questcheck's allocation trace).
+    private var vertScratch: [SimpleVert] = []
+    private func takeVerts() -> [SimpleVert] {
+        var v = vertScratch
+        vertScratch = []
+        v.removeAll(keepingCapacity: true)
+        return v
+    }
+    private func giveVerts(_ v: [SimpleVert]) { if v.capacity >= vertScratch.capacity { vertScratch = v } }
+    static let quadOrder = [0, 1, 2, 0, 2, 3]
+    static let faceShades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
+    // Controller model boxes (centre, half size): grip, pointer nose, top plate.
+    static let controllerParts: [(V3, V3)] = [(V3(0, 0, 0.02), V3(0.018, 0.026, 0.05)), (V3(0, 0.012, -0.05), V3(0.012, 0.012, 0.03)),
+                                              (V3(0, 0.03, 0.0), V3(0.035, 0.008, 0.035))]
+    // Two triangles a b c, a c d.
+    @inline(__always) static func quad(_ v: inout [SimpleVert], _ a: V4, _ b: V4, _ c: V4, _ d: V4, _ ca: V4, _ cb: V4, _ cc: V4, _ cd: V4) {
+        v.append(SimpleVert(pos: a, color: ca)); v.append(SimpleVert(pos: b, color: cb)); v.append(SimpleVert(pos: c, color: cc))
+        v.append(SimpleVert(pos: a, color: ca)); v.append(SimpleVert(pos: c, color: cc)); v.append(SimpleVert(pos: d, color: cd))
+    }
+    @inline(__always) static func quad(_ v: inout [SimpleVert], _ a: V3, _ b: V3, _ c: V3, _ d: V3, _ col: V4) {
+        quad(&v, V4(a, 1), V4(b, 1), V4(c, 1), V4(d, 1), col, col, col, col)
+    }
+
     // The arc (green when it ends on a place to stand, red otherwise) and a ring where the feet will land.
     private func drawTeleport(_ s: SceneRenderer.Slot, eye: V3) {
         guard teleAiming, teleArc.count > 1 else { return }
         let ok = teleTarget != nil
         let col = ok ? V4(0.45, 1, 0.6, 0.85) : V4(1, 0.4, 0.35, 0.7)
-        var v: [SimpleVert] = []
+        var v = takeVerts()
+        defer { giveVerts(v) }
         let headDir = simd_normalize(app.rig.headWorld - teleArc[teleArc.count / 2])
         for i in 0..<(teleArc.count - 1) {
             let a = teleArc[i] - eye, b = teleArc[i + 1] - eye
             let side = simd_normalize(simd_cross(teleArc[i + 1] - teleArc[i], headDir) + V3(1e-5, 0, 0)) * 0.012
             let ca = V4(col.x, col.y, col.z, col.w * Float(i + 1) / Float(teleArc.count))
-            let q = [a - side, b - side, b + side, a + side]
-            for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: ca)) }
+            QuestControls.quad(&v, a - side, b - side, b + side, a + side, ca)
         }
         if let t = teleTarget {
             let c = (t.ship.map { $0.toWorld(t.local) } ?? t.local) + V3(0, 0.03, 0) - eye
@@ -423,8 +447,7 @@ final class QuestControls {
             for i in 0..<seg {
                 let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
                 let d0 = V3(cosf(a0), 0, sinf(a0)), d1 = V3(cosf(a1), 0, sinf(a1))
-                let q = [c + d0 * 0.3, c + d1 * 0.3, c + d1 * 0.38, c + d0 * 0.38]
-                for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: col)) }
+                QuestControls.quad(&v, c + d0 * 0.3, c + d1 * 0.3, c + d1 * 0.38, c + d0 * 0.38, col)
             }
         }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simple", offset: off, count: v.count) }
@@ -605,9 +628,9 @@ final class QuestControls {
 
     func drawOpaque(_ s: SceneRenderer.Slot, eye: V3) {
         let xr = app.input, rig = app.rig
-        var v: [SimpleVert] = []
+        var v = takeVerts()
         let CT = Mesher.cornerTable
-        let shades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
+        let shades = QuestControls.faceShades
         // Controllers: a grip block and a pointer nose, in each hand's grip pose.
         for h in 0..<2 {
             let hd = xr.hands[h]
@@ -615,12 +638,11 @@ final class QuestControls {
             let pos = rig.toWorld(hd.gripPos) - eye
             let rot = rig.toWorldRot(hd.gripRot)
             let base = h == aimHand ? V3(0.25, 0.27, 0.32) : V3(0.3, 0.3, 0.34)
-            let parts: [(V3, V3, V3)] = [(V3(0, 0, 0.02), V3(0.018, 0.026, 0.05), base),
-                                         (V3(0, 0.012, -0.05), V3(0.012, 0.012, 0.03), base * 1.4),
-                                         (V3(0, 0.03, 0.0), V3(0.035, 0.008, 0.035), V3(0.12, 0.12, 0.14))]
-            for (c, half, col) in parts {
+            for pi in 0..<3 {
+                let (c, half) = QuestControls.controllerParts[pi]
+                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : V3(0.12, 0.12, 0.14))
                 for f in 0..<6 {
-                    for k in [0, 1, 2, 0, 2, 3] {
+                    for k in QuestControls.quadOrder {
                         let ci = (f * 4 + k) * 3
                         let lp = c + V3(Float(CT[ci] * 2 - 1) * half.x, Float(CT[ci + 1] * 2 - 1) * half.y, Float(CT[ci + 2] * 2 - 1) * half.z)
                         v.append(SimpleVert(pos: V4(rot.act(lp) + pos, 1), color: V4(col * shades[f], 1)))
@@ -629,6 +651,7 @@ final class QuestControls {
             }
         }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        giveVerts(v)
         drawHeld(s, eye: eye)
         drawTeleport(s, eye: eye)
         // Laser: to the hit point (menus, a target within reach) or a short fading stub.
@@ -642,16 +665,15 @@ final class QuestControls {
             let hot = inMenu ? (panelHitUV != nil) : (game.target != nil)
             let c0 = hot ? V4(0.55, 0.9, 1, 0.85) : V4(1, 1, 1, 0.45)
             let c1 = V4(c0.x, c0.y, c0.z, aimHit == nil ? 0 : c0.w)
-            var lv: [SimpleVert] = []
-            let q = [(o - side, c0), (end - side, c1), (end + side, c1), (o + side, c0)]
-            for k in [0, 1, 2, 0, 2, 3] { lv.append(SimpleVert(pos: V4(q[k].0, 1), color: q[k].1)) }
+            var lv = takeVerts()
+            defer { giveVerts(lv) }
+            QuestControls.quad(&lv, V4(o - side, 1), V4(end - side, 1), V4(end + side, 1), V4(o + side, 1), c0, c1, c1, c0)
             if let hp = aimHit {
                 // A small dot where the ray lands.
                 let c = hp - eye - aimDir * 0.01
                 let r = simd_normalize(simd_cross(aimDir, V3(0, 1, 0) + V3(0.001, 0, 0))) * 0.012
                 let u = simd_normalize(simd_cross(r, aimDir)) * 0.012
-                let dq = [c - r - u, c + r - u, c + r + u, c - r + u]
-                for k in [0, 1, 2, 0, 2, 3] { lv.append(SimpleVert(pos: V4(dq[k], 1), color: V4(c0.x, c0.y, c0.z, 0.9))) }
+                QuestControls.quad(&lv, c - r - u, c + r - u, c + r + u, c - r + u, V4(c0.x, c0.y, c0.z, 0.9))
             }
             if let off = app.scene.push(s, lv) { app.scene.drawScratch(s, "simple", offset: off, count: lv.count) }
         }
@@ -718,19 +740,19 @@ final class QuestControls {
         guard a > 0.02 else { return }
         let rig = app.rig
         let c = V3(rig.headWorld.x, game.player.pos.y + 0.03, rig.headWorld.z) - eye
-        var v: [SimpleVert] = []
+        var v = takeVerts()
+        defer { giveVerts(v) }
         let seg = 40
         let r0: Float = 0.42, r1: Float = 0.47
         let col = V4(0.75, 0.92, 1, 0.38 * a)
-        func quad(_ q: [V3]) { for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: col)) } }
         for i in 0..<seg {
             let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
             let d0 = V3(cosf(a0), 0, sinf(a0)), d1 = V3(cosf(a1), 0, sinf(a1))
-            quad([c + d0 * r0, c + d1 * r0, c + d1 * r1, c + d0 * r1])
+            QuestControls.quad(&v, c + d0 * r0, c + d1 * r0, c + d1 * r1, c + d0 * r1, col)
         }
         // Forward notch (the body's facing).
         let f = rig.yawRot.act(V3(0, 0, -1)), r = rig.yawRot.act(V3(1, 0, 0))
-        quad([c + f * r1 - r * 0.03, c + f * r1 + r * 0.03, c + f * (r1 + 0.12) + r * 0.03, c + f * (r1 + 0.12) - r * 0.03])
+        QuestControls.quad(&v, c + f * r1 - r * 0.03, c + f * r1 + r * 0.03, c + f * (r1 + 0.12) + r * 0.03, c + f * (r1 + 0.12) - r * 0.03, col)
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
     }
 
@@ -758,7 +780,8 @@ final class QuestControls {
             hp.draw(s, model: m, alpha: 1, onTop: true)
         }
         drawDeckReference(s, eye: eye)
-        var v: [SimpleVert] = []
+        var v = takeVerts()
+        defer { giveVerts(v) }
         screenEffects(&v)
         let k = vignette * QuestSettings.vignette
         if k > 0.02 { ring(&v, k, V3(0, 0, 0)) }
@@ -773,13 +796,11 @@ final class QuestControls {
         for i in 0..<seg {
             let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
             let d0 = V2(cosf(a0), sinf(a0)), d1 = V2(cosf(a1), sinf(a1))
-            let rr: [(Float, Float)] = [(r0, 0), (r1, 1), (r2, 1)]
             for j in 0..<2 {
-                let (ra, aa) = rr[j], (rb, ab) = rr[j + 1]
-                let p = [(d0 * ra, aa), (d1 * ra, aa), (d1 * rb, ab), (d0 * rb, ab)]
-                for t in [0, 1, 2, 0, 2, 3] {
-                    v.append(SimpleVert(pos: V4(p[t].0.x, p[t].0.y, 0, 2), color: V4(color.x, color.y, color.z, p[t].1 * alpha)))
-                }
+                let ra = j == 0 ? r0 : r1, rb = j == 0 ? r1 : r2
+                let ca = V4(color.x, color.y, color.z, (j == 0 ? 0 : 1) * alpha), cb = V4(color.x, color.y, color.z, alpha)
+                let p0 = d0 * ra, p1 = d1 * ra, p2 = d1 * rb, p3 = d0 * rb
+                QuestControls.quad(&v, V4(p0.x, p0.y, 0, 2), V4(p1.x, p1.y, 0, 2), V4(p2.x, p2.y, 0, 2), V4(p3.x, p3.y, 0, 2), ca, ca, cb, cb)
             }
         }
     }
@@ -790,15 +811,11 @@ final class QuestControls {
     private func screenEffects(_ v: inout [SimpleVert]) {
         let g = game
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3
-        var tints: [V4] = []
-        if g.player.headInWater { tints.append(V4(0.05, 0.15, 0.45, 0.18)) }
-        if g.player.headInLava { tints.append(V4(0.9, 0.3, 0.02, 0.45)) }
-        if g.portalTime > 0 { tints.append(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
-        if g.sleeping > 0 { tints.append(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
-        for c in tints {
-            let q = [V2(-1, -1), V2(1, -1), V2(1, 1), V2(-1, 1)]
-            for t in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[t].x, q[t].y, 0, 2), color: c)) }
-        }
+        func tint(_ c: V4) { QuestControls.quad(&v, V4(-1, -1, 0, 2), V4(1, -1, 0, 2), V4(1, 1, 0, 2), V4(-1, 1, 0, 2), c, c, c, c) }
+        if g.player.headInWater { tint(V4(0.05, 0.15, 0.45, 0.18)) }
+        if g.player.headInLava { tint(V4(0.9, 0.3, 0.02, 0.45)) }
+        if g.portalTime > 0 { tint(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
+        if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
         if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
         if g.onFire > 0 && g.menu == nil {
