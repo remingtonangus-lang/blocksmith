@@ -27,9 +27,9 @@ signal town_built(id: String)
 const CELL := 128.0
 const EXT_RANGE := 520.0
 const FAR_BEGIN := 480.0
-const INT_RANGE := 110.0
-const OPROP_RANGE := 160.0
-const DOOR_RANGE := 250.0
+const INT_RANGE := 45.0          # per building
+const OPROP_RANGE := 140.0
+const DOOR_RANGE := 120.0         # + town radius (one MultiMesh per door mesh per town)
 const LIGHT_CULL := 140.0
 const BUILD_DIST := 750.0
 const NAV_CHUNK := 64.0
@@ -292,11 +292,13 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		var ck := _cell_key(spec.xf.origin)
 		if not ext.has(ck):
 			ext[ck] = MeshKit.new()
-			inn[ck] = MeshKit.new()
-			props[ck] = {}
 			oprops[ck] = {}
+		# interiors per building (culled at INT_RANGE from the building, seen only through doors and windows)
+		var bk: String = spec.id
+		inn[bk] = MeshKit.new()
+		props[bk] = {}
 		var t1 := Time.get_ticks_usec()
-		var rec: Dictionary = kit.build(spec, {"ext": ext[ck], "inn": inn[ck], "far": far, "props": props[ck], "oprops": oprops[ck]})
+		var rec: Dictionary = kit.build(spec, {"ext": ext[ck], "inn": inn[bk], "far": far, "props": props[bk], "oprops": oprops[ck]})
 		var key := "build:" + str(spec.get("style", ""))
 		tp[key] = tp.get(key, 0) + Time.get_ticks_usec() - t1
 		rec["cell"] = ck
@@ -313,13 +315,15 @@ func _prepare(plan: Dictionary) -> Dictionary:
 			ext_tris += ek.tris
 			meshes.append(["Ext_%d_%d" % [ck.x, ck.y], ek.commit(mats, plain), 0.0, EXT_RANGE, false])
 			meshes.append(["ExtShadow_%d_%d" % [ck.x, ck.y], ek.commit_shadow(["glass", "water", "lamp", "fire"]), 0.0, EXT_RANGE, true])
-		var ik: MeshKit = inn[ck]
+	for bk in inn:
+		var ik: MeshKit = inn[bk]
 		if not ik.is_empty():
 			int_tris += ik.tris
-			meshes.append(["Int_%d_%d" % [ck.x, ck.y], ik.commit(mats, plain), 0.0, INT_RANGE, false])
+			meshes.append(["Int_" + str(bk).get_file(), ik.commit(mats, plain), 0.0, INT_RANGE, false])
 	var mms := []
-	for ck in props:
-		_multimesh_list(mms, props[ck], "IP_%d_%d" % [ck.x, ck.y], INT_RANGE, false)
+	for bk in props:
+		_multimesh_list(mms, props[bk], "IP_" + str(bk).get_file(), INT_RANGE, false)
+	for ck in oprops:
 		_multimesh_list(mms, oprops[ck], "OP_%d_%d" % [ck.x, ck.y], OPROP_RANGE, true)
 	# door leaves: MultiMesh per (cell, mesh)
 	var groups := {}
@@ -327,7 +331,7 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		for dsp in rec.doors:
 			for leaf in dsp.leaves:
 				var mesh := _door_mesh(dsp.style, leaf.w, dsp.h, leaf.sign, dsp.col)
-				var key := "%s|%d" % [str(rec.cell), mesh.get_rid().get_id()]
+				var key := str(mesh.get_rid().get_id())       # one MultiMesh per door mesh for the whole town
 				if not groups.has(key):
 					groups[key] = {"mesh": mesh, "items": []}
 				groups[key].items.append([dsp, leaf])
@@ -454,7 +458,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 		var mm: MultiMesh = dm[0]
 		var mmi2 := MultiMeshInstance3D.new()
 		mmi2.multimesh = mm
-		mmi2.visibility_range_end = DOOR_RANGE
+		mmi2.visibility_range_end = DOOR_RANGE + float(t.radius)
 		mmi2.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		mmi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi2.name = "Doors"
