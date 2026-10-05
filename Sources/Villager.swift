@@ -72,7 +72,8 @@ enum Villagers {
     static func ench(_ i: String, _ base: Int, _ uses: Int, _ xp: Int, _ m: Float = 0.05) -> T {
         T(buy: "emerald", buyN: base, sell: i + "@ench", sellN: 1, uses: uses, xp: xp, mult: m)
     }
-    static let book = T(buy: "emerald", buyN: 0, buyB: "book", buyBN: 1, sell: "enchanted_book@book", sellN: 1, uses: 12, xp: 0, mult: 0.2)
+    // Enchanted-book offers give the villager 1 / 5 / 10 / 15 experience by level (0: book-only librarians never levelled).
+    static func book(_ xp: Int) -> T { T(buy: "emerald", buyN: 0, buyB: "book", buyBN: 1, sell: "enchanted_book@book", sellN: 1, uses: 12, xp: xp, mult: 0.2) }
 
     static let colorsL1 = ["white", "gray", "black", "light_blue", "lime"]
     static let colorsL2 = ["yellow", "light_gray", "orange", "red", "pink"]
@@ -114,10 +115,10 @@ enum Villagers {
              T(buy: "arrow", buyN: 5, buyB: "emerald", buyBN: 2, sell: "tipped_arrow@tipped", sellN: 5, uses: 12, xp: 30)],
         ],
         "librarian": [
-            [emeraldFor("paper", 24, 16, 2), book, forEmeralds("bookshelf", 9, 1, 12, 1)],
-            [emeraldFor("book", 4, 12, 10), book, forEmeralds("lantern", 1, 1, 12, 5)],
-            [emeraldFor("ink_sac", 5, 12, 20), book, forEmeralds("glass", 1, 4, 12, 10)],
-            [emeraldFor("writable_book", 2, 12, 30), book, forEmeralds("clock", 5, 1, 12, 15), forEmeralds("compass", 4, 1, 12, 15)],
+            [emeraldFor("paper", 24, 16, 2), book(1), forEmeralds("bookshelf", 9, 1, 12, 1)],
+            [emeraldFor("book", 4, 12, 10), book(5), forEmeralds("lantern", 1, 1, 12, 5)],
+            [emeraldFor("ink_sac", 5, 12, 20), book(10), forEmeralds("glass", 1, 4, 12, 10)],
+            [emeraldFor("writable_book", 2, 12, 30), book(15), forEmeralds("clock", 5, 1, 12, 15), forEmeralds("compass", 4, 1, 12, 15)],
             [forEmeralds("name_tag", 20, 1, 12, 30)],
         ],
         "cartographer": [
@@ -325,7 +326,7 @@ extension Game {
     // Village Hero discount applied while a trade screen is open.
     func heroDiscount(_ o: TradeOffer) -> Int {
         let h = effects.level(.heroOfTheVillage)
-        guard h > 0, o.buyA.item == Items.id("emerald") else { return 0 }
+        guard h > 0, !o.buyA.isEmpty else { return 0 }                   // every offer, not only emerald prices (20 wheat -> 14)
         let k = 0.3 + 0.0625 * Float(h - 1)
         return -max(1, Int(floor(k * Float(o.buyA.count))))
     }

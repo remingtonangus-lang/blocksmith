@@ -70,6 +70,7 @@ extension Game {
     }
 
     func randomTick(_ p: IVec3, _ b: BlockID) {
+        if b == GRASS || b == MYCELIUM { grassTick(p, b); return }        // the commonest tick: no string key
         let key = Blocks.key(Blocks.groupBase[Int(b)])
         if Copper.index[key] != nil { copperAge(p, b); return }
         if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop", "dried_ghast"].contains(key) { newBlockRandomTick(p, b, key); return }
@@ -112,28 +113,46 @@ extension Game {
             while h < 16 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5)
             if h < cap { world.setBlock(p.x, p.y + 1, p.z, b) }
+        case "vine":
+            // Vines hang lower over time: 1 in 4 random ticks into the air below (reference downward growth).
+            if Rand.int(in: 0..<4) == 0 && world.block(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
+        case "ice":
+            // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
+            if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim == .nether ? AIR : WATER); world.scheduleFluid(around: p) }
+        case "snow":
+            if world.lightAt(p.x, p.y, p.z).block > 11 { world.setBlockAsync(p.x, p.y, p.z, AIR) }
         case "sweet_berry_bush":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if stage < 3 && max(l.sky, l.block) >= 9 && Rand.int(in: 0..<5) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "farmland":
-            let wet = waterNear(p)
+            // Water within 4 or rain on it keeps it moist; without, the reference moisture counts down 7 random ticks
+            // before it dries (it dried at once). Two states here, so a 1-in-7 roll per tick.
+            let wet = waterNear(p) || (weather.raining && skyExposed(p.x, p.y + 1, p.z))
             let isWet = Blocks.key(b) == "farmland_moist"
             if wet && !isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland_moist")) }
-            else if !wet && isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) }
+            else if !wet && isWet { if Rand.int(in: 0..<7) == 0 { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) } }
             else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
                 if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
-        case "grass_block":
-            // Dies under opaque blocks; spreads to nearby lit dirt.
-            if Blocks.opaque[Int(world.block(p.x, p.y + 1, p.z))] { world.setBlock(p.x, p.y, p.z, DIRT); return }
-            for _ in 0..<4 {
-                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
-                if world.block(q.x, q.y, q.z) == DIRT && !Blocks.opaque[Int(world.block(q.x, q.y + 1, q.z))] && !Blocks.isLiquid(world.block(q.x, q.y + 1, q.z)) {
-                    let l = world.lightAt(q.x, q.y + 1, q.z)
-                    if max(l.sky, l.block) >= 9 { world.setBlockAsync(q.x, q.y, q.z, GRASS) }
-                }
-            }
         default: break
+        }
+    }
+
+    // Grass and mycelium (reference spread rules; grass had no random ticks, so it never spread or died): under an
+    // opaque block or water they turn to dirt; with light 9+ above, each tick tries 4 spots within 3x5x3 and covers
+    // dirt whose top is open and lit 4+.
+    func grassTick(_ p: IVec3, _ b: BlockID) {
+        let above = world.block(p.x, p.y + 1, p.z)
+        if Blocks.opaque[Int(above)] || Blocks.fluidKind[Int(above)] == 1 { world.setBlockAsync(p.x, p.y, p.z, DIRT); return }
+        let l0 = world.lightAt(p.x, p.y + 1, p.z)
+        guard max(l0.sky, l0.block) >= 9 else { return }
+        for _ in 0..<4 {
+            let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
+            guard world.block(q.x, q.y, q.z) == DIRT else { continue }
+            let up = world.block(q.x, q.y + 1, q.z)
+            if Blocks.opaque[Int(up)] || Blocks.isLiquid(up) { continue }
+            let l = world.lightAt(q.x, q.y + 1, q.z)
+            if max(l.sky, l.block) >= 4 { world.setBlockAsync(q.x, q.y, q.z, b) }
         }
     }
 
@@ -372,6 +391,14 @@ extension Game {
         }
         // Beds: sleep through the night and set the respawn point.
         if bkey.hasSuffix("_bed") || bkey.hasSuffix("_bed_head") {
+            // Beds explode outside the overworld (reference: power 5 with fire, no spawn set); they set the
+            // Emberdeep spawn before, so a respawn put you in the overworld at Emberdeep coordinates.
+            if world.dim != .overworld {
+                breakBedPartner(t.hit, b)
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+                Explosion.explode(at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 0.5, Float(t.hit.z) + 0.5), power: 5, game: self, fire: true)
+                return true
+            }
             trySleep(at: t.hit)
             return true
         }
@@ -406,7 +433,9 @@ extension Game {
             return true
         }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
-            guard !m.baby, m.breedCooldown <= 0, m.inLove <= 0 else { return false }
+            // Reference: feeding a baby takes 10 % off the time it still needs to grow up.
+            if m.baby { m.age += max(1, (1200 - m.age) * 0.1); consumeHeld(); particles.hearts(at: m.pos + V3(0, m.height, 0)); return true }
+            guard m.breedCooldown <= 0, m.inLove <= 0 else { return false }
             m.inLove = 30
             consumeHeld()
             particles.hearts(at: m.pos + V3(0, m.height, 0))
@@ -441,11 +470,14 @@ extension Game {
 
     func trySleep(at p: IVec3) {
         let night = (dayFraction > 0.52 && dayFraction < 0.98) || weather.thunder > 0.5
-        spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)
+        spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)     // y + 0.6 marks a bed spawn (respawn())
+        anchorSpawn = nil                                    // the newest respawn point wins
         achieve("sleep")
         onToast?("Respawn point set")
         guard night else { onToast?("You can only sleep at night"); return }
-        if mobs.mobs.contains(where: { $0.kind.hostile && simd_length($0.pos - player.pos) < 8 }) {
+        // Monsters within 8 blocks across and 5 up or down of the bed (reference box; it was a sphere round the player).
+        let bc = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)
+        if mobs.mobs.contains(where: { $0.kind.hostile && $0.health > 0 && abs($0.pos.x - bc.x) <= 8 && abs($0.pos.y - bc.y) <= 5 && abs($0.pos.z - bc.z) <= 8 }) {
             onToast?("You may not rest now; there are monsters nearby")
             return
         }
@@ -482,6 +514,7 @@ extension Game {
 extension Game {
     // Lava, fire, magma and cactus hurt; burning continues until water puts it out.
     func hazardTick(_ dt: Float) {
+        frostWalkerTick()
         let p = player.pos
         let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let body = world.block(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
@@ -497,6 +530,10 @@ extension Game {
                 dmg = Blocks.key(feet) == "soul_fire" ? 2 : 1; cause = "went up in flames"; onFire = max(onFire, 8)     // soul fire 2 (reference)
             }
             else if Blocks.key(under) == "magma_block" && !player.sneaking && player.onGround { dmg = 1; cause = "discovered the floor was lava" }
+            else if Player.berryBase != AIR && feet != Player.berryBase && Blocks.groupBase[Int(feet)] == Player.berryBase
+                        && simd_length(V2(player.vel.x, player.vel.z)) > 0.06 && !player.flying {
+                dmg = 1; cause = "was poked to death by a sweet berry bush"      // a grown bush hurts anyone moving through it
+            }
             else {
                 // Cactus: touching any side.
                 let mn = V3(p.x - 0.31, p.y, p.z - 0.31), mx = V3(p.x + 0.31, p.y + 1.8, p.z + 0.31)
@@ -507,7 +544,7 @@ extension Game {
                     }
                 } } }
             }
-            if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" ? .generic : .fire); contactTimer = 0.5 }
+            if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" || cause.hasSuffix("berry bush") ? .generic : .fire); contactTimer = 0.5 }
         }
         if onFire > 0 {
             // Fire Protection: burning lasts 15 % less per level of the best piece (reference), so it runs out faster.
@@ -520,22 +557,43 @@ extension Game {
         }
     }
 
-    // Boarling bartering (weights of the reference game's barter table, total 459; potions and
-    // enchanted items are left out until brewing/enchanting exist).
+    // Boarling bartering (the reference barter table, total weight 459, now with its enchanted and potion entries:
+    // Soul Speed books and boots, fire resistance potions and water bottles, which waited for brewing / enchanting).
     func barter(_ m: Mob) {
+        func ench(_ item: String, _ lvl: ClosedRange<Int>) -> ItemStack? {
+            guard Items.has(item) else { return nil }
+            var s = ItemStack(Items.id(item), 1)
+            s.ench = Enchant.pack([(.soulSpeed, Rand.int(in: lvl))])
+            if item == "book", Items.has("enchanted_book") { var b = ItemStack(Items.id("enchanted_book"), 1); b.ench = s.ench; s = b }
+            return s
+        }
+        func potion(_ form: Int, _ t: String) -> ItemStack? { Potions.item(form, t).map { ItemStack($0, 1) } }
         let table: [(String, Int, Int, Int)] = [
+            ("@soul_speed_book", 1, 1, 5), ("@soul_speed_boots", 1, 1, 8), ("@fire_res_potion", 1, 1, 8), ("@fire_res_splash", 1, 1, 8),
+            ("@water_bottle", 1, 1, 10),
             ("ender_pearl", 2, 4, 10), ("string", 3, 9, 20), ("quartz", 5, 12, 20), ("obsidian", 1, 1, 40),
             ("crying_obsidian", 1, 3, 40), ("fire_charge", 1, 1, 40), ("leather", 2, 4, 40), ("soul_sand", 2, 8, 40),
             ("nether_brick", 2, 8, 40), ("spectral_arrow", 6, 12, 40), ("gravel", 8, 16, 40), ("blackstone", 8, 16, 40),
             ("iron_nugget", 10, 36, 10),
-        ].filter { Items.has($0.0) }
+        ].filter { $0.0.hasPrefix("@") || Items.has($0.0) }
         let total = table.reduce(0) { $0 + $1.3 }
         var r = Rand.int(in: 0..<max(1, total))
         for e in table {
             r -= e.3
             if r < 0 {
-                let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
-                drops.spawn(ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                var out: ItemStack?
+                switch e.0 {
+                case "@soul_speed_book": out = ench("book", 1...3)
+                case "@soul_speed_boots": out = ench("iron_boots", 1...3)
+                case "@fire_res_potion": out = potion(0, "fire_resistance")
+                case "@fire_res_splash": out = potion(1, "fire_resistance")
+                case "@water_bottle": out = potion(0, "water")
+                default: out = ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2))
+                }
+                if let o = out {
+                    let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
+                    drops.spawn(o, at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                }
                 break
             }
         }

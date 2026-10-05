@@ -68,6 +68,7 @@ struct SeatState {
     var walkBob: Float = 0
     var walkAmount: Float = 0
     var regenTimer: Double = 0
+    var regenFrac: Float = 0
     var starveTimer: Double = 0
     var drownTimer: Double = 0
     var mining: IVec3?
@@ -348,7 +349,7 @@ final class Coop {
     // Both players asleep (the night skips only then).
     func othersAsleep(_ g: Game) -> Bool {
         guard active else { return true }
-        for i in 0..<slots.count where i != current { if let s = slots[i], s.sleeping < 2 { return false } }
+        for i in 0..<slots.count where i != current { if let s = slots[i], s.sleeping < 5 { return false } }
         return true
     }
 

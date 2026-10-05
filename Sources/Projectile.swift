@@ -276,6 +276,9 @@ final class ProjectileManager {
                 a.stuck = true
                 a.age = 0
                 g.sfx(.arrowHit, 0.5, at: a.pos)
+                let hitAt = a.pos + dir * 0.1
+                let cell = IVec3(Int(floor(hitAt.x)), Int(floor(hitAt.y)), Int(floor(hitAt.z)))
+                if Circuit.kind(w.block(cell.x, cell.y, cell.z)) == .target { w.redstone.hitTarget(cell, at: hitAt, arrow: true) }
                 if a.trident != nil { g.tridentHit(a, mob: nil); a.returning = false }
             } else {
                 a.pos += step

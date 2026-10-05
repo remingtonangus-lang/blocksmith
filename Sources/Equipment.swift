@@ -51,6 +51,9 @@ extension Mob {
 
     var armorPoints: (Int, Float) {
         var (pts, tough) = steelholdArmor
+        // Natural armour (reference): the zombie family 2, the Blight 4.
+        if isZombie || kind == .zombifiedPiglin { pts += 2 }
+        if kind == .wither { pts += 4 }
         guard let e = equip else { return (pts, tough) }
         for s in e.prefix(4) where !s.isEmpty { pts += s.def.armor; tough += s.def.toughness }
         return (pts, tough)

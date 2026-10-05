@@ -47,7 +47,7 @@ final class GameView: MTKView {
     }
     override func mouseMoved(with e: NSEvent) { track(e); look(e) }
     override func mouseDragged(with e: NSEvent) { track(e); look(e) }
-    override func rightMouseDragged(with e: NSEvent) { look(e) }
+    override func rightMouseDragged(with e: NSEvent) { track(e); look(e) }      // right-drag places one per slot (menus)
     override func otherMouseDragged(with e: NSEvent) { look(e) }
 
     override func mouseDown(with e: NSEvent) {

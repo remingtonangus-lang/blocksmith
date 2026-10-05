@@ -26,6 +26,7 @@ final class Circuit {
     var sensor: [IVec3: (Int, Int)] = [:]           // murk sensors: (output, until tick)
     private var edge = Set<IVec3>()                  // components currently seeing power (edge detection)
     private var burn: [IVec3: [Int]] = [:]           // torch toggle times (burnout)
+    private var pressedAt: [IVec3: Int] = [:]        // plates and detector rails: last tick something was on them
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
     private var hopperCooldown: [IVec3: Int] = [:]
     private var busy = false
@@ -302,6 +303,7 @@ final class Circuit {
         for q in net {
             var e = 0
             for d in 0..<6 { e = max(e, powerFrom(q, d, forWire: true)) }
+            e = min(15, e)                                       // the bucket table is 16 long
             level[q] = e
             if e > 0 { buckets[e].append(q) }
         }
@@ -486,24 +488,43 @@ final class Circuit {
     }
 
     // Scheduled work.
+    // A projectile struck a target block at `hit` (world space): 1-15 by how close to the face centre, for 8 ticks
+    // (arrows, tridents) or 20 (anything else) (reference; nothing ever powered a target).
+    func hitTarget(_ p: IVec3, at hit: V3, arrow: Bool) {
+        let b = block(p)
+        guard Circuit.kind(b) == .target else { return }
+        let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        let o = simd_abs(hit - c)
+        // The face is the axis the hit is furthest along; the distance is the larger of the other two.
+        let d: Float = o.x >= o.y && o.x >= o.z ? max(o.y, o.z) : (o.y >= o.z ? max(o.x, o.z) : max(o.x, o.y))
+        let k: Float = min(1, max(0, (0.5 - d) / 0.5))
+        let level = max(1, Int((15 * k).rounded(.up)))
+        setQuiet(p, base(b) + BlockID(level))
+        wakeAround(p)
+        schedule(p, arrow ? 8 : 20)
+    }
+
     private func fire(_ p: IVec3) {
         let b = block(p)
         let s = st(b)
         switch Circuit.kind(b) {
+        case .target:
+            if s > 0 { setQuiet(p, base(b)); wakeAround(p) }
         case .torch:
             let attached = s < 2 ? IVec3(0, -1, 0) : Circuit.D[Circuit.opp[Circuit.d6((s - 2) % 4)]]
             let q = p + attached
             let powered = conductor(block(q)) ? blockPower(q).1 > 0 : false
             let lit = s == 0 || (s >= 2 && s < 6)
             guard lit == powered else { return }
-            // Burnout: more than 8 toggles in 60 ticks leaves the torch off for a while.
+            // Burnout (reference): 8 turn-offs within 60 ticks leave the torch off for a while. Only turn-offs count
+            // (every toggle did, so a 6-tick clock burnt out here and not there).
             var hist = (burn[p] ?? []).filter { now - $0 < 60 }
-            hist.append(now)
+            if lit { hist.append(now) }
             burn[p] = hist
-            if hist.count > 8 && !lit { schedule(p, 160); return }
+            if hist.count >= 8 && !lit { schedule(p, 160); return }
             let ns: Int = s < 2 ? (lit ? 1 : 0) : (lit ? s + 4 : s - 4)
             setQuiet(p, base(b) + BlockID(ns))
-            if hist.count > 8 && lit { game?.sfx(.fizz, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+            if hist.count >= 8 && lit { game?.sfx(.fizz, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
             wakeAround(p); mark(p + IVec3(0, 1, 0)); wakeAround(p + IVec3(0, 1, 0))
         case .lamp:
             if received(p) == 0 && s == 1 { setQuiet(p, base(b)); wakeAround(p) }
@@ -582,7 +603,8 @@ final class Circuit {
         for d in sides {
             let n = p + Circuit.D[d]
             let k = Circuit.kind(block(n))
-            if k == .wire || k == .block || k == .repeater || k == .comparator { side = max(side, powerFrom(p, d)) }
+            // Comparators take any source's direct power at the side (reference): an observer pointed in counts too.
+            if k == .wire || k == .block || k == .repeater || k == .comparator || k == .observer { side = max(side, powerFrom(p, d)) }
         }
         if (s & 4) != 0 { return max(0, rear - side) }
         return rear >= side ? rear : 0
@@ -591,7 +613,14 @@ final class Circuit {
     func containerSignal(_ q: IVec3) -> Int? {
         guard let be = w.blockEntities[q], be.kind != .spawner else {
             let k = Blocks.key(base(block(q)))
-            if k == "composter" { return 0 }
+            let off = Int(block(q) - base(block(q)))
+            switch k {                                                          // reference readings (they read nothing)
+            case "composter": return off                                        // fill level 0-8
+            case "cake": return (7 - off) * 2                                   // slices left x 2
+            case "end_portal_frame": return off > 0 ? 15 : 0                    // with an eye
+            case "respawn_anchor": return off * 15 / 4                          // 0, 3, 7, 11, 15
+            default: break
+            }
             return nil
         }
         let c = be.container
@@ -599,7 +628,7 @@ final class Circuit {
         var fill: Float = 0
         var any = false
         for i in 0..<c.count where !c[i].isEmpty { fill += Float(c[i].count) / Float(c[i].maxStack); any = true }
-        return any ? Int(floor(1 + fill / Float(c.count) * 14)) : 0
+        return any ? min(15, Int(floor(1 + fill / Float(c.count) * 14))) : 0      // over-full slots (older saves) stay at 15
     }
 
     // MARK: Periodic: plates, daylight detectors, hoppers
@@ -619,9 +648,11 @@ final class Circuit {
                     let heavy = Blocks.key(base(b)).hasPrefix("heavy")
                     level = n == 0 ? 0 : min(15, heavy ? (n + 9) / 10 : n)
                 } else { level = n > 0 ? 1 : 0 }
+                if n > 0 { pressedAt[p] = now }
                 if level != s {
-                    // Plates release after 20 ticks (10 for weighted) with nothing on them.
-                    if level < s && now % (Circuit.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
+                    // Plates release 20 ticks (10 weighted) after the last press (reference; a global 20-tick boundary
+                    // gave pulses of 1 to 20 ticks).
+                    if level < s && now - (pressedAt[p] ?? 0) < (Circuit.kind(b) == .weightedPlate ? 10 : 20) { continue }
                     setQuiet(p, base(b) + BlockID(level))
                     g.sfx(level > s ? .plateOn : .plateOff, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
@@ -665,7 +696,7 @@ final class Circuit {
             default: break
             }
         }
-        for p in remove { tracked.remove(p) }
+        for p in remove { tracked.remove(p); pressedAt[p] = nil }
     }
 
     private func railPowered(_ p: IVec3, _ b: BlockID) -> Bool {
@@ -691,8 +722,9 @@ final class Circuit {
             let b = block(p)
             let s = st(b)
             let has = carts.contains { Int(floor($0.x)) == p.x && Int(floor($0.z)) == p.z && abs($0.y - Float(p.y)) < 1.2 }
+            if has { pressedAt[p] = now }
             if has && s < 6 { setQuiet(p, base(b) + BlockID(s + 6)); wakeAround(p); mark(p + IVec3(0, -1, 0)); wakeAround(p + IVec3(0, -1, 0)) }
-            else if !has && s >= 6 && now % 20 == 0 { setQuiet(p, base(b) + BlockID(s - 6)); wakeAround(p); wakeAround(p + IVec3(0, -1, 0)) }
+            else if !has && s >= 6 && now - (pressedAt[p] ?? 0) >= 20 { setQuiet(p, base(b) + BlockID(s - 6)); wakeAround(p); wakeAround(p + IVec3(0, -1, 0)) }
         }
     }
 
@@ -715,6 +747,12 @@ final class Circuit {
         if r == RenderType.cross.rawValue || r == RenderType.wire.rawValue { return true }
         let k = kind(b)
         if [.torch, .lever, .button, .plate, .weightedPlate, .repeater, .comparator, .door, .ironDoor].contains(k) { return true }
+        // Reference "destroy on push": gourds (piston farms), leaves, beds, carpets, lanterns, pots, cocoa, heads, the egg.
+        let g = Blocks.key(Blocks.groupBase[Int(b)])
+        if ["pumpkin", "carved_pumpkin", "jack_o_lantern", "melon", "flower_pot", "cocoa", "dragon_egg", "lantern", "soul_lantern",
+            "zombie_head", "creeper_head", "piglin_head", "dragon_head", "player_head"].contains(g)
+            || g.hasSuffix("_leaves") || g.hasSuffix("_bed") || g.hasSuffix("_bed_head") || g.hasSuffix("_carpet") || g.hasSuffix("_skull")
+            || g.hasPrefix("potted_") { return true }
         return Blocks.replaceable[Int(b)] || !Blocks.collide[Int(b)]
     }
 
@@ -808,7 +846,7 @@ final class Circuit {
 
     // MARK: Note blocks
 
-    private func playNote(_ p: IVec3, _ note: Int) {
+    func playNote(_ p: IVec3, _ note: Int) {
         let aboveKey = Blocks.key(base(block(p + IVec3(0, 1, 0))))
         // A mob head on top plays that mob's call instead of a note.
         let headMobs: [String: MobKind] = ["skeleton_skull": .skeleton, "wither_skeleton_skull": .witherSkeleton, "zombie_head": .zombie,

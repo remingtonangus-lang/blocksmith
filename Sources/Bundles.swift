@@ -13,7 +13,7 @@ enum Bundles {
 
     // Moves as much of `s` into bundle `b` as fits. Returns (new bundle, rest of s).
     static func insert(_ b: ItemStack, _ s: ItemStack) -> (ItemStack, ItemStack) {
-        guard !s.isEmpty else { return (b, s) }
+        guard !s.isEmpty, !Items.key(s.item).hasSuffix("shulker_box") else { return (b, s) }   // no shell boxes in bundles
         let per = isBundle(s) ? weight(s) : 64 / max(1, s.maxStack)
         let room = 64 - fill(b)
         let n = min(s.count, room / max(1, per))

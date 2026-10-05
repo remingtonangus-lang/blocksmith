@@ -984,7 +984,7 @@ final class ShipManager {
             for (i, b) in s.grid.blocks.enumerated() {
                 if let m = map[b] { idx[i] = m; continue }
                 let m = UInt16(names.count)
-                map[b] = m; names.append(Blocks.key(b)); idx[i] = m
+                map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
             }
             let raw = idx.withUnsafeBytes { Data($0) }
             let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw

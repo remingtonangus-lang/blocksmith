@@ -71,6 +71,21 @@ final class Player {
 
     static var quarantined = 0
     static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
+    static let cobwebID: BlockID = Blocks.has("cobweb") ? Blocks.id("cobweb") : AIR
+    static let soulSandID: BlockID = Blocks.has("soul_sand") ? Blocks.id("soul_sand") : AIR
+    static let honeyID: BlockID = Blocks.has("honey_block") ? Blocks.id("honey_block") : AIR
+    static let powderSnowID: BlockID = Blocks.has("powder_snow") ? Blocks.id("powder_snow") : AIR
+    static let berryBase: BlockID = Blocks.has("sweet_berry_bush") ? Blocks.groupBase[Int(Blocks.id("sweet_berry_bush"))] : AIR
+    // Held in a block (reference makeStuckInBlock, each tick's motion scaled and then cleared): the share of walking
+    // speed left, the fall and the climb speeds in b/s (cobweb 0.25 / 0.05, berry bush 0.8 / 0.75, powder snow 0.9 with
+    // its sinking left to Physics). Nil when free.
+    static func stuck(_ b: BlockID) -> (h: Float, down: Float, up: Float)? {
+        if b == AIR { return nil }
+        if b == cobwebID { return (0.116, 0.08, 0.42) }
+        if berryBase != AIR && Blocks.groupBase[Int(b)] == berryBase { return (0.37, 1.2, 6.3) }
+        if b == powderSnowID { return (0.415, 60, 60) }
+        return nil
+    }
     private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
         // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
@@ -151,12 +166,19 @@ final class Player {
             let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
             if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }
         }
+        // Soul sand and honey slow walking to ~58 % (reference speed factor 0.4 against ground friction; Soul Speed
+        // cancels the sand's), honey halves the jump (below).
+        let underID = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z)))
+        if !flying && onGround && ((underID == Player.soulSandID && soulSpeed == 0) || underID == Player.honeyID) { speed *= 0.58 }
+        let held = flying ? nil : (Player.stuck(feet) ?? Player.stuck(body))
+        if let s = held { speed *= s.h }
 
         let target = wish * speed
         let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : 5))
         let k = 1 - expf(-accel * dt)
         vel.x += (target.x - vel.x) * k
         vel.z += (target.z - vel.z) * k
+        if held != nil { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
 
         if flying {
             var vy: Float = 0
@@ -186,7 +208,14 @@ final class Player {
             vel.y -= (slowFalling && vel.y < 0 ? 2.8 : 28) * dt
             vel.y = max(vel.y, slowFalling ? -1.2 : -60)
             if slowFalling { airPeak = pos.y }
-            if input.jump && onGround { vel.y = 8.6 + 2 * Float(jumpBoost); jumped = true }
+            if input.jump && onGround {
+                vel.y = (8.6 + 2 * Float(jumpBoost)) * (underID == Player.honeyID ? 0.5 : 1)
+                jumped = true
+            }
+        }
+        if let s = held {
+            vel.y = max(-s.down, min(s.up, vel.y))
+            airPeak = pos.y                       // being held resets the fall (reference)
         }
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.

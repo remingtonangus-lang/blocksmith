@@ -69,7 +69,11 @@ extension Game {
         mapRow = (mapRow + 1) % 128
         let z = mapRow
         guard abs(z - ppz) < 64 else { return }
-        for x in max(0, ppx - 64)..<min(128, ppx + 64) {
+        // Held far east or west of its area (an explorer map just bought), the range inverted: -Ounchecked ran the loop
+        // up from the lower bound, writing past the colour array and hanging every frame.
+        let lo = max(0, ppx - 64), hi = min(128, ppx + 64)
+        guard lo < hi else { return }
+        for x in lo..<hi {
             let dx = x - ppx, dz = z - ppz
             if dx * dx + dz * dz > 64 * 64 { continue }
             let wx = m.cx + (x - 64) * per, wz = m.cz + (z - 64) * per

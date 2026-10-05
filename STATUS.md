@@ -10,6 +10,17 @@ add docs/status/<stream>.md and a link here.
 > compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
 > sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
 
+## HANDOFF (2026-10-05 ~12:35 UTC, integration session stopped: usage nearly gone)
+- Pushed as a WIP batch (not compile-checked by CI yet): fidelity rounds 5 (enchantments / movement) and 6 (mobs /
+  animals), stonecutter paging, and waterlogging (twin states: Blocks.registerWaterlogged, World.storedState / wetFloor,
+  Mesher water in twin cells, buckets, placement, sponge, saveKey). A subagent hazard audit of waterlogging was still
+  running and did NOT report: first job next session is to read the fast lane, fix compile errors, then re-audit twins
+  (name->id maps, liquid checks in mining/raycast, Circuit/Pathfinding treating twins as water).
+- Run 692 (1b8f474) heavy: play red (Blight fight dealt/took 0; player stood outside the cleared arena, moved to +10.5,
+  sight diagnostic added) and tours red (ridecheck crew trooper 3.96 off post 0; diagnostic added; this push runs
+  `[fast: --ridecheck --scenes crew]`). Not done: StructWriter waterlogging (gencheck leak risk), PR #9 body update
+  (draft in the session scratchpad, rounds 5-6 + waterlogging; re-write from STATUS.md rounds if lost).
+
 ## HANDOFF (2026-10-03 ~12:00 UTC, builder session parked by Remington; supersedes the notes below)
 
 **State.** Branch `claude/blocksmith-playtest`. PLAYTEST READY on PR #9: `745768b` (run 424, fully green after one perf
@@ -275,6 +286,36 @@ the reference: blast resistance table (stone 6, planks 3, end stone 9, obsidian 
 hoe speeds, full-draw bow crits, Mining Fatigue III/IV, Haste before the instant-break test, Fortune on lapis/copper,
 zombie rare drops (player kills, Looting), baby zombie loot, mushroom blocks, TNT drops all, piglin / illager / hoglin
 speeds.
+Round 2 (three read-only subagent audits: items/blocks, combat/survival, spawning/AI, ~45 fixes): block drops (ember ores,
+bookshelves, sea lanterns, stained glass, campfires...), fuel table, stack sizes, recipes (lodestone, crafter, packed
+mud...), tool wear, leaf decay radius 6, burning / freezing through armour, crit rules, knockback, mob hurt i-frames
+(melee and arrows), fall threshold and landing blocks (hay, beds, slime bounce), swimming hunger, crossbow crits,
+spawn cluster cap 4, thunderstorm spawns, 3D despawn, slime chunks per seed, phantoms, scaled caps, spider light,
+Voidwalker stare cone, Hisser line of sight, villager beds, crop growth factor, cactus / bamboo / berry growth,
+two-stage saplings, stair / wall hardness, smelting XP, impaling list. `--fidelitycheck` gates the numbers.
+Round 3 (audits of world mechanics and sparkstone / brewing, plus an -Ounchecked UB audit): beds explode outside the
+overworld, bed/anchor respawn rules, grass and mycelium spread, ice/snow melt and shore freezing, water 0.25 s, fire
+burn/ignite odds, copper oxidation formula, basalt generator, XP orbs that lie and drift, target blocks, torch burnout,
+piston-breakable gourds, plate release timing, brewing-stand hopper faces, comparator readings, lingering clouds;
+UB: map loop range when far from the map (heap writes), dragon respawn spike index, power clamps, command clamps,
+crossbow ammo by name. Open from the audits: water spreading toward the nearest drop (all four sides now),
+waterlogging, vine growth, dropper into furnaces, dragon's breath bottles, concrete powder in water.
+Round 4 (loot / trades and inventory audits): chest loot in reference pools (buried treasure one heart, dungeons, desert
+pyramids, mineshafts, igloos, shipwrecks), mob drop rules (small slimes, shulker shells, witch pool, drowned copper,
+player-kill-only drops, picked-up gear always drops), librarian book XP, hero discount on every offer, fishing
+treasure wear, bartering's Soul Speed / potion entries; inventory: right-click swap, Q / Ctrl+Q in menus, survival pick
+block from the inventory, double-click collect (mouse), result shift-click stops when full, furnace / smoker / brewing
+slot rules, output right-click half, shield to the off hand, no shell boxes in bundles. Also: vines grow, concrete
+powder sets in water, droppers fill furnaces, dragon's breath bottles, hay & co. burn, XP orbs saved, --rulescheck.
+Since: drag distribution (mouse), number keys on fuel / armor / output slots, stonecutter pages (LB / RB; the next-page
+button hides on one page), stray tipped arrows, captain banner item.
+Round 5 (enchantment / movement audit): worn pumpkins and heads no longer vanish on a hit, Glider Wings take no hit wear
+but do take Unbreaking, Thorns wears its piece, using an item slows to 20 %, Infinity needs one arrow, Impaling counted
+once on thrown tridents, Mending leftovers pass on, boats on ice at reference speed (~40 b/s), cobwebs / berry bushes /
+powder snow hold you (and reset falls), soul sand and honey slow walking, honey halves the jump, grown berry bushes
+poke, Frost Walker freezes every frame and frosted ice melts by day in 10-20 s (stays at night), horse jump heights by
+the reference curve (up to 5.3 blocks), carrot / fungus stick boosts, Wind Burst heights.
+Open: creative palette click rules, waterlogging (design: twin states with the dry key, see BUGS.md).
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:

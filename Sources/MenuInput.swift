@@ -84,6 +84,9 @@ extension Game {
         if let mm = m as? MerchantMenu, scroll != 0 {
             mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll + scroll))
         }
+        if let sc = m as? StonecutterMenu, tab != 0, sc.pages > 1 {
+            sc.page = (sc.page + tab + sc.pages) % sc.pages; sc.selected = -1; sc.changed(); sfx(.click, 0.4)
+        }
         if let am = m as? AdvancementMenu {
             if scroll != 0 { am.scroll = max(0, min(max(0, am.list.count - AdvancementMenu.rows), am.scroll + scroll)) }
             if tab != 0 { am.tab = (am.tab + tab + Advancements.tabs.count) % Advancements.tabs.count; am.scroll = 0; sfx(.click, 0.4) }
@@ -114,10 +117,45 @@ extension Game {
         let shift = input.shift
         if input.leftClicked || input.rightClicked {
             let b = input.leftClicked ? 0 : 1
-            if let s = m.slotAt(mouse, L) { m.click(s, button: b, shift: shift) }
+            if let s = m.slotAt(mouse, L), !carried.isEmpty, !shift, s.container != nil, case .normal = s.kind, creative == nil {
+                // A press with a stack on the cursor may start a drag: decided on release (one slot = a plain click).
+                menuDrag = [s]; menuDragButton = b
+            } else if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
             else if !m.inside(mouse, L) && !carried.isEmpty {
                 if b == 0 { dropItem(carried); carried = .empty }
                 else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
+            }
+        }
+
+        // Mouse drag over slots (reference): left splits the cursor stack evenly (rounding down, the rest stays on the
+        // cursor), right places one in each. It was click-only.
+        if !menuDrag.isEmpty {
+            let held = menuDragButton == 0 ? input.leftDown : input.rightDown
+            if held {
+                if let s = m.slotAt(mouse, L), !menuDrag.contains(where: { $0 === s }), s.container != nil, case .normal = s.kind,
+                   s.accepts(carried), s.stack.isEmpty || s.stack.stacks(with: carried), menuDrag.count < carried.count {
+                    menuDrag.append(s)
+                }
+            } else {
+                let set = menuDrag
+                menuDrag = []
+                if set.count == 1 {
+                    m.mouseClick = true; m.click(set[0], button: menuDragButton, shift: false); m.mouseClick = false
+                } else if !carried.isEmpty {
+                    let per = menuDragButton == 0 ? max(1, carried.count / set.count) : 1
+                    var c = carried
+                    for s in set where c.count > 0 {
+                        var st = s.stack
+                        let room = m.slotLimit(s, c) - (st.isEmpty ? 0 : st.count)
+                        let n = min(per, c.count, max(0, room))
+                        guard n > 0 else { continue }
+                        if st.isEmpty { st = c.with(count: n) } else { st.count += n }
+                        s.stack = st
+                        c.count -= n
+                    }
+                    carried = c.count > 0 ? c : .empty
+                    m.changed()
+                }
             }
         }
 
@@ -151,7 +189,18 @@ extension Game {
                 // The hotbar stack goes in only where the slot takes it whole (it skipped `accepts` and the slot limit:
                 // a stack of books swapped into the enchanting slot was used up as one).
                 let h = inventory.main[i]
-                if case .normal = s.kind, s.container != nil, h.isEmpty || (s.accepts(h) && h.count <= m.slotLimit(s, h)) {
+                var swappable = false
+                switch s.kind {
+                case .normal, .fuel: swappable = true
+                case .armor: swappable = !(survival && !s.stack.isEmpty && Enchant.level(.bindingCurse, s.stack) > 0)
+                case .output:
+                    // An output moves into an empty hotbar slot (reference; number keys skipped outputs).
+                    if h.isEmpty && !s.stack.isEmpty { inventory.main[i] = s.stack; s.stack = .empty; m.tookOutput(s); m.changed() }
+                case .result:
+                    if h.isEmpty && !s.stack.isEmpty, let r = m.takeResult(s) { inventory.main[i] = r; m.changed() }
+                default: break
+                }
+                if swappable, s.container != nil, h.isEmpty || (s.accepts(h) && h.count <= m.slotLimit(s, h)) {
                     let a = s.stack
                     s.stack = h
                     inventory.main[i] = a
@@ -178,6 +227,19 @@ extension Game {
                 if src.stack.count != before { moved = true }
             }
             if moved { m.changed(); sfx(.pickup, 0.4) }
+        }
+        // The drop key (Q) over a slot drops one item, Ctrl+Q the whole stack (reference; it did nothing in menus).
+        if input.tapped(KeyBinds.key(.drop)) && !m.capturesText && keyboard == nil && creative == nil, carried.isEmpty,
+           let s = menuHover, !s.isButton, s.container != nil, !s.stack.isEmpty {
+            if case .palette = s.kind {} else if case .result = s.kind {} else {
+                var st = s.stack
+                let n = input.control ? st.count : 1
+                dropItem(st.with(count: n))
+                st.count -= n
+                s.stack = st.count > 0 ? st : .empty
+                if case .output = s.kind { m.tookOutput(s) }
+                m.changed()
+            }
         }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
         if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil && !(m is CraftingBookMenu) {

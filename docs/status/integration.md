@@ -213,3 +213,18 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 11:55 UTC: run 686 (313ecce) still queued: cancelled, superseded by the fidelity audit round 2 (three read-only
   audits: items/blocks, combat/survival, spawning/AI; ~45 fixes) plus --fidelitycheck (gating). A compile review of
   313ecce..2d0b90f by a subagent found nothing.
+- 11:40-12:40 UTC: run 692 (1b8f474): fast lane clean (no warnings, cooptest PASS incl. the enemy round and per-half
+  subtitles, fidelitycheck 30/30), release build and benchmarks done; smoke / tours / shots / checks / play queued
+  behind bs-capital-soldiers (which now rebases on 1b8f474) and frontier runs. Held locally meanwhile (~45 commits,
+  compile-reviewed by a subagent): fidelity audit rounds 2-3 (world mechanics, sparkstone/brewing, loot pending),
+  a UB audit (map loop range, dragon respawn index, clamps), XP orbs, fluid spread toward drops, fire odds,
+  --rulescheck (not gating yet) and a mobtests cluster-cap check. Pushing once 692's heavy lane publishes.
+- 12:25 UTC: run 692 heavy lane published: checks, perf, shots, smoke green; play and tours red.
+  - play: the Blight fight dealt and took nothing (388 arrows for 0, player unhurt, Blight at full health 2.5 blocks
+    from the player and 6 up). The fighter stood at +14.5 from the arena centre, past the 12 cleared blocks, under
+    whatever grew there; the spawn point (so the arena) moves with this batch's respawn rules. Now inside the arena
+    (+10.5), and a failure prints whether the player can see the Blight.
+  - tours: ridecheck crew, a trooper 3.96 blocks off post 0 while the crawler drives (1.88 on runs 605 / 634, then
+    fixed by 2e844e5). No mob change in this batch touches crew; the check now prints the worst moment (tick,
+    ship-space position vs post, aggro / free / route / ground, ship speed). Next push runs `[fast: --ridecheck
+    --scenes crew]` for the read-out.

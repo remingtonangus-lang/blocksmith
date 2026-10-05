@@ -156,7 +156,9 @@ extension Game {
                 continue
             }
             // Water surfaces freeze (not next to light); snow settles while it snows.
-            if top == WATER, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
+            // Water freezes from the shore inwards: a source with some side that isn't water (reference).
+            let shore = world.block(x + 1, y, z) != WATER || world.block(x - 1, y, z) != WATER || world.block(x, y, z + 1) != WATER || world.block(x, y, z - 1) != WATER
+            if top == WATER, shore, let ice = iceId, world.lightAt(x, y + 1, z).block < 10 {
                 world.setBlockAsync(x, y, z, ice)
             } else if weather.rain > 0.5, let sn = snowId, world.block(x, y + 1, z) == AIR,
                       Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves"), world.lightAt(x, y + 1, z).block < 10 {

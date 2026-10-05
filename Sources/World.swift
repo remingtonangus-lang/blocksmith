@@ -178,12 +178,13 @@ final class World {
 
     // Changes a block and remeshes: the sections around the block synchronously (no holes, correct
     // AO), everything its light could reach in the background.
-    func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
+    func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
+        let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -218,6 +219,14 @@ final class World {
         scheduleFluid(around: IVec3(x, y, z))
     }
 
+    // Waterlogging rules for every write: a full cube (double slab) holds no water, and a waterlogged block that is
+    // removed (broken, blown up, pushed away) leaves its water behind (reference).
+    @inline(__always) static func storedState(_ id: BlockID, replacing old: BlockID) -> BlockID {
+        if Blocks.wetInvalid[Int(id)] { return Blocks.dry[Int(id)] }
+        if id == AIR && old != AIR && Blocks.isWaterlogged(old) { return WATER }
+        return id
+    }
+
     // Cells whose support may have changed: this one and the one above (falling blocks, standing plants), the one below
     // (hanging plants), and the four beside it when a solid block went (vines clinging to it). Game.gravityTick.
     @inline(__always) func queueSupportChecks(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
@@ -230,11 +239,12 @@ final class World {
 
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
-    func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
+    func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
+        let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -1025,9 +1035,49 @@ final class World {
         return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
     }
 
+    // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching
+    // passable cells up to `reach` away and never back through the source; 1000 when there is none.
+    private func dropDistance(from q: IVec3, origin: IVec3, reach: Int, kind: UInt8) -> Int {
+        func passable(_ c: IVec3) -> Bool {
+            let id = block(c.x, c.y, c.z)
+            let l = Int(Blocks.fluidLevel[Int(id)])
+            if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
+            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
+        }
+        func hole(_ c: IVec3) -> Bool { c.y > 0 && passable(IVec3(c.x, c.y - 1, c.z)) }
+        if hole(q) { return 0 }
+        var frontier = [q]
+        var seen: [IVec3] = [q, origin]                         // at most ~41 cells: a list beats hashing
+        for depth in 1...reach {
+            var nextF: [IVec3] = []
+            for c in frontier {
+                for d in World.sideDirs {
+                    let n = IVec3(c.x + d.x, c.y, c.z + d.z)
+                    if seen.contains(n) { continue }
+                    seen.append(n)
+                    guard passable(n) else { continue }
+                    if hole(n) { return depth }
+                    nextF.append(n)
+                }
+            }
+            if nextF.isEmpty { break }
+            frontier = nextF
+        }
+        return 1000
+    }
+
     private func setFluid(_ p: IVec3, _ id: BlockID) {
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
+
+    // Waterlogged states whose shape closes the floor (bottom slabs and stairs): their water can't pour down.
+    static let wetFloor: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.isWaterlogged(BlockID(i)) && Blocks.collBoxes[i].contains { $0.y0 == 0 && $0.x0 == 0 && $0.z0 == 0 && $0.x1 == 16 && $0.z1 == 16 }
+    }
+
+    static let basaltID: BlockID = Blocks.has("basalt") && Blocks.has("soul_soil") && Blocks.has("blue_ice") ? Blocks.id("basalt") : AIR
+    static let soulSoilID: BlockID = Blocks.has("soul_soil") ? Blocks.id("soul_soil") : AIR
+    static let blueIceID: BlockID = Blocks.has("blue_ice") ? Blocks.id("blue_ice") : AIR
 
     func fluidTick(lava: Bool = false) {
         if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
@@ -1060,6 +1110,20 @@ final class World {
                     scheduleFluid(around: p)
                     onFluidEvent?(p)
                     continue
+                }
+                // Basalt generator (reference): lava over soul soil beside blue ice turns to basalt.
+                if World.basaltID != AIR && block(p.x, p.y - 1, p.z) == World.soulSoilID {
+                    var ice = false
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where block(p.x + d.x, p.y + d.y, p.z + d.z) == World.blueIceID {
+                        ice = true
+                        break
+                    }
+                    if ice {
+                        setBlockAsync(p.x, p.y, p.z, World.basaltID)
+                        scheduleFluid(around: p)
+                        onFluidEvent?(p)
+                        continue
+                    }
                 }
             }
             if lv > 0 {
@@ -1094,16 +1158,33 @@ final class World {
                 onFluidEvent?(p)
                 continue
             }
-            if p.y > 0 && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
+            if p.y > 0 && !World.wetFloor[Int(cur)]
+                && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
                 setFluid(IVec3(p.x, p.y - 1, p.z), fall)
                 continue
             }
             if lvT[Int(below)] >= 0 { continue }
             let next = (lv == 8 ? 0 : lv) + stepLevel
             if next > 7 { continue }
-            for d in World.sideDirs {
-                let q = IVec3(p.x + d.x, p.y, p.z + d.z)
-                if fluidCanEnter(block(q.x, q.y, q.z), level: next, kind: kind) { setFluid(q, flow[next]) }
+            // Reference spread: only toward the nearest drop within 4 blocks (lava 2, 4 in the Emberdeep); every side
+            // when none is in reach. It went all four ways, so channels and farms flooded sideways.
+            let reach = lava && dim != .nether ? 2 : 4
+            var openMask = 0
+            for (i, d) in World.sideDirs.enumerated() where fluidCanEnter(block(p.x + d.x, p.y, p.z + d.z), level: next, kind: kind) {
+                openMask |= 1 << i
+            }
+            if openMask == 0 { continue }
+            // With more than one open side, keep only those nearest a drop (one open side needs no search).
+            if openMask.nonzeroBitCount > 1 {
+                var dist = [Int](repeating: Int.max, count: 4)
+                for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                    dist[i] = dropDistance(from: IVec3(p.x + d.x, p.y, p.z + d.z), origin: p, reach: reach, kind: kind)
+                }
+                let best = dist.min() ?? Int.max
+                for i in 0..<4 where dist[i] != best { openMask &= ~(1 << i) }
+            }
+            for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), flow[next])
             }
         }
     }
@@ -1120,9 +1201,31 @@ final class World {
         fires[p] = 0
     }
 
+    // Reference fire odds per block (FireBlock: ignite, burn). Logs catch slowly and last; leaves, wool and plants go
+    // fast. Every flammable block burned at a flat 1 in 5 a fire tick.
+    static let fireOdds: [(ignite: UInt8, burn: UInt8)] = {
+        var out = [(ignite: UInt8, burn: UInt8)](repeating: (0, 0), count: Blocks.count)
+        for i in 0..<Blocks.count where Blocks.flammable[i] && Int(Blocks.groupBase[i]) == i {
+            let k = Blocks.key(Blocks.groupBase[i])
+            var o: (UInt8, UInt8) = (5, 20)                                         // planks, stairs, slabs, fences...
+            if k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem") || k.hasSuffix("_hyphae") || k == "coal_block" { o = (5, 5) }
+            else if k.hasSuffix("_leaves") || k.hasSuffix("_wool") || k == "dried_kelp_block" || k.hasPrefix("azalea") { o = (30, 60) }
+            else if k == "bookshelf" || k == "lectern" || k == "bee_nest" || k == "chiseled_bookshelf" { o = (30, 20) }
+            else if k.hasSuffix("_carpet") || k == "hay_block" { o = (60, 20) }
+            else if k == "target" { o = (15, 20) }                                     // composter, beehive: the (5, 20) default
+            else if k == "tnt" { o = (15, 100) }
+            else if k.hasSuffix("vine") || k.hasSuffix("vines") { o = (15, 100) }
+            else if k == "scaffolding" { o = (60, 60) }
+            else if Blocks.render[i] == RenderType.cross.rawValue { o = (60, 100) }       // grass, ferns, flowers, bushes
+            for s in i..<Blocks.count where Int(Blocks.groupBase[s]) == i { out[s] = o }
+        }
+        return out
+    }()
+
     func fireTick() {
         if fires.isEmpty { return }
         let fl = Blocks.flammable
+        let odds = World.fireOdds
         for (p, age) in fires {
             let b = block(p.x, p.y, p.z)
             if b != FIRE { fires.removeValue(forKey: p); continue }
@@ -1144,20 +1247,28 @@ final class World {
                 // left behind with no block to open.
                 guard fl[Int(nb)], blockEntities[q] == nil else { continue }
                 anyFlammable = true
-                if Rand.int(in: 0..<5) == 0 {
+                // Burns away with burnOdds in 300 (250 above and below); the fire takes its place on 5 in age + 10.
+                if Rand.int(in: 0..<(d.y != 0 ? 250 : 300)) < Int(odds[Int(nb)].burn) {
                     onIgnite?(q, nb)
-                    if Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
+                    if Rand.int(in: 0..<(age + 10)) < 5 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
                 }
             }
             // Spread to air next to flammable blocks nearby.
             if anyFlammable && Rand.int(in: 0..<3) == 0 {
                 let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
-                    setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
+                if block(q.x, q.y, q.z) == AIR {
+                    // Catches by the most flammable neighbour's ignite odds (reference (ignite + 40 + 7 x difficulty) /
+                    // (age + 30) against 100, taking normal difficulty).
+                    var ig = 0
+                    for e in World.allDirs { ig = max(ig, Int(odds[Int(block(q.x + e.x, q.y + e.y, q.z + e.z))].ignite)) }
+                    if ig > 0 && Rand.int(in: 0..<100) < (ig + 54) * 10 / (age + 30) {
+                        setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
+                    }
                 }
             }
             let supported = Blocks.opaque[Int(below)] || anyFlammable
-            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
+            // No age cap: fire on a log burns until the log is gone (it went out after 30 steps whatever it stood on).
+            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable)) {
                 setBlockAsync(p.x, p.y, p.z, AIR)
                 fires.removeValue(forKey: p)
             } else {

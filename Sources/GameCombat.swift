@@ -61,7 +61,8 @@ extension Game {
             guard useNow else { return true }
             let multi = Enchant.level(.multishot, h) > 0
             let pierce = Enchant.level(.piercing, h)
-            let ammo = ItemID(h.tag)
+            // The ammo by name (contents survive a save; the raw ItemID in `tag` shifts when items are added).
+            let ammo = h.contents?.first?.item ?? ItemID(h.tag)
             let angles: [Float] = multi ? [0, -0.17, 0.17] : [0]
             for (i, a) in angles.enumerated() {
                 let dir = simd_normalize(player.look + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * tanf(a))
@@ -99,9 +100,11 @@ extension Game {
                     if survival { r.count -= 1; inventory.offhand[0] = r.count > 0 ? r : .empty }
                 } else if slot >= 0 {
                     h.tag = Int(inventory.main[slot].item)
+                    h.contents = [inventory.main[slot].with(count: 1)]
                     if survival { var s = inventory.main[slot]; s.count -= 1; inventory.main[slot] = s }
                 } else {
                     h.tag = Int(Items.id("arrow"))
+                    h.contents = [ItemStack(Items.id("arrow"), 1)]
                 }
                 inventory.held = h
                 sfx(.crossbowLoad, 0.8)
@@ -148,10 +151,6 @@ extension Game {
         if let m = mob {
             if Enchant.level(.channeling, t) > 0 && weather.thunder > 0.5 && skyExposed(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z))) {
                 strike(m.pos)
-            }
-            let imp = Enchant.level(.impaling, t)
-            if imp > 0 && Enchant.aquatic(m) {
-                m.hit(from: a.pos, damage: Int(2.5 * Float(imp)), knockback: 0)
             }
         }
         if Enchant.level(.loyalty, t) > 0 { a.returning = true; a.stuck = false }
@@ -244,7 +243,9 @@ extension Game {
             if k == "enchanted_book" { out = Enchant.withLevels(Items.id("book"), 30, treasure: true) }
             else if k == "bow" || k == "fishing_rod" {
                 out = Enchant.withLevels(Items.id(k), 30, treasure: true)
-                out.damage = Int(Float(out.def.durability) * Rand.float(in: 0...0.25))
+                // 0-25 % durability left (reference set_damage 0-0.25; it was 75-100 % left).
+                let dur = out.def.durability
+                out.damage = min(dur - 1, Int(Float(dur) * Rand.float(in: 0.75...1)))
             } else { out = ItemStack(Items.id(k), 1) }
         }
         let dir = player.pos + V3(0, 1, 0) - b.pos

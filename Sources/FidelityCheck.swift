@@ -56,7 +56,56 @@ enum FidelityCheck {
         }
         hard("gold_block", 3); hard("lapis_block", 3); hard("copper_block", 3); hard("iron_block", 5); hard("diamond_block", 5)
 
+        // Fuel (ticks), stack sizes, block drops and smelting XP (fidelity audit round 2).
+        func fuel(_ k: String, _ want: Int) {
+            guard Items.has(k) else { print("fidelity: no item \(k)"); return }
+            let got = Recipes.fuel(Items.id(k))
+            check(got == want, "\(k) burns \(got) ticks (reference \(want))")
+        }
+        fuel("oak_planks", 300); fuel("oak_slab", 150); fuel("stick", 100); fuel("coal", 1600); fuel("bamboo", 50)
+        fuel("dried_kelp_block", 4001); fuel("white_wool", 100); fuel("crimson_planks", 0); fuel("torch", 0); fuel("lava_bucket", 20000)
+        func stack(_ k: String, _ want: Int) {
+            guard Items.has(k) else { print("fidelity: no item \(k)"); return }
+            let got = Items.def(Items.id(k)).maxStack
+            check(got == want, "\(k) stacks to \(got) (reference \(want))")
+        }
+        stack("totem_of_undying", 1); stack("red_bed", 1); stack("oak_sign", 16); stack("ender_pearl", 16); stack("cobblestone", 64)
+        func drop(_ block: String, _ item: String, _ lo: Int, _ hi: Int) {
+            guard Blocks.has(block), Items.has(item), let pick = tool("netherite_pickaxe") else { print("fidelity: no \(block) / \(item)"); return }
+            var okAll = true
+            for _ in 0..<20 {
+                let d = Mining.drops(Blocks.id(block), pick)
+                let n = d.filter { $0.item == Items.id(item) }.reduce(0) { $0 + $1.count }
+                if n < lo || n > hi || d.contains(where: { $0.item != Items.id(item) }) { okAll = false }
+            }
+            check(okAll, "\(block) drops \(lo)-\(hi) \(item)")
+        }
+        drop("nether_quartz_ore", "quartz", 1, 1); drop("nether_gold_ore", "gold_nugget", 2, 6); drop("bookshelf", "book", 3, 3)
+        drop("ender_chest", "obsidian", 8, 8); drop("stone", "cobblestone", 1, 1); drop("sea_lantern", "prismarine_crystals", 2, 3)
+        if Items.has("iron_ingot") {
+            let xp = Recipes.smeltXP(Items.id("iron_ingot"))
+            check(abs(xp - 0.7) < 0.001, "iron ingot smelting XP \(xp) (reference 0.7)")
+        }
+
+        // Fire odds (ignite, burn) per the reference FireBlock table.
+        func fire(_ block: String, _ ig: UInt8, _ burn: UInt8) {
+            guard Blocks.has(block) else { print("fidelity: no block \(block)"); return }
+            let o = World.fireOdds[Int(Blocks.id(block))]
+            check(o.ignite == ig && o.burn == burn, "\(block) fire odds \(o.ignite)/\(o.burn) (reference \(ig)/\(burn))")
+        }
+        fire("oak_log", 5, 5); fire("oak_planks", 5, 20); fire("oak_leaves", 30, 60); fire("white_wool", 30, 60)
+        fire("bookshelf", 30, 20); fire("tnt", 15, 100); fire("hay_block", 60, 20)
+
+        // Hurt invulnerability: within 0.5 s only a bigger hit counts, by the difference.
+        let z = Mob(.zombie, at: V3(0, 100, 0))
+        let h0 = z.health
+        z.hit(from: V3(1, 100, 0), damage: 5, iframes: true)
+        z.hit(from: V3(1, 100, 0), damage: 3, iframes: true)
+        let h1 = z.health
+        z.hit(from: V3(1, 100, 0), damage: 7, iframes: true)
+        check(h0 - h1 == 5 && h1 - z.health == 2, "hurt invulnerability: 5, then 3 ignored, then 7 deals 2 (took \(h0 - h1), \(h1 - z.health))")
+
         print("fidelitycheck: \(n) checks, \(fails) FAILED")
-        return fails == 0 && n > 20 ? 0 : 1
+        return fails == 0 && n > 40 ? 0 : 1
     }
 }

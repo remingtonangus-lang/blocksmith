@@ -244,16 +244,17 @@ extension Game {
             guard a[1] == "give", a.count >= 3 else { return ["Usage: /effect give <effect> [seconds] [level]"] }
             let n = Game.norm(a[2]).replacingOccurrences(of: "_", with: "")
             guard let e = Effect.allCases.first(where: { "\($0)".lowercased() == n }) else { return ["Unknown effect \(a[2])"] }
-            applyEffect(e, amp: max(0, (num(4) ?? 1) - 1), seconds: Float(num(3) ?? 30))
+            // Clamped: an Int.min level overflowed the - 1, a huge duration overflowed the HUD timer.
+            applyEffect(e, amp: min(255, max(1, num(4) ?? 1)) - 1, seconds: Float(min(1_000_000, max(0, num(3) ?? 30))))
             return ["Applied effect \(Game.snake("\(e)")) to Player"]
         case "xp", "experience":
             guard a.count >= 2 else { return ["Usage: /xp <amount>[L]"] }
             if a[1].hasSuffix("L") || a[1].hasSuffix("l"), let l = Int(a[1].dropLast()) {
-                xpLevel = max(0, xpLevel + l)
+                xpLevel = max(0, min(1_000_000, xpLevel + max(-1_000_000, min(1_000_000, l))))
                 return ["Gave \(l) experience levels to Player"]
             }
             guard let v = Int(a[1]), v > 0 else { return ["Usage: /xp <amount>[L]"] }
-            addXP(v)
+            addXP(min(v, 100_000_000))                   // n * 2 in the Mending split overflowed near Int.max
             return ["Gave \(v) experience points to Player"]
         case "locate":
             guard a.count >= 2 else { return ["Usage: /locate <structure>"] }

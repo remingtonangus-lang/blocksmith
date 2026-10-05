@@ -371,8 +371,10 @@ extension Mob {
             one.count = 1
             if let slot = d.armorSlot, eq[slot.rawValue].isEmpty {
                 eq[slot.rawValue] = one
+                equipKeep |= 1 << UInt8(slot.rawValue)
             } else if eq[4].isEmpty && (d.tool == .sword || d.tool == .axe || Items.key(e.stack.item) == "bow") {
                 eq[4] = one
+                equipKeep |= 1 << 4
             } else { continue }
             var st = e.stack; st.count -= 1; e.stack = st.count > 0 ? st : .empty
             equip = eq

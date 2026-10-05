@@ -298,6 +298,13 @@ extension Game {
     // Killed captains (outside raids) drop an omen bottle (level I-V).
     func captainDied(_ m: Mob) {
         villagerDied(m)
+        // A captain always drops the banner it carries (reference; it was only drawn, never an item).
+        if m.captain, Items.has("white_banner") {
+            var b = ItemStack(Items.id("white_banner"), 1)
+            b.pat = Banners.ominous
+            b.label = "Omen Banner"
+            drops.spawn(b, at: m.pos + V3(0, 1, 0))
+        }
         guard m.captain, !m.raider, m.killedByPlayer, Items.has("ominous_bottle") else { return }
         drops.spawn(ItemStack(Items.id("ominous_bottle"), 1, damage: Rand.int(in: 0...4)), at: m.pos + V3(0, 0.5, 0))
     }

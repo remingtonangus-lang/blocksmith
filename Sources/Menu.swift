@@ -16,6 +16,7 @@ final class MenuSlot {
     var w = 16, h = 16                    // hit area (buttons are larger)
     var filter: ((ItemStack) -> Bool)?    // only these items may be placed here
     var limit: Int?                       // max stack size in this slot
+    var hidden = false                    // not drawn, clicked or reached by the pad cursor
     init(_ x: Int, _ y: Int, _ c: ItemContainer?, _ i: Int, _ k: SlotKind = .normal) {
         self.x = x; self.y = y; container = c; index = i; kind = k
     }
@@ -46,6 +47,9 @@ class Menu {
     unowned let game: Game
     var showInventoryLabel = true
     var inventoryLabelY = 73
+    private weak var lastSlotClicked: MenuSlot?
+    var mouseClick = false              // set by MenuInput around a mouse click: only mice double-click
+    private var lastSlotClickAt: Double = 0
     var lastClickButton = 0, lastClickShift = false    // how the last button was pressed (recipe tiles: 1 / max / stack)
 
     init(_ title: String, game: Game) {
@@ -115,6 +119,28 @@ class Menu {
     func click(_ slot: MenuSlot, button: Int, shift: Bool) {
         var carried = game.carried
         defer { game.carried = carried; changed() }
+        // Double left click with a stack on the cursor gathers the same item from the screen's slots, up to a full
+        // stack (reference; every click was single).
+        let now = CFAbsoluteTimeGetCurrent()
+        let double = mouseClick && button == 0 && !shift && lastSlotClicked === slot && now - lastSlotClickAt < 0.3
+        lastSlotClicked = slot; lastSlotClickAt = now
+        if double && !carried.isEmpty && carried.maxStack > 1, slot.container != nil {
+            if case .normal = slot.kind {
+                for pass in 0..<2 {                                         // part stacks first, then full ones
+                    for o in slots where o.container != nil && !o.isButton && carried.count < carried.maxStack {
+                        guard case .normal = o.kind, !o.stack.isEmpty, o.stack.stacks(with: carried) else { continue }
+                        if pass == 0 && o.stack.count >= o.stack.maxStack { continue }
+                        var st = o.stack
+                        let n = min(st.count, carried.maxStack - carried.count)
+                        carried.count += n
+                        st.count -= n
+                        o.stack = st.count > 0 ? st : .empty
+                    }
+                }
+                lastSlotClicked = nil
+                return
+            }
+        }
         switch slot.kind {
         case .button(let i):
             lastClickButton = button; lastClickShift = shift
@@ -135,8 +161,10 @@ class Menu {
         case .result:
             if shift {
                 // Craft as many as possible straight into the inventory.
+                // Stops when the next result wouldn't fit (reference; the overflow was thrown on the ground).
                 for _ in 0..<64 {
-                    guard let r = takeResult(slot) else { break }
+                    let next = slot.stack
+                    guard !next.isEmpty, CraftBook.room(game, for: next) >= next.count, let r = takeResult(slot) else { break }
                     let rest = game.inventory.add(r)
                     if !rest.isEmpty { game.dropItem(rest); break }
                 }
@@ -160,7 +188,12 @@ class Menu {
             }
             let s = slot.stack
             if s.isEmpty { return }
-            if carried.isEmpty { carried = s; slot.stack = .empty; tookOutput(slot) }
+            if carried.isEmpty && button == 1 && s.count > 1 {                      // right click: half, rounded up
+                let n = (s.count + 1) / 2
+                carried = s.with(count: n)
+                slot.stack = s.with(count: s.count - n)
+                tookOutput(slot)
+            } else if carried.isEmpty { carried = s; slot.stack = .empty; tookOutput(slot) }
             else if carried.stacks(with: s) {
                 let n = min(s.count, carried.maxStack - carried.count)
                 carried.count += n
@@ -211,10 +244,16 @@ class Menu {
                 if s.isEmpty {
                     slot.stack = carried.with(count: 1)
                     carried.count -= 1
-                } else if s.stacks(with: carried) && s.count < slotLimit(slot, s) {
-                    s.count += 1
-                    slot.stack = s
-                    carried.count -= 1
+                } else if s.stacks(with: carried) {
+                    if s.count < slotLimit(slot, s) {
+                        s.count += 1
+                        slot.stack = s
+                        carried.count -= 1
+                    }
+                } else if carried.count <= slotLimit(slot, carried) {
+                    // A different item swaps on a right click too (reference; it did nothing).
+                    slot.stack = carried
+                    carried = s
                 }
                 if carried.count <= 0 { carried = .empty }
             }
@@ -234,7 +273,7 @@ class Menu {
     }
     func slotAt(_ p: V2, _ L: HudLayout) -> MenuSlot? {
         let o = origin(L)
-        for s in slots {
+        for s in slots where !s.hidden {
             let x = o.x + Float(s.x - 1) * L.s, y = o.y + Float(s.y - 1) * L.s
             if p.x >= x && p.x < x + Float(s.w + 2) * L.s && p.y >= y && p.y < y + Float(s.h + 2) * L.s { return s }
         }
@@ -251,7 +290,7 @@ class Menu {
         let a = slots[cur]
         var best = cur
         var bestScore = Int.max
-        for (i, s) in slots.enumerated() where i != cur {
+        for (i, s) in slots.enumerated() where i != cur && !s.hidden {
             let ddx = s.x - a.x, ddy = s.y - a.y
             let along = dx != 0 ? ddx * dx : ddy * dy
             if along <= 0 { continue }
@@ -330,6 +369,8 @@ final class InventoryMenu: Menu, HasRecipeBook {
             let t = slots.filter { if case .armor(let s) = $0.kind { return s == a && $0.stack.isEmpty } else { return false } }
             if !t.isEmpty { return t }
         }
+        // A shield goes to an empty off hand (reference).
+        if from.isPlayerInv, Items.key(from.stack.item) == "shield", slots.count > 4, slots[4].stack.isEmpty { return [slots[4]] }
         if from.isPlayerInv {
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }
@@ -382,14 +423,17 @@ final class FurnaceMenu: Menu {
         be = entity
         super.init("Furnace", game: game)
         slots.append(MenuSlot(56, 17, be.container, 0))
-        slots.append(MenuSlot(56, 53, be.container, 1, .fuel))
+        let fuel = MenuSlot(56, 53, be.container, 1, .fuel)
+        fuel.filter = { Recipes.fuel($0.item) > 0 || Items.key($0.item) == "bucket" }      // fuels only (anything went in)
+        slots.append(fuel)
         slots.append(MenuSlot(116, 35, be.container, 2, .output))
         addPlayerInventory()
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {
             let s = from.stack
-            if Recipes.smelt(s.item) != nil { return [slots[0]] }
+            // Only what this furnace can cook goes to the input (a smoker took logs and cobblestone it never cooks).
+            if let r = Recipes.smelt(s.item), BlockEntity.allowed(r, s.item, in: be.mob) { return [slots[0]] }
             if Recipes.fuel(s.item) > 0 { return [slots[1]] }
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }

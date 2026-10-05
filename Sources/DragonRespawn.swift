@@ -41,8 +41,11 @@ extension Game {
             let n = eg.spikes.count
             let doneBefore = Int((12 - (respawnTimer + dt)) / 10 * Float(n))
             let doneNow = Int((12 - respawnTimer) / 10 * Float(n))
-            if doneNow > doneBefore {
-                for i in max(0, doneBefore)..<min(n, doneNow) {
+            // Both clamped to 0...n: on the last tick doneBefore passed n and the range inverted (11..<10), reading
+            // spikes out of bounds and spawning crystals without end in the release build.
+            let lo = min(n, max(0, doneBefore)), hi = min(n, max(0, doneNow))
+            if hi > lo {
+                for i in lo..<hi {
                     let s = eg.spikes[i]
                     let top = YOFF + s.height
                     let p = V3(Float(s.x) + 0.5, Float(top + 2), Float(s.z) + 0.5)

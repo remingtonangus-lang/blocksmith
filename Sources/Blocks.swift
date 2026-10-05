@@ -101,6 +101,8 @@ final class BlockRegistry {
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
+    // Flammable in the reference though neither wooden-sounding, leaves nor a plant (World.fireOdds gives their odds).
+    static let extraFlammable: Set<String> = ["hay_block", "dried_kelp_block", "scaffolding", "target", "coal_block", "composter", "beehive", "bee_nest"]
     // Blast resistance where it differs from hardness (the reference keeps them apart: stone 1.5 hard but 6 against
     // blasts, planks 2 / 3, end stone 3 / 9). Before this every block used its hardness, so a creeper cratered
     // stone, brick and deepslate builds about four times deeper than it should.
@@ -132,6 +134,13 @@ final class BlockRegistry {
     var harvestLevel: [UInt8] = []
     var requiresTool: [Bool] = []
     var groupBase: [BlockID] = []   // first state of this state's group
+    // Waterlogging (reference block-state property): a waterloggable state has a twin holding a water source. The
+    // twin keeps the dry state's name (key(), so every key and shape test treats it alike) and the same state order
+    // in a group of its own (so `b - groupBase[b]` arithmetic holds); it registers and saves as "<name>~wl".
+    var dry: [BlockID] = []         // the dry state of a twin (itself otherwise)
+    var wet: [BlockID] = []         // the twin of a waterloggable dry state (AIR when none)
+    var wetInvalid: [Bool] = []     // a twin of a full-cube state (double slab): stored dry
+    private(set) var saveNames: [String] = []
     var tex: [UInt16] = []          // state*6 + face
     var boxes: [[Box]] = []
     var collBoxes: [[Box]] = []      // collision shape per state (render boxes unless collisionShape overrides)
@@ -168,13 +177,18 @@ final class BlockRegistry {
     }
 
     @discardableResult
-    func add(_ d0: BlockDef) -> BlockID {
-        if byName[d0.name] != nil { print("warning: duplicate block \(d0.name)") }
+    func add(_ d0: BlockDef, as regName: String? = nil, groupKey: String? = nil) -> BlockID {
+        let rn = regName ?? d0.name
+        if byName[rn] != nil { print("warning: duplicate block \(rn)") }
         var d = d0
         let id = BlockID(defs.count)
-        precondition(byName[d.name] == nil, "duplicate block \(d.name)")
-        byName[d.name] = id
-        let g = d.group ?? d.name
+        precondition(byName[rn] == nil, "duplicate block \(rn)")
+        byName[rn] = id
+        saveNames.append(rn)
+        dry.append(id)
+        wet.append(AIR)
+        wetInvalid.append(false)
+        let g = groupKey ?? d.group ?? d.name
         if let first = byName["#group:" + g] { groupBase.append(first) } else { byName["#group:" + g] = id; groupBase.append(id) }
         if d.tex.count == 1 { d.tex = Array(repeating: d.tex[0], count: 6) }
         if d.tex.isEmpty {
@@ -206,7 +220,7 @@ final class BlockRegistry {
         let n = d.name
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
-        flammable.append(d.flammable || naturallyFlammable)
+        flammable.append(d.flammable || naturallyFlammable || BlockRegistry.extraFlammable.contains(d.group ?? n))
         randomTicks.append(d.randomTicks)
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))
@@ -312,7 +326,7 @@ final class BlockRegistry {
         cube("stone", "Stone", "stone", h: 1.5, req: true)
         var grass = BlockDef("grass_block", "Grass Block")
         grass.tex = ["grass_block_side", "grass_block_side", "grass_block_top", "dirt", "grass_block_side", "grass_block_side"]
-        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3
+        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3; grass.randomTicks = true
         add(grass)
         cube("dirt", "Dirt", "dirt", h: 0.5, tool: .shovel, snd: .dirt)
         cube("cobblestone", "Cobblestone", "cobblestone", h: 2, req: true)
@@ -684,7 +698,39 @@ final class BlockRegistry {
         spawner.tex = ["spawner"]; spawner.opaque = false; spawner.layer = .cutout; spawner.hardness = 5; spawner.tool = .pickaxe
         spawner.requiresTool = true; spawner.aoOcc = false; spawner.skyStop = true
         add(spawner)
+        registerWaterlogged()
     }
+
+    // Twins for every state of the waterloggable groups: stairs, slabs, fences, walls, panes, bars, ladders, lanterns.
+    // Registered last, after every other block, group by group in the dry order.
+    private func registerWaterlogged() {
+        let n = defs.count
+        var i = 1
+        while i < n {
+            let base = Int(groupBase[i])
+            var end = i + 1
+            while end < n && Int(groupBase[end]) == base { end += 1 }
+            let d0 = defs[i]
+            let shp = d0.shape
+            let ok = i == base && fluidLevel[i] < 0 && (shp == "stairs" || shp == "slab" || shp == "ladder" || shp == "lantern"
+                || d0.render == .connect)
+            if ok {
+                let gk = (d0.group ?? d0.name) + "~wl"
+                for s in i..<end {
+                    var t = defs[s]
+                    t.fluid = 0; t.fluidKind = 1; t.hidden = true; t.skyStop = true
+                    let tid = add(t, as: saveNames[s] + "~wl", groupKey: gk)
+                    dry[Int(tid)] = BlockID(s)
+                    wet[s] = tid
+                    wetInvalid[Int(tid)] = defs[s].name.hasSuffix("[double]")
+                }
+            }
+            i = end
+        }
+    }
+
+    @inline(__always) func isWaterlogged(_ id: BlockID) -> Bool { dry[Int(id)] != id }
+    func saveKey(_ id: BlockID) -> String { Int(id) < saveNames.count ? saveNames[Int(id)] : "?" }
 
     // Stairs (8 states: 4 facings x bottom/top), slabs (bottom/top/double), fence, wall for one material.
     func family(_ tex: String, _ n: String, _ disp: String, h: Float, tool: ToolType, req: Bool, snd: SoundMat,
@@ -806,6 +852,7 @@ let DIAMOND_ORE = Blocks.id("diamond_ore")
 let BRICKS = Blocks.id("bricks")
 let SNOWY_GRASS = Blocks.id("snowy_grass_block")
 let CACTUS = Blocks.id("cactus")
+let MYCELIUM = Blocks.id("mycelium")
 let SNOW = Blocks.id("snow_block")
 let STONE_BRICKS = Blocks.id("stone_bricks")
 let SANDSTONE = Blocks.id("sandstone")

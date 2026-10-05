@@ -73,7 +73,7 @@ extension Game {
             sfx(.click, 0.4, at: at)
         case .note:
             world.setBlock(p.x, p.y, p.z, base + BlockID((s + 1) % 25))
-            sfx(.note(0, (s + 1) % 25), 1, at: at)
+            world.redstone.playNote(p, (s + 1) % 25)          // the instrument of the block below (it always played the harp)
         case .daylight:
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & 15) + (s >= 16 ? 0 : 16)))
         case .dispenser, .dropper:
@@ -132,7 +132,7 @@ extension Game {
         var n = 0
         coop.eachSeat(self) { if self.alive && on(self.player.pos, self.player.halfW) { n += 1 } }   // player 2 presses plates too
         for m in mobs.mobs where on(m.pos, m.halfW) { n += 1 }
-        if items { for e in drops.items where on(e.pos, 0.125) { n += e.stack.count } }
+        if items { for e in drops.items where on(e.pos, 0.125) { n += 1 } }      // each item entity counts once, whatever its stack
         return n
     }
 
@@ -151,7 +151,20 @@ extension Game {
         func take() { stack.count -= 1; c[slot] = stack.count > 0 ? stack : .empty }
         if dropper {
             // Into a container in front, else out as an item.
-            if let t = world.blockEntities[front], t.kind != .spawner, t.kind != .furnace {
+            if let t = world.blockEntities[front], t.kind == .furnace {
+                // By face like a hopper (reference): from above into the input, from the side fuel only; else it holds.
+                let one = stack.with(count: 1)
+                let slot = fd.y < -0.5 ? 0 : (fd.y > 0.5 ? -1 : (Recipes.fuel(one.item) > 0 ? 1 : -1))
+                if slot >= 0 {
+                    let cur = t.container[slot]
+                    if cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack) {
+                        var n = cur.isEmpty ? one : cur
+                        if !cur.isEmpty { n.count += 1 }
+                        t.container[slot] = n
+                        take()
+                    }
+                }
+            } else if let t = world.blockEntities[front], t.kind != .spawner {
                 let one = stack.with(count: 1)
                 if t.container.add(one).isEmpty { take() }
             } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
@@ -208,6 +221,17 @@ extension Game {
                     let cur = t.container[slot]
                     ok = cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack)
                     if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
+                } else if t.kind == .brewing {
+                    // Brewing stand faces (reference): from above the ingredient slot only; from the side blaze powder
+                    // into the fuel slot and potions into empty bottle slots (everything went into slot 0 first).
+                    var slot = -1
+                    if out == 0 { slot = Potions.isIngredient(one.item) ? 3 : -1 }
+                    else if Items.key(one.item) == "blaze_powder" { slot = 4 }
+                    else if Potions.potion(of: one.item) != nil { slot = (0..<3).first { t.container[$0].isEmpty } ?? -1 }
+                    if slot < 0 || slot >= t.container.count { continue }
+                    let cur = t.container[slot]
+                    ok = cur.isEmpty || (slot >= 3 && cur.stacks(with: one) && cur.count < cur.maxStack)
+                    if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
                 } else { ok = t.container.add(one).isEmpty }
                 if ok { var s = c[i]; s.count -= 1; c[i] = s.count > 0 ? s : .empty; moved = true; break }
             }
@@ -215,7 +239,8 @@ extension Game {
         // Pull from above.
         let above = p + IVec3(0, 1, 0)
         if let src = world.blockEntities[above], src.kind != .spawner {
-            let range: Range<Int> = src.kind == .furnace ? 2..<3 : 0..<src.container.count      // a range: no array per tick
+            // Furnaces give their output, brewing stands their bottles (not the ingredient or the powder).
+            let range: Range<Int> = src.kind == .furnace ? 2..<3 : (src.kind == .brewing ? 0..<min(3, src.container.count) : 0..<src.container.count)
             for i in range where !src.container[i].isEmpty {
                 let one = src.container[i].with(count: 1)
                 if c.add(one).isEmpty {

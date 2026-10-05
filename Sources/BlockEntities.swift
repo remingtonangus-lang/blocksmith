@@ -19,6 +19,7 @@ final class BlockEntity: Codable {
     var secondary = ""   // beacon: secondary power (primary is kept in `mob`)
     var cooks = [0, 0, 0, 0]  // campfire: ticks left per slot
     var xp: Float = 0         // furnace: experience stored from smelting, paid out when the output is taken
+    var bottleOut = false     // brewing stand: a used dragon's breath left a glass bottle to drop (not saved)
     var trial = false    // proving spawner (waves, then a reward and a 30-minute cooldown)
     var spawned = 0      // proving spawner: mobs spawned this round
     var cooldown: Float = 0

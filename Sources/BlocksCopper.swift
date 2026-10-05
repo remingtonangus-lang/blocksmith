@@ -247,10 +247,21 @@ extension Game {
         }
     }
 
-    // Random-tick oxidation (roughly one stage per hour of loaded time, like the reference average).
+    // Random-tick oxidation (reference WeatheringCopper): a 0.0569 roll, then unwaxed copper within taxicab 4 decides.
+    // Any less-aged neighbour holds it back; otherwise chance f^2 (x0.75 when fresh), f = (older + 1) / (others + 1).
+    // It was a flat 2 %, ignoring neighbours.
     func copperAge(_ p: IVec3, _ b: BlockID) {
         guard case let (_, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], !waxed, stage < 3 else { return }
-        guard Rand.float(in: 0..<1) < 0.02 else { return }
+        guard Rand.float(in: 0..<1) < 0.0569 else { return }
+        var same = 0, older = 0
+        for dy in -4...4 { for dz in -4...4 { for dx in -4...4 where abs(dx) + abs(dy) + abs(dz) <= 4 && (dx != 0 || dy != 0 || dz != 0) {
+            let nb = world.block(p.x + dx, p.y + dy, p.z + dz)
+            guard nb != AIR, case let (_, ns, nw)? = Copper.index[Blocks.key(Blocks.groupBase[Int(nb)])], !nw else { continue }
+            if ns < stage { return }
+            if ns > stage { older += 1 } else { same += 1 }
+        } } }
+        let f = Float(older + 1) / Float(older + same + 1)
+        guard Rand.float(in: 0..<1) < f * f * (stage == 0 ? 0.75 : 1) else { return }
         if let t = Copper.convert(b, stage: stage + 1, waxed: false) { world.setBlock(p.x, p.y, p.z, t) }
     }
 }

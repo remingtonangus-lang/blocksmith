@@ -20,7 +20,7 @@ extension Game {
         case .wolf where !m.tamed && key == "bone": tameTry(); return true
         case .nautilus where !m.tamed && key == "pufferfish": tameTry(); return true
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
-        case .ocelot where !m.tamed && (key == "cod" || key == "salmon"):
+        case .ocelot where m.owner == nil && (key == "cod" || key == "salmon"):         // trusting ocelots breed on fish
             consumeHeld()
             if Rand.int(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
             return true
@@ -110,11 +110,15 @@ extension Game {
         // Pets: dye a wolf collar, sit / stand.
         if m.tamed && (m.kind == .wolf || m.kind == .cat) {
             if key.hasSuffix("_dye"), let i = BlockRegistry.colors.firstIndex(where: { "\($0.0)_dye" == key }) { m.collar = i; consumeHeld(); return true }
-            if !(MobKind.animalFood[m.kind]?.contains(key) ?? false) || m.health >= m.spec.health * (m.kind == .wolf ? 5 : 1) {
-                m.sitting.toggle(); return true
+            // Reference: food heals a hurt pet (twice its nutrition), breeds a healthy adult one, and anything else
+            // makes it sit or stand. (Food at full health toggled sitting, so tamed wolves and cats never bred.)
+            let isFood = MobKind.animalFood[m.kind]?.contains(key) ?? false
+            let maxHP = m.kind == .wolf ? 40 : m.spec.health
+            if isFood && m.health < maxHP {
+                let heal = 2 * (held.def.food?.hunger ?? 2)
+                m.health = min(maxHP, m.health + heal); consumeHeld(); particles.hearts(at: pos); return true
             }
-            // Heal with food.
-            m.health = min(m.kind == .wolf ? 40 : m.spec.health, m.health + 4); consumeHeld(); particles.hearts(at: pos); return true
+            if !isFood || (!m.baby && (m.breedCooldown > 0 || m.inLove > 0)) { m.sitting.toggle(); return true }
         }
         // Saddles and chests.
         let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
@@ -197,11 +201,20 @@ extension Mob {
         var speed: Float = 0
         switch kind {
         case .pig:
-            if Items.key(g.held.item) == "carrot_on_a_stick" { speed = 3.5; yaw = g.player.yaw }
+            if Items.key(g.held.item) == "carrot_on_a_stick" { speed = 3.5 * stickBoost(dt); yaw = g.player.yaw }
         case .strider:
-            if Items.key(g.held.item) == "warped_fungus_on_a_stick" { speed = 2.5; yaw = g.player.yaw }
+            if Items.key(g.held.item) == "warped_fungus_on_a_stick" { speed = 2.5 * stickBoost(dt); yaw = g.player.yaw }
         case .llama, .traderLlama:
             speed = 0            // llamas can't be steered
+            // Taming by riding like a horse, against a temper of 30 (reference; they could never be tamed).
+            if !tamed {
+                jumpCharge += dt
+                if jumpCharge > 1 {
+                    jumpCharge = 0
+                    if Rand.int(in: 0..<30) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
+                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
+                }
+            }
         default:
             // Untamed: buck the rider off unless the taming roll succeeds.
             if !tamed {
@@ -218,7 +231,19 @@ extension Mob {
             // Hold jump to charge, release to leap (horses); camels dash.
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
             else if jumpCharge > 0.05 && onGround && tamed {
-                vel.y = 6 + 8 * jumpCharge * horseJump
+                if kind == .camel {
+                    vel.y = 6 + 8 * jumpCharge * horseJump
+                } else {
+                    // Reference: power 0.4-0.84 below a 90 % charge, full above; the height follows the reference
+                    // curve of the strength (1.0 -> 5.3 blocks, 0.4 -> 1.1), launched at the speed that reaches it.
+                    // (6 + 8 x charge x strength topped out near 3.5.)
+                    let power: Float = jumpCharge >= 0.9 ? 1 : 0.4 + 0.4 * jumpCharge / 0.9
+                    let s: Float = horseJump * power
+                    let s2: Float = s * s
+                    let cubic: Float = -0.1817962 * s2 * s + 3.689713 * s2
+                    let h: Float = max(0.3, cubic + 2.128599 * s - 0.343930)
+                    vel.y = sqrtf(2 * 28 * h)
+                }
                 if kind == .camel { vel += forward * 12 * jumpCharge }
                 jumpCharge = 0
             }
@@ -243,6 +268,14 @@ extension Mob {
         g.player.pos = pos + V3(0, height * 0.75, 0)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
+    }
+
+    // A stick boost's speed factor (reference: 1 + 1.15 sin(pi t / total) over 7-49 s), then it ends.
+    func stickBoost(_ dt: Float) -> Float {
+        guard boostTotal > 0 else { return 1 }
+        boostTime += dt
+        if boostTime >= boostTotal { boostTime = 0; boostTotal = 0; return 1 }
+        return 1 + 1.15 * sinf(Float.pi * boostTime / boostTotal)
     }
 
     // Per-horse speed and jump strength from its variant bits (reference ranges 4.8-14.5 b/s).

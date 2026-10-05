@@ -1761,7 +1761,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     // inventory).
                     let label: String = e.name + (a.amp > 0 ? " " + Effect.roman(a.amp + 1) : "")
                     text(label, bx + 28 * s, y + 7 * s, s, V4(0.18, 0.18, 0.2, 1), shadow: false)
-                    let secs = Int(a.time)
+                    let secs = Int(min(1e6, max(0, a.time)))          // converted only in range (an infinite effect overflowed Int)
                     let left: String = a.time > 1e6 ? "Infinite" : String(format: "%d:%02d", secs / 60, secs % 60)
                     text(left, bx + 28 * s, y + 18 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
                     y += 33 * s
@@ -2147,6 +2147,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     rect(x, y, 16 * s, 18 * s, i == sc.selected ? V4(0.55, 0.75, 0.55, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1)))
                     itemIcon(ItemStack(opt.0, opt.1), x, y + s, 16 * s)
+                }
+                if sc.pages > 1, sc.slots.count > 13 {
+                    let sl = sc.slots[13]
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    rect(x, y, 10 * s, 16 * s, game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1))
+                    text(">", x + 2 * s, y + 4 * s, s, V4(0.15, 0.15, 0.15, 1), shadow: false)
+                    text("\(sc.page + 1)/\(sc.pages)", x - 2 * s, y + 18 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
                 }
             }
             if m is SmithingMenu || m is GrindstoneMenu {
