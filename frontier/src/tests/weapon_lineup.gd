@@ -34,8 +34,8 @@ func _studio() -> void:
 	var sm := ProceduralSkyMaterial.new()
 	sm.sky_top_color = Color(0.62, 0.64, 0.68)
 	sm.sky_horizon_color = Color(0.42, 0.42, 0.43)
-	sm.ground_horizon_color = Color(0.3, 0.29, 0.28)
-	sm.ground_bottom_color = Color(0.08, 0.08, 0.08)
+	sm.ground_horizon_color = Color(0.36, 0.35, 0.34)
+	sm.ground_bottom_color = Color(0.24, 0.235, 0.23)
 	sm.sun_angle_max = 1.0
 	sky.sky_material = sm
 	env.background_mode = Environment.BG_COLOR
@@ -54,7 +54,7 @@ func _studio() -> void:
 	add_child(we)
 	var floor_mi := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(12, 12)
+	pm.size = Vector2(60, 60)
 	floor_mi.mesh = pm
 	var fm := StandardMaterial3D.new()
 	fm.albedo_color = Color(0.26, 0.255, 0.25)
@@ -118,6 +118,10 @@ func _shot(id: String, view: String) -> void:
 	var floor_n: Node3D = get_node("Floor")
 	floor_n.position.y = box.position.y - 0.03
 	var dir := Vector3.ZERO
+	# distance that fits the gun's length (screen width) and height with a margin
+	var aspect := float(get_viewport().size.x) / float(get_viewport().size.y)
+	var tv := tan(deg_to_rad(15.0))
+	var fit := maxf(box.size.z * 0.5 / (tv * aspect), box.size.y * 0.5 / tv) * 1.12
 	var dist := size * 2.0
 	var target := c
 	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
@@ -125,13 +129,13 @@ func _shot(id: String, view: String) -> void:
 	match view:
 		"q34":
 			dir = Vector3(0.82, 0.32, 0.47)
-			dist = size * 1.85
+			dist = fit * (1.4 if m.def.get("slot", "") == "sidearm" else 1.05)
 		"side":
 			dir = Vector3(1, 0.04, 0)
-			dist = size * 1.75
+			dist = fit + box.size.x * 0.5
 		"left":
 			dir = Vector3(-1, 0.04, 0)
-			dist = size * 1.75
+			dist = fit + box.size.x * 0.5
 		"front":
 			var mz := m.marker("muzzle")
 			target = mz.global_position if mz else c
@@ -147,6 +151,12 @@ func _shot(id: String, view: String) -> void:
 			dist = 0.34 if pistol else 0.48
 	cam.global_position = target + dir.normalized() * dist
 	cam.look_at(target, Vector3.UP)
+	if Game.args.has("fx"):
+		# muzzle effects check: smoke puff (+ flash with --fx flash) at the real muzzle
+		var mt := m.muzzle_transform()
+		WeaponFX.smoke(self, mt.origin, -mt.basis.z, 1.0)
+		if str(Game.args["fx"]) == "flash":
+			Effects.muzzle_flash(self, mt.origin, -mt.basis.z)
 	await _capture(out_dir.path_join("%s_%s.png" % [id, view]))
 	m.queue_free()
 	await get_tree().process_frame

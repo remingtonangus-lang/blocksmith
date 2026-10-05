@@ -110,14 +110,13 @@ static func _smoke_material() -> StandardMaterial3D:
 	for y in 32:
 		for x in 32:
 			var r := Vector2(x - 15.5, y - 15.5).length() / 15.5
-			var a := clampf(1.0 - r, 0.0, 1.0)
-			img.set_pixel(x, y, Color(1, 1, 1, a * a * (3.0 - 2.0 * a)))
+			img.set_pixel(x, y, Color(1, 1, 1, exp(-r * r * 4.0) * clampf((1.0 - r) * 4.0, 0.0, 1.0)))
 	_smoke_mat = StandardMaterial3D.new()
 	_smoke_mat.albedo_texture = ImageTexture.create_from_image(img)
 	_smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_smoke_mat.vertex_color_use_as_albedo = true
+	_smoke_mat.albedo_color = Color(0.8, 0.79, 0.76, 0.26)   # constant tint (per-particle vertex colours render black on some drivers)
 	_smoke_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	_smoke_mat.roughness = 1.0
+	_smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED   # lit billboards go dark against the sun
 	_smoke_mat.disable_receive_shadows = true
 	return _smoke_mat
 
@@ -127,30 +126,33 @@ static func smoke(root: Node, pos: Vector3, dir: Vector3, amount := 1.0) -> void
 		return
 	var p := CPUParticles3D.new()
 	p.one_shot = true
-	p.amount = int(10 * amount) + 4
+	p.amount = int(16 * amount) + 6
 	p.lifetime = 2.4
 	p.explosiveness = 0.85
 	p.local_coords = false
 	p.direction = dir
-	p.spread = 16.0
+	p.spread = 24.0
 	p.initial_velocity_min = 1.0 * amount
 	p.initial_velocity_max = 3.2 * amount
 	p.damping_min = 2.0
 	p.damping_max = 3.5
 	p.gravity = Vector3(0.15, 0.22, 0.0)
-	p.scale_amount_min = 0.12
-	p.scale_amount_max = 0.24 * (0.7 + 0.3 * amount)
+	p.scale_amount_min = 0.24
+	p.scale_amount_max = 0.48 * (0.7 + 0.3 * amount)
+	p.preprocess = 0.04                          # first rendered frame already simulated
 	var sc := Curve.new()
+	sc.max_value = 2.0
 	sc.add_point(Vector2(0, 0.35))
 	sc.add_point(Vector2(0.4, 1.0))
 	sc.add_point(Vector2(1, 1.6))
 	p.scale_amount_curve = sc
 	var q := QuadMesh.new()
+	q.size = Vector2(0.5, 0.5)
 	q.material = _smoke_material()
 	p.mesh = q
 	var grad := Gradient.new()
-	grad.set_color(0, Color(0.86, 0.85, 0.82, 0.42))
-	grad.set_color(1, Color(0.8, 0.8, 0.78, 0.0))
+	grad.set_color(0, Color(0.78, 0.77, 0.74, 0.30))
+	grad.set_color(1, Color(0.72, 0.72, 0.70, 0.0))
 	p.color_ramp = grad
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(p)

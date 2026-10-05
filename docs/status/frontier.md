@@ -15,7 +15,10 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
 - World generator `frontier/tools/worldgen.py`: 8 × 8 km heightmap (2 m), stream-power + droplet erosion, Kestrel
   Range, Thornwood hills, Ocotillo Breaks mesas, Corrigan Plains, Lake Agnes, meandering Sable River + 2 creeks,
   4 towns + 8 POIs flattened, A*-routed graded roads, graded railroad; control map (roads, moisture, biome, sediment).
-- Asset pipeline: `frontier-assets` workflow (ubuntu) → release `frontier-assets` (catalog.zip, ext.zip).
+- Asset pipeline: `frontier-assets` workflow (ubuntu) → release `frontier-assets` (catalog.zip, ext.zip, weapons.zip).
+- Firearms art (`frontier/design/WEAPONS.md`): `frontier/tools/weapons/gun_gen.py` (Blender bpy, deterministic) builds
+  all 10 weapons with animated parts, markers, baked PBR textures, LOD1 → `weapons.zip`; `WeaponModel` /
+  `WeaponHolder` / `WeaponFX` show them holstered/in hand with fire + reload choreography, casings and smoke.
 
 ## Ranked gaps
 (Scores from blind critic rounds against QUALITY_BAR.md; gap = weight × (10 − score).)
@@ -23,3 +26,4 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
 
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch.
+- 2026-10-05: firearms pipeline (gun_gen.py, weapons.zip CI job, WeaponModel/Holder/FX, weapon_lineup scene).

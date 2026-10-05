@@ -71,17 +71,17 @@ def _ejector(g, FF, CZ, rx, rz):
     hull = []
     for i in range(20):
         a = math.tau * i / 20
-        hull.append((rx + 0.0043 * math.cos(a), rz + 0.0043 * math.sin(a)))
+        hull.append((rx + 0.0039 * math.cos(a), rz + 0.0039 * math.sin(a)))
     for i in range(14):
         a = math.tau * i / 14
-        hull.append((0.0060 + 0.0022 * math.cos(a), -0.0100 + 0.0022 * math.sin(a)))
+        hull.append((0.0058 + 0.0016 * math.cos(a), -0.0098 + 0.0016 * math.sin(a)))
     from scipy.spatial import ConvexHull
     hv = ConvexHull(hull).vertices
     sec = [hull[i] for i in hv]
-    hous = L.extrude_xz("ejhousing", sec, FF + 0.0004, 0.1660, k("barrel"), bev=0.0007, bseg=3)
-    bore = L.loft("ejbore", [(FF - 0.01, 0.0021), (0.1585, 0.0021)], "blued", 16, rx, rz)
+    hous = L.extrude_xz("ejhousing", sec, FF + 0.0004, 0.1560, k("barrel"), bev=0.0007, bseg=3)
+    bore = L.loft("ejbore", [(FF - 0.01, 0.0021), (0.1485, 0.0021)], "blued", 16, rx, rz)
     out = Vector((rx, 0, rz)).normalized()
-    sl = L.box("ejslot", -0.0013, 0.0013, 0.0780, 0.1580, -0.012, 0.0, "blued", bev=0)
+    sl = L.box("ejslot", -0.0013, 0.0013, 0.0780, 0.1480, -0.012, 0.0, "blued", bev=0)
     L.transform(sl, L.rot_y(-math.degrees(math.atan2(out.x, -out.z))))
     L.move(sl, (rx, 0, rz))
     L.boolean(hous, [bore, sl])
@@ -89,11 +89,11 @@ def _ejector(g, FF, CZ, rx, rz):
     g.add(hous)
     g.add(L.screw("ejscrew", (0.0098, 0.1250, -0.0140), "x+", 0.0021, k("small"), slot_angle=30))
     g.part("ejector_rod", (rx, 0.12, rz), {"type": "slide", "axis": (0, -1, 0), "open": 0.038})
-    g.add(L.loft("ejrod", [(0.050, 0.0017), (0.1600, 0.0017)], k("pin"), 14, rx, rz), "ejector_rod")
+    g.add(L.loft("ejrod", [(0.050, 0.0017), (0.1500, 0.0017)], k("pin"), 14, rx, rz), "ejector_rod")
     knob = L.loft("ejknob", [(0.0, 0.0034), (0.0008, 0.0036), (0.0028, 0.0036), (0.0036, 0.0028)], k("pin"), 20)
     L.transform(knob, L.rot_x(-90))
     L.transform(knob, L.rot_y(-math.degrees(math.atan2(out.x, -out.z)) + 0.0))
-    L.move(knob, (rx + out.x * 0.0030, 0.1520, rz + out.z * 0.0030))
+    L.move(knob, (rx + out.x * 0.0028, 0.1430, rz + out.z * 0.0030))
     g.add(knob, "ejector_rod")
 
 

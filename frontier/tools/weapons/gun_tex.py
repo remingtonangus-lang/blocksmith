@@ -445,9 +445,9 @@ def synth(maps, spec, seed=1):
         if kname == "oak":
             light, dark = (0.30, 0.19, 0.095), (0.16, 0.09, 0.045)
         else:
-            light, dark = (0.135, 0.062, 0.030), (0.042, 0.020, 0.010)
+            light, dark = (0.115, 0.058, 0.031), (0.038, 0.019, 0.010)
         broad = fbm(np.stack([p[:, 0] * 18, s * 3.0, p[:, 2] * 18], 1), 3, seed + 107)
-        a = mix(col(light, k), col(dark, k), np.clip(late * 0.22 + smooth(0.25, 0.8, fig) * 0.45 + smooth(0.3, 0.8, broad) * 0.45, 0, 1))
+        a = mix(col(light, k), col(dark, k), np.clip(late * 0.12 + smooth(0.25, 0.8, fig) * 0.5 + smooth(0.3, 0.8, broad) * 0.45, 0, 1))
         # streaky pores along the grain
         a_ = np.array(ax, np.float64) / np.linalg.norm(ax)
         qn = np.linalg.norm(q, axis=1)
