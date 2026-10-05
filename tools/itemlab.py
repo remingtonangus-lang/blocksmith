@@ -1250,6 +1250,106 @@ def family3(cv, name, mask, base, ex, ys, xs):
     elif mask == "lead":
         cv.add(cv.poly(band(V(0.2, 0.2), V(0.9, 0.4), V(0.4, 0.86), 0.05, 0.05, 20)), xs, M("leather", base), 0.025)
         cv.add(abs(cv.circle(V(0.24, 0.22), 0.1)) - 0.03, zero, M("leather", base), 0.03)
+    elif mask == "crystal":
+        if name == "end_crystal":
+            cv.add(cv.poly([V(0.5, 0.08), V(0.82, 0.46), V(0.5, 0.9), V(0.18, 0.46)]), ys, M("gem", base), 0.16, "chamfer")
+            cv.add(abs(cv.ellipse(V(0.5, 0.48), 0.4, 0.14)) - 0.03, xs, M("metal", 0x8A8A9A), 0.03)
+        else:
+            for (a, b, w) in ((V(0.36, 0.86), V(0.5, 0.12), 0.16), (V(0.58, 0.86), V(0.78, 0.38), 0.12)):
+                dr = norm(b - a); nr = V(-dr[1], dr[0]); ln = float(np.linalg.norm(b - a))
+                cv.add(cv.poly([a + nr * w / 2, a + dr * ln * 0.7 + nr * w / 2, b, a + dr * ln * 0.7 - nr * w / 2, a - nr * w / 2]), cv.axis(a, b), M("gem", base), w / 2, "chamfer")
+    elif mask == "tear":
+        d = smin(cv.circle(V(0.5, 0.62), 0.24), cv.poly([V(0.5, 0.1), V(0.7, 0.5), V(0.3, 0.5)]), 0.08)
+        cv.add(d, ys, M("gem", base), 0.24)
+    elif mask == "membrane":
+        pts = [V(0.12, 0.3), V(0.88, 0.2), V(0.78, 0.5), V(0.86, 0.8), V(0.56, 0.66), V(0.3, 0.84), V(0.3, 0.56)]
+        cv.add(cv.poly(pts), ys, M("leather", base), 0.05)
+        for a_, b_ in ((V(0.14, 0.31), V(0.56, 0.66)), (V(0.5, 0.26), V(0.56, 0.66)), (V(0.84, 0.22), V(0.56, 0.66))):
+            cv.add(cap(cv, a_, b_, 0.012), ys, M("leather", darker(base, 0.7)), 0.012)
+    elif mask == "kelp":
+        for k in range(3):
+            o = V(0.1 * k - 0.1, 0.04 * k)
+            cv.add(cv.poly(band(V(0.3, 0.88) + o, V(0.62, 0.5) + o, V(0.44, 0.12) + o, 0.12, 0.05, 14)), xs, M("leather", darker(base, 1.0 - 0.12 * k)), 0.05)
+    elif mask == "foot":
+        d = smin(cv.ellipse(V(0.46, 0.62), 0.2, 0.26), cv.ellipse(V(0.64, 0.3), 0.12, 0.16), 0.12)
+        cv.add(d, ys, M("leather", base), 0.2)
+        for c in (V(0.56, 0.16), V(0.68, 0.16), V(0.76, 0.24)):
+            cv.add(cv.ellipse(c, 0.035, 0.05), ys, soft(0x3A3030), 0.03)
+        cv.add(cap(cv, V(0.36, 0.84), V(0.56, 0.84), 0.04), ys, soft(ex.get("c", 0xE8D8C0)), 0.04)
+    elif mask == "rocket":
+        d, t = cv.capsule(V(0.3, 0.74), V(0.66, 0.34), 0.1)
+        cv.add(cap(cv, V(0.1, 0.94), V(0.3, 0.74), 0.018), np.zeros_like(ys), "handle", 0.018)
+        cv.add(d, t, "paper", 0.1)
+        for k in (0.3, 0.6):
+            c = V(0.3, 0.74) + (V(0.66, 0.34) - V(0.3, 0.74)) * k
+            cv.add(intersect(cap(cv, c - V(0.08, 0.08), c + V(0.08, 0.08), 0.035), d), t, soft(base), 0.03)
+        cv.add(cv.poly([V(0.6, 0.26), V(0.84, 0.16), V(0.74, 0.4)]), t, soft(base), 0.05, "chamfer")
+    elif mask in ("firework_star", "charge"):
+        d = cv.circle(V(0.5, 0.52), 0.3)
+        cv.add(d, ys, M("stone", base) if mask == "firework_star" else soft(0x3A2A1A), 0.3)
+        if mask == "charge":
+            for c in (V(0.4, 0.44), V(0.58, 0.5), V(0.46, 0.64)):
+                cv.add(intersect(cv.circle(c, 0.07), d + 0.03), ys, soft(0xF8A030), 0.05)
+        else:
+            for c in (V(0.42, 0.42), V(0.6, 0.52), V(0.44, 0.62)):
+                cv.add(intersect(cv.circle(c, 0.05), d + 0.03), ys, soft(ex.get("c", 0x9A9AA0)), 0.04)
+    elif mask == "scute":
+        pts = [V(0.5, 0.12), V(0.82, 0.3), V(0.78, 0.7), V(0.5, 0.88), V(0.22, 0.7), V(0.18, 0.3)]
+        d = cv.poly(pts)
+        cv.add(d, ys, M("leather", base), 0.14, "chamfer")
+        cv.add(intersect(abs(cv.poly([V(0.5, 0.3), V(0.66, 0.4), V(0.64, 0.6), V(0.5, 0.7), V(0.36, 0.6), V(0.34, 0.4)])) - 0.012, d + 0.04), ys, M("leather", darker(base, 0.7)), 0.012)
+    elif mask == "sac":
+        d = smin(cv.ellipse(V(0.5, 0.6), 0.3, 0.26), cv.ellipse(V(0.5, 0.3), 0.1, 0.12), 0.1)
+        cv.add(d, ys, soft(base), 0.25)
+        cv.add(intersect(cv.circle(V(0.42, 0.56), 0.08), d), ys, soft(lighter(base, 0.25)), 0.06)
+    elif mask == "shell":
+        if name == "nautilus_shell":
+            d = cv.circle(V(0.5, 0.54), 0.36)
+            cv.add(d, ys, soft(0xE8D8C4), 0.3)
+            for k in range(4):
+                cv.add(intersect(abs(cv.circle(V(0.56 - 0.03 * k, 0.56), 0.08 + k * 0.08)) - 0.012, d + 0.02), ys, soft(0xA0583A), 0.012)
+        else:
+            d = intersect(cv.ellipse(V(0.5, 0.6), 0.4, 0.34), cv.below(0.66))
+            cv.add(d, ys, M("leather", base), 0.2)
+            for x in (0.3, 0.5, 0.7):
+                cv.add(intersect(cap(cv, V(x, 0.3), V(x, 0.66), 0.012), d + 0.02), ys, M("leather", darker(base, 0.7)), 0.012)
+    elif mask == "honeycomb":
+        for c in (V(0.36, 0.38), V(0.64, 0.38), V(0.5, 0.62), V(0.22, 0.62), V(0.78, 0.62), V(0.36, 0.86) - V(0, 0.0), V(0.64, 0.86)):
+            if c[1] > 0.8:
+                continue
+            hexp = [c + V(math.cos(a) * 0.14, math.sin(a) * 0.14) for a in np.arange(6) * math.pi / 3 + math.pi / 6]
+            cv.add(cv.poly(hexp), ys, soft(base), 0.06, "chamfer")
+            cv.add(cv.poly([c + V(math.cos(a) * 0.07, math.sin(a) * 0.07) for a in np.arange(6) * math.pi / 3 + math.pi / 6]), ys, soft(ex.get("c", 0xF8C850)), 0.03)
+    elif mask == "horn":
+        cv.add(cv.poly(band(V(0.84, 0.24), V(0.5, 0.92), V(0.14, 0.4), 0.2, 0.04, 18)), xs, soft(base), 0.08)
+        for k in range(4):
+            p0 = bez(V(0.84, 0.24), V(0.5, 0.92), V(0.14, 0.4), 18)[3 + k * 3]
+            cv.add(cv.circle(p0, 0.02), xs, soft(darker(base, 0.75)), 0.015)
+    elif mask == "name_tag":
+        d = cv.poly([V(0.12, 0.36), V(0.68, 0.36), V(0.88, 0.5), V(0.68, 0.64), V(0.12, 0.64)])
+        cv.add(d, xs, "paper", 0.04)
+        cv.add(cv.circle(V(0.72, 0.5), 0.03), xs, soft(0x2A2A2A), 0.02)
+        cv.add(cap(cv, V(0.74, 0.5), V(0.94, 0.2), 0.014), np.zeros_like(ys), "string", 0.014)
+        for x in (0.2, 0.32, 0.44):
+            cv.add(cap(cv, V(x, 0.5), V(x + 0.07, 0.5), 0.014), xs, soft(0x5A5048), 0.012)
+    elif mask == "pufferfish":
+        d = cv.circle(V(0.48, 0.54), 0.28)
+        for k in range(10):
+            a = k * math.pi / 5
+            c = V(0.48, 0.54) + V(math.cos(a), math.sin(a)) * 0.28
+            d = union(d, cv.poly([c + V(math.cos(a), math.sin(a)) * 0.08, c + V(-math.sin(a), math.cos(a)) * 0.04, c - V(-math.sin(a), math.cos(a)) * 0.04]))
+        cv.add(d, ys, soft(base), 0.25)
+        cv.add(cv.circle(V(0.34, 0.46), 0.04), ys, soft(0x18181C), 0.03)
+    elif mask == "map":
+        d = cv.poly([V(0.14, 0.14), V(0.86, 0.14), V(0.86, 0.86), V(0.14, 0.86)])
+        cv.add(d, ys, soft(ex.get("c", 0xE8E0C0)), 0.04)
+        if name == "filled_map":
+            cv.add(intersect(cv.ellipse(V(0.44, 0.5), 0.2, 0.16), d + 0.08), ys, soft(ex.get("d", 0x6A9A5A)), 0.05)
+            cv.add(intersect(cv.ellipse(V(0.66, 0.66), 0.12, 0.1), d + 0.08), ys, soft(0x5A8ACA), 0.03)
+        cv.add(abs(d + 0.06) - 0.01, ys, soft(0xA08A60), 0.01)
+    elif mask == "banner":
+        cv.add(cap(cv, V(0.16, 0.12), V(0.84, 0.12), 0.03), xs, "handle", 0.03)
+        cv.add(cv.poly([V(0.24, 0.14), V(0.76, 0.14), V(0.76, 0.86), V(0.5, 0.74), V(0.24, 0.86)]), ys, M("leather", base), 0.08)
     elif mask == "saddle":
         lm = M("leather", base)
         seat = cv.poly(bez(V(0.12, 0.3), V(0.5, 0.62), V(0.86, 0.36), 12) + [V(0.88, 0.5), V(0.7, 0.62), V(0.3, 0.62), V(0.12, 0.46)])

@@ -231,6 +231,111 @@ extension ItemHD {
         case "lead":
             cv.add(cv.poly(band(V2(0.2, 0.2), V2(0.9, 0.4), V2(0.4, 0.86), 0.05, 0.05, 20)), xs, M("leather", base), r: 0.025)
             cv.add(ring(cv.circle(V2(0.24, 0.22), 0.1), 0.03), zero, M("leather", base), r: 0.03)
+        case "crystal":
+            if name == "end_crystal" {
+                cv.add(cv.poly([V2(0.5, 0.08), V2(0.82, 0.46), V2(0.5, 0.9), V2(0.18, 0.46)]), ys, M("gem", base), r: 0.16, chamfer: true)
+                cv.add(ring(ellipse(cv, V2(0.5, 0.48), 0.4, 0.14), 0.03), xs, M("metal", 0x8A8A9A), r: 0.03)
+            } else {
+                for (a, b, w) in [(V2(0.36, 0.86), V2(0.5, 0.12), Float(0.16)), (V2(0.58, 0.86), V2(0.78, 0.38), 0.12)] {
+                    let dr = simd_normalize(b - a), nr = V2(-dr.y, dr.x), ln = simd_length(b - a)
+                    let mid: V2 = a + dr * (ln * 0.7)
+                    cv.add(cv.poly([a + nr * (w / 2), mid + nr * (w / 2), b, mid - nr * (w / 2), a - nr * (w / 2)]), cv.axis(a, b), M("gem", base), r: w / 2, chamfer: true)
+                }
+            }
+        case "tear":
+            cv.add(smin(cv.circle(V2(0.5, 0.62), 0.24), cv.poly([V2(0.5, 0.1), V2(0.7, 0.5), V2(0.3, 0.5)]), 0.08), ys, M("gem", base), r: 0.24)
+        case "membrane":
+            cv.add(cv.poly([V2(0.12, 0.3), V2(0.88, 0.2), V2(0.78, 0.5), V2(0.86, 0.8), V2(0.56, 0.66), V2(0.3, 0.84), V2(0.3, 0.56)]), ys, M("leather", base), r: 0.05)
+            for (a, b) in [(V2(0.14, 0.31), V2(0.56, 0.66)), (V2(0.5, 0.26), V2(0.56, 0.66)), (V2(0.84, 0.22), V2(0.56, 0.66))] {
+                cv.add(cap(cv, a, b, 0.012), ys, M("leather", darker(base, 0.7)), r: 0.012)
+            }
+        case "kelp":
+            for k in 0..<3 {
+                let o = V2(0.1 * Float(k) - 0.1, 0.04 * Float(k))
+                cv.add(cv.poly(band(V2(0.3, 0.88) + o, V2(0.62, 0.5) + o, V2(0.44, 0.12) + o, 0.12, 0.05, 14)), xs, M("leather", darker(base, 1 - 0.12 * Float(k))), r: 0.05)
+            }
+        case "foot":
+            cv.add(smin(ellipse(cv, V2(0.46, 0.62), 0.2, 0.26), ellipse(cv, V2(0.64, 0.3), 0.12, 0.16), 0.12), ys, M("leather", base), r: 0.2)
+            for c in [V2(0.56, 0.16), V2(0.68, 0.16), V2(0.76, 0.24)] { cv.add(ellipse(cv, c, 0.035, 0.05), ys, soft(0x3A3030), r: 0.03) }
+            cv.add(cap(cv, V2(0.36, 0.84), V2(0.56, 0.84), 0.04), ys, soft(ex["c"] ?? 0xE8D8C0), r: 0.04)
+        case "rocket":
+            let a = V2(0.3, 0.74), b = V2(0.66, 0.34)
+            let (d, t) = cv.capsule(a, b, 0.1)
+            cv.add(cap(cv, V2(0.1, 0.94), a, 0.018), zero, "handle", r: 0.018)
+            cv.add(d, t, "paper", r: 0.1)
+            for k: Float in [0.3, 0.6] {
+                let c: V2 = a + (b - a) * k
+                cv.add(Canvas.intersect(cap(cv, c - V2(0.08, 0.08), c + V2(0.08, 0.08), 0.035), d), t, soft(base), r: 0.03)
+            }
+            cv.add(cv.poly([V2(0.6, 0.26), V2(0.84, 0.16), V2(0.74, 0.4)]), t, soft(base), r: 0.05, chamfer: true)
+        case "firework_star", "charge":
+            let d = cv.circle(V2(0.5, 0.52), 0.3)
+            let star = s.mask == "firework_star"
+            cv.add(d, ys, star ? M("stone", base) : soft(0x3A2A1A), r: 0.3)
+            for c in [V2(0.41, 0.43), V2(0.59, 0.51), V2(0.45, 0.63)] {
+                cv.add(Canvas.intersect(cv.circle(c, star ? 0.05 : 0.07), Canvas.offset(d, 0.03)), ys, soft(star ? (ex["c"] ?? 0x9A9AA0) : 0xF8A030), r: 0.045)
+            }
+        case "scute":
+            let d = cv.poly([V2(0.5, 0.12), V2(0.82, 0.3), V2(0.78, 0.7), V2(0.5, 0.88), V2(0.22, 0.7), V2(0.18, 0.3)])
+            cv.add(d, ys, M("leather", base), r: 0.14, chamfer: true)
+            let inner = cv.poly([V2(0.5, 0.3), V2(0.66, 0.4), V2(0.64, 0.6), V2(0.5, 0.7), V2(0.36, 0.6), V2(0.34, 0.4)])
+            cv.add(Canvas.intersect(ring(inner, 0.012), Canvas.offset(d, 0.04)), ys, M("leather", darker(base, 0.7)), r: 0.012)
+        case "sac":
+            let d = smin(ellipse(cv, V2(0.5, 0.6), 0.3, 0.26), ellipse(cv, V2(0.5, 0.3), 0.1, 0.12), 0.1)
+            cv.add(d, ys, soft(base), r: 0.25)
+            cv.add(Canvas.intersect(cv.circle(V2(0.42, 0.56), 0.08), d), ys, soft(lighter(base, 0.25)), r: 0.06)
+        case "shell":
+            if name == "nautilus_shell" {
+                let d = cv.circle(V2(0.5, 0.54), 0.36)
+                cv.add(d, ys, soft(0xE8D8C4), r: 0.3)
+                for k in 0..<4 {
+                    cv.add(Canvas.intersect(ring(cv.circle(V2(0.56 - 0.03 * Float(k), 0.56), 0.08 + Float(k) * 0.08), 0.012), Canvas.offset(d, 0.02)), ys, soft(0xA0583A), r: 0.012)
+                }
+            } else {
+                let d = Canvas.intersect(ellipse(cv, V2(0.5, 0.6), 0.4, 0.34), cv.below(0.66))
+                cv.add(d, ys, M("leather", base), r: 0.2)
+                for x: Float in [0.3, 0.5, 0.7] {
+                    cv.add(Canvas.intersect(cap(cv, V2(x, 0.3), V2(x, 0.66), 0.012), Canvas.offset(d, 0.02)), ys, M("leather", darker(base, 0.7)), r: 0.012)
+                }
+            }
+        case "honeycomb":
+            for c in [V2(0.36, 0.38), V2(0.64, 0.38), V2(0.5, 0.62), V2(0.22, 0.62), V2(0.78, 0.62)] {
+                let hexAt: (Float) -> [V2] = { r in (0..<6).map { (k: Int) -> V2 in
+                    let a = Float(k) * .pi / 3 + .pi / 6
+                    return c + V2(cosf(a), sinf(a)) * r
+                } }
+                cv.add(cv.poly(hexAt(0.14)), ys, soft(base), r: 0.06, chamfer: true)
+                cv.add(cv.poly(hexAt(0.07)), ys, soft(ex["c"] ?? 0xF8C850), r: 0.03)
+            }
+        case "horn":
+            let p0 = V2(0.84, 0.24), c0 = V2(0.5, 0.92), p1 = V2(0.14, 0.4)
+            cv.add(cv.poly(band(p0, c0, p1, 0.2, 0.04, 18)), xs, soft(base), r: 0.08)
+            let spine = bez(p0, c0, p1, 18)
+            for k in 0..<4 { cv.add(cv.circle(spine[3 + k * 3], 0.02), xs, soft(darker(base, 0.75)), r: 0.015) }
+        case "name_tag":
+            cv.add(cv.poly([V2(0.12, 0.36), V2(0.68, 0.36), V2(0.88, 0.5), V2(0.68, 0.64), V2(0.12, 0.64)]), xs, "paper", r: 0.04)
+            cv.add(cv.circle(V2(0.72, 0.5), 0.03), xs, soft(0x2A2A2A), r: 0.02)
+            cv.add(cap(cv, V2(0.74, 0.5), V2(0.94, 0.2), 0.014), zero, "string", r: 0.014)
+            for x: Float in [0.2, 0.32, 0.44] { cv.add(cap(cv, V2(x, 0.5), V2(x + 0.07, 0.5), 0.014), xs, soft(0x5A5048), r: 0.012) }
+        case "pufferfish":
+            let c = V2(0.48, 0.54)
+            var d = cv.circle(c, 0.28)
+            for k in 0..<10 {
+                let a = Float(k) * .pi / 5
+                let dv = V2(cosf(a), sinf(a)), pv = V2(-sinf(a), cosf(a))
+                let sc: V2 = c + dv * 0.28
+                d = Canvas.union(d, cv.poly([sc + dv * 0.08, sc + pv * 0.04, sc - pv * 0.04]))
+            }
+            cv.add(d, ys, soft(base), r: 0.25)
+            cv.add(cv.circle(V2(0.34, 0.46), 0.04), ys, soft(0x18181C), r: 0.03)
+        case "map":
+            let d = cv.poly([V2(0.14, 0.14), V2(0.86, 0.14), V2(0.86, 0.86), V2(0.14, 0.86)])
+            cv.add(d, ys, soft(ex["c"] ?? 0xE8E0C0), r: 0.04)
+            if name == "filled_map" {
+                cv.add(Canvas.intersect(ellipse(cv, V2(0.44, 0.5), 0.2, 0.16), Canvas.offset(d, 0.08)), ys, soft(ex["d"] ?? 0x6A9A5A), r: 0.05)
+                cv.add(Canvas.intersect(ellipse(cv, V2(0.66, 0.66), 0.12, 0.1), Canvas.offset(d, 0.08)), ys, soft(0x5A8ACA), r: 0.03)
+            }
+            cv.add(ring(Canvas.offset(d, 0.06), 0.01), ys, soft(0xA08A60), r: 0.01)
         case "saddle":
             var seatPts = bez(V2(0.12, 0.3), V2(0.5, 0.62), V2(0.86, 0.36), 12)
             seatPts += [V2(0.88, 0.5), V2(0.7, 0.62), V2(0.3, 0.62), V2(0.12, 0.46)]
