@@ -114,6 +114,11 @@ enum FlightCrew {
     static var seats: [Seat] = []
 
     static func tick(_ g: Game) {
+        // A Capital Kestrel loaded from a save has its crew back the moment they load (they would fall out of it
+        // before the citadel's once-a-second update got to them).
+        for s in g.world.ships.list where s.role == "kestrel" && !s.captured && s.parent == nil && !seats.contains(where: { $0.ship === s }) {
+            relink(g, s)
+        }
         guard !seats.isEmpty else { return }
         seats.removeAll { $0.mob == nil || $0.ship == nil || ($0.mob?.health ?? 0) <= 0 }
         for st in seats {

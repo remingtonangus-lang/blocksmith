@@ -1005,6 +1005,7 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--basetest") {
             let ph = arg("--basetest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
+            if ph == "reload" { return BaseTests.reloadTest(device: world.device) ? 0 : 1 }
             if !BaseTests.run(game: game, world: world, phase: ph) && !ph.hasSuffix("shot") { return 1 }
         }
         if let secs = Double(arg("--fire") ?? "") {

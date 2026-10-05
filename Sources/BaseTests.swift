@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 import simd
 
 // --basetest [patrol|crawler|lockdown|rebuild|air|all]: the reactive citadel (CapitalBases.swift) through the real Game.tick.
@@ -294,6 +295,81 @@ enum BaseTests {
         let recs = data.flatMap { try? JSONDecoder().decode([BaseRecord].self, from: $0) } ?? []
         check(recs.contains { $0.key == key }, "the citadel's state is saved", "\(recs.count) records")
         return finish(g, b, t0)
+    }
+
+    // --basetest reload: a real save mid-patrol and mid-air-patrol (a temporary save folder, as the playthrough does),
+    // loaded into a fresh game: the citadel's alert, patrol and Kestrel phase come back, the airborne Kestrel is there
+    // with its pilot back at the controls, and both finish (patrol back at its posts, Kestrel stowed on its pad).
+    static func reloadTest(device: MTLDevice) -> Bool {
+        failures = []; results = []
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let seed: UInt64 = 12345
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blocksmith-basereload", isDirectory: true)
+        try? FileManager.default.removeItem(at: dir)
+        let save = SaveManager(dir: dir)
+        let w = World(seed: seed, device: device, save: save, dim: .overworld)
+        w.renderDistance = 8
+        let g = Game(world: w, save: save, persistent: true)
+        guard let sc = w.gen.structures, let st = sc.nearest("military_base", x: 0, z: 0, maxRegions: 8) else {
+            check(false, "a citadel nearby"); return false
+        }
+        let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2, y0 = st.min.y + 20
+        let centre = V3(Float(cx) + 0.5, Float(y0 + 5), Float(cz) + 0.5)
+        let key = "citadel:\(cx),\(cz)"
+        func setUp(_ g: Game) {
+            g.survival = false; g.paused = false; g.menu = nil
+            g.player.flying = true
+            g.world.ships.encounters = false
+            g.player.pos = centre + V3(0, 60, 0)
+        }
+        setUp(g)
+        _ = w.loadSync(center: centre, radius: 7)
+        for (name, p) in w.pendingMobs { if let k = MobKind.named(name) { g.mobs.mobs.append(Mob(Soldier.garrison(k, at: p), at: p)) } }
+        w.pendingMobs.removeAll()
+        for m in g.mobs.mobs where m.kind.steelhold { m.persistent = true }
+        func sim(_ g: Game, _ secs: Float, until: () -> Bool) -> Float? {
+            var e: Float = 0
+            while e < secs {
+                g.tick(0.05); g.player.pos = centre + V3(0, 60, 0); g.player.vel = .zero; e += 0.05
+                if until() { return e }
+            }
+            return nil
+        }
+        _ = sim(g, 3) { g.bases.records[key] != nil }
+        guard g.bases.records[key] != nil else { check(false, "the citadel is watched"); return finish(g, g.bases, t0) }
+        // A gunshot just outside the east wall: alert, a patrol out, the Kestrel up.
+        let ex = Float(cx + CapitalBase.A + 6), ez = Float(cz)
+        g.baseNoise(at: V3(ex, g.standY(ex, ez, from: Float(y0 + 30)), ez), kind: .gunshot)
+        let airborne = sim(g, 60) { (g.bases.records[key]?.airPhase ?? 0) >= 2 && (g.bases.records[key]?.patrol?.phase ?? 0) >= 1 }
+        let before = g.bases.records[key]!
+        check(airborne != nil, "before the save: a patrol out and the Kestrel in the air",
+              "patrol phase \(before.patrol?.phase ?? -1), air phase \(before.airPhase ?? -1)")
+        g.saveNow()
+        SaveIO.flush()                                       // the chunk writes are on disk before the reload
+
+        // A fresh game from the save (a new session: no crews buckled in from the old one).
+        FlightCrew.seats.removeAll()
+        guard let meta = save.loadMeta() else { check(false, "world.json written"); return finish(g, g.bases, t0) }
+        let w2 = World(seed: seed, device: device, save: save, dim: .overworld)
+        w2.renderDistance = 8
+        let g2 = Game(world: w2, save: save, persistent: false)
+        g2.apply(meta)
+        setUp(g2)
+        _ = w2.loadSync(center: centre, radius: 7)
+        let b2 = g2.bases
+        let r2 = b2.records[key]
+        check(r2?.alert == before.alert && r2?.patrol?.phase == before.patrol?.phase && r2?.airPhase == before.airPhase,
+              "the citadel's alert, patrol and Kestrel phase come back",
+              "alert \(r2?.alert.name ?? "none"), patrol \(r2?.patrol?.phase ?? -1), air \(r2?.airPhase ?? -1)")
+        let kestrel = { w2.ships.list.first { $0.id == before.airShip && $0.role == "kestrel" } }
+        check(kestrel() != nil, "the airborne Kestrel is in the loaded world", "ship \(before.airShip ?? -1), \(w2.ships.list.count) ships")
+        let seated = sim(g2, 5) { FlightCrew.seats.contains { $0.ship != nil && $0.ship === kestrel() && $0.mob?.station == .seated } }
+        check(seated != nil, "its pilot is back at the controls", "\(FlightCrew.seats.count) seats")
+        let done = sim(g2, 300) { b2.records[key]?.patrol == nil && b2.records[key]?.air == nil }
+        let log = b2.log.joined(separator: "; ")
+        check(done != nil && !log.contains("kestrel lost") && log.contains("kestrel stowed"), "after the reload the patrol comes back and the Kestrel lands and is stowed",
+              String(format: "after %.0f s: ", done ?? -1) + log)
+        return finish(g2, b2, t0)
     }
 
     static func offPost(_ m: Mob) -> Float {
