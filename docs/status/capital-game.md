@@ -98,6 +98,18 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 06:40: second sweep.
+  - The radar station had sunk into a crater: the road relaxation moved road ends too, lowering Pass Road's
+    radar end by 740 m. Road ends are now pinned to their sites.
+  - Pass Road cannot climb 1300 m in 5 km. It now ends at a road head at 519 m, and the radar is served by
+    gunship (its embankment had raised a 380 m mound at the citadel).
+  - Roads: 20 % grades, 30 % ramps in the last 600 m before a site, banks and strips carved in two passes.
+    Every road sits within 1 m of the ground, the ground 40 m off stays within 20 m, and Airfield Road
+    reaches the airfield.
+  - Searchlights sweep the sky (they lay on the slopes as white rods).
+  - The Cinder helmet's wide flat brim read as a conical straw hat; it is now a domed helmet with a neck
+    skirt, visor ridge and goggles.
+  - troops_lineup stands on open ground, and FX warm-up particles no longer show as a grey column.
 - 2026-10-05 05:40: terrain and road bugs from the shot sweep.
   - Front Track was buried 18 m under Red Track: the two share a corridor. A road now pins its height to
     earlier roads where they overlap.
