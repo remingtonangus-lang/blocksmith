@@ -270,6 +270,8 @@ func _state_changed(a: int, b: int) -> void:
 			routine.resume()
 	if v.has_method("set_activity"):
 		v.set_activity("idle_crouch" if b == State.COWER else "")
+	if v.has_method("set_pose"):
+		v.set_pose("cower" if b == State.COWER else ("hands_up" if b == State.SURRENDER else ""))
 	if b in [State.FLEE, State.COWER, State.REPORT, State.WATCH, State.ALERT, State.SURRENDER] and calm_t <= 0.0:
 		calm_t = rng.randf_range(22.0, 40.0)
 	if b == State.SURRENDER:
@@ -513,6 +515,8 @@ func _react_to_player() -> void:
 	var p = Game.player
 	if p == null or not is_instance_valid(p):
 		return
+	if body.lying or (routine != null and routine.block.get("kind", "") == "passout"):
+		return                                   # asleep
 	var to: Vector3 = p.global_position - body.global_position
 	var d := to.length()
 	var key := str(body.get_meta("resident", ""))

@@ -217,7 +217,7 @@ func _despawn(key: String, h: Human) -> void:
 func _spawn_town_resident(r: Dictionary, place: bool) -> bool:
 	var idx: Dictionary = index[r.town]
 	var b := block_for(r)
-	if b.kind == "home":
+	if b.kind == "home" and not sleeps_in_bed(r):
 		indoors[r.key] = true
 		return false
 	if b.kind in ["play", "stagger", "patrol"] and not nav_ready(r.town):
@@ -448,7 +448,7 @@ func claim(rt: TownRoutine, bid: String, types: Array, need := "") -> Dictionary
 			return s2
 	return {}
 
-func claim_street(rt: TownRoutine) -> Dictionary:
+func claim_street(rt: TownRoutine, types: Array = []) -> Dictionary:
 	var idx: Dictionary = index.get(rt.res.town, {})
 	if idx.is_empty():
 		return {}
@@ -456,8 +456,42 @@ func claim_street(rt: TownRoutine) -> Dictionary:
 	var cands: Array = []
 	var bp := rt.body.global_position
 	for s in idx.street:
-		if _free(s) and s.transform.origin.distance_to(bp) < 140.0:
+		if _free(s) and s.transform.origin.distance_to(bp) < 140.0 and (types.is_empty() or types.has(s.type)):
 			cands.append(s)
+	if cands.is_empty():
+		return {}
+	var s2: Dictionary = cands[rt.rng.randi() % cands.size()]
+	s2["by"] = rt.body.get_instance_id()
+	return s2
+
+## Night with Ruth close by: residents sleep in their beds instead of vanishing indoors.
+func sleeps_in_bed(r: Dictionary) -> bool:
+	var h: float = Game.sky.hours if Game.sky else 12.0
+	if not (h >= 21.5 or h < 6.5):
+		return false
+	var b: Dictionary = index.get(r.town, {}).get("buildings", {}).get(r.home, {})
+	if b.is_empty() or not b.spots.any(func(sp): return sp.type == "bed" and _free(sp) and (sp.transform.origin.y - float(b.floor_y)) < 1.2):
+		return false
+	return (b.transform.origin as Vector3).distance_to(ref_pos()) < 60.0
+
+## A place on the boardwalk in front of a shop to sweep (alternating sides of the door).
+func sweep_spot(rt: TownRoutine, bid: String) -> Dictionary:
+	var b: Dictionary = index.get(rt.res.town, {}).get("buildings", {}).get(bid, {})
+	if b.is_empty():
+		return {}
+	if not b.has("sweep_spots"):
+		var list := []
+		for sp in b.spots:
+			if sp.type == "door_out":
+				var xf: Transform3D = sp.transform
+				for side: float in [-1.0, 1.0]:
+					var p: Vector3 = xf.origin + xf.basis.x * side * 1.3 - xf.basis.z * 0.1
+					var fb := Basis(Vector3.UP, side * PI * 0.5) * xf.basis
+					list.append({"type": "sweep", "transform": Transform3D(fb, p), "building": bid, "town": rt.res.town,
+						"synthetic": true})
+				break
+		b["sweep_spots"] = list
+	var cands: Array = b.sweep_spots.filter(func(sp): return _free(sp))
 	if cands.is_empty():
 		return {}
 	var s2: Dictionary = cands[rt.rng.randi() % cands.size()]

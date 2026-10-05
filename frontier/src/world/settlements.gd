@@ -47,6 +47,7 @@ var prof := {}
 var _lights: Array = []          # [OmniLight3D, base_energy, kind, phase, always]
 var _spinners: Array = []        # [Node3D, axis, speed]
 var _night := -1.0
+var _asleep := -1.0
 var _timer := 0.0
 var _int_timer := 0.0
 var _door_meshes := {}
@@ -737,7 +738,9 @@ func _make_lights(parent: Node3D, specs: Array) -> void:
 			o.shadow_bias = 0.05
 		o.visible = false
 		parent.add_child(o)
-		_lights.append([o, float(l.energy), str(l.kind), randf() * TAU, bool(l.get("always", false))])
+		var bt := str(buildings.get(l.get("building", ""), {}).get("type", ""))
+		_lights.append([o, float(l.energy), str(l.kind), randf() * TAU, bool(l.get("always", false)),
+			bt in ["house", "cabin", "adobe_house", "tent", "shed"]])
 		stats.lights += 1
 
 func _process(dt: float) -> void:
@@ -808,11 +811,23 @@ func night_factor() -> float:
 	var dark: float = sky.get("dark") if sky.get("dark") != null else 0.0
 	return clampf(n + dark * 0.35, 0.0, 1.0)
 
+## 0 in the evening .. 1 in the small hours, when homes have gone to bed (lamps out, most windows dark).
+func asleep_factor() -> float:
+	var h: float = Game.sky.hours if Game.sky else 12.0
+	if h >= 22.5:
+		return clampf((h - 22.5) / 1.5, 0.0, 1.0)
+	if h < 6.0:
+		return clampf((6.0 - h) / 1.0, 0.0, 1.0)
+	return 0.0
+
 func _update_lights(force: bool) -> void:
 	var n := night_factor()
-	if force or absf(n - _night) > 0.01:
+	var asleep := asleep_factor()
+	if force or absf(n - _night) > 0.01 or absf(asleep - _asleep) > 0.02:
 		_night = n
+		_asleep = asleep
 		TownMats.set_lights(n)
+		TownMats.get_all()["glass"].set_shader_parameter("lit_share", lerpf(0.55, 0.14, asleep))
 	var cam := get_viewport().get_camera_3d()
 	var cp := cam.global_position if cam != null else Vector3.ZERO
 	for l in _lights:
@@ -822,6 +837,8 @@ func _update_lights(force: bool) -> void:
 		match kind:
 			"interior":
 				on = lerpf(0.18, 1.0, n)        # interiors keep a dim fill by day (lamps, doorway bounce)
+				if l.size() > 5 and l[5]:
+					on *= 1.0 - asleep * 0.92    # homes: the lamp goes out at bedtime
 			"fire", "stove":
 				on = 1.0 if l[4] else maxf(n, 0.25)
 			_:
