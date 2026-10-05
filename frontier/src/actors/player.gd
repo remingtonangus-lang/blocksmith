@@ -120,7 +120,11 @@ func _setup_combat() -> void:
 			var t: Damageable = info.get("target")
 			hud.hit_confirm(t != null and not t.alive)
 		if nerve and info.get("zone", "") == "head":
-			nerve.reward(6.0))
+			nerve.reward(6.0)
+		# kills while Nerve is running build its rank (a headshot kill counts double)
+		var tk: Damageable = info.get("target")
+		if nerve and nerve.active and tk != null and not tk.alive and tk.kind == "human":
+			nerve.add_xp(2.0 if info.get("zone", "") == "head" else 1.0))
 	if not Game.headless:
 		hud = load("res://src/ui/hud.gd").new()
 		hud.name = "HUD"

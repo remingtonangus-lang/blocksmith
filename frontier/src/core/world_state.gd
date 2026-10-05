@@ -152,16 +152,21 @@ func use_item(id: String) -> bool:
 		"tonic_nerve":
 			if Game.player and Game.player.nerve:
 				Game.player.nerve.reward(100.0)
+				Game.player.nerve.restore_core(100.0)
 		"jerky":
 			if Game.player and Game.player.damageable:
 				Game.player.damageable.heal(15.0)
 		"coffee":
 			if Game.player:
 				Game.player.stamina = Game.player.STAMINA_MAX
+				if Game.player.nerve:
+					Game.player.nerve.restore_core(30.0)
 		"cooked_meat":
 			if Game.player and Game.player.damageable:
 				Game.player.damageable.heal(35.0)
 				Game.player.stamina = Game.player.STAMINA_MAX
+				if Game.player.nerve:
+					Game.player.nerve.restore_core(40.0)
 		"gun_oil":
 			if Game.player and Game.player.gun:
 				Game.player.gun.clean_all()
@@ -186,7 +191,8 @@ func save_game(slot := "auto") -> bool:
 			"health": p.damageable.health if p.damageable else 100.0,
 			"ammo": p.gun.ammo if p.gun else {}, "clip": p.gun.clip if p.gun else {}, "weapons": p.gun.weapons if p.gun else [],
 			"condition": p.gun.condition if p.gun else {}, "ammo_sel": p.gun.ammo_sel if p.gun else {},
-			"loaded": p.gun.loaded if p.gun else {}},
+			"loaded": p.gun.loaded if p.gun else {},
+			"nerve": {"core": p.nerve.core, "rank": p.nerve.rank, "xp": p.nerve.xp} if p.nerve else {}},
 	}
 	var f := FileAccess.open("user://saves/%s.json" % slot, FileAccess.WRITE)
 	if f == null:
@@ -237,5 +243,11 @@ func load_game(slot := "auto") -> bool:
 		p.gun.condition = d.player.get("condition", {})
 		p.gun.ammo_sel = d.player.get("ammo_sel", {})
 		p.gun.loaded = d.player.get("loaded", {})
+	if p.nerve and d.player.has("nerve"):
+		var nv: Dictionary = d.player.nerve
+		p.nerve.core = float(nv.get("core", 100.0))
+		p.nerve.rank = clampi(int(nv.get("rank", 1)), 1, 5)
+		p.nerve.xp = float(nv.get("xp", 0.0))
+		p.nerve.max_meter = p.nerve.RANK_METER[p.nerve.rank - 1]
 	Game.log_event("loaded", {"slot": slot})
 	return true

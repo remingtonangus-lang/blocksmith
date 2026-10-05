@@ -163,7 +163,7 @@ jobs:
           P1=$!
           run_bots travel road,explore,ride,gaits,town,hunt,birds,horsework 1200 &
           P2=$!
-          run_bots combat gunfight,camp,encounters,social,openworld,systems,ui,footik,cover,melee,armory,archetypes,lasso,disarm 1200
+          run_bots combat gunfight,camp,encounters,social,openworld,systems,ui,footik,cover,melee,armory,archetypes,lasso,disarm,nerve 1200
           wait $P1 || true
           wait $P2 || true
           cat bots_travel.log bots_combat.log bots_story.log > bots.log

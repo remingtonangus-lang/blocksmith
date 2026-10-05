@@ -18,6 +18,16 @@ var max_meter := 100.0
 var drain_per_sec := 14.0          # real seconds
 var refill_per_sec := 1.2
 var active := false
+# core: a reserve that sets how fast the meter refills (empties slowly over time and with use; bitters, coffee and
+# food restore it). rank 1-5 from Nerve kills: more marks, longer, deeper slow, bigger meter.
+var core := 100.0
+var rank := 1
+var xp := 0.0
+const RANK_XP := [0.0, 6.0, 18.0, 40.0, 75.0]
+const RANK_MARKS := [3, 6, 6, 8, 10]
+const RANK_SLOW := [0.34, 0.3, 0.28, 0.25, 0.22]
+const RANK_METER := [100.0, 110.0, 125.0, 140.0, 160.0]
+const RANK_DRAIN := [16.0, 14.0, 12.0, 11.0, 10.0]
 var marks: Array = []              # [{pos, target(Damageable or null), zone}]
 var gun: GunHandler
 var overlay: ColorRect
@@ -47,7 +57,7 @@ func activate() -> void:
 		return
 	active = true
 	marks.clear()
-	Engine.time_scale = SLOW
+	Engine.time_scale = RANK_SLOW[rank - 1]
 	if overlay and not Game.is_vr:        # VR grades the world instead (src/xr/vr_play.gd): a screen overlay sits on the HUD sheet
 		overlay.visible = true
 	if Game.audio:
@@ -57,7 +67,7 @@ func activate() -> void:
 func mark(origin: Vector3, dir: Vector3) -> void:
 	if not active or _executing:
 		return
-	var rounds: int = gun.clip.get(gun.weapon_id(), 0)
+	var rounds: int = mini(gun.clip.get(gun.weapon_id(), 0), RANK_MARKS[rank - 1])
 	if marks.size() >= rounds:
 		return
 	var space := gun.owner_actor.get_world_3d().direct_space_state
@@ -105,8 +115,9 @@ func deactivate() -> void:
 
 func _process(dt: float) -> void:
 	var real_dt := dt / maxf(Engine.time_scale, 0.01)
+	core = maxf(core - real_dt * (0.6 if active else 0.02), 0.0)      # ~80 min to empty at rest
 	if active:
-		meter = maxf(meter - drain_per_sec * real_dt, 0.0)
+		meter = maxf(meter - RANK_DRAIN[rank - 1] * real_dt, 0.0)
 		if overlay:
 			(overlay.material as ShaderMaterial).set_shader_parameter("strength", 1.0)
 		if _executing:
@@ -132,10 +143,24 @@ func _process(dt: float) -> void:
 		elif meter <= 0.0:
 			execute()
 	else:
-		meter = minf(meter + refill_per_sec * real_dt, max_meter)
+		# a full core refills the meter at full rate; an empty one barely at all
+		meter = minf(meter + refill_per_sec * lerpf(0.15, 1.4, core / 100.0) * real_dt, max_meter)
 
 func reward(amount: float) -> void:
 	meter = minf(meter + amount, max_meter)
+
+## Restore the core (Steady-Hand Bitters fill it; coffee and food top it up).
+func restore_core(amount: float) -> void:
+	core = minf(core + amount, 100.0)
+
+## A kill made with Nerve marks: experience toward the next rank.
+func add_xp(amount: float) -> void:
+	xp += amount
+	while rank < 5 and xp >= RANK_XP[rank]:
+		rank += 1
+		max_meter = RANK_METER[rank - 1]
+		Game.say("Nerve steadier — rank %d." % rank, 3.0)
+		Game.log_event("nerve_rank", {"rank": rank})
 
 # ------------------------------------------------------------------------------------------------- ink marks
 static func _ink_texture() -> ImageTexture:
