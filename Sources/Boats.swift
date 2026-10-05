@@ -123,7 +123,7 @@ extension Mob {
             if Blocks.fluidKind[Int(b)] == 1 {
                 var top = y
                 while Blocks.fluidKind[Int(w.block(bx, top + 1, bz))] == 1 && top < y + 8 { top += 1 }
-                surface = Float(top) + 0.9
+                surface = Float(top) + 0.9 + Waves.height(pos.x, pos.z)    // storm swell (Storms.swift) heaves it
                 break
             }
             y -= 1
@@ -144,6 +144,8 @@ extension Mob {
                 vel.y += (under * 30 - vel.y * 4) * dt
             }
             friction = 0.9
+            // A storm's wind pushes a boat downwind (about 1 b/s in a full gale).
+            if Waves.amp > 0.05 { vel += V3(g.fx.wind.x, 0, g.fx.wind.z) * (0.04 * min(1, Waves.amp) * dt * 20 * 0.1) }
         } else {
             vel.y -= 28 * dt
             if onGround { friction = Boats.slipperiness(below) * 0.9 }
