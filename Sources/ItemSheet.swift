@@ -33,3 +33,46 @@ enum ItemSheet {
         return Request(kind: p.first ?? "items", scale: p.count > 1 ? Float(p[1]) ?? 2 : 2, page: p.count > 2 ? Int(p[2]) ?? 0 : 0)
     }
 }
+
+// --itemcheck: every vector-designed item icon (ItemHD) rendered at the layer size and checked: it covers a sane share
+// of the icon (3-85 %), stays off the icon's border (clipped designs), and overlay pairs split into a non-empty base and
+// tint. Prints the counts (vector / pixel-art fallback) and the generation cost (startup time).
+extension ItemSheet {
+    static func check(size n: Int = 128) -> Int {
+        var names: [String] = []
+        for i in 1..<Items.count {
+            let d = Items.def(ItemID(i))
+            if let k = d.texKey { names.append(k) } else if d.sprite != nil { names.append("item_" + d.name) }
+            if let o = d.overlay { names.append(o) }
+        }
+        names = Array(Set(names)).sorted()
+        var vector = 0, fallback = 0, fails = 0
+        let t0 = Date()
+        for name in names {
+            let item = String(name.dropFirst(5))
+            var px: [V4]? = nil
+            if let (k, m) = ItemHD.design(item) { px = ItemHD.vector(k, m, n) }
+            else if let (key, ov) = ItemHD.pairKeys[name] { px = ItemHD.render(ItemHD.pairCanvas(key, n), split: ov ? 2 : 1) }
+            else if let sp = ItemHD.spriteByItem[item] {
+                let cv = ItemHD.Canvas(n)
+                if ItemHD.family(cv, item, sp) { px = ItemHD.render(cv) }
+            }
+            guard let img = px else { fallback += 1; continue }
+            vector += 1
+            var cov = 0, border = 0
+            for y in 0..<n { for x in 0..<n where img[y * n + x].w >= 0.5 {
+                cov += 1
+                if x == 0 || y == 0 || x == n - 1 || y == n - 1 { border += 1 }
+            } }
+            let share = Float(cov) / Float(n * n)
+            if share < 0.03 || share > 0.85 || border > n / 2 {
+                fails += 1
+                print(String(format: "itemcheck FAIL %@: coverage %.1f%%, %d border pixels", name, share * 100, border))
+            }
+        }
+        let ms = Date().timeIntervalSince(t0) * 1000
+        print(String(format: "itemcheck: %d layers, %d vector, %d pixel-art fallback, %d fail; vector generation %.0f ms total (%.2f ms each, one core)",
+                     names.count, vector, fallback, fails, ms, ms / Double(max(1, vector))))
+        return fails
+    }
+}

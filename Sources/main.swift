@@ -1466,6 +1466,7 @@ enum Snapshot {
             }
         }
         var fxFails = 0
+        if CommandLine.arguments.contains("--itemcheck") { fxFails += ItemSheet.check() }      // ItemSheet.swift
         if let scenes = arg("--fxtest") {
             // Material damage and weather checks with shots (WorldFXTest.swift).
             let dir = arg("--out") ?? (out as NSString).deletingLastPathComponent
