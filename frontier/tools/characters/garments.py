@@ -538,7 +538,7 @@ def body_shell(builder, info, g):
             (info.co[src, 1] < info.pelvis[1] + 0.02)
         w = np.clip((zz - (info.navel_z - 0.04)) / 0.06, 0, 1) * np.clip((info.shoulder_z - zz) / 0.06, 0, 1)
         # outward-only smoothing fills concavities up to the convex hull: no cleavage, no nipples
-        sm = _inflate(co, edges, nrm, 60, chest)
+        sm = _inflate(co, edges, nrm, 250, chest, lam=0.8)
         sm = _laplacian(sm, edges, 6, 0.4, fixed=~chest)
         co = co * (1 - w[:, None] * chest[:, None]) + sm * (w[:, None] * chest[:, None])
     if t == "boots":
