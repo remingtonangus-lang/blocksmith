@@ -34,9 +34,9 @@ jobs:
       - name: Python deps
         run: pip3 install --break-system-packages -q numpy scipy pillow scikit-image || pip3 install -q numpy scipy pillow scikit-image
 
-      - name: Cache Godot + export templates
+      - name: Restore Godot + export templates
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/godot
@@ -54,14 +54,23 @@ jobs:
           D="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$D" && mv templates/* "$D/" && ls "$D" | head
 
+      - name: Save Godot + export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
+
       - name: Godot path
         run: |
           echo "GODOT=$HOME/godot/Godot.app/Contents/MacOS/Godot" >> $GITHUB_ENV
           ~/godot/Godot.app/Contents/MacOS/Godot --version
 
-      - name: Cache world data
+      - name: Restore world data
         id: world-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: frontier/data/world
           key: world-${{ hashFiles('frontier/tools/worldgen.py') }}
@@ -70,9 +79,16 @@ jobs:
         if: steps.world-cache.outputs.cache-hit != 'true'
         run: python3 frontier/tools/worldgen.py 2>&1 | tail -5
 
-      - name: Cache asset pack + import
+      - name: Save world data
+        if: steps.world-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: frontier/data/world
+          key: ${{ steps.world-cache.outputs.cache-primary-key }}
+
+      - name: Restore asset pack + import
         id: asset-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             frontier/assets/ext
@@ -93,6 +109,15 @@ jobs:
         run: |
           set -o pipefail
           time "$GODOT" --headless --path frontier --import 2>&1 | grep -vE "^\[|loading_editor|^$" | tail -20 || true
+
+      - name: Save asset pack + import
+        if: steps.asset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            frontier/assets/ext
+            frontier/.godot
+          key: ${{ steps.asset-cache.outputs.cache-primary-key }}
 
       - name: Script check
         run: |
