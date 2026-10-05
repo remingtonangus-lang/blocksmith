@@ -403,7 +403,7 @@ func _process(delta: float) -> void:
 		if not hit.is_empty() or p.distance_to(tgt) < v.length() * delta * 1.5:
 			var at: Vector3 = hit["position"] if not hit.is_empty() else p
 			if G.combat:
-				G.combat.explode(at, 0.7, hit)
+				G.combat.explode(at, 0.7, hit, r[3])
 			else:
 				explosion(at, 0.7)
 			continue

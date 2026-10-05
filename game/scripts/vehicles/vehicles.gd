@@ -39,12 +39,7 @@ func setup(m: Material) -> void:
 	# Gunships over the front.
 	var front: Vector3 = gen.sites["front"]
 	for f in 2:
-		var h := _heli(f, front + Vector3(300.0 * (1 - 2 * f), 140.0, 0), 0.0)
-		h.ai = true
-		h.ai_orbit = front + Vector3(250.0 * (1 - 2 * f), 0, 100.0 * f)
-		h.ai_alt = 110.0 + f * 30.0
-		h.ai_radius = 420.0
-		h.ai_angle = f * PI
+		_front_gunship(f)
 	# Dropships: from the airfield and the citadel to the Capital's landing zone near the front.
 	var lz: Vector3 = G.battle.stage[0] + Vector3(-60, 0, -40)
 	var air: Array = bases.pads.get("airfield", [])
@@ -110,6 +105,37 @@ func _crawler(f: int, at: Vector3, yaw: float) -> Crawler:
 	return c
 
 
+## An AI gunship for side `f` orbiting the front. Each side gets a replacement 120 s after losing one (both
+## were shot down within 40 s of the start and the front had no air support for the rest of the session).
+func _front_gunship(f: int) -> void:
+	var front: Vector3 = G.gen.sites["front"]
+	var h := _heli(f, front + Vector3(300.0 * (1 - 2 * f), 140.0, 0), 0.0)
+	h.ai = true
+	h.ai_orbit = front + Vector3(250.0 * (1 - 2 * f), 0, 100.0 * f)
+	h.ai_alt = 110.0 + f * 30.0
+	h.ai_radius = 420.0
+	h.ai_angle = f * PI
+
+
+var _gunship_lost := [-1.0, -1.0]
+
+
+func _replace_gunships() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for f in 2:
+		var alive := false
+		for h in helis:
+			if is_instance_valid(h) and h.ai and h.faction == f and not h.has_meta("destroyed"):
+				alive = true
+		if alive:
+			_gunship_lost[f] = -1.0
+		elif _gunship_lost[f] < 0.0:
+			_gunship_lost[f] = now
+		elif now - _gunship_lost[f] > 120.0:
+			_gunship_lost[f] = -1.0
+			_front_gunship(f)
+
+
 func _heli(f: int, at: Vector3, yaw: float) -> Helicopter:
 	var h := Helicopter.new()
 	h.name = "Gunship%d" % helis.size()
@@ -151,7 +177,18 @@ func _ship(f: int, at: Vector3, route: Array[Vector3]) -> void:
 	ships.append(s)
 
 
+## Drops destroyed vehicles from the lists (a freed gunship left in `helis` broke the fly scenario on CI).
+func _prune() -> void:
+	for list in [crawlers, helis, dropships, frigates, convoys, ships]:
+		for i in range(list.size() - 1, -1, -1):
+			if not is_instance_valid(list[i]):
+				list.remove_at(i)
+
+
 func _physics_process(_delta: float) -> void:
+	_prune()
+	if Engine.get_physics_frames() % 60 == 0:
+		_replace_gunships()
 	if G.terrain == null:
 		return
 	for v in get_tree().get_nodes_in_group("vehicles"):

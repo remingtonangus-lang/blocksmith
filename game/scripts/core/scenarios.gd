@@ -157,10 +157,14 @@ func _tick_drive(_delta: float) -> void:
 
 func _setup_fly() -> void:
 	var v: Vehicles = G.vehicles
+	v._prune()
 	var h: Helicopter = null
 	for k in v.helis:
 		if not k.ai:
 			h = k
+	if h == null:
+		data["h"] = null
+		return
 	data["h"] = h
 	G.terrain.collision_now(h.global_position)
 	data["start"] = h.global_position
@@ -169,6 +173,9 @@ func _setup_fly() -> void:
 
 
 func _tick_fly(_delta: float) -> void:
+	if data["h"] == null or not is_instance_valid(data["h"]):
+		_done(false, "the player's gunship is gone (destroyed before the scenario)")
+		return
 	var h: Helicopter = data["h"]
 	if int(t * 2.0) != int((t - _delta) * 2.0):
 		print("  fly t %.1f pos %s vel %s heading %.2f" % [t, h.global_position, h.linear_velocity, h._heading])

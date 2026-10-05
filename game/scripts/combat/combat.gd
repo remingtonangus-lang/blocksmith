@@ -8,6 +8,7 @@ extends Node3D
 var bullets: Array = []          # [pos, vel, damage, faction, exclude, tracer, life, from_player]
 var shells: Array = []           # [pos, vel, power, faction, exclude, life]
 var destruction: Node = null
+var _cur_faction := -1
 
 
 func setup() -> void:
@@ -67,6 +68,7 @@ func _physics_process(delta: float) -> void:
 					G.hud.hit_marker()
 				continue
 		if not hit.is_empty():
+			_cur_faction = b[3]
 			_impact(hit, b[2], seg.normalized(), 0.0, b[7])
 			continue
 		if b[6] <= 0.0 or np.y < -50.0:
@@ -84,7 +86,7 @@ func _physics_process(delta: float) -> void:
 		s[5] -= delta
 		var hit := _trace(space, p, np, s[4])
 		if not hit.is_empty():
-			_explode(hit["position"], s[2], hit)
+			_explode(hit["position"], s[2], hit, s[3])
 			continue
 		if s[5] <= 0.0:
 			continue
@@ -114,6 +116,8 @@ func _impact(hit: Dictionary, dmg: float, dir: Vector3, _power: float, from_play
 	var col: Object = hit.get("collider")
 	var metal := false
 	if col and col.has_method("damage"):
+		if col is Node:
+			(col as Node).set_meta("last_hit", "bullet %.0f from faction %s" % [dmg, str(_cur_faction)])
 		col.damage(dmg, hit["position"])
 		metal = true
 		if from_player and G.hud:
@@ -127,12 +131,13 @@ func _impact(hit: Dictionary, dmg: float, dir: Vector3, _power: float, from_play
 			G.fx.impact(hit["position"], hit["normal"], metal)
 
 
-func _explode(at: Vector3, power: float, hit: Dictionary) -> void:
-	explode(at, power, hit)
+func _explode(at: Vector3, power: float, hit: Dictionary, faction: int = -1) -> void:
+	explode(at, power, hit, faction)
 
 
 ## Every explosion in the game: visuals, then blast damage to soldiers, the player, vehicles and buildings.
-func explode(at: Vector3, power: float, hit: Dictionary = {}) -> void:
+## `faction` (of the shooter, -1 for none) spares that side's vehicles from splash damage.
+func explode(at: Vector3, power: float, hit: Dictionary = {}, faction: int = -1) -> void:
 	if G.fx:
 		if hit.has("water"):
 			for k in 20:
@@ -143,12 +148,19 @@ func explode(at: Vector3, power: float, hit: Dictionary = {}) -> void:
 			G.fx.explosion(at, power)
 	var col: Object = hit.get("collider")
 	if col and col.has_method("damage"):
+		if col is Node:
+			(col as Node).set_meta("last_hit", "direct hit %.1f from faction %d" % [power, faction])
 		col.damage(400.0 * power, at)
 	# Splash damage to vehicles and destructible structures nearby.
 	var r := 8.0 * power
 	for v in get_tree().get_nodes_in_group("vehicles"):
 		var n := v as Node3D
-		if n and n != col and n.global_position.distance_to(at) < r * 1.5 and n.has_method("damage"):
+		if n == null:
+			continue
+		if faction >= 0 and "faction" in n and int(n.get("faction")) == faction:
+			continue
+		if n != col and n.global_position.distance_to(at) < r * 1.5 and n.has_method("damage"):
+			n.set_meta("last_hit", "blast %.1f at %s from faction %d" % [power, at.round(), faction])
 			n.damage(250.0 * power * (1.0 - n.global_position.distance_to(at) / (r * 1.5)), at)
 	if destruction and destruction.has_method("blast"):
 		destruction.blast(at, power)
@@ -179,6 +191,7 @@ func destroy_vehicle(v: Node3D) -> void:
 		return
 	v.set_meta("destroyed", true)
 	var at := v.global_position
+	G.log_line("vehicle destroyed: %s at %s (%s)" % [v.name, at.round(), v.get_meta("last_hit", "unknown")])
 	if G.fx:
 		G.fx.explosion(at + Vector3(0, 1.5, 0), 2.2)
 	if destruction and destruction.has_method("break_vehicle"):
