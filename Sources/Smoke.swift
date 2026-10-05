@@ -40,6 +40,7 @@ enum Smoke {
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
         var frameMs: [Double] = []
+        var worst: (ms: Double, frame: Int, tickMs: Double) = (0, 0, 0)
         frameMs.reserveCapacity(frames)
         var minCov = 1.0, peak = residentMB(), maxMobs = 0, maxDropped = 0
         let start = CFAbsoluteTimeGetCurrent()
@@ -179,6 +180,7 @@ enum Smoke {
             let b = CFAbsoluteTimeGetCurrent()
             progress.set(i, "Game.tick")
             game.tick(dt)
+            let tickEnd = CFAbsoluteTimeGetCurrent()
             progress.set(i, "renderFrame")
             if i > flyAt {
                 // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
@@ -196,6 +198,10 @@ enum Smoke {
             cmd.waitUntilCompleted()
             progress.set(i + 1, "frame done")
             frameMs.append((CFAbsoluteTimeGetCurrent() - b) * 1000)
+            if frameMs[frameMs.count - 1] > worst.ms {
+                // Which frame was the worst and where its time went (runs 605-634: 300-840 ms, nothing said which).
+                worst = (frameMs[frameMs.count - 1], i, (tickEnd - b) * 1000)
+            }
             let pp = game.player.pos
             guard pp.x.isFinite && pp.y.isFinite && pp.z.isFinite else {
                 print("smoke rd \(rd): FAIL player position became \(pp) at \(String(format: "%.1f", t)) s"); return 1
@@ -222,6 +228,8 @@ enum Smoke {
         let sorted = frameMs.sorted()
         func pct(_ q: Double) -> Double { sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * q))] }
         let dist = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+        print(String(format: "smoke rd %ld: worst frame %.0f ms at %.1f s (frame %ld): Game.tick %.0f ms, render + GPU %.0f ms; frames over 100 ms: %ld",
+                     rd, worst.ms, Double(worst.frame) * dt, worst.frame, worst.tickMs, worst.ms - worst.tickMs, frameMs.filter { $0 > 100 }.count))
         print(String(format: "smoke rd %ld: %ld frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %ld, travelled %.0f blocks, resident peak %.0f MB, menu %@",
                      rd, frames, wall, pct(0.5), pct(0.95), pct(0.99), sorted.last ?? 0, minCov * 100, maxMobs, dist, peak,
                      game.menu == nil && !game.paused ? "closed" : "STILL OPEN"))
