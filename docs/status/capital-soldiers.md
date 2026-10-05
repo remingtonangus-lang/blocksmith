@@ -84,6 +84,9 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   debris and player builds in a crater are left alone.
 - Cost: `BaseWatch.tickMs` (once-a-second update) 0.03 ms avg in the release build (0.2-0.3 unoptimized); dropship
   hulls build on a worker thread; a Kestrel launch costs 0.8 ms (release).
+- `--basetest reload`: a real save (temporary folder) with a patrol out and the Kestrel airborne, loaded into a
+  fresh game: state, the Kestrel and its crew come back (crew seats rebuilt from the blueprint, re-seated each tick)
+  and both finish.
 - Checks: `--basetest patrol|crawler|lockdown|rebuild|air|all` (and `...shot` variants for pictures). Unoptimized,
   only single phases fit a fast-lane run; a `[fast: ...]` marker builds release and runs the whole suite in ~50 s.
 
@@ -97,12 +100,14 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   cyclic-tilted disk over the centre of mass, hub moment, stability augmentation, rotor torque vs tail rotor + pedals.
 - Autopilots: `fm.hold` (position) / `fm.holdYaw` / `fm.holdSpeed`. Player: collective Space/Ctrl RT/LT (released in
   the air it holds the height), cyclic WASD / left stick as an attitude command (full stick 0.4 rad), heading follows
-  the view, LB/RB pedals (VehicleControls kind .helicopter).
+  the view, LB/RB pedals (VehicleControls kind .helicopter). Hand-flown planes are attitude command too: the stick
+  asks for pitch (0.35 rad) and bank (0.6 rad), centred holds level flight and levels the wings, no nose-up under
+  13 b/s; a turn coordinator yaws the nose at g tan(bank) / v; aircraft keep their throttle on landing wheels.
 - Blocks: `ship_rotor` (Rotor Head; blades drawn to the rotor diameter from the render-only `ship_rotor_blade`),
   `capital_airframe` (0.3 t). Designs: Capital Kestrel (helicopter, pilot + 4 seats), Capital Heron (twin-prop,
   wheels, role capplane). `Aircraft.spawn(kind, at:, yaw:, game:, troops:)` seats a Capital pilot (FlightCrew keeps
   seated crews in their seats; seated soldiers don't walk).
-- Checks: `--flighttest heli|player|plane|all` with a `flighttrace` line per second (height, speed, attitude,
+- Checks: `--flighttest heli|player|plane|planeplayer|all` with a `flighttrace` line per second (height, speed, attitude,
   controls). heli: lift-off from a built pad, settled hover, 80 out, pedal turn, back, lands on the pad. player:
   the same Kestrel through startPiloting / pilotTick and the keyboard layout. plane: level, climb, banked turn,
   stall and recovery (the camera rides along; chunks under the aircraft are loaded before each step).
