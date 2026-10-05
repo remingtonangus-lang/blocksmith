@@ -54,6 +54,7 @@ final class QuestControls {
     private var panelSize = V2(1.3, 0.8125)
     private var hudYawT: Float = 0             // tracking-space yaw the HUD faces (lazily follows the head)
     private var hudPosT: V3?                   // smoothed HUD centre (tracking space)
+    private var seenRecenters = 0
     private var panelCenter: V3 { app.rig.toWorld(panelCenterT) }
     var panelWorldCenter: V3 { panelCenter }           // (harness)
     private var panelYaw: Float { panelYawT + app.rig.bodyYaw }
@@ -250,6 +251,13 @@ final class QuestControls {
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))
         updateHint()
+        // After a recentre (the Meta button, Recenter View) the panels come back in front of the user.
+        if rig.recenters != seenRecenters {
+            seenRecenters = rig.recenters
+            hudYawT = rig.headYaw - rig.bodyYaw
+            hudPosT = nil
+            if mode == .menu { placeMenuPanel() }
+        }
         // Panel follows the menu state.
         if game.menu != nil || game.paused {
             if mode != .menu { placeMenuPanel() }

@@ -10,6 +10,7 @@ final class QuestRig {
     var bodyYaw: Float = 0
     var anchor = V3.zero
     var needsRecenter = true
+    private(set) var recenters = 0              // counts recentres (panels re-place themselves after one)
     private(set) var heightOffset: Float = 1.62
     private(set) var trackingHead = V3(0, 1.6, 0)
     private(set) var headRot = simd_quatf()
@@ -35,6 +36,7 @@ final class QuestRig {
         headRot = xr.headRot
         if needsRecenter {
             needsRecenter = false
+            recenters += 1
             anchor = V3(trackingHead.x, 0, trackingHead.z)
             // Standing or seated, the current head height becomes the game's eye height (ducking still lowers the view).
             let h = trackingHead.y
