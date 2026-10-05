@@ -107,6 +107,15 @@ do {
     let total = pfMs.reduce(0, +)
     pfMs.sort()
     print(String(format: "pathfind: 60 searches (%d found), total %.1f ms, median %.2f ms, worst %.2f ms", found, total, pfMs[30], pfMs.last!))
+    // World.block, the read every game system makes (collision, raycasts, mob AI): 1M reads around the spawn.
+    var sum = 0
+    let tb = CFAbsoluteTimeGetCurrent()
+    for i in 0..<1_000_000 {
+        let x = Int(spawn.x) - 24 + (i & 47), z = Int(spawn.z) - 24 + ((i >> 6) & 47), y = Int(spawn.y) + YOFF - 8 + ((i >> 12) & 15)
+        sum &+= Int(world.block(x, y, z))
+    }
+    print(String(format: "world.block: %.1f ns per read (%d)", (CFAbsoluteTimeGetCurrent() - tb) * 1e3, sum & 1))
+    if CommandLine.arguments.contains("--pathfind-only") { exit(0) }      // (profiling)
 }
 
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).

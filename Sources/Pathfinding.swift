@@ -40,6 +40,29 @@ enum PathFinder {
     static var doors = false                 // the current search may walk through wooden doors
     static var lastExpanded = 0              // nodes expanded by the last search (harness)
 
+    // Block reads during a search go through a one-chunk cache (neighbouring cells share a chunk): the blocks
+    // World.block returns, without its dictionary lookup per read (a search reads ~100 cells a node). Only while
+    // `find` runs (set up and dropped there); otherwise, and inside a ship's frame, World.block itself.
+    // It keeps the chunk's block array, not the Chunk: chunks are weakly referenced (Section.owner), so every retain
+    // and release of one takes the slow side-table path (45% of a search's time in a profile).
+    private static var cacheOn = false
+    private static var cKX = Int.min, cKZ = Int.min
+    private static var cLoaded = false
+    private static var cData: [BlockID] = []
+    @inline(__always) static func rd(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        guard cacheOn else { return w.block(x, y, z) }
+        if y < 0 { return BEDROCK }
+        if y >= CH { return AIR }
+        let kx = x >= 0 ? x / CS : (x + 1) / CS - 1, kz = z >= 0 ? z / CS : (z + 1) / CS - 1      // floorDiv
+        if kx != cKX || kz != cKZ {
+            cKX = kx; cKZ = kz
+            if let c = w.chunks[ChunkKey(x: kx, z: kz)] { cData = c.blocks.data; cLoaded = true } else { cData = []; cLoaded = false }
+        }
+        guard cLoaded else { return AIR }
+        let i = (x - kx * CS) + (z - kz * CS) * CS + y * CSQ                                     // Chunk.index
+        return i < cData.count ? cData[i] : AIR                                                  // BlockStore's subscript
+    }
+
     static let climbIds: Set<BlockID> = {
         var s = Set<BlockID>()
         for i in 0..<Blocks.count {
@@ -54,7 +77,7 @@ enum PathFinder {
 
     // Height of the collision inside a cell: 0 empty ... 1 full block, up to 1.5 for fences and walls.
     static func solidTop(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
-        let b = Int(w.block(x, y, z))
+        let b = Int(rd(w, x, y, z))
         if !Blocks.collide[b] { return 0 }
         if Blocks.fullCollide[b] { return 1 }
         if doors && isWoodDoor(BlockID(b)) { return 0 }
@@ -68,7 +91,7 @@ enum PathFinder {
 
     // A door (open or shut) in the cell at feet or head height.
     @inline(__always) static func hasDoor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
-        Blocks.shape[Int(w.block(x, y, z))] == "door" || Blocks.shape[Int(w.block(x, y + 1, z))] == "door"
+        Blocks.shape[Int(rd(w, x, y, z))] == "door" || Blocks.shape[Int(rd(w, x, y + 1, z))] == "door"
     }
 
     // Where to aim inside a door cell: the middle of the gap beside an open door's panel (the cell centre left
@@ -77,7 +100,7 @@ enum PathFinder {
     static func doorAim(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> (Float, Float) {
         guard hasDoor(w, x, y, z) else { return (0.5, 0.5) }
         var fx: Float = 0.5, fz: Float = 0.5
-        for yy in [y, y + 1] where Blocks.shape[Int(w.block(x, yy, z))] == "door" {
+        for yy in [y, y + 1] where Blocks.shape[Int(rd(w, x, yy, z))] == "door" {
             boxes.removeAll(keepingCapacity: true)
             w.collisionBoxes(x, yy, z, &boxes)
             for (lo, hi) in boxes {
@@ -109,14 +132,14 @@ enum PathFinder {
         for i in 0..<pr.span { for j in 0..<pr.span {
             let cx = x + i, cz = z + j
             for k in 0..<pr.tall {
-                let id = w.block(cx, y + k, cz)
+                let id = rd(w, cx, y + k, cz)
                 if danger(id) { return nil }
                 if solidTop(w, cx, y + k, cz) > (k == 0 ? 0.2 : 0.01) { return nil }   // carpets / snow layers are fine underfoot
             }
-            let feet = w.block(cx, y, cz)
+            let feet = rd(w, cx, y, cz)
             if Blocks.fluidKind[Int(feet)] == 1 { wet = true; supported = true; continue }
             if pr.climbs && pr.span == 1 && climbable(feet) { climb = true; supported = true }
-            let below = w.block(cx, y - 1, cz)
+            let below = rd(w, cx, y - 1, cz)
             if danger(below) { return nil }
             let t = solidTop(w, cx, y - 1, cz)
             if t > 1.01 { return nil }                                                   // fence / wall tops can't be jumped onto
@@ -124,8 +147,8 @@ enum PathFinder {
             // Reference DANGER_FIRE / DAMAGE_OTHER malus: cells next to lava, fire or cactus.
             if cost < 9 {
                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    let n = w.block(cx + dx, y, cz + dz)
-                    if burning(n) || Blocks.contactDamage[Int(n)] > 0 || burning(w.block(cx + dx, y - 1, cz + dz)) { cost = 9; break }
+                    let n = rd(w, cx + dx, y, cz + dz)
+                    if burning(n) || Blocks.contactDamage[Int(n)] > 0 || burning(rd(w, cx + dx, y - 1, cz + dz)) { cost = 9; break }
                 }
             }
         } }
@@ -140,7 +163,7 @@ enum PathFinder {
         for i in 0..<span { for j in 0..<span {
             var y = y0
             while y < y1 {
-                if solidTop(w, x + i, y, z + j) > 0.01 || danger(w.block(x + i, y, z + j)) { return false }
+                if solidTop(w, x + i, y, z + j) > 0.01 || danger(rd(w, x + i, y, z + j)) { return false }
                 y += 1
             }
         } }
@@ -172,7 +195,8 @@ enum PathFinder {
         if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { return nil }
         let saveDoors = doors
         doors = pr.doors
-        defer { doors = saveDoors }
+        cacheOn = w.frame == nil; cKX = .min; cKZ = .min; cLoaded = false
+        defer { doors = saveDoors; cacheOn = false; cData = [] }
         func h(_ p: IVec3) -> Float {
             let dx = Float(p.x - goal.x), dy = Float(p.y - goal.y), dz = Float(p.z - goal.z)
             return (dx * dx + dy * dy + dz * dz).squareRoot()
@@ -271,11 +295,11 @@ enum PathFinder {
             }
             // Ladders / vines straight up and down; swimming up and down.
             if pr.span == 1 {
-                let feet = w.block(p.x, p.y, p.z)
+                let feet = rd(w, p.x, p.y, p.z)
                 let wet = Blocks.fluidKind[Int(feet)] == 1
                 if pr.climbs && climbable(feet) || wet {
                     if open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1), let c = standCost(w, p.x, p.y + 1, p.z, pr) { add(i, IVec3(p.x, p.y + 1, p.z), c) }
-                    let down = w.block(p.x, p.y - 1, p.z)
+                    let down = rd(w, p.x, p.y - 1, p.z)
                     if (pr.climbs && climbable(down)) || Blocks.fluidKind[Int(down)] == 1, let c = standCost(w, p.x, p.y - 1, p.z, pr) { add(i, IVec3(p.x, p.y - 1, p.z), c) }
                 }
             }
