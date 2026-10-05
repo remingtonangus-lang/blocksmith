@@ -63,6 +63,12 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
   `tools/itemlab.py`; blind critic: `tools/item_critic.py` (Gemini, labels shuffled). Licences:
   docs/qa/items/LICENSES.md (all procedural). Before/after sheets: docs/qa/items/{before,after}, harness
   `--itemsheet tools|items|blocks|enchanted[:scale[:page]]`.
+- **Measured** (run 553, release, macos-14): `--itemcheck` 430 item layers, 397 vector-drawn, 33 pixel-art
+  fallback, 0 fails; 2.1 ms per vector icon on one core (texture build 0.9-1.0 s for 1690 layers at 128 px, parallel).
+  `--dropstress 200`: frame 4.90 ms with item models (nearest 32 modelled) vs 4.60 ms with the old sprites.
+- **Critic rounds** (tools/item_critic.py = Gemini; a blind Claude subagent; labels shuffled): tools 4 -> 7 (Gemini),
+  3.5 -> 7 (Claude); items 3 -> 8 (Gemini, preview), 4.5 -> 7 (Claude), page 2 6.5 -> 7.5 (Gemini, guns still pixel
+  art then). Round 3 fixes from their lists: guns, ingots, tier silhouettes, handles, emblems, dust, buckets, boats.
 - **Models** (ItemModels.swift): every sprite item extruded from its icon (32 x 32 mask captured at texture build):
   first person (grip, sway, chop, bow draw, eating), third person (right hand, own F5 view and co-op seats), dropped
   (upright, turning, nearest 32 within 24 blocks).
