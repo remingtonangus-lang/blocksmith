@@ -83,6 +83,17 @@ enum BaseTests {
             check(formed != nil, "a gunshot 40 blocks out sends a patrol", "alert \(rec().alert.name)")
             let team = b.patrols[key] ?? []
             check(team.first?.kind == .soldierOfficer && team.count >= 3, "the patrol is an officer and soldiers", team.map { $0.kind.key }.joined(separator: " "))
+            if shotOnly {
+                // On the march, a few seconds out of the gate: seen from the side, a little above, the citadel behind.
+                _ = sim(60) { (rec().patrol?.phase ?? 0) >= 1 && (rec().patrol?.t ?? 0) > 7 }
+                let team = b.patrols[key] ?? []
+                let lead = team.first?.pos ?? gate
+                let mid = team.isEmpty ? lead : team.reduce(V3(0, 0, 0)) { $0 + $1.pos } / Float(team.count)
+                let dir = simd_normalize(V3(shot.x - lead.x, 0, shot.z - lead.z) + V3(1e-3, 0, 0))
+                let side = V3(-dir.z, 0, dir.x)
+                look(at: mid + V3(0, 1.2, 0), from: mid + side * 9 + dir * 6 + V3(0, 3.5, 0))
+                return finish(g, b, t0)
+            }
             let reach = sim(150) { (b.patrols[key] ?? []).contains { simd_length(V2($0.pos.x - shot.x, $0.pos.z - shot.z)) < 6 } }
             check(reach != nil, "the patrol reaches the spot", String(format: "within %.0f s", reach ?? -1))
             if shotOnly {
