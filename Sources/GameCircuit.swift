@@ -208,6 +208,17 @@ extension Game {
                     let cur = t.container[slot]
                     ok = cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack)
                     if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
+                } else if t.kind == .brewing {
+                    // Brewing stand faces (reference): from above the ingredient slot only; from the side blaze powder
+                    // into the fuel slot and potions into empty bottle slots (everything went into slot 0 first).
+                    var slot = -1
+                    if out == 0 { slot = Potions.isIngredient(one.item) ? 3 : -1 }
+                    else if Items.key(one.item) == "blaze_powder" { slot = 4 }
+                    else if Potions.potion(of: one.item) != nil { slot = (0..<3).first { t.container[$0].isEmpty } ?? -1 }
+                    if slot < 0 || slot >= t.container.count { continue }
+                    let cur = t.container[slot]
+                    ok = cur.isEmpty || (slot >= 3 && cur.stacks(with: one) && cur.count < cur.maxStack)
+                    if ok { var n = cur.isEmpty ? one : cur; if !cur.isEmpty { n.count += 1 }; t.container[slot] = n }
                 } else { ok = t.container.add(one).isEmpty }
                 if ok { var s = c[i]; s.count -= 1; c[i] = s.count > 0 ? s : .empty; moved = true; break }
             }
@@ -215,7 +226,8 @@ extension Game {
         // Pull from above.
         let above = p + IVec3(0, 1, 0)
         if let src = world.blockEntities[above], src.kind != .spawner {
-            let range: Range<Int> = src.kind == .furnace ? 2..<3 : 0..<src.container.count      // a range: no array per tick
+            // Furnaces give their output, brewing stands their bottles (not the ingredient or the powder).
+            let range: Range<Int> = src.kind == .furnace ? 2..<3 : (src.kind == .brewing ? 0..<min(3, src.container.count) : 0..<src.container.count)
             for i in range where !src.container[i].isEmpty {
                 let one = src.container[i].with(count: 1)
                 if c.add(one).isEmpty {
