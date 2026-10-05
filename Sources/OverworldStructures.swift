@@ -727,7 +727,10 @@ enum OverworldStructures {
                     let fy = s.floor(k)
                     for side in -1...1 {
                         let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
-                        for h in 0...2 where !Blocks.isLiquid(w.get(bx, fy + h, bz)) { w.set(bx, fy + h, bz, AIR) }
+                        // The lane is carved through water too: left standing, aquifer water inside the lane was a wall
+                        // of source blocks beside the carved air (gencheck leak "water underground border onto rail /
+                        // oak_planks", 55 of 72 on 076df09). The water round the lane is boarded off below.
+                        for h in 0...2 { w.set(bx, fy + h, bz, AIR) }
                         // No plank floor inside another corridor's open space: where corridors cross at different
                         // heights the upper one's floor hung across the lower one and blocked it (structcheck issue
                         // gallery, run 360: plank slabs filling a lane in front of a chest).
