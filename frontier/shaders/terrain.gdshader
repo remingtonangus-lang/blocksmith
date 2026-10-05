@@ -111,6 +111,15 @@ void mix_in(inout Mat base, Mat layer, float w) {
 	base.ao = mix(base.ao, layer.ao, t);
 }
 
+void mix_soft(inout Mat base, Mat layer, float w) {
+	if (w <= 0.002) return;
+	base.albedo = mix(base.albedo, layer.albedo, w);
+	base.height = mix(base.height, layer.height, w);
+	base.nxy = mix(base.nxy, layer.nxy, w);
+	base.rough = mix(base.rough, layer.rough, w);
+	base.ao = mix(base.ao, layer.ao, w);
+}
+
 void fragment() {
 	vec3 p = v_world;
 	vec2 uv = (p.xz + map_size * 0.5) / map_size;
@@ -142,13 +151,14 @@ void fragment() {
 	Mat m;
 	float desert_w = smoothstep(0.32, 0.12, biome + n1 * 0.08);
 	float forest_w = smoothstep(0.70, 0.86, biome + n1 * 0.06);
-	float lush_w = smoothstep(0.45, 0.85, moist + n2 * 0.15) * (1.0 - desert_w);
+	float lush_w = smoothstep(0.3, 1.0, moist + n2 * 0.08 + n1 * 0.05) * (1.0 - desert_w);
 	if (desert_w > 0.98) {
 		m = sample_layer(L_DESERT, p.xz, dist);
 	} else {
 		m = sample_layer(L_GRASS_DRY, p.xz, dist);
-		mix_in(m, sample_layer(L_GRASS_SPARSE, p.xz, dist), smoothstep(0.1, 0.6, n2 + 0.2) * (1.0 - lush_w) * 0.8);
-		mix_in(m, sample_layer(L_GRASS_LUSH, p.xz, dist), lush_w);
+		// grass on grass: soft linear blends (height-blending makes camouflage blobs between grass types)
+		mix_soft(m, sample_layer(L_GRASS_SPARSE, p.xz, dist), smoothstep(-0.2, 0.7, n2 + 0.2) * (1.0 - lush_w) * 0.6);
+		mix_soft(m, sample_layer(L_GRASS_LUSH, p.xz, dist), lush_w);
 		mix_in(m, sample_layer(L_DESERT, p.xz, dist), desert_w);
 	}
 	mix_in(m, sample_layer(L_RED_SAND, p.xz, dist), desert_w * smoothstep(0.0, 0.5, n1 + 0.2));

@@ -40,6 +40,8 @@ void fragment() {
 	float y = 1.0 - UV.y;             // 0 ground .. 1 top
 	vec4 lt = species_tint[v_sp];
 	vec4 bk = species_bark[v_sp];
+	lt.rgb = pow(lt.rgb, vec3(2.2));     // array uniforms carry sRGB values: convert to linear albedo
+	bk.rgb = pow(bk.rgb, vec3(2.2));
 	float shape = bk.a;
 	float trunk = step(abs(p.x), 0.045 + 0.02 * (1.0 - y)) * step(y, shape > 2.5 ? 0.3 : 0.55);
 	float crown_w;
@@ -62,7 +64,7 @@ void fragment() {
 	float leaves = step(0.0, edge) * step(0.0, top_cut) * step(base_y - lobes * 0.3, y) * step(0.5, lt.a) * (1.0 - holes * 0.0);
 	if (leaves < 0.5 && trunk < 0.5) discard;
 	vec3 leaf = texture(leaf_tex, fract(UV * vec2(3.0, 4.0)) * 0.25 + vec2(0.0, 0.25)).rgb;
-	vec3 col = leaves > 0.5 ? lt.rgb * (0.55 + 0.7 * leaf.g) * 1.25 : bk.rgb;
+	vec3 col = leaves > 0.5 ? lt.rgb * (0.6 + 0.5 * leaf.g) * 1.1 : bk.rgb;
 	// rough volume normal: canopy rounds away at the edges; darker inside / at the bottom
 	float nx = clamp(p.x / max(crown_w, 0.15), -1.0, 1.0);
 	vec3 n_view = normalize(vec3(nx * 0.8, (y - 0.45) * 0.9, 0.7));
