@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 87 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+  - every push: 88 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,7 +126,12 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
-- 2026-10-05 21:40: world generation 14.7 s -> 6.6 s on the 4-core CI box (first launch only; then cached), output
+- 2026-10-05 21:05: script errors fail CI. ErrorCount (scripts/core/error_count.gd, an OS Logger) counts GDScript
+  runtime errors; the test runner fails a file that raised one, every scenario fails on one whatever its oracle
+  says, and the smoke run ends "smoke: FAIL, N script error(s), first: ..." (exit 4) instead of "smoke: ok".
+  Current tree: 0 errors in the tests, the 12 scenarios and a 20 s headless smoke. Checked and left alone:
+  vegetation cell builds also call shared functions from the pool, but 30 cells build in 82 ms.
+- 2026-10-05 20:40: world generation 14.7 s -> 6.6 s on the 4-core CI box (first launch only; then cached), output
   byte-identical (heights, mask and water hashes). Measured: GDScript calls to the same named function from
   several worker threads serialize (a smoothstep call per item: 611 ms in a loop, 757 ms on the pool; inline code
   and per-thread lambdas scale 3.6x). Base heights called base_height() per texel (8.3 s -> 2.9 s inlined into the
@@ -134,7 +139,7 @@ The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in
   smoothsteps); rows join with append_array instead of a 4M-element loop. The test runner now fails a test file
   that raises a script error (a runtime error aborted the file's remaining checks and the run still said 0
   failed; found when the removed base_height() skipped five world checks).
-- 2026-10-05 20:50: terrain walls. A new world test (largest height step between neighbouring 8 m texels; the
+- 2026-10-05 20:25: terrain walls. A new world test (largest height step between neighbouring 8 m texels; the
   generated land peaks at 130 m) found carves stopping in vertical walls: river valleys cut to at most 184 m above
   the bed within 420 m and then stopped (869 m in one texel beside the radar mesa), and road banks stopped at their
   320 m cap (270 m beside Airfield Road's ridge cut). Valleys now reach 620 m and fade into the land over the outer

@@ -18,6 +18,7 @@ var _last_stage := ""
 
 func _ready() -> void:
 	G.main = self
+	ErrorCount.install()
 	_t0 = Time.get_ticks_msec()
 	G.seed = int(Settings.arg("seed", 1337))
 	Settings.apply_window()
@@ -110,6 +111,11 @@ func _process(delta: float) -> void:
 		_smoke_t += delta
 		_smoke_frames += 1
 		if _smoke_t >= float(Settings.arg("smoke", 30)):
+			var err := ErrorCount.install().since(0)
+			if err != "":
+				G.log_line("smoke: FAIL, " + err)
+				get_tree().quit(4)
+				return
 			G.log_line("smoke: ok, %d frames in %.1f s (%.1f fps), mem %.0f MB" % [_smoke_frames, _smoke_t,
 				_smoke_frames / _smoke_t, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
 			get_tree().quit(0)

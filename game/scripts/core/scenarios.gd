@@ -20,6 +20,7 @@ var t := 0.0
 var data := {}
 var failures := 0
 var results: Array = []
+var _errs := 0                       # script errors before the current scenario
 
 
 func start(names: Array) -> void:
@@ -36,12 +37,19 @@ func _next() -> void:
 		get_tree().quit(failures)
 		return
 	current = queue.pop_front()
+	_errs = ErrorCount.install().n
+	ErrorCount.shared.first = ""
 	t = 0.0
 	data = {}
 	call("_setup_" + current)
 
 
 func _done(ok: bool, msg: String) -> void:
+	# Any script error during the scenario fails it, whatever its oracle says.
+	var err := ErrorCount.shared.since(_errs)
+	if err != "":
+		ok = false
+		msg += "; " + err
 	var line := "scenario %s: %s %s" % [current, "PASS" if ok else "FAIL", msg]
 	results.append(line)
 	print(line)
