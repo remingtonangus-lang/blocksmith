@@ -28,6 +28,8 @@ enum QuestSettings {
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { d.set(newValue, forKey: "quest.deckRing") } }
     // Lower the render distance when frames are missed at the frame budget (this session only).
     static var autoRenderDistance: Bool { get { bool("quest.autoRenderDistance", true) } set { d.set(newValue, forKey: "quest.autoRenderDistance") } }
+    // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
+    static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { d.set(newValue, forKey: "quest.hudDrop") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { d.set(newValue, forKey: "quest.foveation") } }
     static var textureRes: Int { get { int("quest.textureRes", 128) } set { d.set(newValue, forKey: "quest.textureRes") } }
 }

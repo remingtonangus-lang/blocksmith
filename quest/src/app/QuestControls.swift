@@ -508,14 +508,15 @@ final class QuestControls {
         if abs(diff) > 25 * .pi / 180 { hudYawT += diff * min(1, dt * 3) }
         hudYawT = hudYawT.truncatingRemainder(dividingBy: 2 * .pi)
         let fwd = V3(-sinf(hudYawT), 0, -cosf(hudYawT))
-        let want = rig.trackingHead + fwd * 1.25 + V3(0, -0.42, 0)
+        let drop = QuestSettings.hudDrop
+        let want = rig.trackingHead + fwd * 1.25 + V3(0, -drop, 0)
         var pos = hudPosT ?? want
         pos += (want - pos) * min(1, dt * 12)
         if simd_length(want - pos) > 0.5 { pos = want }
         hudPosT = pos
         panelCenterT = pos
         panelYawT = hudYawT
-        panelPitch = -0.32
+        panelPitch = -atan2f(drop, 1.25) * 0.95             // tilted to face the eyes
         panelSize = V2(1.25, 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 

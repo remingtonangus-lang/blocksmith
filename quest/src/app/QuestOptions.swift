@@ -28,7 +28,7 @@ enum QuestOptions {
         // the Mac's microphone bug notes.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "bugnotes"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -43,6 +43,7 @@ enum QuestOptions {
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
+            "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
         ]
@@ -65,6 +66,7 @@ enum QuestOptions {
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
+                ("HUD Position: \(S.hudDrop < 0.33 ? "Middle" : (S.hudDrop < 0.5 ? "Low" : "Lower"))", "q_hud"),
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Texture Detail: \(S.textureRes >= 128 ? "High" : "Medium")\(S.textureRes != TextureGen.size ? " (next launch)" : "")", "q_tex"),
             ]
@@ -100,6 +102,7 @@ enum QuestOptions {
             let next = step(rates, hooks.currentRate(), back)
             S.refreshRate = next
             hooks.setRate(next)
+        case "q_hud": S.hudDrop = step([Float(0.25), 0.42, 0.6], [Float(0.25), 0.42, 0.6].min { abs($0 - S.hudDrop) < abs($1 - S.hudDrop) } ?? 0.42, back)
         case "q_autord": S.autoRenderDistance.toggle()
         case "q_tex": S.textureRes = S.textureRes >= 128 ? 64 : 128
         case "q_fov":
