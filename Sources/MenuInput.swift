@@ -151,7 +151,18 @@ extension Game {
                 // The hotbar stack goes in only where the slot takes it whole (it skipped `accepts` and the slot limit:
                 // a stack of books swapped into the enchanting slot was used up as one).
                 let h = inventory.main[i]
-                if case .normal = s.kind, s.container != nil, h.isEmpty || (s.accepts(h) && h.count <= m.slotLimit(s, h)) {
+                var swappable = false
+                switch s.kind {
+                case .normal, .fuel: swappable = true
+                case .armor: swappable = !(survival && !s.stack.isEmpty && Enchant.level(.bindingCurse, s.stack) > 0)
+                case .output:
+                    // An output moves into an empty hotbar slot (reference; number keys skipped outputs).
+                    if h.isEmpty && !s.stack.isEmpty { inventory.main[i] = s.stack; s.stack = .empty; m.tookOutput(s); m.changed() }
+                case .result:
+                    if h.isEmpty && !s.stack.isEmpty, let r = m.takeResult(s) { inventory.main[i] = r; m.changed() }
+                default: break
+                }
+                if swappable, s.container != nil, h.isEmpty || (s.accepts(h) && h.count <= m.slotLimit(s, h)) {
                     let a = s.stack
                     s.stack = h
                     inventory.main[i] = a
