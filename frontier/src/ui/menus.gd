@@ -128,6 +128,8 @@ func open_pause() -> void:
 	v.add_child(_button("Resume", back))
 	v.add_child(_button("Map", open_map))
 	v.add_child(_button("Journal", open_journal))
+	if Game.has_meta("news") and Game.get_meta("news").has_paper():
+		v.add_child(_button("Today's Paper", func(): Game.get_meta("news").open_last()))
 	v.add_child(_button("Settings", open_settings))
 	v.add_child(_button("Save Game", func():
 		if Game.state and Game.state.save_game("manual"):
@@ -320,7 +322,7 @@ func open_journal() -> void:
 			var m = load(path).new()
 			titles[m.id] = m.title
 			chapters[m.id] = m.chapter
-			regions[m.id] = m.region if m.stranger else ""
+			regions[m.id] = ((("The Outfit" if m.companion != "" else "A stranger") + " — " + m.region) if m.stranger else "")
 		# --journal_all (evidence shots): every page written
 		var ids: Array = titles.keys() if Game.args.has("journal_all") else md.completed
 		for id in ids:
@@ -385,7 +387,7 @@ func open_journal() -> void:
 		var ch: int = int(chapters.get(id, 1))
 		e_title.text = str(titles.get(id, id))
 		var where: String = str(regions.get(id, ""))
-		e_sub.text = ("A stranger — %s" % where) if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
+		e_sub.text = where if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
 		e_body.text = JOURNAL.text_for(id, flags)
 		sketch.set_kind(JOURNAL.sketch_for(id), hash(id))
 	if done.is_empty():

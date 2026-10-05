@@ -119,6 +119,22 @@ const ENTRIES := {
 	"s_marvel": {"t": "A medicine show at the Thornwood camp, glass balls in the air, and a barker who knew Miss Ruthie when she was sixteen. Cassius Mulvey. He calls himself Marvel now and sells laudanum as an elixir.",
 		"if": [["outshot_pearl", true, "Outshot his lovely assistant. It was easy. That has always been the trouble."],
 			["exposed_marvel", true, "I told the loggers what was in the bottles. They poured it in the creek."], ["exposed_marvel", false, "I let him pack up and go, for the old days. I'm not sure that was a kindness to anyone."]], "sk": "medicine"},
+	# ---------------------------------------------------------------- the Outfit's own
+	"p_hap": {"t": "Rode out with Hap to the draw where his crew is buried. The syndicate has fenced the dead.",
+		"if": [["hap_crew", "wire", "I cut the wire. The riders objected. Hap said the words over three men who can see the whole sky now."],
+			["hap_crew", "sang", "Hap sang to them through the fence. Badly, and in Swedish. The riders took their hats off before the end."]], "sk": "grave"},
+	"p_del": {"t": "Orrin Tate holds Del's marker, and Del meant to take the night boat. I walked her to the pier.",
+		"if": [["del_marker", "paid", "I paid the forty dollars. Del says now she can't leave; she'd be in my debt. She has a strange idea of what makes people stay."],
+			["del_marker", "ticket", "I gave her a paid ticket and let her choose. She stayed, and Tate's men drew. She has a strange idea of what makes people stay."]], "sk": "ford"},
+	"p_doc": {"t": "A letter of forgiveness came for Doc from Philadelphia, fourteen years late. Then a wagon went over on a teamster at the wells.",
+		"if": [["doc_teamster_legs", 2, "We were in time. Doc's hands didn't shake once. He made me say I noticed."], ["doc_teamster_legs", 1, "We were late. The man lost a leg, and lived."],
+			["doc_letter", "answered", "I told him to answer it. He's writing to introduce her to the doctor."], ["doc_letter", "burned", "I told him to burn it. He did, and kept a little of the ash."]], "sk": "well"},
+	"p_billy": {"t": "Billy's colt was in Amos Pike's corral at Thornwood. We went for him on a moonless night.",
+		"if": [["billy_colt", "paid", "I left fifteen dollars under a stone on the gatepost, so the boy owns his horse clean."],
+			["billy_colt", "taken", "I said take him; they owe the boy three years of wages. Billy cheered. He'll do it the same way when he's grown. That's what worries me."]], "sk": "pines"},
+	"p_joseph": {"t": "A cavalry captain wanted Joseph to find a family that left the agency for the winter hunting ground. Joseph found them first, on the north fork. They were cold, and we gave them meat.",
+		"if": [["joseph_trail", "false", "I lied to the captain for him. South canyon. Joseph thanked me, and then didn't say anything for a day."],
+			["joseph_trail", "refused", "I let Joseph answer the captain himself. He said his piece. He'd waited nine years to say it."]], "sk": "snow"},
 }
 
 ## The entry's text for the flags as they stand.

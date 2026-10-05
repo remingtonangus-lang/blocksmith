@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "systems"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -49,6 +49,8 @@ func run(m: Node) -> void:
 			res = await _run_camp()
 		elif b == "encounters":
 			res = await _run_encounters()
+		elif b == "social":
+			res = await _run_social()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -547,6 +549,227 @@ func _run_encounters() -> Dictionary:
 
 const TYPES_NEW := ["ambush", "hanging", "runaway", "lost_child", "duel", "snake_oil", "bounty_hunters", "stranded", "drunk", "fire",
 	"preacher", "stage"]
+
+## Social bot (world reactivity): greet / antagonize / defuse on real townsfolk by the Bitter Spring road (antagonize
+## escalates insult -> shove -> draw or flee by arms and bravery; defuse stands a drawn man down unless Ruth is
+## wanted), the same person's lines by Standing band, gossip picks for given facts, and newspaper front pages for
+## given flags and deeds (plus buying one and opening the printed page).
+func _run_social() -> Dictionary:
+	var res := {"bot": "social", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var err0: int = Game.error_logger.take().size()
+	for i in 4:
+		await get_tree().process_frame
+	var so = Game.get_meta("social") if Game.has_meta("social") else null
+	var nw = Game.get_meta("news") if Game.has_meta("news") else null
+	if so == null or nw == null:
+		_fail(res, "social/newspaper systems missing")
+		return res
+	var st = Game.state
+	var keep := {"standing": st.standing, "money": st.money, "flags": st.flags.duplicate(true), "bounties": st.bounties.duplicate(), "wanted": st.wanted}
+	var at := Mission.road_point("bitter_spring", "port_linden", 0.2)
+	Game.terrain.ensure_collision_at(at)
+	Game.missions._teleport_player(at)
+	await get_tree().physics_frame
+	var mk := func(dx: float, opts: Dictionary) -> Human:
+		var p: Vector3 = at + Vector3(dx, 0, 2.0)
+		p.y = Game.world.height(p.x, p.z) + 0.3
+		Game.terrain.ensure_tile(p)
+		var o := {"seed": 4400 + int(dx * 10), "faction": "civilian", "name": "Test %d" % int(dx)}
+		o.merge(opts, true)
+		return Human.spawn(Game.main, p, o)
+	var lines := []
+	# 1. armed and brave: insult, shove, draw; then talked down (Standing mid)
+	st.standing = 0.0
+	st.bounties = {}
+	st.wanted = 0
+	var a: Human = mk.call(2.0, {"role": "rancher", "weapon": "lockhart_sa", "bravery": 0.9})
+	await get_tree().physics_frame
+	var steps := []
+	for i in 3:
+		steps.append(so.antagonize(a))
+	var s_before: float = st.standing
+	var drew: bool = a.brain.aggressive and a.brain.state == a.brain.State.COMBAT
+	var d1: String = so.defuse(a)
+	var calm: bool = not a.brain.aggressive and a.brain.state == a.brain.State.ROUTINE
+	lines.append("armed+brave: %s -> combat %s; defuse %s (calm %s, standing %+.1f)" % ["/".join(steps), drew, d1, calm, st.standing - s_before])
+	if steps != ["insult", "shove", "draw"] or not drew or d1 != "stood_down" or not calm:
+		_fail(res, "armed brave townsman: %s" % lines.back())
+	# 2. the same, but Ruth is wanted: sorry doesn't cover it
+	st.bounties = {"bitter_spring": 80.0}
+	st.wanted = 1
+	var b: Human = mk.call(-2.0, {"role": "rancher", "weapon": "lockhart_sa", "bravery": 0.8})
+	await get_tree().physics_frame
+	steps = []
+	for i in 3:
+		steps.append(so.antagonize(b))
+	var d2: String = so.defuse(b)
+	lines.append("armed+brave, Ruth wanted: %s; defuse %s (still fighting %s)" % ["/".join(steps), d2, b.brain.aggressive])
+	if steps.back() != "draw" or d2 != "failed" or not b.brain.aggressive:
+		_fail(res, "wanted Ruth defuse: %s" % lines.back())
+	b.brain.aggressive = false
+	b.brain.target = null
+	b.brain.state = b.brain.State.ROUTINE
+	st.bounties = {}
+	st.wanted = 0
+	# 3. unarmed: runs
+	var c: Human = mk.call(4.0, {"role": "worker", "weapon": "", "bravery": 0.9})
+	await get_tree().physics_frame
+	steps = []
+	for i in 3:
+		steps.append(so.antagonize(c))
+	lines.append("unarmed: %s -> %s" % ["/".join(steps), c.brain.State.keys()[c.brain.state]])
+	if steps.back() != "flee" or c.brain.state != c.brain.State.FLEE:
+		_fail(res, "unarmed townsman: %s" % lines.back())
+	# 4. armed coward: runs too
+	var e: Human = mk.call(-4.0, {"role": "gambler", "weapon": "lockhart_sa", "bravery": 0.2})
+	await get_tree().physics_frame
+	steps = []
+	for i in 3:
+		steps.append(so.antagonize(e))
+	lines.append("armed coward: %s" % "/".join(steps))
+	if steps.back() != "flee":
+		_fail(res, "armed coward: %s" % lines.back())
+	# 5. a lawman always draws
+	var l: Human = mk.call(6.0, {"role": "lawman", "faction": "law", "weapon": "harlan_carbine", "bravery": 0.1})
+	await get_tree().physics_frame
+	steps = []
+	for i in 3:
+		steps.append(so.antagonize(l))
+	var d5: String = so.defuse(l)
+	lines.append("lawman: %s; defuse %s" % ["/".join(steps), d5])
+	if steps.back() != "draw" or d5 != "stood_down":
+		_fail(res, "lawman: %s" % lines.back())
+	# 6. an insult, then calmed
+	var f: Human = mk.call(-6.0, {"role": "lady", "weapon": ""})
+	await get_tree().physics_frame
+	var s6: String = so.antagonize(f)
+	var d6: String = so.defuse(f)
+	var d6b: String = so.defuse(f)
+	lines.append("lady: %s, defuse %s, again %s" % [s6, d6, d6b if d6b != "" else "(nothing to calm)"])
+	if s6 != "insult" or d6 != "calmed" or d6b != "":
+		_fail(res, "insult then defuse: %s" % lines.back())
+	# 7. the same man by band: greeting follow-ups differ for an honourable and a wanted Ruth
+	var g_by := {}
+	for bd in ["high", "mid", "low", "wanted"]:
+		g_by[bd] = so.pick("greet", "town", bd)
+	lines.append("greet follow-ups by band: %s" % JSON.stringify(g_by))
+	if g_by.high == g_by.wanted or not str(g_by.high).contains("_high_") or not str(g_by.wanted).contains("_wanted_"):
+		_fail(res, "greeting lines don't follow Standing band")
+	st.standing = 40.0
+	var gid: String = so.greet(f, true)
+	lines.append("greet (Standing 40): %s" % gid)
+	if gid == "":
+		_fail(res, "greet said nothing")
+	# 8. gossip picks for given facts
+	var base := func(extra: Dictionary) -> Dictionary:
+		var cx := {"flags": {}, "completed": [], "wanted": 0, "bounty": 0.0, "standing": 0.0, "kills": {"civilian": 0, "outlaw": 0},
+			"robberies": 0, "shop_robberies": 0, "weather": "FAIR", "hour": 12.0, "night": false, "role": "townsfolk", "town": "bitter_spring"}
+		cx.merge(extra, true)
+		return cx
+	var cases := [
+		["Cutter jailed", base.call({"flags": {"cutter_fate": "jailed"}, "completed": ["c3_fork"]}), "gos_cutter_jail"],
+		["Cutter dead", base.call({"flags": {"cutter_fate": "dead"}, "completed": ["c3_fork"]}), "gos_cutter_dead"],
+		["the train robbed", base.call({"flags": {"payroll_taken": true}, "completed": ["c5_train"]}), "*train|payroll"],
+		["Pell in print", base.call({"flags": {"ledger_to_fenn": true}, "completed": ["c5_owe"]}), "gos_ledger"],
+		["Pell arrested", base.call({"flags": {"pell_fate": "arrested"}, "completed": ["c6_ink"]}), "gos_pell_arrest"],
+		["a storm", base.call({"weather": "STORM"}), "gos_w_storm"],
+		["night", base.call({"night": true, "hour": 23.0}), "gos_night"],
+		["lawman, Ruth wanted", base.call({"role": "lawman", "wanted": 1}), "gos_law_eye1"],
+		["lawman, dead or alive", base.call({"role": "lawman", "wanted": 3}), "gos_law_eye2"],
+		["shop, robbed twice", base.call({"role": "shop", "shop_robberies": 2, "robberies": 2}), "gos_shop_robbed2"],
+		["shop, honourable Ruth", base.call({"role": "shop", "standing": 40.0}), "gos_shop_high"],
+		["shop, low Ruth", base.call({"role": "shop", "standing": -30.0}), "gos_shop_low"],
+		["three robberies", base.call({"robberies": 3}), "gos_robbed3"],
+		["a murder", base.call({"kills": {"civilian": 1, "outlaw": 0}}), "gos_murder"],
+		["the comet", base.call({"flags": {"stayed_for_comet": true}}), "gos_comet"],
+	]
+	var gfail := 0
+	for cs in cases:
+		var got: String = so.pick_gossip(cs[1], false)
+		var want: String = cs[2]
+		var ok: bool = got == want
+		if want.begins_with("*"):
+			ok = false
+			for w in want.substr(1).split("|"):
+				if got.contains(w):
+					ok = true
+		if not ok:
+			gfail += 1
+		lines.append("  gossip %s %-22s -> %s" % ["ok  " if ok else "FAIL", cs[0], got])
+	if gfail > 0:
+		_fail(res, "gossip: %d picks wrong" % gfail)
+	# 9. newspapers for given flags and deeds
+	var nbase := func(extra: Dictionary) -> Dictionary:
+		var cx: Dictionary = base.call({"records": [], "day": 3, "county": "bitter_spring"})
+		cx.merge(extra, true)
+		return cx
+	var ncases := [
+		["chapter 1 start", nbase.call({"completed": ["c1_rider"]}), "land_offer"],
+		["Willow Bend", nbase.call({"completed": ["c1_rider", "c1_drover"]}), "willow_bend"],
+		["the press attacked", nbase.call({"completed": ["c1_fire", "c2_lantern"]}), "press"],
+		["the poster", nbase.call({"completed": ["c2_exchange", "c2_terms"], "flags": {"ruth_poster": 200.0}, "bounty": 200.0}), "poster"],
+		["Cutter jailed", nbase.call({"completed": ["c3_fork"], "flags": {"cutter_fate": "jailed"}}), "cutter_jailed"],
+		["the strike", nbase.call({"completed": ["c4_strike"], "flags": {"strike_terms": "inspector"}}), "strike"],
+		["the express", nbase.call({"completed": ["c5_train"], "flags": {"payroll_taken": false, "messenger_killed": false}}), "express"],
+		["Pell's ledger", nbase.call({"completed": ["c5_owe"], "flags": {"ledger_to_fenn": true}}), "ledger"],
+		["Pell arrested", nbase.call({"completed": ["c6_ink"], "flags": {"pell_fate": "arrested"}}), "pell_arrested"],
+		["spring", nbase.call({"completed": ["c6_ink", "c6_spring"], "flags": {"pell_fate": "untouched"}}), "spring"],
+		["a store robbed", nbase.call({"completed": ["c1_rider"], "records": [{"kind": "store_robbery", "town": "coldwater", "shop": "gunsmith", "take": 72.5, "day": 2}]}), "store_robbery"],
+		["robbery wave", nbase.call({"completed": ["c1_rider"], "records": [{"kind": "store_robbery", "town": "coldwater", "day": 1}, {"kind": "store_robbery", "town": "port_linden", "day": 2}, {"kind": "store_robbery", "town": "bitter_spring", "day": 3}]}), "robberies"],
+		["a gunfight", nbase.call({"completed": ["c1_rider"], "records": [{"kind": "gunfight", "town": "bitter_spring", "shots": 14, "day": 3}]}), "gunfight"],
+		["a bounty", nbase.call({"completed": ["c1_rider"], "records": [{"kind": "bounty", "name": "Jubal Pardee", "amount": 45, "alive": true, "day": 3}]}), "bounty"],
+		["old news", nbase.call({"completed": ["c1_rider", "c1_drover"], "day": 20, "records": [{"kind": "gunfight", "town": "bitter_spring", "day": 2}]}), "willow_bend"],
+		["the comet", nbase.call({"completed": ["c1_rider"], "flags": {"stayed_for_comet": true}}), "comet"],
+	]
+	var nfail := 0
+	var heads := []
+	for cs in ncases:
+		var ed: Dictionary = nw.edition(cs[1])
+		var lead: Dictionary = ed.get("lead", {})
+		var txt := ""
+		for it in [lead] + ed.get("items", []):
+			txt += str(it.get("head", "")) + str(it.get("deck", "")) + str(it.get("body", ""))
+		var date_s := str(ed.get("date", ""))
+		var ok: bool = lead.get("id", "") == cs[2] and not txt.contains("{") and ed.get("ads", []).size() == 3 \
+			and str(ed.get("weather", "")) != "" and (date_s.contains("1899") or date_s.contains("1900"))
+		if not ok:
+			nfail += 1
+		heads.append(str(lead.get("head", "")))
+		lines.append("  paper %s %-18s -> %s | %s | %s%s" % ["ok  " if ok else "FAIL", cs[0], lead.get("id", "?"), lead.get("head", ""), ed.get("date", ""), "" if ok else " [ads %d, weather %d, brace %s]" % [ed.get("ads", []).size(), str(ed.get("weather", "")).length(), txt.contains("{")]])
+	if nfail > 0:
+		_fail(res, "newspaper: %d front pages wrong" % nfail)
+	var nstories: int = nw.data.get("stories", []).size()
+	if nstories < 12:
+		_fail(res, "only %d headline templates" % nstories)
+	# buy one and open the printed page
+	st.money = 5.0
+	var bought: Dictionary = nw.buy("port_linden")
+	await get_tree().process_frame
+	var opened: bool = Game.get("menus") != null and not Game.menus.stack.is_empty()
+	if Game.get("menus"):
+		Game.menus.close_all()
+	lines.append("bought %s for 5 cents: %s, page opened %s" % [bought.get("masthead", "?"), bought.get("lead", {}).get("head", "?"), opened])
+	if bought.is_empty() or absf(st.money - 4.95) > 0.001:
+		_fail(res, "buying a paper failed")
+	for ln in lines:
+		print("  " + ln if not ln.begins_with("  ") else ln)
+	res.social_cases = 7
+	res.gossip_cases = cases.size()
+	res.paper_cases = ncases.size()
+	for h in [a, b, c, e, l, f]:
+		if is_instance_valid(h):
+			h.queue_free()
+	st.standing = keep.standing
+	st.money = keep.money
+	st.flags = keep.flags
+	st.bounties = keep.bounties
+	st.wanted = keep.wanted
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
 
 func _fail(res: Dictionary, why: String) -> void:
 	res.ok = false

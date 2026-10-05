@@ -110,6 +110,8 @@ func _pay(b: Dictionary, alive: bool) -> void:
 	if alive:
 		Game.state.good_deed("bring_alive")
 	Game.log_event("bounty_paid", {"name": b.name, "alive": alive, "amount": amount})
+	if Game.has_meta("news"):
+		Game.get_meta("news").record("bounty", {"name": b.name, "alive": alive, "amount": amount, "town": town_id})
 	Game.say("Bounty on %s collected: $%d%s" % [b.name, int(amount), " (alive)" if alive else ""], 5.0)
 	if Game.get("menus"):
 		Game.menus.clear_waypoint()

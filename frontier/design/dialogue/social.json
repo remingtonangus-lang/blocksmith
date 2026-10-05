@@ -1,0 +1,2058 @@
+{
+ "note": "World reactivity: social interaction lines (greet follow-ups, antagonize/defuse) by voice and Standing band, and gossip/reactive barks picked from world state (src/systems/social.gd, gossip.gd). Original writing.",
+ "speakers": {
+  "townsfolk": {
+   "name": "Townsman",
+   "voice": "man_town"
+  },
+  "lady": {
+   "name": "Townswoman",
+   "voice": "woman_town"
+  },
+  "lawman": {
+   "name": "Deputy",
+   "voice": "lawman"
+  },
+  "child": {
+   "name": "Child",
+   "voice": "boy"
+  }
+ },
+ "lines": [
+  {
+   "id": "soc_greet_town_high_1",
+   "speaker": "townsfolk",
+   "line": "Mrs. Caddell. My wife says you're the best thing to come down that road since the mail.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_high_2",
+   "speaker": "townsfolk",
+   "line": "Ma'am. If you're ever short of a dinner, ours is at six.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "Passing through, or staying? Most folks can't decide either.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "Fine day to be doing nothing in particular.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_low_1",
+   "speaker": "townsfolk",
+   "line": "I've got nothing worth taking, ma'am, so we can both save the trouble.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_low_2",
+   "speaker": "townsfolk",
+   "line": "Mornin'. I'll just be going the other way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_wanted_1",
+   "speaker": "townsfolk",
+   "line": "You're on the paper by the depot. I never saw you. I'm very nearsighted.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_town_wanted_2",
+   "speaker": "townsfolk",
+   "line": "Lord. Don't stand so close, they'll think I'm with you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_high_1",
+   "speaker": "townsfolk",
+   "line": "Heard what you did for the Halvorsens. Buy you a drink sometime, if you drink.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_high_2",
+   "speaker": "townsfolk",
+   "line": "You're square, lady. I don't say that to many.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Hot work for October.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "You looking for hands? I can rope, shoe and lie about both.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_low_1",
+   "speaker": "townsfolk",
+   "line": "I know your kind. Mine's the same kind. Keep walking.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_low_2",
+   "speaker": "townsfolk",
+   "line": "Whatever you want, I didn't see it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_wanted_1",
+   "speaker": "townsfolk",
+   "line": "Two hundred dollars, they say. I could use two hundred dollars. I'd rather keep my head.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_rough_wanted_2",
+   "speaker": "townsfolk",
+   "line": "Lady, half this town's counting what you're worth.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_high_1",
+   "speaker": "lady",
+   "line": "Mrs. Caddell. The ladies' aid were talking about you. Kindly, for once.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_high_2",
+   "speaker": "lady",
+   "line": "You've done more for this valley than the county ever did.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_mid_1",
+   "speaker": "lady",
+   "line": "You've the look of a woman who's ridden a long way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_mid_2",
+   "speaker": "lady",
+   "line": "Good day. Mind the boardwalk, the third plank's loose.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_low_1",
+   "speaker": "lady",
+   "line": "I'll thank you not to stop in front of my door.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_low_2",
+   "speaker": "lady",
+   "line": "My husband's inside, and he's armed.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_wanted_1",
+   "speaker": "lady",
+   "line": "Go on, before somebody fetches the sheriff. Not me. Somebody.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_woman_wanted_2",
+   "speaker": "lady",
+   "line": "I've children in the house. Please.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_high_1",
+   "speaker": "lawman",
+   "line": "Ma'am. The sheriff says you're to be let be. I'm letting you be.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_high_2",
+   "speaker": "lawman",
+   "line": "Quiet day, thanks to some folks.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_mid_1",
+   "speaker": "lawman",
+   "line": "Keep that iron holstered in town and we'll get along.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_mid_2",
+   "speaker": "lawman",
+   "line": "Ma'am. Town ordinance says no shooting inside the limits. Mostly it holds.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_low_1",
+   "speaker": "lawman",
+   "line": "I've got my eye on you. Both of them.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_low_2",
+   "speaker": "lawman",
+   "line": "Every time you ride in, I end up writing reports.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_wanted_1",
+   "speaker": "lawman",
+   "line": "I know that face. Keep your hands where I can admire them.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_law_wanted_2",
+   "speaker": "lawman",
+   "line": "You've got a lot of nerve, walking up to a badge.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_high_1",
+   "speaker": "child",
+   "line": "Are you the lady from the newspaper? Can I see your gun? I won't touch it. Much.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_high_2",
+   "speaker": "child",
+   "line": "Mama says you're a heroine. What's a heroine?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_mid_1",
+   "speaker": "child",
+   "line": "Is that your horse? What's her name? Does she bite?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_mid_2",
+   "speaker": "child",
+   "line": "I'm not supposed to talk to strangers. You're not very strange.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_low_1",
+   "speaker": "child",
+   "line": "Mama says not to talk to you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_low_2",
+   "speaker": "child",
+   "line": "Are you an outlaw? You look like an outlaw.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_wanted_1",
+   "speaker": "child",
+   "line": "You're on a poster! You look meaner on the poster.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_greet_child_wanted_2",
+   "speaker": "child",
+   "line": "I'm going to tell. No I'm not. Maybe.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_high_1",
+   "speaker": "townsfolk",
+   "line": "I beg your pardon? I'd heard you were a lady.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_high_2",
+   "speaker": "townsfolk",
+   "line": "That's uncalled for, Mrs. Caddell. I'll put it down to the heat.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "I've been insulted by better, and sober.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "Mind your tongue, lady.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_low_1",
+   "speaker": "townsfolk",
+   "line": "Say what you like. I won't give you a reason.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_town_low_2",
+   "speaker": "townsfolk",
+   "line": "I heard about you. I'll be on my way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_high_1",
+   "speaker": "townsfolk",
+   "line": "Didn't figure you for a mean drunk.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_high_2",
+   "speaker": "townsfolk",
+   "line": "Lady, I'll let that one go on account of your reputation.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Say that again, slower.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "You looking for trouble, you've come to the right man.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_low_1",
+   "speaker": "townsfolk",
+   "line": "You don't scare me, Caddell. Much.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_rough_low_2",
+   "speaker": "townsfolk",
+   "line": "Big talk for somebody standing that close.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_high_1",
+   "speaker": "lady",
+   "line": "Well! And I defended you at the sewing circle.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_high_2",
+   "speaker": "lady",
+   "line": "There's no call for that.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_mid_1",
+   "speaker": "lady",
+   "line": "How dare you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_mid_2",
+   "speaker": "lady",
+   "line": "I don't know where you were raised, but it wasn't in a house.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_low_1",
+   "speaker": "lady",
+   "line": "Leave me be. Please.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_woman_low_2",
+   "speaker": "lady",
+   "line": "I'll scream. I've got good lungs.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_high_1",
+   "speaker": "lawman",
+   "line": "That's a poor way to thank the law for leaving you alone.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_high_2",
+   "speaker": "lawman",
+   "line": "Careful, ma'am. Respect's quicker lost than got.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_mid_1",
+   "speaker": "lawman",
+   "line": "Talk like that will get you a night in the cell.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_mid_2",
+   "speaker": "lawman",
+   "line": "I've arrested men for less.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_low_1",
+   "speaker": "lawman",
+   "line": "Keep it up. I've been waiting for an excuse.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_insult_law_low_2",
+   "speaker": "lawman",
+   "line": "Go on. Give me a reason.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "Hey! Keep your hands off me!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "You've gone too far now.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Put your hands on me again and I'll put you in the trough.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "That's the last free one you get.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_woman_mid_1",
+   "speaker": "lady",
+   "line": "Don't you touch me!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_woman_mid_2",
+   "speaker": "lady",
+   "line": "Help! This woman's gone mad!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_law_mid_1",
+   "speaker": "lawman",
+   "line": "You just shoved a badge, lady. Last warning.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_shove_law_mid_2",
+   "speaker": "lawman",
+   "line": "Hands off. Now.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "All right then. Let's settle it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "You want it? You've got it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Fill your hand, Caddell!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "I've buried better than you!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_law_mid_1",
+   "speaker": "lawman",
+   "line": "That's it. You're coming in, one way or the other!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_law_mid_2",
+   "speaker": "lawman",
+   "line": "Draw, then, if that's how it is!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_draw_woman_mid_1",
+   "speaker": "lady",
+   "line": "Don't think I won't use it!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "I want no part of you!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "Somebody fetch the sheriff!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Ain't worth dying over!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "You're crazy, lady!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_woman_mid_1",
+   "speaker": "lady",
+   "line": "Somebody help!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_woman_mid_2",
+   "speaker": "lady",
+   "line": "Stay away from me!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_law_mid_1",
+   "speaker": "lawman",
+   "line": "I'm getting the sheriff!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_flee_child_mid_1",
+   "speaker": "child",
+   "line": "Mama!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_high_1",
+   "speaker": "townsfolk",
+   "line": "Well. All right. We'll say no more about it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_high_2",
+   "speaker": "townsfolk",
+   "line": "Apology accepted, Mrs. Caddell. I've had worse days too.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "Fine. Just keep your distance.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "Forget it. Too hot to fight.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_low_1",
+   "speaker": "townsfolk",
+   "line": "Fine. But I'm watching you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_town_low_2",
+   "speaker": "townsfolk",
+   "line": "All right. Just go.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_high_1",
+   "speaker": "townsfolk",
+   "line": "No harm done. I've said worse to my own brother.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_high_2",
+   "speaker": "townsfolk",
+   "line": "Forget it, Caddell. Buy me a beer sometime.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Yeah, well. Watch yourself.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "I'll let it go. This time.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_low_1",
+   "speaker": "townsfolk",
+   "line": "You're lucky I'm a patient man.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_rough_low_2",
+   "speaker": "townsfolk",
+   "line": "Go on, then. Before I change my mind.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_woman_mid_1",
+   "speaker": "lady",
+   "line": "I'll accept that. Barely.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_woman_mid_2",
+   "speaker": "lady",
+   "line": "Very well. Good day.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_high_1",
+   "speaker": "lawman",
+   "line": "All right, ma'am. Let's both pretend that didn't happen.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_high_2",
+   "speaker": "lawman",
+   "line": "Fair enough. Holster your temper.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_mid_1",
+   "speaker": "lawman",
+   "line": "Fine. But I'll remember it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_mid_2",
+   "speaker": "lawman",
+   "line": "Go and walk it off somewhere else.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_low_1",
+   "speaker": "lawman",
+   "line": "One more and you're in irons.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_ok_law_low_2",
+   "speaker": "lawman",
+   "line": "Walk away. Slowly.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_town_mid_1",
+   "speaker": "townsfolk",
+   "line": "Too late for sorry!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_town_mid_2",
+   "speaker": "townsfolk",
+   "line": "Sorry won't cover it!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_rough_mid_1",
+   "speaker": "townsfolk",
+   "line": "Talk's done, Caddell!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_rough_mid_2",
+   "speaker": "townsfolk",
+   "line": "You should have thought of that before!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_law_mid_1",
+   "speaker": "lawman",
+   "line": "There's paper on you. Sorry don't tear it up.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_defuse_fail_law_mid_2",
+   "speaker": "lawman",
+   "line": "You're coming in, sorry or not!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_mid_1",
+   "speaker": "ruth",
+   "line": "Your hat's on crooked, and so's your face.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_mid_2",
+   "speaker": "ruth",
+   "line": "I've smelled better things on the bottom of a boot.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_mid_3",
+   "speaker": "ruth",
+   "line": "Do you practise looking that useless, or does it come natural?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_mid_4",
+   "speaker": "ruth",
+   "line": "Move. You're standing in my light.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_low_1",
+   "speaker": "ruth",
+   "line": "Get out of my road before I put you in the ditch.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_insult_ruth_low_2",
+   "speaker": "ruth",
+   "line": "You're not worth the cartridge, but I've got plenty.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_shove_ruth_mid_1",
+   "speaker": "ruth",
+   "line": "Out of my way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_shove_ruth_mid_2",
+   "speaker": "ruth",
+   "line": "I said move.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_shove_ruth_mid_3",
+   "speaker": "ruth",
+   "line": "Go on. Push back.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_defuse_ruth_mid_1",
+   "speaker": "ruth",
+   "line": "Easy. I spoke out of turn.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_defuse_ruth_mid_2",
+   "speaker": "ruth",
+   "line": "I've had a long ride and a short temper. My apologies.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_defuse_ruth_mid_3",
+   "speaker": "ruth",
+   "line": "Let's leave it there. Nobody needs to bleed over words.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "soc_r_defuse_ruth_low_1",
+   "speaker": "ruth",
+   "line": "Put it away. I don't want to kill you, and I don't want you to try.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_drover",
+   "speaker": "townsfolk",
+   "line": "Heard a woman shot two syndicate men down by Willow Bend. Nobody's crying about it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_grave",
+   "speaker": "townsfolk",
+   "line": "Somebody dug a grave on the hill last month and didn't put a name on it. That's not Christian.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_fire",
+   "speaker": "townsfolk",
+   "line": "They tried to burn out that camp on the river. Didn't take. Hear they've a boy there now, a runaway.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_inprint",
+   "speaker": "townsfolk",
+   "line": "Fenn's paper has a lady in it this week. Says she shoots like the Day of Judgment.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_poster",
+   "speaker": "townsfolk",
+   "line": "That poster on the Lantern's door, the woman in the hat. They drew her from an old show bill, they say.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_bank",
+   "speaker": "townsfolk",
+   "line": "Somebody walked into the Linden Exchange at night and walked out again. The bank says nothing was taken. Banks always say that.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_windmill",
+   "speaker": "townsfolk",
+   "line": "Shale's riders pulled down a windmill on the Halvorsen place. In daylight. That's how sure of themselves they are.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_drive",
+   "speaker": "townsfolk",
+   "line": "Ingrid Halvorsen's herd came through the Breaks to the Ybarra well. Thought she'd lose every head.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_well_bad",
+   "speaker": "townsfolk",
+   "line": "Ybarra well's gone bitter. Somebody threw a dead cow down it. The whole plaza smells of it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_well_good",
+   "speaker": "townsfolk",
+   "line": "They tried to foul the Ybarra well, and somebody stood over it all night with a rifle. Water's still sweet.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_cutter_jail",
+   "speaker": "townsfolk",
+   "line": "Cutter Shale's in Mabry's cell. First time anybody's seen Mabry earn his pay.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_cutter_dead",
+   "speaker": "townsfolk",
+   "line": "They buried Cutter Shale on the Dry Fork. Nobody came but the undertaker, and he charged double.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_rain",
+   "speaker": "townsfolk",
+   "line": "First rain in four months, the night Cutter Shale went down. My mother would have called that a sign.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_strike_signed",
+   "speaker": "townsfolk",
+   "line": "Garrity signed the miners' terms in Coldwater, they say. With a pistol in his ear. Won't hold, but it's a start.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_strike_law",
+   "speaker": "townsfolk",
+   "line": "The territorial inspector's gone up to Coldwater to read Garrity's letters. First honest man up that road since the snow.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_powder",
+   "speaker": "townsfolk",
+   "line": "They lit the powder on four men in Number Two at Coldwater. Company says it was an accident. Company says a lot.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_train",
+   "speaker": "townsfolk",
+   "line": "The westbound got stopped at Kessler's Tank. Some say it was the Shales. Some say it was worse.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_payroll",
+   "speaker": "townsfolk",
+   "line": "Took the whole syndicate payroll off the express, I heard, and Pell's private book besides.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_ledger",
+   "speaker": "townsfolk",
+   "line": "Pell's in print! Fenn ran his whole ledger, columns of it. My brother-in-law's name is in there twice.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_pell_arrest",
+   "speaker": "townsfolk",
+   "line": "They walked Lucius Pell out of the railroad office in irons. He kept reaching for his hat.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_pell_free",
+   "speaker": "townsfolk",
+   "line": "Pell's building a new depot. Men like that never fall. They just get new offices.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_pell_robbed",
+   "speaker": "townsfolk",
+   "line": "Somebody robbed Pell's own office in broad day. Half the town cheered, and the other half counted the doors.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_eben_jail",
+   "speaker": "townsfolk",
+   "line": "Eben Shale's waiting on the circuit judge in Bitter Spring. Reads his Bible to the jailer, they say.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_eben_dead",
+   "speaker": "townsfolk",
+   "line": "Eben Shale's dead at San Lazaro. All three Shale brothers gone, or near enough.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_eben_shot",
+   "speaker": "townsfolk",
+   "line": "They found Eben Shale on his knees in the San Lazaro chapel. Whoever did it didn't wait for a judge.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_locomobile",
+   "speaker": "townsfolk",
+   "line": "There's a man on the Greer road with a buggy that runs on steam. Frightened my mule into next week.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_novel",
+   "speaker": "townsfolk",
+   "line": "My boy's reading a dime novel about a lady gunfighter. Miss Ruthie something. He's wearing my hat in the barn.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_comet",
+   "speaker": "townsfolk",
+   "line": "Folks up in Coldwater saw a light with a tail over the Kestrel one night. The old stargazer up there was right after all.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_water_line",
+   "speaker": "townsfolk",
+   "line": "The Lantern printed a map of a water line nobody's building. Funny how many syndicate men read it twice.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_marvel",
+   "speaker": "townsfolk",
+   "line": "The medicine show's packed off from Thornwood. Turns out the elixir was laudanum. My cousin hasn't stopped weeping.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_pip",
+   "speaker": "townsfolk",
+   "line": "Callahan boy's got a job at the Lantern now. Sweeps the press room, and tells everybody about his guardian angel.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_pledge",
+   "speaker": "townsfolk",
+   "line": "Somebody poured the whole Silver Dollar into the mud at Coldwater. Grown men knelt in the street.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_robbed1",
+   "speaker": "townsfolk",
+   "line": "Somebody held up a store. The clerk says she had the calmest eyes he ever saw.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_robbed3",
+   "speaker": "townsfolk",
+   "line": "That's three stores robbed now. Folks are keeping their money in their boots.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_murder",
+   "speaker": "townsfolk",
+   "line": "A man was shot dead, and not by a lawman. Nobody's saying who, which says plenty.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_outlaws",
+   "speaker": "townsfolk",
+   "line": "The road agents have gone quiet out on the plain. Something's been thinning them out.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_wanted",
+   "speaker": "townsfolk",
+   "line": "There's paper out on a woman. Rides a good horse and keeps her hat low. I'd keep my head down if I were her.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_hero",
+   "speaker": "townsfolk",
+   "line": "Things are quieter since that Caddell woman came. My wife lights a candle for her. I tell her that's Catholic.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_villain",
+   "speaker": "townsfolk",
+   "line": "Lock the door tonight. Caddell's in town.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_w_rain",
+   "speaker": "townsfolk",
+   "line": "Rain at last. Ingrid says it's too late for the grass and just in time for the mud.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_w_storm",
+   "speaker": "townsfolk",
+   "line": "Get indoors! Lightning took the top off the church steeple once. The Methodists never got over it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_w_fog",
+   "speaker": "townsfolk",
+   "line": "Can't see the far side of the street. Good morning to be a thief.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_w_dust",
+   "speaker": "townsfolk",
+   "line": "Dust in the coffee, dust in the bed, dust in the Bible. The Lord made this country out of leftovers.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_w_clear",
+   "speaker": "townsfolk",
+   "line": "Not a cloud. My corn's praying for one.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_night",
+   "speaker": "townsfolk",
+   "line": "Late to be walking. Only the saloon's still lit, and nothing good happens under that lamp.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_morning",
+   "speaker": "townsfolk",
+   "line": "Up before the roosters? Either you've work or a conscience.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_snow",
+   "speaker": "townsfolk",
+   "line": "Snow's early on the Kestrel this year. Miners will be eating their mules by Christmas.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_law_eye1",
+   "speaker": "lawman",
+   "line": "I know that face. Walk on, slow, and we'll both live to supper.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_law_eye2",
+   "speaker": "lawman",
+   "line": "Dead or alive, the paper says. I'm not choosy, Caddell.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_law_ok",
+   "speaker": "lawman",
+   "line": "Ma'am. Quiet day. Let's keep it that way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_law_low",
+   "speaker": "lawman",
+   "line": "One wrong move in my town and you'll be talking through bars.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_shop_high",
+   "speaker": "townsfolk",
+   "line": "For you, Mrs. Caddell, the good coffee. Not what I sell the teamsters.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_shop_mid",
+   "speaker": "townsfolk",
+   "line": "Look all you like. Touching's the same price as buying.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_shop_low",
+   "speaker": "townsfolk",
+   "line": "Cash on the counter first. Then we'll see what I've got.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_shop_robbed1",
+   "speaker": "townsfolk",
+   "line": "I've moved the till since last time. Don't ask where.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_shop_robbed2",
+   "speaker": "townsfolk",
+   "line": "If you've come back for the rest, there isn't any. You took it. Twice.",
+   "emotion": "neutral"
+  }
+ ],
+ "social": {
+  "greet": {
+   "town": {
+    "high": [
+     "soc_greet_town_high_1",
+     "soc_greet_town_high_2"
+    ],
+    "mid": [
+     "soc_greet_town_mid_1",
+     "soc_greet_town_mid_2"
+    ],
+    "low": [
+     "soc_greet_town_low_1",
+     "soc_greet_town_low_2"
+    ],
+    "wanted": [
+     "soc_greet_town_wanted_1",
+     "soc_greet_town_wanted_2"
+    ]
+   },
+   "rough": {
+    "high": [
+     "soc_greet_rough_high_1",
+     "soc_greet_rough_high_2"
+    ],
+    "mid": [
+     "soc_greet_rough_mid_1",
+     "soc_greet_rough_mid_2"
+    ],
+    "low": [
+     "soc_greet_rough_low_1",
+     "soc_greet_rough_low_2"
+    ],
+    "wanted": [
+     "soc_greet_rough_wanted_1",
+     "soc_greet_rough_wanted_2"
+    ]
+   },
+   "woman": {
+    "high": [
+     "soc_greet_woman_high_1",
+     "soc_greet_woman_high_2"
+    ],
+    "mid": [
+     "soc_greet_woman_mid_1",
+     "soc_greet_woman_mid_2"
+    ],
+    "low": [
+     "soc_greet_woman_low_1",
+     "soc_greet_woman_low_2"
+    ],
+    "wanted": [
+     "soc_greet_woman_wanted_1",
+     "soc_greet_woman_wanted_2"
+    ]
+   },
+   "law": {
+    "high": [
+     "soc_greet_law_high_1",
+     "soc_greet_law_high_2"
+    ],
+    "mid": [
+     "soc_greet_law_mid_1",
+     "soc_greet_law_mid_2"
+    ],
+    "low": [
+     "soc_greet_law_low_1",
+     "soc_greet_law_low_2"
+    ],
+    "wanted": [
+     "soc_greet_law_wanted_1",
+     "soc_greet_law_wanted_2"
+    ]
+   },
+   "child": {
+    "high": [
+     "soc_greet_child_high_1",
+     "soc_greet_child_high_2"
+    ],
+    "mid": [
+     "soc_greet_child_mid_1",
+     "soc_greet_child_mid_2"
+    ],
+    "low": [
+     "soc_greet_child_low_1",
+     "soc_greet_child_low_2"
+    ],
+    "wanted": [
+     "soc_greet_child_wanted_1",
+     "soc_greet_child_wanted_2"
+    ]
+   }
+  },
+  "insult": {
+   "town": {
+    "high": [
+     "soc_insult_town_high_1",
+     "soc_insult_town_high_2"
+    ],
+    "mid": [
+     "soc_insult_town_mid_1",
+     "soc_insult_town_mid_2"
+    ],
+    "low": [
+     "soc_insult_town_low_1",
+     "soc_insult_town_low_2"
+    ]
+   },
+   "rough": {
+    "high": [
+     "soc_insult_rough_high_1",
+     "soc_insult_rough_high_2"
+    ],
+    "mid": [
+     "soc_insult_rough_mid_1",
+     "soc_insult_rough_mid_2"
+    ],
+    "low": [
+     "soc_insult_rough_low_1",
+     "soc_insult_rough_low_2"
+    ]
+   },
+   "woman": {
+    "high": [
+     "soc_insult_woman_high_1",
+     "soc_insult_woman_high_2"
+    ],
+    "mid": [
+     "soc_insult_woman_mid_1",
+     "soc_insult_woman_mid_2"
+    ],
+    "low": [
+     "soc_insult_woman_low_1",
+     "soc_insult_woman_low_2"
+    ]
+   },
+   "law": {
+    "high": [
+     "soc_insult_law_high_1",
+     "soc_insult_law_high_2"
+    ],
+    "mid": [
+     "soc_insult_law_mid_1",
+     "soc_insult_law_mid_2"
+    ],
+    "low": [
+     "soc_insult_law_low_1",
+     "soc_insult_law_low_2"
+    ]
+   }
+  },
+  "shove": {
+   "town": {
+    "mid": [
+     "soc_shove_town_mid_1",
+     "soc_shove_town_mid_2"
+    ]
+   },
+   "rough": {
+    "mid": [
+     "soc_shove_rough_mid_1",
+     "soc_shove_rough_mid_2"
+    ]
+   },
+   "woman": {
+    "mid": [
+     "soc_shove_woman_mid_1",
+     "soc_shove_woman_mid_2"
+    ]
+   },
+   "law": {
+    "mid": [
+     "soc_shove_law_mid_1",
+     "soc_shove_law_mid_2"
+    ]
+   }
+  },
+  "draw": {
+   "town": {
+    "mid": [
+     "soc_draw_town_mid_1",
+     "soc_draw_town_mid_2"
+    ]
+   },
+   "rough": {
+    "mid": [
+     "soc_draw_rough_mid_1",
+     "soc_draw_rough_mid_2"
+    ]
+   },
+   "law": {
+    "mid": [
+     "soc_draw_law_mid_1",
+     "soc_draw_law_mid_2"
+    ]
+   },
+   "woman": {
+    "mid": [
+     "soc_draw_woman_mid_1"
+    ]
+   }
+  },
+  "flee": {
+   "town": {
+    "mid": [
+     "soc_flee_town_mid_1",
+     "soc_flee_town_mid_2"
+    ]
+   },
+   "rough": {
+    "mid": [
+     "soc_flee_rough_mid_1",
+     "soc_flee_rough_mid_2"
+    ]
+   },
+   "woman": {
+    "mid": [
+     "soc_flee_woman_mid_1",
+     "soc_flee_woman_mid_2"
+    ]
+   },
+   "law": {
+    "mid": [
+     "soc_flee_law_mid_1"
+    ]
+   },
+   "child": {
+    "mid": [
+     "soc_flee_child_mid_1"
+    ]
+   }
+  },
+  "defuse_ok": {
+   "town": {
+    "high": [
+     "soc_defuse_ok_town_high_1",
+     "soc_defuse_ok_town_high_2"
+    ],
+    "mid": [
+     "soc_defuse_ok_town_mid_1",
+     "soc_defuse_ok_town_mid_2"
+    ],
+    "low": [
+     "soc_defuse_ok_town_low_1",
+     "soc_defuse_ok_town_low_2"
+    ]
+   },
+   "rough": {
+    "high": [
+     "soc_defuse_ok_rough_high_1",
+     "soc_defuse_ok_rough_high_2"
+    ],
+    "mid": [
+     "soc_defuse_ok_rough_mid_1",
+     "soc_defuse_ok_rough_mid_2"
+    ],
+    "low": [
+     "soc_defuse_ok_rough_low_1",
+     "soc_defuse_ok_rough_low_2"
+    ]
+   },
+   "woman": {
+    "mid": [
+     "soc_defuse_ok_woman_mid_1",
+     "soc_defuse_ok_woman_mid_2"
+    ]
+   },
+   "law": {
+    "high": [
+     "soc_defuse_ok_law_high_1",
+     "soc_defuse_ok_law_high_2"
+    ],
+    "mid": [
+     "soc_defuse_ok_law_mid_1",
+     "soc_defuse_ok_law_mid_2"
+    ],
+    "low": [
+     "soc_defuse_ok_law_low_1",
+     "soc_defuse_ok_law_low_2"
+    ]
+   }
+  },
+  "defuse_fail": {
+   "town": {
+    "mid": [
+     "soc_defuse_fail_town_mid_1",
+     "soc_defuse_fail_town_mid_2"
+    ]
+   },
+   "rough": {
+    "mid": [
+     "soc_defuse_fail_rough_mid_1",
+     "soc_defuse_fail_rough_mid_2"
+    ]
+   },
+   "law": {
+    "mid": [
+     "soc_defuse_fail_law_mid_1",
+     "soc_defuse_fail_law_mid_2"
+    ]
+   }
+  },
+  "r_insult": {
+   "ruth": {
+    "mid": [
+     "soc_r_insult_ruth_mid_1",
+     "soc_r_insult_ruth_mid_2",
+     "soc_r_insult_ruth_mid_3",
+     "soc_r_insult_ruth_mid_4"
+    ],
+    "low": [
+     "soc_r_insult_ruth_low_1",
+     "soc_r_insult_ruth_low_2"
+    ]
+   }
+  },
+  "r_shove": {
+   "ruth": {
+    "mid": [
+     "soc_r_shove_ruth_mid_1",
+     "soc_r_shove_ruth_mid_2",
+     "soc_r_shove_ruth_mid_3"
+    ]
+   }
+  },
+  "r_defuse": {
+   "ruth": {
+    "mid": [
+     "soc_r_defuse_ruth_mid_1",
+     "soc_r_defuse_ruth_mid_2",
+     "soc_r_defuse_ruth_mid_3"
+    ],
+    "low": [
+     "soc_r_defuse_ruth_low_1"
+    ]
+   }
+  }
+ },
+ "gossip": [
+  {
+   "id": "gos_drover",
+   "when": {
+    "completed": [
+     "c1_drover"
+    ],
+    "not_completed": [
+     "c2_lantern"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_grave",
+   "when": {
+    "completed": [
+     "c1_inquiries"
+    ],
+    "not_completed": [
+     "c3_ranch"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_fire",
+   "when": {
+    "completed": [
+     "c1_fire"
+    ],
+    "not_completed": [
+     "c2_cards"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_inprint",
+   "when": {
+    "flag": {
+     "ruth_in_print": true
+    },
+    "not_completed": [
+     "c3_drive"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_poster",
+   "when": {
+    "flag_set": [
+     "ruth_poster"
+    ],
+    "not_completed": [
+     "c4_coldwater"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_bank",
+   "when": {
+    "completed": [
+     "c2_exchange"
+    ],
+    "not_completed": [
+     "c3_doc"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_windmill",
+   "when": {
+    "completed": [
+     "c3_ranch"
+    ],
+    "not_completed": [
+     "c3_fork"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_drive",
+   "when": {
+    "flag_set": [
+     "cattle_delivered"
+    ],
+    "not_completed": [
+     "c4_mine"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_well_bad",
+   "when": {
+    "flag": {
+     "well_fouled": true
+    },
+    "not_completed": [
+     "c5_plan"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_well_good",
+   "when": {
+    "flag": {
+     "well_fouled": false
+    },
+    "not_completed": [
+     "c5_plan"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_cutter_jail",
+   "when": {
+    "flag": {
+     "cutter_fate": "jailed"
+    },
+    "not_completed": [
+     "c5_train"
+    ]
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_cutter_dead",
+   "when": {
+    "flag": {
+     "cutter_fate": "dead"
+    },
+    "not_completed": [
+     "c5_train"
+    ]
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_rain",
+   "when": {
+    "completed": [
+     "c3_fork"
+    ],
+    "not_completed": [
+     "c4_strike"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_strike_signed",
+   "when": {
+    "flag": {
+     "strike_terms": "signed"
+    },
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_strike_law",
+   "when": {
+    "flag": {
+     "strike_terms": "inspector"
+    },
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_powder",
+   "when": {
+    "completed": [
+     "c4_mine"
+    ],
+    "not_completed": [
+     "c5_plan"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_train",
+   "when": {
+    "completed": [
+     "c5_train"
+    ],
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_payroll",
+   "when": {
+    "flag": {
+     "payroll_taken": true
+    },
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_ledger",
+   "when": {
+    "flag": {
+     "ledger_to_fenn": true
+    }
+   },
+   "who": [],
+   "priority": 3
+  },
+  {
+   "id": "gos_pell_arrest",
+   "when": {
+    "flag": {
+     "pell_fate": "arrested"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_pell_free",
+   "when": {
+    "flag": {
+     "pell_fate": "untouched"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_pell_robbed",
+   "when": {
+    "flag": {
+     "pell_fate": "robbed"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_eben_jail",
+   "when": {
+    "flag": {
+     "eben_fate": "jailed"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_eben_dead",
+   "when": {
+    "flag": {
+     "eben_fate": "dead"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_eben_shot",
+   "when": {
+    "flag": {
+     "eben_fate": "executed"
+    }
+   },
+   "who": [],
+   "priority": 4
+  },
+  {
+   "id": "gos_locomobile",
+   "when": {
+    "completed": [
+     "s_carriage"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_novel",
+   "when": {
+    "flag": {
+     "posed_for_novel": true
+    }
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_comet",
+   "when": {
+    "flag": {
+     "stayed_for_comet": true
+    }
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_water_line",
+   "when": {
+    "flag": {
+     "field_book_to_fenn": true
+    }
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_marvel",
+   "when": {
+    "flag": {
+     "exposed_marvel": true
+    }
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_pip",
+   "when": {
+    "flag": {
+     "paid_pip_debt": true
+    }
+   },
+   "who": [
+    "port_linden"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "gos_pledge",
+   "when": {
+    "flag": {
+     "smashed_barrels": true
+    }
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_robbed1",
+   "when": {
+    "robberies_min": 1
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_robbed3",
+   "when": {
+    "robberies_min": 3
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_murder",
+   "when": {
+    "kills_civilian_min": 1
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_outlaws",
+   "when": {
+    "kills_outlaw_min": 15
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_wanted",
+   "when": {
+    "wanted_min": 1
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_hero",
+   "when": {
+    "standing_min": 40
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_villain",
+   "when": {
+    "standing_max": -40
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_w_rain",
+   "when": {
+    "weather": [
+     "RAIN"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_w_storm",
+   "when": {
+    "weather": [
+     "STORM"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_w_fog",
+   "when": {
+    "weather": [
+     "FOG"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_w_dust",
+   "when": {
+    "weather": [
+     "DUST"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_w_clear",
+   "when": {
+    "weather": [
+     "CLEAR"
+    ],
+    "not_completed": [
+     "c3_fork"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_night",
+   "when": {
+    "night": true
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_morning",
+   "when": {
+    "hour_min": 5.0,
+    "hour_max": 8.0
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_snow",
+   "when": {
+    "completed": [
+     "c4_coldwater"
+    ],
+    "not_completed": [
+     "c5_train"
+    ]
+   },
+   "who": [],
+   "priority": 1
+  },
+  {
+   "id": "gos_law_eye1",
+   "when": {
+    "wanted_min": 1
+   },
+   "who": [
+    "lawman"
+   ],
+   "priority": 5
+  },
+  {
+   "id": "gos_law_eye2",
+   "when": {
+    "wanted_min": 3
+   },
+   "who": [
+    "lawman"
+   ],
+   "priority": 6
+  },
+  {
+   "id": "gos_law_ok",
+   "when": {
+    "standing_min": 20
+   },
+   "who": [
+    "lawman"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "gos_law_low",
+   "when": {
+    "standing_max": -20
+   },
+   "who": [
+    "lawman"
+   ],
+   "priority": 4
+  },
+  {
+   "id": "gos_shop_high",
+   "when": {
+    "standing_min": 25
+   },
+   "who": [
+    "shop"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "gos_shop_mid",
+   "when": {},
+   "who": [
+    "shop"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "gos_shop_low",
+   "when": {
+    "standing_max": -15
+   },
+   "who": [
+    "shop"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "gos_shop_robbed1",
+   "when": {
+    "shop_robberies_min": 1
+   },
+   "who": [
+    "shop"
+   ],
+   "priority": 5
+  },
+  {
+   "id": "gos_shop_robbed2",
+   "when": {
+    "shop_robberies_min": 2
+   },
+   "who": [
+    "shop"
+   ],
+   "priority": 6
+  }
+ ]
+}
