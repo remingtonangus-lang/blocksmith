@@ -1219,7 +1219,7 @@ def family3(cv, name, mask, base, ex, ys, xs):
     elif mask in ("boat", "chest_boat"):
         cv.add(cap(cv, V(0.7, 0.12), V(0.5, 0.6), 0.022), zero, "handle", 0.022)
         cv.add(cv.ellipse(V(0.72, 0.14), 0.05, 0.08), zero, "handle", 0.04)
-        hull = cv.poly([V(0.04, 0.44), V(0.96, 0.44), V(0.82, 0.78), V(0.18, 0.78)])
+        hull = cv.poly([V(0.02, 0.32), V(0.2, 0.46), V(0.8, 0.46), V(0.98, 0.32), V(0.84, 0.78), V(0.16, 0.78)])
         cv.add(hull, xs, wood(base), 0.08)
         for yy in (0.56, 0.66):
             cv.add(intersect(cap(cv, V(0.06, yy), V(0.94, yy), 0.008), hull), xs, wood(darker(base, 0.6)), 0.008)
@@ -1252,11 +1252,11 @@ def family3(cv, name, mask, base, ex, ys, xs):
     elif mask == "sherd":
         d = cv.poly([V(0.16, 0.24), V(0.56, 0.14), V(0.86, 0.3), V(0.8, 0.74), V(0.4, 0.86), V(0.14, 0.66)])
         cv.add(d, ys, M("stone", base), 0.1, "chamfer")
-        emblem(cv, name, V(0.5, 0.5), 0.17, M("stone", ex.get("c", 0x6A3A2A)))
+        emblem(cv, name, V(0.5, 0.5), 0.19, M("stone", darker(ex.get("c", 0x6A3A2A), 0.6)))
     elif mask == "template":
         d = cv.poly([V(0.2, 0.12), V(0.8, 0.12), V(0.8, 0.88), V(0.2, 0.88)])
         cv.add(d, ys, M("stone", base), 0.06, "chamfer")
-        emblem(cv, name, V(0.5, 0.5), 0.2, M("metal", ex.get("c", 0x6A8AAA)))
+        emblem(cv, name, V(0.5, 0.5), 0.22, M("metal", lighter(ex.get("c", 0x6A8AAA), 0.55)))
     elif mask == "key":
         km = M("metal", base)
         cv.add(abs(cv.circle(V(0.32, 0.32), 0.15)) - 0.045, zero, km, 0.045)
@@ -1439,20 +1439,23 @@ def pair_canvas(key, n):
     ys, xs = ys_xs(cv)
     zero = np.zeros_like(ys)
     if key in ("potion", "splash", "lingering"):
-        body = smin(cv.circle(V(0.5, 0.62), 0.28), cap(cv, V(0.5, 0.18), V(0.5, 0.45), 0.085 if key != "lingering" else 0.07), 0.06)
+        tall = key == "lingering"
+        body = smin(cv.circle(V(0.5, 0.62), 0.28), cap(cv, V(0.5, 0.1 if tall else 0.18), V(0.5, 0.45), 0.055 if tall else 0.085), 0.06)
         cv.add(body, ys, "glass", 0.26)
         cv.add(intersect(cv.circle(V(0.5, 0.62), 0.235), -cv.below(0.5)), ys, "tint", 0.22)
         if key == "splash":
-            cv.add(cap(cv, V(0.38, 0.3), V(0.62, 0.3), 0.03), ys, "glass", 0.03)
-        cv.add(cap(cv, V(0.4, 0.2), V(0.6, 0.2), 0.032), ys, "glass", 0.03)
-        cork = 0xA87A4A if key != "lingering" else 0xB080C8
-        cv.add(cv.poly([V(0.42, 0.05), V(0.58, 0.05), V(0.57, 0.19), V(0.43, 0.19)]), ys, M("wood", cork), 0.04)
+            cv.add(cap(cv, V(0.36, 0.3), V(0.64, 0.3), 0.035), ys, "glass", 0.035)
+            cv.add(intersect(abs(cv.ellipse(V(0.78, 0.48), 0.1, 0.14)) - 0.025, -cv.circle(V(0.5, 0.62), 0.27)), ys, "glass", 0.025)
+        lip = 0.12 if tall else 0.2
+        cv.add(cap(cv, V(0.4, lip), V(0.6, lip), 0.032), ys, "glass", 0.03)
+        cork = 0xB080C8 if tall else 0xA87A4A
+        cv.add(cv.poly([V(0.42, lip - (0.1 if tall else 0.15)), V(0.58, lip - (0.1 if tall else 0.15)), V(0.57, lip - 0.01), V(0.43, lip - 0.01)]), ys, M("wood", cork), 0.04)
         cv.add(intersect(cv.poly(band(V(0.33, 0.74), V(0.3, 0.56), V(0.4, 0.44), 0.045, 0.02, 10)), body + 0.03), ys, "white", 0.02)
     elif key == "egg":
         d = cv.ellipse(V(0.5, 0.55), 0.29, 0.37)
         cv.add(d, ys, "tint", 0.32)
-        for c, r in ((V(0.42, 0.38), 0.05), (V(0.62, 0.5), 0.06), (V(0.44, 0.66), 0.045), (V(0.64, 0.74), 0.04), (V(0.34, 0.54), 0.035)):
-            cv.add(intersect(cv.circle(c, r), d + 0.03), ys, M("soft", 0x3A3436), 0.03)
+        for c, r in ((V(0.42, 0.36), 0.05), (V(0.63, 0.5), 0.058), (V(0.42, 0.66), 0.045), (V(0.63, 0.74), 0.04), (V(0.32, 0.52), 0.035)):
+            cv.add(intersect(cv.circle(c, r), d + 0.03), ys, M("soft", 0xE6DCC8), 0.035)
     elif key == "arrow":
         handle(cv, V(0.18, 0.82), V(0.74, 0.26), 0.022)
         for sgn in (-1, 1):
