@@ -23,8 +23,10 @@ var inputs := {"Right": {}, "Left": {}}         # grip, trigger, thumb, holding,
 var eye_height := 1.6                           # skeleton-space eye height at rest (for height calibration)
 var eye_forward := 0.1                          # skeleton-space eye offset in front of the root
 var head_run := 0
+var held_model: WeaponModel = null              # the gun in the right hand (VRPlay), for gun-space hand placement
 var mod_hips := Vector3.ZERO                    # debug: hips as seen during the modification stage
 var _neck_to_eye := Vector3(0, 0.15, 0.1)       # skeleton space, rest pose
+var hips_height := 0.95                         # rest hips height (seated eye = seat + eye_height - hips_height)
 
 func setup_vr(sk: Skeleton3D, rig_vr: Node, character_id := "default") -> bool:
 	vr = rig_vr
@@ -38,6 +40,11 @@ func setup_vr(sk: Skeleton3D, rig_vr: Node, character_id := "default") -> bool:
 	eye_height = ep.y * sc.y
 	eye_forward = ep.z * sc.z
 	_neck_to_eye = ep - sk.get_bone_global_rest(_b["Neck"]).origin
+	hips_height = sk.get_bone_global_rest(_b["Hips"]).origin.y * sc.y
+	if Game.args.has("vr_debug"):
+		for n in ["Hips", "UpperChest", "Neck", "Head", "LeftUpperArm", "RightUpperArm"]:
+			print("  dbg rest %s %s" % [n, sk.get_bone_global_rest(_b[n]).origin])
+		print("  dbg rest eye %s" % ep)
 	return true
 
 ## The eyes as the current (animated) pose carries them: the neck's position plus the rest neck->eye offset.
@@ -104,6 +111,26 @@ func _process_modification() -> void:
 		var frame := b * _frame(kr.f, kr.s)
 		var sh := _bone_world(side + "UpperArm")
 		var pole := sh + body * Vector3(0.35 * mir, -0.6, 0.25)   # (sh is read-pose: already in the shifted space)
+		# a held gun: the hand goes where GunHands puts it in third person (grip_r / fore-end grip_l with its tuned
+		# wrist offsets and hand frames in gun space), so the grip reads the same from both cameras
+		var m: WeaponModel = held_model if held_model != null and is_instance_valid(held_model) else null
+		if m != null and inputs[side].get("holding", false):
+			var gb := m.global_transform.basis.orthonormalized()
+			var pistol: bool = m.def.get("slot", "") == "sidearm"
+			if side == "Right":
+				var k1: Dictionary = r.pistol_r if pistol else r.rifle_r
+				wrist = m.grip_transform("grip_r").origin + gb * (k1.off as Vector3) - moff
+				frame = gb * _frame(k1.f, k1.s)
+			elif not pistol:
+				var gl := m.grip_transform("grip_l")
+				for pn in ["pump", "barrels"]:
+					if m.parts.has(pn):
+						gl = _follow(m.parts[pn], gl)
+						break
+				var k2: Dictionary = r.rifle_l
+				wrist = gl.origin + gb * (k2.off as Vector3) - moff
+				frame = gb * _frame(k2.f, k2.s)
+				pole = sh + body * Vector3(-0.1, -0.7, 0.0)
 		_arm(sk, gt, inv, side, wrist, frame, pole, 1.0)
 	# ---- fingers
 	for bi in _curl:

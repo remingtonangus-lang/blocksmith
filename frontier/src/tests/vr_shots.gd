@@ -109,7 +109,7 @@ static func sight_hand(m: WeaponModel, h: Transform3D, d: float) -> Transform3D:
 static func shoulder_hand(m: WeaponModel, h: Transform3D) -> Transform3D:
 	var g := m.marker_local("grip_r").origin
 	var sr := m.marker_local("sight_rear").origin
-	var eye_local := Vector3(0, sr.y + 0.014, GunHands._butt_z(m) - 0.215)
+	var eye_local := Vector3(0, sr.y + 0.02, GunHands._butt_z(m) - 0.29)
 	var b := h.basis
 	var origin := h.origin - b * eye_local
 	return Transform3D(b, origin + b * g)
@@ -164,7 +164,7 @@ func two_hand(yaw: float) -> void:
 	var r := shoulder_hand(m, h)
 	# support hand on the fore-end (grip_l) of the gun as the right hand holds it
 	var gl: Vector3 = r * (m.marker_local("grip_l").origin - m.marker_local("grip_r").origin)
-	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(r.basis * Basis(Vector3.FORWARD, deg_to_rad(-70)), gl)), r)
+	v.sim.set_pose(h, Transform3D(r.basis * Basis(Vector3.FORWARD, deg_to_rad(-25)), gl), r)   # fore-end in the fist, palm in
 	await host._settle(3)
 	v.sim.set_input("left", &"grip", 1.0)
 	await host._settle(10)

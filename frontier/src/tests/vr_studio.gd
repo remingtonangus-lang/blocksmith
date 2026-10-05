@@ -175,6 +175,10 @@ func _view_two_hand_ext() -> void:
 	await shots.two_hand(0.0)
 	await _ext(Vector3(2.0, 1.4, -1.2), Vector3(0, 1.35, -0.3))
 
+func _view_two_hand_ots() -> void:
+	await shots.two_hand(0.0)
+	await _ext(Vector3(0.35, 1.85, 0.7), Vector3(-0.05, 1.5, -0.6))
+
 func _view_riding_ext() -> void:
 	await _view_riding()
 	if Game.args.has("vr_debug"):
@@ -256,6 +260,9 @@ func _cleanup() -> void:
 		Game.menus.close_all()
 
 func _shot(name: String) -> void:
+	if Game.args.has("hide_mesh"):           # debug: which mesh is that?
+		for mi in Game.player.find_children(str(Game.args["hide_mesh"]), "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).visible = false
 	await _settle(2)
 	await RenderingServer.frame_post_draw
 	if Game.args.has("vr_debug"):
@@ -271,6 +278,11 @@ func _shot(name: String) -> void:
 		if v.body != null:
 			var sk3: Skeleton3D = v.body.get_skeleton()
 			print("  dbg hips process %s  modification %s" % [(sk3.global_transform * sk3.get_bone_global_pose(GunHands.bone_index(sk3, "Hips"))).origin, v.body.mod_hips])
+		if v.body != null:
+			var hd = pl.get("holder")
+			for bn in ["Hips", "Spine", "Chest", "UpperChest", "LeftShoulder", "Neck", "Head", "LeftUpperArm"]:
+				print("  dbg bone %s %s" % [bn, hd._bone(bn, Vector3.ZERO)])
+			print("  dbg lfist %s rfist %s" % [v.hands.left.aim_transform().origin, v.hands.right.aim_transform().origin])
 		print("  dbg eye %s user_eye %.2f cam %s player %s body %s" % [v.eye_anchor(), v.user_eye(), v.cam.global_position, pl.global_position, v.body != null])
 		if m != null:
 			print("  dbg gun pos %s fwd %s  rhand %s aim_fwd %s" % [m.global_position, -m.global_basis.z, v.right.global_position, -v.play.aim_frame(v.right).basis.z])

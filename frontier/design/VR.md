@@ -20,7 +20,8 @@ Touch points elsewhere (all small and marked): `player.gd` (start VR on `--vr_si
 `horse.gd` (no keyboard rider input or third-person ride camera in VR), `nerve.gd` (no screen overlay or camera cuts
 in VR; execution shots leave the real muzzle), `weapon_holder.gd` (`vr_hold`: the hand places the drawn gun),
 `weapon_model.gd` (`manual_cycle` / `needs_cycle` / `cycle_action()`; recoil spring sub-stepped), `game.gd` +
-`sky.gd` (quest preset: 2 shadow cascades, no glow, no water refraction, mounted horse LOD1; Mobile shadow filter),
+`sky.gd` (quest preset: 2 shadow cascades, no glow, no water refraction, mounted horse shadows from LOD1; Mobile shadow filter),
+`settlements.gd` (Mobile: commit on the main thread), `horse_visual.gd` (Mobile hair variant),
 `water.gd` + `water.gdshader` (`WATER_OPAQUE` variant), `menus.gd` (Accessibility > VR comfort rows),
 `weapon_holder.gd` (`mount_offset()`, see Riding).
 
@@ -62,8 +63,13 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   - fingers curl from the controller (grip: middle/ring/little, trigger: index, thumb touch: thumb), or wrap a held
     gun with GunHands' grip tables (index squeezes with the trigger).
 - **Visible from the neck down**: head, hair, hat, beard, eyes and face meshes cast shadows only (so shadows and
-  mirrors keep the whole person); everything else draws. The camera sits at the character's eyes (rest pose, so walk
-  bob never moves the view; 1 cm forward so the collar stays behind and below when looking down).
+  mirrors keep the whole person); everything else draws. The camera sits at the character's animated eyes, low-passed
+  in the player's frame so walk bob never moves the view (the gameplay clips stand ~10 cm taller than the rest pose:
+  a rest-pose camera sat inside the neck and the arms came up past the eyes), 5 cm forward so the collar stays
+  behind and below when looking down. In VR the third-person aim clip is not played (it leaned the torso into the
+  camera); the arms come from the controllers.
+- A held gun puts the hands where GunHands puts them in third person (grip_r, and the fore-end grip_l for long guns,
+  with the tuned wrist offsets and hand frames in gun space), so the hold reads the same from both cameras.
 - **Room-scale lean**: leaning moves the view up to 35 cm from where the head "belongs"; that rest point follows the
   head over a couple of seconds (the body catches up), so positional tracking is never cancelled.
 - **Body yaw** follows the head once it looks more than ~35° away (like shifting your feet).
@@ -121,55 +127,75 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   Note: while riding, the skeleton's readable bone poses keep the hips about a metre above (and behind) the drawn,
   seated body (the ride clips seat the body at draw time; root motion is on `Skeleton:Root`). The third-person gun
   belt and holster floated above the rider because of it. `WeaponHolder.mount_offset()` (seat point minus the read
-  hips) now maps read bone positions onto the drawn body for the belt/holster, the VR arm IK targets and the
-  mounted camera.
+  hips) now maps read bone positions onto the drawn body for the belt/holster and the VR arm IK targets; the mounted
+  camera sits straight above the saddle seat by the character's hips-to-eyes height.
 - **Comfort** (Settings > Accessibility > VR comfort, shown in VR; saved with the other settings):
   - Turning: Snap 30° (default), Snap 45° or Smooth, with a smooth turn speed (45–180°/s, default 100);
   - Comfort vignette strength (0 = off … 1.5; default 1): darkens the periphery while moving on foot (with speed)
     and while riding (pace + turn rate);
   - Play position: Standing or Seated, and **Calibrate height**: stand or sit naturally and press it; the measured
-    eye height maps your real eyes onto the character's (standing uncalibrated = 1:1 real height; seated defaults to
-    1.2 m and is raised to the character's eye height);
+    eye height maps your real eyes onto the character's (standing and not calibrated: the head height one second
+    into the session is taken as your eye height; seated defaults to 1.2 m), so crouching in the room still lowers
+    the view;
   - HUD sheet head-locked and slightly low, menus world-locked.
 
 ## Quest performance (Mobile renderer)
 The Quest export switches to the Mobile renderer (`rendering_method.mobile="mobile"`, `tools/setup_quest.sh`) and
-the `quest` preset (`game.gd`). What that means:
+the `quest` preset (`game.gd`). Everything below was checked here with `--rendering-method mobile --quality quest`
+on lavapipe (software Vulkan), which runs the same Mobile renderer code paths; nothing has been profiled on a Quest.
 
 | Feature | Mobile | quest preset |
 |---|---|---|
 | SSAO, SSIL, SSR, SDFGI, volumetric fog | not available (Forward+ only) | all off |
-| Subsurface scattering (skin) | not available; Godot warns once and renders the skin without SSS | — |
-| Screen/depth textures (water refraction, Nerve overlay) | supported, but cost a copy per view | water still uses them (see knobs) |
-| Glow | supported, but a full-screen chain per eye | **off** (new) |
-| Directional shadows | supported | 60 m, 2048, **2 cascades** (new; was 4) |
+| Subsurface scattering (skin) | not available; Godot warns once and draws skin without SSS | — |
+| Screen/depth textures (water refraction, Nerve overlay) | supported, but a copy per view | **water uses the `WATER_OPAQUE` variant** (no refraction) |
+| Glow | supported, but a full-screen chain per eye | off |
+| Directional shadows | supported | 60 m, 2048, 2 cascades; **soft filter Very Low** (see below) |
+| Hair cards with alpha-to-coverage (horse mane/tail) | — | Mobile uses a plain alpha-scissor variant |
 | MSAA | supported (cheap on tile GPUs) | 2× |
-| Environment adjustments (Nerve grade) | supported (verified) | used by VR Nerve |
+| Environment adjustments (Nerve grade) | supported | used by VR Nerve |
 | Cloud shadows, moon shadows, TAA, upscalers | — | off |
 
-Verified here by rendering the VR studio with `--rendering-method mobile --quality quest` (lavapipe): hands, guns,
-characters, horse, reins, HUD sheet, the Nerve grade and the vignette all render; the only engine warning is the
-skin SSS. One studio-only difference: the studio ground (StandardMaterial with a triplanar packed albedo) renders
-dark grey on Mobile; the game terrain uses its own shader and wasn't checked on Mobile here.
+### Bugs found and fixed on the Mobile renderer
+- **Boot deadlock with towns**: building a settlement on a worker thread (ArrayMesh/MultiMesh creation and
+  material assignment in `settlements._prepare`) deadlocked the boot under Mobile (gdb: main thread and a worker
+  each waiting on a condition variable inside the engine, the other workers blocked on that worker's mutex; never
+  happens on Forward+). With `--disable settlements` the world rendered. Fix: on Mobile the worker only runs the
+  kits (`_build_kits`) and the meshes are committed on the main thread (`_commit_kits`, ~0.35–0.7 s per town here);
+  Forward+ keeps the all-in-worker path.
+- **StandardMaterial3D surfaces got no sunlight**: with the project's soft shadow filter (quality 3; 2 also
+  fails), every StandardMaterial3D surface lost all direct light whenever the sun cast shadows: the ground,
+  imported props and guns read dark grey (that was the "dark-grey studio ground", not a texture problem). Custom
+  shaders (terrain, foliage, grass, characters, buildings) were unaffected. Fix: Mobile uses filter quality 1 (Soft
+  Very Low), via `soft_shadow_filter_quality.mobile=1` in project.godot and at start-up in `game.gd` when the
+  current rendering method is mobile. Measured: studio ground (68,66,60) → (151,127,96), the same as Forward+.
+- The terrain, grass, trees (incl. impostors), roads, river water and sky render correctly on Mobile after these
+  fixes (in-world town shot, quest preset, 480×270: 62 draws / 1.09 M primitives). In-world VR shots with characters
+  were OOM-killed in this shared sandbox; the VR numbers below come from the studio set.
 
-Draw calls and primitives per frame (mono, the simulator; multiview renders both eyes in one pass on Quest) in
-the studio on Mobile + quest preset: HUD-only view 22 draws / 138 k primitives; gun scene with three figures
-65 draws / 320 k; mounted with the horse in view 161 draws / 1.16 M. The same views on Forward+ with the desktop
-preset cost 65 / 242 / 448 draws (4 shadow cascades, depth prepass), so the quest preset roughly thirds the draw count. The feature-shot and studio logs now print
-`draws / objects / prims` per shot, so the CI logs (High preset on the Mac runner) carry the same numbers for the
-in-world scenes.
+### Draw calls and primitives (mono, `--vr_sim`, studio, Mobile + quest)
+| View | before (start of round) | after |
+|---|---|---|
+| HUD only | 22 / 138 k | 65 / 126 k |
+| hands in front of the face | 141 / 1.03 M | 108 / 291 k |
+| revolver aimed, 3 figures | 65 / 308 k | 88 / 176 k |
+| mounted, reins, horse in view | **161 / 1.16 M** | **123 / 344 k** |
 
-Knobs and recommendations for the device pass (not profiled on a Quest yet):
-- the horse at close range is the heaviest single item (LOD0 body 26 k tris plus mane/tail cards; most of the
-  1.16 M primitives above come with it, shadow pass included): drop to Body_LOD1 and fewer hair cards in VR when
-  mounted (the rider never sees the horse's body from more than a metre or two);
-- character LOD0 budgets (24 k) are fine for a few people; the quest crowd budget is 6 full-detail characters
-  (`character_factory.gd`);
-- water: a no-refraction variant for the quest preset would remove the per-eye screen copy;
-- keep the HUD sheet at 1600×900 and the menu sheet at 1920×1080 (each is one extra 2D viewport, updated every frame;
-  only the visible sheet renders: the menu sheet while a menu is open, the HUD sheet otherwise);
-- holstered and slung guns switch to their LOD1 merged mesh beyond 9 m (`WeaponModel.set_detail`), so the player's
-  own guns are the only LOD0 guns in a normal scene.
+Where the mounted 1.16 M went: the procedural gloves (two hands of 64-segment capsules, ~200 k triangles, drawn
+again in every shadow cascade) are replaced by the character's own hands (gloves stay as an 8-segment fallback);
+the mounted horse casts its shadows with its 8 k LOD1 body instead of the 26 k hero mesh; and the studio sun now
+follows the preset's 2 cascades (the game's quest sky already did; with 4 cascades the after-figure is 579 k).
+More draw calls than before in some views come from the character body now being drawn (body, belt, holster) and
+from the merged character/town-life changes; all stay well within a Quest budget (~200-300 per eye pass with
+multiview).
+The studio and feature-shot logs print `draws / objects / prims` per shot; `vr_studio.tscn --dump` lists every mesh
+with its triangle count, visibility range and shadow mode.
+
+Knobs still open for the device pass:
+- character LOD0 budgets (24 k) are fine for a few people; the quest crowd budget is 6 full-detail characters;
+- the HUD sheet (1600×900) and menu sheet (1920×1080) are extra 2D viewports; only the visible one renders;
+- holstered and slung guns switch to their LOD1 mesh beyond 9 m (`WeaponModel.set_detail`);
+- settlement commits on the main thread on Mobile could be spread over several frames if the hitch shows on device.
 
 ## Known gaps
 - Not run on a headset yet; thresholds (flick speeds, reach radii, rein offsets) are first guesses tuned in the
@@ -180,3 +206,5 @@ Knobs and recommendations for the device pass (not profiled on a Quest yet):
 - The Accessibility colour filter lives in the menu canvas, so in VR it only filters the menu sheet.
 - Laser clicks are mouse events pushed into the menu viewport (works with the existing Control menus).
 - In-world VR shots need the Mac (memory); CI renders the studio set.
+- The Mobile fixes were found on lavapipe; the shadow-filter and alpha-to-coverage problems may be driver-specific,
+  but the workarounds are cheap and correct on any GPU.

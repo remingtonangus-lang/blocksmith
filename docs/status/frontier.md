@@ -155,11 +155,14 @@ runner, Metal) and the Mac monitor.
   (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
   oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette, HUD/menu
-  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), gloved
-  procedural hands with finger curl, physical guns (holster draw, real sights, two-hand fore-end snap, trigger +
-  haptics, lever/bolt/pump by hand, gate/break reloads with rounds from the belt, Nerve by pointing), reach-to-grab
+  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), the
+  player's own character as the body (VRBody: head follow, two-bone arm IK to the controllers, finger curl, visible
+  from the neck down), physical guns (holster draw, real sights, two-hand fore-end snap, trigger + haptics,
+  lever/bolt/pump by hand, gate/break reloads, bolt-open and pump-gate loading, Nerve by pointing), comfort settings
+  (snap/smooth turn, vignette strength, seated/standing + height calibration), reach-to-grab
   doors/counters/boards/horse, menu laser, reins. Evidence: `res://scenes/vr_studio.tscn` (CI step "VR shots"),
-  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md.
+  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md. Mobile renderer fixes: town
+  build deadlock at boot, StandardMaterial surfaces unlit under soft shadows, horse hair alpha-to-coverage.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Settlements: NPC routines, draw-call and memory cuts (settlements ≈ 680 MB headless), sign renames.

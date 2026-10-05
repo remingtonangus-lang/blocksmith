@@ -407,7 +407,7 @@ func _physics_process(dt: float) -> void:
 	if visual and visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
 	if visual and visual.has_method("set_aim"):
-		visual.set_aim(_aim_kind() if intent.aim else "")
+		visual.set_aim(_aim_kind() if intent.aim and not Game.is_vr else "")   # VR: the arms follow the controllers (VRBody); the aim clip would lean the torso past the camera
 
 var _last_vy := 0.0
 

@@ -248,6 +248,10 @@ func _physics_process(dt: float) -> void:
 		_body_t = 1.0
 		_ensure_body()
 	var head_local := cam.position
+	if _auto_eye <= 0.5 and cam.position.y > 0.5:
+		_auto_t += dt
+		if _auto_t > 1.0:
+			_auto_eye = cam.position.y          # standing uncalibrated: your eyes become the character's eyes
 	var hl := Vector2(head_local.x, head_local.z)
 	_lean_rest = _lean_rest.lerp(hl, 1.0 - exp(-0.6 * dt))
 	if (hl - _lean_rest).length() > 0.35:
@@ -304,6 +308,7 @@ func _update_body() -> void:
 	if body == null or not is_instance_valid(body):
 		return
 	body.body = Basis(Vector3.UP, float(player.facing))
+	body.held_model = play.model() if play.holding else null
 	body.head_xf = cam.global_transform
 	for side in ["Right", "Left"]:
 		var c := right if side == "Right" else left
@@ -315,24 +320,44 @@ func _update_body() -> void:
 
 ## Where the camera belongs: the character's eyes (rest pose, so walk bob never moves the view). At the eyes the
 ## collar opening stays behind and below the view when looking down at yourself.
-const EYE_PUSH := 0.01
+const EYE_PUSH := 0.05
 func eye_anchor() -> Vector3:
 	if body != null and is_instance_valid(body) and body.get_skeleton() != null:
-		if player.get("on_horse") != null:
-			var holder = player.get("holder")
-			var moff: Vector3 = holder.mount_offset() if holder != null and holder.has_method("mount_offset") else Vector3.ZERO
-			return body.posed_eye(EYE_PUSH) + moff
-		return body.get_skeleton().global_transform * Vector3(0.0, body.eye_height, body.eye_forward + EYE_PUSH)
+		var horse = player.get("on_horse")
+		if horse != null:
+			# seated: straight up from the saddle seat by the character's hips->eyes height (the rider's readable
+			# pose is not where the seated body is drawn: see WeaponHolder.mount_offset)
+			var hv = horse.get("visual")
+			if hv != null and hv.has_method("seat_transform"):
+				var st: Transform3D = hv.seat_transform()
+				var fwd: Vector3 = horse.forward() if horse.has_method("forward") else -st.basis.z
+				return st.origin + st.basis.y.normalized() * (body.eye_height - body.hips_height + 0.06) + fwd * 0.04
+			# on foot: the animated eyes (the gameplay clips stand ~10 cm taller than the rest pose, so a rest-pose
+		# camera sat inside the neck), low-passed in the player's frame so walk bob never moves the view
+		var pg := (player as Node3D).global_transform
+		var local: Vector3 = pg.affine_inverse() * body.posed_eye(EYE_PUSH)
+		if _eye_local == Vector3.ZERO:
+			_eye_local = local
+		_eye_local = _eye_local.lerp(local, 1.0 - exp(-1.5 * get_physics_process_delta_time()))
+		return pg * _eye_local
 	return player.global_position + Vector3(0, 1.62, 0)
 
+var _eye_local := Vector3.ZERO
+var _auto_t := 0.0
+var _auto_eye := 0.0                # standing, not calibrated: the head height measured after the first second
+
 func character_eye_height() -> float:
-	return body.eye_height if body != null and is_instance_valid(body) else 1.62
+	if body != null and is_instance_valid(body):
+		return _eye_local.y if _eye_local != Vector3.ZERO else body.eye_height
+	return 1.62
 
 ## The user's own eye height for the current play position (standing uncalibrated = 1:1 with the character).
 func user_eye() -> float:
 	if height_mode == "seated":
 		return seated_eye
-	return stand_eye if stand_eye > 0.5 else character_eye_height()
+	if stand_eye > 0.5:
+		return stand_eye
+	return _auto_eye if _auto_eye > 0.5 else character_eye_height()
 
 ## Measure the user's eye height now (stand or sit naturally) for the current play position, and save it.
 func calibrate() -> float:
@@ -357,8 +382,8 @@ func apply_settings(st: Dictionary) -> void:
 	stand_eye = float(st.get("vr_stand_eye", 0.0))
 	seated_eye = float(st.get("vr_seated_eye", 1.2))
 
-## Quest preset: the horse you sit on draws its 8k-triangle LOD1 body instead of the 26k hero mesh (in its shadow
-## cascades too); the rider is never more than a metre or two from it and the tack/mane/tail stay full detail.
+## Quest preset: the horse you sit on keeps its 26k hero body for the eyes (LOD1 looked faceted a metre away) but
+## casts its shadows with the 8k LOD1 body, so the shadow cascades skip the hero mesh.
 var _lod_horse: Node = null
 func _horse_lod(on_horse) -> void:
 	var want: Node = on_horse if (on_horse != null and Game.quality.get("mounted_horse_lod1", false)) else null
@@ -375,8 +400,9 @@ static func _set_horse_lod(h: Node, on: bool) -> void:
 		var mi := n as MeshInstance3D
 		match String(mi.name):
 			"Body":
-				mi.visible = not on
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			"Body_LOD1":
 				if not mi.has_meta("vr_begin"):
 					mi.set_meta("vr_begin", mi.visibility_range_begin)
 				mi.visibility_range_begin = 0.0 if on else float(mi.get_meta("vr_begin"))
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
