@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 15
+const GEN_VERSION := 16
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -245,6 +245,45 @@ func _raw(x: float, z: float) -> float:
 
 ## Densifies a control polyline with a gentle meander, builds a monotonic bed profile, carves the channel and
 ## a valley, and records the water surface.
+const RIVER_REACH := 620.0             # valley walls reach this far beyond the channel's half width
+const RIVER_FADE := 360.0              # ... fading into the land over the outer part
+
+
+## Lowers one texel to the river valley's cross-section at distance d from the channel centreline (bed height
+## bh, half width hw, depth dep). The walls fade into the land over the outer reach: a carve that stopped at its
+## reach left a vertical cliff wherever the mountains stood more than 184 m above the bed there (869 m in one
+## 8 m texel beside the radar mesa).
+func _river_texel(idx: int, d: float, bh: float, hw: float, dep: float, reach: float, h0: PackedFloat32Array) -> void:
+	var target: float
+	if d < hw:
+		var c := d / hw
+		target = bh + c * c * dep * 0.85
+	else:
+		var e := d - hw
+		target = bh + dep * 0.85 + e * 0.06 + e * e * 0.0009
+	# Faded toward the land before this river (fading toward the carved height made texels on the boundary of
+	# two segments, carved twice, sink up to 250 m below their neighbours).
+	target = lerpf(target, h0[idx], _smooth01(reach - RIVER_FADE, reach, d))
+	if target < heights[idx]:
+		heights[idx] = target
+
+
+## Narrows the interval iv (x from, x to) to where c0 + c1 * x >= 0.
+func _iv_lin(iv: Vector2, c0: float, c1: float) -> Vector2:
+	if absf(c1) < 1e-9:
+		return iv if c0 >= 0.0 else Vector2(INF, -INF)
+	var x := -c0 / c1
+	return Vector2(maxf(iv.x, x), iv.y) if c1 > 0.0 else Vector2(iv.x, minf(iv.y, x))
+
+
+func _tx_ceil(w: float) -> int:
+	return int(clampf(ceilf((w + HALF) / CELL - 0.5), -1.0, N))
+
+
+func _tx_floor(w: float) -> int:
+	return int(clampf(floorf((w + HALF) / CELL - 0.5), -1.0, N))
+
+
 func _carve_river(ctrl: Array, w0: float, w1: float, d0: float, d1: float) -> Dictionary:
 	var pts := PackedVector2Array()
 	var meander := FastNoiseLite.new()
@@ -289,36 +328,53 @@ func _carve_river(ctrl: Array, w0: float, w1: float, d0: float, d1: float) -> Di
 	for i in n:
 		var level := bed[i] + depths[i]
 		surf[i] = Vector3(pts[i].x, maxf(level, 0.0) if bed[i] + depths[i] > -0.5 else 0.0, pts[i].y)
+	var h0 := heights.duplicate()
+	# Each texel takes the carve of the segment it projects onto (its slab), or of the vertex whose bend wedge
+	# holds it; walking every segment's whole square once the reach became 620 m tripled the river stage, as
+	# every texel sat in ~50 overlapping squares.
 	for i in n - 1:
 		var a := pts[i]
 		var b := pts[i + 1]
-		var reach := widths[i] * 0.5 + 420.0
-		var x0 := _tx(minf(a.x, b.x) - reach); var x1 := _tx(maxf(a.x, b.x) + reach)
-		var z0 := _tx(minf(a.y, b.y) - reach); var z1 := _tx(maxf(a.y, b.y) + reach)
 		var ab := b - a
 		var len2 := maxf(ab.length_squared(), 0.001)
+		var l := sqrt(len2)
+		var reach := widths[i] * 0.5 + RIVER_REACH
+		var nr := ab.orthogonal() / l * reach
+		var z0 := _tx(minf(minf(a.y + nr.y, a.y - nr.y), minf(b.y + nr.y, b.y - nr.y)))
+		var z1 := _tx(maxf(maxf(a.y + nr.y, a.y - nr.y), maxf(b.y + nr.y, b.y - nr.y)))
 		for tz in range(z0, z1 + 1):
 			var wz := -HALF + (tz + 0.5) * CELL
-			for tx in range(x0, x1 + 1):
-				var wx := -HALF + (tx + 0.5) * CELL
-				var p := Vector2(wx, wz)
+			var dz := wz - a.y
+			var iv := Vector2(-INF, INF)
+			iv = _iv_lin(iv, -a.x * ab.x + dz * ab.y, ab.x)                     # projection >= 0
+			iv = _iv_lin(iv, len2 + a.x * ab.x - dz * ab.y, -ab.x)              # projection <= 1
+			iv = _iv_lin(iv, reach * l + a.x * ab.y + dz * ab.x, -ab.y)         # perpendicular <= reach
+			iv = _iv_lin(iv, reach * l - a.x * ab.y - dz * ab.x, ab.y)          # perpendicular >= -reach
+			for tx in range(maxi(_tx_ceil(iv.x), 0), mini(_tx_floor(iv.y), N - 1) + 1):
+				var p := Vector2(-HALF + (tx + 0.5) * CELL, wz)
 				var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
-				var d := p.distance_to(a + ab * t)
-				if d > reach:
-					continue
-				var bh := lerpf(bed[i], bed[i + 1], t)
-				var hw := lerpf(widths[i], widths[i + 1], t) * 0.5
-				var dep := lerpf(depths[i], depths[i + 1], t)
-				var target: float
-				if d < hw:
-					var c := d / hw
-					target = bh + c * c * dep * 0.85
-				else:
-					var e := d - hw
-					target = bh + dep * 0.85 + e * 0.06 + e * e * 0.0009
-				var idx := tz * N + tx
-				if target < heights[idx]:
-					heights[idx] = target
+				_river_texel(tz * N + tx, p.distance_to(a + ab * t), lerpf(bed[i], bed[i + 1], t),
+					lerpf(widths[i], widths[i + 1], t) * 0.5, lerpf(depths[i], depths[i + 1], t), reach, h0)
+	# Bend wedges (and the end caps): texels past both neighbouring segments' slabs, nearest to the vertex.
+	for i in n:
+		var v := pts[i]
+		var u0 := v - pts[i - 1] if i > 0 else Vector2.ZERO
+		var u1 := pts[i + 1] - v if i < n - 1 else Vector2.ZERO
+		var reach := widths[i] * 0.5 + RIVER_REACH
+		for tz in range(_tx(v.y - reach), _tx(v.y + reach) + 1):
+			var wz := -HALF + (tz + 0.5) * CELL
+			var dz := wz - v.y
+			var r2 := reach * reach - dz * dz
+			if r2 < 0.0:
+				continue
+			var iv := Vector2(v.x - sqrt(r2), v.x + sqrt(r2))
+			if i > 0:
+				iv = _iv_lin(iv, -v.x * u0.x + dz * u0.y, u0.x)                  # past the incoming segment
+			if i < n - 1:
+				iv = _iv_lin(iv, v.x * u1.x - dz * u1.y, -u1.x)                  # before the outgoing one
+			for tx in range(maxi(_tx_ceil(iv.x), 0), mini(_tx_floor(iv.y), N - 1) + 1):
+				var p := Vector2(-HALF + (tx + 0.5) * CELL, wz)
+				_river_texel(tz * N + tx, p.distance_to(v), bed[i], widths[i] * 0.5, depths[i], reach, h0)
 	return {"pts": surf, "w": widths, "p2": pts, "dep": depths}
 
 
@@ -793,7 +849,11 @@ func _carve_road_pass(pts: PackedVector3Array, bridge: PackedByteArray, raw_dept
 				elif d > flat and water[idx] < -100.0:
 					# (Banks never cut under a river: wide cuts once left the water 118 m above the ground.)
 					var e := (d - flat) * BANK
-					heights[idx] = clampf(heights[idx], y - e, y + e)
+					# Over the outer third of the reach the bank blends back into the land: where a cut or fill
+					# was deeper than the bank could climb by the 320 m cap, the bank stopped in a vertical wall
+					# (270 m beside Airfield Road's ridge cut).
+					var hb := clampf(heights[idx], y - e, y + e)
+					heights[idx] = lerpf(hb, heights[idx], _smooth01(reach * 0.67, reach, d))
 				if not strips:
 					continue
 				var m := 1.0 - _smooth01(ROAD_HALF, ROAD_HALF + 8.0, d)

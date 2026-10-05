@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 86 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+  - every push: 89 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,6 +126,18 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 20:50: terrain walls. A new world test (largest height step between neighbouring 8 m texels; the
+  generated land peaks at 130 m) found carves stopping in vertical walls: river valleys cut to at most 184 m above
+  the bed within 420 m and then stopped (869 m in one texel beside the radar mesa), and road banks stopped at their
+  320 m cap (270 m beside Airfield Road's ridge cut). Valleys now reach 620 m and fade into the land over the outer
+  360 m (toward the pre-river height, order independent), banks blend back over the outer third of their reach;
+  the worst step is the natural 130 m, texels over 60 m per texel 6907 -> 6332. The river carve walks each
+  segment's slab and each bend's wedge instead of a square per segment (every texel sat in ~50): river stage
+  4.1 s -> 1.2 s. GEN_VERSION 16 (one regeneration). Tried and dropped: Pass Road switchbacks to the radar (a
+  greedy climbing walk crossed its own spiral and buried 434 points up to 354 m; a grade-limited A* reaches the
+  mesa only over 40 % edges, so the 20 % profile terraced the summit). Pass Road keeps its road head; the radar is
+  served by the gunship pads. CI runs 44/45: run 44 all green but publish (cancelled at 15 min); run 45 never got
+  runners (all jobs cancelled at 15 min).
 - 2026-10-05 19:45: grass vertex shader: the random keep test (against the best density the clump could have) runs
   first, then the ground mask, before the normal, height and noise. The far-fade drops up to 70% of the clumps at
   the ring's edge, and roads, the city and rock drop more; they had run about 8 texture fetches and 30 hashes per

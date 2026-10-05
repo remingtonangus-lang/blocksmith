@@ -54,6 +54,14 @@ func run(t) -> void:
 		for p in (r["pts"] as PackedVector3Array):
 			buried = minf(buried, p.y - g.height_at(p.x, p.z))
 	t.check(buried > -1.5, "roads stay on the ground (lowest %.1f m)" % buried)
+	# No carve leaves a wall: river valleys and road banks once stopped at their reach in vertical cliffs (869 m
+	# in one 8 m texel beside the radar mesa, 270 m beside Airfield Road); the natural terrain peaks at 130 m.
+	var step := 0.0
+	for z in range(0, g.N - 1, 2):
+		for x in range(0, g.N - 1):
+			var i := z * g.N + x
+			step = maxf(step, maxf(absf(g.heights[i + 1] - g.heights[i]), absf(g.heights[i + g.N] - g.heights[i])))
+	t.check(step < 150.0, "no terrain step steeper than the natural land (max %.0f m per texel)" % step)
 	# Determinism: a second generator with the same seed agrees.
 	var g2 := WorldGen.new(1337)
 	t.near(g2.base_height(1234.5, -987.25), g.base_height(1234.5, -987.25), 0.0001, "base height deterministic")
