@@ -117,7 +117,8 @@ func _ready() -> void:
 	_load_dialogue("res://design/dialogue/strangers.json")
 	_load_dialogue("res://design/dialogue/companions.json")
 	# world reactivity systems (social talk + gossip, newspapers); main.gd may add them itself later
-	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"]]:
+	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"],
+			["legendary", "res://src/systems/legendary.gd"], ["treasure", "res://src/systems/treasure.gd"]]:
 		if not Game.has_meta(sys[0]):
 			var n: Node = load(sys[1]).new()
 			n.name = "Sys_" + sys[0]

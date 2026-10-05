@@ -116,6 +116,11 @@ runner, Metal) and the Mac monitor.
   from flags, crimes, bounties, weather and hour (lawmen eye a wanted Ruth, shop clerks remember robberies); 5¢
   newspapers per town with dated front pages (32 story templates + weather, markets, ads, notices); five companion
   missions (`src/missions/companions/`) that change camp talk. `--bot social`.
+- **Open-world activities** (`--bot openworld`): bounty board of eight named outlaws (hideouts and roaming camps,
+  tie and carry alive across the saddle for 1.5x or bring proof, turn-in at the sheriff, fines paid at the board;
+  `src/ai/bounties.gd`); four legendary animals with clue trails, unique pelts and outfits from the trapper at
+  Greer's Post (`src/systems/legendary.gd`); a three-map treasure chain drawn over the real terrain to gold bars
+  (`src/systems/treasure.gd`); insulting/shoving a lawman is a fined misdemeanour; satchel reads papers and maps.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

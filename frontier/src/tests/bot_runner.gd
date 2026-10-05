@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "systems", "ui"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "systems", "ui"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -51,6 +51,8 @@ func run(m: Node) -> void:
 			res = await _run_encounters()
 		elif b == "social":
 			res = await _run_social()
+		elif b == "openworld":
+			res = await _run_openworld()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -640,7 +642,7 @@ func _run_social() -> Dictionary:
 		steps.append(so.antagonize(l))
 	var d5: String = so.defuse(l)
 	lines.append("lawman: %s; defuse %s" % ["/".join(steps), d5])
-	if steps.back() != "draw" or d5 != "stood_down":
+	if steps.back() != "draw" or d5 != "failed":
 		_fail(res, "lawman: %s" % lines.back())
 	# 6. an insult, then calmed
 	var f: Human = mk.call(-6.0, {"role": "lady", "weapon": ""})
@@ -767,6 +769,201 @@ func _run_social() -> Dictionary:
 	st.flags = keep.flags
 	st.bounties = keep.bounties
 	st.wanted = keep.wanted
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
+## Open-world bot: the bounty board (named outlaws, hideout and roaming lairs, alive across the saddle vs dead with
+## proof, turn-in, journal/gossip/newspaper hooks, the first treasure map in Hatcher's saddlebag), the four
+## legendary animals (clue trail, the beast, the pelt, the outfit), the treasure-map chain to the gold, a lawman's
+## misdemeanour fine paid at a board, and reading the last newspaper from the satchel.
+func _run_openworld() -> Dictionary:
+	var res := {"bot": "openworld", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var err0: int = Game.error_logger.take().size()
+	var md: MissionDirector = Game.missions
+	md.autopilot = true
+	md.step_timeout = 60.0
+	for i in 150:
+		await get_tree().process_frame
+	var st = Game.state
+	st.money = 200.0
+	var so = Game.get_meta("social") if Game.has_meta("social") else null
+	var nw = Game.get_meta("news") if Game.has_meta("news") else null
+	var lg = Game.get_meta("legendary") if Game.has_meta("legendary") else null
+	var tr = Game.get_meta("treasure") if Game.has_meta("treasure") else null
+	if so == null or nw == null or lg == null or tr == null:
+		_fail(res, "open-world systems missing")
+		return res
+	var lines := []
+	var skip := str(Game.args.get("ow_skip", "")).split(",", false)
+	# ---------------------------------------------------------------- 1. bounties
+	var boards := get_tree().get_nodes_in_group("interactable").filter(func(n): return n.has_method("accept") and n.has_method("refresh"))
+	var bd = null
+	for b in boards:
+		if str(b.town_id) == "bitter_spring":
+			bd = b
+	if bd == null:
+		_fail(res, "no bounty board at Bitter Spring")
+	elif not skip.has("1"):
+		bd.refresh()
+		lines.append("board at %s: %s" % [bd.town_id, ", ".join(bd.posters.map(func(p): return "%s ($%d, %s)" % [p.name, int(p.reward), p.lair]))])
+		var B = bd.get_script()
+		var rmo: Dictionary = B.outlaw("marlow")
+		var roam_ok: bool = B.lair_pos(rmo, 0).distance_to(B.lair_pos(rmo, 1)) > 100.0
+		lines.append("roaming camp moves: Marlow day 0 %s, day 1 %s" % [B.lair_pos(rmo, 0).snapped(Vector3.ONE), B.lair_pos(rmo, 1).snapped(Vector3.ONE)])
+		if not roam_ok:
+			_fail(res, "roaming camp doesn't move")
+		for o in B.OUTLAWS:
+			var lp: Vector3 = B.lair_pos(o)
+			if Game.world.is_water(lp.x, lp.z):
+				_fail(res, "lair of %s is in water" % o.name)
+		# Hatcher alive (the default answer): tied, carried, turned in for 1.5x, map in his saddlebag
+		var log0 := Game.log_lines.size()
+		var cases := [["hatcher", 0, "alive"], ["penn", 1, "dead"]]
+		for cs in cases:
+			bd.refresh()
+			var idx := -1
+			for i in bd.posters.size():
+				if bd.posters[i].id == cs[0]:
+					idx = i
+			if idx < 0:
+				_fail(res, "%s not on the board" % cs[0])
+				continue
+			var reward: float = bd.posters[idx].reward
+			var m0: float = st.money
+			md._choice_queue = [cs[1]]
+			bd.accept(idx)
+			var tied := false
+			for f in 900:
+				await get_tree().physics_frame
+				if bd.stage == "carry":
+					tied = true
+				if bd.active.is_empty():
+					break
+			var got: String = str(st.flags.get("outlaw_" + str(cs[0]), ""))
+			var paid: float = st.money - m0
+			var want: float = reward * (1.5 if cs[2] == "alive" else 1.0)
+			lines.append("bounty %s: %s, carried across the saddle %s, paid $%.2f (expected $%.2f)" % [cs[0], got, tied, paid, want])
+			if got != cs[2] or absf(paid - want) > 0.01 or (cs[2] == "alive" and not tied):
+				_fail(res, "bounty %s: %s" % [cs[0], lines.back()])
+		md._choice_queue.clear()
+		var has_map: bool = int(st.inventory.get("treasure_map_1", 0)) > 0
+		lines.append("Hatcher's saddlebag: treasure_map_1 %s" % has_map)
+		if not has_map:
+			_fail(res, "no treasure map from Hatcher")
+		var ex: Array = load("res://src/missions/journal.gd").extra_entries(st.flags, st.inventory)
+		var titles := ex.map(func(e): return str(e.title))
+		lines.append("journal extra pages: %s" % ", ".join(titles))
+		if not titles.has("Cole Hatcher") or not titles.has("Ezra Penn") or not titles.has("The Hatcher Map"):
+			_fail(res, "journal pages for bounties/map missing")
+		var gc: Dictionary = so.context(null, "townsfolk")
+		var g1: String = so.pick_gossip(gc, false)
+		var ed: Dictionary = nw.edition(nw.context("bitter_spring"))
+		lines.append("gossip after: %s; paper lead: %s" % [g1, ed.get("lead", {}).get("head", "")])
+		if not (g1.begins_with("gos_out_")) or ed.get("lead", {}).get("id", "") != "bounty":
+			_fail(res, "bounty gossip/newspaper hooks: %s / %s" % [g1, ed.get("lead", {}).get("id", "")])
+	# ---------------------------------------------------------------- 2. legendary animals
+	var L = lg.get_script()
+	for l in ([] if skip.has("2") else L.LEGENDS.slice(0, int(Game.args.get("ow_legends", 4)))):
+		var log1 := Game.log_lines.size()
+		var ok: bool = await lg.hunt(l.id)
+		var clues := 0
+		var hp := 0.0
+		for i in range(log1, Game.log_lines.size()):
+			var ln: String = Game.log_lines[i]
+			if ln.contains(" legend_clue "):
+				clues += 1
+			if ln.contains(" legend_spawned "):
+				var dd = JSON.parse_string(ln.split(" ", false, 2)[2])
+				hp = float(dd.get("hp", 0.0))
+		var base_hp: float = float(Animal.SPECIES[l.species].hp)
+		var made: bool = lg.make_outfit(l.id)
+		var outfit: bool = int(st.inventory.get("outfit_" + str(l.id), 0)) > 0
+		lines.append("legend %s (%s): clues %d, beast hp %.0f (species %.0f), pelt %s, outfit %s" % [l.name, l.species, clues, hp, base_hp, ok, outfit])
+		if not ok or clues != 3 or hp < base_hp * 3.0 or not made or not outfit or L.status(l.id) != "outfit":
+			_fail(res, "legend %s: %s" % [l.id, lines.back()])
+	var stall_ok := get_tree().get_nodes_in_group("interactable").any(func(n): return str(n.name) == "TrapperStall")
+	var g2: String = so.pick_gossip(so.context(null, "townsfolk"), false)
+	var ed2: Dictionary = nw.edition(nw.context("bitter_spring"))
+	lines.append("trapper stall at Greer's: %s; paper lead after the hunts: %s; options left: %d" % [stall_ok, ed2.get("lead", {}).get("head", ""), lg.options().size()])
+	if not skip.has("2") and (not stall_ok or ed2.get("lead", {}).get("id", "") != "legend"):
+		_fail(res, "legendary hooks: stall %s, paper %s" % [stall_ok, ed2.get("lead", {}).get("id", "")])
+	# ---------------------------------------------------------------- 3. treasure maps
+	var T = tr.get_script()
+	var targets := []
+	if skip.has("1") and not skip.has("3"):
+		st.add_item("treasure_map_1")
+	for n in ([] if skip.has("3") else [1, 2, 3]):
+		var tp: Vector3 = T.target(n)
+		targets.append(tp)
+		var spot_prompt := ""
+		for s in tr.spots:
+			if s.n == n:
+				spot_prompt = s.interact_prompt()
+		var sk = T.MapSketch.new()
+		sk.setup(tp, n)
+		var lo := INF
+		var hi := -INF
+		var wet := 0
+		for v in sk._grid:
+			lo = minf(lo, v)
+			hi = maxf(hi, v)
+		for wv in sk._water:
+			wet += int(wv)
+		sk.free()
+		var found: String = tr.dig(n)
+		lines.append("map %d: X at (%d, %d) %s, relief %.0f m, water cells %d, dig prompt '%s' -> %s" % [n, int(tp.x), int(tp.z),
+			"dry" if not Game.world.is_water(tp.x, tp.z) else "WET", hi - lo, wet, spot_prompt, found])
+		var want_found := ("treasure_map_%d" % (n + 1)) if n < 3 else "gold"
+		if found != want_found or Game.world.is_water(tp.x, tp.z) or hi - lo < 4.0:
+			_fail(res, "treasure map %d: %s" % [n, lines.back()])
+	if not skip.has("3") and int(st.inventory.get("gold_bar", 0)) != 3:
+		_fail(res, "no gold at the end of the maps")
+	if targets.size() == 3 and (targets[0].distance_to(targets[1]) < 300.0 or targets[1].distance_to(targets[2]) < 300.0):
+		_fail(res, "treasure sites too close together")
+	# ---------------------------------------------------------------- 4. a lawman's misdemeanour
+	st.bounties = {}
+	st.wanted = 0
+	var at := Mission.road_point("bitter_spring", "port_linden", 0.15)
+	Game.terrain.ensure_tile(at)
+	var law := Human.spawn(Game.main, at + Vector3(2, 0.3, 2), {"seed": 6611, "role": "lawman", "faction": "law", "name": "Deputy Test", "weapon": "harlan_carbine"})
+	await get_tree().physics_frame
+	var s1: String = so.antagonize(law)
+	var owed1: float = bd._fines() if bd else 0.0
+	var w1: int = st.wanted
+	var s2: String = so.antagonize(law)
+	var owed2: float = bd._fines() if bd else 0.0
+	var m3: float = st.money
+	var paid_ok: bool = bd.pay_fines() if bd else false
+	lines.append("lawman: %s -> fine $%d, wanted %d; %s -> fine $%d; paid at the board %s ($%.2f), wanted now %d" % [s1, int(owed1), w1, s2, int(owed2), paid_ok, m3 - st.money, st.wanted])
+	if owed1 != 5.0 or w1 != 1 or owed2 != 15.0 or not paid_ok or st.wanted != 0 or absf(m3 - st.money - 15.0) > 0.01:
+		_fail(res, "misdemeanour: %s" % lines.back())
+	law.queue_free()
+	# ---------------------------------------------------------------- 5. the satchel reads the last newspaper
+	if skip.has("5"):
+		for ln in lines:
+			print("  " + ln)
+		md.autopilot = false
+		res.errors = Game.error_logger.take().slice(err0)
+		return res
+	nw.buy("port_linden")
+	if Game.get("menus"):
+		Game.menus.close_all()
+	var readable: bool = Satchel.readable("newspaper") and Satchel.readable("treasure_map_2")
+	Satchel.read("newspaper")
+	await get_tree().process_frame
+	var opened: bool = Game.get("menus") == null or not Game.menus.stack.is_empty()
+	if Game.get("menus"):
+		Game.menus.close_all()
+	lines.append("satchel: newspaper readable %s, last edition '%s', opened %s" % [readable, st.flags.get("news_last", {}).get("lead", {}).get("head", ""), opened])
+	if not readable or not nw.has_paper() or int(st.inventory.get("newspaper", 0)) <= 0:
+		_fail(res, "satchel newspaper: %s" % lines.back())
+	for ln in lines:
+		print("  " + ln)
+	md.autopilot = false
 	var errs: Array = Game.error_logger.take().slice(err0)
 	res.errors = errs
 	if errs.size() > 0:

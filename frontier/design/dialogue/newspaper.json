@@ -448,6 +448,38 @@
     }
    },
    "priority": 2
+  },
+  {
+   "id": "legend",
+   "head": "{name_upper} BROUGHT DOWN",
+   "deck": "Trapper Thackery Confirms the Pelt",
+   "body": "The animal known in the Sable country as {name} has been killed, after a season in which it was blamed for more losses than the syndicate. Mr. Eli Thackery, the trapper at Greer's Post, has examined the pelt and declares there is not another like it in the territory. The hunter declined to be named, and to be photographed.",
+   "when": {
+    "record": "legend"
+   },
+   "priority": 5
+  },
+  {
+   "id": "treasure",
+   "head": "BURIED GOLD AT SAN LAZARO?",
+   "deck": "Old Bars Said to Have Been Dug Up Beneath a Dead Mesquite",
+   "body": "Rumours reach this office of gold bars, of an old mint and a war-time stamp, dug up near the San Lazaro mission. The mission sisters say the only gold they have seen this year was in a sunset. This paper reserves judgment.",
+   "when": {
+    "record": "treasure"
+   },
+   "priority": 5
+  },
+  {
+   "id": "legends_rumour",
+   "head": "TRAPPER'S TALES AT GREER'S POST",
+   "deck": "A Grey Wolf the Size of a Pony, and Other Wonders",
+   "body": "Mr. Eli Thackery, who traps the Kestrel and sells furs at Greer's Post, tells of four animals in the Sable country unlike any others: a grey she-wolf, an old bear that wears bullets like medals, a pale cat on the mission wall, and a bull elk of fourteen points. He tells it for the price of a drink. This paper paid, and does not regret it.",
+   "when": {
+    "not_completed": [
+     "c3_drive"
+    ]
+   },
+   "priority": -1
   }
  ],
  "subs": {
