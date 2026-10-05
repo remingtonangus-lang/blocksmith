@@ -171,10 +171,11 @@ enum CollapseCheck {
             cs.testTurn = 0
             cs.testSpeed = 0
             st.ship = s
-            let mid: Float = 76
+            // Amidships, across the whole grid (sized from the hull: the frigate's design can change).
+            let mid: Float = Float(s.grid.sz / 2)
             var bl: [(V3, Float)] = []
             for zz in [mid - 1.5, mid + 1.5] {
-                for y in stride(from: Float(1), through: 31, by: 3) { for x in stride(from: Float(1), through: 30, by: 3) {
+                for y in stride(from: Float(1), through: Float(s.grid.sy - 1), by: 3) { for x in stride(from: Float(1), through: Float(s.grid.sx - 1), by: 3) {
                     bl.append((s.toWorld(V3(x, y, zz)), 4))
                 } }
             }
