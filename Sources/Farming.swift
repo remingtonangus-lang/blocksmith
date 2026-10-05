@@ -550,22 +550,43 @@ extension Game {
         }
     }
 
-    // Boarling bartering (weights of the reference game's barter table, total 459; potions and
-    // enchanted items are left out until brewing/enchanting exist).
+    // Boarling bartering (the reference barter table, total weight 459, now with its enchanted and potion entries:
+    // Soul Speed books and boots, fire resistance potions and water bottles, which waited for brewing / enchanting).
     func barter(_ m: Mob) {
+        func ench(_ item: String, _ lvl: ClosedRange<Int>) -> ItemStack? {
+            guard Items.has(item) else { return nil }
+            var s = ItemStack(Items.id(item), 1)
+            s.ench = Enchant.pack([(.soulSpeed, Rand.int(in: lvl))])
+            if item == "book", Items.has("enchanted_book") { var b = ItemStack(Items.id("enchanted_book"), 1); b.ench = s.ench; s = b }
+            return s
+        }
+        func potion(_ form: Int, _ t: String) -> ItemStack? { Potions.item(form, t).map { ItemStack($0, 1) } }
         let table: [(String, Int, Int, Int)] = [
+            ("@soul_speed_book", 1, 1, 5), ("@soul_speed_boots", 1, 1, 8), ("@fire_res_potion", 1, 1, 8), ("@fire_res_splash", 1, 1, 8),
+            ("@water_bottle", 1, 1, 10),
             ("ender_pearl", 2, 4, 10), ("string", 3, 9, 20), ("quartz", 5, 12, 20), ("obsidian", 1, 1, 40),
             ("crying_obsidian", 1, 3, 40), ("fire_charge", 1, 1, 40), ("leather", 2, 4, 40), ("soul_sand", 2, 8, 40),
             ("nether_brick", 2, 8, 40), ("spectral_arrow", 6, 12, 40), ("gravel", 8, 16, 40), ("blackstone", 8, 16, 40),
             ("iron_nugget", 10, 36, 10),
-        ].filter { Items.has($0.0) }
+        ].filter { $0.0.hasPrefix("@") || Items.has($0.0) }
         let total = table.reduce(0) { $0 + $1.3 }
         var r = Rand.int(in: 0..<max(1, total))
         for e in table {
             r -= e.3
             if r < 0 {
-                let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
-                drops.spawn(ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                var out: ItemStack?
+                switch e.0 {
+                case "@soul_speed_book": out = ench("book", 1...3)
+                case "@soul_speed_boots": out = ench("iron_boots", 1...3)
+                case "@fire_res_potion": out = potion(0, "fire_resistance")
+                case "@fire_res_splash": out = potion(1, "fire_resistance")
+                case "@water_bottle": out = potion(0, "water")
+                default: out = ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2))
+                }
+                if let o = out {
+                    let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
+                    drops.spawn(o, at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                }
                 break
             }
         }
