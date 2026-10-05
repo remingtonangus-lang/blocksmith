@@ -288,20 +288,40 @@ final class World {
     }
 
     // How far an AABB can move along one axis (0 x, 1 y, 2 z) before touching a collision box.
+    private var sweepScratch: [(V3, V3)] = []
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx
         if d > 0 { hi[a] += d } else { lo[a] += d }
         let eps: Float = 1e-4
-        var boxes: [(V3, V3)] = []
-        for y in Int(floor(lo.y - 0.5))...Int(floor(hi.y)) {   // -0.5: fences etc. poke up to 1.5
-            for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
-                for x in Int(floor(lo.x))...Int(floor(hi.x - eps)) {
-                    collisionBoxes(x, y, z, &boxes)
+        // Main thread only (bodies, mobs, ships): the box list keeps its storage between calls (a new array per sweep,
+        // several sweeps per walking mob per frame: bench mobs.per_mob_us 1.6 -> 7.8 us). Swapped out, so a nested
+        // call can't share it.
+        var boxes = sweepScratch
+        sweepScratch = []
+        boxes.removeAll(keepingCapacity: true)
+        defer { sweepScratch = boxes }
+        let y0 = Int(floor(lo.y - 0.5)), y1 = Int(floor(hi.y))     // -0.5: fences etc. poke up to 1.5
+        let plain = frame == nil
+        for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
+            for x in Int(floor(lo.x))...Int(floor(hi.x - eps)) {
+                // One chunk lookup per column (it was a dictionary lookup per block); empty cells skip straight on.
+                if plain {
+                    guard let c = chunkAt(x, z) else {
+                        if y0 < 0 { for y in y0...min(y1, -1) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
+                        continue
+                    }
+                    let lx = mod(x, CS), lz = mod(z, CS)
+                    for y in y0...y1 {
+                        if y >= 0 && y < CH && !Blocks.collide[Int(c.blocks[Chunk.index(lx, y, lz)])] { continue }
+                        collisionBoxes(x, y, z, &boxes)
+                    }
+                } else {
+                    for y in y0...y1 { collisionBoxes(x, y, z, &boxes) }
                 }
             }
         }
-        if frame == nil && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
+        if plain && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
