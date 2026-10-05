@@ -56,7 +56,38 @@ enum FidelityCheck {
         }
         hard("gold_block", 3); hard("lapis_block", 3); hard("copper_block", 3); hard("iron_block", 5); hard("diamond_block", 5)
 
+        // Fuel (ticks), stack sizes, block drops and smelting XP (fidelity audit round 2).
+        func fuel(_ k: String, _ want: Int) {
+            guard Items.has(k) else { print("fidelity: no item \(k)"); return }
+            let got = Recipes.fuel(Items.id(k))
+            check(got == want, "\(k) burns \(got) ticks (reference \(want))")
+        }
+        fuel("oak_planks", 300); fuel("oak_slab", 150); fuel("stick", 100); fuel("coal", 1600); fuel("bamboo", 50)
+        fuel("dried_kelp_block", 4001); fuel("white_wool", 100); fuel("crimson_planks", 0); fuel("torch", 0); fuel("lava_bucket", 20000)
+        func stack(_ k: String, _ want: Int) {
+            guard Items.has(k) else { print("fidelity: no item \(k)"); return }
+            let got = Items.def(Items.id(k)).maxStack
+            check(got == want, "\(k) stacks to \(got) (reference \(want))")
+        }
+        stack("totem_of_undying", 1); stack("red_bed", 1); stack("oak_sign", 16); stack("ender_pearl", 16); stack("cobblestone", 64)
+        func drop(_ block: String, _ item: String, _ lo: Int, _ hi: Int) {
+            guard Blocks.has(block), Items.has(item), let pick = tool("netherite_pickaxe") else { print("fidelity: no \(block) / \(item)"); return }
+            var okAll = true
+            for _ in 0..<20 {
+                let d = Mining.drops(Blocks.id(block), pick)
+                let n = d.filter { $0.item == Items.id(item) }.reduce(0) { $0 + $1.count }
+                if n < lo || n > hi || d.contains(where: { $0.item != Items.id(item) }) { okAll = false }
+            }
+            check(okAll, "\(block) drops \(lo)-\(hi) \(item)")
+        }
+        drop("nether_quartz_ore", "quartz", 1, 1); drop("nether_gold_ore", "gold_nugget", 2, 6); drop("bookshelf", "book", 3, 3)
+        drop("ender_chest", "obsidian", 8, 8); drop("stone", "cobblestone", 1, 1); drop("sea_lantern", "prismarine_crystals", 2, 3)
+        if Items.has("iron_ingot") {
+            let xp = Recipes.smeltXP(Items.id("iron_ingot"))
+            check(abs(xp - 0.7) < 0.001, "iron ingot smelting XP \(xp) (reference 0.7)")
+        }
+
         print("fidelitycheck: \(n) checks, \(fails) FAILED")
-        return fails == 0 && n > 20 ? 0 : 1
+        return fails == 0 && n > 40 ? 0 : 1
     }
 }
