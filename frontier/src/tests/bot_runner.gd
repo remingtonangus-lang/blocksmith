@@ -377,6 +377,22 @@ func _run_missions() -> Dictionary:
 	res.choices = choices
 	print("  lines said %d, choices %s" % [said, " ".join(choices)])
 	print("  outcomes %s" % " ".join(outcomes))
+	# the endings: Standing locked a branch at the end of chapter 5 and the credits rolled after the epilogue
+	if md.completed.has("c6_spring"):
+		var credit_lines := 0
+		for ln in Game.log_lines:
+			if ln.contains(" credits_roll "):
+				var dd = JSON.parse_string(ln.split(" ", false, 2)[2])
+				if typeof(dd) == TYPE_DICTIONARY:
+					credit_lines = int(dd.get("licences", 0))
+		var fl: Dictionary = Game.state.flags
+		print("  ending: %s (eben %s, pell %s, hap alive %s, joseph left %s, del left %s, asa spared %s), credits licences %d" % [
+			fl.get("ending", "?"), fl.get("eben_fate", "?"), fl.get("pell_fate", "?"), fl.get("hap_alive", "?"), fl.get("joseph_left", "?"),
+			fl.get("del_left", "?"), fl.get("spared_asa", "?"), credit_lines])
+		if not fl.has("ending") or credit_lines < 10:
+			_fail(res, "ending/credits not reached properly")
+		if Game.args.has("expect_ending") and str(fl.get("ending", "")) != str(Game.args.expect_ending):
+			_fail(res, "expected ending %s, got %s" % [Game.args.expect_ending, fl.get("ending", "")])
 	# the forced failure must have been retried from its checkpoint and the mission finished
 	if md.test_fail != "":
 		var fm := md.test_fail.split(":")[0]

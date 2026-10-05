@@ -40,7 +40,7 @@ func run(d) -> Variant:
 	await d.say("c4_cold_10", joseph)
 	d.cine_end()
 	d.checkpoint("joseph")
-	var kitchen := C4.town(22.0, -16.0)
+	var kitchen := C4.kitchen()
 	var nora := C2.spawn_friend(d, C2.near(kitchen, 1.5, 0.0), {"role": "lady", "faction": "civilian", "name": "Nora Kilbride", "seed": 4102})
 	var dai := C2.spawn_friend(d, C2.near(kitchen, -1.5, 1.0), {"role": "worker", "faction": "civilian", "name": "Dai Pritchard", "seed": 4103})
 	var miners: Array = d.spawn_group(C2.near(kitchen, 0.0, 5.0), 4, {"role": "worker", "faction": "civilian", "name": "Miner", "seed": 4110}, 3.0)
@@ -102,7 +102,7 @@ func run(d) -> Variant:
 		# the meeting breaks up; the boy walks Ashby's message up to the company office
 		for h in miners:
 			d.npc_walk_to(h, C2.near(kitchen, 40.0, 30.0))
-		var office := C4.town(64.0, 34.0)
+		var office := C4.office()
 		var garrity := C2.spawn_friend(d, C2.near(office, 1.5, 0.0), {"role": "townsfolk", "faction": "civilian", "name": "Silas Garrity", "seed": 4140})
 		d.npc_hold(garrity, office)
 		d.npc_walk_to(asa, C2.near(office, -1.5, 0.5))

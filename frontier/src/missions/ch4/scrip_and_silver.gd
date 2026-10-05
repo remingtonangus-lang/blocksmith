@@ -9,6 +9,8 @@ const C2 = preload("res://src/missions/ch2/ch2.gd")
 const C3 = preload("res://src/missions/ch3/ch3.gd")
 const C4 = preload("res://src/missions/ch4/ch4.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c4_strike"
 	title = "Scrip and Silver"
@@ -19,7 +21,7 @@ func run(d) -> Variant:
 	d.set_time(21.2)
 	d.set_weather("overcast")
 	d.set_snow(0.5)
-	var kitchen := C4.town(22.0, -16.0)
+	var kitchen := C4.kitchen()
 	await C3.start_at(d, C2.near(kitchen, -4.0, 3.0), kitchen, false)
 	var nora := C2.spawn_friend(d, C2.near(kitchen, 1.5, 0.0), {"role": "lady", "faction": "civilian", "name": "Nora Kilbride", "seed": 4102})
 	var dai := C2.spawn_friend(d, C2.near(kitchen, -1.5, 1.0), {"role": "worker", "faction": "outfit", "name": "Dai Pritchard", "seed": 4103,
@@ -61,10 +63,12 @@ func run(d) -> Variant:
 		if h and h.alive:
 			d.npc_hold(h, Game.player.global_position)
 	await d.say("c4_strike_06" if held else "c4_strike_07", nora)
-	var office := C4.town(64.0, 34.0)
-	var garrity := C2.spawn_friend(d, C2.near(office, 1.0, 0.0), {"role": "townsfolk", "faction": "civilian", "name": "Silas Garrity", "seed": 4140})
-	d.npc_hold(garrity, kitchen)
-	await d.goto(C2.near(office, -2.0, 0.0), 3.5, "Find Garrity at the company office")
+	var office := C4.office()
+	var garrity: Human = d.spawn_at(C4.office_in(), {"role": "townsfolk", "faction": "civilian", "name": "Silas Garrity", "seed": 4140}, office)
+	P.open_doors(P.building("coldwater", "assay"), office)
+	await d.goto(office, 3.0, "Find Garrity at the company office")
+	if d.aborted(): return false
+	await d.goto(C4.office_in(), 2.2, "Go in after Garrity")
 	if d.aborted(): return false
 	d.npc_hold(garrity, Game.player.global_position)
 	d.cine_begin()
@@ -77,7 +81,7 @@ func run(d) -> Variant:
 		await d.say("c4_strike_11", Game.player)
 		await d.say("c4_strike_12", garrity)
 		if dai and dai.alive:
-			d._put_on_ground(dai, C2.near(office, -3.0, 2.0))
+			d._put_on_ground(dai, office)
 			d.npc_hold(dai, garrity.global_position if garrity else office)
 		await d.say("c4_strike_13", dai)
 		C3.set_flag("strike_terms", "signed")
