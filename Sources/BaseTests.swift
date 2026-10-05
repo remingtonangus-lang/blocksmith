@@ -151,8 +151,14 @@ enum BaseTests {
             }
             let landed = sim(120) { landedTroops() >= 3 }
             _ = soldiersBefore
-            check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s, %d troops down, %d on foot round the plaza (%d before)",
-                                                                             landed ?? -1, landedTroops(), onFoot(), soldiersBefore))
+            let ships = w.ships.capitals.filter { $0.role == "dropship" }.map { d -> String in
+                guard let st = w.ships.capState[d.id] else { return "no state" }
+                let drop = st.dropPoint
+                return String(format: "phase %d (%.0f s), %.0f blocks from the drop point, %.0f up, %d troops left, %d deployed%@", st.phase, st.phaseT,
+                              simd_length(V2(d.pos.x - drop.x, d.pos.z - drop.z)), d.worldMin.y - plaza.y, st.troopsLeft, st.troops.count, d.wrecked ? ", wrecked" : "")
+            }
+            check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s, %d troops down; dropships: %@", landed ?? -1, landedTroops(),
+                                                                             ships.isEmpty ? "none" : ships.joined(separator: "; ")))
             if shotOnly {
                 let ds = w.ships.capitals.first { $0.role == "dropship" }?.pos ?? rec().plaza
                 look(at: ds, from: rec().plaza + V3(-14, 3, 16))
