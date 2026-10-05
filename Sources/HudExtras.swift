@@ -18,7 +18,9 @@ struct HudLine {
 
 final class Subtitles {
     static let shared = Subtitles()
-    struct Entry { var label: String; var side: Int; var time: Double }
+    // `side` is for the player who was live when the sound played; `pos` lets each split-screen half work out its own
+    // arrow (and skip sounds far from that player) when it draws.
+    struct Entry { var label: String; var side: Int; var time: Double; var pos: V3? = nil }
     private(set) var entries: [Entry] = []
 
     static func label(_ s: Snd) -> String? {
@@ -90,35 +92,55 @@ final class Subtitles {
         var caption = s.caption(positional: pos != nil)
         if caption == nil || caption == "Creature calls" { caption = Subtitles.label(s) ?? caption }     // ours names the creature
         guard let label = caption else { return }
-        var side = 0
+        let side = Subtitles.side(g, pos)
         if let p = pos {
             let d = V3(p.x - g.player.eye.x, 0, p.z - g.player.eye.z)
             let len = simd_length(d)
             // The player's own footsteps and blocks aren't worth a caption.
             if len < 1.2 && abs(p.y - g.player.eye.y) < 2.5 && s != .hurt { if case .step = s { return }; if case .breakBlock = s { return }; if case .place = s { return } }
-            if len > 0.8 {
-                let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
-                let k = simd_dot(d / len, right)
-                side = k > 0.35 ? 1 : (k < -0.35 ? -1 : 0)
-            }
         }
         if let i = entries.firstIndex(where: { $0.label == label }) {
             entries[i].time = g.clock
             entries[i].side = side
+            entries[i].pos = pos
         } else {
-            entries.append(Entry(label: label, side: side, time: g.clock))
+            entries.append(Entry(label: label, side: side, time: g.clock, pos: pos))
             if entries.count > 7 { entries.removeFirst() }
         }
+    }
+
+    // -1 left, 1 right, 0 ahead / behind / not positional, for the live player.
+    static func side(_ g: Game, _ pos: V3?) -> Int {
+        guard let p = pos else { return 0 }
+        let d = V3(p.x - g.player.eye.x, 0, p.z - g.player.eye.z)
+        let len = simd_length(d)
+        guard len > 0.8 else { return 0 }
+        let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        let k = simd_dot(d / len, right)
+        return k > 0.35 ? 1 : (k < -0.35 ? -1 : 0)
     }
 
     func lines(_ g: Game, _ L: HudLayout, bottom: Float) -> [HudLine] {
         entries.removeAll { g.clock - $0.time > 3 || g.clock < $0.time }
         guard AudioSettings.subtitles, !entries.isEmpty else { return [] }
+        // Split screen: each half draws with its own player live (arrows from that player; sounds far from them skipped).
+        var shown = entries
+        if g.coop.active {
+            shown = entries.compactMap { e in
+                var e = e
+                if let p = e.pos {
+                    if simd_length(p - g.player.eye) > 40 { return nil }
+                    e.side = Subtitles.side(g, p)
+                }
+                return e
+            }
+            if shown.isEmpty { return [] }
+        }
         let s = L.s
-        let w = Float(entries.map { Font.width($0.label) }.max() ?? 0) * s + 24 * s
+        let w = Float(shown.map { Font.width($0.label) }.max() ?? 0) * s + 24 * s
         let x0 = L.W - L.insetX - w - 4 * s
         var out: [HudLine] = []
-        for (i, e) in entries.reversed().enumerated() {
+        for (i, e) in shown.reversed().enumerated() {
             let age = Float(g.clock - e.time)
             let a = age > 2.2 ? max(0.25, 1 - (age - 2.2) / 0.8) : 1
             let y = bottom - Float(i + 1) * 11 * s

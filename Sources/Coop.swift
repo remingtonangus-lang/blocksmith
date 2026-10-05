@@ -579,6 +579,24 @@ enum CoopTest {
         var bit2 = 20
         c.withSeat(1, g) { bit2 = g.health; g.health = 20; g.player.vel = .zero }
         check(bit2 < 20 && g.health == hpBefore, "conjurer fangs bite player 2 (\(bit2)), not player 1")
+        // Subtitles: a groan beside player 2 is captioned on player 2's half, with player 2's arrow; player 1's half
+        // leaves it out when the players are far apart (the side was worked out for whoever was live, once).
+        let subsWas = Settings.shared.subtitles
+        Settings.shared.subtitles = true
+        var right2 = V3(1, 0, 0), eye2 = V3(0, 0, 0)
+        c.withSeat(1, g) { right2 = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)); eye2 = g.player.eye }
+        g.sfx(.mobZombie, 1, at: eye2 + right2 * 5)
+        let lay = HudLayout(640, 360)
+        func caption(_ seat: Int) -> [HudLine] {
+            var out: [HudLine] = []
+            c.withSeat(seat, g) { out = Subtitles.shared.lines(g, lay, bottom: 300).filter { $0.text == "Zombie groans" || $0.text == ">" || $0.text == "<" } }
+            return out
+        }
+        let half2 = caption(1), half1 = caption(0)
+        let apart = simd_length(c.seatPlayer(0, g).eye - eye2) > 40
+        check(half2.contains { $0.text == "Zombie groans" } && half2.contains { $0.text == ">" }
+              && (!apart || half1.isEmpty), "a sound beside player 2 is captioned on player 2's half with player 2's arrow\(apart ? ", not on player 1's" : "")")
+        Settings.shared.subtitles = subsWas
         // Player 1's ender pearl landing beside player 2 takes player 1 there and leaves player 2 alone (thrown items
         // flew in the turn of the player nearest them: player 2 was teleported).
         let p2at = c.seatPlayer(1, g).pos
