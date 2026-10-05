@@ -149,7 +149,8 @@ func _process(dt: float) -> void:
 	location_label.modulate.a = clampf(_loc_t, 0.0, 1.0)
 
 func prompt(text: String) -> void:
-	prompt_label.text = text
+	if prompt_label:
+		prompt_label.text = text
 
 func subtitle(speaker: String, text: String, seconds := 4.0) -> void:
 	subtitle_label.text = ("%s:  %s" % [speaker, text]) if speaker != "" else text

@@ -186,7 +186,7 @@ func _senses() -> Node3D:
 	if p.get("on_horse") != null:
 		noise *= 1.5
 	# scent travels downwind: animals downwind of the player smell her from far
-	var wind: Vector2 = RenderingServer.global_shader_parameter_get("wind_dir") if not Game.headless else Vector2(1, 0.3)
+	var wind: Vector2 = Game.sky.wind if Game.sky else Vector2(1, 0.3)
 	var downwind := Vector2(-to.x, -to.z).normalized().dot(wind.normalized())
 	var scent := wary * 1.4 * clampf(downwind, 0.0, 1.0)
 	if d < maxf(noise, scent):
