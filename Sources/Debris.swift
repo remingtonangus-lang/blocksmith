@@ -326,14 +326,20 @@ extension ShipManager {
             }
         }
         var n = 0
+        var putC: [IVec3] = []
+        var putB: [BlockID] = []
+        putC.reserveCapacity(sc.count)
+        putB.reserveCapacity(sc.count)
         for k in 0..<sc.count where !blocked(sc[k], sb[k]) {
             let c = sc[k], b = sb[k]
             let nb: BlockID = upright ? ShipParts.rotate(b, turns) : Blocks.groupBase[Int(b)]
-            _ = w.setBlockAsync(c.x, c.y, c.z, nb)
+            putC.append(c)
+            putB.append(nb)
             if let be = bePlace[c] { w.blockEntities[c] = be }
             n += 1
             if settle && settleQueue.count < 20000 && Collapse.built(nb) { settleQueue.append(c) }
         }
+        w.setBlocksBulk(putC, putB)
         remove(s)
         ghosts.append((s, 0.6))                 // drawn where it lies until the world's new meshes are in
         bakedBlocks += n
@@ -437,6 +443,48 @@ extension ShipManager {
             s.wrecked = true
             st.disabledWhy = "cut in two"
             for m in st.crewMobs.values where m.deck === s && m.health > 0 { m.crewFree = true; m.home = m.pos; m.aggro = true }
+        }
+    }
+}
+
+extension World {
+    // Many blocks at once (debris laid down): one chunk lookup a block, each touched column's height and each touched
+    // section's version once, gravity checks only for blocks that can fall (setBlockAsync per block: ~10 chunk lookups,
+    // 27 version bumps and two gravity checks, each a string compare for concrete; a 10k-block hull took 37 ms).
+    func setBlocksBulk(_ cells: [IVec3], _ ids: [BlockID]) {
+        guard !cells.isEmpty else { return }
+        let reader = BlockReader(self)
+        var cols = Collapse.CellTable(capacity: 256)
+        var colList: [(Chunk, Int, Int)] = []
+        var secs = Collapse.CellTable(capacity: 256)
+        var secList: [IVec3] = []
+        let falling = World.fallingIDs
+        for k in 0..<cells.count {
+            let c = cells[k], id = ids[k]
+            guard c.y >= 0 && c.y < CH, let ch = chunkAt(c.x, c.z) else { continue }
+            if !damage.isEmpty { damage.removeValue(forKey: c) }
+            let lx = mod(c.x, CS), lz = mod(c.z, CS)
+            let i = Chunk.index(lx, c.y, lz)
+            let old = ch.blocks[i]
+            if old == id { continue }
+            ch.blocks[i] = id
+            ch.modified = true
+            if !redstone.isBusy { redstone.blockChanged(c, old, id) }
+            if falling[Int(id)] { gravityQueue.append(c) }
+            if falling[Int(reader.block(IVec3(c.x, c.y + 1, c.z)))] { gravityQueue.append(IVec3(c.x, c.y + 1, c.z)) }
+            if cols.insert(IVec3(c.x, 0, c.z), Int32(colList.count)) { colList.append((ch, lx, lz)) }
+            let sk = IVec3(floorDiv(c.x, CS), c.y >> 4, floorDiv(c.z, CS))
+            if secs.insert(sk, Int32(secList.count)) { secList.append(sk) }
+        }
+        for (ch, lx, lz) in colList { ch.recomputeHeight(lx, lz) }
+        // Each touched section and its neighbours (light and faces reach across the border) remesh.
+        var bumped = Collapse.CellTable(capacity: secList.count * 8 + 64)
+        for sk in secList {
+            for dz in -1...1 { for dx in -1...1 { for dy in -1...1 {
+                let q = IVec3(sk.x + dx, sk.y + dy, sk.z + dz)
+                guard q.y >= 0 && q.y < NSEC, bumped.insert(q, 0), let n = chunks[ChunkKey(x: q.x, z: q.z)] else { continue }
+                n.sections[q.y].version += 1
+            } } }
         }
     }
 }
