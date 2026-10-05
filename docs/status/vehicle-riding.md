@@ -155,8 +155,8 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   from the pad rather than running to the tower wall). `--structcheck` unstable class measures it per structure.
 - 2026-10-05: destruction + frigates on claude/bs-destruction (cdd5a35): collapsecheck, interiorcheck PASS; ridecheck
   frigatecrash failed (the touchdown blasts cut the new hull's hangar deck, 4 blocks over the keel, and hurt the rider):
-  touchdown blasts now spare the landing ship and its riders. Also: citadel rebuild remeshes async (basetest cost was
-  red on playtest itself), flying warships read "Warship" on the HUD, interior doorways framed in trim.
+  touchdown blasts now spare the landing ship and its riders. Also: flying warships read "Warship" on the HUD,
+  interior doorways framed (the citadel rebuild cost found on the way: integration fixed it the same way, 2e844e5).
 - Shots: the collapse snapshot path now ages particles and drops (a 40 s shot showed the blast's fireball and a
   column of magenta specks frozen in mid-air) and the late frigate shot looks at the biggest wreck; the collapse
   shots are one snap.sh line each so `[fastshots collapse_frigate_40]` works. collapsecheck reports what a tick over
