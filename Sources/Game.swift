@@ -867,7 +867,11 @@ final class Game {
                 let hitSound: Snd = crit ? .attackCrit : (swept ? .attackSweep : (charge < 0.5 ? .attackWeak : (player.sprinting ? .attackKnockback : .attack)))
                 sfx(hitSound, 0.8, at: m.pos + V3(0, m.height * 0.5, 0))
                 if survival { exhaustion += 0.1 }
-                damageHeld(held.def.tool == .sword ? 1 : 2)
+                // Wear per hit (reference): swords, tridents and maces 1, other tools 2, anything else none (a bow or a
+                // rod used as a club wore 2).
+                let hk = held.isEmpty ? "" : Items.key(held.item)
+                let tl = held.isEmpty ? ToolType.none : held.def.tool
+                if tl == .sword || hk == "trident" || hk == "mace" { damageHeld(1) } else if tl != .none { damageHeld(2) }
             }
             return
         }
