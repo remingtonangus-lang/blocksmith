@@ -87,6 +87,15 @@ enum FidelityCheck {
             check(abs(xp - 0.7) < 0.001, "iron ingot smelting XP \(xp) (reference 0.7)")
         }
 
+        // Hurt invulnerability: within 0.5 s only a bigger hit counts, by the difference.
+        let z = Mob(.zombie, at: V3(0, 100, 0))
+        let h0 = z.health
+        z.hit(from: V3(1, 100, 0), damage: 5, iframes: true)
+        z.hit(from: V3(1, 100, 0), damage: 3, iframes: true)
+        let h1 = z.health
+        z.hit(from: V3(1, 100, 0), damage: 7, iframes: true)
+        check(h0 - h1 == 5 && h1 - z.health == 2, "hurt invulnerability: 5, then 3 ignored, then 7 deals 2 (took \(h0 - h1), \(h1 - z.health))")
+
         print("fidelitycheck: \(n) checks, \(fails) FAILED")
         return fails == 0 && n > 40 ? 0 : 1
     }
