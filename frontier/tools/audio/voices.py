@@ -51,8 +51,11 @@ def load_tables(only: str | None):
         if f.name == "voices.json":
             continue
         d = json.loads(f.read_text())
+        spk_voice = {k: s.get("voice", k) for k, s in d.get("speakers", {}).items()}
         for ln in d.get("lines", []):
-            lines.append(dict(ln, source=f.name))
+            # story tables name characters (speakers map -> voice type); map types onto the casting in voices.json
+            cast = ln["speaker"] if ln["speaker"] in voices else cast_for(spk_voice.get(ln["speaker"], ln["speaker"]), voices)
+            lines.append(dict(ln, source=f.name, cast=cast))
         for b in d.get("barks", []):
             for sp in b["speakers"]:
                 lines.append({"id": f"{b['id']}__{sp}", "speaker": sp, "line": b["line"], "emotion": b.get("emotion", "calm"),
@@ -60,9 +63,30 @@ def load_tables(only: str | None):
     if only:
         lines = [ln for ln in lines if re.search(only, ln["id"])]
     for ln in lines:
-        if ln["speaker"] not in voices:
-            raise SystemExit(f"speaker {ln['speaker']} of {ln['id']} missing from voices.json")
+        ln.setdefault("cast", ln["speaker"])
+        if ln["cast"] not in voices:
+            raise SystemExit(f"speaker {ln['speaker']} of {ln['id']} has no casting in voices.json")
     return voices, lines
+
+
+# voice types used by the story tables -> casting keys in voices.json (exact key wins; then these; then by keyword)
+CAST_ALIAS = {"old_man_swede": "man_old", "old_man_a": "man_old", "old_man_b": "man_old", "boy": "boy",
+              "young_male": "man_young", "tired_male": "lawman", "nasal_male": "shopkeeper", "gruff_male": "man_rough",
+              "smooth_male": "man_town", "gunman": "man_rough", "older_woman": "woman_old", "young_woman": "woman_town"}
+
+
+def cast_for(voice_type: str, voices: dict) -> str:
+    if voice_type in voices:
+        return voice_type
+    c = CAST_ALIAS.get(voice_type)
+    if c in voices:
+        return c
+    for key, cast in (("rough", "man_rough"), ("woman", "woman_town"), ("old", "man_old"), ("young", "man_young"),
+                      ("law", "lawman"), ("boy", "man_young"), ("male", "man_town"), ("town", "man_town")):
+        if key in voice_type and cast in voices:
+            return cast
+    print(f"note: no casting for voice type '{voice_type}', using man_town")
+    return "man_town"
 
 
 def phoneme_units(ph: str):
@@ -194,22 +218,22 @@ def main():
     vt = manifest.setdefault("voice", {})
     styles = {}
     for ln in lines:
-        vc = voices[ln["speaker"]]
-        if ln["speaker"] not in styles:
+        vc = voices[ln["cast"]]
+        if ln["cast"] not in styles:
             st = None
             for name, w in vc["blend"].items():
                 s = np.asarray(k.get_voice_style(name), dtype=np.float32) * float(w)
                 st = s if st is None else st + s
-            styles[ln["speaker"]] = st
+            styles[ln["cast"]] = st
         tempo, pitch_e, lvl, drive, target = EMOTION.get(ln.get("emotion", "calm"), EMOTION["calm"])
         pitch = float(vc.get("pitch", 1.0)) * pitch_e
         speed = float(vc.get("speed", 1.0)) * tempo
         text = ln["line"]
         timings = []
         if hasattr(k, "create_timed"):
-            a, sr, timings = k.create_timed(text, styles[ln["speaker"]], speed=speed / pitch, lang="en-us")
+            a, sr, timings = k.create_timed(text, styles[ln["cast"]], speed=speed / pitch, lang="en-us")
         else:
-            a, sr = k.create(text, styles[ln["speaker"]], speed=speed / pitch, lang="en-us")
+            a, sr = k.create(text, styles[ln["cast"]], speed=speed / pitch, lang="en-us")
         a = np.asarray(a, dtype=np.float64)
         if abs(pitch - 1.0) > 0.005:
             a = dsp.pitch_resample(a, pitch)
