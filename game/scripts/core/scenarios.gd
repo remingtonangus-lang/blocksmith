@@ -43,10 +43,28 @@ func _done(ok: bool, msg: String) -> void:
 	if not ok:
 		failures += 1
 	_release()
-	var p: Player = G.player
-	if p and p.vehicle and p.vehicle.has_method("exit"):
-		p.vehicle.exit(p)
+	_leave_vehicle()
 	_next()
+
+
+## Out of any vehicle, even one that refuses (a gunship in flight): each scenario starts on foot.
+func _leave_vehicle() -> void:
+	var p: Player = G.player
+	if p == null or p.vehicle == null:
+		return
+	var v: Node = p.vehicle
+	if v.has_method("exit"):
+		v.exit(p)
+	if p.vehicle == null:
+		return
+	for prop in ["pilot", "driver"]:
+		if prop in v:
+			v.set(prop, null)
+	if "cam" in v and v.get("cam") != null:
+		(v.get("cam") as Node).queue_free()
+		v.set("cam", null)
+	var q: Vector3 = (v as Node3D).global_position
+	p.exit_vehicle(Vector3(q.x, G.world.surface_at(q.x, q.z) + 0.1, q.z))
 
 
 func _release() -> void:
@@ -191,6 +209,14 @@ func _tick_battle(_delta: float) -> void:
 
 func _setup_weapons() -> void:
 	var p: Player = G.player
+	# Its own spot (earlier scenarios leave the player anywhere): the spawn apron, facing open ground.
+	_leave_vehicle()
+	var sp: Vector3 = G.world.site("spawn")
+	G.terrain.collision_now(sp)
+	p.global_position = Vector3(sp.x, G.world.surface_at(sp.x, sp.z) + 0.05, sp.z)
+	p.velocity = Vector3.ZERO
+	p.rotation.y = deg_to_rad(-70.0)
+	p.pitch = 0.0
 	var w: Weapons = p.weapons
 	data["w"] = w
 	data["ammo0"] = w.ammo[0]
@@ -225,7 +251,7 @@ func _tick_weapons(_delta: float) -> void:
 		data["rocket_ammo"] = w.ammo[3]
 		data["rockets_live"] = G.fx.rockets_fired - int(data["r0"])
 		data["phase"] = 3
-	elif data["phase"] == 3 and t > 4.0:
+	elif data["phase"] == 3 and (t > 8.0 or (t > 2.5 and G.fx.rockets.is_empty())):
 		var fired: int = data["fired"]
 		var ok: bool = fired >= 12 and fired <= 22 and float(data["climb"]) > 3.0 and int(data["rocket_ammo"]) == 0 and int(data["rockets_live"]) == 1 and G.fx.rockets.is_empty()
 		_done(ok, "carbine fired %d rounds in 1.5 s, view climbed %.1f deg; rockets launched %d, exploded %s" % [fired, data["climb"], data["rockets_live"], G.fx.rockets.is_empty()])

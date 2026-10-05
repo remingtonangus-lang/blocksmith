@@ -19,7 +19,10 @@ var bark_mat: ShaderMaterial
 var birch_bark_mat: ShaderMaterial
 var imp_mat: ShaderMaterial
 var imp_mesh: QuadMesh
-var near := {}                    # Vector2i -> Node3D
+var near := {}                    # Vector2i -> per species/variant buffers of that 128 m cell
+var supers := {}                  # Vector2i -> Node3D: the near trees of SUPER x SUPER cells in one MultiMesh per kind
+var _dirty := {}                  # super-cells to rebuild
+const SUPER := 3                  # measured: per-cell MultiMeshes were ~1100 of 1360 draws in the battle view
 var imps := {}                    # Vector2i -> MultiMeshInstance3D
 var _pending := {}                # key -> task id
 var _results := {}                # key -> data (filled by worker tasks)
@@ -260,6 +263,7 @@ func _process(delta: float) -> void:
 		_grass_far.global_position = Vector3(snappedf(p.x, 1.0), 0.0, snappedf(p.z, 1.0))
 	_t += delta
 	_collect()
+	_rebuild_supers()
 	if _t > 0.2:
 		_t = 0.0
 		_stream(p, false)
@@ -288,8 +292,8 @@ func _stream(p: Vector3, sync: bool) -> void:
 					want_imp[k] = true
 	for k in near.keys():
 		if not want_near.has(k):
-			near[k].queue_free()
 			near.erase(k)
+			_dirty[_super_of(k)] = true
 	for k in imps.keys():
 		if not want_imp.has(k):
 			imps[k].queue_free()
@@ -317,6 +321,7 @@ func _stream(p: Vector3, sync: bool) -> void:
 			WorkerThreadPool.wait_for_task_completion(_pending[key])
 		_pending.clear()
 		_collect()
+		_rebuild_supers()
 
 
 func _build_task(kind: String, k: Vector2i) -> void:
@@ -349,7 +354,8 @@ func _collect() -> void:
 		if kind == "n":
 			if near.has(k):
 				continue
-			near[k] = _make_near(done[key])
+			near[k] = done[key]
+			_dirty[_super_of(k)] = true
 		else:
 			if imps.has(k):
 				continue
@@ -386,6 +392,36 @@ func _push(buf: PackedFloat32Array, tr: Transform3D, tint: float, phase: float, 
 	var b := tr.basis
 	buf.append_array([b.x.x, b.y.x, b.z.x, tr.origin.x, b.x.y, b.y.y, b.z.y, tr.origin.y, b.x.z, b.y.z, b.z.z, tr.origin.z,
 		float(sp), tint, phase, 0.0])
+
+
+func _super_of(k: Vector2i) -> Vector2i:
+	return Vector2i(floori(float(k.x) / SUPER), floori(float(k.y) / SUPER))
+
+
+## Concatenates the member cells' buffers of each dirty super-cell into one MultiMesh per species/variant.
+func _rebuild_supers() -> void:
+	if _dirty.is_empty():
+		return
+	for sk in _dirty:
+		if supers.has(sk):
+			(supers[sk] as Node).queue_free()
+			supers.erase(sk)
+		var merged := {}
+		for dz in SUPER:
+			for dx in SUPER:
+				var k := Vector2i(sk.x * SUPER + dx, sk.y * SUPER + dz)
+				if not near.has(k):
+					continue
+				var bufs: Dictionary = near[k]
+				for key in bufs:
+					if not merged.has(key):
+						merged[key] = PackedFloat32Array()
+					var m: PackedFloat32Array = merged[key]
+					m.append_array(bufs[key])
+					merged[key] = m
+		if not merged.is_empty():
+			supers[sk] = _make_near(merged)
+	_dirty.clear()
 
 
 func _make_near(bufs: Dictionary) -> Node3D:
