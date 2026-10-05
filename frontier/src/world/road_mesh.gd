@@ -32,6 +32,10 @@ func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 		var prev_l: Array = []
 		for i in samples.size():
 			var c: Vector2 = samples[i]
+			# settlement cores: the planned streets replace the road (settlements.gd paints them; lots stand here)
+			if _in_settlement_core(world, c):
+				prev_l = []
+				continue
 			var t: Vector2 = (samples[mini(i + 1, samples.size() - 1)] - samples[maxi(i - 1, 0)]).normalized()
 			var side := Vector2(-t.y, t.x)
 			var ring: Array = []
@@ -62,6 +66,13 @@ func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 		mi.visibility_range_end = VIS_END + TILE * 0.7
 		mi.name = "Road_%d_%d" % [tk.x, tk.y]
 		add_child(mi)
+
+## Inside 0.72 x the radius of a town or POI (matches TownLayout.road_connectors' entry ring).
+static func _in_settlement_core(world: WorldData, c: Vector2) -> bool:
+	for t in world.features.get("towns", []) + world.features.get("pois", []):
+		if Vector2(c.x - float(t.x), c.y - float(t.z)).length() < float(t.r) * 0.72:
+			return true
+	return false
 
 func _quad_strip(st: SurfaceTool, a: Array, b: Array) -> void:
 	for k in ACROSS - 1:

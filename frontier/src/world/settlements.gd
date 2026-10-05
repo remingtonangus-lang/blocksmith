@@ -772,7 +772,8 @@ func _upload_control() -> void:
 func get_town(id: String) -> Dictionary:
 	return towns.get(id, {})
 
-const SHOP_TYPES := {"general": ["store", "trading_post", "tent_store"], "gunsmith": ["gunsmith"], "butcher": ["butcher"]}
+const SHOP_TYPES := {"general": ["store", "trading_post", "tent_store"], "gunsmith": ["gunsmith"], "butcher": ["butcher"],
+	"board": ["sheriff", "post"]}
 
 ## Where a shop's customer stands (inside at the counter), for main._place_shops: kind general|gunsmith|butcher.
 ## Works before the settlement is built (from the plan); returns null when the town has no such shop.
@@ -785,6 +786,8 @@ func get_shop_spot(town_id: String, kind: String):
 		if not str(spec.get("type", "")) in types:
 			continue
 		var bid: String = spec.id
+		if kind == "board":                       # notice board on the boardwalk beside the door
+			return spec.xf * Vector3(float(spec.get("w", 8.0)) * 0.5 - 0.8, 0.0, -1.2)
 		if buildings.has(bid):
 			for sp in buildings[bid].spots:
 				if sp.type == "shop_counter":
