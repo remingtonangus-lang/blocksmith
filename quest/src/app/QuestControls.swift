@@ -176,7 +176,11 @@ final class QuestControls {
             if QuestSettings.headLocomotion || !L.aimValid { moveYaw = rig.headYaw }
             else { moveYaw = XRMath.yawPitch(rig.toWorldRot(L.aimRot)).0 }
             aimGame()
-            if QuestSettings.teleport {
+            if game.world.ships.pilot != nil {
+                // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
+                p.lx = L.stick.x; p.ly = L.stick.y
+                teleAiming = false; teleArc.removeAll(); teleTarget = nil
+            } else if QuestSettings.teleport && game.riding == nil {
                 teleport(L)
             } else {
                 let d = moveYaw - game.player.yaw
