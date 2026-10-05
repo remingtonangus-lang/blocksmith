@@ -117,6 +117,18 @@ the log) instead of hanging in an empty scene.
 5. The moment the world appears: logcat lines `adopt: ...` (each hand-over step's ms) and `first world frame: ...`;
    the long frame seen last time (367 ms) should be gone or show which step it is.
 
+**QUEST APK READY 37263324278** (2026-10-05, versionCode 24, commit cb3ec66): everything in 17, plus:
+- Render distance 8 by default (was 6; the headset had ~10 ms of GPU headroom). Pause → Render Distance now sticks
+  across launches. Check the `perf:` lines stay at 72 fps with `missed 0`; if not, set 6 there and report the numbers.
+- Weapon wheel: hold the right stick click, push the right stick at a gun, let go (it used to open but couldn't pick,
+  and the stick snap-turned you). In menus the right stick scrolls lists and flips crafting-book pages.
+- The pause menu no longer shows rows that do nothing in VR (Photo Mode, Split Screen, Fullscreen, Display, VSync,
+  Max Frame Rate, Resolution, World Scale, Graphics, Field of View, Bug Notes).
+- Mob path searches 4x faster (fewer hitches near villages and herds); the latest playtest-branch content (vehicle
+  riding fixes, plant support, crafting book).
+- Not mapped on Touch yet: D-pad left/right (offhand swap, chat) and View (camera / hold for map; the map is in the
+  pause menu).
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
