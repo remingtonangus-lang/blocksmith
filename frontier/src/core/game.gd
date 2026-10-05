@@ -24,7 +24,7 @@ const PRESETS := {
 		"tree_dist": 1200.0, "moon_shadows": false, "upscale": "none", "msaa": 0, "taa": false, "lod_bias": 1.0},
 	"quest": {"render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 60.0, "shadow_size": 2048, "terrain_range": 1.5, "grass_density": 0.25, "grass_dist": 30.0,
-		"tree_dist": 700.0, "moon_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4},
+		"tree_dist": 700.0, "moon_shadows": false, "cloud_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4},
 }
 
 var args := {}                 # --key value / --flag from the command line (after "--" too)

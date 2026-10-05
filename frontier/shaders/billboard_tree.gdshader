@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_disabled;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap;
 uniform vec4 species_tint[16];     // rgb leaf tint, a has leaves
@@ -15,6 +16,7 @@ uniform float far_end = 2500.0;
 
 varying flat int v_sp;
 varying float v_rand;
+varying float v_cloud;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -33,6 +35,7 @@ void vertex() {
 	vec3 wp = origin + (right * VERTEX.x * w + vec3(0.0, VERTEX.y * h, 0.0)) * vis;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(wp, 1.0)).xyz;
 	NORMAL = (inverse(MODEL_MATRIX) * vec4(to_cam, 0.0)).xyz;
+	v_cloud = cloud_shade(origin + vec3(0.0, h * 0.5, 0.0));
 }
 
 void fragment() {
@@ -71,6 +74,7 @@ void fragment() {
 	NORMAL = normalize(mat3(VIEW_MATRIX) * (mat3(INV_VIEW_MATRIX) * n_view));
 	float self_shadow = mix(0.6, 1.0, smoothstep(base_y, 1.0, y)) * (0.8 + 0.2 * clamp(edge * 4.0, 0.0, 1.0));
 	ALBEDO = col * (0.9 + 0.2 * v_rand) * (leaves > 0.5 ? self_shadow : 1.0);
+	ALBEDO *= v_cloud;
 	ROUGHNESS = 0.9;
-	BACKLIGHT = col * 0.25;
+	BACKLIGHT = col * 0.25 * v_cloud;
 }

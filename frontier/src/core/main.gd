@@ -56,6 +56,12 @@ func _ready() -> void:
 	if not Game.disabled("water"):
 		water.setup(world)
 	print("boot: %s %d ms" % ["water", Time.get_ticks_msec() - t0])
+	if not Game.headless and not Game.disabled("roads"):
+		var road_mesh := RoadMesh.new()
+		road_mesh.name = "Roads"
+		add_child(road_mesh)
+		road_mesh.build(world, terrain.material)
+		print("boot: %s %d ms" % ["roads", Time.get_ticks_msec() - t0])
 	vegetation = load("res://src/world/vegetation.gd").new()
 	vegetation.name = "Vegetation"
 	add_child(vegetation)

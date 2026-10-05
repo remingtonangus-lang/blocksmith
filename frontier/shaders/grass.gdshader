@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D heightmap : filter_linear, repeat_disable;
 uniform sampler2D controlmap : filter_linear, repeat_disable;
@@ -21,6 +22,7 @@ global uniform float snow_cover;
 
 varying vec3 v_col;
 varying float v_t;
+varying float v_cloud;
 
 float h_at(vec2 xz) { return textureLod(heightmap, (xz + map_size * 0.5) / map_size, 0.0).r * h_range; }
 
@@ -74,12 +76,13 @@ void vertex() {
 	col *= 0.85 + 0.3 * INSTANCE_CUSTOM.y;
 	col = mix(col * 0.45, col * 1.25 + vec3(0.025, 0.02, 0.0), t);
 	v_col = col * (1.0 - wetness * 0.25);
+	v_cloud = cloud_shade(wp);
 }
 
 void fragment() {
 	// grass is lit like the ground it covers: up-facing normals on both faces (no dark/white undersides)
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-	ALBEDO = v_col;
+	ALBEDO = v_col * v_cloud;
 	ROUGHNESS = 0.85 - wetness * 0.4;
 	AO = mix(0.45, 1.0, v_t);
 	AO_LIGHT_AFFECT = 0.4;

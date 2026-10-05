@@ -41,6 +41,7 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 	material.set_shader_parameter("h_range", world.h_range)
 	material.set_shader_parameter("hm_res", float(world.res))
 	material.set_shader_parameter("lake_level", world.lake_level)
+	material.set_shader_parameter("grass_fade", float(Game.quality.get("grass_dist", 80.0)) if not Game.disabled("grass") else 0.0)
 	_bind_textures()
 	mm = MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D

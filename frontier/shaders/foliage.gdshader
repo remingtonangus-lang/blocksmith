@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform bool is_leaf = false;
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -22,6 +23,7 @@ global uniform float wind_strength;
 
 varying float v_inst_rand;
 varying float v_ao;
+varying float v_cloud;
 
 void vertex() {
 	vec3 wpos0 = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -46,6 +48,7 @@ void vertex() {
 	// hand over to the billboard: shrink into the trunk base over the last 15 m
 	float dcam = distance(wpos0, CAMERA_POSITION_WORLD);
 	VERTEX *= 1.0 - smoothstep(lod_end - 15.0, lod_end, dcam);
+	v_cloud = cloud_shade((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	v_ao = mix(0.55, 1.0, clamp(COLOR.r * 1.2, 0.0, 1.0));
 }
 
@@ -60,10 +63,12 @@ void fragment() {
 		SPECULAR = 0.3;
 		AO = v_ao;
 		BACKLIGHT = ALBEDO * translucency;
+		ALBEDO *= v_cloud;
+		BACKLIGHT *= v_cloud;
 	} else {
 		vec4 a = texture(albedo_tex, UV);
 		vec4 n = texture(normal_tex, UV);
-		ALBEDO = a.rgb * tint;
+		ALBEDO = a.rgb * tint * v_cloud;
 		NORMAL_MAP = vec3(n.r, n.g, 1.0);
 		ROUGHNESS = n.b;
 		AO = n.a * v_ao;

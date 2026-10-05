@@ -33,7 +33,7 @@ func _build_lake() -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = pm
 	mi.position = Vector3(cx, world.lake_level, cz)
-	mi.material_override = _material(0.0, 0.25, Color(0.30, 0.38, 0.30), Color(0.03, 0.10, 0.13))
+	mi.material_override = _material(0.0, 0.25, Color(0.10, 0.14, 0.11), Color(0.02, 0.05, 0.07))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.name = "LakeAgnes"
 	add_child(mi)
@@ -81,7 +81,7 @@ func _build_river(r: Dictionary) -> void:
 	mi.mesh = mesh
 	var main: bool = r.name == "Sable River"
 	mi.material_override = _material(0.35 if main else 0.5, 0.9 if main else 0.6,
-		Color(0.36, 0.34, 0.24), Color(0.10, 0.11, 0.08))
+		Color(0.17, 0.15, 0.10), Color(0.05, 0.06, 0.04))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.name = str(r.name).replace(" ", "")
 	add_child(mi)

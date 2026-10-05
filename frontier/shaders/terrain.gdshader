@@ -4,6 +4,7 @@ shader_type spatial;
 render_mode world_vertex_coords, cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D heightmap : filter_linear, repeat_disable;
 uniform sampler2D controlmap : filter_linear, repeat_disable;
@@ -14,7 +15,8 @@ uniform float h_range = 1600.0;
 uniform float hm_res = 4096.0;
 uniform float lake_level = 120.0;
 uniform vec3 cam_pos;
-uniform float detail_dist = 140.0;     // beyond this, materials sample at a coarser scale (anti-tiling)
+uniform float detail_dist = 140.0;
+uniform float grass_fade = 80.0;       // grass blade fade distance (quality preset): ground takes over its colour     // beyond this, materials sample at a coarser scale (anti-tiling)
 
 global uniform float wetness;
 global uniform float snow_cover;
@@ -188,6 +190,20 @@ void fragment() {
 	m.albedo *= 0.88 + 0.24 * (n1 * 0.5 + 0.5);
 	m.albedo = mix(m.albedo, m.albedo * vec3(1.06, 1.0, 0.9), smoothstep(-0.2, 0.6, n2) * 0.5);
 
+	// grass cover: where blades thin out with distance the ground takes on the colour of the grass that grows there
+	// (same density/colour model as grass.gdshader), so plains read golden or green at range instead of bare soil
+	float gn = vnoise(p.xz * 0.05) * 0.5 + 0.5;
+	float gdens = mix(0.12, 1.0, smoothstep(0.15, 0.45, biome)) * (0.55 + 0.45 * gn);
+	gdens *= mix(1.0, 0.35, smoothstep(0.75, 0.95, biome) * (1.0 - moist));
+	gdens *= (1.0 - smoothstep(0.08, 0.35, road)) * (1.0 - rock_w) * (1.0 - snow_w) * step(lake_level + 0.4, alt);
+	gdens *= 1.0 - smoothstep(1100.0, 1200.0, alt);
+	vec3 gcol = mix(vec3(0.30, 0.22, 0.085), vec3(0.075, 0.12, 0.035), smoothstep(0.45, 0.9, moist + (gn - 0.5) * 0.3));
+	gcol = mix(vec3(0.22, 0.20, 0.13), gcol, smoothstep(0.15, 0.4, biome)) * (0.8 + 0.2 * (n3 * 0.5 + 0.5));
+	float cover = gdens * mix(0.3, 0.78, smoothstep(grass_fade * 0.4, grass_fade * 1.1, dist));
+	m.albedo = mix(m.albedo, gcol, cover);
+	m.rough = mix(m.rough, 0.92, cover);
+	m.nxy *= 1.0 - cover * 0.5;
+
 	// wetness (rain): darker, glossier, puddles in low flat spots
 	float wet = wetness * (0.6 + 0.4 * n3);
 	float puddle = wetness * smoothstep(0.55, 0.75, n3) * smoothstep(0.08, 0.0, slope) * (1.0 - m.height);
@@ -203,7 +219,7 @@ void fragment() {
 	vec3 nd = normalize(n + (t * m.nxy.x - b * m.nxy.y) * detail_fade);
 	nd = mix(nd, n, v_skirt);
 
-	ALBEDO = m.albedo;
+	ALBEDO = m.albedo * cloud_shade(v_world);
 	ROUGHNESS = clamp(m.rough, 0.04, 1.0);
 	AO = mix(1.0, m.ao, 0.8);
 	AO_LIGHT_AFFECT = 0.3;
