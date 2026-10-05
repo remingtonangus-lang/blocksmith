@@ -251,10 +251,20 @@ func _tick_weapons(_delta: float) -> void:
 		data["rocket_ammo"] = w.ammo[3]
 		data["rockets_live"] = G.fx.rockets_fired - int(data["r0"])
 		data["phase"] = 3
-	elif data["phase"] == 3 and (t > 8.0 or (t > 2.5 and G.fx.rockets.is_empty())):
+	elif data["phase"] == 3 and (t > 8.0 or (t > 2.5 and not _player_rocket_flying())):
+		# Rocket counts are global (gunships and soldiers fire them too): the launcher's own ammo says it fired.
 		var fired: int = data["fired"]
-		var ok: bool = fired >= 12 and fired <= 22 and float(data["climb"]) > 3.0 and int(data["rocket_ammo"]) == 0 and int(data["rockets_live"]) == 1 and G.fx.rockets.is_empty()
-		_done(ok, "carbine fired %d rounds in 1.5 s, view climbed %.1f deg; rockets launched %d, exploded %s" % [fired, data["climb"], data["rockets_live"], G.fx.rockets.is_empty()])
+		var gone := not _player_rocket_flying()
+		var ok: bool = fired >= 12 and fired <= 22 and float(data["climb"]) > 3.0 and int(data["rocket_ammo"]) == 0 and int(data["rockets_live"]) >= 1 and gone
+		_done(ok, "carbine fired %d rounds in 1.5 s, view climbed %.1f deg; launcher empty %s, its rocket exploded %s" % [fired, data["climb"], int(data["rocket_ammo"]) == 0, gone])
+
+
+func _player_rocket_flying() -> bool:
+	var rid := G.player.get_rid()
+	for r in G.fx.rockets:
+		if (r[5] as Array).has(rid):
+			return true
+	return false
 
 
 # ---------------------------------------------------------------------------------------------- destroy
