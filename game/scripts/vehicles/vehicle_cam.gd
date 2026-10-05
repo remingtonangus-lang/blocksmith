@@ -50,6 +50,7 @@ func _process(delta: float) -> void:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(pivot, pivot + dir * want)
 	q.exclude = exclude
+	q.collision_mask = 0xFFFFFFFF & ~16   # not tree trunks (the camera pumped in and out driving through woods)
 	var hit := space.intersect_ray(q)
 	var d := want
 	if not hit.is_empty():

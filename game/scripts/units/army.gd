@@ -284,6 +284,13 @@ func _act(i: int, delta: float, player_p: Vector3) -> void:
 			var speed := 4.2 if run else 1.5
 			var step := d / dist * minf(speed * delta, dist)
 			p += step
+			# Round tree trunks; a goal next to a trunk counts as reached (it may lie inside it).
+			var veg: Node = G.world.vegetation
+			if veg:
+				var q: Vector3 = veg.avoid(p, 0.35)
+				if q != p and dist < 2.5:
+					goal[i] = q
+				p = q
 			yaw[i] = lerp_angle(yaw[i], atan2(-d.x, -d.z), 1.0 - exp(-delta * 6.0))
 			phase[i] += delta * (1.45 if run else 0.9)
 			state[i] = S_RUN if run else S_WALK

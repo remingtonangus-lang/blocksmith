@@ -45,7 +45,7 @@ func build(f: int, mat: Material) -> void:
 	linear_damp = 0.05
 	angular_damp = 1.2
 	collision_layer = 4
-	collision_mask = 1 | 2 | 4
+	collision_mask = 1 | 2 | 4 | 16
 	continuous_cd = true
 	can_sleep = false
 	var main := Kit.STONE if f == 0 else Kit.OLIVE

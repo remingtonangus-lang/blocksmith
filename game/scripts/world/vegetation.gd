@@ -38,6 +38,16 @@ var grass_mat: ShaderMaterial
 var _baked := false
 var extra := {}                   # Vector2i tree cell -> Array of placed trees (cities, gardens)
 var exclude: Array = []           # [Vector2 centre, radius]: no wild trees inside (city podiums)
+# Trunks: trees had no collision (the player, crawlers, bullets and the battle's soldiers went through them).
+# Each near cell's build also returns its trunks in 8 m buckets ({Vector2i: [x, z, r, ...]}); cells near the player
+# get a static physics body of shared cylinders on TRUNK_LAYER, and soldiers step around trunks via avoid().
+const TRUNK_LAYER := 16
+const TRUNK_R := [0.46, 0.6, 0.31, 0.0]       # base radius at scale 1: spruce, broadleaf, birch, bush (none)
+const TRUNK_BUCKET := 8.0
+const TRUNK_BODY_R := 60.0                     # cells whose square comes this close to the player get a body
+var trunks := {}                  # Vector2i cell -> {Vector2i bucket: PackedFloat32Array}
+var _tbodies := {}                # Vector2i cell -> body RID
+var _tshapes := {}                # quantised radius -> cylinder shape RID
 
 
 func setup(g: WorldGen) -> void:
@@ -286,6 +296,7 @@ func _process(delta: float) -> void:
 	_collect()
 	_update_solo(p)
 	_rebuild_supers()
+	_update_trunk_bodies()
 	if _t > 0.2:
 		_t = 0.0
 		_stream(p, false)
@@ -315,6 +326,7 @@ func _stream(p: Vector3, sync: bool) -> void:
 	for k in near.keys():
 		if not want_near.has(k):
 			near.erase(k)
+			trunks.erase(k)
 			_dirty[_super_of(k)] = true
 	for k in imps.keys():
 		if not want_imp.has(k):
@@ -350,7 +362,8 @@ func _stream(p: Vector3, sync: bool) -> void:
 func _build_task(kind: String, k: Vector2i) -> void:
 	var data: Variant
 	if kind == "n":
-		data = _near_buffers(cell_trees(k))
+		var list := cell_trees(k)
+		data = [_near_buffers(list), _trunk_buckets(list)]
 	else:
 		var trees := []
 		var per := int(ICELL / CELL)
@@ -377,13 +390,140 @@ func _collect() -> void:
 		if kind == "n":
 			if near.has(k):
 				continue
-			near[k] = done[key]
+			near[k] = done[key][0]
+			trunks[k] = done[key][1]
 			_dirty[_super_of(k)] = true
 		else:
 			if imps.has(k):
 				continue
 			var mmi := _make_imp(done[key])
 			imps[k] = mmi
+
+
+## Trunks of a cell in 8 m buckets; a trunk goes in every bucket its disc (plus a soldier's radius) touches, so a
+## lookup reads one bucket.
+func _trunk_buckets(trees: Array) -> Dictionary:
+	var out := {}
+	for t in trees:
+		var r: float = TRUNK_R[t[0]]
+		if r <= 0.0:
+			continue
+		var tr: Transform3D = t[2]
+		r *= tr.basis.get_scale().x
+		var o := tr.origin
+		var reach := r + 0.5
+		for bz in range(floori((o.z - reach) / TRUNK_BUCKET), floori((o.z + reach) / TRUNK_BUCKET) + 1):
+			for bx in range(floori((o.x - reach) / TRUNK_BUCKET), floori((o.x + reach) / TRUNK_BUCKET) + 1):
+				var b := Vector2i(bx, bz)
+				if not out.has(b):
+					out[b] = PackedFloat32Array()
+				var a: PackedFloat32Array = out[b]
+				a.append_array([o.x, o.z, r])
+				out[b] = a
+	return out
+
+
+## Pushes a walker at p (radius `rad`) out of any trunk and slides it round: returns the corrected position. The
+## sideways nudge keeps a soldier heading straight at a trunk from stopping dead behind it.
+func avoid(p: Vector3, rad: float) -> Vector3:
+	var k := Vector2i(floori(p.x / CELL), floori(p.z / CELL))
+	var cell: Variant = trunks.get(k)
+	if cell == null:
+		return p
+	var a: Variant = (cell as Dictionary).get(Vector2i(floori(p.x / TRUNK_BUCKET), floori(p.z / TRUNK_BUCKET)))
+	if a == null:
+		return p
+	var arr: PackedFloat32Array = a
+	for j in range(0, arr.size(), 3):
+		var dx := p.x - arr[j]
+		var dz := p.z - arr[j + 1]
+		var rr := arr[j + 2] + rad
+		var d2 := dx * dx + dz * dz
+		if d2 >= rr * rr:
+			continue
+		var d := sqrt(d2)
+		if d < 0.001:
+			dx = 1.0
+			dz = 0.0
+			d = 1.0
+		var push := rr - d
+		# Out along the normal, plus as much along the tangent (always the same hand, so it does not dither).
+		p.x += (dx - dz) / d * push
+		p.z += (dz + dx) / d * push
+	return p
+
+
+## Static trunk colliders for the cells around the player (or the camera when there is none).
+func _update_trunk_bodies() -> void:
+	if (G.frame % 10) != 0:
+		return
+	var anchor: Vector3
+	if G.player and is_instance_valid(G.player):
+		anchor = (G.player as Node3D).global_position
+		var v: Variant = G.player.get("vehicle")
+		if v is Node3D and is_instance_valid(v):
+			anchor = (v as Node3D).global_position
+	else:
+		var cam := get_viewport().get_camera_3d()
+		if cam == null:
+			return
+		anchor = cam.global_position
+	var want := {}
+	var cc := Vector2i(floori(anchor.x / CELL), floori(anchor.z / CELL))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var k := cc + Vector2i(dx, dz)
+			var qx := clampf(anchor.x, k.x * CELL, (k.x + 1) * CELL)
+			var qz := clampf(anchor.z, k.y * CELL, (k.y + 1) * CELL)
+			if Vector2(qx - anchor.x, qz - anchor.z).length() < TRUNK_BODY_R and trunks.has(k):
+				want[k] = true
+	for k in _tbodies.keys():
+		if not want.has(k):
+			PhysicsServer3D.free_rid(_tbodies[k])
+			_tbodies.erase(k)
+	# One new body per update (up to ~300 shapes each), the player's own cell first.
+	if want.has(cc) and not _tbodies.has(cc):
+		_tbodies[cc] = _trunk_body(cc)
+		return
+	for k in want:
+		if not _tbodies.has(k):
+			_tbodies[k] = _trunk_body(k)
+			return
+
+
+func _trunk_body(k: Vector2i) -> RID:
+	var body := PhysicsServer3D.body_create()
+	PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
+	PhysicsServer3D.body_set_space(body, get_world_3d().space)
+	PhysicsServer3D.body_set_collision_layer(body, TRUNK_LAYER)
+	PhysicsServer3D.body_set_collision_mask(body, 0)
+	var seen := {}
+	for b in trunks[k]:
+		var arr: PackedFloat32Array = trunks[k][b]
+		for j in range(0, arr.size(), 3):
+			var x := arr[j]
+			var z := arr[j + 1]
+			var tk := Vector2(x, z)
+			if seen.has(tk):
+				continue
+			seen[tk] = true
+			var q := clampi(roundi(arr[j + 2] * 20.0), 3, 30)
+			if not _tshapes.has(q):
+				var sh := PhysicsServer3D.cylinder_shape_create()
+				PhysicsServer3D.shape_set_data(sh, {"radius": q / 20.0, "height": 9.0})
+				_tshapes[q] = sh
+			var y := gen.height_at(x, z)
+			PhysicsServer3D.body_add_shape(body, _tshapes[q], Transform3D(Basis.IDENTITY, Vector3(x, y + 3.5, z)))
+	return body
+
+
+func _exit_tree() -> void:
+	for k in _tbodies:
+		PhysicsServer3D.free_rid(_tbodies[k])
+	_tbodies.clear()
+	for q in _tshapes:
+		PhysicsServer3D.free_rid(_tshapes[q])
+	_tshapes.clear()
 
 
 ## Per species/variant transform buffers (12 floats + 4 custom per instance).

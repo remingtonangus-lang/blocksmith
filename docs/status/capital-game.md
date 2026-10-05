@@ -17,8 +17,8 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 82 headless tests and 8 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
-    destroy, stand), 33 screenshots on lavapipe, a 60 s smoke test;
+  - every push: 86 headless tests and 10 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+    destroy, trees, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
 - Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 33-38 / 31 / 35 fps. Numbers from
@@ -125,6 +125,25 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 11:10: tree trunks are solid. Measured: the new `trees` scenario walked the player 9.4 m through a
+  broadleaf; a battle shot showed a soldier standing inside a spruce. Each near cell's worker build now also
+  returns its trunks in 8 m buckets. Cells within 60 m of the player (or their vehicle) get one static body of
+  shared cylinders on physics layer 16, one new body per 10 frames. The player, crawlers, bullets and grenades
+  collide with it; wheel rays and the vehicle camera's spring arm ignore it. Soldiers step round trunks with
+  `Vegetation.avoid()` (0.87 us per call, so under 1 ms at the 900-soldier cap). Now the player stops at the bark
+  (1.04 m from the axis of a 0.68 m trunk). All 10 scenarios pass.
+- 2026-10-05 10:40: the overcast sky looked clear. Measured on the mountains shot: overcast (cover 0.82) showed
+  less cloud than clear. A thick deck shades itself to black, and its only remaining light was the blue zenith
+  ambient, so it read as blue sky. Fixes:
+  - cloud interiors get a grey multiple-scattering ambient and a soft sun octave that survives self-shadow;
+  - past the 25-60 km marched range the deck fades toward its average look, not clear sky (front_line had a gold
+    band under the overcast);
+  - the sun and moon discs dim by the clouds actually in front of them (the half-res pass passes transmittance in
+    alpha);
+  - the noon horizon is pale, not gold (same single-scattering gap; only with the sun high, so sunsets keep colour);
+  - coverage remapped so that clear is mostly blue.
+  Clear, cloudy and overcast now step visibly. battle_ground frames the fight over a Capital soldier's shoulder
+  (it often faced an empty slope).
 - 2026-10-05 09:35: GAME BUILD READY 57ae121 (capital-latest, 09:13 UTC). Adds the options menu (Esc / Menu) and
   the 1200 m tree line. CI Mac (paravirtual, High): city 38.1 fps (p99 50.8 ms), battle 32.9 (p99 49.1),
   forest 38.5 (p99 36.4); draws 276 / 657 / 330.

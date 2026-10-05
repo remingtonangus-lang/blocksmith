@@ -100,7 +100,7 @@ func _physics_process(delta: float) -> void:
 func _trace(space: PhysicsDirectSpaceState3D, a: Vector3, b: Vector3, exclude: Array) -> Dictionary:
 	var q := PhysicsRayQueryParameters3D.create(a, b)
 	q.exclude = exclude
-	q.collision_mask = 1 | 2 | 4
+	q.collision_mask = 1 | 2 | 4 | 16
 	var hit := space.intersect_ray(q)
 	if not hit.is_empty():
 		return hit

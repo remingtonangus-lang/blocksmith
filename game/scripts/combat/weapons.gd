@@ -265,7 +265,7 @@ func _throw(p: Player) -> void:
 	var g := RigidBody3D.new()
 	g.mass = 0.6
 	g.collision_layer = 0
-	g.collision_mask = 1 | 4
+	g.collision_mask = 1 | 4 | 16
 	g.continuous_cd = true
 	var cs := CollisionShape3D.new()
 	var sp := SphereShape3D.new()

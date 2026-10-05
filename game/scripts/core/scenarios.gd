@@ -7,6 +7,8 @@ extends Node
 ##   battle    run the front for 60 s: both sides must fire and take casualties, nobody stuck under ground
 ##   weapons   on foot: the carbine fires at its rate with view climb; a rocket launches and explodes on the ground
 ##   destroy   shell a tower until it falls: it must fracture into falling rigid pieces and lose its collision
+##   trees     walk into a broadleaf trunk in the forest for 3 s: the player must stop at its bark; a soldier
+##             placed inside a trunk is pushed out
 ## Prints "scenario NAME: PASS/FAIL ..." and quits with the number of failures.
 
 var queue: Array = []
@@ -408,6 +410,72 @@ func _tick_stand(_delta: float) -> void:
 		if absf(q.y - g) > 1.0:
 			(data["bad"] as Array).append("%s (%.1f m off)" % [sites[data["i"]], q.y - g])
 		_stand_next()
+
+
+# ------------------------------------------------------------------------------------------------ trees
+
+## Trees had no collision: the player walked through trunks. Walk at a lone broadleaf in the forest.
+func _setup_trees() -> void:
+	_leave_vehicle()
+	G.player.invulnerable = true
+	var veg: Node = G.world.vegetation
+	var f: Vector3 = G.world.site("forest")
+	var c := Vector2i(floori(f.x / 128.0), floori(f.z / 128.0))
+	var trees: Array = veg.cell_trees(c)
+	var pick: Array = []
+	for tr in trees:
+		if tr[0] != TreeBuilder.BROADLEAF:
+			continue
+		var o: Vector3 = (tr[2] as Transform3D).origin
+		# Open ground in front (no other trunk within 6 m) and gentle slope, so only this trunk is in the way.
+		var crowded := false
+		for u in trees:
+			var q: Vector3 = (u[2] as Transform3D).origin
+			if u != tr and u[0] != TreeBuilder.BUSH and Vector2(q.x - o.x, q.z - o.z).length() < 6.0:
+				crowded = true
+				break
+		if not crowded and G.gen.slope_at(o.x, o.z) < 0.25:
+			pick = tr
+			break
+	if pick.is_empty():
+		_done(false, "no lone broadleaf in the forest cell")
+		return
+	var o: Vector3 = (pick[2] as Transform3D).origin
+	var start := Vector3(o.x + 4.0, 0.0, o.z)
+	var p: Player = G.player
+	G.world.focus(start)
+	G.terrain.collision_now(start)
+	p.global_position = Vector3(start.x, G.world.surface_at(start.x, start.z) + 0.05, start.z)
+	p.velocity = Vector3.ZERO
+	p.rotation.y = atan2(4.0, 0.0)      # facing -x, at the trunk
+	p.pitch = 0.0
+	data["o"] = o
+	var radii: Array = (veg.get_script() as Script).get_script_constant_map()["TRUNK_R"]
+	data["r"] = float(radii[TreeBuilder.BROADLEAF]) * (pick[2] as Transform3D).basis.get_scale().x
+	data["min_x"] = 1e9
+	data["phase"] = 0
+
+
+func _tick_trees(_delta: float) -> void:
+	var p: Player = G.player
+	var o: Vector3 = data["o"]
+	if data["phase"] == 0 and t > 1.0:
+		p.rotation.y = atan2(4.0, 0.0)
+		Input.action_press("move_forward")
+		data["phase"] = 1
+	elif data["phase"] == 1:
+		data["min_x"] = minf(data["min_x"], p.global_position.x - o.x)
+		if t > 4.0:
+			Input.action_release("move_forward")
+			var r: float = data["r"]
+			var veg: Node = G.world.vegetation
+			var inside: Vector3 = veg.avoid(o + Vector3(0.1, 0.0, 0.05), 0.35)
+			var out_d := Vector2(inside.x - o.x, inside.z - o.z).length()
+			var gap: float = data["min_x"]
+			# The capsule (0.35 m) must stop at the bark: centre at least r + 0.2 from the trunk axis, on our side.
+			var ok := gap > r + 0.2 and out_d >= r + 0.34
+			G.player.invulnerable = false
+			_done(ok, "trunk radius %.2f m: closest approach %.2f m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to %.2f m" % [r, gap, out_d])
 
 
 # ------------------------------------------------------------------------------------------------- menu
