@@ -1654,6 +1654,7 @@ if let f = arg("--namecheck") {
     print("namecheck: \(n) names, \(bad) unknown")
     exit(n > 0 && bad == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }

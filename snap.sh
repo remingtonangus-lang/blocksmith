@@ -39,6 +39,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --genbench --seed 12345
 "$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18 --strict
 python3 tools/namecheck.py > snaps/names.txt && "$BIN" --namecheck snaps/names.txt      # gating: every literal Items.id / Blocks.id name exists
+"$BIN" --fidelitycheck      # gating: break times, blast resistances and hardness match the reference
 # Structure walkability: every structure kind in every dimension, 3 seeds x 3 instances (report: snaps/structcheck.md).
 "$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md --strict      # gating: 0 issues on runs 634 and 076df09
 # Issue gallery: the first ten structcheck views, from the walk's closest cell toward an unreachable chest or bed.

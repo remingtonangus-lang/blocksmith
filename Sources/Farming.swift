@@ -34,7 +34,7 @@ extension Game {
             n += 1
             let b = world.block(p.x, p.y, p.z)
             guard Blocks.key(b).hasSuffix("leaves"), !placedLeaves.contains(p) else { continue }
-            if !logNearby(p, radius: 4) {
+            if !logNearby(p, radius: 6) {          // reference: leaves live up to 6 steps from a log (4 stripped big canopies)
                 world.setBlock(p.x, p.y, p.z, AIR)
                 for s in Mining.drops(b, .empty) { drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
             }
@@ -63,7 +63,7 @@ extension Game {
     }
 
     func queueLeafDecay(around p: IVec3) {
-        for dy in -4...4 { for dz in -4...4 { for dx in -4...4 {
+        for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
             if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
         } } }
@@ -450,7 +450,9 @@ extension Game {
             var dmg = 0
             var cause = ""
             if inLava { dmg = 4; cause = "tried to swim in lava"; onFire = 15 }
-            else if feet == FIRE || body == FIRE || Blocks.key(feet) == "soul_fire" { dmg = 1; cause = "went up in flames"; onFire = max(onFire, 8) }
+            else if feet == FIRE || body == FIRE || Blocks.key(feet) == "soul_fire" {
+                dmg = Blocks.key(feet) == "soul_fire" ? 2 : 1; cause = "went up in flames"; onFire = max(onFire, 8)     // soul fire 2 (reference)
+            }
             else if Blocks.key(under) == "magma_block" && !player.sneaking && player.onGround { dmg = 1; cause = "discovered the floor was lava" }
             else {
                 // Cactus: touching any side.
@@ -467,7 +469,8 @@ extension Game {
         if onFire > 0 {
             onFire -= dt
             fireDamageTimer -= dt
-            if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death", type: .fire) }
+            // Burning ignores armour (reference): through it, 1 a second rounded to 0 for anyone in iron and wore the armour.
+            if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death", bypassArmor: true, type: .fire) }
             if effects.has(.fireResistance) && !player.inWater { onFire = min(onFire, 0.5) }
         }
     }

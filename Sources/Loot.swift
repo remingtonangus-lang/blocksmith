@@ -124,6 +124,18 @@ enum Mining {
         case "nether_wart": return one("nether_wart", stage == 3 ? rnd(2, 4) : 1)
         case "tripwire": return one("string")
         case "composter": return one("composter") + (stage == 8 ? one("bone_meal") : [])
+        // Reference block loot that isn't the block itself (they all fell through to the block's own item; Silk Touch
+        // still gives the block, in enchantedDrops). By group, so every state (lit / unlit, age) is covered.
+        case "nether_quartz_ore": return one("quartz")
+        case "nether_gold_ore": return one("gold_nugget", rnd(2, 6))
+        case "bookshelf": return one("book", 3)
+        case "sea_lantern": return one("prismarine_crystals", rnd(2, 3))
+        case "campfire": return one("charcoal", 2)
+        case "soul_campfire": return one("soul_soil")
+        case "ender_chest": return one("obsidian", 8)
+        case "podzol", "mycelium", "dirt_path", "farmland": return one("dirt")
+        case "cocoa": return one("cocoa_beans", stage >= 2 ? 3 : 1)
+        case _ where gkey.hasSuffix("_stained_glass") || gkey.hasSuffix("_stained_glass_pane"): return []
         default: break
         }
         switch key {
@@ -146,7 +158,10 @@ enum Mining {
             if shears { return one(key) }
             return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
         case "tall_grass", "large_fern", "dead_bush", "seagrass", "vine":
-            return shears ? one(Blocks.key(Blocks.groupBase[Int(b)])) : (key == "dead_bush" ? one("stick", rnd(0, 2)) : [])
+            if shears { return one(Blocks.key(Blocks.groupBase[Int(b)])) }
+            if key == "dead_bush" { return one("stick", rnd(0, 2)) }
+            if (key == "tall_grass" || key == "large_fern") && Rand.float(in: 0..<1) < 0.125 { return one("wheat_seeds") }     // reference
+            return []
         case "melon": return one("melon_slice", rnd(3, 7))
         case "creaking_heart": return one("resin_clump", rnd(1, 3))
         case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))

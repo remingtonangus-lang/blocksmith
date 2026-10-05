@@ -902,7 +902,10 @@ final class Game {
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
-                        damageHeld(held.def.tool == .sword ? 2 : 1)
+                        // Only tools wear, and only on blocks with some hardness (shears on anything they cut): a bow or a
+                        // rod in hand, or a pickaxe through grass and torches, lost durability before (reference).
+                        let tl = held.isEmpty ? ToolType.none : held.def.tool
+                        if tl != .none && (Blocks.hardness[Int(b)] > 0 || tl == .shears) { damageHeld(tl == .sword ? 2 : 1) }
                         mining = nil
                         mineProgress = 0
                         breakCooldown = secs <= 0 ? 0 : 0.3
@@ -1923,7 +1926,7 @@ final class Game {
             }
         } else {
             if turtle && !player.headInWater { applyEffect(.waterBreathing, amp: 0, seconds: 10) }
-            air = min(15, air + Float(dt) * 5)
+            air = min(15, air + Float(dt) * 4)                 // 4 ticks of air back per tick (reference)
             drownTimer = 0
         }
     }

@@ -100,6 +100,9 @@ final class ItemRegistry {
             var d = ItemDef(bd.name, bd.display)
             d.block = BlockID(b)
             if bd.sound == .wood { d.fuelTicks = 300 }
+            // Reference stack sizes for block items: beds, cake and shell boxes 1, signs 16.
+            if bd.name.hasSuffix("_bed") || bd.name == "cake" || bd.name.hasSuffix("shulker_box") { d.maxStack = 1 }
+            if bd.name.hasSuffix("_sign") { d.maxStack = 16 }
             if bd.shape == "banner" {
                 d.sprite = Sprite(mask: "banner", base: BlockRegistry.colorHex[String(bd.name.dropLast(7))] ?? 0xFFFFFF, extras: [:])
                 d.maxStack = 16
@@ -229,7 +232,7 @@ final class ItemRegistry {
         item("experience_bottle", "Bottle o' Enchanting", "bottle", 0xD0DCF0, ["c": 0x7ED957])
         item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, ["c": 0xE8C850], stack: 1)
         item("nether_star", "Blight Star", "star", 0xF0F0FF)
-        item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A])
+        item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A], stack: 1)
         item("turtle_scute", "Turtle Scute", "scute", 0x4A9A3A)
         item("ink_sac", "Ink Sac", "sac", 0x1A1A2A)
         item("glow_ink_sac", "Glow Ink Sac", "sac", 0x4AE8C8)
@@ -265,7 +268,7 @@ final class ItemRegistry {
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
         item("brush", "Brush", "brush", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
         item("echo_shard", "Resonant Shard", "crystal", 0x0A4A58)
-        item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A], stack: 1)
+        item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A])
         item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
         item("mace", "Mace", "mace", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
