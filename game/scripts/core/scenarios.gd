@@ -7,6 +7,7 @@ extends Node
 ##   battle    run the front for 60 s: both sides must fire and take casualties, nobody stuck under ground
 ##   weapons   on foot: the carbine fires at its rate with view climb; a rocket launches and explodes on the ground
 ##   destroy   shell a tower until it falls: it must fracture into falling rigid pieces and lose its collision
+##   parked    the spawn's empty crawlers must not move between 5 s and 35 s (they crept 0.4 m per 30 s)
 ##   trees     walk into a broadleaf trunk in the forest for 3 s: the player must stop at its bark; a soldier
 ##             placed inside a trunk is pushed out
 ## Prints "scenario NAME: PASS/FAIL ..." and quits with the number of failures.
@@ -410,6 +411,52 @@ func _tick_stand(_delta: float) -> void:
 		if absf(q.y - g) > 1.0:
 			(data["bad"] as Array).append("%s (%.1f m off)" % [sites[data["i"]], q.y - g])
 		_stand_next()
+
+
+# ----------------------------------------------------------------------------------------------- parked
+
+## Empty vehicles must stay where they were parked (the vehicles_spawn shot found the spawn crawlers gone).
+func _setup_parked() -> void:
+	_leave_vehicle()
+	var sp: Vector3 = G.world.site("spawn")
+	var list: Array = []
+	for c in G.vehicles.crawlers:
+		if c.driver == null and not c.has_meta("patrol") and (c as Node3D).global_position.distance_to(sp) < 80.0:
+			list.append([c, (c as Node3D).global_position])
+	data["list"] = list
+	# The player stands nearby (the collision window and trunk bodies follow the player).
+	var p: Player = G.player
+	p.global_position = Vector3(sp.x - 6.0, G.world.surface_at(sp.x - 6.0, sp.z + 30.0) + 0.05, sp.z + 30.0)
+	p.velocity = Vector3.ZERO
+	G.terrain.collision_now(p.global_position)
+	if list.is_empty():
+		_done(false, "no parked crawler near the spawn")
+
+
+func _tick_parked(_delta: float) -> void:
+	# From 5 s (after the drop onto the ground at spawn) to 35 s.
+	if t < 5.0:
+		return
+	if not data.has("t5"):
+		data["t5"] = true
+		for e in data["list"]:
+			if is_instance_valid(e[0]):
+				e[1] = (e[0] as Node3D).global_position
+		return
+	if t < 35.0:
+		return
+	var worst := 0.0
+	var msg: Array = []
+	for e in data["list"]:
+		var c: Node3D = e[0]
+		if not is_instance_valid(c):
+			msg.append("destroyed")
+			worst = 1e9
+			continue
+		var d := c.global_position.distance_to(e[1])
+		worst = maxf(worst, d)
+		msg.append("%.2f m (up %.2f)" % [d, c.global_transform.basis.y.y])
+	_done(worst < 0.05, "%d spawn crawlers moved %s in 30 s" % [(data["list"] as Array).size(), ", ".join(msg)])
 
 
 # ------------------------------------------------------------------------------------------------ trees

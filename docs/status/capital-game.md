@@ -17,8 +17,8 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 86 headless tests and 10 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
-    destroy, trees, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
+  - every push: 86 headless tests and 11 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+    destroy, parked, trees, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
 - Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 33-38 / 31 / 35 fps. Numbers from
@@ -125,6 +125,14 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 13:30: parked crawlers crept downhill. The new `parked` scenario measured 0.43 m and 0.25 m per 30 s:
+  rolling resistance and grip scale with speed and fade to nothing at a crawl. Now, below 1.5 m/s with no
+  throttle, the crawler holds:
+  - the wheels apply stiff static friction plus their share of the slope's pull;
+  - a critically damped spring holds the spot where the hold began (horizontal, capped at 0.9 g). It absorbs
+    the small residual from wheels sitting on different terrain facets, which a slope term cannot see.
+  Both crawlers now move 0.00 m; drive (116 m) and ride are unchanged; all 11 scenarios pass. vehicles_spawn is
+  framed closer: the crawlers sat 31 m away behind tall grass.
 - 2026-10-05 12:40: GAME BUILD READY 60b25d8 (capital-latest, 12:23 UTC). Since 95849c0:
   - graphite view-model sleeves;
   - dusk clouds lit by the sky glow, night clouds cool grey;

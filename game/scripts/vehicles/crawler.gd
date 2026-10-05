@@ -26,6 +26,8 @@ var muzzle: Node3D
 var fire_t := 0.0
 var lights: Array[SpotLight3D] = []
 var path := PackedVector3Array()
+var _hold_n := 6
+var _anchor := Vector3(1e9, 0, 0)
 var path_i := 0
 var ai_speed := 11.0
 var hp := 1400.0
@@ -267,6 +269,13 @@ func _physics_process(delta: float) -> void:
 	var k := per * 9.81 / 0.25
 	var c := 2.0 * sqrt(k * per) * 0.45
 	_grounded = 0
+	# Hold (parked, or stopped with no throttle): static friction cancels what is left of the motion in about two
+	# steps. Rolling resistance and grip scale with speed, so they faded to nothing at a crawl and gravity crept
+	# empty crawlers down gentle slopes (the parked scenario measured 0.4 m per 30 s).
+	var hold := absf(throttle) < 0.05 and linear_velocity.length() < 1.5
+	# Each grounded wheel holds its share of the weight against the slope along its own ground plane (the body
+	# sits level on its springs, so the slope is only seen at the wheels); shares by last step's grounded count.
+	var share := mass / float(maxi(_hold_n, 1))
 	for i in WHEELS.size():
 		var mount: Vector3 = global_transform * (WHEELS[i] + Vector3(0, REST, 0))
 		var down := -global_transform.basis.y
@@ -298,15 +307,34 @@ func _physics_process(delta: float) -> void:
 		var vel := linear_velocity + angular_velocity.cross(at)
 		var lat := vel.dot(wright)
 		var lon := vel.dot(wfwd)
-		var grip := minf(fz * 1.1, absf(lat) * per * 4.0)
-		apply_force(-wright * signf(lat) * grip, at)
+		if hold:
+			var f_lat := -lat * per * 0.5 / delta + 9.81 * share * wright.y
+			apply_force(wright * clampf(f_lat, -fz * 1.1, fz * 1.1), at)
+		else:
+			var grip := minf(fz * 1.1, absf(lat) * per * 4.0)
+			apply_force(-wright * signf(lat) * grip, at)
 		var speed := -linear_velocity.dot(global_transform.basis.z)
 		var drive := 0.0
 		if absf(speed) < MAX_SPEED * (1.35 if Input.is_action_pressed("boost") and driver else 1.0):
 			drive = throttle * ENGINE / 6.0
-		if brake or (absf(throttle) < 0.05):
+		if hold:
+			drive = clampf(-lon * per * 0.5 / delta + 9.81 * share * wfwd.y, -fz * 0.9, fz * 0.9)
+		elif brake or (absf(throttle) < 0.05):
 			drive = -signf(lon) * minf(absf(lon) * per * 1.2, fz * (0.9 if brake else 0.12))
 		apply_force(wfwd * drive, at)
+	_hold_n = _grounded
+	# Static brake: a stiff, critically damped spring to where the hold began, horizontal and capped at 0.9 g. The
+	# six wheels sit on different terrain facets, so their normal forces leave a small sideways residual no slope
+	# term sees; the anchor absorbs any steady push in a few millimetres instead of a creep.
+	if hold and _grounded >= 3:
+		if _anchor.x > 1e8 or global_position.distance_to(_anchor) > 0.5:
+			_anchor = global_position
+		var off := global_position - _anchor
+		var f := -off * mass * 40.0 - linear_velocity * mass * 12.6
+		f.y = 0.0
+		apply_central_force(f.limit_length(mass * 9.81 * 0.9))
+	else:
+		_anchor = Vector3(1e9, 0, 0)
 	# Keep it upright-ish in the air.
 	if _grounded == 0:
 		apply_torque(global_transform.basis.y.cross(Vector3.UP) * mass * 6.0)

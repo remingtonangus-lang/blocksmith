@@ -335,7 +335,7 @@ func shot_list() -> Array:
 		{"name": "troops_lineup", "fov": 32.0, "pos": _open_spot(fr, 900.0) + Vector3(12, 1.3, 0), "look": _open_spot(fr, 900.0) + Vector3(0, 0.9, 0), "hour": 11.0, "weather": "clear", "setup": func(): G.battle.lineup(_open_spot(fr, 900.0), _open_spot(fr, 900.0) + Vector3(6, 0, 0))},
 		{"name": "road_bridge", "pos": Vector3(1690, 46, 880), "look": Vector3(1632, 24, 774), "hour": 13.0, "weather": "clear"},
 		{"name": "pass_road", "pos": _along_road("Pass Road", 0.55, -14, 9.0, 12.0), "look": _along_road("Pass Road", 0.55, 14, 0.0, 1.0), "hour": 10.0, "weather": "clear"},
-		{"name": "vehicles_spawn", "pos": sp + Vector3(-6, 3.5, 30), "look": sp + Vector3(22, 1.5, 2), "hour": 10.0, "weather": "clear"},
+		{"name": "vehicles_spawn", "pos": sp + Vector3(6, 2.8, 18), "look": sp + Vector3(22, 1.2, 2), "hour": 10.0, "weather": "clear"},
 		{"name": "frigate", "pos": ct + Vector3(-160, 300, 470), "look": ct + Vector3(0, 262, 300), "hour": 15.0, "weather": "cloudy", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},
 		{"name": "frigate_deck", "pos": ct + Vector3(-6, 272, 360), "look": ct + Vector3(0, 280, 300), "hour": 15.5, "weather": "clear", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},
 		{"name": "gunship_pad", "pos": ct + Vector3(-50, 16, 20), "look": ct + Vector3(-80, 8, -10), "hour": 11.0, "weather": "clear"},
