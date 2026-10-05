@@ -126,6 +126,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 23:55: impostor trim. Second tree-split sample (run 55, battle base 16.96 ms): vegetation 8.41, grass 2.85,
+  trees: impostors 1.64, near 0.39, shadow proxies -0.19, so impostors are the largest tree cost twice (1.85,
+  1.64). The impostor vertex shader now (a) keeps a stable hashed subset of the cards beyond 1200 m (down to 30 % at
+  tree_far), each kept card grown by 1/sqrt(keep) so the forest covers the same area (far cards are a pixel or less
+  wide), and (b) goes back to model space with a transpose over the squared scales instead of two
+  inverse(MODEL_MATRIX) per vertex. Shots overview / mountains / fort_lumen / battle_wide before and after: mean
+  pixel difference 1.8 / 0.2 / 1.1 / 0.5 (of 255), no visible thinning. The next CI ablation measures it.
 - 2026-10-05 23:15: run 54 (9b154d2): all jobs green but publish (the shots push got HTTP 408 from GitHub after
   7 min; failed job re-run once). Tree split of the GPU ablation, first sample (battle, base 17.42 ms): vegetation
   4.90 = trees: impostors 1.85 + trees: near 0.73 + grass 3.71 (overlapping groups), trees: shadow proxies 0.00.
