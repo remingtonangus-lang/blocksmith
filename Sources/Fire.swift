@@ -18,6 +18,8 @@ struct FireStats {
 
 extension World {
     static let fireCap = 1500
+    // Magma keeps a fire on it burning (looked up once: a name compare per burning cell per tick before).
+    static let magmaID: BlockID = Blocks.has("magma_block") ? Blocks.id("magma_block") : BlockID.max
 
     func placeFire(_ p: IVec3) {
         guard Blocks.replaceable[Int(block(p.x, p.y, p.z))], !Blocks.isLiquid(block(p.x, p.y, p.z)) else { return }
@@ -39,6 +41,7 @@ extension World {
         let fl = Blocks.flammable, kindT = Wear.kind
         let cube = RenderType.cube.rawValue
         let charcoal = Wear.charcoal, smolder = Wear.smolder
+        let magma = World.magmaID
         let ws = simd_length(V2(wind.x, wind.z))
         let wd = ws > 0.01 ? V2(wind.x, wind.z) / ws : V2(0, 0)
         let windK = min(1, ws / 15)                     // 0 calm ... 1 gale
@@ -47,10 +50,11 @@ extension World {
             if b != FIRE { fires.removeValue(forKey: p); continue }
             if !isLoaded(p.x, p.z) { continue }
             let below = block(p.x, p.y - 1, p.z)
-            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
-            // Rain puts out fires open to the sky (lightning fires get a few ticks: 1 in 4 per tick).
+            let eternal = below == NETHERRACK || below == magma
+            // Rain puts out fires open to the sky (lightning fires get a few ticks: 1 in 4 per tick); not under glass
+            // (Chunk.rainTop).
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
-               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<4) == 0 {
+               p.y >= Int(c.rainTop[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<4) == 0 {
                 let bi = gen.column(p.x, p.z).biome
                 if !(bi == .desert || bi.isBadlands || bi == .savanna || bi == .savannaPlateau) {
                     setBlockAsync(p.x, p.y, p.z, AIR); fires.removeValue(forKey: p); continue
