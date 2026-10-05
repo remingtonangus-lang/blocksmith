@@ -136,13 +136,16 @@ extension Game {
             // Circles the spot (the citadel itself on lockdown) for 40 s, as long as the lockdown lasts.
             let centre = lockdown ? r.centre : goal
             // Low and tight over a noise (the door gunners' rifles reach about 26 blocks); wide over the citadel.
-            let radius: Float = lockdown ? 50 : 14
-            let a = t * (lockdown ? 0.22 : 0.3)
+            let radius: Float = lockdown ? 50 : 10
+            let a = t * (lockdown ? 0.22 : 0.35)
             let p = centre + V3(cosf(a) * radius, 0, sinf(a) * radius)
-            fm.hold = V3(p.x, airCruise(r, k.pos, p, clear: lockdown ? 22 : 14), p.z); fm.holdSpeed = 9
+            fm.hold = V3(p.x, airCruise(r, k.pos, p, clear: lockdown ? 22 : 10), p.z); fm.holdSpeed = 9
             if t > 40 && !lockdown { ph = 4; t = 0; b.note("\(r.key) kestrel heading back") }
         case 4:
-            fm.hold = V3(pad.x, airCruise(r, k.pos, pad), pad.z); fm.holdSpeed = overPad < 30 ? 6 : 14
+            // Up to the cruise height first, then across (low over a noise by the walls it flew into the citadel).
+            let cruise = airCruise(r, k.pos, pad)
+            if k.pos.y < cruise - 4 && overPad > 6 { fm.hold = V3(k.pos.x, cruise, k.pos.z); fm.holdSpeed = 3 }
+            else { fm.hold = V3(pad.x, cruise, pad.z); fm.holdSpeed = overPad < 30 ? 6 : 14 }
             if overPad < 2 && simd_length(k.vel) < 1.2 { ph = 5; t = 0; b.note("\(r.key) kestrel over the pad") }
             else if t > 150 {
                 // Stowed where it is rather than left hanging in the sky without a citadel flying it.
