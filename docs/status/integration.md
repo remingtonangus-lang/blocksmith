@@ -105,6 +105,8 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   list) were never written. Now nearest first, none past the fog; mobcheck crowd test; F3 / bug notes count drops.
   Also: 98d01b3 / 95b7d4f could not build (MobRenderCheck called Mob.swift's private parts()); cancelled 95b7d4f's
   run and pushed the fix; precheck now catches cross-file private calls and duplicate top-level functions.
+- 01:13 UTC: cancelled queued run 528 (8ac3d54 heavy; 525 had already finished) on this branch: superseded by 542 (2ab6bf7,
+  which contains it), and it held a macOS runner slot ahead of it.
 
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
