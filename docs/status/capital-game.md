@@ -125,6 +125,11 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 12:10: in fog, distant towers stood out as flat-topped grey blocks over a dark band (river_valley;
+  probed: Candor 3.2 km away, which should be about 97% fogged). Cause: fog and aerial perspective colour distant
+  geometry with the sky in its own direction, and the sky shader drew everything below the horizon 30% darker
+  in one step at 0 degrees. Below-horizon sky is now continuous with the horizon and darkens gradually down to
+  -8.6 degrees.
 - 2026-10-05 11:50: clouds at dusk rendered near-black against the glowing sky. Their only light was the zenith,
   which is dim after sunset. They now also take light from the sky around them, using the sky colour behind each
   cloud that is already computed (free; only while the sun is above about -10 degrees). Night clouds are tinted

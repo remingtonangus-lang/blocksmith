@@ -205,7 +205,10 @@ void sky() {
 			// Below the horizon (only seen past the ocean's far edge): the horizon colour, slightly darker.
 			vec3 hz = normalize(vec3(rd.x, 0.0, rd.z));
 			vec3 hc = scatter(hz, sun_dir, sun_intensity, h0) + scatter(hz, moon_dir, sun_intensity * moon_intensity, h0);
-			col = mix(vec3(dot(hc, vec3(0.333))), hc, 0.35) * 0.7;
+			// Continuous with the horizon at 0 degrees: fog and aerial perspective take this colour for distant
+			// ground just below the horizon line, and a step here drew a dark band with fogged towers standing
+			// out against the bright sky above it.
+			col = mix(hc, mix(vec3(dot(hc, vec3(0.333))), hc, 0.35) * 0.7, smoothstep(0.0, 0.15, -rd.y));
 		}
 		if (rd.y > -0.01) {
 			vec3 st = sun_transmittance(sun_dir) * smoothstep(-0.12, 0.05, sun_dir.y);
