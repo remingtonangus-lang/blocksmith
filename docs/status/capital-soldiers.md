@@ -116,3 +116,13 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   circles the noise 40 s (or the citadel while locked down), flies back, settles on the pad and is stowed. Pilot
   killed -> autopilot off, it falls, the citadel goes to alert. Saved: `air`, `airPhase`, `airT`, `airShip`,
   `airCD`; after a reload `FlightCrew.relink` buckles the crew still at the seats back in. Check: `--basetest air`.
+
+## Handoff (2026-10-05 12:20, paused for usage)
+- Merged into playtest: everything up to 22d6cd6 (citadels, aircraft, door gunners' first pass). Branch head carries
+  unmerged, mostly verified work: planeplayer + hand-flown attitude assist + turn coordinator, --basetest reload, crew
+  re-seat on load, throttle on landing wheels, door gunners (fire on a player below: green in d518b3f).
+- Open blocker before the next merge: since the low/tight circle (CapitalAir phase 3, radius 10, 10 over canopy) the
+  Kestrel fails to get home ("never made it back", 74 blocks off) in --basetest air/all and reload (run c320be2).
+  Commit 27363ee adds its height/cruise/speed/rotor to that log line; read focus.log of that run first. Suspects:
+  stuck in the canopy at the low circle, or the phase-4 climb branch.
+- Then: rebase on playtest, run [fast: ... --basetest all] + fastshots flighttest,basetest_reload, ff-merge if green.
