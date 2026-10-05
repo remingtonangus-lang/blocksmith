@@ -35,7 +35,7 @@ const BUILD_DIST := 750.0
 const NAV_CHUNK := 64.0
 const NAV_AUTO_DIST := 350.0
 const NAV_PARALLEL := 3
-const UNLOAD_DIST := 1300.0      # beyond radius + this, a built settlement drops its detail (rebuilt on return)
+const UNLOAD_DIST := 1200.0      # beyond radius + this, a built settlement drops its detail (rebuilt on return)
 
 var world: WorldData
 var towns := {}

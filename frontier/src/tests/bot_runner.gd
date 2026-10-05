@@ -258,6 +258,8 @@ func _run_town(seconds: float) -> Dictionary:
 			str(dc) if dc > 0 else "n/a (headless)"])
 		if m.arrived + m.failed >= 10 and m.reached < 70.0:
 			_fail(res, "only %.0f%% of walks reached their spot" % m.reached)
+	if pop != null and pop.has_method("town_metrics"):
+		await _town_reactions(res, pop)
 	for h in stuck_list.slice(0, 8):
 		var rt = h.brain.get("routine")
 		print("    stuck x%d %s at %s state %s %s" % [h.stuck_events, h.name, str(h.global_position.snapped(Vector3.ONE * 0.1)),
@@ -274,6 +276,45 @@ func _run_town(seconds: float) -> Dictionary:
 		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
 	print("  town: %d npcs, %d stuck events, %.1f npc-minutes" % [res.npcs, res.stuck_events, res.npc_minutes])
 	return res
+
+## Reactions: Ruth walks up to a resident (look + greeting), then a shot goes off in the street (people run inside,
+## cower, call the alarm). Prints a reactions line; fails only if nobody reacts at all.
+func _town_reactions(res: Dictionary, pop) -> void:
+	var g0: int = pop.metrics.greetings
+	var target: Human = null
+	for k in pop.residents:
+		var h: Human = pop.residents[k]
+		if is_instance_valid(h) and h.alive and h.brain.routine != null and not h.brain.routine.busy_seated() \
+				and not ActorLOD.far(h) and h.brain.state == h.brain.State.ROUTINE:
+			target = h
+			break
+	var looked := false
+	if target != null:
+		var fwd := Vector3(-sin(target.facing), 0, -cos(target.facing))
+		var p: Vector3 = target.global_position + fwd * 3.0
+		p.y = target.global_position.y + 0.2
+		player.global_position = p
+		for i in 180:
+			await get_tree().physics_frame
+			if target.brain.looking:
+				looked = true
+	var greeted: int = pop.metrics.greetings - g0
+	var f0: int = pop.metrics.fled_inside
+	Game.noise.emit(player.global_position, 260.0, player)
+	var scared := 0
+	for i in 60:
+		await get_tree().physics_frame
+	for k in pop.residents:
+		var h: Human = pop.residents[k]
+		if is_instance_valid(h) and h.brain.state in [h.brain.State.FLEE, h.brain.State.COWER]:
+			scared += 1
+	for i in 360:
+		await get_tree().physics_frame
+	res["reactions"] = {"looked": looked, "greeted": greeted, "scared": scared, "fled_inside": pop.metrics.fled_inside - f0}
+	print("  town reactions: resident looked at Ruth %s, greetings %d | gunshot: %d fled or cowered, %d ran inside within 6 s" % [
+		str(looked), greeted, scared, pop.metrics.fled_inside - f0])
+	if scared == 0:
+		_fail(res, "nobody reacted to a gunshot in town")
 
 ## Mission bot: autopilot through every story mission in order; softlock/fail/error oracles.
 ## Camp bot: the camp's pick self-test, then the real thing at Willow Bend — every companion recruited and at their
