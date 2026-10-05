@@ -80,6 +80,10 @@ static func strike(attacker: Node3D, yaw: float, kind := "jab") -> Dictionary:
 		_sound("punch_hit", t.global_position + Vector3(0, 1.5, 0))
 	if ko[0]:
 		knock_down(t, attacker)
+	# a fistfight in town draws a crowd (residents gather and watch, src/ai/population.gd)
+	if Game.population != null and Game.population.has_method("spectacle") and t.get_meta("_crowd_t", 0) < Time.get_ticks_msec():
+		t.set_meta("_crowd_t", Time.get_ticks_msec() + 10000)
+		Game.population.spectacle(t.global_position, 25.0, "fight")
 	Game.log_event("melee", {"by": str(attacker.name), "kind": kind, "blocked": blocked, "ko": ko[0]})
 	return {"hit": true, "blocked": blocked, "target": t, "amount": amount, "ko": ko[0]}
 
