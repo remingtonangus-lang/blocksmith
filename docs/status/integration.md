@@ -126,6 +126,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   terrain (nothing is drawn there), so their haze-coloured feet read as a pale disc. A fix needs far terrain (a coarse
   horizon ring), not impostor tweaks; parked.
 
+## Fast-lane shots and leaves
+- Fast-lane shots render at 32 px textures (BLOCKSMITH_TEXRES=32): leaves vanish at mid range there (citadel_far on
+  e7124b3 looked like a forest of bare trunks, horizon_ring showed leafless sticks), while the 128 px game and the heavy
+  lane draw them. Judge trees on heavy-lane shots only. (Players can't pick 32 px: textureRes is not in Options.)
+
 ## Frigates (session B request, 2026-10-05 ~02:50 UTC)
 - Session B: go ahead with BOTH frigate hulls on claude/bs-frigates (CapitalFrigate.swift and the Stormwarden
   warfrigate); the integration session is not editing CapitalFrigate.swift and will not touch it meanwhile. Please keep:
