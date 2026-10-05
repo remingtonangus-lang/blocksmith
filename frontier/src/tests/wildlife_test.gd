@@ -2,7 +2,7 @@ extends Node3D
 ## Wildlife look-dev harness (no world needed): neutral lit ground; renders a species line-up, per-species close-ups
 ## and gait strips, and runs the gait oracle on every species' gait animations. Saves PNGs and quits.
 ##   godot --path frontier --resolution 1280x540 res://scenes/wildlife_test.tscn -- --out DIR
-##       [--only lineup,closeups,strips,actions] [--species a,b] [--quit 600]
+##       [--only lineup,closeups,strips,actions,fur,furbench] [--species a,b] [--quit 600] [--fur_shells N]
 ## Prints one "GAIT <species>/<gait>" line per gait and "WILDLIFE ORACLE PASS|FAIL".
 
 const SPECIES := ["bison", "elk", "mule_deer", "pronghorn", "black_bear", "cougar", "wolf", "coyote", "fox", "raccoon", "rabbit"]
@@ -33,6 +33,10 @@ func _ready() -> void:
 			"closeups": await _closeups()
 			"strips": await _strips()
 			"actions": await _actions()
+			"fur": await _fur_shots()
+			"furbench": await _furbench()
+			"turncheck": _turncheck()
+	ok = ok and turn_ok
 	print("WILDLIFE ORACLE %s" % ("PASS" if ok else "FAIL"))
 	get_tree().quit(0 if ok else 1)
 
@@ -87,7 +91,7 @@ func _clear() -> void:
 func _animal(sp: String, pos: Vector3, yaw: float, seed := 7) -> HorseVisual:
 	var v := HorseVisual.new()
 	add_child(v)
-	v.build(AnimalCoats.roll(sp, seed), sp)
+	v.build(HorseCoats.roll(seed, "quarter") if sp == "horse" else AnimalCoats.roll(sp, seed), sp)
 	v.position = pos
 	v.rotation.y = yaw
 	if v.ik:
@@ -171,6 +175,14 @@ func _closeups() -> void:
 			var hl := Vector3(p[0], p[2], -p[1]).distance_to(Vector3(n[0], n[2], -n[1]))
 			_look(hc + Vector3(-hl * 2.4, hl * 0.6, -hl * 1.6), hc, 38.0)
 			await _save(sp + "_head")
+			if v.anim_player and v.anim_player.has_animation("attack"):
+				# jaws open at the height of the lunge: frame the head where the clip carries it
+				_pose(v, "attack", v.action_length("attack") * 0.55)
+				await get_tree().process_frame
+				var hb := v.skeleton.find_bone("head")
+				var hp := v.global_transform * (v.skeleton.global_transform * v.skeleton.get_bone_global_pose(hb)).origin
+				_look(hp + Vector3(-hl * 2.6, hl * 0.3, -hl * 1.4), hp + Vector3(0, -hl * 0.1, -hl * 0.5), 38.0)
+				await _save(sp + "_attack_head")
 
 ## Gait strips: 5 phases of each gait side by side, per species.
 func _strips() -> void:
@@ -209,6 +221,118 @@ func _actions() -> void:
 			k += 1
 		_look(Vector3(-L * 5.0, H * 2.2, 0), Vector3(0, H * 0.4, 0), 45.0)
 		await _save(sp + "_actions")
+
+## Fur close-ups: the 3/4 view of each furred species with shells on and off (<sp>_fur.png / <sp>_nofur.png).
+func _fur_shots() -> void:
+	for sp in _species():
+		if not AnimalCoats.FUR.has(sp):
+			continue
+		_clear()
+		await get_tree().process_frame
+		var v := _animal(sp, Vector3.ZERO, 0.0)
+		_pose(v, "idle", 0.0)
+		var bb := _bounds(v)
+		var c := bb.get_center()
+		var rad := bb.size.length() * 0.5
+		_look(c + Vector3(-1.0, 0.25, -0.55).normalized() * rad / sin(deg_to_rad(20.0)) * 0.62, c, 40.0)
+		await _save(sp + "_fur")
+		if v.fur_node:
+			v.fur_node.visible = false
+			await _save(sp + "_nofur")
+
+## GPU cost of the fur: four animals of a species 3-6 m from the camera, render time with shells on and off.
+func _furbench() -> void:
+	var rid := get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(rid, true)
+	for sp in ["wolf", "bison", "black_bear", "fox"]:
+		if HorseVisual.model_path_for(sp) == "":
+			continue
+		_clear()
+		await get_tree().process_frame
+		var vs := []
+		for i in 4:
+			var v := _animal(sp, Vector3((i - 1.5) * 1.6, 0, 3.0 + i), 0.6)
+			_pose(v, "idle", 0.0)
+			vs.append(v)
+		_look(Vector3(0, 1.2, -2.0), Vector3(0, 0.6, 4.0), 50.0)
+		var res := []
+		for on in [true, false]:
+			for v in vs:
+				if v.fur_node:
+					v.fur_node.visible = on
+			for i in 5:
+				await get_tree().process_frame
+			# minimum over 20 frames: the software rasteriser shares its cores with other jobs
+			var gpu := INF
+			var cpu := INF
+			for i in 20:
+				await RenderingServer.frame_post_draw
+				gpu = minf(gpu, RenderingServer.viewport_get_measured_render_time_gpu(rid))
+				cpu = minf(cpu, RenderingServer.viewport_get_measured_render_time_cpu(rid))
+			var prims := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+			var draws := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+			res.append([gpu, cpu, prims, draws])
+		var shells: int = vs[0].fur_mats.size()
+		print("FURBENCH %s x4 shells=%d  gpu(min) %.1f -> %.1f ms (x%.2f)  cpu %.2f -> %.2f ms  primitives %d -> %d  draws %d -> %d" % [
+			sp, shells, res[1][0], res[0][0], res[0][0] / maxf(res[1][0], 0.01), res[1][1], res[0][1], res[1][2], res[0][2],
+			res[1][3], res[0][3]])
+
+## Turn-in-place clips: over turn_l the head must swing to the animal's left (-X in model space) and the forefeet
+## step left of the hind feet; turn_r mirrors it. Prints TURN lines; a wrong direction fails the run.
+var turn_ok := true
+
+func _turncheck() -> void:
+	for sp in _species() + ["horse"]:
+		if HorseVisual.model_path_for(sp) == "":
+			continue
+		var v := _animal(sp, Vector3(900, 0, 0), 0.0)
+		for clip in ["turn_l", "turn_r"]:
+			if v.anim_player == null or not v.anim_player.has_animation(clip):
+				print("TURN %s/%s missing" % [sp, clip])
+				turn_ok = false
+				continue
+			if v.tree:
+				v.tree.active = false
+			var L := v.anim_player.get_animation(clip).length
+			var head_x := 0.0
+			var fore_x := 0.0
+			var n := 0
+			var rest_x := {}
+			v.anim_player.play("idle")
+			v.anim_player.seek(0.0, true)
+			for leg in ["LF", "RF", "LH", "RH"]:
+				rest_x[leg] = (v.skeleton.get_bone_global_pose(v.hoof_bone(leg)) * v.sole_local(leg)).x
+			var hb0 := v.skeleton.find_bone("head")
+			var head0 := v.skeleton.get_bone_global_pose(hb0).origin.x
+			v.anim_player.play(clip)
+			var hind_x := 0.0
+			var prev := {}
+			for i in 49:
+				v.anim_player.seek(fmod(L * float(i) / 24.0, L), true)
+				var hb := v.skeleton.find_bone("head")
+				if i < 24:
+					head_x += (v.skeleton.get_bone_global_pose(hb).origin.x)
+					n += 1
+				# lateral travel of each foot while it is in the air (the direction it steps)
+				for leg in ["LF", "RF", "LH", "RH"]:
+					var p: Vector3 = v.skeleton.get_bone_global_pose(v.hoof_bone(leg)) * v.sole_local(leg)
+					if prev.has(leg) and i > 24 and p.y > 0.02 * v.size_scale:
+						if leg.ends_with("F"):
+							fore_x += p.x - float(prev[leg])
+						else:
+							hind_x += p.x - float(prev[leg])
+					prev[leg] = p.x
+					if Game.args.has("turn_debug") and leg == "LF":
+						print("   %s t=%.2f LF %s" % [clip, fmod(L * float(i) / 24.0, L), str(p)])
+			v.anim_player.stop()
+			var dh := head_x / n - head0
+			var want := -1.0 if clip == "turn_l" else 1.0
+			var ok := dh * want > 0.0 and fore_x * want > 0.0 and hind_x * want < 0.0
+			if not ok:
+				turn_ok = false
+			print("TURN %s/%s %s  head dx %+.3f m  stepping forefeet dx %+.4f  hindfeet dx %+.4f  length %.2fs" % [sp, clip,
+				"PASS" if ok else "FAIL", dh, fore_x, hind_x, L])
+		v.queue_free()
 
 ## Gait oracle on every species' gait cycles (bare animation, in-place ground at the authored speed).
 func _oracle() -> bool:

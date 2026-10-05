@@ -450,7 +450,9 @@ def apply_modifier(ob, mod):
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
 
-def decimate_to(ob, tris):
+def decimate_to(ob, tris, protect=None):
+    """Collapse-decimate to about `tris` triangles; `protect` (vertex mask) keeps a region at full resolution (the
+    mouth slit, so no triangle bridges the lips)."""
     n = len(ob.data.polygons)
     if n <= tris:
         return
@@ -458,7 +460,39 @@ def decimate_to(ob, tris):
     m.decimate_type = "COLLAPSE"
     m.ratio = tris / n
     m.use_collapse_triangulate = True
+    if protect is not None and protect.any():
+        vg = ob.vertex_groups.new(name="_protect")
+        vg.add([int(i) for i in np.nonzero(protect)[0]], 1.0, "REPLACE")
+        m.vertex_group = "_protect"
+        m.invert_vertex_group = True
+        m.vertex_group_factor = 4.0
     apply_modifier(ob, m)
+    if protect is not None and "_protect" in ob.vertex_groups:
+        ob.vertex_groups.remove(ob.vertex_groups["_protect"])
+
+
+def unbridge_mouth(ob, B):
+    """Delete the few faces that still join the upper and lower lip across the mouth slit after decimation (they
+    would stretch into a sheet when the jaw opens)."""
+    c0, c1, up, hw, th = B["mouth"][:5]
+    me = ob.data
+    v, _ = mesh_arrays(ob)
+    d = c1 - c0
+    t = ((v - c0) @ d) / float(d @ d)
+    h = (v - (c0 + np.outer(np.clip(t, 0, 1), d))) @ up
+    zone = (t > 0.0) & (t < 1.25) & (np.abs(v[:, 0]) < hw)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    kill = []
+    for f in bm.faces:
+        idx = [vv.index for vv in f.verts]
+        if zone[idx].any() and h[idx].max() > th * 0.05 and h[idx].min() < -th * 0.05 and np.abs(v[idx, 0]).max() < hw * 1.2:
+            kill.append(f)
+    bmesh.ops.delete(bm, geom=kill, context="FACES_ONLY")
+    bm.to_mesh(me)
+    bm.free()
+    log("mouth: removed %d faces bridging the lips" % len(kill))
 
 
 def shade_smooth(ob):
@@ -1000,13 +1034,14 @@ def gait_trunk_angles(g, x):
     ang["spine_lumbar"] = -lum
     ang["pelvis"] = -lum * 0.6
     ang["spine_thorax"] = lum * 0.3
-    ang["spine_withers"] = 0.0
+    ang["spine_withers"] = g.get("withers_flex", 0.0) * cyc(x, 1, 0.65)
     # neck nods (distributed), head keeps its angle partly; whole neck carriage compensates body pitch
     ang["neck_1"] = nod * 0.45 - pitch * 0.5
     ang["neck_2"] = nod * 0.25
     ang["neck_3"] = nod * 0.15
     ang["neck_4"] = nod * 0.1
-    ang["head"] = -nod * 0.55
+    # head counter-motion: the poll rotates against the neck swing and the body pitch so the eyes stay level
+    ang["head"] = -nod * (0.55 + g.get("head_counter", 0.0)) - pitch * g.get("head_counter", 0.0)
     t0, tsw = g["tail"]
     for i in range(1, 7):
         ang["tail_%d" % i] = (t0 if i == 1 else t0 * 0.25) + tsw * cyc(x, bob_f, 0.1 * i + bob_p) * (0.4 + 0.12 * i)
@@ -1339,6 +1374,47 @@ def anim_turn(T=1.0):
     return solve_custom(int(T * ACTION_FPS), f)
 
 
+# sign of a side (local z) rotation on scapula/femur that steps the foot toward -x; the left and right bones share
+# their frames (checked by wildlife_test.gd --only turncheck)
+TURN_LAT_SIGN = 1.0
+
+
+def anim_turn_dir(sign, T=1.2):
+    """Turn on the spot to the left (sign=+1) or right (-1), played while the game yaws the body: the forelegs step
+    across toward the turn and the hind legs away from it (the body pivots about its middle), in walk order with
+    short lifting steps; neck and head bend into the turn. Lengths scale with the species (SC)."""
+    ph = {"LH": 0.0, "LF": 0.25, "RH": 0.5, "RF": 0.75}
+    k = SC
+
+    def f(t, i):
+        x = t / T
+        legs = {}
+        side = {}
+        for leg, p0 in ph.items():
+            p = (x - p0) % 1.0
+            sole = LEGS[leg][1]
+            front = leg.endswith("F")
+            if p < 0.62:
+                s01 = p / 0.62
+                legs[leg] = planted(leg, dy=0.035 * k - 0.07 * k * s01)
+                lat = 1.0 - 2.0 * s01                      # planted: the body turns over the foot
+            else:
+                u = (p - 0.62) / 0.38
+                lift = math.sin(math.pi * u)
+                legs[leg] = free(leg, {"fcannon": -0.75 * lift, "fpastern": -0.3 * lift, "hcannon": 0.45 * lift},
+                                 tgt=(sole[1] - 0.035 * k + 0.07 * k * u, 0.08 * k * lift), wp=8e3)
+                lat = -1.0 + 2.0 * u                       # swing: steps across in the turn direction
+            # world direction of the step: fronts toward the turn (+sign = left = -x), hinds away from it
+            want = (-sign if front else sign) * lat         # +1 = toward +x (the right side)
+            top = ("scapula" if front else "femur") + "_" + leg[0]
+            side[top] = (-0.11 * want * TURN_LAT_SIGN, 0.0)  # a positive side angle steps the foot toward -x (both sides)
+        ang = {"neck_1": 0.04, "head": -0.02, "ear_L": 0.1, "ear_R": 0.1}
+        for b, a in (("neck_1", 0.1), ("neck_2", 0.12), ("neck_3", 0.1), ("neck_4", 0.06), ("head", 0.12)):
+            side[b] = (a * sign, 0.0)
+        return ang, (0.0, -0.006 * k), side, legs
+    return solve_custom(int(T * ACTION_FPS), f)
+
+
 def anim_skid_stop(T=1.1):
     def f(t, i):
         e = env(t, 0.0, 0.22, 0.7, 1.1)
@@ -1497,6 +1573,7 @@ ACTIONS = {
     # name: (builder, loop)
     "idle": (anim_idle, True), "idle_rest": (anim_idle_rest, True), "graze": (anim_graze, True),
     "turn": (anim_turn, True), "swim": (anim_swim, True),
+    "turn_l": (lambda: anim_turn_dir(1.0), True), "turn_r": (lambda: anim_turn_dir(-1.0), True),
     "head_shake": (anim_head_shake, False), "ear_flick": (anim_ear_flick, False), "tail_swish": (anim_tail_swish, False),
     "skid_stop": (anim_skid_stop, False), "rear": (anim_rear, False), "buck": (anim_buck, False),
     "jump": (anim_jump, False), "shy": (anim_shy, False), "stumble": (anim_stumble, False),
@@ -2084,6 +2161,8 @@ def build_lods(body, arm, tris_lod=(8000, 2000)):
             ob.vertex_groups.new(name=vg.name)
         ob.parent = arm
         decimate_to(ob, tris)
+        if hasattr(SPEC, "B") and "mouth" in SPEC.B:    # LOD1 is also the fur-shell mesh: keep the lips apart
+            unbridge_mouth(ob, SPEC.B)
         m = ob.modifiers.new("Armature", "ARMATURE")
         m.object = arm
         out.append(ob)
@@ -2127,13 +2206,21 @@ def build_species(name):
     reset_scene()
     bpy.context.scene.render.fps = FPS
     body, prims = build_body()
-    decimate_to(body, cfg.get("tris", 26000))
+    protect = None
+    if hasattr(SPEC, "B") and "mouth" in SPEC.B:     # finer triangles along the lips, so the open jaw stretches less
+        vb, _ = mesh_arrays(body)
+        protect = importlib.import_module("species.common").mouth_mask(vb, SPEC.B)
+    decimate_to(body, cfg.get("tris", 26000), protect)
+    if protect is not None:
+        unbridge_mouth(body, SPEC.B)
     shade_smooth(body)
     log("%s body: %d tris" % (name, tri_count(body)))
     arm = build_armature()
     verts, _ = mesh_arrays(body)
     A, deg = mesh_adjacency(body)
     names, W = compute_weights(verts, prims, A, deg)
+    if hasattr(SPEC, "B") and "mouth" in SPEC.B:
+        W = importlib.import_module("species.common").mouth_weights(verts, names, W, SPEC.B)
     assign_weights(body, names, W, arm)
     log("weights done")
     set_rest_uvs(body)
@@ -2149,6 +2236,8 @@ def build_species(name):
     if hasattr(SPEC, "build_extras"):
         SPEC.build_extras(engine(), prims, arm)
     build_eyes(arm)
+    if hasattr(SPEC, "B") and SPEC.B.get("teeth") and "mouth" in SPEC.B:
+        importlib.import_module("species.common").build_teeth(engine(), SPEC.B, arm)
     if cfg.get("tack") and not _arg("--no-tack", False):
         build_tack(prims, arm)
     build_lods(body, arm, cfg.get("lods", (8000, 2000)))
@@ -2192,6 +2281,10 @@ def build_species(name):
             "tail_base": [float(c) for c in J["tail0"]], "tail_tip": [float(c) for c in J["tail6"]],
             "eye": [float(c) for c in Bs["eye"]], "scale": float(Bs["scale"]) / 0.643 if Bs["scale"] else 1.0,
             "head": [float(c) for c in J["head_t"]], "chest": [float(c) for c in J["thorax_t"]]}
+        if "mouth" in Bs:
+            meta["anchors"]["mouth0"] = [float(c) for c in Bs["mouth"][0]]
+            meta["anchors"]["mouth1"] = [float(c) for c in Bs["mouth"][1]]
+            meta["anchors"]["mouth_w"] = float(Bs["mouth"][3])
     if PREVIEW:
         pdir = os.path.join(OUT, "preview")
         os.makedirs(pdir, exist_ok=True)

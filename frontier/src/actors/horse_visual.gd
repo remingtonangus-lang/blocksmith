@@ -9,7 +9,7 @@ extends Node3D
 
 const MODEL_PATHS := ["res://assets/ext/animals/horse.glb", "res://assets/animals_out/horse.glb"]
 const LOCO_STATES := ["idle", "idle_rest", "graze", "walk", "trot", "canter", "gallop", "canter_r", "gallop_r", "swim",
-	"turn", "dead", "fallen"]
+	"turn", "turn_l", "turn_r", "dead", "fallen"]
 const ACTIONS := ["head_shake", "rear", "buck", "jump", "shy", "skid_stop", "stumble", "ear_flick", "tail_swish",
 	"refuse", "getup", "fall"]
 const SEAT := Vector3(0.0, 1.66, -0.12)       # saddle seat in model space (rest pose, Godot axes)
@@ -20,6 +20,9 @@ var anim_player: AnimationPlayer
 var tree: AnimationTree
 var ik: HorseIK
 var body_mat: ShaderMaterial
+var fur_mats: Array[ShaderMaterial] = []     # wildlife fur shells (next_pass chain on FurShells)
+var fur_node: MeshInstance3D
+var under_fur_mat: ShaderMaterial              # LOD0 skin under the shells (matte)
 var hair_mat: ShaderMaterial
 var meshes: Array[MeshInstance3D] = []
 var meta: Dictionary = {}
@@ -40,7 +43,10 @@ static func model_path() -> String:
 	return model_path_for("horse")
 
 static func model_path_for(sp: String) -> String:
-	for p in ["res://assets/ext/animals/%s.glb" % sp, "res://assets/animals_out/%s.glb" % sp]:
+	var order := ["res://assets/ext/animals/%s.glb" % sp, "res://assets/animals_out/%s.glb" % sp]
+	if Game.args.has("local_animals"):          # generator work: the local build wins over the fetched release
+		order.reverse()
+	for p in order:
 		if ResourceLoader.exists(p):
 			return p
 	return ""
@@ -66,6 +72,7 @@ func build(coat_in: Dictionary, sp: String = "horse") -> void:
 	anim_player = _find(model, "AnimationPlayer") as AnimationPlayer
 	_setup_materials()
 	_setup_lods()
+	_setup_fur()
 	if anim_player != null:
 		_setup_tree()
 	if skeleton != null:
@@ -155,6 +162,68 @@ func _setup_lods() -> void:
 		elif not n.begins_with("Body"):
 			mi.visibility_range_end = 160.0 * k
 
+## Fur shells on the LOD0 body: one extra skinned instance of the Body mesh (no shadow casting) whose material
+## is a next_pass chain of N shells (quality preset "fur_shells"; 0 on the quest preset). It shares Body's
+## visibility range, and the shells thin out over the last 40 % of it.
+func _setup_fur() -> void:
+	if species == "horse" or not AnimalCoats.FUR.has(species):
+		return
+	var n := int(Game.quality.get("fur_shells", 8))
+	if Game.args.has("fur_shells"):
+		n = int(Game.args["fur_shells"])
+	if n <= 0:
+		return
+	var body0: MeshInstance3D = null
+	var body1: MeshInstance3D = null
+	for mi in meshes:
+		if String(mi.name) == "Body":
+			body0 = mi
+		elif String(mi.name) == "Body_LOD1":
+			body1 = mi
+	if body0 == null or body0.mesh == null:
+		return
+	# the shells only need the silhouette: they use the LOD1 mesh (about 30 % of the triangles) when there is one
+	var src: MeshInstance3D = body1 if body1 != null and body1.mesh != null else body0
+	fur_node = MeshInstance3D.new()
+	fur_node.name = "FurShells"
+	fur_node.mesh = src.mesh
+	fur_node.skin = src.skin
+	body0.get_parent().add_child(fur_node)
+	fur_node.transform = src.transform
+	fur_node.skeleton = fur_node.get_path_to(src.get_node(src.skeleton))
+	fur_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fur_node.visibility_range_end = body0.visibility_range_end
+	under_fur_mat = body_mat.duplicate() as ShaderMaterial
+	under_fur_mat.set_shader_parameter("under_fur", 1.0)
+	body0.material_override = under_fur_mat
+	var shader: Shader = load("res://shaders/animal_fur_shell.gdshader")
+	var prev: ShaderMaterial = null
+	for i in n:
+		var sm := ShaderMaterial.new()
+		sm.shader = shader
+		AnimalCoats.apply(coat, sm, meta.get("anchors", {}))
+		AnimalCoats.apply_fur(species, sm)
+		sm.set_shader_parameter("shell_h", float(i + 1) / float(n))
+		sm.set_shader_parameter("fade_end", body0.visibility_range_end)
+		sm.set_shader_parameter("fade_start", body0.visibility_range_end * 0.6)
+		if prev == null:
+			fur_node.material_override = sm
+		else:
+			prev.next_pass = sm
+		prev = sm
+		fur_mats.append(sm)
+
+## Set a coat shader parameter on the skin and every fur shell (state: wet, mud, blood, skinned...).
+func set_coat(param: String, value: Variant) -> void:
+	if body_mat:
+		body_mat.set_shader_parameter(param, value)
+	if under_fur_mat:
+		under_fur_mat.set_shader_parameter(param, value)
+	for m in fur_mats:
+		m.set_shader_parameter(param, value)
+	if param == "skinned" and fur_node:
+		fur_node.visible = float(value) < 0.5
+
 func _setup_tree() -> void:
 	var lib := anim_player.get_animation_library("")
 	for an in lib.get_animation_list():
@@ -217,6 +286,7 @@ func _alias(st: String) -> String:
 	match st:
 		"canter_r": return "canter"
 		"gallop_r": return "gallop"
+		"turn_l", "turn_r": return "turn" if anim_player.has_animation("turn") else "idle"
 		"idle_rest", "graze", "turn": return "idle"
 		"swim": return "trot"
 		"dead", "fallen": return "death"

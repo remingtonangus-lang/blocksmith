@@ -21,7 +21,7 @@ const PACE_NAMES := ["walk", "trot", "canter", "gallop"]
 const DEFAULT_SPEEDS := {"walk": 1.67, "trot": 3.75, "canter": 6.36, "gallop": 12.77}
 const GRAVITY := 9.81
 const BOND_XP := [0.0, 150.0, 450.0, 1000.0]
-const MOUNT_TIME := 0.85
+const MOUNT_TIME := 1.25         # matches RiderIK.MOUNT_TIME (the mount clip)
 const SEAT_DROP := 0.78          # rider origin (feet) below the saddle seat point
 
 static var player_horse: Horse
@@ -607,6 +607,9 @@ func _animate(dt: float) -> void:
 	match gait:
 		"idle":
 			anim = _idle_variant(dt)
+			if absf(yaw_rate) > 0.45:                 # turning on the spot: stepping turn clip into the turn
+				anim = "turn_l" if yaw_rate > 0.0 else "turn_r"
+				ts = clampf(absf(yaw_rate) / 1.2, 0.6, 1.5)
 		"walk":
 			ts = clampf(v / walk_s, 0.55, 1.6) if v >= 0.25 else 0.7
 			if speed < -0.1:
@@ -862,6 +865,10 @@ func dismount(side: float = 0.0, thrown := false) -> bool:
 	var r := rider
 	if side == 0.0:
 		side = rider_side
+	_seated_from = r.global_transform
+	var vis0 = r.get("visual")
+	if vis0 is Node3D:
+		_seated_from = (vis0 as Node3D).global_transform
 	var pt := _dismount_point(side)
 	if pt == Vector3.INF:
 		pt = _dismount_point(-side)
@@ -887,7 +894,10 @@ func dismount(side: float = 0.0, thrown := false) -> bool:
 		r.emit_signal("dismounted")
 	dismounted_by.emit(r)
 	if _rider_ik != null and is_instance_valid(_rider_ik):
-		_rider_ik.queue_free()
+		if thrown or not _rider_ik.valid():
+			_rider_ik.queue_free()
+		else:
+			_rider_ik.start_dismount(r, _seated_from)     # dismount clip: the visual climbs down, then it frees itself
 	_rider_ik = null
 	# auto-hitch near a post
 	for post in get_tree().get_nodes_in_group("hitching_post"):
@@ -921,6 +931,7 @@ func _dismount_point(side: float) -> Vector3:
 	return pt
 
 var _rider_ik: RiderIK = null
+var _seated_from := Transform3D()
 
 ## Procedural riding pose (RiderIK) on a humanoid rider (FrontierCharacter skeleton with Godot humanoid bones).
 func _attach_rider_ik(r: Node3D) -> void:
@@ -932,6 +943,7 @@ func _attach_rider_ik(r: Node3D) -> void:
 	_rider_ik.name = "RiderIK"
 	sk.add_child(_rider_ik)
 	_rider_ik.setup(self)
+	_rider_ik.start_mount()
 
 func _place_rider(dt: float) -> void:
 	var seat := visual.seat_transform()

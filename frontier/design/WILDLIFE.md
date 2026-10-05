@@ -60,6 +60,21 @@ The heights match `Animal.SPECIES` sizes. Each species gets:
     Cycles shorter than 24 frames are keyed between frames, so a 0.27 s fox gallop still has 24 poses.
 - **Idles:** idle, graze (grazers) or sniff (carnivores), alert (head high, ears pricked, fore-foot stamp),
   look (scanning left/right).
+- **Turn in place:** `turn_l` / `turn_r` loops (shared `anim_turn_dir` in quadruped.py, also built for the horse).
+  The forelegs step across toward the turn and the hind legs away from it, in walk order, while the neck and head
+  bend into the turn. The game yaws the body; `animal.gd` plays them when an animal turns faster than 0.6 rad/s
+  below 0.15 m/s.
+- **Face:**
+  - A mouth slit at the lip line (60 % down the muzzle, from the mouth corner to the nose) separates the lips:
+    - the lip band is decimated more gently;
+    - faces that still join the lips are deleted, at LOD0 and in LOD1 (which the fur shells reuse);
+    - a weights fix (`mouth_weights`) puts everything below the slit on the jaw and everything above it on the
+      head.
+    So the attack opens a real mouth.
+  - Predators (wolf, coyote, fox, cougar, bear, raccoon) get upper and lower canines and incisors, and a tongue.
+  - Ungulates get nostril pits.
+  - Lids now have an inner canthus; the coat shader paints dark lid rims, a dark lip line and a red mouth
+    interior.
 - **One-shots:** flee_start (crouch and spring), attack (predators lunge with jaws open; the bear rears and
   swipes), death (buckle and roll onto the side), carcass (the lying pose, held).
 - **Gaits json extras:** `anchors` (poll, nose, tail, eye, belly/back/knee/hock heights) for the coat shader and
@@ -69,6 +84,28 @@ Build: `python3 frontier/tools/animals/quadruped.py --species all|mule_deer,elk,
 output to `frontier/assets/animals_out/` (gitignored). The CI job `animals` in frontier-assets.yml runs
 `--species all` and publishes `animals.zip`. Fetch it with `bash frontier/tools/fetch_assets.sh animals`, which
 unpacks to `assets/ext/animals/`.
+
+## Fur (shells)
+`shaders/animal_fur_shell.gdshader`, set up by `HorseVisual._setup_fur()` for the wolf, coyote, fox, cougar,
+black bear, bison, raccoon and the elk's neck mane (`AnimalCoats.FUR`: length, strand density, neck ruff, tail):
+- **How it draws:** one extra skinned instance of the Body_LOD1 mesh ("FurShells", no shadow casting) with a
+  `next_pass` chain of N shells.
+  - Each shell pushes the skin out along the normal by `shell_h` × fur length, with a little droop, and keeps
+    only the strands that reach that height, so tapered tufts build up.
+  - Fur length per region comes from `fur_region()` in `shaders/inc/animal_coat.gdshaderinc`, which the skin
+    shares:
+    - bare: nose, lips, eye rims, hooves
+    - short: face, ears, lower legs
+    - long: tail, neck ruff, bison cape and head
+  - Colour is the coat colour at that rest point, evaluated per vertex, darker at the roots.
+  - The LOD0 skin under the shells is matte (`under_fur`), so glossy skin does not flash through the gaps.
+- **Budget:**
+  - Shells exist only within the LOD0 range (about 23 m × body size) and thin out over its last 40 %, so the
+    switch to the bare LOD1 does not pop.
+  - Shell counts per quality preset (`fur_shells`): low 4, medium 6, high 8, ultra 12, quest 0. `--fur_shells N`
+    overrides it.
+- **Cost:** `wildlife_test --only furbench` renders four animals 3–6 m from the camera with shells on and off and
+  prints GPU time, primitives and draw calls (see Results).
 
 ## Runtime (src/actors/animal.gd)
 - **Model loading:** `HorseVisual.model_path_for(species)` loads the model if present; otherwise the old stand-in
@@ -112,14 +149,22 @@ unpacks to `assets/ext/animals/`.
 - `--bot hunt`: also runs the per-species gait oracle and fails on a mismatch; it skips this when no models were
   fetched.
 
+- `wildlife_test --only turncheck`: over `turn_l` the head must swing left and the stepping forefeet must
+  travel left while the hind feet travel right (mirrored for `turn_r`). It covers every species and the horse,
+  printing `TURN <species>/<clip>` lines; a wrong direction fails the run.
+
 ## Look-dev
 `xvfb-run -a godot --path frontier --resolution 1280x540 res://scenes/wildlife_test.tscn -- --out DIR`
-`[--only lineup,closeups,strips,actions] [--species a,b]`. It renders a line-up of all species, a 3/4 view and a
-head close-up per species, gait strips and action poses.
+`[--only lineup,closeups,strips,actions,fur,furbench,turncheck] [--species a,b] [--local_animals]`.
+- It renders a line-up of all species, a 3/4 view, a head close-up and (for predators) an open-jaw attack close-up
+  per species, gait strips, action poses, and fur on/off close-ups.
+- `--local_animals` makes the local `assets/animals_out` build win over a fetched `assets/ext/animals`.
 
 ## Gaps
-- No fur geometry (shells or cards). Fur is shading only: grizzle, streaks and rim. Up close the wolf, bear and
-  bison read as smooth.
+- Fur is shells only, with no fins or cards:
+  - At grazing angles in close-ups the layers can read as steps.
+  - The strands are noise tufts, not individual hairs.
+  - The mane and tail hair cards stay on the horse.
 - The wild turkey (a bird) still uses the stand-in.
 - Antlers and horns are tube-built: plausible silhouettes, but with no burr texture or palmation detail.
 - Gaits and actions are procedural (planar IK + style curves).
@@ -127,5 +172,9 @@ head close-up per species, gait strips and action poses.
     locking hides it.
   - Fitted run speeds are below real sprint speeds (wolf about 7.7 m/s, pronghorn about 9 m/s); faster animals
     play the gait up to 1.8x.
-  - Turning is yaw plus the gait. Wildlife has no dedicated turn-on-the-spot clips.
-- Faces are simple: no lids, nostril detail or teeth. The attack's jaw opens on a solid mouth.
+  - Turning while moving is yaw plus the gait; only standing turns have clips.
+- Faces are still simple:
+  - At rest the mouth slit reads as a pale seam along the muzzle.
+  - A few thin slivers still stretch across the open mouth.
+  - There is no gum or palate geometry, only the coat's red tint and a tongue.
+  - The bison's head is a smooth blob.

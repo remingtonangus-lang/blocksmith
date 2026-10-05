@@ -71,7 +71,11 @@ Stance hooves are exact to < 1 mm except the touchdown frame of the fastest gait
 `horse_gaits.json` carries stride, cycle, speed, duty, footfalls, beats per gait and every action's length/loop,
 so the game sets playback speed = ground speed / authored speed (no foot sliding).
 
-Actions: `idle`, `idle_rest` (hind leg cocked), `graze`, `turn`, `swim` (loops); `head_shake`, `ear_flick`,
+Gallop and canter flex: the lumbar spine rounds under the gathered hind legs and extends at the reach (lumbar
+0.20 rad at the gallop, 0.11 at the canter). The withers flex with it, and the head counter-rotates against the
+neck swing and body pitch (`head_counter`), so the neck pumps while the eyes stay level.
+
+Actions: `idle`, `idle_rest` (hind leg cocked), `graze`, `turn`, `turn_l`, `turn_r`, `swim` (loops); `head_shake`, `ear_flick`,
 `tail_swish`, `skid_stop`, `rear`, `buck`, `jump`, `shy`, `stumble`, `refuse`, `death`, `getup` (one-shots).
 
 ## Runtime
@@ -99,6 +103,15 @@ Actions: `idle`, `idle_rest` (hind leg cocked), `graze`, `turn`, `swim` (loops);
 - **Whistle** (H / D-pad up): the player's horse comes (gallop/canter/trot by distance, steers around steep
   ground and water, teleports out of sight if > 160 m or stuck).
 - **Hitching**: `hitch(pos)` / `unhitch()`; auto-hitch on dismount within 5 m of a node in group `hitching_post`.
+- **Rider (RiderIK, src/actors/rider_ik.gd):**
+  - **Seat and lean:** hips in the seat, with a half seat out of the saddle at the gallop. The torso leans by gait
+    (walk 0.07 → gallop 0.62 rad, spread over Spine, Chest and UpperChest), and the neck and head counter-rotate.
+  - **Limbs:** feet in the stirrups and hands on the reins.
+  - **Reins:** live rein straps run from the bit rings to the hands; the resting reins are hidden while ridden.
+  - **Coat:** a barrel capsule and a cantle sphere join the rider's garment spring chains, so the duster drapes
+    over the horse.
+  - **Mount clip (1.25 s):** near foot into the stirrup, rise facing the horse, off leg over the croup, settle.
+  - **Dismount clip (1.0 s):** the visual climbs down from the saddle, then the modifier frees itself.
 - **Mount/dismount** (F / Y within 2.8 m): side chosen from where the rider stands (or explicit); rider is
   attached at the saddle seat (bone `spine_thorax`), collisions off, `player.on_horse` set,
   `mounted`/`dismounted` signals; dismount checks the side for space/slope/water and falls back to the other.
@@ -161,7 +174,10 @@ per shot (no world); an in-world 960x540 frame ~2.5 min on llvmpipe.
   the swing phase is a little stiff; transitions are crossfades (no dedicated transition clips); turning in place
   uses a stepping loop + yaw.
 - Lead changes are crossfades between `canter`/`gallop` and their `_r` mirror (no authored flying change).
-- Rider: the player stand-in is placed on the seat; no rider animation set (reins, posting, mount/dismount clips).
+- Rider gaps:
+  - The mount and dismount are procedural IK clips, not mocap.
+  - There is no posting at the trot.
+  - The duster drapes but its spring chains are stiff.
 - Tack is rigid (no cloth on the blanket/fenders, stirrups don't swing); saddlebag inventory is an array API only.
 - Fear reacts to `Horse.alarm()` and group `predator`; the gunplay/wildlife sessions need to call/populate them.
 - Swimming uses a paddle loop at a fixed float height; no splash VFX or hoof/breath sounds yet (audio session).

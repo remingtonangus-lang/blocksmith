@@ -7,22 +7,22 @@ signal message(text: String, seconds: float)
 signal noise(pos: Vector3, radius: float, source: Node)   # gunshots, shouts, breaking glass: AI hearing
 
 const PRESETS := {
-	"low": {"render_scale": 0.6, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
+	"low": {"fur_shells": 4, "render_scale": 0.6, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 120.0, "shadow_size": 2048, "terrain_range": 1.8, "grass_density": 0.35, "grass_dist": 40.0,
 		"tree_dist": 900.0, "moon_shadows": false, "upscale": "fsr", "msaa": 0, "taa": false, "lod_bias": 0.5},
-	"medium": {"render_scale": 0.75, "ssao": true, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": true,
+	"medium": {"fur_shells": 6, "render_scale": 0.75, "ssao": true, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": true,
 		"shadow_distance": 200.0, "shadow_size": 4096, "terrain_range": 2.2, "grass_density": 0.6, "grass_dist": 60.0,
 		"tree_dist": 1500.0, "moon_shadows": false, "upscale": "metalfx_spatial", "msaa": 0, "taa": true, "lod_bias": 0.8},
-	"high": {"render_scale": 0.77, "ssao": true, "ssil": false, "ssr": true, "sdfgi": false, "volumetric_fog": true,
+	"high": {"fur_shells": 8, "render_scale": 0.77, "ssao": true, "ssil": false, "ssr": true, "sdfgi": false, "volumetric_fog": true,
 		"shadow_distance": 300.0, "shadow_size": 4096, "terrain_range": 2.6, "grass_density": 1.0, "grass_dist": 80.0,
 		"tree_dist": 2500.0, "moon_shadows": true, "upscale": "metalfx_temporal", "msaa": 0, "taa": false, "lod_bias": 1.0},
-	"ultra": {"render_scale": 1.0, "ssao": true, "ssil": true, "ssr": true, "sdfgi": true, "volumetric_fog": true,
+	"ultra": {"fur_shells": 12, "render_scale": 1.0, "ssao": true, "ssil": true, "ssr": true, "sdfgi": true, "volumetric_fog": true,
 		"shadow_distance": 450.0, "shadow_size": 8192, "terrain_range": 3.2, "grass_density": 1.4, "grass_dist": 110.0,
 		"tree_dist": 4000.0, "moon_shadows": true, "upscale": "metalfx_temporal", "msaa": 0, "taa": false, "lod_bias": 1.5},
-	"preview": {"render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
+	"preview": {"fur_shells": 8, "render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 250.0, "shadow_size": 4096, "terrain_range": 2.2, "grass_density": 0.6, "grass_dist": 60.0,
 		"tree_dist": 1200.0, "moon_shadows": false, "upscale": "none", "msaa": 0, "taa": false, "lod_bias": 1.0},
-	"quest": {"render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
+	"quest": {"fur_shells": 0, "render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 60.0, "shadow_size": 2048, "terrain_range": 1.5, "grass_density": 0.25, "grass_dist": 30.0,
 		"tree_dist": 700.0, "moon_shadows": false, "cloud_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4},
 }
