@@ -47,6 +47,7 @@ var roads: RoadGraph
 var encounters: Node
 var robbery: Node              # hold-ups and store robberies (src/systems/robbery.gd)
 var fishing: Node              # src/systems/fishing.gd
+var population: Node           # town life: residents, schedules, spot claims (src/ai/population.gd)
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()

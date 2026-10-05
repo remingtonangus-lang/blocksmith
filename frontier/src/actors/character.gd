@@ -231,6 +231,9 @@ var _aim_w := 0.0
 var _aim_target := 0.0
 var _seat_w := 0.0
 var _seat_target := 0.0
+var _act_w := 0.0
+var _act_target := 0.0
+var _act_clip := ""
 var _dead := false
 var _lod_acc := 0.0
 var _lod_frame := 0
@@ -238,6 +241,11 @@ var _game_mode := false
 
 const TREE_CLIPS := ["idle", "walk_brisk", "jog", "run", "sprint", "sit_idle", "pistol_aim_two_hand", "rifle_aim",
 	"hit_front", "hit_back", "hit_left", "hit_right", "hit_head"]
+# town-life action layer (set_activity loops / gesture one-shots); activities get looping copies "<clip>_loop"
+const ACTIVITY_CLIPS := ["sit_idle", "lean_rail", "lean_wall", "drink", "drink_smoke", "talk_1", "talk_2", "idle_wait",
+	"idle_shift", "pick_up", "walk_wounded", "walk_relaxed", "idle_crouch"]
+const GESTURE_CLIPS := ["sit_down", "stand_up", "wave", "shrug", "talk_directions", "handshake", "drink", "pick_up",
+	"walk_stop"]
 static var _tree_lib: AnimationLibrary
 static var _tree_frame := -1
 
@@ -245,9 +253,14 @@ static var _tree_frame := -1
 static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
 	if _tree_lib == null:
 		_tree_lib = AnimationLibrary.new()
-		for c in TREE_CLIPS:
-			if full.has_animation(c):
+		for c in TREE_CLIPS + GESTURE_CLIPS:
+			if full.has_animation(c) and not _tree_lib.has_animation(c):
 				_tree_lib.add_animation(c, full.get_animation(c))
+		for c in ACTIVITY_CLIPS:
+			if full.has_animation(c):
+				var a: Animation = full.get_animation(c).duplicate()
+				a.loop_mode = Animation.LOOP_LINEAR if a.loop_mode != Animation.LOOP_NONE else Animation.LOOP_PINGPONG
+				_tree_lib.add_animation(c + "_loop", a)
 	return _tree_lib
 
 func _ensure_tree() -> void:
@@ -304,7 +317,24 @@ func _build_tree() -> void:
 	root.add_node("seated", seated, Vector2(300, -50))
 	root.connect_node("seated", 0, "loco_ts")
 	root.connect_node("seated", 1, "sit")
-	root.connect_node("upper", 0, "seated")
+	# action layer: a looping activity pose (bar lean, seated, drinking, talking) over locomotion, then gestures
+	var act_anim := AnimationNodeAnimation.new()
+	act_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/idle_wait_loop"
+	root.add_node("act_anim", act_anim, Vector2(200, -300))
+	var act := AnimationNodeBlend2.new()
+	root.add_node("act", act, Vector2(400, -150))
+	root.connect_node("act", 0, "seated")
+	root.connect_node("act", 1, "act_anim")
+	var gest_anim := AnimationNodeAnimation.new()
+	gest_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/wave"
+	root.add_node("gest_anim", gest_anim, Vector2(400, -300))
+	var gest := AnimationNodeOneShot.new()
+	gest.fadein_time = 0.25
+	gest.fadeout_time = 0.35
+	root.add_node("gesture", gest, Vector2(600, -150))
+	root.connect_node("gesture", 0, "act")
+	root.connect_node("gesture", 1, "gest_anim")
+	root.connect_node("upper", 0, "gesture")
 	root.connect_node("upper", 1, "aim_kind")
 	var hit_anim := AnimationNodeAnimation.new()
 	hit_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/hit_front"
@@ -340,6 +370,42 @@ func set_locomotion(speed: float, state := "", _on_floor := true) -> void:
 	_seat_target = 1.0 if state == "mounted" else 0.0
 	if state == "mounted":
 		tree.set("parameters/loco/blend_position", 0.0)
+
+## Town life: hold a looping full-body activity ("sit_idle", "lean_rail", "drink", "drink_smoke", "talk_1",
+## "talk_2", "idle_wait", "lean_wall"...), "" returns to locomotion. Blends over ~0.4 s.
+func set_activity(clip: String) -> void:
+	_ensure_tree()
+	if tree == null:
+		return
+	if clip == "":
+		_act_target = 0.0
+		return
+	var full := CharacterFactory.ANIM_LIB_NAME + "/" + clip + "_loop"
+	var node := (tree.tree_root as AnimationNodeBlendTree).get_node("act_anim") as AnimationNodeAnimation
+	if not tree.has_animation(full):
+		return
+	if node.animation != StringName(full):
+		if _act_w > 0.05 and _act_clip != "":
+			_act_w = 0.0              # switching poses: restart the blend from locomotion (short dip, no pop)
+		node.animation = full
+	_act_clip = clip
+	_act_target = 1.0
+
+func activity() -> String:
+	return _act_clip if _act_target > 0.5 else ""
+
+## One-shot gesture over everything below the aim layer: "wave", "shrug", "sit_down", "stand_up", "drink",
+## "talk_directions", "handshake", "pick_up". Returns the clip length (0 when unavailable).
+func gesture(clip: String) -> float:
+	_ensure_tree()
+	if tree == null:
+		return 0.0
+	var full := CharacterFactory.ANIM_LIB_NAME + "/" + clip
+	if not tree.has_animation(full):
+		return 0.0
+	((tree.tree_root as AnimationNodeBlendTree).get_node("gest_anim") as AnimationNodeAnimation).animation = full
+	tree.set("parameters/gesture/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	return tree.get_animation(full).length
 
 ## kind: "" (none), "pistol", "rifle". Raises the upper body into an aim pose over the locomotion.
 func set_aim(kind: String) -> void:
@@ -396,6 +462,8 @@ func _physics_tick_anim(delta: float) -> void:
 	tree.set("parameters/upper/blend_amount", _aim_w)
 	_seat_w = move_toward(_seat_w, _seat_target, delta * 4.0)
 	tree.set("parameters/seated/blend_amount", _seat_w)
+	_act_w = move_toward(_act_w, _act_target, delta * 2.5)
+	tree.set("parameters/act/blend_amount", _act_w)
 	# animation LOD: full rate near the camera, every 3rd/6th frame further out
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var every := 1
@@ -404,8 +472,10 @@ func _physics_tick_anim(delta: float) -> void:
 		every = 1 if dist < 35.0 else (3 if dist < 90.0 else 6)
 	_lod_acc += delta
 	_lod_frame += 1
+	if not is_visible_in_tree():
+		return
 	if _lod_frame % every == 0:
-		tree.advance(_lod_acc)
+		tree.advance(minf(_lod_acc, 0.5))
 		_lod_acc = 0.0
 
 func revive() -> void:

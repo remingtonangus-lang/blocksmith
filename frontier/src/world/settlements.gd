@@ -916,6 +916,25 @@ func bake_navigation(town_id: String) -> void:
 				continue
 			# the bake area includes the border that Recast trims, so neighbouring chunks meet edge to edge
 			jobs.append(AABB(Vector3(x0 - 1.0, c.y - 40.0, z0 - 1.0), Vector3(NAV_CHUNK + 2.0, 80.0, NAV_CHUNK + 2.0)))
+	# doorways: a two-way NavigationLink3D from 0.9 m outside to 0.9 m inside every door (narrow, often oblique
+	# openings don't survive voxelisation at agent radius 0.25 reliably; links make every room reachable)
+	var links := 0
+	for bid in t.buildings:
+		var b: Dictionary = buildings[bid]
+		if str(b.type) == "outhouse":
+			continue
+		for dsp in b.get("door_specs", []):
+			if not dsp.has("outside"):
+				continue
+			var ln := NavigationLink3D.new()
+			ln.name = "DoorLink"
+			ln.bidirectional = true
+			ln.start_position = dsp.outside + Vector3(0, 0.05, 0)
+			ln.end_position = dsp.inside + Vector3(0, 0.05, 0)
+			t.node.add_child(ln)
+			t["nav_links"] = t.get("nav_links", []) + [ln]
+			links += 1
+	t["links"] = links
 	t["nav_jobs"] = jobs.size()
 	t["nav_done"] = 0
 	t["nav_t0"] = Time.get_ticks_msec()
@@ -965,6 +984,30 @@ func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void
 			faces.append_array(PackedVector3Array([a, b, cc, a, cc, d]))     # Godot winding (clockwise from above)
 	src.add_faces(faces, Transform3D.IDENTITY)
 
+## --navcheck: every standing spot of the town must be on the navmesh and reachable from the main street.
+func _nav_check(tid: String, map_rid: RID) -> void:
+	var t: Dictionary = towns[tid]
+	var start := NavigationServer3D.map_get_closest_point(map_rid, t.center + Vector3(0, 2, 0))
+	var bad := {}
+	var total := 0
+	for sp in t.spots:
+		if sp.has("lie_height") or str(sp.type) in ["hitch", "trough", "corral", "stall", "water_tower", "balcony", "balcony_door"]:
+			continue
+		var o: Vector3 = sp.transform.origin
+		if o.y - buildings[sp.building].floor_y > 1.2:
+			continue
+		total += 1
+		var cp := NavigationServer3D.map_get_closest_point(map_rid, o + Vector3(0, 0.3, 0))
+		var path := NavigationServer3D.map_get_path(map_rid, start, o, true)
+		var end_d: float = path[path.size() - 1].distance_to(o) if path.size() > 0 else 99.0
+		var off := Vector2(cp.x - o.x, cp.z - o.z).length()
+		if off > 0.35 or end_d > 0.6:
+			var k := "%s/%s" % [str(sp.building).get_file(), sp.type]
+			bad[k] = "off %.2f end %.2f" % [off, end_d]
+	print("navcheck %s: %d of %d ground-floor spots unreachable" % [tid, bad.size(), total])
+	for k in bad:
+		print("  ", k, " ", bad[k])
+
 static func _box_faces(s: Vector3) -> PackedVector3Array:
 	var h := s * 0.5
 	var v := [Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z), Vector3(h.x, -h.y, h.z), Vector3(-h.x, -h.y, h.z),
@@ -1011,6 +1054,10 @@ func _self_test() -> void:
 				var o: Vector3 = b.transform.origin
 				var fwd: Vector3 = -b.transform.basis.z
 				print("  %-34s %8.1f %6.1f %8.1f  faces yaw %4.0f  w %.1f d %.1f" % [bid, o.x, o.y, o.z, rad_to_deg(atan2(fwd.x, -fwd.z)), b.size.x, b.size.z])
+				var sts := {}
+				for s in b.spots:
+					sts[s.type] = sts.get(s.type, 0) + 1
+				print("      role %s hours %s rooms %d spots %s" % [b.role, str(b.hours), b.rooms.size(), str(sts)])
 	var nav_town := str(Game.args.get("nav", ""))
 	if nav_town != "" and towns.has(nav_town):
 		bake_navigation(nav_town)
@@ -1030,6 +1077,8 @@ func _self_test() -> void:
 		for i in 10:
 			await get_tree().physics_frame
 		print("nav map: %d regions, iteration %d" % [NavigationServer3D.map_get_regions(map_rid).size(), NavigationServer3D.map_get_iteration_id(map_rid)])
+		if Game.args.has("navcheck"):
+			_nav_check(nav_town, map_rid)
 		var bl := spots(nav_town, "bartender")
 		var dd := spots(nav_town, "door_out")
 		if bl.size() > 0 and dd.size() > 0:
