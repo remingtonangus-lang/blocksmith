@@ -155,14 +155,25 @@ func _shot(s: String) -> void:
 			_look(Vector3(-d, 1.2, -0.2), Vector3(0, 1.0, -0.2), 36.0 * 6.2 / d)
 			for mi in v.meshes:
 				print("  mesh %s visible=%s range=%.0f..%.0f aabb=%s" % [mi.name, mi.visible, mi.visibility_range_begin, mi.visibility_range_end, str(mi.get_aabb())])
-		"rider", "rider34":
+		"rider", "rider34", "rider_gallop", "rider_canter", "rider_mount", "rider_mount2", "rider_reins":
 			var h := Horse.spawn(3, "quarter")
 			add_child(h)
 			h.set_physics_process(false)
 			h.set_process(false)
 			horses.append(h)
 			var v: HorseVisual = h.visual
-			_pose(v, str(Game.args.get("rider_anim", "idle")), 0.2)
+			var ranim := str(Game.args.get("rider_anim", "idle"))
+			match s:
+				"rider_gallop":
+					ranim = "gallop"
+					h.gait = "gallop"
+					h.speed = 13.0
+				"rider_canter":
+					ranim = "canter"
+					h.gait = "canter"
+					h.speed = 7.0
+			h.rider_side = -1.0
+			_pose(v, ranim, 0.2)
 			if CharacterFactory.available():
 				var ch := CharacterFactory.spawn_id(str(Game.args.get("rider_id", "npc_000")))
 				if ch != null:
@@ -175,12 +186,28 @@ func _shot(s: String) -> void:
 					var rik := RiderIK.new()
 					ch.skeleton.add_child(rik)
 					rik.setup(h)
+					if s == "rider_mount":
+						rik.phase_override = 0.3
+					elif s == "rider_mount2":
+						rik.phase_override = 0.62
+					if s.begins_with("rider_mount"):
+						# root where Horse._place_rider has it at that point of the mount
+						var side_pt := h.global_transform * Vector3(-0.85, 0.0, -0.1)
+						var e := rik.phase_override * rik.phase_override * (3.0 - 2.0 * rik.phase_override)
+						var tgt := Transform3D(seat.basis.orthonormalized(), seat.origin - seat.basis.y.normalized() * Horse.SEAT_DROP)
+						ch.global_transform = Transform3D(tgt.basis, side_pt).interpolate_with(tgt, e)
+						ch.set_locomotion(0.0, "mounted")
+					for i in 40:                  # let the cloth springs settle on the barrel
+						await get_tree().process_frame
 			else:
 				print("HORSE_TEST: no character assets, rider shot shows the horse only")
-			if s == "rider":
-				_look(Vector3(-5.2, 1.5, -0.2), Vector3(0, 1.25, -0.2), 38)
-			else:
-				_look(Vector3(-2.8, 2.2, -3.4), Vector3(0, 1.4, -0.3), 40)
+			match s:
+				"rider", "rider_gallop", "rider_canter", "rider_mount", "rider_mount2":
+					_look(Vector3(-5.2, 1.5, -0.2), Vector3(0, 1.25, -0.2), 38)
+				"rider_reins":
+					_look(Vector3(-1.9, 2.3, -1.9), Vector3(0, 1.75, -0.8), 40)
+				_:
+					_look(Vector3(-2.8, 2.2, -3.4), Vector3(0, 1.4, -0.3), 40)
 		"actions":
 			var acts := ["rear", "buck", "jump", "skid_stop", "graze", "death"]
 			for i in acts.size():

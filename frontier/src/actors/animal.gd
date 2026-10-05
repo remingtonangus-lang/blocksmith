@@ -61,6 +61,8 @@ var anim_gait := ""
 var _idle_t := 0.0
 var _idle_kind := "idle"
 var _prev_state := -1
+var _last_heading := 0.0
+var _yaw_rate := 0.0               # rad/s, + = turning left (smoothed; drives the turn-in-place clips)
 var _body_shape: CollisionShape3D
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
@@ -403,10 +405,17 @@ func _animate(dt: float) -> void:
 		mv.ik.enabled = cam != null and cd < 35.0 * maxf(mv.size_scale, 0.4)
 	if mv.tree:
 		mv.tree.active = cd < 60.0 + 150.0 * mv.size_scale or not alive     # animation LOD: far animals hold a pose
+	_yaw_rate = lerpf(_yaw_rate, wrapf(heading - _last_heading, -PI, PI) / maxf(dt, 1e-4), 0.25)
+	_last_heading = heading
 	if state == State.ATTACK and _prev_state != State.ATTACK:
 		mv.play_action("attack")
 		Horse.alarm(global_position, 45.0, 1.1, "predator")
 	_prev_state = state
+	if speed < 0.15 and absf(_yaw_rate) > 0.6 and "turn_l" in mv.loop_states:
+		var turn := "turn_l" if _yaw_rate > 0.0 else "turn_r"
+		mv.set_locomotion(turn, clampf(absf(_yaw_rate) / 1.5, 0.6, 1.6))
+		anim_gait = turn
+		return
 	if speed < 0.15:
 		var want := "idle"
 		if state == State.ALERT:
@@ -504,8 +513,7 @@ func skin() -> Dictionary:
 		Game.state.add_item("meat_" + species, 1)
 	if model_vis != null:
 		model_vis.set_locomotion("carcass_pose", 1.0)
-		if model_vis.body_mat:
-			model_vis.body_mat.set_shader_parameter("skinned", 1.0)
+		model_vis.set_coat("skinned", 1.0)
 	else:   # stand-in: flatten the meshes only (hit-zone areas under the visual must stay uniformly scaled for Jolt)
 		for m in visual.get_children():
 			if m is MeshInstance3D:

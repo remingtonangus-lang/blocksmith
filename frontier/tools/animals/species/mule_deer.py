@@ -87,14 +87,14 @@ def build_extras(Q, prims, arm):
     for sx in (-1.0, 1.0):
         base = V(sx * 0.038, 0.585, 1.41)
         beam = C.curve(base, V(sx * 1.0, -0.45, 0.8), 0.22, V(sx * -0.4, 2.6, 0.6), n=6)
-        tubes.append(C.tube_branch(Q, beam, 0.016, 0.012))
+        tubes.append(C.tube_branch(Q, beam, 0.02, 0.015))
         brow = C.curve(beam[1], V(sx * 0.2, 1.0, 0.7), 0.05, V(0, 0, 2.0), n=3)        # small brow tine
         tubes.append(C.tube_branch(Q, brow, 0.007, 0.002, segs=5))
         f1 = beam[-1]
         for k, (d, bend, L) in enumerate(((V(sx * 0.5, -0.3, 1.0), V(0, 1.6, -0.3), 0.20),
                                          (V(sx * 0.3, 1.0, 0.7), V(0, 0.6, 1.0), 0.16))):
             br = C.curve(f1, d, L, bend, n=5)
-            tubes.append(C.tube_branch(Q, br, 0.011, 0.007))
+            tubes.append(C.tube_branch(Q, br, 0.014, 0.009))
             f2 = br[-1]
             for d2, L2 in ((V(sx * 0.25, 0.1, 1.0), 0.11), (V(sx * 0.35, 1.0, 0.45), 0.09)):
                 tip = C.curve(f2, d2, L2, V(0, 0.8, -0.2), n=4)

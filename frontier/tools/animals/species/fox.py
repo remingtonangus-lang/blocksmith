@@ -14,7 +14,7 @@ B["leg_r"] = tuple(r * 0.95 for r in B["leg_r"])
 B["head"] = [(u, d * (0.92 if u > 0.4 else 1.0), hw * (0.88 if u > 0.4 else 1.0), nt, nb) for u, d, hw, nt, nb in B["head"]]
 # the body stretch (ky) must not stretch the face: a fox's muzzle is fine but not needle-long
 _P = B["poll"].copy()
-_k = 0.88
+_k = 0.8
 B["nose"] = _P + (B["nose"] - _P) * _k
 _j0, _j1, _r0, _r1, _sx = B["jaw"]
 B["jaw"] = (_P + (_j0 - _P) * _k, _P + (_j1 - _P) * _k, _r0, _r1, _sx)

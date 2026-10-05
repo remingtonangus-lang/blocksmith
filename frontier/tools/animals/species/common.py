@@ -224,12 +224,15 @@ def build_prims(Q, J, B):
     J["ear_t"][:] = J["ear_t"] + d
     Q.ell((-ec[0] - er * 0.45, ec[1], ec[2]), (er * 1.05, er * 1.15, er), ["head"], k=0.008 * s, op="s")
     # lids: a thin rim around the socket so the eye sits in an almond opening instead of on the surface
-    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2] + er * 0.75), (er * 0.45, er * 1.25, er * 0.42), ["head"], k=0.004 * s,
-          axis=(0, 1, -0.15))
-    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2] - er * 0.8), (er * 0.4, er * 1.1, er * 0.35), ["head"], k=0.004 * s,
-          axis=(0, 1, 0.1))
+    Q.ell((-ec[0] - er * 0.5, ec[1], ec[2] + er * 0.78), (er * 0.5, er * 1.35, er * 0.5), ["head"], k=0.004 * s,
+          axis=(0, 1, -0.18))                                                                        # upper lid
+    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2] - er * 0.86), (er * 0.42, er * 1.2, er * 0.4), ["head"], k=0.004 * s,
+          axis=(0, 1, 0.12))                                                                         # lower lid
+    Q.ell((-ec[0] - er * 0.3, ec[1] + er * 1.25, ec[2] - er * 0.1), (er * 0.4, er * 0.45, er * 0.45), ["head"],
+          k=0.004 * s)                                                                               # inner canthus
     Q.ell((-ec[0] + er * 0.5, ec[1] - er * 0.5, ec[2] + er * 1.1), (er * 0.9, er * 1.7, er * 0.6), ["head"], k=0.014 * s,
           axis=(0, 0.85, -0.2))                                                                      # brow
+    mouth_and_nose(Q, B, s, Pp, fd, zp, L)
     ea, eb = J["ear"], J["ear_t"]
     ax = eb - ea
     ew, et = B["ear_w"], B.get("ear_t", 0.25)
@@ -291,6 +294,117 @@ def build_prims(Q, J, B):
         if p.mirror:
             out.append(p.mirrored())
     return out
+
+
+def head_profile(B, u):
+    """Head loft depth and half width at u (0 = poll, 1 = nose)."""
+    hs = B["head"]
+    us = [h[0] for h in hs]
+    return float(np.interp(u, us, [h[1] for h in hs])), float(np.interp(u, us, [h[2] for h in hs]))
+
+
+def mouth_and_nose(Q, B, s, Pp, fd, zp, L):
+    """Mouth slit from the mouth corner to the front of the muzzle, at the lip line (a little below the middle
+    of the muzzle's depth), cut through the whole muzzle width so upper and lower lips separate and the jaw opens
+    on a mouth instead of stretching skin; nostrils at the nose. Stores B["mouth"] = (corner, front, up, half
+    width, half thickness, poll, fd, L) for the weights fix, the teeth and the coat shader's lips."""
+    vox = float(getattr(Q, "VOXEL", 0.004))
+    u0 = B.get("mouth_corner", 0.42)
+    depth_k = B.get("mouth_depth", 0.6)
+
+    def line(u):
+        d, hw_ = head_profile(B, min(u, 1.0))
+        return Pp + fd * u * L - zp * d * depth_k
+
+    c0, c1 = line(u0), line(1.12)
+    th = max(1.25 * vox, 0.0045 * L / 0.27)
+    hw = max(head_profile(B, u0)[1], head_profile(B, 0.7)[1]) * 1.6
+    Q.rc(tuple(c0), tuple(c1), th, th * 1.2, ["head"], k=0.0035 * s, op="s", mirror=False, sx=hw / th, side=(1, 0, 0))
+    B["mouth"] = (c0, c1, V(*zp), hw, th, Pp.copy(), V(*fd), L, u0)
+    # nostrils: two small pits at the nose (canids and the bear already have them in their nose pad)
+    if B.get("nostrils", True) and B["family"] not in ("canid", "ursid", "felid", "lagomorph", "procyonid"):
+        k = L / 0.3
+        nose = Pp + fd * L
+        c = nose - fd * 0.012 * k + zp * 0.004 * k + V(-0.016 * k, 0, 0)
+        Q.ell(tuple(c), (0.006 * k, 0.011 * k, 0.005 * k), ["head"], k=0.003 * k, op="s",
+              axis=tuple(fd * 0.6 + V(-0.4, 0, 0) + zp * 0.3))
+
+
+def mouth_mask(verts, B):
+    """Vertices around the mouth slit (lips and the slit's inner faces)."""
+    c0, c1, up, hw, th = B["mouth"][:5]
+    d = c1 - c0
+    t = ((verts - c0) @ d) / float(d @ d)
+    rel = verts - (c0 + np.outer(np.clip(t, 0, 1), d))
+    h = rel @ up
+    return (np.abs(verts[:, 0]) < hw * 1.1) & (t > -0.05) & (t < 1.25) & (np.abs(h) < th * 2.2)
+
+
+def mouth_weights(verts, names, W, B):
+    """Below the mouth slit follows the jaw, above it the head (the head loft spans both lips)."""
+    if "mouth" not in B:
+        return W
+    c0, c1, up, hw, th = B["mouth"][:5]
+    ij, ih = names.index("jaw"), names.index("head")
+    d = c1 - c0
+    L2 = float(d @ d)
+    t = ((verts - c0) @ d) / L2
+    rel = verts - (c0 + np.outer(np.clip(t, 0, 1), d))
+    h = rel @ up
+    k = B["mouth"][7] / 0.27 if len(B["mouth"]) > 7 else 1.0
+    inside = (np.abs(verts[:, 0]) < hw * 1.1) & (t > -0.25) & (t < 1.3) & (h > -0.075 * k) & (h < 0.08 * k)
+    corner = np.clip((t + 0.25) / 0.3, 0.0, 1.0)                 # blends over the mouth corner
+    chin = np.clip((h + 0.075 * k) / (0.03 * k), 0.0, 1.0)       # and down into the throat
+    w = np.where(inside, corner * np.where(h < 0, chin, 1.0), 0.0)
+    below = h < 0
+    W = W.copy()
+    tgt = np.zeros_like(W)
+    tgt[below, ij] = 1.0
+    tgt[~below, ih] = 1.0
+    W = W * (1 - w[:, None]) + tgt * w[:, None]
+    return W / np.maximum(W.sum(1, keepdims=True), 1e-9)
+
+
+def build_teeth(Q, B, arm):
+    """Canines and incisors (upper on the head, lower on the jaw) and a tongue on the jaw, inside the mouth slit,
+    placed along the muzzle (u = 0 at the poll, 1 at the nose) just above / below the slit."""
+    c0, c1, up, hw, th, Pp, fd, L, u0 = B["mouth"]
+    k = L / 0.27                                                            # wolf = 1
+    depth_k = B.get("mouth_depth", 0.6)
+
+    def at(u, x, dz):
+        d, hw_ = head_profile(B, min(u, 1.0))
+        return Pp + fd * u * L - up * d * depth_k + up * dz + V(x * hw_, 0, 0)
+
+    up_t, lo_t = [], []
+    for sx in (-1.0, 1.0):
+        cu = at(0.86, sx * 0.62, th * 0.5)
+        up_t.append(Q.tube_mesh(np.array([cu + up * 0.006 * k, cu - up * 0.021 * k]), np.array([0.0042 * k, 0.0008 * k]),
+                                segs=7, caps=True))
+        cl = at(0.82, sx * 0.55, -th * 0.5)
+        lo_t.append(Q.tube_mesh(np.array([cl - up * 0.006 * k, cl + up * 0.016 * k]), np.array([0.0038 * k, 0.0008 * k]),
+                                segs=7, caps=True))
+        for i in range(3):                                                  # incisors
+            ci = at(0.93 + 0.025 * i, sx * (0.5 - 0.15 * i), th * 0.5)
+            up_t.append(Q.tube_mesh(np.array([ci + up * 0.004 * k, ci - up * 0.008 * k]), np.array([0.0021 * k, 0.0012 * k]),
+                                    segs=5, caps=True))
+            cj = at(0.91 + 0.025 * i, sx * (0.45 - 0.14 * i), -th * 0.5)
+            lo_t.append(Q.tube_mesh(np.array([cj - up * 0.004 * k, cj + up * 0.007 * k]), np.array([0.002 * k, 0.0011 * k]),
+                                    segs=5, caps=True))
+    ivory = (0.82, 0.78, 0.68, 1)
+    emit_tubes(Q, arm, "Teeth", up_t, ivory, rough=0.35)
+    lo = emit_tubes(Q, arm, "Teeth_lower", lo_t, ivory, rough=0.35)
+    lo.vertex_groups.clear()
+    vg = lo.vertex_groups.new(name="jaw")
+    vg.add(list(range(len(lo.data.vertices))), 1.0, "REPLACE")
+    # tongue: a flattened capsule lying in the lower jaw, below the slit
+    a, m, b = (at(u0 + 0.1, 0.0, -th * 2.4 - 0.008 * k), at(0.72, 0.0, -th * 2.4 - 0.008 * k),
+               at(0.88, 0.0, -th * 2.4 - 0.007 * k))
+    tv, tf = Q.tube_mesh(np.array([a, m, b]), np.array([0.013 * k, 0.012 * k, 0.008 * k]), flat=0.35, segs=10, caps=True)
+    tg = emit_tubes(Q, arm, "Tongue", [(tv, tf)], (0.55, 0.26, 0.26, 1), rough=0.3)
+    tg.vertex_groups.clear()
+    vg = tg.vertex_groups.new(name="jaw")
+    vg.add(list(range(len(tg.data.vertices))), 1.0, "REPLACE")
 
 
 def surface_x(Q, prims, y, z, er, s):
@@ -490,7 +604,7 @@ def actions(Q, cfg):
             lunge = Q.env(t, 0.25, 0.42, 0.55, 0.85)
             phi = (0.55 if bear else 0.25) * lunge - 0.06 * crouch
             ang = {"body": phi, "neck_1": -0.15 * crouch + (0.05 if bear else -0.2) * lunge, "head": 0.15 * lunge,
-                   "jaw": 0.45 * lunge, "ear_L": -0.5, "ear_R": -0.5, "tail_1": -0.2,
+                   "jaw": 0.36 * lunge, "ear_L": -0.5, "ear_R": -0.5, "tail_1": -0.2,
                    "spine_lumbar": 0.15 * crouch - 0.1 * lunge}
             loc = Q.pivot_body(phi, piv)
             loc = (loc[0] + 0.25 * H * lunge, loc[1] - 0.1 * H * crouch)
@@ -531,6 +645,8 @@ def actions(Q, cfg):
         return [poses[-1]] * int(T * Q.ACTION_FPS), [sides[-1]] * int(T * Q.ACTION_FPS)
 
     out = {"idle": (idle, True), "graze": (graze, True), "alert": (alert, True), "look": (look, True),
+           "turn_l": (lambda: Q.anim_turn_dir(1.0, T=1.0 if H < 0.7 else 1.2), True),
+           "turn_r": (lambda: Q.anim_turn_dir(-1.0, T=1.0 if H < 0.7 else 1.2), True),
            "flee_start": (flee_start, False), "death": (death, False), "carcass": (carcass, False)}
     if pred or cfg.get("bear"):
         out["attack"] = (attack, False)

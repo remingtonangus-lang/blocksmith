@@ -16,9 +16,9 @@ const PRESETS := {
 		"point": Color(0.70, 0.50, 0.30), "face": Color(0.30, 0.22, 0.16), "muzzle": Color(0.12, 0.09, 0.07),
 		"rump": Color(0.96, 0.95, 0.92), "tail_tip": Color(0.96, 0.95, 0.92), "belly_amt": 1.0, "dorsal_amt": 0.2,
 		"point_amt": 0.1, "rump_amt": 1.0, "tail_amt": 0.0, "bands": 1.0, "fur": 0.25},
-	"bison": {"base": Color(0.36, 0.25, 0.16), "belly": Color(0.20, 0.14, 0.10), "dorsal": Color(0.42, 0.30, 0.20),
+	"bison": {"base": Color(0.27, 0.18, 0.115), "belly": Color(0.20, 0.14, 0.10), "dorsal": Color(0.30, 0.21, 0.14),
 		"point": Color(0.12, 0.09, 0.07), "face": Color(0.10, 0.07, 0.05), "muzzle": Color(0.12, 0.10, 0.09),
-		"belly_amt": 0.5, "dorsal_amt": 0.3, "point_amt": 0.8, "cape": 1.0, "cape_col": Color(0.13, 0.09, 0.06), "fur": 0.9},
+		"belly_amt": 0.5, "dorsal_amt": 0.3, "point_amt": 0.8, "cape": 1.0, "cape_col": Color(0.40, 0.28, 0.17), "cape_head": 0.0, "head_r": 0.17, "face_amt": 0.92, "fur": 0.9},
 	"rabbit": {"base": Color(0.55, 0.47, 0.37), "belly": Color(0.90, 0.88, 0.84), "dorsal": Color(0.40, 0.34, 0.27),
 		"point": Color(0.58, 0.50, 0.40), "face": Color(0.55, 0.46, 0.36), "muzzle": Color(0.75, 0.70, 0.62),
 		"rump": Color(0.92, 0.90, 0.86), "tail_tip": Color(0.1, 0.09, 0.08), "belly_amt": 0.9, "dorsal_amt": 0.4,
@@ -59,6 +59,26 @@ const EYES := {
 	"cougar": [Color(0.66, 0.58, 0.27), 0.85, 0.4, 0], "black_bear": [Color(0.26, 0.15, 0.07), 0.85, 0.4, 0],
 	"raccoon": [Color(0.09, 0.06, 0.04), 0.9, 0.45, 0],
 }
+
+## Fur shells (shaders/animal_fur_shell.gdshader): length in metres where the region factor is 1, strand noise
+## cells per metre, neck ruff and tail fur factors. Short-coated species (deer, pronghorn, rabbit) get none.
+const FUR := {
+	"wolf": {"len": 0.035, "density": 160.0, "ruff": 0.9, "tail": 2.2},
+	"coyote": {"len": 0.03, "density": 180.0, "ruff": 0.7, "tail": 2.0},
+	"fox": {"len": 0.024, "density": 220.0, "ruff": 0.6, "tail": 2.6},
+	"black_bear": {"len": 0.045, "density": 120.0, "ruff": 0.2, "tail": 0.6},
+	"bison": {"len": 0.022, "density": 110.0, "ruff": 0.0, "tail": 1.2},
+	"cougar": {"len": 0.012, "density": 300.0, "ruff": 0.0, "tail": 1.0},
+	"raccoon": {"len": 0.028, "density": 220.0, "ruff": 0.3, "tail": 1.8},
+	"elk": {"len": 0.012, "density": 160.0, "ruff": 1.2, "tail": 0.5},
+}
+
+static func apply_fur(species: String, mat: ShaderMaterial) -> void:
+	var f: Dictionary = FUR.get(species, {})
+	mat.set_shader_parameter("fur_len", float(f.get("len", 0.02)))
+	mat.set_shader_parameter("strand_density", float(f.get("density", 260.0)))
+	mat.set_shader_parameter("ruff_amount", float(f.get("ruff", 0.0)))
+	mat.set_shader_parameter("tail_fur", float(f.get("tail", 1.0)))
 
 static func apply_eyes(species: String, mat: ShaderMaterial) -> void:
 	var e: Array = EYES.get(species, EYES["mule_deer"])
@@ -102,6 +122,9 @@ static func apply(c: Dictionary, mat: ShaderMaterial, anchors: Dictionary) -> vo
 	mat.set_shader_parameter("grizzle", c.get("grizzle", 0.0))
 	mat.set_shader_parameter("cape_amount", c.get("cape", 0.0))
 	mat.set_shader_parameter("cape_color", c.get("cape_col", c.dorsal))
+	mat.set_shader_parameter("cape_head", c.get("cape_head", 0.9))
+	mat.set_shader_parameter("head_radius", c.get("head_r", 0.08))
+	mat.set_shader_parameter("face_amount", c.get("face_amt", 0.6))
 	mat.set_shader_parameter("fur_length", c.get("fur", 0.4))
 	mat.set_shader_parameter("pattern_seed", c.get("seed", Vector3.ZERO))
 	for k in ["y_rear", "y_front", "z_back", "z_belly", "z_knee", "z_hock"]:
@@ -111,5 +134,11 @@ static func apply(c: Dictionary, mat: ShaderMaterial, anchors: Dictionary) -> vo
 		if anchors.has(k):
 			var a: Array = anchors[k]
 			mat.set_shader_parameter(k, Vector3(a[0], a[1], a[2]))
+	if anchors.has("mouth0"):
+		var m0: Array = anchors.mouth0
+		var m1: Array = anchors.mouth1
+		mat.set_shader_parameter("mouth0", Vector3(m0[0], m0[1], m0[2]))
+		mat.set_shader_parameter("mouth1", Vector3(m1[0], m1[1], m1[2]))
+		mat.set_shader_parameter("mouth_w", float(anchors.get("mouth_w", 0.05)))
 	if anchors.has("scale"):
 		mat.set_shader_parameter("body_scale", float(anchors.scale))

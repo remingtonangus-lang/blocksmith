@@ -71,10 +71,10 @@ def build_extras(Q, prims, arm):
         base = V(sx * 0.06, poll[1] + 0.02, poll[2] + 0.005)
         d0 = V(sx * 0.5, -0.85, 0.6)
         beam = C.curve(base, d0, 1.15, V(sx * -0.15, 0.3, 0.12), n=12)                    # up and back over the body
-        tubes.append(C.tube_branch(Q, beam, 0.033, 0.014, segs=8))
+        tubes.append(C.tube_branch(Q, beam, 0.045, 0.02, segs=10))
         for idx, L, d in ((1, 0.32, V(sx * 0.15, 1.0, 0.25)), (2, 0.28, V(sx * 0.2, 1.0, 0.45)),
                           (5, 0.3, V(sx * 0.15, 0.6, 1.0)), (7, 0.26, V(sx * 0.2, 0.45, 1.0)), (9, 0.2, V(sx * 0.25, 0.2, 1.0))):
             t = C.curve(beam[idx], d, L, V(0, -0.4, 0.8), n=5)
-            tubes.append(C.tube_branch(Q, t, 0.017, 0.003, segs=6))
-        tubes.append(C.burr(Q, base, d0, 0.04))
+            tubes.append(C.tube_branch(Q, t, 0.024, 0.004, segs=7))
+        tubes.append(C.burr(Q, base, d0, 0.055))
     C.emit_tubes(Q, arm, "Antlers", tubes, (0.40, 0.32, 0.22, 1), rough=0.75)
