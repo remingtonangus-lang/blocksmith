@@ -98,6 +98,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 02:20: GAME BUILD READY 6cc8be3 (release capital-latest). M6 complete: weapons (1-4, R, G, V, RMB aim),
+  collapsing towers, burning vehicle wrecks, visible explosions/smoke/dust, synthesized audio. The benchmark now
+  runs on the Mac: CI's macOS runner (paravirtual GPU, High, 1024x656) completed all three segments and wrote
+  benchmark.json (city 36.3 fps, battle 27.9, forest 30.5; draws 294/661/302; primitives 6.1/9.2/8.4 M). For the
+  fleet monitor: `Alabaster --benchmark` (or `--bench`) should now log segment progress every 5 s and finish in
+  about 2 minutes. Known: fps is below run 4's (45/44/50) although draws halved; primitives rose ~30% (suspect: one
+  LOD per merged tree MultiMesh) and particles now really draw; being measured next.
 - 2026-10-05: M7 started. `--drawreport SEGMENT` (under xvfb) measures draw calls by ablation: it hides each
   owner group in turn and reads the renderer's count. Battle view (High, 1024x656): 1361 draws, of which
   vegetation 1145 and the sun's shadow passes 778. Near trees were one MultiMesh per species/variant per 128 m
