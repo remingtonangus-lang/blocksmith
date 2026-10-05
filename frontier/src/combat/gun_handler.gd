@@ -10,7 +10,7 @@ signal empty(weapon_id: String)
 signal hit_landed(info: Dictionary)
 
 const WORLD_MASK := 1
-const BODY_MASK := 4                   # horses/animals (people are hit through their zone hitboxes only)
+const BODY_MASK := 0                   # bodies are hit only through their zone hitboxes (layer 16)
 const HITBOX_MASK := 16
 const GRAVITY := 9.81
 

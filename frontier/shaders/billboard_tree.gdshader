@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_disabled;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap;
 uniform vec4 species_tint[16];     // rgb leaf tint, a has leaves
@@ -15,6 +16,7 @@ uniform float far_end = 2500.0;
 
 varying flat int v_sp;
 varying float v_rand;
+varying float v_cloud;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -33,6 +35,7 @@ void vertex() {
 	vec3 wp = origin + (right * VERTEX.x * w + vec3(0.0, VERTEX.y * h, 0.0)) * vis;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(wp, 1.0)).xyz;
 	NORMAL = (inverse(MODEL_MATRIX) * vec4(to_cam, 0.0)).xyz;
+	v_cloud = cloud_shade(origin + vec3(0.0, h * 0.5, 0.0));
 }
 
 void fragment() {
@@ -40,6 +43,8 @@ void fragment() {
 	float y = 1.0 - UV.y;             // 0 ground .. 1 top
 	vec4 lt = species_tint[v_sp];
 	vec4 bk = species_bark[v_sp];
+	lt.rgb = pow(lt.rgb, vec3(2.2));     // array uniforms carry sRGB values: convert to linear albedo
+	bk.rgb = pow(bk.rgb, vec3(2.2));
 	float shape = bk.a;
 	float trunk = step(abs(p.x), 0.045 + 0.02 * (1.0 - y)) * step(y, shape > 2.5 ? 0.3 : 0.55);
 	float crown_w;
@@ -53,18 +58,23 @@ void fragment() {
 	} else {                         // bush
 		base_y = 0.0; crown_w = sin(clamp(y / 1.0, 0.0, 1.0) * 3.14159) * 1.1;
 	}
-	float lumps = vnoise(vec2(p.x * 3.0, y * 5.0) + v_rand * 13.0) * 0.18 + vnoise(UV * 22.0 + v_rand * 7.0) * 0.1;
-	float edge = crown_w - abs(p.x) + lumps;
-	float leaves = step(0.0, edge) * step(base_y, y) * step(0.5, lt.a);
+	// irregular, clumpy silhouette: big lobes + small leafy breakup + a few holes inside the canopy
+	float lobes = vnoise(vec2(p.x * 2.2, y * 3.4) + v_rand * 13.0) * 0.32;
+	float leafy = vnoise(UV * 26.0 + v_rand * 7.0) * 0.16 + vnoise(UV * 61.0 + v_rand * 3.0) * 0.08;
+	float edge = crown_w * (0.85 + 0.3 * v_rand) - abs(p.x + (v_rand - 0.5) * 0.15 * y) + lobes + leafy;
+	float top_cut = (1.0 - y) * 4.0 + vnoise(vec2(p.x * 4.0, v_rand * 9.0)) * 0.5;
+	float holes = step(0.62, vnoise(UV * 9.0 + v_rand * 21.0) * 0.5 + 0.5) * step(0.25, edge);
+	float leaves = step(0.0, edge) * step(0.0, top_cut) * step(base_y - lobes * 0.3, y) * step(0.5, lt.a) * (1.0 - holes * 0.0);
 	if (leaves < 0.5 && trunk < 0.5) discard;
 	vec3 leaf = texture(leaf_tex, fract(UV * vec2(3.0, 4.0)) * 0.25 + vec2(0.0, 0.25)).rgb;
-	vec3 col = leaves > 0.5 ? lt.rgb * (0.55 + 0.7 * leaf.g) * 1.25 : bk.rgb;
+	vec3 col = leaves > 0.5 ? lt.rgb * (0.6 + 0.5 * leaf.g) * 1.1 : bk.rgb;
 	// rough volume normal: canopy rounds away at the edges; darker inside / at the bottom
 	float nx = clamp(p.x / max(crown_w, 0.15), -1.0, 1.0);
 	vec3 n_view = normalize(vec3(nx * 0.8, (y - 0.45) * 0.9, 0.7));
 	NORMAL = normalize(mat3(VIEW_MATRIX) * (mat3(INV_VIEW_MATRIX) * n_view));
 	float self_shadow = mix(0.6, 1.0, smoothstep(base_y, 1.0, y)) * (0.8 + 0.2 * clamp(edge * 4.0, 0.0, 1.0));
 	ALBEDO = col * (0.9 + 0.2 * v_rand) * (leaves > 0.5 ? self_shadow : 1.0);
+	ALBEDO *= v_cloud;
 	ROUGHNESS = 0.9;
-	BACKLIGHT = col * 0.25;
+	BACKLIGHT = col * 0.25 * v_cloud;
 }

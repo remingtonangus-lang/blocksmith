@@ -1,65 +1,94 @@
 name: frontier-assets
 # Frontier (claude/frontier-game): fetches CC0 assets on a GitHub-hosted Linux runner (cloud sessions can't reach the
-# asset hosts) and builds generated art, publishing everything to the rolling release `frontier-assets`:
+# asset hosts) and publishes them to the rolling release `frontier-assets`:
 #   catalog.zip  ambientCG / Poly Haven catalogues + contact sheets (for picking assets by eye)
 #   ext.zip      processed assets from frontier/assets/manifest.json (+ LICENSES.json)
-#   weapons.zip  the ten firearms (+ finish variants) built by frontier/tools/weapons/gun_gen.py (Blender as a
-#                Python module, deterministic) -> weapons/<id>.glb + manifest.json; fetch with
-#                `bash frontier/tools/fetch_assets.sh weapons` (unpacks into frontier/assets/ext/weapons/)
+#   audio.zip    all game audio (frontier/tools/audio): synthesized SFX + ambience, the FluidSynth-rendered score
+#                stems, Kokoro TTS dialogue (design/dialogue/*.json) and CC0/PD Wikimedia Commons recordings
+#                (+ manifest.json, LICENSES_AUDIO.md/json, report.json)
+#   audio_plots.zip  waveform/spectrogram contact sheets + verify.log (no-clipping / loudness / every-line checks)
+#   characters.zip  generated humans + animation library (frontier/tools/characters, unzips to characters/)
+#   animals.zip  procedurally generated animals (frontier/tools/animals/*_gen.py, Blender as a Python module):
+#                ext/animals/horse.glb + horse_gaits.json; fetched with `bash frontier/tools/fetch_assets.sh animals`
+#   weapons.zip  the ten firearms + finish variants (frontier/tools/weapons/gun_gen.py, Blender as a Python module):
+#                weapons/<id>.glb + manifest.json; fetched with `bash frontier/tools/fetch_assets.sh weapons`
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both | weapons | all'
+        description: 'catalog | fetch | both | audio | animals | characters | weapons | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
-    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', 'frontier/tools/weapons/**',
-            '.github/workflows/frontier-assets.yml']
+    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml',
+            'frontier/tools/audio/**', 'frontier/design/dialogue/**', 'frontier/tools/animals/**',
+            'frontier/tools/characters/**', 'frontier/tools/weapons/**']
 
 permissions:
   contents: write
 
-concurrency:
-  group: frontier-assets
-  cancel-in-progress: true
-
 jobs:
-  assets:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    outputs:
+      assets: ${{ steps.c.outputs.assets }}
+      audio: ${{ steps.c.outputs.audio }}
+      animals: ${{ steps.c.outputs.animals }}
+      characters: ${{ steps.c.outputs.characters }}
+      weapons: ${{ steps.c.outputs.weapons }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: What changed
-        id: what
+      - id: c
         run: |
-          run=false
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            case "${{ inputs.mode }}" in catalog|fetch|both|all) run=true;; esac
-          else
-            changed=$(git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
-            if echo "$changed" | grep -qE '^(frontier/assets/manifest.json|frontier/tools/assets_ci.py|\.github/workflows/frontier-assets.yml)$'; then
-              run=true
-            fi
+            m="${{ inputs.mode }}"
+            a=false; u=false; n=false; c=false; w=false
+            case "$m" in audio) u=true;; animals) n=true;; characters) c=true;; weapons) w=true;; all) a=true; u=true; n=true; c=true; w=true;; *) a=true;; esac
+            echo "assets=$a" >> $GITHUB_OUTPUT; echo "audio=$u" >> $GITHUB_OUTPUT; echo "animals=$n" >> $GITHUB_OUTPUT
+            echo "characters=$c" >> $GITHUB_OUTPUT; echo "weapons=$w" >> $GITHUB_OUTPUT
+            exit 0
           fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || ! git cat-file -e "$before" 2>/dev/null; then before="HEAD~1"; fi
+          files=$(git diff --name-only "$before" "${{ github.sha }}")
+          echo "$files"
+          if echo "$files" | grep -qE '^frontier/assets/manifest.json|^frontier/tools/assets_ci.py'; then a=true; else a=false; fi
+          if echo "$files" | grep -qE '^frontier/tools/audio/|^frontier/design/dialogue/'; then u=true; else u=false; fi
+          if echo "$files" | grep -qE '^frontier/tools/animals/'; then n=true; else n=false; fi
+          if echo "$files" | grep -qE '^frontier/tools/characters/'; then c=true; else c=false; fi
+          if echo "$files" | grep -qE '^frontier/tools/weapons/'; then w=true; else w=false; fi
+          if echo "$files" | grep -q '^.github/workflows/frontier-assets.yml'; then u=true; n=true; c=true; w=true; fi
+          echo "assets=$a" >> $GITHUB_OUTPUT
+          echo "audio=$u" >> $GITHUB_OUTPUT
+          echo "animals=$n" >> $GITHUB_OUTPUT
+          echo "characters=$c" >> $GITHUB_OUTPUT
+          echo "weapons=$w" >> $GITHUB_OUTPUT
+
+  assets:
+    needs: changes
+    if: needs.changes.outputs.assets == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: frontier-assets-ext
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
       - name: Python deps
-        if: steps.what.outputs.run == 'true'
         run: pip install -q pillow numpy
       - name: Catalog
-        if: steps.what.outputs.run == 'true' && (github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both' || inputs.mode == 'all')
+        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py catalog out
           (cd out && zip -qr ../catalog.zip catalog)
       - name: Fetch
-        if: steps.what.outputs.run == 'true' && (github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both' || inputs.mode == 'all')
+        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py fetch out 2>&1 | tee fetch.log
           (cd out && zip -qr ../ext.zip ext)
       - name: Publish release frontier-assets
-        if: steps.what.outputs.run == 'true' && !cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -69,50 +98,172 @@ jobs:
           for f in catalog.zip ext.zip fetch.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"
 
-  weapons:
+  audio:
+    needs: changes
+    if: needs.changes.outputs.audio == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
+    concurrency:
+      group: frontier-assets-audio
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: What changed
-        id: what
-        run: |
-          run=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            case "${{ inputs.mode }}" in weapons|all) run=true;; esac
-          else
-            changed=$(git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
-            if echo "$changed" | grep -qE '^(frontier/tools/weapons/|\.github/workflows/frontier-assets.yml)'; then
-              run=true
-            fi
-          fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v5
-        if: steps.what.outputs.run == 'true'
+        with:
+          python-version: '3.11'
+      - name: System deps (FluidSynth + FluidR3 GM soundfont [MIT], ffmpeg)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends fluidsynth fluid-soundfont-gm ffmpeg
+          ls -la /usr/share/sounds/sf2/
+      - name: Python deps
+        run: pip install -q numpy scipy soundfile mido matplotlib kokoro-onnx
+      - name: Cache Kokoro-82M model (Apache-2.0)
+        id: kokoro-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/kokoro
+          key: kokoro-onnx-model-v1.0
+      - name: Download Kokoro-82M model
+        if: steps.kokoro-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/kokoro && cd ~/kokoro
+          base=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
+          curl -fsSL -o kokoro-v1.0.onnx $base/kokoro-v1.0.onnx
+          curl -fsSL -o voices-v1.0.bin $base/voices-v1.0.bin
+          ls -la
+      - name: Synthesized SFX + ambience + score
+        run: |
+          set -o pipefail
+          python3 frontier/tools/audio/build_all.py --out out/audio --jobs 4 2>&1 | tee audio_build.log
+      - name: Voices (Kokoro TTS)
+        run: |
+          set -o pipefail
+          python3 frontier/tools/audio/voices.py --model ~/kokoro --out out/audio 2>&1 | tee -a audio_build.log
+      - name: CC0 / public-domain recordings (Wikimedia Commons)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 frontier/tools/audio/commons.py --out out/audio 2>&1 | tee -a audio_build.log
+      - name: Verify (clipping, loudness, loops, every line voiced) + plots
+        run: |
+          set -o pipefail
+          python3 frontier/tools/audio/verify.py --out out/audio --plots out/audio_plots 2>&1 | tee verify.log
+          cp verify.log audio_build.log out/audio_plots/ || true
+      - name: Package
+        run: |
+          (cd out && zip -qr ../audio.zip audio && zip -qr ../audio_plots.zip audio_plots)
+          [ -f out/audio/LICENSES_AUDIO.md ] && cp out/audio/LICENSES_AUDIO.md . || true
+          du -sh audio.zip audio_plots.zip
+      - name: Publish release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json and audio.zip/audio/LICENSES_AUDIO.md."
+          for f in audio.zip audio_plots.zip audio_build.log verify.log LICENSES_AUDIO.md; do
+            [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber
+          done
+          echo "published audio"
+
+  animals:
+    # Procedural animals: Blender 5 as a Python module builds the horse (mesh, rig, gaits, hair, tack) -> animals.zip
+    needs: changes
+    if: needs.changes.outputs.animals == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: frontier-assets-animals
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Blender (bpy) + deps
-        if: steps.what.outputs.run == 'true'
+        run: pip install -q bpy==5.0.1 numpy scipy scikit-image pillow
+      - name: Build horse
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1 >/dev/null
-          pip install -q bpy==5.0.1 numpy scipy pillow
-      - name: Build weapons
-        if: steps.what.outputs.run == 'true'
-        run: |
-          python frontier/tools/weapons/gun_gen.py --variants --out out/weapons 2>&1 | grep -v "glTF\|INFO" | tee weapons.log
-          ls -la out/weapons
-          test -s out/weapons/lockhart_sa.glb && test -s out/weapons/merriman_lever.glb
-          (cd out && rm -rf weapons/tex && zip -qr ../weapons.zip weapons)
-      - name: Publish weapons.zip
-        if: steps.what.outputs.run == 'true' && !cancelled()
+          set -o pipefail
+          python frontier/tools/animals/horse_gen.py --out out/ext/animals 2>&1 | grep -avE "^Fra:|Saved:" | tee animals.log | grep -a "\[horse"
+          test -s out/ext/animals/horse.glb
+          (cd out && zip -qr ../animals.zip ext/animals)
+          ls -la animals.zip
+      - name: Publish animals.zip to release frontier-assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view frontier-assets >/dev/null 2>&1 || \
             gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
-          for f in weapons.zip weapons.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
-          echo "published weapons"
+          gh release upload frontier-assets animals.zip animals.log --clobber
+          echo "published animals.zip"
+
+  characters:
+    needs: changes
+    if: needs.changes.outputs.characters == 'true'
+    concurrency:
+      group: frontier-assets-characters
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender as a Python module
+        run: |
+          python -m venv frontier/build/charvenv
+          frontier/build/charvenv/bin/pip install -q "bpy==5.0.1" "numpy<2" pillow
+      - name: Sources (MPFB2, MakeHuman CC0 system assets, extra targets, CMU BVH)
+        run: bash frontier/tools/characters/fetch_sources.sh
+      - name: Generate characters + animation library
+        run: |
+          frontier/build/charvenv/bin/python frontier/tools/characters/generate.py --out out/characters 2>&1 | tee characters.log
+          grep -E "^built|^clip|catalogue|FAILED" characters.log | tail -80
+          (cd out && zip -qr ../characters.zip characters)
+          ls -la characters.zip
+      - name: Publish characters.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
+          for f in characters.zip characters.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
+          echo "published"
+
+  weapons:
+    # Procedural firearms: Blender 5 as a Python module models, bakes and exports the ten guns -> weapons.zip
+    needs: changes
+    if: needs.changes.outputs.weapons == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: frontier-assets-weapons
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender (bpy) + deps
+        run: pip install -q bpy==5.0.1 numpy scipy pillow
+      - name: Build weapons
+        run: |
+          set -o pipefail
+          python frontier/tools/weapons/gun_gen.py --variants --out out/weapons 2>&1 | grep -avE "glTF|INFO|Baking map" | tee weapons.log
+          test -s out/weapons/lockhart_sa.glb && test -s out/weapons/merriman_lever.glb
+          (cd out && rm -rf weapons/tex && zip -qr ../weapons.zip weapons)
+          ls -la weapons.zip
+      - name: Publish weapons.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
+          gh release upload frontier-assets weapons.zip weapons.log --clobber
+          echo "published weapons.zip"

@@ -77,6 +77,7 @@ func _sync() -> void:
 			m.top_level = true
 			add_child(m)
 			m.ejected.connect(_on_ejected)
+			m.mech.connect(_on_mech.bind(m))
 			models[id] = m
 	if gun.weapon_id() != _current:
 		_current = gun.weapon_id()
@@ -109,8 +110,10 @@ func _process(dt: float) -> void:
 	if m != null:
 		if drawn and not _was_drawn:
 			m.cock(true)
+			_audio("draw", m)
 		elif not drawn and _was_drawn:
 			m.cock(false)
+			_audio("holster", m)
 	_was_drawn = drawn
 	_reload_watch(m)
 	var v := _visual()
@@ -254,7 +257,8 @@ func _hand_global(wm: WeaponModel, ref: Transform3D) -> Transform3D:
 		down = 22.0
 	var pos := ref * local_pos
 	if hand != null and hand.is_inside_tree():
-		pos = hand.global_position
+		# humanoid hand bones point +Y toward the fingers: the palm (grip point) sits ~7.5 cm along the bone
+		pos = hand.global_transform * Vector3(0, 0.075, 0.0)
 	var fwd := -ref.basis.z
 	var b: Basis
 	if aiming:
@@ -301,3 +305,15 @@ func _on_ejected(shell: String, xform: Transform3D) -> void:
 	if actor is CharacterBody3D:
 		v = (actor as CharacterBody3D).velocity
 	WeaponFX.casing(get_tree().current_scene, shell, xform, v)
+	if Game.audio != null and Game.audio.has_method("gun_mech"):
+		var p := xform.origin
+		get_tree().create_timer(0.55).timeout.connect(func(): Game.audio.gun_mech("casing", p - Vector3(0, 1.2, 0)))
+
+
+## Mechanical sounds through the AudioDirector (Game.audio.gun_mech kinds); casings tinkle when they land.
+func _on_mech(kind: String, m: WeaponModel) -> void:
+	_audio(kind, m)
+
+func _audio(kind: String, m: WeaponModel) -> void:
+	if Game.audio != null and Game.audio.has_method("gun_mech") and m != null and m.is_inside_tree():
+		Game.audio.gun_mech(kind, m.global_position)

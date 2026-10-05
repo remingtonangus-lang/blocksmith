@@ -31,6 +31,8 @@ func run(d) -> Variant:
 	var hands: Array = d.spawn_group(stable, 1, {"role": "stablehand", "faction": "civilian", "name": "Stablehand", "seed": 420}, 1.0)
 	await d.interact(stable, "Stable your horse")
 	if d.aborted(): return false
+	d.cine_begin()
 	await d.say("c1_rider_05", hands[0] if hands.size() > 0 else null)
 	await d.say("c1_rider_06", Game.player)
+	d.cine_end()
 	return true

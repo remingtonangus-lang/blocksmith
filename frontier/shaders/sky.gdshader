@@ -5,6 +5,7 @@ shader_type sky;
 render_mode use_half_res_pass;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/clouds.gdshaderinc"
 
 uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);      // towards the sun
 uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);
@@ -13,6 +14,7 @@ uniform float cloud_cover = 0.35;                // 0 clear .. 1 overcast
 uniform float cloud_dark = 0.0;                  // storm darkening
 uniform float cloud_time = 0.0;                  // seconds, drives drift
 uniform vec2 wind_dir = vec2(1.0, 0.3);
+uniform vec2 cloud_origin = vec2(0.0);           // camera xz: clouds are anchored to the world, not the viewer
 uniform float haze = 0.0;                        // dust/fog in the air (raises Mie)
 uniform float exposure = 1.0;
 uniform float star_rot = 0.0;                    // sidereal rotation
@@ -116,14 +118,6 @@ float stars(vec3 rd) {
 	return star * tw * (0.4 + h * 3.0) + band * 0.035;
 }
 
-float cloud_density(vec2 p, float cover) {
-	vec2 w = vec2(fbm2(p * 0.6 + 3.1), fbm2(p * 0.6 + 7.7)) * 0.6;
-	float base = fbm2(p + w) * 0.5 + 0.5;
-	float detail = fbm2(p * 4.3 - w * 2.0) * 0.5 + 0.5;
-	float d = base * 0.75 + detail * 0.25;
-	float thr = mix(0.78, 0.25, cover);
-	return smoothstep(thr, thr + 0.22, d);
-}
 
 void sky() {
 	vec3 rd = EYEDIR;
@@ -180,7 +174,7 @@ void sky() {
 		float cloud_a = 0.0;
 		if (rd.y > 0.0) {
 			float t = 2200.0 / (rd.y + 0.06);
-			vec2 cp = rd.xz * t * 0.00028 + wind_dir * cloud_time * 0.0009;
+			vec2 cp = (cloud_origin + rd.xz * t) * 0.00028 + wind_dir * cloud_time * 0.0009;
 			float dens = cloud_density(cp, cover);
 			if (dens > 0.001) {
 				// self shadow: two samples towards the sun

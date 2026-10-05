@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D heightmap : filter_linear, repeat_disable;
 uniform sampler2D controlmap : filter_linear, repeat_disable;
@@ -21,6 +22,7 @@ global uniform float snow_cover;
 
 varying vec3 v_col;
 varying float v_t;
+varying float v_cloud;
 
 float h_at(vec2 xz) { return textureLod(heightmap, (xz + map_size * 0.5) / map_size, 0.0).r * h_range; }
 
@@ -46,7 +48,8 @@ void vertex() {
 	float d = distance(vec3(root.x, h, root.z), CAMERA_POSITION_WORLD);
 	float fade = 1.0 - smoothstep(fade_dist * 0.65, fade_dist, d);
 	float present = step(rnd, dens) * fade;
-	float hscale = mix(0.55, 1.25, moist) * (0.75 + 0.5 * n) * mix(0.6, 1.0, smoothstep(0.1, 0.4, biome));
+	float hscale = mix(0.6, 1.3, moist) * (0.6 + 0.8 * n * n) * mix(0.6, 1.0, smoothstep(0.1, 0.4, biome));
+	hscale *= 1.0 - smoothstep(0.0, 0.3, c.r) * 0.6;   // trampled near roads
 	vec3 v = VERTEX * vec3(1.0, hscale, 1.0) * present;
 	float t = COLOR.r;                      // 0 root .. 1 tip
 	v_t = t;
@@ -65,18 +68,21 @@ void vertex() {
 	VERTEX = v;
 	VERTEX.y += (h - root.y) / max(length(MODEL_MATRIX[1].xyz), 0.01);
 	// colour: dry gold -> green with moisture; sun-bleached tips; desert tufts grey-green
-	vec3 dry = vec3(0.72, 0.60, 0.36);
-	vec3 green = vec3(0.30, 0.38, 0.14);
-	vec3 desert = vec3(0.62, 0.58, 0.44);
+	vec3 dry = vec3(0.30, 0.22, 0.085);
+	vec3 green = vec3(0.075, 0.12, 0.035);
+	vec3 desert = vec3(0.22, 0.20, 0.13);
 	vec3 col = mix(dry, green, smoothstep(0.45, 0.9, moist + (n - 0.5) * 0.3));
 	col = mix(desert, col, smoothstep(0.15, 0.4, biome));
 	col *= 0.85 + 0.3 * INSTANCE_CUSTOM.y;
-	col = mix(col * 0.55, col * 1.12 + vec3(0.06, 0.05, 0.0), t);
+	col = mix(col * 0.45, col * 1.25 + vec3(0.025, 0.02, 0.0), t);
 	v_col = col * (1.0 - wetness * 0.25);
+	v_cloud = cloud_shade(wp);
 }
 
 void fragment() {
-	ALBEDO = v_col;
+	// grass is lit like the ground it covers: up-facing normals on both faces (no dark/white undersides)
+	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	ALBEDO = v_col * v_cloud;
 	ROUGHNESS = 0.85 - wetness * 0.4;
 	AO = mix(0.45, 1.0, v_t);
 	AO_LIGHT_AFFECT = 0.4;

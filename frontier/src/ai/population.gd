@@ -62,7 +62,7 @@ func _spawn_resident(t: Dictionary, slot: int) -> Human:
 	var role: String = ROLES[r.randi() % ROLES.size()]
 	var faction := "law" if role == "lawman" else "civilian"
 	var weapon := "lockhart_sa" if role in ["lawman", "rancher", "gambler"] else ""
-	Game.terrain.ensure_collision_at(home)
+	Game.terrain.ensure_tile(home)
 	var h := Human.spawn(Game.main, home + Vector3(0, 0.3, 0), {"seed": r.randi(), "role": role, "faction": faction,
 		"name": _name(r), "weapon": weapon})
 	h.set_meta("home_town", t.id)
@@ -102,7 +102,7 @@ func _travellers(dt: float, pp: Vector3) -> void:
 		var d := p.distance_to(pp)
 		if d < 120.0 or d > 220.0:
 			continue
-		Game.terrain.ensure_collision_at(p)
+		Game.terrain.ensure_tile(p)
 		var h := Human.spawn(Game.main, p + Vector3(0, 0.3, 0), {"seed": Game.rng.randi(), "role": "traveller", "faction": "civilian", "name": _name(Game.rng)})
 		var j := clampi(i + (40 if Game.rng.randf() < 0.5 else -40), 0, pts.size() - 1)
 		h.brain.home = Vector3(pts[j][0], pts[j][2], pts[j][1])

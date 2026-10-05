@@ -11,6 +11,8 @@ var settings := {"quality": "high", "render_scale": -1.0, "fov": 62.0, "mouse_se
 	"subtitles": true, "vol_master": 1.0, "vol_music": 0.8, "vol_sfx": 1.0, "vol_voice": 1.0, "snap_turn": true}
 var map_view: Control
 var waypoint := Vector3.INF
+var route := PackedVector3Array()
+var _route_t := 0.0
 
 func _ready() -> void:
 	layer = 20
@@ -264,7 +266,28 @@ func open_map() -> void:
 
 func set_waypoint(p: Vector3) -> void:
 	waypoint = p
+	_update_route()
 	Game.say("Waypoint set", 2.0)
+
+func clear_waypoint() -> void:
+	waypoint = Vector3.INF
+	route = PackedVector3Array()
+
+func _update_route() -> void:
+	if waypoint == Vector3.INF or Game.player == null or Game.roads == null:
+		route = PackedVector3Array()
+		return
+	route = Game.roads.route(Game.player.global_position, waypoint)
+
+func _process(dt: float) -> void:
+	_route_t -= dt
+	if _route_t <= 0.0 and waypoint != Vector3.INF and Game.player:
+		_route_t = 3.0
+		if Game.player.global_position.distance_to(waypoint) < 15.0:
+			clear_waypoint()
+			Game.say("You have arrived", 2.0)
+		else:
+			_update_route()
 
 # ------------------------------------------------------------------ journal
 func open_journal() -> void:

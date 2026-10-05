@@ -4,6 +4,8 @@ extends Node
 ## failed oracle.
 ##   --bot road      ride/walk the road network from town to town (default)
 ##   --bot explore   wander between random reachable points (curiosity)
+##   --bot ride      mount the player's horse and ride town to town along a road at canter/gallop (horse_bot.gd)
+##   --bot gaits     ride each gait on a road, gait oracle (footfall beats/order) + foot-slide metric
 ##   --bot all       every bot in sequence
 ##   --seconds N     time per bot (default 90)
 ##   --report PATH   JSON report path (default user://bot_report.json)
@@ -21,6 +23,8 @@ var _recording := false
 
 func run(m: Node) -> void:
 	main = m
+	if Game.args.has("prof"):
+		add_child(load("res://src/tests/_prof.gd").new())
 	player = Game.player
 	player.bot_driven = true
 	await get_tree().process_frame
@@ -31,13 +35,20 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore", "town", "gunfight", "missions", "systems"] if which == "all" or which == "true" else [which]
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
-		if b == "missions":
+		if b == "ride" or b == "gaits":
+			var hb = load("res://src/tests/horse_bot.gd").new()
+			add_child(hb)
+			res = await hb.run(b, seconds, self)
+			hb.queue_free()
+		elif b == "missions":
 			res = await _run_missions()
 		elif b == "town":
 			res = await _run_town(seconds)
+		elif b == "hunt":
+			res = await load("res://src/tests/hunt_bot.gd").run(self, seconds)
 		elif b == "systems":
 			res = await load("res://src/tests/systems_bot.gd").run(self)
 		elif b == "gunfight":
@@ -49,9 +60,12 @@ func run(m: Node) -> void:
 		report.bots.append(res)
 		if not res.ok:
 			report.ok = false
-		print("BOT %s: %s  dist=%.0f m  stuck=%d  falls=%d  spikes=%d  errors=%d  avg_ms=%.1f  p99_ms=%.1f" % [
-			b, "PASS" if res.ok else "FAIL", res.distance, res.stuck_events, res.fall_events, res.frame_spikes,
-			res.errors.size(), res.get("frame_avg_ms", 0.0), res.get("frame_p99_ms", 0.0)])
+		var line := "BOT %s: %s  errors=%d" % [b, "PASS" if res.ok else "FAIL", res.errors.size()]
+		if float(res.get("distance", 0.0)) > 0.0:
+			line += "  dist=%.0f m  stuck=%d  falls=%d  spikes=%d  avg_ms=%.1f  p99_ms=%.1f" % [res.distance, res.stuck_events,
+				res.fall_events, res.frame_spikes, res.get("frame_avg_ms", 0.0), res.get("frame_p99_ms", 0.0)]
+		line += _metrics(res)
+		print(line)
 		for f in res.failures:
 			print("  oracle: ", f)
 	var path := str(Game.args.get("report", "user://bot_report.json"))
@@ -260,6 +274,30 @@ func _run_missions() -> Dictionary:
 	res.completed = md.completed.duplicate()
 	for f in failed:
 		_fail(res, f)
+	# story coverage: every line said exists in the dialogue tables; report the choices and minigames played
+	var said := 0
+	var choices := []
+	for ln in Game.log_lines:
+		var parts := ln.split(" ", false, 2)
+		if parts.size() < 3:
+			continue
+		var data = JSON.parse_string(parts[2])
+		if typeof(data) != TYPE_DICTIONARY:
+			continue
+		if parts[1] == "say":
+			said += 1
+			if not md.dialogue.has(str(data.get("id", ""))):
+				_fail(res, "dialogue line '%s' missing from design/dialogue" % data.get("id", ""))
+		elif parts[1] == "choice":
+			choices.append("%s:%d" % [data.get("mission", ""), int(data.get("index", 0))])
+		elif parts[1] == "minigame_end":
+			print("  minigame %s: %s" % [data.get("name", ""), JSON.stringify(data)])
+	res.lines_said = said
+	res.choices = choices
+	print("  lines said %d, choices %s" % [said, " ".join(choices)])
+	var pk: Dictionary = load("res://src/minigames/poker_engine.gd").selftest()
+	if not pk.ok:
+		_fail(res, "poker self-test: %d failed" % pk.fails)
 	if md.completed.size() < MissionDirector.MISSIONS.size():
 		_fail(res, "completed %d/%d missions" % [md.completed.size(), MissionDirector.MISSIONS.size()])
 	var errs: Array = Game.error_logger.take().slice(err0)
@@ -386,3 +424,23 @@ func _memory() -> Dictionary:
 		if outp.size() > 0:
 			m.rss_mb = float(str(outp[0]).strip_edges()) / 1024.0
 	return m
+
+## What each bot actually exercised, for the summary line (critics read these; zeros must mean something).
+static func _metrics(res: Dictionary) -> String:
+	var out := ""
+	for k in ["enemies", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
+			"npcs", "npc_minutes", "pelt_quality", "kills", "skinned", "lines_said", "stances", "slide_cm"]:
+		if res.has(k):
+			var v = res[k]
+			out += ("  %s=%.1f" % [k, v]) if typeof(v) == TYPE_FLOAT else ("  %s=%s" % [k, str(v)])
+	if res.has("completed"):
+		out += "  missions=%d" % res.completed.size()
+	if res.has("choices"):
+		out += "  choices=%d" % res.choices.size()
+	if res.has("checks"):
+		var parts: PackedStringArray = []
+		for k in res.checks.keys():
+			var v = res.checks[k]
+			parts.append("%s:%s" % [k, str(v.size()) if typeof(v) in [TYPE_ARRAY, TYPE_DICTIONARY] else str(v)])
+		out += "  checks=[%s]" % ", ".join(parts)
+	return out

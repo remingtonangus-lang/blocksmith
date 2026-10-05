@@ -82,7 +82,10 @@ func _setup_combat() -> void:
 	damageable.regen_rate = 4.0
 	damageable.damage_scale = float(Game.args.get("player_damage_scale", 0.3))   # "normal" difficulty
 	add_child(damageable)
-	damageable.damaged.connect(func(info): health = damageable.health)
+	damageable.damaged.connect(func(info):
+		health = damageable.health
+		if visual and visual.has_method("hit") and damageable.alive:
+			visual.hit(info))
 	damageable.died.connect(_on_died)
 	# hitboxes so enemies can hit Ruth (head / chest / belly / legs)
 	var hb := Node3D.new()
@@ -123,7 +126,14 @@ func _setup_combat() -> void:
 	add_child(nerve)
 	nerve.setup(gun, hud)
 
-func _on_died(_info: Dictionary) -> void:
+func _aim_kind() -> String:
+	if gun == null or gun.weapons.is_empty():
+		return "pistol"
+	return str(Weapons.get_def(gun.weapon_id()).get("ammo", "revolver")).replace("revolver", "pistol").replace("varmint", "rifle")
+
+func _on_died(info: Dictionary) -> void:
+	if visual and visual.has_method("die"):
+		visual.die(info)
 	Game.log_event("player_died", {})
 	Game.say("You have died.", 6.0)
 	# respawn at the nearest settlement after a beat (death/consequence system refines this)
@@ -135,6 +145,8 @@ func _on_died(_info: Dictionary) -> void:
 	global_position = p
 	damageable.alive = true
 	damageable.health = damageable.max_health
+	if visual and visual.has_method("revive"):
+		visual.revive()
 	health = damageable.max_health
 
 ## Combat input each frame: draw/holster, aim, fire, reload, weapon switch, Nerve.
@@ -181,6 +193,25 @@ func _combat(dt: float) -> void:
 	cam_yaw += deg_to_rad(gun.recoil_kick.y) * dt * 6.0
 
 var _fire_edge := false
+var _interact_target: Node = null
+var busy: Node = null          # an activity holding Ruth in place (fishing, minigames): no walking or gunplay
+
+## Context interaction: nearest node in group "interactable" within reach that offers a prompt.
+func _interactions() -> void:
+	var best: Node = null
+	var bd := 2.8
+	for n in get_tree().get_nodes_in_group("interactable"):
+		if not (n is Node3D) or not n.has_method("interact_prompt"):
+			continue
+		var d := global_position.distance_to((n as Node3D).global_position)
+		if d < bd and n.interact_prompt() != "":
+			bd = d
+			best = n
+	_interact_target = best
+	if hud and hud.has_method("prompt") and (Game.missions == null or Game.missions.active == null or Game.missions.objective == ""):
+		hud.prompt(("[E]  " + best.interact_prompt()) if best != null else "")
+	if best != null and intent.interact:
+		best.interact(self)
 var _fire_was := false
 
 ## Camera-centre aim: origin, direction and the first solid point (for converging muzzle shots).
@@ -199,8 +230,8 @@ func aim_ray() -> Dictionary:
 
 func _build_visual() -> void:
 	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
-	if factory != null and factory.has_method("spawn_hero"):
-		visual = factory.spawn_hero()
+	if factory != null and factory.available():
+		visual = factory.spawn_id("ruth_caddell")
 	if visual == null:
 		visual = Node3D.new()
 		var body := MeshInstance3D.new()
@@ -269,9 +300,15 @@ func _physics_process(dt: float) -> void:
 		return
 	if not bot_driven:
 		_read_human_intent(dt)
+	if busy != null:
+		intent.move = Vector2.ZERO
+		intent.aim = false
+		intent.fire = false
+		intent.jump = false
 	_fire_edge = intent.fire and not _fire_was
 	_fire_was = intent.fire
 	_combat(dt)
+	_interactions()
 	var mv: Vector2 = intent.move
 	var want_dir := Vector3.ZERO
 	if mv.length() > 0.08:
@@ -347,7 +384,9 @@ func _physics_process(dt: float) -> void:
 		visual.rotation.y = facing
 	gait = "idle" if speed < 0.2 else ("walk" if speed < 2.4 else ("jog" if speed < 4.8 else "sprint"))
 	if visual and visual.has_method("set_locomotion"):
-		visual.set_locomotion(speed, gait, is_on_floor())
+		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
+	if visual and visual.has_method("set_aim"):
+		visual.set_aim(_aim_kind() if intent.aim else "")
 
 var _last_vy := 0.0
 

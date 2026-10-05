@@ -1,42 +1,411 @@
 {
-  "note": "Chapter 1 dialogue. id, speaker, line, emotion (neutral/dry/warm/angry/afraid/tired/amused/sad/tense). Original writing.",
-  "speakers": {
-    "ruth": {"name": "Ruth Caddell", "voice": "ruth"},
-    "hap": {"name": "Hap Lindqvist", "voice": "old_man_swede"},
-    "tough1": {"name": "Syndicate Man", "voice": "rough_male_a"},
-    "tough2": {"name": "Syndicate Man", "voice": "rough_male_b"},
-    "newsboy": {"name": "Newsboy", "voice": "boy"},
-    "stablehand": {"name": "Stablehand", "voice": "young_male"},
-    "mabry": {"name": "Sheriff Mabry", "voice": "tired_male"},
-    "greer": {"name": "Tobias Greer", "voice": "nasal_male"},
-    "bartender": {"name": "Bartender", "voice": "gruff_male"}
+ "note": "Chapter 1 dialogue. id, speaker, line, emotion (neutral/dry/warm/angry/afraid/tired/amused/sad/tense). Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
   },
-  "lines": [
-    {"id": "c1_rider_01", "speaker": "ruth", "line": "Easy. Smell that? River. We'll have water tonight, and maybe a roof.", "emotion": "warm"},
-    {"id": "c1_rider_02", "speaker": "ruth", "line": "Eighteen months, Tom. Four names. One town at a time.", "emotion": "tired"},
-    {"id": "c1_rider_03", "speaker": "newsboy", "line": "Lantern! Port Linden Lantern! Syndicate offers four dollars the acre! Four dollars for river land!", "emotion": "neutral"},
-    {"id": "c1_rider_04", "speaker": "ruth", "line": "Four dollars. Somebody's getting robbed, and it ain't the syndicate.", "emotion": "dry"},
-    {"id": "c1_rider_05", "speaker": "stablehand", "line": "Two bits the night, ma'am, oats extra. She's a fine one. What do you call her?", "emotion": "warm"},
-    {"id": "c1_rider_06", "speaker": "ruth", "line": "Depends on her mood. Today she's Patience.", "emotion": "amused"},
-    {"id": "c1_drover_01", "speaker": "tough1", "line": "Old man's already half dead. Let's call it a whole and be home for supper.", "emotion": "neutral"},
-    {"id": "c1_drover_02", "speaker": "tough2", "line": "Mister Shale said no talkers. Swede talks. Swedes always talk.", "emotion": "neutral"},
-    {"id": "c1_drover_03", "speaker": "ruth", "line": "Evening. Did I hear the name Shale?", "emotion": "tense"},
-    {"id": "c1_drover_04", "speaker": "tough1", "line": "You heard wrong, lady. Ride on, while riding's still something you can do.", "emotion": "angry"},
-    {"id": "c1_drover_05", "speaker": "ruth", "line": "I've been riding on a long while. Think I'll stop here.", "emotion": "dry"},
-    {"id": "c1_drover_06", "speaker": "hap", "line": "You shoot like the Lord's own sister. Who in hell are you?", "emotion": "afraid"},
-    {"id": "c1_drover_07", "speaker": "ruth", "line": "Somebody with a needle and thread, if you'll hold still. Who shot you?", "emotion": "dry"},
-    {"id": "c1_drover_08", "speaker": "hap", "line": "Syndicate's range detectives. They ran off my crew and kept the cattle. Hap Lindqvist. Was a drover. Am a hole, presently.", "emotion": "tired"},
-    {"id": "c1_drover_09", "speaker": "ruth", "line": "Ruth. The man who sent them. Eben Shale?", "emotion": "tense"},
-    {"id": "c1_drover_10", "speaker": "hap", "line": "You know him? Then I'm sorry for you, Ruth. He's the kind smiles while he does it.", "emotion": "sad"},
-    {"id": "c1_drover_11", "speaker": "ruth", "line": "We'll camp here tonight. Willow Bend's as good as anywhere, and you're not going anywhere.", "emotion": "warm"},
-    {"id": "bark_greet_01", "speaker": "townsfolk", "line": "Afternoon.", "emotion": "neutral"},
-    {"id": "bark_greet_02", "speaker": "townsfolk", "line": "Ma'am.", "emotion": "neutral"},
-    {"id": "bark_greet_03", "speaker": "townsfolk", "line": "Don't believe I know you.", "emotion": "neutral"},
-    {"id": "bark_alarm_01", "speaker": "townsfolk", "line": "She's got a gun! Somebody fetch the sheriff!", "emotion": "afraid"},
-    {"id": "bark_alarm_02", "speaker": "townsfolk", "line": "Lord, they're shooting!", "emotion": "afraid"},
-    {"id": "bark_hostile_01", "speaker": "gunman", "line": "There she is! Put her down!", "emotion": "angry"},
-    {"id": "bark_hostile_02", "speaker": "gunman", "line": "Flank her, Dutch, go left!", "emotion": "angry"},
-    {"id": "bark_hostile_03", "speaker": "gunman", "line": "I'm hit! God, I'm hit!", "emotion": "afraid"},
-    {"id": "bark_surrender_01", "speaker": "gunman", "line": "All right! All right, I'm done, don't shoot!", "emotion": "afraid"}
-  ]
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "old_man_swede"
+  },
+  "tough1": {
+   "name": "Syndicate Man",
+   "voice": "rough_male_a"
+  },
+  "tough2": {
+   "name": "Syndicate Man",
+   "voice": "rough_male_b"
+  },
+  "newsboy": {
+   "name": "Newsboy",
+   "voice": "boy"
+  },
+  "stablehand": {
+   "name": "Stablehand",
+   "voice": "young_male"
+  },
+  "mabry": {
+   "name": "Sheriff Mabry",
+   "voice": "tired_male"
+  },
+  "greer": {
+   "name": "Tobias Greer",
+   "voice": "nasal_male"
+  },
+  "bartender": {
+   "name": "Bartender",
+   "voice": "gruff_male"
+  },
+  "doane_widow": {
+   "name": "Lottie Doane",
+   "voice": "older_woman"
+  },
+  "shale_man": {
+   "name": "Shale Rider",
+   "voice": "rough_male_c"
+  },
+  "survivor": {
+   "name": "Wounded Rider",
+   "voice": "young_male"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "boy"
+  },
+  "gambler": {
+   "name": "Card Player",
+   "voice": "smooth_male"
+  }
+ },
+ "lines": [
+  {
+   "id": "c1_rider_01",
+   "speaker": "ruth",
+   "line": "Easy. Smell that? River. We'll have water tonight, and maybe a roof.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c1_rider_02",
+   "speaker": "ruth",
+   "line": "Eighteen months, Tom. Four names. One town at a time.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_rider_03",
+   "speaker": "newsboy",
+   "line": "Lantern! Port Linden Lantern! Syndicate offers four dollars the acre! Four dollars for river land!",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_rider_04",
+   "speaker": "ruth",
+   "line": "Four dollars. Somebody's getting robbed, and it ain't the syndicate.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_rider_05",
+   "speaker": "stablehand",
+   "line": "Two bits the night, ma'am, oats extra. She's a fine one. What do you call her?",
+   "emotion": "warm"
+  },
+  {
+   "id": "c1_rider_06",
+   "speaker": "ruth",
+   "line": "Depends on her mood. Today she's Patience.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c1_drover_01",
+   "speaker": "tough1",
+   "line": "Old man's already half dead. Let's call it a whole and be home for supper.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_drover_02",
+   "speaker": "tough2",
+   "line": "Mister Shale said no talkers. Swede talks. Swedes always talk.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_drover_03",
+   "speaker": "ruth",
+   "line": "Evening. Did I hear the name Shale?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_drover_04",
+   "speaker": "tough1",
+   "line": "You heard wrong, lady. Ride on, while riding's still something you can do.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c1_drover_05",
+   "speaker": "ruth",
+   "line": "I've been riding on a long while. Think I'll stop here.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_drover_06",
+   "speaker": "hap",
+   "line": "You shoot like the Lord's own sister. Who in hell are you?",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_drover_07",
+   "speaker": "ruth",
+   "line": "Somebody with a needle and thread, if you'll hold still. Who shot you?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_drover_08",
+   "speaker": "hap",
+   "line": "Syndicate's range detectives. They ran off my crew and kept the cattle. Hap Lindqvist. Was a drover. Am a hole, presently.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_drover_09",
+   "speaker": "ruth",
+   "line": "Ruth. The man who sent them. Eben Shale?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_drover_10",
+   "speaker": "hap",
+   "line": "You know him? Then I'm sorry for you, Ruth. He's the kind smiles while he does it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c1_drover_11",
+   "speaker": "ruth",
+   "line": "We'll camp here tonight. Willow Bend's as good as anywhere, and you're not going anywhere.",
+   "emotion": "warm"
+  },
+  {
+   "id": "bark_greet_01",
+   "speaker": "townsfolk",
+   "line": "Afternoon.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "bark_greet_02",
+   "speaker": "townsfolk",
+   "line": "Ma'am.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "bark_greet_03",
+   "speaker": "townsfolk",
+   "line": "Don't believe I know you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "bark_alarm_01",
+   "speaker": "townsfolk",
+   "line": "She's got a gun! Somebody fetch the sheriff!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "bark_alarm_02",
+   "speaker": "townsfolk",
+   "line": "Lord, they're shooting!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "bark_hostile_01",
+   "speaker": "gunman",
+   "line": "There she is! Put her down!",
+   "emotion": "angry"
+  },
+  {
+   "id": "bark_hostile_02",
+   "speaker": "gunman",
+   "line": "Flank her, Dutch, go left!",
+   "emotion": "angry"
+  },
+  {
+   "id": "bark_hostile_03",
+   "speaker": "gunman",
+   "line": "I'm hit! God, I'm hit!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "bark_surrender_01",
+   "speaker": "gunman",
+   "line": "All right! All right, I'm done, don't shoot!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_inq_01",
+   "speaker": "bartender",
+   "line": "Whiskey's a dime, beer's a nickel, and conversation costs extra.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_inq_02",
+   "speaker": "ruth",
+   "line": "Then I'll buy the whiskey and you can throw in a name. Arliss Doane.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_inq_03",
+   "speaker": "bartender",
+   "line": "Arliss. Now there's a name nobody's asked after in two days. Since about the time they planted him.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_inq_04",
+   "speaker": "ruth",
+   "line": "Planted.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_inq_05",
+   "speaker": "bartender",
+   "line": "Up on Boot Hill, behind the church. Fell off his horse, the sheriff says. Fell on a bullet, some say quieter.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_inq_06",
+   "speaker": "gambler",
+   "line": "Lady's asking a lot of questions for somebody who hasn't sat down to cards.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c1_inq_07",
+   "speaker": "ruth",
+   "line": "Lady's watched you deal from the bottom twice. Wouldn't want my questions to get in the way of your business.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_inq_08",
+   "speaker": "mabry",
+   "line": "Ma'am. I'm told you've been asking after a dead man. Asking after dead men is how a person joins them, in this county.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_inq_09",
+   "speaker": "ruth",
+   "line": "That a warning, Sheriff, or a confession?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_inq_10",
+   "speaker": "mabry",
+   "line": "It's advice. I give it free because nobody ever takes it. Doane drank, Doane rode, Doane fell. That's the inquest.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_inq_11",
+   "speaker": "ruth",
+   "line": "Who paid for the inquest?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_inq_12",
+   "speaker": "mabry",
+   "line": "...Enjoy your stay in Bitter Spring, Mrs. Caddell. Keep it short.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_inq_13",
+   "speaker": "ruth",
+   "line": "Two days old. Somebody's cleaning house ahead of me, Tom.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c1_greer_01",
+   "speaker": "greer",
+   "line": "Everything a body needs and some things it shouldn't want. What'll it be?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c1_greer_02",
+   "speaker": "ruth",
+   "line": "The Shale brothers. Where they sleep, where they drink, who brings them their mail.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_greer_03",
+   "speaker": "greer",
+   "line": "Information's a dear commodity this far from the railroad. Twenty dollars dear.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c1_greer_04",
+   "speaker": "ruth",
+   "line": "Here's five, and the rest of my patience.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_greer_05",
+   "speaker": "greer",
+   "line": "Cutter Shale keeps a line camp up the Dry Fork. Eben's in Port Linden, wearing a necktie. That's free advice: don't go up the Dry Fork.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_greer_06",
+   "speaker": "shale_man",
+   "line": "That's her! Greer said she'd come this way!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c1_greer_07",
+   "speaker": "ruth",
+   "line": "Five dollars for directions and a free ambush. Greer gives fair value.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_greer_08",
+   "speaker": "survivor",
+   "line": "Don't. Please. I just hold horses. Mr. Cutter pays a dollar a day.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_greer_09",
+   "speaker": "ruth",
+   "line": "Then go home and tell Mr. Cutter the price of a dollar just went up.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_fire_01",
+   "speaker": "hap",
+   "line": "Smell that? That's not my coffee burning.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_fire_02",
+   "speaker": "ruth",
+   "line": "Get down. Stay by the wagon. Can you shoot?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_fire_03",
+   "speaker": "hap",
+   "line": "Better than I can run, presently.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c1_fire_04",
+   "speaker": "billy",
+   "line": "Lady! They're cutting the horses loose! I seen 'em from the willows!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_fire_05",
+   "speaker": "ruth",
+   "line": "Who in God's name are you?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_fire_06",
+   "speaker": "billy",
+   "line": "Billy! Billy Pruitt! I can catch horses, I'm good at horses!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c1_fire_07",
+   "speaker": "ruth",
+   "line": "Then go catch them. Keep your head low.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c1_fire_08",
+   "speaker": "hap",
+   "line": "You could ride on, you know. Nobody'd blame you. I sure wouldn't.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c1_fire_09",
+   "speaker": "ruth",
+   "line": "I've been riding on for eighteen months. Turns out it's not much of a plan.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c1_fire_10",
+   "speaker": "ruth",
+   "line": "We stay. We rebuild the camp, and in the morning we find out who sent them.",
+   "emotion": "warm"
+  }
+ ]
 }

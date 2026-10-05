@@ -5,6 +5,10 @@ extends CharacterBody3D
 ## CharacterFactory when present (seeded), else a stand-in. Hitboxes per zone feed Damageable.
 ## Spawn with Human.spawn(parent, pos, {seed, role, faction, weapon, name}).
 
+# gameplay roles -> generated character looks (CharacterFactory roles/tags); unknown roles pick any NPC
+const ROLE_LOOKS := {"lawman": "lawman", "gunman": "drifter", "bartender": "townsman", "gambler": "gentleman",
+	"shopkeeper": "townsman", "rancher": "rancher", "worker": "worker", "drover": "cowhand", "cowhand": "cowhand",
+	"townsfolk": "", "traveller": "", "woman": "townswoman", "elder": "elder"}
 const WALK := 1.45
 const JOG := 3.5
 const SPRINT := 6.0
@@ -80,6 +84,8 @@ func _setup(opts: Dictionary) -> void:
 	brain.setup(self, opts)
 	facing = randf() * TAU
 	add_to_group("humans")
+	add_to_group("interactable")
+	tree_exiting.connect(func(): if Game.terrain: Game.terrain.foci.erase(self))
 	if Game.terrain:
 		Game.terrain.foci.append(self)
 
@@ -103,7 +109,8 @@ func _make_hitboxes() -> void:
 func _build_visual(opts: Dictionary) -> void:
 	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
 	if factory != null and factory.has_method("spawn"):
-		visual = factory.spawn(seed, role)
+		if factory.available():
+			visual = factory.spawn(seed, ROLE_LOOKS.get(role, ""))
 	if visual == null:
 		visual = Node3D.new()
 		var r := RandomNumberGenerator.new()
@@ -196,6 +203,11 @@ func _physics_process(dt: float) -> void:
 	visual.rotation.y = facing
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
+	if visual.has_method("set_aim"):
+		var kind := ""
+		if intent.aim_at != null and gun and not gun.weapons.is_empty():
+			kind = str(Weapons.get_def(gun.weapon_id()).get("ammo", "revolver")).replace("revolver", "pistol")
+		visual.set_aim(kind)
 	# stuck detection (for the behaviour oracle)
 	if target != null and tspeed > 0.5:
 		_stuck_t += dt
@@ -210,6 +222,24 @@ func _physics_process(dt: float) -> void:
 	else:
 		_stuck_t = 0.0
 		_last_pos = global_position
+
+func interact_prompt() -> String:
+	if not alive or brain == null or brain.state in [brain.State.COMBAT, brain.State.FLEE]:
+		return ""
+	if has_meta("held_up") and not has_meta("robbed") and brain.state == brain.State.SURRENDER:
+		return "Rob %s" % display_name
+	return "Greet %s" % display_name if faction in ["civilian", "law"] else ""
+
+func interact(_who: Node) -> void:
+	if has_meta("held_up") and not has_meta("robbed") and Game.get("robbery"):
+		Game.robbery.rob(self)
+		return
+	if Game.missions:
+		var lines := ["bark_greet_01", "bark_greet_02", "bark_greet_03"]
+		Game.missions.say(lines[seed % lines.size()], self)
+	if Game.state:
+		Game.state.good_deed("greet")
+	intent.face = Game.player.global_position - global_position
 
 ## Fire at a world point if the gun allows; returns true if a shot went off.
 func shoot_at(p: Vector3, accuracy_scale: float) -> bool:
@@ -238,6 +268,8 @@ func _on_damaged(info: Dictionary) -> void:
 		Game.state.crime("assault", global_position, self)
 	if brain and brain.has_method("on_damaged"):
 		brain.on_damaged(info)
+	if visual.has_method("hit") and damageable.alive:
+		visual.hit(info)
 	# flinch: a small shove in the hit direction
 	var d: Vector3 = info.get("direction", Vector3.ZERO)
 	velocity += Vector3(d.x, 0, d.z) * 1.5

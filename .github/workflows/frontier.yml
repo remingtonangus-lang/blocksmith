@@ -18,12 +18,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # The runners' paravirtual GPU (Apple5) has no Metal argument buffers: Godot's Metal scene shaders exceed the 16
+  # sampler limit there. MoltenVK (Vulkan) works on macos-15 runners, so CI evidence renders use it; real Macs use Metal.
+  FRONTIER_RDRIVER: "--rendering-driver vulkan"
   GODOT_VERSION: 4.7.1
   GODOT_TAG: 4.7.1-stable
 
 jobs:
   mac:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
@@ -31,14 +34,14 @@ jobs:
       - name: Python deps
         run: pip3 install --break-system-packages -q numpy scipy pillow scikit-image || pip3 install -q numpy scipy pillow scikit-image
 
-      - name: Cache Godot + export templates
+      - name: Restore Godot + export templates
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/godot
             ~/Library/Application Support/Godot/export_templates
-          key: godot-mac-${{ env.GODOT_TAG }}
+          key: godot-mac15-${{ env.GODOT_TAG }}
 
       - name: Install Godot
         if: steps.godot-cache.outputs.cache-hit != 'true'
@@ -51,14 +54,23 @@ jobs:
           D="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$D" && mv templates/* "$D/" && ls "$D" | head
 
+      - name: Save Godot + export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
+
       - name: Godot path
         run: |
           echo "GODOT=$HOME/godot/Godot.app/Contents/MacOS/Godot" >> $GITHUB_ENV
           ~/godot/Godot.app/Contents/MacOS/Godot --version
 
-      - name: Cache world data
+      - name: Restore world data
         id: world-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: frontier/data/world
           key: world-${{ hashFiles('frontier/tools/worldgen.py') }}
@@ -67,29 +79,67 @@ jobs:
         if: steps.world-cache.outputs.cache-hit != 'true'
         run: python3 frontier/tools/worldgen.py 2>&1 | tail -5
 
-      - name: Cache asset pack + import
+      - name: Save world data
+        if: steps.world-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: frontier/data/world
+          key: ${{ steps.world-cache.outputs.cache-primary-key }}
+
+      - name: Asset pack versions
+        id: packs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # audio/characters/animals zips are rebuilt by frontier-assets.yml; their upload times key the cache
+          gh release view frontier-assets --repo "$GITHUB_REPOSITORY" --json assets \
+            -q '.assets[] | select(.name | test("^(audio|characters|animals)[.]zip$")) | .name + "=" + .updatedAt' \
+            | sort > packs.txt || true
+          cat packs.txt
+          echo "hash=$(shasum packs.txt | cut -c1-12)" >> $GITHUB_OUTPUT
+
+      - name: Restore asset pack + import
         id: asset-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             frontier/assets/ext
             frontier/.godot
-          key: assets-v1-${{ hashFiles('frontier/assets/manifest.json', 'frontier/tools/pack_textures.py') }}
+          key: assets-v2-${{ hashFiles('frontier/assets/manifest.json', 'frontier/tools/pack_textures.py') }}-${{ steps.packs.outputs.hash }}
+          restore-keys: |
+            assets-v2-${{ hashFiles('frontier/assets/manifest.json', 'frontier/tools/pack_textures.py') }}-
 
       - name: Fetch + pack assets
         run: |
           if [ ! -f frontier/assets/ext/packed/terrain_ah.png ]; then
             bash frontier/tools/fetch_assets.sh
             python3 frontier/tools/pack_textures.py | cut -c1-200
-            rm -rf frontier/assets/ext/terrain frontier/assets/ext/build frontier/assets/ext/cloth
+            rm -rf frontier/assets/ext/terrain            # packed into texture arrays; cloth/build/props stay
           fi
-          if [ -f frontier/tools/fetch_assets.sh ] && grep -q characters frontier/tools/fetch_assets.sh; then bash frontier/tools/fetch_assets.sh characters || true; fi
-          du -sh frontier/assets/ext
+          # refresh only the packs whose release upload changed since the cached copy
+          mkdir -p frontier/assets/ext/.stamps
+          for pack in audio characters animals; do
+            want=$(grep "^$pack.zip=" packs.txt || true)
+            have=$(cat frontier/assets/ext/.stamps/$pack 2>/dev/null || true)
+            if [ -n "$want" ] && [ "$want" != "$have" ]; then
+              bash frontier/tools/fetch_assets.sh $pack && echo "$want" > frontier/assets/ext/.stamps/$pack || true
+            fi
+          done
+          du -sh frontier/assets/ext frontier/assets/ext/* 2>/dev/null | tail -20
 
       - name: Import
         run: |
           set -o pipefail
           time "$GODOT" --headless --path frontier --import 2>&1 | grep -vE "^\[|loading_editor|^$" | tail -20 || true
+
+      - name: Save asset pack + import
+        if: steps.asset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            frontier/assets/ext
+            frontier/.godot
+          key: ${{ steps.asset-cache.outputs.cache-primary-key }}
 
       - name: Script check
         run: |
@@ -104,8 +154,8 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps
-          "$GODOT" --path frontier --resolution 1280x720 -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
-          grep -q "BOTS PASS" bots.log
+          "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
+          grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
 
       - name: Benchmark (High preset, 1920x1080)
         id: bench
@@ -113,8 +163,16 @@ jobs:
         timeout-minutes: 12
         run: |
           set -o pipefail
-          "$GODOT" --path frontier --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
-          test -f snaps/benchmark.json
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
+          test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
+
+      - name: Perf attribution (only for commits tagged [perf])
+        if: ${{ !cancelled() && contains(github.event.head_commit.message, '[perf]') }}
+        timeout-minutes: 20
+        run: |
+          for f in none vfog ssr ssao shadows grass trees scatter water; do
+            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --bench_scale 0.35 --disable $f --bench_out "$PWD/snaps/bench_$f.json" --watchdog 300 2>&1 | grep "BENCH overall" | sed "s/^/without $f: /" | tee -a perf_attr.log
+          done
 
       - name: Screenshot tour (High preset)
         id: tour
@@ -122,8 +180,29 @@ jobs:
         timeout-minutes: 15
         run: |
           set -o pipefail
-          "$GODOT" --path frontier --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR" || true
+          # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
+          # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
           ls snaps/*.png
+
+      - name: Feature shots (HUD, combat, menus, wildlife, riding, camp, dialogue)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          mkdir -p snaps/features
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
+          ls snaps/features/
+
+      - name: Audio evidence (verify report from the audio build)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p snaps/audio
+          gh release download frontier-assets --repo "$GITHUB_REPOSITORY" -p verify.log -p audio_plots.zip -D snaps/audio --clobber || true
+          if [ -f snaps/audio/audio_plots.zip ]; then (cd snaps/audio && unzip -q -o audio_plots.zip && rm audio_plots.zip); fi
+          ls -R snaps/audio | head -40
 
       - name: Export .app (arm64, ad-hoc signed)
         id: export
@@ -171,7 +250,7 @@ jobs:
           {
             echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
-            for f in *.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            for f in *.png features/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
             echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A
@@ -213,6 +292,8 @@ jobs:
         run: |
           python3 frontier/tools/worldgen.py 2>&1 | tail -1
           bash frontier/tools/fetch_assets.sh && python3 frontier/tools/pack_textures.py | cut -c1-120
+          rm -rf frontier/assets/ext/terrain
+          for pack in animals characters audio; do bash frontier/tools/fetch_assets.sh $pack || true; done
       - name: Export APK
         run: |
           G=~/godot/Godot_v${GODOT_TAG}_linux.x86_64

@@ -40,6 +40,12 @@ var wind := Vector2(1.0, 0.3)
 var _last_hour := -1
 var _env_timer := 0.0
 var _rng := RandomNumberGenerator.new()
+# cloud shadows: the deck's density rendered over deck space around the camera, sampled by ground/foliage shaders
+const CLOUD_DECK := 2200.0         # deck height above the camera (matches the sky shader)
+const SHADOW_RES := 256
+const SHADOW_SPAN := 12000.0       # metres of deck covered by the map
+var _shadow_vp: SubViewport
+var _shadow_mat: ShaderMaterial
 
 const PLANET_R := 6371e3
 const ATMOS_R := 6471e3
@@ -48,6 +54,8 @@ const BETA_M := 21e-6
 
 func setup(quality: Dictionary) -> void:
 	_rng.seed = 1899
+	if not Game.headless and quality.get("cloud_shadows", true) and not Game.disabled("cloudshadows"):
+		_make_cloud_shadows()
 	sky_mat = ShaderMaterial.new()
 	sky_mat.shader = load("res://shaders/sky.gdshader")
 	var sky := Sky.new()
@@ -98,7 +106,7 @@ func setup(quality: Dictionary) -> void:
 	world_env.environment = env
 	cam_attr = CameraAttributesPractical.new()
 	cam_attr.auto_exposure_enabled = true
-	cam_attr.auto_exposure_scale = 0.4
+	cam_attr.auto_exposure_scale = 0.62
 	cam_attr.auto_exposure_speed = 0.8
 	cam_attr.auto_exposure_min_sensitivity = 50.0
 	cam_attr.auto_exposure_max_sensitivity = 1600.0
@@ -106,7 +114,7 @@ func setup(quality: Dictionary) -> void:
 	add_child(world_env)
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.shadow_enabled = true
+	sun.shadow_enabled = float(quality.get("shadow_distance", 300.0)) > 0.0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.directional_shadow_max_distance = quality.get("shadow_distance", 300.0)
 	sun.directional_shadow_split_1 = 0.06
@@ -212,6 +220,7 @@ func _update(dt: float, force: bool) -> void:
 	sky_mat.set_shader_parameter("haze", dust * 0.8 + fog * 0.4)
 	sky_mat.set_shader_parameter("lightning", lightning)
 	sky_mat.set_shader_parameter("star_rot", (day * 24.0 + hours) / 23.934 * TAU)
+	_update_cloud_shadows(sd)
 	_env_timer -= dt
 	if _env_timer <= 0.0 or force:
 		_env_timer = 0.25
@@ -221,6 +230,51 @@ func _update(dt: float, force: bool) -> void:
 		_last_hour = hi
 		hour_changed.emit(hi)
 
+func _make_cloud_shadows() -> void:
+	_shadow_vp = SubViewport.new()
+	_shadow_vp.size = Vector2i(SHADOW_RES, SHADOW_RES)
+	_shadow_vp.disable_3d = true
+	_shadow_vp.transparent_bg = false
+	_shadow_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var rect := ColorRect.new()
+	rect.size = Vector2(SHADOW_RES, SHADOW_RES)
+	_shadow_mat = ShaderMaterial.new()
+	_shadow_mat.shader = load("res://shaders/cloud_shadow_map.gdshader")
+	rect.material = _shadow_mat
+	_shadow_vp.add_child(rect)
+	add_child(_shadow_vp)
+	RenderingServer.global_shader_parameter_set("cloud_shadow_map", _shadow_vp.get_texture())
+
+func _update_cloud_shadows(sd: Vector3) -> void:
+	var cam: Camera3D = Game.camera
+	var origin := Vector2.ZERO
+	var cam_y := 0.0
+	if cam:
+		origin = Vector2(cam.global_position.x, cam.global_position.z)
+		cam_y = cam.global_position.y
+	sky_mat.set_shader_parameter("cloud_origin", origin)
+	if _shadow_vp == null:
+		return
+	# low sun: shadows stretch and fade; overcast: light is diffuse, no distinct shadows
+	var strength := 0.62 * smoothstep(0.03, 0.18, sd.y) * (1.0 - smoothstep(0.7, 0.95, cover))
+	if strength <= 0.001:
+		RenderingServer.global_shader_parameter_set("cloud_shadow_rect", Vector4(0, 0, 1, 0))
+		_shadow_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		return
+	_shadow_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var deck_alt := cam_y + CLOUD_DECK
+	# centre the map on where the camera's own shadow ray meets the deck, snapped to texels against shimmer
+	var c := origin + Vector2(sd.x, sd.z) / maxf(sd.y, 0.12) * CLOUD_DECK
+	var texel := SHADOW_SPAN / SHADOW_RES
+	c = (c / texel).round() * texel
+	var r := Vector4(c.x - SHADOW_SPAN * 0.5, c.y - SHADOW_SPAN * 0.5, SHADOW_SPAN, strength)
+	_shadow_mat.set_shader_parameter("rect", r)
+	_shadow_mat.set_shader_parameter("cover", cover)
+	_shadow_mat.set_shader_parameter("cloud_time", cloud_time)
+	_shadow_mat.set_shader_parameter("wind_dir", wind)
+	RenderingServer.global_shader_parameter_set("cloud_shadow_rect", r)
+	RenderingServer.global_shader_parameter_set("cloud_sun", Vector4(sd.x, sd.y, sd.z, deck_alt))
+
 func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	var trans := _transmittance(sd)
 	var zen := _scatter(Vector3.UP, sd)
@@ -229,21 +283,22 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	sky_mat.set_shader_parameter("zenith_col", zen)
 	sky_mat.set_shader_parameter("horizon_col", (hor + hor_sun) * 0.5)
 	sky_mat.set_shader_parameter("sun_trans", trans)
-	var cloud_block := 1.0 - cover * 0.75 - dark * 0.2
+	# broken cloud is handled by the cloud-shadow map; the global dimming only takes over as the deck closes up
+	var cloud_block := 1.0 - cover * 0.35 - smoothstep(0.55, 1.0, cover) * 0.45 - dark * 0.2
 	var sun_up := smoothstep(-0.06, 0.04, sd.y)
 	var c := Color(trans.x, trans.y, trans.z)
 	var mx := maxf(c.r, maxf(c.g, c.b))
 	if mx > 0.0:
 		c = Color(c.r / mx, c.g / mx, c.b / mx)
 	sun.light_color = c.lerp(Color(0.85, 0.88, 0.95), cover * 0.6)
-	sun.light_energy = 2.6 * sun_up * clampf(cloud_block, 0.08, 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
+	sun.light_energy = 3.6 * sun_up * clampf(cloud_block, 0.08, 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
 	sun.visible = sun.light_energy > 0.001
 	var phase_lit := 1.0 - absf(moon_phase() * 2.0 - 1.0)
 	var moon_up := smoothstep(-0.02, 0.1, md.y) * (1.0 - sun_up)
 	moon.light_energy = 0.07 * phase_lit * moon_up * clampf(1.0 - cover * 0.8, 0.1, 1.0)
 	moon.visible = moon.light_energy > 0.002
 	var night := 1.0 - sun_up
-	env.ambient_light_energy = lerpf(1.0, 0.6, night) * (1.0 - dark * 0.35)
+	env.ambient_light_energy = lerpf(0.72, 0.6, night) * (1.0 - dark * 0.35) * (1.0 + cover * 0.4)
 	env.ambient_light_sky_contribution = 1.0
 	# fog colour = horizon colour (aerial perspective), heavier in fog/rain/dust
 	var fogc := Color((hor.x + hor_sun.x) * 0.5, (hor.y + hor_sun.y) * 0.5, (hor.z + hor_sun.z) * 0.5)
@@ -251,8 +306,12 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	env.fog_light_color = fogc
 	env.fog_light_energy = 1.0
 	env.fog_density = 0.00008 + cover * 0.00006 + fog * 0.004 + rain * 0.0012 + dust * 0.003
-	env.fog_height_density = 0.0012 + fog * 0.02
-	env.volumetric_fog_density = 0.002 + fog * 0.03 + rain * 0.006 + dust * 0.02 + _valley_mist() * 0.012
+	# valley mist lives in the height fog (pools low, leaves the ridges clear); volumetric fog carries weather
+	env.fog_height_density = 0.0008 + fog * 0.02 + _valley_mist() * 0.008
+	env.volumetric_fog_density = 0.0015 + fog * 0.03 + rain * 0.006 + dust * 0.02 + _valley_mist() * 0.003
+	env.volumetric_fog_length = 220.0 + fog * 380.0
+	# storms read dark: hold exposure down instead of letting auto exposure lift the gloom back to daylight
+	cam_attr.auto_exposure_scale = 0.62 * (1.0 - dark * 0.5) * (1.0 - fog * 0.15)
 	env.volumetric_fog_albedo = Color(0.9, 0.9, 0.92).lerp(Color(0.85, 0.7, 0.5), dust)
 	env.glow_intensity = 0.3 + night * 0.25
 

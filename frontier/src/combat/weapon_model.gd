@@ -14,6 +14,9 @@ extends Node3D
 ##      muzzle_transform() · grip_transform(name) · marker(name) · set_detail(high)
 
 signal ejected(shell: String, xform: Transform3D)
+## Mechanical sound cue (AudioDirector.gun_mech kinds: cock, lever, bolt, pump, gate, round, eject, break_open,
+## break_close, shell) at the moment the part moves.
+signal mech(kind: String)
 
 const SEARCH := ["res://assets/ext/weapons/%s.glb", "res://assets/weapons_out/%s.glb"]
 ## Casing per ammo type (fed to WeaponFX.casing)
@@ -177,6 +180,9 @@ func _key(ch: String, t0: float, t1: float, to: float, from := NAN) -> void:
 func _at(t: float, f: Callable) -> void:
 	_events.append([_t + t, f])
 
+func _snd(t: float, kind: String) -> void:
+	_at(t, func(): mech.emit(kind))
+
 func has_part(n: String) -> bool:
 	return parts.has(n)
 
@@ -288,6 +294,7 @@ func fire_anim() -> void:
 			elif hs.size() > 0:
 				_key(hs[0], ct * 0.25, ct * 0.8, 1.0)  # thumb the hammer back...
 				_cyl_step(ct * 0.25, ct * 0.8)         # ...which turns the cylinder
+				_snd(ct * 0.25, "cock")
 		"double":
 			if hs.size() > 0:
 				_key(hs[0], 0.0, 0.025, 0.0, 1.0)
@@ -319,6 +326,7 @@ func _cyl_step(t0: float, t1: float) -> void:
 
 func _cycle_lever(t0: float, ct: float) -> void:
 	var d := (ct - t0)
+	_snd(t0, "lever")
 	_key("lever", t0, t0 + d * 0.38, 1.0)
 	_key("bolt", t0, t0 + d * 0.38, 1.0)
 	for h in _hammers():
@@ -329,6 +337,7 @@ func _cycle_lever(t0: float, ct: float) -> void:
 
 func _cycle_bolt(t0: float, ct: float) -> void:
 	var d := (ct - t0)
+	_snd(t0, "bolt")
 	_key("bolt_rot", t0, t0 + d * 0.16, 1.0)
 	_key("bolt", t0 + d * 0.18, t0 + d * 0.42, 1.0)
 	_at(t0 + d * 0.4, _eject)
@@ -337,6 +346,7 @@ func _cycle_bolt(t0: float, ct: float) -> void:
 
 func _cycle_pump(t0: float, ct: float) -> void:
 	var d := (ct - t0)
+	_snd(t0, "pump")
 	_key("pump", t0, t0 + d * 0.36, 1.0)
 	_key("bolt", t0, t0 + d * 0.36, 1.0)
 	_key("bolt", t0 + d * 0.5, t0 + d * 0.85, 0.0)
@@ -358,6 +368,7 @@ func reload_anim(step: int) -> void:
 			if parts.has("barrels"):                       # top-break: open, auto-eject all, close at the end
 				if step == 0:
 					_key("barrels", 0.0, 0.28, 1.0)
+					_snd(0.1, "break_open")
 					if parts.has("ejector"):
 						_key("ejector", 0.22, 0.32, 1.0)
 						_key("ejector", 0.36, 0.5, 0.0)
@@ -366,45 +377,59 @@ func reload_anim(step: int) -> void:
 					spent = 0
 				elif step < 0:
 					_key("barrels", 0.0, 0.22, 0.0)
+					_snd(0.15, "break_close")
 				return
 			if parts.has("breech"):                        # rolling block
 				if step == 0:
 					for h in _hammers():
 						_key(h, 0.0, 0.25, 1.0)
 					_key("breech", 0.28, 0.45, 1.0)
+					_snd(0.28, "break_open")
 					_at(0.42, _eject)
 				elif step < 0:
 					_key("breech", 0.0, 0.18, 0.0)
+					_snd(0.0, "break_close")
 				return
 			# loading gate revolvers: gate open + half cock, punch out each spent case, turn, load, close
 			if step == 0:
 				_key("loading_gate", 0.0, 0.2, 1.0)
+				_snd(0.0, "gate")
 				for h in _hammers():
 					var half: float = float(parts[h].anim.get("half", 20.0)) / maxf(float(parts[h].anim.get("open", 50.0)), 1.0)
 					_key(h, 0.0, 0.15, half)
 			elif step > 0:
 				if spent > 0 and parts.has("ejector_rod"):
 					_key("ejector_rod", 0.0, each * 0.22, 1.0)
+					_snd(each * 0.15, "eject")
 					_at(each * 0.2, _eject)
 					_key("ejector_rod", each * 0.25, each * 0.45, 0.0)
 					spent -= 1
 				_cyl_step(each * 0.5, each * 0.85)
+				_snd(each * 0.6, "round")
 			else:
 				_key("loading_gate", 0.0, 0.15, 0.0)
+				_snd(0.0, "gate")
 				for h in _hammers():
 					_key(h, 0.15, 0.35, 1.0)
 		"lever":
 			if step > 0 and parts.has("loading_gate"):
 				_key("loading_gate", 0.0, each * 0.25, 1.0)
+				_snd(0.0, "round")
 				_key("loading_gate", each * 0.35, each * 0.55, 0.0)
 		"bolt":
 			if step == 0:
 				_key("bolt_rot", 0.0, 0.12, 1.0)
+				_snd(0.0, "bolt")
 				_key("bolt", 0.14, 0.3, 1.0)
+			elif step > 0:
+				_snd(0.0, "round")
 			elif step < 0:
 				_key("bolt", 0.0, 0.16, 0.0)
+				_snd(0.0, "bolt")
 				_key("bolt_rot", 0.18, 0.3, 0.0)
 		"pump":
+			if step > 0:
+				_snd(0.0, "shell")
 			if step < 0 and parts.has("pump"):
 				_cycle_pump(0.0, 0.6)
 		"break":
@@ -412,6 +437,7 @@ func reload_anim(step: int) -> void:
 				if parts.has("top_lever"):
 					_key("top_lever", 0.0, 0.1, 1.0)
 				_key("barrels", 0.08, 0.35, 1.0)
+				_snd(0.1, "break_open")
 				if parts.has("extractor"):
 					_key("extractor", 0.3, 0.38, 1.0)
 				for i in maxi(barrel_fired, 1):
@@ -419,6 +445,7 @@ func reload_anim(step: int) -> void:
 				barrel_fired = 0
 			elif step < 0:
 				_key("barrels", 0.0, 0.2, 0.0)
+				_snd(0.12, "break_close")
 				if parts.has("extractor"):
 					_key("extractor", 0.0, 0.1, 0.0)
 				if parts.has("top_lever"):

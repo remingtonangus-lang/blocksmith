@@ -158,6 +158,10 @@ func use_item(id: String) -> bool:
 		"coffee":
 			if Game.player:
 				Game.player.stamina = Game.player.STAMINA_MAX
+		"cooked_meat":
+			if Game.player and Game.player.damageable:
+				Game.player.damageable.heal(35.0)
+				Game.player.stamina = Game.player.STAMINA_MAX
 	return true
 
 ## Price multiplier at shops: honourable folk get small discounts, outlaws pay more.

@@ -4,6 +4,7 @@ shader_type spatial;
 render_mode world_vertex_coords, cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/inc/noise.gdshaderinc"
+#include "res://shaders/inc/cloud_shadow.gdshaderinc"
 
 uniform sampler2D heightmap : filter_linear, repeat_disable;
 uniform sampler2D controlmap : filter_linear, repeat_disable;
@@ -14,7 +15,8 @@ uniform float h_range = 1600.0;
 uniform float hm_res = 4096.0;
 uniform float lake_level = 120.0;
 uniform vec3 cam_pos;
-uniform float detail_dist = 140.0;     // beyond this, materials sample at a coarser scale (anti-tiling)
+uniform float detail_dist = 140.0;
+uniform float grass_fade = 80.0;       // grass blade fade distance (quality preset): ground takes over its colour     // beyond this, materials sample at a coarser scale (anti-tiling)
 
 global uniform float wetness;
 global uniform float snow_cover;
@@ -34,7 +36,7 @@ const int L_SNOW = 11;
 const int L_PEBBLES = 12;
 
 // metres per texture repeat for each layer
-const float TILE[13] = float[](3.0, 3.5, 3.0, 3.0, 4.0, 3.0, 3.0, 4.0, 4.0, 9.0, 10.0, 6.0, 2.5);
+const float TILE[13] = float[](3.0, 3.5, 3.0, 3.0, 4.0, 3.0, 3.0, 4.0, 4.0, 14.0, 12.0, 6.0, 2.5);
 
 varying vec3 v_world;
 varying float v_skirt;
@@ -84,8 +86,10 @@ Mat sample_layer(int L, vec2 xz, float dist) {
 // Steep faces: project the layer on the two vertical planes (biplanar) to avoid stretching.
 Mat sample_cliff(int L, vec3 p, vec3 n, float dist) {
 	float s = 1.0 / TILE[L];
-	vec2 uvx = p.zy * s;
-	vec2 uvz = p.xy * s;
+	// warp the vertical coordinate so the texture's strata don't repeat as contour stripes across whole slopes
+	float warp = fbm2(p.xz * 0.013) * 2.5 + vnoise(p.xz * 0.07) * 0.6;
+	vec2 uvx = vec2(p.z * s, p.y * s * 0.8 + warp);
+	vec2 uvz = vec2(p.x * s, p.y * s * 0.8 + warp + 0.37);
 	vec2 uvy = p.xz * s;
 	vec3 w = pow(abs(n), vec3(4.0));
 	w /= (w.x + w.y + w.z);
@@ -109,6 +113,15 @@ void mix_in(inout Mat base, Mat layer, float w) {
 	base.nxy = mix(base.nxy, layer.nxy, t);
 	base.rough = mix(base.rough, layer.rough, t);
 	base.ao = mix(base.ao, layer.ao, t);
+}
+
+void mix_soft(inout Mat base, Mat layer, float w) {
+	if (w <= 0.002) return;
+	base.albedo = mix(base.albedo, layer.albedo, w);
+	base.height = mix(base.height, layer.height, w);
+	base.nxy = mix(base.nxy, layer.nxy, w);
+	base.rough = mix(base.rough, layer.rough, w);
+	base.ao = mix(base.ao, layer.ao, w);
 }
 
 void fragment() {
@@ -142,23 +155,28 @@ void fragment() {
 	Mat m;
 	float desert_w = smoothstep(0.32, 0.12, biome + n1 * 0.08);
 	float forest_w = smoothstep(0.70, 0.86, biome + n1 * 0.06);
-	float lush_w = smoothstep(0.45, 0.85, moist + n2 * 0.15) * (1.0 - desert_w);
+	float lush_w = smoothstep(0.3, 1.0, moist + n2 * 0.08 + n1 * 0.05) * (1.0 - desert_w);
 	if (desert_w > 0.98) {
 		m = sample_layer(L_DESERT, p.xz, dist);
 	} else {
 		m = sample_layer(L_GRASS_DRY, p.xz, dist);
-		mix_in(m, sample_layer(L_GRASS_SPARSE, p.xz, dist), smoothstep(0.1, 0.6, n2 + 0.2) * (1.0 - lush_w) * 0.8);
-		mix_in(m, sample_layer(L_GRASS_LUSH, p.xz, dist), lush_w);
+		// grass on grass: soft linear blends (height-blending makes camouflage blobs between grass types)
+		mix_soft(m, sample_layer(L_GRASS_SPARSE, p.xz, dist), smoothstep(-0.2, 0.7, n2 + 0.2) * (1.0 - lush_w) * 0.6);
+		mix_soft(m, sample_layer(L_GRASS_LUSH, p.xz, dist), lush_w);
 		mix_in(m, sample_layer(L_DESERT, p.xz, dist), desert_w);
 	}
 	mix_in(m, sample_layer(L_RED_SAND, p.xz, dist), desert_w * smoothstep(0.0, 0.5, n1 + 0.2));
 	mix_in(m, sample_layer(L_FOREST, p.xz, dist), forest_w * smoothstep(0.05, 0.45, n2 + n3 * 0.25) * 0.85);
 	// --- erosion sediment and dirt patches
 	float dirt_w = clamp(smoothstep(0.35, 1.0, sed) * 0.7 + smoothstep(0.35, 0.7, n3 * 0.6 + n2 * 0.5) * 0.3, 0.0, 1.0) * (1.0 - desert_w * 0.7);
-	mix_in(m, sample_layer(L_DIRT, p.xz, dist), dirt_w);
+	// sediment flats: soft blend (height-blended dirt draws hard-edged blotches in the hollows)
+	mix_soft(m, sample_layer(L_DIRT, p.xz, dist), dirt_w * 0.6);
 	// --- wet banks near rivers and the lake
-	float near_water = smoothstep(lake_level + 3.0, lake_level + 0.5, alt) + smoothstep(0.92, 1.0, moist) * 0.8;
-	mix_in(m, sample_layer(L_MUD, p.xz, dist), clamp(near_water, 0.0, 1.0));
+	// lake shore: hard, height-blended mud; damp hollows away from water only darken softly (rings of mud read as
+	// camouflage blotches from a distance)
+	float shore = smoothstep(lake_level + 3.0, lake_level + 0.5, alt);
+	mix_in(m, sample_layer(L_MUD, p.xz, dist), shore);
+	mix_soft(m, sample_layer(L_MUD, p.xz, dist), smoothstep(0.9, 1.0, moist) * 0.45 * (1.0 - shore));
 	mix_in(m, sample_layer(L_PEBBLES, p.xz, dist), smoothstep(lake_level + 0.8, lake_level - 1.0, alt));
 	// --- roads and trails
 	mix_in(m, sample_layer(L_ROAD, p.xz, dist), smoothstep(0.15, 0.75, road + n3 * 0.15));
@@ -166,6 +184,9 @@ void fragment() {
 	float rock_w = smoothstep(0.24, 0.42, slope + n2 * 0.08);
 	if (rock_w > 0.002) {
 		Mat r = sample_cliff(desert_w > 0.5 ? L_RED_ROCK : L_ROCK, p, n, dist);
+		// mountain rock away from the desert is grey-brown granite and schist, not red sandstone
+		float lum_r = dot(r.albedo, vec3(0.3, 0.55, 0.15));
+		r.albedo = mix(r.albedo, vec3(lum_r) * vec3(1.02, 0.99, 0.94), (1.0 - desert_w) * 0.6);
 		mix_in(m, r, rock_w);
 	}
 	// --- snow above the snow line (patchy), less on steep faces; weather adds cover
@@ -177,6 +198,20 @@ void fragment() {
 	// macro colour variation (sun-bleached / darker patches) so the land never reads as one tile
 	m.albedo *= 0.88 + 0.24 * (n1 * 0.5 + 0.5);
 	m.albedo = mix(m.albedo, m.albedo * vec3(1.06, 1.0, 0.9), smoothstep(-0.2, 0.6, n2) * 0.5);
+
+	// grass cover: where blades thin out with distance the ground takes on the colour of the grass that grows there
+	// (same density/colour model as grass.gdshader), so plains read golden or green at range instead of bare soil
+	float gn = vnoise(p.xz * 0.05) * 0.5 + 0.5;
+	float gdens = mix(0.12, 1.0, smoothstep(0.15, 0.45, biome)) * (0.55 + 0.45 * gn);
+	gdens *= mix(1.0, 0.35, smoothstep(0.75, 0.95, biome) * (1.0 - moist));
+	gdens *= (1.0 - smoothstep(0.08, 0.35, road)) * (1.0 - rock_w) * (1.0 - snow_w) * step(lake_level + 0.4, alt);
+	gdens *= 1.0 - smoothstep(1100.0, 1200.0, alt);
+	vec3 gcol = mix(vec3(0.30, 0.22, 0.085), vec3(0.075, 0.12, 0.035), smoothstep(0.45, 0.9, moist + (gn - 0.5) * 0.3));
+	gcol = mix(vec3(0.22, 0.20, 0.13), gcol, smoothstep(0.15, 0.4, biome)) * (0.8 + 0.2 * (n3 * 0.5 + 0.5));
+	float cover = gdens * mix(0.3, 0.78, smoothstep(grass_fade * 0.4, grass_fade * 1.1, dist));
+	m.albedo = mix(m.albedo, gcol, cover);
+	m.rough = mix(m.rough, 0.92, cover);
+	m.nxy *= 1.0 - cover * 0.5;
 
 	// wetness (rain): darker, glossier, puddles in low flat spots
 	float wet = wetness * (0.6 + 0.4 * n3);
@@ -193,7 +228,7 @@ void fragment() {
 	vec3 nd = normalize(n + (t * m.nxy.x - b * m.nxy.y) * detail_fade);
 	nd = mix(nd, n, v_skirt);
 
-	ALBEDO = m.albedo;
+	ALBEDO = m.albedo * cloud_shade(v_world);
 	ROUGHNESS = clamp(m.rough, 0.04, 1.0);
 	AO = mix(1.0, m.ao, 0.8);
 	AO_LIGHT_AFFECT = 0.3;
