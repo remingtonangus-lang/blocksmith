@@ -94,7 +94,13 @@ extension ItemHD {
             }
         case "lump":
             let d = cv.poly([V2(0.22, 0.34), V2(0.4, 0.2), V2(0.62, 0.22), V2(0.8, 0.36), V2(0.84, 0.58), V2(0.7, 0.8), V2(0.42, 0.84), V2(0.2, 0.68)])
-            cv.add(d, ys, M("stone", base), r: 0.2, chamfer: true)
+            if name == "coal" {
+                cv.add(d, ys, M("gem", 0x2A2E36), r: 0.2, chamfer: true)            // faceted, with a blue-grey sheen
+            } else if name == "charcoal" {
+                cv.add(d, ys, M("wood", 0x4A3426), r: 0.2, chamfer: true)           // a burnt wood chunk, its grain showing
+            } else {
+                cv.add(d, ys, M("stone", base), r: 0.2, chamfer: true)
+            }
             if name.hasPrefix("raw_") {
                 let mm = metalByName[String(name.dropFirst(4))] ?? M("metal", base)
                 for (c, r, a) in [(V2(0.4, 0.42), Float(0.08), Float(0.3)), (V2(0.63, 0.58), 0.07, 1.2), (V2(0.38, 0.67), 0.06, 2.0)] {
@@ -280,7 +286,7 @@ extension ItemHD {
                 d = smin(ellipse(cv, V2(0.42, 0.5), 0.3, 0.26), ellipse(cv, V2(0.66, 0.6), 0.22, 0.2), 0.1)
                 d = smax(d, neg(ellipse(cv, V2(0.6, 0.2), 0.14, 0.1)), 0.06)          // the kidney notch
             } else {
-                d = smin(ellipse(cv, V2(0.56, 0.42), 0.3, 0.24), cv.circle(V2(0.36, 0.64), 0.1), 0.16)
+                d = smin(ellipse(cv, V2(0.56, 0.6), 0.32, 0.25), cv.circle(V2(0.74, 0.46), 0.14), 0.1)       // a rib chop
             }
             for i in 0..<d.count {                                                  // a cut, uneven edge
                 let p = cv.p(i)
@@ -289,9 +295,10 @@ extension ItemHD {
             cv.add(d, ys, fat, r: 0.1)
             cv.add(Canvas.offset(d, 0.04), ys, soft(base), r: 0.16)
             if s.mask == "chop" {
-                cv.add(cap(cv, V2(0.3, 0.7), V2(0.08, 0.9), 0.04), ys, "bone", r: 0.04)
-                cv.add(cv.circle(V2(0.08, 0.9), 0.05), ys, "bone", r: 0.05)
-                cv.add(Canvas.intersect(cv.circle(V2(0.6, 0.4), 0.06), Canvas.offset(d, 0.07)), ys, fat, r: 0.05)
+                // The rib bone runs out of the top-left of the cut (critic: the low-left bone read as a drumstick).
+                cv.add(cap(cv, V2(0.4, 0.48), V2(0.14, 0.16), 0.04), ys, "bone", r: 0.04)
+                cv.add(cv.circle(V2(0.12, 0.13), 0.055), ys, "bone", r: 0.05)
+                cv.add(Canvas.intersect(cv.circle(V2(0.62, 0.6), 0.07), Canvas.offset(d, 0.07)), ys, fat, r: 0.05)
             } else {
                 for (p0, c0, p1) in [(V2(0.24, 0.44), V2(0.36, 0.36), V2(0.5, 0.46)), (V2(0.5, 0.62), V2(0.62, 0.52), V2(0.78, 0.6)),
                                      (V2(0.3, 0.6), V2(0.38, 0.68), V2(0.48, 0.64))] {

@@ -85,9 +85,9 @@ enum SpawnEggs {
             let n = itemName(k)
             guard !reg.has(n) else { continue }
             var d = ItemDef(n, "\(k.name) Spawn Egg")
-            d.texKey = "item_spawn_egg"
-            d.overlay = "item_spawn_egg_shell"
-            d.overlayColor = color(k)
+            // Its own two-tone texture (shell + spots, ItemHD.eggCanvas; critic: one tinted shell made ~95 look-alike
+            // eggs, the dark ones indistinguishable).
+            d.texKey = "item_" + n
             kindOf[reg.add(d)] = k
         }
     }
@@ -121,6 +121,20 @@ enum SpawnEggs {
             case "1": return V4(0.12, 0.12, 0.12, 1)
             case "d": return V4(0.22, 0.2, 0.2, 1)
             default: return TextureGen.clear
+            }
+        }
+        for k in MobKind.allCases where eligible(k) {
+            let shell = TextureGen.hex(color(k)), spots = TextureGen.hex(ItemHD.eggSpot(color(k)))
+            p["item_" + itemName(k)] = { x, y in
+                guard y < rows.count, x < rows[y].count else { return TextureGen.clear }
+                switch rows[y][x] {
+                case "1": return V4(0.12, 0.12, 0.12, 1)
+                case "d": return spots
+                case "s":
+                    let shade: Float = x < 7 && y < 8 ? 1 : (x > 9 || y > 11 ? 0.72 : 0.88)
+                    return V4(shell.x * shade, shell.y * shade, shell.z * shade, 1)
+                default: return TextureGen.clear
+                }
             }
         }
         p["item_spawn_egg_shell"] = { x, y in

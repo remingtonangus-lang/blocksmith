@@ -53,6 +53,7 @@ extension ItemSheet {
             var px: [V4]? = nil
             if let (k, m) = ItemHD.design(item) { px = ItemHD.vector(k, m, n) }
             else if ItemHD.gunKeys.contains(item) { px = ItemHD.render(ItemHD.gunCanvas(item, n)) }
+            else if let (shell, layout) = ItemHD.eggShells[item] { px = ItemHD.render(ItemHD.eggCanvas(shell, layout: layout, n)) }
             else if let (key, ov) = ItemHD.pairKeys[name] { px = ItemHD.render(ItemHD.pairCanvas(key, n), split: ov ? 2 : 1) }
             else if let sp = ItemHD.spriteByItem[item] {
                 let cv = ItemHD.Canvas(n)

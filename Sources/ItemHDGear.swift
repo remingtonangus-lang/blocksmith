@@ -86,12 +86,16 @@ extension ItemHD {
             cv.add(cap(cv, V2(0.2, 0.12), V2(0.86, 0.84), 0.017), zero, "string", r: 0.017)
             wraps(cv, V2(0.66, 0.3), V2(0.76, 0.4), 0.05, 2)
         case "crossbow":
-            handle(cv, V2(0.16, 0.86), V2(0.7, 0.32), 0.05)
-            cv.add(cv.poly(band(V2(0.36, 0.1), V2(0.68, 0.18), V2(0.92, 0.64), 0.07, 0.07, 18)), xs, "iron", r: 0.035)
-            cv.add(cap(cv, V2(0.38, 0.12), V2(0.56, 0.5), 0.015), zero, "string", r: 0.015)
-            cv.add(cap(cv, V2(0.9, 0.62), V2(0.56, 0.5), 0.015), zero, "string", r: 0.015)
-            cv.add(cv.circle(V2(0.62, 0.38), 0.06), zero, "iron", r: 0.05)
-            cv.add(cap(cv, V2(0.34, 0.68), V2(0.42, 0.74), 0.03), zero, "iron", r: 0.03)
+            // Stock along the diagonal, a wide bow across its front, the string drawn back to the nut, a bolt loaded
+            // (critic: read as a hammer).
+            handle(cv, V2(0.14, 0.86), V2(0.7, 0.3), 0.05)
+            let tipA = V2(0.34, 0.08), tipB = V2(0.92, 0.66)
+            cv.add(cv.poly(band(tipA, V2(0.8, 0.2), tipB, 0.08, 0.08, 18)), xs, "iron", r: 0.04)
+            cv.add(cap(cv, tipA, V2(0.5, 0.5), 0.016), zero, "string", r: 0.016)
+            cv.add(cap(cv, tipB, V2(0.5, 0.5), 0.016), zero, "string", r: 0.016)
+            cv.add(cap(cv, V2(0.5, 0.5), V2(0.84, 0.16), 0.016), zero, "handle", r: 0.016)
+            cv.add(cv.poly([V2(0.8, 0.14), V2(0.92, 0.08), V2(0.86, 0.2)]), zero, "flint", r: 0.03, chamfer: true)
+            cv.add(cap(cv, V2(0.32, 0.68), V2(0.4, 0.76), 0.03), zero, "iron", r: 0.03)
         case "shield":
             var pts: [V2] = [V2(0.16, 0.12), V2(0.84, 0.12), V2(0.84, 0.5)]
             pts += Array(bez(V2(0.84, 0.5), V2(0.82, 0.8), V2(0.5, 0.94), 8).dropFirst())
@@ -241,8 +245,13 @@ extension ItemHD {
             cv.add(cv.poly([V2(0.5, 0.42), V2(0.62, 0.3), V2(0.92, 0.2), V2(0.8, 0.5)]), cv.axis(V2(0.56, 0.44), V2(0.86, 0.3)), M("wood", base), r: 0.05)
             cv.add(cap(cv, V2(0.5, 0.4), V2(0.6, 0.5), 0.04), zero, "copper", r: 0.04)
         case "lead":
-            cv.add(cv.poly(band(V2(0.2, 0.2), V2(0.9, 0.4), V2(0.4, 0.86), 0.05, 0.05, 20)), xs, M("leather", base), r: 0.025)
-            cv.add(ring(cv.circle(V2(0.24, 0.22), 0.1), 0.03), zero, M("leather", base), r: 0.03)
+            // A coiled rope (three loops) with a metal clip (critic: a thin line vanished on a TV).
+            for k in 0..<3 {
+                let c = V2(0.46 + Float(k) * 0.06, 0.56 - Float(k) * 0.04)
+                cv.add(ring(ellipse(cv, c, 0.26, 0.2), 0.04), xs, M("leather", base), r: 0.04)
+            }
+            cv.add(cap(cv, V2(0.7, 0.36), V2(0.86, 0.14), 0.035), zero, M("leather", base), r: 0.035)
+            cv.add(ring(ellipse(cv, V2(0.86, 0.12), 0.05, 0.07), 0.018), zero, "iron", r: 0.018)
         case "crystal":
             if name == "end_crystal" {
                 cv.add(cv.poly([V2(0.5, 0.08), V2(0.82, 0.46), V2(0.5, 0.9), V2(0.18, 0.46)]), ys, M("gem", base), r: 0.16, chamfer: true)
@@ -349,10 +358,15 @@ extension ItemHD {
             }
             cv.add(ring(Canvas.offset(d, 0.06), 0.01), ys, soft(0xA08A60), r: 0.01)
         case "chestplate" where name == "elytra":
+            // Folded wings: long, swept back to points, a feathered trailing edge (critic: read as two shields).
             for sg: Float in [-1, 1] {
-                var pts: [V2] = [V2(0.5 + 0.04 * sg, 0.16), V2(0.5 + 0.38 * sg, 0.12), V2(0.5 + 0.44 * sg, 0.3)]
-                pts += Array(bez(V2(0.5 + 0.44 * sg, 0.3), V2(0.5 + 0.36 * sg, 0.7), V2(0.5 + 0.2 * sg, 0.9), 8).dropFirst())
-                pts.append(V2(0.5 + 0.06 * sg, 0.6))
+                var pts: [V2] = [V2(0.5 + 0.03 * sg, 0.14), V2(0.5 + 0.3 * sg, 0.08), V2(0.5 + 0.42 * sg, 0.2)]
+                pts += Array(bez(V2(0.5 + 0.42 * sg, 0.2), V2(0.5 + 0.4 * sg, 0.62), V2(0.5 + 0.3 * sg, 0.96), 8).dropFirst())
+                for k in 1..<4 {
+                    let t = Float(k) / 4
+                    pts.append(V2(0.5 + (0.3 - 0.22 * t) * sg, 0.96 - 0.32 * t + (k % 2 == 0 ? 0.04 : -0.02)))
+                }
+                pts.append(V2(0.5 + 0.06 * sg, 0.56))
                 let w = cv.poly(pts)
                 cv.add(w, ys, M("leather", base), r: 0.1)
                 for k in 0..<3 {
@@ -430,6 +444,44 @@ extension ItemHD {
         "item_tipped_arrow": ("arrow", false), "item_tipped_arrow_head": ("arrow", true),
         "item_harness": ("harness", false), "item_harness_band": ("harness", true),
     ]
+
+    // Spawn eggs: shell colour per mob (SpawnEggs.color) and a contrasting spot colour: the hue turned 40 degrees,
+    // lighter on a dark shell, darker on a light one.
+    static let eggShells: [String: (UInt32, Int)] = {
+        var m: [String: (UInt32, Int)] = [:]
+        for k in MobKind.allCases where SpawnEggs.eligible(k) {
+            m[SpawnEggs.itemName(k)] = (SpawnEggs.color(k), Int(hash3(k.rawValue, 5, 1, 0xE66) % 3))
+        }
+        return m
+    }()
+
+    static func eggSpot(_ shell: UInt32) -> UInt32 {
+        let c = hex(shell)
+        let lum = simd_dot(c, V3(0.3, 0.59, 0.11))
+        // Rodrigues rotation of the colour about the grey axis.
+        let k = simd_normalize(V3(1, 1, 1)), a: Float = 40 * .pi / 180
+        let r1: V3 = c * cosf(a) + simd_cross(k, c) * sinf(a)
+        var r: V3 = r1 + k * (simd_dot(k, c) * (1 - cosf(a)))
+        r = simd_clamp(r, V3(repeating: 0), V3(repeating: 1))
+        r = lum < 0.4 ? r + (V3(1, 1, 1) - r) * 0.55 : r * 0.45
+        let q = simd_clamp(r, V3(repeating: 0), V3(repeating: 1)) * 255
+        return (UInt32(q.x) << 16) | (UInt32(q.y) << 8) | UInt32(q.z)
+    }
+
+    static func eggCanvas(_ shell: UInt32, layout: Int, _ n: Int) -> Canvas {
+        let cv = Canvas(n)
+        let ys = cv.axis(V2(0.5, 0), V2(0.5, 1))
+        let d = ellipse(cv, V2(0.5, 0.55), 0.29, 0.37)
+        cv.add(d, ys, M("soft", shell), r: 0.32)
+        let spots: [(V2, Float)]
+        switch layout {
+        case 0: spots = [(V2(0.42, 0.36), 0.05), (V2(0.63, 0.5), 0.058), (V2(0.42, 0.66), 0.045), (V2(0.63, 0.74), 0.04), (V2(0.32, 0.52), 0.035)]
+        case 1: spots = [(V2(0.36, 0.5), 0.06), (V2(0.5, 0.46), 0.06), (V2(0.64, 0.5), 0.06), (V2(0.5, 0.72), 0.05)]
+        default: spots = [(V2(0.46, 0.38), 0.085), (V2(0.6, 0.66), 0.07), (V2(0.36, 0.62), 0.04)]
+        }
+        for (c, r) in spots { cv.add(Canvas.intersect(cv.circle(c, r), Canvas.offset(d, 0.03)), ys, M("soft", eggSpot(shell)), r: 0.035) }
+        return cv
+    }
 
     static func pairCanvas(_ key: String, _ n: Int) -> Canvas {
         let cv = Canvas(n)

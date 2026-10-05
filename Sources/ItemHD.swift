@@ -26,7 +26,7 @@ enum ItemHD {
         "iron": Mat(kind: .metal, base: hex(0xC9CED6), dark: hex(0x5E646E), light: hex(0xFFFFFF)),
         "golden": Mat(kind: .metal, base: hex(0xF0C33C), dark: hex(0x8A5A10), light: hex(0xFFF4B0)),
         "diamond": Mat(kind: .gem, base: hex(0x46D8E0), dark: hex(0x146A7A), light: hex(0xD8FFFF)),
-        "netherite": Mat(kind: .dusk, base: hex(0x4A4450), dark: hex(0x18151C), light: hex(0xB59AD8)),
+        "netherite": Mat(kind: .dusk, base: hex(0x5E5272), dark: hex(0x221C2C), light: hex(0xD4BEF4)),     // (critic: too dark on the slot)
         "copper": Mat(kind: .copper, base: hex(0xDA7240), dark: hex(0x6E2E12), light: hex(0xFFC29A)),
         "leather": Mat(kind: .leather, base: hex(0x8E5430), dark: hex(0x4A2812), light: hex(0xC08458)),
         "grip": Mat(kind: .leather, base: hex(0x5A3A26), dark: hex(0x2A1A10), light: hex(0x8A6040)),
@@ -85,6 +85,9 @@ enum ItemHD {
         let item = String(name.dropFirst(5))
         if let (k, m) = design(item) {
             return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.vector(k, m, n); return img }
+        }
+        if let (shell, layout) = eggShells[item] {
+            return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.render(ItemHD.eggCanvas(shell, layout: layout, n)); return img }
         }
         if gunKeys.contains(item) {
             return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.render(ItemHD.gunCanvas(item, n)); return img }
@@ -243,8 +246,9 @@ enum ItemHD {
             let spec = powf(max(0, refl.z), m.kind == .dusk ? 30 : 40)
             col += (V3(1, 1, 1) - col) * (spec * 0.9)
             if m.kind == .copper {
-                let pat: Float = vnoise(p.x, p.y, 4, 11)
-                let k: Float = simd_clamp((pat - 0.68) * 5, 0, 1) * 0.7                 // a few broad verdigris patches
+                // Verdigris only in the recesses (low on the part's profile), hard-edged (critic: blotches read as mould).
+                let pat: Float = vnoise(p.x, p.y, 9, 11)
+                let k: Float = (pat > 0.6 && hn < 0.45) ? 0.8 : 0
                 col = col * (1 - k) + V3(0.33, 0.7, 0.6) * ((0.6 + 0.4 * lam) * k)
             }
             if m.kind == .dusk {
@@ -265,6 +269,9 @@ enum ItemHD {
         case .wood:
             let g = 0.5 + 0.5 * sinf(axisT * 70 + vnoise(p.x, p.y, 8, 3) * 7)
             col *= 0.92 + 0.1 * g                                   // a quiet grain (critic: strong stripes read as wicker)
+            // A few dark plank lines across the grain, so a wooden head reads as cut wood, not as its handle.
+            let line = (axisT * 5 + vnoise(p.x, p.y, 5, 9) * 0.6).truncatingRemainder(dividingBy: 1)
+            if m.base.x > 0.7 && line < 0.06 { col *= 0.62 }
             col += (m.light - col) * (powf(max(0, refl.z), 12) * 0.35)
         case .stone:
             let nn: Float = vnoise(p.x, p.y, 22, 7) * 0.65 + vnoise(p.x, p.y, 60, 8) * 0.35
@@ -376,7 +383,7 @@ enum ItemHD {
     }
 
     static func handle(_ cv: Canvas, _ a: V2, _ b: V2, _ r0: Float = 0.04, _ mat: String = "handle") {
-        let r = r0 * 1.2                                            // (critic: handles were 2-3 px wide on a TV)
+        let r = r0 * 1.3                                            // (critic: handles were 2-3 px wide on a TV)
         let (d, t) = cv.capsule(a, b, r)
         cv.add(d, t, mat, r: r)
     }
@@ -550,7 +557,7 @@ enum ItemHD {
             var d = Canvas.intersect(cv.circle(V2(0.5, 0.58), 0.37), cv.below(0.64))
             let cheeks = Canvas.union(cv.poly([V2(0.13, 0.56), V2(0.31, 0.56), V2(0.31, 0.88), V2(0.19, 0.86)]),
                                       cv.poly([V2(0.69, 0.56), V2(0.87, 0.56), V2(0.81, 0.86), V2(0.69, 0.88)]))
-            d = Canvas.union(d, cheeks)
+            if !soft || m == "turtle" { d = Canvas.union(d, cheeks) }      // a leather cap has no cheek guards (read as a stool)
             if !soft {
                 let visor = cv.poly([V2(0.33, 0.58), V2(0.67, 0.58), V2(0.65, 0.66), V2(0.35, 0.66)])
                 d = Canvas.intersect(d, visor.map { -$0 })
