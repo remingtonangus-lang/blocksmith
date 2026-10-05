@@ -107,6 +107,10 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   run and pushed the fix; precheck now catches cross-file private calls and duplicate top-level functions.
 
 ## Next
+- For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
+  of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
+  to 16 MB and draw nearest first (2ab6bf7), but a cheaper LOD 0 (merge trim/buttons/badges into fewer boxes, or LOD 1
+  from ~8 blocks) would save CPU and memory. The behaviour-sim trace now prints why idle citadel soldiers spin.
 - Checked on run 509 (639eb75): citadel_turret (twin 42 cm gunhouse on its barbette, soldiers drawn on the plaza)
   and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
 - structcheck / fortresstest on the new citadel (walkability: ladders, doors, pad, skyways; mobs not in blocks).
