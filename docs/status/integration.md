@@ -79,6 +79,15 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - Impostors work (volcano with plume, spires); foot rings / shaft bases floated over the haze, the night plume stayed
   grey: fixed. Spire interior near black: ghost lanterns per floor.
 
+## Run 509 (639eb75): all green
+- Split screen: cooptest 17/18 (the blast check stood player 2 inside a hill: fixed), two-view frame 5.8 ms at
+  1920x1080 rd 8 (one view ~3 ms), 7.6 ms at 1280x800 with chunks streaming round both. Smoke 8c: player 2 moved
+  only 12 blocks (diagnostics added; not gating).
+- Village / life bots no longer die (0 violations; was 2 deaths): citadel turrets and the stationed frigate no
+  longer shell passers-by.
+- great_ruin structcheck clean. Photo mode verified (photo_dof). The volcano streak was the impostor drawn through
+  the loaded cone (identical with --nolod): impostors now sit on a shell beyond all loaded terrain.
+
 ## Next
 - Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
   citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
