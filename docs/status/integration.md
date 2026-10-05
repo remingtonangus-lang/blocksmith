@@ -100,6 +100,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 4. Cave fill + Options > Video > Brightness (0d6ebee); shots cave_dark(_moody/_bright/_fast/_mobs).
 - CI: macOS runners backed up (runs 525/528/532/534 queued); cancelled 532 and 534 (both superseded by 95b7d4f,
   which carries the same mobcheck and every fix).
+- P0 likely cause (2a00dd3): the mob vertex buffer (4 MB, ~2400 model parts) filled with far mobs first at render
+  distance 16-24 (hundreds loaded; jointed soldiers are many parts each), so fresh spawns beside the player (last in the
+  list) were never written. Now nearest first, none past the fog; mobcheck crowd test; F3 / bug notes count drops.
+  Also: 98d01b3 / 95b7d4f could not build (MobRenderCheck called Mob.swift's private parts()); cancelled 95b7d4f's
+  run and pushed the fix; precheck now catches cross-file private calls and duplicate top-level functions.
 
 ## Next
 - Checked on run 509 (639eb75): citadel_turret (twin 42 cm gunhouse on its barbette, soldiers drawn on the plaza)
