@@ -72,9 +72,10 @@ message (focus.log on ci-fast-<branch>).
   check per frame for all of that frame's blasts), a mined built block (Game.breakBlock) or a block a falling piece
   smashed: flood fill through built blocks from
   the cells next to the holes, capped at 6000 cells (the edge of a search that hits the cap is taken as held, so a huge
-  building only fails near the damage). No ground contact: the piece falls. Reach (0-1 BFS: resting on the block below
-  is free, sideways or hanging costs 1) beyond the material's strength: those blocks and whatever only hung on them
-  fall. A layer the damage narrowed by at least a quarter of what carried it (a tower's base) fails, inside a search
+  building only fails near the damage). No ground contact: the piece falls. Reach (Dijkstra: resting on the block below
+  is free, a step sideways or hanging down costs 1 / the strength of the block entered) past 1: those blocks and
+  whatever only hung on them fall. Thin cells (a diagonal brace) join what they touch edge to edge; wrecks hold as
+  rigid hulks. The search runs on a packed cell table (1.4 ms for a 60-high tower, ~3.5 ms for a capped search). A layer the damage narrowed by at least a quarter of what carried it (a tower's base) fails, inside a search
   that saw the whole structure, when the weight above outweighs its bearing or its centre
   of mass is past the layer's edge or far off the middle of what is left: everything above tips over toward the gap.
 - **Debris** (Debris.swift): falling parts become free-moving ships (`Ship.debris`) under the ordinary ship physics
@@ -85,8 +86,12 @@ message (focus.log on ci-fast-<branch>).
   bodies lose block facings). At most 32 live bodies (the oldest is laid down early); pieces under 3 blocks just break.
   Debris over unloaded ground waits rather than being laid down mid-air. Debris isn't saved (transient: under 40 s).
 - **Capital hulls cut through** (`splitHull`): a blast on a kinematic hull asks for a full connectivity check half a second
-  later; every part not joined to the part with the helm comes away as a falling body; a part left without its helm goes
-  down (crash-lands) too. Small parts (< 20 blocks) just burst.
+  later; the part with the most drive engines stays the vessel, the rest comes away: a big section (3000+ blocks) of a
+  flying capital crash-lands kinematic like the vessel and becomes a wreck, smaller parts fall as debris, under 20
+  blocks they burst. A vessel left without its helm goes down too.
+- **Laying down**: debris is laid down with cell tables and one bulk block write (`World.setBlocksBulk`); what was just
+  laid down is checked again (overhangs break off, and the gaps they leave get the ordinary check). Big wrecks (12000+
+  blocks) go down 3000 blocks a frame (`BakeJob`), the ship standing still until its last layer is in.
 
 ## Persistent wrecks (Future ideas #3)
 
