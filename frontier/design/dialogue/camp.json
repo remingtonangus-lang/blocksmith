@@ -1,0 +1,1271 @@
+{
+ "note": "Camp life at Willow Bend: barks (one line when Ruth walks up) and fireside conversations (two to four lines), picked by src/ai/camp.gd from story flags, Standing, money, bounties, recent crimes (WorldState.crimes_log), kills, catches and the chapter. Conditions: flag {name: value}, flag_set [names], chapter_min/max, standing_min/max, money_min/max, bounty_min, kills_civilian_min, kills_outlaw_min, recent_crime kind, item_prefix. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  }
+ },
+ "lines": [
+  {
+   "id": "camp_hap_stew",
+   "speaker": "hap",
+   "line": "Stew's on. Mostly beans, some rabbit, and a carrot that wandered in on its own.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hap_respect",
+   "speaker": "hap",
+   "line": "Folk in Bitter Spring tip their hats to you now. Took me ten years to get a nod, and that was from a mule.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_hap_shy",
+   "speaker": "hap",
+   "line": "Man at the store asked if I ride with you. I said I cook for you. Seemed safer, the way he asked.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_hap_poster",
+   "speaker": "hap",
+   "line": "Your face is up by the depot again. They've made you uglier this time. I took it personal, on behalf of the camp.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_hap_meat",
+   "speaker": "hap",
+   "line": "That's good meat you're carrying. Give it here before it turns, and I'll make something a Christian could eat.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hap_cold",
+   "speaker": "hap",
+   "line": "Cold makes stew taste better. My mother said so, and we were very cold, so she'd know.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_del_solitaire",
+   "speaker": "del",
+   "line": "Red seven on the black eight. The cards behave when nobody's betting. So do I, mostly.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_rich",
+   "speaker": "del",
+   "line": "You're carrying more than a hundred dollars, cher. I can smell it from here. Don't leave it near me after midnight.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_poor",
+   "speaker": "del",
+   "line": "Five dollars to your name. I've seen bigger fortunes in a church plate, and that was a Methodist church.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_merrow",
+   "speaker": "del",
+   "line": "Old Merrow sends his regards from Port Linden. He's taken up religion. Something moderate, he says.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_robbery",
+   "speaker": "del",
+   "line": "I heard about the hold-up. Sloppy, cher. You stood where the witness could see your scar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_reading",
+   "speaker": "doc",
+   "line": "Marcus Aurelius. He says the obstacle is the way. He never rode a mule through the Breaks.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_drinking",
+   "speaker": "doc",
+   "line": "One. It's always one. The trick is how many times one comes round before supper.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_doc_ines",
+   "speaker": "doc",
+   "line": "Rosa Ybarra writes that Inés runs faster than her brothers. I've kept the letter. Tell no one.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_ines_hitch",
+   "speaker": "doc",
+   "line": "Inés walks with a hitch. Her mother says the girl's proud of it. I'm not.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_doc_innocents",
+   "speaker": "doc",
+   "line": "You've killed people who weren't shooting at you. I've sewn up enough of the other kind to know the difference.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_billy_mare",
+   "speaker": "billy",
+   "line": "Your mare was favouring her off hind. It was a stone. I got it out. You can thank me with coffee.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_billy_worth",
+   "speaker": "billy",
+   "line": "Is it true they'd pay two hundred dollars for you? I'd never turn you in. I'm only asking what I'm worth by association.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_billy_swing",
+   "speaker": "billy",
+   "line": "I rode swing on a real drive. Did I tell you? I'll tell you again later in case you forget.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_billy_pelt",
+   "speaker": "billy",
+   "line": "You got a pelt! Can I scrape it? I know how. Mostly. Hap showed me once.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_billy_cholera",
+   "speaker": "billy",
+   "line": "Del says you've killed more men than the cholera. Is that meant nice?",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_joseph_paper",
+   "speaker": "joseph",
+   "line": "The Lantern says the syndicate is a benevolent enterprise. Page four, under the notices for strayed cattle.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_joseph_cinch",
+   "speaker": "joseph",
+   "line": "This cinch is half rot. Whoever sold it to you should be ashamed of himself, or at least richer.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_joseph_asa",
+   "speaker": "joseph",
+   "line": "I think about the boy going west. I hope he made it. I hope he never comes back.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_joseph_snow",
+   "speaker": "joseph",
+   "line": "Snow's off the ridge now. I keep thinking it should have covered more than it did.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_joseph_name",
+   "speaker": "joseph",
+   "line": "People are starting to say your name the way they say Shale's. I'd stop giving them reasons.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_first_night_1",
+   "speaker": "hap",
+   "line": "Boy, you sit on that side, where the smoke isn't. Mrs. Caddell, you sit wherever you like. You've earned it twice today.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_first_night_2",
+   "speaker": "billy",
+   "line": "Are we staying? Here? For good?",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_first_night_3",
+   "speaker": "ruth",
+   "line": "For tonight. Good's a long word.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_del_hymns_1",
+   "speaker": "hap",
+   "line": "Miss Arceneaux. Do you play cards with the Lord's money?",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_hymns_2",
+   "speaker": "del",
+   "line": "Only on Sundays, Mr. Lindqvist. The rest of the week it's mine.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_hymns_3",
+   "speaker": "ruth",
+   "line": "She's teaching Billy to count.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_hymns_4",
+   "speaker": "hap",
+   "line": "That's what worries me.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_poster_1",
+   "speaker": "del",
+   "line": "Have you seen your price lately? I'm jealous. Nobody ever offered two hundred for me. Not even honestly.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_poster_2",
+   "speaker": "hap",
+   "line": "It's not a compliment, Miss Del.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_poster_3",
+   "speaker": "ruth",
+   "line": "It's an invoice. Pell's sending it to whoever wants to collect.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_robbery_1",
+   "speaker": "hap",
+   "line": "Billy says you held up a man on the road.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_robbery_2",
+   "speaker": "ruth",
+   "line": "Billy talks.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_robbery_3",
+   "speaker": "hap",
+   "line": "Billy worships you. That's worse. He'll do what you do, only sooner, and with less sense.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_murder_1",
+   "speaker": "doc",
+   "line": "There's blood on your cuff that isn't yours, and nobody was shooting at you. So I'm told.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_murder_2",
+   "speaker": "ruth",
+   "line": "You're told a lot, Doctor.",
+   "emotion": "angry"
+  },
+  {
+   "id": "camp_murder_3",
+   "speaker": "doc",
+   "line": "I'm a doctor. People confess to me. Even the ones who never come near the tent.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_murder_hap_1",
+   "speaker": "hap",
+   "line": "They're saying in Bitter Spring a man was killed who never drew. They're saying it was you.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_murder_hap_2",
+   "speaker": "ruth",
+   "line": "And what are you saying?",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_murder_hap_3",
+   "speaker": "hap",
+   "line": "I'm saying the stew's hot. I'm not saying anything else until you tell me it wasn't.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_respected_1",
+   "speaker": "hap",
+   "line": "A woman in Bitter Spring asked me to thank you. Didn't say for what. Only thank you.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_respected_2",
+   "speaker": "joseph",
+   "line": "That's the best kind. The kind you can't spend.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_respected_3",
+   "speaker": "ruth",
+   "line": "I don't know her.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_respected_4",
+   "speaker": "hap",
+   "line": "She knows you. That's how it goes, now.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_respected_hap_1",
+   "speaker": "hap",
+   "line": "Preacher in Bitter Spring mentioned you in his sermon. Not by name. He said, a certain widow. Everybody turned round.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_respected_hap_2",
+   "speaker": "ruth",
+   "line": "Was it a kind mention?",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_respected_hap_3",
+   "speaker": "hap",
+   "line": "He said you'd done more good with a revolver than he'd done with a hymnal. He looked sorry about it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_notorious_1",
+   "speaker": "del",
+   "line": "We're becoming notorious, Doctor.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_notorious_2",
+   "speaker": "doc",
+   "line": "We were notorious. Now we're famous for the wrong things, which is notorious with better posters.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_notorious_3",
+   "speaker": "ruth",
+   "line": "Say it plain, the pair of you.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_notorious_4",
+   "speaker": "del",
+   "line": "People cross the street, Ruth. Even the ones who used to cross it toward us.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_cutter_jailed_1",
+   "speaker": "hap",
+   "line": "Cutter Shale in Mabry's jail. I keep saying it to myself like a man counting money.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_cutter_jailed_2",
+   "speaker": "del",
+   "line": "Count it slowly. Pell will have him out the minute a judge needs a new roof.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_cutter_jailed_3",
+   "speaker": "ruth",
+   "line": "Then the judge will have to say so out loud, in a courtroom. That's something.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_cutter_dead_1",
+   "speaker": "billy",
+   "line": "Doc, is it wrong to be glad somebody's dead?",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_cutter_dead_2",
+   "speaker": "doc",
+   "line": "Glad is allowed, Billy. It's proud that rots you. Ask Ruth which one she is.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_cutter_dead_3",
+   "speaker": "ruth",
+   "line": "Neither. Tired. Go to bed, Billy.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_doc_sober_1",
+   "speaker": "del",
+   "line": "A drop for the doctor? It's a cold night and I'm feeling generous with Hap's whiskey.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_doc_sober_2",
+   "speaker": "doc",
+   "line": "Coffee, please. Forty days. I'm told it gets easier. I'm told a great many things by people who've never tried.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_sober_3",
+   "speaker": "ruth",
+   "line": "I'll get the pot.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_drink_1",
+   "speaker": "hap",
+   "line": "That's your third, Doc.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_doc_drink_2",
+   "speaker": "doc",
+   "line": "Second. The first one doesn't count. It was medicinal. So was the second, come to think.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_drink_3",
+   "speaker": "ruth",
+   "line": "Your hands were steady at the Ybarras'. Don't make me wish I'd said no.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_hunting_1",
+   "speaker": "billy",
+   "line": "Ruth brought a pelt back! Hap, can we sell it? Can we sell it and buy a saddle?",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hunting_2",
+   "speaker": "hap",
+   "line": "We can sell it and buy flour, which is a saddle for the stomach.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_hunting_3",
+   "speaker": "ruth",
+   "line": "Flour. Then we'll see about saddles.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_papers_1",
+   "speaker": "billy",
+   "line": "Read me the part about us, Joseph.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_papers_2",
+   "speaker": "joseph",
+   "line": "There isn't a part about us. There's a part about a widow and her desperadoes. You're a desperado.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_papers_3",
+   "speaker": "billy",
+   "line": "I'm a desperado!",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_papers_4",
+   "speaker": "ruth",
+   "line": "Joseph. Don't.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_asa_spared_1",
+   "speaker": "hap",
+   "line": "Joseph says you let the youngest Shale go. Sent him west.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_asa_spared_2",
+   "speaker": "ruth",
+   "line": "He held the horses.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_asa_spared_3",
+   "speaker": "hap",
+   "line": "My father held horses for a man who robbed a bank in Uppsala. Then he held horses for a doctor for forty years. People are what they hold next.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_asa_killed_1",
+   "speaker": "doc",
+   "line": "Joseph hasn't said ten words since the Kestrel. That's unusual even for him.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_asa_killed_2",
+   "speaker": "joseph",
+   "line": "Nine. I've been counting.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_asa_killed_3",
+   "speaker": "ruth",
+   "line": "Say the tenth, then.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_asa_killed_4",
+   "speaker": "joseph",
+   "line": "Later.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_drive_1",
+   "speaker": "billy",
+   "line": "Hap, did you ever ride swing?",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_drive_2",
+   "speaker": "hap",
+   "line": "I rode drag for eleven years, boy. Swing is for people with prospects.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_drive_3",
+   "speaker": "billy",
+   "line": "I've got prospects! Ruth said I'm a hand.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_rich_1",
+   "speaker": "del",
+   "line": "Ruth, you're carrying enough to buy a riverboat. A small one. With a leak.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_rich_2",
+   "speaker": "ruth",
+   "line": "It's for the camp.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_rich_3",
+   "speaker": "del",
+   "line": "Then put some in the ledger before I think of a better use for it. I always do.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_poor_1",
+   "speaker": "hap",
+   "line": "The flour sack's light, and so's your purse, if you'll forgive me looking.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_poor_2",
+   "speaker": "ruth",
+   "line": "It's been a lean month.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_poor_3",
+   "speaker": "hap",
+   "line": "Then we eat beans and call it a feast. I've had worse feasts with more money.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_tom_1",
+   "speaker": "hap",
+   "line": "You never say much about Tom.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_tom_2",
+   "speaker": "ruth",
+   "line": "He wound his watch every night and never once set it right. Said the time was what you made it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_tom_3",
+   "speaker": "hap",
+   "line": "Sounds like a man who'd have liked my stew.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_tom_4",
+   "speaker": "ruth",
+   "line": "He'd have lied and said so. He was kind like that.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_hap_winter_1",
+   "speaker": "joseph",
+   "line": "First snow on the Kestrel. The passes will close in a week.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_hap_winter_2",
+   "speaker": "hap",
+   "line": "Then whoever's on the other side stays there. Can't say I mind which side that is, tonight.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_hap_winter_3",
+   "speaker": "ruth",
+   "line": "Eben's on our side of the mountain. He always is.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_act_stew",
+   "speaker": "hap",
+   "line": "Sit. Eat. Don't tell me what's in it and I won't tell you either.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_act_stew_again",
+   "speaker": "hap",
+   "line": "You've had your bowl. The rest is for the boy, who's growing, and me, who's past it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_act_coffee",
+   "speaker": "doc",
+   "line": "Coffee, then. Black as a lawyer's heart and twice as bitter. Your health, such as it is.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_act_whiskey",
+   "speaker": "doc",
+   "line": "One for you, one for me. Here's to steady hands, and to the people who don't need them.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_act_deal",
+   "speaker": "del",
+   "line": "Five cards, a quarter ante, and no stacked decks. I'd know. Cut.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_act_del_won",
+   "speaker": "del",
+   "line": "You took me. I let you, of course. I'll stop letting you any time now.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_act_del_lost",
+   "speaker": "del",
+   "line": "Don't look so wounded, cher. It's only money. It's only your money.",
+   "emotion": "amused"
+  }
+ ],
+ "camp_barks": [
+  {
+   "line": "camp_hap_stew",
+   "who": "hap",
+   "when": {},
+   "weight": 1.0
+  },
+  {
+   "line": "camp_hap_respect",
+   "who": "hap",
+   "when": {
+    "standing_min": 40
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_hap_shy",
+   "who": "hap",
+   "when": {
+    "standing_max": -20
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_hap_poster",
+   "who": "hap",
+   "when": {
+    "bounty_min": 50
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_hap_meat",
+   "who": "hap",
+   "when": {
+    "item_prefix": "meat_"
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_hap_cold",
+   "who": "hap",
+   "when": {
+    "chapter_min": 4
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_del_solitaire",
+   "who": "del",
+   "when": {},
+   "weight": 1.0
+  },
+  {
+   "line": "camp_del_rich",
+   "who": "del",
+   "when": {
+    "money_min": 100
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_del_poor",
+   "who": "del",
+   "when": {
+    "money_max": 5
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_del_merrow",
+   "who": "del",
+   "when": {
+    "flag": {
+     "returned_stakes": true
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_del_robbery",
+   "who": "del",
+   "when": {
+    "recent_crime": "robbery"
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_doc_reading",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "doc_sober": true
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_doc_drinking",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "doc_sober": false
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_doc_ines",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "ines_leg_clean": true
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_doc_ines_hitch",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "ines_leg_clean": false
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_doc_innocents",
+   "who": "doc",
+   "when": {
+    "kills_civilian_min": 1
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_billy_mare",
+   "who": "billy",
+   "when": {},
+   "weight": 1.0
+  },
+  {
+   "line": "camp_billy_worth",
+   "who": "billy",
+   "when": {
+    "bounty_min": 100
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_billy_swing",
+   "who": "billy",
+   "when": {
+    "flag_set": [
+     "drive_route"
+    ]
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_billy_pelt",
+   "who": "billy",
+   "when": {
+    "item_prefix": "pelt_"
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_billy_cholera",
+   "who": "billy",
+   "when": {
+    "kills_outlaw_min": 20
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_joseph_paper",
+   "who": "joseph",
+   "when": {},
+   "weight": 1.0
+  },
+  {
+   "line": "camp_joseph_cinch",
+   "who": "joseph",
+   "when": {},
+   "weight": 1.0
+  },
+  {
+   "line": "camp_joseph_asa",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "spared_asa": true
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_joseph_snow",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "asa_killed": true
+    }
+   },
+   "weight": 1.0
+  },
+  {
+   "line": "camp_joseph_name",
+   "who": "joseph",
+   "when": {
+    "standing_max": -30
+   },
+   "weight": 2.0
+  }
+ ],
+ "conversations": [
+  {
+   "id": "first_night",
+   "who": [
+    "hap",
+    "billy"
+   ],
+   "lines": [
+    "camp_first_night_1",
+    "camp_first_night_2",
+    "camp_first_night_3"
+   ],
+   "when": {
+    "chapter_max": 1
+   },
+   "priority": 6,
+   "once": true
+  },
+  {
+   "id": "del_hymns",
+   "who": [
+    "del",
+    "hap"
+   ],
+   "lines": [
+    "camp_del_hymns_1",
+    "camp_del_hymns_2",
+    "camp_del_hymns_3",
+    "camp_del_hymns_4"
+   ],
+   "when": {
+    "flag_set": [
+     "del_joined"
+    ],
+    "chapter_max": 2
+   },
+   "priority": 5,
+   "once": true
+  },
+  {
+   "id": "poster",
+   "who": [
+    "del",
+    "hap"
+   ],
+   "lines": [
+    "camp_poster_1",
+    "camp_poster_2",
+    "camp_poster_3"
+   ],
+   "when": {
+    "bounty_min": 100
+   },
+   "priority": 4,
+   "once": false
+  },
+  {
+   "id": "robbery",
+   "who": [
+    "hap"
+   ],
+   "lines": [
+    "camp_robbery_1",
+    "camp_robbery_2",
+    "camp_robbery_3"
+   ],
+   "when": {
+    "recent_crime": "robbery"
+   },
+   "priority": 8,
+   "once": false
+  },
+  {
+   "id": "murder",
+   "who": [
+    "doc"
+   ],
+   "lines": [
+    "camp_murder_1",
+    "camp_murder_2",
+    "camp_murder_3"
+   ],
+   "when": {
+    "recent_crime": "murder"
+   },
+   "priority": 9,
+   "once": false
+  },
+  {
+   "id": "murder_hap",
+   "who": [
+    "hap"
+   ],
+   "lines": [
+    "camp_murder_hap_1",
+    "camp_murder_hap_2",
+    "camp_murder_hap_3"
+   ],
+   "when": {
+    "recent_crime": "murder"
+   },
+   "priority": 7,
+   "once": false
+  },
+  {
+   "id": "respected",
+   "who": [
+    "hap",
+    "joseph"
+   ],
+   "lines": [
+    "camp_respected_1",
+    "camp_respected_2",
+    "camp_respected_3",
+    "camp_respected_4"
+   ],
+   "when": {
+    "standing_min": 50
+   },
+   "priority": 3,
+   "once": false
+  },
+  {
+   "id": "respected_hap",
+   "who": [
+    "hap"
+   ],
+   "lines": [
+    "camp_respected_hap_1",
+    "camp_respected_hap_2",
+    "camp_respected_hap_3"
+   ],
+   "when": {
+    "standing_min": 40
+   },
+   "priority": 2,
+   "once": false
+  },
+  {
+   "id": "notorious",
+   "who": [
+    "del",
+    "doc"
+   ],
+   "lines": [
+    "camp_notorious_1",
+    "camp_notorious_2",
+    "camp_notorious_3",
+    "camp_notorious_4"
+   ],
+   "when": {
+    "standing_max": -30
+   },
+   "priority": 5,
+   "once": false
+  },
+  {
+   "id": "cutter_jailed",
+   "who": [
+    "hap",
+    "del"
+   ],
+   "lines": [
+    "camp_cutter_jailed_1",
+    "camp_cutter_jailed_2",
+    "camp_cutter_jailed_3"
+   ],
+   "when": {
+    "flag": {
+     "cutter_fate": "jailed"
+    },
+    "chapter_min": 3
+   },
+   "priority": 4,
+   "once": true
+  },
+  {
+   "id": "cutter_dead",
+   "who": [
+    "doc",
+    "billy"
+   ],
+   "lines": [
+    "camp_cutter_dead_1",
+    "camp_cutter_dead_2",
+    "camp_cutter_dead_3"
+   ],
+   "when": {
+    "flag": {
+     "cutter_fate": "dead"
+    },
+    "chapter_min": 3
+   },
+   "priority": 4,
+   "once": true
+  },
+  {
+   "id": "doc_sober",
+   "who": [
+    "doc",
+    "del"
+   ],
+   "lines": [
+    "camp_doc_sober_1",
+    "camp_doc_sober_2",
+    "camp_doc_sober_3"
+   ],
+   "when": {
+    "flag": {
+     "doc_sober": true
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "doc_drink",
+   "who": [
+    "doc",
+    "hap"
+   ],
+   "lines": [
+    "camp_doc_drink_1",
+    "camp_doc_drink_2",
+    "camp_doc_drink_3"
+   ],
+   "when": {
+    "flag": {
+     "doc_sober": false
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "hunting",
+   "who": [
+    "billy",
+    "hap"
+   ],
+   "lines": [
+    "camp_hunting_1",
+    "camp_hunting_2",
+    "camp_hunting_3"
+   ],
+   "when": {
+    "item_prefix": "pelt_"
+   },
+   "priority": 2,
+   "once": false
+  },
+  {
+   "id": "papers",
+   "who": [
+    "joseph",
+    "billy"
+   ],
+   "lines": [
+    "camp_papers_1",
+    "camp_papers_2",
+    "camp_papers_3",
+    "camp_papers_4"
+   ],
+   "when": {
+    "flag_set": [
+     "joseph_joined"
+    ]
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "asa_spared",
+   "who": [
+    "joseph",
+    "hap"
+   ],
+   "lines": [
+    "camp_asa_spared_1",
+    "camp_asa_spared_2",
+    "camp_asa_spared_3"
+   ],
+   "when": {
+    "flag": {
+     "spared_asa": true
+    }
+   },
+   "priority": 4,
+   "once": true
+  },
+  {
+   "id": "asa_killed",
+   "who": [
+    "joseph",
+    "doc"
+   ],
+   "lines": [
+    "camp_asa_killed_1",
+    "camp_asa_killed_2",
+    "camp_asa_killed_3",
+    "camp_asa_killed_4"
+   ],
+   "when": {
+    "flag": {
+     "asa_killed": true
+    }
+   },
+   "priority": 4,
+   "once": true
+  },
+  {
+   "id": "drive",
+   "who": [
+    "billy",
+    "hap"
+   ],
+   "lines": [
+    "camp_drive_1",
+    "camp_drive_2",
+    "camp_drive_3"
+   ],
+   "when": {
+    "flag_set": [
+     "drive_route"
+    ]
+   },
+   "priority": 2,
+   "once": true
+  },
+  {
+   "id": "rich",
+   "who": [
+    "del"
+   ],
+   "lines": [
+    "camp_rich_1",
+    "camp_rich_2",
+    "camp_rich_3"
+   ],
+   "when": {
+    "money_min": 150
+   },
+   "priority": 2,
+   "once": false
+  },
+  {
+   "id": "poor",
+   "who": [
+    "hap"
+   ],
+   "lines": [
+    "camp_poor_1",
+    "camp_poor_2",
+    "camp_poor_3"
+   ],
+   "when": {
+    "money_max": 3
+   },
+   "priority": 2,
+   "once": false
+  },
+  {
+   "id": "tom",
+   "who": [
+    "hap"
+   ],
+   "lines": [
+    "camp_tom_1",
+    "camp_tom_2",
+    "camp_tom_3",
+    "camp_tom_4"
+   ],
+   "when": {},
+   "priority": 0,
+   "once": false
+  },
+  {
+   "id": "hap_winter",
+   "who": [
+    "hap",
+    "joseph"
+   ],
+   "lines": [
+    "camp_hap_winter_1",
+    "camp_hap_winter_2",
+    "camp_hap_winter_3"
+   ],
+   "when": {
+    "chapter_min": 4
+   },
+   "priority": 1,
+   "once": false
+  }
+ ]
+}

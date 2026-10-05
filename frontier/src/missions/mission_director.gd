@@ -4,6 +4,8 @@ extends Node
 ## await: goto, say, spawn, wait_dead, interact, wait, checkpoint, cinematic shots; draws objectives on the HUD and
 ## mission start markers in the world; handles failure/retry from checkpoints; and has an autopilot used by the
 ## mission bot (--bot missions) to play every mission end to end headless and catch softlocks.
+## Chapter 4 verbs: set_snow, cold_begin/cold_end + warm_spot (winter survival), climb, avalanche, timed_tasks,
+## pursue (ride down a fleeing rider).
 ## Chapter 3 verbs: mount_up, lead (someone follows Ruth), ride_with (escort a rider on horseback), drive (push a
 ## herd), stampede (turn the leaders), defend (hold a point), track (mission props).
 ## Story verbs added for chapter 2: choose (dialogue choices; bots follow --choices 0,1,0), follow (escort an NPC),
@@ -39,6 +41,11 @@ const MISSIONS := [
 	"res://src/missions/ch3/through_the_breaks.gd",
 	"res://src/missions/ch3/water_rights.gd",
 	"res://src/missions/ch3/the_dry_fork.gd",
+	"res://src/missions/ch4/coldwater.gd",
+	"res://src/missions/ch4/number_two_drift.gd",
+	"res://src/missions/ch4/kestrel_pass.gd",
+	"res://src/missions/ch4/the_youngest.gd",
+	"res://src/missions/ch4/scrip_and_silver.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -205,6 +212,7 @@ func _run(m: Mission) -> bool:
 	return result != false and not _abort
 
 func _physics_process(_dt: float) -> void:
+	_cold_tick(_dt)
 	# any death during a mission fails it (fights already check; this covers falls, ambushes on the road...)
 	if active != null and not _abort and not resuming and Game.player and Game.player.damageable \
 			and not Game.player.damageable.alive:
@@ -340,6 +348,7 @@ func _cleanup() -> void:
 			n.queue_free()
 	spawned.clear()
 	_free_props()
+	cold_end()
 
 # ------------------------------------------------------------------ verbs (await these)
 func wait(seconds: float) -> void:
@@ -1285,3 +1294,320 @@ func defend(pos: Vector3, radius: float, group: Array, text: String, hold := 7.0
 	_decide(held2)
 	Game.log_event("defend", {"held": held2})
 	return held2
+
+# ------------------------------------------------------------------ chapter 4 verbs (snow, cold, climbing, avalanche)
+var warmth := 100.0
+var cold_rate := 0.0             # warmth lost per second when exposed (0 = no cold)
+var _cold_ui: CanvasLayer
+var _cold_label: Label
+var _cold_warned := 100
+
+## Snow lying on the ground everywhere (terrain/grass/road shaders' global snow_cover, 0..1). Snowfall itself comes
+## from rain/storm weather above the snow line.
+func set_snow(amount: float) -> void:
+	RenderingServer.global_shader_parameter_set("snow_cover", clampf(amount, 0.0, 1.0))
+	Game.log_event("snow_cover", {"amount": amount})
+
+## Winter survival: warmth drains while Ruth is out in the cold (faster at night, in a storm, above the snow line),
+## comes back by a fire (warm_spot) — at nothing she freezes and the mission fails.
+func cold_begin(rate := 0.8) -> void:
+	cold_rate = rate
+	warmth = 100.0
+	_cold_warned = 100
+	if not Game.headless and _cold_ui == null:
+		_cold_ui = CanvasLayer.new()
+		_cold_ui.layer = 9
+		add_child(_cold_ui)
+		_cold_label = UITheme.label("", 26, "caps", UITheme.PAPER)
+		_cold_label.anchor_left = 1.0
+		_cold_label.anchor_right = 1.0
+		_cold_label.offset_left = -330
+		_cold_label.offset_top = 150
+		_cold_ui.add_child(_cold_label)
+
+func cold_end() -> void:
+	cold_rate = 0.0
+	warmth = 100.0
+	if _cold_ui:
+		_cold_ui.queue_free()
+		_cold_ui = null
+		_cold_label = null
+
+## A fire to warm by (group "warmth"); returns the node (a tracked mission prop).
+func warm_spot(pos: Vector3) -> Node3D:
+	var n := Node3D.new()
+	n.name = "WarmFire"
+	n.add_to_group("warmth")
+	Game.main.add_child(n)
+	n.global_position = Vector3(pos.x, Game.world.height(pos.x, pos.z), pos.z)
+	track(n)
+	if not Game.headless:
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.6, 0.3)
+		l.light_energy = 2.2
+		l.omni_range = 8.0
+		l.position.y = 0.6
+		n.add_child(l)
+		var fl := CPUParticles3D.new()
+		fl.amount = 24
+		fl.lifetime = 0.7
+		fl.direction = Vector3.UP
+		fl.spread = 12.0
+		fl.initial_velocity_min = 0.5
+		fl.initial_velocity_max = 1.2
+		fl.gravity = Vector3(0, 1.0, 0)
+		fl.scale_amount_min = 0.12
+		fl.scale_amount_max = 0.3
+		var q := QuadMesh.new()
+		var fm := StandardMaterial3D.new()
+		fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		fm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		fm.albedo_color = Color(1.0, 0.6, 0.25)
+		q.material = fm
+		fl.mesh = q
+		n.add_child(fl)
+	return n
+
+func _cold_tick(dt: float) -> void:
+	if cold_rate <= 0.0 or active == null or _abort or resuming or autopilot or Game.player == null:
+		return
+	var p: Vector3 = Game.player.global_position
+	var near_fire := false
+	for f in get_tree().get_nodes_in_group("warmth"):
+		if f is Node3D and (f as Node3D).global_position.distance_to(p) < 4.5:
+			near_fire = true
+			break
+	if near_fire:
+		warmth = minf(warmth + 14.0 * dt, 100.0)
+	else:
+		var k := cold_rate
+		if Game.sky and Game.sky.is_night():
+			k *= 1.4
+		if Game.sky and Game.sky.weather == SkySystem.Weather.STORM:
+			k *= 1.6
+		k *= 1.0 if p.y > 1100.0 else 0.45
+		warmth = maxf(warmth - k * dt, 0.0)
+	if _cold_label:
+		var bars := int(ceil(warmth / 10.0))
+		_cold_label.text = "Warmth  " + "|".repeat(bars) + ".".repeat(10 - bars) + ("   by the fire" if near_fire else "")
+		_cold_label.add_theme_color_override("font_color", UITheme.PAPER if warmth > 30.0 else Color(0.75, 0.85, 1.0))
+	for th in [50, 25, 10]:
+		if warmth < th and _cold_warned > th:
+			_cold_warned = th
+			if Game.hud:
+				Game.hud.notice(["Your hands are going numb. Find a fire.", "You can't feel your feet. Find a fire.",
+					"Freezing. Find a fire now."][[50, 25, 10].find(th)], 4.0)
+	if warmth > 60.0:
+		_cold_warned = 100
+	if warmth <= 0.0:
+		fail("Ruth froze")
+
+## Climb a steep face hold by hold: at each hold press interact (or jump) to pull up to the next one.
+func climb(holds: Array, text: String) -> void:
+	if _abort or holds.is_empty():
+		return
+	if resuming or autopilot:
+		_teleport_player(holds[-1])
+		return
+	var i := 0
+	var t := 0.0
+	while not _abort and i < holds.size() - 1:
+		var here: Vector3 = holds[i]
+		var next: Vector3 = holds[i + 1]
+		var marker := _marker(next)
+		set_objective("%s  (%d/%d)" % [text, i + 1, holds.size() - 1])
+		while not _abort:
+			var near: bool = Game.player.global_position.distance_to(here) < 3.5 or (i == 0 and Game.player.global_position.distance_to(next) < 9.0)
+			if Game.hud:
+				Game.hud.prompt(("[E]  Climb  (%d/%d)" % [i + 1, holds.size() - 1]) if near else "%s — get to the hold" % text)
+			if near and (Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("jump") or Game.player.intent.get("interact", false)):
+				break
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+			if t > step_timeout * 3.0:
+				fail("softlock: never climbed '%s'" % text)
+		marker.queue_free()
+		if _abort:
+			return
+		# pull up: a short eased move from hold to hold
+		var from: Vector3 = Game.player.global_position
+		var to := Vector3(next.x, Game.world.height(next.x, next.z) + 0.2, next.z)
+		Game.player.set("bot_driven", true)
+		var k := 0.0
+		while k < 1.0 and not _abort:
+			k = minf(k + get_physics_process_delta_time() / 1.1, 1.0)
+			var e := k * k * (3.0 - 2.0 * k)
+			Game.player.global_position = from.lerp(to, e) + Vector3(0, sin(e * PI) * 0.6, 0)
+			Game.player.velocity = Vector3.ZERO
+			await get_tree().physics_frame
+		Game.terrain.ensure_collision_at(to)
+		if not Game.args.has("bot"):
+			Game.player.set("bot_driven", false)
+		i += 1
+	set_objective("")
+
+## An avalanche comes down `dir` from `origin`: get to `safe` before the front reaches Ruth. Caught = buried (the
+## mission fails; retry). The slide is a rolling white cloud, the camera shakes.
+func avalanche(origin: Vector3, dir: Vector3, safe: Vector3, seconds: float, text: String) -> void:
+	if _abort:
+		return
+	if resuming:
+		_teleport_player(safe)
+		return
+	var d := Vector3(dir.x, 0, dir.z).normalized()
+	var p0: Vector3 = Game.player.global_position
+	var dist_to_player: float = maxf((p0 - origin).dot(d), 10.0)
+	var speed := dist_to_player / maxf(seconds, 1.0)
+	var front := origin
+	var cloud := Node3D.new()
+	Game.main.add_child(cloud)
+	track(cloud)
+	cloud.global_position = origin
+	if not Game.headless:
+		var ps := CPUParticles3D.new()
+		ps.amount = 220
+		ps.lifetime = 2.5
+		ps.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		ps.emission_box_extents = Vector3(30, 3, 4)
+		ps.direction = Vector3.UP
+		ps.spread = 60.0
+		ps.initial_velocity_min = 1.0
+		ps.initial_velocity_max = 5.0
+		ps.gravity = Vector3(0, -1.0, 0)
+		ps.scale_amount_min = 2.0
+		ps.scale_amount_max = 6.0
+		var q := QuadMesh.new()
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		m.albedo_color = Color(0.95, 0.96, 1.0, 0.55)
+		q.material = m
+		ps.mesh = q
+		cloud.add_child(ps)
+		cloud.look_at(origin + d, Vector3.UP)
+	if Game.audio and Game.audio.has_method("play"):
+		Game.audio.play("thunder", origin, {"volume_db": 6.0})
+	Game.log_event("avalanche", {"seconds": seconds})
+	var marker := _marker(safe)
+	var t := 0.0
+	var caught := false
+	var cam: Camera3D = Game.camera
+	while not _abort:
+		t += get_physics_process_delta_time()
+		front = origin + d * speed * t
+		front.y = Game.world.height(front.x, front.z) + 2.0
+		cloud.global_position = front
+		var pp: Vector3 = Game.player.global_position
+		set_objective("%s — %d" % [text, maxi(int(ceil(seconds - t)), 0)])
+		if autopilot and t > 0.3:
+			_teleport_player(safe)
+			pp = Game.player.global_position
+		if Vector2(pp.x - safe.x, pp.z - safe.z).length() < 5.0:
+			break
+		if (pp - origin).dot(d) < speed * t and absf((pp - front).dot(d.cross(Vector3.UP))) < 40.0:
+			caught = true
+			break
+		if cam and not Game.headless:
+			var shake := clampf(1.0 - (pp - front).length() / 120.0, 0.0, 1.0) * 0.25
+			cam.h_offset = randf_range(-shake, shake)
+			cam.v_offset = randf_range(-shake, shake)
+		await get_tree().physics_frame
+	if cam:
+		cam.h_offset = 0.0
+		cam.v_offset = 0.0
+	marker.queue_free()
+	# the slide runs on past her
+	var tw := create_tween()
+	tw.tween_property(cloud, "global_position", front + d * speed * 3.0, 3.0)
+	if caught:
+		fail("Buried in the slide")
+
+## Several jobs against the clock (dig out a cave-in, cut a man down...): interact at each point before time runs
+## out. Returns how many were done.
+func timed_tasks(points: Array, text: String, seconds: float, action := "Dig") -> int:
+	if _abort:
+		return 0
+	if _replaying():
+		return int(_decide(points.size()))
+	var done := []
+	var markers := []
+	for p in points:
+		markers.append(_marker(p))
+	var t := 0.0
+	while not _abort and t < seconds and done.size() < points.size():
+		set_objective("%s — %d/%d — %d" % [text, done.size(), points.size(), maxi(int(ceil(seconds - t)), 0)])
+		if autopilot and t > 0.3:
+			for k in points.size():
+				if not done.has(k):
+					done.append(k)
+			break
+		for k in points.size():
+			if done.has(k):
+				continue
+			var near: bool = Game.player.global_position.distance_to(points[k]) < 2.5
+			if near and Game.hud:
+				Game.hud.prompt("[E]  %s" % action)
+			if near and (Input.is_action_just_pressed("interact") or Game.player.intent.get("interact", false)):
+				done.append(k)
+				if is_instance_valid(markers[k]):
+					markers[k].queue_free()
+				Game.log_event("task_done", {"text": text, "n": done.size()})
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	for m in markers:
+		if is_instance_valid(m):
+			m.queue_free()
+	if _abort:
+		return 0
+	_decide(done.size())
+	return done.size()
+
+## Ride down a fleeing rider (ch3/outrider.gd) before he reaches `goal`: get within `catch` metres for a breath, or
+## shoot him out of the saddle. Returns true if she caught him. The quarry canters, so a galloping horse closes.
+func pursue(rider, goal: Vector3, text: String, seconds := 60.0, catch := 7.0) -> bool:
+	if _abort or rider == null:
+		return true
+	if _replaying():
+		var was: bool = _decide(true)
+		if was:
+			rider.teleport(Game.player.global_position + Vector3(3, 0, 0))
+			rider.halt()
+		return was
+	var caught := false
+	if autopilot:
+		rider.teleport(Game.player.global_position + Vector3(3, 0, 2))
+		rider.halt()
+		caught = true
+	else:
+		var t := 0.0
+		var close_t := 0.0
+		var marker_n: Node3D = rider.horse
+		while not _abort and t < seconds:
+			var hp: Vector3 = rider.horse.global_position
+			set_objective("%s — %d" % [text, maxi(int(ceil(seconds - t)), 0)])
+			var to_goal := Vector3(goal.x - hp.x, 0, goal.z - hp.z)
+			if to_goal.length() < 12.0:
+				break
+			# keep the carrot 30 m ahead so his horse holds a canter
+			rider.marker.global_position = hp + to_goal.normalized() * minf(30.0, to_goal.length())
+			rider.halted = false
+			if rider.man == null or not is_instance_valid(rider.man) or not rider.man.alive:
+				caught = true
+				break
+			if Game.player.global_position.distance_to(hp) < catch:
+				close_t += get_physics_process_delta_time()
+				if close_t > 1.2:
+					caught = true
+					break
+			else:
+				close_t = 0.0
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+		rider.halt()
+	if _abort:
+		return true
+	_decide(caught, autopilot)
+	Game.log_event("pursue", {"caught": caught})
+	return caught

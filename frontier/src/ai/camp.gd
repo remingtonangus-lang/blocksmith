@@ -1,30 +1,85 @@
 extends Node
-## The Outfit's camp at Willow Bend: a campfire with light and crackle, companions who live there once recruited
-## (story flags), daily camp routines (sitting at the fire, cooking, tending horses, sleeping at night), and the
-## player's camp actions: sleep (pass the night, autosave), cook meat at the fire (heal + stamina), contribute money
-## to the camp ledger (Standing, unlocks upgrades), talk to companions (barks reflecting Standing and recent deeds).
+## The Outfit's camp at Willow Bend: a campfire with light and crackle, the companions who live there once
+## recruited (story flags), each with a spot and a day (Hap at the cook pot humming, Doc reading or drinking as his
+## arc went, Del dealing solitaire on a crate, Billy at the horse line, Joseph mending tack with a newspaper),
+## evenings round the fire and nights in their bedrolls.
+##
+## Sitting at the fire plays a conversation (two to four lines) chosen from design/dialogue/camp.json by story flags,
+## Standing, money, bounties, recent crimes (WorldState.crimes_log), kills, what she's carrying from the hunt and the
+## chapter — companions talk about what Ruth actually did. Walking up to someone gets a one-line bark picked the
+## same way. Camp activities with small rewards: Hap's stew (heal, once a day), a drink with Doc (whiskey for Nerve,
+## or coffee if he's keeping sober), a hand of five-card draw with Del (poker engine), plus sleep, cooking meat and
+## the camp ledger. `selftest()` (bot_runner --bot camp) checks the picks for given situations and plays them.
 
 const COMPANIONS := {
-	"hap": {"name": "Hap Lindqvist", "flag_mission": "c1_drover", "seed": 7, "weapon": "harlan_carbine", "role": "drover"},
-	"billy": {"name": "Billy Pruitt", "flag": "billy_joined", "seed": 14, "weapon": "", "role": "child"},
+	"hap": {"name": "Hap Lindqvist", "flag_mission": "c1_drover", "seed": 7, "weapon": "harlan_carbine", "role": "drover",
+		"spot": Vector3(2.2, 0, 1.4), "activity": "cooking"},
+	"billy": {"name": "Billy Pruitt", "flag": "billy_joined", "seed": 14, "weapon": "", "role": "child",
+		"spot": Vector3(9.0, 0, 5.0), "activity": "horses"},
+	"del": {"name": "Del Arceneaux", "flag": "del_joined", "seed": 2201, "weapon": "lockhart_sa", "role": "gambler",
+		"spot": Vector3(-2.8, 0, 1.2), "activity": "solitaire"},
+	"doc": {"name": "Cornelius Abernathy", "flag": "doc_joined", "seed": 3204, "weapon": "", "role": "townsfolk",
+		"spot": Vector3(-1.6, 0, -2.8), "activity": "reading"},
+	"joseph": {"name": "Joseph Kehoe", "flag": "joseph_joined", "seed": 4101, "weapon": "bowden_bolt", "role": "hunter",
+		"spot": Vector3(4.5, 0, -3.2), "activity": "tack"},
 }
+const TABLE := "res://design/dialogue/camp.json"
 
 var center := Vector3.ZERO
 var fire_light: OmniLight3D
 var members := {}            # id -> Human
 var ledger := 0.0
 var upgrades := {}           # "lodging", "ammo_box", "medicine" ...
+var barks: Array = []
+var conversations: Array = []
+var played := {}             # conversation id -> times played
+var recent: Array = []       # last conversation ids, newest last
+var crime_cursor := 0        # crimes_log entries before this have been talked about
+var stew_day := -1
+var drink_day := -1
+var sitting := false
+var _bark_cd := {}
+var _bark_global := 0.0
 var _t := 0.0
 var _fire: Node3D
+var _props: Node3D
+var rng := RandomNumberGenerator.new()
+
+## The fire as an interactable: sit down (conversation + the camp menu).
+class FireSeat extends Node3D:
+	var camp
+
+	func interact_prompt() -> String:
+		if camp == null or camp.sitting:
+			return ""
+		return "Sit at the fire"
+
+	func interact(_who: Node) -> void:
+		camp.open_menu()
 
 func _ready() -> void:
 	Game.set("camp", self)
+	rng.seed = 1899
 	var c := Game.world.poi("caddell_camp")
 	center = Vector3(c.x, Game.world.height(c.x, c.z), c.z)
+	_load_table()
 	_build_fire()
+	_build_props()
+
+func _load_table() -> void:
+	var j = JSON.parse_string(FileAccess.get_file_as_string(TABLE))
+	if typeof(j) != TYPE_DICTIONARY:
+		push_warning("camp: no camp.json")
+		return
+	barks = j.get("camp_barks", [])
+	conversations = j.get("conversations", [])
+	if Game.missions:
+		Game.missions._load_dialogue(TABLE)
+	else:
+		(func(): if Game.missions: Game.missions._load_dialogue(TABLE)).call_deferred()
 
 func _build_fire() -> void:
-	_fire = load("res://src/ai/campfire.gd").new()
+	_fire = FireSeat.new()
 	_fire.name = "Campfire"
 	_fire.camp = self
 	_fire.add_to_group("interactable")
@@ -78,20 +133,47 @@ func _build_fire() -> void:
 	flames.position.y = 0.15
 	_fire.add_child(flames)
 
+## Each companion's corner: a cook pot on a tripod, a crate table, a log to read on, a picket line, a tack bench.
+func _build_props() -> void:
+	_props = Node3D.new()
+	_props.name = "CampProps"
+	add_child(_props)
+	if Game.headless:
+		return
+	var wood := Color(0.36, 0.27, 0.18)
+	_prop_box(Vector3(2.2, 0, 1.4) + Vector3(0.6, 0, 0), Vector3(0.45, 0.4, 0.45), Color(0.15, 0.14, 0.13))     # pot
+	_prop_box(Vector3(-2.8, 0, 1.2) + Vector3(0.7, 0, 0), Vector3(0.7, 0.55, 0.55), wood)                      # crate
+	_prop_box(Vector3(-1.6, 0, -2.8) + Vector3(0, 0, 0.6), Vector3(1.8, 0.35, 0.4), wood.darkened(0.2))       # log
+	_prop_box(Vector3(9.0, 0, 5.0) + Vector3(0, 1.0, 1.0), Vector3(6.0, 0.05, 0.05), Color(0.6, 0.5, 0.35))    # picket line
+	_prop_box(Vector3(4.5, 0, -3.2) + Vector3(0.7, 0, 0), Vector3(1.4, 0.5, 0.5), wood)                        # tack bench
+	_prop_box(Vector3(5.2, 0, 2.8), Vector3(2.2, 1.0, 1.2), Color(0.5, 0.42, 0.3))                              # wagon bed
+
+func _prop_box(off: Vector3, size: Vector3, col: Color) -> void:
+	var m := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = size
+	m.mesh = b
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.95
+	m.material_override = mat
+	_props.add_child(m)
+	var p := center + off
+	m.global_position = Vector3(p.x, Game.world.height(p.x, p.z) + off.y + size.y * 0.5, p.z)
+
 func _process(dt: float) -> void:
 	if fire_light:
 		fire_light.light_energy = 2.4 + sin(Time.get_ticks_msec() * 0.013) * 0.25 + sin(Time.get_ticks_msec() * 0.031) * 0.18
+	_bark_global -= dt
 	_t -= dt
 	if _t > 0.0 or Game.player == null:
 		return
 	_t = 2.0
 	var near := Game.player.global_position.distance_to(center) < 300.0
+	var busy_in_mission: bool = Game.missions != null and Game.missions.active != null
 	for id in COMPANIONS.keys():
 		var c: Dictionary = COMPANIONS[id]
-		var joined: bool = (c.has("flag_mission") and Game.missions != null and Game.missions.completed.has(c.flag_mission)) \
-			or (c.has("flag") and Game.state != null and Game.state.flags.get(c.flag, false))
-		var busy_in_mission: bool = Game.missions != null and Game.missions.active != null
-		if joined and near and not busy_in_mission and not members.has(id):
+		if joined(id) and near and not busy_in_mission and not members.has(id):
 			_spawn_member(id, c)
 		elif members.has(id) and (not near or busy_in_mission):
 			if is_instance_valid(members[id]):
@@ -101,34 +183,300 @@ func _process(dt: float) -> void:
 		var h: Human = members[id]
 		if is_instance_valid(h) and h.alive:
 			_routine(id, h)
+			_maybe_bark(id, h)
+
+func joined(id: String) -> bool:
+	var c: Dictionary = COMPANIONS.get(id, {})
+	if c.has("flag_mission"):
+		return Game.missions != null and Game.missions.completed.has(c.flag_mission)
+	return Game.state != null and bool(Game.state.flags.get(c.get("flag", ""), false))
+
+func joined_ids() -> Array:
+	return COMPANIONS.keys().filter(func(id): return joined(id))
 
 func _spawn_member(id: String, c: Dictionary) -> void:
-	var p := center + Vector3(randf_range(-4, 4), 0, randf_range(-4, 4))
+	var p := center + Vector3(c.spot)
 	p.y = Game.world.height(p.x, p.z) + 0.3
 	Game.terrain.ensure_tile(p)
 	var h := Human.spawn(Game.main, p, {"seed": c.seed, "role": c.role, "faction": "outfit", "name": c.name, "weapon": c.weapon})
 	h.brain.home = center
 	members[id] = h
 
-## Camp routine by hour: evenings at the fire, daytime chores around camp, nights asleep by the wagon.
+## Camp routine by hour: chores at their own spot by day, the fire in the evening, bedrolls at night.
 func _routine(id: String, h: Human) -> void:
 	if h.brain.state != h.brain.State.ROUTINE and h.brain.state != h.brain.State.IDLE:
 		return
+	if sitting:
+		h.intent.move_to = null
+		h.intent.face = center - h.global_position
+		return
 	var hour: float = Game.sky.hours if Game.sky else 12.0
-	var r := RandomNumberGenerator.new()
-	r.seed = hash(id) + int(hour * 4.0)
+	var spot: Vector3 = center + Vector3(COMPANIONS[id].spot)
 	if hour > 18.0 or hour < 1.0:
-		var a := r.randf() * TAU
-		h.intent.move_to = center + Vector3(cos(a) * 2.2, 0, sin(a) * 2.2)
+		var a := float(hash(id) % 628) / 100.0
+		h.intent.move_to = center + Vector3(cos(a) * 2.3, 0, sin(a) * 2.3)
 		h.intent.speed = Human.WALK
 		h.intent.face = center - h.global_position
 	elif hour < 6.0:
-		h.intent.move_to = center + Vector3(5.0, 0, 3.0 + (1.5 if id == "billy" else 0.0))
+		h.intent.move_to = center + Vector3(-5.0 + float(COMPANIONS.keys().find(id)) * 1.6, 0, 5.5)
 	else:
-		h.intent.move_to = center + Vector3(r.randf_range(-12, 12), 0, r.randf_range(-12, 12))
+		h.intent.move_to = spot
 		h.intent.speed = Human.WALK
+		h.intent.face = (spot + Vector3(0.7, 0, 0)) - h.global_position
 
-# ------------------------------------------------------------------ player actions
+func activity(id: String) -> String:
+	if id == "doc":
+		return "reading" if Game.state and Game.state.flags.get("doc_sober", false) else "drinking"
+	return str(COMPANIONS.get(id, {}).get("activity", ""))
+
+func _maybe_bark(id: String, h: Human) -> void:
+	if sitting or _bark_global > 0.0 or Game.missions == null or Game.missions.active != null:
+		return
+	if h.global_position.distance_to(Game.player.global_position) > 5.0:
+		return
+	if float(_bark_cd.get(id, 0.0)) > Time.get_ticks_msec() / 1000.0:
+		return
+	var b := pick_bark(id, context())
+	if b.is_empty():
+		return
+	_bark_cd[id] = Time.get_ticks_msec() / 1000.0 + 60.0
+	_bark_global = 15.0
+	Game.missions.say_async(b.line, h)
+
+# ------------------------------------------------------------------ choosing what gets said
+## What camp talk can know: flags, chapter, Standing, money, bounties, kills, crimes since the last time the camp
+## talked about one, what she carries, and who's here.
+func context() -> Dictionary:
+	var st = Game.state
+	var crimes := []
+	var bounty := 0.0
+	if st:
+		for i in range(crime_cursor, st.crimes_log.size()):
+			crimes.append(str(st.crimes_log[i].kind))
+		for k in st.bounties.keys():
+			bounty += float(st.bounties[k])
+	var present := []
+	for id in joined_ids():
+		present.append(id)
+	return {"flags": st.flags if st else {}, "chapter": chapter(), "standing": st.standing if st else 0.0,
+		"money": st.money if st else 0.0, "bounty": bounty, "kills": st.kills if st else {}, "crimes": crimes,
+		"items": st.inventory if st else {}, "members": present}
+
+func chapter() -> int:
+	var c := 0
+	if Game.missions:
+		for m in Game.missions.completed:
+			var s := str(m)
+			if s.length() > 2 and s[0] == "c" and s[1].is_valid_int():
+				c = maxi(c, int(s[1]))
+	return c
+
+func matches(when: Dictionary, ctx: Dictionary) -> bool:
+	var flags: Dictionary = ctx.get("flags", {})
+	for k in when.keys():
+		var v = when[k]
+		match k:
+			"flag":
+				for f in v.keys():
+					if not flags.has(f):
+						return false
+					if typeof(v[f]) == TYPE_BOOL:
+						if bool(flags[f]) != bool(v[f]):
+							return false
+					elif str(flags[f]) != str(v[f]):
+						return false
+			"flag_set":
+				for f in v:
+					if not flags.has(f) or not flags[f]:
+						return false
+			"chapter_min":
+				if int(ctx.chapter) < int(v): return false
+			"chapter_max":
+				if int(ctx.chapter) > int(v): return false
+			"standing_min":
+				if float(ctx.standing) < float(v): return false
+			"standing_max":
+				if float(ctx.standing) > float(v): return false
+			"money_min":
+				if float(ctx.money) < float(v): return false
+			"money_max":
+				if float(ctx.money) > float(v): return false
+			"bounty_min":
+				if float(ctx.bounty) < float(v): return false
+			"kills_civilian_min":
+				if int(ctx.kills.get("civilian", 0)) < int(v): return false
+			"kills_outlaw_min":
+				if int(ctx.kills.get("outlaw", 0)) < int(v): return false
+			"recent_crime":
+				if not ctx.crimes.has(str(v)): return false
+			"item_prefix":
+				var any := false
+				for it in ctx.items.keys():
+					if str(it).begins_with(str(v)) and int(ctx.items[it]) > 0:
+						any = true
+				if not any: return false
+	return true
+
+## The conversation to play now: everyone in it is in camp, its conditions hold, a one-off hasn't played; highest
+## priority wins, then whichever was heard least recently. {} if nothing fits.
+func pick_conversation(ctx: Dictionary) -> Dictionary:
+	var best := {}
+	var best_key := -INF
+	for c in conversations:
+		if c.get("once", false) and played.has(c.id):
+			continue
+		var ok := true
+		for w in c.who:
+			if not ctx.members.has(w):
+				ok = false
+		if not ok or not matches(c.get("when", {}), ctx):
+			continue
+		var age := recent.find(c.id)
+		var key := float(c.get("priority", 0)) * 100.0 - (float(age + 1) * 10.0 if age >= 0 else 0.0) - float(played.get(c.id, 0))
+		if key > best_key:
+			best_key = key
+			best = c
+	return best
+
+## A bark for this companion: the conditional ones that hold outweigh the everyday ones.
+func pick_bark(who: String, ctx: Dictionary) -> Dictionary:
+	var cands := []
+	var weights := []
+	for b in barks:
+		if b.who != who or not matches(b.get("when", {}), ctx):
+			continue
+		cands.append(b)
+		weights.append(float(b.get("weight", 1.0)) * (3.0 if not b.get("when", {}).is_empty() else 1.0))
+	if cands.is_empty():
+		return {}
+	var total := 0.0
+	for w in weights:
+		total += w
+	var r := rng.randf() * total
+	for i in cands.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return cands[i]
+	return cands[-1]
+
+# ------------------------------------------------------------------ sitting at the fire
+func open_menu() -> void:
+	var menus = Game.get("menus")
+	if menus == null or Game.headless:
+		sit_at_fire()
+		return
+	var p: PanelContainer = menus._paper_panel(Vector2(620, 0))
+	var v := VBoxContainer.new()
+	p.add_child(v)
+	v.add_child(UITheme.label("Willow Bend", 46, "display", UITheme.INK, false))
+	v.add_child(UITheme.label("The fire, the Outfit, and whatever's in the pot", 22, "italic", UITheme.INK_SOFT, false))
+	v.add_child(HSeparator.new())
+	var add := func(text: String, cb: Callable):
+		v.add_child(menus._button(text, func():
+			menus.back()
+			cb.call()))
+	add.call("Sit and listen", sit_at_fire)
+	if members.has("hap") or joined("hap"):
+		add.call("Eat a bowl of Hap's stew", eat_stew)
+	if joined("doc"):
+		add.call("Have a drink with Doc" if not Game.state.flags.get("doc_sober", false) else "Have coffee with Doc", drink_with_doc)
+	if joined("del"):
+		add.call("Play a hand with Del ($3 stake)", play_with_del)
+	var has_meat := false
+	for k in Game.state.inventory.keys():
+		if str(k).begins_with("meat_") and int(Game.state.inventory[k]) > 0:
+			has_meat = true
+	if has_meat:
+		add.call("Cook meat at the fire", cook)
+	add.call("Sleep until morning", sleep)
+	add.call("Put $5 in the camp ledger", func():
+		if not contribute(5.0):
+			Game.say("You haven't got five dollars to spare.", 3.0))
+	v.add_child(menus._button("Get up", menus.back))
+	menus._push(p)
+
+## Sit down at the fire: the camp's conversation for right now (or a bark from whoever's there).
+func sit_at_fire() -> String:
+	if sitting or Game.missions == null:
+		return ""
+	var ctx := context()
+	var c := pick_conversation(ctx)
+	sitting = true
+	var md = Game.missions
+	var said := ""
+	md.cine_begin()
+	if not c.is_empty():
+		said = c.id
+		Game.log_event("camp_talk", {"id": c.id})
+		played[c.id] = int(played.get(c.id, 0)) + 1
+		recent.append(c.id)
+		if recent.size() > 6:
+			recent.pop_front()
+		if c.get("when", {}).has("recent_crime") and Game.state:
+			crime_cursor = Game.state.crimes_log.size()
+		for lid in c.lines:
+			var spk: String = str(md.dialogue.get(lid, {}).get("speaker", ""))
+			var node: Node3D = Game.player if spk == "ruth" else (members.get(spk) if is_instance_valid(members.get(spk)) else null)
+			await md.say(lid, node)
+	else:
+		var ids: Array = ctx.members
+		if not ids.is_empty():
+			var who: String = ids[rng.randi() % ids.size()]
+			var b := pick_bark(who, ctx)
+			if not b.is_empty():
+				said = b.line
+				await md.say(b.line, members.get(who) if is_instance_valid(members.get(who)) else null)
+	md.cine_end()
+	sitting = false
+	return said
+
+# ------------------------------------------------------------------ camp activities
+## Hap's stew: heals and fills stamina, once a day.
+func eat_stew() -> bool:
+	var day: int = Game.sky.day if Game.sky else 0
+	if Game.missions == null:
+		return false
+	if stew_day == day:
+		await Game.missions.say("camp_act_stew_again", members.get("hap"))
+		return false
+	stew_day = day
+	if Game.player and Game.player.damageable:
+		Game.player.damageable.heal(60.0)
+		Game.player.stamina = Game.player.STAMINA_MAX
+	Game.log_event("camp_activity", {"what": "stew"})
+	await Game.missions.say("camp_act_stew", members.get("hap"))
+	return true
+
+## A drink with Doc: whiskey tops up Nerve (and a little Standing with him); coffee if he's keeping sober.
+func drink_with_doc() -> String:
+	if Game.missions == null:
+		return ""
+	var day: int = Game.sky.day if Game.sky else 0
+	var sober: bool = Game.state.flags.get("doc_sober", false) if Game.state else false
+	var what := "coffee" if sober else "whiskey"
+	if drink_day != day:
+		drink_day = day
+		if sober:
+			if Game.player:
+				Game.player.stamina = Game.player.STAMINA_MAX
+		else:
+			if Game.player and Game.player.get("nerve") and Game.player.nerve.has_method("reward"):
+				Game.player.nerve.reward(50.0)
+	Game.log_event("camp_activity", {"what": what})
+	await Game.missions.say("camp_act_coffee" if sober else "camp_act_whiskey", members.get("doc"))
+	return what
+
+## A hand or three of five-card draw with Del for a small stake (the poker table, no stacked decks).
+func play_with_del() -> Dictionary:
+	if Game.missions == null:
+		return {}
+	await Game.missions.say("camp_act_deal", members.get("del"))
+	var res: Dictionary = await Game.missions.minigame("poker", {"players": [{"name": "Del Arceneaux", "style": "bluffer", "stack": 8.0}],
+		"buyin": 3.0, "hands": 3, "seed": 1899 + (Game.sky.day if Game.sky else 0), "dealer": "Del Arceneaux", "can_leave": true})
+	Game.log_event("camp_activity", {"what": "cards", "net": res.get("net", 0.0)})
+	await Game.missions.say("camp_act_del_won" if float(res.get("net", 0.0)) > 0.0 else "camp_act_del_lost", members.get("del"))
+	return res
+
 ## Sleep until morning (or 8 hours), heal, autosave.
 func sleep() -> void:
 	if Game.sky == null:
@@ -169,3 +517,73 @@ func contribute(amount: float) -> bool:
 		upgrades["ammo_box"] = true
 		Game.say("Hap built an ammunition box. Take what you need.", 4.0)
 	return true
+
+# ------------------------------------------------------------------ self-test (bot_runner --bot camp)
+## Picks the right talk for staged situations, then sits at the fire and does each activity for real.
+func selftest() -> Dictionary:
+	var lines := []
+	var fails := 0
+	var base := func(members_in: Array, extra := {}) -> Dictionary:
+		var ctx := {"flags": {}, "chapter": 2, "standing": 0.0, "money": 20.0, "bounty": 0.0,
+			"kills": {"civilian": 0, "outlaw": 3, "law": 0}, "crimes": [], "items": {}, "members": members_in}
+		for k in extra.keys():
+			ctx[k] = extra[k]
+		return ctx
+	var played0 := played.duplicate()
+	played.clear()
+	var cases := [
+		["first night (chapter 1)", base.call(["hap", "billy"], {"chapter": 1}), "first_night"],
+		["a hold-up on the road", base.call(["hap", "billy", "del"], {"crimes": ["robbery"]}), "robbery"],
+		["a murder, Doc in camp", base.call(["hap", "doc"], {"crimes": ["murder"]}), "murder"],
+		["a murder, no Doc", base.call(["hap", "billy"], {"crimes": ["murder"]}), "murder_hap"],
+		["a $200 poster", base.call(["hap", "del"], {"bounty": 200.0}), "poster"],
+		["low Standing", base.call(["del", "doc", "hap"], {"standing": -45.0}), "notorious"],
+		["high Standing with Joseph", base.call(["hap", "joseph"], {"standing": 70.0}), "respected"],
+		["Cutter jailed", base.call(["hap", "del"], {"chapter": 3, "flags": {"cutter_fate": "jailed"}}), "cutter_jailed"],
+		["Cutter dead", base.call(["doc", "billy"], {"chapter": 3, "flags": {"cutter_fate": "dead"}}), "cutter_dead"],
+		["Doc sober", base.call(["doc", "del"], {"flags": {"doc_sober": true}}), "doc_sober"],
+		["Doc drinking", base.call(["doc", "hap"], {"flags": {"doc_sober": false}}), "doc_drink"],
+		["Asa spared", base.call(["joseph", "hap"], {"chapter": 4, "flags": {"spared_asa": true, "joseph_joined": true}}), "asa_spared"],
+		["Asa killed", base.call(["joseph", "doc"], {"chapter": 4, "flags": {"asa_killed": true}}), "asa_killed"],
+		["a pelt in the satchel", base.call(["billy", "hap"], {"items": {"pelt_mule_deer": 1}}), "hunting"],
+		["nothing special", base.call(["hap"], {}), "tom"],
+	]
+	for cs in cases:
+		var got: Dictionary = pick_conversation(cs[1])
+		var ok: bool = got.get("id", "") == cs[2]
+		if not ok:
+			fails += 1
+		lines.append("  %s  %-26s -> %s" % ["ok  " if ok else "FAIL", cs[0], got.get("id", "(none)")])
+	# once-only talk doesn't repeat
+	played["first_night"] = 1
+	var again: Dictionary = pick_conversation(base.call(["hap", "billy"], {"chapter": 1}))
+	var once_ok: bool = again.get("id", "") != "first_night"
+	if not once_ok:
+		fails += 1
+	lines.append("  %s  one-off talk plays once (then: %s)" % ["ok  " if once_ok else "FAIL", again.get("id", "")])
+	played = played0
+	# barks follow the facts
+	var bark_cases := [
+		["doc", {"flags": {"doc_sober": true}}, "camp_doc_reading"],
+		["doc", {"flags": {"doc_sober": false}}, "camp_doc_drinking"],
+		["del", {"crimes": ["robbery"]}, "camp_del_robbery"],
+		["hap", {"items": {"meat_elk": 2}}, "camp_hap_meat"],
+		["joseph", {"standing": -60.0}, "camp_joseph_name"],
+	]
+	for bc in bark_cases:
+		var seen := false
+		for i in 40:
+			if pick_bark(bc[0], base.call([bc[0]], bc[1])).get("line", "") == bc[2]:
+				seen = true
+				break
+		if not seen:
+			fails += 1
+		lines.append("  %s  %s's bark for the situation: %s" % ["ok  " if seen else "FAIL", bc[0], bc[2]])
+	var never := true
+	for i in 60:
+		if pick_bark("doc", base.call(["doc"], {"flags": {"doc_sober": true}})).get("line", "") == "camp_doc_drinking":
+			never = false
+	if not never:
+		fails += 1
+	lines.append("  %s  a sober Doc never brags about drinking" % ("ok  " if never else "FAIL"))
+	return {"ok": fails == 0, "fails": fails, "lines": lines}

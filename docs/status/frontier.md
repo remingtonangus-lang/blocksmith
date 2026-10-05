@@ -82,6 +82,10 @@ runner, Metal) and the Mac monitor.
 - **Chapter 3 "Dry Season"** (`src/missions/ch3/`, `design/dialogue/ch3.json`): 5 missions (water war, a mounted cattle
   drive with strays and a stampede, Doc joins, Cutter Shale killed or jailed); verbs mount_up, lead, ride_with, drive,
   stampede, defend; failed missions offer retry from checkpoint / restart / abandon (decisions replayed).
+- **Chapter 4 "Silver and Snow"** (`src/missions/ch4/`, `ch4.json`): 5 missions (strike, mine blast, climb + cold +
+  avalanche on the Kestrel Pass, Asa spared/killed → flag `spared_asa`, Joseph joins); verbs set_snow, cold_begin/
+  warm_spot, climb, avalanche, timed_tasks, pursue. **Camp life** (`src/ai/camp.gd`, `camp.json`): companions' spots
+  and routines, fireside talk/barks picked from flags and deeds, stew/drink/cards with Del; `--bot camp`.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
