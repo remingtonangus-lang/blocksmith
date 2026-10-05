@@ -164,6 +164,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 09:10 UTC: cancelled run 658 (fcaeb04) after its fast lane passed (no warnings) and before its heavy build got a
   runner: one heavy run on the next push covers it and ~25 later commits instead of two queue cycles.
 
+- 09:07-09:25 UTC: runs 661 (4608bd6) and 662 (6994f63) cancelled while still queued, superseded by c801470 (a likely
+  NaN crash for idle frigate gunners, then the wooden-shelf empty container: crash fixes take the next run).
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
