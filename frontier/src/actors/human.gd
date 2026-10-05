@@ -212,6 +212,21 @@ func _physics_process(dt: float) -> void:
 	_physics_process_impl(dt)
 	Game.acc("human", _pt0)
 
+## Paths only when standing on a navmesh: off it (the open country) a path query leads to the nearest navmesh
+## polygon, i.e. toward a town, instead of to the target (bandits used to walk off toward Bitter Spring).
+var _nav_check_t := 0.0
+var _nav_on := false
+func _on_navmesh() -> bool:
+	var m := nav.get_navigation_map()
+	if not m.is_valid() or NavigationServer3D.map_get_iteration_id(m) == 0:
+		return false
+	_nav_check_t -= get_physics_process_delta_time()
+	if _nav_check_t <= 0.0:
+		_nav_check_t = 0.5
+		var cp := NavigationServer3D.map_get_closest_point(m, global_position)
+		_nav_on = cp.distance_to(global_position) < 1.5
+	return _nav_on
+
 func _physics_process_impl(dt: float) -> void:
 	if not alive:
 		_dead_tick(dt)
@@ -227,7 +242,7 @@ func _physics_process_impl(dt: float) -> void:
 		var next := tp
 		if in_town:
 			next = _town_next(tp, dt)
-		elif nav.get_navigation_map().is_valid() and NavigationServer3D.map_get_iteration_id(nav.get_navigation_map()) > 0:
+		elif _on_navmesh():
 			nav.target_position = tp
 			if not nav.is_navigation_finished():
 				next = nav.get_next_path_position()

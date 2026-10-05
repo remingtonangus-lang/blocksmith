@@ -32,7 +32,8 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 		p.y = w.height(p.x, p.z) + 0.5
 		Game.terrain.ensure_collision_at(p)
 		var h := Human.spawn(Game.main, p, {"seed": 900 + i, "role": "gunman", "faction": "shale",
-			"name": "Shale Rider", "weapon": ["lockhart_sa", "merriman_lever", "calder_double"][i], "skill": 0.45})
+			"name": "Shale Rider", "weapon": ["lockhart_sa", "merriman_lever", "calder_double"][i], "skill": 0.45,
+			"archetype": "gunman"})   # cover/flank oracle: rushers and marksmen have their own (--bot archetypes)
 		enemies.append(h)
 		group.append(h)
 	var enemy_shots := [0]

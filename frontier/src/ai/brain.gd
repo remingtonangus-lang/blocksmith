@@ -58,6 +58,8 @@ var nudge_t := 0.0
 var nudge_to := Vector3.ZERO
 var react_t := 0.0
 var looking := false
+var archetype := "gunman"        # gunman (cover, peek bursts) / rusher (closes in, point blank) / marksman (range)
+var _zig := 1.0
 var surrender_t := 0.0
 var _last_state := -1
 
@@ -68,6 +70,15 @@ func setup(b: Human, opts: Dictionary) -> void:
 	skill = float(opts.get("skill", 0.35 + rng.randf() * 0.4))
 	bravery = float(opts.get("bravery", 0.4 + rng.randf() * 0.5))
 	aggressive = bool(opts.get("aggressive", b.faction in ["shale", "bandit"]))
+	# fighting style: from the spawn options, else from the gun (shotgun -> rusher, bolt rifle -> marksman)
+	archetype = str(opts.get("archetype", ""))
+	if archetype == "" and b.gun != null:
+		var d: Dictionary = b.gun.def()
+		archetype = "rusher" if d.get("kind", "") == "shotgun" else ("marksman" if d.get("action", "") == "bolt" else "gunman")
+	if archetype == "":
+		archetype = "gunman"
+	if archetype == "marksman":
+		skill = maxf(skill, 0.75)
 	state = State.ROUTINE if b.faction in ["civilian", "law"] else State.IDLE
 	think_t = rng.randf() * 0.3
 	_last_state = state
@@ -650,6 +661,10 @@ func _combat(dt: float) -> void:
 	var dist := my.distance_to(tp)
 	flank_t -= dt
 	combat_t += dt
+	if archetype == "rusher" and _rush(dt, my, tp, dist):
+		return
+	if archetype == "marksman" and _marksman(dt, my, tp, dist):
+		return
 	# point-blank: fight in the open
 	if dist < 5.0:
 		body.intent.move_to = my + (my - tp).normalized().rotated(Vector3.UP, 1.2) * 3.0
@@ -697,6 +712,53 @@ func _combat(dt: float) -> void:
 			burst = rng.randi_range(2, 4)
 			aim_t = 0.0
 			peek_t = rng.randf_range(2.5, 4.0)
+
+## Rusher: zigzags straight in at a sprint and fights point blank; only ducks behind cover when hurt.
+func _rush(dt: float, my: Vector3, tp: Vector3, dist: float) -> bool:
+	if body.damageable.health < body.damageable.max_health * 0.35 or suppress > 2.5:
+		return false                       # hurt or pinned: fall back to the cover routine
+	if dist > 6.0:
+		if rng.randf() < dt * 0.8:
+			_zig = -_zig
+		var to := (tp - my).normalized()
+		var side := Vector3(-to.z, 0.0, to.x) * _zig
+		body.intent.move_to = my + (to + side * 0.55).normalized() * 4.0
+		body.intent.speed = Human.SPRINT
+		body.intent.crouch = false
+		body.intent.aim_at = tp + Vector3(0, 1.2, 0)
+		if dist < 16.0:
+			_try_shoot(dt, tp, 1.6)
+		return true
+	body.intent.move_to = my + (my - tp).normalized().rotated(Vector3.UP, 1.4 * _zig) * 2.0
+	body.intent.speed = Human.JOG
+	body.intent.aim_at = tp + Vector3(0, 1.2, 0)
+	if body.gun.clip.get(body.gun.weapon_id(), 0) == 0:
+		body.gun.start_reload()
+	_try_shoot(dt, tp, 1.1)
+	return true
+
+## Marksman: holds 35-80 m, backs away from a closing target, takes single slow aimed shots from a still position.
+func _marksman(dt: float, my: Vector3, tp: Vector3, dist: float) -> bool:
+	if dist < 30.0:
+		var away := (my - tp)
+		away.y = 0.0
+		body.intent.move_to = my + away.normalized() * 8.0
+		body.intent.speed = Human.SPRINT
+		body.intent.crouch = false
+		return true
+	if dist > 90.0:
+		body.intent.move_to = my + (tp - my).normalized() * 6.0
+		body.intent.speed = Human.JOG
+		return true
+	body.intent.move_to = null
+	body.intent.crouch = false
+	body.intent.aim_at = tp + Vector3(0, 1.4, 0)
+	aim_t += dt
+	if body.gun.clip.get(body.gun.weapon_id(), 0) == 0:
+		body.gun.start_reload()
+	elif aim_t > lerpf(2.6, 1.4, skill) and _try_shoot(dt, tp, 0.55):
+		aim_t = 0.0
+	return true
 
 func _try_shoot(_dt: float, tp: Vector3, scale: float) -> bool:
 	if target_seen_t > 1.5 or combat_t < lerpf(1.6, 0.7, skill):
