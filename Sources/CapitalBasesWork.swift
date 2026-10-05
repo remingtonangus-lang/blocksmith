@@ -120,8 +120,15 @@ extension Game {
                 // A new spot every 6 s, or at once when the last one can't be reached.
                 let stuck = m.soldierBrain.order.map { m.gaveUp($0) } ?? true
                 guard Int(pt.t) % 6 == 0 || stuck else { continue }
-                let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 2...8)
-                m.soldierBrain.order = ground(target + V3(cosf(a) * d, 0, sinf(a) * d))
+                // Spots about level with the noise (long behaviour sim: searchers sent into a ravine beside it fell
+                // and found no way back).
+                var spot = ground(target)
+                for _ in 0..<5 {
+                    let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 2...8)
+                    let p = ground(target + V3(cosf(a) * d, 0, sinf(a) * d))
+                    if abs(p.y - target.y) <= 2 { spot = p; break }
+                }
+                m.soldierBrain.order = spot
             }
             if pt.t > 30 { pt.phase = 3; pt.t = 0; b.note("\(r.key) patrol returning") }
         default:
