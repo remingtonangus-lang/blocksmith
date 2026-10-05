@@ -268,7 +268,7 @@ enum Enchant {
         var n = 0
         for dz in -2...2 { for dx in -2...2 where max(abs(dx), abs(dz)) == 2 {
             for dy in 0...1 {
-                let mid = w.block(p.x + dx / 2, p.y, p.z + dz / 2)       // truncating halves, like the reference
+                let mid = w.block(p.x + dx / 2, p.y + dy, p.z + dz / 2)  // truncating halves, at the shelf's own height (reference)
                 guard mid == AIR || Blocks.replaceable[Int(mid)] else { continue }
                 if Blocks.key(w.block(p.x + dx, p.y + dy, p.z + dz)) == "bookshelf" { n += 1 }
             }
