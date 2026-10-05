@@ -226,6 +226,7 @@ final class QuestControls {
             shipTurnRate = 0
             carryVel = ship?.velocity(at: game.player.pos) ?? .zero
         }
+        rig.smoothSteps(game: game, dt: dt)
         carryShip = ship
         carryYaw = ship?.yaw ?? 0
         carryRot = ship?.rot ?? simd_quatf()

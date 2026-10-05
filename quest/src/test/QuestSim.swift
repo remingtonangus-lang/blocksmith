@@ -254,6 +254,26 @@ enum QuestSim {
                      died ? "shown" : "missing", deathPanel, backAlive ? "yes" : "no", camOK ? "yes" : "no"))
         game.survival = false
 
+        // 9d. Stepping onto a slab: the camera rises over a few frames, not in one (the world jumping is a VR discomfort).
+        do {
+            let c = V3(Float(Int(base.x)) + 0.5, Float(py + 1), Float(Int(base.z)) + 0.5)
+            game.player.pos = c; game.player.vel = .zero
+            rig.bodyYaw = 0
+            let slab = Blocks.has("stone_slab") ? Blocks.id("stone_slab") : Blocks.id("oak_slab")
+            for dz in 2...8 { for dx in -1...1 { game.world.setBlock(Int(c.x) + dx, py + 1, Int(c.z) - dz, slab) } }
+            frames(20) { _ in idleHands() }
+            var lastY = rig.headWorld.y, maxStep: Float = 0
+            let y0 = game.player.pos.y
+            for _ in 0..<60 {
+                frames(1) { _ in idleHands(); sim.hands[0].stick = V2(0, 0.6) }
+                maxStep = max(maxStep, abs(rig.headWorld.y - lastY)); lastY = rig.headWorld.y
+            }
+            frames(10) { _ in idleHands() }
+            let rose = game.player.pos.y - y0
+            check(rose > 0.4 && maxStep < 0.2, String(format: "VR step smoothing: stepped up %.2f, largest camera move in one frame %.2f", rose, maxStep))
+            for dz in 2...8 { for dx in -1...1 { game.world.setBlock(Int(c.x) + dx, py + 1, Int(c.z) - dz, AIR) } }
+        }
+
         // 10. Teleport: the left stick held forward aims an arc at the platform ahead; releasing jumps there.
         QuestSettings.teleport = true
         game.player.pos = V3(Float(Int(base.x)) + 0.5, Float(py + 1), Float(Int(base.z)) + 0.5)   // platform centre
