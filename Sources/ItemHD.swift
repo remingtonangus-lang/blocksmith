@@ -264,13 +264,13 @@ enum ItemHD {
         case .soft:
             col += (m.light - col) * (powf(max(0, refl.z), 18) * 0.7)
         case .chain:
-            let cx = p.x * 17, cy = p.y * 17 + 0.5 * floorf(p.x * 17).truncatingRemainder(dividingBy: 2)
+            let cx = p.x * 13, cy = p.y * 13 + 0.5 * floorf(p.x * 13).truncatingRemainder(dividingBy: 2)
             let rx = cx - floorf(cx) - 0.5, ry = cy - floorf(cy) - 0.5
             let ring = simd_clamp(1 - abs(simd_length(V2(rx, ry)) - 0.3) / 0.13, 0, 1)
             let metal: V3 = m.dark + (m.light - m.dark) * env(viewR.y)
             col = col * 0.45 + metal * 0.55
-            let lit: Float = ry < -0.1 ? ring * 0.35 : 0
-            col = col * (0.5 + 0.65 * ring) + (m.light - col) * lit
+            let lit: Float = ry < -0.1 ? ring * 0.3 : 0
+            col = col * (0.62 + 0.5 * ring) + (m.light - col) * lit
             col *= 0.55 + 0.55 * lam
         }
         return simd_clamp(col, V3(repeating: 0), V3(repeating: 1))
@@ -394,12 +394,8 @@ enum ItemHD {
             handle(cv, V2(0.15, 0.85), V2(0.37, 0.63), 0.036, "grip")
             wraps(cv, V2(0.16, 0.84), V2(0.34, 0.66), 0.036, 3)
             cv.add(cv.circle(V2(0.12, 0.88), 0.052), t, accent, r: 0.05)
-            cv.add(cv.poly(blade), t, head, r: 0.09, chamfer: true)
-            // Crossguard: a bar with flared ends and a centre boss.
-            let bar = cv.capsule(g0 - nrm * 0.15, g0 + nrm * 0.15, 0.03), gt = bar.1
-            let gd = Canvas.union(bar.0, Canvas.union(cv.circle(g0 - nrm * 0.15, 0.042), cv.circle(g0 + nrm * 0.15, 0.042)))
-            cv.add(gd, gt, accent, r: 0.04)
-            cv.add(cv.circle(g0, 0.04), gt, accent, r: 0.04)
+            cv.add(tierShape(cv, cv.poly(blade), head), t, head, r: 0.09, chamfer: true)
+            guardFor(cv, head, accent, g0, dir, nrm)
         case "pickaxe":
             let top = V2(0.66, 0.34)
             handle(cv, V2(0.12, 0.9), top + up * 0.02, 0.038)
@@ -408,15 +404,16 @@ enum ItemHD {
             let e1: V2 = top - rt * 0.42 - up * 0.06, e2: V2 = top + rt * 0.42 - up * 0.06
             let d = Canvas.union(cv.poly(band(root, c1, e1, 0.13, 0.02, 16)), cv.poly(band(root, c2, e2, 0.13, 0.02, 16)))
             let t = cv.axis(e1, e2)
-            cv.add(d, t, head, r: 0.06, chamfer: true)
+            cv.add(tierShape(cv, d, head), t, head, r: 0.06, chamfer: true)
             let (cd, ct) = cv.capsule(root - rt * 0.05, root + rt * 0.05, 0.06)
             cv.add(cd, ct, accent, r: 0.06)
+            adorn(cv, head, root, up, rt)
         case "axe":
             let top = V2(0.62, 0.3)
             handle(cv, V2(0.16, 0.9), top + up * 0.06, 0.04)
             let edge = bez(V2(0.70, 0.02), V2(1.0, 0.16), V2(0.84, 0.56), 12)
             let pts: [V2] = [V2(0.52, 0.24), V2(0.6, 0.16)] + edge + [V2(0.7, 0.44), V2(0.6, 0.38)]
-            let d = cv.poly(pts)
+            let d = tierShape(cv, cv.poly(pts), head)
             let t = cv.axis(V2(0.55, 0.3), V2(0.95, 0.3))
             cv.add(d, t, head, r: 0.05, chamfer: true)
             let inner = bez(V2(0.73, 0.08), V2(0.93, 0.19), V2(0.81, 0.48), 12)
@@ -425,6 +422,7 @@ enum ItemHD {
             // The butt behind the handle and the eye ring.
             cv.add(cv.poly([V2(0.44, 0.22), V2(0.52, 0.14), V2(0.6, 0.22), V2(0.52, 0.3)]), t, head, r: 0.04)
             cv.add(cv.circle(V2(0.565, 0.255), 0.05), t, accent, r: 0.05)
+            adorn(cv, head, V2(0.565, 0.255), up, rt)
         case "shovel":
             handle(cv, V2(0.13, 0.9), V2(0.62, 0.42), 0.036)
             handle(cv, V2(0.07, 0.86), V2(0.19, 0.97), 0.032)
@@ -433,28 +431,99 @@ enum ItemHD {
             pts += bez(c + rt * 0.13, c + up * 0.17 + rt * 0.12, c + up * 0.24, 7)
             pts += bez(c + up * 0.24, c + up * 0.17 - rt * 0.12, c - rt * 0.13, 7)
             pts.append(c - up * 0.13 - rt * 0.1)
-            let bd = cv.poly(pts)
+            let bd = tierShape(cv, cv.poly(pts), head)
             let t = cv.axis(V2(0.6, 0.4), V2(0.9, 0.1))
             cv.add(bd, t, head, r: 0.08)
             cv.add(Canvas.intersect(cv.capsule(c - up * 0.12, c + up * 0.14, 0.012).0, Canvas.offset(bd, 0.02)), t, head, r: 0.012)
             let (cd, ct) = cv.capsule(c - up * 0.17, c - up * 0.1, 0.045)
             cv.add(cd, ct, accent, r: 0.045)
+            adorn(cv, head, c - up * 0.135, up, rt)
         case "hoe":
             let top = V2(0.68, 0.26)
             handle(cv, V2(0.14, 0.9), top, 0.036)
             let (bd, bt) = cv.capsule(top + V2(0.02, -0.01), V2(0.42, 0.14), 0.04)
             cv.add(bd, bt, head, r: 0.04)
-            let blade = cv.poly([V2(0.3, 0.08), V2(0.47, 0.1), V2(0.45, 0.24), V2(0.32, 0.47), V2(0.2, 0.42), V2(0.28, 0.22)])
+            let blade = tierShape(cv, cv.poly([V2(0.3, 0.08), V2(0.47, 0.1), V2(0.45, 0.24), V2(0.32, 0.47), V2(0.2, 0.42), V2(0.28, 0.22)]), head)
             cv.add(blade, cv.axis(V2(0.38, 0.08), V2(0.26, 0.45)), head, r: 0.06, chamfer: true)
             cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.42), V2(0.32, 0.47), 0.03).0, Canvas.offset(blade, 0.004)), bt, edgeMat, r: 0.02, chamfer: true)
             cv.add(cv.circle(top, 0.05), bt, accent, r: 0.05)
-        default:                                                            // spear
-            let b0 = V2(0.68, 0.32), tip = V2(0.95, 0.05)
-            handle(cv, V2(0.07, 0.95), b0, 0.03)
-            let s1 = bez(b0, b0 + up * 0.12 + rt * 0.16, tip, 10)
-            let s2 = bez(tip, b0 + up * 0.12 - rt * 0.16, b0, 10)
-            cv.add(cv.poly(s1 + Array(s2[1..<(s2.count - 1)])), cv.axis(b0, tip), head, r: 0.07, chamfer: true)
-            wraps(cv, b0 - up * 0.12, b0, 0.034, 3)
+            adorn(cv, head, top, up, rt)
+        default:                                                            // spear: a long leaf head with lugs
+            let tip = V2(0.95, 0.05)
+            handle(cv, V2(0.07, 0.95), V2(0.68, 0.32), 0.03)
+            let b0 = V2(0.6, 0.4)
+            let s1 = bez(b0, b0 + up * 0.1 + rt * 0.12, tip, 10)
+            let s2 = bez(tip, b0 + up * 0.1 - rt * 0.12, b0, 10)
+            cv.add(tierShape(cv, cv.poly(s1 + Array(s2[1..<(s2.count - 1)])), head), cv.axis(b0, tip), head, r: 0.06, chamfer: true)
+            let lug = cv.capsule(b0 - rt * 0.07, b0 + rt * 0.07, 0.022)
+            cv.add(lug.0, lug.1, accent, r: 0.02)
+            wraps(cv, b0 - up * 0.14, b0 - up * 0.02, 0.032, 3)
+        }
+    }
+
+    // Tier silhouettes: stone heads knapped (a rough, chipped outline); the others clean.
+    static func tierShape(_ cv: Canvas, _ d: [Float], _ head: String) -> [Float] {
+        guard head == "stone" else { return d }
+        return (0..<d.count).map { i in
+            let p = cv.p(i)
+            return d[i] + (vnoise(p.x, p.y, 13, 5) - 0.5) * 0.024
+        }
+    }
+
+    // Tier details at a head's socket c: stone lashed on with cord, gold set with a ruby, copper riveted, duskium spiked.
+    static func adorn(_ cv: Canvas, _ head: String, _ c: V2, _ up: V2, _ rt: V2) {
+        let zero = [Float](repeating: 0, count: cv.n * cv.n)
+        switch head {
+        case "stone":
+            for o: Float in [-0.022, 0.022] {
+                let a: V2 = c - rt * 0.07 + up * (o - 0.03), b: V2 = c + rt * 0.07 + up * (o + 0.03)
+                cv.add(cv.capsule(a, b, 0.017).0, zero, M("leather", 0xA88A5A), r: 0.017)
+            }
+        case "golden":
+            cv.add(cv.circle(c, 0.032), zero, M("gem", 0xE0303A), r: 0.03)
+        case "copper":
+            for o: Float in [-0.045, 0.045] { cv.add(cv.circle(c + rt * o, 0.016), zero, "iron", r: 0.016) }
+        case "netherite":
+            let tip: V2 = c - up * 0.02 - rt * 0.17
+            cv.add(cv.poly([c - rt * 0.05 + up * 0.03, tip, c - rt * 0.05 - up * 0.05]), zero, head, r: 0.03, chamfer: true)
+        default:
+            break
+        }
+    }
+
+    // A sword's crossguard, shaped by tier (dr along the blade, nr across it).
+    static func guardFor(_ cv: Canvas, _ head: String, _ accent: String, _ g0: V2, _ dr: V2, _ nr: V2) {
+        let zero = [Float](repeating: 0, count: cv.n * cv.n)
+        switch head {
+        case "wood":
+            let (d, t) = cv.capsule(g0 - nr * 0.11, g0 + nr * 0.11, 0.032)
+            cv.add(d, t, "handle", r: 0.03)
+        case "stone":
+            let d = cv.poly([g0 - nr * 0.14 - dr * 0.04, g0 + nr * 0.14 - dr * 0.04, g0 + nr * 0.14 + dr * 0.035, g0 - nr * 0.14 + dr * 0.035])
+            cv.add(tierShape(cv, d, "stone"), zero, "stone", r: 0.04, chamfer: true)
+            adorn(cv, "stone", g0 - dr * 0.08, dr, nr)
+        case "golden":
+            for sg: Float in [-1, 1] {
+                cv.add(cv.poly(band(g0, g0 + nr * (0.12 * sg), g0 + nr * (0.17 * sg) + dr * 0.08, 0.06, 0.025, 10)), zero, "golden", r: 0.03)
+            }
+            cv.add(cv.circle(g0, 0.045), zero, "golden", r: 0.04)
+            cv.add(cv.circle(g0, 0.026), zero, M("gem", 0xE0303A), r: 0.025)
+        case "diamond":
+            cv.add(cv.poly([g0 - nr * 0.18, g0 - dr * 0.05, g0 + nr * 0.18, g0 + dr * 0.06]), zero, "golden", r: 0.04, chamfer: true)
+            cv.add(cv.poly([g0 - nr * 0.05, g0 - dr * 0.025, g0 + nr * 0.05, g0 + dr * 0.03]), zero, "diamond", r: 0.02, chamfer: true)
+        case "netherite":
+            for sg: Float in [-1, 1] {
+                cv.add(cv.poly([g0 - dr * 0.035, g0 + nr * (0.2 * sg) + dr * 0.07, g0 + dr * 0.035]), zero, "netherite", r: 0.03, chamfer: true)
+            }
+            cv.add(cv.circle(g0, 0.04), zero, "golden", r: 0.04)
+        case "copper":
+            cv.add(cv.circle(g0, 0.1), zero, "copper", r: 0.05)
+            cv.add(cv.circle(g0, 0.03), zero, "iron", r: 0.03)
+        default:
+            let bar = cv.capsule(g0 - nr * 0.15, g0 + nr * 0.15, 0.03), gt = bar.1
+            let gd = Canvas.union(bar.0, Canvas.union(cv.circle(g0 - nr * 0.15, 0.042), cv.circle(g0 + nr * 0.15, 0.042)))
+            cv.add(gd, gt, accent, r: 0.04)
+            cv.add(cv.circle(g0, 0.04), gt, accent, r: 0.04)
         }
     }
 
@@ -484,7 +553,7 @@ enum ItemHD {
             }
         case "chestplate":
             let torso = cv.poly([V2(0.26, 0.2), V2(0.4, 0.16), V2(0.5, 0.28), V2(0.6, 0.16), V2(0.74, 0.2), V2(0.76, 0.86), V2(0.5, 0.92), V2(0.24, 0.86)])
-            cv.add(torso, ys, m, r: 0.3)
+            if soft { cv.add(torso, ys, m, r: 0.3) } else { cv.add(torso, ys, m, r: 0.12, chamfer: true) }
             cv.add(cv.poly(band(V2(0.1, 0.44), V2(0.11, 0.16), V2(0.36, 0.16), 0.14, 0.11, 10)), xs, m, r: 0.07)
             cv.add(cv.poly(band(V2(0.9, 0.44), V2(0.89, 0.16), V2(0.64, 0.16), 0.14, 0.11, 10)), xs, m, r: 0.07)
             cv.add(Canvas.intersect(cv.poly(band(V2(0.36, 0.17), V2(0.5, 0.4), V2(0.64, 0.17), 0.04, 0.04, 12)), torso), xs, trim, r: 0.03)
@@ -494,7 +563,7 @@ enum ItemHD {
             }
         case "leggings":
             let d = cv.poly([V2(0.22, 0.14), V2(0.78, 0.14), V2(0.82, 0.9), V2(0.6, 0.9), V2(0.5, 0.42), V2(0.4, 0.9), V2(0.18, 0.9)])
-            cv.add(d, ys, m, r: 0.2)
+            if soft { cv.add(d, ys, m, r: 0.2) } else { cv.add(d, ys, m, r: 0.1, chamfer: true) }
             cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.2), V2(0.8, 0.2), 0.045).0, d), xs, soft ? "grip" : trim, r: 0.04)
             if !soft {
                 for c in [V2(0.3, 0.6), V2(0.7, 0.6)] { cv.add(Canvas.intersect(ellipse(cv, c, 0.08, 0.07), Canvas.offset(d, 0.02)), ys, trim, r: 0.06) }

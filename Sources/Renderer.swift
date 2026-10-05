@@ -2623,6 +2623,27 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
+        // One-box icons get the item icons' frame (ItemHD): a soft drop shadow and a dark outline behind the cube.
+        let solo = boxes.count == 1 && !glassy && !leafy
+        if solo {
+            let lo: V3 = order[0].minV, hi: V3 = order[0].maxV
+            let hex: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z), P(lo.x, hi.y, hi.z)]
+            var ctr = V2(0, 0)
+            for v in hex { ctr += v }
+            ctr /= 6
+            let e: Float = max(1, sz * 0.035)
+            let grown: [V2] = hex.map { v in
+                let d = v - ctr, l = simd_length(d)
+                return l > 1e-4 ? v + d / l * e : v
+            }
+            let zero = [V2](repeating: .zero, count: 4)
+            let sh = V2(sz * 0.03, sz * 0.045)
+            let shadow: [V2] = grown.map { $0 + sh }
+            quad([shadow[0], shadow[1], shadow[2], shadow[3]], zero, V4(0, 0, 0, 0.28), -1)
+            quad([shadow[3], shadow[4], shadow[5], shadow[0]], zero, V4(0, 0, 0, 0.28), -1)
+            quad([grown[0], grown[1], grown[2], grown[3]], zero, V4(0.05, 0.04, 0.06, 0.92), -1)
+            quad([grown[3], grown[4], grown[5], grown[0]], zero, V4(0.05, 0.04, 0.06, 0.92), -1)
+        }
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
             let tl: Float = 1 - hi.y, bl: Float = 1 - lo.y          // v at the top and bottom of a side face
@@ -2653,6 +2674,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             let tp: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)]
             let tu: [V2] = [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)]
             quad(tp, tu, topC, layer(2))
+            if solo {
+                // A lit rim along the top face's two front edges (the bevel highlight of the item icons).
+                let w: Float = max(0.8, sz * 0.022)
+                let a = tp[3], f = tp[2], r = tp[1], back = tp[0]
+                let inL: V2 = simd_normalize(back - a) * w, inR: V2 = simd_normalize(back - r) * w
+                let zero = [V2](repeating: .zero, count: 4)
+                quad([a, f, f + inL, a + inL], zero, V4(1, 1, 1, 0.22), -1)
+                quad([f, r, r + inR, f + inR], zero, V4(1, 1, 1, 0.14), -1)
+            }
         }
     }
 

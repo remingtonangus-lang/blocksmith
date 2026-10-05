@@ -242,8 +242,8 @@ def shade(m, N, X, Y, T, H):
         spec = np.maximum(0, rz) ** 18
         col = col + (light - col) * (spec * 0.7)[..., None]
     elif kind == "chain":
-        cx = X * 17
-        cy = Y * 17 + 0.5 * np.mod(np.floor(X * 17), 2)
+        cx = X * 13
+        cy = Y * 13 + 0.5 * np.mod(np.floor(X * 13), 2)
         rx = cx - np.floor(cx) - 0.5
         ry = cy - np.floor(cy) - 0.5
         rr = np.sqrt(rx * rx + ry * ry)
@@ -251,7 +251,7 @@ def shade(m, N, X, Y, T, H):
         e = env(view_r[..., 1])[..., None]
         metal = dark + (light - dark) * e
         col = col * 0.45 + metal * 0.55
-        col = col * (0.5 + 0.65 * ring)[..., None] + (light - col) * (ring * (ry < -0.1) * 0.35)[..., None]
+        col = col * (0.62 + 0.5 * ring)[..., None] + (light - col) * (ring * (ry < -0.1) * 0.3)[..., None]
         col = col * (0.55 + 0.55 * np.clip(lam, 0, 1.2))
     return np.clip(col, 0, 1)
 
@@ -351,13 +351,9 @@ def tool(cv, kind, head):
         handle(cv, V(0.15, 0.85), V(0.37, 0.63), 0.036, "grip")
         wraps(cv, V(0.16, 0.84), V(0.34, 0.66), 0.036, 3)
         cv.add(cv.circle(V(0.12, 0.88), 0.052), t, accent, 0.05)
-        bd = cv.poly(blade)
+        bd = tier_shape(cv, cv.poly(blade), head)
         cv.add(bd, t, head, 0.09, "chamfer")
-        # Crossguard: a bar with flared ends and a centre boss.
-        gd, gt = cv.capsule(g0 - nr * 0.15, g0 + nr * 0.15, 0.03)
-        gd = union(gd, union(cv.circle(g0 - nr * 0.15, 0.042), cv.circle(g0 + nr * 0.15, 0.042)))
-        cv.add(gd, gt, accent, 0.04)
-        cv.add(cv.circle(g0, 0.04), gt, accent, 0.04)
+        guard(cv, head, accent, g0, dr, nr)
     elif kind == "pickaxe":
         top = V(0.66, 0.34)
         handle(cv, V(0.12, 0.9), top + up * 0.02, 0.038)
@@ -365,9 +361,10 @@ def tool(cv, kind, head):
         e1, e2 = top - rt * 0.42 - up * 0.06, top + rt * 0.42 - up * 0.06
         d = union(cv.poly(band(top + up * 0.02, ctrl1, e1, 0.13, 0.02, 16)), cv.poly(band(top + up * 0.02, ctrl2, e2, 0.13, 0.02, 16)))
         t = cv.axis(e1, e2)
-        cv.add(d, t, head, 0.06, "chamfer")
+        cv.add(tier_shape(cv, d, head), t, head, 0.06, "chamfer")
         cd, ct = cv.capsule(top - rt * 0.05 + up * 0.02, top + rt * 0.05 + up * 0.02, 0.06)
         cv.add(cd, ct, accent if head != "wood" else "handle", 0.06)
+        adorn(cv, head, top + up * 0.02, up, rt)
     elif kind == "axe":
         top = V(0.62, 0.3)
         handle(cv, V(0.16, 0.9), top + up * 0.06, 0.04)
@@ -375,6 +372,7 @@ def tool(cv, kind, head):
         pts = [V(0.52, 0.24), V(0.6, 0.16)] + edge + [V(0.7, 0.44), V(0.6, 0.38)]
         d = cv.poly(pts)
         t = cv.axis(V(0.55, 0.3), V(0.95, 0.3))
+        d = tier_shape(cv, d, head)
         cv.add(d, t, head, 0.05, "chamfer")
         inner = bez(V(0.73, 0.08), V(0.93, 0.19), V(0.81, 0.48), 12)
         strip = cv.poly(edge + inner[::-1])
@@ -382,6 +380,7 @@ def tool(cv, kind, head):
         # Butt (poll) behind the handle and the eye ring.
         cv.add(cv.poly([V(0.44, 0.22), V(0.52, 0.14), V(0.6, 0.22), V(0.52, 0.3)]), t, head, 0.04)
         cv.add(cv.circle(V(0.565, 0.255), 0.05), t, accent if head != "wood" else "handle", 0.05)
+        adorn(cv, head, V(0.565, 0.255), up, rt)
     elif kind == "shovel":
         handle(cv, V(0.13, 0.9), V(0.62, 0.42), 0.036)
         cv.add(*cv.capsule(V(0.07, 0.86), V(0.19, 0.97), 0.032), "handle", 0.03)
@@ -390,28 +389,91 @@ def tool(cv, kind, head):
         pts += bez(c + up * 0.0 + rt * 0.13, c + up * 0.17 + rt * 0.12, c + up * 0.24, 7)[0:]
         pts += bez(c + up * 0.24, c + up * 0.17 - rt * 0.12, c - rt * 0.13, 7)
         pts.append(c - up * 0.13 - rt * 0.1)
-        bd = cv.poly(pts)
+        bd = tier_shape(cv, cv.poly(pts), head)
         cv.add(bd, cv.axis(V(0.6, 0.4), V(0.9, 0.1)), head, 0.08)
         cv.add(intersect(cv.capsule(c - up * 0.12, c + up * 0.14, 0.012)[0], bd + 0.02), cv.axis(V(0.6, 0.4), V(0.9, 0.1)), head, 0.012)
         cd, ct = cv.capsule(c - up * 0.17, c - up * 0.1, 0.045)
         cv.add(cd, ct, accent if head != "wood" else "handle", 0.045)
+        adorn(cv, head, c - up * 0.135, up, rt)
     elif kind == "hoe":
         top = V(0.68, 0.26)
         handle(cv, V(0.14, 0.9), top, 0.036)
         bd, bt = cv.capsule(top + V(0.02, -0.01), V(0.42, 0.14), 0.04)
         cv.add(bd, bt, head, 0.04)
         blade = cv.poly([V(0.3, 0.08), V(0.47, 0.1), V(0.45, 0.24), V(0.32, 0.47), V(0.2, 0.42), V(0.28, 0.22)])
+        blade = tier_shape(cv, blade, head)
         cv.add(blade, cv.axis(V(0.38, 0.08), V(0.26, 0.45)), head, 0.06, "chamfer")
         cv.add(intersect(cv.capsule(V(0.2, 0.42), V(0.32, 0.47), 0.03)[0], blade + 0.004), bt, edge_m, 0.02, "chamfer")
         cv.add(cv.circle(top, 0.05), bt, accent if head != "wood" else "handle", 0.05)
+        adorn(cv, head, top, up, rt)
     else:
         b0 = V(0.68, 0.32)
         handle(cv, V(0.07, 0.95), b0, 0.03)
         tip = V(0.95, 0.05)
-        sides1 = bez(b0, b0 + up * 0.12 + rt * 0.16, tip, 10)
-        sides2 = bez(tip, b0 + up * 0.12 - rt * 0.16, b0, 10)
-        cv.add(cv.poly(sides1 + sides2[1:-1]), cv.axis(b0, tip), head, 0.07, "chamfer")
-        wraps(cv, b0 - up * 0.12, b0 + up * 0.0, 0.034, 3)
+        b0 = V(0.6, 0.4)
+        sides1 = bez(b0, b0 + up * 0.1 + rt * 0.12, tip, 10)
+        sides2 = bez(tip, b0 + up * 0.1 - rt * 0.12, b0, 10)
+        cv.add(tier_shape(cv, cv.poly(sides1 + sides2[1:-1]), head), cv.axis(b0, tip), head, 0.06, "chamfer")
+        lug = cv.capsule(b0 - rt * 0.07, b0 + rt * 0.07, 0.022)
+        cv.add(lug[0], lug[1], accent if head != "wood" else "handle", 0.02)
+        wraps(cv, b0 - up * 0.14, b0 - up * 0.02, 0.032, 3)
+
+
+def tier_shape(cv, d, head):
+    """Tier silhouettes: stone heads knapped (a rough, chipped outline); the others clean."""
+    if head == "stone":
+        return d + (vnoise(cv.X, cv.Y, 13, 5) - 0.5) * 0.024
+    return d
+
+
+def adorn(cv, head, c, up, rt):
+    """Tier details at the head's socket: stone lashed on with cord, gold set with a ruby, copper riveted, duskium
+    spiked; wood, iron and diamond plain."""
+    zero = np.zeros_like(cv.X)
+    if head == "stone":
+        for o in (-0.022, 0.022):
+            a, b = c - rt * 0.07 + up * (o - 0.03), c + rt * 0.07 + up * (o + 0.03)
+            cv.add(cap(cv, a, b, 0.017), zero, M("leather", 0xA88A5A), 0.017)
+    elif head == "golden":
+        cv.add(cv.circle(c, 0.032), zero, M("gem", 0xE0303A), 0.03)
+    elif head == "copper":
+        for o in (-0.045, 0.045):
+            cv.add(cv.circle(c + rt * o, 0.016), zero, "iron", 0.016)
+    elif head == "netherite":
+        tip = c - up * 0.02 - rt * 0.17
+        cv.add(cv.poly([c - rt * 0.05 + up * 0.03, tip, c - rt * 0.05 - up * 0.05]), zero, head, 0.03, "chamfer")
+
+
+def guard(cv, head, accent, g0, dr, nr):
+    """A sword's crossguard, shaped by tier."""
+    zero = np.zeros_like(cv.X)
+    if head == "wood":
+        d, t = cv.capsule(g0 - nr * 0.11, g0 + nr * 0.11, 0.032)
+        cv.add(d, t, "handle", 0.03)
+    elif head == "stone":
+        d = cv.poly([g0 - nr * 0.14 - dr * 0.04, g0 + nr * 0.14 - dr * 0.04, g0 + nr * 0.14 + dr * 0.035, g0 - nr * 0.14 + dr * 0.035])
+        cv.add(tier_shape(cv, d, "stone"), zero, "stone", 0.04, "chamfer")
+        adorn(cv, "stone", g0 - dr * 0.08, dr, nr)
+    elif head == "golden":
+        for sg in (-1, 1):
+            cv.add(cv.poly(band(g0, g0 + nr * (0.12 * sg), g0 + nr * (0.17 * sg) + dr * 0.08, 0.06, 0.025, 10)), zero, "golden", 0.03)
+        cv.add(cv.circle(g0, 0.045), zero, "golden", 0.04)
+        cv.add(cv.circle(g0, 0.026), zero, M("gem", 0xE0303A), 0.025)
+    elif head == "diamond":
+        cv.add(cv.poly([g0 - nr * 0.18, g0 - dr * 0.05, g0 + nr * 0.18, g0 + dr * 0.06]), zero, "golden", 0.04, "chamfer")
+        cv.add(cv.poly([g0 - nr * 0.05, g0 - dr * 0.025, g0 + nr * 0.05, g0 + dr * 0.03]), zero, "diamond", 0.02, "chamfer")
+    elif head == "netherite":
+        for sg in (-1, 1):
+            cv.add(cv.poly([g0 - dr * 0.035, g0 + nr * (0.2 * sg) + dr * 0.07, g0 + dr * 0.035]), zero, "netherite", 0.03, "chamfer")
+        cv.add(cv.circle(g0, 0.04), zero, "golden", 0.04)
+    elif head == "copper":
+        cv.add(cv.ellipse(g0, 0.1, 0.1), zero, "copper", 0.05)
+        cv.add(cv.circle(g0, 0.03), zero, "iron", 0.03)
+    else:
+        gd, gt = cv.capsule(g0 - nr * 0.15, g0 + nr * 0.15, 0.03)
+        gd = union(gd, union(cv.circle(g0 - nr * 0.15, 0.042), cv.circle(g0 + nr * 0.15, 0.042)))
+        cv.add(gd, gt, accent, 0.04)
+        cv.add(cv.circle(g0, 0.04), gt, accent, 0.04)
 
 
 def armor(cv, kind, m):
@@ -436,7 +498,7 @@ def armor(cv, kind, m):
             cv.add(intersect(cv.capsule(V(0.2, 0.4), V(0.8, 0.4), 0.006)[0], d + 0.03), xs, "grip", 0.006)
     elif kind == "chestplate":
         torso = cv.poly([V(0.26, 0.2), V(0.4, 0.16), V(0.5, 0.28), V(0.6, 0.16), V(0.74, 0.2), V(0.76, 0.86), V(0.5, 0.92), V(0.24, 0.86)])
-        cv.add(torso, ys, m, 0.3)
+        cv.add(torso, ys, m, 0.3) if soft else cv.add(torso, ys, m, 0.12, "chamfer")
         cv.add(cv.poly(band(V(0.1, 0.44), V(0.11, 0.16), V(0.36, 0.16), 0.14, 0.11, 10)), xs, m, 0.07)
         cv.add(cv.poly(band(V(0.9, 0.44), V(0.89, 0.16), V(0.64, 0.16), 0.14, 0.11, 10)), xs, m, 0.07)
         cv.add(intersect(cv.poly(band(V(0.36, 0.17), V(0.5, 0.4), V(0.64, 0.17), 0.04, 0.04, 12)), torso + 0.0), xs, trim, 0.03)
@@ -446,7 +508,7 @@ def armor(cv, kind, m):
             cv.add(intersect(cv.capsule(V(0.24, yy), V(0.76, yy), 0.016)[0], torso), xs, trim if not soft else "grip", 0.016)
     elif kind == "leggings":
         d = cv.poly([V(0.22, 0.14), V(0.78, 0.14), V(0.82, 0.9), V(0.6, 0.9), V(0.5, 0.42), V(0.4, 0.9), V(0.18, 0.9)])
-        cv.add(d, ys, m, 0.2)
+        cv.add(d, ys, m, 0.2) if soft else cv.add(d, ys, m, 0.1, "chamfer")
         cv.add(intersect(cv.capsule(V(0.2, 0.2), V(0.8, 0.2), 0.045)[0], d), xs, trim if not soft else "grip", 0.04)
         if not soft:
             for c in (V(0.3, 0.6), V(0.7, 0.6)):
@@ -514,19 +576,6 @@ def sheet(names, n, scale, bg, cols=7):
         a = img[..., 3:4]
         slot[:] = slot * (1 - a) + img[..., :3] * a
     return Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8))
-
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("out")
-    ap.add_argument("--n", type=int, default=128)
-    ap.add_argument("--scale", type=int, default=1)
-    ap.add_argument("--names", default="")
-    ap.add_argument("--bg", default="dark")
-    ap.add_argument("--cols", type=int, default=7)
-    a = ap.parse_args()
-    names = a.names.split(",") if a.names else item_names()
-    sheet(names, a.n, a.scale, a.bg, a.cols).save(a.out)
 
 
 # MARK: pixel art upscale (mirror ItemHD.upscaled)
@@ -1252,3 +1301,16 @@ def pair_sheet(out, n=128):
             img[..., 3] = np.maximum(img[..., 3], o[..., 3])
             cells.append(img)
     art_sheet(cells, n, 1, 6, out)
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out")
+    ap.add_argument("--n", type=int, default=128)
+    ap.add_argument("--scale", type=int, default=1)
+    ap.add_argument("--names", default="")
+    ap.add_argument("--bg", default="dark")
+    ap.add_argument("--cols", type=int, default=7)
+    a = ap.parse_args()
+    names = a.names.split(",") if a.names else item_names()
+    sheet(names, a.n, a.scale, a.bg, a.cols).save(a.out)

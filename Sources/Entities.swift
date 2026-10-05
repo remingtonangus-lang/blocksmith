@@ -134,6 +134,8 @@ final class ItemEntity {
 final class ItemEntityManager {
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
+    private var nearIdx: [Int] = []
+    private var modelled: [Bool] = []
 
     // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
     // back for the things dropped at a death lost them all.
@@ -203,10 +205,17 @@ final class ItemEntityManager {
 
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, time: Float) {
         // Item models (ItemModels.swift) for the nearest 32 within 24 blocks (both faces only past 12), sprites beyond.
-        var nearIdx: [Int] = []
+        // (Scratch buffers kept between frames: no per-frame allocation.)
+        nearIdx.removeAll(keepingCapacity: true)
         for (k, e) in items.enumerated() where simd_length_squared(e.pos - eye) < 24 * 24 { nearIdx.append(k) }
-        if nearIdx.count > 32 { nearIdx.sort { simd_length_squared(items[$0].pos - eye) < simd_length_squared(items[$1].pos - eye) }; nearIdx.removeLast(nearIdx.count - 32) }
-        let modelled = Set(nearIdx)
+        if nearIdx.count > 32 {
+            let its = items
+            nearIdx.sort { simd_length_squared(its[$0].pos - eye) < simd_length_squared(its[$1].pos - eye) }
+            nearIdx.removeLast(nearIdx.count - 32)
+        }
+        if modelled.count < items.count { modelled = [Bool](repeating: false, count: max(64, items.count * 2)) }
+        for k in nearIdx { modelled[k] = true }
+        defer { for k in nearIdx { modelled[k] = false } }
         for (idx, e) in items.enumerated() {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob, 0) - eye
@@ -224,7 +233,7 @@ final class ItemEntityManager {
                     wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
-                    if modelled.contains(idx) && ItemModels.has(layer) {
+                    if modelled[idx] && ItemModels.has(layer) {
                         // Upright, turning slowly; tools a little larger (they read at a distance by their silhouette).
                         let yaw = e.age * 1.3 + e.spin + Float(k) * 0.5
                         let s: Float = ItemModels.isTool(e.stack.def) ? 0.46 : 0.38
