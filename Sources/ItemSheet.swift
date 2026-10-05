@@ -47,6 +47,7 @@ extension ItemSheet {
         }
         names = Array(Set(names)).sorted()
         var vector = 0, fallback = 0, fails = 0
+        var fallbackNames: [String] = []
         let t0 = Date()
         for name in names {
             let item = String(name.dropFirst(5))
@@ -59,7 +60,7 @@ extension ItemSheet {
                 let cv = ItemHD.Canvas(n)
                 if ItemHD.family(cv, item, sp) { px = ItemHD.render(cv) }
             }
-            guard let img = px else { fallback += 1; continue }
+            guard let img = px else { fallback += 1; fallbackNames.append(item); continue }
             vector += 1
             var cov = 0, border = 0
             for y in 0..<n { for x in 0..<n where img[y * n + x].w >= 0.5 {
@@ -75,6 +76,7 @@ extension ItemSheet {
         let ms = Date().timeIntervalSince(t0) * 1000
         print(String(format: "itemcheck: %ld layers, %ld vector, %ld pixel-art fallback, %ld fail; vector generation %.0f ms total (%.2f ms each, one core)",
                      names.count, vector, fallback, fails, ms, ms / Double(max(1, vector))))
+        print("itemcheck: pixel-art fallback: " + fallbackNames.joined(separator: " "))
         // 3D models (ItemModels.swift): build cost (background queue in play) and size. The first-person buffer holds
         // Renderer.heldVertCap vertices: a model and its overlay at 6 per quad must fit.
         let (models, mean, worst, avgQ, mostQ, bytes) = ItemModels.measure()

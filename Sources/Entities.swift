@@ -227,12 +227,16 @@ final class ItemEntityManager {
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let copies = e.stack.count > 32 ? 3 : (e.stack.count > 1 ? 2 : 1)
+            // Readable from the sofa: past 10 blocks items grow, up to 1.35x at 24 and beyond (at 20 blocks a dropped
+            // item was ~16 px tall on a 1080p TV).
+            let grow: Float = 1 + 0.35 * Terrain.smooth(10, 24, simd_length(c))
             for k in 0..<copies {
-                let off = V3(Float(k) * 0.06, Float(k) * 0.05, Float(k) * -0.05)
+                // (Raised as it grows, so the bottom stays above the ground.)
+                let off = V3(Float(k) * 0.06, Float(k) * 0.05 + (grow - 1) * 0.22, Float(k) * -0.05)
                 if let b = e.stack.def.block, !Blocks.flatIcon(b) {
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-                    wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
+                    wr.cube(center: c + off, half: 0.125 * grow, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
                     var drawn = false
@@ -244,7 +248,7 @@ final class ItemEntityManager {
                         let face = atan2f(-c.x, -c.z)
                         let yaw = face + 0.85 * sinf(e.age * 1.1 + e.spin) + Float(k) * 0.35
                         let tool = ItemModels.isTool(e.stack.def)
-                        let s: Float = tool ? 0.46 : 0.42
+                        let s: Float = (tool ? 0.46 : 0.42) * grow
                         let rt = V3(cosf(yaw), 0, -sinf(yaw))
                         let back = V3(-sinf(yaw), 0, -cosf(yaw))
                         let lean: Float = 0.31
@@ -259,7 +263,7 @@ final class ItemEntityManager {
                     }
                     if !drawn {
                         // Far away, or the model still being built (ItemModels.quads).
-                        wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
+                        wr.sprite(center: c + off + V3(0, 0.05 * grow, 0), half: 0.2 * grow, right: right, up: up, layer: layer, light: light)
                     }
                 }
             }
