@@ -727,24 +727,51 @@ final class QuestControls {
             hp.draw(s, model: m, alpha: 1, onTop: true)
         }
         drawDeckReference(s, eye: eye)
-        let k = vignette * QuestSettings.vignette
-        guard k > 0.02 else { return }
-        // A ring in clip space (w = 2): clear in the middle, dark at the edge.
         var v: [SimpleVert] = []
+        screenEffects(&v)
+        let k = vignette * QuestSettings.vignette
+        if k > 0.02 { ring(&v, k, V3(0, 0, 0)) }
+        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
+    }
+
+    // A ring in clip space (w = 2): clear in the middle, `color` at the edge; k 0...1 narrows the clear middle.
+    private func ring(_ v: inout [SimpleVert], _ k: Float, _ color: V3, maxAlpha: Float = 1) {
         let seg = 32
         let r0: Float = 1.25 - 0.55 * k, r1: Float = r0 + 0.35, r2: Float = 3
+        let alpha = min(maxAlpha, k * 1.2)
         for i in 0..<seg {
             let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
             let d0 = V2(cosf(a0), sinf(a0)), d1 = V2(cosf(a1), sinf(a1))
-            let ring: [(Float, Float)] = [(r0, 0), (r1, 1), (r2, 1)]
+            let rr: [(Float, Float)] = [(r0, 0), (r1, 1), (r2, 1)]
             for j in 0..<2 {
-                let (ra, aa) = ring[j], (rb, ab) = ring[j + 1]
+                let (ra, aa) = rr[j], (rb, ab) = rr[j + 1]
                 let p = [(d0 * ra, aa), (d1 * ra, aa), (d1 * rb, ab), (d0 * rb, ab)]
                 for t in [0, 1, 2, 0, 2, 3] {
-                    v.append(SimpleVert(pos: V4(p[t].0.x, p[t].0.y, 0, 2), color: V4(0, 0, 0, p[t].1 * min(1, k * 1.2))))
+                    v.append(SimpleVert(pos: V4(p[t].0.x, p[t].0.y, 0, 2), color: V4(color.x, color.y, color.z, p[t].1 * alpha)))
                 }
             }
         }
-        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
+    }
+
+    // The Mac HUD's full-screen effects, over the whole view instead of the HUD panel (extract_hud.py turns them off
+    // there): water, lava, sleep and portal tints; getting hurt and burning as edge glows (a full-view red flash is
+    // harsh in a headset).
+    private func screenEffects(_ v: inout [SimpleVert]) {
+        let g = game
+        let fx: Float = Settings.shared.screenEffects ? 1 : 0.3
+        var tints: [V4] = []
+        if g.player.headInWater { tints.append(V4(0.05, 0.15, 0.45, 0.18)) }
+        if g.player.headInLava { tints.append(V4(0.9, 0.3, 0.02, 0.45)) }
+        if g.portalTime > 0 { tints.append(V4(0.45, 0.1, 0.8, min(0.7, g.portalTime / 4 * 0.7) * fx)) }
+        if g.sleeping > 0 { tints.append(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
+        for c in tints {
+            let q = [V2(-1, -1), V2(1, -1), V2(1, 1), V2(-1, 1)]
+            for t in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[t].x, q[t].y, 0, 2), color: c)) }
+        }
+        if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
+        if g.onFire > 0 && g.menu == nil {
+            let flicker = 0.75 + 0.25 * sinf(Float(g.clock) * 9)
+            ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: 0.5)
+        }
     }
 }

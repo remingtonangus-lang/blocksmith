@@ -279,6 +279,10 @@ enum QuestSim {
 
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out)
+        // Getting hurt: a red glow at the edges of the view (not a tinted HUD panel).
+        game.hurtFlash = 0.35
+        try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_hurt.png"))
+        game.hurtFlash = 0
         PadManager.shared.touch = nil
     }
 
