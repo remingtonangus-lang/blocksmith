@@ -37,6 +37,7 @@ struct PatrolRecord: Codable {
     var phase: Int            // 0 muster at the gate, 1 out, 2 search, 3 back
     var t: Float
     var size: Int = 4
+    var blocked: Float? = nil   // seconds the leader has had no way on to its waypoint
 }
 
 // Saved per citadel.
@@ -78,6 +79,7 @@ final class BaseWatch {
     var crews: [String: [Mob]] = [:]
     var workers: [String: [Mob]] = [:]
     var aircraft: [String: Ship] = [:]
+    var noWay: [ObjectIdentifier: Float] = [:]          // patrol members with no way home: seconds so
     var queue: [String: [(IVec3, BlockID)]] = [:]
     var pending = Set<String>()
     private let lock = NSLock()
@@ -357,6 +359,10 @@ extension Mob {
     func followOrder(_ g: Game) -> Float? {
         guard let b = brain, let o = b.order else { return nil }
         let d = simd_length(V2(o.x - pos.x, o.z - pos.z))
+        // No way there (the path finder gave it up): wait instead of pushing into whatever is in the way; the citadel
+        // re-routes the patrol (basePatrol) and the order is tried again when the give-up runs out.
+        // Station orders (turret crews, workers) are short moves the straight walk manages: they keep going.
+        if b.orderStation == .none && gaveUp(o) { moving = false; return 0 }
         if d > (b.orderStation == .none ? 1.6 : 0.9) {
             if b.station != .none { b.station = .none }
             face(o)

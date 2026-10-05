@@ -60,6 +60,14 @@ extension TextureGen {
 
 enum CapitalBase {
     static let A = 56                      // half-size of the whole site
+    // Leaf and log states (tree clean-up round the site), built once.
+    static let leafTable: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }
+    static let logTable: [Bool] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(Blocks.groupBase[i])
+        return k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem")
+    }
+    @inline(__always) static func isLeaf(_ b: BlockID) -> Bool { Int(b) < leafTable.count && leafTable[Int(b)] }
+    @inline(__always) static func isLog(_ b: BlockID) -> Bool { Int(b) < logTable.count && logTable[Int(b)] }
     static let podium = 44                 // plaza octagon half-size
 
     // Rounded square (superellipse, exponent 4): soft rounded corners.
@@ -129,6 +137,24 @@ enum CapitalBase {
 
         // MARK: Site, terraces, podium
         w.fill(X(-A), y0 + 1, Z(-A), X(A), top + 16, Z(A), AIR)
+        // Leaves left hanging just outside the site by trees whose trunks stood inside it (the clear above took the
+        // trunks: flat leaf plates in mid-air round the citadel, BUGS, seed 12345 citadel at -392 88). Within 8 blocks of
+        // the site, a leaf with no log within 3 blocks across and 6 below goes; a search reaching into another chunk
+        // (unreadable here) counts as held, so a living crown is never cut. The piece box reaches A + 8 for this.
+        let ring = A + 8
+        columns(-ring, ring, -ring, ring) { dx, dz in
+            guard max(abs(dx), abs(dz)) > A else { return }
+            let x = cx + dx, z = cz + dz
+            for y in (y0 + 1)...(top + 16) {
+                guard CapitalBase.isLeaf(w.get(x, y, z)) else { continue }
+                var held = false
+                search: for oy in -6...1 { for oz in -3...3 { for ox in -3...3 {
+                    let q = (x + ox, y + oy, z + oz)
+                    if !w.inside(q.0, q.1, q.2) || CapitalBase.isLog(w.get(q.0, q.1, q.2)) { held = true; break search }
+                } } }
+                if !held { w.set(x, y, z, AIR) }
+            }
+        }
         columns(-A, A, -A, A) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.pillarDown(x, y0, z, DIRT, minY: y0 - 48)

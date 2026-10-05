@@ -128,7 +128,7 @@ enum MilitaryBase {
                 if gen.column(x + dx, z + dz).biome.isOcean { return nil }
             }
             let y0 = y + 1
-            let e = CapitalBase.A
+            let e = CapitalBase.A + 8               // the site plus the ring where cut trees' leaves are cleared
             let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed) })
             return StructureStart(kind: "military_base", pieces: [piece], anchor: IVec3(x, y0 + 1, z + CapitalBase.podium + 8))
         }

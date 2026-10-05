@@ -71,7 +71,11 @@ final class HorizonRing {
                 let wet = col.biome.isOcean || col.biome.isRiver
                 out.h.append(Float(wet ? max(col.height, SEA) : col.height))
                 let rgb = MapCache.shade(col.biome, height: col.height)
-                out.c.append(V3(Float((rgb >> 16) & 255), Float((rgb >> 8) & 255), Float(rgb & 255)) / 255)
+                var c = V3(Float((rgb >> 16) & 255), Float((rgb >> 8) & 255), Float(rgb & 255)) / 255
+                // Volcano flanks in their dark rock (the map's peak white turned the far cone into a snowy mountain).
+                let vol = gen.columnData(x0 + i * s, z0 + j * s).vol
+                if vol > 0.05 { c = simd_mix(c, V3(0.22, 0.21, 0.21), V3(repeating: min(1, vol * 3))) }
+                out.c.append(c)
             }
         }
         return out
@@ -105,7 +109,9 @@ extension Renderer {
                 if nrm.y < 0 { nrm = -nrm }
                 let base: V3 = (s.c[k] + s.c[k + 1] + s.c[k + s.n] + s.c[k + s.n + 1]) * 0.25
                 let lit: Float = (0.45 + 0.55 * max(0, simd_dot(nrm, sun))) * night * hdrK
-                let haze: Float = 0.62 + 0.33 * Terrain.smooth(loaded, range, dist)
+                // Never clearer than the fully fogged edge of the loaded terrain in front of it: faint silhouettes of
+                // hills and coasts (at 0.62 the far land read as a clear band beyond a fog curtain, horizon_ring_evening).
+                let haze: Float = 0.8 + 0.17 * Terrain.smooth(loaded, range, dist)
                 let col = V4(base * lit * (1 - haze) + fog * haze, 1)
                 let pa = p(a), pb = p(b), pc = p(c), pd = p(d)
                 out.append(SimpleVert(pos: pa, color: col)); out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pc, color: col))

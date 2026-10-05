@@ -5,14 +5,16 @@ crew-station pose hooks, and the backwards-arms bug. Not in scope (other streams
 vehicle physics, controller code.
 
 ## State (2026-10-05, standing order: never stop; queue = soldiers -> reactive bases -> aircraft -> bug hunting)
-- Soldiers: DONE and merged into claude/blocksmith-playtest (d3a9c7c). posecheck 474 checks green.
-- Reactive bases (Future ideas #2): on claude/bs-capital-soldiers (rebased on playtest 2026-10-05). Patrol, air
-  patrol, lockdown crews and dropships green; crawler return and the wall rebuild being fixed through the focused
-  release run (`[fast: ... --basetest all]`, ~50 s for the whole suite).
-- Aircraft (Future ideas #8): on the same branch. --flighttest heli / plane green, player phase down to its landing.
+- Soldiers: DONE, merged (d3a9c7c). posecheck 510 checks green (door gunners included).
+- Reactive bases (Future ideas #2): DONE, merged into claude/blocksmith-playtest at bff7650. --basetest all green in
+  the release build: patrol out and back, crawler out and back, lockdown (turret crews, dropship troops on dry ground
+  by the pool), wall rebuilt 59/59 with a wreck block left alone, air patrol pad to pad, save round trip, 0.6 ms avg.
+- Aircraft (Future ideas #8): DONE, merged at bff7650. --flighttest all green (27 checks: heli autopilot hover / out
+  and back / pedal turn / landing on a pad, the player's controls through the helm, Heron level / climb / bank turn /
+  stall and recovery). Citadel Kestrels fly air patrols; their troops are door gunners.
 - Bug hunting: `--behaviorsim --site citadel` (soldier stuck / spinning / in-wall / fall oracles round a citadel,
-  gunshots outside every 3 min); first run found calm soldiers flipping at their post radius (fixed: stroll area 7,
-  walk home past 12 to within 5).
+  gunshots outside every 3 min). Fixed from it: calm soldiers spinning at their post radius (19 -> 0), stuck (3 ->
+  0), long drops with the player near; falls 2 -> (ledge stop for off-path walkers, being checked).
 
 ## What exists (code map)
 - `Sources/SoldierRig.swift`: the jointed soldier model and all stances.
