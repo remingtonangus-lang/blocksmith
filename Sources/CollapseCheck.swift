@@ -429,7 +429,13 @@ enum CollapseCheck {
         var arm: [IVec3] = [], hulk: [IVec3] = [], base: [IVec3] = []
         for x in (o.x + 2)...(o.x + 14) { for z in (o.z - 1)...(o.z + 1) { arm.append(IVec3(x, top, z)) } }
         for y in (o.y + 10)...(o.y + 12) { for z in (o.z - 2)...(o.z + 1) { for x in (o.x - 14)...(o.x - 11) { hulk.append(IVec3(x, y, z)) } } }
-        for dz in -1...1 { for dx in -1...1 { let x = o.x + dx, z = o.z + dz; base.append(IVec3(x, w.topY(x, z) + 1, z)) } }
+        // The pillar's foot: the lowest built cell of each column (topY reads the pillar's own top).
+        for dz in -1...1 { for dx in -1...1 {
+            let x = o.x + dx, z = o.z + dz
+            var y = top
+            while y > 1 && Collapse.built(w.rawBlock(x, y - 1, z)) { y -= 1 }
+            base.append(IVec3(x, y, z))
+        } }
         func standing(_ cells: [IVec3]) -> Int { cells.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count }
         let before = floating(st)
         r.note("as built: \(before.0) blocks the analysis can't hold up (\(before.1))")

@@ -99,7 +99,14 @@ extension ShipManager {
     // Holes to check next frame: every blast of a frame is checked together, at most one check a frame (a salvo on a
     // big building can't stack up a dozen 6000-cell searches in one frame).
     func queueCollapse(_ holes: [IVec3], from: V3?, asBuilt: Bool = true) {
+        // A full queue folds new holes into its last entry rather than dropping them (a pier mined out block by block
+        // queued 100 single holes; with only the first 64 checked, the rest of the column read as never having been
+        // there, and the as-built rule kept the deck it had held: collapsecheck mine, run of b02edf4).
         if collapseQueue.count < 64 { collapseQueue.append((holes, from, asBuilt)) }
+        else if collapseQueue[collapseQueue.count - 1].0.count < 4000 {
+            collapseQueue[collapseQueue.count - 1].0 += holes
+            collapseQueue[collapseQueue.count - 1].2 = collapseQueue[collapseQueue.count - 1].2 && asBuilt
+        }
     }
 
     // World cells into a free-moving body (keeps their place; pieces under Collapse.minPiece blocks just break).
