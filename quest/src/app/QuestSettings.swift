@@ -8,7 +8,8 @@ enum QuestSettings {
     private static func bool(_ k: String, _ def: Bool) -> Bool { d.object(forKey: k) == nil ? def : d.bool(forKey: k) }
 
     static var refreshRate: Float { get { float("quest.refreshRate", 72) } set { d.set(newValue, forKey: "quest.refreshRate") } }
-    static var renderDistance: Int { get { int("quest.renderDistance", 6) } set { d.set(newValue, forKey: "quest.renderDistance") } }
+    // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
+    static var renderDistance: Int { get { int("renderDistance", 8) } set { d.set(newValue, forKey: "renderDistance") } }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { d.set(newValue, forKey: "quest.resolutionScale") } }
     // Turning: 0 snap, 1 smooth.
     static var smoothTurn: Bool { get { bool("quest.smoothTurn", false) } set { d.set(newValue, forKey: "quest.smoothTurn") } }
@@ -40,7 +41,7 @@ extension QuestSettings {
             let line = raw.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
             let kv = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
             guard kv.count == 2, !kv[0].isEmpty else { continue }
-            let key = "quest." + kv[0], v = kv[1]
+            let key = kv[0] == "renderDistance" ? "renderDistance" : "quest." + kv[0], v = kv[1]
             if let b = ["true": true, "false": false, "on": true, "off": false][v.lowercased()] { d.set(b, forKey: key) }
             else if let i = Int(v) { d.set(i, forKey: key) }
             else if let f = Float(v) { d.set(f, forKey: key) }
