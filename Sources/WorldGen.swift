@@ -341,6 +341,7 @@ final class WorldGen: TerrainGenerator {
     // cave decoration, trees, vegetation and freeze.
     static var timing = false
     static var phaseMs = [Double](repeating: 0, count: 8)
+    static let timingLock = NSLock()          // other worlds' workers may generate while the bench times (also startMs)
     static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants", "starts"]
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
@@ -348,7 +349,7 @@ final class WorldGen: TerrainGenerator {
         func mark(_ k: Int) {
             guard WorldGen.timing else { return }
             let n = CFAbsoluteTimeGetCurrent()
-            WorldGen.phaseMs[k] += (n - tp) * 1000
+            WorldGen.timingLock.lock(); WorldGen.phaseMs[k] += (n - tp) * 1000; WorldGen.timingLock.unlock()
             tp = n
         }
         var b = [BlockID](repeating: AIR, count: CSQ * CH)

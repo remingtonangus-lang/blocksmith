@@ -16,6 +16,7 @@ final class MapCache {
     private var working = false
     private weak var gen: TerrainGenerator?
     private var genID: ObjectIdentifier?
+    private var epoch = 0                     // bumped by use(): a batch sampled with the old generator is dropped
     private(set) var version = 0              // bumped whenever sampled cells arrive or the cache restarts (minimap redraw)
 
     struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int }
@@ -34,9 +35,10 @@ final class MapCache {
         lock.lock()
         cells.removeAll(); queue.removeAll(); pending.removeAll()
         version &+= 1
-        lock.unlock()
-        gen = g
+        epoch &+= 1
+        gen = g                               // under the lock: drain() reads it on the worker
         genID = id
+        lock.unlock()
     }
 
     // Colour of the 4-block cell containing (x, z), or nil while it is being sampled (it is queued).
@@ -81,6 +83,7 @@ final class MapCache {
         while true {
             lock.lock()
             guard let g = gen, !queue.isEmpty else { working = false; lock.unlock(); return }
+            let e = epoch
             let batch = Array(queue.suffix(256))
             queue.removeLast(batch.count)
             lock.unlock()
@@ -92,6 +95,8 @@ final class MapCache {
                 out.append((k, MapCache.shade(c.biome, height: c.height)))
             }
             lock.lock()
+            // A portal or world switch while this batch was sampled: its colours belong to the old world.
+            if e != epoch { lock.unlock(); continue }
             for (k, c) in out { cells[k] = c; pending.remove(k) }
             if cells.count > 400_000 { cells.removeAll() }
             version &+= 1
@@ -240,27 +245,33 @@ enum MapDraw {
 
     static func terrain(_ out: inout [HudLine], x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float) {
         let unknown: UInt32 = 0x1E2024
-        MapCache.shared.batch { lookup in
-        for r in 0..<rows {
-            var runStart = 0
-            var runColor: UInt32 = 0xFFFFFFFF
-            let bz = Int(floor(wz + (Float(r) - Float(rows) / 2) * Float(bpc)))
-            for c in 0...cols {
-                var col: UInt32 = 0xFFFFFFFE
-                if c < cols {
-                    let bx = Int(floor(wx + (Float(c) - Float(cols) / 2) * Float(bpc)))
-                    col = lookup(bx, bz) ?? unknown
-                }
-                if col != runColor {
+        let halfRows: Float = Float(rows) / 2, halfCols: Float = Float(cols) / 2, step: Float = Float(bpc)
+        // A named function, not a trailing closure: the release type checker timed out on the closure body.
+        func draw(_ lookup: (Int, Int) -> UInt32?) {
+            for r in 0..<rows {
+                var runStart = 0
+                var runColor: UInt32 = 0xFFFFFFFF
+                let fz: Float = wz + (Float(r) - halfRows) * step
+                let bz = Int(floor(fz))
+                let y: Float = y0 + Float(r) * px
+                for c in 0...cols {
+                    var col: UInt32 = 0xFFFFFFFE
+                    if c < cols {
+                        let fx: Float = wx + (Float(c) - halfCols) * step
+                        col = lookup(Int(floor(fx)), bz) ?? unknown
+                    }
+                    if col == runColor { continue }
                     if c > 0 && runColor != 0xFFFFFFFF {
-                        out.append(HudLine(text: "", x: x0 + Float(runStart) * px, y: y0 + Float(r) * px, scale: s, bg: color(runColor), box: V2(Float(c - runStart) * px, px)))
+                        let x: Float = x0 + Float(runStart) * px
+                        let w: Float = Float(c - runStart) * px
+                        out.append(HudLine(text: "", x: x, y: y, scale: s, bg: color(runColor), box: V2(w, px)))
                     }
                     runStart = c
                     runColor = col
                 }
             }
         }
-        }
+        MapCache.shared.batch(draw)
     }
 
     // Screen position of a world point on that map, or nil when off it.

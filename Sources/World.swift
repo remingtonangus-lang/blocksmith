@@ -73,13 +73,19 @@ final class World {
         return p
     }
 
-    static var alive = 0            // live World objects (leak check in --bench)
+    // Live World objects (leak check in --bench). A worker's job can hold the last reference, so a World can die on
+    // a worker thread: hence the lock (as Chunk.alive).
+    static let aliveLock = NSLock()
+    private(set) static var alive = 0
     static let registry = NSHashTable<World>.weakObjects()
-    deinit { World.alive -= 1 }
-    var debugState: String { "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(genResults.count)/\(meshResults.count), chunks \(chunks.count)" }
+    deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
+    var debugState: String {
+        lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
+        return "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
+    }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
-        World.alive += 1
+        World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
         switch dim {

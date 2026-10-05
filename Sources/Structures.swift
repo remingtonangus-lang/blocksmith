@@ -184,7 +184,10 @@ final class StructureCache {
         lock.lock()
         cache[key] = s
         if cache.count > 4096 { cache.removeAll() }
-        if WorldGen.timing { StructureCache.startMs[t.name, default: 0] += (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        if WorldGen.timing {
+            let ms: Double = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            WorldGen.timingLock.lock(); StructureCache.startMs[t.name, default: 0] += ms; WorldGen.timingLock.unlock()
+        }
         lock.unlock()
         return s
     }
