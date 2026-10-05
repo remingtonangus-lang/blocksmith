@@ -246,7 +246,7 @@ extension Game {
                 let glow = Blocks.key(Blocks.groupBase[Int(b)]) == "glow_item_frame"
                 if let layer = Items.texLayer(item.item) {
                     // The item's 3D model (ItemModels.swift), its face out of the frame like the old card.
-                    if !ItemModels.write(&wr, layer: layer, o: pos - n * 0.02, ax: right * 0.6, ay: up * 0.6, az: n * -0.6, light: glow ? 1 : light,
+                    if !ItemModels.write(&wr, layer: layer, o: pos + n * 0.02, ax: right * 0.6, ay: up * 0.6, az: n * 0.6, light: glow ? 1 : light,
                                          glint: item.ench != 0) {
                         wr.sprite(center: pos, half: 0.3, right: right, up: up, layer: layer, light: glow ? 1 : light)
                     }
