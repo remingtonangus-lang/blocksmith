@@ -356,6 +356,8 @@ extension ShipManager {
         let n = sx * sy * sz
         var comp = [Int32](repeating: -1, count: n)
         var sizes: [Int] = []
+        var drives: [Int] = []          // drive engines in each part
+        let engineKind = ShipParts.kinds
         var queue: [Int32] = []
         queue.reserveCapacity(4096)
         for start in 0..<n where g.blocks[start] != AIR && comp[start] < 0 {
@@ -364,8 +366,10 @@ extension ShipManager {
             queue.removeAll(keepingCapacity: true)
             queue.append(Int32(start))
             var head = 0
+            var eng = 0
             while head < queue.count {
                 let i = Int(queue[head]); head += 1
+                if engineKind[Int(g.blocks[i])] == .engine { eng += 1 }
                 let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
                 if x > 0 { let j = i - 1; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
                 if x < sx - 1 { let j = i + 1; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
@@ -375,14 +379,12 @@ extension ShipManager {
                 if y < sy - 1 { let j = i + sx * sz; if comp[j] < 0 && g.blocks[j] != AIR { comp[j] = id; queue.append(Int32(j)) } }
             }
             sizes.append(queue.count)
+            drives.append(eng)
         }
-        guard sizes.count > 1, var keep = sizes.indices.max(by: { sizes[$0] < sizes[$1] }) else { return }
-        // The part with the helm stays the vessel (its AI flies it, or brings it down if its engines went with the other
-        // part); the rest falls.
-        if let h = s.helm, g.inside(h.x, h.y, h.z) {
-            let k = Int(comp[g.index(h.x, h.y, h.z)])
-            if k >= 0 && sizes[k] * 5 >= sizes[keep] { keep = k }
-        }
+        // The part with the most drive engines stays the vessel (then the larger); the rest comes away. (Keeping the
+        // part with the helm dropped a Stormwarden frigate's 150k-block hull with all 900 engines when shell holes cut
+        // its bridge tower off: capitaltest.) A vessel left without its helm goes down below.
+        guard sizes.count > 1, let keep = sizes.indices.max(by: { (drives[$0], sizes[$0]) < (drives[$1], sizes[$1]) }) else { return }
         var parts = [[Int]](repeating: [], count: sizes.count)
         for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep { parts[Int(comp[i])].append(i) }
         let kinds = ShipParts.kinds
@@ -395,6 +397,9 @@ extension ShipManager {
                 lo = IVec3(min(lo.x, x), min(lo.y, y), min(lo.z, z)); hi = IVec3(max(hi.x, x), max(hi.y, y), max(hi.z, z))
             }
             let small = cells.count < 20
+            // A big section of a flying capital comes down as the vessel itself would (kinematic, crash-landing, then a
+            // wreck): as a free rigid body a 150k-block section cost 24 ms a frame of contacts (capitaltest).
+            let section = s.isFlyingCapital && cells.count >= 3000
             let ng = ShipGrid(sx: hi.x - lo.x + 1, sy: hi.y - lo.y + 1, sz: hi.z - lo.z + 1)
             let part = Ship(id: newId(), grid: ng)
             for i in cells {
@@ -416,7 +421,9 @@ extension ShipManager {
             }
             let off = V3(Float(lo.x), Float(lo.y), Float(lo.z))
             part.name = s.name + " section"
-            part.debris = true
+            part.debris = !section
+            part.kinematic = section
+            if section { part.role = s.role; part.wrecked = true }
             part.faction = s.faction
             part.rebuild()
             part.rot = s.rot
@@ -435,6 +442,13 @@ extension ShipManager {
             }
             add(part)
             part.mesh.rebuildAll(part, device: world.device, queue: meshQueue)
+            if section {
+                let st = CapitalState()
+                st.groundOffset = part.com.y - part.localMin.y
+                st.crewless = true
+                st.disabledWhy = "cut away"
+                capState[part.id] = st
+            }
             hullSplits += 1
         }
         s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue)

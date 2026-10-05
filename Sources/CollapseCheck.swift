@@ -319,7 +319,9 @@ enum CollapseCheck {
             ticks.append((CFAbsoluteTimeGetCurrent() - a) * 1000)
             let bodies = w.ships.list.filter { $0.debris }
             maxBodies = max(maxBodies, bodies.count)
-            if let sec = bodies.max(by: { $0.blockCount < $1.blockCount }), name == "frigate" {
+            // (A big section of a flying capital comes down kinematic, as the vessel would, not as a debris body.)
+            let falling = name == "frigate" ? w.ships.list.filter { $0.debris || ($0.kinematic && $0.name.hasSuffix(" section")) } : []
+            if let sec = falling.max(by: { $0.blockCount < $1.blockCount }) {
                 if halfY0 == 0 { halfY0 = sec.pos.y }
                 lowest = min(lowest, sec.pos.y)
             }

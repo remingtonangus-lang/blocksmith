@@ -692,7 +692,8 @@ enum RideCheck {
             worstDrop = max(worstDrop, (lastY - s.pos.y) * 60)
             lastV = v; lastY = s.pos.y
             if stopT < 0 && st.settled { stopT = Float(i) / 60; aliveAtRest = st.crewMobs.values.filter { $0.health > 0 }.count }
-            if i > 60 { crewCheck(i, posts: false) }
+            // (Once it has become a wreck of world blocks the crew stand on those: no deck to stay on.)
+            if i > 60 && w.ships.list.contains(where: { $0 === s }) { crewCheck(i, posts: false) }
             // Two enemy soldiers turn up beside the wreck once it is still: the crew fight them from aboard.
             if !frigate && st.settled && foes.isEmpty {
                 let side = s.dirToWorld(V3(1, 0, 0))
@@ -715,12 +716,12 @@ enum RideCheck {
             }
             if stopT >= 0 && Float(i) / 60 > stopT + 30 { break }
         }
-        let inList = w.ships.list.contains { $0 === s }
+        let inList = w.ships.list.contains { $0 === s } || !w.ships.wrecks.isEmpty
         let alive = st.crewMobs.values.filter { $0.health > 0 }.count
         r.note(String(format: "disabled at %.1f b/s (%@): came to rest after %.1f s; worst deceleration %.2f b/s2, fastest drop %.2f b/s; impact %.1f b/s; %ld crew alive",
                       speed0, st.disabledWhy, stopT, worstDecel, worstDrop, st.impact, alive))
         r.check(s.wrecked && stopT >= 0, "the disabled vehicle comes to rest (\(st.disabledWhy))")
-        r.check(inList, "it stays in the world (no despawn)")
+        r.check(inList, "it stays in the world (no despawn: still a vessel, or laid down as a wreck, \(w.ships.wrecks.count))")
         if frigate {
             r.check(stopT > 6, String(format: "it comes down over time, not at once (%.1f s)", stopT))
             r.check(worstDrop < 8.5, String(format: "it never drops faster than 8 b/s (%.2f)", worstDrop))
@@ -763,7 +764,7 @@ enum RideCheck {
             if st.settled { after += 1.0 / 60; if after > 5 { break } }
         }
         r.note(String(format: "came down %.0f blocks in %.0f s, touchdown at %.1f b/s; bot health %ld -> %ld", y0 - s.pos.y, t, st.impact, h0, g.health))
-        r.check(st.settled && w.ships.list.contains { $0 === s }, "the frigate crash-lands and stays (no despawn)")
+        r.check(st.settled && (w.ships.list.contains { $0 === s } || !w.ships.wrecks.isEmpty), "the frigate crash-lands and stays (no despawn)")
         r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot rides it down on the deck (\(mon.offTicks) ticks off)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")
         r.check(mon.insideTicks == 0, "never inside a solid (\(mon.insideTicks) ticks)")
         r.check(mon.worstDrift < 0.05, String(format: "standing, it drifts %.4f blocks over the deck on the way down", mon.worstDrift))
