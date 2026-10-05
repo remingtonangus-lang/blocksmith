@@ -136,16 +136,6 @@ extension ShipManager {
             j.done()
         }
     }
-}
-
-// A big wreck being laid into the world over several frames (ShipManager.bakeStep).
-final class BakeJob {
-    let ship: Ship
-    let done: () -> Void
-    var layer = 0
-    var count = 0
-    var placed = Collapse.CellTable(capacity: 4096)
-    init(_ s: Ship, done: @escaping () -> Void) { ship = s; self.done = done }
 
     // Overgrowth: for wrecks near the player, the steps their age calls for (a few per call, so a long absence catches
     // up over a minute of play, not in one frame).
@@ -212,4 +202,14 @@ final class BakeJob {
         guard let u = wrecksURL, let d = try? Data(contentsOf: u), let a = try? JSONDecoder().decode([WreckRecord].self, from: d) else { return }
         wrecks = a
     }
+}
+
+// A big wreck being laid into the world over several frames (ShipManager.bakeStep).
+final class BakeJob {
+    let ship: Ship
+    let done: () -> Void
+    var layer = 0
+    var count = 0
+    var placed = Collapse.CellTable(capacity: 4096)
+    init(_ s: Ship, done: @escaping () -> Void) { ship = s; self.done = done }
 }
