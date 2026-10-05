@@ -544,6 +544,12 @@ final class Game {
         audioMenuOpened(m)
     }
 
+    // Before the game ends (quit, another world): every seat's open screen hands its cursor item and grid back to the
+    // inventory, which is what the save holds (Cmd-Q with an item on the cursor or in the crafting grid lost it).
+    func closeMenusForExit() {
+        coop.eachSeat(self) { self.closeMenu() }
+    }
+
     func closeMenu() {
         guard let m = menu, !(m is DeathMenu) else { return }
         audioMenuClosed(m)

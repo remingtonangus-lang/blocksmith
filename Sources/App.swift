@@ -138,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         HudExtras.loading = "Loading \(name)..."
         view.draw()
         defer { HudExtras.loading = nil }
+        game.closeMenusForExit()
         game.saveNow()
         makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty)
         view.input = game.input
@@ -468,7 +469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
         return h
     }
-    @objc func saveQuit() { game.saveNow(); SaveIO.flush(); NSApp.terminate(nil) }
+    @objc func saveQuit() { game.closeMenusForExit(); game.saveNow(); SaveIO.flush(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {
         // The pause screen is drawn in-game (PauseMenu); the AppKit overlay only hosts the Worlds panel.
@@ -542,6 +543,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) {
         setCapture(false)
+        game?.closeMenusForExit()
         game?.saveNow()
         SaveIO.flush()      // chunk writes run on a background queue
     }

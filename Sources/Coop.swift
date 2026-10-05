@@ -248,6 +248,9 @@ final class Coop {
     // Player 2 leaves (their state is kept for this session in case they rejoin).
     func leave(_ g: Game) {
         guard active else { return }
+        // Their open screen closes properly first: its cursor item and grid go back to their inventory (dropping the
+        // menu lost them).
+        withSeat(1, g) { if !(g.menu is PauseMenu) { g.closeMenu() } }     // (a pause menu holds nothing; closing it unpauses)
         switchTo(0, g)
         if var s = slots[1] {
             s.menu = nil
