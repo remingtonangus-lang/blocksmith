@@ -325,8 +325,9 @@ def meander(pts, width_m):
     return resample(out, 8.0)
 
 
-def carve_river(h, poly_uv, width_m, depth_m, valley_m, n, name, min_drop=0.0004):
-    """Carve a river channel with monotone bed. Returns the feature dict (polyline with bed and surface heights)."""
+def carve_river(h, poly_uv, width_m, depth_m, valley_m, n, name, min_drop=0.0004, keep=None):
+    """Carve a river channel with monotone bed. Returns the feature dict (polyline with bed and surface heights).
+    keep (0..1 per cell, optional): settlement cores where only the channel is cut and the floodplain is left alone."""
     cell = SIZE_M / n
     pts_m = catmull([uv2m(*p) for p in poly_uv], 20)
     pts_m = meander(resample(pts_m, 8.0), width_m)
@@ -365,6 +366,8 @@ def carve_river(h, poly_uv, width_m, depth_m, valley_m, n, name, min_drop=0.0004
     inside = d_m < w_half
     floodplain = smoothstep(valley_m, w_half * 1.2, d_m)          # 1 near channel
     target = np.where(inside, chan, np.minimum(h, bank_c + (h - bank_c) * (1 - floodplain * 0.85)))
+    if keep is not None:
+        target = target * (1 - keep) + h * keep
     hn = np.where(d_m < valley_m * 1.2, np.where(inside, chan, np.minimum(h, target)), h)
     # never raise terrain except inside channel (handled) — banks may only be cut down
     feature = dict(name=name, points=[[round(float(p[0]), 2), round(float(p[1]), 2)] for p in pts_m],
@@ -441,7 +444,7 @@ def smooth_path(pts, it=6):
     return p
 
 
-def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut=8.0, fill=5.0, smooth_profile=40):
+def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut=8.0, fill=5.0, smooth_profile=40, pins=None):
     """Grade a road/rail corridor: smooth longitudinal profile (grade-limited, then held within cut/fill of the
     ground), flat cross-section, side slopes ~1:2 down/up to the natural terrain."""
     cell = SIZE_M / n
@@ -449,12 +452,25 @@ def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut=8.0, fill=5.0, sm
     px = m2px(pts, n)
     ground = ndimage.map_coordinates(ndimage.gaussian_filter(h, 2), [px[:, 1], px[:, 0]], order=1)
     prof = ndimage.gaussian_filter1d(ground, smooth_profile / 4.0, mode='nearest')
-    for _ in range(2):
+    core = np.zeros(len(prof), bool)
+    level = np.zeros(len(prof), np.float32)
+    if pins:
+        # settlements: the line runs at the settlement's ground level through its disc (no embankment through
+        # town); the grade limit then shapes the approaches (cuttings/fills) away from the pinned core
+        for (cx, cz, r, lv) in pins:
+            dd = np.hypot(pts[:, 0] - cx, pts[:, 1] - cz)
+            m = dd < r * 0.9
+            core |= m
+            level[m] = lv
+        prof = np.where(core, level, prof)
+    for _ in range(4 if pins else 2):
         for i in range(1, len(prof)):
             prof[i] = np.clip(prof[i], prof[i - 1] - max_grade * 4.0, prof[i - 1] + max_grade * 4.0)
         for i in range(len(prof) - 2, -1, -1):
             prof[i] = np.clip(prof[i], prof[i + 1] - max_grade * 4.0, prof[i + 1] + max_grade * 4.0)
+        prof = np.where(core, level, prof)
     prof = np.clip(prof, ground - cut, ground + fill)
+    prof = np.where(core, level, prof)
     prof = ndimage.gaussian_filter1d(prof, 3.0, mode='nearest')
     reach = half_w + blend + max(cut, fill) * 2.0
     d_px, inds = dist_to_polyline(n, px, reach / cell + 4)
@@ -515,19 +531,11 @@ def main():
     h1 = np.where(ld < 1.6, np.minimum(h1, np.where(ld < 0.95, lake_bed, shore)), h1)
     h1 = np.maximum(h1, LAKE_LEVEL - 30)
 
-    # 4. rivers
     feats = dict(size_m=SIZE_M, height_res=N, control_res=NC, h_range=H_RANGE, lake_level=LAKE_LEVEL,
                  seed=SEED, towns=[], pois=[], roads=[], rivers=[], rail=None,
                  lake=dict(u=LAKE['u'], v=LAKE['v'], ru=LAKE['ru'], rv=LAKE['rv'], level=LAKE_LEVEL))
-    river_dist = np.full((n1, n1), 1e9, np.float32)
-    h1, rf, d_m = carve_river(h1, RIVER_MAIN, 46, 4.5, 420, n1, "Sable River")
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
-    h1, rf, d_m = carve_river(h1, CREEKS[0], 14, 2.2, 160, n1, "Thornwood Creek", min_drop=0.0008)
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
-    h1, rf, d_m = carve_river(h1, CREEKS[1], 10, 1.6, 120, n1, "Dry Fork", min_drop=0.0008)
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
-
-    # 5. towns and POIs: flatten plots
+    # 4. towns and POIs: flatten plots (before the rivers, so a river through a town is carved at town level
+    #    instead of being filled in by the flattening)
     for t in TOWNS:
         c = uv2m(t['u'], t['v'])
         h1, th = flatten_disc(h1, n1, c, t['r'], blend_m=90)
@@ -539,9 +547,25 @@ def main():
         feats['pois'].append(dict(id=p['id'], name=p['name'], x=round(float(c[0]), 1), z=round(float(c[1]), 1),
                                   y=round(th, 2), r=p['r'], kind=p['kind']))
 
+    # 5. rivers (settlement cores keep their flattened ground outside the channel)
+    keep = np.zeros((n1, n1), np.float32)
+    ys_c, xs_c = np.ogrid[0:n1, 0:n1]
+    for t in feats['towns'] + feats['pois']:
+        cp = m2px((t['x'], t['z']), n1)
+        dd = np.hypot(xs_c - cp[0], ys_c - cp[1]) * (SIZE_M / n1)
+        keep = np.maximum(keep, smoothstep(t['r'] + 20.0, t['r'] * 0.85, dd))
+    river_dist = np.full((n1, n1), 1e9, np.float32)
+    h1, rf, d_m = carve_river(h1, RIVER_MAIN, 46, 4.5, 420, n1, "Sable River", keep=keep)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
+    h1, rf, d_m = carve_river(h1, CREEKS[0], 14, 2.2, 160, n1, "Thornwood Creek", min_drop=0.0008, keep=keep)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
+    h1, rf, d_m = carve_river(h1, CREEKS[1], 10, 1.6, 120, n1, "Dry Fork", min_drop=0.0008, keep=keep)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
+
     # 6. rail: smooth spline, graded at <= 1.5 %
     rail_m = catmull([uv2m(*p) for p in RAIL], 24)
-    h1, rail_pts, rail_prof = grade_corridor(h1, n1, rail_m, 4.0, 6.0, 0.015, cut=9.0, fill=6.0, smooth_profile=120)
+    pins = [(t['x'], t['z'], t['r'], t['y']) for t in feats['towns']]
+    h1, rail_pts, rail_prof = grade_corridor(h1, n1, rail_m, 4.0, 6.0, 0.015, cut=9.0, fill=6.0, smooth_profile=120, pins=pins)
     feats['rail'] = dict(points=[[round(float(p[0]), 2), round(float(p[1]), 2), round(float(z), 2)]
                                  for p, z in zip(rail_pts, rail_prof)])
 
@@ -573,7 +597,8 @@ def main():
     fine = fbm(N, 512, 2, SEED + 40) * 0.35
     mount_hi = ndimage.zoom(mount1, N / n1, order=1)
     rock = (ridged(N, 384, 2, SEED + 41) - 0.4) * (0.4 + mount_hi * 2.5)
-    h += (fine + rock) * (1 - road_hi)
+    keep_hi = ndimage.zoom(keep, N / n1, order=1)          # settlement cores stay smooth for building plots
+    h += (fine + rock) * (1 - road_hi) * (1 - keep_hi * 0.9)
     h = np.clip(h, 0, H_RANGE - 1)
 
     # 9. control map (2048)

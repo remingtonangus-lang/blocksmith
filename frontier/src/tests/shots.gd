@@ -12,6 +12,16 @@ const TOUR := [
 	["lake_agnes", 2700, 300, 12, 90, -3, 7.0, "fog"],
 	["night_town", "town:bitter_spring", 0, 1.7, 290, 2, 22.5, "clear"],
 	["storm_plains", 200, 900, 2.0, 30, 2, 15.0, "storm"],
+	# settlements (src/world/settlements.gd): street level, boardwalk, interiors, depot, distant views, night
+	["bs_main_street", -526.4, -252.9, 1.7, 108, -1, 10.5, "fair"],
+	["bs_boardwalk", -479.2, -252.7, 2.05, 100, -4, 16.0, "fair"],
+	["bs_saloon_interior", -481.4, -256.4, 2.1, 30, -6, 11.0, "fair"],
+	["bs_store_interior", -446.1, -244.8, 2.1, 25, -8, 11.0, "fair"],
+	["bs_sheriff_interior", -506.1, -234.6, 2.1, 205, -6, 11.0, "fair"],
+	["bs_depot", -348.3, -110.4, 1.7, 0, 2, 9.0, "fair"],
+	["bs_aerial", -600.0, -330.0, 70.0, 70, -24, 15.0, "fair"],
+	["bs_from_1km", -1200.0, -500.0, 30.0, 110, -2, 17.0, "fair"],
+	["bs_night_street", -526.4, -252.9, 1.7, 108, -1, 21.5, "clear"],
 ]
 
 var main: Node
@@ -68,6 +78,9 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		for r in veg._regions.values():
 			inst += r.multimesh.instance_count
 		print("vegetation: %d regions, %d trees, %d near chunks, %d grass cells" % [veg._regions.size(), inst, veg._near.size(), veg._grass_cells.size()])
+	var stl = main.get("settlements")
+	if stl != null and stl.has_method("settle_now"):
+		stl.settle_now()
 	var frames := int(Game.args.get("frames", 24))
 	for i in frames:
 		await get_tree().process_frame
