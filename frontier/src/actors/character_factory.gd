@@ -73,7 +73,7 @@ static func warm_up() -> void:
 		if not added:
 			break
 		round += 1
-	_task_ids.append(WorkerThreadPool.add_task(func(): animation_library(), false, "character anims"))
+	animation_library_if_ready()
 	# one look at a time on one worker: parallel glTF builds pushed every look's texture uploads into the first
 	# frames at once (CI's paravirtual GPU timed out on that frame) and starved world streaming of cores
 	_task_ids.append(WorkerThreadPool.add_task(func():
@@ -182,14 +182,20 @@ static func spawn(seed: int, role := "", opts := {}) -> FrontierCharacter:
 	return spawn_id(id, o)
 
 
+## Phase timings (ms) of the last spawn_id call: scene (load/build the look), instantiate, materials, setup.
+static var last_spawn_ms := {}
+
+
 static func spawn_id(id: String, opts := {}) -> FrontierCharacter:
 	var info := _info(id)
 	if info.is_empty():
 		push_warning("CharacterFactory: unknown character " + id)
 		return null
+	var t0 := Time.get_ticks_usec()
 	var scene := _scene(id, info)
 	if scene == null:
 		return null
+	var t1 := Time.get_ticks_usec()
 	var model: Node3D = scene.instantiate()
 	model.name = "Model"
 	var ch := FrontierCharacter.new()
@@ -197,25 +203,64 @@ static func spawn_id(id: String, opts := {}) -> FrontierCharacter:
 	ch.character_id = id
 	ch.info = info
 	ch.add_child(model)
+	var t2 := Time.get_ticks_usec()
 	if _materials == null:
 		_materials = CharacterMaterials.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(id + ":" + str(opts.get("variant_seed", 0)))
 	_materials.apply(model, info, rng, opts)
-	ch.setup(model, animation_library(), opts)
+	var t3 := Time.get_ticks_usec()
+	ch.setup(model, animation_library_if_ready() if not opts.get("block_anims", false) else animation_library(), opts)
+	var t4 := Time.get_ticks_usec()
+	last_spawn_ms = {"scene": (t1 - t0) / 1000.0, "instantiate": (t2 - t1) / 1000.0, "materials": (t3 - t2) / 1000.0,
+		"setup": (t4 - t3) / 1000.0, "total": (t4 - t0) / 1000.0}
 	return ch
 
 
-static func animation_library() -> AnimationLibrary:
+static var _anim_loading := false
+
+
+## The shared clip library if it is already loaded, else null (and a background load is started). Spawns use this so
+## the first townsfolk never wait on animations.glb on the main thread; FrontierCharacter attaches the library when
+## it arrives.
+static func animation_library_if_ready() -> AnimationLibrary:
 	_mutex.lock()
-	var have := _anim_lib != null
+	var lib := _anim_lib
+	var loading := _anim_loading
+	if lib == null and not loading:
+		_anim_loading = true
 	_mutex.unlock()
-	if have:
-		return _anim_lib
+	if lib == null and not loading:
+		_task_ids.append(WorkerThreadPool.add_task(func(): animation_library(), false, "character anims"))
+	return lib
+
+
+static var _anim_loader := false   # someone is inside _load_anim_library
+
+
+## Blocking: the shared clip library, loading it here if no other thread is (else waits for that load).
+static func animation_library() -> AnimationLibrary:
+	while true:
+		_mutex.lock()
+		var have := _anim_lib != null
+		var busy := _anim_loader
+		if not have and not busy:
+			_anim_loader = true
+		_mutex.unlock()
+		if have:
+			return _anim_lib
+		if not busy:
+			break
+		OS.delay_msec(2)
+	var tl := Time.get_ticks_msec()
 	var lib := _load_anim_library()
+	print("characters: animation library (%d clips) in %d ms on %s" % [lib.get_animation_list().size() if lib else 0,
+		Time.get_ticks_msec() - tl, "main thread" if OS.get_thread_caller_id() == OS.get_main_thread_id() else "a worker"])
 	_mutex.lock()
 	if _anim_lib == null:
 		_anim_lib = lib
+	_anim_loader = false
+	_anim_loading = false
 	_mutex.unlock()
 	return _anim_lib
 
@@ -272,6 +317,10 @@ static func _scene(id: String, info: Dictionary) -> PackedScene:
 
 static func _build_scene(id: String, info: Dictionary) -> PackedScene:
 	var path := asset_dir().path_join(str(info.get("file", id + ".glb")))
+	if ResourceLoader.exists(path):
+		var res = load(path)
+		if res is PackedScene and not _has_anim_player(res):
+			return res     # the imported scene as is: no instantiate + re-pack (half the cold-spawn cost)
 	var root := _load_glb(path)
 	if root == null:
 		push_warning("CharacterFactory: cannot load " + path)
@@ -285,6 +334,14 @@ static func _build_scene(id: String, info: Dictionary) -> PackedScene:
 	ps.pack(root)
 	root.free()
 	return ps
+
+
+static func _has_anim_player(ps: PackedScene) -> bool:
+	var st := ps.get_state()
+	for i in st.get_node_count():
+		if st.get_node_type(i) == &"AnimationPlayer":
+			return true
+	return false
 
 
 static func _load_glb(path: String) -> Node:

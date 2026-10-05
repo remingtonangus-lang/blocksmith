@@ -298,7 +298,10 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	if mx > 0.0:
 		c = Color(c.r / mx, c.g / mx, c.b / mx)
 	sun.light_color = c.lerp(Color(0.85, 0.88, 0.95), cover * 0.6)
-	sun.light_energy = 3.6 * sun_up * clampf(cloud_block, 0.08, 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
+	# under a closed rain/storm deck the light is diffuse: direct sun nearly gone and its shadows faint
+	var deck := smoothstep(0.85, 1.0, cover) * smoothstep(0.3, 0.8, dark)
+	sun.light_energy = 3.6 * sun_up * clampf(cloud_block, 0.08 * (1.0 - deck), 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
+	sun.shadow_opacity = 1.0 - deck * 0.75
 	sun.visible = sun.light_energy > 0.001
 	var phase_lit := 1.0 - absf(moon_phase() * 2.0 - 1.0)
 	var moon_up := smoothstep(-0.02, 0.1, md.y) * (1.0 - sun_up)

@@ -6,6 +6,57 @@ extends Node3D
 
 const CELL := 128.0
 const RANGE := 260.0
+const MAX_TRIS := 2000           # photogrammetry scans run 10k-100k triangles: draw from their generated LOD chain
+const MAX_TRIS_SMALL := 700      # ground plants (no collision), seen from closer and in far larger numbers
+const SMALL_RANGE := 60.0
+const BIG_RANGE := 200.0
+
+## Mesh with the same vertices but its first generated LOD (from the importer) at or under max_tris as the base
+## index buffer, keeping the coarser LODs for automatic distance selection. Normal maps carry the scanned detail,
+## so a 66k-triangle boulder at 3-4k reads the same from a few metres and costs a twentieth in every pass.
+static func _reduced(mesh: Mesh, max_tris: int) -> Mesh:
+	var out := ArrayMesh.new()
+	var changed := false
+	for si in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(si)
+		var mat := mesh.surface_get_material(si)
+		var sd: Dictionary = RenderingServer.mesh_get_surface(mesh.get_rid(), si)
+		var lods: Array = sd.get("lods", [])
+		var vcount: int = int(sd.get("vertex_count", 0))
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var pick := -1
+		if idx.size() / 3 > max_tris:
+			for li in lods.size():
+				var bytes: PackedByteArray = lods[li].index_data
+				var n := bytes.size() / (2 if vcount <= 65535 else 4)
+				pick = li
+				if n / 3 <= max_tris:
+					break
+		var extra := {}
+		if pick >= 0:
+			arrays[Mesh.ARRAY_INDEX] = _decode_indices(lods[pick].index_data, vcount)
+			for li in range(pick + 1, lods.size()):
+				extra[float(lods[li].edge_length)] = _decode_indices(lods[li].index_data, vcount)
+			changed = true
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], extra)
+		out.surface_set_material(si, mat)
+	return out if changed else mesh
+
+static func _tris(m: Mesh) -> int:
+	var n := 0
+	for si in m.get_surface_count():
+		n += m.surface_get_array_index_len(si) / 3
+	return n
+
+static func _decode_indices(bytes: PackedByteArray, vcount: int) -> PackedInt32Array:
+	if vcount > 65535:
+		return bytes.to_int32_array()
+	var n := bytes.size() / 2
+	var out := PackedInt32Array()
+	out.resize(n)
+	for i in n:
+		out[i] = bytes.decode_u16(i * 2)
+	return out
 
 ## model id -> rules. weight per m² baseline, where (biome/slope/water/forest), scale range, collision radius factor.
 const MODELS := {
@@ -42,6 +93,8 @@ var _t := 0.0
 func setup(w: WorldData, cam: Camera3D) -> void:
 	world = w
 	camera = cam
+	var tris_in := 0
+	var tris_out := 0
 	for id in MODELS.keys():
 		var path := "res://assets/ext/nature/%s/%s.gltf" % [id, id]
 		if not ResourceLoader.exists(path):
@@ -62,11 +115,14 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 						var d: StandardMaterial3D = m.duplicate()
 						d.albedo_color = d.albedo_color * Color(0.74, 0.71, 0.66)
 						mesh.surface_set_material(si, d)
+			tris_in += _tris(mesh)
+			mesh = _reduced(mesh, MAX_TRIS_SMALL if float(MODELS[id].coll) == 0.0 else MAX_TRIS)
+			tris_out += _tris(mesh)
 			_meshes[id] = mesh
 			var a: AABB = mi.mesh.get_aabb()
 			_radius[id] = maxf(a.size.x, a.size.z) * 0.5
 		inst.free()
-	print("scatter: %d CC0 models" % _meshes.size())
+	print("scatter: %d CC0 models, %.0fk -> %.0fk triangles" % [_meshes.size(), tris_in / 1000.0, tris_out / 1000.0])
 
 func _first_mesh(n: Node) -> MeshInstance3D:
 	if n is MeshInstance3D:
@@ -224,7 +280,7 @@ func _instantiate(res: Dictionary) -> Node3D:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		var small: bool = float(rule.coll) == 0.0
-		mmi.visibility_range_end = 90.0 if small else RANGE
+		mmi.visibility_range_end = SMALL_RANGE if small else BIG_RANGE
 		mmi.visibility_range_end_margin = 10.0
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if small else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		node.add_child(mmi)

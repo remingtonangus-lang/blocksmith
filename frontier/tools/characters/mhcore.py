@@ -62,6 +62,22 @@ FACE_SHAPES = {
 for v in ("sil", "PP", "FF", "TH", "DD", "kk", "CH", "SS", "nn", "RR", "aa", "E", "I", "O", "U"):
     FACE_SHAPES["vis_" + v] = [("viseme_" + v, 1.0)]
 
+
+
+def merged_face_shapes():
+    """NPC set: left/right pairs (blink, squint, wide, smile, sneer, look_up, look_down) merged into one symmetric
+    shape each (37 -> 30 shapes; FrontierCharacter drives "<name>" with max(<name>_L, <name>_R))."""
+    out = {}
+    for name, parts in FACE_SHAPES.items():
+        if name.endswith("_R") and name[:-2] + "_L" in FACE_SHAPES:
+            continue
+        if name.endswith("_L") and name[:-2] + "_R" in FACE_SHAPES:
+            out[name[:-2]] = parts + FACE_SHAPES[name[:-2] + "_R"]
+        else:
+            out[name] = parts
+    return out
+
+
 HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes", "beard", "cornea")
 
 

@@ -238,6 +238,7 @@ func _build_visual() -> void:
 	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
 	if factory != null and factory.available():
 		visual = factory.spawn_id("ruth_caddell")
+		HumanFootIK.attach.call_deferred(self)   # feet meet slopes, steps and porches
 	if visual == null:
 		visual = Node3D.new()
 		var body := MeshInstance3D.new()

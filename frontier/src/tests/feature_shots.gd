@@ -4,7 +4,7 @@ extends Node
 ## renders, saves DIR/<name>.png and cleans up after itself.
 
 const LIST := ["town_hud", "face_closeup", "gunfight_nerve", "riding", "wildlife", "camp_night", "dialogue",
-	"map", "journal", "shop", "poker", "satchel", "weapon_wheel"]
+	"map", "journal", "shop", "poker", "satchel", "weapon_wheel", "mission_talk", "results_card"]
 ## With --vr_sim the run takes the VR view instead: head camera, HUD/menu sheets, hands, guns (src/tests/vr_shots.gd).
 const VR_LIST := ["vr_hud", "vr_menu", "vr_comfort", "vr_hands", "vr_body", "vr_gun_aim", "vr_fire", "vr_two_hand", "vr_reload",
 	"vr_bolt", "vr_pump", "vr_nerve", "vr_riding",
@@ -175,7 +175,7 @@ func _wildlife() -> void:
 	var p := _place(900.0, 1700.0, 80.0, 8.5)
 	for i in 6:
 		var sp := "mule_deer" if i < 4 else "pronghorn"
-		var a := Animal.spawn(main, _ahead(p, 80.0, 22.0 + i * 2.5, -7.0 + i * 3.0), sp, 40 + i)
+		var a := Animal.spawn(main, _ahead(p, 80.0, 9.0 + i * 1.8, -4.5 + i * 1.8), sp, 40 + i)
 		_spawned.append(a)
 	await _settle(60)
 
@@ -193,6 +193,41 @@ func _dialogue() -> void:
 	md.cine_begin()
 	md.say("c1_drv_10" if md.dialogue.has("c1_drv_10") else md.dialogue.keys()[10], hap)
 	await _settle(40)
+
+## A stranger's talk mid-scene through the conversation camera: two-shot, then a cut to over Ruth's shoulder onto
+## Silas Wren (letterbox, shallow focus on Forward+, the pair facing each other).
+func _mission_talk() -> void:
+	var cp: Dictionary = Game.world.poi("trapper_cabin_n")
+	var p := _place(cp.x + 8.0, cp.z + 9.0, 0.0, 17.6)
+	var wren := _human(_ahead(p, 0.0, 2.4, 0.4), {"seed": 9501, "role": "prospector", "faction": "civilian", "name": "Silas Wren"})
+	await _settle(20)
+	var md = Game.missions
+	md.cine_begin()
+	var line_a: String = "s_comet_01" if md.dialogue.has("s_comet_01") else md.dialogue.keys()[0]
+	md.say_async(line_a, wren)
+	await _settle(30)
+	md.say_async("s_comet_02" if md.dialogue.has("s_comet_02") else line_a, Game.player)
+	await _settle(30)
+	md.say_async("s_comet_03" if md.dialogue.has("s_comet_03") else line_a, wren)
+	await _settle(45)
+
+## The results card at the end of a main mission: time, accuracy, head shots, the optional objectives and a medal.
+func _results_card() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x, c.z + 30.0, 180.0, 17.0)
+	await _settle(15)
+	var pres = Game.get_meta("presentation") if Game.has_meta("presentation") else null
+	if pres == null:
+		return
+	var r: Dictionary = pres.rate("c3_fork", {"time": 431.0, "shots": 23, "hits": 15, "headshots": 4, "damage": 38.0, "civilians": 0},
+		{"fork_quiet": true, "cutter_fate": "jailed"})
+	r["title"] = "The Dry Fork"
+	var cl := CanvasLayer.new()
+	cl.layer = 14
+	add_child(cl)
+	cl.add_child(pres.results_panel(r))
+	_spawned.append(cl)
+	await _settle(10)
 
 func _map() -> void:
 	_place(_town("bitter_spring").x, _town("bitter_spring").z, 0.0, 12.0)

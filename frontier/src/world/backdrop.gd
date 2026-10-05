@@ -7,13 +7,15 @@ extends MeshInstance3D
 
 const OUTER := 32000.0
 
+var _task := -1
+
 func build(world: WorldData) -> void:
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/backdrop.gdshader")
 	mat.set_shader_parameter("map_half", world.size_m * 0.5)
 	material_override = mat
-	WorkerThreadPool.add_task(func():
+	_task = WorkerThreadPool.add_task(func():
 		var arrays := _arrays(world)
 		_finish.call_deferred(arrays), false, "backdrop")
 
@@ -105,3 +107,9 @@ func _arrays(world: WorldData) -> Array:
 	arr[Mesh.ARRAY_VERTEX] = v
 	arr[Mesh.ARRAY_NORMAL] = nrm
 	return arr
+
+## A worker still running when the engine tears down aborts the process (seen at exit on CI): wait for it.
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1

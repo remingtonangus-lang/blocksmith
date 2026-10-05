@@ -37,6 +37,16 @@ static func run(runner: Node) -> Dictionary:
 	await _frames(2)
 	if tree.paused:
 		_fail(res, "game still paused with every menu closed")
+	# prompts follow the device: keyboard key vs pad button for Interact
+	var was_pad := Accessibility.last_pad
+	Accessibility.last_pad = false
+	var kb := InputGlyphs.sub("[E]  Talk")
+	Accessibility.last_pad = true
+	var pad := InputGlyphs.sub("[E]  Talk")
+	Accessibility.last_pad = was_pad
+	res.checks["glyphs"] = [kb, pad]
+	if kb != "[E]  Talk" or pad != "[Y]  Talk":
+		_fail(res, "prompt glyphs wrong: keyboard '%s', pad '%s'" % [kb, pad])
 	menus.settings = saved
 	menus.apply_settings()
 	res.checks["screens"] = visited

@@ -27,13 +27,16 @@ signal town_built(id: String)
 const CELL := 128.0
 const EXT_RANGE := 520.0
 const FAR_BEGIN := 480.0
-const INT_RANGE := 110.0
-const OPROP_RANGE := 160.0
-const DOOR_RANGE := 250.0
+const INT_RANGE := 45.0          # per building (backstop; _interiors() shows them only within INT_NEAR)
+const INT_NEAR := 9.0
+const OPROP_RANGE := 140.0
+const DOOR_RANGE := 120.0         # + town radius (one MultiMesh per door mesh per town)
 const LIGHT_CULL := 140.0
 const BUILD_DIST := 750.0
 const NAV_CHUNK := 64.0
 const NAV_AUTO_DIST := 350.0
+const NAV_PARALLEL := 3
+const UNLOAD_DIST := 1200.0      # beyond radius + this, a built settlement drops its detail (rebuilt on return)
 
 var world: WorldData
 var towns := {}
@@ -45,6 +48,7 @@ var _lights: Array = []          # [OmniLight3D, base_energy, kind, phase, alway
 var _spinners: Array = []        # [Node3D, axis, speed]
 var _night := -1.0
 var _timer := 0.0
+var _int_timer := 0.0
 var _door_meshes := {}
 var _door_mutex := Mutex.new()
 var _task := -1
@@ -55,17 +59,20 @@ func setup(w: WorldData, _b = null) -> void:
 	world = w
 	if Game.args.has("no_settlements") or Game.disabled("settlements"):        # perf A/B comparisons
 		return
+	mem("settlements start")
 	var t0 := Time.get_ticks_msec()
 	TownProps.preload_all()
 	TownMats.get_all()
 	for fnt in ["Rye", "OldStandard-Bold", "Sancreek-Regular", "OldStandard-Regular"]:
 		SignText.atlas(fnt)
 	var t1 := Time.get_ticks_msec()
+	mem("props+mats+atlases")
 	for f in world.features.get("towns", []):
 		_plan_settlement(f, true)
 	for f in world.features.get("pois", []):
 		_plan_settlement(f, false)
 	_upload_control()
+	mem("plans+far shells")
 	var t2 := Time.get_ticks_msec()
 	# the player starts at Bitter Spring (or --spawn): have that settlement ready at once
 	if not (Game.args.has("shot") or Game.args.has("tour")):
@@ -77,12 +84,31 @@ func setup(w: WorldData, _b = null) -> void:
 			if _dist_to(towns[id], sp) < 0.0:
 				ensure_built(id)
 	_update_lights(true)
+	# the main line between the settlements (their own station track covers radius + 60 m)
+	var skip := []
+	for id in towns:
+		for spec in towns[id].plan.specs:
+			if str(spec.get("type", "")) == "track":
+				skip.append({"x": towns[id].center.x, "z": towns[id].center.z, "r": towns[id].radius + 60.0})
+				break
+	var rl = load("res://src/world/rail_line.gd").new()
+	rl.name = "RailLine"
+	add_child(rl)
+	rl.setup(world, skip)
 	print("settlements: %d planned (atlases %d ms, plans %d ms), %d built at boot, %d ms total" % [towns.size(), t1 - t0, t2 - t1,
 		stats.built, Time.get_ticks_msec() - t0])
 	if Game.args.has("settlements_test"):
 		_self_test()
+	elif Game.args.has("memtest"):
+		_mem_test()
 
 # ------------------------------------------------------------------------------------------------ planning
+
+## Memory probe (--memlog / --memtest): static memory in use.
+static func mem(label: String) -> void:
+	if not Game.args.has("memlog"):
+		return
+	print("MEMLOG %-28s static %5d MB" % [label, int(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0)])
 
 func _plan_settlement(f: Dictionary, is_town: bool) -> void:
 	var plan: Dictionary = TownLayout.new().make(world, f, is_town)
@@ -268,11 +294,13 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		var ck := _cell_key(spec.xf.origin)
 		if not ext.has(ck):
 			ext[ck] = MeshKit.new()
-			inn[ck] = MeshKit.new()
-			props[ck] = {}
 			oprops[ck] = {}
+		# interiors per building (culled at INT_RANGE from the building, seen only through doors and windows)
+		var bk: String = spec.id
+		inn[bk] = MeshKit.new()
+		props[bk] = {}
 		var t1 := Time.get_ticks_usec()
-		var rec: Dictionary = kit.build(spec, {"ext": ext[ck], "inn": inn[ck], "far": far, "props": props[ck], "oprops": oprops[ck]})
+		var rec: Dictionary = kit.build(spec, {"ext": ext[ck], "inn": inn[bk], "far": far, "props": props[bk], "oprops": oprops[ck]})
 		var key := "build:" + str(spec.get("style", ""))
 		tp[key] = tp.get(key, 0) + Time.get_ticks_usec() - t1
 		rec["cell"] = ck
@@ -289,21 +317,23 @@ func _prepare(plan: Dictionary) -> Dictionary:
 			ext_tris += ek.tris
 			meshes.append(["Ext_%d_%d" % [ck.x, ck.y], ek.commit(mats, plain), 0.0, EXT_RANGE, false])
 			meshes.append(["ExtShadow_%d_%d" % [ck.x, ck.y], ek.commit_shadow(["glass", "water", "lamp", "fire"]), 0.0, EXT_RANGE, true])
-		var ik: MeshKit = inn[ck]
+	for bk in inn:
+		var ik: MeshKit = inn[bk]
 		if not ik.is_empty():
 			int_tris += ik.tris
-			meshes.append(["Int_%d_%d" % [ck.x, ck.y], ik.commit(mats, plain), 0.0, INT_RANGE, false])
+			meshes.append(["Int_" + str(bk).get_file(), ik.commit(mats, plain), 0.0, INT_RANGE, false])
 	var mms := []
-	for ck in props:
-		_multimesh_list(mms, props[ck], "IP_%d_%d" % [ck.x, ck.y], INT_RANGE, false)
-		_multimesh_list(mms, oprops[ck], "OP_%d_%d" % [ck.x, ck.y], OPROP_RANGE, true)
+	for bk in props:
+		_multimesh_list(mms, props[bk], "IP_" + str(bk).get_file(), INT_RANGE, false)
+	for ck in oprops:
+		_multimesh_list(mms, oprops[ck], "OP_%d_%d" % [ck.x, ck.y], OPROP_RANGE, false)   # small: no shadow passes
 	# door leaves: MultiMesh per (cell, mesh)
 	var groups := {}
 	for rec in recs:
 		for dsp in rec.doors:
 			for leaf in dsp.leaves:
 				var mesh := _door_mesh(dsp.style, leaf.w, dsp.h, leaf.sign, dsp.col)
-				var key := "%s|%d" % [str(rec.cell), mesh.get_rid().get_id()]
+				var key := str(mesh.get_rid().get_id())       # one MultiMesh per door mesh for the whole town
 				if not groups.has(key):
 					groups[key] = {"mesh": mesh, "items": []}
 				groups[key].items.append([dsp, leaf])
@@ -312,6 +342,7 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		var g: Dictionary = groups[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
 		mm.mesh = g.mesh
 		mm.instance_count = g.items.size()
 		for i in g.items.size():
@@ -319,6 +350,9 @@ func _prepare(plan: Dictionary) -> Dictionary:
 			var hx: Transform3D = leaf2.hinge
 			hx.origin.y += g.items[i][0].get("bottom", 0.0)
 			mm.set_instance_transform(i, hx)
+			var dc: Color = g.items[i][0].col
+			var plank: bool = str(g.items[i][0].style) in ["plank", "outhouse"]
+			mm.set_instance_custom_data(i, Color(1, 1, 1, 0) if plank else Color(dc.r, dc.g, dc.b, 1.0))
 		door_mms.append([mm, g.items])
 	var spinners := []
 	for rec in recs:
@@ -430,7 +464,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 		var mm: MultiMesh = dm[0]
 		var mmi2 := MultiMeshInstance3D.new()
 		mmi2.multimesh = mm
-		mmi2.visibility_range_end = DOOR_RANGE
+		mmi2.visibility_range_end = DOOR_RANGE + float(t.radius)
 		mmi2.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		mmi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi2.name = "Doors"
@@ -467,9 +501,23 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			hp.transform = sp.transform
 			hp.add_to_group("hitching_post")
 			root.add_child(hp)
+	# interiors per building: shown only while the camera is inside or within INT_NEAR of the footprint
+	var by_num := {}
+	for bid0 in t.buildings:
+		by_num[str(bid0).get_file().get_slice("_", 0)] = bid0
+	for n in root.get_children():
+		var nm := str(n.name)
+		if nm.begins_with("Int_") or nm.begins_with("IP_"):
+			var bid: String = by_num.get(nm.get_slice("_", 1), "")
+			if buildings.has(bid):
+				if not buildings[bid].has("int_nodes"):
+					buildings[bid]["int_nodes"] = []
+				buildings[bid].int_nodes.append(n)
+				n.visible = false
 	t.node.add_child(root)
 	t.detail = root
 	t.state = "built"
+	t["keep_until"] = Time.get_ticks_msec() + 180000     # built on demand (missions, places.gd): keep a while
 	stats.built += 1
 	stats.ext_tris += res.ext_tris
 	stats.int_tris += res.int_tris
@@ -478,8 +526,9 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	for k in p:
 		prof[k] = prof.get(k, 0) + p[k]
 	_update_lights(true)
-	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
-		res.ext_tris / 1000, res.int_tris / 1000, surfaces, p.total / 1000, p.commit / 1000, p.attach / 1000])
+	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), %d door meshes, build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
+		res.ext_tris / 1000, res.int_tris / 1000, surfaces, res.doors.size(), p.total / 1000, p.commit / 1000, p.attach / 1000])
+	mem("built " + str(t.id))
 	town_built.emit(str(t.id))
 
 func _mesh_node(mesh: ArrayMesh, nm: String, begin: float, end: float, shadow: int) -> MeshInstance3D:
@@ -506,6 +555,11 @@ func _stream() -> void:
 	if cam == null:
 		return
 	var cp := cam.global_position
+	for id in towns:
+		var tu: Dictionary = towns[id]
+		if tu.state == "built" and tu.nav_state != "baking" and _dist_to(tu, cp) > UNLOAD_DIST - BUILD_DIST \
+				and Time.get_ticks_msec() > int(tu.get("keep_until", 0)) and not Game.args.has("settlements_test"):
+			unload(id)
 	var best := ""
 	var bd := 0.0
 	for id in towns:
@@ -536,6 +590,36 @@ func _finish_task(block: bool) -> void:
 	_attach(t, _task_result)
 	_task_result = {}
 
+## Drop a built settlement's detail (meshes, props, colliders, doors, lights, navmesh, spot records); the plan,
+## far shell and ground paint stay, and the town is rebuilt from the plan when Ruth comes back.
+func unload(id: String) -> void:
+	var t: Dictionary = towns.get(id, {})
+	if t.is_empty() or t.state != "built" or t.detail == null:
+		return
+	var root: Node3D = t.detail
+	_lights = _lights.filter(func(l): return is_instance_valid(l[0]) and not root.is_ancestor_of(l[0]))
+	_spinners = _spinners.filter(func(sp): return is_instance_valid(sp[0]) and not root.is_ancestor_of(sp[0]))
+	for did in t.doors:
+		doors.erase(did)
+	for bid in t.buildings:
+		buildings.erase(bid)
+	for n in t.nav_regions + t.get("nav_links", []):
+		if is_instance_valid(n):
+			n.queue_free()
+	root.queue_free()
+	t.detail = null
+	t.buildings = []
+	t.doors = []
+	t.spots = []
+	t.nav_regions = []
+	t["nav_links"] = []
+	t.nav_state = "none"
+	t.state = "far"
+	stats.built -= 1
+	if Game.population and Game.population.has_method("forget_town"):
+		Game.population.forget_town(id)
+	print("settlements: unloaded %s" % id)
+
 ## Screenshot/bot hook: build (blocking) every settlement within range of the current camera.
 func settle_now() -> void:
 	_finish_task(true)
@@ -548,9 +632,11 @@ func settle_now() -> void:
 
 # ------------------------------------------------------------------------------------------------ doors
 
-func _door_mesh(style: String, w: float, h: float, sgn: float, col: Color) -> ArrayMesh:
-	var ci := int(col.r * 4.0) * 25 + int(col.g * 4.0) * 5 + int(col.b * 4.0)
-	var key := "%s_%.2f_%.2f_%d_%d" % [style, w, h, int(sgn), ci]
+## Door leaf mesh, uncoloured: the paint colour is MultiMesh instance custom data (building.gdshader), so every door
+## of a style and size shares one mesh and one MultiMesh per town.
+func _door_mesh(style: String, w: float, h: float, sgn: float, _col: Color) -> ArrayMesh:
+	var col := Color.WHITE
+	var key := "%s_%.2f_%.2f_%d" % [style, snappedf(w, 0.05), snappedf(h, 0.05), int(sgn)]
 	_door_mutex.lock()
 	var cached = _door_meshes.get(key)
 	_door_mutex.unlock()
@@ -650,6 +736,10 @@ func _process(dt: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
+	_int_timer -= dt
+	if _int_timer <= 0.0:
+		_int_timer = 0.2
+		_interiors(cam.global_position)
 	var cp := cam.global_position
 	var tt := Time.get_ticks_msec() * 0.001
 	for l in _lights:
@@ -662,6 +752,38 @@ func _process(dt: float) -> void:
 		var n: Node3D = s[0]
 		if n.global_position.distance_squared_to(cp) < 250000.0:
 			n.rotate_object_local(s[1], s[2] * dt)
+
+## Interior meshes and props of a building draw only while the camera is inside it or within INT_NEAR of its
+## footprint (looking in through the door or a window); everything else in town is shell only.
+func _interiors(cp: Vector3) -> void:
+	for id in towns:
+		var t: Dictionary = towns[id]
+		if t.state != "built":
+			continue
+		var tc: Vector3 = t.center
+		var near_town: bool = Vector2(cp.x - tc.x, cp.z - tc.z).length() < float(t.radius) + 60.0
+		for bid in t.buildings:
+			var b: Dictionary = buildings[bid]
+			if not b.has("int_nodes"):
+				continue
+			var vis := false
+			if near_town:
+				var l: Vector3 = b.transform.affine_inverse() * cp
+				var sz: Vector3 = b.size
+				var dx := maxf(absf(l.x) - sz.x * 0.5, 0.0)
+				var dz := maxf(maxf(-l.z, l.z - sz.z), 0.0)
+				vis = dx * dx + dz * dz < INT_NEAR * INT_NEAR and absf(l.y) < 12.0
+			if b.get("int_vis", false) != vis:
+				b["int_vis"] = vis
+				for n in b.int_nodes:
+					if is_instance_valid(n):
+						n.visible = vis
+
+## Never leave a worker task running at teardown (an unwaited task aborts the process on exit).
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
 
 func night_factor() -> float:
 	var sky = Game.sky
@@ -916,23 +1038,77 @@ func bake_navigation(town_id: String) -> void:
 				continue
 			# the bake area includes the border that Recast trims, so neighbouring chunks meet edge to edge
 			jobs.append(AABB(Vector3(x0 - 1.0, c.y - 40.0, z0 - 1.0), Vector3(NAV_CHUNK + 2.0, 80.0, NAV_CHUNK + 2.0)))
+	# doorways: a two-way NavigationLink3D from 0.9 m outside to 0.9 m inside every door (narrow, often oblique
+	# openings don't survive voxelisation at agent radius 0.25 reliably; links make every room reachable)
+	var links := 0
+	for bid in t.buildings:
+		var b: Dictionary = buildings[bid]
+		if str(b.type) == "outhouse":
+			continue
+		for dsp in b.get("door_specs", []):
+			if not dsp.has("outside"):
+				continue
+			var ln := NavigationLink3D.new()
+			ln.name = "DoorLink"
+			ln.bidirectional = true
+			ln.start_position = dsp.outside + Vector3(0, 0.05, 0)
+			ln.end_position = dsp.inside + Vector3(0, 0.05, 0)
+			t.node.add_child(ln)
+			t["nav_links"] = t.get("nav_links", []) + [ln]
+			links += 1
+	t["links"] = links
 	t["nav_jobs"] = jobs.size()
 	t["nav_done"] = 0
 	t["nav_t0"] = Time.get_ticks_msec()
-	for box in jobs:
-		var nm := NavigationMesh.new()
-		nm.cell_size = 0.25
-		nm.cell_height = 0.25
-		nm.agent_radius = 0.25
-		nm.agent_height = 1.75
-		nm.agent_max_climb = 0.25
-		nm.agent_max_slope = 38.0
-		nm.border_size = 1.0
-		nm.filter_baking_aabb = box
-		nm.region_min_size = 4.0
+	# at most NAV_PARALLEL chunks in flight (each bake holds its own voxel field: memory, and cores for the game)
+	t["nav_queue"] = jobs
+	t["nav_src"] = src
+	for i in mini(NAV_PARALLEL, jobs.size()):
+		_nav_next(t)
+
+## Blocking bake of a town's navmesh on the calling thread (screenshots with a slow frame rate, tests).
+func bake_navigation_now(town_id: String) -> void:
+	var t: Dictionary = towns.get(town_id, {})
+	if t.is_empty():
+		return
+	if t.nav_state == "none":
+		bake_navigation(town_id)
+	var q: Array = t.get("nav_queue", [])
+	t["nav_sync"] = true
+	while not q.is_empty():
+		var nm := _nav_mesh_for(q.pop_front())
+		NavigationServer3D.bake_from_source_geometry_data(nm, t.nav_src)
+		_nav_chunk_done(t, nm)
+	t["nav_sync"] = false
+
+func _nav_mesh_for(box: AABB) -> NavigationMesh:
+	var nm := NavigationMesh.new()
+	nm.cell_size = 0.25
+	nm.cell_height = 0.25
+	nm.agent_radius = 0.25
+	nm.agent_height = 1.75
+	nm.agent_max_climb = 0.25
+	nm.agent_max_slope = 38.0
+	nm.border_size = 1.0
+	nm.filter_baking_aabb = box
+	nm.region_min_size = 4.0
+	return nm
+
+func _nav_next(t: Dictionary) -> void:
+	var q: Array = t.get("nav_queue", [])
+	if q.is_empty() or t.state != "built":
+		return
+	var box: AABB = q.pop_front()
+	var src: NavigationMeshSourceGeometryData3D = t.nav_src
+	if true:
+		var nm := _nav_mesh_for(box)
 		NavigationServer3D.bake_from_source_geometry_data_async(nm, src, func(): _nav_chunk_done.call_deferred(t, nm))
 
 func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
+	if t.state != "built":
+		return
+	if not t.get("nav_sync", false):
+		_nav_next(t)
 	if nm.get_polygon_count() > 0:
 		var reg := NavigationRegion3D.new()
 		reg.name = "Nav"
@@ -942,6 +1118,8 @@ func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
 	t.nav_done += 1
 	if t.nav_done >= t.nav_jobs:
 		t.nav_state = "ready"
+		t.erase("nav_src")
+		mem("navmesh " + str(t.id))
 		print("settlements: navigation for %s baked in %d chunks, %d ms" % [t.id, t.nav_jobs, Time.get_ticks_msec() - t.nav_t0])
 
 func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void:
@@ -964,6 +1142,62 @@ func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void
 			var d := Vector3(x, world.height(x, z + step), z + step)
 			faces.append_array(PackedVector3Array([a, b, cc, a, cc, d]))     # Godot winding (clockwise from above)
 	src.add_faces(faces, Transform3D.IDENTITY)
+
+## --memtest: clean before/after memory deltas for building, baking and unloading Bitter Spring, then quit.
+func _mem_test() -> void:
+	Game.args["memlog"] = true
+	for i in 240:
+		await get_tree().process_frame
+	mem("idle after boot")
+	for id in towns.keys():
+		if towns[id].state == "built":
+			unload(id)
+	for i in 30:
+		await get_tree().process_frame
+	mem("all unloaded")
+	ensure_built("bitter_spring")
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring built")
+	bake_navigation("bitter_spring")
+	while towns["bitter_spring"].nav_state != "ready":
+		await get_tree().process_frame
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring navmesh")
+	unload("bitter_spring")
+	for i in 60:
+		await get_tree().process_frame
+	mem("bitter_spring unloaded")
+	ensure_built("bitter_spring")
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring rebuilt")
+	get_tree().quit(0)
+
+## --navcheck: every standing spot of the town must be on the navmesh and reachable from the main street.
+func _nav_check(tid: String, map_rid: RID) -> void:
+	var t: Dictionary = towns[tid]
+	var start := NavigationServer3D.map_get_closest_point(map_rid, t.center + Vector3(0, 2, 0))
+	var bad := {}
+	var total := 0
+	for sp in t.spots:
+		if sp.has("lie_height") or str(sp.type) in ["hitch", "trough", "corral", "stall", "water_tower", "balcony", "balcony_door"]:
+			continue
+		var o: Vector3 = sp.transform.origin
+		if o.y - buildings[sp.building].floor_y > 1.2:
+			continue
+		total += 1
+		var cp := NavigationServer3D.map_get_closest_point(map_rid, o + Vector3(0, 0.3, 0))
+		var path := NavigationServer3D.map_get_path(map_rid, start, o, true)
+		var end_d: float = path[path.size() - 1].distance_to(o) if path.size() > 0 else 99.0
+		var off := Vector2(cp.x - o.x, cp.z - o.z).length()
+		if off > 0.35 or end_d > 0.6:
+			var k := "%s/%s" % [str(sp.building).get_file(), sp.type]
+			bad[k] = "off %.2f end %.2f" % [off, end_d]
+	print("navcheck %s: %d of %d ground-floor spots unreachable" % [tid, bad.size(), total])
+	for k in bad:
+		print("  ", k, " ", bad[k])
 
 static func _box_faces(s: Vector3) -> PackedVector3Array:
 	var h := s * 0.5
@@ -1011,6 +1245,10 @@ func _self_test() -> void:
 				var o: Vector3 = b.transform.origin
 				var fwd: Vector3 = -b.transform.basis.z
 				print("  %-34s %8.1f %6.1f %8.1f  faces yaw %4.0f  w %.1f d %.1f" % [bid, o.x, o.y, o.z, rad_to_deg(atan2(fwd.x, -fwd.z)), b.size.x, b.size.z])
+				var sts := {}
+				for s in b.spots:
+					sts[s.type] = sts.get(s.type, 0) + 1
+				print("      role %s hours %s rooms %d spots %s" % [b.role, str(b.hours), b.rooms.size(), str(sts)])
 	var nav_town := str(Game.args.get("nav", ""))
 	if nav_town != "" and towns.has(nav_town):
 		bake_navigation(nav_town)
@@ -1030,6 +1268,8 @@ func _self_test() -> void:
 		for i in 10:
 			await get_tree().physics_frame
 		print("nav map: %d regions, iteration %d" % [NavigationServer3D.map_get_regions(map_rid).size(), NavigationServer3D.map_get_iteration_id(map_rid)])
+		if Game.args.has("navcheck"):
+			_nav_check(nav_town, map_rid)
 		var bl := spots(nav_town, "bartender")
 		var dd := spots(nav_town, "door_out")
 		if bl.size() > 0 and dd.size() > 0:

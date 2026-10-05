@@ -176,6 +176,9 @@ void sky() {
 			float t = 2200.0 / (rd.y + 0.06);
 			vec2 cp = (cloud_origin + rd.xz * t) * 0.00028 + wind_dir * cloud_time * 0.0009;
 			float dens = cloud_density(cp, cover);
+			// rain and storms close into one deck: a density floor under heavy cover, broken only by darker lumps
+			float deck = smoothstep(0.85, 1.0, cover);
+			dens = max(dens, deck * (0.82 + 0.18 * fbm2(cp * 3.0)));
 			if (dens > 0.001) {
 				// self shadow: two samples towards the sun
 				vec2 to_sun = normalize(sd.xz + 1e-4) * 0.06;
@@ -186,7 +189,11 @@ void sky() {
 				float silver = pow(max(cos_sun, 0.0), 12.0) * 2.5;
 				vec3 sun_light = trans * sun_i * 0.075 * (beer * powder * (1.0 + silver)) * smoothstep(-0.12, 0.05, sun_up);
 				vec3 moon_light = vec3(0.02, 0.025, 0.04) * moon_lum * beer * night;
+				sun_light *= 1.0 - cloud_dark * 0.85;      // a storm deck lets little direct sun through its tops
 				cloud_add = (sun_light + amb * (0.55 + 0.45 * (1.0 - dens)) + moon_light) * (1.0 - cloud_dark * 0.75);
+				// slate-grey bases under rain and storms (dense parts darkest)
+				vec3 slate = vec3(0.30, 0.32, 0.36) * dot(amb, vec3(0.333)) * (0.7 + 0.3 * (1.0 - dens));
+				cloud_add = mix(cloud_add, slate, cloud_dark * 0.55);
 				cloud_add += vec3(0.8, 0.85, 1.0) * lightning * 3.0 * dens;
 				cloud_a = dens * smoothstep(0.0, 0.12, rd.y) * (0.85 + cover * 0.15);
 			}
@@ -201,6 +208,16 @@ void sky() {
 		col = mix(col, grey, smoothstep(0.6, 1.0, cover) * 0.85);
 		col = col + behind * (1.0 - cloud_a) * (1.0 - smoothstep(0.7, 1.0, cover));
 		col = mix(col, cloud_add, cloud_a);
+		// rain/storm: one low grey deck to the horizon (no blue gaps, no sunlit tops), soft lumps for depth
+		float deck_k = smoothstep(0.85, 1.0, cover) * smoothstep(0.3, 0.8, cloud_dark);
+		if (deck_k > 0.0) {
+			vec2 dp = (cloud_origin + rd.xz * (1600.0 / (max(rd.y, 0.0) + 0.08))) * 0.00035 + wind_dir * cloud_time * 0.0012;
+			float lump = fbm2(dp) * 0.5 + 0.5;
+			float lvl = dot(zenith_col, vec3(0.333)) * 1.25 + 0.004;
+			vec3 storm_col = vec3(0.34, 0.36, 0.40) * lvl * (0.75 + 0.5 * lump) * (1.0 - cloud_dark * 0.35);
+			storm_col = mix(storm_col, storm_col * 1.25, smoothstep(0.25, 0.0, abs(rd.y)));   // paler toward the horizon
+			col = mix(col, storm_col, deck_k);
+		}
 		col += vec3(0.6, 0.65, 0.8) * lightning * 0.4;
 		COLOR = col * exposure;
 	}

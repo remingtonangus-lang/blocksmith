@@ -34,6 +34,7 @@ var music_tracks: Dictionary = {}
 var ok := false                      # manifest loaded
 var nerve_on := false
 var listener_interior := false
+var _listener_building := ""
 var interior_volumes: Array = []     # [{aabb: AABB, surface: String, reverb: float}]
 var surface_volumes: Array = []      # [{aabb: AABB, surface: String}]
 var settings := {"Master": 1.0, "Music": 0.8, "SFX": 1.0, "Ambience": 0.9, "Voice": 1.0, "UI": 0.8}
@@ -410,7 +411,23 @@ func is_interior(pos: Vector3) -> bool:
 	for v in interior_volumes:
 		if (v.aabb as AABB).has_point(pos):
 			return true
-	return false
+	return _building_at(pos) != ""
+
+## Enterable town buildings count as interiors without registering volumes (settlements.building_at).
+func _building_at(pos: Vector3) -> String:
+	var st = Game.main.get("settlements") if Game.main != null else null
+	if st == null or not st.has_method("building_at"):
+		return ""
+	return st.building_at(pos)
+
+## 0 small room (office, cabin) .. 1 big hall (saloon, depot), from the building's floor area.
+func interior_size(pos: Vector3) -> float:
+	var bid := _building_at(pos)
+	if bid == "":
+		return 0.3
+	var b: Dictionary = Game.main.settlements.get_building(bid)
+	var s: Vector3 = b.get("size", Vector3(6, 4, 8))
+	return clampf((s.x * s.z - 30.0) / 170.0, 0.0, 1.0)
 
 func surface_at(pos: Vector3) -> String:
 	return AudioSurfaces.surface_at(pos, self)
@@ -811,16 +828,23 @@ func _process_impl(dt: float) -> void:
 				i += 1
 	_update_voices(dt)
 	# interior state of the listener drives the room reverb on SFX
-	var inside := is_interior(listener_pos())
-	if inside != listener_interior:
+	var lp := listener_pos()
+	var bid_now := _building_at(lp)
+	var inside := bid_now != "" or is_interior(lp)
+	if inside != listener_interior or bid_now != _listener_building:
 		listener_interior = inside
+		_listener_building = bid_now
 		var rv = _bus_fx.get("sfx_room")
+		var big := interior_size(lp) if inside else 0.0
+		if ambience:
+			var btype := str(Game.main.settlements.get_building(bid_now).get("type", "")) if bid_now != "" else ""
+			ambience.set_room_bed("crowd_saloon" if btype.contains("saloon") else "")
 		if rv != null:
-			rv.wet = 0.22 if inside else 0.0
-			rv.room_size = 0.35 if inside else 0.6
+			rv.wet = lerpf(0.18, 0.28, big) if inside else 0.0
+			rv.room_size = lerpf(0.25, 0.5, big) if inside else 0.6
 		var rs = _bus_fx.get("send_reverb")
 		if rs != null:
-			rs.room_size = 0.45 if inside else 0.8
+			rs.room_size = lerpf(0.35, 0.6, big) if inside else 0.8
 			rs.predelay_msec = 15.0 if inside else 60.0
 
 func game_time() -> float:
