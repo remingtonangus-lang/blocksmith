@@ -191,8 +191,12 @@ extension Game {
         case .instantDamage:
             damage(6 << min(amp, 6), "was killed by magic", bypassArmor: true)
         case .saturation:
-            hunger = min(20, hunger + amp + 1)
-            saturation = min(Float(hunger), saturation + Float(2 * (amp + 1)))
+            // Once per tick of its duration (reference): a 0.35 s stew is 7 helpings, not 1.
+            let ticks = max(1, Int((seconds * 20).rounded()))
+            for _ in 0..<ticks {
+                hunger = min(20, hunger + amp + 1)
+                saturation = min(Float(hunger), saturation + Float(2 * (amp + 1)))
+            }
         default:
             if !survival && !e.beneficial && e != .badOmen && e != .raidOmen && e != .trialOmen { return }
             let hadAbsorption = effects.level(.absorption)

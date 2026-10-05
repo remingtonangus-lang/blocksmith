@@ -80,6 +80,7 @@ class Menu {
 
     // Result slot: take the crafted item.
     func takeResult(_ slot: MenuSlot) -> ItemStack? { nil }
+    func tookOutput(_ slot: MenuSlot) {}          // an .output slot was (partly) emptied by the player
 
     // Shift-click destination slots for a stack coming from `from`.
     func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
@@ -151,17 +152,20 @@ class Menu {
             return
         case .output:
             if shift {
+                let before = slot.stack.count
                 let rest = moveInto(slot.stack, quickMoveTargets(from: slot))
                 slot.stack = rest
+                if rest.count < before { tookOutput(slot) }
                 return
             }
             let s = slot.stack
             if s.isEmpty { return }
-            if carried.isEmpty { carried = s; slot.stack = .empty }
+            if carried.isEmpty { carried = s; slot.stack = .empty; tookOutput(slot) }
             else if carried.stacks(with: s) {
                 let n = min(s.count, carried.maxStack - carried.count)
                 carried.count += n
                 var ns = s; ns.count -= n; slot.stack = ns
+                if n > 0 { tookOutput(slot) }
             }
             return
         default:
@@ -390,6 +394,14 @@ final class FurnaceMenu: Menu {
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }
         return super.quickMoveTargets(from: from)
+    }
+    // The experience stored by smelting is paid out when the player takes from the output (reference; furnaces gave none).
+    override func tookOutput(_ slot: MenuSlot) {
+        guard be.xp > 0 else { return }
+        let whole = floorf(be.xp)
+        let n = Int(whole) + (Rand.float(in: 0..<1) < be.xp - whole ? 1 : 0)
+        be.xp = 0
+        if n > 0 { game.addXP(n) }
     }
 }
 

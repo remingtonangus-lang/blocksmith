@@ -105,7 +105,7 @@ extension Game {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }
             // Any piece of leather armour keeps the cold out (reference; only the boots counted).
-            let leather = inventory.armor.contains { Items.key($0.item).hasPrefix("leather_") }
+            let leather = inventory.armor.slots.contains { Items.key($0.item).hasPrefix("leather_") }
             if !leather { freeze = min(7, freeze + dt) }
         } else {
             freeze = max(0, freeze - 2 * dt)

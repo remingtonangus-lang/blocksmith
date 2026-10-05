@@ -510,7 +510,9 @@ extension Game {
             if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" ? .generic : .fire); contactTimer = 0.5 }
         }
         if onFire > 0 {
-            onFire -= dt
+            // Fire Protection: burning lasts 15 % less per level of the best piece (reference), so it runs out faster.
+            let fp = inventory.armor.slots.map { Enchant.level(.fireProtection, $0) }.max() ?? 0
+            onFire -= dt / max(0.4, 1 - 0.15 * Float(min(4, fp)))
             fireDamageTimer -= dt
             // Burning ignores armour (reference): through it, 1 a second rounded to 0 for anyone in iron and wore the armour.
             if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death", bypassArmor: true, type: .fire) }

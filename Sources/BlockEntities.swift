@@ -18,6 +18,7 @@ final class BlockEntity: Codable {
     var level = 0        // beacon: pyramid layers (0 = off)
     var secondary = ""   // beacon: secondary power (primary is kept in `mob`)
     var cooks = [0, 0, 0, 0]  // campfire: ticks left per slot
+    var xp: Float = 0         // furnace: experience stored from smelting, paid out when the output is taken
     var trial = false    // proving spawner (waves, then a reward and a 30-minute cooldown)
     var spawned = 0      // proving spawner: mobs spawned this round
     var cooldown: Float = 0
@@ -52,7 +53,7 @@ final class BlockEntity: Codable {
         if k == .frame { delay = 0 }
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks, xp }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
@@ -82,6 +83,7 @@ final class BlockEntity: Codable {
         cooldown = (try? c.decode(Float.self, forKey: .cd)) ?? 0
         spawned = (try? c.decode(Int.self, forKey: .sp)) ?? 0
         if let k = try? c.decode([Int].self, forKey: .cooks), k.count == 4 { cooks = k }
+        xp = (try? c.decode(Float.self, forKey: .xp)) ?? 0
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -102,6 +104,7 @@ final class BlockEntity: Codable {
         if cooldown != 0 { try c.encode(cooldown, forKey: .cd) }
         if spawned != 0 { try c.encode(spawned, forKey: .sp) }
         if kind == .campfire && cooks.contains(where: { $0 != 0 }) { try c.encode(cooks, forKey: .cooks) }
+        if xp > 0 { try c.encode(xp, forKey: .xp) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.
@@ -139,6 +142,7 @@ final class BlockEntity: Codable {
                 var o = c[2]
                 if o.isEmpty { o = ItemStack(out, 1) } else { o.count += 1 }
                 c[2] = o
+                xp += Recipes.smeltXP(out)
             }
         } else if cook > 0 {
             cook = max(0, cook - 2)

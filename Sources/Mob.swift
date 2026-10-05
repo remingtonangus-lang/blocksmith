@@ -1805,6 +1805,7 @@ final class MobManager {
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
+    var phantomTimer: Float = 60                  // seconds to the next nightwing check (Spawning.swift)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)

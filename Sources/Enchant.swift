@@ -385,7 +385,14 @@ enum Enchant {
         if sh > 0 { b += 0.5 * Float(sh) + 0.5 }
         if m.undead { b += 2.5 * Float(level(.smite, s)) }
         if m.arthropod { b += 2.5 * Float(level(.baneOfArthropods, s)) }
+        if Enchant.aquatic(m) { b += 2.5 * Float(level(.impaling, s)) }        // a trident in hand impales too
         return b
+    }
+
+    // Impaling targets (Java list: water animals and guardians; drowned are undead, not aquatic).
+    static func aquatic(_ m: Mob) -> Bool {
+        ["guardian", "elder_guardian", "squid", "glow_squid", "dolphin", "turtle", "axolotl", "cod", "salmon", "pufferfish",
+         "tropical_fish"].contains(m.kind.key)
     }
 
     // Protection points (EPF) from all worn armor for a damage type (capped at 20, 4% each).
