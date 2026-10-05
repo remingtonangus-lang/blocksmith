@@ -516,6 +516,71 @@ func _build_cells() -> void:
 		occ.occluder = box
 		occ.transform = (b["xf"] as Transform3D) * Transform3D(Basis.IDENTITY, Vector3(0, b["h"] * 0.45, 0))
 		add_child(occ)
+		b["occ"] = occ
+
+
+## Rebuilds a cell's mesh in place: swapping the instance's mesh breaks its visibility-range dependency
+## (renderer_scene_cull dep_instance error, then heap corruption), refilling the same ArrayMesh does not.
+func _recommit(mi: MeshInstance3D, k: Kit) -> void:
+	var m := mi.mesh as ArrayMesh
+	if m == null:
+		mi.mesh = k.commit()
+		return
+	m.clear_surfaces()
+	k.commit(m)
+
+
+## A building was destroyed: re-mesh its near and far cells without it (and without skyways that met it) and
+## drop its collision and occluder.
+func rebuild_for(dead: Dictionary) -> void:
+	var p: Vector3 = dead["pos"]
+	var ck := Vector2i(floori(p.x / CELL), floori(p.z / CELL))
+	var fk := Vector2i(floori(p.x / FAR_CELL), floori(p.z / FAR_CELL))
+	var near := Kit.new()
+	var far := Kit.new()
+	for b in buildings:
+		if not b["alive"]:
+			continue
+		var q: Vector3 = b["pos"]
+		if Vector2i(floori(q.x / CELL), floori(q.z / CELL)) == ck:
+			_emit_building(near, b, false)
+		if Vector2i(floori(q.x / FAR_CELL), floori(q.z / FAR_CELL)) == fk:
+			_emit_building(far, b, true)
+	for s in skyways:
+		if not s[0]["alive"] or not s[1]["alive"]:
+			continue
+		var mid: Vector3 = ((s[0]["pos"] as Vector3) + (s[1]["pos"] as Vector3)) * 0.5
+		if Vector2i(floori(mid.x / CELL), floori(mid.z / CELL)) == ck:
+			_emit_skyway(near, s)
+		if Vector2i(floori(mid.x / FAR_CELL), floori(mid.z / FAR_CELL)) == fk:
+			var a: Dictionary = s[0]
+			var bb: Dictionary = s[1]
+			far.tube(a["pos"] + Vector3(0, s[2], 0), bb["pos"] + Vector3(0, s[2], 0), 4.2, 6, far.col(Kit.GLASS, 0.5), false)
+	if cells.has(ck):
+		_recommit(cells[ck], near)
+	if far_nodes.has(fk):
+		_recommit(far_nodes[fk], far)
+	# Skyways in other cells that met this building.
+	for s in skyways:
+		if s[0] != dead and s[1] != dead:
+			continue
+		var mid: Vector3 = ((s[0]["pos"] as Vector3) + (s[1]["pos"] as Vector3)) * 0.5
+		var ck2 := Vector2i(floori(mid.x / CELL), floori(mid.z / CELL))
+		if ck2 != ck and cells.has(ck2):
+			var k2 := Kit.new()
+			for b in buildings:
+				var q: Vector3 = b["pos"]
+				if b["alive"] and Vector2i(floori(q.x / CELL), floori(q.z / CELL)) == ck2:
+					_emit_building(k2, b, false)
+			for s2 in skyways:
+				var m2: Vector3 = ((s2[0]["pos"] as Vector3) + (s2[1]["pos"] as Vector3)) * 0.5
+				if s2[0]["alive"] and s2[1]["alive"] and Vector2i(floori(m2.x / CELL), floori(m2.z / CELL)) == ck2:
+					_emit_skyway(k2, s2)
+			_recommit(cells[ck2], k2)
+	if dead.has("body") and is_instance_valid(dead["body"]):
+		(dead["body"] as Node).queue_free()
+	if dead.has("occ") and is_instance_valid(dead["occ"]):
+		(dead["occ"] as Node).queue_free()
 
 
 func _build_collision() -> void:

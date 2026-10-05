@@ -140,19 +140,20 @@ static func _boom(secs: float, base_hz: float, weight: float, seed: int, crackle
 	var lp_slow := 0.0
 	var a := 1.0 - exp(-TAU * 900.0 / RATE)
 	var a_slow := 1.0 - exp(-TAU * 120.0 / RATE)
+	var burst := 0.0          # falling debris: short decaying noise bursts, not single-sample clicks
 	for i in b.size():
 		var t := float(i) / RATE
 		var n := r.randf_range(-1.0, 1.0)
 		lp += a * (n - lp)
 		lp_slow += a_slow * (n - lp_slow)
-		var kick := sin(TAU * base_hz * 1.6 * t) * exp(-t * 14.0) * 1.2
-		var rumble := lp_slow * 4.0 * exp(-t * 1.6) * weight
-		var body := sin(TAU * base_hz * t + sin(TAU * 7.0 * t) * 2.0) * exp(-t * 3.5) * 0.8 * weight
-		var crack := lp * exp(-t * 30.0) * 1.2
-		var deb := 0.0
-		if crackle > 0.0 and r.randf() < 0.004 * exp(-t * 1.2) * crackle:
-			deb = r.randf_range(-1.0, 1.0) * 1.5
-		b[i] = kick + rumble + body + crack + deb
+		var kick := sin(TAU * base_hz * 1.6 * t) * exp(-t * 14.0) * 1.0
+		var rumble := lp_slow * 7.0 * exp(-t * 1.3) * weight
+		var body := sin(TAU * base_hz * t + sin(TAU * 7.0 * t) * 2.0) * exp(-t * 2.8) * 0.9 * weight
+		var crack := lp * exp(-t * 26.0) * 1.1
+		if crackle > 0.0 and t > 0.2 and r.randf() < 0.0012 * exp(-t * 1.0) * crackle:
+			burst = r.randf_range(0.15, 0.35) * exp(-t * 0.8)
+		burst *= 0.9965
+		b[i] = kick + rumble + body + crack + lp * burst * 3.0
 	return _normalize(_lowpass(b, 6000.0))
 
 

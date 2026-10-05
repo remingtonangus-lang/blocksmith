@@ -21,6 +21,7 @@ var vel := Vector3.ZERO
 var cruise_alt := 160.0
 var squad_count := 0
 var _yaw := 0.0
+var fan_snd: AudioStreamPlayer3D
 var hp := 1500.0
 
 
@@ -86,6 +87,7 @@ func build(f: int, mat: Material, pad: Vector3, landing: Vector3) -> void:
 	rotation.y = _yaw
 	wait = randf_range(5.0, 30.0)
 	G.add_interactable(self, Vector3(0, 1.5, 9.5), 5.0, "Ride the dropship to the front", _board)
+	fan_snd = Sfx.attach_loop(self, "loop_fans", -2.0)
 
 
 func _board(p: Player) -> void:
@@ -187,6 +189,10 @@ func _physics_process(delta: float) -> void:
 	rotation = Vector3(pitch, _yaw, bank)
 	for f in fans:
 		f.rotation.x = clampf(-vel.dot(-global_transform.basis.z) * 0.012, -1.2, 0.0)
+	if fan_snd:
+		var on := 0.0 if state == PARKED else 1.0
+		fan_snd.volume_db = move_toward(fan_snd.volume_db, -60.0 + on * 58.0, delta * 30.0)
+		fan_snd.pitch_scale = 0.85 + vel.length() * 0.004
 
 
 func _max_ahead(p: Vector3, dir: Vector3) -> float:

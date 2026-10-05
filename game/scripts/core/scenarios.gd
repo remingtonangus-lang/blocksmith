@@ -5,6 +5,8 @@ extends Node
 ##   fly       enter the gunship, climb 6 s then fly forward 8 s: altitude and distance must grow
 ##   dropship  board a dropship: it must deliver the passenger near the landing zone within 240 s
 ##   battle    run the front for 60 s: both sides must fire and take casualties, nobody stuck under ground
+##   weapons   on foot: the carbine fires at its rate with view climb; a rocket launches and explodes on the ground
+##   destroy   shell a tower until it falls: it must fracture into falling rigid pieces and lose its collision
 ## Prints "scenario NAME: PASS/FAIL ..." and quits with the number of failures.
 
 var queue: Array = []
@@ -105,9 +107,13 @@ func _tick_drive(_delta: float) -> void:
 	if c.cam:
 		c.cam.yaw = c.global_rotation.y
 	if t > 12.0:
-		var moved := c.global_position.distance_to(data["start"])
+		# Horizontal distance only, and on the ground: a crawler falling through the world once passed this.
+		var a: Vector3 = data["start"]
+		var b := c.global_position
+		var moved := Vector2(b.x - a.x, b.z - a.z).length()
 		var up := c.global_transform.basis.y.dot(Vector3.UP)
-		_done(moved > 60.0 and up > 0.8, "travelled %.0f m in 12 s, up %.2f" % [moved, up])
+		var above := b.y - G.world.ground_at(b.x, b.z)
+		_done(moved > 60.0 and moved < 400.0 and up > 0.8 and absf(above) < 5.0, "travelled %.0f m in 12 s, up %.2f, %.1f m above ground" % [moved, up, above])
 
 
 # -------------------------------------------------------------------------------------------------- fly
@@ -179,3 +185,153 @@ func _tick_battle(_delta: float) -> void:
 					under += 1
 		var ok: bool = k[0] > data["k0"][0] and k[1] > data["k0"][1] and under == 0
 		_done(ok, "kills Capital %d Cinder %d, alive %d / %d, under ground %d" % [k[0], k[1], army.count_alive(0), army.count_alive(1), under])
+
+
+# ---------------------------------------------------------------------------------------------- weapons
+
+func _setup_weapons() -> void:
+	var p: Player = G.player
+	var w: Weapons = p.weapons
+	data["w"] = w
+	data["ammo0"] = w.ammo[0]
+	data["pitch0"] = p.pitch
+	data["phase"] = 0
+	data["shots_seen"] = 0
+	data["max_pitch"] = p.pitch
+	w._select(0)
+	w.cooldown = 0.0
+	Input.action_press("fire")
+
+
+func _tick_weapons(_delta: float) -> void:
+	var p: Player = G.player
+	var w: Weapons = data["w"]
+	data["max_pitch"] = maxf(data["max_pitch"], p.pitch)
+	if data["phase"] == 0 and t > 1.5:
+		Input.action_release("fire")
+		data["fired"] = int(data["ammo0"]) - int(w.ammo[0])
+		data["climb"] = rad_to_deg(float(data["max_pitch"]) - float(data["pitch0"]))
+		# Rocket into the ground 25 m ahead.
+		p.pitch = deg_to_rad(-6.0)
+		w._select(3)
+		w.cooldown = 0.0
+		data["phase"] = 1
+		data["r0"] = G.fx.rockets_fired
+	elif data["phase"] == 1 and t > 2.0:
+		Input.action_press("fire")
+		data["phase"] = 2
+	elif data["phase"] == 2 and t > 2.1:
+		Input.action_release("fire")
+		data["rocket_ammo"] = w.ammo[3]
+		data["rockets_live"] = G.fx.rockets_fired - int(data["r0"])
+		data["phase"] = 3
+	elif data["phase"] == 3 and t > 4.0:
+		var fired: int = data["fired"]
+		var ok: bool = fired >= 12 and fired <= 22 and float(data["climb"]) > 3.0 and int(data["rocket_ammo"]) == 0 and int(data["rockets_live"]) == 1 and G.fx.rockets.is_empty()
+		_done(ok, "carbine fired %d rounds in 1.5 s, view climbed %.1f deg; rockets launched %d, exploded %s" % [fired, data["climb"], data["rockets_live"], G.fx.rockets.is_empty()])
+
+
+# ---------------------------------------------------------------------------------------------- destroy
+
+func _setup_destroy() -> void:
+	var city: CapitalCity = G.world.city_list[0]
+	var best: Dictionary = {}
+	for b in city.buildings:
+		var h: float = b["h"]
+		if b["alive"] and h > 45.0 and h < 90.0 and (b["pos"] as Vector3).distance_to(city.center) > 300.0:
+			best = b
+			break
+	data["b"] = best
+	data["city"] = city
+	var bp: Vector3 = best["pos"]
+	var p: Player = G.player
+	p.global_position = bp + Vector3(0, 0, 220)
+	G.terrain.collision_now(bp)
+	data["shots"] = 0
+	data["dead_t"] = -1.0
+	data["shot_t"] = 0.0
+	print("  destroy: building %d h %.0f at %s, hp %.0f" % [best["id"], best["h"], bp, 600.0 + float(best["h"]) * 25.0])
+
+
+func _tick_destroy(_delta: float) -> void:
+	var b: Dictionary = data["b"]
+	var bp: Vector3 = b["pos"]
+	var de: Destruction = G.combat.destruction
+	if b["alive"]:
+		if t - float(data["shot_t"]) > 0.4:
+			data["shot_t"] = t
+			data["shots"] += 1
+			var top := bp + Vector3(randf_range(-4, 4), float(b["h"]) * randf_range(0.3, 0.9) + 60.0, randf_range(-4, 4))
+			G.combat.shell(top, Vector3.DOWN, 300.0, 2.0, 1, [])
+		if t > 20.0:
+			_done(false, "still standing after %d shells (hp %.0f)" % [data["shots"], b.get("hp", -1.0)])
+		return
+	if float(data["dead_t"]) < 0.0:
+		data["dead_t"] = t
+		var top_y := -1e9
+		var top: RigidBody3D = null
+		for d in de.debris:
+			var rb: RigidBody3D = d[0]
+			if rb.global_position.y > top_y:
+				top_y = rb.global_position.y
+				top = rb
+		data["top"] = top
+		data["top_y"] = top_y
+		data["n"] = de.debris.size()
+		print("  destroy: collapsed after %d shells, %d pieces, top piece at %.0f m" % [data["shots"], de.debris.size(), top_y - bp.y])
+		return
+	if t - float(data["dead_t"]) > 8.0:
+		var top: RigidBody3D = data["top"]
+		var drop := float(data["top_y"]) - top.global_position.y if is_instance_valid(top) else 0.0
+		var bad := 0
+		for d in de.debris:
+			var rb: RigidBody3D = d[0]
+			if not is_instance_valid(rb):
+				continue
+			var q := rb.global_position
+			if is_nan(q.x) or is_nan(q.y) or q.y < G.world.ground_at(q.x, q.z) - 6.0:
+				bad += 1
+		var body_gone: bool = not b.has("body") or not is_instance_valid(b["body"])
+		var ok: bool = int(data["n"]) >= 8 and drop > 10.0 and bad == 0 and body_gone
+		_done(ok, "%d pieces, top piece fell %.0f m in 8 s, %d lost/NaN, collision removed %s" % [data["n"], drop, bad, body_gone])
+
+
+# ------------------------------------------------------------------------------------------------ stand
+
+## Teleport the player to sites around the map: each time they must stand on the ground after 3 s.
+func _setup_stand() -> void:
+	data["sites"] = ["fort_lumen", "citadel", "front", "forest", "radar", "harbor", "spawn"]
+	data["i"] = -1
+	data["bad"] = []
+	data["t0"] = 0.0
+	_stand_next()
+
+
+func _stand_next() -> void:
+	data["i"] += 1
+	if data["i"] >= (data["sites"] as Array).size():
+		return
+	var nm: String = data["sites"][data["i"]]
+	var s: Vector3 = G.world.site(nm) + Vector3(60, 0, 90)
+	var p: Player = G.player
+	p.global_position = Vector3(s.x, G.world.surface_at(s.x, s.z) + 0.05, s.z)
+	p.velocity = Vector3.ZERO
+	G.terrain.collision_now(p.global_position)
+	data["t0"] = t
+
+
+func _tick_stand(_delta: float) -> void:
+	var sites: Array = data["sites"]
+	if data["i"] >= sites.size():
+		var bad: Array = data["bad"]
+		_done(bad.is_empty(), "%d sites, fell or stuck at: %s" % [sites.size(), ", ".join(bad)])
+		return
+	if t - float(data["t0"]) > 3.0:
+		var p: Player = G.player
+		var q := p.global_position
+		var g0: float = G.world.ground_at(q.x, q.z)
+		var g: float = G.world.surface_at(q.x, q.z, maxf(q.y + 1.0 - g0, 1.0))
+		print("  stand %s: y %.2f surface %.2f" % [sites[data["i"]], q.y, g])
+		if absf(q.y - g) > 1.0:
+			(data["bad"] as Array).append("%s (%.1f m off)" % [sites[data["i"]], q.y - g])
+		_stand_next()

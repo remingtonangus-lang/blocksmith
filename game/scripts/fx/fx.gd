@@ -26,15 +26,18 @@ var light_life := PackedFloat32Array()
 var dust: GPUParticles3D
 var sparks: GPUParticles3D
 var smoke: GPUParticles3D
+var cloud: GPUParticles3D               # collapse dust: huge, pale, slow, long-lived
 var fire: GPUParticles3D
 var blood_p: GPUParticles3D
 var debris: GPUParticles3D
-var rockets: Array = []               # [pos, vel, target, faction, trail_t]
+var rockets: Array = []               # [pos, vel, target, faction, trail_t, exclude]
+var rockets_fired := 0
 var decals: Array[Decal] = []
 var _decal_i := 0
 var shake := 0.0
 var _scorch: Texture2D
 var _hole: Texture2D
+var _warm := 0
 
 
 func setup() -> void:
@@ -88,6 +91,7 @@ func setup() -> void:
 	dust = _particles("Dust", soft, 900, 1.6, Color(0.55, 0.5, 0.42, 0.55), Vector3(0, -1.5, 0), 0.4, 1.4, 2.5, false)
 	sparks = _particles("Sparks", soft, 600, 0.45, Color(3.0, 2.0, 0.9, 1.0), Vector3(0, -9.8, 0), 0.05, 0.12, 0.2, true)
 	smoke = _particles("Smoke", soft, 700, 9.0, Color(0.22, 0.21, 0.2, 0.55), Vector3(0, 1.2, 0), 3.0, 9.0, 18.0, false)
+	cloud = _particles("Cloud", soft, 400, 24.0, Color(0.6, 0.57, 0.52, 0.9), Vector3(0, 0.25, 0), 14.0, 38.0, 64.0, false)
 	fire = _particles("Fire", soft, 500, 0.9, Color(4.0, 1.9, 0.6, 0.9), Vector3(0, 3.0, 0), 1.5, 4.0, 6.0, true)
 	blood_p = _particles("Mist", soft, 200, 0.7, Color(0.35, 0.05, 0.04, 0.6), Vector3(0, -2.0, 0), 0.25, 0.6, 1.0, false)
 	debris = _particles("Debris", soft, 500, 2.5, Color(0.2, 0.19, 0.18, 1.0), Vector3(0, -9.8, 0), 0.15, 0.35, 0.4, false)
@@ -144,7 +148,7 @@ func _particles(nm: String, tex: Texture2D, amount: int, life: float, col: Color
 	p.name = nm
 	p.amount = amount
 	p.lifetime = life
-	p.emitting = true
+	p.emitting = false        # emission comes only from emit_particle()
 	p.one_shot = false
 	p.explosiveness = 0.0
 	p.local_coords = false
@@ -175,8 +179,6 @@ func _particles(nm: String, tex: Texture2D, amount: int, life: float, col: Color
 	m.angle_min = -180.0
 	m.angle_max = 180.0
 	p.process_material = m
-	# Emission is driven only by emit_particle(): the system's own emitter emits nothing.
-	p.amount_ratio = 1.0
 	var q := QuadMesh.new()
 	q.size = Vector2(1, 1)
 	var sm := StandardMaterial3D.new()
@@ -192,8 +194,9 @@ func _particles(nm: String, tex: Texture2D, amount: int, life: float, col: Color
 	q.material = sm
 	p.draw_pass_1 = q
 	add_child(p)
-	# GPUParticles3D needs an emitter; a zero-rate trick: set amount_ratio to 0 and rely on emit_particle.
-	p.amount_ratio = 0.0
+	# Measured (tools/particle check, 2026-10-05): emit_particle() particles are dropped when amount_ratio is 0;
+	# they render with amount_ratio 1 and emitting false, which also keeps the system's own emitter silent.
+	p.amount_ratio = 1.0
 	return p
 
 
@@ -280,9 +283,11 @@ func decal(at: Vector3, normal: Vector3, size: float, scorch: bool) -> void:
 
 
 ## A large blast: light flash, fireball, smoke column, debris, scorch, camera shake and sound.
+## Visuals and sound only; damage goes through Combat.explode.
 func explosion(at: Vector3, power: float = 1.0) -> void:
-	var near := _near_cam(at, 4000.0)
-	if not near:
+	if Sfx.has_method("explosion"):
+		Sfx.explosion(at, power)
+	if not _near_cam(at, 4000.0):
 		return
 	flash(at + Vector3(0, 1, 0), 3.0 * power)
 	for k in LIGHTS:
@@ -311,32 +316,12 @@ func explosion(at: Vector3, power: float = 1.0) -> void:
 		shake = maxf(shake, clampf(power * 2.5 / maxf(d / 25.0, 1.0), 0.0, 1.5))
 		if Controls.has_pad():
 			Controls.rumble(clampf(shake, 0.0, 1.0), clampf(shake * 0.7, 0.0, 1.0), 0.35)
-	if Sfx.has_method("explosion"):
-		Sfx.explosion(at, power)
-	# Damage soldiers in the blast.
-	if G.battle and G.battle.army:
-		var army: Army = G.battle.army
-		var r := 9.0 * power
-		var c := army._cell(at)
-		var k := int(ceil(r / Army.GRID))
-		for dz in range(-k, k + 1):
-			for dx in range(-k, k + 1):
-				var cc := c + Vector2i(dx, dz)
-				if not army.grid.has(cc):
-					continue
-				for j in army.grid[cc].duplicate():
-					var d := army.pos[j].distance_to(at)
-					if d < r:
-						army.hit_soldier(j, 220.0 * (1.0 - d / r), (army.pos[j] - at).normalized())
-	if G.player and is_instance_valid(G.player) and G.player.has_method("take_damage"):
-		var d: float = G.player.global_position.distance_to(at)
-		if d < 9.0 * power:
-			G.player.take_damage(140.0 * (1.0 - d / (9.0 * power)), at)
 
 
-func rocket(from: Vector3, to: Vector3, faction: int) -> void:
+func rocket(from: Vector3, to: Vector3, faction: int, exclude: Array = []) -> void:
 	var dir := (to - from).normalized()
-	rockets.append([from, dir * 120.0, to, faction, 0.0])
+	rockets.append([from, dir * 120.0, to, faction, 0.0, exclude])
+	rockets_fired += 1
 	flash(from, 1.2)
 	if Sfx.has_method("rocket"):
 		Sfx.rocket(from)
@@ -346,6 +331,14 @@ func rocket(from: Vector3, to: Vector3, faction: int) -> void:
 
 func _process(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
+	# Warm-up: a transparent particle per system in view, so the pipelines compile at start instead of
+	# swallowing the first explosion (and hitching it).
+	if _warm < 30 and cam:
+		_warm += 1
+		if _warm % 10 == 1:
+			var at := cam.global_position - cam.global_transform.basis.z * 6.0
+			for ps in [dust, sparks, smoke, cloud, fire, blood_p, debris]:
+				_emit(ps, at, Vector3.ZERO, Color(1, 1, 1, 0))
 	# Tracers fly at 850 m/s and draw as 9 m streaks.
 	var k := 0
 	for i in TRACERS:
@@ -402,9 +395,13 @@ func _process(delta: float) -> void:
 			r[4] = 0.0
 			_emit(smoke, p, Vector3(randf_range(-0.3, 0.3), 0.4, randf_range(-0.3, 0.3)), Color(1, 1, 1, 0.5))
 			_emit(fire, p, -v * 0.02)
-		var ground: float = G.world.ground_at(p.x, p.z) if G.world else -1e9
-		if p.distance_to(tgt) < v.length() * delta * 1.5 or p.y < ground:
-			explosion(Vector3(p.x, maxf(p.y, ground), p.z), 0.7)
+		var hit: Dictionary = G.combat._trace(get_world_3d().direct_space_state, r[0], p, r[5]) if G.combat else {}
+		if not hit.is_empty() or p.distance_to(tgt) < v.length() * delta * 1.5:
+			var at: Vector3 = hit["position"] if not hit.is_empty() else p
+			if G.combat:
+				G.combat.explode(at, 0.7, hit)
+			else:
+				explosion(at, 0.7)
 			continue
 		r[0] = p
 		keep.append(r)

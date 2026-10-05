@@ -151,6 +151,15 @@ func _ship(f: int, at: Vector3, route: Array[Vector3]) -> void:
 	ships.append(s)
 
 
+func _physics_process(_delta: float) -> void:
+	if G.terrain == null:
+		return
+	for v in get_tree().get_nodes_in_group("vehicles"):
+		var rb := v as RigidBody3D
+		if rb:
+			G.terrain.guard_body(rb, 1.0)
+
+
 func _process(_delta: float) -> void:
 	# The patrol crawler turns around at the end of its track.
 	for c in crawlers:

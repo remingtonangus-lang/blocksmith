@@ -131,6 +131,13 @@ func _build() -> void:
 		var b := preload("res://scripts/core/benchmark.gd").new()
 		add_child(b)
 		b.start(world.benchmark_segments())
+	elif Settings.has_arg("drawreport"):
+		var want := String(Settings.arg("drawreport"))
+		for sg in world.benchmark_segments():
+			if sg["name"] == want:
+				var d := preload("res://scripts/core/draw_report.gd").new()
+				add_child(d)
+				d.start(sg)
 	elif Settings.has_arg("shots"):
 		var s := preload("res://scripts/core/shots.gd").new()
 		add_child(s)
@@ -142,7 +149,7 @@ func _build() -> void:
 			add_child(sc)
 			var names := String(Settings.arg("scenario")).split(",")
 			if names[0] == "all":
-				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle"])
+				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle", "weapons", "destroy", "stand"])
 			sc.start(Array(names))
 	_loading.queue_free()
 

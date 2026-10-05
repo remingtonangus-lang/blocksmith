@@ -88,9 +88,18 @@ func _truck(i: int) -> AnimatableBody3D:
 	cs.shape = box
 	cs.position = Vector3(0, 0.95, 0.6)
 	cs.disabled = true
+	cs.name = "Col"
 	b.add_child(cs)
-	G.add_interactable(b, Vector3(0, 1.8, 4.5), 3.5, "Climb into the truck bed", func(p: Player): p.global_position = b.global_transform * Vector3(0, 2.0, 2.5))
+	if i == 0:
+		Sfx.attach_loop(b, "loop_truck", -4.0)
+	# A bound method, not a lambda: a lambda kept in G's static registry outlived its script at exit and
+	# corrupted the heap (glibc abort, exit 134, CI run 9).
+	G.add_interactable(b, Vector3(0, 1.8, 4.5), 3.5, "Climb into the truck bed", _board.bind(b))
 	return b
+
+
+func _board(p: Player, b: AnimatableBody3D) -> void:
+	p.global_position = b.global_transform * Vector3(0, 2.0, 2.5)
 
 
 func _at(d: float) -> Array:
@@ -122,7 +131,7 @@ func _place() -> void:
 		var b := trucks[i]
 		b.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch), p + Vector3(0, 0.12, 0))
 		var near := p.distance_squared_to(cp) < 250.0 * 250.0
-		(b.get_child(b.get_child_count() - 1) as CollisionShape3D).disabled = not near
+		(b.get_node("Col") as CollisionShape3D).disabled = not near
 
 
 func _physics_process(delta: float) -> void:

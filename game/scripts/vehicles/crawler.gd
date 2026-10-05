@@ -33,6 +33,7 @@ var _grounded := 0
 var throttle_in := 0.0
 var steer_in := 0.0
 var brake_in := false
+var engine_snd: AudioStreamPlayer3D
 var boost_in := false
 
 
@@ -142,6 +143,7 @@ func build(f: int, mat: Material) -> void:
 		add_child(l)
 		lights.append(l)
 	G.add_interactable(self, Vector3(-1.9, 1.6, -0.8), 4.0, "Drive the crawler", enter)
+	engine_snd = Sfx.attach_loop(self, "loop_crawler", -6.0)
 	G.add_interactable(self, Vector3(0, 2.7, 3.2), 3.5, "Climb onto the deck", _climb)
 
 
@@ -193,6 +195,10 @@ func _process(delta: float) -> void:
 	for l in lights:
 		l.light_energy = 6.0 * night if driver or path.size() > 0 else 0.0
 	fire_t = maxf(0.0, fire_t - delta)
+	if engine_snd:
+		var load_k := clampf(absf(fwd_speed) / MAX_SPEED, 0.0, 1.0)
+		engine_snd.pitch_scale = 0.75 + load_k * 0.7
+		engine_snd.volume_db = -14.0 + load_k * 8.0 + (4.0 if driver else 0.0)
 	if driver and cam:
 		_aim_turret(cam.aim_point([get_rid()]), delta)
 		if Input.is_action_pressed("fire") or Controls.trigger(true) > 0.4:

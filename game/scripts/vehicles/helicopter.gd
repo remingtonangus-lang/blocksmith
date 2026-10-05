@@ -29,6 +29,7 @@ var _target_vel := Vector3.ZERO
 var _heading := 0.0
 var engine_on := false
 var _gun_side := 0
+var rotor_snd: AudioStreamPlayer3D
 
 
 func build(f: int, mat: Material) -> void:
@@ -81,6 +82,7 @@ func build(f: int, mat: Material) -> void:
 	cs2.position = Vector3(0, 0.15, 0)
 	add_child(cs2)
 	G.add_interactable(self, Vector3(-1.2, 2.0, -3.0), 4.0, "Fly the gunship", enter)
+	rotor_snd = Sfx.attach_loop(self, "loop_rotor", -4.0)
 
 
 func _rotor(mat: Material, r: float, blades: int, at: Vector3, side: bool) -> Node3D:
@@ -144,6 +146,9 @@ func _process(delta: float) -> void:
 	var want := 1.0 if (engine_on or pilot or ai) else 0.0
 	rotor_speed = move_toward(rotor_speed, want, delta * 0.4)
 	rotor.rotation.y += rotor_speed * 32.0 * delta
+	if rotor_snd:
+		rotor_snd.pitch_scale = maxf(0.2, rotor_speed)
+		rotor_snd.volume_db = -60.0 + rotor_speed * 58.0
 	tail.rotation.y += rotor_speed * 60.0 * delta
 	gun_t = maxf(0.0, gun_t - delta)
 	rocket_t = maxf(0.0, rocket_t - delta)

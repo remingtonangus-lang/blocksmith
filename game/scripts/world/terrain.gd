@@ -269,6 +269,10 @@ func _update_collision() -> void:
 	var anchor := _focus
 	if G.player and is_instance_valid(G.player):
 		anchor = G.player.global_position
+		# In a vehicle the player node stays where they got in; the window follows the vehicle.
+		var v: Variant = G.player.vehicle
+		if v != null and is_instance_valid(v) and v is Node3D:
+			anchor = (v as Node3D).global_position
 	var cen := Vector2(roundf(anchor.x / 32.0) * 32.0, roundf(anchor.z / 32.0) * 32.0)
 	if _col_task >= 0:
 		if WorkerThreadPool.is_task_completed(_col_task):
@@ -298,6 +302,39 @@ func _build_collision(cen: Vector2) -> void:
 		for x in COLLIDE_N:
 			data[z * COLLIDE_N + x] = gen.height_at(cen.x - half + x * COLLIDE_STEP, wz)
 	_col_pending["data"] = data
+
+
+## True when the ground under `p` has physics collision (inside the live window, `margin` metres from its edge).
+func has_collision_at(p: Vector3, margin: float = 16.0) -> bool:
+	if shape == null or shape.shape == null:
+		return false
+	var half := (COLLIDE_N - 1) * 0.5 * COLLIDE_STEP - margin
+	var c := body.global_position
+	return absf(p.x - c.x) < half and absf(p.z - c.z) < half
+
+
+## Rigid bodies beyond the collision window would fall through the world: they are frozen (and put back on the
+## analytic ground if they already sank) until the window reaches them again. Returns true if `rb` is frozen.
+func guard_body(rb: RigidBody3D, lift: float = 0.5) -> bool:
+	var p := rb.global_position
+	if has_collision_at(p):
+		if rb.freeze and rb.has_meta("terrain_frozen"):
+			rb.remove_meta("terrain_frozen")
+			rb.freeze = false
+		return false
+	# City podiums and other static bodies still hold things up; only guard what is near or below the terrain.
+	var g := gen.height_at(p.x, p.z)
+	if p.y > g + 30.0 and not rb.freeze:
+		return false
+	if not rb.freeze:
+		rb.set_meta("terrain_frozen", true)
+		rb.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+		rb.freeze = true
+	if p.y < g - lift:
+		rb.global_position = Vector3(p.x, g + lift, p.z)
+	rb.linear_velocity = Vector3.ZERO
+	rb.angular_velocity = Vector3.ZERO
+	return true
 
 
 ## Forces the collision window to be built around a point now (spawning, teleports).

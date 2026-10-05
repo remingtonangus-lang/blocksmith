@@ -119,9 +119,10 @@ func _interactions(delta: float) -> void:
 	var fwd := -camera.global_transform.basis.z
 	var keep := []
 	for it in G.interactables:
-		var n: Node3D = it["node"]
-		if not is_instance_valid(n):
+		var obj: Variant = it["node"]
+		if not is_instance_valid(obj):
 			continue
+		var n: Node3D = obj
 		keep.append(it)
 		var p: Vector3 = n.global_transform * (it["offset"] as Vector3)
 		var d := p.distance_to(eye)
@@ -152,6 +153,13 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < -500.0:
 		global_position = G.world.site("spawn") + Vector3(0, 3, 0)
 		velocity = Vector3.ZERO
+	# Safety net: there is nothing walkable under the analytic ground (no caves), so a player found well below
+	# it fell through (depenetration out of a solid, a collision window not built yet): put them back on top.
+	if G.world and not flying:
+		var g: float = G.world.ground_at(global_position.x, global_position.z)
+		if global_position.y < g - 2.5:
+			global_position.y = G.world.surface_at(global_position.x, global_position.z) + 0.1
+			velocity = Vector3.ZERO
 	var mv := Controls.move_vector()
 	var basis_y := Basis(Vector3.UP, rotation.y)
 	var wish := basis_y * Vector3(mv.x, 0.0, -mv.y)

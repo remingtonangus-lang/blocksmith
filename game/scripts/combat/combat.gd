@@ -52,6 +52,11 @@ func _physics_process(delta: float) -> void:
 		b[6] -= delta
 		var hit := _trace(space, p, np, b[4])
 		var seg := np - p
+		if not b[7] and G.cam and is_instance_valid(G.cam):
+			var c := G.cam.global_position
+			var tt := clampf((c - p).dot(seg) / maxf(seg.length_squared(), 0.0001), 0.0, 1.0)
+			if (p + seg * tt).distance_to(c) < 3.0:
+				Sfx.play_at("whizz", p + seg * tt, -4.0)
 		var len := seg.length()
 		# Soldiers along the segment.
 		if G.battle and G.battle.army and len > 0.0:
@@ -123,6 +128,11 @@ func _impact(hit: Dictionary, dmg: float, dir: Vector3, _power: float, from_play
 
 
 func _explode(at: Vector3, power: float, hit: Dictionary) -> void:
+	explode(at, power, hit)
+
+
+## Every explosion in the game: visuals, then blast damage to soldiers, the player, vehicles and buildings.
+func explode(at: Vector3, power: float, hit: Dictionary = {}) -> void:
 	if G.fx:
 		if hit.has("water"):
 			for k in 20:
@@ -142,6 +152,25 @@ func _explode(at: Vector3, power: float, hit: Dictionary) -> void:
 			n.damage(250.0 * power * (1.0 - n.global_position.distance_to(at) / (r * 1.5)), at)
 	if destruction and destruction.has_method("blast"):
 		destruction.blast(at, power)
+	if G.battle and G.battle.army:
+		var army: Army = G.battle.army
+		var rs := 9.0 * power
+		var c := army._cell(at)
+		var k := int(ceil(rs / Army.GRID))
+		for dz in range(-k, k + 1):
+			for dx in range(-k, k + 1):
+				var cc := c + Vector2i(dx, dz)
+				if not army.grid.has(cc):
+					continue
+				var ids: PackedInt32Array = army.grid[cc]
+				for j in ids:
+					var d := army.pos[j].distance_to(at)
+					if d < rs:
+						army.hit_soldier(j, 220.0 * (1.0 - d / rs), (army.pos[j] - at).normalized())
+	if G.player and is_instance_valid(G.player) and G.player.vehicle == null:
+		var d: float = G.player.global_position.distance_to(at)
+		if d < 9.0 * power:
+			G.player.take_damage(140.0 * (1.0 - d / (9.0 * power)), at)
 
 
 ## A vehicle dies: a big blast, burning wreckage, and the hull breaks into pieces (Destruction).

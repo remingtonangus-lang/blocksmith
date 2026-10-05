@@ -132,7 +132,10 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for b in _barrages:
 		if now >= b[0]:
-			fx.explosion(b[1], b[2])
+			if G.combat:
+				G.combat.explode(b[1], b[2])
+			else:
+				fx.explosion(b[1], b[2])
 		else:
 			keep.append(b)
 	_barrages = keep

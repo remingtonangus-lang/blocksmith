@@ -64,6 +64,12 @@ func setup(g: WorldGen) -> void:
 	combat.name = "Combat"
 	add_child(combat)
 	combat.setup()
+	var destruction := Destruction.new()
+	destruction.name = "Destruction"
+	add_child(destruction)
+	destruction.setup()
+	if "vehicles" in OS.get_environment("CAPITAL_SKIP").split(","):
+		return
 	var veh := Vehicles.new()
 	veh.name = "Vehicles"
 	add_child(veh)
@@ -80,8 +86,12 @@ func setup(g: WorldGen) -> void:
 		G.weather = weather
 
 
+func _exit_tree() -> void:
+	G.reset()
+
+
 func _add_optional(path: String, node_name: String, field: String) -> void:
-	if not ResourceLoader.exists(path):
+	if not ResourceLoader.exists(path) or node_name.to_lower() in OS.get_environment("CAPITAL_SKIP").split(","):
 		return
 	var n: Node = load(path).new()
 	n.name = node_name
@@ -108,7 +118,7 @@ func spawn_player() -> void:
 	var player := preload("res://scripts/player/player.gd").new()
 	player.name = "Player"
 	add_child(player)
-	player.global_position = sp + Vector3(0, 2.0, 0)
+	player.global_position = Vector3(sp.x, surface_at(sp.x, sp.z) + 0.1, sp.z)
 	player.rotation.y = deg_to_rad(-70.0)
 	G.player = player
 
@@ -123,6 +133,20 @@ func ground_at(x: float, z: float) -> float:
 
 func site(name: String) -> Vector3:
 	return gen.sites.get(name, Vector3.ZERO)
+
+
+## The top walkable surface at (x, z): the analytic ground or any static body above it (base platforms, decks,
+## roofs), found by a ray from `from_h` metres down. Use for every teleport: the analytic ground alone can put
+## the player inside a platform, and depenetration then pushes them down through the terrain.
+func surface_at(x: float, z: float, from_h: float = 120.0) -> float:
+	var g := ground_at(x, z)
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(Vector3(x, g + from_h, z), Vector3(x, g - 2.0, z))
+	q.collision_mask = 1 | 4
+	var h := space.intersect_ray(q)
+	if not h.is_empty():
+		return maxf(g, (h["position"] as Vector3).y)
+	return g
 
 
 ## Camera point at a height above the ground.
@@ -161,6 +185,23 @@ func _park_frigate(at: Vector3) -> void:
 		f.route = []
 		f.speed = 0.0
 		print("frigate parked at %s, children %d, visible %s, in tree %s" % [f.global_position, f.get_child_count(), f.is_visible_in_tree(), f.is_inside_tree()])
+
+
+## A mid-height tower at the edge of Candor, for the collapse shot.
+func _collapse_target() -> Vector3:
+	for b in (city_list[0] as CapitalCity).buildings:
+		var h: float = b["h"]
+		if h > 45.0 and h < 90.0 and (b["pos"] as Vector3).distance_to((city_list[0] as CapitalCity).center) > 300.0:
+			return b["pos"]
+	return (city_list[0] as CapitalCity).center
+
+
+func _collapse_demo() -> void:
+	var at := _collapse_target()
+	for b in (city_list[0] as CapitalCity).buildings:
+		if b["pos"] == at and G.combat and G.combat.destruction:
+			(G.combat.destruction as Destruction).collapse(city_list[0], b)
+			return
 
 
 func _battle_warm(seconds: float) -> void:
@@ -208,6 +249,7 @@ func shot_list() -> Array:
 		{"name": "horizon_test", "pos": Vector3(7000, 400, 3000), "look": Vector3(20000, 400, 3000), "hour": 12.0, "weather": "clear", "setup": func(): water.ocean.visible = false},
 		{"name": "capital_top", "pos": c + Vector3(500, 420, 1), "look": c + Vector3(500, 0, 0), "hour": 12.0, "weather": "clear"},
 		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
+		{"name": "collapse", "pos": _collapse_target() + Vector3(-110, 50, 150), "look": _collapse_target() + Vector3(0, 22, 0), "hour": 14.0, "weather": "clear", "late": func(): _collapse_demo(), "late_frames": 40},
 		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},
 		{"name": "spawn_view", "pos": sp + Vector3(0, 2.0, 0), "look": c + Vector3(0, 30, 0), "hour": 9.0, "weather": "clear"},
 		{"name": "mountains", "pos": above(rad.x - 900, rad.z + 1800, 260), "look": rad + Vector3(0, 400, -1800), "hour": 15.0, "weather": "clear"},
@@ -219,6 +261,7 @@ func shot_list() -> Array:
 		{"name": "coast", "pos": above(h.x + 800, h.z + 900, 25), "look": h + Vector3(-400, 20, -300), "hour": 17.5, "weather": "clear"},
 		{"name": "storm_sea", "pos": Vector3(h.x + 2600, 18, h.z - 400), "look": Vector3(h.x + 6000, 0, h.z - 2000), "hour": 15.0, "weather": "storm"},
 		{"name": "front_line", "pos": above(fr.x - 400, fr.z - 300, 40), "look": fr, "hour": 16.0, "weather": "overcast"},
+		{"name": "weapon_view", "fps": true, "pos": above(fl.x + 60, fl.z + 90, 1.66), "look": above(fl.x, fl.z, 6.0), "hour": 10.0, "weather": "clear"},
 	]
 	if Settings.has_arg("only"):
 		var only := String(Settings.arg("only")).split(",")

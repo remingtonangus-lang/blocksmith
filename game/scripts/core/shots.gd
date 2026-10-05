@@ -42,6 +42,22 @@ func _next() -> void:
 	var look: Vector3 = s["look"]
 	if cam.global_position.distance_to(look) > 0.01:
 		cam.look_at(look, Vector3.UP)
+	cam.make_current()
+	G.cam = cam
+	if s.get("fps", false) and G.world:
+		if G.player == null:
+			G.world.spawn_player()
+		# First person through the player's own camera (weapon view model, HUD-free).
+		var p: Player = G.player
+		var d: Vector3 = look - (s["pos"] as Vector3)
+		var sp: Vector3 = s["pos"]
+		p.global_position = Vector3(sp.x, G.world.surface_at(sp.x, sp.z) + 0.05, sp.z)
+		p.velocity = Vector3.ZERO
+		p.rotation.y = atan2(-d.x, -d.z)
+		p.pitch = atan2(d.y, Vector2(d.x, d.z).length())
+		p.camera.make_current()
+		G.cam = p.camera
+		G.terrain.collision_now(p.global_position)
 	if G.sky:
 		G.sky.set_hour(float(s.get("hour", 10.0)))
 	if G.weather and G.weather.has_method("set_weather"):
@@ -62,6 +78,12 @@ func _process(_delta: float) -> void:
 		return
 	if wait < 0:
 		wait = SETTLE
+	var s0: Dictionary = shots[i]
+	if s0.has("late") and not s0.has("_late_done"):
+		# Called once the world has settled, then the shot waits its own "late_frames" (moments in motion).
+		s0["_late_done"] = true
+		(s0["late"] as Callable).call()
+		wait = int(s0.get("late_frames", SETTLE))
 	wait -= 1
 	if wait > 0:
 		return
@@ -69,5 +91,6 @@ func _process(_delta: float) -> void:
 	var img := get_viewport().get_texture().get_image()
 	var path := dir.path_join(String(s["name"]) + ".png")
 	img.save_png(path)
-	print("shot %s: %s (%d ms)" % [s["name"], path, Time.get_ticks_msec() - t_shot])
+	var vc := get_viewport().get_camera_3d()
+	print("shot %s: %s (%d ms) camera %s at %s" % [s["name"], path, Time.get_ticks_msec() - t_shot, vc.name if vc else "none", vc.global_position if vc else Vector3.ZERO])
 	_next()

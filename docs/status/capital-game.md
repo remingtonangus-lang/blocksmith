@@ -27,7 +27,7 @@ Options (after the binary, or after `--`): `--preset Low|Medium|High|Ultra`, `--
 
 ## Controls
 Keyboard/mouse: WASD, mouse look, Space jump, C/Ctrl crouch, Shift sprint, E/F interact, R reload, Q switch weapon,
-G grenade, V melee, LMB fire, RMB aim, T camera, M map, F3 perf HUD, F6 quality preset, F7 weather, F8 +1 hour,
+1-4 pick a weapon, G grenade, V melee, LMB fire, RMB aim, T camera, M map, F3 perf HUD, F6 quality preset, F7 weather, F8 +1 hour,
 F9 debug fly, F12 screenshot.
 Gamepad (Halo Infinite-style default): LS move, RS look, A jump, B crouch, X reload / interact (hold: enter vehicle),
 Y switch weapon, RT fire, LT zoom, LB grenade, RB melee, LS click sprint, RS click equipment, D-pad up flashlight,
@@ -57,15 +57,17 @@ virtual pad.
 Godot 4.7.2 built from source at `/home/user/godotsrc/godot/bin` (GitHub release downloads are blocked here), linked
 as `/usr/local/bin/godot`. `godot --headless --path game -s res://tests/run_tests.gd` for tests;
 `xvfb-run -a godot --path game --rendering-driver vulkan --resolution 1280x720 -- --shots /tmp/shots --only a,b` for
-shots on lavapipe.
+shots on lavapipe. `godot --headless --path game -- --scenario all` (ride, drive, fly, dropship, battle, weapons,
+destroy) for scripted play with oracles. Bisecting: `CAPITAL_SKIP=vegetation,weather,vehicles` leaves world systems
+out (vehicles also drops the HUD and weather).
 
 ## Milestones
 1. [x] Skeleton, CI, release publishing, perf HUD, benchmark, screenshot tests
 2. [x] Landscape, sky, atmosphere, vegetation, day-night, weather (polish continues)
 3. [x] Capital cities and bases (Candor; citadel, radar station, Fort Lumen, airfield, harbour, Cinder camps)
 4. [x] Soldiers, factions, battles (first pass; polish continues)
-5. [ ] Vehicles (crawler, frigate, dropships, helicopters, convoys, warships, artillery) with riding and driving
-6. [ ] Weapons, destruction, FX, audio
+5. [x] Vehicles (crawler, frigate, dropships, helicopters, convoys, warships, artillery) with riding and driving
+6. [x] Weapons, destruction, FX, audio
 7. [ ] Performance and polish pass with benchmark numbers
 
 ## What is in the world
@@ -90,6 +92,37 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05: M6. Weapons (`scripts/combat/weapons.gd`): LC-7 carbine (680 rpm), LM-2 marksman (4x), sidearm,
+  RL-4 launcher, grenades, melee; first-person models from the Kit, sway, bob, ADS, reloads, recoil that climbs the
+  view, spread bloom, rumble. Destruction (`scripts/combat/destruction.gd`): towers take blast damage and at zero
+  are cut by their own plan into wedges and slabs (a closed prism each, convex rigid body), the lower floors go up
+  in dust, the rest drops and topples; the city re-meshes the cell without the tower and drops its collision and
+  occluder; vehicles break into burning pieces; debris is capped by the preset. One damage path for every blast
+  (`Combat.explode`: soldiers, player, vehicles, buildings), so grenades, rockets and barrages all hurt. Audio:
+  procedural bank (32 sounds, cache `user://audio_v3`), speed-of-sound delay, vehicle loops, ambience director.
+  New scenarios `weapons` and `destroy` (in `--scenario all`); shot `collapse`.
+  Bugs found and fixed on the way (measured):
+  - Every particle effect was invisible: `emit_particle()` particles are dropped while `amount_ratio` is 0, which
+    the FX systems used to silence their own emitters. Now ratio 1 with `emitting = false` (checked in a 3-system
+    test render), plus a warm-up particle per system so the pipelines compile at start, not on the first blast.
+  - Far explosions were silent: the sound sat after the "near the camera" early return.
+  - Swapping a MeshInstance's mesh under a visibility-range parent errors in renderer_scene_cull and corrupted the
+    heap; cells are refilled in place (`ArrayMesh.clear_surfaces` + commit).
+  - Parked vehicles and debris outside the 256 m terrain collision window fell through the world (a crawler at
+    y -1600 in the `all` run); `Terrain.guard_body` freezes them on the analytic ground until the window arrives.
+  - Player interaction scan assigned freed nodes to a typed variable every frame (destroyed vehicles).
+  - Rockets ignored buildings and vehicles (only the ground); they now trace physics and skip the shooter.
+  - Every run aborted at exit with glibc heap corruption (exit 134; it failed CI run 9 after all scenarios
+    passed, so the Mac release for f5b508a never published). Bisected with `CAPITAL_SKIP` (world systems) down
+    to the convoy trucks' interactable: a lambda kept in G's static registry, freed at engine teardown after its
+    script. Now a bound method, and `G.reset()` drops all static references when the world leaves the tree.
+  - Teleports put the player on the analytic ground, inside Fort Lumen's base platform (1.4 m higher);
+    depenetration pushed them 45 m down through the heightmap. New `World.surface_at` (ray onto the top static
+    surface) for spawns, scenarios and shots, plus a safety net that puts a player found below the ground back on
+    top. New scenario `stand` (7 sites) and first-person shot `weapon_view` (shots mode now spawns the player
+    for it; the view model was never in a shot before).
+  - The `drive` oracle measured 3D distance, so a crawler falling through the world "travelled 767 m"; it now
+    measures horizontal distance and checks the crawler is on the ground.
 - 2026-10-04 23:50: fleet monitor reported the release c237e81 never benchmarked on the M1 (`Alabaster --benchmark`
   logged empty args, then sat in normal play). Cause: `--benchmark` is one of Godot's own engine options
   (main.cpp consumes it before the game sees it; `--windowed` too). Fix: the game reads its real command line

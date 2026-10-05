@@ -20,6 +20,26 @@ static var paused := false
 static var frame := 0
 static var seed := 1337
 
+## Drops every static reference (called when the world leaves the tree): static vars outlive the scene, and
+## Callables or objects held there at engine teardown are freed after their scripts.
+static func reset() -> void:
+	interactables = []
+	main = null
+	world = null
+	terrain = null
+	gen = null
+	sky = null
+	weather = null
+	player = null
+	cam = null
+	hud = null
+	fx = null
+	combat = null
+	battle = null
+	vehicles = null
+	cities = null
+
+
 ## Registers a "use" spot on a node (vehicle seats, consoles, turrets): prompt text and a Callable(player).
 static func add_interactable(node: Node3D, offset: Vector3, radius: float, prompt: String, action: Callable) -> void:
 	interactables.append({"node": node, "offset": offset, "radius": radius, "prompt": prompt, "action": action})

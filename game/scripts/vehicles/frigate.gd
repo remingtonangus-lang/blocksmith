@@ -93,6 +93,9 @@ func build(m: Material, start: Vector3, loop: Array[Vector3]) -> void:
 	global_position = start
 	yaw = 0.0
 	G.add_interactable(self, Vector3(0, 23.6, 16.0), 6.0, "Take the frigate's helm", _take_helm)
+	var hum := Sfx.attach_loop(self, "loop_frigate", 8.0)
+	hum.unit_size = 80.0
+	hum.max_distance = 4000.0
 
 
 func _glow(at: Vector3) -> void:
