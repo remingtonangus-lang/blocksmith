@@ -316,12 +316,23 @@ enum CollapseCheck {
         var settledFor = 0
         // Particles drawn with the "missing" texture (magenta specks in the shots), with the first one's make-up.
         let missingLayer = Int(Tex.id("missing"))
-        var magenta = 0, magentaFirst = ""
+        var magenta = 0, magentaFirst = "", spikes = 0
         ParticleManager.airBits = 0
         for i in 0..<(limit * 60) {
             let a = CFAbsoluteTimeGetCurrent()
+            w.ships.spentMs.removeAll(keepingCapacity: true)
             agent.step(idle)
-            ticks.append((CFAbsoluteTimeGetCurrent() - a) * 1000)
+            let tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            ticks.append(tickMs)
+            // What a slow tick spent its time on (the frigate scene's worst was 81 ms: run of c7bad4f).
+            if tickMs > 30 && spikes < 6 {
+                spikes += 1
+                let parts = w.ships.spentMs.sorted { $0.value > $1.value }.map { String(format: "%@ %.1f", $0.key, $0.value) }
+                let known = w.ships.spentMs.values.reduce(0, +)
+                r.note(String(format: "slow tick at %.1f s: %.1f ms (%@; the rest %.1f): %ld ships, %ld debris, %ld wreck jobs", Double(i) / 60, tickMs,
+                              parts.isEmpty ? "no destruction work" : parts.joined(separator: ", "), tickMs - known,
+                              w.ships.list.count, w.ships.list.filter { $0.debris }.count, w.ships.bakeJobs.count))
+            }
             if i % 20 == 0 {
                 for q in g.particles.list where q.layer == missingLayer {
                     magenta += 1
@@ -469,6 +480,8 @@ enum CollapseCheck {
             for _ in 0..<n {
                 g.world.ships.update(1.0 / 60, game: g)
                 g.mobs.update(1.0 / 60, game: g)
+                _ = g.drops.update(1.0 / 60, game: g)
+                g.particles.update(1.0 / 60, g.world)        // (a 40 s shot showed the blast's fireball frozen)
                 g.world.update(center: g.player.pos)
             }
         }
@@ -476,6 +489,19 @@ enum CollapseCheck {
         p.pos = st.view.0
         p.yaw = st.view.1
         p.pitch = st.view.2
+        // Late in the frigate scene the hull has come down: look at the biggest wreck from off its flank.
+        if kind == "frigate" && at >= 20, let rec = g.world.ships.wrecks.max(by: { a, b in
+            (a.hi[0] - a.lo[0]) * (a.hi[2] - a.lo[2]) < (b.hi[0] - b.lo[0]) * (b.hi[2] - b.lo[2]) }) {
+            let lo = V3(Float(rec.lo[0]), Float(rec.lo[1]), Float(rec.lo[2]))
+            let hi = V3(Float(rec.hi[0]), Float(rec.hi[1]), Float(rec.hi[2]))
+            let c: V3 = (lo + hi) * 0.5
+            let reach: Float = max(hi.x - lo.x, hi.z - lo.z)
+            let from: V3 = c + V3(reach * 0.55, reach * 0.3 + 8, reach * 0.55)
+            let d: V3 = c - from
+            p.pos = from
+            p.yaw = atan2f(-d.x, -d.z)
+            p.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+        }
         print("collapse \(kind) at \(at) s: \(g.world.ships.list.filter { $0.debris }.count) debris bodies, \(g.world.ships.collapses) collapses, \(g.world.ships.wrecks.count) wrecks")
         return p.pos
     }

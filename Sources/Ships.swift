@@ -629,6 +629,7 @@ final class ShipManager {
     var collapses = 0                // analyses that set something falling
     var bakedBlocks = 0              // blocks laid back into the world
     var hullSplits = 0               // capital hulls cut into pieces
+    var spentMs: [String: Double] = [:]   // destruction work this frame by kind (harness: reset per tick)
     var wrecks: [WreckRecord] = []
     var wreckTimer: Float = 0
 

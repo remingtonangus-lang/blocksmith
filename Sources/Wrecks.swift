@@ -86,7 +86,11 @@ extension ShipManager {
     // in, then the cells beside those whose centre falls inside a block), up to a block budget; done, the ship goes.
     func bakeStep(_ j: BakeJob, game: Game?) {
         let t0 = CFAbsoluteTimeGetCurrent()
-        defer { worstBakeMs = max(worstBakeMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worstBakeMs = max(worstBakeMs, ms)
+            spentMs["wreck step", default: 0] += ms
+        }
         let s = j.ship, g = s.grid
         guard list.contains(where: { $0 === s }) else { bakeJobs.removeFirst(); j.done(); return }
         let w = world

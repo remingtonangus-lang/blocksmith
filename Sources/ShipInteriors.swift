@@ -19,6 +19,7 @@ struct InteriorStyle {
     var bed: String            // bed colour ("white", "gray"...)
     var armoryLoot: String
     var supplyLoot: String
+    var frame: BlockID? = nil  // doorway frames, when the trim is too close to the wall to show (else the trim)
 
     static func pick(_ n: String, _ fallback: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : fallback }
 }
@@ -54,11 +55,12 @@ extension HullBuilder {
                     // Doorway from the corridor, framed in trim.
                     let dz = zm
                     for yy in (y + 1)...(y + 2) { set(sx * (c + 1), yy, dz, AIR) }
-                    if get(sx * (c + 1), y + 3, dz) == st.wall { set(sx * (c + 1), y + 3, dz, st.trim) }
+                    let frame = st.frame ?? st.trim
+                    if get(sx * (c + 1), y + 3, dz) == st.wall { set(sx * (c + 1), y + 3, dz, frame) }
                     // Jambs in trim too: down a corridor a bare one-wide gap in a wall of the same panels hardly shows
                     // (ship_frigate_corridor read as a blank tube); framed, every doorway reads from the far end.
                     for jz in [dz - 1, dz + 1] { for yy in (y + 1)...(y + 3) where get(sx * (c + 1), yy, jz) == st.wall {
-                        set(sx * (c + 1), yy, jz, st.trim)
+                        set(sx * (c + 1), yy, jz, frame)
                     } }
                     roomCells.append((grid(sx * (c + 2), y + 1, dz), kind))
                     furnish(kind, sx: sx, xi: c + 2, xo: xo, y: y, h: h, za: za + 1, zb: zb - 1, door: dz, style: st, rng: &rng, inside: inside)

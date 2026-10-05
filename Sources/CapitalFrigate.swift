@@ -200,7 +200,7 @@ extension Capital {
         hb.ladderWell(x: -11, z: 195, y0: 4, y1: 14, back: -1)
         // Two decks of corridors and rooms over the hangar and the hold (the citadel's comforts, a warship's rooms).
         let style = InteriorStyle(floor: deck, wall: panel, trim: trim, light: light, bed: "white",
-                                  armoryLoot: "steelhold_armory", supplyLoot: "steelhold_supply")
+                                  armoryLoot: "steelhold_armory", supplyLoot: "steelhold_supply", frame: graphite)
         let inside: (Int, Int, Int) -> Bool = { x, y, z in Capital.cfHull(x, y, z) }
         hb.interiorDeck(y: 12, h: 4, hw: 12, z0: 46, z1: 140, rooms: [.mess, .quarters, .armory, .quarters, .medbay, .storage, .quarters, .brig],
                         style: style, seed: 0xCF01, inside: inside)

@@ -44,6 +44,7 @@ extension ShipManager {
             queueCollapse(gaps, from: nil)
         }
         collapseMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        spentMs["support", default: 0] += collapseMs
         if made > 0 { collapses += 1 }
         return made
     }
@@ -221,7 +222,11 @@ extension ShipManager {
     @discardableResult
     func bake(_ s: Ship, game: Game?, settle: Bool = true) -> Int {
         let t0 = CFAbsoluteTimeGetCurrent()
-        defer { worstBakeMs = max(worstBakeMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worstBakeMs = max(worstBakeMs, ms)
+            if s.parent == nil { spentMs["laying down", default: 0] += ms }
+        }
         for t in list where t.parent === s { bake(t, game: game, settle: settle) }
         let w = world
         let g = s.grid
@@ -360,7 +365,11 @@ extension ShipManager {
     // free-moving body (the hull grid is labelled once, a while after the last blast on it).
     func splitHull(_ s: Ship, game: Game?) {
         let t0 = CFAbsoluteTimeGetCurrent()
-        defer { worstSplitMs = max(worstSplitMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worstSplitMs = max(worstSplitMs, ms)
+            spentMs["hull split", default: 0] += ms
+        }
         let g = s.grid
         let sx = g.sx, sy = g.sy, sz = g.sz
         let n = sx * sy * sz

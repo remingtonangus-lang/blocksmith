@@ -157,3 +157,7 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   frigatecrash failed (the touchdown blasts cut the new hull's hangar deck, 4 blocks over the keel, and hurt the rider):
   touchdown blasts now spare the landing ship and its riders. Also: citadel rebuild remeshes async (basetest cost was
   red on playtest itself), flying warships read "Warship" on the HUD, interior doorways framed in trim.
+- Shots: the collapse snapshot path now ages particles and drops (a 40 s shot showed the blast's fireball and a
+  column of magenta specks frozen in mid-air) and the late frigate shot looks at the biggest wreck; the collapse
+  shots are one snap.sh line each so `[fastshots collapse_frigate_40]` works. collapsecheck reports what a tick over
+  30 ms spent its time on (support search, laying down, hull split, wreck steps, the rest).
