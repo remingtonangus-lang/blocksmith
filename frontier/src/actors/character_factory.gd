@@ -30,6 +30,23 @@ static var _clips: Dictionary = {}
 static var _materials: CharacterMaterials
 static var _mutex := Mutex.new()
 static var _warming := false
+static var _warm_group := -1
+static var _warm_anim := -1
+
+
+## Wait for the warm-up and drop every cached resource before the engine tears down (static Resource caches that
+## outlive the script server abort the process at exit).
+static func shutdown() -> void:
+	if _warm_group >= 0:
+		WorkerThreadPool.wait_for_group_task_completion(_warm_group)
+		_warm_group = -1
+	if _warm_anim >= 0:
+		WorkerThreadPool.wait_for_task_completion(_warm_anim)
+		_warm_anim = -1
+	_scenes.clear()
+	_anim_lib = null
+	_materials = null
+	FrontierCharacter.clear_static()
 
 
 ## Loads and prepares every character scene and the animation library on worker threads, so spawning someone in the
@@ -63,8 +80,8 @@ static func warm_up() -> void:
 		if not added:
 			break
 		round += 1
-	WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
-	WorkerThreadPool.add_group_task(func(i: int):
+	_warm_anim = WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
+	_warm_group = WorkerThreadPool.add_group_task(func(i: int):
 		var id: String = todo[i]
 		if not _is_ready(id):
 			var ps := _build_scene(id, _info(id))

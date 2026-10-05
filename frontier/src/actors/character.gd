@@ -460,6 +460,9 @@ static var _tree_lib: AnimationLibrary
 static var _tree_frame := -1
 
 ## Only the clips the gameplay tree uses: AnimationMixer binds every track of every clip it holds, per instance.
+static func clear_static() -> void:
+	_tree_lib = null
+
 static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
 	if _tree_lib == null:
 		_tree_lib = AnimationLibrary.new()

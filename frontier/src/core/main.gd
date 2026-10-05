@@ -226,3 +226,6 @@ func _apply_viewport_quality() -> void:
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_SMAA if (not q.taa and scale >= 0.999) else Viewport.SCREEN_SPACE_AA_DISABLED
 	vp.mesh_lod_threshold = 1.0 / maxf(q.lod_bias, 0.1)
 	RenderingServer.directional_shadow_atlas_set_size(q.shadow_size, true)
+
+func _exit_tree() -> void:
+	CharacterFactory.shutdown()
