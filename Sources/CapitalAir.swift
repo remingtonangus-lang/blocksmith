@@ -28,14 +28,18 @@ extension Game {
 
     // Cruise height for a leg from a to b: 22 over the highest ground or building on the way, at least 12 over the
     // citadel's crown.
-    private func airCruise(_ r: BaseRecord, _ a: V3, _ c: V3) -> Float {
-        var top = Float(r.y0 + 74)
+    // `clear` over the ground; the crown floor only for legs that cross the citadel (circling a noise outside at 74 over
+    // the citadel's base put the door gunners far out of sight of anyone on the ground).
+    private func airCruise(_ r: BaseRecord, _ a: V3, _ c: V3, clear: Float = 22) -> Float {
+        var top: Float = 0
         let n = max(1, Int(simd_length(V2(c.x - a.x, c.z - a.z)) / 8))
+        let reach = Float(CapitalBase.A + 10)
         for k in 0...n {
             let p = a + (c - a) * (Float(k) / Float(n))
             let x = Int(floor(p.x)), z = Int(floor(p.z))
             let h = world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height
-            top = max(top, Float(max(h, SEA)) + 22)
+            top = max(top, Float(max(h, SEA)) + clear)
+            if abs(p.x - Float(r.cx)) < reach && abs(p.z - Float(r.cz)) < reach { top = max(top, Float(r.y0 + 74)) }
         }
         return min(top, Float(CH - 30))
     }
@@ -131,10 +135,11 @@ extension Game {
         case 3:
             // Circles the spot (the citadel itself on lockdown) for 40 s, as long as the lockdown lasts.
             let centre = lockdown ? r.centre : goal
-            let radius: Float = lockdown ? 50 : 22
-            let a = t * 0.22
+            // Low and tight over a noise (the door gunners' rifles reach about 26 blocks); wide over the citadel.
+            let radius: Float = lockdown ? 50 : 14
+            let a = t * (lockdown ? 0.22 : 0.3)
             let p = centre + V3(cosf(a) * radius, 0, sinf(a) * radius)
-            fm.hold = V3(p.x, airCruise(r, k.pos, p), p.z); fm.holdSpeed = 9
+            fm.hold = V3(p.x, airCruise(r, k.pos, p, clear: lockdown ? 22 : 14), p.z); fm.holdSpeed = 9
             if t > 40 && !lockdown { ph = 4; t = 0; b.note("\(r.key) kestrel heading back") }
         case 4:
             fm.hold = V3(pad.x, airCruise(r, k.pos, pad), pad.z); fm.holdSpeed = overPad < 30 ? 6 : 14
@@ -186,6 +191,15 @@ extension FlightCrew {
             m.station = i == 0 ? .seated : .passenger
             m.stationSeat = 0.45
             seats.append(Seat(mob: m, ship: s, local: seat))
+        }
+        // Back from a save in the air: the rotor was turning (its speed isn't saved) and it hovers where it is until
+        // the citadel's next update sends it on (a reloaded Kestrel dropped out of the sky spinning up, basetest reload).
+        if let fm = s.flight, seats.contains(where: { $0.ship === s }), fm.hold == nil {
+            let x = Int(floor(s.pos.x)), z = Int(floor(s.pos.z))
+            if g.world.isLoaded(x, z) && s.worldMin.y > Float(g.world.topY(x, z) + 3) {
+                fm.rpm = 1
+                fm.hold = s.pos
+            }
         }
     }
 }
