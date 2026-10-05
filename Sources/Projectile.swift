@@ -18,7 +18,13 @@ final class Arrow {
     var hitMobs: [ObjectIdentifier] = []
     var trident: ItemStack?        // a thrown trident (keeps its enchantments / wear)
     var returning = false          // Loyalty: flying back to the player
-    init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
+    // Split screen: the seat that shot it (a returning trident flew into whichever player's turn moved it).
+    var seat = -1
+    var crit = false               // a fully drawn bow's arrow (adds up to half again)
+    init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) {
+        pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage
+        if fromPlayer { seat = Coop.liveSeat }
+    }
 }
 
 // What a Fireball object actually is: fire charges, blight skulls, or thrown items.
@@ -37,7 +43,11 @@ final class Fireball {
     var kind: Thrown = .fire
     var egg: ItemID = 0            // thrown egg: which one (the chick's climate variant)
     weak var shooter: Mob?
-    init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
+    var seat = -1                  // split screen: the seat that threw it (a pearl teleported whoever's turn moved it)
+    init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) {
+        pos = p; vel = v; self.big = big; self.byPlayer = byPlayer
+        if byPlayer { seat = Coop.liveSeat }
+    }
 }
 
 final class ProjectileManager {
@@ -58,6 +68,7 @@ final class ProjectileManager {
             if World.rayBox(o, d, f.pos - V3(r, r, r), f.pos + V3(r, r, r)).map({ $0.0 < 4 }) ?? false {
                 f.vel = d * simd_length(f.vel)
                 f.byPlayer = true
+                f.seat = Coop.liveSeat
                 return true
             }
         }
@@ -66,7 +77,9 @@ final class ProjectileManager {
 
     private func updateFireballs(_ dt: Float, game g: Game) {
         let w = g.world
-        for f in fireballs where g.seatOwns(f.pos) {
+        // A player's throw flies in its thrower's turn (a pearl teleports them, a hit is theirs); the rest in the turn of
+        // the nearest seat.
+        for f in fireballs where (f.seat >= 0 && g.coop.active) ? (f.seat == g.coop.current) : g.seatOwns(f.pos) {
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
             if f.potion > 0 || f.kind == .snowball || f.kind == .egg || f.kind == .pearl { f.vel.y -= 20 * dt; f.vel *= expf(-0.2 * dt) }
@@ -110,6 +123,8 @@ final class ProjectileManager {
                 }
                 if f.dragon {
                     // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer && g.effects.has(.fireResistance) {
+                    // A fireball is fire damage: Fire Resistance stops the hit (reference; it only stopped the burning).
                 } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
@@ -151,7 +166,9 @@ final class ProjectileManager {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         updateFireballs(dt, game: g)
-        for a in arrows where g.seatOwns(a.pos) {
+        // In flight a player's arrow or trident is its shooter's (a returning trident flies back to them); stuck in the
+        // ground anyone may pick it up, so it goes to the nearest seat.
+        for a in arrows where (!a.stuck && a.seat >= 0 && g.coop.active) ? (a.seat == g.coop.current) : g.seatOwns(a.pos) {
             a.age += dt
             if a.returning, let t = a.trident {
                 // Loyalty: fly back and drop into the inventory.
@@ -225,13 +242,13 @@ final class ProjectileManager {
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
-                if a.fromPlayer && Rand.float(in: 0..<1) < 0.25 { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }
+                if a.crit { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }       // only a full draw (it was a 25 % roll on any shot)
                 if let m = hitMob, m.kind == .enderman, a.trident == nil {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     let h0 = m.health
-                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch), iframes: true)
                     m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }

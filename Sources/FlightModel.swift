@@ -233,7 +233,7 @@ final class FlightModel {
     func playerInput(_ g: Game, _ s: Ship, _ mi: MoveInput, _ dt: Float) {
         guard kind == .heli else { return }
         hold = nil
-        let p = PadManager.shared.lastMapped
+        let p = g.seatPad
         var up: Float = mi.jump ? 1 : 0
         if g.input.control { up -= 1 }
         if let p { up += p.rt - p.lt }

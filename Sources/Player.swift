@@ -69,7 +69,28 @@ final class Player {
         collides(at: p - V3(0, 0.06, 0), w)
     }
 
+    static var quarantined = 0
+    static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
+    private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
+        // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
+        // its last finite position instead of reaching Int(floor()) in every block lookup (undefined in the release
+        // build). Every repair is counted: the agents' non_finite oracle and the smoke line report it.
+        func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
+        if !finite(pos) || !finite(vel) {
+            if !finite(pos) { pos = lastGoodPos ?? V3(0, Float(YOFF + 100), 0) }
+            vel = .zero
+            Player.quarantined += 1
+        }
+        let pos0 = pos
+        defer {
+            if !finite(pos) || !finite(vel) {
+                pos = pos0; vel = .zero
+                Player.quarantined += 1
+            } else {
+                lastGoodPos = pos
+            }
+        }
         // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
@@ -186,10 +207,17 @@ final class Player {
         }
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround)
         var landed = false
+        var bounce: Float = 0
         if hit.y {
-            if vel.y < 0 { landed = true }
+            if vel.y < 0 {
+                landed = true
+                // Slime blocks bounce you back up unless you sneak (reference; the fall does no damage: Game).
+                let under = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z)))
+                if under == Player.slimeID && !sneaking && vel.y < -2 { bounce = -vel.y * 0.85 }
+            }
             vel.y = 0
         }
+        if bounce > 0 { vel.y = bounce }
         if autoJump && onGround && !flying && !sneaking && !prone && (hit.x || hit.z) && simd_length(wish) > 0.3 {
             // Auto-jump: a one-block step ahead with room above it.
             let d = simd_normalize(wish) * 0.35

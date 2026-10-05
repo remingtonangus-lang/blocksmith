@@ -101,6 +101,31 @@ final class BlockRegistry {
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
+    // Blast resistance where it differs from hardness (the reference keeps them apart: stone 1.5 hard but 6 against
+    // blasts, planks 2 / 3, end stone 3 / 9). Before this every block used its hardness, so a creeper cratered
+    // stone, brick and deepslate builds about four times deeper than it should.
+    static func refResistance(_ d: BlockDef) -> Float? {
+        let n = d.name
+        if n.contains("infested") { return nil }
+        if n.hasSuffix("_ore") { return 3 }
+        if n.contains("end_stone") { return 9 }
+        if n == "reinforced_deepslate" || n == "netherite_block" || n == "ancient_debris" || n.contains("anvil")
+            || n == "enchanting_table" || n == "respawn_anchor" { return 1200 }
+        if n == "ender_chest" { return 600 }
+        if n == "obsidian" { return 1200 }
+        if n.hasSuffix("_block") && ["coal", "iron", "gold", "diamond", "emerald", "redstone"].contains(where: { n.hasPrefix($0) }) { return 6 }
+        if n.contains("copper") && d.hardness >= 3 { return 6 }
+        if n == "iron_bars" || n == "jukebox" { return 6 }
+        if n.contains("mud_brick") { return 3 }
+        if n.contains("basalt") || (n.contains("terracotta") && !n.contains("glazed")) { return 4.2 }
+        if d.tool == .axe && ["planks", "_stairs", "_slab", "_fence", "_fence_gate"].contains(where: { n.hasSuffix($0) }) { return 3 }
+        if d.tool == .pickaxe && !n.contains("sandstone") && !n.contains("glowstone") && !n.contains("redstone")
+            && !n.hasSuffix("_button") && !n.hasSuffix("pressure_plate") && !n.contains("dripstone") && !n.contains("stonecutter")
+            && ["stone", "cobble", "brick", "andesite", "diorite", "granite", "deepslate", "purpur", "prismarine", "tuff"].contains(where: { n.contains($0) }) {
+            return max(6, d.hardness)              // never weaker than a hardened original block
+        }
+        return nil
+    }
     var flammable: [Bool] = []
     var randomTicks: [Bool] = []
     var tool: [UInt8] = []
@@ -177,7 +202,7 @@ final class BlockRegistry {
         shape.append(d.shape)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
-        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
+        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
@@ -267,7 +292,7 @@ final class BlockRegistry {
         }
         func column(_ n: String, _ disp: String, side: String, top: String, bottom: String? = nil, h: Float = 2,
                     tool: ToolType = .axe, snd: SoundMat = .wood) {
-            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd)
+            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd, req: tool == .pickaxe)   // stone pillars need a pickaxe
         }
         func leaves(_ n: String, _ disp: String, _ t: String, tint: UInt8) {
             var d = BlockDef(n, disp)
@@ -321,7 +346,7 @@ final class BlockRegistry {
         var cactus = BlockDef("cactus", "Cactus")
         cactus.tex = ["cactus_side", "cactus_side", "cactus_top", "cactus_bottom", "cactus_side", "cactus_side"]
         cactus.render = .model; cactus.opaque = false; cactus.layer = .cutout; cactus.hardness = 0.4; cactus.sound = .plant
-        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]
+        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]; cactus.randomTicks = true
         add(cactus)
         cube("snow_block", "Snow Block", "snow", h: 0.2, tool: .shovel, snd: .snow)
         cube("stone_bricks", "Stone Bricks", "stone_bricks", h: 1.5, req: true)
@@ -513,11 +538,12 @@ final class BlockRegistry {
         rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
         rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false
         add(rod)
-        for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
-                            ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
-                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Sparkstone", 0),
-                            ("copper_block", "Block of Copper", 1)] {
-            cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
+        // Hardness per the reference (gold, lapis and copper are softer: 3); blast resistance from refResistance.
+        for (n, d, lvl, h) in [("coal_block", "Block of Coal", 0, 5), ("iron_block", "Block of Iron", 1, 5), ("gold_block", "Block of Gold", 2, 3),
+                               ("diamond_block", "Block of Diamond", 2, 5), ("emerald_block", "Block of Emerald", 2, 5),
+                               ("lapis_block", "Block of Lapis Lazuli", 1, 3), ("redstone_block", "Block of Sparkstone", 0, 5),
+                               ("copper_block", "Block of Copper", 1, 3)] as [(String, String, Int, Float)] {
+            cube(n, d, n, h: h, lvl: lvl, req: true, snd: .stone)
         }
         // Farming
         var farm = BlockDef("farmland", "Farmland")
@@ -664,9 +690,13 @@ final class BlockRegistry {
     func family(_ tex: String, _ n: String, _ disp: String, h: Float, tool: ToolType, req: Bool, snd: SoundMat,
                 stairs: Bool, slab: Bool, fence: Bool, wall: Bool) {
         let t = (tex == "sandstone") ? ["sandstone", "sandstone", "sandstone_top", "sandstone_bottom", "sandstone", "sandstone"] : [tex]
-        func base(_ name: String, _ display: String) -> BlockDef {
+        // Reference hardness: stairs, walls and fences take the full block's; slabs are 2 or the block's if harder
+        // (deeprock 3.5, hollow stone brick 3). Every stone family used 2.
+        let full: Float = has(tex) ? def(id(tex)).hardness : h
+        let slabH: Float = max(h, full)
+        func base(_ name: String, _ display: String, _ hh: Float) -> BlockDef {
             var d = BlockDef(name, display)
-            d.tex = t; d.render = .model; d.opaque = false; d.hardness = h; d.tool = tool; d.requiresTool = req; d.sound = snd
+            d.tex = t; d.render = .model; d.opaque = false; d.hardness = hh; d.tool = tool; d.requiresTool = req; d.sound = snd
             d.skyStop = true
             return d
         }
@@ -675,7 +705,7 @@ final class BlockRegistry {
             for top in [false, true] {
                 for (k, dir) in ["north", "south", "west", "east"].enumerated() {
                     let name = !top && k == 0 ? "\(n)_stairs" : "\(n)_stairs[\(dir)\(top ? ",top" : "")]"
-                    var d = base(name, "\(disp) Stairs")
+                    var d = base(name, "\(disp) Stairs", full)
                     d.group = "\(n)_stairs"; d.hidden = top || k != 0; d.shape = "stairs"
                     var st = steps[k]
                     if top { st.y0 = 0; st.y1 = 8 }
@@ -686,7 +716,7 @@ final class BlockRegistry {
         }
         if slab {
             for (k, part) in ["bottom", "top", "double"].enumerated() {
-                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab")
+                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab", slabH)
                 d.group = "\(n)_slab"; d.hidden = k != 0; d.shape = "slab"
                 d.boxes = [k == 0 ? Box(0, 0, 0, 16, 8, 16) : (k == 1 ? Box(0, 8, 0, 16, 16, 16) : Box(0, 0, 0, 16, 16, 16))]
                 add(d)
@@ -694,13 +724,13 @@ final class BlockRegistry {
         }
         if fence {
             var d = BlockDef(n == "nether_brick" ? "nether_brick_fence" : "\(n)_fence", "\(disp) Fence")
-            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = false
             add(d)
         }
         if wall {
             var d = BlockDef("\(n)_wall", "\(disp) Wall")
-            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = true
             add(d)
         }

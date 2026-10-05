@@ -73,13 +73,19 @@ final class World {
         return p
     }
 
-    static var alive = 0            // live World objects (leak check in --bench)
+    // Live World objects (leak check in --bench). A worker's job can hold the last reference, so a World can die on
+    // a worker thread: hence the lock (as Chunk.alive).
+    static let aliveLock = NSLock()
+    private(set) static var alive = 0
     static let registry = NSHashTable<World>.weakObjects()
-    deinit { World.alive -= 1 }
-    var debugState: String { "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(genResults.count)/\(meshResults.count), chunks \(chunks.count)" }
+    deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
+    var debugState: String {
+        lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
+        return "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
+    }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
-        World.alive += 1
+        World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
         switch dim {
@@ -269,8 +275,8 @@ final class World {
                                           w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
     }
 
-    // Scratch for collides / sweep (frame thread only): taken and handed back, so a call never allocates its box list
-    // (every walking mob sweeps a few times a tick: ~270 allocations a tick before; questcheck's allocation trace).
+    // Scratch for collides (frame thread only): taken and handed back, so a call never allocates its box list
+    // (questcheck's allocation trace; sweep keeps its own, sweepScratch).
     private var boxScratch: [(V3, V3)] = []
 
     func collides(_ mn: V3, _ mx: V3) -> Bool {
@@ -294,22 +300,45 @@ final class World {
     }
 
     // How far an AABB can move along one axis (0 x, 1 y, 2 z) before touching a collision box.
+    private var sweepScratch: [(V3, V3)] = []
+    // Chunks of this world that turned dirty since update last drained the list (main thread). The quiet-frame re-check
+    // walks this instead of every loaded chunk (bench: update p50 0.015 -> 0.27 / 0.89 ms at rd 16 / 24, growing with
+    // the chunk count, while random ticks and fluids touched a few blocks every frame). Per world: harness probes run
+    // more than one world in a process.
+    var dirtyChunks: [Chunk] = []
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx
         if d > 0 { hi[a] += d } else { lo[a] += d }
         let eps: Float = 1e-4
-        var boxes = boxScratch
-        boxScratch = []
-        defer { boxes.removeAll(keepingCapacity: true); boxScratch = boxes }
-        for y in Int(floor(lo.y - 0.5))...Int(floor(hi.y)) {   // -0.5: fences etc. poke up to 1.5
-            for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
-                for x in Int(floor(lo.x))...Int(floor(hi.x - eps)) {
-                    collisionBoxes(x, y, z, &boxes)
+        // Main thread only (bodies, mobs, ships): the box list keeps its storage between calls (a new array per sweep,
+        // several sweeps per walking mob per frame: bench mobs.per_mob_us 1.6 -> 7.8 us). Swapped out, so a nested
+        // call can't share it.
+        var boxes = sweepScratch
+        sweepScratch = []
+        boxes.removeAll(keepingCapacity: true)
+        defer { sweepScratch = boxes }
+        let y0 = Int(floor(lo.y - 0.5)), y1 = Int(floor(hi.y))     // -0.5: fences etc. poke up to 1.5
+        let plain = frame == nil
+        for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
+            for x in Int(floor(lo.x))...Int(floor(hi.x - eps)) {
+                // One chunk lookup per column (it was a dictionary lookup per block); empty cells skip straight on.
+                if plain {
+                    guard let c = chunkAt(x, z) else {
+                        if y0 < 0 { for y in y0...min(y1, -1) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
+                        continue
+                    }
+                    let lx = mod(x, CS), lz = mod(z, CS)
+                    for y in y0...y1 {
+                        if y >= 0 && y < CH && !Blocks.collide[Int(c.blocks[Chunk.index(lx, y, lz)])] { continue }
+                        collisionBoxes(x, y, z, &boxes)
+                    }
+                } else {
+                    for y in y0...y1 { collisionBoxes(x, y, z, &boxes) }
                 }
             }
         }
-        if frame == nil && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
+        if plain && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
@@ -384,7 +413,9 @@ final class World {
     func remeshArea(x0: Int, z0: Int, x1: Int, z1: Int, y0: Int, y1: Int) {
         for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
             guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-            for sy in max(0, y0 >> 4)...min(NSEC - 1, y1 >> 4) { remeshSync(c, sy) }
+            let lo = max(0, y0 >> 4), hi = min(NSEC - 1, y1 >> 4)
+            guard lo <= hi else { continue }                    // wholly above or below the world: nothing to remesh
+            for sy in lo...hi { remeshSync(c, sy) }
         } }
     }
 
@@ -437,6 +468,7 @@ final class World {
 
     // Chips a block to `level` (keeps the face of the first hit); remeshes around it now.
     func chip(_ p: IVec3, level: Int, face: Int) {
+        guard p.y >= 0 && p.y < CH else { return }             // as chipAsync (the harness chipped above the world top)
         let cur = damage[p]
         let lv = max(level, Int((cur ?? 0) & 31))
         guard lv > 0 && lv < 8 else { return }
@@ -565,23 +597,42 @@ final class World {
         if quiet {
             // Only block or light edits since the last scan (flowing water, a placed block): re-check just the chunks
             // they touched instead of walking the whole disc (bench: 0.26 ms a frame at rd 16 while lava settled).
-            for (k, c) in chunks where c.dirty {
-                if jobs >= maxQueued { return }               // the rest stay dirty; the epoch still differs, so next frame
+            // Only the chunks marked dirty since (dirtyChunks), not every loaded chunk.
+            var list = dirtyChunks
+            dirtyChunks = []
+            var i = 0
+            while i < list.count {
+                let c = list[i]
+                guard c.dirty else { i += 1; continue }
+                let k = ChunkKey(x: c.cx, z: c.cz)
+                guard chunks[k] === c else { c.dirty = false; i += 1; continue }   // unloaded since
+                if jobs >= maxQueued {
+                    // The rest stay dirty and listed; the epoch still differs, so next frame.
+                    dirtyChunks.insert(contentsOf: list[i...], at: 0)
+                    return
+                }
+                i += 1
                 c.dirty = false
                 guard !c.meshInFlight && c.needsMesh else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
                 if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb) }
             }
+            list.removeAll()
             scanEpoch = MeshEpoch.value
             return
         }
+        // Same centres as the last scan: no chunk's LOD can have changed, so once the job queue is full the rest of
+        // the walk can't schedule anything (it walked ~1000-2000 offsets a frame while chunks streamed in at rd 16-24).
+        let sameCentres = center == scanCenter && extra == scanExtra
         scanCenter = center
         scanExtra = extra
 
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist (round each centre).
         var meshed = 0
+        var cutShort = false
         let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
-        for (dx, dz, _) in offsets {
+        scan: for (dx, dz, _) in offsets {
+        if sameCentres && jobs >= maxQueued { cutShort = true; break scan }
         for (ci, cen) in centres.enumerated() {
             let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
             if let c = chunks[k] {
@@ -613,8 +664,13 @@ final class World {
             }
         }
         }
-        meshedCount = meshed
+        if !cutShort { meshedCount = meshed }   // (F3 only: a cut-short walk keeps the last full count)
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
+        // The full scan handled what it could; keep only chunks still dirty and loaded listed (bounded by the chunk count,
+        // and no unloaded chunk kept alive by the list).
+        if !dirtyChunks.isEmpty {
+            dirtyChunks.removeAll { c in !c.dirty || chunks[ChunkKey(x: c.cx, z: c.cz)] !== c }
+        }
     }
 
     // Hands a chunk's out-of-date sections to a mesh worker.
@@ -718,6 +774,7 @@ final class World {
 
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.world = self
         c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.savedBlocks = c.blocks }
@@ -1083,7 +1140,9 @@ final class World {
             for d in World.allDirs {
                 let q = p + d
                 let nb = block(q.x, q.y, q.z)
-                guard fl[Int(nb)] else { continue }
+                // Blocks holding items (barrels, chiseled bookshelves, lecterns) don't burn away: their contents were
+                // left behind with no block to open.
+                guard fl[Int(nb)], blockEntities[q] == nil else { continue }
                 anyFlammable = true
                 if Rand.int(in: 0..<5) == 0 {
                     onIgnite?(q, nb)

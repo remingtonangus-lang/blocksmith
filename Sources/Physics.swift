@@ -104,13 +104,15 @@ extension Game {
         if inside {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }
-            if !boots || world.block(feet.x, feet.y + 1, feet.z) == snow { freeze = min(7, freeze + dt) }
+            // Any piece of leather armour keeps the cold out (reference; only the boots counted).
+            let leather = inventory.armor.contains { Items.key($0.item).hasPrefix("leather_") }
+            if !leather { freeze = min(7, freeze + dt) }
         } else {
             freeze = max(0, freeze - 2 * dt)
         }
         if freeze >= 7 && survival {
             freezeTick += dt
-            if freezeTick >= 2 { freezeTick = 0; damage(1, "froze to death", bypassArmor: false, type: .generic) }
+            if freezeTick >= 2 { freezeTick = 0; damage(1, "froze to death", bypassArmor: true, type: .generic) }
         } else { freezeTick = 0 }
     }
 }

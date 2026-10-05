@@ -17,6 +17,14 @@ class HudRendererBase {
     // Sources/LandmarkRender.swift (far volcano / spire impostors) runs on this host too: no HDR target on the Quest.
     let hdrActive = false
     var landmarkSmoke: [SimpleVert] = []
+    // Sources/HorizonRing.swift's per-snapshot cell normals and colours (stored on the Mac Renderer).
+    var horizonKey = HorizonKey()
+    var horizonNrm: [V3] = []
+    var horizonBase: [V3] = []
+    var horizonProj: [V4] = []
+    // Hotbar / slot block icons (drawBlockIcon in the extracted HUD code): the Mac Renderer's cache, same layout.
+    struct IconInfo { var order: [Box]; var fit: Float; var mid: V3; var leafy: Bool; var glassy: Bool }
+    var iconCache: [BlockID: IconInfo] = [:]
     init(game: Game) { self.game = game }
 }
 

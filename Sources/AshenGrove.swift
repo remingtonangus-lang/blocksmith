@@ -122,7 +122,7 @@ extension Game {
             guard want else { continue }
             let hv = V3(Float(h.x) + 0.5, Float(h.y), Float(h.z) + 0.5)
             if mobs.mobs.contains(where: { $0.kind == .creaking && $0.home.map { simd_length($0 - hv) < 0.5 } ?? false }) { continue }
-            guard simd_length(player.pos - hv) < 40 else { continue }
+            guard simd_length(coop.nearestPlayerPos(hv, self) - hv) < 40 else { continue }     // any player (split screen)
             // One Barkwraith per heart, on open ground within 8 blocks.
             for _ in 0..<6 {
                 let x = h.x + Rand.int(in: -8...8), z = h.z + Rand.int(in: -8...8)

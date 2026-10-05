@@ -223,7 +223,7 @@ enum Smoke {
                 // What lives in memory (resident grew ~20 MB/s while flying, runs 605-634): chunks alive vs loaded, and
                 // the long-lived collections.
                 let stashed: Int = game.mobs.stored.values.reduce(0) { $0 + $1.count }
-                print("smoke rd \(rd) memory: chunks alive \(Chunk.alive), loaded \(world.chunks.count); stashed mobs \(stashed); map cells \(MapCache.shared.cellCount); block entities \(world.blockEntities.count); gravity queue \(world.gravityQueue.count); fluid pending \(world.fluidPending.count); jobs \(world.pendingJobs)")
+                print("smoke rd \(rd) memory: chunks alive \(Chunk.alive), loaded \(world.chunks.count); stashed mobs \(stashed); map cells \(MapCache.shared.cellCount); block entities \(world.blockEntities.count); gravity queue \(world.gravityQueue.count); fluid pending \(world.fluidPending.count); jobs \(world.pendingJobs); NaN quarantined: player \(Player.quarantined), mobs \(MobManager.quarantined), ships \(ShipManager.quarantined)")
                 fflush(stdout)
             }
             if i % 30 == 0 {

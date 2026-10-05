@@ -116,7 +116,7 @@ enum Fireworks {
         if k == "goat_horn" { out.append(GoatHorns.names[max(0, min(7, s.tag))]) }
         if k == "written_book" {
             out.append("by Player")
-            out.append(Books.generations[min(3, s.tag)])
+            out.append(Books.generations[max(0, min(3, s.tag))])
         }
         if k == "firework_rocket" {
             out.append("Flight Duration: \(max(1, s.tag))")
@@ -189,8 +189,10 @@ extension Game {
             let d = simd_length(m.pos + V3(0, m.height / 2, 0) - r.pos)
             if d < 5 { m.hit(from: r.pos, damage: max(1, Int(dmg * sqrtf((5 - d) / 5))), knockback: 0.3) }
         }
-        let pd = simd_length(player.pos + V3(0, 0.9, 0) - r.pos)
-        if pd < 5 && survival { hurtPlayer(max(1, Int(dmg * sqrtf((5 - pd) / 5))), from: r.pos, cause: "went off with a bang", type: .explosion) }
+        coop.eachSeat(self) {
+            let pd = simd_length(self.player.pos + V3(0, 0.9, 0) - r.pos)
+            if pd < 5 && self.survival { self.hurtPlayer(max(1, Int(dmg * sqrtf((5 - pd) / 5))), from: r.pos, cause: "went off with a bang", type: .explosion) }
+        }
         let large = r.stars.contains { $0.tag & 7 == 1 }
         sfx(large ? .fireworkBlastLarge : .fireworkBlast, 1.5, at: r.pos)
         if r.stars.contains(where: { $0.tag & 16 != 0 }) { sfx(.fireworkTwinkle, 1.2, at: r.pos) }

@@ -14,7 +14,9 @@ struct ChunkKey: Hashable {
 }
 
 // Counts section invalidations (main thread): World.update skips its scheduling scan while nothing changed.
-enum MeshEpoch { static var value = 0 }
+enum MeshEpoch {
+    static var value = 0
+}
 
 // One 16x16x16 slice of a chunk's mesh.
 final class Section {
@@ -23,9 +25,16 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var transBuf: MeshSlice?
     var transQuads = 0
-    var version = 0 { didSet { MeshEpoch.value &+= 1; owner?.dirty = true } }   // bumped when the section (or light around it) changes
+    var version = 0 {           // bumped when the section (or light around it) changes
+        didSet {
+            MeshEpoch.value &+= 1
+            guard let o = owner else { return }
+            o.dirty = true
+            o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
+        }
+    }
     weak var owner: Chunk?      // marked dirty with each bump (World.update re-checks only dirty chunks)
-    var meshedVersion = -1
+    var meshedVersion = -1 { didSet { owner?.noteStale(was: oldValue != version, now: meshedVersion != version) } }
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var needsMesh: Bool { meshedVersion != version }
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
@@ -63,14 +72,17 @@ struct BlockStore {
         while top > 0 && full[top - 1] == AIR { top -= 1 }
         let keep = (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section
         data = keep >= full.count ? full : Array(full[0..<keep])
+        // Whole sections only (the mesher copies stored rows a section at a time): a short input is padded with air.
+        if data.count < keep { data.append(contentsOf: repeatElement(AIR, count: keep - data.count)) }
     }
 
     var count: Int { CSQ * CH }             // logical size
     var storedCount: Int { data.count }     // everything at or above this index is AIR
 
     @inline(__always) subscript(i: Int) -> BlockID {
-        get { i < data.count ? data[i] : AIR }
+        get { UInt(bitPattern: i) < UInt(data.count) ? data[i] : AIR }      // a negative index reads as air too
         set {
+            guard i >= 0 && i < CSQ * CH else { return }
             if i >= data.count {
                 if newValue == AIR { return }
                 let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
@@ -127,8 +139,11 @@ final class Chunk {
     var meshInFlight = false
     var meshedOnce = false
     var drawnMark: UInt32 = 0
-    var dirty = false              // a section's version changed since World.update last looked at this chunk
+    var dirty = false {            // a section's version changed since World.update last looked at this chunk
+        didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
+    }
     var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
+    weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.
@@ -145,10 +160,15 @@ final class Chunk {
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
         for s in sections { s.owner = self }
+        staleSections = NSEC                         // every section starts unmeshed (version 0, meshedVersion -1)
     }
 
     @inline(__always) static func index(_ x: Int, _ y: Int, _ z: Int) -> Int { x + z * CS + y * CSQ }
-    var needsMesh: Bool { sections.contains { $0.needsMesh } }
+    // Sections whose mesh is out of date, kept by the sections as their versions change: needsMesh was a walk over all
+    // 24 sections, asked of every loaded chunk on each scheduling scan (World.update profile).
+    private(set) var staleSections = 0
+    @inline(__always) func noteStale(was: Bool, now: Bool) { if was != now { staleSections += now ? 1 : -1 } }
+    var needsMesh: Bool { staleSections > 0 }
 
     static func computeHeights(_ b: [BlockID]) -> [Int16] {
         let skyT = Blocks.sky

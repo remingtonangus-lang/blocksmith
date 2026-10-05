@@ -38,8 +38,10 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
 "$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18 --strict
+python3 tools/namecheck.py > snaps/names.txt && "$BIN" --namecheck snaps/names.txt      # gating: every literal Items.id / Blocks.id name exists
+"$BIN" --fidelitycheck      # gating: break times, blast resistances and hardness match the reference
 # Structure walkability: every structure kind in every dimension, 3 seeds x 3 instances (report: snaps/structcheck.md).
-"$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md
+"$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md --strict      # gating: 0 issues on runs 634 and 076df09
 # Issue gallery: the first ten structcheck views, from the walk's closest cell toward an unreachable chest or bed.
 k=0
 grep -o 'view: `[^`]*`' snaps/structcheck.md 2>/dev/null | sed 's/^view: `//; s/`$//' | head -10 | while read -r v; do
@@ -59,10 +61,10 @@ grep '\*\*leak\*\*' snaps/gencheck.md 2>/dev/null | grep -o '`--snapshot [^`]*`'
   # shellcheck disable=SC2086
   "$BIN" --snapshot "snaps/gencheck_leak_$k.png" $v --rd 4 || true
 done
-"$BIN" --collisiontest --out snaps/collisiontest.md
-"$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
+"$BIN" --collisiontest --out snaps/collisiontest.md --strict      # gating: 170 shapes, no issues on 076df09 (guards World.sweep)
+"$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps --strict      # gating: every door entered (0 unmet on the 076df09 run)
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
-"$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps
+"$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps --strict      # gating: trade, sleep, the night passes (0 unmet on 076df09)
 "$BIN" --agent cave --seeds 12345,777,424242 --ticks 14400 --out snaps      # 4 min: room to walk on and search again
 "$BIN" --agent monkey --seeds 12345,424242,777,31337 --runs 3 --ticks 7200 --minimize --out snaps
 # Replay determinism: the same recording played in two separate processes must end in the same state.
@@ -166,7 +168,7 @@ done
 "$BIN" --snapshot snaps/torches.png --seed 12345 --find plains --yaw 0 --pitch -35 --time 0.75 --up 6 --torches
 "$BIN" --snapshot snaps/torches_near.png --seed 12345 --find plains --yaw 20 --pitch -50 --time 0.75 --up 3 --torches --ambient
 "$BIN" --snapshot snaps/torches_day.png --seed 12345 --find plains --yaw 20 --pitch -50 --time 0.3 --up 3 --torches
-"$BIN" --snapshot snaps/water_flow.png --seed 12345 --yaw 10 --pitch -40 --time 0.25 --up 7 --flood
+"$BIN" --snapshot snaps/water_flow.png --seed 12345 --find plains --yaw -15 --pitch -38 --time 0.25 --up 7 --flood   # plains: at the forest spawn the canopy hid both springs
 "$BIN" --snapshot snaps/inventory.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3
 "$BIN" --snapshot snaps/creative.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu creative
 "$BIN" --snapshot snaps/crafting.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting

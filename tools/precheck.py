@@ -149,6 +149,51 @@ for f in sorted(os.listdir(root)):
             seen[m.group(1)] = k
         else:
             seen = {}
+# `Type.member(` where no declaration of Type (its body or any extension) declares `member` (run d31579b called
+# Loot.swordEfficient, which lives in enum Mining: a build break only CI saw). Members of nested types count for the
+# outer type too (a superset: fewer false alarms); classes with a superclass in Sources inherit its members.
+def _strip(src):
+    src = re.sub(r'"""[\s\S]*?"""', '""', src)
+    src = re.sub(r'"(?:\\.|[^"\\\n])*"', '""', src)
+    return re.sub(r'//[^\n]*', '', src)
+members = _c.defaultdict(set)
+defined = set()                        # types declared here (not just extended: Int, Array...)
+supers = _c.defaultdict(set)
+decl = re.compile(r'^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:final|private|fileprivate|public|internal|indirect)\s+)*(enum|struct|class|extension|protocol)\s+([A-Z]\w*)([^{\n]*)\{', re.M)
+memb = re.compile(r'\b(?:func|var|let|case)\s+([a-z_]\w*)|\bcase\s+[^\n]*?,\s*([a-z_]\w*)')
+for f, src in srcs.items():
+    code = _strip(src)
+    for m in decl.finditer(code):
+        start = m.end() - 1
+        depth, k = 0, start
+        while k < len(code):
+            ch = code[k]
+            if ch == '{': depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0: break
+            k += 1
+        body = code[start:k]
+        name = m.group(2)
+        if m.group(1) != 'extension': defined.add(name)
+        for mm in memb.finditer(body):
+            members[name].add(mm.group(1) or mm.group(2))
+        for mm in re.finditer(r'\bcase\s+([a-z_][\w, ]*)', body):        # case a, b, c
+            for c in mm.group(1).split(','):
+                members[name].add(c.strip())
+        if m.group(1) == 'class' and ':' in m.group(3):
+            for sup in re.findall(r'[A-Z]\w*', m.group(3)):
+                supers[name].add(sup)
+def _has(t, name, seen=()):
+    if name in members.get(t, ()): return True
+    return any(_has(s, name, seen + (t,)) for s in supers.get(t, ()) if s not in seen)
+for f, src in srcs.items():
+    code = _strip(src)
+    for m in re.finditer(r'(?<![\w.])([A-Z]\w*)\.([a-z_]\w*)\(', code):
+        t, name = m.group(1), m.group(2)
+        if t not in defined or name in ('init', 'self', 'allCases') or _has(t, name):
+            continue
+        errors.append(f'{f}:{code[:m.start()].count(chr(10)) + 1}: {t}.{name}() — no declaration of {t} has {name}')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')

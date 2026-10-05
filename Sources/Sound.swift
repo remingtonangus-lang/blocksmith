@@ -227,6 +227,7 @@ enum Snd: Hashable {
 final class SoundBank {
     static let rate: Double = 44100
     private var clips: [Snd: [[Float]]] = [:]
+    private var evicted = Set<Snd>()          // held as PCM by the engine: a late prewarm must not cache it again
     private let lock = NSLock()
 
     // Everything with a fixed identity (note blocks are open-ended and made on demand).
@@ -367,7 +368,7 @@ final class SoundBank {
         lock.unlock()
         var vs: [[Float]] = []
         for v in 0..<SoundBank.variants(for: s) { vs.append(SoundBank.render(s, variant: v)) }
-        lock.lock(); clips[s] = vs; lock.unlock()
+        lock.lock(); if !evicted.contains(s) { clips[s] = vs }; lock.unlock()
         return vs[variant % vs.count]
     }
 
@@ -375,7 +376,7 @@ final class SoundBank {
     private var pending = Set<Snd>()
     func prewarm(_ list: [Snd], qos: DispatchQoS.QoSClass = .utility) {
         lock.lock()
-        let todo = list.filter { clips[$0] == nil && !pending.contains($0) }
+        let todo = list.filter { clips[$0] == nil && !pending.contains($0) && !evicted.contains($0) }
         for s in todo { pending.insert(s) }
         lock.unlock()
         guard !todo.isEmpty else { return }
@@ -390,7 +391,7 @@ final class SoundBank {
 
     // Drops a sound's float copy once the engine holds it as PCM buffers (halves resident audio memory).
     func evict(_ s: Snd) {
-        lock.lock(); clips[s] = nil; lock.unlock()
+        lock.lock(); clips[s] = nil; evicted.insert(s); lock.unlock()
     }
 
     var cachedCount: Int { lock.lock(); defer { lock.unlock() }; return clips.count }

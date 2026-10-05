@@ -87,6 +87,8 @@ final class HorizonRing {
     }
 }
 
+struct HorizonKey: Equatable { var seed: UInt64 = 0, x0 = Int.min, z0 = 0, n = 0 }
+
 extension Renderer {
     // Appends the ring's triangles (projected by `project`, the impostor shell), hazed toward the fog: distant ground
     // reads as silhouettes in the haze, a little clearer for high ground lit by the sun.
@@ -99,26 +101,47 @@ extension Renderer {
         let range = HorizonRing.range
         let inner = loaded * 0.8                 // under the loaded terrain it is hidden anyway; this fills streaming gaps
         let night: Float = 0.3 + 0.7 * day
-        for j in 0..<(s.n - 1) {
-            for i in 0..<(s.n - 1) {
+        let n = s.n
+        // Cell normals and colours depend only on the snapshot: computed once per snapshot (they were redone for every
+        // cell every frame).
+        let key = HorizonKey(seed: s.seed, x0: s.x0, z0: s.z0, n: n)
+        if horizonKey != key {
+            horizonKey = key
+            horizonNrm = [V3](repeating: V3(0, 1, 0), count: n * n)
+            horizonBase = [V3](repeating: .zero, count: n * n)
+            for j in 0..<(n - 1) { for i in 0..<(n - 1) {
+                let k = i + j * n
+                let a = V3(Float(s.x0) + Float(i) * sp, s.h[k], Float(s.z0) + Float(j) * sp)
+                let b = V3(a.x + sp, s.h[k + 1], a.z)
+                let c = V3(a.x, s.h[k + n], a.z + sp)
+                var nrm = simd_normalize(simd_cross(c - a, b - a) + V3(0, 1e-4, 0))
+                if nrm.y < 0 { nrm = -nrm }
+                horizonNrm[k] = nrm
+                let sum: V3 = s.c[k] + s.c[k + 1] + s.c[k + n] + s.c[k + n + 1]
+                horizonBase[k] = sum * 0.25
+            } }
+        }
+        // Every grid vertex projected once a frame (each cell projected its four corners: inner vertices four times).
+        if horizonProj.count != n * n { horizonProj = [V4](repeating: V4(0, 0, 0, 1), count: n * n) }
+        for j in 0..<n { for i in 0..<n {
+            let k = i + j * n
+            horizonProj[k] = p(V3(Float(s.x0) + Float(i) * sp, s.h[k], Float(s.z0) + Float(j) * sp))
+        } }
+        for j in 0..<(n - 1) {
+            for i in 0..<(n - 1) {
                 let cxw = Float(s.x0) + (Float(i) + 0.5) * sp, czw = Float(s.z0) + (Float(j) + 0.5) * sp
                 let dx = cxw - eye.x, dz = czw - eye.z
                 let dist = sqrtf(dx * dx + dz * dz)
                 if dist < inner || dist > range { continue }
-                let k = i + j * s.n
-                let a = V3(Float(s.x0) + Float(i) * sp, s.h[k], Float(s.z0) + Float(j) * sp)
-                let b = V3(a.x + sp, s.h[k + 1], a.z)
-                let c = V3(a.x, s.h[k + s.n], a.z + sp)
-                let d = V3(a.x + sp, s.h[k + s.n + 1], a.z + sp)
-                var nrm = simd_normalize(simd_cross(c - a, b - a) + V3(0, 1e-4, 0))
-                if nrm.y < 0 { nrm = -nrm }
-                let base: V3 = (s.c[k] + s.c[k + 1] + s.c[k + s.n] + s.c[k + s.n + 1]) * 0.25
+                let k = i + j * n
+                let nrm = horizonNrm[k]
+                let base: V3 = horizonBase[k]
                 let lit: Float = (0.45 + 0.55 * max(0, simd_dot(nrm, sun))) * night * hdrK
                 // Never clearer than the fully fogged edge of the loaded terrain in front of it: faint silhouettes of
                 // hills and coasts (at 0.62 the far land read as a clear band beyond a fog curtain, horizon_ring_evening).
                 let haze: Float = 0.8 + 0.17 * Terrain.smooth(loaded, range, dist)
                 let col = V4(base * lit * (1 - haze) + fog * haze, 1)
-                let pa = p(a), pb = p(b), pc = p(c), pd = p(d)
+                let pa = horizonProj[k], pb = horizonProj[k + 1], pc = horizonProj[k + n], pd = horizonProj[k + n + 1]
                 out.append(SimpleVert(pos: pa, color: col)); out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pc, color: col))
                 out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pd, color: col)); out.append(SimpleVert(pos: pc, color: col))
             }

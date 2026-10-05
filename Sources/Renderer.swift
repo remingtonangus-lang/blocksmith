@@ -94,8 +94,20 @@ final class Renderer: NSObject, MTKViewDelegate {
     // could fill the ring, and the arm was then written past the buffer's end.
     private let ringTailReserve = 1 << 19
     private var frame = 0
-    private var eyeAdapt: Float = 1          // Fancy eye adaptation: current exposure from the surroundings' brightness
-    private var eyeAdaptT: Double = 0
+    // Fancy eye adaptation: current exposure from the surroundings' brightness. Kept per split-screen seat (one view
+    // in a cave and one in daylight each adapt on their own; a shared value gave player 2 player 1's exposure).
+    struct IconInfo { var order: [Box]; var fit: Float; var mid: V3; var leafy: Bool; var glassy: Bool }
+    private var iconCache: [BlockID: IconInfo] = [:]    // hotbar / slot block icons (drawBlockIcon)
+    // Far landscape ring (HorizonRing.swift): per-snapshot cell normals / colours and the per-frame projected grid.
+    var horizonKey = HorizonKey()
+    var horizonNrm: [V3] = []
+    var horizonBase: [V3] = []
+    var horizonProj: [V4] = []
+    private var eyeAdapts = [Float](repeating: 1, count: 4)
+    private var eyeAdaptTs = [Double](repeating: 0, count: 4)
+    private var seatIx: Int { game.coop.active ? min(3, max(0, game.coop.current)) : 0 }
+    private var eyeAdapt: Float { get { eyeAdapts[seatIx] } set { eyeAdapts[seatIx] = newValue } }
+    private var eyeAdaptT: Double { get { eyeAdaptTs[seatIx] } set { eyeAdaptTs[seatIx] = newValue } }
     private var lastTime = CACurrentMediaTime()
     var drawHUD = true
 
@@ -129,7 +141,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     var caveCulling = true
     // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward
     // near-black when it is low, so distant cave walls no longer fog into bright sky blue underground.
-    private var caveK: Float = -1
+    // Per split-screen seat, like eyeAdapt (shared, the two views pulled it back and forth every frame).
+    private var caveKs = [Float](repeating: -1, count: 4)
+    private var caveK: Float { get { caveKs[seatIx] } set { caveKs[seatIx] = newValue } }
 
     @discardableResult func updateCave() -> Float {
         guard game.dim.dim.hasSky else { caveK = 1; return 1 }
@@ -459,7 +473,6 @@ final class Renderer: NSObject, MTKViewDelegate {
     // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
-        MobLight.nightVision = game.nightVision         // mobs share the terrain's night-vision lift
         MobLight.fill = (0.06 + 0.3 * Settings.shared.lightBrightness) * (game.fancyGraphics && vib != nil ? 1 : 2)
         MobDrawStats.mobs = game.mobs.mobs.count
         MobDrawStats.near = 0
@@ -524,6 +537,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     }
 
     private func renderView(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        // Per view: mobs share this player's night-vision lift (set once per frame, both halves used player 1's).
+        MobLight.nightVision = game.nightVision
         updateCave()
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -1731,7 +1746,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let im = m as? InventoryMenu, game.effects.any {
                 var y = o.y
                 // Left of the recipe-book toggle (the list ran under it: run 362 inventory shot), and of the open book.
-                let right: Float = im.book.open ? o.x - 126 * s : o.x - 26 * s
+                // Clear of the "Craft" label too, which is wider than its button (inventory shot: the list touched it).
+                let craftLabel: Float = 4 * s + textWidth("Craft", s) + 3 * s
+                let right: Float = im.book.open ? o.x - 126 * s : o.x - max(26 * s, craftLabel)
                 for (e, a) in game.effects.active {
                     let bw = 120 * s
                     let bx = right - bw
@@ -1900,8 +1917,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                         itemIcon(ItemStack(Items.id("book"), 1), x + s, y + s, 16 * s, counts: false)
                         // The inventory's way into its crafting book (LB/RB too): labelled, an icon alone was easy to miss.
                         if m is InventoryMenu {
+                            // Right-aligned to the button: centred, the label (wider than the button) ran under the panel.
                             let lw = textWidth("Craft", s)
-                            text("Craft", x + (Float(sl.w) * s - lw) / 2, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
+                            text("Craft", x + Float(sl.w) * s - lw, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
                         }
                     } else if id >= RecipeBook.base {
                         let k = book.page * RecipeBook.perPage + id - RecipeBook.base
@@ -2552,6 +2570,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let hx = sz * 0.5, hy = sz * 0.25, vh = sz * 0.55
         let topC = tintMode == 3 ? grassC : full
         let r = Blocks.render[Int(id)]
+        // The box order, fit and material flags depend only on the block: cached per id (every slot sorted its boxes and
+        // tested its key string every frame: integration Next list).
+        let info: IconInfo
+        if let ci = iconCache[id] { info = ci } else {
         var boxes: [Box] = []
         if r == RenderType.model.rawValue { boxes = Blocks.boxes[Int(id)] }
         else if r == RenderType.connect.rawValue { boxes = BlockRegistry.connectBoxes(ck, n: false, s: false, w: true, e: true, collision: false) }
@@ -2562,8 +2584,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         for b in boxes { bmin = simd_min(bmin, b.minV); bmax = simd_max(bmax, b.maxV) }
         let ext: V3 = bmax - bmin
         let big: Float = max(ext.x, max(ext.y, ext.z))
-        let fit: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
-        let mid: V3 = fit == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
+        let fit0: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
+        let mid0: V3 = fit0 == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
+        func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
+        let order0 = boxes.sorted { depth($0) < depth($1) }
+        let leafy0 = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
+        // Glass is nearly all clear: a faint pale-blue body behind its frame, or the icon read as an empty outline
+        // (blind critic, tv_hud).
+        let glassy0 = Blocks.key(Blocks.groupBase[Int(id)]).contains("glass") && !Blocks.opaque[Int(id)]
+        info = IconInfo(order: order0, fit: fit0, mid: mid0, leafy: leafy0, glassy: glassy0)
+        iconCache[id] = info
+        }
+        let order = info.order, fit = info.fit, mid = info.mid, leafy = info.leafy, glassy = info.glassy
         // Block-local point (0...1 per axis) to the screen: +X goes right-down, +Z left-down, +Y up.
         let oy: Float = c.y + (vh - 2 * hy) / 2
         func P(_ x0: Float, _ y0: Float, _ z0: Float) -> V2 {
@@ -2572,13 +2604,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let sy: Float = oy + (x + z) * hy - y * vh
             return V2(sx, sy)
         }
-        func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
-        let order = boxes.sorted { depth($0) < depth($1) }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
-        let leafy = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
-        // Glass is nearly all clear: a faint pale-blue body behind its frame, or the icon read as an empty outline
-        // (blind critic, tv_hud).
-        let glassy = Blocks.key(Blocks.groupBase[Int(id)]).contains("glass") && !Blocks.opaque[Int(id)]
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
@@ -2708,6 +2734,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
+        MobLight.nightVision = game.nightVision         // (per view: see renderView)
         updateCave()
         let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)

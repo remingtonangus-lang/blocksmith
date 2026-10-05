@@ -217,6 +217,7 @@ enum Mesher {
     // `damage`: chipped blocks around this section (World.damage): x and z relative to the centre chunk's corner
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
+        guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes, collideT = Blocks.collide

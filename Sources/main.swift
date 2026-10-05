@@ -1638,6 +1638,23 @@ if let out = arg("--bench") {
 if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
 if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()) }
+// Name check (tools/namecheck.py writes the list): every literal name the code looks up with Items.id / Blocks.id exists
+// (an unknown name is a fatalError the first time its line runs, often in a rare event).
+if let f = arg("--namecheck") {
+    var bad = 0, n = 0
+    let text = (try? String(contentsOfFile: f, encoding: .utf8)) ?? ""
+    for line in text.split(separator: "\n") {
+        let parts = line.split(separator: " ", maxSplits: 2)
+        guard parts.count >= 2 else { continue }
+        n += 1
+        let name = String(parts[1])
+        let ok: Bool = parts[0] == "item" ? Items.has(name) : Blocks.has(name)
+        if !ok { bad += 1; print("namecheck: unknown \(parts[0]) \"\(name)\"" + (parts.count > 2 ? " at \(parts[2])" : "")) }
+    }
+    print("namecheck: \(n) names, \(bad) unknown")
+    exit(n > 0 && bad == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }

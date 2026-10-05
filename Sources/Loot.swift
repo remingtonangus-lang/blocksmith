@@ -11,25 +11,45 @@ enum Mining {
         return need != .none && t == need
     }
 
+    // Blocks a sword cuts faster (x1.5): leaves, plants, gourds, vines, cocoa.
+    static func swordEfficient(_ b: BlockID, _ key: String) -> Bool {
+        if Blocks.render[Int(b)] == RenderType.cross.rawValue { return true }
+        if key.hasSuffix("leaves") || key.hasSuffix("vines") || key.hasSuffix("vine") || key.hasSuffix("_plant") { return true }
+        return ["pumpkin", "carved_pumpkin", "jack_o_lantern", "melon", "cocoa", "moss_block", "moss_carpet"].contains(key)
+    }
+
     static func canHarvest(_ b: BlockID, _ tool: ItemStack) -> Bool {
         if !Blocks.requiresTool[Int(b)] { return true }
         return correctTool(b, tool) && tool.def.tier >= Int(Blocks.harvestLevel[Int(b)])
     }
 
     // Seconds to break a block (0 = instant, .infinity = unbreakable).
-    static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool) -> Float {
+    // `mul`: Haste / Mining Fatigue, applied to the speed before the instant-break test (reference order: Haste II
+    // with an efficiency pickaxe insta-mines stone; dividing the finished time missed that).
+    static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool, mul: Float = 1) -> Float {
         let h = Blocks.hardness[Int(b)]
         if h < 0 { return .infinity }
         if h == 0 { return 0 }
         var speed: Float = 1
         let key = Blocks.key(b)
-        if correctTool(b, tool) {
+        let t: ToolType = tool.isEmpty ? .none : tool.def.tool
+        let eff = Enchant.level(.efficiency, tool)
+        // Reference speeds (fidelity audit): cobweb is a flat 15 for any sword or shears (a sword used its tier speed);
+        // shears cut leaves at 15, wool at 5, vines at 2 (they were never shears at all); a sword is 1.5 only on the
+        // blocks it is good at (leaves, plants, gourds, vines, cocoa), not on stone or dirt.
+        if key == "cobweb" && (t == .sword || t == .shears) { speed = 15 }
+        else if t == .shears {
+            if key.hasSuffix("leaves") { speed = 15 }
+            else if key.hasSuffix("_wool") { speed = 5 }
+            else if key == "vine" || key == "glow_lichen" { speed = 2 }
+            if speed > 1 && eff > 0 { speed += Float(eff * eff + 1) }
+        }
+        else if correctTool(b, tool) {
             speed = tool.def.toolSpeed
-            let eff = Enchant.level(.efficiency, tool)
             if eff > 0 { speed += Float(eff * eff + 1) }
         }
-        else if !tool.isEmpty && tool.def.tool == .sword { speed = key == "cobweb" ? 15 : 1.5 }
-        else if !tool.isEmpty && tool.def.tool == .shears && key.hasSuffix("leaves") { speed = 15 }
+        else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
+        speed *= mul
         if inWater { speed /= 5 }
         if !onGround { speed /= 5 }
         let perTick = speed / h / (canHarvest(b, tool) ? 30 : 100)
@@ -56,7 +76,8 @@ enum Mining {
         let f = Enchant.level(.fortune, tool)
         guard f > 0 else { return out }
         if fortuneOres.contains(key) {
-            if key.contains("redstone") || key.contains("lapis") || key.contains("copper") {
+            // Sparkstone ore adds a flat 0...f; lapis and copper take the ore multiplier like the rest (reference).
+            if key.contains("redstone") {
                 for i in out.indices { out[i].count += Rand.int(in: 0...f) }       // uniform bonus
             } else {
                 let mult = max(1, Rand.int(in: 0..<(f + 2)))                    // ore bonus: x1..x(f+1)
@@ -103,6 +124,18 @@ enum Mining {
         case "nether_wart": return one("nether_wart", stage == 3 ? rnd(2, 4) : 1)
         case "tripwire": return one("string")
         case "composter": return one("composter") + (stage == 8 ? one("bone_meal") : [])
+        // Reference block loot that isn't the block itself (they all fell through to the block's own item; Silk Touch
+        // still gives the block, in enchantedDrops). By group, so every state (lit / unlit, age) is covered.
+        case "nether_quartz_ore": return one("quartz")
+        case "nether_gold_ore": return one("gold_nugget", rnd(2, 6))
+        case "bookshelf": return one("book", 3)
+        case "sea_lantern": return one("prismarine_crystals", rnd(2, 3))
+        case "campfire": return one("charcoal", 2)
+        case "soul_campfire": return one("soul_soil")
+        case "ender_chest": return one("obsidian", 8)
+        case "podzol", "mycelium", "dirt_path", "farmland": return one("dirt")
+        case "cocoa": return one("cocoa_beans", stage >= 2 ? 3 : 1)
+        case _ where gkey.hasSuffix("_stained_glass") || gkey.hasSuffix("_stained_glass_pane"): return []
         default: break
         }
         switch key {
@@ -125,7 +158,10 @@ enum Mining {
             if shears { return one(key) }
             return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
         case "tall_grass", "large_fern", "dead_bush", "seagrass", "vine":
-            return shears ? one(Blocks.key(Blocks.groupBase[Int(b)])) : (key == "dead_bush" ? one("stick", rnd(0, 2)) : [])
+            if shears { return one(Blocks.key(Blocks.groupBase[Int(b)])) }
+            if key == "dead_bush" { return one("stick", rnd(0, 2)) }
+            if (key == "tall_grass" || key == "large_fern") && Rand.float(in: 0..<1) < 0.125 { return one("wheat_seeds") }     // reference
+            return []
         case "melon": return one("melon_slice", rnd(3, 7))
         case "creaking_heart": return one("resin_clump", rnd(1, 3))
         case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))
@@ -134,8 +170,8 @@ enum Mining {
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
         case "snow": return one("snowball", 1)
-        case "brown_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("brown_mushroom", rnd(1, 2)) : []
-        case "red_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("red_mushroom", rnd(1, 2)) : []
+        case "brown_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("brown_mushroom", n) : []     // reference: 0-2, 1/9 each
+        case "red_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("red_mushroom", n) : []
         case _ where key.hasPrefix("redstone_wire"): return one("redstone")
         case _ where key.hasPrefix("piston_head"): return []
         case "chorus_plant": return Rand.float(in: 0..<1) < 0.5 ? one("chorus_fruit") : []

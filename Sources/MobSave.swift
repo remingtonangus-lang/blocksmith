@@ -44,7 +44,7 @@ extension Mob {
         r.villager = villager
         if let c = cargo { r.inv = c.slots }
         r.eq = equip
-        if let k = knot { r.knot = [k.x, k.y, k.z] }
+        if let k = knot { r.knot = [k.x, k.y, k.z] } else if leashed { r.knot = [] }      // [] = held by the player
         var ex: [String: Float] = [:]
         saveExtra(&ex)
         if !ex.isEmpty { r.extra = ex }
@@ -67,6 +67,7 @@ extension Mob {
         if let i = r.inv { let c = ItemContainer(i.count); c.slots = i; m.cargo = c }
         m.equip = r.eq
         if let k = r.knot, k.count == 3 { m.knot = IVec3(k[0], k[1], k[2]); m.leashed = true }
+        else if let k = r.knot, k.isEmpty { m.leashed = true }        // a lead the player held (it reloaded loose, the lead gone)
         if let ex = r.extra { m.loadExtra(ex) }
         return m
     }
@@ -87,6 +88,10 @@ extension Mob {
         if hasEgg { d["egg"] = 1 }
         if canPickUp { d["pickup"] = 1 }
         if let h = hive { d["hx"] = Float(h.x); d["hy"] = Float(h.y); d["hz"] = Float(h.z) }
+        // A cure in progress and a player-built golem (both were lost when the mob unloaded or the world reloaded: the
+        // golden apple was wasted, the golem turned on its builder near unhappy villagers).
+        if cureTimer > 0 { d["cure"] = cureTimer }
+        if playerBuilt { d["built"] = 1 }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -103,6 +108,8 @@ extension Mob {
         hasEgg = (d["egg"] ?? 0) > 0
         canPickUp = (d["pickup"] ?? 0) > 0
         if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
+        cureTimer = d["cure"] ?? 0
+        playerBuilt = (d["built"] ?? 0) > 0
     }
 }
 

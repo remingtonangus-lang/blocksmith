@@ -268,7 +268,7 @@ enum Enchant {
         var n = 0
         for dz in -2...2 { for dx in -2...2 where max(abs(dx), abs(dz)) == 2 {
             for dy in 0...1 {
-                let mid = w.block(p.x + dx / 2, p.y, p.z + dz / 2)       // truncating halves, like the reference
+                let mid = w.block(p.x + dx / 2, p.y + dy, p.z + dz / 2)  // truncating halves, at the shelf's own height (reference)
                 guard mid == AIR || Blocks.replaceable[Int(mid)] else { continue }
                 if Blocks.key(w.block(p.x + dx, p.y + dy, p.z + dz)) == "bookshelf" { n += 1 }
             }
@@ -300,7 +300,8 @@ enum Enchant {
     static func combine(_ left: ItemStack, _ right: ItemStack, rename: String?, creative: Bool) -> AnvilResult? {
         guard !left.isEmpty else { return nil }
         var out = left
-        out.count = 1
+        // A rename alone takes the whole stack (64 renamed diamonds); combining works on one item.
+        out.count = right.isEmpty ? left.count : 1
         var cost = 0
         var rightUsed = 0
         let ld = left.def

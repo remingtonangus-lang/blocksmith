@@ -77,6 +77,10 @@ final class KeyboardMenu: Menu {
         game.menuCursor = cur
         game.sfx(.click, 0.3)
     }
+    // Closed outright (Esc, View, death) while typing: the screen it types into closes too, returning what it holds
+    // (the anvil's two input items were lost when its name keyboard was closed).
+    override func onClose() { target.onClose() }
+
     func finish() {
         game.menu = target
         game.menuCursor = 0

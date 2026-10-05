@@ -789,6 +789,13 @@ final class Circuit {
         }
         for q in destroy {
             game?.breakDrops(q, block(q))
+            // Its block entity goes with it, contents dropped (a sign, frame, banner or painting broken by a piston left
+            // its entity in the empty cell: text and paintings floating, the framed item lost, the cell immovable, and a
+            // frame hung there later read the stale entity's slots).
+            if let g = game, let be = g.world.blockEntities.removeValue(forKey: q) {
+                let at = V3(Float(q.x), Float(q.y), Float(q.z)) + 0.5
+                for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: at) }
+            }
             setQuiet(q, AIR)
         }
         let ids = set.map { block($0) }

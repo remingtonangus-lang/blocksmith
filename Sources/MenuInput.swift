@@ -148,9 +148,12 @@ extension Game {
             }
             // Number keys swap the hovered slot with a hotbar slot.
             for (i, k) in Key.digits.enumerated() where input.tapped(k) && !m.capturesText {
-                if case .normal = s.kind, s.container != nil {
+                // The hotbar stack goes in only where the slot takes it whole (it skipped `accepts` and the slot limit:
+                // a stack of books swapped into the enchanting slot was used up as one).
+                let h = inventory.main[i]
+                if case .normal = s.kind, s.container != nil, h.isEmpty || (s.accepts(h) && h.count <= m.slotLimit(s, h)) {
                     let a = s.stack
-                    s.stack = inventory.main[i]
+                    s.stack = h
                     inventory.main[i] = a
                     m.changed()
                 }

@@ -120,17 +120,26 @@ extension ShipManager {
         // give their meshes back and remesh when the player comes near again.
         var rdr = ShipBlockReader(world)
         let keep = Float((world.renderDistance + 2) * CS)
+        // Split screen: every seat's helm and body count (only player 1's did: player 2's vehicle had its controls
+        // zeroed every frame, and a ship near player 2 alone went to sleep and lost its mesh).
+        var pilots: [Ship] = pilot.map { [$0] } ?? []
+        var bodies: [V3] = []
+        if let g = game {
+            for st in g.coop.slots { if let p = st?.ship.pilot { pilots.append(p) } }
+            for i in 0..<max(1, g.coop.seatCount) { bodies.append(g.coop.seatPlayer(i, g).pos) }
+        }
         for s in list {
             let r = s.root
             // Distance to the hull's bounds, not its centre: a 480-block frigate's bow can be beside the player while
             // its centre of mass is 250 blocks away.
-            let d: Float = game.map { g -> Float in
-                let px = g.player.pos.x, pz = g.player.pos.z
-                let dx = max(r.worldMin.x - px, 0, px - r.worldMax.x), dz = max(r.worldMin.z - pz, 0, pz - r.worldMax.z)
-                return simd_length(V2(dx, dz))
-            } ?? 0
+            var d: Float = bodies.isEmpty ? 0 : .greatestFiniteMagnitude
+            for b in bodies {
+                let dx = max(r.worldMin.x - b.x, 0, b.x - r.worldMax.x), dz = max(r.worldMin.z - b.z, 0, b.z - r.worldMax.z)
+                d = min(d, simd_length(V2(dx, dz)))
+            }
+            let steered = pilots.contains { $0 === s }
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
-            s.asleep = s !== pilot && (d > 384 || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
+            s.asleep = !steered && (d > 384 || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
             if !s.asleep && dt > 0 {
                 // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.
                 let cx = Int(floor((s.worldMin.x + s.worldMax.x) * 0.5)), cz = Int(floor((s.worldMin.z + s.worldMax.z) * 0.5))
@@ -147,7 +156,7 @@ extension ShipManager {
         }
         for s in list {
             s.prevPos = s.pos; s.prevRot = s.rot
-            if s === pilot { continue }
+            if pilots.contains(where: { $0 === s }) { continue }
             if let a = s.autopilot { s.piloted = true; s.throttle = a.x; s.steer = a.y; s.climb = a.z }
             else { s.piloted = false; s.throttle = 0; s.steer = 0; s.climb = 0 }
         }
@@ -320,6 +329,18 @@ extension ShipManager {
         }
         for s in list where s.parent == nil {
             if s.asleep { continue }
+            // NaN quarantine (a degenerate contact or AI steer): a non-finite velocity is dropped, and a non-finite pose
+            // goes back to the last good one. NaN reached Int(floor()) in the hull's world bounds and failed the ship save.
+            let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
+            let wOK: Bool = s.angVel.x.isFinite && s.angVel.y.isFinite && s.angVel.z.isFinite
+            if !vOK || !wOK { s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
+            // The pose to fall back to: this step's start, or the last finite one if it was already broken (written by
+            // an AI or a parent outside this loop).
+            let r0 = s.rot.vector
+            let startOK: Bool = s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite && r0.x.isFinite && r0.y.isFinite && r0.z.isFinite && r0.w.isFinite
+            let pos0: V3 = startOK ? s.pos : (s.lastGoodPos ?? s.home ?? V3(0, Float(SEA + 10), 0))
+            let rot0 = startOK ? s.rot : (s.lastGoodRot ?? Quat(angle: 0, axis: V3(0, 1, 0)))
+            if !startOK { s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
             let w = simd_length(s.angVel)
@@ -327,6 +348,14 @@ extension ShipManager {
             s.pos += s.vel * h
             if w > 1e-6 {
                 s.rot = simd_normalize(Quat(angle: w * h, axis: s.angVel / w) * s.rot)
+            }
+            let q = s.rot.vector
+            let poseOK: Bool = s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite && q.x.isFinite && q.y.isFinite && q.z.isFinite && q.w.isFinite
+            if !poseOK {
+                s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero
+                ShipManager.quarantined += 1
+            } else {
+                s.lastGoodPos = s.pos; s.lastGoodRot = s.rot
             }
             s.updateBounds()
         }

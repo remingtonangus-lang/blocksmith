@@ -87,6 +87,15 @@ struct SeatState {
     var lastDeath: V3?
     var deathScore = 0
     var timeSinceRest: Float = 0
+    var lastHorn: Double = -100        // their own horn and wind-charge cooldowns (shared, one player's use blocked the other's)
+    var lastWind: Double = -10
+    var mapRow = 0                     // their held map's scan row (shared, two held maps each filled every other row)
+    var hideHUD = false                // F1 / F3 are per half (player 1's hid player 2's HUD too)
+    var showDebug = false
+    var bookTab: CraftCategory = .craftable    // the crafting book's last tab, Show All and craft flash (shared statics)
+    var bookShowAll = true
+    var bookFlashItem: ItemID = 0
+    var bookFlashAt: Double = -10
     // Per-player state kept outside Game.
     var padLook = PadLook()
     var wheel = WeaponWheel()
@@ -156,6 +165,11 @@ struct ShipSeat {
 }
 
 final class Coop {
+    // The seat whose turn it is is a second one: it always plays on a controller (seat 0 may be on the keyboard and
+    // mouse), so prompts and aim assist treat it as on a pad (they followed player 1's last input device).
+    static var secondSeat = false
+    static var liveSeat = 0                 // the seat whose turn it is (rounds a player fires stay with that seat)
+
     static let maxSeats = 2
     // slots[i] holds seat i's state while another seat is live; the live seat's slot is nil.
     private(set) var slots: [SeatState?] = [nil]
@@ -179,6 +193,8 @@ final class Coop {
         slots[i] = nil
         slots[current] = s
         current = i
+        Coop.secondSeat = i > 0
+        Coop.liveSeat = i
         // Menus opening and closing for other seats must not release or capture the mouse.
         g.onInventoryChanged = i == 0 ? savedInventoryCallback : nil
     }
@@ -250,6 +266,9 @@ final class Coop {
     // Player 2 leaves (their state is kept for this session in case they rejoin).
     func leave(_ g: Game) {
         guard active else { return }
+        // Their open screen closes properly first: its cursor item and grid go back to their inventory (dropping the
+        // menu lost them).
+        withSeat(1, g) { if !(g.menu is PauseMenu) { g.closeMenu() } }     // (a pause menu holds nothing; closing it unpauses)
         switchTo(0, g)
         if var s = slots[1] {
             s.menu = nil
@@ -341,9 +360,20 @@ final class Coop {
     func followDimension(_ g: Game) {
         let at = g.player.pos
         let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
         for i in 0..<slots.count where i != current {
             guard let p = slots[i]?.player else { continue }
-            p.pos = at + right * 1.2
+            // Beside the traveller where the body fits (a fixed step to the right could be inside the portal frame or a
+            // wall at the far end); on the traveller's own spot if nothing nearby is free (players don't collide).
+            var spot = at
+            let r: V3 = right * 1.2, f: V3 = fwd * 1.2, up = V3(0, 1, 0)
+            let offs: [V3] = [r, -r, f, -f, r + up, up - r]
+            for o in offs {
+                let q: V3 = at + o
+                let lo = V3(q.x - p.halfW, q.y, q.z - p.halfW), hi = V3(q.x + p.halfW, q.y + p.height, q.z + p.halfW)
+                if !g.world.collides(lo, hi) { spot = q; break }
+            }
+            p.pos = spot
             p.vel = .zero
             p.airPeak = p.pos.y
             p.pendingFall = 0
@@ -424,8 +454,19 @@ extension Game {
         drops.update(f, game: self)
         projectiles.update(f, game: self)
         portalTick(f)
+        endPortalTick()                                   // they can step into a Hollow rift or gateway too
         hazardTick(f)
         effectTick(f)
+        // Their own fishing bobber and held map (both ran only in seat 0's turn: player 2's bobber hung where it was
+        // cast and never bit, their map never filled).
+        bobberTick(f)
+        mapTick()
+        // Their gun: recoil, bloom and hit marker recover, and the rounds nearest them fly (Armory.update splits them
+        // by seat; enemy rounds near player 2 could not hit them and their kick never settled).
+        armsTick(f)
+        // Torch smoke, dripping leaves, Emberdeep motes... round their own view (they only appeared round player 1).
+        ambientParticles(f)
+        emberMotes(f)
         if survival { timeSinceRest += f }
         if sleeping > 0 { sleeping += f; timeSinceRest = 0 }
     }
@@ -440,6 +481,8 @@ extension Game {
         swap(&MenuNav.shared, &s.menuNav)
         swap(&Turrets.shared, &s.turrets)
         swap(&CombatHUD.shared, &s.combatHUD)
+        swap(&CraftingBookMenu.lastTab, &s.bookTab); swap(&CraftingBookMenu.showAll, &s.bookShowAll)
+        swap(&CraftBook.flashItem, &s.bookFlashItem); swap(&CraftBook.flashAt, &s.bookFlashAt)
         s.gun.exchange(arms)
         s.pad.exchange()
         s.ship.exchange(world.ships)
@@ -519,6 +562,62 @@ enum CoopTest {
         var hp2 = 20
         c.withSeat(1, g) { hp2 = g.health; g.health = 20; g.player.vel = .zero }
         check(hp2 < 20 && g.health == hp1, "a blast beside player 2 hurts player 2 (\(hp2)) and not player 1 (\(g.health))")
+        // An enemy round fired at player 2 hits player 2 (rounds flew only in player 1's turn and only hit player 1).
+        c.withSeat(1, g) { g.health = 20; g.lastHurtAt = -10 }
+        // Straight down from over their head: player 2 stands on the column's top block, so the line is open sky (fired
+        // across from the side, a hill or a trunk could stop it first).
+        let above2: V3 = c.seatPlayer(1, g).pos + V3(0, 6, 0)
+        g.arms.slugs.append(Slug(pos: above2, vel: V3(0, -60, 0), kind: .bullet, damage: 3, fromPlayer: false,
+                                 shooter: nil, by: "a test", life: 2, gravity: 0))
+        for _ in 0..<12 { g.tick(1.0 / 60) }
+        var shot2 = 20
+        c.withSeat(1, g) { shot2 = g.health; g.health = 20; g.player.vel = .zero }
+        check(shot2 < 20 && g.arms.slugs.isEmpty, "an enemy round fired at player 2 hits player 2 (\(shot2))")
+        // Conjurer fangs under player 2 bite player 2 (world hazards hurt only player 1 before).
+        c.withSeat(1, g) { g.lastHurtAt = -10 }
+        let hpBefore = g.health
+        g.fangs.append(Fang(pos: c.seatPlayer(1, g).pos, delay: 0, owner: nil))
+        for _ in 0..<3 { g.tick(1.0 / 60) }
+        var bit2 = 20
+        c.withSeat(1, g) { bit2 = g.health; g.health = 20; g.player.vel = .zero }
+        check(bit2 < 20 && g.health == hpBefore, "conjurer fangs bite player 2 (\(bit2)), not player 1")
+        // Subtitles: a groan beside player 2 is captioned on player 2's half, with player 2's arrow; player 1's half
+        // leaves it out when the players are far apart (the side was worked out for whoever was live, once).
+        let subsWas = Settings.shared.subtitles
+        Settings.shared.subtitles = true
+        var right2 = V3(1, 0, 0), eye2 = V3(0, 0, 0)
+        c.withSeat(1, g) { right2 = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)); eye2 = g.player.eye }
+        g.sfx(.mobZombie, 1, at: eye2 + right2 * 5)
+        let lay = HudLayout(640, 360)
+        func caption(_ seat: Int) -> [HudLine] {
+            var out: [HudLine] = []
+            c.withSeat(seat, g) { out = Subtitles.shared.lines(g, lay, bottom: 300).filter { $0.text == "Zombie groans" || $0.text == ">" || $0.text == "<" } }
+            return out
+        }
+        let half2 = caption(1), half1 = caption(0)
+        let apart = simd_length(c.seatPlayer(0, g).eye - eye2) > 40
+        check(half2.contains { $0.text == "Zombie groans" } && half2.contains { $0.text == ">" }
+              && (!apart || half1.isEmpty), "a sound beside player 2 is captioned on player 2's half with player 2's arrow\(apart ? ", not on player 1's" : "")")
+        Settings.shared.subtitles = subsWas
+        // Player 1's ender pearl landing beside player 2 takes player 1 there and leaves player 2 alone (thrown items
+        // flew in the turn of the player nearest them: player 2 was teleported).
+        let p2at = c.seatPlayer(1, g).pos
+        let p1home = p1.pos
+        let pearl = Fireball(p2at + V3(1.5, 3, 0), V3(0, -20, 0), big: false, byPlayer: true)    // thrown in seat 0's turn
+        pearl.kind = .pearl
+        g.projectiles.fireballs.append(pearl)
+        for _ in 0..<20 { g.tick(1.0 / 60) }
+        let p2after = c.seatPlayer(1, g).pos
+        check(simd_length(p1.pos - p2at) < 4 && simd_length(p2after - p2at) < 0.5,
+              String(format: "player 1's pearl moves player 1 (%.0f blocks from player 2) and not player 2 (%.1f)", simd_length(p1.pos - p2at), simd_length(p2after - p2at)))
+        p1.pos = p1home; p1.vel = .zero
+        g.health = 20
+        // A pressure plate under player 2 counts them (plates, tripwires and pistons saw only player 1).
+        c.withSeat(1, g) { g.player.pos.y = floor(g.player.pos.y); g.player.vel = .zero }      // feet on the cell floor
+        let p2feet = c.seatPlayer(1, g).pos
+        let plate = IVec3(Int(floor(p2feet.x)), Int(floor(p2feet.y)), Int(floor(p2feet.z)))
+        let pressing = g.entitiesOn(plate, items: false)
+        check(pressing >= 1, "a pressure plate under player 2 counts them (\(pressing))")
         g.survival = false
         p1.vel = .zero
         // One pause for both.

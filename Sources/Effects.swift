@@ -274,7 +274,8 @@ extension Game {
         let h = max(effects.level(.haste), effects.level(.conduitPower))
         if h > 0 { m *= 1 + 0.2 * Float(h) }
         let f = effects.level(.miningFatigue)
-        if f > 0 { m *= powf(0.3, Float(min(f, 4))) }
+        let fatigue: [Float] = [0.3, 0.09, 0.0027, 0.00081]             // reference: III and IV are far steeper than 0.3^n
+        if f > 0 { m *= fatigue[min(f, 4) - 1] }
         return m
     }
 
@@ -407,6 +408,9 @@ extension Game {
         if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
         if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
         if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
+        // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
+        if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
+        if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
         return d
     }
     func loadExtra(_ d: [String: String]) {
@@ -421,6 +425,14 @@ extension Game {
         }
         if let str = d["raid"], let data = str.data(using: .utf8), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) { raid = Raid(rec) }
         if let str = d["coop2"], let data = str.data(using: .utf8), let c = try? JSONDecoder().decode(Coop.Saved.self, from: data) { coop.restoreSecond(c) }
+        if let a = d["anchor"] {
+            let v = a.split(separator: ",").compactMap { Int($0) }
+            if v.count == 3 { anchorSpawn = IVec3(v[0], v[1], v[2]) }
+        }
+        if let l = d["lastDeath"] {
+            let v = l.split(separator: ",").compactMap { Float($0) }
+            if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }
+        }
         if let str = d["bases"], let data = str.data(using: .utf8), let recs = try? JSONDecoder().decode([BaseRecord].self, from: data) {
             for var r in recs { r.lastTick = clock; bases.records[r.key] = r }     // time away is caught up from the save's clock on
         }

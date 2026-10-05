@@ -243,6 +243,24 @@ enum PlantCheck {
             settle()
             check(w.block(x, floorY + 1, cz) == AIR, "a flower whose ground is removed by the world (an explosion, a piston) pops too")
         }
+        // A piston pushing a block into a sign breaks the sign, and its block entity goes too (it stayed in the empty
+        // cell: floating text, an immovable cell, a frame hung there later reading the stale entity's slots).
+        if Blocks.has("piston") && Blocks.has("oak_sign") && Blocks.has("redstone_block") {
+            let x = site(2)
+            let sign = IVec3(x, floorY, cz)
+            w.setBlock(x - 2, floorY, cz, Blocks.id("piston") + 5)                // facing east (+x)
+            w.setBlock(x - 1, floorY, cz, STONE)
+            w.setBlock(sign.x, sign.y, sign.z, Blocks.id("oak_sign"))
+            w.blockEntities[sign] = BlockEntity(.sign)
+            w.setBlock(x - 3, floorY, cz, Blocks.id("redstone_block"))
+            for _ in 0..<20 { w.redstone.tick() }
+            settle()
+            if w.block(sign.x, sign.y, sign.z) == STONE {
+                check(w.blockEntities[sign] == nil, "a sign a piston breaks leaves no block entity behind")
+            } else {
+                print("plantcheck: note: the piston scene did not extend (sign cell \(Blocks.key(w.block(sign.x, sign.y, sign.z)))): sign entity check skipped")
+            }
+        }
         g.survival = keepSurvival
         print("plantcheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails

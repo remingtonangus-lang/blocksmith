@@ -97,8 +97,10 @@ enum CraftBook {
             }
             guard ok else { break }
             var returns: [ItemStack] = []
+            var used: [ItemStack] = []
             for (j, n) in take {
                 var s = inv[j]
+                used.append(s)
                 let key = Items.key(s.item)
                 s.count -= n
                 // Buckets give their bucket back, bottles their bottle.
@@ -106,7 +108,7 @@ enum CraftBook {
                 if key == "honey_bottle", Items.has("glass_bottle") { returns.append(ItemStack(Items.id("glass_bottle"), n)) }
                 inv[j] = s.count > 0 ? s : .empty
             }
-            let rest = g.inventory.add(r.result)
+            let rest = g.inventory.add(Recipes.keepContents(r.result, used))
             if !rest.isEmpty { g.dropItem(rest) }
             for b in returns { let left = g.inventory.add(b); if !left.isEmpty { g.dropItem(left) } }
             made += 1
@@ -164,7 +166,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         self.size = size
         super.init(size == 3 ? "Crafting" : "Crafting (2x2)", game: game)
         width = 344
-        height = 262
+        height = 270                // the hotbar's slots and counts clear of the bottom frame (tv_craftbook: they touched it)
         showInventoryLabel = false
         for t in CraftCategory.allCases {
             let b = MenuSlot(8 + t.rawValue * 23, 16, nil, 0, .button(CraftingBookMenu.tabBase + t.rawValue)); b.w = 21; b.h = 20
@@ -190,7 +192,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         // The manual grid (a table's 3x3, or the inventory with its 2x2 grid and armour).
         let gb = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); gb.w = 140; gb.h = 16
         slots.append(gb)
-        addPlayerInventory(y: 186, x: 8)
+        addPlayerInventory(y: 189, x: 8)
         refresh()
     }
 
@@ -433,7 +435,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             label(t, sl.x + (sl.w - Font.width(t)) / 2, sl.y + 4)
         }
         if !lastCraftMessage.isEmpty { label(lastCraftMessage, 196, 248, ink, maxW: 144) }
-        label("Inventory", 8, 177, ink)
+        label("Inventory", 8, 179, ink)
         return out
     }
 }

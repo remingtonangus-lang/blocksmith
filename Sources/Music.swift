@@ -373,6 +373,9 @@ final class MusicStream {
     private(set) var title = ""
     private var lock = NSLock()
     private var rendererFinished = true
+    // play() bumps playGen; the render queue sets rendererGen once that piece is loaded. A pump of the old (finished)
+    // piece that lands in between must not report the new one as ended.
+    private var playGen = 0, rendererGen = 0
 
     let mono: Bool
 
@@ -409,8 +412,12 @@ final class MusicStream {
     var isPlaying: Bool { lock.lock(); defer { lock.unlock() }; return current != nil }
 
     func play(_ score: MusicScore, fadeIn: Float = 2) {
-        lock.lock(); current = score.mood; title = score.title; rendererFinished = false; lock.unlock()
-        queue.async { [weak self] in self?.renderer.play(score, fadeIn: fadeIn) }
+        lock.lock(); current = score.mood; title = score.title; rendererFinished = false; playGen += 1; let g = playGen; lock.unlock()
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            self.renderer.play(score, fadeIn: fadeIn)
+            self.lock.lock(); self.rendererGen = g; self.lock.unlock()
+        }
     }
 
     func stop(fade: Float) {
@@ -442,7 +449,7 @@ final class MusicStream {
         guard let ch = buf.floatChannelData else { return }
         renderer.render(into: &l, &r)
         let fin = renderer.finished
-        lock.lock(); rendererFinished = fin; lock.unlock()
+        lock.lock(); if rendererGen == playGen { rendererFinished = fin }; lock.unlock()
         buf.frameLength = AVAudioFrameCount(block)
         if mono {
             for i in 0..<block { ch[0][i] = (l[i] + r[i]) * 0.5 }

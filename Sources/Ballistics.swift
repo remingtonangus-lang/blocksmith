@@ -21,6 +21,7 @@ struct Slug {
     var traveled: Float = 0
     var dead = false
     var whizzed = false           // a near miss on the player already made its whizz
+    var seat: Int8 = -1           // split screen: the seat that fired it (its hits, marker and provoked mobs are theirs)
 }
 
 struct Beam {
@@ -51,7 +52,12 @@ final class Armory {
     var shotsFired = 0             // harness counters
     var hits = 0
 
-    func spawn(_ s: Slug) { if slugs.count < 600 { slugs.append(s) } }
+    func spawn(_ s0: Slug) {
+        guard slugs.count < 600 else { return }
+        var s = s0
+        if s.fromPlayer { s.seat = Int8(truncatingIfNeeded: Coop.liveSeat) }
+        slugs.append(s)
+    }
 
     // The first mob along a segment (skipping the shooter, and soldiers' own side for their rounds).
     static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool) -> (Mob, Float)? {
@@ -99,6 +105,10 @@ final class Armory {
     func update(_ dt: Float, _ g: Game) {
         let w = g.world
         for i in slugs.indices {
+            // Split screen: a player's round flies in its shooter's turn (its hit marker, hits and the mob it provokes are
+            // theirs); enemy rounds fly in the turn of the seat nearest them (so they can hit player 2 too, like arrows).
+            let own: Bool = slugs[i].seat >= 0 ? Int(slugs[i].seat) == g.coop.current || !g.coop.active : g.seatOwns(slugs[i].pos)
+            guard own else { continue }
             var s = slugs[i]
             s.life -= dt
             if s.life <= 0 {
@@ -161,7 +171,7 @@ final class Armory {
             slugs[i] = s
         }
         slugs.removeAll { $0.dead }
-        for i in beams.indices { beams[i].life -= dt }
+        if g.coop.current == 0 { for i in beams.indices { beams[i].life -= dt } }
         beams.removeAll { $0.life <= 0 }
     }
 

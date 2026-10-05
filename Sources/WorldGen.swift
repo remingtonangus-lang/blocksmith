@@ -341,6 +341,7 @@ final class WorldGen: TerrainGenerator {
     // cave decoration, trees, vegetation and freeze.
     static var timing = false
     static var phaseMs = [Double](repeating: 0, count: 8)
+    static let timingLock = NSLock()          // other worlds' workers may generate while the bench times (also startMs)
     static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants", "starts"]
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
@@ -348,7 +349,7 @@ final class WorldGen: TerrainGenerator {
         func mark(_ k: Int) {
             guard WorldGen.timing else { return }
             let n = CFAbsoluteTimeGetCurrent()
-            WorldGen.phaseMs[k] += (n - tp) * 1000
+            WorldGen.timingLock.lock(); WorldGen.phaseMs[k] += (n - tp) * 1000; WorldGen.timingLock.unlock()
             tp = n
         }
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
@@ -764,7 +765,18 @@ final class WorldGen: TerrainGenerator {
                                 let cur = b[i]
                                 if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
                                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
-                                b[i] = y <= lavaLevel ? LAVA : AIR
+                                if y <= lavaLevel { b[i] = LAVA; continue }
+                                // Aquifers, as in the cave carver: a ravine through a flooded cell fills with its water
+                                // (never over open air), and next to a flooded cell across a chunk edge it keeps a rock
+                                // barrier (it cut straight up to the water: gencheck leaks "underground border").
+                                if aquiferWet(x, y, z) {
+                                    if b[i - CSQ] == AIR { continue }
+                                    b[i] = WATER; continue
+                                }
+                                let ex = x & 15, ez = z & 15
+                                if (ex == 0 && aquiferWet(x - 1, y, z)) || (ex == 15 && aquiferWet(x + 1, y, z)) { continue }
+                                if (ez == 0 && aquiferWet(x, y, z - 1)) || (ez == 15 && aquiferWet(x, y, z + 1)) { continue }
+                                b[i] = AIR
                             }
                         }
                     }

@@ -72,6 +72,7 @@ extension Game {
                 }
                 let arrow = projectiles.shoot(from: player.eye, dir: dir, speed: 63, fromPlayer: true, damage: 2)
                 arrow.pierce = pierce
+                arrow.crit = true                                // crossbow bolts always crit (reference: 7-11)
                 if Potions.potion(of: ammo) != nil { arrow.tip = ammo }
                 arrow.pickup = survival && i == 0
             }

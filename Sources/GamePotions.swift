@@ -103,16 +103,19 @@ extension Game {
             }
             guard c.tick <= 0 else { continue }
             clouds[i].tick = 1
-            let d = player.pos - c.pos
-            let inside = simd_length(V2(d.x, d.z)) < clouds[i].radius && abs(d.y) < 2
+            let radius = clouds[i].radius
+            // Every player standing in it (split screen: player 2 too).
+            coop.eachSeat(self) {
+                let d = self.player.pos - c.pos
+                guard simd_length(V2(d.x, d.z)) < radius && abs(d.y) < 2 else { return }
+                if let t = pt { self.applyPotion(t, scale: 1, durationScale: 0.25) }
+                else { self.hurtPlayer(6, from: c.pos, cause: "was killed by Wyrm's Breath", knockback: 0, type: .magic) }
+            }
             if let t = pt {
-                if inside { applyPotion(t, scale: 1, durationScale: 0.25) }
                 for m in mobs.mobs {
                     let md = m.pos - c.pos
-                    if simd_length(V2(md.x, md.z)) < clouds[i].radius && abs(md.y) < 2 { applyPotion(t, to: m, scale: 1, durationScale: 0.25) }
+                    if simd_length(V2(md.x, md.z)) < radius && abs(md.y) < 2 { applyPotion(t, to: m, scale: 1, durationScale: 0.25) }
                 }
-            } else if inside {
-                hurtPlayer(6, from: c.pos, cause: "was killed by Wyrm's Breath", knockback: 0, type: .magic)
             }
         }
         clouds.removeAll { $0.time <= 0 }

@@ -215,8 +215,10 @@ extension ShipManager {
         encounterTimer -= dt
         if encounterTimer <= 0 {
             encounterTimer = 5
-            stationFrigates(g)
-            let p = g.player.pos
+            // Round every player (split screen: vessels and frigates appeared only where player 1 went).
+            for seat in 0..<max(1, g.coop.seatCount) {
+            let p = g.coop.seatPlayer(seat, g).pos
+            stationFrigates(g, near: p)
             let rx = floorDiv(Int(p.x), Vessels.region), rz = floorDiv(Int(p.z), Vessels.region)
             for dz in -1...1 { for dx in -1...1 {
                 let key = "\(rx + dx),\(rz + dz)"
@@ -245,15 +247,16 @@ extension ShipManager {
                 spawnedRegions.insert(key)
                 spawnVessel(kind, home: home, game: g)
             } }
+            }
         }
         crewTick(dt, game: g)
     }
 
     // A Capital frigate is stationed over every Capital citadel (military_base): built when the player comes within
     // 600 blocks, once per citadel (the key is saved with the vessel regions).
-    func stationFrigates(_ g: Game) {
+    func stationFrigates(_ g: Game, near at: V3? = nil) {
         guard let sc = world.gen.structures else { return }
-        let p = g.player.pos
+        let p = at ?? g.player.pos
         guard let base = sc.nearest("military_base", x: Int(p.x), z: Int(p.z), maxRegions: 1) else { return }
         let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
         let key = "citadel:\(cx),\(cz)"
@@ -308,6 +311,21 @@ extension ShipManager {
         return true
     }
 
+    // The nearest player the vessel's guns engage (split screen: either one; they only ever shot at player 1).
+    func gunsTarget(_ s: Ship, _ g: Game) -> V3? {
+        var best: V3?
+        var bd = Float.greatestFiniteMagnitude
+        for i in 0..<max(1, g.coop.seatCount) {
+            g.coop.withSeat(i, g) {
+                guard self.gunsEngage(s, g) else { return }
+                let pp: V3 = g.player.pos + V3(0, 1, 0)
+                let d = simd_length(pp - s.pos)
+                if d < bd { bd = d; best = pp }
+            }
+        }
+        return best
+    }
+
     // Vessel crews: patrol around home, turrets track a nearby player and fire.
     func crewTick(_ dt: Float, game g: Game) {
         for s in list where s.isVessel && !s.kinematic && s !== pilot && s.parent == nil {
@@ -354,7 +372,8 @@ extension ShipManager {
             s.autopilot = V3(s.role == "frigate" ? 0.7 : 0.5, steer, 0)
             // Guns: the player, or else an enemy faction's vessel or crawler in range (CapitalShips.swift).
             var pp = g.player.pos + V3(0, 1, 0)
-            var seen = gunsEngage(s, g)
+            var seen = false
+            if let t = gunsTarget(s, g) { pp = t; seen = true }
             if !seen, let foe = nearestFoe(of: s.factionValue, near: s.pos, range: s.role == "frigate" ? 90 : 110, game: g), foe.ship != nil {
                 pp = foe.point
                 seen = true

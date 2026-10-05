@@ -149,22 +149,25 @@ extension Game {
         if difficulty == 0 { raid = nil; return }
         // Ill Omen + village -> Siege Omen (30 s) -> raid. Walking into a running raid with Ill Omen
         // raises its level instead (up to V), which can add the bonus wave.
-        if let b = effects[.badOmen], survival, dim.dim == .overworld {
-            if let r = raid, r.state < 2, simd_length(player.pos - r.center) < 96 {
-                effects.remove(.badOmen)
-                r.level = min(5, r.level + b.amp + 1)
-            } else if raid == nil, nearVillage(player.pos) != nil {
-                effects.remove(.badOmen)
-                applyEffect(.raidOmen, amp: b.amp, seconds: 30)
-                raidOmenAt = player.pos
+        // Every player's omen counts (split screen: player 2 carrying Ill Omen into a village started nothing).
+        coop.eachSeat(self) {
+            if let b = self.effects[.badOmen], self.survival, self.dim.dim == .overworld {
+                if let r = self.raid, r.state < 2, simd_length(self.player.pos - r.center) < 96 {
+                    self.effects.remove(.badOmen)
+                    r.level = min(5, r.level + b.amp + 1)
+                } else if self.raid == nil, self.nearVillage(self.player.pos) != nil {
+                    self.effects.remove(.badOmen)
+                    self.applyEffect(.raidOmen, amp: b.amp, seconds: 30)
+                    self.raidOmenAt = self.player.pos
+                }
             }
-        }
-        if raid == nil, let ro = effects[.raidOmen], ro.time <= 1.1 {
-            effects.remove(.raidOmen)
-            let c = nearVillage(raidOmenAt ?? player.pos) ?? player.pos
-            raid = Raid(center: c, level: ro.amp + 1, difficulty: difficulty)
-            sfx(.raidHorn, 1.5, at: c)
-            onToast?("A raid has begun")
+            if self.raid == nil, let ro = self.effects[.raidOmen], ro.time <= 1.1 {
+                self.effects.remove(.raidOmen)
+                let c = self.nearVillage(self.raidOmenAt ?? self.player.pos) ?? self.player.pos
+                self.raid = Raid(center: c, level: ro.amp + 1, difficulty: self.difficulty)
+                self.sfx(.raidHorn, 1.5, at: c)
+                self.onToast?("A raid has begun")
+            }
         }
         guard let r = raid else { return }
         r.raiders.removeAll { rd in rd.health <= 0 || !mobs.mobs.contains { $0 === rd } }
@@ -180,7 +183,7 @@ extension Game {
         case 0:
             if !villagersLeft && r.wave > 0 { r.state = 3; r.timer = 30; onToast?("Raid - Defeat"); return }
             if !villagersLeft { raid = nil; return }
-            if simd_length(player.pos - r.center) < 96 { r.timer -= dt }
+            if simd_length(coop.nearestPlayerPos(r.center, self) - r.center) < 96 { r.timer -= dt }
             if r.timer <= 0 { spawnWave(r) }
         case 1:
             if !villagersLeft { r.state = 3; r.timer = 30; onToast?("Raid - Defeat"); return }
@@ -194,9 +197,10 @@ extension Game {
                     r.timer = 30
                     onToast?("Raid - Victory")
                     // Village Hero: level = omen level, 40 minutes, for players near the village.
-                    if simd_length(player.pos - r.center) < 96 {
-                        applyEffect(.heroOfTheVillage, amp: r.level - 1, seconds: 2400)
-                        achieve("raid_win")
+                    coop.eachSeat(self) {
+                        guard simd_length(self.player.pos - r.center) < 96 else { return }
+                        self.applyEffect(.heroOfTheVillage, amp: r.level - 1, seconds: 2400)
+                        self.achieve("raid_win")
                     }
                     sfx(.villagerCelebrate, 1.2)
                     for v in mobs.mobs where v.kind == .villager && simd_length(v.pos - r.center) < 64 { particles.hearts(at: v.pos + V3(0, 2.2, 0)) }
@@ -346,7 +350,9 @@ extension Mob {
     }
 
     // Melee damage including a sharpened raid axe (+1 / +2).
-    var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) }
+    // Zombies add a held weapon's damage (an iron-sword zombie hits 3 + 5); illager and boarling specs already count
+    // their weapon.
+    var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) + (isZombie ? weaponBonus : 0) }
     // Reference shot cycles: bows draw 1 s then wait the attack interval (2 s, 1 s on Hard);
     // crossbows charge 1.25 s (-0.25 s per Quick Charge) then pause 1-2 s.
     var crossbowReload: Float {

@@ -66,7 +66,14 @@ extension Game {
         guard m.kind == .minecart else { return false }
         switch m.variant {
         case 1, 2:
-            if m.cargo == nil { m.cargo = ItemContainer(m.variant == 1 ? 27 : 5) }
+            // Its own size (a saved cart came back with whatever slot count was stored, an empty list included).
+            let want = m.variant == 1 ? 27 : 5
+            if m.cargo == nil { m.cargo = ItemContainer(want) }
+            if let c = m.cargo, c.count < want {
+                let grown = ItemContainer(want)
+                for i in 0..<c.count { grown[i] = c[i] }
+                m.cargo = grown
+            }
             openMenu(m.variant == 1 ? ChestMenu(game: self, container: m.cargo!, title: "Minecart with Chest")
                                     : PackMenu(game: self, container: m.cargo!, title: "Minecart with Hopper"))
             return true

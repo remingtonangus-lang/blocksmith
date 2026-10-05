@@ -164,6 +164,32 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 09:10 UTC: cancelled run 658 (fcaeb04) after its fast lane passed (no warnings) and before its heavy build got a
   runner: one heavy run on the next push covers it and ~25 later commits instead of two queue cycles.
 
+- 09:07-09:25 UTC: runs 661 (4608bd6) and 662 (6994f63) cancelled while still queued, superseded by c801470 (a likely
+  NaN crash for idle frigate gunners, then the wooden-shelf empty container: crash fixes take the next run).
+
+- 09:31-10:05 UTC: runs 663 (c801470), 667 (8aa3717) and 670 (32bd4ba) cancelled while still queued (no macOS runner
+  free), each superseded by the next batch (container-screen item loss, save / load audit, split-screen audit);
+  144ba6e carries all three batches.
+
+- 10:20 UTC: run 672 (144ba6e) fast lane green (no warnings; optimized smoke rd 8 60 s PASS, p50 7.2 ms, resident 252 ->
+  287 MB with chunks alive == loaded throughout: the ~20 MB/s growth is gone, the rest is map cells and stashed mobs).
+  Its heavy lane was still queued: cancelled, 01f1b95 carries it plus the rest of the split-screen audit, the collision
+  sweep and World.update quiet-frame costs from the 076df09 bench (per mob 7.8 us, update p50 0.89 ms at rd 24).
+
+- 10:35 UTC: run 676 (01f1b95) fast lane: build clean, smoke rd 8 PASS (p50 7.95 ms, resident peak 281 MB); cooptest
+  1 FAILED ("an enemy round fired at player 2": a round fired across from the side, likely stopped by terrain; now fired
+  straight down over player 2's head). Heavy lane still queued: cancelled; 1a6f386 carries it plus 21 commits (a code
+  review's six findings, NaN quarantines, pathfinder cursor, O(1) needsMesh, mineshafts / ravines vs aquifers,
+  structcheck / village / life / collisiontest gating).
+
+- 10:45 UTC: macOS runners busy with claude/bs-capital-soldiers (runs 680/681, Kestrel air patrols, basetest air) and the
+  capital / frontier workflows; run 679 (e9a42c8) queued behind them. A trial merge of claude/bs-capital-soldiers
+  (17 commits from c801470: Aircraft, BaseTests, CapitalAir, FlightModel, FlightTests, ShipPlay, Soldiers) into this
+  branch's head is clean (git merge-tree, no conflicts).
+- Heads-up for merges: claude/quest-port (run 675) also reworked World.collides / sweep to reuse one box list; this branch
+  changed sweep too (per-column chunk lookups + a swapped-out scratch list, 01f1b95): expect a conflict there, keep the
+  per-column lookup.
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
@@ -178,3 +204,12 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
 - (Done) structcheck covers the citadel: 9 checked, 99 POIs, 333 mobs, no issues (run 634).
 - (Done) --ridecheck gates the tours lane (its crew failure turned run 634 red).
+- 2026-10-05 11:15: run 682 heavy build failed (WorldMap.swift:243, type checker timeout on the MapCache.batch
+  trailing closure; the fast -Onone lane does not catch it). Fixed with a named nested function; also fixed five
+  races from the thread-safety audit (map epoch, music generation token, sound evict, World.alive lock, bench
+  timing) and the first fidelity-audit items (shears/sword/hoe speeds, full-draw bow crits). Pushed with [full].
+- 11:40 UTC: run 685 (d31579b) still queued (no macOS runner): cancelled, superseded by this push (fidelity drops /
+  mob speeds, precheck Type.member() resolution, per-half subtitles).
+- 11:55 UTC: run 686 (313ecce) still queued: cancelled, superseded by the fidelity audit round 2 (three read-only
+  audits: items/blocks, combat/survival, spawning/AI; ~45 fixes) plus --fidelitycheck (gating). A compile review of
+  313ecce..2d0b90f by a subagent found nothing.

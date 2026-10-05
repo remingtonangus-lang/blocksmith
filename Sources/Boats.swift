@@ -99,8 +99,12 @@ extension Game {
 final class PackMenu: Menu {
     init(game: Game, container: ItemContainer, title: String) {
         super.init(title, game: game)
-        let cols = max(1, container.count / 3)
-        for r in 0..<3 { for c in 0..<cols { slots.append(MenuSlot(80 + c * 18, 18 + r * 18, container, c + r * cols)) } }
+        // Three rows when the slots divide by three (llamas, chest boats), else one row: a hopper minecart's 5 slots
+        // came out as one column of 3 and the last two could not be reached.
+        // (An empty container gets no slots: 0 % 3 == 0 made three rows of one slot over nothing.)
+        let rows = container.count >= 3 && container.count % 3 == 0 ? 3 : 1
+        let cols = container.count / rows
+        for r in 0..<rows { for c in 0..<cols { slots.append(MenuSlot(80 + c * 18, 18 + r * 18, container, c + r * cols)) } }
         addPlayerInventory()
     }
 }

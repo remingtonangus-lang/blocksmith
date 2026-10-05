@@ -191,7 +191,8 @@ class Menu {
                 slot.stack = s
                 carried.count -= n
                 if carried.count <= 0 { carried = .empty }
-            } else if slot.accepts(carried) {
+            } else if slot.accepts(carried) && carried.count <= slotLimit(slot, carried) {
+                // Only a stack the slot can hold swaps in (64 books swapped into the enchanting slot became one book).
                 slot.stack = carried
                 carried = s
             }
@@ -283,6 +284,7 @@ final class CraftingGrid {
             return sp.0
         }
         guard let r = recipe else { return nil }
+        let result = Recipes.keepContents(r.result, Array(grid.slots))
         for i in 0..<grid.count where !grid[i].isEmpty {
             var s = grid[i]
             let key = Items.key(s.item)
@@ -292,7 +294,7 @@ final class CraftingGrid {
             grid[i] = s
         }
         update()
-        return r.result
+        return result
     }
 }
 

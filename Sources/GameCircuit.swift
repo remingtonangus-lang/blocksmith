@@ -115,7 +115,11 @@ extension Game {
             // Standing on top of a moved block.
             return set.contains(IVec3(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z))))
         }
-        if inside(player.pos, player.halfW, player.height) { player.pos += d; player.airPeak = player.pos.y }
+        // Every player (split screen: a piston didn't carry player 2).
+        coop.eachSeat(self) {
+            let pl = self.player
+            if inside(pl.pos, pl.halfW, pl.height) { pl.pos += d; pl.airPeak = pl.pos.y }
+        }
         for m in mobs.mobs where inside(m.pos, m.halfW, m.height) { m.pos += d }
     }
 
@@ -126,7 +130,7 @@ extension Game {
             pos.x + hw > Float(p.x) + 0.06 && pos.x - hw < Float(p.x) + 0.94 && pos.z + hw > Float(p.z) + 0.06 && pos.z - hw < Float(p.z) + 0.94
         }
         var n = 0
-        if alive && on(player.pos, player.halfW) { n += 1 }
+        coop.eachSeat(self) { if self.alive && on(self.player.pos, self.player.halfW) { n += 1 } }   // player 2 presses plates too
         for m in mobs.mobs where on(m.pos, m.halfW) { n += 1 }
         if items { for e in drops.items where on(e.pos, 0.125) { n += e.stack.count } }
         return n
@@ -148,9 +152,9 @@ extension Game {
         if dropper {
             // Into a container in front, else out as an item.
             if let t = world.blockEntities[front], t.kind != .spawner, t.kind != .furnace {
-                let one = ItemStack(stack.item, 1)
+                let one = stack.with(count: 1)
                 if t.container.add(one).isEmpty { take() }
-            } else { drops.spawn(ItemStack(stack.item, 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
             sfx(.click, 0.5, at: from)
             return
         }
@@ -173,13 +177,13 @@ extension Game {
                 let maxStage = bk == "beetroots" ? 3 : 7
                 let st = Int(fb - Blocks.groupBase[Int(fb)])
                 if st < maxStage { world.setBlock(front.x, front.y, front.z, Blocks.groupBase[Int(fb)] + BlockID(min(maxStage, st + Rand.int(in: 2...5)))); take() }
-            } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
+            } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { saplingAdvance(front, bk) }; take() }
         default:
             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
-                inventory.armor[sl.rawValue] = ItemStack(stack.item, 1); take()
+                inventory.armor[sl.rawValue] = stack.with(count: 1); take()
             } else {
-                drops.spawn(ItemStack(stack.item, 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take()
+                drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take()
             }
         }
         sfx(.click, 0.5, at: from)
@@ -193,9 +197,10 @@ extension Game {
         let c = be.container
         var moved = false
         let target = p + Game.hopperOut[out]
-        if let t = world.blockEntities[target], t.kind != .spawner {
+        // Not into campfires or item frames (a campfire turned whatever arrived into its smelt result or nothing).
+        if let t = world.blockEntities[target], t.kind != .spawner, t.kind != .campfire, t.kind != .frame {
             for i in 0..<c.count where !c[i].isEmpty {
-                let one = ItemStack(c[i].item, 1)
+                let one = c[i].with(count: 1)
                 let ok: Bool
                 if t.kind == .furnace {
                     let slot = out == 0 ? 0 : 1                                  // from above: input; from the side: fuel
@@ -212,7 +217,7 @@ extension Game {
         if let src = world.blockEntities[above], src.kind != .spawner {
             let range: Range<Int> = src.kind == .furnace ? 2..<3 : 0..<src.container.count      // a range: no array per tick
             for i in range where !src.container[i].isEmpty {
-                let one = ItemStack(src.container[i].item, 1)
+                let one = src.container[i].with(count: 1)
                 if c.add(one).isEmpty {
                     var s = src.container[i]; s.count -= 1; src.container[i] = s.count > 0 ? s : .empty
                     moved = true; break

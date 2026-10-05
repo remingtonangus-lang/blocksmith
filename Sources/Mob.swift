@@ -34,7 +34,7 @@ enum MobKind: Int, CaseIterable {
         var halfW: Float
         var height: Float
         var health: Int
-        var speed: Float          // walk speed, blocks/s
+        var speed: Float          // walk speed, blocks/s (10x the reference movement attribute: zombie 0.23 -> 2.3)
         var behavior: Behavior
         var attack: Int = 0       // melee damage (half-hearts)
         var burnsInSun = false
@@ -70,7 +70,7 @@ enum MobKind: Int, CaseIterable {
                                  drops: [("slime_ball", 0, 2)], xp: 1, call: .mobSlime)
         case .zombifiedPiglin: return Spec(name: "Undead Boarling", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,
                                            drops: [("rotten_flesh", 0, 1), ("gold_nugget", 0, 1)], xp: 5, call: .mobUndeadBoarling, fireImmune: true)
-        case .piglin: return Spec(name: "Boarling", halfW: 0.3, height: 1.95, health: 16, speed: 2.5, behavior: .piglin, attack: 8,
+        case .piglin: return Spec(name: "Boarling", halfW: 0.3, height: 1.95, health: 16, speed: 3.5, behavior: .piglin, attack: 8,
                                   drops: [], xp: 5, call: .mobBoarling)
         case .ghast: return Spec(name: "Wailer", halfW: 2, height: 4, health: 10, speed: 2.0, behavior: .ghast,
                                  drops: [("ghast_tear", 0, 1), ("gunpowder", 0, 2)], xp: 5, call: .mobWailer, fireImmune: true, flying: true)
@@ -78,9 +78,9 @@ enum MobKind: Int, CaseIterable {
                                  drops: [], xp: 10, call: .mobCinderwisp, fireImmune: true, flying: true)
         case .magmaCube: return Spec(name: "Lava Blob", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
                                      drops: [], xp: 1, call: .mobSlime, fireImmune: true)
-        case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 2.2, behavior: .melee, attack: 6,
+        case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 3.0, behavior: .melee, attack: 6,
                                   drops: [("porkchop", 2, 4), ("leather", 0, 1)], xp: 5, call: .mobPig)
-        case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 2.4, behavior: .melee, attack: 13,
+        case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 3.5, behavior: .melee, attack: 13,
                                        drops: [], xp: 20, call: .mobBoarling)
         case .strider: return Spec(name: "Magmastrider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
                                    drops: [("string", 2, 5)], xp: 2, call: .mobPig, fireImmune: true)
@@ -108,12 +108,12 @@ enum MobKind: Int, CaseIterable {
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
                                       drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
-        case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
+        case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.5, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
-        case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .ranged,
+        case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .ranged,
                                     drops: [("arrow", 0, 2)], xp: 5, call: .mobVillager)
-        case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .melee, attack: 13,
+        case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .melee, attack: 13,
                                       drops: [("emerald", 0, 1)], xp: 5, call: .mobVillager)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
@@ -121,7 +121,7 @@ enum MobKind: Int, CaseIterable {
                                   drops: [("nether_star", 1, 1)], xp: 50, call: .mobBlight, fireImmune: true, flying: true)
         case .snowGolem: return Spec(name: "Snow Golem", halfW: 0.35, height: 1.9, health: 4, speed: 2.2, behavior: .snowGolem,
                                      drops: [("snowball", 0, 15)], xp: 0, call: .step(.snow))
-        case .evoker: return Spec(name: "Conjurer", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .evoker,
+        case .evoker: return Spec(name: "Conjurer", halfW: 0.3, height: 1.95, health: 24, speed: 5.0, behavior: .evoker,
                                   drops: [("totem_of_undying", 1, 1), ("emerald", 0, 1)], xp: 10, call: .mobVillager)
         case .vex: return Spec(name: "Hexling", halfW: 0.2, height: 0.8, health: 14, speed: 6, behavior: .vex, attack: 9,
                                drops: [], xp: 3, call: .mobVex, flying: true)
@@ -273,6 +273,9 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
+    var lastHurtAmount = 0
+    var spiderChasing = false            // a spider that turned on you in the dark keeps at it in the light
     var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
@@ -326,6 +329,7 @@ final class Mob {
     var spin: Float = 0            // boat turn rate (deg per tick)
     var equip: [ItemStack]?        // head, chest, legs, feet, main hand
     var leashed = false
+    var leashSeat = 0               // split screen: the player holding the lead (rope, pull and fence tying follow them)
     var knot: IVec3?               // fence the lead is tied to (nil = the player)
     var raider = false              // part of a raid
     var breakTimer: Float = 0       // blight: breaks surrounding blocks when this runs out
@@ -449,6 +453,7 @@ final class Mob {
         strafe = 0
         path.climbUp = false
         hurt = max(0, hurt - dt)
+        invulnerable = max(0, invulnerable - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
         aiTimer -= dt
@@ -737,7 +742,16 @@ final class Mob {
             }
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
-            let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
+            // Spiders: hostile below raw light 12 (block light or darkened sky); a spider already after you gives up in
+            // the light only 1 time in 100 a tick (reference; any shade at all turned them, and light dropped the chase).
+            var hostileNow = spec.behavior == .melee || aggro
+            if !hostileNow {
+                let darken = max(0, min(11, Int(((1 - (g.daylight - 0.12) / 0.88) * 11).rounded())))
+                let raw = max(l.block, l.sky - darken)
+                if raw < 12 { hostileNow = true; spiderChasing = true }
+                else if spiderChasing && Rand.float(in: 0..<1) >= dt * 0.2 { hostileNow = true }
+                else { spiderChasing = false }
+            }
             // Zombies go for villagers, raiders for villagers and golems (when nearer than the player).
             if let v = villagerTarget(g), !(canTarget && hostileNow && dist <= simd_length(v.pos - pos)) {
                 face(v.pos)
@@ -796,15 +810,16 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .creeper:
             if canTarget {
                 face(player)
-                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away.
-                if dist < 3 || (fuse > 0 && dist < 7) {
+                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away or out of
+                // sight (behind a wall it un-swells instead of blowing up through it).
+                if (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt
                     speed = 0
@@ -822,8 +837,10 @@ final class Mob {
             // Provoked by being looked at (in the face) or hit; teleports away from water.
             if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
                 let head = pos + V3(0, height - 0.3, 0)
-                let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
+                let rel = head - g.player.eye
+                let rd = max(0.1, simd_length(rel))
+                // Reference isLookingAtMe: dot > 1 - 0.025 / distance (about 4 degrees at 10 blocks; it was a fixed 8).
+                if simd_dot(g.player.look, rel / rd) > 1 - 0.025 / rd && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
             voidwalkerTick(dt, g)
@@ -1172,8 +1189,25 @@ final class Mob {
         }
     }
 
-    func hit(from src: V3, damage: Int, knockback: Float = 1) {
+    // `iframes`: the reference 0.5 s after a hit in which only a bigger hit counts, and only by the difference, with no
+    // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
+    // Off for guns, blasts and scripted hits, which have their own rates.
+    func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if kind == .warden && emergeTime > 0 { return }
+        var damage = damage
+        var knockback = knockback
+        if iframes && damage > 0 {
+            if invulnerable > 0 {
+                if damage <= lastHurtAmount { return }
+                let extra = damage - lastHurtAmount
+                lastHurtAmount = damage
+                damage = extra
+                knockback = 0
+            } else {
+                invulnerable = 0.5
+                lastHurtAmount = damage
+            }
+        }
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
@@ -1201,7 +1235,7 @@ final class Mob {
             return
         }
         // A closed sentry shell shrugs off most of a hit.
-        var damage = armorReduced(damage)
+        damage = armorReduced(damage)
         // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
         if kind == .wolf && armorTier == 5 && damage > 0 {
             armorHP -= damage; damage = 0
@@ -1770,6 +1804,7 @@ final class MobManager {
     var populateTimer: Float = 0.5
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
+    static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
@@ -1796,6 +1831,16 @@ final class MobManager {
         for m in mobs where game.seatOwns(m.pos) {
             let before = m.pos
             m.update(dt, game: game)
+            // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
+            // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
+            let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
+            if !sane || !m.yaw.isFinite {
+                MobManager.quarantined += 1
+                if MobManager.quarantined <= 5 { print("mob NaN quarantine: \(m.kind.key) at \(before) (\(MobManager.quarantined) so far)") }
+                m.pos = before.x.isFinite && before.y.isFinite && before.z.isFinite ? before : p
+                m.vel = .zero
+                if !m.yaw.isFinite { m.yaw = 0 }
+            }
             // Footsteps for walking mobs near the listener (size sets the stride and loudness).
             let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
             if game.sound != nil && m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
@@ -1876,17 +1921,23 @@ final class MobManager {
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
+            // A position made non-finite outside this seat's update (another seat's knockback) can't be turned into a
+            // chunk: the mob goes (its update would put it back, but Int(floor(NaN)) below is undefined).
+            guard m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite else { MobManager.quarantined += 1; return true }
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
-            let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
                 return true
             }
-            return shouldDespawn(m, d, dt, game)
+            return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
         }
         mobs += spawned
         restoreTimer -= dt
-        if restoreTimer <= 0 { restoreTimer = 1; restore(w, center: p, limit: limit) }
+        if restoreTimer <= 0 {
+            restoreTimer = 1
+            // Round every player (split screen: stashed villagers near player 2 came back only when player 1 went there).
+            for i in 0..<max(1, game.coop.seatCount) { restore(w, center: game.coop.seatPlayer(i, game).pos, limit: limit) }
+        }
         spawnTick(dt, game)
     }
 

@@ -175,7 +175,11 @@ final class AnvilMenu: Menu {
         let r = out[0]
         guard !r.isEmpty else { return nil }
         if game.survival { game.xpLevel = max(0, game.xpLevel - cost) }
-        box[0] = .empty
+        // Only what went into the result leaves the left slot (clearing it lost the rest of a stack: renaming 64
+        // diamonds gave one and deleted 63).
+        var left = box[0]
+        left.count -= r.count
+        box[0] = left.count > 0 ? left : .empty
         var right = box[1]
         right.count -= rightUsed
         box[1] = right.count > 0 ? right : .empty

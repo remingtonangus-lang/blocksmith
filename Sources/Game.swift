@@ -100,6 +100,7 @@ final class Game {
     var sleeping: Float = 0        // > 0 while in bed (seconds)
     var leafQueue: [IVec3] = []
     var placedLeaves = Set<IVec3>()
+    var saplingStage = Set<IVec3>()      // saplings at stage 1 (Farming.saplingAdvance)
     var bowCharge: Float = 0
     var portalTime: Float = 0
     var portalCooldown: Float = 0
@@ -128,6 +129,9 @@ final class Game {
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
+    // The controller of the seat whose turn it is (set as its frame starts): the map, vehicle and helicopter controls
+    // read it, not seat 0's PadManager.lastMapped (player 1's stick panned player 2's map and flew player 2's plane).
+    var seatPad: PadSnapshot?
     var levitateFromY: Float?        // where the current levitation began (advancement)
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
@@ -341,7 +345,10 @@ final class Game {
         dragonKilled = m.dragonKilled ?? false
         gateways = m.gateways ?? 0
         seenCredits = m.seenCredits ?? false
-        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) { maps = mm }
+        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) {
+            // Only well-formed maps (a damaged file's colours were indexed as 128 x 128 and its scale shifted by).
+            maps = mm.filter { $0.value.colors.count == 128 * 128 && (0...4).contains($0.value.scale) }
+        }
         effects.load(m.effects)
         absorption = m.absorption ?? 0
         if let e = m.enchantSeed { enchantSeed = e }
@@ -368,6 +375,7 @@ final class Game {
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow() }; return }
         world.saveAll()
         mobs.save(to: world.save)
+        drops.save(to: world.save)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
         s.saveMeta(meta)
     }
@@ -402,7 +410,7 @@ final class Game {
         if persistent { old.saveAll() }
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
-        if persistent { oldMobs.save(to: old.save) }
+        if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
         let rd = old.renderDistance
         dim = dimensionState(d)
         world.renderDistance = rd
@@ -465,7 +473,7 @@ final class Game {
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
-        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; Tutorial.selected(self) }
+        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; attackTimer = 0; Tutorial.selected(self) }   // a fresh weapon starts uncharged
         selected = n
         let h = held
         if !h.isEmpty { onToast?(h.def.display) }
@@ -544,6 +552,12 @@ final class Game {
         audioMenuOpened(m)
     }
 
+    // Before the game ends (quit, another world): every seat's open screen hands its cursor item and grid back to the
+    // inventory, which is what the save holds (Cmd-Q with an item on the cursor or in the crafting grid lost it).
+    func closeMenusForExit() {
+        coop.eachSeat(self) { self.closeMenu() }
+    }
+
     func closeMenu() {
         guard let m = menu, !(m is DeathMenu) else { return }
         audioMenuClosed(m)
@@ -579,6 +593,7 @@ final class Game {
         }
 
         let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
+        seatPad = pad
         if seat == 0 {
             padConnected = pad != nil
             PadManager.shared.note(pad: pad, input: input)
@@ -773,7 +788,7 @@ final class Game {
                 mobHit = m
             }
         }
-        if breakNow { swing = 1 }
+        if breakNow { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
         // Lunge (spear): the jab carries the player forward (not when digging a block, swimming or gliding).
         if breakNow, Spear.isSpear(held.item), mobHit != nil || target == nil, !player.inWater && !player.gliding {
             let lv = Enchant.level(.lunge, held)
@@ -785,7 +800,8 @@ final class Game {
         }
         if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
         // Punching a filled item frame takes the item out first.
-        if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {
+        if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit],
+           be.kind == .frame, be.container.count > 0, !be.container[0].isEmpty {
             drops.spawn(be.container[0], at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             be.container[0] = .empty
             blockSound(.itemFrameRemove, at: t.hit, 0.7)
@@ -801,7 +817,10 @@ final class Game {
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge)
-                let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround
+                // Reference crit: falling, and not sprinting, swimming, climbing, blind or riding.
+                let feetB = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y + 0.1)), Int(floor(player.pos.z)))
+                let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround && !player.sprinting && !player.inWater
+                    && !Player.climbable(feetB) && !effects.has(.blindness) && riding == nil
                 if crit { dmg *= 1.5 }
                 dmg += Enchant.damageBonus(held, against: m) * charge
                 // Mace smash: bonus damage from the fall, which is then cancelled.
@@ -820,7 +839,9 @@ final class Game {
                 }
                 attackTimer = 0
                 let kb = Float(Enchant.level(.knockback, held))
-                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: (player.sprinting ? 1.6 : 1) + kb)
+                // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
+                let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
+                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
                 m.provoke(self)
                 m.killedByPlayer = true
                 m.lootingLevel = Enchant.level(.looting, held)
@@ -863,8 +884,8 @@ final class Game {
                 // A block chipped earlier picks up where it was left (progressive block damage).
                 if mining != t.hit { mining = t.hit; mineProgress = Float(world.damageLevel(t.hit)) / 8 }
                 let aqua = Enchant.level(.aquaAffinity, inventory.armor[0]) > 0
-                var secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua)
-                if secs > 0 && secs.isFinite { secs /= miningSpeedMul }
+                let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua,
+                                               mul: miningSpeedMul)
                 if secs.isInfinite {
                     mineProgress = 0
                 } else {
@@ -887,7 +908,10 @@ final class Game {
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
-                        damageHeld(held.def.tool == .sword ? 2 : 1)
+                        // Only tools wear, and only on blocks with some hardness (shears on anything they cut): a bow or a
+                        // rod in hand, or a pickaxe through grass and torches, lost durability before (reference).
+                        let tl = held.isEmpty ? ToolType.none : held.def.tool
+                        if tl != .none && (Blocks.hardness[Int(b)] > 0 || tl == .shears) { damageHeld(tl == .sword ? 2 : 1) }
                         mining = nil
                         mineProgress = 0
                         breakCooldown = secs <= 0 ? 0 : 0.3
@@ -956,6 +980,7 @@ final class Game {
                                               damage: 2 + (power > 0 ? 0.5 * Float(power) + 0.5 : 0))
                     a.punch = Enchant.level(.punch, h)
                     a.flame = Enchant.level(.flame, h) > 0
+                    a.crit = f >= 1                              // a fully drawn bow always crits (reference)
                     if let i = ammo, Potions.potion(of: inventory.main[i].item) != nil { a.tip = inventory.main[i].item }
                     let plain = ammo.map { Items.key(inventory.main[$0].item) == "arrow" } ?? true
                     a.pickup = survival && !(infinity && plain)
@@ -1397,9 +1422,13 @@ final class Game {
                 var box = ItemStack(Items.item(forBlock: b) ?? 0, 1)
                 if be.container.slots.contains(where: { !$0.isEmpty }) { box.contents = be.container.slots }
                 if box.item != 0 { drops.spawn(box, at: center) }
+                be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
                 return
             }
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
+            // Emptied too: a screen still open on it (player 2's, or one the block was broken under) shares this
+            // container, and the spilled items could be taken from it a second time.
+            be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
         }
         if drop {
             for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
@@ -1462,7 +1491,9 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
-        if !m.baby {
+        // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
+        // needs a baby, so behind a plain !baby it could never drop.)
+        if !m.baby || m.isZombie {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) {
                 let c = Rand.int(in: lo...(hi + looting))
@@ -1471,7 +1502,9 @@ final class Game {
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
             }
             if m.kind == .sheep && !m.sheared, Items.has("\(m.woolColor)_wool") { drops.spawn(ItemStack(Items.id("\(m.woolColor)_wool"), 1), at: at) }
-            if m.kind == .zombie && Rand.float(in: 0..<1) < 0.025 {
+            // Rare drop: player kills only, 2.5 % + 1 % per Looting level; husks and zombie villagers too (reference).
+            if (m.kind == .zombie || m.kind == .husk || m.kind == .zombieVillager) && m.killedByPlayer
+                && Rand.float(in: 0..<1) < 0.025 + 0.01 * Float(looting) {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Rand.int(in: 0...2)]), 1), at: at)
             }
             let r = Rand.float(in: 0..<1)
@@ -1498,7 +1531,11 @@ final class Game {
             let k = Boats.itemKey(m.variant, chest: m.chested)
             if Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         }
-        if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
+        if let c = m.cargo {
+            for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }
+            c.slots = Array(repeating: .empty, count: c.slots.count)     // an open pack screen shares it (no second take)
+            m.cargo = nil
+        }
         if let e = m.equip {
             // Worn gear drops 8.5% (+1% per looting level) from mobs, always from armor stands.
             for s in e where !s.isEmpty && (m.kind == .armorStand || Rand.float(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }
@@ -1521,9 +1558,10 @@ final class Game {
     // Monster spawners: active with a player within 16 blocks; every 10-40 s up to 4 mobs of the
     // spawner's kind appear within ±4 blocks, unless 6 of that kind are already near.
     func spawnerTick(_ dt: Float) {
-        let pp = player.pos
         for (p, be) in world.blockEntities where be.kind == .spawner {
             let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+            // The nearest player wakes it (split screen: player 2's dungeon spawners stayed asleep).
+            let pp = coop.active ? coop.seatPlayer(coop.nearestSeat(c, self), self).pos : player.pos
             guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob) else { continue }
             if be.trial {
                 // Trial spawner: six mobs (two at a time) for a nearby player, then a reward and a 30-minute rest.
@@ -1849,12 +1887,25 @@ final class Game {
         player.pendingFall = 0
         guard survival else { air = 15; return }
 
-        let safeFall = 3.5 + Float(effects.level(.jumpBoost))
-        if fall > safeFall && !player.inWater { damage(Int(ceilf(fall - safeFall)), "fell from a high place", bypassArmor: true, type: .fall) }
+        // Reference: ceil(distance - 3 - Jump Boost), scaled by what you land on (hay and honey 0.2, beds 0.5, slime 0
+        // unless sneaking). The threshold was 3.5: a jump off a 3-block ledge did 1 instead of 2.
+        let safeFall = 3.05 + Float(effects.level(.jumpBoost))
+        if fall > safeFall && !player.inWater {
+            let p = player.pos
+            let land = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z))))])
+            var k: Float = 1
+            if land == "hay_block" || land == "honey_block" { k = 0.2 }
+            else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.5 }
+            else if land == "slime_block" && !player.sneaking { k = 0 }
+            let over: Float = fall - safeFall
+            let dmg = Int(ceilf(over * k))                          // safeFall carries a 0.05 margin for measuring noise
+            if dmg > 0 { damage(dmg, "fell from a high place", bypassArmor: true, type: .fall) }
+        }
         if player.pos.y < -60 { die("fell out of the world"); return }
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
-        exhaustion += moved * (player.sprinting ? 0.1 : (player.inWater ? 0.01 : 0))
+        // Swimming 0.01 a metre, sprinting on the ground 0.1 (sprint-swimming counted as sprinting: 10x the hunger).
+        exhaustion += moved * (player.inWater ? 0.01 : (player.sprinting && player.onGround ? 0.1 : 0))
         if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
         while exhaustion >= 4 {
             exhaustion -= 4
@@ -1894,7 +1945,7 @@ final class Game {
             }
         } else {
             if turtle && !player.headInWater { applyEffect(.waterBreathing, amp: 0, seconds: 10) }
-            air = min(15, air + Float(dt) * 5)
+            air = min(15, air + Float(dt) * 4)                 // 4 ticks of air back per tick (reference)
             drownTimer = 0
         }
     }
@@ -1952,14 +2003,23 @@ final class Game {
         composterTick()
         musicTick(Float(dt))
         audioAmbientTick(Float(dt))
-        siegeTick()
+        // Village sieges, patrols and wandering traders come for a random player (split screen: only ever round player 1).
+        let spawnSeat = coop.active ? Rand.int(in: 0..<coop.seatCount) : 0
+        coop.withSeat(spawnSeat, self) { self.siegeTick() }
         basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
         ashenTick(Float(dt))
         advancementTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
-        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); blockSecondTick(); raidTimer = 0 }
+        // (blockSecondTick per player: campfire contact, Frost Walker, conduit power and shriekers reached only player 1.)
+        if raidTimer >= 1 {
+            raidTick(raidTimer)
+            let rt = raidTimer
+            coop.withSeat(spawnSeat, self) { self.patrolTick(rt) }
+            coop.eachSeat(self) { self.blockSecondTick() }
+            raidTimer = 0
+        }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
                 guard let k0 = MobKind.named(name) else { continue }
@@ -2013,6 +2073,8 @@ final class Game {
         swap(&toastText, &s.toastText); swap(&toastTime, &s.toastTime); swap(&prevPad, &s.prevPad)
         let ld = lastDeath; lastDeath = s.lastDeath; s.lastDeath = ld
         swap(&deathScore, &s.deathScore); swap(&timeSinceRest, &s.timeSinceRest)
+        swap(&lastHorn, &s.lastHorn); swap(&lastWind, &s.lastWind); swap(&mapRow, &s.mapRow)
+        swap(&hideHUD, &s.hideHUD); swap(&showDebug, &s.showDebug)
         exchangeSeatExtras(&s)
     }
 
@@ -2046,7 +2108,10 @@ final class Game {
                 let b = world.block(p.x, p.y, p.z)
                 let base = Blocks.groupBase[Int(b)]
                 let facing = b - base
-                let other = Blocks.key(base) == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
+                // Only a furnace swaps (a stale furnace entity under another block took that block's state as a facing).
+                let key = Blocks.key(base)
+                guard key == "furnace" || key == "lit_furnace", facing < 4 else { continue }
+                let other = key == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
                 world.setBlock(p.x, p.y, p.z, other + facing)
             }
         }

@@ -100,6 +100,9 @@ final class ItemRegistry {
             var d = ItemDef(bd.name, bd.display)
             d.block = BlockID(b)
             if bd.sound == .wood { d.fuelTicks = 300 }
+            // Reference stack sizes for block items: beds, cake and shell boxes 1, signs 16.
+            if bd.name.hasSuffix("_bed") || bd.name == "cake" || bd.name.hasSuffix("shulker_box") { d.maxStack = 1 }
+            if bd.name.hasSuffix("_sign") { d.maxStack = 16 }
             if bd.shape == "banner" {
                 d.sprite = Sprite(mask: "banner", base: BlockRegistry.colorHex[String(bd.name.dropLast(7))] ?? 0xFFFFFF, extras: [:])
                 d.maxStack = 16
@@ -213,6 +216,7 @@ final class ItemRegistry {
         item("clock", "Clock", "compass", 0xF2C94A, ["c": 0x3F76E4, "d": 0x404040])
         item("bow", "Bow", "bow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("shears", "Shears", "shears", 0xD8D8D8, ["d": 0x5A3D1F], stack: 1)
+        defs[Int(id("shears"))].tool = .shears          // (it stayed .none: shearing never dropped grass, leaves or vines)
         item("shield", "Shield", "shield", 0x9A7A4A, ["a": 0x5A5A5A], stack: 1)
         item("crossbow", "Crossbow", "crossbow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("trident", "Trident", "trident", 0x4AA89A, stack: 1)
@@ -228,7 +232,7 @@ final class ItemRegistry {
         item("experience_bottle", "Bottle o' Enchanting", "bottle", 0xD0DCF0, ["c": 0x7ED957])
         item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, ["c": 0xE8C850], stack: 1)
         item("nether_star", "Blight Star", "star", 0xF0F0FF)
-        item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A])
+        item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A], stack: 1)
         item("turtle_scute", "Turtle Scute", "scute", 0x4A9A3A)
         item("ink_sac", "Ink Sac", "sac", 0x1A1A2A)
         item("glow_ink_sac", "Glow Ink Sac", "sac", 0x4AE8C8)
@@ -264,7 +268,7 @@ final class ItemRegistry {
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
         item("brush", "Brush", "brush", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
         item("echo_shard", "Resonant Shard", "crystal", 0x0A4A58)
-        item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A], stack: 1)
+        item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A])
         item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
         item("mace", "Mace", "mace", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
@@ -353,7 +357,7 @@ final class ItemRegistry {
                 ("shovel", "Shovel", .shovel, swordDmg[i] - 1.5, 1),
                 ("pickaxe", "Pickaxe", .pickaxe, swordDmg[i] - 2, 1.2),
                 ("axe", "Axe", .axe, axeDmg[i], axeSpd[i]),
-                ("hoe", "Hoe", .hoe, 1, Float(i == 6 ? 2 : (i == 0 || i == 3 ? 1 : i + 1))),
+                ("hoe", "Hoe", .hoe, 1, Float(i == 6 ? 2 : (i == 0 || i == 3 ? 1 : min(4, i + 1)))),   // diamond / netherite 4
             ]
             for k in kinds {
                 var d = ItemDef("\(t.0)_\(k.0)", "\(t.1) \(k.1)")
@@ -413,7 +417,7 @@ final class ItemRegistry {
         add(ely)
         // Durability / combat numbers for the weapon items above.
         for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
-                                   ("carrot_on_a_stick", 25, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
+                                   ("carrot_on_a_stick", 25, 1, 4), ("warped_fungus_on_a_stick", 100, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
             defs[Int(id(n))].durability = dur
             defs[Int(id(n))].attack = atk
             defs[Int(id(n))].attackSpeed = spd

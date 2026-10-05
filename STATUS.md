@@ -258,6 +258,23 @@ posts; citadel rebuild remeshes in the background; patrols draw on the garrison 
 rule); villagers / golems don't stroll into caves; village cave sealing counts a floor at the fill depth; horizon ring per
 world seed; kelpcheck gating; gravity queue's concrete test by table; bench mobprof profile (mob tick 10x / 4x the
 2026-10-02 baseline: find out where).
+2026-10-05 morning: container-screen item loss / duplication and save / load audits (BUGS.md); split-screen audit (player
+2 was half simulated: hazards, gunfire, bobber, map, raids, spawners, advancements, rifts, per-seat exposure and
+cooldowns; cooptest checks a round and fangs at player 2); the 076df09 bench profile: collision sweeps (chunk per column,
+reused box list), path searches (chunk cursor, door tables), World.update quiet frames (dirty-chunk list); mineshaft lanes
+through aquifers (55 of 72 gencheck leaks); structcheck and the village / life bots now gate CI. Smoke memory: the growth
+was the harness (per-frame autorelease pools); chunks alive == loaded.
+2026-10-05 midday: code audits by subagents (menus, containers, mesher/light, split-screen state, a diff review):
+stale block entities after a piston break (survival-reachable), /time nan, short block-entity slot arrays, player 2's
+helm zeroed every frame, plates / beacons / anvils / vessels / leads / F1-F3 per player; NaN quarantines (player,
+mobs, ships, items) reported by the agents' non_finite oracle; --namecheck and collisiontest gate CI; far-ring and
+minimap and block-icon per-frame costs cut; ravines and mineshafts respect aquifers.
+2026-10-05 afternoon: run 682's release build failed on a type-checker timeout (map terrain closure; fixed). Thread-safety
+audit fixes (map cache epoch across portals, music piece-end race, sound evict race, World.alive). Fidelity audit vs
+the reference: blast resistance table (stone 6, planks 3, end stone 9, obsidian 1200; was = hardness), shears / sword /
+hoe speeds, full-draw bow crits, Mining Fatigue III/IV, Haste before the instant-break test, Fortune on lapis/copper,
+zombie rare drops (player kills, Looting), baby zombie loot, mushroom blocks, TNT drops all, piglin / illager / hoglin
+speeds.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:

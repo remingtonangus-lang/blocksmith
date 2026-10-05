@@ -71,6 +71,35 @@ struct BaseRecord: Codable {
     }
 }
 
+// Fields added after a record was first saved default when missing (the synthesized decoder required every
+// non-optional key, so one old record failed the whole list and every citadel's state was reset).
+extension BaseRecord {
+    init(from dec: Decoder) throws {
+        let c = try dec.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        cx = try c.decode(Int.self, forKey: .cx)
+        cz = try c.decode(Int.self, forKey: .cz)
+        y0 = try c.decode(Int.self, forKey: .y0)
+        alert = (try? c.decodeIfPresent(BaseAlert.self, forKey: .alert)) ?? .calm
+        calm = (try? c.decodeIfPresent(Float.self, forKey: .calm)) ?? 0
+        lastNoise = (try? c.decodeIfPresent([Float].self, forKey: .lastNoise))
+        patrol = (try? c.decodeIfPresent(PatrolRecord.self, forKey: .patrol))
+        damage = (try? c.decodeIfPresent([[Float]].self, forKey: .damage)) ?? []
+        rebuilt = (try? c.decodeIfPresent(Int.self, forKey: .rebuilt)) ?? 0
+        dropshipCD = (try? c.decodeIfPresent(Float.self, forKey: .dropshipCD)) ?? 0
+        dropships = (try? c.decodeIfPresent(Int.self, forKey: .dropships)) ?? 0
+        lastTick = (try? c.decodeIfPresent(Double.self, forKey: .lastTick)) ?? 0
+        crawlerGoal = (try? c.decodeIfPresent([Float].self, forKey: .crawlerGoal))
+        crawlerPhase = (try? c.decodeIfPresent(Int.self, forKey: .crawlerPhase)) ?? 0
+        crawlerT = (try? c.decodeIfPresent(Float.self, forKey: .crawlerT)) ?? 0
+        air = (try? c.decodeIfPresent([Float].self, forKey: .air))
+        airPhase = (try? c.decodeIfPresent(Int.self, forKey: .airPhase))
+        airT = (try? c.decodeIfPresent(Float.self, forKey: .airT))
+        airShip = (try? c.decodeIfPresent(Int.self, forKey: .airShip))
+        airCD = (try? c.decodeIfPresent(Float.self, forKey: .airCD))
+    }
+}
+
 final class BaseWatch {
     var records: [String: BaseRecord] = [:]
     var noises: [BaseNoise] = []
@@ -145,8 +174,10 @@ extension Game {
             b.noises.removeAll(keepingCapacity: true)
         }
         guard world.dim == .overworld, let sc = world.gen.structures else { return }
-        // Citadels near the player (their centre chunk loaded) plus any with work in hand.
-        if let s = sc.nearest("military_base", x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: 1) {
+        // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.
+        for i in 0..<max(1, coop.seatCount) {
+            let pp = coop.seatPlayer(i, self).pos
+            guard let s = sc.nearest("military_base", x: Int(pp.x), z: Int(pp.z), maxRegions: 1) else { continue }
             let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
             let key = "citadel:\(cx),\(cz)"
             if b.records[key] == nil && world.isLoaded(cx, cz) {
@@ -206,7 +237,7 @@ extension Game {
             }
         }
         // A garrison soldier who can see the player inside the walls is an attack too.
-        if survival, r.inside(player.pos), r.alert != .lockdown {
+        if survival, (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) }), r.alert != .lockdown {
             for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && m.aggro && (m.brain?.sees ?? false) && r.inside(m.pos) {
                 r.calm = 0
                 b.note("\(r.key) lockdown (intruder)")
