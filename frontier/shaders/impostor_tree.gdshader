@@ -3,9 +3,9 @@
 // z rotation about Y (the same as the near mesh), w random. Y-axis billboard planted at the trunk base; picks the
 // two baked azimuths nearest the view direction (relative to the instance rotation) and cross-fades them; lit by the
 // baked view-space normals (sun, sky ambient, translucency, cloud shadows), with crown self-shadowing rebuilt from
-// the baked depth, and swayed like the near trunk. Edges and
-// the hand-off use the same screen dither as shaders/foliage.gdshader, so the swap at lod_end is a pixel-exact
-// complement of the mesh fading out. In shadow passes the quad turns to the sun and casts the tree's silhouette.
+// the baked depth, and swayed like the near trunk. Edges and the hand-off use the same screen dither as
+// shaders/foliage.gdshader, so the swap at lod_end is a pixel-exact complement of the mesh fading out. In shadow
+// passes the quad turns to the light and casts the tree's silhouette.
 shader_type spatial;
 render_mode cull_disabled, specular_disabled;
 

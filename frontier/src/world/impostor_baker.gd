@@ -291,9 +291,11 @@ func _save_cache(key: String) -> void:
 	DirAccess.make_dir_recursive_absolute(CACHE_DIR)
 	# drop stale atlases from older generator parameters
 	for fn in DirAccess.get_files_at(CACHE_DIR):
-		if fn.begins_with("trees_") and fn != _cache_path(key).get_file():
+		if fn.begins_with("trees_") and fn.ends_with(".bin") and fn != _cache_path(key).get_file():
 			DirAccess.remove_absolute(CACHE_DIR.path_join(fn))
-	var f := FileAccess.open_compressed(_cache_path(key), FileAccess.WRITE, FileAccess.COMPRESSION_ZSTD)
+	# write aside and rename, so a second game instance never reads a half-written atlas
+	var tmp := _cache_path(key) + ".%d.tmp" % OS.get_process_id()
+	var f := FileAccess.open_compressed(tmp, FileAccess.WRITE, FileAccess.COMPRESSION_ZSTD)
 	if f == null:
 		return
 	var S := []
@@ -309,3 +311,4 @@ func _save_cache(key: String) -> void:
 		f.store_32(data.size())
 		f.store_buffer(data)
 	f.close()
+	DirAccess.rename_absolute(tmp, _cache_path(key))
