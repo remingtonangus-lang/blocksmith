@@ -35,7 +35,7 @@ enum MobTests {
         return failures.isEmpty
     }
 
-    // World.update's quiet frames re-check only the chunks on MeshEpoch.dirtyChunks: an edit made with nothing else
+    // World.update's quiet frames re-check only the chunks on World.dirtyChunks: an edit made with nothing else
     // going on (no new chunks, same centre) must still be re-meshed, near the player and a chunk away.
     static func remeshAfterEdit(world w: World, pos: V3) {
         func settle() { var n = 0; while (w.pendingJobs > 0 || n < 3) && n < 1500 { w.update(center: pos); usleep(2000); n += 1 } }

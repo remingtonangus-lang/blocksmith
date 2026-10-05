@@ -183,6 +183,8 @@ final class Ship {
     var rot = Quat(angle: 0, axis: V3(0, 1, 0))
     var vel = V3(0, 0, 0)
     var angVel = V3(0, 0, 0)         // world space, rad/s
+    var lastGoodPos: V3?             // the last finite pose (ShipPhysics.step's NaN quarantine puts it back)
+    var lastGoodRot: Quat?
     var prevPos = V3(0, 0, 0), prevRot = Quat(angle: 0, axis: V3(0, 1, 0))
     var sleeping = 0                 // substeps at rest (physics thins out)
     var terrainClear: Float = 0      // height of the hull above everything under its footprint (broadphase)

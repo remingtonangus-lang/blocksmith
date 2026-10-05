@@ -1887,6 +1887,9 @@ final class MobManager {
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
+            // A position made non-finite outside this seat's update (another seat's knockback) can't be turned into a
+            // chunk: the mob goes (its update would put it back, but Int(floor(NaN)) below is undefined).
+            guard m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite else { MobManager.quarantined += 1; return true }
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
             let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {

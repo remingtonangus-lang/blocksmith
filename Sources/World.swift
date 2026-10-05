@@ -289,6 +289,11 @@ final class World {
 
     // How far an AABB can move along one axis (0 x, 1 y, 2 z) before touching a collision box.
     private var sweepScratch: [(V3, V3)] = []
+    // Chunks of this world that turned dirty since update last drained the list (main thread). The quiet-frame re-check
+    // walks this instead of every loaded chunk (bench: update p50 0.015 -> 0.27 / 0.89 ms at rd 16 / 24, growing with
+    // the chunk count, while random ticks and fluids touched a few blocks every frame). Per world: harness probes run
+    // more than one world in a process.
+    var dirtyChunks: [Chunk] = []
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx
@@ -577,9 +582,9 @@ final class World {
         if quiet {
             // Only block or light edits since the last scan (flowing water, a placed block): re-check just the chunks
             // they touched instead of walking the whole disc (bench: 0.26 ms a frame at rd 16 while lava settled).
-            // Only the chunks marked dirty since (MeshEpoch.dirtyChunks), not every loaded chunk.
-            var list = MeshEpoch.dirtyChunks
-            MeshEpoch.dirtyChunks = []
+            // Only the chunks marked dirty since (dirtyChunks), not every loaded chunk.
+            var list = dirtyChunks
+            dirtyChunks = []
             var i = 0
             while i < list.count {
                 let c = list[i]
@@ -588,7 +593,7 @@ final class World {
                 guard chunks[k] === c else { c.dirty = false; i += 1; continue }   // unloaded since
                 if jobs >= maxQueued {
                     // The rest stay dirty and listed; the epoch still differs, so next frame.
-                    MeshEpoch.dirtyChunks.insert(contentsOf: list[i...], at: 0)
+                    dirtyChunks.insert(contentsOf: list[i...], at: 0)
                     return
                 }
                 i += 1
@@ -643,8 +648,8 @@ final class World {
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
         // The full scan handled what it could; keep only chunks still dirty and loaded listed (bounded by the chunk count,
         // and no unloaded chunk kept alive by the list).
-        if !MeshEpoch.dirtyChunks.isEmpty {
-            MeshEpoch.dirtyChunks.removeAll { c in !c.dirty || chunks[ChunkKey(x: c.cx, z: c.cz)] !== c }
+        if !dirtyChunks.isEmpty {
+            dirtyChunks.removeAll { c in !c.dirty || chunks[ChunkKey(x: c.cx, z: c.cz)] !== c }
         }
     }
 
@@ -749,6 +754,7 @@ final class World {
 
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.world = self
         c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.savedBlocks = c.blocks }

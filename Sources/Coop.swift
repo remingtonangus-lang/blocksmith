@@ -87,6 +87,7 @@ struct SeatState {
     var timeSinceRest: Float = 0
     var lastHorn: Double = -100        // their own horn and wind-charge cooldowns (shared, one player's use blocked the other's)
     var lastWind: Double = -10
+    var mapRow = 0                     // their held map's scan row (shared, two held maps each filled every other row)
     // Per-player state kept outside Game.
     var padLook = PadLook()
     var wheel = WeaponWheel()
@@ -159,6 +160,7 @@ final class Coop {
     // The seat whose turn it is is a second one: it always plays on a controller (seat 0 may be on the keyboard and
     // mouse), so prompts and aim assist treat it as on a pad (they followed player 1's last input device).
     static var secondSeat = false
+    static var liveSeat = 0                 // the seat whose turn it is (rounds a player fires stay with that seat)
 
     static let maxSeats = 2
     // slots[i] holds seat i's state while another seat is live; the live seat's slot is nil.
@@ -184,6 +186,7 @@ final class Coop {
         slots[current] = s
         current = i
         Coop.secondSeat = i > 0
+        Coop.liveSeat = i
         // Menus opening and closing for other seats must not release or capture the mouse.
         g.onInventoryChanged = i == 0 ? savedInventoryCallback : nil
     }

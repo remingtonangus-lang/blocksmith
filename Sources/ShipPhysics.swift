@@ -325,7 +325,13 @@ extension ShipManager {
             let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
             let wOK: Bool = s.angVel.x.isFinite && s.angVel.y.isFinite && s.angVel.z.isFinite
             if !vOK || !wOK { s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
-            let pos0 = s.pos, rot0 = s.rot
+            // The pose to fall back to: this step's start, or the last finite one if it was already broken (written by
+            // an AI or a parent outside this loop).
+            let r0 = s.rot.vector
+            let startOK: Bool = s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite && r0.x.isFinite && r0.y.isFinite && r0.z.isFinite && r0.w.isFinite
+            let pos0: V3 = startOK ? s.pos : (s.lastGoodPos ?? s.home ?? V3(0, Float(SEA + 10), 0))
+            let rot0 = startOK ? s.rot : (s.lastGoodRot ?? Quat(angle: 0, axis: V3(0, 1, 0)))
+            if !startOK { s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
             let w = simd_length(s.angVel)
@@ -339,6 +345,8 @@ extension ShipManager {
             if !poseOK {
                 s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero
                 ShipManager.quarantined += 1
+            } else {
+                s.lastGoodPos = s.pos; s.lastGoodRot = s.rot
             }
             s.updateBounds()
         }

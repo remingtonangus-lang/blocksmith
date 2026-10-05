@@ -16,10 +16,6 @@ struct ChunkKey: Hashable {
 // Counts section invalidations (main thread): World.update skips its scheduling scan while nothing changed.
 enum MeshEpoch {
     static var value = 0
-    // Chunks that turned dirty since World.update last drained this (main thread). The quiet-frame re-check walks this
-    // instead of every loaded chunk (bench: World.update p50 0.015 -> 0.27 / 0.89 ms at rd 16 / 24, growing with the
-    // chunk count, while random ticks and fluids touched a few blocks every frame).
-    static var dirtyChunks: [Chunk] = []
 }
 
 // One 16x16x16 slice of a chunk's mesh.
@@ -141,9 +137,10 @@ final class Chunk {
     var meshedOnce = false
     var drawnMark: UInt32 = 0
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
-        didSet { if dirty && !oldValue { MeshEpoch.dirtyChunks.append(self) } }
+        didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
     }
     var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
+    weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.

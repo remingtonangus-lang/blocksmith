@@ -70,16 +70,24 @@ final class Player {
     }
 
     static var quarantined = 0
+    private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
-        // NaN quarantine: a step that leaves the body non-finite (a degenerate push or knockback) goes back to where it
-        // started instead of reaching Int(floor()) in every block lookup (undefined in the release build).
-        let pos0 = pos.x.isFinite && pos.y.isFinite && pos.z.isFinite ? pos : V3(0, Float(YOFF + 100), 0)
-        if !(vel.x.isFinite && vel.y.isFinite && vel.z.isFinite) { vel = .zero }
-        if !(pos.x.isFinite && pos.y.isFinite && pos.z.isFinite) { pos = pos0 }
+        // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
+        // its last finite position instead of reaching Int(floor()) in every block lookup (undefined in the release
+        // build). Every repair is counted: the agents' non_finite oracle and the smoke line report it.
+        func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
+        if !finite(pos) || !finite(vel) {
+            if !finite(pos) { pos = lastGoodPos ?? V3(0, Float(YOFF + 100), 0) }
+            vel = .zero
+            Player.quarantined += 1
+        }
+        let pos0 = pos
         defer {
-            if !(pos.x.isFinite && pos.y.isFinite && pos.z.isFinite && vel.x.isFinite && vel.y.isFinite && vel.z.isFinite) {
+            if !finite(pos) || !finite(vel) {
                 pos = pos0; vel = .zero
-                Player.quarantined += 1                  // the agents' non_finite oracle reports it
+                Player.quarantined += 1
+            } else {
+                lastGoodPos = pos
             }
         }
         // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
