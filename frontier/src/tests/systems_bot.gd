@@ -164,6 +164,7 @@ static func run(runner: Node) -> Dictionary:
 	for n in [victim, witness]:
 		if is_instance_valid(n):
 			n.queue_free()
+	await _interior_audio(res, runner)
 	var errs: Array = Game.error_logger.take().slice(err0)
 	res.errors = errs
 	if errs.size() > 0:
@@ -193,3 +194,45 @@ static func _river_bank() -> Dictionary:
 						var to: Vector3 = c - q
 						return {"pos": q, "facing": atan2(-to.x, -to.z)}
 	return {}
+
+
+## Walk into the Bitter Spring saloon: the audio listener must switch to the interior (room reverb, indoor beds,
+## the saloon crowd) and back out on the street.
+static func _interior_audio(res: Dictionary, runner: Node) -> void:
+	var au = Game.audio
+	var st = Game.main.get("settlements") if Game.main else null
+	if au == null or st == null or not st.has_method("building_at"):
+		return
+	var tree := runner.get_tree()
+	var saloon := {}
+	for bid in st.buildings.keys():
+		var b: Dictionary = st.buildings[bid]
+		if b.get("town", "") == "bitter_spring" and str(b.get("type", "")).contains("saloon") and b.get("enterable", false):
+			saloon = b
+			break
+	if saloon.is_empty():
+		_fail(res, "no enterable saloon in Bitter Spring for the interior audio check")
+		return
+	var xf: Transform3D = saloon.transform
+	var inside := xf * Vector3(0.0, 1.6, float(saloon.size.z) * 0.5)
+	var street := xf * Vector3(0.0, 1.6, -6.0)
+	if not au.is_interior(inside) or au.is_interior(street):
+		_fail(res, "interior test wrong: inside %s street %s" % [au.is_interior(inside), au.is_interior(street)])
+	var p = Game.player
+	p.global_position = inside - Vector3(0, 1.5, 0)
+	for i in 45:      # the camera (the listener) eases in behind Ruth
+		await tree.process_frame
+	var lp: Vector3 = au.listener_pos()
+	var was_in: bool = au.listener_interior
+	var bed: String = au.ambience.room_bed if au.ambience else ""
+	res.checks["interior_audio"] = {"listener_inside": was_in, "bed": bed}
+	print("  interior audio: listener in %s, interior %s, bed '%s'" % [au._building_at(lp), was_in, bed])
+	if au.is_interior(lp) and not was_in:
+		_fail(res, "listener inside the saloon but the audio stayed exterior")
+	if was_in and bed != "crowd_saloon":
+		_fail(res, "inside the saloon without the crowd bed (%s)" % bed)
+	p.global_position = street - Vector3(0, 1.5, 0)
+	for i in 45:
+		await tree.process_frame
+	if au.listener_interior and not au.is_interior(au.listener_pos()):
+		_fail(res, "audio stayed interior back on the street")
