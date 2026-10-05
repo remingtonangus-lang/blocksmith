@@ -504,6 +504,9 @@ func _melee(dt: float) -> void:
 		knife_out = false
 	if Melee.target_for(self, facing) == null and not get_meta("in_fight", false):
 		return                              # nothing to hit: leave the button to mount/crouch
+	if get_meta("blocking", false) and not knife_out:
+		Melee.grapple(self, facing)          # Melee while guarding: grab and throw / shove
+		return
 	_melee_side = 1 - _melee_side
 	var r := Melee.strike(self, facing, "stab" if knife_out else ("jab" if _melee_side == 0 else "cross"))
 	if r.get("hit", false):

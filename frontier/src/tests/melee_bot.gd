@@ -57,6 +57,24 @@ static func run(runner: Node) -> Dictionary:
 	res.checks["taken_guard"] = snappedf(taken_guard, 0.1)
 	if taken_open > 0.0 and taken_guard > taken_open * 0.5:
 		_fail(res, "the guard did not soak his blows (%.1f vs %.1f open)" % [taken_guard, taken_open])
+	# 2b. grapple: a fresh man is shoved off balance, a hurt one is thrown down
+	var g1 := Melee.grapple(p, p.facing)
+	res.checks["grapple_fresh"] = "thrown" if g1.get("thrown", false) else ("shoved" if g1.get("grabbed", false) else "missed")
+	await _physics(60)
+	h.damageable.health = h.damageable.max_health * 0.4
+	h.set_meta("stagger_t", 0.0)
+	var to2: Vector3 = h.global_position - p.global_position
+	p.facing = atan2(-to2.x, -to2.z)
+	var g2 := Melee.grapple(p, p.facing)
+	res.checks["grapple_hurt"] = "thrown" if g2.get("thrown", false) else ("shoved" if g2.get("grabbed", false) else "missed")
+	if res.checks.grapple_hurt != "thrown":
+		_fail(res, "grappling a hurt man did not throw him (%s)" % res.checks.grapple_hurt)
+	for i in 60 * 7:                          # let him get back up before the knockdown test
+		await tree.physics_frame
+		if not Melee.is_down(h):
+			break
+	await _physics(30)
+	h.damageable.health = h.damageable.max_health
 	# 3. knock him down (not dead)
 	p.damageable.health = p.damageable.max_health
 	var ko := false

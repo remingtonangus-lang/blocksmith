@@ -89,6 +89,35 @@ static func strike(attacker: Node3D, yaw: float, kind := "jab") -> Dictionary:
 	Game.log_event("melee", {"by": str(attacker.name), "kind": kind, "blocked": blocked, "ko": ko[0]})
 	return {"hit": true, "blocked": blocked, "target": t, "amount": amount, "ko": ko[0]}
 
+## Grapple (Melee while guarding): grab the person in front. A staggered, hurt or turned-away opponent is thrown down
+## (a knockdown); anyone else is shoved back off balance. Returns {grabbed, thrown}.
+static func grapple(attacker: Node3D, yaw: float) -> Dictionary:
+	var t := target_for(attacker, yaw)
+	attacker.set_meta("melee_t", 0.7)
+	_animate(attacker, "cross", t)
+	if t == null:
+		return {"grabbed": false}
+	var dmg = t.get("damageable")
+	var hurt: bool = dmg.health < dmg.max_health * 0.5
+	var staggered: bool = t.get_meta("stagger_t", 0.0) > 0.0
+	var dir := t.global_position - attacker.global_position
+	dir.y = 0.0
+	dir = dir.normalized()
+	var t_yaw: float = t.get("facing") if t.get("facing") != null else 0.0
+	var turned := _forward(t_yaw).dot(-dir) < 0.2        # not facing the attacker
+	var thrown := hurt or staggered or turned
+	if thrown:
+		dmg.apply_hit({"amount": 12.0, "zone": "chest", "attacker": attacker, "melee": true, "nonlethal": true,
+			"position": t.global_position + Vector3(0, 1.0, 0), "direction": dir})
+		knock_down(t, attacker)
+	else:
+		t.set_meta("stagger_t", 0.6)
+		if t is CharacterBody3D:
+			(t as CharacterBody3D).velocity += dir * 4.0
+	_sound("punch_block" if not thrown else "punch_hit", t.global_position + Vector3(0, 1.2, 0))
+	Game.log_event("grapple", {"by": str(attacker.name), "target": str(t.name), "thrown": thrown})
+	return {"grabbed": true, "thrown": thrown, "target": t}
+
 ## Down for a few seconds (fall clip), then back up. People keep their fight-or-flight from the brain.
 static func knock_down(n: Node3D, by: Node3D = null) -> void:
 	n.set_meta("knocked_down", true)
