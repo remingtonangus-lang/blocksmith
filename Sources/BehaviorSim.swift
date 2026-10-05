@@ -188,6 +188,11 @@ enum BehaviorSim {
         print(String(format: "behaviorsim trace: %@ at %.2f %.2f %.2f (%@), feet in %@ on %@, yaw %.0f", m.kind.key, p.x, py, p.z, why,
                      Blocks.key(w.block(feet.x, feet.y, feet.z)), Blocks.key(w.block(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
         print("  path ahead: \(ahead.joined(separator: "; "))")
+        // What it was after (a calf following a moving parent re-plans toward it: a seed 777 cow turned back and forth
+        // on 'heading' with no stroll goal, run 634).
+        let fg = m.faceGoal.map { String(format: "%.1f,%.1f,%.1f", $0.x, Float($0.y) - Float(YOFF), $0.z) } ?? "none"
+        let pg = String(format: "%.1f,%.1f,%.1f", m.path.goal.x, m.path.goal.y - Float(YOFF), m.path.goal.z)
+        print("  state: baby \(m.baby), panic \(m.panic > 0), moving \(m.moving), face goal \(fg), path goal \(pg)")
         print("  around feet (feet/head): \(around.joined(separator: "; "))")
         if m.kind.steelhold, let b = m.brain {
             // Soldiers spun standing with no stroll goal (run 509): what their AI was turning toward.
