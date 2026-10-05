@@ -109,7 +109,6 @@ runner, Metal) and the Mac monitor.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
-- Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
 
 ## Ranked gaps
 Critic round 1 (2026-10-05, 2 blind critics, pack = CI tour a4d48b8 + character/horse look-dev sheets; averaged
