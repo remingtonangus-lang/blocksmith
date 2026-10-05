@@ -234,6 +234,7 @@ final class Agent {
         if counts[oracle]! <= 3 { violations.append(Violation(tick: tick, oracle: oracle, detail: detail, pos: game.player.pos)) }
     }
 
+    private var nanSeen = Player.quarantined + MobManager.quarantined + ShipManager.quarantined
     private func check(_ a: AgentAction, _ ms: Double) {
         let p = game.player
         let pos = p.pos
@@ -243,6 +244,12 @@ final class Agent {
         for m in game.mobs.mobs where !(m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite) {
             flag("non_finite", "\(m.kind.key) position is not finite")
             break
+        }
+        // The NaN quarantines put bodies back where they were, so the values above stay finite: their counts tell.
+        let nanNow = Player.quarantined + MobManager.quarantined + ShipManager.quarantined
+        if nanNow > nanSeen {
+            nanSeen = nanNow
+            flag("non_finite", "a step produced NaN (quarantined: player \(Player.quarantined), mobs \(MobManager.quarantined), ships \(ShipManager.quarantined))")
         }
         if game.dim.dim == .overworld && pos.y < 0 { flag("fell_out", String(format: "player fell to y %.1f", pos.y - Float(YOFF))) }
         // Inside a solid block (two ticks in a row, not while the game itself is pushing the player out).

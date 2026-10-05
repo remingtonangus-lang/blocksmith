@@ -69,7 +69,19 @@ final class Player {
         collides(at: p - V3(0, 0.06, 0), w)
     }
 
+    static var quarantined = 0
     func update(dt: Float, input: MoveInput, world w: World) {
+        // NaN quarantine: a step that leaves the body non-finite (a degenerate push or knockback) goes back to where it
+        // started instead of reaching Int(floor()) in every block lookup (undefined in the release build).
+        let pos0 = pos.x.isFinite && pos.y.isFinite && pos.z.isFinite ? pos : V3(0, Float(YOFF + 100), 0)
+        if !(vel.x.isFinite && vel.y.isFinite && vel.z.isFinite) { vel = .zero }
+        if !(pos.x.isFinite && pos.y.isFinite && pos.z.isFinite) { pos = pos0 }
+        defer {
+            if !(pos.x.isFinite && pos.y.isFinite && pos.z.isFinite && vel.x.isFinite && vel.y.isFinite && vel.z.isFinite) {
+                pos = pos0; vel = .zero
+                Player.quarantined += 1                  // the agents' non_finite oracle reports it
+            }
+        }
         // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
