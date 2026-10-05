@@ -1765,6 +1765,7 @@ final class MobManager {
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
+    var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
