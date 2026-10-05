@@ -26,8 +26,16 @@ Shots: first-person `--hold <item>` on a plains meadow, `--camera 2` (third pers
 | Round | Change before it | Dropped | Held (tool) | Held (food) |
 |---|---|---|---|---|
 | 1 (Claude) | extruded models, contour walls, overlay models | 2 -> 7-7.5 | 6 | 4 |
+| 2 (Claude / Gemini) | turned 40 degrees, food at 0.25, lit walls, no outline on model faces, tools lying level, drop shadows in Fast, distance growth | 2 -> 5 (old cave shot vs the tier grid) | 6 -> 5 / 3 -> 4 | 4 -> 6; shield 6 |
 
 Round 1 notes: held items read as flat outlined cards (face exactly toward the eye, side walls near-black), the held
 apple far too big, dropped tools stood on the handle's tip. Changed for round 2: held items turned ~40 degrees off the
 eye line, food/potions at 0.25 (was 0.36), walls sample 5 px inside the contour and are lit no darker than 0.66,
 dropped items lean back 18 degrees and tools lie level.
+
+Round 2 notes: the apple is now the right size and no longer a sticker; the shield reads well. The held pickaxe split
+the critics (Gemini preferred the new one, Claude the round-1 version, which was enchanted and purple-glinted: not a
+like-for-like pair); both asked for a crisper diamond head. Dropped items: real 3D with shadows, but they hovered
+well above their shadows (fixed: they now rest 0.05-0.25 over the ground), the apple leaf was too dark (lighter leaf
+green). The translucent tan quads Claude flagged in the tier grid are the sunlit sides of a one-block sand step (in
+the older shots too). Both critics want a hand gripping the held item (the genre shows none while holding).
