@@ -84,6 +84,9 @@ extension Game {
         if let mm = m as? MerchantMenu, scroll != 0 {
             mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll + scroll))
         }
+        if let sc = m as? StonecutterMenu, tab != 0, sc.pages > 1 {
+            sc.page = (sc.page + tab + sc.pages) % sc.pages; sc.selected = -1; sc.changed(); sfx(.click, 0.4)
+        }
         if let am = m as? AdvancementMenu {
             if scroll != 0 { am.scroll = max(0, min(max(0, am.list.count - AdvancementMenu.rows), am.scroll + scroll)) }
             if tab != 0 { am.tab = (am.tab + tab + Advancements.tabs.count) % Advancements.tabs.count; am.scroll = 0; sfx(.click, 0.4) }

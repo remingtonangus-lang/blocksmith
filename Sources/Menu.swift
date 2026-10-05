@@ -16,6 +16,7 @@ final class MenuSlot {
     var w = 16, h = 16                    // hit area (buttons are larger)
     var filter: ((ItemStack) -> Bool)?    // only these items may be placed here
     var limit: Int?                       // max stack size in this slot
+    var hidden = false                    // not drawn, clicked or reached by the pad cursor
     init(_ x: Int, _ y: Int, _ c: ItemContainer?, _ i: Int, _ k: SlotKind = .normal) {
         self.x = x; self.y = y; container = c; index = i; kind = k
     }
@@ -272,7 +273,7 @@ class Menu {
     }
     func slotAt(_ p: V2, _ L: HudLayout) -> MenuSlot? {
         let o = origin(L)
-        for s in slots {
+        for s in slots where !s.hidden {
             let x = o.x + Float(s.x - 1) * L.s, y = o.y + Float(s.y - 1) * L.s
             if p.x >= x && p.x < x + Float(s.w + 2) * L.s && p.y >= y && p.y < y + Float(s.h + 2) * L.s { return s }
         }
@@ -289,7 +290,7 @@ class Menu {
         let a = slots[cur]
         var best = cur
         var bestScore = Int.max
-        for (i, s) in slots.enumerated() where i != cur {
+        for (i, s) in slots.enumerated() where i != cur && !s.hidden {
             let ddx = s.x - a.x, ddy = s.y - a.y
             let along = dx != 0 ? ddx * dx : ddy * dy
             if along <= 0 { continue }

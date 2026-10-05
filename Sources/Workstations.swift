@@ -117,6 +117,7 @@ final class StonecutterMenu: Menu {
     var page = 0
     var pages: Int { max(1, (all.count + 11) / 12) }
     var selected = -1
+    private var more: MenuSlot?
     init(game: Game) {
         super.init("Stonecutter", game: game)
         slots.append(MenuSlot(20, 33, input, 0))
@@ -127,6 +128,8 @@ final class StonecutterMenu: Menu {
         }
         let more = MenuSlot(120, 51, nil, 0, .button(12))         // next page (drawn only when there is one)
         more.w = 10; more.h = 16
+        more.hidden = true
+        self.more = more
         slots.append(more)
         slots.append(MenuSlot(143, 33, out, 0, .result))
         addPlayerInventory()
@@ -143,6 +146,7 @@ final class StonecutterMenu: Menu {
         if opts.map({ $0.0 }) != all.map({ $0.0 }) { selected = -1; page = 0 }
         all = opts
         options = Array(all.dropFirst(page * 12).prefix(12))
+        more?.hidden = pages <= 1
         out[0] = selected >= 0 && selected < options.count && !s.isEmpty ? ItemStack(options[selected].0, options[selected].1) : .empty
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
