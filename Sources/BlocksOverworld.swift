@@ -64,14 +64,14 @@ extension BlockRegistry {
         cube("mud_bricks", "Mud Bricks", h: 1.5, req: true)
         var ice = BlockDef("ice", "Ice")
         ice.tex = ["ice"]; ice.opaque = false; ice.layer = .translucent; ice.hardness = 0.5; ice.tool = .pickaxe; ice.sound = .glass
-        ice.cullSame = true; ice.skyStop = true
+        ice.cullSame = true; ice.skyStop = true; ice.randomTicks = true          // melts by torchlight (Farming.randomTick)
         add(ice)
         cube("packed_ice", "Packed Ice", h: 0.5, snd: .glass)
         cube("blue_ice", "Blue Ice", h: 2.8, snd: .glass)
         var layer = BlockDef("snow", "Snow")
         layer.tex = ["snow_block"]; layer.render = .model; layer.opaque = false; layer.hardness = 0.1; layer.tool = .shovel
         layer.sound = .snow; layer.replaceable = true; layer.boxes = [Box(0, 0, 0, 16, 2, 16)]; layer.skyStop = false
-        layer.noCollideBoxes = true; layer.collide = false
+        layer.noCollideBoxes = true; layer.collide = false; layer.randomTicks = true    // melts by torchlight
         add(layer)
         var ps = BlockDef("powder_snow", "Powder Snow")
         ps.tex = ["snow_block"]; ps.hardness = 0.25; ps.tool = .shovel; ps.sound = .snow; ps.collide = false

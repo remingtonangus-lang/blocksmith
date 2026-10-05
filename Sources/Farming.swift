@@ -113,6 +113,11 @@ extension Game {
             while h < 16 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5)
             if h < cap { world.setBlock(p.x, p.y + 1, p.z, b) }
+        case "ice":
+            // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
+            if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim == .nether ? AIR : WATER); world.scheduleFluid(around: p) }
+        case "snow":
+            if world.lightAt(p.x, p.y, p.z).block > 11 { world.setBlockAsync(p.x, p.y, p.z, AIR) }
         case "sweet_berry_bush":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if stage < 3 && max(l.sky, l.block) >= 9 && Rand.int(in: 0..<5) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
