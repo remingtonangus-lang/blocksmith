@@ -121,7 +121,7 @@ do {
     // The horizon ring's first sampling (HorizonRing.swift: synchronous when there is none yet).
     if let wg = world.gen as? WorldGen {
         let th = CFAbsoluteTimeGetCurrent()
-        let snap = HorizonRing.sample(wg, x0: Int(spawn.x) - 1280, z0: Int(spawn.z) - 1280, n: HorizonRing.cells * 2 + 1, s: HorizonRing.spacing)
+        let snap = HorizonRing.sample(wg, seed: world.seed, x0: Int(spawn.x) - 1280, z0: Int(spawn.z) - 1280, n: HorizonRing.cells * 2 + 1, s: HorizonRing.spacing)
         print(String(format: "horizon ring: %d samples in %.0f ms", snap.h.count, (CFAbsoluteTimeGetCurrent() - th) * 1000))
     }
     if CommandLine.arguments.contains("--pathfind-only") { exit(0) }      // (profiling)
@@ -130,6 +130,7 @@ do {
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).
 let pm = PadManager.shared
 var tickMs: [Double] = []
+var tickAllocs: [Int] = []
 var slow: [(Double, Double, Int, Int, Int)] = []
 let frames = 72 * 20
 let p0 = game.player.pos
@@ -145,7 +146,9 @@ for i in 0..<frames {
     let a = CFAbsoluteTimeGetCurrent()
     world.update(center: game.player.pos)  // streaming first (game.tick's own call then finds little left)
     let b = CFAbsoluteTimeGetCurrent()
+    let al0 = AllocCount.now
     game.tick(1.0 / 72)
+    if let x = al0, let y = AllocCount.now { tickAllocs.append(y - x) }
     let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
     tickMs.append(ms)
     slow.append((ms, (b - a) * 1000, i, world.chunks.count, game.mobs.mobs.count))
@@ -157,6 +160,11 @@ for (ms, upd, i, ch, mobs) in slow.prefix(6) {
     print(String(format: "  slow tick #%d: %.2f ms (world.update %.2f, game %.2f) chunks %d mobs %d", i, ms, upd, ms - upd, ch, mobs))
 }
 tickMs.sort()
+if !tickAllocs.isEmpty {
+    let late = Array(tickAllocs.suffix(tickAllocs.count / 2)).sorted()      // the second 10 s: past the first-use work
+    print(String(format: "tick allocations (frame thread, second half): median %d, p90 %d, worst %d, total %d",
+                 late[late.count / 2], late[late.count * 9 / 10], late.last!, late.reduce(0, +)))
+}
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")

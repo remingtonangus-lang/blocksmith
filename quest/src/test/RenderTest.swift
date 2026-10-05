@@ -36,7 +36,9 @@ enum RenderTest {
         for fi in 0..<3 {
             let s = scene.beginFrame()
             let a = CFAbsoluteTimeGetCurrent()
+            let al0 = AllocCount.now
             wr.record(s, targets[fi % 2], cam)
+            if fi == 2, let x = al0, let y = AllocCount.now { print("render: world record allocations per frame (steady): \(y - x)") }
             vkCmdEndRenderPass(s.cmd)
             vkBarrier(s.cmd, img.image, from: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, to: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers: 2,
                       srcAccess: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_TRANSFER_READ_BIT.rawValue,
