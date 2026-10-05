@@ -113,7 +113,7 @@ extension Game {
         // Whichever player stands under it (split screen: player 2 too).
         coop.eachSeat(self) {
             guard self.survival && simd_length(at - self.player.pos) < 3 else { return }
-            self.damage(5, "was struck by lightning", type: .fire)
+            self.damage(5, "was struck by lightning", type: .generic)      // not fire: Fire Resistance doesn't stop it
             self.onFire = max(self.onFire, 8)
         }
         var add: [Mob] = []

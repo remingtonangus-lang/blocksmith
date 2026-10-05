@@ -108,7 +108,7 @@ enum MobKind: Int, CaseIterable {
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
                                       drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
-        case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
+        case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.5, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
         case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .ranged,
@@ -273,6 +273,9 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
+    var lastHurtAmount = 0
+    var spiderChasing = false            // a spider that turned on you in the dark keeps at it in the light
     var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
@@ -450,6 +453,7 @@ final class Mob {
         strafe = 0
         path.climbUp = false
         hurt = max(0, hurt - dt)
+        invulnerable = max(0, invulnerable - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
         aiTimer -= dt
@@ -738,7 +742,16 @@ final class Mob {
             }
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
-            let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
+            // Spiders: hostile below raw light 12 (block light or darkened sky); a spider already after you gives up in
+            // the light only 1 time in 100 a tick (reference; any shade at all turned them, and light dropped the chase).
+            var hostileNow = spec.behavior == .melee || aggro
+            if !hostileNow {
+                let darken = max(0, min(11, Int(((1 - (g.daylight - 0.12) / 0.88) * 11).rounded())))
+                let raw = max(l.block, l.sky - darken)
+                if raw < 12 { hostileNow = true; spiderChasing = true }
+                else if spiderChasing && Rand.float(in: 0..<1) >= dt * 0.2 { hostileNow = true }
+                else { spiderChasing = false }
+            }
             // Zombies go for villagers, raiders for villagers and golems (when nearer than the player).
             if let v = villagerTarget(g), !(canTarget && hostileNow && dist <= simd_length(v.pos - pos)) {
                 face(v.pos)
@@ -797,15 +810,16 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .creeper:
             if canTarget {
                 face(player)
-                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away.
-                if dist < 3 || (fuse > 0 && dist < 7) {
+                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away or out of
+                // sight (behind a wall it un-swells instead of blowing up through it).
+                if (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt
                     speed = 0
@@ -823,8 +837,10 @@ final class Mob {
             // Provoked by being looked at (in the face) or hit; teleports away from water.
             if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
                 let head = pos + V3(0, height - 0.3, 0)
-                let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
+                let rel = head - g.player.eye
+                let rd = max(0.1, simd_length(rel))
+                // Reference isLookingAtMe: dot > 1 - 0.025 / distance (about 4 degrees at 10 blocks; it was a fixed 8).
+                if simd_dot(g.player.look, rel / rd) > 1 - 0.025 / rd && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
             voidwalkerTick(dt, g)
@@ -1173,8 +1189,25 @@ final class Mob {
         }
     }
 
-    func hit(from src: V3, damage: Int, knockback: Float = 1) {
+    // `iframes`: the reference 0.5 s after a hit in which only a bigger hit counts, and only by the difference, with no
+    // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
+    // Off for guns, blasts and scripted hits, which have their own rates.
+    func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if kind == .warden && emergeTime > 0 { return }
+        var damage = damage
+        var knockback = knockback
+        if iframes && damage > 0 {
+            if invulnerable > 0 {
+                if damage <= lastHurtAmount { return }
+                let extra = damage - lastHurtAmount
+                lastHurtAmount = damage
+                damage = extra
+                knockback = 0
+            } else {
+                invulnerable = 0.5
+                lastHurtAmount = damage
+            }
+        }
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
@@ -1202,7 +1235,7 @@ final class Mob {
             return
         }
         // A closed sentry shell shrugs off most of a hit.
-        var damage = armorReduced(damage)
+        damage = armorReduced(damage)
         // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
         if kind == .wolf && armorTier == 5 && damage > 0 {
             armorHP -= damage; damage = 0
@@ -1892,12 +1925,11 @@ final class MobManager {
             // chunk: the mob goes (its update would put it back, but Int(floor(NaN)) below is undefined).
             guard m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite else { MobManager.quarantined += 1; return true }
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
-            let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
                 return true
             }
-            return shouldDespawn(m, d, dt, game)
+            return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
         }
         mobs += spawned
         restoreTimer -= dt

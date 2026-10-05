@@ -472,7 +472,7 @@ final class Game {
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
-        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; Tutorial.selected(self) }
+        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; attackTimer = 0; Tutorial.selected(self) }   // a fresh weapon starts uncharged
         selected = n
         let h = held
         if !h.isEmpty { onToast?(h.def.display) }
@@ -787,7 +787,7 @@ final class Game {
                 mobHit = m
             }
         }
-        if breakNow { swing = 1 }
+        if breakNow { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
         // Lunge (spear): the jab carries the player forward (not when digging a block, swimming or gliding).
         if breakNow, Spear.isSpear(held.item), mobHit != nil || target == nil, !player.inWater && !player.gliding {
             let lv = Enchant.level(.lunge, held)
@@ -816,7 +816,10 @@ final class Game {
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge)
-                let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround
+                // Reference crit: falling, and not sprinting, swimming, climbing, blind or riding.
+                let feetB = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y + 0.1)), Int(floor(player.pos.z)))
+                let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround && !player.sprinting && !player.inWater
+                    && !Player.climbable(feetB) && !effects.has(.blindness) && riding == nil
                 if crit { dmg *= 1.5 }
                 dmg += Enchant.damageBonus(held, against: m) * charge
                 // Mace smash: bonus damage from the fall, which is then cancelled.
@@ -835,7 +838,9 @@ final class Game {
                 }
                 attackTimer = 0
                 let kb = Float(Enchant.level(.knockback, held))
-                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: (player.sprinting ? 1.6 : 1) + kb)
+                // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
+                let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
+                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
                 m.provoke(self)
                 m.killedByPlayer = true
                 m.lootingLevel = Enchant.level(.looting, held)
@@ -1881,12 +1886,25 @@ final class Game {
         player.pendingFall = 0
         guard survival else { air = 15; return }
 
-        let safeFall = 3.5 + Float(effects.level(.jumpBoost))
-        if fall > safeFall && !player.inWater { damage(Int(ceilf(fall - safeFall)), "fell from a high place", bypassArmor: true, type: .fall) }
+        // Reference: ceil(distance - 3 - Jump Boost), scaled by what you land on (hay and honey 0.2, beds 0.5, slime 0
+        // unless sneaking). The threshold was 3.5: a jump off a 3-block ledge did 1 instead of 2.
+        let safeFall = 3.05 + Float(effects.level(.jumpBoost))
+        if fall > safeFall && !player.inWater {
+            let p = player.pos
+            let land = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z))))])
+            var k: Float = 1
+            if land == "hay_block" || land == "honey_block" { k = 0.2 }
+            else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.5 }
+            else if land == "slime_block" && !player.sneaking { k = 0 }
+            let over: Float = fall - safeFall
+            let dmg = Int(ceilf(over * k))                          // safeFall carries a 0.05 margin for measuring noise
+            if dmg > 0 { damage(dmg, "fell from a high place", bypassArmor: true, type: .fall) }
+        }
         if player.pos.y < -60 { die("fell out of the world"); return }
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
-        exhaustion += moved * (player.sprinting ? 0.1 : (player.inWater ? 0.01 : 0))
+        // Swimming 0.01 a metre, sprinting on the ground 0.1 (sprint-swimming counted as sprinting: 10x the hunger).
+        exhaustion += moved * (player.inWater ? 0.01 : (player.sprinting && player.onGround ? 0.1 : 0))
         if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
         while exhaustion >= 4 {
             exhaustion -= 4

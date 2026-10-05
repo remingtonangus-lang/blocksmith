@@ -350,7 +350,9 @@ extension Mob {
     }
 
     // Melee damage including a sharpened raid axe (+1 / +2).
-    var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) }
+    // Zombies add a held weapon's damage (an iron-sword zombie hits 3 + 5); illager and boarling specs already count
+    // their weapon.
+    var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) + (isZombie ? weaponBonus : 0) }
     // Reference shot cycles: bows draw 1 s then wait the attack interval (2 s, 1 s on Hard);
     // crossbows charge 1.25 s (-0.25 s per Quick Charge) then pause 1-2 s.
     var crossbowReload: Float {

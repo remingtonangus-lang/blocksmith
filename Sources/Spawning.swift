@@ -105,7 +105,11 @@ enum Spawns {
     // Reference moon brightness for slime nights (full moon 1 ... new moon 0).
     static func moon(_ g: Game) -> Float { [1, 0.75, 0.5, 0.25, 0, 0.25, 0.5, 0.75][Int(g.time / DAY_LENGTH) & 7] }
 
-    static func slimeChunk(_ x: Int, _ z: Int) -> Bool { hash3(floorDiv(x, 16), 0, floorDiv(z, 16), 0x51113) % 10 == 0 }
+    // One chunk in ten, chosen per world seed (they were the same chunks in every world).
+    static func slimeChunk(_ x: Int, _ z: Int, seed: UInt64) -> Bool {
+        let s = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0x51113
+        return hash3(floorDiv(x, 16), 0, floorDiv(z, 16), s) % 10 == 0
+    }
 }
 
 extension MobManager {
@@ -140,7 +144,7 @@ extension MobManager {
         }
     }
 
-    // Despawn rules for one mob (true = remove). `d` is the horizontal distance to the player.
+    // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         let c = m.kind.category
         guard c.despawns, !m.persistent, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
@@ -237,10 +241,15 @@ extension MobManager {
         let l = w.lightAt(x, y, z)
         if l.sky > Rand.int(in: 0..<32) { return false }
         if l.block > 0 { return false }
-        // Sky darkening: 0 at noon ... 11 at midnight (reference skyDarken), subtracted from sky light.
-        let darken = max(0, min(11, Int(((1 - (game.daylight - 0.12) / 0.88) * 11).rounded())))
-        let raw = max(l.block, l.sky - darken)
-        return raw <= Rand.int(in: 0...7)
+        return rawLight(l, game) <= Rand.int(in: 0...7)
+    }
+
+    // Reference raw brightness: block light or sky light less the sky darkening (0 at noon ... 11 at midnight);
+    // a thunderstorm darkens by 10, so storms spawn monsters by day.
+    func rawLight(_ l: (sky: Int, block: Int), _ game: Game) -> Int {
+        var darken = max(0, min(11, Int(((1 - (game.daylight - 0.12) / 0.88) * 11).rounded())))
+        if game.weather.thundering { darken = max(darken, 10) }
+        return max(l.block, l.sky - darken)
     }
 
     func trySpawnHostile(_ game: Game) {
@@ -284,12 +293,12 @@ extension MobManager {
                 if m.collides(at, w) { continue }
                 finishMonster(m, game)
                 spawned += 1
+                if spawned >= 4 { return }                      // reference cluster cap: 4 a spawn attempt (it ran to 12)
                 groupSize -= 1
                 if groupSize <= 0 { break }
             }
             if count(.monster, near: pp) >= SpawnCategory.monster.cap { return }
         }
-        _ = spawned
     }
 
     func trySpawnInStructure(_ sc: StructureCache, _ game: Game, _ x: Int, _ z: Int, _ top: Int) -> Bool {
@@ -338,15 +347,16 @@ extension MobManager {
         case .drowned:
             // In water only: rivers 1/15, elsewhere 1/40, at least 5 below sea level; dark enough.
             guard wet, Blocks.fluidKind[Int(w.block(x, y - 1, z))] == 1 || Blocks.opaque[Int(w.block(x, y - 1, z))] else { return false }
-            guard Rand.int(in: 0..<(b.isRiver ? 15 : 40)) == 0, y < SEA - 5 else { return false }
+            // Rivers 1/15 at any depth; elsewhere 1/40 and at least 5 below sea level (reference).
+            guard b.isRiver ? Rand.int(in: 0..<15) == 0 : (Rand.int(in: 0..<40) == 0 && y < SEA - 5) else { return false }
             return darkEnough(w, x, y, z, game)
         case .slime:
             if wet { return false }
             if (b == .swamp || b == .mangroveSwamp) && y - YOFF > 50 && y - YOFF < 70 && Rand.float(in: 0..<1) < 0.5
-                && Rand.float(in: 0..<1) < Spawns.moon(game) && w.lightAt(x, y, z).block <= Rand.int(in: 0..<8) {
+                && Rand.float(in: 0..<1) < Spawns.moon(game) && rawLight(w.lightAt(x, y, z), game) <= Rand.int(in: 0..<8) {
                 return true
             }
-            return Spawns.slimeChunk(x, z) && y - YOFF < 40 && Rand.int(in: 0..<10) == 0
+            return Spawns.slimeChunk(x, z, seed: w.seed) && y - YOFF < 40 && Rand.int(in: 0..<10) == 0
         default:
             if wet || Blocks.isLiquid(feet) { return false }
             if !darkEnough(w, x, y, z, game) { return false }

@@ -70,6 +70,7 @@ final class Player {
     }
 
     static var quarantined = 0
+    static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
     private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
         // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
@@ -206,10 +207,17 @@ final class Player {
         }
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround)
         var landed = false
+        var bounce: Float = 0
         if hit.y {
-            if vel.y < 0 { landed = true }
+            if vel.y < 0 {
+                landed = true
+                // Slime blocks bounce you back up unless you sneak (reference; the fall does no damage: Game).
+                let under = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z)))
+                if under == Player.slimeID && !sneaking && vel.y < -2 { bounce = -vel.y * 0.85 }
+            }
             vel.y = 0
         }
+        if bounce > 0 { vel.y = bounce }
         if autoJump && onGround && !flying && !sneaking && !prone && (hit.x || hit.z) && simd_length(wish) > 0.3 {
             // Auto-jump: a one-block step ahead with room above it.
             let d = simd_normalize(wish) * 0.35

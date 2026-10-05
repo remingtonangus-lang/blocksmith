@@ -123,6 +123,8 @@ final class ProjectileManager {
                 }
                 if f.dragon {
                     // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer && g.effects.has(.fireResistance) {
+                    // A fireball is fire damage: Fire Resistance stops the hit (reference; it only stopped the burning).
                 } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
@@ -246,7 +248,7 @@ final class ProjectileManager {
                 } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     let h0 = m.health
-                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch), iframes: true)
                     m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
