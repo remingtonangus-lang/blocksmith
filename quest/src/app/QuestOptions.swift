@@ -28,7 +28,7 @@ enum QuestOptions {
         // the Mac's microphone bug notes.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "bugnotes"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov", "q_tex"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -42,6 +42,7 @@ enum QuestOptions {
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing.",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
+            "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
         ]
@@ -64,6 +65,7 @@ enum QuestOptions {
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
+                ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Texture Detail: \(S.textureRes >= 128 ? "High" : "Medium")\(S.textureRes != TextureGen.size ? " (next launch)" : "")", "q_tex"),
             ]
             if hooks.rates().count <= 1 { rows.removeAll { $0.1 == "q_hz" } }
@@ -98,6 +100,7 @@ enum QuestOptions {
             let next = step(rates, hooks.currentRate(), back)
             S.refreshRate = next
             hooks.setRate(next)
+        case "q_autord": S.autoRenderDistance.toggle()
         case "q_tex": S.textureRes = S.textureRes >= 128 ? 64 : 128
         case "q_fov":
             S.foveation = step([0, 1, 2, 3], S.foveation, back)

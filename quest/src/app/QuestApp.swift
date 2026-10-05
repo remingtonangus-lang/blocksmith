@@ -349,6 +349,7 @@ final class FrameStats {
     private var frames = 0, missed = 0
     private var sumCPU = 0.0, sumTick = 0.0, sumRecord = 0.0, sumGPU = 0.0, worstFrame = 0.0
     private var since = CFAbsoluteTimeGetCurrent()
+    private var lastLowered = 0.0
     private(set) var lastLine = ""
     private(set) var fps = 0.0
     private(set) var gpuAvg = 0.0, cpuAvg = 0.0
@@ -370,6 +371,16 @@ final class FrameStats {
                           w?.chunks.count ?? 0, w?.pendingJobs ?? 0, game?.mobs.mobs.count ?? 0, MeshArena.shared.slabBytes >> 20,
                           FrameStats.residentMB())
         print(lastLine)
+        // Comfort guard (VR page option): frames missed in this window with the GPU or CPU near the frame budget
+        // (not a loading hitch) lower the render distance one step, not below 4, for this session.
+        let budget = target * 1000
+        if QuestSettings.autoRenderDistance, let g = game, budget > 0, Double(missed) > n * 0.05,
+           sumGPU / n > budget * 0.8 || sumCPU / n > budget * 0.8, g.world.renderDistance > 4, now - lastLowered > 15 {
+            g.world.renderDistance -= 1
+            lastLowered = now
+            print("perf: missed frames at the frame budget: render distance lowered to \(g.world.renderDistance) for this session")
+            g.onToast?("Render distance \(g.world.renderDistance) to keep the frame rate (VR Comfort & Controls)")
+        }
         frames = 0; missed = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0
         since = now
     }

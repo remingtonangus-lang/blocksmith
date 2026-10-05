@@ -63,7 +63,7 @@ reacts to the ship turning and changing speed (not to cruising).
 **Pause → VR Comfort & Controls** (A or trigger on a row; the stick left/right steps a value): Turning (Snap / Smooth),
 Snap Angle (15-90°) or Smooth Turn Speed, Movement (Smooth / Teleport: push the left stick forward, aim the arc, release),
 Move Direction (Controller / Head), Comfort Vignette (Off / Low / Medium / High), Ship Deck Ring, Seated Mode (leaning
-doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 120 Hz), Foveated Rendering, Texture Detail (High 128 px / Medium 64 px, next launch).
+doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 120 Hz), Foveated Rendering, Texture Detail (High 128 px / Medium 64 px, next launch), Auto Render Distance (on: if frames are missed at the headset's limit the render distance steps down for the session, with a message).
 
 ## Milestones
 

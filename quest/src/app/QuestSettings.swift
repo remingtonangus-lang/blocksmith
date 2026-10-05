@@ -26,6 +26,8 @@ enum QuestSettings {
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { d.set(newValue, forKey: "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { d.set(newValue, forKey: "quest.deckRing") } }
+    // Lower the render distance when frames are missed at the frame budget (this session only).
+    static var autoRenderDistance: Bool { get { bool("quest.autoRenderDistance", true) } set { d.set(newValue, forKey: "quest.autoRenderDistance") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { d.set(newValue, forKey: "quest.foveation") } }
     static var textureRes: Int { get { int("quest.textureRes", 128) } set { d.set(newValue, forKey: "quest.textureRes") } }
 }
