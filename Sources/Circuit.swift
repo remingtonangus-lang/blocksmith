@@ -603,7 +603,8 @@ final class Circuit {
         for d in sides {
             let n = p + Circuit.D[d]
             let k = Circuit.kind(block(n))
-            if k == .wire || k == .block || k == .repeater || k == .comparator { side = max(side, powerFrom(p, d)) }
+            // Comparators take any source's direct power at the side (reference): an observer pointed in counts too.
+            if k == .wire || k == .block || k == .repeater || k == .comparator || k == .observer { side = max(side, powerFrom(p, d)) }
         }
         if (s & 4) != 0 { return max(0, rear - side) }
         return rear >= side ? rear : 0
