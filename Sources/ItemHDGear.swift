@@ -118,10 +118,10 @@ extension ItemHD {
             wraps(cv, V2(0.13, 0.88), V2(0.22, 0.75), 0.04, 2)
             let bait = ex["c"] ?? 0xD03030
             if name == "fishing_rod" {
-                cv.add(cap(cv, V2(0.86, 0.1), V2(0.86, 0.66), 0.012), zero, "string", r: 0.012)
+                cv.add(cap(cv, V2(0.86, 0.1), V2(0.86, 0.66), 0.017), zero, "string", r: 0.017)
                 cv.add(cv.circle(V2(0.86, 0.7), 0.045), zero, soft(bait), r: 0.04)
             } else {
-                cv.add(cap(cv, V2(0.86, 0.1), V2(0.82, 0.5), 0.012), zero, "string", r: 0.012)
+                cv.add(cap(cv, V2(0.86, 0.1), V2(0.82, 0.5), 0.017), zero, "string", r: 0.017)
                 cv.add(cv.poly(band(V2(0.82, 0.48), V2(0.86, 0.66), V2(0.8, 0.86), 0.12, 0.02, 10)), ys, soft(bait), r: 0.06)
             }
         case "shears":
@@ -157,7 +157,8 @@ extension ItemHD {
             // The paddle behind the hull (critic: it crowded the boat).
             cv.add(cap(cv, V2(0.7, 0.12), V2(0.5, 0.6), 0.022), zero, "handle", r: 0.022)
             cv.add(ellipse(cv, V2(0.72, 0.14), 0.05, 0.08), zero, "handle", r: 0.04)
-            let hull = cv.poly([V2(0.04, 0.44), V2(0.96, 0.44), V2(0.82, 0.78), V2(0.18, 0.78)])
+            // A hull with a raised bow and stern (critic: the flat-topped one read as a basket).
+            let hull = cv.poly([V2(0.02, 0.32), V2(0.2, 0.46), V2(0.8, 0.46), V2(0.98, 0.32), V2(0.84, 0.78), V2(0.16, 0.78)])
             cv.add(hull, xs, M("wood", base), r: 0.08)
             for yy: Float in [0.56, 0.66] { cv.add(Canvas.intersect(cap(cv, V2(0.06, yy), V2(0.94, yy), 0.008), hull), xs, M("wood", darker(base, 0.6)), r: 0.008) }
             cv.add(cap(cv, V2(0.06, 0.46), V2(0.94, 0.46), 0.03), xs, M("wood", darker(base, 0.8)), r: 0.03)
@@ -189,10 +190,10 @@ extension ItemHD {
         case "sherd":
             let d = cv.poly([V2(0.16, 0.24), V2(0.56, 0.14), V2(0.86, 0.3), V2(0.8, 0.74), V2(0.4, 0.86), V2(0.14, 0.66)])
             cv.add(d, ys, M("stone", base), r: 0.1, chamfer: true)
-            emblem(cv, name, V2(0.5, 0.5), 0.17, M("stone", ex["c"] ?? 0x6A3A2A))
+            emblem(cv, name, V2(0.5, 0.5), 0.19, M("stone", darker(ex["c"] ?? 0x6A3A2A, 0.6)))
         case "template":
             cv.add(cv.poly([V2(0.2, 0.12), V2(0.8, 0.12), V2(0.8, 0.88), V2(0.2, 0.88)]), ys, M("stone", base), r: 0.06, chamfer: true)
-            emblem(cv, name, V2(0.5, 0.5), 0.2, M("metal", ex["c"] ?? 0x6A8AAA))
+            emblem(cv, name, V2(0.5, 0.5), 0.22, M("metal", lighter(ex["c"] ?? 0x6A8AAA, 0.55)))    // (critic: low contrast)
         case "key":
             let km = M("metal", base)
             cv.add(ring(cv.circle(V2(0.32, 0.32), 0.15), 0.045), zero, km, r: 0.045)
@@ -434,18 +435,27 @@ extension ItemHD {
         let ys = cv.axis(V2(0.5, 0), V2(0.5, 1)), xs = cv.axis(V2(0, 0.5), V2(1, 0.5))
         switch key {
         case "potion", "splash", "lingering":
-            let body = smin(cv.circle(V2(0.5, 0.62), 0.28), cap(cv, V2(0.5, 0.18), V2(0.5, 0.45), key == "lingering" ? 0.07 : 0.085), 0.06)
+            let tall = key == "lingering"
+            let body = smin(cv.circle(V2(0.5, 0.62), 0.28), cap(cv, V2(0.5, tall ? 0.1 : 0.18), V2(0.5, 0.45), tall ? 0.055 : 0.085), 0.06)
             cv.add(body, ys, "glass", r: 0.26)
             cv.add(Canvas.intersect(cv.circle(V2(0.5, 0.62), 0.235), neg(cv.below(0.5))), ys, "tint", r: 0.22)
-            if key == "splash" { cv.add(cap(cv, V2(0.38, 0.3), V2(0.62, 0.3), 0.03), ys, "glass", r: 0.03) }
-            cv.add(cap(cv, V2(0.4, 0.2), V2(0.6, 0.2), 0.032), ys, "glass", r: 0.03)
-            cv.add(cv.poly([V2(0.42, 0.05), V2(0.58, 0.05), V2(0.57, 0.19), V2(0.43, 0.19)]), ys, M("wood", key == "lingering" ? 0xB080C8 : 0xA87A4A), r: 0.04)
+            // Splash: a grip ring round the neck and a loop handle; lingering: a tall narrow neck (critic: the three
+            // forms differed only by a cap tint).
+            if key == "splash" {
+                cv.add(cap(cv, V2(0.36, 0.3), V2(0.64, 0.3), 0.035), ys, "glass", r: 0.035)
+                cv.add(Canvas.intersect(ring(ellipse(cv, V2(0.78, 0.48), 0.1, 0.14), 0.025), neg(cv.circle(V2(0.5, 0.62), 0.27))), ys, "glass", r: 0.025)
+            }
+            let lip: Float = tall ? 0.12 : 0.2
+            cv.add(cap(cv, V2(0.4, lip), V2(0.6, lip), 0.032), ys, "glass", r: 0.03)
+            cv.add(cv.poly([V2(0.42, lip - (tall ? 0.1 : 0.15)), V2(0.58, lip - (tall ? 0.1 : 0.15)), V2(0.57, lip - 0.01), V2(0.43, lip - 0.01)]), ys,
+                   M("wood", tall ? 0xB080C8 : 0xA87A4A), r: 0.04)
             cv.add(Canvas.intersect(cv.poly(band(V2(0.33, 0.74), V2(0.3, 0.56), V2(0.4, 0.44), 0.045, 0.02, 10)), Canvas.offset(body, 0.03)), ys, "white", r: 0.02)
         case "egg":
             let d = ellipse(cv, V2(0.5, 0.55), 0.29, 0.37)
             cv.add(d, ys, "tint", r: 0.32)
-            for (c, r) in [(V2(0.42, 0.38), Float(0.035)), (V2(0.62, 0.5), 0.042), (V2(0.44, 0.66), 0.032), (V2(0.64, 0.74), 0.028), (V2(0.34, 0.54), 0.025)] {
-                cv.add(Canvas.intersect(cv.circle(c, r), Canvas.offset(d, 0.03)), ys, M("soft", 0x3A3436), r: 0.03)
+            // Spots: pale with a dark seam, so they read on every shell colour (critic: dark dots vanished on dark eggs).
+            for (c, r) in [(V2(0.42, 0.36), Float(0.05)), (V2(0.63, 0.5), 0.058), (V2(0.42, 0.66), 0.045), (V2(0.63, 0.74), 0.04), (V2(0.32, 0.52), 0.035)] {
+                cv.add(Canvas.intersect(cv.circle(c, r), Canvas.offset(d, 0.03)), ys, M("soft", 0xE6DCC8), r: 0.035)
             }
         default:
             arrow(cv, xs, head: "tint")

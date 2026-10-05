@@ -22,7 +22,7 @@ def mat(name, kind, base, dark, light):
 
 
 for row in [
-    ("wood", "wood", 0xB98E58, 0x6A4A26, 0xE6C690), ("handle", "wood", 0x7A5530, 0x3E2914, 0xB08250),
+    ("wood", "wood", 0xC89A62, 0x7A5630, 0xF0D49E), ("handle", "wood", 0x94683C, 0x4A3018, 0xC89A62),
     ("stone", "stone", 0x767C86, 0x363A44, 0xAEB4BE), ("iron", "metal", 0xC9CED6, 0x5E646E, 0xFFFFFF),
     ("golden", "metal", 0xF0C33C, 0x8A5A10, 0xFFF4B0), ("diamond", "gem", 0x46D8E0, 0x146A7A, 0xD8FFFF),
     ("netherite", "dusk", 0x4A4450, 0x18151C, 0xB59AD8), ("copper", "copper", 0xDA7240, 0x6E2E12, 0xFFC29A),
@@ -209,8 +209,8 @@ def shade(m, N, X, Y, T, H):
         spec = np.maximum(0, rz) ** (40 if kind != "dusk" else 30)
         col = col + (np.array([1, 1, 1]) - col) * (spec * 0.9)[..., None]
         if kind == "copper":
-            pat = vnoise(X, Y, 7, 11) * 0.7 + vnoise(X, Y, 23, 12) * 0.3
-            k = np.clip((pat - 0.66) * 6, 0, 1)[..., None] * 0.75
+            pat = vnoise(X, Y, 4, 11)
+            k = np.clip((pat - 0.68) * 5, 0, 1)[..., None] * 0.7
             col = col * (1 - k) + np.array([0.33, 0.7, 0.6]) * (0.6 + 0.4 * lam) * k
         if kind == "dusk":
             rim = np.clip(1 - nz, 0, 1) * np.maximum(0, -nx - ny)
@@ -230,7 +230,7 @@ def shade(m, N, X, Y, T, H):
         col = np.where(sp, col + (1 - col) * 0.7, col)
     elif kind == "wood":
         g = 0.5 + 0.5 * np.sin(T * 70 + vnoise(X, Y, 8, 3) * 7)
-        col = col * (0.84 + 0.22 * g)[..., None]
+        col = col * (0.92 + 0.1 * g)[..., None]
         spec = np.maximum(0, rz) ** 12
         col = col + (light - col) * (spec * 0.35)[..., None]
     elif kind == "stone":
@@ -246,8 +246,8 @@ def shade(m, N, X, Y, T, H):
         spec = np.maximum(0, rz) ** 18
         col = col + (light - col) * (spec * 0.7)[..., None]
     elif kind == "chain":
-        cx = X * 13
-        cy = Y * 13 + 0.5 * np.mod(np.floor(X * 13), 2)
+        cx = X * 9
+        cy = Y * 9 + 0.5 * np.mod(np.floor(X * 9), 2)
         rx = cx - np.floor(cx) - 0.5
         ry = cy - np.floor(cy) - 0.5
         rr = np.sqrt(rx * rx + ry * ry)
@@ -255,7 +255,7 @@ def shade(m, N, X, Y, T, H):
         e = env(view_r[..., 1])[..., None]
         metal = dark + (light - dark) * e
         col = col * 0.45 + metal * 0.55
-        col = col * (0.62 + 0.5 * ring)[..., None] + (light - col) * (ring * (ry < -0.1) * 0.3)[..., None]
+        col = col * (0.74 + 0.36 * ring)[..., None] + (light - col) * (ring * (ry < -0.1) * 0.3)[..., None]
         col = col * (0.55 + 0.55 * np.clip(lam, 0, 1.2))
     return np.clip(col, 0, 1)
 
@@ -484,7 +484,7 @@ def guard(cv, head, accent, g0, dr, nr):
 def armor(cv, kind, m):
     ys, xs = cv.axis(V(0.5, 0), V(0.5, 1)), cv.axis(V(0, 0.5), V(1, 0.5))
     soft = m in ("leather", "turtle")
-    trim = "golden" if m in ("diamond", "netherite") else m
+    trim = "golden" if m == "netherite" else ("iron" if m == "diamond" else m)
     if kind == "helmet":
         d = intersect(cv.circle(V(0.5, 0.58), 0.37), cv.below(0.64))
         cheeks = union(cv.poly([V(0.13, 0.56), V(0.31, 0.56), V(0.31, 0.88), V(0.19, 0.86)]),

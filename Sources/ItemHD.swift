@@ -20,8 +20,8 @@ enum ItemHD {
     static func hex(_ h: UInt32) -> V3 { V3(Float((h >> 16) & 255), Float((h >> 8) & 255), Float(h & 255)) / 255 }
 
     static let mats: [String: Mat] = [
-        "wood": Mat(kind: .wood, base: hex(0xB98E58), dark: hex(0x6A4A26), light: hex(0xE6C690)),
-        "handle": Mat(kind: .wood, base: hex(0x7A5530), dark: hex(0x3E2914), light: hex(0xB08250)),
+        "wood": Mat(kind: .wood, base: hex(0xC89A62), dark: hex(0x7A5630), light: hex(0xF0D49E)),
+        "handle": Mat(kind: .wood, base: hex(0x94683C), dark: hex(0x4A3018), light: hex(0xC89A62)),
         "stone": Mat(kind: .stone, base: hex(0x767C86), dark: hex(0x363A44), light: hex(0xAEB4BE)),
         "iron": Mat(kind: .metal, base: hex(0xC9CED6), dark: hex(0x5E646E), light: hex(0xFFFFFF)),
         "golden": Mat(kind: .metal, base: hex(0xF0C33C), dark: hex(0x8A5A10), light: hex(0xFFF4B0)),
@@ -243,8 +243,8 @@ enum ItemHD {
             let spec = powf(max(0, refl.z), m.kind == .dusk ? 30 : 40)
             col += (V3(1, 1, 1) - col) * (spec * 0.9)
             if m.kind == .copper {
-                let pat: Float = vnoise(p.x, p.y, 7, 11) * 0.7 + vnoise(p.x, p.y, 23, 12) * 0.3
-                let k: Float = simd_clamp((pat - 0.66) * 6, 0, 1) * 0.75                // verdigris patches
+                let pat: Float = vnoise(p.x, p.y, 4, 11)
+                let k: Float = simd_clamp((pat - 0.68) * 5, 0, 1) * 0.7                 // a few broad verdigris patches
                 col = col * (1 - k) + V3(0.33, 0.7, 0.6) * ((0.6 + 0.4 * lam) * k)
             }
             if m.kind == .dusk {
@@ -264,7 +264,7 @@ enum ItemHD {
             if vnoise(p.x, p.y, 48, 33) > 0.93 { col += (V3(1, 1, 1) - col) * 0.7 }
         case .wood:
             let g = 0.5 + 0.5 * sinf(axisT * 70 + vnoise(p.x, p.y, 8, 3) * 7)
-            col *= 0.84 + 0.22 * g
+            col *= 0.92 + 0.1 * g                                   // a quiet grain (critic: strong stripes read as wicker)
             col += (m.light - col) * (powf(max(0, refl.z), 12) * 0.35)
         case .stone:
             let nn: Float = vnoise(p.x, p.y, 22, 7) * 0.65 + vnoise(p.x, p.y, 60, 8) * 0.35
@@ -276,13 +276,13 @@ enum ItemHD {
         case .soft:
             col += (m.light - col) * (powf(max(0, refl.z), 18) * 0.7)
         case .chain:
-            let cx = p.x * 13, cy = p.y * 13 + 0.5 * floorf(p.x * 13).truncatingRemainder(dividingBy: 2)
+            let cx = p.x * 9, cy = p.y * 9 + 0.5 * floorf(p.x * 9).truncatingRemainder(dividingBy: 2)
             let rx = cx - floorf(cx) - 0.5, ry = cy - floorf(cy) - 0.5
             let ring = simd_clamp(1 - abs(simd_length(V2(rx, ry)) - 0.3) / 0.13, 0, 1)
             let metal: V3 = m.dark + (m.light - m.dark) * env(viewR.y)
             col = col * 0.45 + metal * 0.55
             let lit: Float = ry < -0.1 ? ring * 0.3 : 0
-            col = col * (0.62 + 0.5 * ring) + (m.light - col) * lit
+            col = col * (0.74 + 0.36 * ring) + (m.light - col) * lit
             col *= 0.55 + 0.55 * lam
         }
         return simd_clamp(col, V3(repeating: 0), V3(repeating: 1))
@@ -543,7 +543,7 @@ enum ItemHD {
     static func armor(_ cv: Canvas, _ kind: String, _ m: String) {
         let ys = cv.axis(V2(0.5, 0), V2(0.5, 1)), xs = cv.axis(V2(0, 0.5), V2(1, 0.5))
         let soft = m == "leather" || m == "turtle"
-        let trim = m == "diamond" || m == "netherite" ? "golden" : m
+        let trim = m == "netherite" ? "golden" : (m == "diamond" ? "iron" : m)     // (gold trim pulled diamond toward gold)
         switch kind {
         case "helmet":
             // A dome cut flat at the brim, cheek guards, a visor slot, nasal and crest (metal) or a stitched seam.
@@ -569,8 +569,6 @@ enum ItemHD {
             } else {
                 cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.4), V2(0.8, 0.4), 0.006).0, Canvas.offset(d, 0.03)), xs, "grip", r: 0.006)
                 cv.add(cv.capsule(V2(0.1, 0.58), V2(0.9, 0.58), 0.035).0, xs, M("leather", 0x6A3E20), r: 0.035)
-                cv.add(cv.capsule(V2(0.24, 0.6), V2(0.4, 0.9), 0.016).0, ys, "grip", r: 0.016)
-                cv.add(cv.circle(V2(0.4, 0.9), 0.025), ys, "iron", r: 0.02)
             }
         case "chestplate":
             let torso = cv.poly([V2(0.26, 0.2), V2(0.4, 0.16), V2(0.5, 0.28), V2(0.6, 0.16), V2(0.74, 0.2), V2(0.76, 0.86), V2(0.5, 0.92), V2(0.24, 0.86)])
