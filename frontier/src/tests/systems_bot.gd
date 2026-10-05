@@ -69,7 +69,26 @@ static func run(runner: Node) -> Dictionary:
 		res.checks["encounters"] = enc.history.duplicate()
 		if enc.history.size() < enc.TYPES.size():
 			_fail(res, "only %d/%d encounters ran" % [enc.history.size(), enc.TYPES.size()])
-	# 6. save -> scramble -> load equality
+	# 6. a bounty end to end (autopilot): accept, travel, gang, custody, paid 1.5x
+	var boards := tree.get_nodes_in_group("interactable").filter(func(n): return n.has_method("accept"))
+	if boards.is_empty():
+		_fail(res, "no bounty boards")
+	else:
+		Game.missions.autopilot = true
+		var m2: float = st.money
+		var bd = boards[0]
+		var reward: float = bd.posters[0].reward
+		bd.accept(0)
+		for i in 600:
+			await tree.physics_frame
+			if bd.active.is_empty():
+				break
+		Game.missions.autopilot = false
+		if not bd.active.is_empty():
+			_fail(res, "bounty never resolved")
+		elif st.money < m2 + reward * 1.5 - 0.01:
+			_fail(res, "bounty paid %.2f, expected %.2f" % [st.money - m2, reward * 1.5])
+	# 7. save -> scramble -> load equality
 	var money := st.money
 	var standing := st.standing
 	var pos: Vector3 = p.global_position

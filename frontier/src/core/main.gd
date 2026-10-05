@@ -137,6 +137,11 @@ func _place_shops() -> void:
 				var o: Vector2 = offs[k]
 				shop.global_position = Vector3(t.x + o.x, world.height(t.x + o.x, t.z + o.y), t.z + o.y)
 			shop.setup(k, tid)
+		var board = load("res://src/ai/bounties.gd").new()
+		board.name = "BountyBoard_%s" % tid
+		add_child(board)
+		board.global_position = Vector3(t.x - 18.0, world.height(t.x - 18.0, t.z + 16.0), t.z + 16.0)
+		board.setup(tid)
 
 func _spawn_player() -> void:
 	var town := world.town("bitter_spring")
