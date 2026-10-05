@@ -354,6 +354,12 @@ done
 "$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep_far.png --seed 12345 --find deep_ocean --seabed 14 --pitch -30 --time 0.3
+# Cave fill (playtest 2026-10-05): no torches, Default / Moody / Bright brightness, Fast, and mobs in the dark.
+"$BIN" --snapshot snaps/cave_dark.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview
+"$BIN" --snapshot snaps/cave_dark_moody.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --bright 0
+"$BIN" --snapshot snaps/cave_dark_bright.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --bright 1
+"$BIN" --snapshot snaps/cave_dark_fast.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --fast
+"$BIN" --snapshot snaps/cave_dark_mobs.png --seed 12345 --find lush_caves --yaw 30 --pitch -10 --time 0.3 --mobs
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --torches
 "$BIN" --snapshot snaps/in_lava.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --inlava
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20

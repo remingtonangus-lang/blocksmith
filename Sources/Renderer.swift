@@ -778,6 +778,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
                          sunDir: V4(game.sunDir, ambient),
                          eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0))
+        u.dimTint.w = Settings.shared.lightBrightness                            // cave fill strength (Shaders.caveFill)
         if hdrActive {
             let lf = lightFrame
             u.invViewProj = viewProj.inverse
@@ -788,7 +789,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             u.screen = V4(VW, VH, 1 / max(VW, 1), 1 / max(VH, 1))
             // Dimension ambient colour: ember-warm in the Emberdeep, cool violet in the Hollow (night vision stays white).
             let dimC: V3 = game.dim.dim == .nether ? V3(1.0, 0.78, 0.68) : (game.dim.dim == .end ? V3(0.86, 0.8, 1.0) : V3(1, 1, 1))
-            u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), 0)
+            u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), Settings.shared.lightBrightness)
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).

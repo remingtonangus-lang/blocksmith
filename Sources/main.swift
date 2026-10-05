@@ -215,6 +215,7 @@ enum Snapshot {
             game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
             game.sfx(.hurt)
         }
+        if let b = Float(arg("--bright") ?? "") { Settings.shared.brightnessOverride = max(0, min(1, b)) }
         if CommandLine.arguments.contains("--fast") {
             // Fast graphics for this shot only: keep the user's saved preference untouched.
             let saved = UserDefaults.standard.object(forKey: "fancyGraphics")

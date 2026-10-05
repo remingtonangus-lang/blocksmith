@@ -47,10 +47,13 @@ final class PauseMenu: Menu {
 
     var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
 
+    static func brightnessName(_ b: Float) -> String {
+        b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
+    }
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
 
     static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
 
@@ -73,6 +76,7 @@ final class PauseMenu: Menu {
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
         "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
+        "brightness": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
         "invert": "Moving the mouse or stick up looks down.",
         "autojump": "Walk into a one-block step to climb it without jumping.",
@@ -200,6 +204,7 @@ final class PauseMenu: Menu {
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
+                        ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
                         ("Block Chipping: \(on(st.chipping))", "chipping")]
             case .audio:
@@ -454,6 +459,7 @@ final class PauseMenu: Menu {
             else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
         case "splitlayout": st.splitSideBySide.toggle()
+        case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)

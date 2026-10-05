@@ -1651,10 +1651,13 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             }
         }
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
-        var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+        let base = m.pos - eye
+        // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
+        let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
+        let fill: Float = max(0.035, (0.05 + 0.2 * Settings.shared.lightBrightness) * near)
+        var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
         bright = bright + (1 - bright) * world.dim.ambient
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
-        let base = m.pos - eye
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal

@@ -41,6 +41,9 @@ final class Settings {
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
     @Pref("renderScale") var renderScale: Float = 1  // whole-frame resolution scale (TVs at 4K: 0.75 saves a lot); Fancy world scale is Game.renderScale
+    @Pref("brightness") var brightness: Float = 0.5  // cave fill and light curve lift: 0 moody, 0.5 default, 1 bright (Shaders.caveFill)
+    var brightnessOverride: Float?                  // harness --bright (not saved)
+    var lightBrightness: Float { brightnessOverride ?? brightness }
 
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
@@ -66,7 +69,7 @@ final class Settings {
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
         lookX = 3; lookY = 3; lookAccel = 3; lookDead = 0.08; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
-        launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
+        launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
         safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
