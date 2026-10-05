@@ -91,14 +91,15 @@ enum ItemHD {
             }
         }
         if src.allSatisfy({ $0.w < 0.5 }) { return nil }
-        return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.upscaled(src, n); return img }
+        let decor = !overlayNames.contains(name)
+        return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.upscaled(src, n, outlined: decor); return img }
     }
 
     // MARK: Signed distances (icon space 0...1, y down)
 
     final class Canvas {
         let n: Int
-        var parts: [(d: [Float], t: [Float], mat: String)] = []
+        var parts: [(d: [Float], t: [Float], mat: String, r: Float, chamfer: Bool)] = []
         init(_ n: Int) { self.n = n }
         @inline(__always) func p(_ i: Int) -> V2 { V2((Float(i % n) + 0.5) / Float(n), (Float(i / n) + 0.5) / Float(n)) }
 
@@ -145,7 +146,10 @@ enum ItemHD {
             for i in 0..<(n * n) { t[i] = Canvas.seg(p(i), a, b).1 }
             return t
         }
-        func add(_ d: [Float], _ t: [Float], _ mat: String) { parts.append((d, t, mat)) }
+        // r: the radius of the part's rounded body (a handle's own radius: a cylinder); chamfer: a linear profile up
+        // to r instead (flat facets meeting at the medial axis: a blade's ridge).
+        func add(_ d: [Float], _ t: [Float], _ mat: String, r: Float = 0.06, chamfer: Bool = false) { parts.append((d, t, mat, r, chamfer)) }
+        func below(_ y: Float) -> [Float] { (0..<(n * n)).map { p($0).y - y } }
         static func union(_ a: [Float], _ b: [Float]) -> [Float] { zip(a, b).map { min($0, $1) } }
         static func intersect(_ a: [Float], _ b: [Float]) -> [Float] { zip(a, b).map { max($0, $1) } }
         static func offset(_ a: [Float], _ k: Float) -> [Float] { a.map { $0 + k } }
@@ -193,85 +197,129 @@ enum ItemHD {
 
     static let lightDir: V3 = simd_normalize(V3(-0.55, -0.7, 0.75))      // from the upper left, toward the viewer
 
-    static func shade(_ m: Mat, _ nrm: V3, _ p: V2, _ axisT: Float) -> V3 {
+    // The studio a polished surface reflects (y down: ry < 0 looks up): bright sky, a dark horizon line just above the
+    // middle, mid ground. This is what makes steel, gold and copper read as metal rather than paint.
+    static func env(_ ry: Float) -> Float {
+        let hor: Float = 1 - expf(-((ry + 0.08) * (ry + 0.08)) / 0.012)
+        let v: Float = ry < -0.08 ? 0.55 + 0.45 * powf(min(1, -ry), 0.6) : 0.42 + 0.18 * max(0, ry)
+        return v * (1 - 0.55 * hor)
+    }
+
+    // nrm: the surface normal (y down); p: icon position; axisT: position along the part's axis (wood grain); hn: the
+    // part's normalised height (raised parts read a touch nearer).
+    static func shade(_ m: Mat, _ nrm: V3, _ p: V2, _ axisT: Float, _ hn: Float) -> V3 {
         let ndl = max(0, simd_dot(nrm, lightDir))
-        let t = min(1, ndl * 1.25)
-        var col: V3 = m.dark + (m.base - m.dark) * t
+        let lam: Float = min(1.2, ndl * 0.85 + 0.15 + 0.12 * hn)
         let refl: V3 = nrm * (2 * simd_dot(nrm, lightDir)) - lightDir
+        let viewR: V3 = nrm * (2 * nrm.z) - V3(0, 0, 1)
+        var col: V3 = m.dark + (m.base - m.dark) * min(lam, 1)
+        col += (m.light - m.base) * (max(0, lam - 1) * 2)
         switch m.kind {
         case .metal, .copper, .dusk:
-            let spec = powf(max(0, refl.z), m.kind == .copper ? 20 : 24)
-            let bandK = max(0, 1 - abs(nrm.y * 3 + 0.4)) * 0.25
-            let mixK: Float = spec * 0.9 + bandK
-            col += (m.light - col) * mixK
-            if m.kind == .copper && vnoise(p.x, p.y, 18, 11) > 0.78 {
-                col = col * 0.5 + V3(0.25, 0.62, 0.55) * 0.5             // patina flecks
+            let e = env(viewR.y)
+            let reflCol: V3 = m.dark + (m.light - m.dark) * e
+            col = col * 0.35 + reflCol * 0.65
+            let spec = powf(max(0, refl.z), m.kind == .dusk ? 30 : 40)
+            col += (V3(1, 1, 1) - col) * (spec * 0.9)
+            if m.kind == .copper {
+                let pat: Float = vnoise(p.x, p.y, 7, 11) * 0.7 + vnoise(p.x, p.y, 23, 12) * 0.3
+                let k: Float = simd_clamp((pat - 0.66) * 6, 0, 1) * 0.75                // verdigris patches
+                col = col * (1 - k) + V3(0.33, 0.7, 0.6) * ((0.6 + 0.4 * lam) * k)
             }
             if m.kind == .dusk {
                 // Duskium: a violet sheen along the lit rims.
-                let rim = max(0, 1 - nrm.z) * max(0, -nrm.x - nrm.y)
-                col += V3(0.45, 0.25, 0.7) * (rim * 0.9)
+                let rim = simd_clamp(1 - nrm.z, 0, 1) * max(0, -nrm.x - nrm.y)
+                col += V3(0.5, 0.28, 0.8) * (rim * 1.1)
             }
         case .gem:
-            let ang = atan2f(nrm.y, nrm.x)
-            let q = (ang / (.pi / 3)).rounded()
-            var facet = 0.55 + 0.45 * cosf(q * .pi / 3 + 2.2)
-            if simd_length(V2(nrm.x, nrm.y)) < 0.15 { facet = 0.85 }
-            col = m.dark + (m.light - m.dark) * (facet * 0.9)
-            if vnoise(p.x, p.y, 40, 31) > 0.9 { col += (V3(1, 1, 1) - col) * 0.6 }     // sparkle
+            // Crystal: flat facets (quantised normal angle plus a cell field), each its own brightness, and sparkles.
+            let cell = floorf(vnoise(p.x, p.y, 9, 31) * 6) / 6
+            let q = (atan2f(nrm.y, nrm.x) / (.pi / 3)).rounded()
+            var facet: Float = 0.5 + 0.35 * cosf(q * .pi / 3 + 2.2) + (cell - 0.5) * 0.35
+            if simd_length(V2(nrm.x, nrm.y)) < 0.2 { facet = 0.72 + (cell - 0.5) * 0.4 }
+            col = m.dark + (m.light - m.dark) * simd_clamp(facet * (0.6 + 0.5 * lam), 0, 1)
+            let spec = powf(max(0, refl.z), 30)
+            col += (V3(1, 1, 1) - col) * (spec * 0.9)
+            if vnoise(p.x, p.y, 48, 33) > 0.93 { col += (V3(1, 1, 1) - col) * 0.7 }
         case .wood:
             let g = 0.5 + 0.5 * sinf(axisT * 70 + vnoise(p.x, p.y, 8, 3) * 7)
-            col *= 0.82 + 0.26 * g
-            col += (m.light - col) * (max(0, ndl - 0.85) * 2)
+            col *= 0.84 + 0.22 * g
+            col += (m.light - col) * (powf(max(0, refl.z), 12) * 0.35)
         case .stone:
-            col *= 0.8 + 0.4 * vnoise(p.x, p.y, 24, 7)
-            col += (m.light - col) * (max(0, ndl - 0.8) * 2.5)
+            let nn: Float = vnoise(p.x, p.y, 22, 7) * 0.65 + vnoise(p.x, p.y, 60, 8) * 0.35
+            col *= 0.78 + 0.42 * nn
+            if vnoise(p.x, p.y, 14, 9) > 0.8 { col *= 0.8 }
         case .leather:
-            col *= 0.92 + 0.12 * vnoise(p.x, p.y, 32, 5)
-            col += (m.light - col) * (max(0, ndl - 0.85) * 2)
+            col *= 0.9 + 0.14 * vnoise(p.x, p.y, 40, 5)
+            col += (m.light - col) * (powf(max(0, refl.z), 10) * 0.25)
         case .soft:
-            let spec = powf(max(0, refl.z), 16)
-            col += (m.light - col) * (spec * 0.55)
+            col += (m.light - col) * (powf(max(0, refl.z), 18) * 0.7)
         case .chain:
-            let cx = p.x * 22, cy = p.y * 22 + 0.5 * floorf(p.x * 22).truncatingRemainder(dividingBy: 2)
+            let cx = p.x * 17, cy = p.y * 17 + 0.5 * floorf(p.x * 17).truncatingRemainder(dividingBy: 2)
             let rx = cx - floorf(cx) - 0.5, ry = cy - floorf(cy) - 0.5
-            let ring = abs(simd_length(V2(rx, ry)) - 0.3) < 0.12
-            col *= ring ? 1.15 : 0.45
+            let ring = simd_clamp(1 - abs(simd_length(V2(rx, ry)) - 0.3) / 0.13, 0, 1)
+            let metal: V3 = m.dark + (m.light - m.dark) * env(viewR.y)
+            col = col * 0.45 + metal * 0.55
+            let lit: Float = ry < -0.1 ? ring * 0.35 : 0
+            col = col * (0.5 + 0.65 * ring) + (m.light - col) * lit
+            col *= 0.55 + 0.55 * lam
         }
         return simd_clamp(col, V3(repeating: 0), V3(repeating: 1))
     }
 
-    // Lights and composites a canvas: parts bottom to top, a dark outline round the union, a soft drop shadow.
-    static func render(_ cv: Canvas, bevel: Float = 0.035) -> [V4] {
-        let n = cv.n
+    // Lights and composites a canvas: parts bottom to top (each throwing a soft contact shadow on what is under it,
+    // with a thin seam where it overlaps), a dark outline round the union, a soft drop shadow.
+    static func render(_ cv: Canvas, bevel: Float = 0.03) -> [V4] {
+        let n = cv.n, nn = n * n
         let aa: Float = 1 / Float(n)
         let ow: Float = max(1.6 / Float(n), 0.012)
-        var col = [V3](repeating: V3(0, 0, 0), count: n * n)
-        var uni = [Float](repeating: 9, count: n * n)
-        var h = [Float](repeating: 0, count: n * n)
+        var col = [V3](repeating: V3(0, 0, 0), count: nn)
+        var cov = [Float](repeating: 0, count: nn)
+        var uni = [Float](repeating: 9, count: nn)
+        var h = [Float](repeating: 0, count: nn), hn = [Float](repeating: 0, count: nn)
+        let so = max(1, Int((0.018 * Float(n)).rounded()))
         for part in cv.parts {
-            for i in 0..<(n * n) {
+            let r = part.r
+            for i in 0..<nn {
                 let v = simd_clamp(-part.d[i] / bevel, 0, 1)
-                h[i] = v * v * (3 - 2 * v)
+                let hb = v * v * (3 - 2 * v)
+                let w = simd_clamp(-part.d[i] / r, 0, 1)
+                let hr: Float = part.chamfer ? w : sqrtf(max(0, 1 - (1 - w) * (1 - w)))
+                h[i] = hb * 0.45 * bevel + hr * 0.55 * r
+                hn[i] = hb * 0.5 + hr * 0.5
             }
             let m = mats[part.mat] ?? mats["iron"]!
-            for i in 0..<(n * n) {
-                uni[i] = min(uni[i], part.d[i])
-                let a = simd_clamp(0.5 - part.d[i] / aa, 0, 1)
-                if a <= 0 { continue }
+            let k: Float = Float(n) * 0.5 * 1.6
+            var next = col
+            for i in 0..<nn {
                 let x = i % n, y = i / n
-                let hl = h[y * n + max(0, x - 1)], hr = h[y * n + min(n - 1, x + 1)]
-                let hu = h[max(0, y - 1) * n + x], hd = h[min(n - 1, y + 1) * n + x]
-                let k: Float = 0.03 * Float(n)
-                let nrm = simd_normalize(V3(-(hr - hl) * k, -(hd - hu) * k, 1))
-                let c = shade(m, nrm, cv.p(i), part.t[i])
-                col[i] = col[i] * (1 - a) + c * a
+                // Contact shadow from this part (offset down-right) on what is already drawn.
+                if x >= so && y >= so {
+                    let sd = part.d[(y - so) * n + (x - so)]
+                    let sa = simd_clamp(0.5 - sd / (aa * 5), 0, 1) * 0.45 * cov[i]
+                    next[i] *= 1 - sa
+                }
+                let a = simd_clamp(0.5 - part.d[i] / aa, 0, 1)
+                if a > 0 {
+                    let hl = h[y * n + max(0, x - 1)], hr = h[y * n + min(n - 1, x + 1)]
+                    let hu = h[max(0, y - 1) * n + x], hd = h[min(n - 1, y + 1) * n + x]
+                    let nrm = simd_normalize(V3(-(hr - hl) * k, -(hd - hu) * k, 1))
+                    let c = shade(m, nrm, cv.p(i), part.t[i], hn[i])
+                    next[i] = next[i] * (1 - a) + c * a
+                }
+                let seam = simd_clamp(1 - abs(part.d[i] + 0.6 * aa) / (1.1 * aa), 0, 1) * cov[i] * 0.55
+                next[i] *= 1 - seam
+            }
+            col = next
+            for i in 0..<nn {
+                cov[i] = max(cov[i], simd_clamp(0.5 - part.d[i] / aa, 0, 1))
+                uni[i] = min(uni[i], part.d[i])
             }
         }
-        let outline = V3(0.06, 0.05, 0.07)
+        let outline = V3(0.05, 0.04, 0.06)
         let sx = Int((0.02 * Float(n)).rounded()), sy = Int((0.03 * Float(n)).rounded())
-        var out = [V4](repeating: V4(0, 0, 0, 0), count: n * n)
-        for i in 0..<(n * n) {
+        var out = [V4](repeating: V4(0, 0, 0, 0), count: nn)
+        for i in 0..<nn {
             let x = i % n, y = i / n
             let alpha = simd_clamp(0.5 - (uni[i] - ow) / aa, 0, 1)
             let inner = simd_clamp(0.5 - uni[i] / aa, 0, 1)
@@ -301,107 +349,149 @@ enum ItemHD {
 
     static func handle(_ cv: Canvas, _ a: V2, _ b: V2, _ r: Float = 0.04, _ mat: String = "handle") {
         let (d, t) = cv.capsule(a, b, r)
-        cv.add(d, t, mat)
+        cv.add(d, t, mat, r: r)
+    }
+
+    // A leather-wrapped grip: k bands across the a -> b handle.
+    static func wraps(_ cv: Canvas, _ a: V2, _ b: V2, _ r: Float, _ k: Int, _ mat: String = "grip") {
+        let dr = simd_normalize(b - a), nr = V2(-dr.y, dr.x), ln = simd_length(b - a)
+        for i in 0..<k {
+            let c: V2 = a + dr * (ln * (Float(i) + 0.5) / Float(k))
+            let s: V2 = dr * (ln / Float(k) * 0.18)
+            let (d, t) = cv.capsule(c - nr * (r * 0.9) - s, c + nr * (r * 0.9) + s, r * 0.62)
+            cv.add(d, t, mat, r: r * 0.6)
+        }
     }
 
     static func tool(_ cv: Canvas, _ kind: String, _ head: String) {
-        let accentForGuard = head == "diamond" || head == "netherite" ? "golden" : (head == "wood" ? "handle" : head)
-        let fullerMat = head == "wood" || head == "stone" ? "iron" : head
+        let accent = head == "diamond" || head == "netherite" ? "golden" : (head == "wood" ? "handle" : head)
+        let edgeMat = head == "wood" || head == "stone" ? "iron" : head
+        let up = V2(0.707, -0.707), rt = V2(0.707, 0.707)          // along the handle (toward the head), across it
         switch kind {
         case "sword":
-            let tip = V2(0.9, 0.1), g0 = V2(0.355, 0.645)
+            let tip = V2(0.9, 0.1), g0 = V2(0.36, 0.64)
             let dir = simd_normalize(tip - g0), len = simd_length(tip - g0)
             let nrm = V2(-dir.y, dir.x)
-            let w: Float = 0.06
-            let blade: [V2] = [g0 + nrm * w, g0 + dir * (len * 0.78) + nrm * (w * 0.9), tip, g0 + dir * (len * 0.78) - nrm * (w * 0.9), g0 - nrm * w]
+            let w: Float = 0.072
+            let blade: [V2] = [g0 + nrm * w, g0 + dir * (len * 0.74) + nrm * (w * 0.92), tip, g0 + dir * (len * 0.74) - nrm * (w * 0.92), g0 - nrm * w]
             let t = cv.axis(g0, tip)
-            handle(cv, V2(0.13, 0.87), V2(0.36, 0.64), 0.036, "grip")
-            cv.add(cv.circle(V2(0.115, 0.885), 0.05), t, head == "wood" ? "handle" : head)
-            let bd = cv.poly(blade)
-            cv.add(bd, t, head)
-            let fuller = cv.capsule(g0 + dir * 0.04, g0 + dir * (len * 0.7), 0.012).0
-            cv.add(Canvas.intersect(fuller, Canvas.offset(bd, 0.02)), t, fullerMat)
-            let (gd, gt) = cv.capsule(g0 - nrm * 0.12, g0 + nrm * 0.12, 0.034)
-            cv.add(gd, gt, accentForGuard)
+            handle(cv, V2(0.15, 0.85), V2(0.37, 0.63), 0.036, "grip")
+            wraps(cv, V2(0.16, 0.84), V2(0.34, 0.66), 0.036, 3)
+            cv.add(cv.circle(V2(0.12, 0.88), 0.052), t, accent, r: 0.05)
+            cv.add(cv.poly(blade), t, head, r: 0.09, chamfer: true)
+            // Crossguard: a bar with flared ends and a centre boss.
+            let bar = cv.capsule(g0 - nrm * 0.15, g0 + nrm * 0.15, 0.03), gt = bar.1
+            let gd = Canvas.union(bar.0, Canvas.union(cv.circle(g0 - nrm * 0.15, 0.042), cv.circle(g0 + nrm * 0.15, 0.042)))
+            cv.add(gd, gt, accent, r: 0.04)
+            cv.add(cv.circle(g0, 0.04), gt, accent, r: 0.04)
         case "pickaxe":
-            handle(cv, V2(0.12, 0.9), V2(0.68, 0.34), 0.038)
-            let top = V2(0.68, 0.33), perp = V2(0.707, 0.707), up = V2(0.707, -0.707)
-            let e1 = top - perp * 0.38, e2 = top + perp * 0.38
-            let ctrl = top + up * 0.17
-            let thin = cv.poly(band(e1, ctrl, e2, 0.02, 0.02, 20))
-            let fat = cv.poly(band(top - perp * 0.24 + up * 0.06, ctrl + up * 0.02, top + perp * 0.24 + up * 0.06, 0.1, 0.1, 16))
+            let top = V2(0.66, 0.34)
+            handle(cv, V2(0.12, 0.9), top + up * 0.02, 0.038)
+            let root: V2 = top + up * 0.02
+            let c1: V2 = top - rt * 0.2 + up * 0.1, c2: V2 = top + rt * 0.2 + up * 0.1
+            let e1: V2 = top - rt * 0.42 - up * 0.06, e2: V2 = top + rt * 0.42 - up * 0.06
+            let d = Canvas.union(cv.poly(band(root, c1, e1, 0.13, 0.02, 16)), cv.poly(band(root, c2, e2, 0.13, 0.02, 16)))
             let t = cv.axis(e1, e2)
-            cv.add(Canvas.union(thin, fat), t, head)
-            cv.add(cv.circle(top + up * 0.04, 0.05), t, head)
+            cv.add(d, t, head, r: 0.06, chamfer: true)
+            let (cd, ct) = cv.capsule(root - rt * 0.05, root + rt * 0.05, 0.06)
+            cv.add(cd, ct, accent, r: 0.06)
         case "axe":
-            handle(cv, V2(0.16, 0.9), V2(0.62, 0.28), 0.04)
+            let top = V2(0.62, 0.3)
+            handle(cv, V2(0.16, 0.9), top + up * 0.06, 0.04)
             let edge = bez(V2(0.70, 0.02), V2(1.0, 0.16), V2(0.84, 0.56), 12)
-            let pts: [V2] = [V2(0.52, 0.26), V2(0.58, 0.18)] + edge + [V2(0.70, 0.44), V2(0.62, 0.40)]
+            let pts: [V2] = [V2(0.52, 0.24), V2(0.6, 0.16)] + edge + [V2(0.7, 0.44), V2(0.6, 0.38)]
             let d = cv.poly(pts)
             let t = cv.axis(V2(0.55, 0.3), V2(0.95, 0.3))
-            cv.add(d, t, head)
-            let inner = bez(V2(0.72, 0.07), V2(0.94, 0.18), V2(0.80, 0.50), 12)
+            cv.add(d, t, head, r: 0.05, chamfer: true)
+            let inner = bez(V2(0.73, 0.08), V2(0.93, 0.19), V2(0.81, 0.48), 12)
             let strip = cv.poly(edge + inner.reversed())
-            cv.add(Canvas.intersect(strip, Canvas.offset(d, 0.004)), t, fullerMat)     // the sharpened edge
-            cv.add(cv.circle(V2(0.58, 0.32), 0.05), t, head)
+            cv.add(Canvas.intersect(strip, Canvas.offset(d, 0.004)), t, edgeMat, r: 0.03, chamfer: true)     // the sharpened edge
+            // The butt behind the handle and the eye ring.
+            cv.add(cv.poly([V2(0.44, 0.22), V2(0.52, 0.14), V2(0.6, 0.22), V2(0.52, 0.3)]), t, head, r: 0.04)
+            cv.add(cv.circle(V2(0.565, 0.255), 0.05), t, accent, r: 0.05)
         case "shovel":
             handle(cv, V2(0.13, 0.9), V2(0.62, 0.42), 0.036)
-            handle(cv, V2(0.08, 0.84), V2(0.2, 0.96), 0.03)
-            let c = V2(0.72, 0.29), u = V2(0.707, -0.707), nv = V2(0.707, 0.707)
-            var pts: [V2] = [c - u * 0.12 + nv * 0.1]
-            pts += bez(c + u * 0.02 + nv * 0.12, c + u * 0.16 + nv * 0.1, c + u * 0.22, 6)
-            pts += bez(c + u * 0.22, c + u * 0.16 - nv * 0.1, c + u * 0.02 - nv * 0.12, 6)
-            pts.append(c - u * 0.12 - nv * 0.1)
-            cv.add(cv.poly(pts), cv.axis(V2(0.6, 0.4), V2(0.9, 0.1)), head)
+            handle(cv, V2(0.07, 0.86), V2(0.19, 0.97), 0.032)
+            let c = V2(0.73, 0.28)
+            var pts: [V2] = [c - up * 0.13 + rt * 0.1]
+            pts += bez(c + rt * 0.13, c + up * 0.17 + rt * 0.12, c + up * 0.24, 7)
+            pts += bez(c + up * 0.24, c + up * 0.17 - rt * 0.12, c - rt * 0.13, 7)
+            pts.append(c - up * 0.13 - rt * 0.1)
+            let bd = cv.poly(pts)
+            let t = cv.axis(V2(0.6, 0.4), V2(0.9, 0.1))
+            cv.add(bd, t, head, r: 0.08)
+            cv.add(Canvas.intersect(cv.capsule(c - up * 0.12, c + up * 0.14, 0.012).0, Canvas.offset(bd, 0.02)), t, head, r: 0.012)
+            let (cd, ct) = cv.capsule(c - up * 0.17, c - up * 0.1, 0.045)
+            cv.add(cd, ct, accent, r: 0.045)
         case "hoe":
-            handle(cv, V2(0.14, 0.9), V2(0.64, 0.3), 0.036)
-            let pts: [V2] = [V2(0.54, 0.28), V2(0.62, 0.16), V2(0.92, 0.2), V2(0.96, 0.4), V2(0.86, 0.42), V2(0.7, 0.32)]
-            cv.add(cv.poly(pts), cv.axis(V2(0.56, 0.26), V2(0.92, 0.3)), head)
+            let top = V2(0.68, 0.26)
+            handle(cv, V2(0.14, 0.9), top, 0.036)
+            let (bd, bt) = cv.capsule(top + V2(0.02, -0.01), V2(0.42, 0.14), 0.04)
+            cv.add(bd, bt, head, r: 0.04)
+            let blade = cv.poly([V2(0.3, 0.08), V2(0.47, 0.1), V2(0.45, 0.24), V2(0.32, 0.47), V2(0.2, 0.42), V2(0.28, 0.22)])
+            cv.add(blade, cv.axis(V2(0.38, 0.08), V2(0.26, 0.45)), head, r: 0.06, chamfer: true)
+            cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.42), V2(0.32, 0.47), 0.03).0, Canvas.offset(blade, 0.004)), bt, edgeMat, r: 0.02, chamfer: true)
+            cv.add(cv.circle(top, 0.05), bt, accent, r: 0.05)
         default:                                                            // spear
-            handle(cv, V2(0.07, 0.95), V2(0.72, 0.3), 0.03)
-            let tip = V2(0.95, 0.05), b0 = V2(0.7, 0.3), u = V2(0.707, -0.707), nv = V2(0.707, 0.707)
-            let pts: [V2] = [b0, b0 + u * 0.1 + nv * 0.07, tip, b0 + u * 0.1 - nv * 0.07]
-            cv.add(cv.poly(pts), cv.axis(b0, tip), head)
-            handle(cv, V2(0.64, 0.36), V2(0.7, 0.3), 0.04, "grip")
+            let b0 = V2(0.68, 0.32), tip = V2(0.95, 0.05)
+            handle(cv, V2(0.07, 0.95), b0, 0.03)
+            let s1 = bez(b0, b0 + up * 0.12 + rt * 0.16, tip, 10)
+            let s2 = bez(tip, b0 + up * 0.12 - rt * 0.16, b0, 10)
+            cv.add(cv.poly(s1 + Array(s2[1..<(s2.count - 1)])), cv.axis(b0, tip), head, r: 0.07, chamfer: true)
+            wraps(cv, b0 - up * 0.12, b0, 0.034, 3)
         }
     }
 
     static func armor(_ cv: Canvas, _ kind: String, _ m: String) {
         let ys = cv.axis(V2(0.5, 0), V2(0.5, 1)), xs = cv.axis(V2(0, 0.5), V2(1, 0.5))
         let soft = m == "leather" || m == "turtle"
+        let trim = m == "diamond" || m == "netherite" ? "golden" : m
         switch kind {
         case "helmet":
-            // A dome cut flat at the brim, cheek guards, a visor slot (metal) and a crest ridge.
-            let below: [Float] = (0..<(cv.n * cv.n)).map { cv.p($0).y - 0.62 }
-            var d = Canvas.intersect(cv.circle(V2(0.5, 0.56), 0.36), below)
-            let cheeks = Canvas.union(cv.poly([V2(0.14, 0.56), V2(0.3, 0.56), V2(0.3, 0.86), V2(0.2, 0.84)]),
-                                      cv.poly([V2(0.7, 0.56), V2(0.86, 0.56), V2(0.8, 0.84), V2(0.7, 0.86)]))
+            // A dome cut flat at the brim, cheek guards, a visor slot, nasal and crest (metal) or a stitched seam.
+            var d = Canvas.intersect(cv.circle(V2(0.5, 0.58), 0.37), cv.below(0.64))
+            let cheeks = Canvas.union(cv.poly([V2(0.13, 0.56), V2(0.31, 0.56), V2(0.31, 0.88), V2(0.19, 0.86)]),
+                                      cv.poly([V2(0.69, 0.56), V2(0.87, 0.56), V2(0.81, 0.86), V2(0.69, 0.88)]))
             d = Canvas.union(d, cheeks)
             if !soft {
-                let visor = cv.poly([V2(0.32, 0.56), V2(0.68, 0.56), V2(0.66, 0.64), V2(0.34, 0.64)])
+                let visor = cv.poly([V2(0.33, 0.58), V2(0.67, 0.58), V2(0.65, 0.66), V2(0.35, 0.66)])
                 d = Canvas.intersect(d, visor.map { -$0 })
             }
-            cv.add(d, ys, m)
-            cv.add(Canvas.intersect(cv.capsule(V2(0.17, 0.54), V2(0.83, 0.54), 0.03).0, d), xs, m)
-            if !soft { cv.add(cv.capsule(V2(0.5, 0.22), V2(0.5, 0.5), 0.022).0, ys, m) }
+            cv.add(d, ys, m, r: 0.3)
+            cv.add(Canvas.intersect(cv.capsule(V2(0.15, 0.56), V2(0.85, 0.56), 0.032).0, d), xs, trim, r: 0.03)
+            if !soft {
+                cv.add(cv.capsule(V2(0.5, 0.2), V2(0.5, 0.52), 0.026).0, ys, trim, r: 0.026)
+                cv.add(cv.capsule(V2(0.5, 0.56), V2(0.5, 0.74), 0.03).0, ys, m, r: 0.03)
+                for x: Float in [0.22, 0.78] { cv.add(cv.circle(V2(x, 0.7), 0.022), ys, trim, r: 0.02) }
+            } else {
+                cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.4), V2(0.8, 0.4), 0.006).0, Canvas.offset(d, 0.03)), xs, "grip", r: 0.006)
+            }
         case "chestplate":
             let torso = cv.poly([V2(0.26, 0.2), V2(0.4, 0.16), V2(0.5, 0.28), V2(0.6, 0.16), V2(0.74, 0.2), V2(0.76, 0.86), V2(0.5, 0.92), V2(0.24, 0.86)])
-            cv.add(torso, ys, m)
-            cv.add(cv.poly(band(V2(0.1, 0.42), V2(0.12, 0.16), V2(0.36, 0.16), 0.13, 0.11, 10)), xs, m)
-            cv.add(cv.poly(band(V2(0.9, 0.42), V2(0.88, 0.16), V2(0.64, 0.16), 0.13, 0.11, 10)), xs, m)
-            cv.add(Canvas.intersect(cv.capsule(V2(0.5, 0.34), V2(0.5, 0.86), 0.01).0, torso), ys, m)
-            for yy: Float in [0.58, 0.72] {
-                cv.add(Canvas.intersect(cv.capsule(V2(0.28, yy), V2(0.72, yy), 0.012).0, torso), xs, m)
+            cv.add(torso, ys, m, r: 0.3)
+            cv.add(cv.poly(band(V2(0.1, 0.44), V2(0.11, 0.16), V2(0.36, 0.16), 0.14, 0.11, 10)), xs, m, r: 0.07)
+            cv.add(cv.poly(band(V2(0.9, 0.44), V2(0.89, 0.16), V2(0.64, 0.16), 0.14, 0.11, 10)), xs, m, r: 0.07)
+            cv.add(Canvas.intersect(cv.poly(band(V2(0.36, 0.17), V2(0.5, 0.4), V2(0.64, 0.17), 0.04, 0.04, 12)), torso), xs, trim, r: 0.03)
+            if !soft { cv.add(Canvas.intersect(cv.capsule(V2(0.5, 0.36), V2(0.5, 0.86), 0.012).0, Canvas.offset(torso, 0.03)), ys, m, r: 0.012) }
+            for yy: Float in [0.62, 0.76] {
+                cv.add(Canvas.intersect(cv.capsule(V2(0.24, yy), V2(0.76, yy), 0.016).0, torso), xs, soft ? "grip" : trim, r: 0.016)
             }
         case "leggings":
-            let d = cv.poly([V2(0.22, 0.12), V2(0.78, 0.12), V2(0.82, 0.9), V2(0.6, 0.9), V2(0.5, 0.4), V2(0.4, 0.9), V2(0.18, 0.9)])
-            cv.add(d, ys, m)
-            cv.add(Canvas.intersect(cv.capsule(V2(0.22, 0.2), V2(0.78, 0.2), 0.035).0, d), xs, m)
-        default:                                                            // boots
-            for ox: Float in [0, 0.42] {
-                let d = cv.poly([V2(0.1 + ox, 0.3), V2(0.32 + ox, 0.3), V2(0.32 + ox, 0.66), V2(0.5 + ox, 0.72), V2(0.5 + ox, 0.86), V2(0.08 + ox, 0.86)])
-                cv.add(d, ys, m)
-                cv.add(Canvas.intersect(cv.capsule(V2(0.1 + ox, 0.8), V2(0.5 + ox, 0.8), 0.035).0, d), xs, m)
+            let d = cv.poly([V2(0.22, 0.14), V2(0.78, 0.14), V2(0.82, 0.9), V2(0.6, 0.9), V2(0.5, 0.42), V2(0.4, 0.9), V2(0.18, 0.9)])
+            cv.add(d, ys, m, r: 0.2)
+            cv.add(Canvas.intersect(cv.capsule(V2(0.2, 0.2), V2(0.8, 0.2), 0.045).0, d), xs, soft ? "grip" : trim, r: 0.04)
+            if !soft {
+                for c in [V2(0.3, 0.6), V2(0.7, 0.6)] { cv.add(Canvas.intersect(ellipse(cv, c, 0.08, 0.07), Canvas.offset(d, 0.02)), ys, trim, r: 0.06) }
+            }
+        default:                                                            // boots: a pair, the near one lower right
+            for o in [V2(0, 0), V2(0.3, 0.1)] {
+                let shaft = cv.poly([V2(0.14, 0.18) + o, V2(0.38, 0.18) + o, V2(0.38, 0.56) + o, V2(0.14, 0.62) + o])
+                let foot = Canvas.union(cv.capsule(V2(0.2, 0.7) + o, V2(0.5, 0.7) + o, 0.1).0,
+                                        cv.poly([V2(0.14, 0.5) + o, V2(0.38, 0.5) + o, V2(0.4, 0.78) + o, V2(0.12, 0.8) + o]))
+                let d = Canvas.union(shaft, Canvas.intersect(foot, cv.below(0.8 + o.y)))
+                cv.add(d, ys, m, r: 0.12)
+                cv.add(Canvas.intersect(cv.capsule(V2(0.1, 0.78) + o, V2(0.62, 0.78) + o, 0.03).0, Canvas.offset(d, 0.01)), xs, soft ? "grip" : trim, r: 0.02)
+                cv.add(Canvas.intersect(cv.capsule(V2(0.12, 0.22) + o, V2(0.4, 0.22) + o, 0.04).0, Canvas.offset(d, 0.015)), xs, soft ? "grip" : trim, r: 0.035)
             }
         }
     }
@@ -433,7 +523,43 @@ enum ItemHD {
         return o
     }
 
-    static func upscaled(_ src: [V4], _ n: Int) -> [V4] {
+    // Two-pass chamfer distance (pixels) from every pixel to the nearest pixel outside `inside`.
+    static func chamfer(_ inside: [Bool], _ n: Int) -> [Float] {
+        var d = inside.map { $0 ? Float(1e4) : 0 }
+        let a: Float = 1, b: Float = 1.4142
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            var v = d[i]
+            if x > 0 { v = min(v, d[i - 1] + a) }
+            if y > 0 {
+                v = min(v, d[i - n] + a)
+                if x > 0 { v = min(v, d[i - n - 1] + b) }
+                if x < n - 1 { v = min(v, d[i - n + 1] + b) }
+            }
+            d[i] = v
+        } }
+        for y in stride(from: n - 1, through: 0, by: -1) { for x in stride(from: n - 1, through: 0, by: -1) {
+            let i = y * n + x
+            var v = d[i]
+            if x < n - 1 { v = min(v, d[i + 1] + a) }
+            if y < n - 1 {
+                v = min(v, d[i + n] + a)
+                if x > 0 { v = min(v, d[i + n - 1] + b) }
+                if x < n - 1 { v = min(v, d[i + n + 1] + b) }
+            }
+            d[i] = v
+        } }
+        return d
+    }
+
+    // Pixel art without a vector design: Scale2x up to the layer size, the big pixel blocks softened inside the shape,
+    // then the same treatment as the vector icons (a signed distance from the silhouette gives a bevel and a rounded
+    // body lit from the upper left, a dark outline and a soft drop shadow).
+    // Tinted layers drawn over an item's base icon (potion liquid, spawn egg shells...): lit, but no outline or shadow.
+    static let overlayNames: Set<String> = ["item_potion_liquid", "item_tipped_arrow_head", "item_spawn_egg_shell", "item_harness_band",
+                                            "item_explorer_mark"]
+
+    static func upscaled(_ src: [V4], _ n: Int, outlined: Bool = true) -> [V4] {
         var img = src
         var s = TextureGen.S
         while s * 2 <= n { img = scale2x(img, s); s *= 2 }
@@ -442,39 +568,60 @@ enum ItemHD {
             for y in 0..<n { for x in 0..<n { o[y * n + x] = img[(y * s / n) * s + x * s / n] } }
             img = o; s = n
         }
-        // Bevel light: a height field from the blurred coverage, lit from the upper left.
-        var hgt = img.map { $0.w >= 0.5 ? Float(1) : 0 }
-        let r = max(1, n / 32)
-        for _ in 0..<2 {
-            var tmp = hgt
-            for y in 0..<n { for x in 0..<n {
-                var acc: Float = 0
-                for k in -r...r { acc += hgt[y * n + min(n - 1, max(0, x + k))] }
-                tmp[y * n + x] = acc / Float(2 * r + 1)
+        let nn = n * n
+        let inside = img.map { $0.w >= 0.5 }
+        // Masked box blur, mixed in half.
+        let rr = max(1, n / 48)
+        var soft = img
+        for y in 0..<n { for x in 0..<n where inside[y * n + x] {
+            var acc = V3(0, 0, 0), w: Float = 0
+            for dy in -rr...rr { for dx in -rr...rr {
+                let xx = x + dx, yy = y + dy
+                if xx < 0 || yy < 0 || xx >= n || yy >= n || !inside[yy * n + xx] { continue }
+                let c = img[yy * n + xx]
+                acc += V3(c.x, c.y, c.z); w += 1
             } }
-            for y in 0..<n { for x in 0..<n {
-                var acc: Float = 0
-                for k in -r...r { acc += tmp[min(n - 1, max(0, y + k)) * n + x] }
-                hgt[y * n + x] = acc / Float(2 * r + 1)
-            } }
+            let c = img[y * n + x]
+            let m: V3 = V3(c.x, c.y, c.z) * 0.5 + acc * (0.5 / w)
+            soft[y * n + x] = V4(m.x, m.y, m.z, c.w)
+        } }
+        let din = chamfer(inside, n), dout = chamfer(inside.map { !$0 }, n)
+        var sd = [Float](repeating: 0, count: nn)
+        for i in 0..<nn { sd[i] = (inside[i] ? -(din[i] - 0.5) : dout[i] - 0.5) / Float(n) }
+        let bevel: Float = 0.03, r: Float = 0.07
+        var h = [Float](repeating: 0, count: nn)
+        for i in 0..<nn {
+            let v = simd_clamp(-sd[i] / bevel, 0, 1)
+            let w = simd_clamp(-sd[i] / r, 0, 1)
+            h[i] = v * v * (3 - 2 * v) * 0.45 * bevel + sqrtf(max(0, 1 - (1 - w) * (1 - w))) * 0.55 * r
         }
-        var out = [V4](repeating: V4(0, 0, 0, 0), count: n * n)
-        let sx = max(1, Int((0.02 * Float(n)).rounded())), sy = max(1, Int((0.03 * Float(n)).rounded()))
+        let k: Float = Float(n) * 0.5 * 1.6
+        let flat: Float = lightDir.z * 0.85 + 0.15
+        let aa: Float = 1 / Float(n), ow: Float = max(1.6 / Float(n), 0.012)
+        let outline = V3(0.05, 0.04, 0.06)
+        let sx = Int((0.02 * Float(n)).rounded()), sy = Int((0.03 * Float(n)).rounded())
+        var out = [V4](repeating: V4(0, 0, 0, 0), count: nn)
         for y in 0..<n { for x in 0..<n {
             let i = y * n + x
-            let c = img[i]
-            if c.w >= 0.5 {
-                let hl = hgt[y * n + max(0, x - 1)], hr = hgt[y * n + min(n - 1, x + 1)]
-                let hu = hgt[max(0, y - 1) * n + x], hd = hgt[min(n - 1, y + 1) * n + x]
-                let k: Float = Float(n) * 0.06
-                let nrm = simd_normalize(V3(-(hr - hl) * k, -(hd - hu) * k, 1))
-                let lit = simd_dot(nrm, lightDir) - simd_dot(V3(0, 0, 1), lightDir)
-                let f: Float = 1 + lit * 0.9
-                out[i] = V4(min(1, c.x * f), min(1, c.y * f), min(1, c.z * f), c.w)
-            } else {
-                let ox = x - sx, oy = y - sy
-                if ox >= 0 && oy >= 0 && img[oy * n + ox].w >= 0.5 { out[i] = V4(0, 0, 0, 0.32) }
+            let alpha = simd_clamp(0.5 - (sd[i] - (outlined ? ow : 0)) / aa, 0, 1)
+            var shadowA: Float = 0
+            if outlined && x >= sx && y >= sy { shadowA = simd_clamp(0.5 - (sd[(y - sy) * n + x - sx] - ow) / (aa * 3), 0, 1) * 0.35 }
+            if alpha <= 0 {
+                if shadowA > 0 { out[i] = V4(0, 0, 0, shadowA) }
+                continue
             }
+            let hl = h[y * n + max(0, x - 1)], hr = h[y * n + min(n - 1, x + 1)]
+            let hu = h[max(0, y - 1) * n + x], hd = h[min(n - 1, y + 1) * n + x]
+            let nrm = simd_normalize(V3(-(hr - hl) * k, -(hd - hu) * k, 1))
+            let ndl = max(0, simd_dot(nrm, lightDir))
+            let f = simd_clamp((ndl * 0.85 + 0.15) / flat, 0.5, 1.35)
+            let refl: V3 = nrm * (2 * simd_dot(nrm, lightDir)) - lightDir
+            let spec = powf(max(0, refl.z), 18) * 0.3
+            let c = soft[i]
+            let lit = simd_clamp(V3(c.x, c.y, c.z) * f + V3(repeating: spec), V3(repeating: 0), V3(repeating: 1))
+            let inner = outlined ? simd_clamp(0.5 - sd[i] / aa, 0, 1) : 1
+            let rgb: V3 = outline * (1 - inner) + lit * inner
+            out[i] = V4(rgb.x, rgb.y, rgb.z, max(alpha, shadowA * (1 - alpha)))
         } }
         return out
     }

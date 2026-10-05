@@ -1660,7 +1660,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if case let (ol, col)? = Items.overlayLayer(st.item) {
                     let t = TextureGen.hex(col)
-                    quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol))
+                    quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol + (TextureGen.size > TextureGen.S ? 4096 : 0)))
                 }
                 let k = st.def.name
                 if st.ench != 0 || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {

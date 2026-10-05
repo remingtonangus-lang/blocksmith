@@ -3,3 +3,4 @@ snaps/
 *.log
 .cc/
 .DS_Store
+tools/__pycache__/
