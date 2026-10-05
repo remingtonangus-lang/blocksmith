@@ -104,10 +104,11 @@ message (focus.log on ci-fast-<branch>).
   to rusted plating, moss gathers on top, vines hang down the sides, grass grows tall round it. A wrecked capital's region
   stays used, so it doesn't come back.
 
-## Checks: `Blocksmith --collapsecheck [--scenes bridge,mine,tower,stands,desert,frigate,wreck,dropship]` (CollapseCheck.swift)
+## Checks: `Blocksmith --collapsecheck [--scenes bridge,mine,tower,stands,massive,desert,relic,frigate,wreck,dropship]` (CollapseCheck.swift)
 
 Bridge on three piers with the middle pier blasted (and mined out block by block); a 60-high lopsided tower that loses
-one mined block and a wall chunk and must stand; blasts in a real desert that must bring no terrain down; a 30-high tower blasted at its base on one side; a Capital frigate
+one mined block and a wall chunk and must stand; blasts in a real desert that must bring no terrain down; a relic (an overhang past its reach and a floating hulk, as
+world gen leaves them) mined into that must stand, then cut from its pillar that must fall; a 30-high tower blasted at its base on one side; a Capital frigate
 cut through amidships by a ring of blasts; a crawler disabled into a wreck and aged three weeks; a dropship shot down.
 Oracles: the scene stands before; the right part falls as a moving body; debris under the cap and all laid back; no
 floating leftovers (the support analysis over the whole scene region); nothing inside the player; tick time p95 under
