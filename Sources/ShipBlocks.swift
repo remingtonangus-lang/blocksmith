@@ -132,6 +132,11 @@ extension BlockRegistry {
         var airframe = BlockDef("capital_airframe", "Capital Airframe")
         airframe.tex = ["capital_airframe"]; airframe.hardness = 2; airframe.tool = .pickaxe; airframe.sound = .stone
         add(airframe)
+        // Capital airfoil: a wing panel (an airfoil to the flight model, like the wooden one) in the white alloy.
+        var cwing = BlockDef("capital_wing", "Capital Airfoil")
+        cwing.tex = ["capital_wing"]; cwing.render = .model; cwing.opaque = false; cwing.hardness = 2; cwing.tool = .pickaxe; cwing.sound = .stone
+        cwing.boxes = [Box(0, 6, 0, 16, 10, 16)]; cwing.skyStop = true
+        add(cwing)
     }
 }
 
@@ -142,6 +147,12 @@ extension TextureGen {
             if x == 0 || y == 0 { return hex(0xBFC5CB) }
             if y == 8 && x % 3 == 1 { return hex(0xD3D8DC) }
             return hex(0xEFF1F3, 0.975 + 0.02 * r(x / 4, y / 4, 2711))
+        }
+        // White wing skin with grey panel lines along the span and a grey leading edge.
+        p["capital_wing"] = { x, y in
+            if y == 0 { return hex(0xA9B0B7) }
+            if y == 8 || x == 0 { return hex(0xC9CED3) }
+            return hex(0xF1F3F5, 0.975 + 0.02 * r(x / 4, y / 4, 2714))
         }
         p["ship_wood"] = { x, y in
             let plank = y / 4

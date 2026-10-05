@@ -63,7 +63,7 @@ enum ShipParts {
     static let kinds: [Kind] = {
         var t = [Kind](repeating: .none, count: Blocks.count)
         let names: [(String, Kind)] = [("ship_helm", .helm), ("ship_propeller", .propeller), ("ship_engine", .engine),
-                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("ship_wheel", .wheel),
+                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("capital_wing", .wing), ("ship_wheel", .wheel),
                                        ("ship_turret_ring", .ring), ("ship_cannon", .cannon), ("ship_rotor", .rotor)]
         for i in 0..<Blocks.count {
             let k = Blocks.key(Blocks.groupBase[i])

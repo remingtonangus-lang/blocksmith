@@ -50,6 +50,7 @@ enum Aircraft {
 
     static func heron() -> Blueprint {
         let b = Blueprint()
+        let wing = Blocks.has("capital_wing") ? "capital_wing" : "ship_wing"
         let frame = "capital_airframe", trim = Blocks.has("capital_stone_trim") ? "capital_stone_trim" : "light_gray_concrete"
         let glass = Blocks.has("capital_glass") ? "capital_glass" : "glass"
         // Fuselage z -8...10, a cabin y 1...3 (floor 1, roof 4) over the front half.
@@ -62,11 +63,11 @@ enum Aircraft {
         b.set(0, 2, -8, trim); b.set(0, 1, -9, trim)          // nose cone
         b.box(-1, 1, 1, 1, 2, 2, trim)
         // Wings (airfoils) across the fuselage's middle, propellers ahead of them, engines inside.
-        for x in -10...10 where abs(x) > 1 { for z in -1...1 { b.set(x, 1, z, "ship_wing") } }
+        for x in -10...10 where abs(x) > 1 { for z in -1...1 { b.set(x, 1, z, wing) } }
         for x in [-4, 4] { b.set(x, 1, -2, "ship_propeller[south]"); b.set(x, 2, -1, frame); b.set(x, 2, 0, frame) }
         b.set(0, 1, -2, "ship_engine"); b.set(0, 1, -1, "ship_engine")
         // Tailplane and fin.
-        for x in -4...4 where abs(x) > 1 { for z in 9...10 { b.set(x, 2, z, "ship_wing") } }
+        for x in -4...4 where abs(x) > 1 { for z in 9...10 { b.set(x, 2, z, wing) } }
         b.box(0, 0, 3, 5, 9, 10, frame)
         b.set(0, 5, 10, trim)
         // Wheels: two under the wings, one under the tail.
