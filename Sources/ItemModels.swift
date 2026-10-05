@@ -23,9 +23,16 @@ enum ItemModels {
         for i in 1..<Items.count {
             let d = Items.def(ItemID(i))
             if let k = d.texKey { s.insert(k) } else if d.sprite != nil { s.insert("item_" + d.name) }
+            if let o = d.overlay { s.insert(o) }
         }
         return s
     }()
+
+    // An item's tinted overlay layer (potion liquid, spawn egg shell, tipped arrow head) and its colour.
+    static func overlay(_ item: ItemID) -> (Int, V3)? {
+        guard case let (l, c)? = Items.overlayLayer(item) else { return nil }
+        return (l, TextureGen.hex(c))
+    }
 
     // Called from TextureGen.base (concurrently, one layer per call) with the layer's final pixels.
     static func capture(layer: Int, name: String, px: [V4], n: Int) {
@@ -106,8 +113,13 @@ enum ItemModels {
     // false writes only the two faces (far away). Returns false when the layer has no model.
     @discardableResult
     static func write(_ wr: inout EntityWriter, layer: Int, o: V3, ax: V3, ay: V3, az: V3, light: Float,
-                      tint: V3 = V3(1, 1, 1), glint: Bool = false, full: Bool = true) -> Bool {
+                      tint: V3 = V3(1, 1, 1), glint: Bool = false, full: Bool = true, overlay: (Int, V3)? = nil) -> Bool {
         guard let qs = quads(layer) else { return false }
+        if let (ol, oc) = overlay {
+            // The tinted overlay: its own model, a hair thicker so its faces sit just over the base's.
+            let k: Float = 1.004
+            write(&wr, layer: ol, o: o, ax: ax * k, ay: ay * k, az: az * k, light: light, tint: tint * oc, glint: glint, full: full)
+        }
         let g: Float = glint ? 1 : 0
         let count = full ? qs.count : min(2, qs.count)
         for k in 0..<count {
@@ -184,7 +196,7 @@ extension Game {
         // The grip point of a tool's icon (lower left, on the handle) sits in the hand.
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.2)
         let o = hand - ax * grip.x - ay * grip.y
-        ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0)
+        ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0, overlay: ItemModels.overlay(held.item))
     }
 }
 
@@ -223,7 +235,8 @@ extension Renderer {
         let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size)
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.18)
         let o = hand - ax * grip.x - ay * grip.y
-        return ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0)
+        return ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0,
+                                overlay: ItemModels.overlay(held.item))
     }
 }
 

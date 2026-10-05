@@ -61,6 +61,9 @@ enum ItemHD {
         "slime": Mat(kind: .soft, base: hex(0x6ACC4A), dark: hex(0x2A6A1A), light: hex(0xD0FFB0)),
         "blaze": Mat(kind: .soft, base: hex(0xF8B02A), dark: hex(0xA0520A), light: hex(0xFFF4B0)),
         "string": Mat(kind: .soft, base: hex(0xE4E4E8), dark: hex(0x8A8A94), light: hex(0xFFFFFF)),
+        // Overlay pairs: the tinted part (drawn white, tinted per item) and bottle glass.
+        "tint": Mat(kind: .soft, base: hex(0xF2F2F2), dark: hex(0x8A8A8A), light: hex(0xFFFFFF)),
+        "glass": Mat(kind: .soft, base: hex(0xD4E2F2), dark: hex(0x7A8AA0), light: hex(0xFFFFFF)),
     ]
 
     static let tiers = ["wooden", "stone", "iron", "golden", "diamond", "netherite", "copper"]
@@ -83,11 +86,17 @@ enum ItemHD {
         if let (k, m) = design(item) {
             return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.vector(k, m, n); return img }
         }
-        if commonNames.contains(item) {
-            return { n, _ in
-                let cv = Canvas(n)
-                ItemHD.common(cv, item)
-                var img = HDTex.Img(n); img.px = ItemHD.render(cv); return img
+        if let (key, overlay) = pairKeys[name] {
+            return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.render(ItemHD.pairCanvas(key, n), split: overlay ? 2 : 1); return img }
+        }
+        if let sp = spriteByItem[item] {
+            let probe = Canvas(4)
+            if family(probe, item, sp) {
+                return { n, _ in
+                    let cv = Canvas(n)
+                    _ = ItemHD.family(cv, item, sp)
+                    var img = HDTex.Img(n); img.px = ItemHD.render(cv); return img
+                }
             }
         }
         if src.allSatisfy({ $0.w < 0.5 }) { return nil }
@@ -269,8 +278,11 @@ enum ItemHD {
 
     // Lights and composites a canvas: parts bottom to top (each throwing a soft contact shadow on what is under it,
     // with a thin seam where it overlaps), a dark outline round the union, a soft drop shadow.
-    static func render(_ cv: Canvas, bevel: Float = 0.03) -> [V4] {
+    // split: 0 the whole icon; 1 the base layer of an overlay pair (without the parts drawn in "tint"); 2 the overlay
+    // layer (only those parts, white-shaded for the per-item tint, no outline).
+    static func render(_ cv: Canvas, bevel: Float = 0.03, split: Int = 0) -> [V4] {
         let n = cv.n, nn = n * n
+        var tint = [Float](repeating: 0, count: nn)
         let aa: Float = 1 / Float(n)
         let ow: Float = max(1.6 / Float(n), 0.012)
         var col = [V3](repeating: V3(0, 0, 0), count: nn)
@@ -288,7 +300,8 @@ enum ItemHD {
                 h[i] = hb * 0.45 * bevel + hr * 0.55 * r
                 hn[i] = hb * 0.5 + hr * 0.5
             }
-            let m = mats[part.mat] ?? mats["iron"]!
+            let m = material(part.mat)
+            let isTint = part.mat == "tint"
             let k: Float = Float(n) * 0.5 * 1.6
             var next = col
             for i in 0..<nn {
@@ -309,6 +322,7 @@ enum ItemHD {
                 }
                 let seam = simd_clamp(1 - abs(part.d[i] + 0.6 * aa) / (1.1 * aa), 0, 1) * cov[i] * 0.55
                 next[i] *= 1 - seam
+                tint[i] = tint[i] * (1 - a) + (isTint ? a : 0)
             }
             col = next
             for i in 0..<nn {
@@ -328,9 +342,11 @@ enum ItemHD {
             if ox >= 0 && oy >= 0 {
                 shadowA = simd_clamp(0.5 - (uni[oy * n + ox] - ow) / (aa * 3), 0, 1) * 0.35
             }
-            if alpha > 0 {
+            if split == 2 {
+                out[i] = V4(col[i].x, col[i].y, col[i].z, tint[i] * inner)
+            } else if alpha > 0 {
                 let rgb: V3 = outline * (1 - inner) + col[i] * inner
-                let a = max(alpha, shadowA * (1 - alpha))
+                let a = split == 1 ? alpha * (1 - tint[i] * inner) : max(alpha, shadowA * (1 - alpha))
                 out[i] = V4(rgb.x, rgb.y, rgb.z, a)
             } else if shadowA > 0 {
                 out[i] = V4(0, 0, 0, shadowA)
@@ -624,144 +640,5 @@ enum ItemHD {
             out[i] = V4(rgb.x, rgb.y, rgb.z, max(alpha, shadowA * (1 - alpha)))
         } }
         return out
-    }
-}
-
-// MARK: Common items (vector designs for the most seen non-tool items)
-
-extension ItemHD {
-    static let commonNames: Set<String> = ["apple", "golden_apple", "enchanted_golden_apple", "bread", "diamond", "emerald",
-        "iron_ingot", "gold_ingot", "copper_ingot", "netherite_ingot", "coal", "charcoal", "stick", "bone", "string", "feather",
-        "arrow", "bow", "bucket", "water_bucket", "lava_bucket", "milk_bucket", "compass", "clock", "ender_pearl", "redstone",
-        "glowstone_dust", "sugar", "gunpowder", "flint", "leather", "paper", "book", "egg", "snowball", "slime_ball", "blaze_rod",
-        "wheat", "carrot", "beef", "cooked_beef", "porkchop", "cooked_porkchop"]
-
-    static func ellipse(_ cv: Canvas, _ c: V2, _ a: Float, _ b: Float) -> [Float] {
-        (0..<(cv.n * cv.n)).map { i in
-            let p = cv.p(i)
-            return (simd_length(V2((p.x - c.x) / a, (p.y - c.y) / b)) - 1) * min(a, b)
-        }
-    }
-
-    static func common(_ cv: Canvas, _ name: String) {
-        let n2 = cv.n * cv.n
-        let zero = [Float](repeating: 0, count: n2)
-        let ys = cv.axis(V2(0.5, 0), V2(0.5, 1)), xs = cv.axis(V2(0, 0.5), V2(1, 0.5))
-        func cap(_ a: V2, _ b: V2, _ r: Float) -> [Float] { cv.capsule(a, b, r).0 }
-        switch name {
-        case "apple", "golden_apple", "enchanted_golden_apple":
-            let m = name == "apple" ? "apple" : "golden"
-            var body = Canvas.union(cv.circle(V2(0.38, 0.58), 0.27), cv.circle(V2(0.62, 0.58), 0.27))
-            body = Canvas.intersect(body, cv.circle(V2(0.5, 0.27), 0.07).map { -$0 })
-            cv.add(body, ys, m)
-            cv.add(cap(V2(0.5, 0.36), V2(0.55, 0.16), 0.03), ys, "stem")
-            let leaf = band(V2(0.55, 0.24), V2(0.68, 0.1), V2(0.82, 0.2), 0.02, 0.02, 8) + band(V2(0.82, 0.2), V2(0.7, 0.3), V2(0.55, 0.24), 0.02, 0.02, 8)
-            cv.add(cv.poly(leaf), xs, "leaf")
-        case "bread":
-            let (d, t) = cv.capsule(V2(0.2, 0.6), V2(0.8, 0.44), 0.2)
-            cv.add(d, t, "crust")
-            for k in 0..<3 {
-                let cx: Float = 0.34 + Float(k) * 0.16, cy: Float = 0.56 - Float(k) * 0.04
-                cv.add(Canvas.intersect(cap(V2(cx - 0.04, cy - 0.12), V2(cx + 0.04, cy + 0.04), 0.018), Canvas.offset(d, 0.02)), t, "cooked")
-            }
-        case "diamond", "emerald":
-            let dia = name == "diamond"
-            let pts: [V2] = dia ? [V2(0.3, 0.18), V2(0.7, 0.18), V2(0.9, 0.4), V2(0.5, 0.9), V2(0.1, 0.4)]
-                                : [V2(0.5, 0.08), V2(0.78, 0.26), V2(0.78, 0.7), V2(0.5, 0.92), V2(0.22, 0.7), V2(0.22, 0.26)]
-            let d = cv.poly(pts)
-            cv.add(d, ys, dia ? "diamond" : "emerald")
-            let lines: [(V2, V2)] = dia ? [(V2(0.1, 0.4), V2(0.9, 0.4)), (V2(0.38, 0.4), V2(0.5, 0.9)), (V2(0.62, 0.4), V2(0.5, 0.9)),
-                                           (V2(0.3, 0.18), V2(0.38, 0.4)), (V2(0.7, 0.18), V2(0.62, 0.4))]
-                                        : [(V2(0.5, 0.08), V2(0.5, 0.92)), (V2(0.22, 0.26), V2(0.78, 0.7)), (V2(0.78, 0.26), V2(0.22, 0.7))]
-            for (a, b) in lines { cv.add(Canvas.intersect(cap(a, b, 0.008), Canvas.offset(d, 0.015)), ys, "iron") }
-        case "iron_ingot", "gold_ingot", "copper_ingot", "netherite_ingot":
-            let m = ["iron_ingot": "iron", "gold_ingot": "golden", "copper_ingot": "copper", "netherite_ingot": "netherite"][name] ?? "iron"
-            cv.add(cv.poly([V2(0.12, 0.5), V2(0.88, 0.5), V2(0.84, 0.7), V2(0.16, 0.7)]), xs, m)
-            cv.add(cv.poly([V2(0.26, 0.34), V2(0.74, 0.34), V2(0.88, 0.5), V2(0.12, 0.5)]), xs, m)
-        case "coal", "charcoal":
-            cv.add(cv.poly([V2(0.22, 0.32), V2(0.46, 0.2), V2(0.74, 0.28), V2(0.84, 0.52), V2(0.7, 0.78), V2(0.4, 0.82), V2(0.18, 0.62)]), ys, "coal")
-        case "stick":
-            cv.add(cap(V2(0.2, 0.84), V2(0.8, 0.16), 0.045), zero, "handle")
-        case "bone":
-            cv.add(cap(V2(0.26, 0.74), V2(0.74, 0.26), 0.06), zero, "bone")
-            for c in [V2(0.2, 0.74), V2(0.26, 0.82), V2(0.74, 0.18), V2(0.82, 0.26)] { cv.add(cv.circle(c, 0.075), zero, "bone") }
-        case "string":
-            let a = cv.poly(band(V2(0.15, 0.8), V2(0.3, 0.2), V2(0.5, 0.5), 0.035, 0.035, 14))
-            let b = cv.poly(band(V2(0.5, 0.5), V2(0.7, 0.8), V2(0.85, 0.2), 0.035, 0.035, 14))
-            cv.add(Canvas.union(a, b), xs, "string")
-        case "feather":
-            cv.add(cv.poly(band(V2(0.22, 0.82), V2(0.3, 0.28), V2(0.82, 0.14), 0.2, 0.02, 16)), xs, "white")
-            cv.add(cv.poly(band(V2(0.16, 0.9), V2(0.3, 0.4), V2(0.8, 0.16), 0.025, 0.01, 16)), xs, "bone")
-        case "arrow":
-            cv.add(cap(V2(0.16, 0.84), V2(0.72, 0.28), 0.025), zero, "handle")
-            cv.add(cv.poly([V2(0.66, 0.22), V2(0.9, 0.1), V2(0.78, 0.34)]), zero, "flint")
-            cv.add(cv.poly([V2(0.12, 0.76), V2(0.24, 0.72), V2(0.3, 0.86), V2(0.14, 0.92)]), zero, "white")
-        case "bow":
-            cv.add(cv.poly(band(V2(0.2, 0.12), V2(0.92, 0.2), V2(0.86, 0.86), 0.06, 0.06, 18)), xs, "handle")
-            cv.add(cap(V2(0.22, 0.14), V2(0.84, 0.84), 0.012), zero, "string")
-            cv.add(cap(V2(0.66, 0.3), V2(0.74, 0.38), 0.045), zero, "grip")
-        case "bucket", "water_bucket", "lava_bucket", "milk_bucket":
-            cv.add(cv.poly([V2(0.2, 0.36), V2(0.8, 0.36), V2(0.72, 0.86), V2(0.28, 0.86)]), xs, "iron")
-            let rim = ellipse(cv, V2(0.5, 0.36), 0.3, 0.08).map { abs($0) - 0.012 }
-            cv.add(rim, xs, "iron")
-            if let fill = ["water_bucket": "water", "lava_bucket": "lava", "milk_bucket": "milk"][name] {
-                cv.add(ellipse(cv, V2(0.5, 0.36), 0.27, 0.065), xs, fill)
-            }
-            let below: [Float] = (0..<n2).map { cv.p($0).y - 0.36 }
-            cv.add(Canvas.intersect(ellipse(cv, V2(0.5, 0.36), 0.32, 0.3).map { abs($0) - 0.012 }, below), xs, "iron")
-        case "compass", "clock":
-            cv.add(cv.circle(V2(0.5, 0.52), 0.36), ys, name == "compass" ? "iron" : "golden")
-            cv.add(cv.circle(V2(0.5, 0.52), 0.27), ys, "paper")
-        case "ender_pearl":
-            cv.add(cv.circle(V2(0.5, 0.52), 0.32), ys, "pearl")
-        case "redstone", "glowstone_dust", "sugar", "gunpowder":
-            let m = ["redstone": "redstone", "glowstone_dust": "glow", "sugar": "sugar", "gunpowder": "gunpowder"][name] ?? "sugar"
-            // A heap with a flat base inside the icon, grains on its surface.
-            let floorCut: [Float] = (0..<n2).map { cv.p($0).y - 0.82 }
-            let heap = Canvas.intersect(ellipse(cv, V2(0.5, 0.82), 0.36, 0.34), floorCut)
-            cv.add(heap, ys, m)
-            var rng = SRng(3)
-            for _ in 0..<14 {
-                let c = V2(0.24 + rng.float() * 0.52, 0.58 + rng.float() * 0.22)
-                cv.add(Canvas.intersect(cv.circle(c, 0.03), Canvas.offset(heap, 0.01)), ys, m)
-            }
-        case "flint":
-            cv.add(cv.poly([V2(0.3, 0.16), V2(0.62, 0.22), V2(0.82, 0.5), V2(0.6, 0.86), V2(0.28, 0.72), V2(0.18, 0.42)]), ys, "flint")
-        case "leather":
-            cv.add(cv.poly([V2(0.2, 0.2), V2(0.42, 0.28), V2(0.6, 0.18), V2(0.82, 0.26), V2(0.74, 0.5), V2(0.84, 0.78), V2(0.56, 0.74),
-                            V2(0.36, 0.84), V2(0.18, 0.72), V2(0.26, 0.48)]), ys, "leather")
-        case "paper":
-            cv.add(cv.poly([V2(0.22, 0.14), V2(0.78, 0.14), V2(0.78, 0.86), V2(0.22, 0.86)]), ys, "paper")
-        case "book":
-            cv.add(cv.poly([V2(0.26, 0.16), V2(0.82, 0.16), V2(0.82, 0.8), V2(0.26, 0.8)]), ys, "paper")
-            cv.add(cv.poly([V2(0.18, 0.12), V2(0.76, 0.12), V2(0.76, 0.76), V2(0.18, 0.76)]), ys, "book")
-            cv.add(cv.poly([V2(0.18, 0.12), V2(0.26, 0.12), V2(0.26, 0.86), V2(0.18, 0.86)]), ys, "cooked")
-        case "egg":
-            cv.add(ellipse(cv, V2(0.5, 0.54), 0.26, 0.34), ys, "egg")
-        case "snowball":
-            cv.add(cv.circle(V2(0.5, 0.54), 0.3), ys, "white")
-        case "slime_ball":
-            cv.add(cv.circle(V2(0.5, 0.54), 0.3), ys, "slime")
-        case "blaze_rod":
-            cv.add(cap(V2(0.22, 0.82), V2(0.78, 0.18), 0.05), zero, "blaze")
-        case "wheat":
-            for (a, b) in [(V2(0.3, 0.9), V2(0.42, 0.2)), (V2(0.5, 0.9), V2(0.52, 0.16)), (V2(0.7, 0.9), V2(0.62, 0.2))] {
-                cv.add(cap(a, b, 0.02), zero, "wheat")
-                for j in 0..<4 {
-                    let t: Float = 0.15 + Float(j) * 0.06
-                    cv.add(ellipse(cv, b + (a - b) * t, 0.035, 0.05), zero, "wheat")
-                }
-            }
-            cv.add(cap(V2(0.32, 0.66), V2(0.68, 0.66), 0.03), zero, "stem")
-        case "carrot":
-            cv.add(cv.poly(band(V2(0.3, 0.3), V2(0.5, 0.52), V2(0.82, 0.86), 0.18, 0.02, 14)), xs, "carrot")
-            for a in [V2(0.14, 0.12), V2(0.24, 0.08), V2(0.12, 0.24)] { cv.add(cap(V2(0.3, 0.3), a, 0.035), zero, "leaf") }
-        default:                                                            // beef, porkchop and their cooked forms
-            let m = name.hasPrefix("cooked") ? "cooked" : "meat"
-            let d = cv.poly([V2(0.16, 0.42), V2(0.36, 0.22), V2(0.7, 0.2), V2(0.86, 0.38), V2(0.8, 0.7), V2(0.5, 0.82), V2(0.22, 0.72)])
-            cv.add(d, ys, "fat")
-            cv.add(Canvas.offset(d, 0.045), ys, m)
-            cv.add(cv.circle(V2(0.36, 0.62), 0.06), ys, "bone")
-        }
     }
 }

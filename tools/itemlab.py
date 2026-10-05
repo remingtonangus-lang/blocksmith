@@ -42,6 +42,7 @@ for row in [
     ("wheat", "soft", 0xDCB850, 0x7A5A1A, 0xFFF0A0), ("carrot", "soft", 0xF07A1A, 0x8A3A08, 0xFFC07A),
     ("egg", "soft", 0xE8DCC4, 0x9A8A6E, 0xFFFFF8), ("slime", "soft", 0x6ACC4A, 0x2A6A1A, 0xD0FFB0),
     ("blaze", "soft", 0xF8B02A, 0xA0520A, 0xFFF4B0), ("string", "soft", 0xE4E4E8, 0x8A8A94, 0xFFFFFF),
+    ("tint", "soft", 0xF2F2F2, 0x8A8A8A, 0xFFFFFF), ("glass", "soft", 0xD4E2F2, 0x7A8AA0, 0xFFFFFF),
 ]:
     mat(*row)
 
@@ -106,6 +107,15 @@ class Canvas:
 
     def add(self, d, t, m, r=None, prof="round"):
         self.parts.append((d, t, m, r, prof))
+
+
+def smin(a, b, k):
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0, 1)
+    return b * (1 - h) + a * h - k * h * (1 - h)
+
+
+def smax(a, b, k):
+    return -smin(-a, -b, k)
 
 
 def union(a, b):
@@ -253,8 +263,9 @@ def shift(a, dx, dy, fill):
     return out
 
 
-def render(cv, bevel=0.03):
+def render(cv, bevel=0.03, split=False):
     n = cv.n
+    tint = np.zeros((n, n), dtype=np.float32)
     aa = 1 / n
     ow = max(1.6 / n, 0.012)
     col = np.zeros((n, n, 3), dtype=np.float32)
@@ -287,6 +298,7 @@ def render(cv, bevel=0.03):
         seam = np.clip(1 - np.abs(d + 0.6 * aa) / (1.1 * aa), 0, 1) * cov * 0.55
         col = col * (1 - a[..., None]) + c * a[..., None]
         col = col * (1 - seam[..., None])
+        tint = tint * (1 - a) + (a if m == "tint" else 0)
         cov = np.maximum(cov, a)
         uni = np.minimum(uni, d)
     outline = np.array([0.05, 0.04, 0.06])
@@ -298,6 +310,11 @@ def render(cv, bevel=0.03):
     rgb = outline * (1 - inner[..., None]) + col * inner[..., None]
     a = np.maximum(alpha, sh * (1 - alpha))
     rgb = np.where((alpha > 0)[..., None], rgb, 0)
+    if split:
+        # Base layer without the tinted parts, overlay layer with only them (drawn tinted on top).
+        ov = np.concatenate([col, (tint * inner)[..., None]], -1)
+        base = np.concatenate([rgb, np.where(alpha > 0, alpha * (1 - tint * inner), a)[..., None]], -1)
+        return base, ov
     return np.concatenate([rgb, a[..., None]], -1)
 
 
@@ -626,3 +643,612 @@ def art_sheet(arts, n, scale, cols, out):
         a = img[..., 3:4]
         slot[:] = slot * (1 - a) + img[..., :3] * a
     Image.fromarray((np.clip(o, 0, 1) * 255).astype(np.uint8)).save(out)
+
+
+# MARK: families (mirror ItemHD.family): designs per Sprite mask, coloured by the sprite's base / extras
+
+def dynmat(spec):
+    """'kind:RRGGBB' -> a material with dark / light derived from the base colour."""
+    kind, hx = spec.split(":")
+    base = hexc(int(hx, 16))
+    dark = base * 0.42 + np.array([0.01, 0.0, 0.03], dtype=np.float32)
+    light = base + (1 - base) * 0.6
+    return (kind, base, dark, light)
+
+
+_orig_shade = shade
+
+
+def shade(m, N, X, Y, T, H):  # noqa: F811
+    if m not in MATS and ":" in m:
+        MATS[m] = dynmat(m)
+    return _orig_shade(m, N, X, Y, T, H)
+
+
+def darker(h, k):
+    r, g, b = (h >> 16) & 255, (h >> 8) & 255, h & 255
+    return (int(r * k) << 16) | (int(g * k) << 8) | int(b * k)
+
+
+def lighter(h, k):
+    r, g, b = (h >> 16) & 255, (h >> 8) & 255, h & 255
+    f = lambda c: int(c + (255 - c) * k)
+    return (f(r) << 16) | (f(g) << 8) | f(b)
+
+
+def M(kind, h):
+    return f"{kind}:{h:06X}"
+
+
+def ys_xs(cv):
+    return cv.axis(V(0.5, 0), V(0.5, 1)), cv.axis(V(0, 0.5), V(1, 0.5))
+
+
+def cap(cv, a, b, r):
+    return cv.capsule(a, b, r)[0]
+
+
+def rot(p, c, ang):
+    s, co = math.sin(ang), math.cos(ang)
+    q = p - c
+    return c + V(q[0] * co - q[1] * s, q[0] * s + q[1] * co)
+
+
+def family(cv, name, mask, base, ex):
+    ys, xs = ys_xs(cv)
+    if mask == "ingot":
+        brick = "brick" in name
+        m = METAL_BY_NAME.get(name.split("_")[0], M("stone" if brick else "metal", base))
+        top = cv.poly([V(0.24, 0.3), V(0.76, 0.3), V(0.92, 0.5), V(0.08, 0.5)])
+        front = cv.poly([V(0.08, 0.5), V(0.92, 0.5), V(0.87, 0.74), V(0.13, 0.74)])
+        cv.add(front, xs, m, 0.05, "chamfer")
+        cv.add(top, xs, m, 0.06, "chamfer")
+        if not brick:
+            cv.add(cv.poly([V(0.36, 0.36), V(0.64, 0.36), V(0.7, 0.44), V(0.3, 0.44)]), xs, m, 0.02, "chamfer")
+    elif mask == "nugget":
+        m = METAL_BY_NAME.get(name.split("_")[0], M("metal", base))
+        for c, r in ((V(0.36, 0.6), 0.15), (V(0.62, 0.66), 0.13), (V(0.52, 0.4), 0.12)):
+            pts = [c + V(math.cos(a) * r * (1 + 0.18 * math.sin(a * 3 + c[0] * 9)), math.sin(a) * r) for a in np.linspace(0, 2 * math.pi, 9)[:-1]]
+            cv.add(cv.poly(pts), ys, m, 0.08, "chamfer")
+    elif mask == "lump":
+        kind = "stone" if name in ("coal", "charcoal", "flint", "netherite_scrap") else "stone"
+        m = M(kind, base)
+        pts = [V(0.22, 0.34), V(0.4, 0.2), V(0.62, 0.22), V(0.8, 0.36), V(0.84, 0.58), V(0.7, 0.8), V(0.42, 0.84), V(0.2, 0.68)]
+        d = cv.poly(pts)
+        cv.add(d, ys, m, 0.2, "chamfer")
+        if name.startswith("raw_"):
+            mm = METAL_BY_NAME.get(name[4:], M("metal", base))
+            for c, r, a in ((V(0.4, 0.42), 0.08, 0.3), (V(0.63, 0.58), 0.07, 1.2), (V(0.38, 0.67), 0.06, 2.0)):
+                pts = [c + V(math.cos(t + a) * r * (1 + 0.3 * math.sin(t * 2 + a)), math.sin(t + a) * r * 0.8) for t in np.linspace(0, 2 * math.pi, 8)[:-1]]
+                cv.add(intersect(cv.poly(pts), d + 0.03), ys, mm, 0.05, "chamfer")
+    elif mask == "gem":
+        gem(cv, name, base, ys, xs)
+    elif mask == "dust":
+        m = M("soft", base)
+        heap = intersect(cv.ellipse(V(0.5, 0.84), 0.38, 0.44), cv.below(0.84))
+        cv.add(heap, ys, m, 0.25)
+        rng = np.random.default_rng(3)
+        for _ in range(16):
+            c = V(0.2 + rng.random() * 0.6, 0.52 + rng.random() * 0.3)
+            cv.add(intersect(cv.circle(c, 0.028), heap + 0.012), ys, m, 0.03)
+    elif mask == "ball":
+        m = M("gem" if name == "heart_of_the_sea" else "soft", base)
+        d = cv.circle(V(0.5, 0.54), 0.31)
+        cv.add(d, ys, m, 0.31)
+        if name == "slime_ball":
+            cv.add(cv.circle(V(0.55, 0.6), 0.13), ys, M("soft", darker(base, 0.6)), 0.13)
+        if name == "magma_cream":
+            cv.add(intersect(cv.poly(band(V(0.28, 0.56), V(0.5, 0.3), V(0.72, 0.56), 0.06, 0.06, 12)), d), ys, M("soft", 0xF8C030), 0.03)
+        if name == "wind_charge":
+            cv.add(intersect(cv.poly(band(V(0.3, 0.64), V(0.5, 0.2), V(0.72, 0.5), 0.05, 0.02, 12)), d + 0.02), ys, M("soft", 0xF4F8FF), 0.03)
+    elif mask == "seeds":
+        m = M("soft", base)
+        for i, (x, y, a) in enumerate(((0.32, 0.36, 0.5), (0.58, 0.3, -0.4), (0.7, 0.56, 0.9), (0.42, 0.6, -0.2), (0.28, 0.78, 0.3), (0.58, 0.8, -0.8))):
+            c = V(x, y)
+            e = [c + V(math.cos(t) * 0.09 * math.cos(a) - math.sin(t) * 0.055 * math.sin(a), math.cos(t) * 0.09 * math.sin(a) + math.sin(t) * 0.055 * math.cos(a)) for t in np.linspace(0, 2 * math.pi, 13)[:-1]]
+            cv.add(cv.poly(e), ys, m, 0.05)
+    elif mask == "egg":
+        cv.add(cv.ellipse(V(0.5, 0.55), 0.27, 0.35), ys, M("soft", base), 0.3)
+        dots = darker(base, 0.75)
+        for c in (V(0.42, 0.4), V(0.6, 0.5), V(0.46, 0.66), V(0.62, 0.72), V(0.36, 0.56)):
+            cv.add(intersect(cv.circle(c, 0.026), cv.ellipse(V(0.5, 0.55), 0.24, 0.32)), ys, M("soft", dots), 0.02)
+    elif mask == "bucket":
+        bucket(cv, name, ex, xs)
+    elif mask == "bottle":
+        bottle(cv, base, ex.get("c"), ys, xs)
+    elif mask == "fish":
+        m = M("soft", base)
+        body = cv.ellipse(V(0.46, 0.52), 0.3, 0.17)
+        tail = cv.poly([V(0.72, 0.52), V(0.92, 0.34), V(0.88, 0.52), V(0.92, 0.7)])
+        cv.add(tail, xs, m, 0.05)
+        cv.add(body, xs, m, 0.17)
+        cv.parts.insert(0, (cv.poly([V(0.34, 0.42), V(0.48, 0.26), V(0.62, 0.4)]), xs, M("soft", darker(base, 0.8)), 0.03, "round"))
+        cv.add(cv.circle(V(0.27, 0.48), 0.035), xs, M("soft", 0x18181C), 0.03)
+        cv.add(intersect(cap(cv, V(0.3, 0.6), V(0.64, 0.58), 0.012), body + 0.03), xs, M("soft", lighter(base, 0.4)), 0.01)
+    elif not family2(cv, name, mask, base, ex, ys, xs):
+        return False
+    return True
+
+
+METAL_BY_NAME = {"iron": "iron", "gold": "golden", "copper": "copper", "netherite": "netherite"}
+
+
+def gem(cv, name, base, ys, xs):
+    m = M("gem", base)
+    if name == "diamond":
+        pts = [V(0.28, 0.2), V(0.72, 0.2), V(0.9, 0.4), V(0.5, 0.9), V(0.1, 0.4)]
+        d = cv.poly(pts)
+        cv.add(d, ys, m, 0.1, "chamfer")
+        cv.add(cv.poly([V(0.28, 0.2), V(0.72, 0.2), V(0.62, 0.4), V(0.38, 0.4)]), ys, m, 0.06, "chamfer")
+    elif name == "emerald":
+        pts = [V(0.5, 0.08), V(0.78, 0.26), V(0.78, 0.7), V(0.5, 0.92), V(0.22, 0.7), V(0.22, 0.26)]
+        cv.add(cv.poly(pts), ys, m, 0.12, "chamfer")
+        cv.add(cv.poly([V(0.5, 0.24), V(0.64, 0.34), V(0.64, 0.62), V(0.5, 0.74), V(0.36, 0.62), V(0.36, 0.34)]), ys, m, 0.06, "chamfer")
+    elif name == "lapis_lazuli":
+        pts = [V(0.24, 0.3), V(0.5, 0.18), V(0.8, 0.32), V(0.78, 0.66), V(0.5, 0.84), V(0.2, 0.68)]
+        d = cv.poly(pts)
+        cv.add(d, ys, M("stone", base), 0.14, "chamfer")
+        for c in (V(0.4, 0.4), V(0.6, 0.6), V(0.38, 0.64)):
+            cv.add(intersect(cv.circle(c, 0.035), d + 0.05), ys, M("metal", 0xE8C040), 0.03)
+    else:
+        # Crystal shards: two or three hexagonal prisms with pointed tips.
+        for (a, b, w) in ((V(0.3, 0.86), V(0.42, 0.14), 0.13), (V(0.56, 0.86), V(0.76, 0.3), 0.11), (V(0.3, 0.86), V(0.18, 0.42), 0.08)):
+            dr = norm(b - a)
+            nr = V(-dr[1], dr[0])
+            ln = float(np.linalg.norm(b - a))
+            pts = [a + nr * w / 2, a + dr * ln * 0.78 + nr * w / 2, b, a + dr * ln * 0.78 - nr * w / 2, a - nr * w / 2]
+            cv.add(cv.poly(pts), cv.axis(a, b), m, w / 2, "chamfer")
+
+
+def bucket(cv, name, ex, xs):
+    iron = "iron"
+    body = cv.poly([V(0.2, 0.38), V(0.8, 0.38), V(0.72, 0.86), V(0.28, 0.86)])
+    cv.add(intersect(abs(cv.ellipse(V(0.5, 0.38), 0.33, 0.3)) - 0.014, cv.below(0.38)), xs, iron, 0.014)   # the handle
+    cv.add(body, xs, iron, 0.22)
+    for yy in (0.52, 0.74):
+        cv.add(intersect(cap(cv, V(0.18, yy), V(0.82, yy), 0.012), body), xs, iron, 0.012)
+    rim = abs(cv.ellipse(V(0.5, 0.38), 0.3, 0.075)) - 0.016
+    c = ex.get("c", 0x5A5A5A)
+    if name == "bucket":
+        cv.add(cv.ellipse(V(0.5, 0.38), 0.29, 0.065), xs, M("soft", 0x3A3A40), 0.03)
+    elif name in ("water_bucket", "lava_bucket", "milk_bucket", "powder_snow_bucket"):
+        cv.add(cv.ellipse(V(0.5, 0.38), 0.29, 0.065), xs, M("soft", c), 0.03)
+    else:
+        cv.add(cv.ellipse(V(0.5, 0.38), 0.29, 0.065), xs, M("soft", 0x3F76E4), 0.03)
+        fish = cv.ellipse(V(0.48, 0.3), 0.12, 0.06)
+        cv.add(union(fish, cv.poly([V(0.58, 0.3), V(0.68, 0.22), V(0.68, 0.38)])), xs, M("soft", c), 0.05)
+    cv.add(rim, xs, iron, 0.016)
+
+
+def bottle(cv, base, liquid, ys, xs):
+    glass = M("soft", 0xC8D8EE)
+    body = union(cv.circle(V(0.5, 0.62), 0.27), cap(cv, V(0.5, 0.2), V(0.5, 0.45), 0.08))
+    cv.add(body, ys, glass, 0.25)
+    if liquid is not None:
+        cv.add(intersect(cv.circle(V(0.5, 0.62), 0.23), -cv.below(0.52)), ys, M("soft", liquid), 0.2)
+    cv.add(cap(cv, V(0.42, 0.22), V(0.58, 0.22), 0.03), ys, glass, 0.03)
+    cv.add(cv.poly([V(0.43, 0.08), V(0.57, 0.08), V(0.56, 0.2), V(0.44, 0.2)]), ys, M("wood", 0xA87A4A), 0.04)
+    # Glass highlight.
+    cv.add(intersect(cv.poly(band(V(0.34, 0.74), V(0.3, 0.56), V(0.4, 0.44), 0.04, 0.02, 10)), body + 0.03), ys, M("soft", 0xFFFFFF), 0.02)
+
+
+def catalogue():
+    import re
+    src = open("Sources/Items.swift").read()
+    out = []
+    for m in re.finditer(r'(?:item|food)\("([a-z_0-9]+)", "[^"]*", "([a-z_0-9]+)", (0x[0-9A-Fa-f]+)(?:, [0-9.]+, [0-9.]+)?(?:, \[([^\]]*)\])?', src):
+        ex = {}
+        if m.group(4):
+            for k, v in re.findall(r'"(.)": (0x[0-9A-Fa-f]+)', m.group(4)):
+                ex[k] = int(v, 16)
+        out.append((m.group(1), m.group(2), int(m.group(3), 16), ex))
+    return out
+
+
+def draw_family(entry, n):
+    name, mask, base, ex = entry
+    cv = Canvas(n)
+    if not family(cv, name, mask, base, ex):
+        return None
+    return render(cv)
+
+
+def family_sheet(out, masks=None, n=128, cols=10):
+    ents = [e for e in catalogue() if masks is None or e[1] in masks]
+    imgs = [(e, draw_family(e, n)) for e in ents]
+    imgs = [(e, i) for e, i in imgs if i is not None]
+    cell = n + 8
+    rows = (len(imgs) + cols - 1) // cols
+    o = np.zeros((rows * cell + 8, cols * cell + 8, 3), dtype=np.float32)
+    o[:] = np.array([0.12, 0.13, 0.16])
+    for k, (e, img) in enumerate(imgs):
+        y0, x0 = 8 + (k // cols) * cell, 8 + (k % cols) * cell
+        sl = o[y0:y0 + n, x0:x0 + n]
+        sl[:] = sl * 0.85 + 0.03
+        a = img[..., 3:4]
+        sl[:] = sl * (1 - a) + img[..., :3] * a
+    Image.fromarray((np.clip(o, 0, 1) * 255).astype(np.uint8)).save(out)
+    return [e[0] for e, _ in imgs]
+
+
+def family2(cv, name, mask, base, ex, ys, xs):
+    soft = lambda h: M("soft", h)
+    if mask == "apple_shape":
+        m = METAL_BY_NAME["gold"] if "golden" in name else soft(base)
+        body = smin(cv.circle(V(0.38, 0.58), 0.27), cv.circle(V(0.62, 0.58), 0.27), 0.12)
+        body = smax(body, -cv.circle(V(0.5, 0.29), 0.07), 0.05)
+        cv.add(body, ys, m, 0.27)
+        cv.add(cap(cv, V(0.5, 0.36), V(0.55, 0.15), 0.028), ys, "stem", 0.028)
+        leaf = band(V(0.55, 0.23), V(0.68, 0.09), V(0.84, 0.18), 0.02, 0.02, 8) + band(V(0.84, 0.18), V(0.7, 0.3), V(0.55, 0.23), 0.02, 0.02, 8)
+        cv.add(cv.poly(leaf), xs, "leaf", 0.04)
+    elif mask == "carrot":
+        m = METAL_BY_NAME["gold"] if "golden" in name else soft(base)
+        d = cv.poly(band(V(0.3, 0.3), V(0.5, 0.5), V(0.84, 0.86), 0.2, 0.02, 14))
+        cv.add(d, xs, m, 0.1)
+        for a, b in ((V(0.42, 0.42), V(0.48, 0.36)), (V(0.56, 0.6), V(0.63, 0.55)), (V(0.68, 0.72), V(0.73, 0.68))):
+            cv.add(intersect(cap(cv, a, b, 0.01), d + 0.02), xs, soft(darker(base, 0.7)), 0.01)
+        for a in (V(0.12, 0.1), V(0.22, 0.05), V(0.08, 0.24), V(0.3, 0.08)):
+            cv.add(cv.poly(band(V(0.31, 0.31), (V(0.31, 0.31) + a) * 0.5 + V(0.02, -0.02), a, 0.06, 0.01, 8)), xs, "leaf", 0.03)
+    elif mask == "potato":
+        m = soft(base)
+        d = cv.ellipse(V(0.5, 0.54), 0.34, 0.26)
+        if name == "beetroot":
+            d = cv.poly(band(V(0.5, 0.3), V(0.56, 0.62), V(0.5, 0.92), 0.5, 0.02, 14))
+            cv.add(d, ys, m, 0.2)
+            for a in (V(0.36, 0.06), V(0.5, 0.04), V(0.64, 0.08)):
+                cv.add(cv.poly(band(V(0.5, 0.26), V(0.5, 0.16), a, 0.06, 0.02, 8)), ys, "leaf", 0.03)
+        else:
+            cv.add(d, xs, m, 0.24)
+            for c in (V(0.36, 0.48), V(0.58, 0.44), V(0.5, 0.64), V(0.7, 0.6)):
+                cv.add(intersect(cv.circle(c, 0.022), d + 0.03), xs, soft(darker(base, 0.6)), 0.02)
+            if name == "baked_potato":
+                cv.add(intersect(cv.poly(band(V(0.3, 0.46), V(0.5, 0.36), V(0.72, 0.46), 0.08, 0.06, 12)), d + 0.02), xs, soft(0xF8E8A0), 0.03)
+    elif mask == "berries":
+        m = soft(base)
+        if "chorus" in name:
+            d = cv.circle(V(0.5, 0.56), 0.3)
+            cv.add(d, ys, M("leather", base), 0.3)
+            for c in (V(0.38, 0.46), V(0.6, 0.48), V(0.5, 0.68)):
+                cv.add(intersect(cv.circle(c, 0.07), d + 0.03), ys, soft(lighter(base, 0.3)), 0.05)
+        else:
+            pts = (V(0.36, 0.5), V(0.6, 0.48), V(0.48, 0.7), V(0.7, 0.7), V(0.3, 0.72))
+            cv.add(cap(cv, V(0.5, 0.14), V(0.36, 0.46), 0.018), ys, "stem", 0.018)
+            cv.add(cap(cv, V(0.5, 0.14), V(0.62, 0.44), 0.018), ys, "stem", 0.018)
+            for c in pts:
+                cv.add(cv.circle(c, 0.12), ys, m, 0.12)
+            cv.add(cv.poly(band(V(0.5, 0.16), V(0.66, 0.08), V(0.78, 0.18), 0.08, 0.01, 8)), xs, "leaf", 0.03)
+    elif mask in ("steak", "chop"):
+        m = soft(base)
+        fat = soft(ex.get("c", 0xF0E0D0))
+        pts = [V(0.14, 0.42), V(0.34, 0.2), V(0.7, 0.18), V(0.88, 0.36), V(0.82, 0.7), V(0.5, 0.84), V(0.2, 0.74)]
+        d = cv.poly(pts)
+        cv.add(d, ys, fat, 0.08)
+        cv.add(d + 0.035, ys, m, 0.15)
+        if mask == "chop":
+            cv.add(cap(cv, V(0.18, 0.62), V(0.04, 0.82), 0.045), ys, "bone", 0.045)
+        else:
+            cv.add(intersect(cv.circle(V(0.4, 0.6), 0.07), d + 0.06), ys, fat, 0.05)
+            for a, b in ((V(0.42, 0.32), V(0.68, 0.46)), (V(0.56, 0.62), V(0.72, 0.56))):
+                cv.add(intersect(cap(cv, a, b, 0.012), d + 0.06), ys, soft(lighter(base, 0.35)), 0.012)
+    elif mask == "drumstick":
+        m = soft(base)
+        cv.add(cap(cv, V(0.3, 0.7), V(0.12, 0.88), 0.045), ys, soft(ex.get("c", 0xF0E8E0)), 0.045)
+        cv.add(cv.circle(V(0.1, 0.84), 0.05), ys, soft(ex.get("c", 0xF0E8E0)), 0.05)
+        cv.add(cv.circle(V(0.15, 0.9), 0.05), ys, soft(ex.get("c", 0xF0E8E0)), 0.05)
+        cv.add(union(cv.ellipse(V(0.58, 0.42), 0.3, 0.24), cap(cv, V(0.5, 0.5), V(0.3, 0.7), 0.1)), xs, m, 0.22)
+    elif mask == "bread":
+        d = cv.capsule(V(0.2, 0.6), V(0.8, 0.44), 0.2)[0]
+        cv.add(d, xs, soft(base), 0.2)
+        for k in range(3):
+            cx, cy = 0.34 + k * 0.16, 0.56 - k * 0.04
+            cv.add(intersect(cap(cv, V(cx - 0.05, cy - 0.12), V(cx + 0.03, cy + 0.06), 0.02), d + 0.03), xs, soft(lighter(base, 0.4)), 0.02)
+    elif mask == "cookie":
+        d = cv.circle(V(0.5, 0.52), 0.32)
+        cv.add(d, ys, soft(base), 0.1)
+        for c in (V(0.4, 0.4), V(0.62, 0.46), V(0.46, 0.64), V(0.66, 0.66), V(0.32, 0.56)):
+            cv.add(intersect(cv.circle(c, 0.04), d + 0.04), ys, soft(0x4A2A14), 0.03)
+    elif mask == "melon":
+        rind = cv.poly([V(0.12, 0.34), V(0.88, 0.34), V(0.5, 0.9)])
+        cv.add(rind, xs, soft(0x3A8A2A if "glister" not in name else 0xE8B830), 0.08)
+        flesh = cv.poly([V(0.2, 0.34), V(0.8, 0.34), V(0.5, 0.8)])
+        cv.add(flesh, xs, soft(base), 0.1, "chamfer")
+        for c in (V(0.38, 0.44), V(0.6, 0.44), V(0.5, 0.58)):
+            cv.add(cv.ellipse(c, 0.018, 0.03), xs, soft(0x1A1A1A), 0.02)
+    elif mask in ("stew", "bowl"):
+        bowl = intersect(cv.ellipse(V(0.5, 0.5), 0.4, 0.34), -cv.below(0.5))
+        cv.add(bowl, xs, M("wood", 0x8A6435), 0.2)
+        if mask == "stew":
+            cv.add(cv.ellipse(V(0.5, 0.5), 0.36, 0.09), xs, soft(ex.get("d", base) if name != "beetroot_soup" else base), 0.05)
+            for c in (V(0.38, 0.49), V(0.56, 0.47), V(0.64, 0.52)):
+                cv.add(cv.ellipse(c, 0.05, 0.025), xs, soft(ex.get("c", lighter(base, 0.3))), 0.02)
+        else:
+            cv.add(cv.ellipse(V(0.5, 0.5), 0.34, 0.08), xs, M("wood", 0x5A3D1F), 0.04)
+        cv.add(abs(cv.ellipse(V(0.5, 0.5), 0.38, 0.1)) - 0.015, xs, M("wood", 0xA07A48), 0.015)
+    elif mask == "rotten":
+        pts = [V(0.16, 0.44), V(0.36, 0.26), V(0.68, 0.24), V(0.86, 0.42), V(0.8, 0.68), V(0.52, 0.8), V(0.22, 0.7)]
+        d = cv.poly(pts)
+        cv.add(d, ys, soft(base), 0.15)
+        for c in (V(0.4, 0.42), V(0.64, 0.56), V(0.42, 0.64)):
+            cv.add(intersect(cv.circle(c, 0.06), d + 0.03), ys, soft(0x4A6A2A), 0.04)
+    else:
+        return family3(cv, name, mask, base, ex, ys, xs)
+    return True
+
+
+def family3(cv, name, mask, base, ex, ys, xs):
+    soft = lambda h: M("soft", h)
+    wood = lambda h: M("wood", h)
+    zero = np.zeros_like(ys)
+    if mask == "stick":
+        handle(cv, V(0.2, 0.84), V(0.8, 0.16), 0.045)
+        cv.add(cap(cv, V(0.48, 0.52), V(0.62, 0.54), 0.025), zero, "handle", 0.025)
+    elif mask == "rod":
+        d, t = cv.capsule(V(0.22, 0.82), V(0.78, 0.18), 0.055)
+        cv.add(d, t, soft(base), 0.055)
+        for k in range(4):
+            c = V(0.22, 0.82) + (V(0.78, 0.18) - V(0.22, 0.82)) * (0.15 + k * 0.23)
+            cv.add(cv.capsule(c + V(-0.07, -0.06), c + V(0.07, 0.06), 0.022)[0], t, soft(darker(base, 0.75)), 0.02)
+    elif mask == "bone":
+        m = "bone"
+        cv.add(smin(smin(cap(cv, V(0.26, 0.74), V(0.74, 0.26), 0.06), smin(cv.circle(V(0.2, 0.73), 0.075), cv.circle(V(0.27, 0.8), 0.075), 0.03), 0.04),
+                    smin(cv.circle(V(0.73, 0.2), 0.075), cv.circle(V(0.8, 0.27), 0.075), 0.03), 0.04), zero, m, 0.08)
+    elif mask == "string":
+        a_ = cv.poly(band(V(0.14, 0.8), V(0.3, 0.16), V(0.5, 0.5), 0.035, 0.035, 16))
+        b_ = cv.poly(band(V(0.5, 0.5), V(0.7, 0.84), V(0.86, 0.2), 0.035, 0.035, 16))
+        cv.add(union(a_, b_), xs, "string", 0.02)
+    elif mask == "feather":
+        vane = cv.poly(band(V(0.22, 0.82), V(0.3, 0.26), V(0.84, 0.12), 0.22, 0.02, 18))
+        cv.add(vane, xs, "white", 0.1)
+        for k in range(5):
+            t = 0.2 + k * 0.14
+            p0 = bez(V(0.22, 0.82), V(0.3, 0.26), V(0.84, 0.12), 20)[int(t * 19)]
+            cv.add(intersect(cap(cv, p0, p0 + V(0.1, 0.06), 0.006), vane + 0.01), xs, soft(0xB8B8C4), 0.006)
+        cv.add(cv.poly(band(V(0.14, 0.92), V(0.3, 0.4), V(0.82, 0.14), 0.026, 0.008, 18)), xs, "bone", 0.013)
+    elif mask == "leather":
+        pts = [V(0.2, 0.2), V(0.42, 0.28), V(0.6, 0.18), V(0.82, 0.26), V(0.74, 0.5), V(0.84, 0.78), V(0.56, 0.72), V(0.36, 0.84), V(0.18, 0.72), V(0.26, 0.48)]
+        cv.add(cv.poly(pts), ys, M("leather", base), 0.06)
+    elif mask == "paper":
+        d = cv.poly([V(0.2, 0.12), V(0.8, 0.12), V(0.8, 0.88), V(0.2, 0.88)])
+        cv.add(d, ys, "paper", 0.03)
+        for yy in (0.3, 0.42, 0.54, 0.66):
+            cv.add(cap(cv, V(0.3, yy), V(0.7 if yy < 0.6 else 0.56, yy), 0.012), ys, soft(ex.get("a", 0x9A9488)), 0.01)
+    elif mask == "book":
+        cover = M("leather", base)
+        cv.add(cv.poly([V(0.24, 0.16), V(0.84, 0.16), V(0.84, 0.84), V(0.24, 0.84)]), ys, "paper", 0.03)
+        cv.add(cv.poly([V(0.16, 0.12), V(0.78, 0.12), V(0.78, 0.8), V(0.16, 0.8)]), ys, cover, 0.05)
+        cv.add(cv.poly([V(0.14, 0.12), V(0.26, 0.12), V(0.26, 0.88), V(0.14, 0.88)]), ys, M("leather", darker(base, 0.7)), 0.05)
+        acc = ex.get("c")
+        if acc is not None:
+            cv.add(cv.poly([V(0.38, 0.3), V(0.66, 0.3), V(0.66, 0.42), V(0.38, 0.42)]), ys, M("metal", acc) if name != "writable_book" else soft(acc), 0.02)
+        if name == "writable_book":
+            cv.add(cv.poly(band(V(0.92, 0.06), V(0.8, 0.3), V(0.62, 0.62), 0.1, 0.01, 10)), xs, "white", 0.04)
+    elif mask == "compass":
+        m = "golden" if name == "clock" else M("metal", base)
+        cv.add(cv.circle(V(0.5, 0.53), 0.36), ys, m, 0.12)
+        cv.add(cv.circle(V(0.5, 0.53), 0.27), ys, soft(0xE8E4D8) if name != "recovery_compass" else soft(0x2A3A3A), 0.06)
+        cv.add(cv.circle(V(0.5, 0.15), 0.06), ys, m, 0.04)
+        for k in range(4):
+            a = k * math.pi / 2
+            cv.add(cap(cv, V(0.5, 0.53) + V(math.cos(a), math.sin(a)) * 0.22, V(0.5, 0.53) + V(math.cos(a), math.sin(a)) * 0.25, 0.01), ys, soft(0x4A4A4A), 0.01)
+    elif mask == "eye":
+        if name == "ender_eye":
+            cv.add(cv.circle(V(0.5, 0.52), 0.32), ys, M("gem", 0x2A9A6A), 0.32)
+            cv.add(cv.ellipse(V(0.5, 0.52), 0.2, 0.12), ys, soft(0xD8F070), 0.1)
+            cv.add(cv.ellipse(V(0.5, 0.52), 0.05, 0.12), ys, soft(0x101810), 0.04)
+        else:
+            d = cv.ellipse(V(0.5, 0.54), 0.32, 0.28)
+            cv.add(d, ys, soft(base), 0.28)
+            for c in (V(0.38, 0.46), V(0.6, 0.44), V(0.5, 0.64)):
+                cv.add(cv.circle(c, 0.06), ys, soft(ex.get("d", 0x200808)), 0.05)
+                cv.add(cv.circle(c + V(-0.02, -0.02), 0.018), ys, "white", 0.01)
+    elif mask == "arrow":
+        handle(cv, V(0.18, 0.82), V(0.74, 0.26), 0.022)
+        cv.add(cv.poly([V(0.66, 0.2), V(0.92, 0.08), V(0.8, 0.34)]), cv.axis(V(0.7, 0.3), V(0.9, 0.1)), "flint", 0.05, "chamfer")
+        for sgn in (-1, 1):
+            o = V(0.707, 0.707) * 0.07 * sgn
+            cv.add(cv.poly([V(0.14, 0.86), V(0.3, 0.7), V(0.36, 0.64) + o, V(0.2, 0.8) + o * 1.3]), xs, "white", 0.03)
+    elif mask == "bow":
+        cv.add(cv.poly(band(V(0.18, 0.1), V(0.94, 0.16), V(0.88, 0.84), 0.07, 0.07, 22)), xs, "handle", 0.035)
+        cv.add(cap(cv, V(0.2, 0.12), V(0.86, 0.84), 0.01), zero, "string", 0.01)
+        wraps(cv, V(0.66, 0.3), V(0.76, 0.4), 0.05, 2)
+    elif mask == "crossbow":
+        handle(cv, V(0.16, 0.86), V(0.7, 0.32), 0.05)
+        cv.add(cv.poly(band(V(0.36, 0.1), V(0.68, 0.18), V(0.92, 0.64), 0.07, 0.07, 18)), xs, "iron", 0.035)
+        cv.add(cap(cv, V(0.38, 0.12), V(0.56, 0.5), 0.01), zero, "string", 0.01)
+        cv.add(cap(cv, V(0.9, 0.62), V(0.56, 0.5), 0.01), zero, "string", 0.01)
+        cv.add(cv.circle(V(0.62, 0.38), 0.06), zero, "iron", 0.05)
+        cv.add(cap(cv, V(0.34, 0.68), V(0.42, 0.74), 0.03), zero, "iron", 0.03)
+    elif mask == "shield":
+        d = cv.poly(band(V(0.5, 0.1), V(0.5, 0.1), V(0.5, 0.1), 0.0, 0.0, 3)) if False else None
+        outline_ = smin(cv.poly([V(0.16, 0.12), V(0.84, 0.12), V(0.84, 0.5)] + bez(V(0.84, 0.5), V(0.82, 0.8), V(0.5, 0.94), 8) + bez(V(0.5, 0.94), V(0.18, 0.8), V(0.16, 0.5), 8)), cv.circle(V(0.5, 0.5), 0.0), 0.0) if False else \
+            cv.poly([V(0.16, 0.12), V(0.84, 0.12), V(0.84, 0.5)] + bez(V(0.84, 0.5), V(0.82, 0.8), V(0.5, 0.94), 8)[1:] + bez(V(0.5, 0.94), V(0.18, 0.8), V(0.16, 0.5), 8)[1:-1])
+        cv.add(outline_, ys, "iron", 0.04)
+        cv.add(outline_ + 0.05, ys, M("wood", base), 0.12)
+        for x in (0.38, 0.62):
+            cv.add(intersect(cap(cv, V(x, 0.12), V(x, 0.94), 0.006), outline_ + 0.05), ys, M("wood", darker(base, 0.6)), 0.006)
+        cv.add(cv.circle(V(0.5, 0.48), 0.09), ys, "iron", 0.08)
+    elif mask == "trident":
+        handle(cv, V(0.1, 0.92), V(0.66, 0.36), 0.03, M("metal", base))
+        tm = M("metal", base)
+        c = V(0.68, 0.34)
+        up, rt = V(0.707, -0.707), V(0.707, 0.707)
+        cv.add(cap(cv, c - rt * 0.14, c + rt * 0.14, 0.03), zero, tm, 0.03)
+        for o, l in ((-0.14, 0.2), (0.0, 0.3), (0.14, 0.2)):
+            b = c + rt * o
+            tip = b + up * l
+            cv.add(cap(cv, b, tip - up * 0.04, 0.024), zero, tm, 0.024)
+            cv.add(cv.poly([tip + up * 0.06, tip - up * 0.02 + rt * 0.05, tip - up * 0.02 - rt * 0.05]), zero, tm, 0.03, "chamfer")
+    elif mask == "fishing_rod":
+        cv.add(cv.poly(band(V(0.12, 0.9), V(0.4, 0.4), V(0.86, 0.1), 0.06, 0.02, 18)), xs, "handle", 0.03)
+        wraps(cv, V(0.13, 0.88), V(0.22, 0.75), 0.04, 2)
+        bait = ex.get("c", 0xD03030)
+        if name == "fishing_rod":
+            cv.add(cap(cv, V(0.86, 0.1), V(0.86, 0.66), 0.006), zero, "string", 0.006)
+            cv.add(cv.circle(V(0.86, 0.7), 0.045), zero, soft(bait), 0.04)
+        else:
+            cv.add(cap(cv, V(0.86, 0.1), V(0.82, 0.5), 0.006), zero, "string", 0.006)
+            cv.add(cv.poly(band(V(0.82, 0.48), V(0.86, 0.66), V(0.8, 0.86), 0.12, 0.02, 10)), ys, soft(bait), 0.06)
+    elif mask == "shears":
+        piv = V(0.52, 0.48)
+        for tip, side in ((V(0.9, 0.16), V(0.04, 0.05)), (V(0.84, 0.1), V(-0.05, -0.04))):
+            dr = norm(tip - piv)
+            nr = V(-dr[1], dr[0])
+            bl = cv.poly([piv - dr * 0.06 + nr * 0.05, tip, piv - dr * 0.06 - nr * 0.04])
+            cv.add(bl, cv.axis(piv, tip), "iron", 0.04, "chamfer")
+        for c in (V(0.24, 0.58), V(0.42, 0.78)):
+            cv.add(cap(cv, piv, c, 0.03), np.zeros_like(ys), "iron", 0.03)
+            cv.add(abs(cv.circle(c, 0.1)) - 0.035, np.zeros_like(ys), soft(ex.get("d", 0x5A3D1F)), 0.035)
+        cv.add(cv.circle(piv, 0.035), np.zeros_like(ys), "iron", 0.03)
+    elif mask == "flint_steel":
+        cv.add(abs(cv.ellipse(V(0.36, 0.42), 0.2, 0.14)) - 0.04, xs, "iron", 0.04)
+        cv.add(cv.poly([V(0.5, 0.52), V(0.72, 0.46), V(0.86, 0.66), V(0.7, 0.86), V(0.5, 0.78)]), ys, "flint", 0.08, "chamfer")
+    elif mask == "minecart":
+        body = cv.poly([V(0.12, 0.34), V(0.88, 0.34), V(0.8, 0.72), V(0.2, 0.72)])
+        cont = ex.get("c", 0x4A4A50)
+        if name != "minecart":
+            cv.add(cv.poly([V(0.24, 0.12), V(0.76, 0.12), V(0.76, 0.4), V(0.24, 0.4)]), ys, M("wood" if "chest" in name else "soft", cont), 0.05)
+        cv.add(body, xs, M("metal", base), 0.08)
+        cv.add(cv.poly([V(0.16, 0.38), V(0.84, 0.38), V(0.82, 0.46), V(0.18, 0.46)]), xs, M("metal", darker(base, 0.6)), 0.02)
+        for x in (0.3, 0.7):
+            cv.add(cv.circle(V(x, 0.76), 0.1), ys, M("metal", 0x3A3A40), 0.08)
+            cv.add(cv.circle(V(x, 0.76), 0.035), ys, "iron", 0.03)
+    elif mask in ("boat", "chest_boat"):
+        hull = cv.poly([V(0.06, 0.46), V(0.94, 0.46), V(0.8, 0.76), V(0.2, 0.76)])
+        cv.add(hull, xs, wood(base), 0.08)
+        for yy in (0.56, 0.66):
+            cv.add(intersect(cap(cv, V(0.06, yy), V(0.94, yy), 0.008), hull), xs, wood(darker(base, 0.6)), 0.008)
+        cv.add(cap(cv, V(0.06, 0.46), V(0.94, 0.46), 0.03), xs, wood(darker(base, 0.8)), 0.03)
+        if mask == "chest_boat":
+            cv.add(cv.poly([V(0.36, 0.22), V(0.64, 0.22), V(0.64, 0.46), V(0.36, 0.46)]), ys, wood(ex.get("c", 0x9A6A2A)), 0.04)
+            cv.add(cv.poly([V(0.47, 0.3), V(0.53, 0.3), V(0.53, 0.38), V(0.47, 0.38)]), ys, "iron", 0.02)
+        cv.add(cap(cv, V(0.62, 0.18), V(0.86, 0.86), 0.022), zero, "handle", 0.022)
+        cv.add(cv.ellipse(V(0.84, 0.82), 0.05, 0.09), zero, "handle", 0.04)
+    elif mask == "horse_armor":
+        m = M("leather" if name.startswith("leather") or name == "wolf_armor" else ("gem" if "diamond" in name else "metal"), base)
+        m = METAL_BY_NAME.get(name.split("_")[0], m)
+        head = cv.poly([V(0.36, 0.1), V(0.6, 0.14), V(0.84, 0.54), V(0.8, 0.7), V(0.6, 0.64), V(0.42, 0.9), V(0.18, 0.86), V(0.2, 0.4)])
+        cv.add(head, ys, m, 0.2)
+        cv.add(cv.circle(V(0.48, 0.36), 0.05), ys, soft(0x101014), 0.04)
+        cv.add(intersect(cap(cv, V(0.2, 0.62), V(0.6, 0.62), 0.03), head), xs, m, 0.03)
+        cv.add(cv.poly([V(0.36, 0.1), V(0.44, 0.0), V(0.48, 0.14)]), ys, m, 0.03)
+    elif mask == "bundle":
+        m = M("leather", base)
+        sack = smin(cv.ellipse(V(0.5, 0.62), 0.34, 0.28), cv.poly([V(0.36, 0.3), V(0.64, 0.3), V(0.6, 0.44), V(0.4, 0.44)]), 0.06)
+        cv.add(sack, ys, m, 0.25)
+        cv.add(cv.poly([V(0.34, 0.16), V(0.66, 0.16), V(0.6, 0.32), V(0.4, 0.32)]), ys, m, 0.05)
+        cv.add(cap(cv, V(0.36, 0.33), V(0.64, 0.33), 0.025), xs, "string", 0.02)
+    elif mask == "disc":
+        cv.add(cv.circle(V(0.5, 0.5), 0.4), ys, soft(0x16161A), 0.06)
+        for r in (0.3, 0.34, 0.24):
+            cv.add(abs(cv.circle(V(0.5, 0.5), r)) - 0.004, ys, soft(0x34343C), 0.004)
+        cv.add(cv.circle(V(0.5, 0.5), 0.13), ys, soft(ex.get("c", 0xC03030)), 0.04)
+        cv.add(cv.circle(V(0.5, 0.5), 0.025), ys, soft(0x08080A), 0.02)
+    elif mask == "sherd":
+        d = cv.poly([V(0.16, 0.24), V(0.56, 0.14), V(0.86, 0.3), V(0.8, 0.74), V(0.4, 0.86), V(0.14, 0.66)])
+        cv.add(d, ys, M("stone", base), 0.1, "chamfer")
+        cv.add(intersect(abs(cv.circle(V(0.5, 0.5), 0.14)) - 0.025, d + 0.06), ys, M("stone", ex.get("c", 0x6A3A2A)), 0.02)
+    elif mask == "template":
+        d = cv.poly([V(0.2, 0.12), V(0.8, 0.12), V(0.8, 0.88), V(0.2, 0.88)])
+        cv.add(d, ys, M("stone", base), 0.06, "chamfer")
+        cv.add(cv.poly([V(0.5, 0.26), V(0.68, 0.5), V(0.5, 0.74), V(0.32, 0.5)]), ys, M("metal", ex.get("c", 0x6A8AAA)), 0.06, "chamfer")
+    elif mask == "key":
+        km = M("metal", base)
+        cv.add(abs(cv.circle(V(0.32, 0.32), 0.15)) - 0.045, zero, km, 0.045)
+        cv.add(cap(cv, V(0.42, 0.42), V(0.82, 0.82), 0.045), zero, km, 0.045)
+        cv.add(cap(cv, V(0.7, 0.7), V(0.6, 0.8), 0.04), zero, km, 0.04)
+        cv.add(cap(cv, V(0.8, 0.8), V(0.7, 0.9), 0.04), zero, km, 0.04)
+    elif mask == "star":
+        pts = []
+        for k in range(10):
+            a = -math.pi / 2 + k * math.pi / 5
+            r = 0.42 if k % 2 == 0 else 0.18
+            pts.append(V(0.5 + math.cos(a) * r, 0.54 + math.sin(a) * r))
+        cv.add(cv.poly(pts), ys, M("gem", base), 0.2, "chamfer")
+    elif mask == "totem":
+        tm = "golden"
+        cv.add(cv.poly([V(0.3, 0.42), V(0.7, 0.42), V(0.64, 0.92), V(0.36, 0.92)]), ys, tm, 0.1)
+        cv.add(cv.poly([V(0.1, 0.44), V(0.3, 0.42), V(0.3, 0.6), V(0.14, 0.62)]), ys, tm, 0.05)
+        cv.add(cv.poly([V(0.9, 0.44), V(0.7, 0.42), V(0.7, 0.6), V(0.86, 0.62)]), ys, tm, 0.05)
+        cv.add(cv.ellipse(V(0.5, 0.26), 0.2, 0.18), ys, tm, 0.15)
+        for x in (0.42, 0.58):
+            cv.add(cv.circle(V(x, 0.26), 0.035), ys, M("gem", ex.get("c", 0x2A8A3A)), 0.03)
+        cv.add(cv.poly([V(0.4, 0.5), V(0.6, 0.5), V(0.5, 0.64)]), ys, M("gem", ex.get("c", 0x2A8A3A)), 0.04, "chamfer")
+    elif mask == "spyglass":
+        a, b = V(0.16, 0.84), V(0.84, 0.16)
+        d, t = cv.capsule(a, b, 0.05, 0.085)
+        cv.add(d, t, M("metal", base), 0.08)
+        for k, r in ((0.0, 0.07), (0.45, 0.085), (1.0, 0.1)):
+            c = a + (b - a) * k
+            cv.add(cap(cv, c - V(0.03, -0.03) * 0 - norm(b - a) * 0.03, c + norm(b - a) * 0.03, r), t, "golden", 0.06)
+    elif mask == "mace":
+        handle(cv, V(0.16, 0.88), V(0.6, 0.44), 0.035, "grip")
+        wraps(cv, V(0.18, 0.86), V(0.36, 0.68), 0.035, 3)
+        hd = cv.circle(V(0.68, 0.34), 0.18)
+        for k in range(6):
+            a = k * math.pi / 3
+            c = V(0.68, 0.34) + V(math.cos(a), math.sin(a)) * 0.2
+            hd = union(hd, cv.poly([c + V(math.cos(a), math.sin(a)) * 0.08, c + V(-math.sin(a), math.cos(a)) * 0.05, c - V(-math.sin(a), math.cos(a)) * 0.05]))
+        cv.add(hd, ys, M("metal", base), 0.12, "chamfer")
+    elif mask == "brush":
+        handle(cv, V(0.14, 0.88), V(0.56, 0.46), 0.04, "handle")
+        cv.add(cv.poly([V(0.5, 0.42), V(0.62, 0.3), V(0.92, 0.2), V(0.8, 0.5)]), cv.axis(V(0.56, 0.44), V(0.86, 0.3)), M("wood", base), 0.05)
+        cv.add(cap(cv, V(0.5, 0.4), V(0.6, 0.5), 0.04), zero, "copper", 0.04)
+    elif mask == "lead":
+        cv.add(cv.poly(band(V(0.2, 0.2), V(0.9, 0.4), V(0.4, 0.86), 0.05, 0.05, 20)), xs, M("leather", base), 0.025)
+        cv.add(abs(cv.circle(V(0.24, 0.22), 0.1)) - 0.03, zero, M("leather", base), 0.03)
+    elif mask == "saddle":
+        lm = M("leather", base)
+        seat = cv.poly(bez(V(0.12, 0.3), V(0.5, 0.62), V(0.86, 0.36), 12) + [V(0.88, 0.5), V(0.7, 0.62), V(0.3, 0.62), V(0.12, 0.46)])
+        cv.add(seat, xs, lm, 0.12)
+        cv.add(cv.poly([V(0.36, 0.56), V(0.64, 0.56), V(0.6, 0.84), V(0.4, 0.84)]), ys, M("leather", darker(base, 0.8)), 0.06)
+        cv.add(cap(cv, V(0.5, 0.6), V(0.5, 0.84), 0.016), np.zeros_like(ys), M("leather", darker(base, 0.6)), 0.015)
+        cv.add(abs(cv.ellipse(V(0.5, 0.88), 0.07, 0.05)) - 0.018, np.zeros_like(ys), "iron", 0.018)
+    else:
+        return False
+    return True
+
+
+def pair_canvas(key, n):
+    """Overlay pairs: (canvas) for item_potion_bottle / splash / lingering + item_potion_liquid, item_spawn_egg +
+    shell, item_tipped_arrow + head. The tinted part uses the material 'tint'."""
+    cv = Canvas(n)
+    ys, xs = ys_xs(cv)
+    zero = np.zeros_like(ys)
+    if key in ("potion", "splash", "lingering"):
+        body = smin(cv.circle(V(0.5, 0.62), 0.28), cap(cv, V(0.5, 0.18), V(0.5, 0.45), 0.085 if key != "lingering" else 0.07), 0.06)
+        cv.add(body, ys, "glass", 0.26)
+        cv.add(intersect(cv.circle(V(0.5, 0.62), 0.235), -cv.below(0.5)), ys, "tint", 0.22)
+        if key == "splash":
+            cv.add(cap(cv, V(0.38, 0.3), V(0.62, 0.3), 0.03), ys, "glass", 0.03)
+        cv.add(cap(cv, V(0.4, 0.2), V(0.6, 0.2), 0.032), ys, "glass", 0.03)
+        cork = 0xA87A4A if key != "lingering" else 0xB080C8
+        cv.add(cv.poly([V(0.42, 0.05), V(0.58, 0.05), V(0.57, 0.19), V(0.43, 0.19)]), ys, M("wood", cork), 0.04)
+        cv.add(intersect(cv.poly(band(V(0.33, 0.74), V(0.3, 0.56), V(0.4, 0.44), 0.045, 0.02, 10)), body + 0.03), ys, "white", 0.02)
+    elif key == "egg":
+        d = cv.ellipse(V(0.5, 0.55), 0.29, 0.37)
+        cv.add(d, ys, "tint", 0.32)
+        for c, r in ((V(0.42, 0.38), 0.05), (V(0.62, 0.5), 0.06), (V(0.44, 0.66), 0.045), (V(0.64, 0.74), 0.04), (V(0.34, 0.54), 0.035)):
+            cv.add(intersect(cv.circle(c, r), d + 0.03), ys, M("soft", 0x3A3436), 0.03)
+    elif key == "arrow":
+        handle(cv, V(0.18, 0.82), V(0.74, 0.26), 0.022)
+        for sgn in (-1, 1):
+            o = V(0.707, 0.707) * 0.07 * sgn
+            cv.add(cv.poly([V(0.14, 0.86), V(0.3, 0.7), V(0.36, 0.64) + o, V(0.2, 0.8) + o * 1.3]), xs, "white", 0.03)
+        cv.add(cv.poly([V(0.64, 0.18), V(0.94, 0.06), V(0.82, 0.36)]), cv.axis(V(0.7, 0.3), V(0.9, 0.1)), "tint", 0.06, "chamfer")
+    return cv
+
+
+def pair_sheet(out, n=128):
+    tints = {"potion": [0x3F76E4, 0xE83A3A, 0x7ED957], "splash": [0xF8A030, 0x9A4AD8], "lingering": [0x4AD8E8],
+             "egg": [0x2A8A3A, 0xE8B0A0, 0x6A4A2A], "arrow": [0x7ED957, 0xE83A3A]}
+    cells = []
+    for k, ts in tints.items():
+        b, o = render(pair_canvas(k, n), split=True)
+        for t in ts:
+            tc = hexc(t)
+            img = b.copy()
+            a = o[..., 3:4]
+            img[..., :3] = img[..., :3] * (1 - a) + o[..., :3] * tc * a
+            img[..., 3] = np.maximum(img[..., 3], o[..., 3])
+            cells.append(img)
+    art_sheet(cells, n, 1, 6, out)

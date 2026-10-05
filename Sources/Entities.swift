@@ -231,7 +231,7 @@ final class ItemEntityManager {
                         let ax = V3(cosf(yaw), 0, -sinf(yaw)) * s, ay = V3(0, s, 0), az = V3(sinf(yaw), 0, cosf(yaw)) * s
                         let full = simd_length_squared(c) < 12 * 12
                         ItemModels.write(&wr, layer: layer, o: c + off + V3(0, 0.1, 0), ax: ax, ay: ay, az: az, light: light,
-                                         glint: e.stack.ench != 0, full: full)
+                                         glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
                     } else {
                         wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
                     }
