@@ -149,8 +149,21 @@ enum BaseTests {
                     n + (w.ships.capState[d.id]?.troops.filter { $0.health > 0 && $0.deck == nil && $0.onGround }.count ?? 0)
                 }
             }
-            let landed = sim(120) { landedTroops() >= 3 }
+            // Followed through its flight: the last state seen, every soldier it deployed (it may leave before the end).
+            var lastSeen = "never seen", deployed: [Mob] = []
+            func track() {
+                for d in w.ships.capitals where d.role == "dropship" {
+                    guard let st = w.ships.capState[d.id] else { continue }
+                    for m in st.troops where !deployed.contains(where: { $0 === m }) { deployed.append(m) }
+                    lastSeen = String(format: "t %.0f: phase %d (%.0f s), %.0f from the drop point, keel %+.0f over the plaza, %d left, %d deployed%@",
+                                      t, st.phase, st.phaseT, simd_length(V2(d.pos.x - st.dropPoint.x, d.pos.z - st.dropPoint.z)),
+                                      d.worldMin.y - plaza.y, st.troopsLeft, st.troops.count, d.wrecked ? ", wrecked" : "")
+                }
+            }
+            let landed = sim(120) { track(); return deployed.filter { $0.health > 0 && $0.deck == nil && $0.onGround }.count >= 3 }
             _ = soldiersBefore
+            print("basetest log: dropship last seen \(lastSeen); deployed \(deployed.count): " + deployed.map { m in
+                String(format: "%@ hp %.0f%@ at %.0f %.0f %.0f", m.kind.key, Float(m.health), m.onGround ? "" : " airborne", m.pos.x, m.pos.y, m.pos.z) }.joined(separator: ", "))
             let ships = w.ships.capitals.filter { $0.role == "dropship" }.map { d -> String in
                 guard let st = w.ships.capState[d.id] else { return "no state" }
                 let drop = st.dropPoint
