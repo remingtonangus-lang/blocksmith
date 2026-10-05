@@ -273,15 +273,27 @@ extension ItemHD {
             }
         case "steak", "chop":
             let fat = soft(ex["c"] ?? 0xF0E0D0)
-            let d = cv.poly([V2(0.14, 0.42), V2(0.34, 0.2), V2(0.7, 0.18), V2(0.88, 0.36), V2(0.82, 0.7), V2(0.5, 0.84), V2(0.2, 0.74)])
-            cv.add(d, ys, fat, r: 0.08)
-            cv.add(Canvas.offset(d, 0.035), ys, soft(base), r: 0.15)
-            if s.mask == "chop" {
-                cv.add(cap(cv, V2(0.18, 0.62), V2(0.04, 0.82), 0.045), ys, "bone", r: 0.045)
+            var d: [Float]
+            if s.mask == "steak" {
+                d = smin(ellipse(cv, V2(0.42, 0.5), 0.3, 0.26), ellipse(cv, V2(0.66, 0.6), 0.22, 0.2), 0.1)
+                d = smax(d, neg(ellipse(cv, V2(0.6, 0.2), 0.14, 0.1)), 0.06)          // the kidney notch
             } else {
-                cv.add(Canvas.intersect(cv.circle(V2(0.4, 0.6), 0.07), Canvas.offset(d, 0.06)), ys, fat, r: 0.05)
-                for (a, b) in [(V2(0.42, 0.32), V2(0.68, 0.46)), (V2(0.56, 0.62), V2(0.72, 0.56))] {
-                    cv.add(Canvas.intersect(cap(cv, a, b, 0.012), Canvas.offset(d, 0.06)), ys, soft(lighter(base, 0.35)), r: 0.012)
+                d = smin(ellipse(cv, V2(0.56, 0.42), 0.3, 0.24), cv.circle(V2(0.36, 0.64), 0.1), 0.16)
+            }
+            for i in 0..<d.count {                                                  // a cut, uneven edge
+                let p = cv.p(i)
+                d[i] += (vnoise(p.x, p.y, 9, 21) - 0.5) * 0.02
+            }
+            cv.add(d, ys, fat, r: 0.1)
+            cv.add(Canvas.offset(d, 0.04), ys, soft(base), r: 0.16)
+            if s.mask == "chop" {
+                cv.add(cap(cv, V2(0.3, 0.7), V2(0.08, 0.9), 0.04), ys, "bone", r: 0.04)
+                cv.add(cv.circle(V2(0.08, 0.9), 0.05), ys, "bone", r: 0.05)
+                cv.add(Canvas.intersect(cv.circle(V2(0.6, 0.4), 0.06), Canvas.offset(d, 0.07)), ys, fat, r: 0.05)
+            } else {
+                for (p0, c0, p1) in [(V2(0.24, 0.44), V2(0.36, 0.36), V2(0.5, 0.46)), (V2(0.5, 0.62), V2(0.62, 0.52), V2(0.78, 0.6)),
+                                     (V2(0.3, 0.6), V2(0.38, 0.68), V2(0.48, 0.64))] {
+                    cv.add(Canvas.intersect(cv.poly(band(p0, c0, p1, 0.022, 0.012, 10)), Canvas.offset(d, 0.06)), ys, fat, r: 0.012)
                 }
             }
         case "drumstick":

@@ -25,9 +25,9 @@ extension ItemHD {
             let k2 = smin(cv.circle(V2(0.73, 0.2), 0.075), cv.circle(V2(0.8, 0.27), 0.075), 0.03)
             cv.add(smin(smin(shaft, k1, 0.04), k2, 0.04), zero, "bone", r: 0.08)
         case "string":
-            let a = cv.poly(band(V2(0.14, 0.8), V2(0.3, 0.16), V2(0.5, 0.5), 0.035, 0.035, 16))
-            let b = cv.poly(band(V2(0.5, 0.5), V2(0.7, 0.84), V2(0.86, 0.2), 0.035, 0.035, 16))
-            cv.add(Canvas.union(a, b), xs, "string", r: 0.02)
+            let a = cv.poly(band(V2(0.12, 0.82), V2(0.28, 0.14), V2(0.5, 0.5), 0.06, 0.06, 18))
+            let b = cv.poly(band(V2(0.5, 0.5), V2(0.72, 0.86), V2(0.88, 0.18), 0.06, 0.06, 18))
+            cv.add(Canvas.union(a, b), xs, "string", r: 0.03)
         case "feather":
             let vane = cv.poly(band(V2(0.22, 0.82), V2(0.3, 0.26), V2(0.84, 0.12), 0.22, 0.02, 18))
             cv.add(vane, xs, "white", r: 0.1)

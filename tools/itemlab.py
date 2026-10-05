@@ -969,16 +969,21 @@ def family2(cv, name, mask, base, ex, ys, xs):
     elif mask in ("steak", "chop"):
         m = soft(base)
         fat = soft(ex.get("c", 0xF0E0D0))
-        pts = [V(0.14, 0.42), V(0.34, 0.2), V(0.7, 0.18), V(0.88, 0.36), V(0.82, 0.7), V(0.5, 0.84), V(0.2, 0.74)]
-        d = cv.poly(pts)
-        cv.add(d, ys, fat, 0.08)
-        cv.add(d + 0.035, ys, m, 0.15)
-        if mask == "chop":
-            cv.add(cap(cv, V(0.18, 0.62), V(0.04, 0.82), 0.045), ys, "bone", 0.045)
+        if mask == "steak":
+            d = smin(cv.ellipse(V(0.42, 0.5), 0.3, 0.26), cv.ellipse(V(0.66, 0.6), 0.22, 0.2), 0.1)
+            d = smax(d, -cv.ellipse(V(0.6, 0.2), 0.14, 0.1), 0.06)            # the kidney notch
         else:
-            cv.add(intersect(cv.circle(V(0.4, 0.6), 0.07), d + 0.06), ys, fat, 0.05)
-            for a, b in ((V(0.42, 0.32), V(0.68, 0.46)), (V(0.56, 0.62), V(0.72, 0.56))):
-                cv.add(intersect(cap(cv, a, b, 0.012), d + 0.06), ys, soft(lighter(base, 0.35)), 0.012)
+            d = smin(cv.ellipse(V(0.56, 0.42), 0.3, 0.24), cv.circle(V(0.36, 0.64), 0.1), 0.16)
+        d = d + (vnoise(cv.X, cv.Y, 9, 21) - 0.5) * 0.02                       # a cut, uneven edge
+        cv.add(d, ys, fat, 0.1)
+        cv.add(d + 0.04, ys, m, 0.16)
+        if mask == "chop":
+            cv.add(cap(cv, V(0.3, 0.7), V(0.08, 0.9), 0.04), ys, "bone", 0.04)
+            cv.add(cv.circle(V(0.08, 0.9), 0.05), ys, "bone", 0.05)
+            cv.add(intersect(cv.circle(V(0.6, 0.4), 0.06), d + 0.07), ys, fat, 0.05)
+        else:
+            for p0, c0, p1 in ((V(0.24, 0.44), V(0.36, 0.36), V(0.5, 0.46)), (V(0.5, 0.62), V(0.62, 0.52), V(0.78, 0.6)), (V(0.3, 0.6), V(0.38, 0.68), V(0.48, 0.64))):
+                cv.add(intersect(cv.poly(band(p0, c0, p1, 0.022, 0.012, 10)), d + 0.06), ys, fat, 0.012)
     elif mask == "drumstick":
         m = soft(base)
         cv.add(cap(cv, V(0.3, 0.7), V(0.12, 0.88), 0.045), ys, soft(ex.get("c", 0xF0E8E0)), 0.045)
@@ -1042,9 +1047,9 @@ def family3(cv, name, mask, base, ex, ys, xs):
         cv.add(smin(smin(cap(cv, V(0.26, 0.74), V(0.74, 0.26), 0.06), smin(cv.circle(V(0.2, 0.73), 0.075), cv.circle(V(0.27, 0.8), 0.075), 0.03), 0.04),
                     smin(cv.circle(V(0.73, 0.2), 0.075), cv.circle(V(0.8, 0.27), 0.075), 0.03), 0.04), zero, m, 0.08)
     elif mask == "string":
-        a_ = cv.poly(band(V(0.14, 0.8), V(0.3, 0.16), V(0.5, 0.5), 0.035, 0.035, 16))
-        b_ = cv.poly(band(V(0.5, 0.5), V(0.7, 0.84), V(0.86, 0.2), 0.035, 0.035, 16))
-        cv.add(union(a_, b_), xs, "string", 0.02)
+        a_ = cv.poly(band(V(0.12, 0.82), V(0.28, 0.14), V(0.5, 0.5), 0.06, 0.06, 18))
+        b_ = cv.poly(band(V(0.5, 0.5), V(0.72, 0.86), V(0.88, 0.18), 0.06, 0.06, 18))
+        cv.add(union(a_, b_), xs, "string", 0.03)
     elif mask == "feather":
         vane = cv.poly(band(V(0.22, 0.82), V(0.3, 0.26), V(0.84, 0.12), 0.22, 0.02, 18))
         cv.add(vane, xs, "white", 0.1)
