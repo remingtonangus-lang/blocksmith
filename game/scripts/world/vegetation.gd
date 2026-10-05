@@ -22,7 +22,7 @@ var imp_mesh: QuadMesh
 var near := {}                    # Vector2i -> per species/variant buffers of that 128 m cell
 var supers := {}                  # Vector2i -> Node3D: the near trees of SUPER x SUPER cells in one MultiMesh per kind
 var _dirty := {}                  # super-cells to rebuild
-const SUPER := 3                  # measured: per-cell MultiMeshes were ~1100 of 1360 draws in the battle view
+var SUPER := int(OS.get_environment("VEG_SUPER")) if OS.get_environment("VEG_SUPER") != "" else 3   # measured: per-cell MultiMeshes were ~1100 of 1360 draws in the battle view
 var imps := {}                    # Vector2i -> MultiMeshInstance3D
 var _pending := {}                # key -> task id
 var _results := {}                # key -> data (filled by worker tasks)

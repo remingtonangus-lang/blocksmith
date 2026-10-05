@@ -126,6 +126,11 @@ func _ablate() -> void:
 		return
 	if _base < 0:
 		_base = _draws()
+		print("drawreport %s: base %d draws, %.2f M primitives" % [seg["name"], _base,
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1e6])
+		if OS.get_environment("DRAWREPORT_QUICK") == "1":
+			get_tree().quit(0)
+			return
 		_abl_wait = 4
 		_hide(0, true)
 		return
