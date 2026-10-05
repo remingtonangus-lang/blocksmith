@@ -40,7 +40,8 @@ enum BaseTests {
         w.ships.encounters = false                           // no stationed frigate firing into the scenes
         let b = g.bases
         let watchPos = centre + V3(0, 60, 0)
-        func pin() { g.player.pos = watchPos; g.player.vel = .zero }
+        var pinAt = watchPos                                 // where the observer is held (a scene can move it)
+        func pin() { g.player.pos = pinAt; g.player.vel = .zero; if g.survival { g.health = max(g.health, 16) } }
         pin()
         // Let the citadel be found (once-a-second tick).
         var t: Float = 0
@@ -272,6 +273,17 @@ enum BaseTests {
                 let away = simd_normalize(V3(p.x - rec().centre.x, 0, p.z - rec().centre.z) + V3(1e-3, 0, 0))
                 look(at: p, from: p + away * 26 + V3(0, 3, 0))
                 return finish(g, b, t0)
+            }
+            // Door gunners: a survival player standing at the noise while it circles draws fire from the cabin.
+            if let k = kestrel() {
+                let gunners = FlightCrew.seats.filter { $0.ship === k }.compactMap { $0.mob }.filter { $0.station == .passenger }
+                let mags = gunners.map { $0.soldierBrain.mag }
+                g.survival = true
+                pinAt = shot + V3(0, 0.1, 0)
+                let fired = sim(20) { zip(gunners, mags).contains { m, n in m.soldierBrain.mag < n || m.soldierBrain.reload > 0 } }
+                g.survival = false
+                pinAt = watchPos
+                check(fired != nil, "its door gunners fire on a player below", String(format: "%d gunners, after %.0f s", gunners.count, fired ?? -1))
             }
             let back = sim(150) { (rec().airPhase ?? 0) >= 5 || rec().air == nil }
             check(back != nil && rec().air != nil, "it circles and flies back over the pad", String(format: "after %.0f s, phase %d", back ?? -1, rec().airPhase ?? -1))

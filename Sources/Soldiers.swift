@@ -232,7 +232,8 @@ extension Mob {
         if sees {
             // Noticed up close, in front, or once alerted.
             let toP = simd_normalize(V3(g.player.pos.x - pos.x, 0, g.player.pos.z - pos.z) + V3(1e-4, 0, 0))
-            if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
+            // Troops in an aircraft's cabin look out of both doors: they notice all round.
+            if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0 || b.station == .passenger) {
                 aggro = true
                 b.react = rank.react
                 g.sfx(.soldier(Soldier.voice(r), .alert), 1.1, at: eye)
