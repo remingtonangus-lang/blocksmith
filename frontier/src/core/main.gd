@@ -80,6 +80,7 @@ func _ready() -> void:
 	var wl = load("res://src/ai/wildlife.gd").new()
 	wl.name = "Wildlife"
 	add_child(wl)
+	_place_shops()
 	var camp = load("res://src/ai/camp.gd").new()
 	camp.name = "Camp"
 	add_child(camp)
@@ -110,6 +111,29 @@ func _start_story() -> void:
 	var avail: Array = Game.missions.available()
 	if avail.size() > 0:
 		Game.missions.start(avail[0])
+
+## Shop counters per town (the settlement system moves them to its interiors when it provides shop spots).
+func _place_shops() -> void:
+	var plan := {"bitter_spring": ["general", "gunsmith", "butcher"], "port_linden": ["general", "gunsmith", "butcher"],
+		"coldwater": ["general", "gunsmith"], "mesquite_wells": ["general"]}
+	var offs := {"general": Vector2(15, -8), "gunsmith": Vector2(-12, 10), "butcher": Vector2(26, 14)}
+	for tid in plan.keys():
+		var t := world.town(tid)
+		if t.is_empty():
+			continue
+		for k in plan[tid]:
+			var spot = null
+			if settlements and settlements.has_method("get_shop_spot"):
+				spot = settlements.get_shop_spot(tid, k)
+			var shop = load("res://src/ui/shop.gd").new()
+			shop.name = "Shop_%s_%s" % [tid, k]
+			add_child(shop)
+			if spot is Vector3:
+				shop.global_position = spot
+			else:
+				var o: Vector2 = offs[k]
+				shop.global_position = Vector3(t.x + o.x, world.height(t.x + o.x, t.z + o.y), t.z + o.y)
+			shop.setup(k, tid)
 
 func _spawn_player() -> void:
 	var town := world.town("bitter_spring")
