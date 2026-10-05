@@ -531,8 +531,10 @@ enum RideCheck {
                 return AgentAction.idle
             case 3:
                 if aboard && stt.onGround && l.y < 5.5 { advance(names[3]); return AgentAction.idle }
-                // Into the shaft beside the corridor, no input while it slides down the ladder.
-                return l.y > 11.5 ? walk(stt, to: s.toWorld(V3(22.0, 0, 107.5))) : AgentAction.idle
+                // Over the shaft beside the corridor, clear of the rungs' panel against the wall (pushing into the wall the
+                // bot stood on top of it), then no input while it drops in and slides down the ladder.
+                if l.y > 11.5 && l.x > 22.75 { return walk(stt, to: s.toWorld(V3(22.55, 0, 107.5))) }
+                return AgentAction.idle
             case 4:
                 if let a = go([V3(23.5, 5, 100.5), V3(23.5, 5, 85.5), V3(14.5, 5, 85.5), V3(2.5, 5, 85.5)]) {
                     var b = a
