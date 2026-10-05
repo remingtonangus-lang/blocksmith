@@ -1403,6 +1403,7 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--mobcheck") { shipFails += MobRenderCheck.run(game, renderer) }   // every mob kind draws
         if CommandLine.arguments.contains("--plantcheck") { shipFails += PlantCheck.run(game) }                 // stacked plants pop
+        if CommandLine.arguments.contains("--rulescheck") { shipFails += RulesCheck.run(game) }                 // world rules (RulesCheck.swift)
         if CommandLine.arguments.contains("--musiccheck") { shipFails += MusicCheck.run(game) }                 // your own music folder
         if CommandLine.arguments.contains("--coop") {
             // Split screen: player 2 joins (a neutral simulated pad) a few blocks ahead, turned back to face player 1.
