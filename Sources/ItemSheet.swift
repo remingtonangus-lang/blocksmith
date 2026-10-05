@@ -67,11 +67,11 @@ extension ItemSheet {
             let share = Float(cov) / Float(n * n)
             if share < 0.03 || share > 0.85 || border > n / 2 {
                 fails += 1
-                print(String(format: "itemcheck FAIL %@: coverage %.1f%%, %d border pixels", name, share * 100, border))
+                print(String(format: "itemcheck FAIL %@: coverage %.1f%%, %ld border pixels", name, share * 100, border))
             }
         }
         let ms = Date().timeIntervalSince(t0) * 1000
-        print(String(format: "itemcheck: %d layers, %d vector, %d pixel-art fallback, %d fail; vector generation %.0f ms total (%.2f ms each, one core)",
+        print(String(format: "itemcheck: %ld layers, %ld vector, %ld pixel-art fallback, %ld fail; vector generation %.0f ms total (%.2f ms each, one core)",
                      names.count, vector, fallback, fails, ms, ms / Double(max(1, vector))))
         return fails
     }
