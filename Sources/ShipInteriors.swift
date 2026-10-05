@@ -129,10 +129,12 @@ extension HullBuilder {
             locker(xi, za, st.armoryLoot)
             locker(xi, zb, st.armoryLoot)
         case .brig:
-            // A cell behind bars at the hull side.
-            let cx = max(xi + 1, xo - 1)
-            for z in za...zb where clearOfDoor(cx, z) { put(cx, z, StyleBlocks.bars); put(cx, z, StyleBlocks.bars, 2) }
-            put(xo, (za + zb) / 2, StyleBlocks.barrel)
+            // Cells behind bars, a line of them every four blocks from the hull in, a bunk in each.
+            for x in rows {
+                let cx = max(xi + 1, x - 1)
+                for z in za...zb where !aisle(z) && clearOfDoor(cx, z) { put(cx, z, StyleBlocks.bars); put(cx, z, StyleBlocks.bars, 2) }
+                put(x, za, StyleBlocks.barrel)
+            }
         case .storage:
             // Rows of barrels and crates, stacked two high against the hull.
             for x in rows { for z in za...zb where !aisle(z) && clearOfDoor(x, z) {
@@ -141,11 +143,12 @@ extension HullBuilder {
             } }
             locker(xi, zb, st.supplyLoot)
         case .briefing:
-            // A map table with consoles round it.
-            let tx = (xi + xo) / 2, tz = (za + zb) / 2
-            put(tx, tz, StyleBlocks.table)
-            put(tx, tz - 1, StyleBlocks.table)
-            put(xo, tz, StyleBlocks.console)
+            // Map tables down the room's lines, a console at each table's end and along the hull.
+            for x in rows {
+                for z in (za + 1)...max(za + 1, zb - 1) where !aisle(z) && clearOfDoor(x, z) {
+                    put(x, z, (z - za) % 3 == 0 ? StyleBlocks.console : StyleBlocks.table)
+                }
+            }
         case .engineering:
             for x in rows { for z in stride(from: za, through: zb, by: 2) where !aisle(z) && clearOfDoor(x, z) { put(x, z, StyleBlocks.console) } }
             put(xi, zb, StyleBlocks.crate)
@@ -267,6 +270,34 @@ enum InteriorCheck {
                 let ok = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { seen.contains(IVec3(x, y, z) + $0) }
                 check(ok, "\(name): the bridge helm reachable (\(x - hb.ox),\(y),\(z))")
             } else { check(false, "\(name): has a helm") }
+            // No bare halls: in every room the largest square of open floor (nothing standing on it) is under 6 across
+            // (the Stormwarden's 26-deep rooms had furniture only at the far wall: ship_warfrigate_room).
+            var bare: [String] = [], widest = 0
+            for (c, kind) in hb.roomCells {
+                let side = c.x - hb.ox >= 0 ? 1 : -1
+                func open(_ x: Int, _ z: Int) -> Bool {
+                    (x - hb.ox) * side >= 3 && w.at(x, c.y, z) == AIR && w.at(x, c.y + 1, z) == AIR && Blocks.collide[Int(w.at(x, c.y - 1, z))]
+                }
+                guard open(c.x, c.z) else { continue }
+                var seenR = Set<IVec3>([IVec3(c.x, 0, c.z)]), q = [IVec3(c.x, 0, c.z)]
+                while let p = q.popLast(), seenR.count < 4000 {
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                        let n = p + d
+                        if !seenR.contains(n) && open(n.x, n.z) { seenR.insert(n); q.append(n) }
+                    }
+                }
+                // Largest all-open square (dynamic programming over the room's open cells).
+                var size: [IVec3: Int] = [:], best = 0
+                for p in seenR.sorted(by: { $0.z != $1.z ? $0.z < $1.z : $0.x < $1.x }) {
+                    let a = size[p + IVec3(-1, 0, 0)] ?? 0, b = size[p + IVec3(0, 0, -1)] ?? 0, d = size[p + IVec3(-1, 0, -1)] ?? 0
+                    let v = min(a, b, d) + 1
+                    size[p] = v
+                    best = max(best, v)
+                }
+                widest = max(widest, best)
+                if best >= 6 { bare.append("\(kind) at \(c.x - hb.ox),\(c.y),\(c.z) (\(best) across)") }
+            }
+            check(bare.isEmpty, "\(name): no bare halls (widest open square \(widest) across)\(bare.isEmpty ? "" : "; " + bare.prefix(4).joined(separator: "; "))")
             // Crew posts stand in the open.
             var buried: [String] = []
             for p in hb.crew {
