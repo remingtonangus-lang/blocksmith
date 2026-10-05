@@ -440,7 +440,6 @@ func _river_finish(r: Dictionary) -> void:
 func _paint_mask() -> void:
 	# Rows on the worker pool (single-threaded this took 3.6 s, a quarter of world generation).
 	_mask_rows.resize(N)
-	print("T rows start %d" % Time.get_ticks_msec())
 	var task := WorkerThreadPool.add_group_task(_paint_row, N, -1, true, "worldgen mask")
 	WorkerThreadPool.wait_for_group_task_completion(task)
 	var m := PackedByteArray()
@@ -448,7 +447,6 @@ func _paint_mask() -> void:
 		m.append_array(row)
 	mask = m
 	_mask_rows.clear()
-	print("T rows done %d" % Time.get_ticks_msec())
 	# Urban and base pads clear the forest.
 	for name in FLATTEN:
 		var p: Vector2 = SITE_XZ[name]

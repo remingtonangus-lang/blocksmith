@@ -126,6 +126,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 22:05: GAME BUILD READY 9dadd13 (capital-latest, 21:45 UTC; CI run 49 all green after runs 45-48
+  never got runners). CI Mac (paravirtual, High) city / battle / forest 51.6 / 41.9 / 50.3 fps (188b983: 47.9 /
+  36.9 / 54.6, within the runner's +-25 %). First launch on the Mac: world generated in 4.3 s (12.9 s), world ready
+  40.4 s (52.5 s); cached load 4.54 s (6.6 s). GPU ablation (battle, base 18.43 ms): vegetation 6.44, 2 cascades
+  2.97, ssao 2.58, terrain 2.26, sun shadows 1.85; hard filter -9.78 and glow -1.90 show the run's noise again.
+  The ~36 s between "generated" and "world ready" on a first Mac launch (terrain materials, leaf atlas, pipeline
+  compilation) is the next load target. Removed two debug prints left in the mask painter by 3c6123b.
 - 2026-10-05 21:30: every launch: world ready 4.10 s -> 2.67 s (headless, cached world, 4-core box). Measured setup:
   terrain 1.73 s (normal map 1.32 s of it, a GDScript loop over 4M texels: now rows on the worker pool, 0.37 s,
   byte-identical) and the Capital 1.63 s (geometry commit 487 ms -> 129 ms: Kit.commit no longer generates
