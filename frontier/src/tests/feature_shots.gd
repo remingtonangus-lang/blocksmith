@@ -174,7 +174,7 @@ func _wildlife() -> void:
 	var p := _place(900.0, 1700.0, 80.0, 8.5)
 	for i in 6:
 		var sp := "mule_deer" if i < 4 else "pronghorn"
-		var a := Animal.spawn(main, _ahead(p, 80.0, 22.0 + i * 2.5, -7.0 + i * 3.0), sp, 40 + i)
+		var a := Animal.spawn(main, _ahead(p, 80.0, 9.0 + i * 1.8, -4.5 + i * 1.8), sp, 40 + i)
 		_spawned.append(a)
 	await _settle(60)
 
