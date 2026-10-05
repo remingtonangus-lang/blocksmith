@@ -128,7 +128,8 @@ extension ShipManager {
             s.splitCheck -= dt
             if s.splitCheck < 0 { splitHull(s, game: game) }
         }
-        for s in list where s.debris && s.parent == nil {
+        if let j = bakeJobs.first { bakeStep(j, game: game) }
+        for s in list where s.debris && s.parent == nil && !s.baking {
             s.age += dt
             s.hitCD -= dt
             let speed = simd_length(s.vel), spin = simd_length(s.angVel)
@@ -233,15 +234,17 @@ extension ShipManager {
             if let be = s.blockEntities[IVec3(x, y, z)] { bePlace[c] = be }
         } } }
         let lo = s.worldMin, hi = s.worldMax
-        let cells = (Int(ceilf(hi.x - lo.x)) + 1) * (Int(ceilf(hi.y - lo.y)) + 1) * (Int(ceilf(hi.z - lo.z)) + 1)
-        if cells < 3_000_000 {
-            for y in Int(floor(lo.y))...Int(floor(hi.y)) { for z in Int(floor(lo.z))...Int(floor(hi.z)) { for x in Int(floor(lo.x))...Int(floor(hi.x)) {
-                let c = IVec3(x, y, z)
+        // Cells whose centre falls inside a block of a turned body but that no block's centre landed in: they lie next to
+        // cells that one did (a scan of the whole bounding box cost a 5M-cell sweep for a long hull, and was skipped).
+        let splat = pc.count
+        for k in 0..<splat {
+            for d in Collapse.dirs6 {
+                let c = pc[k] + d
                 if tab.get(c) != nil { continue }
-                let l = s.toLocal(V3(Float(x), Float(y), Float(z)) + 0.5)
+                let l = s.toLocal(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
                 let b = g.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
                 if b != AIR && Blocks.collide[Int(b)] && tab.insert(c, Int32(pc.count)) { pc.append(c); pb.append(b) }
-            } } }
+            }
         }
         let up = s.dirToWorld(V3(0, 1, 0))
         let upright = up.y > 0.9

@@ -46,7 +46,24 @@ extension ShipManager {
             spots.append(s.toWorld(V3(Float(x), Float(y), Float(z)) + 0.5))
         }
         // A wreck stays as it lies (a rigid hulk: no settle check tearing it apart).
-        bake(s, game: game, settle: false)
+        let rec = WreckRecord(id: s.id, kind: kind, lo: [lo.x, lo.y, lo.z], hi: [hi.x, hi.y, hi.z], born: game?.time ?? 0, steps: 0)
+        let name = s.name
+        let near = game.map { simd_length(s.pos - $0.player.pos) < 300 } ?? false
+        let finish: () -> Void = { [weak self] in self?.wreckLaid(rec, spots: spots, name: name, near: near, game: game) }
+        if s.blockCount > 12000 {
+            // A big hull goes down a few thousand blocks a frame (a 177k-block frigate in one tick froze the game for
+            // ~0.4 s); it stays as a ship, still and solid, until its last layer is in.
+            s.baking = true
+            s.vel = .zero; s.angVel = .zero
+            bakeJobs.append(BakeJob(s, done: finish))
+        } else {
+            bake(s, game: game, settle: false)
+            finish()
+        }
+    }
+
+    // The rest of a wreck once its blocks are in the world: salvage crates in its sheltered spots, its record.
+    private func wreckLaid(_ rec: WreckRecord, spots: [V3], name: String, near: Bool, game: Game?) {
         let w = world
         let chest = Blocks.id("chest")
         for p in spots {
@@ -58,11 +75,77 @@ extension ShipManager {
             Loot.fill(be.container, table: Wrecks.salvageTable, rng: &r2)
             w.blockEntities[c] = be
         }
-        let rec = WreckRecord(id: s.id, kind: kind, lo: [lo.x, lo.y, lo.z], hi: [hi.x, hi.y, hi.z], born: game?.time ?? 0, steps: 0)
         wrecks.append(rec)
         saveWrecks()
-        if let g = game, simd_length(s.pos - g.player.pos) < 300 { g.onToast?("The \(s.name) lies wrecked") }
+        if near, let g = game { g.onToast?("The \(name) lies wrecked") }
     }
+
+    // One frame of a big wreck's laying-down: the next layers of its grid (each block to the world cell its centre is
+    // in, then the cells beside those whose centre falls inside a block), up to a block budget; done, the ship goes.
+    func bakeStep(_ j: BakeJob, game: Game?) {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { worstBakeMs = max(worstBakeMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+        let s = j.ship, g = s.grid
+        guard list.contains(where: { $0 === s }) else { bakeJobs.removeFirst(); j.done(); return }
+        let w = world
+        let reader = BlockReader(w)
+        let up = s.dirToWorld(V3(0, 1, 0))
+        let upright = up.y > 0.9
+        let turns = Int((s.yaw / (.pi / 2)).rounded())
+        var putC: [IVec3] = []
+        var putB: [BlockID] = []
+        var used = 0
+        func put(_ c: IVec3, _ b: BlockID) {
+            guard c.y >= 0 && c.y < CH, reader.loaded(c), Blocks.replaceable[Int(reader.block(c))] else { return }
+            putC.append(c)
+            putB.append(upright ? ShipParts.rotate(b, turns) : Blocks.groupBase[Int(b)])
+        }
+        while j.layer < g.sy && used < 3000 {
+            let y = j.layer
+            var first: [IVec3] = []
+            for z in 0..<g.sz { for x in 0..<g.sx {
+                let b = g.blocks[g.index(x, y, z)]
+                if b == AIR { continue }
+                let p = s.toWorld(V3(Float(x), Float(y), Float(z)) + 0.5)
+                let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                guard j.placed.insert(c, 0) else { continue }
+                put(c, b)
+                first.append(c)
+                if let be = s.blockEntities[IVec3(x, y, z)] { w.blockEntities[c] = be }
+            } }
+            for c0 in first {
+                for d in Collapse.dirs6 {
+                    let c = c0 + d
+                    if j.placed.get(c) != nil { continue }
+                    let l = s.toLocal(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
+                    let b = g.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+                    if b != AIR && Blocks.collide[Int(b)] && j.placed.insert(c, 0) { put(c, b) }
+                }
+            }
+            used += first.count
+            j.layer += 1
+        }
+        w.setBlocksBulk(putC, putB)
+        j.count += putC.count
+        if j.layer >= g.sy {
+            bakeJobs.removeFirst()
+            for t in list where t.parent === s { bake(t, game: game, settle: false) }
+            remove(s)
+            ghosts.append((s, 0.6))
+            bakedBlocks += j.count
+            j.done()
+        }
+    }
+}
+
+// A big wreck being laid into the world over several frames (ShipManager.bakeStep).
+final class BakeJob {
+    let ship: Ship
+    let done: () -> Void
+    var layer = 0
+    var count = 0
+    var placed = Collapse.CellTable(capacity: 4096)
+    init(_ s: Ship, done: @escaping () -> Void) { ship = s; self.done = done }
 
     // Overgrowth: for wrecks near the player, the steps their age calls for (a few per call, so a long absence catches
     // up over a minute of play, not in one frame).

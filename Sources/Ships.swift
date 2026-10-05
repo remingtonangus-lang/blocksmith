@@ -265,6 +265,7 @@ final class Ship {
     var hitCD: Float = 0             // debris: seconds until it can hurt a body again
     var lastSpeed: Float = 0         // debris: speed last frame (a sudden drop is a crash: dust and a thud)
     var splitCheck: Float = -1       // capital hulls: seconds until the full split check a blast asked for (-1 none)
+    var baking = false               // being laid into the world over several frames (Wrecks.swift, a big wreck)
     var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
     var faction = 0                  // Faction raw value (0 none)
     // Guns of this ship (or turret): shell muzzle speed, gravity, blast power, reload, barrel elevation limits, scatter.
@@ -623,6 +624,7 @@ final class ShipManager {
     var collapseMs: Double = 0       // the last support analysis (harness)
     var settleQueue: [IVec3] = []    // blocks of debris just laid down, checked next frame (Debris.swift)
     var worstBakeMs: Double = 0      // the slowest laying-down of a body (harness)
+    var bakeJobs: [BakeJob] = []     // big wrecks being laid into the world a few thousand blocks a frame (Wrecks.swift)
     var worstSplitMs: Double = 0     // the slowest hull split check (harness)
     var collapses = 0                // analyses that set something falling
     var bakedBlocks = 0              // blocks laid back into the world
