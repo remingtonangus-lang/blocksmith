@@ -95,6 +95,8 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 
 ## State / next
 
+- 2026-10-05 (later): rebased onto playtest 679a0e8 (BUGS.md rows merged); heavy lane on the bff7650 rebase passed
+  play, perf and checks before playtest moved; the full lane runs again on this head for the fast-forward.
 - 2026-10-05: rebased onto playtest bff7650; heavy lane on the previous rebase (6f38b43) green after one perf rerun
   (flight24 resident peak is noisy on slow runners: 725 MB first, passing on the rerun; playtest alone 606 MB).
   Fast-forward into playtest once the heavy lane on bff7650 is green.
