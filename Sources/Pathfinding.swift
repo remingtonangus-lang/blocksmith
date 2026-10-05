@@ -49,6 +49,10 @@ enum PathFinder {
     private static var cKX = Int.min, cKZ = Int.min
     private static var cLoaded = false
     private static var cData: [BlockID] = []
+    private static var sPts: [IVec3] = [], sG: [Float] = [], sParent: [Int] = [], sClosed: [Bool] = []
+    private static var sIndex: [Int: Int] = [:], sHeap: [(Float, Int)] = []
+    static let dirs4 = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    static let diags4 = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     @inline(__always) static func rd(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> BlockID {
         guard cacheOn else { return w.block(x, y, z) }
         if y < 0 { return BEDROCK }
@@ -201,12 +205,16 @@ enum PathFinder {
             let dx = Float(p.x - goal.x), dy = Float(p.y - goal.y), dz = Float(p.z - goal.z)
             return (dx * dx + dy * dy + dz * dz).squareRoot()
         }
-        var pts: [IVec3] = [start]
-        var gCost: [Float] = [0]
-        var parent: [Int] = [-1]
-        var closed: [Bool] = [false]
-        var index: [Int: Int] = [key(start): 0]
-        var heap: [(Float, Int)] = [(h(start), 0)]
+        // Node tables reused from the last search (taken and handed back), so a search allocates little more than its
+        // result (questcheck's allocation trace: ~40 allocations a search, plus one per expanded node before).
+        var pts = sPts, gCost = sG, parent = sParent, closed = sClosed, index = sIndex, heap = sHeap
+        sPts = []; sG = []; sParent = []; sClosed = []; sIndex = [:]; sHeap = []
+        pts.removeAll(keepingCapacity: true); gCost.removeAll(keepingCapacity: true); parent.removeAll(keepingCapacity: true)
+        closed.removeAll(keepingCapacity: true); index.removeAll(keepingCapacity: true); heap.removeAll(keepingCapacity: true)
+        defer { sPts = pts; sG = gCost; sParent = parent; sClosed = closed; sIndex = index; sHeap = heap }
+        pts.append(start); gCost.append(0); parent.append(-1); closed.append(false)
+        index[key(start)] = 0
+        heap.append((h(start), 0))
         func push(_ e: (Float, Int)) {
             heap.append(e)
             var i = heap.count - 1
@@ -253,10 +261,8 @@ enum PathFinder {
             if blocked { return abs(p.x - goal.x) + abs(p.z - goal.z) == 1 && abs(p.y - goal.y) <= 1 }
             return p.x == goal.x && p.z == goal.z && abs(p.y - goal.y) <= 1
         }
-        let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        let diags = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-        var drops: [Int] = [0, 1]
-        for d in 1...max(1, pr.maxDrop) { drops.append(-d) }
+        let dirs = PathFinder.dirs4, diags = PathFinder.diags4
+        let dropSteps = 2 + max(1, pr.maxDrop)                   // dy 0, 1, then -1 ... -maxDrop
         while let e = pop() {
             let i = e.1
             if closed[i] { continue }
@@ -267,11 +273,12 @@ enum PathFinder {
             if arrived(p) { best = i; break }
             expanded += 1
             if expanded > maxNodes { break }
-            var flat = [Bool](repeating: false, count: 4)          // orthogonal neighbour reachable on the same level
+            var flat: UInt8 = 0                                    // orthogonal neighbours reachable on the same level (bits)
             for (di, (dx, dz)) in dirs.enumerated() {
                 let qx = p.x + dx, qz = p.z + dz
                 if blocked && qx == goal.x && qz == goal.z { continue }        // not over the goal block
-                for dy in drops {
+                for di2 in 0..<dropSteps {
+                    let dy = di2 == 0 ? 0 : (di2 == 1 ? 1 : 1 - di2)
                     let q = IVec3(qx, p.y + dy, qz)
                     if dy == 1 && !open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1, span: pr.span) { continue }      // headroom to jump
                     if dy < 0 && !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue }             // clear drop column
@@ -280,7 +287,7 @@ enum PathFinder {
                         if dy < 0 && !open(w, qx, qz, q.y, q.y + 1, span: pr.span) { break }
                         continue
                     }
-                    if dy == 0 { flat[di] = true }
+                    if dy == 0 { flat |= 1 << di }
                     add(i, q, c + (dy > 0 ? 0.5 : 0) + (dy < 0 ? Float(-dy) * 0.4 : 0))
                     break
                 }
@@ -288,7 +295,7 @@ enum PathFinder {
             // Diagonals on the same level only when both orthogonal cells are walkable (no corner cutting).
             for (dx, dz) in diags {
                 let a = dx > 0 ? 0 : 1, b = dz > 0 ? 2 : 3
-                guard flat[a] && flat[b], let c = standCost(w, p.x + dx, p.y, p.z + dz, pr) else { continue }
+                guard flat & (1 << a) != 0 && flat & (1 << b) != 0, let c = standCost(w, p.x + dx, p.y, p.z + dz, pr) else { continue }
                 // Never diagonally into or out of a doorway (the body clips the frame or an open panel).
                 if hasDoor(w, p.x, p.y, p.z) || hasDoor(w, p.x + dx, p.y, p.z + dz) { continue }
                 add(i, IVec3(p.x + dx, p.y, p.z + dz), c * 1.4142)

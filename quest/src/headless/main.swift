@@ -104,19 +104,24 @@ if let out = arg("--questsim"), let ctx = vkctx {
 do {
     var rng = SRng(7)
     var pfMs: [Double] = []
-    var found = 0
+    var found = 0, pathHash = 0
+    let pfAlloc0 = AllocCount.now
     for i in 0..<60 {
         let ax = Int(spawn.x) + rng.int(40) - 20, az = Int(spawn.z) + rng.int(40) - 20
         let bx = ax + rng.int(40) - 20, bz = az + rng.int(40) - 20
         let a = V3(Float(ax) + 0.5, Float(world.topY(ax, az) + 1), Float(az) + 0.5)
         let b = V3(Float(bx) + 0.5, Float(world.topY(bx, bz) + 1), Float(bz) + 0.5)
         let t = CFAbsoluteTimeGetCurrent()
-        if PathFinder.find(world, from: a, to: b, tall: 2, maxNodes: i % 3 == 0 ? 1500 : 400) != nil { found += 1 }
+        if let path = PathFinder.find(world, from: a, to: b, tall: 2, maxNodes: i % 3 == 0 ? 1500 : 400) {
+            found += 1
+            for q in path { pathHash = pathHash &* 31 &+ q.x &* 73856093 &+ q.y &* 19349663 &+ q.z &* 83492791 }
+        }
         pfMs.append((CFAbsoluteTimeGetCurrent() - t) * 1000)
     }
     let total = pfMs.reduce(0, +)
     pfMs.sort()
-    print(String(format: "pathfind: 60 searches (%d found), total %.1f ms, median %.2f ms, worst %.2f ms", found, total, pfMs[30], pfMs.last!))
+    print(String(format: "pathfind: 60 searches (%d found, paths hash %016llx), total %.1f ms, median %.2f ms, worst %.2f ms", found, UInt64(bitPattern: Int64(pathHash)), total, pfMs[30], pfMs.last!)
+          + (AllocCount.now.map { ", \(($0 - (pfAlloc0 ?? 0)) / 60) allocations a search" } ?? ""))
     // World.block, the read every game system makes (collision, raycasts, mob AI): 1M reads around the spawn.
     var sum = 0
     let tb = CFAbsoluteTimeGetCurrent()
