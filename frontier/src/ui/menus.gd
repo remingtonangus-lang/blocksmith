@@ -4,6 +4,7 @@ extends CanvasLayer
 ## paused while a menu is open (this layer processes always).
 
 const SETTINGS_PATH := "user://settings.json"
+const JOURNAL = preload("res://src/missions/journal.gd")
 
 var panel: PanelContainer
 var stack: Array[Control] = []
@@ -294,39 +295,121 @@ func _process(dt: float) -> void:
 
 # ------------------------------------------------------------------ journal
 func open_journal() -> void:
-	var p := _paper_panel(Vector2(900, 640))
+	var p := _paper_panel(Vector2(1240, 720))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
+	v.add_theme_constant_override("separation", 6)
 	p.add_child(v)
-	v.add_child(UITheme.label("Journal", 48, "display", UITheme.INK, false))
-	v.add_child(UITheme.label("Ruth Caddell — %s" % _date_text(), 24, "italic", UITheme.INK_SOFT, false))
+	var head := HBoxContainer.new()
+	head.add_child(UITheme.label("Journal", 48, "display", UITheme.INK, false))
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(sp)
+	head.add_child(UITheme.label("Ruth Caddell — %s" % _date_text(), 24, "italic", UITheme.INK_SOFT, false))
+	v.add_child(head)
 	v.add_child(HSeparator.new())
 	var md = Game.get("missions")
-	var body := RichTextLabel.new()
-	body.bbcode_enabled = true
-	body.fit_content = false
-	body.custom_minimum_size = Vector2(840, 430)
-	body.add_theme_font_override("normal_font", UITheme.font("body"))
-	body.add_theme_font_override("italics_font", UITheme.font("italic"))
-	body.add_theme_font_size_override("normal_font_size", 26)
-	body.add_theme_font_size_override("italics_font_size", 26)
-	body.add_theme_color_override("default_color", UITheme.INK)
-	var txt := ""
+	var st = Game.get("state")
+	var flags: Dictionary = st.flags if st != null else {}
+	# finished missions in the order they were played (story and Strangers), newest last
+	var done: Array = []
+	var titles := {}
+	var chapters := {}
+	var regions := {}
 	if md != null:
-		if md.active != null:
-			txt += "[i]Now:[/i]  %s — %s\n\n" % [md.active.title, md.objective]
 		for path in MissionDirector.MISSIONS:
 			var m = load(path).new()
-			var done: bool = md.completed.has(m.id)
-			txt += ("✓  " if done else "·  ") + m.title + "\n"
-	var st = Game.get("state")
+			titles[m.id] = m.title
+			chapters[m.id] = m.chapter
+			regions[m.id] = m.region if m.stranger else ""
+		# --journal_all (evidence shots): every page written
+		var ids: Array = titles.keys() if Game.args.has("journal_all") else md.completed
+		for id in ids:
+			if titles.has(id) and JOURNAL.ENTRIES.has(id):
+				done.append(id)
+	var pages := HBoxContainer.new()
+	pages.add_theme_constant_override("separation", 22)
+	v.add_child(pages)
+	# left page: where things stand, then the entries
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(430, 560)
+	pages.add_child(left)
+	var status := RichTextLabel.new()
+	status.bbcode_enabled = true
+	status.fit_content = true
+	status.scroll_active = false
+	status.custom_minimum_size = Vector2(430, 0)
+	status.add_theme_font_override("normal_font", UITheme.font("body"))
+	status.add_theme_font_override("italics_font", UITheme.font("italic"))
+	status.add_theme_font_size_override("normal_font_size", 22)
+	status.add_theme_font_size_override("italics_font_size", 22)
+	status.add_theme_color_override("default_color", UITheme.INK)
+	var stx := ""
+	if md != null and md.active != null:
+		stx += "[i]Now:[/i]  %s — %s\n" % [md.active.title, md.objective]
 	if st != null:
-		txt += "\n[i]Standing:[/i] %s (%.0f)\n[i]Money:[/i] $%.2f\n" % [st.standing_label(), st.standing, st.money]
+		stx += "[i]Standing:[/i] %s (%.0f)    [i]Money:[/i] $%.2f\n" % [st.standing_label(), st.standing, st.money]
 		for county in st.bounties.keys():
 			if float(st.bounties[county]) > 0.0:
-				txt += "[i]Bounty in %s:[/i] $%.2f\n" % [county, st.bounties[county]]
-	body.text = txt
-	body.focus_mode = Control.FOCUS_ALL
-	v.add_child(body)
+				stx += "[i]Bounty in %s:[/i] $%.2f\n" % [county, st.bounties[county]]
+	status.text = stx
+	left.add_child(status)
+	left.add_child(HSeparator.new())
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(430, 430)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	# right page: the entry and its sketch
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(700, 560)
+	right.add_theme_constant_override("separation", 6)
+	pages.add_child(right)
+	var e_title := UITheme.label("", 36, "display", UITheme.INK, false)
+	right.add_child(e_title)
+	var e_sub := UITheme.label("", 20, "italic", UITheme.INK_SOFT, false)
+	right.add_child(e_sub)
+	var e_body := RichTextLabel.new()
+	e_body.bbcode_enabled = true
+	e_body.custom_minimum_size = Vector2(700, 250)
+	e_body.add_theme_font_override("normal_font", UITheme.font("body"))
+	e_body.add_theme_font_size_override("normal_font_size", 25)
+	e_body.add_theme_color_override("default_color", UITheme.INK)
+	right.add_child(e_body)
+	var sketch = JOURNAL.Sketch.new()
+	sketch.custom_minimum_size = Vector2(520, 250)
+	sketch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	right.add_child(sketch)
+	var show_entry := func(id: String) -> void:
+		var ch: int = int(chapters.get(id, 1))
+		e_title.text = str(titles.get(id, id))
+		var where: String = str(regions.get(id, ""))
+		e_sub.text = ("A stranger — %s" % where) if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
+		e_body.text = JOURNAL.text_for(id, flags)
+		sketch.set_kind(JOURNAL.sketch_for(id), hash(id))
+	if done.is_empty():
+		e_title.text = "Nothing written yet"
+		e_body.text = "The pages are clean. Tom used to say a clean page is a lie waiting for a pencil."
+		sketch.set_kind("hills", 7)
+	var last_ch := -1
+	for id in done:
+		var ch: int = int(chapters.get(id, 1))
+		var stranger: bool = str(regions.get(id, "")) != ""
+		if not stranger and ch != last_ch:
+			last_ch = ch
+			list.add_child(UITheme.label("Chapter %d" % ch, 20, "caps", UITheme.OXBLOOD, false))
+		var b := _button(("   · " if stranger else "   ") + str(titles[id]), func(): show_entry.call(id))
+		b.add_theme_font_size_override("font_size", 24)
+		b.focus_entered.connect(func(): show_entry.call(id))
+		list.add_child(b)
+	if not done.is_empty():
+		show_entry.call(done.back())
 	v.add_child(_button("Back", back))
 	_push(p)
+	# start on the newest entry
+	if list.get_child_count() > 0:
+		var lastb := list.get_child(list.get_child_count() - 1)
+		if lastb is Button:
+			lastb.grab_focus.call_deferred()
+			(func(): scroll.ensure_control_visible(lastb)).call_deferred()

@@ -102,6 +102,10 @@ runner, Metal) and the Mac monitor.
   Hap's fate, the Outfit's split, Standing locks the ending (bots: `--standing N`), three endings, spring 1900
   epilogue reading every flag, credits from LICENSES.md. Story scenes in chapters 1-4 moved into the real buildings
   (`src/missions/places.gd`: saloons, sheriff's offices, the bank vault, the newspaper, the cantina).
+- **Side content**: ten Strangers missions (`src/missions/strangers/`, `strangers.json`; world markers by chapter,
+  choices remembered in camp talk and other strangers; fishing, hunting, poker, glass balls, sneaking, a runaway
+  Locomobile), eighteen roadside encounter kinds (`src/ai/encounters.gd`, `--bot encounters`), and a journal page per
+  mission in Ruth's voice with ink sketches drawn in code (`src/missions/journal.gd`; `--journal_all` for shots).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
