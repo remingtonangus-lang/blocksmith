@@ -74,10 +74,25 @@ final class FlightModel {
         var span: Float = 0, aft: Float = -1e9
         for p in s.wings { span = max(span, abs(simd_dot(p - com, rightL))); aft = max(aft, -simd_dot(p - com, fwdL)) }
         var climb = s.piloted ? s.climb : 0
-        let steer = s.piloted ? s.steer : 0
-        // Flown by hand (no autopilot) with the stick centred, the elevator trims for level flight (a controller has
-        // no trim wheel: hands off, the Heron sank 4 b/s at full power, flighttest planeplayer).
-        if s.piloted && hold == nil && s.autopilot == nil && abs(climb) < 0.05 { climb = max(-0.5, min(0.5, -s.vel.y * 0.12)) }
+        var steer = s.piloted ? s.steer : 0
+        // Flown by hand (no autopilot): the stick asks for an attitude and the surfaces fly it (a controller has no
+        // trim wheel and no feel: held full back the Heron looped up 52 degrees into a deep stall, flighttest
+        // planeplayer). Pitch: up to 0.35 rad nose up / down; centred, level flight (vertical speed held at zero);
+        // no nose-up command under 13 b/s. Roll: up to 0.6 rad of bank; centred, wings level.
+        if s.piloted && hold == nil && s.autopilot == nil {
+            let fwW = s.dirToWorld(fwdL), rightW = s.dirToWorld(rightL)
+            let nose: Float = asinf(max(-1, min(1, fwW.y))), bank: Float = asinf(max(-1, min(1, -rightW.y)))
+            let pitchRate: Float = simd_dot(s.angVel, rightW), rollRate: Float = simd_dot(s.angVel, fwW)
+            if abs(climb) < 0.05 {
+                climb = max(-0.5, min(0.5, -s.vel.y * 0.12))
+            } else {
+                let want: Float = max(-1, min(1, climb)) * 0.35
+                climb = max(-1, min(1, (want - nose) * 3 - pitchRate * 1.0))
+            }
+            if simd_length(s.vel) < 13 { climb = min(climb, 0) }
+            let bankWant: Float = max(-1, min(1, steer)) * 0.6
+            steer = max(-1, min(1, (bankWant - bank) * 2.5 - rollRate * 0.8))
+        }
         var totalLift: Float = 0, aSum: Float = 0, stallN = 0
         func apply(_ f: V3, at w: V3) { F += f; T += simd_cross(w - s.pos, f) }
         for p in s.wings {
