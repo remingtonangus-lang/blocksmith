@@ -46,6 +46,8 @@ class Menu {
     unowned let game: Game
     var showInventoryLabel = true
     var inventoryLabelY = 73
+    private weak var lastSlotClicked: MenuSlot?
+    private var lastSlotClickAt: Double = 0
     var lastClickButton = 0, lastClickShift = false    // how the last button was pressed (recipe tiles: 1 / max / stack)
 
     init(_ title: String, game: Game) {
@@ -115,6 +117,28 @@ class Menu {
     func click(_ slot: MenuSlot, button: Int, shift: Bool) {
         var carried = game.carried
         defer { game.carried = carried; changed() }
+        // Double left click with a stack on the cursor gathers the same item from the screen's slots, up to a full
+        // stack (reference; every click was single).
+        let now = CFAbsoluteTimeGetCurrent()
+        let double = button == 0 && !shift && lastSlotClicked === slot && now - lastSlotClickAt < 0.3
+        lastSlotClicked = slot; lastSlotClickAt = now
+        if double && !carried.isEmpty && carried.maxStack > 1, slot.container != nil {
+            if case .normal = slot.kind {
+                for pass in 0..<2 {                                         // part stacks first, then full ones
+                    for o in slots where o.container != nil && !o.isButton && carried.count < carried.maxStack {
+                        guard case .normal = o.kind, !o.stack.isEmpty, o.stack.stacks(with: carried) else { continue }
+                        if pass == 0 && o.stack.count >= o.stack.maxStack { continue }
+                        var st = o.stack
+                        let n = min(st.count, carried.maxStack - carried.count)
+                        carried.count += n
+                        st.count -= n
+                        o.stack = st.count > 0 ? st : .empty
+                    }
+                }
+                lastSlotClicked = nil
+                return
+            }
+        }
         switch slot.kind {
         case .button(let i):
             lastClickButton = button; lastClickShift = shift
