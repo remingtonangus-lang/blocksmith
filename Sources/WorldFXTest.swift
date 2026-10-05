@@ -269,6 +269,19 @@ enum WorldFXTest {
         check(converted == 0, "the fluid sim leaves flood water alone", "\(converted) of \(probe.count) changed")
         let wallShare = Float(walls) / Float(max(1, fm.placed.count))
         check(wallShare < 0.03, "flood shorelines are sloped, not walls", String(format: "%ld full sources beside air (%.1f%%)", walls, wallShare * 100))
+        // Oracle: a shoreline block with nothing open beside it is a groove in the flood surface (cell boundaries
+        // showed as thin bright lines).
+        var grooves = 0
+        for p in fm.placed where wd.rawBlock(p.x, p.y, p.z) == FloodModel.edge {
+            var open = false
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let nb = wd.rawBlock(p.x + dx, p.y, p.z + dz)
+                if nb == AIR || (Blocks.replaceable[Int(nb)] && !Blocks.isLiquid(nb)) { open = true; break }
+            }
+            if !open { grooves += 1 }
+        }
+        check(Float(grooves) < 0.03 * Float(max(1, fm.placed.count)), "no shoreline grooves inside the flood",
+              "\(grooves) half-height blocks with nothing open beside them")
         check(fm.worstMs < 12, "flood model step stays cheap", String(format: "worst %.2f ms", fm.worstMs))
         // The rain stops. A fresh model stands in for loading a save made mid-flood: it has to find the flood water
         // standing in the world (flood_water blocks) and drain it like its own. 30 minutes.

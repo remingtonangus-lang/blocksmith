@@ -276,7 +276,10 @@ final class FloodModel {
                 let below = w.rawBlock(x, y - 1, z)
                 guard !FloodModel.passT[Int(below)] || Blocks.fluidKind[Int(below)] == 1 else { continue }
                 let id = isShore(w, x, y, z, cell: k) ? FloodModel.edge : FloodModel.flood
-                if w.setBlockAsync(x, y, z, id) { placed.insert(IVec3(x, y, z)); used += 1; writes += 1 }
+                if w.setBlockAsync(x, y, z, id) {
+                    placed.insert(IVec3(x, y, z)); used += 1; writes += 1
+                    used += closeShores(w, x, y, z)
+                }
             } }
             fillTop[k] = y + 1
             if used >= budget { return used }
@@ -302,6 +305,30 @@ final class FloodModel {
         return false
     }
 
+    // A shoreline block placed while the next cell was still dry stays half height after that cell fills beside it (a
+    // groove along every cell boundary: 4,020 of 9,243 flood blocks were shoreline, thin bright lines across the flood
+    // in fx_flood_1): the neighbours of a newly filled block become full flood blocks once nothing open is left beside them.
+    private func closeShores(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Int {
+        let cs = FloodModel.cellSize
+        var n = 0
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where w.rawBlock(x + dx, y, z + dz) == FloodModel.edge {
+            let ci = floorDiv(x + dx - ox, cs), cj = floorDiv(z + dz - oz, cs)
+            guard ci >= 0 && ci < N && cj >= 0 && cj < N else { continue }
+            if !isShore(w, x + dx, y, z + dz, cell: ci + cj * N), w.setBlockAsync(x + dx, y, z + dz, FloodModel.flood) { n += 1; writes += 1 }
+        }
+        return n
+    }
+
+    // The reverse as the water falls: full flood blocks left beside the newly opened column slope down to it.
+    private func openShores(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Int {
+        var n = 0
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where w.rawBlock(x + dx, y, z + dz) == FloodModel.flood {
+            if Blocks.isLiquid(w.rawBlock(x + dx, y + 1, z + dz)) { continue }       // the surface only, not under water
+            if w.setBlockAsync(x + dx, y, z + dz, FloodModel.edge) { n += 1; writes += 1 }
+        }
+        return n
+    }
+
     // Takes the cell's flood water away from the top down to y (exclusive).
     @discardableResult
     private func drain(_ w: World, cell k: Int, to bottom: Int, budget: Int) -> Int {
@@ -318,6 +345,7 @@ final class FloodModel {
                 if FloodModel.isFlood(w.rawBlock(p.x, p.y, p.z)) {
                     w.setBlockAsync(p.x, p.y, p.z, AIR)
                     used += 1; writes += 1
+                    used += openShores(w, p.x, p.y, p.z)
                 }
             } }
             fillTop[k] = y
