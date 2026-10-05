@@ -42,7 +42,7 @@ Stop: `adb shell am force-stop com.blocksmith.quest`
 | A / B | jump / sneak (in menus: select / back) |
 | X / Y | pick block or reload / inventory |
 | Left grip | hotbar left (LB) |
-| Right stick click | hotbar right, hold: weapon wheel (RB) |
+| Right stick click | hotbar right; hold: weapon wheel, then push the right stick at a gun and let go (no turning while held) |
 | Left stick click | sprint (L3) |
 | Menu (left) | pause |
 | In menus | the laser is the mouse: trigger = click, grip = right click; the left stick also moves the pad cursor |

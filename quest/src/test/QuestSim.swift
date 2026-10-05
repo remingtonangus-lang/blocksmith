@@ -180,6 +180,23 @@ enum QuestSim {
             try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_ship.png"))
         }
 
+        // 8b. Weapon wheel: hold the right stick click, push the stick toward a gun, let go: it is equipped and the body
+        // did not snap-turn meanwhile.
+        let rifle = Items.id("gun_rifle"), sniper = Items.id("gun_sniper")
+        game.inventory.main[0] = ItemStack(rifle, 1)
+        game.inventory.main[1] = ItemStack(sniper, 1)
+        game.select(0)
+        frames(3) { _ in idleHands() }
+        let yW = rig.bodyYaw
+        var opened = false
+        frames(30) { _ in idleHands(); sim.hands[1].stickClick = true }
+        opened = WeaponWheel.shared.open
+        frames(20) { _ in idleHands(); sim.hands[1].stickClick = true; sim.hands[1].stick = V2(0, -1) }   // the second of two: down
+        frames(3) { _ in idleHands() }
+        check(opened && Items.key(game.held.item) == "gun_sniper" && abs(rig.bodyYaw - yW) < 1e-4,
+              "VR weapon wheel: opened \(opened), picked \(Items.key(game.held.item)), body turned \(rig.bodyYaw - yW) rad")
+        game.inventory.main[0] = .empty; game.inventory.main[1] = .empty
+
         // 9. The pause menu's VR page: the snap angle option changes the next snap turn.
         QuestOptions.install(QuestOptions.Hooks(recenter: { rig.needsRecenter = true }))
         let pm = PauseMenu(game: game)

@@ -110,8 +110,10 @@ final class QuestControls {
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
 
+        // The weapon wheel (hold the right stick click) takes the right stick to pick a gun: no turning meanwhile.
+        let wheel = !inMenu && (R.stickClick || WeaponWheel.shared.open)
         // Turning (never inside a menu: the panel stays put).
-        if !inMenu {
+        if !inMenu && !wheel {
             let tx = R.stick.x
             if QuestSettings.smoothTurn {
                 if abs(tx) > 0.15 {
@@ -131,7 +133,8 @@ final class QuestControls {
         }
         // Right stick flicks up/down: D-pad up (fly) / down (drop), a 3-frame press.
         let ty = R.stick.y
-        if flickArmed && abs(ty) > 0.8 && abs(R.stick.x) < 0.5 { flick = ty > 0 ? 1 : -1; flickTime = 0.05; flickArmed = false }
+        if wheel { flickArmed = false; snapArmed = false }
+        else if flickArmed && abs(ty) > 0.8 && abs(R.stick.x) < 0.5 { flick = ty > 0 ? 1 : -1; flickTime = 0.05; flickArmed = false }
         else if abs(ty) < 0.3 { flickArmed = true }
         if flickTime > 0 { flickTime -= dt } else { flick = 0 }
 
@@ -161,6 +164,7 @@ final class QuestControls {
         p.menu = L.menu
         p.up = flick == 1
         p.down = flick == -1
+        if wheel { p.rx = R.stick.x; p.ry = R.stick.y }
         if inMenu {
             // Menus: the left stick moves the pad cursor as on the Mac; the laser is the mouse.
             p.lx = L.stick.x; p.ly = L.stick.y
