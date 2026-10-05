@@ -1697,7 +1697,9 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
-        for p in parts(m) + equipmentParts(m) {
+        let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
+        for pi in 0..<(body.count + worn.count) {
+            let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
             let rot = p.rotation
             let size = p.mx - p.mn
