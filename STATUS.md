@@ -296,8 +296,15 @@ treasure wear, bartering's Soul Speed / potion entries; inventory: right-click s
 block from the inventory, double-click collect (mouse), result shift-click stops when full, furnace / smoker / brewing
 slot rules, output right-click half, shield to the off hand, no shell boxes in bundles. Also: vines grow, concrete
 powder sets in water, droppers fill furnaces, dragon's breath bottles, hay & co. burn, XP orbs saved, --rulescheck.
-Open: drag distribution, number keys on fuel / armor / output slots, creative palette click rules, stonecutter scroll,
-stray tipped arrows, captain banner item, waterlogging.
+Since: drag distribution (mouse), number keys on fuel / armor / output slots, stonecutter pages (LB / RB; the next-page
+button hides on one page), stray tipped arrows, captain banner item.
+Round 5 (enchantment / movement audit): worn pumpkins and heads no longer vanish on a hit, Glider Wings take no hit wear
+but do take Unbreaking, Thorns wears its piece, using an item slows to 20 %, Infinity needs one arrow, Impaling counted
+once on thrown tridents, Mending leftovers pass on, boats on ice at reference speed (~40 b/s), cobwebs / berry bushes /
+powder snow hold you (and reset falls), soul sand and honey slow walking, honey halves the jump, grown berry bushes
+poke, Frost Walker freezes every frame and frosted ice melts by day in 10-20 s (stays at night), horse jump heights by
+the reference curve (up to 5.3 blocks), carrot / fungus stick boosts, Wind Burst heights.
+Open: creative palette click rules, waterlogging (design: twin states with the dry key, see BUGS.md).
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
