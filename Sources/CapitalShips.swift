@@ -347,6 +347,10 @@ enum Capital {
         let ladder = Blocks.id("ladder")
         for y in 27...46 { hb.set(-7, y, 300, panel); hb.set(-6, y, 300, ladder + 3) }
         for y in 47...76 { hb.set(7, y, 330, panel); hb.set(6, y, 330, ladder + 2) }
+        // A gangway from the hangar's aft end to the engine room and a ladder down to its floor (it had no way in:
+        // its chest was out of reach, --interiorcheck).
+        hb.fill(-2, 2, 26, 26, 341, 386, deck)
+        hb.ladderWell(x: 2, z: 386, y0: 20, y1: 26, back: 1)
         // Engine room: four drive cores (critical systems) and the stern nozzles glowing in their recesses.
         hb.fill(-38, 38, 20, 20, 384, 474, deck)
         for x in [-18, 18] { for cy in [30, 54] { hb.fill(x - 2, x + 2, cy - 2, cy + 2, 438, 446, engine) } }
