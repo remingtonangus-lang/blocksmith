@@ -206,11 +206,14 @@ enum ItemModels {
 
     // An orthonormal hold: the icon's diagonal (handle at the lower left, head at the upper right, as every tool is
     // drawn) along `along`, its face toward `facing`; scaled by `size`.
-    static func basis(along: V3, facing: V3, size: Float) -> (V3, V3, V3) {
+    // upright: the icon's up (not its diagonal) along `along`, for items held like a card (a potion stood on end, not
+    // tipped over at 45 degrees).
+    static func basis(along: V3, facing: V3, size: Float, upright: Bool = false) -> (V3, V3, V3) {
         let n = simd_normalize(facing)
         var d = along - n * simd_dot(along, n)
         d = simd_length(d) > 1e-5 ? simd_normalize(d) : simd_normalize(simd_cross(n, V3(1, 0, 0)))
         let e = simd_normalize(simd_cross(n, d))
+        if upright { return (-e * size, d * size, n * size) }
         let k: Float = 0.70710678
         let ax = (d - e) * k, ay = (d + e) * k
         return (ax * size, ay * size, n * size)
@@ -260,7 +263,7 @@ extension Game {
         let along = tool ? turn(V3(0, 0.45, -1)) : turn(V3(0, 1, -0.2))
         let facing = turn(V3(1, 0, 0))
         let size: Float = tool ? 0.62 : 0.4
-        let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size)
+        let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
         // The grip point of a tool's icon (lower left, on the handle) sits in the hand.
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.2)
         let o = hand - ax * grip.x - ay * grip.y
@@ -300,7 +303,7 @@ extension Renderer {
             hand = hand * (1 - k) + V3(0.0, -0.2 + 0.02 * sinf(t * 22), -0.42) * k
         }
         let size: Float = tool ? 0.5 : 0.36
-        let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size)
+        let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.18)
         let o = hand - ax * grip.x - ay * grip.y
         return ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0,
