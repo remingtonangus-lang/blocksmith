@@ -258,6 +258,18 @@ enum ItemModels {
         return (ax * size, ay * size, n * size)
     }
 
+    // Held size for things held up like a card: hand-sized things (food, potions, materials, seeds) small; shields,
+    // armour, boats, carts, banners, books, maps, wings and saddles as large as before (at the small size a shield was
+    // a coaster).
+    static func heldScale(_ d: ItemDef) -> Float {
+        if d.armorSlot != nil { return 1.4 }
+        let n = d.name
+        if ["shield", "elytra", "saddle", "totem_of_undying"].contains(n) { return 1.4 }
+        if n.hasSuffix("_banner") || n.hasSuffix("boat") || n.hasSuffix("_raft") || n.hasSuffix("_horse_armor") { return 1.4 }
+        if n.contains("minecart") || n.contains("map") || n.contains("book") { return 1.4 }
+        return 1
+    }
+
     // Tools and weapons are held by the handle, diagonal; everything else is held up like a card.
     static func isTool(_ d: ItemDef) -> Bool {
         if d.tool != .none || d.attack > 1 { return true }
@@ -301,7 +313,7 @@ extension Game {
         // Model space: forward is -z, up +y; the arm hangs down, so "forward along the forearm" is -z at rest.
         let along = tool ? turn(V3(0, 0.45, -1)) : turn(V3(0, 1, -0.2))
         let facing = turn(V3(1, 0, 0))
-        let size: Float = tool ? 0.62 : 0.3                // hand-sized things smaller (as in first person)
+        let size: Float = tool ? 0.62 : 0.3 * ItemModels.heldScale(held.def)   // hand-sized things smaller (as in first person)
         let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
         // The grip point of a tool's icon (lower left, on the handle) sits in the hand.
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.2)
@@ -344,7 +356,7 @@ extension Renderer {
             hand = hand * (1 - k) + V3(0.0, -0.2 + 0.02 * sinf(t * 22), -0.42) * k
         }
         // Hand-sized things (food, potions, materials) about two thirds of a tool (at 0.36 an apple filled the corner).
-        let size: Float = tool ? 0.5 : 0.25
+        let size: Float = tool ? 0.5 : 0.25 * ItemModels.heldScale(held.def)
         let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.3)
         let o = hand - ax * grip.x - ay * grip.y
