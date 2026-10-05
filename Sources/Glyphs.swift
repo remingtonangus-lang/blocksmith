@@ -203,7 +203,7 @@ enum Prompt {
         switch Settings.shared.glyphStyle {
         case 1: return true
         case 2: return false
-        default: return PadManager.shared.usingPad
+        default: return PadManager.shared.usingPad || Coop.secondSeat
         }
     }
 

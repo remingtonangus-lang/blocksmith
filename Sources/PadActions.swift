@@ -58,7 +58,7 @@ enum PadActions {
 // while mining a block, so small stick corrections don't overshoot. Mouse aiming is never touched.
 enum AimAssist {
     static func friction(_ g: Game) -> Float {
-        guard Settings.shared.aimAssist, PadManager.shared.usingPad else { return 1 }
+        guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat else { return 1 }
         var f: Float = 1
         if g.mining != nil { f = 0.7 }
         let eye = g.player.eye, look = g.player.look
@@ -90,7 +90,7 @@ extension AimAssist {
     static var last: (hit: IVec3, normal: IVec3)?
 
     static func sticky(_ g: Game, _ t: (hit: IVec3, normal: IVec3)?, reach: Float) -> (hit: IVec3, normal: IVec3)? {
-        guard Settings.shared.aimAssist, PadManager.shared.usingPad, let prev = last else { last = t; return t }
+        guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat, let prev = last else { last = t; return t }
         if let t = t, t.hit == prev.hit { last = t; return t }
         let b = g.world.block(prev.hit.x, prev.hit.y, prev.hit.z)
         guard Blocks.targetable(b) else { last = t; return t }
@@ -147,7 +147,7 @@ extension AimAssist {
     }
 
     static func gunTick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot, _ dt: Float) {
-        guard Settings.shared.aimAssist, PadManager.shared.usingPad, let gi = g.heldGun else { snapTarget = nil; return }
+        guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat, let gi = g.heldGun else { snapTarget = nil; return }
         let aiming = p.lt > 0.5
         if aiming && q.lt <= 0.5 {
             snapTarget = bestTarget(g, cone: 0.18, range: Guns.all[gi].range)

@@ -154,6 +154,10 @@ struct ShipSeat {
 }
 
 final class Coop {
+    // The seat whose turn it is is a second one: it always plays on a controller (seat 0 may be on the keyboard and
+    // mouse), so prompts and aim assist treat it as on a pad (they followed player 1's last input device).
+    static var secondSeat = false
+
     static let maxSeats = 2
     // slots[i] holds seat i's state while another seat is live; the live seat's slot is nil.
     private(set) var slots: [SeatState?] = [nil]
@@ -177,6 +181,7 @@ final class Coop {
         slots[i] = nil
         slots[current] = s
         current = i
+        Coop.secondSeat = i > 0
         // Menus opening and closing for other seats must not release or capture the mouse.
         g.onInventoryChanged = i == 0 ? savedInventoryCallback : nil
     }
