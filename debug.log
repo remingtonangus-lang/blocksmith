@@ -1,0 +1,15 @@
+rerun (debug build): fi
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "fi"
+(lldb) run
+2026-10-05 13:19:23.522410+0000 Blocksmith[18788:51119] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-05 13:19:23.537321+0000 Blocksmith[18788:51119] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-05 13:19:24.627748+0000 Blocksmith[18788:51033] [vppu]         vpPlatformUtil.mm:312   Cannot retrieve theDeviceBoardID string...
+2026-10-05 13:19:24.885511+0000 Blocksmith[18788:51033] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x600000325900> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-05 13:19:57.221181+0000 Blocksmith[18788:51580] [AMCP] 134915          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-05 13:19:57.292150+0000 Blocksmith[18788:51580] [AMCP] 134915          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-05 13:19:57.378405+0000 Blocksmith[18788:51580] [AMCP] 134915          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+textures: 1679 layers at 128 px, BC3, 35.0 MB with mips (build 101144 ms, upload 34546 ms)
+2026-10-05 13:22:14.694183+0000 Blocksmith[18788:51580] [AMCP] 134915          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+usb-gip: watching for wired Xbox (GIP) controllers: 045e, 0e6f, 0f0d, 10f5, 1532, 20d6, 24c6, 2dc8
