@@ -125,6 +125,9 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 09:35: GAME BUILD READY 57ae121 (capital-latest, 09:13 UTC). Adds the options menu (Esc / Menu) and
+  the 1200 m tree line. CI Mac (paravirtual, High): city 38.1 fps (p99 50.8 ms), battle 32.9 (p99 49.1),
+  forest 38.5 (p99 36.4); draws 276 / 657 / 330.
 - 2026-10-05 09:30: in-game options menu (Esc / pad Menu): pauses; quality preset, FOV, look sensitivity both axes,
   acceleration, deadzones, response curve, zoom and mouse sensitivity, inverts, Halo-style vehicle steering, volumes,
   quit; pad-navigable for TV play; saved on close. Before this, look tuning was only in user://controls.cfg. New
