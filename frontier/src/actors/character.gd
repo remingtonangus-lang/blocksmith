@@ -92,12 +92,40 @@ func setup(m: Node3D, lib: AnimationLibrary, _opts := {}) -> void:
 		if ref > 0.0 and hips >= 0:
 			skeleton.motion_scale = skeleton.get_bone_global_rest(hips).origin.y / ref
 	if skeleton:
-		_setup_springs()
+		# garment springs are built on demand within SPRING_NEAR of the camera (see _proximity) and freed beyond
+		# SPRING_FAR: a crowd at the far end of town carries no simulator nodes
+		_spring_ok = true
 		look = CharacterLook.new()
 		look.name = "Look"
 		skeleton.add_child(look)
 	_rng.seed = hash(character_id)
 	_next_blink = _rng.randf_range(1.0, 4.0)
+
+
+const SPRING_NEAR := 30.0
+const SPRING_FAR := 40.0
+var _spring_ok := false               # false once we know this look has no spring chains
+var _prox_t := 0.0
+
+
+func _proximity(delta: float) -> void:
+	## Every ~0.5 s: build/free the cloth springs by camera distance, gaze modifier only near the camera.
+	_prox_t -= delta
+	if _prox_t > 0.0 or skeleton == null or not is_inside_tree():
+		return
+	_prox_t = 0.5
+	var cam := get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(global_position) if cam else 0.0
+	if springs == null and _spring_ok and dist < SPRING_NEAR and visible:
+		_setup_springs()
+		if springs == null:
+			_spring_ok = false
+	elif springs != null and dist > SPRING_FAR:
+		springs.get_parent().remove_child(springs)
+		springs.queue_free()
+		springs = null
+	if look:
+		look.active = dist < SPRING_NEAR
 
 
 func _setup_springs() -> void:
@@ -350,6 +378,7 @@ func set_hat_visible(v: bool) -> void:
 
 # --- internals -----------------------------------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	_proximity(delta)
 	var _pt0 := Time.get_ticks_usec()
 	_physics_tick_anim(delta)
 	Game.acc("charanim", _pt0)

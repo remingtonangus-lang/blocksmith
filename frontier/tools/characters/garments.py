@@ -1411,8 +1411,10 @@ def hat(builder, info, g):
                 prof.append(("top", -style["taper"] - s * 0.075, H + style.get("round_top", 0.0) * s))
     verts = []
     for kind, r_off, h in prof:
-        rr_x = np.maximum(rx + r_off, 0.004)
-        rr_y = np.maximum(ry + r_off, 0.004)
+        # crown-top rings never collapse to a point: a degenerate ring folded the top fan and showed its dark inside
+        floor_r = 0.3 if kind == "top" else 0.0
+        rr_x = np.maximum(rx + r_off, max(0.004, floor_r * rx))
+        rr_y = np.maximum(ry + r_off, max(0.004, floor_r * ry))
         x = cx + rr_x * ex
         y = cy + rr_y * ey
         zz = np.full(K, band_z + h)
@@ -1457,6 +1459,13 @@ def hat(builder, info, g):
     b = bmesh.new()
     b.from_mesh(me)
     bmesh.ops.recalc_face_normals(b, faces=b.faces)
+    # the crown top (last profile rings + centre fan) must face up
+    top0 = next((i for i, p in enumerate(prof) if p[0] == "top"), nr)
+    b.faces.ensure_lookup_table()
+    for fi, f in enumerate(b.faces):
+        on_top = fi >= (top0 - 1) * K if top0 < nr else fi >= (nr - 1) * K
+        if on_top and f.normal.z < 0:
+            f.normal_flip()
     b.to_mesh(me)
     b.free()
     for p in me.polygons:

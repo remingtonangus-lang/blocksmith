@@ -178,3 +178,6 @@ Work order from this round:
 - 2026-10-05: combat feel (worktree): arm IK onto guns, leather belt/holster/sling/scabbard, death ragdolls, surface impacts + fading decals, night muzzle light, casing sounds, Nerve grade/ink marks/camera cuts (see WEAPONS.md).
 - 2026-10-05: character quality pass (worktree agent): garments/drape/springs, updos, faces + lip-sync, riding and
   weapon-handling clips, tri budgets + LODs.
+- 2026-10-05: character memory pass (worktree agent): VRAM-compressed pre-extracted textures + .import sidecars,
+  blend shapes on a minimal Face mesh, shared per-look materials with instance-uniform tints, lazy cloth springs,
+  --charmem report (per NPC look ~7 MB, per instance ~1 MB on software Vulkan), warm-up tasks waited at exit.
