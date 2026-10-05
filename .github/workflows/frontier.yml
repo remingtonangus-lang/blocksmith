@@ -162,9 +162,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 30
         run: |
-          # The paravirtual GPU + MoltenVK loses the device on something in the scene. Bisect: one world feature off
-          # at a time (plain shot, no player), then the actor features with the player. The least restrictive set
-          # that renders is used for the evidence renders below (real Macs render everything through Metal).
+          # The paravirtual GPU + MoltenVK loses the device on something in the scene. The least restrictive set that
+          # renders is used for the evidence renders below (real Macs render everything through Metal).
           # A hung GPU blocks the engine's own watchdog, so each attempt gets a hard external timeout.
           mkdir -p snaps/probe
           try() {   # $1 = disable flags, $2 = extra args; prints OK on success
@@ -172,21 +171,16 @@ jobs:
             perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --watchdog 140 ${1:+--disable $1} $2 > "snaps/probe/$name.log" 2>&1 || true
             if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo OK; fi
           }
-          world=""
-          if [ "$(try "")" != OK ]; then
-            world="all-world-bad"
-            for f in settlements backdrop water roads cloudshadows scatter trees grass vfog; do
-              if [ "$(try "$f")" = OK ]; then world="$f"; echo "world renders with --disable $f"; break; fi
-              echo "still lost with --disable $f"
+          # 3ba9a99 bisection: still lost with every world feature off, renders once Godot's screen-space subsurface
+          # scattering (character skin) is off too, so actor features are tried first; the full set is the fallback.
+          safe=""
+          if [ "$(try "" --player)" != OK ]; then
+            safe="sss,horse,characters,settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
+            for flags in sss sss,horse sss,horse,characters; do
+              if [ "$(try "$flags" --player)" = OK ]; then safe="$flags"; echo "player renders with --disable '$flags'"; break; fi
+              echo "player lost with --disable '$flags'"
             done
           fi
-          [ "$world" = "all-world-bad" ] && world="settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
-          safe="$world"
-          for a in "" "sss" "horse" "characters" "sss,horse,characters"; do
-            flags="${world}${world:+${a:+,}}${a}"
-            if [ "$(try "$flags" --player)" = OK ]; then safe="$flags"; echo "player renders with --disable '$flags'"; break; fi
-            echo "player lost with --disable '$flags'"; safe="${world}${world:+,}sss,horse,characters"
-          done
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
           echo "gpu probe: --disable '${safe}'" | tee snaps/probe/result.txt
 

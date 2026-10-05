@@ -131,6 +131,8 @@ func _wanted() -> Dictionary:
 	return want
 
 func settle_now() -> void:
+	if camera == null:   # --disable scatter: never set up
+		return
 	for k in _pending.keys():
 		WorkerThreadPool.wait_for_task_completion(_pending[k])
 	_pending.clear()
