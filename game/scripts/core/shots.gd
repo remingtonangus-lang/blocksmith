@@ -58,10 +58,13 @@ func _next() -> void:
 		p.camera.make_current()
 		G.cam = p.camera
 		G.terrain.collision_now(p.global_position)
+	# SHOT_HOUR / SHOT_WEATHER override every shot's (bisecting sky problems).
+	var hour := float(OS.get_environment("SHOT_HOUR")) if OS.get_environment("SHOT_HOUR") != "" else float(s.get("hour", 10.0))
+	var wx := OS.get_environment("SHOT_WEATHER") if OS.get_environment("SHOT_WEATHER") != "" else String(s.get("weather", "clear"))
 	if G.sky:
-		G.sky.set_hour(float(s.get("hour", 10.0)))
+		G.sky.set_hour(hour)
 	if G.weather and G.weather.has_method("set_weather"):
-		G.weather.set_weather(String(s.get("weather", "clear")), true)
+		G.weather.set_weather(wx, true)
 	if G.world:
 		G.world.focus(cam.global_position)
 	if s.has("setup"):

@@ -206,6 +206,17 @@ void sky() {
 				col = mix(col, grey, k * 0.92);
 			}
 		}
+		// Heavy haze (fog, storms): single scattering extinguishes rays along the horizon to black; real fog is
+		// lit by multiple scattering and the horizon turns a bright grey. Approximation: blend toward a
+		// desaturated sky colour from 8.6 degrees up (after the clouds, which in fog are a dim blue deck): 90 % at and below the horizon, 50 % overhead (a foggy sky
+		// is pale all over).
+		float fogk = smoothstep(1.0, 4.0, haze);
+		if (fogk > 0.0) {
+			vec3 up = normalize(vec3(rd.x, 0.15, rd.z));
+			vec3 hc2 = scatter(up, sun_dir, sun_intensity, h0) + scatter(up, moon_dir, sun_intensity * moon_intensity, h0);
+			vec3 fogc = mix(vec3(dot(hc2, vec3(0.333))), hc2, 0.4);
+			col = mix(col, fogc, fogk * (0.5 + 0.4 * (1.0 - smoothstep(0.0, 0.3, rd.y))));
+		}
 		COLOR = col * exposure;
 	} else {
 		vec3 col = HALF_RES_COLOR.rgb;
