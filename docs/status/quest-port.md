@@ -147,6 +147,15 @@ the log) instead of hanging in an empty scene.
 - Gliding steers with your head (it followed the right hand's laser).
 - The spyglass and sniper scope no longer black out the HUD panel (no zoom in VR yet).
 
+**QUEST APK READY 37275086406** (2026-10-05, versionCode 39, commit 52b85b6): everything in 33, plus:
+- Comfort: walking up stairs and slabs eases the view up over ~0.1 s instead of jumping (falls and jumps unchanged);
+  Auto Render Distance (frames missed at the headset's limit step the render distance down for the session, with a
+  message); HUD Position (Middle / Low / Lower) on the VR page.
+- Taking the headset off or opening the system menu stops the world; the pause menu is up when you come back.
+- Relaunching right after quitting starts cleanly (the app quits its process when it ends; before, a quick relaunch
+  could exit at once or reuse stale GPU state).
+- The playtest branch's citadel patrol and crew fixes.
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
