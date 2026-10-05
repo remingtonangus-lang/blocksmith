@@ -29,6 +29,15 @@ runner, Metal) and the Mac monitor.
 - Benchmark: `--benchmark [--quality high]` → `~/Library/Logs/Frontier/benchmark.json` (fps, 1 % low, p50/p95/p99,
   spikes, RSS/VRAM) on macOS, `user://benchmark.json` elsewhere.
 - Vegetation lineup: `godot --path frontier res://scenes/veg_lineup.tscn -- --out x.png`.
+- Feature evidence shots (HUD, combat, menus, wildlife, riding, camp, dialogue, satchel, wheel):
+  `xvfb-run -a godot --path frontier -- --features DIR [--only a,b]`.
+- Bots: `--bot road,explore,ride,gaits,town,gunfight,hunt,missions,camp,systems` (or `all`); missions bot options
+  `--choices 0,1,...`, `--force_fail mission:checkpoint`, `--standing N --expect_ending high|middle|low`.
+- Profiling: `--prof` prints frame spikes with per-system attribution (spawns, system loops, actor ticks).
+- Kill-switches: `--disable vfog,ssr,ssao,shadows,grass,trees,scatter,water,roads,backdrop,cloudshadows,characters,horse,sss`,
+  `--no_settlements`, `--no_actor_lod`, `--noaudio`.
+- Self-tests: `--pokertest`, `--audiotest`, `--script res://src/missions/ch3/herd_selftest.gd`,
+  `--script res://src/missions/ch5/train_selftest.gd`.
 
 ## Delivery
 - `.github/workflows/frontier.yml` (push to this branch, paths frontier/**): macOS-14 runner → worldgen (cached),
