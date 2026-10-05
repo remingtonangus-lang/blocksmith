@@ -445,7 +445,7 @@ extension ItemHD {
         "item_harness": ("harness", false), "item_harness_band": ("harness", true),
     ]
 
-    // Spawn eggs: shell colour per mob (SpawnEggs.color) and a contrasting spot colour: the hue turned 40 degrees,
+    // Spawn eggs: shell colour per mob (SpawnEggs.color) and a contrasting spot colour: the hue turned 150 degrees,
     // lighter on a dark shell, darker on a light one.
     static let eggShells: [String: (UInt32, Int)] = {
         var m: [String: (UInt32, Int)] = [:]
@@ -459,11 +459,13 @@ extension ItemHD {
         let c = hex(shell)
         let lum = simd_dot(c, V3(0.3, 0.59, 0.11))
         // Rodrigues rotation of the colour about the grey axis.
-        let k = simd_normalize(V3(1, 1, 1)), a: Float = 40 * .pi / 180
+        let k = simd_normalize(V3(1, 1, 1)), a: Float = 150 * .pi / 180
         let r1: V3 = c * cosf(a) + simd_cross(k, c) * sinf(a)
         var r: V3 = r1 + k * (simd_dot(k, c) * (1 - cosf(a)))
         r = simd_clamp(r, V3(repeating: 0), V3(repeating: 1))
-        r = lum < 0.4 ? r + (V3(1, 1, 1) - r) * 0.55 : r * 0.45
+        let g = simd_dot(r, V3(0.3, 0.59, 0.11))
+        r = simd_clamp(V3(repeating: g) + (r - V3(repeating: g)) * 1.6, V3(repeating: 0), V3(repeating: 1))     // more saturated
+        r = lum < 0.4 ? r + (V3(1, 1, 1) - r) * 0.5 : r * 0.55
         let q = simd_clamp(r, V3(repeating: 0), V3(repeating: 1)) * 255
         return (UInt32(q.x) << 16) | (UInt32(q.y) << 8) | UInt32(q.z)
     }
@@ -475,9 +477,9 @@ extension ItemHD {
         cv.add(d, ys, M("soft", shell), r: 0.32)
         let spots: [(V2, Float)]
         switch layout {
-        case 0: spots = [(V2(0.42, 0.36), 0.05), (V2(0.63, 0.5), 0.058), (V2(0.42, 0.66), 0.045), (V2(0.63, 0.74), 0.04), (V2(0.32, 0.52), 0.035)]
-        case 1: spots = [(V2(0.36, 0.5), 0.06), (V2(0.5, 0.46), 0.06), (V2(0.64, 0.5), 0.06), (V2(0.5, 0.72), 0.05)]
-        default: spots = [(V2(0.46, 0.38), 0.085), (V2(0.6, 0.66), 0.07), (V2(0.36, 0.62), 0.04)]
+        case 0: spots = [(V2(0.42, 0.36), 0.06), (V2(0.63, 0.5), 0.07), (V2(0.42, 0.66), 0.055), (V2(0.63, 0.74), 0.045), (V2(0.32, 0.52), 0.04)]
+        case 1: spots = [(V2(0.36, 0.5), 0.07), (V2(0.5, 0.44), 0.07), (V2(0.64, 0.5), 0.07), (V2(0.5, 0.72), 0.06)]
+        default: spots = [(V2(0.46, 0.38), 0.1), (V2(0.6, 0.66), 0.08), (V2(0.36, 0.62), 0.05)]
         }
         for (c, r) in spots { cv.add(Canvas.intersect(cv.circle(c, r), Canvas.offset(d, 0.03)), ys, M("soft", eggSpot(shell)), r: 0.035) }
         return cv
