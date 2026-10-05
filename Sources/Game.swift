@@ -530,8 +530,17 @@ final class Game {
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         guard let it = Items.item(forBlock: b) else { return }
         if let i = (0..<9).first(where: { inventory.main[$0].item == it }) { select(i); return }
-        guard !survival else { return }
         let slot = (0..<9).first(where: { inventory.main[$0].isEmpty }) ?? selected
+        // Survival: the stack comes from the main inventory into an empty hotbar slot or the selected one, swapping
+        // (reference; survival pick block did nothing unless the block was already on the hotbar).
+        if survival {
+            guard let j = (9..<inventory.main.count).first(where: { inventory.main[$0].item == it }) else { return }
+            let tmp = inventory.main[slot]
+            inventory.main[slot] = inventory.main[j]
+            inventory.main[j] = tmp
+            select(slot)
+            return
+        }
         inventory.main[slot] = ItemStack(it, Items.def(it).maxStack)
         select(slot)
     }
