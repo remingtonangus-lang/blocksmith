@@ -311,6 +311,11 @@ final class PauseMenu: Menu {
             let n = String(id.dropFirst(6))
             return worlds.first { $0.name == n }.map { WorldStore.describe($0) } ?? ""
         }
+        if id.hasPrefix("vol:"), let raw = Int(id.dropFirst(4)), let c = SoundCategory(rawValue: raw) {
+            // Volume rows (AudioMenu.swift).
+            return c == .master ? "Volume of every sound and the music together."
+                                : "Volume of \(c.label.lowercased()) sounds, on top of Master."
+        }
         return PauseMenu.help[id] ?? ""
     }
 
