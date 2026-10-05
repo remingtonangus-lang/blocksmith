@@ -158,7 +158,8 @@ enum Smoke {
             if coop {
                 // Player 2: the same walk and jumps, veering right; their own inventory at 15 s (not the pause).
                 var q = p
-                q.lx = 0.45; q.rx = -0.1; q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
+                // Turning as player 1 does (-0.1 sat inside the look dead zone: player 2 walked into one tree for 50 s).
+                q.lx = 0.45; q.rx = -0.25; q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
                 game.coop.simulated[1] = q
                 if i % 600 == 0 {
                     // Where player 2 is and what holds them (run 509: they moved 12 blocks in 60 s).
