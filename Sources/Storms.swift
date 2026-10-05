@@ -224,6 +224,15 @@ extension Game {
     }
 
     static let leavesT: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }
+    // Blocks snow settles on: solid cubes, leaves, and anything with a full top face (glass, top slabs, upside-down
+    // stairs); not ice (it melts through) or barriers.
+    static let snowBaseT: [Bool] = (0..<Blocks.count).map { i in
+        if Blocks.opaque[i] || leavesT[i] { return true }
+        let k = Blocks.key(Blocks.groupBase[i])
+        if ["ice", "packed_ice", "blue_ice", "barrier", "frosted_ice"].contains(k) || Blocks.isLiquid(BlockID(i)) { return false }
+        if Blocks.render[i] == RenderType.cube.rawValue && Blocks.fullCollide[i] { return true }
+        return Blocks.boxes[i].contains { $0.x0 == 0 && $0.z0 == 0 && $0.x1 == 16 && $0.z1 == 16 && $0.y1 == 16 }
+    }
 
     func snowChunk(_ c: Chunk, snowing: Bool) {
         let day = daylight
@@ -247,8 +256,18 @@ extension Game {
         }
         for lz in 0..<CS { for lx in 0..<CS {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
-            let y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
+            var y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
             guard y > 0 && y < CH - 2 else { continue }
+            // Glass (and other see-through solids) doesn't stop the sky column but does stop the snow: it settles on
+            // the highest solid block above (it piled up on floors under glass roofs).
+            // (Not its own deeper layers, which collide; only up to the chunk's highest stored block.)
+            var yy = y + 2
+            let scanTop = min(CH - 2, y + 40, c.blocks.storedCount / CSQ)
+            while yy < scanTop {
+                let b = c.blocks[Chunk.index(lx, yy, lz)]
+                if Blocks.collide[Int(b)] && snowLayers(b) < 0 { y = yy }
+                yy += 1
+            }
             let cur = snowLayers(world.rawBlock(x, y + 1, z))
             if cur < 0 || (cur == 0 && !snowing) { continue }
             let top = world.rawBlock(x, y, z)
@@ -263,7 +282,7 @@ extension Game {
             let leaves = Game.leavesT[Int(top)]
             var want = cur
             if snowing && snowsHere && light < 10 {
-                guard cur > 0 || Blocks.opaque[Int(top)] || leaves else { continue }
+                guard cur > 0 || Game.snowBaseT[Int(top)] else { continue }
                 let cap = leaves ? 1 : max(1, min(7, Int(fx.snowDepth * (0.55 + 0.9 * drift))))
                 if cur < cap && Rand.float(in: 0..<1) < 0.6 && !(cur >= 2 && occupied.contains(lx + lz * CS)) { want = cur + 1 }
             } else if cur > 0 {

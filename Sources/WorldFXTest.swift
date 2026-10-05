@@ -449,6 +449,15 @@ enum WorldFXTest {
         let cowY = wd.topY(cowX, cowZ) + 1
         let cow = Mob(.cow, at: V3(Float(cowX) + 0.5, Float(cowY), Float(cowZ) + 0.5))
         g.mobs.mobs.append(cow)
+        // A glass roof 4 above the ground (glass doesn't stop the sky column): snow belongs on it, not on the floor
+        // under it.
+        var roofY = 0
+        for dz in -2...2 { for dx in -2...2 { roofY = max(roofY, wd.topY(cx - 8 + dx, cz + dz) + 4) } }
+        var floorBefore: [Int] = []
+        for dz in -2...2 { for dx in -2...2 {
+            _ = wd.setBlockAsync(cx - 8 + dx, roofY, cz + dz, GLASS)
+            floorBefore.append(g.snowLayers(wd.rawBlock(cx - 8 + dx, wd.topY(cx - 8 + dx, cz + dz) + 1, cz + dz)))
+        } }
         g.weather.raining = true; g.weather.rain = 1
         var worst = 0.0
         var passes: [Double] = []
@@ -480,6 +489,19 @@ enum WorldFXTest {
         let under = g.snowLayers(wd.rawBlock(cowX, wd.topY(cowX, cowZ) + 1, cowZ))
         check(under <= 2, "snow doesn't bury a standing cow's feet", "\(under) layers under it")
         g.mobs.mobs.removeAll { $0 === cow }
+        var grewUnder = 0, onRoof = 0, k = 0
+        for dz in -2...2 { for dx in -2...2 {
+            let x = cx - 8 + dx, z = cz + dz
+            if g.snowLayers(wd.rawBlock(x, wd.topY(x, z) + 1, z)) > max(1, floorBefore[k]) { grewUnder += 1 }
+            if g.snowLayers(wd.rawBlock(x, roofY + 1, z)) > 0 { onRoof += 1 }
+            k += 1
+        } }
+        check(grewUnder == 0 && onRoof >= 15, "snow settles on a glass roof, not under it",
+              "\(onRoof) of 25 roof blocks snowed on, \(grewUnder) floor columns under it grew")
+        for dz in -2...2 { for dx in -2...2 {
+            _ = wd.setBlockAsync(cx - 8 + dx, roofY + 1, cz + dz, AIR)
+            _ = wd.setBlockAsync(cx - 8 + dx, roofY, cz + dz, AIR)
+        } }
         let drops = Mining.drops(Game.snowLayerIDs[5], ItemStack.empty).reduce(0) { $0 + $1.count }
         check(drops > 0, "deep snow drops snowballs", "\(drops) from 5 layers")
         shot(g, r, w, h, out + "/fx_snow_1.png")
