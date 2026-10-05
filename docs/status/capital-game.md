@@ -17,7 +17,7 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 88 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+  - every push: 91 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
     destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
@@ -126,6 +126,10 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 22:20: stale caches. Every cache version bump left its old file in user:// for good (each world
+  version 49 MB: 452 MB of dead world, terrain-material, leaf-atlas and audio caches on the dev box). G.prune_cache()
+  runs at startup and deletes the older versions of those four caches, keeping the current one of each and anything
+  else (settings, logs, shader caches); game.log notes what it freed. Test test_cache.gd (fake old/current files).
 - 2026-10-05 22:05: GAME BUILD READY 9dadd13 (capital-latest, 21:45 UTC; CI run 49 all green after runs 45-48
   never got runners). CI Mac (paravirtual, High) city / battle / forest 51.6 / 41.9 / 50.3 fps (188b983: 47.9 /
   36.9 / 54.6, within the runner's +-25 %). First launch on the Mac: world generated in 4.3 s (12.9 s), world ready

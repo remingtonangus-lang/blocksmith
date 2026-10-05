@@ -33,6 +33,9 @@ func _ready() -> void:
 		Settings.preset, str(Settings.args)])
 	if Settings.raw_cmdline != "":
 		G.log_line("command line: %s" % Settings.raw_cmdline)
+	var freed := G.prune_cache()
+	if freed > 0:
+		G.log_line("cache: removed old versions, %.0f MB freed" % (freed / 1048576.0))
 	if Settings.has_arg("padcheck"):
 		_padcheck()
 		return
