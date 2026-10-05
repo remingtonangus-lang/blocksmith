@@ -168,3 +168,7 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   second time with the holes filled back in (each hole holds its strongest built neighbour's material, terrain beside
   terrain, a crater filled from the rim in); what failed then too stands, unless the cut took what joined it to the rest
   (the pillar under an old overhang). Oracle: collapsecheck relic.
+- For integration: ridecheck crew's post drift on playtest (runs 605, 634) was c7eb1af's calm-soldier ledge stop reading
+  world blocks under a moving deck (every step back to a post read as a ledge); b02edf4 skips it for mobs on a deck.
+  Also from the rebase: integration's citadel rebuild fix kept (2e844e5); the troops overlap oracle now tells a
+  one-tick graze at the ramp's foot (0.08) from being stuck in a block.
