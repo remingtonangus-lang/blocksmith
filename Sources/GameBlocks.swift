@@ -116,16 +116,6 @@ extension Game {
         if (fk == "campfire" || fk == "soul_campfire") && survival && !player.sneaking {
             damage(fk == "soul_campfire" ? 2 : 1, "went up in flames", type: .fire)
         }
-        // Frost walker: freeze still water around the player's feet.
-        let fw = Enchant.level(.frostWalker, inventory.armor[3])
-        if fw > 0 && player.onGround, Blocks.has("frosted_ice") {
-            let r = 2 + fw
-            let fi = Blocks.id("frosted_ice")
-            for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
-                let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
-                if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR { world.setBlockAsync(q.x, q.y, q.z, fi) }
-            } }
-        }
         // Conduits: a tidestone frame (16+ blocks within 2) in water gives Conduit Power (16 blocks per 7 frame blocks).
         let conduit = Blocks.has("conduit") ? Blocks.id("conduit") : AIR
         if conduit != AIR, player.inWater {
@@ -198,13 +188,72 @@ extension Game {
         }
     }
 
+    static let frostedIceID: BlockID = Blocks.has("frosted_ice") ? Blocks.id("frosted_ice") : AIR
+
+    // Frost Walker freezes still water round the feet every frame the wearer stands on ground, radius 2 + level
+    // (reference: every tick; once a second let a walker sink between freezes).
+    func frostWalkerTick() {
+        let fw = Enchant.level(.frostWalker, inventory.armor[3])
+        guard fw > 0, player.onGround, !player.flying, Game.frostedIceID != AIR else { return }
+        let pp = player.pos
+        let feet = IVec3(Int(floor(pp.x)), Int(floor(pp.y - 0.1)), Int(floor(pp.z)))
+        let r = min(16, 2 + fw)
+        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
+            let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
+            if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR {
+                world.setBlockAsync(q.x, q.y, q.z, Game.frostedIceID)
+                frostTimers[q] = Rand.float(in: 3...6)            // first melt try 60-120 ticks on
+            }
+        } }
+    }
+
+    func frostedIceTick(_ dt: Float) {
+        guard !frostTimers.isEmpty else { return }
+        for (q, t0) in frostTimers {
+            let t = t0 - dt
+            if t > 0 { frostTimers[q] = t } else { frostTimers[q] = nil; meltFrosted(q) }
+        }
+    }
+
+    // One reference frosted-ice tick: lit above 11 - age, it ages a step with 1/3 chance (always with fewer than 4
+    // frosted neighbours) and turns to water after age 3, its neighbours ticking next; otherwise it tries again in
+    // 1-2 s. A Frost Walker path melts in about 10-20 s by day and stays at night. (It aged only on random ticks,
+    // about 4.5 minutes.)
+    func meltFrosted(_ q: IVec3) {
+        let fi = Game.frostedIceID
+        let b = world.block(q.x, q.y, q.z)
+        guard fi != AIR, b != AIR, Blocks.groupBase[Int(b)] == fi else { return }
+        let age = Int(b) - Int(fi)
+        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+        var n = 0
+        for d in dirs where Blocks.groupBase[Int(world.block(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
+        let l = world.lightAt(q.x, q.y, q.z)
+        let dayPart: Float = (daylight - 0.12) / 0.88
+        let darken = max(0, min(11, Int(((1 - dayPart) * 11).rounded())))
+        let lit = max(l.block, l.sky - darken)
+        if lit > 11 - age && (Rand.int(in: 0..<3) == 0 || n < 4) {
+            if age < 3 {
+                world.setBlockAsync(q.x, q.y, q.z, b + 1)
+                frostTimers[q] = Rand.float(in: 1...2)
+            } else {
+                world.setBlockAsync(q.x, q.y, q.z, WATER)
+                for d in dirs {
+                    let o = IVec3(q.x + d.x, q.y + d.y, q.z + d.z)
+                    if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
+                }
+            }
+        } else {
+            frostTimers[q] = Rand.float(in: 1...2)
+        }
+    }
+
     // Random ticks for the new blocks.
     func newBlockRandomTick(_ p: IVec3, _ b: BlockID, _ key: String) {
         let base = Blocks.groupBase[Int(b)]
         let st = Int(b - base)
         switch key {
         case "frosted_ice":
-            if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, WATER) }
+            meltFrosted(p)
         case "cocoa":
             if st < 2 && Rand.int(in: 0..<5) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
         case "turtle_egg":

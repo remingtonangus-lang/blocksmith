@@ -87,6 +87,48 @@ enum RulesCheck {
             check((g.xpLevel > lvl0 || g.xpPoints > pts0) && g.xpOrbs.isEmpty, "dropped experience drifts to the player and is collected")
         }
 
+        // A worn carved pumpkin survives a hit (durability 0: it vanished on the first one).
+        if Items.has("carved_pumpkin") {
+            let keep = g.inventory.armor[0], hp = g.health
+            g.inventory.armor[0] = ItemStack(Items.id("carved_pumpkin"), 1)
+            g.damage(4, "rulescheck")
+            check(!g.inventory.armor[0].isEmpty, "a worn carved pumpkin survives a hit")
+            g.inventory.armor[0] = keep
+            g.health = hp
+        }
+
+        // A cobweb holds a walker to about 0.5 b/s.
+        if Player.cobwebID != AIR {
+            let x = site()
+            let pl = g.player
+            let keepPos = pl.pos, keepVel = pl.vel, keepYaw = pl.yaw, keepFly = pl.flying
+            for z in (cz - 4)...(cz + 4) { w.setBlock(x, floorY, z, Player.cobwebID); w.setBlock(x, floorY + 1, z, Player.cobwebID) }
+            let start = V3(Float(x) + 0.5, Float(floorY), Float(cz) + 0.5)
+            pl.pos = start; pl.vel = .zero; pl.yaw = 0; pl.flying = false
+            var inp = MoveInput()
+            inp.forward = 1
+            for _ in 0..<20 { pl.update(dt: 0.05, input: inp, world: w) }
+            let moved = simd_length(V2(pl.pos.x - start.x, pl.pos.z - start.z))
+            check(moved < 0.9, "a cobweb holds a walker (\(moved) blocks in 1 s; free walking 4.3)")
+            pl.pos = keepPos; pl.vel = keepVel; pl.yaw = keepYaw; pl.flying = keepFly
+        }
+
+        // Frosted ice melts in seconds by day (it took minutes on random ticks).
+        if Game.frostedIceID != AIR {
+            let x = site()
+            let keepT = g.time
+            g.time = DAY_LENGTH * 0.25
+            let q = IVec3(x, floorY, cz)
+            w.setBlock(q.x, q.y, q.z, Game.frostedIceID)
+            g.frostTimers[q] = 0.01
+            var t: Float = 0
+            while t < 60 && Blocks.groupBase[Int(w.block(q.x, q.y, q.z))] == Game.frostedIceID { g.frostedIceTick(0.1); t += 0.1 }
+            let l = w.lightAt(q.x, q.y, q.z)
+            check(t < 40, "frosted ice melts by day in seconds (\(Int(t)) s, sky light \(l.sky))")
+            g.frostTimers[q] = nil
+            g.time = keepT
+        }
+
         g.survival = keepSurvival
         print("rulescheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails

@@ -412,10 +412,10 @@ enum Enchant {
     }
 
     // Unbreaking: chance that a use doesn't cost durability.
-    static func wearSkipped(_ s: ItemStack) -> Bool {
+    static func wearSkipped(_ s: ItemStack, asTool: Bool = false) -> Bool {
         let u = level(.unbreaking, s)
         guard u > 0 else { return false }
-        if s.def.armorSlot != nil { return Rand.float(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
+        if s.def.armorSlot != nil && !asTool { return Rand.float(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
         return Rand.int(in: 0...u) > 0
     }
 }

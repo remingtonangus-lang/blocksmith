@@ -197,9 +197,9 @@ extension Mob {
         var speed: Float = 0
         switch kind {
         case .pig:
-            if Items.key(g.held.item) == "carrot_on_a_stick" { speed = 3.5; yaw = g.player.yaw }
+            if Items.key(g.held.item) == "carrot_on_a_stick" { speed = 3.5 * stickBoost(dt); yaw = g.player.yaw }
         case .strider:
-            if Items.key(g.held.item) == "warped_fungus_on_a_stick" { speed = 2.5; yaw = g.player.yaw }
+            if Items.key(g.held.item) == "warped_fungus_on_a_stick" { speed = 2.5 * stickBoost(dt); yaw = g.player.yaw }
         case .llama, .traderLlama:
             speed = 0            // llamas can't be steered
         default:
@@ -218,7 +218,19 @@ extension Mob {
             // Hold jump to charge, release to leap (horses); camels dash.
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
             else if jumpCharge > 0.05 && onGround && tamed {
-                vel.y = 6 + 8 * jumpCharge * horseJump
+                if kind == .camel {
+                    vel.y = 6 + 8 * jumpCharge * horseJump
+                } else {
+                    // Reference: power 0.4-0.84 below a 90 % charge, full above; the height follows the reference
+                    // curve of the strength (1.0 -> 5.3 blocks, 0.4 -> 1.1), launched at the speed that reaches it.
+                    // (6 + 8 x charge x strength topped out near 3.5.)
+                    let power: Float = jumpCharge >= 0.9 ? 1 : 0.4 + 0.4 * jumpCharge / 0.9
+                    let s: Float = horseJump * power
+                    let s2: Float = s * s
+                    let cubic: Float = -0.1817962 * s2 * s + 3.689713 * s2
+                    let h: Float = max(0.3, cubic + 2.128599 * s - 0.343930)
+                    vel.y = sqrtf(2 * 28 * h)
+                }
                 if kind == .camel { vel += forward * 12 * jumpCharge }
                 jumpCharge = 0
             }
@@ -243,6 +255,14 @@ extension Mob {
         g.player.pos = pos + V3(0, height * 0.75, 0)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
+    }
+
+    // A stick boost's speed factor (reference: 1 + 1.15 sin(pi t / total) over 7-49 s), then it ends.
+    func stickBoost(_ dt: Float) -> Float {
+        guard boostTotal > 0 else { return 1 }
+        boostTime += dt
+        if boostTime >= boostTotal { boostTime = 0; boostTotal = 0; return 1 }
+        return 1 + 1.15 * sinf(Float.pi * boostTime / boostTotal)
     }
 
     // Per-horse speed and jump strength from its variant bits (reference ranges 4.8-14.5 b/s).

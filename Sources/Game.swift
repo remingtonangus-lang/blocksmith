@@ -204,6 +204,7 @@ final class Game {
     var patrolTimer: Float = 600
     private var raidTimer: Float = 0
     var contactTimer: Float = 0
+    var frostTimers: [IVec3: Float] = [:]     // frosted ice waiting for its next melt tick (GameBlocks)
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
     var walkBob: Float = 0
@@ -520,6 +521,26 @@ final class Game {
         }
     }
 
+    // Carrot / Warped Fungus on a Stick used on the pig or magmastrider being ridden: a boost for 7-49 s, costing 7 / 1
+    // durability; a worn-out stick is left as a fishing rod (reference).
+    func stickBoost(_ r: Mob) -> Bool {
+        let k = Items.key(held.item)
+        let pig = r.kind == .pig && k == "carrot_on_a_stick"
+        guard pig || (r.kind == .strider && k == "warped_fungus_on_a_stick"), r.boostTotal == 0 else { return false }
+        r.boostTotal = Float(Rand.int(in: 140...980)) / 20
+        r.boostTime = 0
+        sfx(.mob(r.kind, .ambient), 0.8, at: r.pos)
+        guard survival else { return true }
+        var h = held
+        h.damage += pig ? 7 : 1
+        if h.def.durability > 0 && h.damage >= h.def.durability {
+            inventory.held = Items.has("fishing_rod") ? ItemStack(Items.id("fishing_rod"), 1) : .empty
+        } else {
+            inventory.held = h
+        }
+        return true
+    }
+
     func consumeHeld() {
         guard survival else { return }
         var h = held
@@ -703,7 +724,7 @@ final class Game {
         if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
         mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
         if mi.forward <= 0.3 { player.sprinting = false }
-        if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
+        if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             let chest = inventory.armor[1]
@@ -718,7 +739,7 @@ final class Game {
             if elytraWear >= 1 && survival {
                 elytraWear = 0
                 var c = inventory.armor[1]
-                if !c.isEmpty { c.damage += 1; inventory.armor[1] = c; if c.damage >= c.def.durability - 1 { player.gliding = false } }
+                if !c.isEmpty && !Enchant.wearSkipped(c, asTool: true) { c.damage += 1; inventory.armor[1] = c; if c.damage >= c.def.durability - 1 { player.gliding = false } }
             }
         }
         if player.impact > 0 {
@@ -790,6 +811,7 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        if useNow, let r = riding, stickBoost(r) { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
             Turrets.shared.mount(self, hit.0); return
@@ -854,7 +876,8 @@ final class Game {
                     player.airPeak = player.pos.y
                     player.vel.y = max(player.vel.y, 0)
                     let wb = Enchant.level(.windBurst, held)
-                    if wb > 0 { player.vel.y = 8 + 4 * Float(wb) }
+                    // Wind Burst launches about 7 / 11 / 15 blocks (reference I reaches ~7; 8 + 4 x level gave 2.6 / 4.6 / 7).
+                    if wb > 0 { player.vel.y = sqrtf(56 * (3 + 4 * Float(min(wb, 3)))) }
                     for o in mobs.mobs where o !== m && simd_length(o.pos - m.pos) < 3.5 { o.hit(from: m.pos, damage: 0, knockback: 1.2) }
                     sfx(.anvil, 0.6, at: m.pos)
                 }
@@ -993,7 +1016,7 @@ final class Game {
         if Items.key(h.item) == "bow" {
             let ammo = arrowSlot()
             let infinity = Enchant.level(.infinity, h) > 0
-            let hasArrow = !survival || ammo != nil || infinity
+            let hasArrow = !survival || ammo != nil        // Infinity still needs one arrow (reference)
             if useHeld && hasArrow { bowCharge += fdt; return }
             if !useHeld && bowCharge > 0 {
                 let t = bowCharge * 20
@@ -1692,12 +1715,15 @@ final class Game {
             let s = c[idx]
             if !s.isEmpty && s.damage > 0 && Enchant.level(.mending, s) > 0 { menders.append((c, idx)) }
         }
-        if case let (c, idx)? = menders.pick() {
+        // Reference: 2 durability per point on a random damaged mender (a point per 2 repaired, rounded down);
+        // what is left over goes to the next one, then to the bar.
+        while !menders.isEmpty {
+            let (c, idx) = menders.remove(at: Rand.int(in: 0..<menders.count))
             var s = c[idx]
             let fix = min(s.damage, n * 2)
             s.damage -= fix
             c[idx] = s
-            n -= (fix + 1) / 2
+            n -= fix / 2
             if n <= 0 { sfx(.xp, 0.5); return }
         }
         xpPoints += n
@@ -1793,7 +1819,9 @@ final class Game {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
             let eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
             dmg *= 1 - eff / 25
-            for i in 0..<4 where !inventory.armor[i].isEmpty {
+            // Only wearable armour wears: a carved pumpkin or a head (durability 0) vanished on the first hit, and
+            // Glider Wings don't take damage from hits (reference).
+            for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0 && Items.key(inventory.armor[i].item) != "elytra" {
                 var s = inventory.armor[i]
                 if Enchant.wearSkipped(s) { continue }
                 s.damage += max(1, amount / 4)
@@ -1813,10 +1841,16 @@ final class Game {
         }
         if let m = attacker {
             // Thorns: 15% per level to hit back for 1-4.
-            for s in inventory.armor.slots where !s.isEmpty {
+            // The piece that hits back takes 2 extra wear (reference).
+            for i in 0..<4 where !inventory.armor[i].isEmpty {
+                var s = inventory.armor[i]
                 let t = Enchant.level(.thorns, s)
                 if t > 0 && Rand.float(in: 0..<1) < 0.15 * Float(t) {
                     m.hit(from: player.pos, damage: Rand.int(in: 1...4), knockback: 0.3)
+                    if s.def.durability > 0 && !Enchant.wearSkipped(s) {
+                        s.damage += 2
+                        inventory.armor[i] = s.damage >= s.def.durability ? .empty : s
+                    }
                 }
             }
         }
@@ -2089,6 +2123,7 @@ final class Game {
         endTick(Float(dt))
         dragonRespawnTick(Float(dt))
         hazardTick(Float(dt))
+        frostedIceTick(Float(dt))
         effectTick(Float(dt))
         cloudTick(Float(dt))
         xpOrbTick(Float(dt))

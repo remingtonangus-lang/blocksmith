@@ -152,10 +152,6 @@ extension Game {
             if Enchant.level(.channeling, t) > 0 && weather.thunder > 0.5 && skyExposed(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z))) {
                 strike(m.pos)
             }
-            let imp = Enchant.level(.impaling, t)
-            if imp > 0 && Enchant.aquatic(m) {
-                m.hit(from: a.pos, damage: Int(2.5 * Float(imp)), knockback: 0)
-            }
         }
         if Enchant.level(.loyalty, t) > 0 { a.returning = true; a.stuck = false }
     }

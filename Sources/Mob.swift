@@ -349,6 +349,8 @@ final class Mob {
     var beam: Float = 0             // spikefish laser charge
     var anger: Float = 0            // deep stalker
     var jumpCharge: Float = 0       // horse jump when ridden
+    var boostTime: Float = 0        // pig / magmastrider stick boost: elapsed and total seconds (0 total = none)
+    var boostTotal: Float = 0
     var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)

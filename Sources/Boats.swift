@@ -146,7 +146,7 @@ extension Mob {
             friction = 0.9
         } else {
             vel.y -= 28 * dt
-            if onGround { friction = Boats.slipperiness(below) * 0.9 }
+            if onGround { friction = Boats.slipperiness(below) }      // reference: the block's slipperiness (ice ~40 b/s)
         }
         // Paddling: reference acceleration 0.04 b/tick forward, 0.005 backward, turn 1 deg/tick with 0.9 decay.
         if ridden {

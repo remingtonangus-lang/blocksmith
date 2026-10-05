@@ -512,6 +512,7 @@ extension Game {
 extension Game {
     // Lava, fire, magma and cactus hurt; burning continues until water puts it out.
     func hazardTick(_ dt: Float) {
+        frostWalkerTick()
         let p = player.pos
         let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let body = world.block(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
@@ -527,6 +528,10 @@ extension Game {
                 dmg = Blocks.key(feet) == "soul_fire" ? 2 : 1; cause = "went up in flames"; onFire = max(onFire, 8)     // soul fire 2 (reference)
             }
             else if Blocks.key(under) == "magma_block" && !player.sneaking && player.onGround { dmg = 1; cause = "discovered the floor was lava" }
+            else if Player.berryBase != AIR && feet != Player.berryBase && Blocks.groupBase[Int(feet)] == Player.berryBase
+                        && simd_length(V2(player.vel.x, player.vel.z)) > 0.06 && !player.flying {
+                dmg = 1; cause = "was poked to death by a sweet berry bush"      // a grown bush hurts anyone moving through it
+            }
             else {
                 // Cactus: touching any side.
                 let mn = V3(p.x - 0.31, p.y, p.z - 0.31), mx = V3(p.x + 0.31, p.y + 1.8, p.z + 0.31)
@@ -537,7 +542,7 @@ extension Game {
                     }
                 } } }
             }
-            if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" ? .generic : .fire); contactTimer = 0.5 }
+            if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" || cause.hasSuffix("berry bush") ? .generic : .fire); contactTimer = 0.5 }
         }
         if onFire > 0 {
             // Fire Protection: burning lasts 15 % less per level of the best piece (reference), so it runs out faster.
