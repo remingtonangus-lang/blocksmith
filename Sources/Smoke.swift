@@ -41,7 +41,7 @@ enum Smoke {
         let frames = Int(seconds / dt)
         var frameMs: [Double] = []
         frameMs.reserveCapacity(frames)
-        var minCov = 1.0, peak = residentMB(), maxMobs = 0
+        var minCov = 1.0, peak = residentMB(), maxMobs = 0, maxDropped = 0
         let start = CFAbsoluteTimeGetCurrent()
         let flyAt = frames / 2
         // Watchdog: a hang (deadlock, a GPU wait that never returns) becomes a reported failure instead of a CI timeout.
@@ -200,12 +200,14 @@ enum Smoke {
                 print(String(format: "smoke rd %ld %@: %.0f s, frame %.1f ms, resident %.0f MB, Metal %.0f MB, mobs %ld, coverage %.0f%%",
                              rd, game.fancyGraphics ? "Fancy" : "Fast", t, frameMs.last ?? 0, residentMB(),
                              Double(device.currentAllocatedSize) / 1_048_576, game.mobs.mobs.count, Bench.coverage(world, pp) * 100))
+                print("smoke rd \(rd) mob drawing: " + MobDrawStats.line)      // mobs were invisible in real play (2026-10-05)
                 fflush(stdout)
             }
             if i % 30 == 0 {
                 minCov = min(minCov, i > 120 ? Bench.coverage(world, pp) : 1)
                 peak = max(peak, residentMB())
                 maxMobs = max(maxMobs, game.mobs.mobs.count)
+                maxDropped = max(maxDropped, MobDrawStats.dropped)
             }
             let slack = start + Double(i + 1) * dt - CFAbsoluteTimeGetCurrent()
             if slack > 0 { usleep(useconds_t(slack * 1e6)) }
@@ -218,6 +220,7 @@ enum Smoke {
         print(String(format: "smoke rd %ld: %ld frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %ld, travelled %.0f blocks, resident peak %.0f MB, menu %@",
                      rd, frames, wall, pct(0.5), pct(0.95), pct(0.99), sorted.last ?? 0, minCov * 100, maxMobs, dist, peak,
                      game.menu == nil && !game.paused ? "closed" : "STILL OPEN"))
+        print("smoke rd \(rd): mobs dropped for a full mob buffer: at most \(maxDropped) in a frame (the farthest first)")
         _ = r.renderToPNG(path: "snaps/smoke_rd\(rd).png", width: 960, height: 540)
         if dist < 100 { print("smoke rd \(rd): FAIL the player only moved \(Int(dist)) blocks (input or tick stalled)"); return 1 }
         if game.menu != nil || game.paused { print("smoke rd \(rd): FAIL a menu or the pause screen is still open"); return 1 }
