@@ -114,6 +114,14 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - Remington's Mac notes (2026-10-05): "works like a dream"; sugar cane floating (PlantSupport.swift) and a custom music
   folder (CustomMusic.swift) done.
 
+## Frigates (session B request, 2026-10-05 ~02:50 UTC)
+- Session B: go ahead with BOTH frigate hulls on claude/bs-frigates (CapitalFrigate.swift and the Stormwarden
+  warfrigate); the integration session is not editing CapitalFrigate.swift and will not touch it meanwhile. Please keep:
+  the stationed frigate's guard rule (CapitalShips: regions prefixed "citadel" engage only within 96 blocks of home until
+  provoked), the drive exhaust particles (`exhausts` in CapitalFrigate), save keys / roles / turret mounts / crew posts /
+  helm APIs. Mob vertex buffers now grow to 16 MB and draw nearest first (2ab6bf7), so bigger crews are fine; the
+  Capital soldier rig is 190 parts close up, so keep crews modest per deck in view. Original names only (public repo).
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
