@@ -253,6 +253,9 @@ enum BaseTests {
         // 5. A gunshot just outside the east wall: alert; the Kestrel lifts off the tower pad, flies out, circles
         // the spot, flies back and lands on the pad, and is stowed.
         if want("air") {
+            // From a calm citadel with its Kestrel stowed (after the other scenes a lockdown can still be standing down).
+            let settled = sim(300) { rec().alert == .calm && rec().air == nil && (rec().airCD ?? 0) <= 0 }
+            if settled == nil { print("basetest log: the air scene starts with the citadel \(rec().alert.name), air \(rec().air != nil)") }
             let ex = Float(cx + CapitalBase.A + 6), ez = Float(cz)
             let shot = V3(ex, g.standY(ex, ez, from: Float(y0 + 30)), ez)
             g.baseNoise(at: shot, kind: .gunshot)
