@@ -21,7 +21,6 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	Game.world = world
-	CharacterFactory.warm_up()            # character scenes + animation library load on worker threads
 	Game.roads = RoadGraph.new()
 	Game.roads.build(world)
 	# --- audio (src/audio/audio_director.gd): registers itself as Game.audio in _ready ---
@@ -84,6 +83,9 @@ func _ready() -> void:
 	settlements.setup(world)
 	print("boot: %s %d ms" % ["settlements", Time.get_ticks_msec() - t0])
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
+	# character scenes + animation library load on a worker from here: started after the boot draws (impostor bake
+	# force_draw) so their texture uploads never race a synchronous frame (CI's GPU hung there, b873a47 probe)
+	CharacterFactory.warm_up()
 	var ws := WorldState.new()
 	ws.name = "WorldState"
 	add_child(ws)
