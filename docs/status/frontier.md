@@ -109,20 +109,36 @@ runner, Metal) and the Mac monitor.
 - Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
 
 ## Ranked gaps
-(Provisional self-assessment until the first blind critic round; gap = weight × (10 − score).)
-1. Characters and faces (3 × 9): capsule stand-ins — waiting on the character pipeline.
-2. Horses (3 × 5): procedural horse with gaits (oracle-checked footfalls), riding, IK, care, bonding; close-up anatomy, hair physics and rider animation missing.
-3. Animation and locomotion (3 × 9): no skeletal animation yet.
-4. AI and towns (3 × 7): towns are empty discs until the settlement kit lands; routines need building spots.
-5. Writing and missions (3 × 6): 10 of ~40 missions (chapters 1-2), choices, sneak/escape/follow, poker; no interiors yet, checkpoints are labels only.
-6. Audio (2 × 5): AudioDirector, synthesized SFX, original score and TTS voices in; real CC0 recordings pending (CI).
-7. Wildlife (2 × 9): none yet (plan: reuse the horse SDF/rig pipeline for deer, elk, wolves, coyotes, bison...).
-8. Combat (3 × 6): mechanics in place; no weapon models, hit reactions or ragdolls.
-9. Terrain/vegetation (3 × 5): good base; trees still card-y up close, no rocks/props scatter, roads need ruts.
-10. Lighting (3 × 4): solid sky/fog + cloud shadows; GI interiors untested.
-11. Open-world systems (3 × 4): law/standing/economy, shops, encounters, bounties, hunting, fishing, robberies, horse
-    care/bonding, camp, poker; no gang hideouts, train/stagecoach robberies, property, or companion activities yet.
-12. UI (2 × 4), Performance (3 × ?: first CI numbers pending), VR (2 × 6).
+Critic round 1 (2026-10-05, 2 blind critics, pack = CI tour a4d48b8 + character/horse look-dev sheets; averaged
+scores, gap = weight × (10 − score)):
+| System | A | B | avg | gap |
+|---|---|---|---|---|
+| AI and towns | 1 | 1 | 1 | 27 |
+| Combat and gunplay | 1 | 1 | 1 | 27 |
+| Open-world systems | 1 | 1 | 1 | 27 |
+| Writing and missions | 1 | 1 | 1 | 27 |
+| Animation and locomotion | 2 | 2 | 2 | 24 |
+| Performance and stability | 3 | 2 | 2.5 | 22.5 |
+| Characters and faces | 3 | 3 | 3 | 21 |
+| Horses | 3 | 3 | 3 | 21 |
+| Terrain and vegetation | 4 | 3 | 3.5 | 19.5 |
+| Lighting and atmosphere | 4 | 3 | 3.5 | 19.5 |
+| VR | 0 | 0 | 0 | 20 |
+| Wildlife / Audio / UI | 1 | 1 | 1 | 18 each |
+Reading: half the 1s are missing evidence (no town/NPC/gun/HUD/menu/wildlife/audio in the pack; non-moving bots
+print zeros in their summary line). Real visual defects both critics named: lake = opaque peach plane with a black
+horizon band; autumn billboards glow at night; storm has no darkening/wetness, rain rods and square splashes; flat
+brown horizon band at the map edge; heavy haze in the mountains; terraced "sawtooth" mesas and contour stripes on
+Kestrel slopes; white ruts + orange road smear (fixed after the round); clothing holes/beards/waxy skin; gallop
+stiffness; 2 s streaming hitch on the river ride.
+Work order from this round:
+1. Evidence pipeline: CI feature shots (HUD on foot in a populated town, gunfight + Nerve, map/journal/shop/poker
+   screens, wildlife, riding, camp at night, mission dialogue), per-bot metrics in the summary line, audio verify
+   report and voice coverage in the pack.
+2. Lake/water, night foliage, storm look, horizon backdrop beyond the map, haze, terrain stripes.
+3. Towns (settlements agent), guns (weapons agent), characters (character agent), horses + wildlife (horse agent),
+   distant trees (impostor agent), Chapter 3 + checkpoint retry (writer agent).
+4. Streaming hitches (river ride 2 s, town 0.6 s).
 
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch and

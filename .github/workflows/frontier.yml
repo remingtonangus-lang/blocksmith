@@ -183,9 +183,26 @@ jobs:
           # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
           # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
           "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
-          mkdir -p snaps/metal
-          "$GODOT" --path frontier --resolution 1280x720 -- --tour "$PWD/snaps/metal" --only bitter_spring_street --quality high --frames 20 --watchdog 300 2>&1 | tee tour_metal.log | grep -E "shot:|Using Device" || true
           ls snaps/*.png
+
+      - name: Feature shots (HUD, combat, menus, wildlife, riding, camp, dialogue)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          mkdir -p snaps/features
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
+          ls snaps/features/
+
+      - name: Audio evidence (verify report from the audio build)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p snaps/audio
+          gh release download frontier-assets --repo "$GITHUB_REPOSITORY" -p verify.log -p audio_plots.zip -D snaps/audio --clobber || true
+          if [ -f snaps/audio/audio_plots.zip ]; then (cd snaps/audio && unzip -q -o audio_plots.zip && rm audio_plots.zip); fi
+          ls -R snaps/audio | head -40
 
       - name: Export .app (arm64, ad-hoc signed)
         id: export
@@ -233,7 +250,7 @@ jobs:
           {
             echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
-            for f in *.png metal/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            for f in *.png features/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
             echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A

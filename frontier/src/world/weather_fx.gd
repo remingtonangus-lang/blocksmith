@@ -50,9 +50,13 @@ func _make_rain() -> GPUParticles3D:
 	p.local_coords = false
 	p.process_material = _box_mat(Vector3(22, 2, 22), Vector3(0.0, -16.0, 0.0), 2.0, 1.0, 1.0)
 	var q := QuadMesh.new()
-	q.size = Vector2(0.012, 0.55)
-	var mat := _unshaded(Color(0.75, 0.8, 0.9, 0.32))
+	q.size = Vector2(0.008, 0.5)
+	var mat := _unshaded(Color(0.75, 0.8, 0.9, 0.22))
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	# streaks right in front of the lens read as white rods: fade them out near the camera
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	mat.distance_fade_min_distance = 1.5
+	mat.distance_fade_max_distance = 4.0
 	q.material = mat
 	p.draw_pass_1 = q
 	p.emitting = false
@@ -71,10 +75,24 @@ func _make_splash() -> GPUParticles3D:
 	q.size = Vector2(0.05, 0.05)
 	var mat := _unshaded(Color(0.85, 0.88, 0.95, 0.35))
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = _soft_dot()          # round droplets, not squares
 	q.material = mat
 	p.draw_pass_1 = q
 	p.emitting = false
 	return p
+
+func _soft_dot() -> GradientTexture2D:
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(0.5, 0.0)
+	t.width = 32
+	t.height = 32
+	return t
 
 func _make_snow() -> GPUParticles3D:
 	var p := GPUParticles3D.new()
@@ -92,6 +110,7 @@ func _make_snow() -> GPUParticles3D:
 	q.size = Vector2(0.035, 0.035)
 	var mat := _unshaded(Color(1, 1, 1, 0.85))
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = _soft_dot()
 	q.material = mat
 	p.draw_pass_1 = q
 	p.emitting = false
@@ -112,6 +131,7 @@ func _make_dust() -> GPUParticles3D:
 	q.size = Vector2(1.0, 1.0)
 	var mat := _unshaded(Color(0.72, 0.56, 0.38, 0.07))
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = _soft_dot()
 	q.material = mat
 	p.draw_pass_1 = q
 	p.emitting = false

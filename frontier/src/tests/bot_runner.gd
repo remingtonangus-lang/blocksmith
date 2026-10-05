@@ -60,9 +60,12 @@ func run(m: Node) -> void:
 		report.bots.append(res)
 		if not res.ok:
 			report.ok = false
-		print("BOT %s: %s  dist=%.0f m  stuck=%d  falls=%d  spikes=%d  errors=%d  avg_ms=%.1f  p99_ms=%.1f" % [
-			b, "PASS" if res.ok else "FAIL", res.distance, res.stuck_events, res.fall_events, res.frame_spikes,
-			res.errors.size(), res.get("frame_avg_ms", 0.0), res.get("frame_p99_ms", 0.0)])
+		var line := "BOT %s: %s  errors=%d" % [b, "PASS" if res.ok else "FAIL", res.errors.size()]
+		if float(res.get("distance", 0.0)) > 0.0:
+			line += "  dist=%.0f m  stuck=%d  falls=%d  spikes=%d  avg_ms=%.1f  p99_ms=%.1f" % [res.distance, res.stuck_events,
+				res.fall_events, res.frame_spikes, res.get("frame_avg_ms", 0.0), res.get("frame_p99_ms", 0.0)]
+		line += _metrics(res)
+		print(line)
 		for f in res.failures:
 			print("  oracle: ", f)
 	var path := str(Game.args.get("report", "user://bot_report.json"))
@@ -421,3 +424,23 @@ func _memory() -> Dictionary:
 		if outp.size() > 0:
 			m.rss_mb = float(str(outp[0]).strip_edges()) / 1024.0
 	return m
+
+## What each bot actually exercised, for the summary line (critics read these; zeros must mean something).
+static func _metrics(res: Dictionary) -> String:
+	var out := ""
+	for k in ["enemies", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
+			"npcs", "npc_minutes", "pelt_quality", "kills", "skinned", "lines_said", "stances", "slide_cm"]:
+		if res.has(k):
+			var v = res[k]
+			out += ("  %s=%.1f" % [k, v]) if typeof(v) == TYPE_FLOAT else ("  %s=%s" % [k, str(v)])
+	if res.has("completed"):
+		out += "  missions=%d" % res.completed.size()
+	if res.has("choices"):
+		out += "  choices=%d" % res.choices.size()
+	if res.has("checks"):
+		var parts: PackedStringArray = []
+		for k in res.checks.keys():
+			var v = res.checks[k]
+			parts.append("%s:%s" % [k, str(v.size()) if typeof(v) in [TYPE_ARRAY, TYPE_DICTIONARY] else str(v)])
+		out += "  checks=[%s]" % ", ".join(parts)
+	return out

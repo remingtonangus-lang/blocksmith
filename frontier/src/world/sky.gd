@@ -306,8 +306,12 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	env.fog_light_color = fogc
 	env.fog_light_energy = 1.0
 	env.fog_density = 0.00008 + cover * 0.00006 + fog * 0.004 + rain * 0.0012 + dust * 0.003
-	env.fog_height_density = 0.0012 + fog * 0.02
-	env.volumetric_fog_density = 0.002 + fog * 0.03 + rain * 0.006 + dust * 0.02 + _valley_mist() * 0.012
+	# valley mist lives in the height fog (pools low, leaves the ridges clear); volumetric fog carries weather
+	env.fog_height_density = 0.0008 + fog * 0.02 + _valley_mist() * 0.008
+	env.volumetric_fog_density = 0.0015 + fog * 0.03 + rain * 0.006 + dust * 0.02 + _valley_mist() * 0.003
+	env.volumetric_fog_length = 220.0 + fog * 380.0
+	# storms read dark: hold exposure down instead of letting auto exposure lift the gloom back to daylight
+	cam_attr.auto_exposure_scale = 0.62 * (1.0 - dark * 0.5) * (1.0 - fog * 0.15)
 	env.volumetric_fog_albedo = Color(0.9, 0.9, 0.92).lerp(Color(0.85, 0.7, 0.5), dust)
 	env.glow_intensity = 0.3 + night * 0.25
 

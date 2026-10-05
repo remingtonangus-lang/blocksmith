@@ -111,6 +111,11 @@ func _ready() -> void:
 	if Game.args.has("weather"):
 		sky.set_weather(SkySystem.Weather.get(str(Game.args["weather"]).to_upper(), SkySystem.Weather.FAIR), true)
 	Game.world_ready.emit()
+	if Game.args.has("features"):
+		var fs = load("res://src/tests/feature_shots.gd").new()
+		add_child(fs)
+		fs.run.call_deferred(self)
+		return
 	if Game.args.has("shot") or Game.args.has("tour"):
 		var shots = load("res://src/tests/shots.gd").new()
 		add_child(shots)

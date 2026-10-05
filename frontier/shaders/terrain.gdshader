@@ -36,7 +36,7 @@ const int L_SNOW = 11;
 const int L_PEBBLES = 12;
 
 // metres per texture repeat for each layer
-const float TILE[13] = float[](3.0, 3.5, 3.0, 3.0, 4.0, 3.0, 3.0, 4.0, 4.0, 9.0, 10.0, 6.0, 2.5);
+const float TILE[13] = float[](3.0, 3.5, 3.0, 3.0, 4.0, 3.0, 3.0, 4.0, 4.0, 14.0, 12.0, 6.0, 2.5);
 
 varying vec3 v_world;
 varying float v_skirt;
@@ -86,8 +86,10 @@ Mat sample_layer(int L, vec2 xz, float dist) {
 // Steep faces: project the layer on the two vertical planes (biplanar) to avoid stretching.
 Mat sample_cliff(int L, vec3 p, vec3 n, float dist) {
 	float s = 1.0 / TILE[L];
-	vec2 uvx = p.zy * s;
-	vec2 uvz = p.xy * s;
+	// warp the vertical coordinate so the texture's strata don't repeat as contour stripes across whole slopes
+	float warp = fbm2(p.xz * 0.013) * 2.5 + vnoise(p.xz * 0.07) * 0.6;
+	vec2 uvx = vec2(p.z * s, p.y * s * 0.8 + warp);
+	vec2 uvz = vec2(p.x * s, p.y * s * 0.8 + warp + 0.37);
 	vec2 uvy = p.xz * s;
 	vec3 w = pow(abs(n), vec3(4.0));
 	w /= (w.x + w.y + w.z);
@@ -182,6 +184,9 @@ void fragment() {
 	float rock_w = smoothstep(0.24, 0.42, slope + n2 * 0.08);
 	if (rock_w > 0.002) {
 		Mat r = sample_cliff(desert_w > 0.5 ? L_RED_ROCK : L_ROCK, p, n, dist);
+		// mountain rock away from the desert is grey-brown granite and schist, not red sandstone
+		float lum_r = dot(r.albedo, vec3(0.3, 0.55, 0.15));
+		r.albedo = mix(r.albedo, vec3(lum_r) * vec3(1.02, 0.99, 0.94), (1.0 - desert_w) * 0.6);
 		mix_in(m, r, rock_w);
 	}
 	// --- snow above the snow line (patchy), less on steep faces; weather adds cover

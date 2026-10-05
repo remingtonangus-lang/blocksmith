@@ -11,7 +11,8 @@ const TOUR := [
 	["kestrel_range", -1400, -900, 25, -30, 6, 8.0, "clear"],
 	["ocotillo_mesas", -2200, 1900, 30, 200, -4, 17.6, "clear"],
 	["plains_noon", 500, 1500, 2.0, 60, 0, 12.5, "fair"],
-	["lake_agnes", 2700, 300, 12, 90, -3, 7.0, "fog"],
+	["lake_agnes", 2700, 300, 12, 90, -3, 8.5, "fair"],
+	["river_fog_morning", -300, -300, 6.0, 160, -2, 6.6, "fog"],
 	["night_town", "town:bitter_spring", 0, 1.7, 290, 2, 22.5, "clear"],
 	["storm_plains", 200, 900, 2.0, 30, 2, 15.0, "storm"],
 ]

@@ -20,9 +20,16 @@ func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 		material.set_shader_parameter("tex_ah", terrain_mat.get_shader_parameter("tex_ah"))
 		material.set_shader_parameter("tex_nr", terrain_mat.get_shader_parameter("tex_nr"))
 	material.set_shader_parameter("fade_end", VIS_END)
-	var tiles := {}                # Vector2i -> SurfaceTool
+	# geometry on a worker thread (heightmap sampling for ~100k vertices); meshes are made on the main thread
+	var roads: Array = world.features.get("roads", []).duplicate(true)
+	WorkerThreadPool.add_task(func():
+		var tiles := _build_arrays(world, roads)
+		_add_meshes.call_deferred(tiles), false, "road ribbons")
+
+func _build_arrays(world: WorldData, roads: Array) -> Dictionary:
+	var tiles := {}                # Vector2i -> [verts, uvs, colours]
 	var along_total := 0.0
-	for r in world.features.get("roads", []):
+	for r in roads:
 		var pts := PackedVector2Array()
 		for p in r.points:
 			pts.append(Vector2(p[0], p[1]))
@@ -35,41 +42,51 @@ func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 			var t: Vector2 = (samples[mini(i + 1, samples.size() - 1)] - samples[maxi(i - 1, 0)]).normalized()
 			var side := Vector2(-t.y, t.x)
 			var ring: Array = []
+			if i > 0:
+				along_total += STEP
 			for k in ACROSS:
 				var u := float(k) / float(ACROSS - 1)
 				var q := c + side * (u * 2.0 - 1.0) * HALF_W
 				var h := world.height(q.x, q.y)
 				var wet := 1.0 if world.is_water(q.x, q.y) else 0.0
-				ring.append([Vector3(q.x, h + 0.02, q.y), u, wet, side])
-			along_total += STEP if i > 0 else 0.0
-			for e in ring:
-				e.append(along_total)        # e = [pos, u, wet, side, along]
+				ring.append([Vector3(q.x, h + 0.02, q.y), u, wet, side, along_total])   # pos, u, wet, side, along
 			var tk := Vector2i(floori(c.x / TILE), floori(c.y / TILE))
 			if not prev_l.is_empty():
 				if not tiles.has(tk):
-					var st := SurfaceTool.new()
-					st.begin(Mesh.PRIMITIVE_TRIANGLES)
-					tiles[tk] = st
+					tiles[tk] = [[], [], []]   # plain arrays: packed arrays read out of an Array are copies
 				_quad_strip(tiles[tk], prev_l, ring)
 			prev_l = ring
+	return tiles
+
+func _add_meshes(tiles: Dictionary) -> void:
 	for tk in tiles.keys():
-		var st: SurfaceTool = tiles[tk]
-		st.generate_normals()
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		var v := PackedVector3Array(tiles[tk][0])
+		var n := PackedVector3Array()
+		n.resize(v.size())
+		n.fill(Vector3.UP)
+		arr[Mesh.ARRAY_VERTEX] = v
+		arr[Mesh.ARRAY_NORMAL] = n
+		arr[Mesh.ARRAY_TEX_UV] = PackedVector2Array(tiles[tk][1])
+		arr[Mesh.ARRAY_COLOR] = PackedColorArray(tiles[tk][2])
+		var am := ArrayMesh.new()
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 		var mi := MeshInstance3D.new()
-		mi.mesh = st.commit()
+		mi.mesh = am
 		mi.material_override = material
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.visibility_range_end = VIS_END + TILE * 0.7
 		mi.name = "Road_%d_%d" % [tk.x, tk.y]
 		add_child(mi)
+	print("roads: %d ribbon tiles" % tiles.size())
 
-func _quad_strip(st: SurfaceTool, a: Array, b: Array) -> void:
+func _quad_strip(t: Array, a: Array, b: Array) -> void:
 	for k in ACROSS - 1:
-		var quad := [a[k], b[k], b[k + 1], a[k], b[k + 1], a[k + 1]]
-		for e in quad:
-			st.set_uv(Vector2(e[1], e[4]))
-			st.set_color(Color(e[2], e[3].x * 0.5 + 0.5, e[3].y * 0.5 + 0.5))
-			st.add_vertex(e[0])
+		for e in [a[k], b[k], b[k + 1], a[k], b[k + 1], a[k + 1]]:
+			t[0].append(e[0])
+			t[1].append(Vector2(e[1], e[4]))
+			t[2].append(Color(e[2], e[3].x * 0.5 + 0.5, e[3].y * 0.5 + 0.5))
 
 static func _resample(pts: PackedVector2Array, step: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
