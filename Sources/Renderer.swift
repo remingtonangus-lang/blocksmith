@@ -2148,6 +2148,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(x, y, 16 * s, 18 * s, i == sc.selected ? V4(0.55, 0.75, 0.55, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1)))
                     itemIcon(ItemStack(opt.0, opt.1), x, y + s, 16 * s)
                 }
+                if sc.pages > 1, sc.slots.count > 13 {
+                    let sl = sc.slots[13]
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    rect(x, y, 10 * s, 16 * s, game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1))
+                    text(">", x + 2 * s, y + 4 * s, s, V4(0.15, 0.15, 0.15, 1), shadow: false)
+                    text("\(sc.page + 1)/\(sc.pages)", x - 2 * s, y + 18 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
+                }
             }
             if m is SmithingMenu || m is GrindstoneMenu {
                 rect(o.x + (m is SmithingMenu ? 68 : 94) * s, o.y + (m is SmithingMenu ? 50 : 36) * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))

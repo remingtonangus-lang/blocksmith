@@ -112,7 +112,10 @@ enum Stonecutting {
 final class StonecutterMenu: Menu {
     let input = ItemContainer(1)
     let out = ItemContainer(1)
-    var options: [(ItemID, Int)] = []
+    var options: [(ItemID, Int)] = []          // the page on show (12)
+    var all: [(ItemID, Int)] = []              // every cut of the input (deeprock has more than 12: they were cut off)
+    var page = 0
+    var pages: Int { max(1, (all.count + 11) / 12) }
     var selected = -1
     init(game: Game) {
         super.init("Stonecutter", game: game)
@@ -122,10 +125,14 @@ final class StonecutterMenu: Menu {
             b.w = 14; b.h = 16
             slots.append(b)
         }
+        let more = MenuSlot(120, 51, nil, 0, .button(12))         // next page (drawn only when there is one)
+        more.w = 10; more.h = 16
+        slots.append(more)
         slots.append(MenuSlot(143, 33, out, 0, .result))
         addPlayerInventory()
     }
     override func buttonPressed(_ i: Int) {
+        if i == 12 { if pages > 1 { page = (page + 1) % pages; selected = -1; changed() }; return }
         guard i < options.count else { return }
         selected = i
         changed()
@@ -133,8 +140,9 @@ final class StonecutterMenu: Menu {
     override func changed() {
         let s = input[0]
         let opts = s.isEmpty ? [] : (Stonecutting.recipes[s.item] ?? [])
-        if opts.map({ $0.0 }) != options.map({ $0.0 }) { selected = -1 }
-        options = Array(opts.prefix(12))
+        if opts.map({ $0.0 }) != all.map({ $0.0 }) { selected = -1; page = 0 }
+        all = opts
+        options = Array(all.dropFirst(page * 12).prefix(12))
         out[0] = selected >= 0 && selected < options.count && !s.isEmpty ? ItemStack(options[selected].0, options[selected].1) : .empty
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
