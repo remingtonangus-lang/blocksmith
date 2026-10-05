@@ -1540,9 +1540,10 @@ final class Game {
     // Monster spawners: active with a player within 16 blocks; every 10-40 s up to 4 mobs of the
     // spawner's kind appear within ±4 blocks, unless 6 of that kind are already near.
     func spawnerTick(_ dt: Float) {
-        let pp = player.pos
         for (p, be) in world.blockEntities where be.kind == .spawner {
             let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+            // The nearest player wakes it (split screen: player 2's dungeon spawners stayed asleep).
+            let pp = coop.active ? coop.seatPlayer(coop.nearestSeat(c, self), self).pos : player.pos
             guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob) else { continue }
             if be.trial {
                 // Trial spawner: six mobs (two at a time) for a nearby player, then a reward and a 30-minute rest.

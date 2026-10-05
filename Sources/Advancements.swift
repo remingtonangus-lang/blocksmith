@@ -146,6 +146,11 @@ extension Game {
     func advancementTick() {
         guard clock - lastAdvCheck >= 1 else { return }
         lastAdvCheck = clock
+        // What every player holds, wears, rides and stands in counts (split screen: player 2's progress was ignored).
+        coop.eachSeat(self) { self.advancementCheck() }
+    }
+
+    private func advancementCheck() {
         var have = Set<String>()
         for s in inventory.main.slots + inventory.armor.slots + inventory.offhand.slots where !s.isEmpty { have.insert(Items.key(s.item)) }
         for a in Advancements.all where !advancements.contains(a.id) {
