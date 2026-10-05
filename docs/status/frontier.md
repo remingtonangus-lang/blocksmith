@@ -74,6 +74,9 @@ runner, Metal) and the Mac monitor.
 - **Missions**: MissionDirector (goto/say/spawn/wait_dead/interact/checkpoint, markers, autopilot, softlock oracle);
   Chapter 1 complete (5 missions: Rider from the West, The Drover, Inquiries, Greer's Post, A Fire at Willow Bend)
   with original dialogue (design/dialogue/ch1.json); letterboxed cinematic dialogue camera.
+- **Chapter 2 "Paper and Iron"** (`src/missions/ch2/`, `design/dialogue/ch2.json`): 5 missions; director verbs choose
+  (bots: `--choices 0,1,0`), follow, sneak_to, escape, paper, minigame, post_bounty; five-card-draw poker with a
+  catchable stacked deck (`src/minigames/`, self-test `--pokertest`).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
@@ -102,7 +105,6 @@ runner, Metal) and the Mac monitor.
 ## In flight (parallel worktree agents; merged here when they report)
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
 - Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
-- Chapter 2 "Paper and Iron": 5 missions, dialogue choices, follow verb, poker minigame.
 
 ## Ranked gaps
 (Provisional self-assessment until the first blind critic round; gap = weight × (10 − score).)
@@ -110,7 +112,7 @@ runner, Metal) and the Mac monitor.
 2. Horses (3 × 5): procedural horse with gaits (oracle-checked footfalls), riding, IK, care, bonding; close-up anatomy, hair physics and rider animation missing.
 3. Animation and locomotion (3 × 9): no skeletal animation yet.
 4. AI and towns (3 × 7): towns are empty discs until the settlement kit lands; routines need building spots.
-5. Writing and missions (3 × 7): 2 of ~40 missions; no cinematics/camera direction.
+5. Writing and missions (3 × 6): 10 of ~40 missions (chapters 1-2), choices, sneak/escape/follow, poker; no interiors yet, checkpoints are labels only.
 6. Audio (2 × 5): AudioDirector, synthesized SFX, original score and TTS voices in; real CC0 recordings pending (CI).
 7. Wildlife (2 × 9): none yet (plan: reuse the horse SDF/rig pipeline for deer, elk, wolves, coyotes, bison...).
 8. Combat (3 × 6): mechanics in place; no weapon models, hit reactions or ragdolls.
