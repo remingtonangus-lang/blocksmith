@@ -1976,7 +1976,9 @@ final class Game {
         composterTick()
         musicTick(Float(dt))
         audioAmbientTick(Float(dt))
-        siegeTick()
+        // Village sieges, patrols and wandering traders come for a random player (split screen: only ever round player 1).
+        let spawnSeat = coop.active ? Rand.int(in: 0..<coop.seatCount) : 0
+        coop.withSeat(spawnSeat, self) { self.siegeTick() }
         basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
         ashenTick(Float(dt))
         advancementTick()
@@ -1984,7 +1986,13 @@ final class Game {
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
         // (blockSecondTick per player: campfire contact, Frost Walker, conduit power and shriekers reached only player 1.)
-        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); coop.eachSeat(self) { self.blockSecondTick() }; raidTimer = 0 }
+        if raidTimer >= 1 {
+            raidTick(raidTimer)
+            let rt = raidTimer
+            coop.withSeat(spawnSeat, self) { self.patrolTick(rt) }
+            coop.eachSeat(self) { self.blockSecondTick() }
+            raidTimer = 0
+        }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
                 guard let k0 = MobKind.named(name) else { continue }

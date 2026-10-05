@@ -140,7 +140,11 @@ extension Game {
                 SpecialSpawners.traderDelay = 1200
                 let chance = SpecialSpawners.traderChance
                 SpecialSpawners.traderChance = min(75, max(25, chance + 25))
-                if Rand.int(in: 0..<100) <= chance && Rand.int(in: 0..<10) == 0 && spawnWanderingTrader() { SpecialSpawners.traderChance = 25 }
+                if Rand.int(in: 0..<100) <= chance && Rand.int(in: 0..<10) == 0 {
+                    var spawned = false
+                    coop.withSeat(coop.active ? Rand.int(in: 0..<coop.seatCount) : 0, self) { spawned = self.spawnWanderingTrader() }   // any player
+                    if spawned { SpecialSpawners.traderChance = 25 }
+                }
             }
         }
         SpecialSpawners.catTimer -= dt
