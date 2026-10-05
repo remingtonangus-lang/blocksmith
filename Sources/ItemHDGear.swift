@@ -428,6 +428,7 @@ extension ItemHD {
         "item_potion_bottle": ("potion", false), "item_splash_bottle": ("splash", false), "item_lingering_bottle": ("lingering", false),
         "item_potion_liquid": ("potion", true), "item_spawn_egg": ("egg", false), "item_spawn_egg_shell": ("egg", true),
         "item_tipped_arrow": ("arrow", false), "item_tipped_arrow_head": ("arrow", true),
+        "item_harness": ("harness", false), "item_harness_band": ("harness", true),
     ]
 
     static func pairCanvas(_ key: String, _ n: Int) -> Canvas {
@@ -456,6 +457,21 @@ extension ItemHD {
             // Spots: pale with a dark seam, so they read on every shell colour (critic: dark dots vanished on dark eggs).
             for (c, r) in [(V2(0.42, 0.36), Float(0.05)), (V2(0.63, 0.5), 0.058), (V2(0.42, 0.66), 0.045), (V2(0.63, 0.74), 0.04), (V2(0.32, 0.52), 0.035)] {
                 cv.add(Canvas.intersect(cv.circle(c, r), Canvas.offset(d, 0.03)), ys, M("soft", 0xE6DCC8), r: 0.035)
+            }
+        case "harness":
+            // A riding harness for a Cloudwailer: a padded cloth saddle (tinted per colour), leather straps with
+            // buckles, and a pair of flying goggles on top (critic: the pixel version read as a box).
+            let pad = smin(ellipse(cv, V2(0.5, 0.6), 0.36, 0.22), rect(cv, 0.2, 0.5, 0.8, 0.78), 0.06)
+            cv.add(pad, xs, "tint", r: 0.12)
+            let leather = M("leather", 0x5A3A22)
+            for x: Float in [0.3, 0.7] {
+                cv.add(Canvas.intersect(cap(cv, V2(x, 0.38), V2(x, 0.86), 0.035), Canvas.offset(pad, 0.06)), ys, leather, r: 0.03)
+                cv.add(rect(cv, x - 0.05, 0.72, x + 0.05, 0.8), ys, "iron", r: 0.02)
+            }
+            cv.add(cap(cv, V2(0.22, 0.28), V2(0.78, 0.28), 0.03), xs, leather, r: 0.03)
+            for x: Float in [0.36, 0.64] {
+                cv.add(cv.circle(V2(x, 0.27), 0.1), ys, "iron", r: 0.06)
+                cv.add(cv.circle(V2(x, 0.27), 0.07), ys, "glass", r: 0.05)
             }
         default:
             arrow(cv, xs, head: "tint")
