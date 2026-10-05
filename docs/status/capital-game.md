@@ -98,6 +98,24 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 04:20: M7 continued.
+  - Pad bridge: rewritten in Objective-C after Swift's IOUSBHost names did not match; it now compiles on the
+    macOS runner, ships as `Alabaster.app/Contents/MacOS/padbridge`, and the game starts it when no pad is
+    seen (game.log: "pad bridge started").
+  - Trees: cells within 140 m of the camera keep full-detail meshes and per-cell culling. Further out, the
+    coarse tree build is merged into 3x3-cell super-cells and casts shadows through ~20-triangle proxies.
+    Forest view (lavapipe, High): 1412 draws / 9.3 M primitives before; 663 / 6.8 M after.
+    CI Mac (c3a918d): city 33.1, battle 31.4, forest 35.2 fps; this paravirtual GPU varies by about 15 %
+    between runs.
+  - Rivers hung in the air: up to 230 m at the main river's source, and the "dark slab" in river_valley was a
+    floating river sheet. The surface is now computed after all carving, from the carved channel (GEN_VERSION
+    11; a new test checks no point floats), and the bed fills the base terrain's narrow ravines under the water.
+  - Fog weather turned the horizon black and gold: single scattering extinguished horizontal rays (a sky-only
+    render read RGB 3,1,0). The sky shader now blends toward a pale multiple-scattering colour in heavy haze.
+  - Found while hunting: the bisecting aids SHOT_HIDE, SHOT_PROBE, SHOT_HOUR, SHOT_WEATHER and
+    `--drawreport` (see the code).
+  Open: cloud raymarch grain on High (per-pixel jitter, no TAA); the river is too bright and cyan in fog;
+  Front Track runs 18 m under the ground at one point; the weapon's left glove reads as a floating blob.
 - 2026-10-05 02:20: GAME BUILD READY 6cc8be3 (release capital-latest). M6 complete: weapons (1-4, R, G, V, RMB aim),
   collapsing towers, burning vehicle wrecks, visible explosions/smoke/dust, synthesized audio. The benchmark now
   runs on the Mac: CI's macOS runner (paravirtual GPU, High, 1024x656) completed all three segments and wrote
