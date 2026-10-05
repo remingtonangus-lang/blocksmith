@@ -899,7 +899,7 @@ extension ShipManager {
     }
 
     private func targetValid(_ t: CapTarget, _ g: Game) -> Bool {
-        if t.player { return g.alive && g.difficulty > 0 }
+        if t.player { return g.alive && g.survival && g.difficulty > 0 }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
         if let m = t.mob { return m.health > 0 }
         return false
@@ -911,7 +911,7 @@ extension ShipManager {
         else if let m = t.mob { t.point = m.pos + V3(0, m.height * 0.5, 0); t.vel = m.vel }
     }
 
-    // The player (unless aboard or on Peaceful) or the nearest enemy-faction target, within sight; the current one is
+    // The player (in survival, unless aboard or on Peaceful) or the nearest enemy-faction target, within sight; the current one is
     // kept unless something is much closer.
     private func pickTarget(_ s: Ship, _ st: CapitalState, _ g: Game) -> CapTarget? {
         let c = s.pos
@@ -928,7 +928,8 @@ extension ShipManager {
         // its whole leash. Roaming encounter frigates hunt as before.
         let stationed = s.role == "capfrigate" && (st.region?.hasPrefix("citadel") ?? false)
         let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(g.player.pos.x - $0.x, g.player.pos.z - $0.z)) < 96 } ?? true
-        if g.alive && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
+        // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget).
+        if g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
             let d = boundsDistance(s, g.player.pos)
             if d < bd { bd = d; best = CapTarget(point: g.player.pos + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true) }
         }

@@ -143,8 +143,16 @@ enum BaseTests {
             check(crewed != nil, "crews man the turrets", String(format: "after %.0f s", crewed ?? -1))
             let flying = sim(20) { w.ships.capitals.contains { $0.role == "dropship" && $0.faction == Faction.steelhold.rawValue } }
             check(flying != nil, "a Capital dropship is called")
-            let landed = sim(120) { onFoot() >= soldiersBefore + 3 }
-            check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s", landed ?? -1))
+            // The troops the dropships put down (CapitalState.troops), standing on the ground.
+            func landedTroops() -> Int {
+                w.ships.capitals.filter { $0.role == "dropship" }.reduce(0) { n, d in
+                    n + (w.ships.capState[d.id]?.troops.filter { $0.health > 0 && $0.deck == nil && $0.onGround }.count ?? 0)
+                }
+            }
+            let landed = sim(120) { landedTroops() >= 3 }
+            _ = soldiersBefore
+            check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s, %d troops down, %d on foot round the plaza (%d before)",
+                                                                             landed ?? -1, landedTroops(), onFoot(), soldiersBefore))
             if shotOnly {
                 let ds = w.ships.capitals.first { $0.role == "dropship" }?.pos ?? rec().plaza
                 look(at: ds, from: rec().plaza + V3(-14, 3, 16))
