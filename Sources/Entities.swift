@@ -235,6 +235,7 @@ final class ItemEntityManager {
                     wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
+                    var drawn = false
                     if modelled[idx] && ItemModels.has(layer) {
                         // The face toward the viewer, rocking gently through +-50 degrees (a full spin showed every item
                         // edge-on, a thin line, half the time), leaned back 18 degrees so the top catches the light. Tools
@@ -253,9 +254,11 @@ final class ItemEntityManager {
                         let ax = (tool ? (rt - upv) * r2 : rt) * s, ay = (tool ? (rt + upv) * r2 : upv) * s, az = fwd * s
                         let full = simd_length_squared(c) < 12 * 12
                         let lift: Float = tool ? 0.07 : 0.1
-                        ItemModels.write(&wr, layer: layer, o: c + off + V3(0, lift, 0), ax: ax, ay: ay, az: az, light: light,
-                                         glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
-                    } else {
+                        drawn = ItemModels.write(&wr, layer: layer, o: c + off + V3(0, lift, 0), ax: ax, ay: ay, az: az, light: light,
+                                                 glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
+                    }
+                    if !drawn {
+                        // Far away, or the model still being built (ItemModels.quads).
                         wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
                     }
                 }

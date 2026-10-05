@@ -61,15 +61,47 @@ enum ItemModels {
         return masks[layer] != nil
     }
 
+    // The model, or nil while it is still being built: the first sight of an item starts its build on a background
+    // queue (about a millisecond each; a chest's worth of new drops built on the render thread was a visible hitch) and
+    // callers draw the flat sprite until it is ready.
+    private static var building = Set<Int>()
+    private static let queue = DispatchQueue(label: "item-models", qos: .userInitiated)
+    static var synchronous = false              // harness shots: build on the spot so the first frame has the models
+
     static func quads(_ layer: Int) -> [Quad]? {
         lock.lock()
         if let q = meshes[layer] { lock.unlock(); return q }
-        let m = masks[layer]
+        guard let mask = masks[layer] else { lock.unlock(); return nil }
+        if synchronous {
+            lock.unlock()
+            let q = build(mask)
+            lock.lock(); meshes[layer] = q; lock.unlock()
+            return q
+        }
+        if !building.contains(layer) {
+            building.insert(layer)
+            queue.async {
+                let q = build(mask)
+                lock.lock(); meshes[layer] = q; building.remove(layer); lock.unlock()
+            }
+        }
         lock.unlock()
-        guard let mask = m else { return nil }
-        let q = build(mask)
-        lock.lock(); meshes[layer] = q; lock.unlock()
-        return q
+        return nil
+    }
+
+    // Harness (--itemcheck): builds every captured model once, timed: (models, mean ms, worst ms, mean quads, most
+    // quads, bytes if all were kept).
+    static func measure() -> (Int, Double, Double, Double, Int, Int) {
+        lock.lock(); let all = masks; lock.unlock()
+        var total = 0.0, worst = 0.0, quads = 0, most = 0
+        for (_, m) in all {
+            let t0 = Date()
+            let q = build(m)
+            let ms = Date().timeIntervalSince(t0) * 1000
+            total += ms; worst = max(worst, ms); quads += q.count; most = max(most, q.count)
+        }
+        let n = max(1, all.count)
+        return (all.count, total / Double(n), worst, Double(quads) / Double(n), most, quads * MemoryLayout<Quad>.stride)
     }
 
     // Local space: the icon in the XY plane, x right and y up, centred, 1 x 1; z toward the icon's front.
@@ -112,21 +144,26 @@ enum ItemModels {
         // Marching squares over the cells between grid points (-1...G), crossings interpolated at alpha 0.5; the
         // segments are then chained into contours and simplified (Douglas-Peucker, 0.3 cells) into fewer walls.
         var segs: [(V2, V2)] = []
+        // (Fixed-size tuples per cell, no arrays: 4,225 cells per model.)
         for j in -1..<G { for i in -1..<G {
-            let c = [a(i, j), a(i + 1, j), a(i + 1, j + 1), a(i, j + 1)]
-            let ins = c.map { $0 >= 0.5 }
-            if ins.allSatisfy({ $0 }) || !ins.contains(true) { continue }
-            let corner = [V2(Float(i), Float(j)), V2(Float(i + 1), Float(j)), V2(Float(i + 1), Float(j + 1)), V2(Float(i), Float(j + 1))]
-            var pts: [V2] = []
+            let c = SIMD4<Float>(a(i, j), a(i + 1, j), a(i + 1, j + 1), a(i, j + 1))
+            let ins = c .>= SIMD4<Float>(repeating: 0.5)
+            if all(ins) || !any(ins) { continue }
+            let fi = Float(i), fj = Float(j)
+            let cx = SIMD4<Float>(fi, fi + 1, fi + 1, fi), cy = SIMD4<Float>(fj, fj, fj + 1, fj + 1)
+            var pts = (V2(0, 0), V2(0, 0), V2(0, 0), V2(0, 0))
+            var np = 0
             for e in 0..<4 {
-                let k = (e + 1) % 4
+                let k = (e + 1) & 3
                 if ins[e] != ins[k] {
                     let t = simd_clamp((0.5 - c[e]) / (c[k] - c[e]), 0, 1)
-                    pts.append(corner[e] + (corner[k] - corner[e]) * t)
+                    let p = V2(cx[e] + (cx[k] - cx[e]) * t, cy[e] + (cy[k] - cy[e]) * t)
+                    switch np { case 0: pts.0 = p; case 1: pts.1 = p; case 2: pts.2 = p; default: pts.3 = p }
+                    np += 1
                 }
             }
-            if pts.count == 2 { segs.append((pts[0], pts[1])) }
-            else if pts.count == 4 { segs.append((pts[0], pts[1])); segs.append((pts[2], pts[3])) }
+            if np >= 2 { segs.append((pts.0, pts.1)) }
+            if np == 4 { segs.append((pts.2, pts.3)) }
         } }
         func key(_ p: V2) -> Int64 { Int64((p.x * 1000).rounded()) * 1_000_003 + Int64((p.y * 1000).rounded()) }
         var ends: [Int64: [Int]] = [:]

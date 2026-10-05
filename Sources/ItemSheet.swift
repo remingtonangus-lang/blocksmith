@@ -75,6 +75,15 @@ extension ItemSheet {
         let ms = Date().timeIntervalSince(t0) * 1000
         print(String(format: "itemcheck: %ld layers, %ld vector, %ld pixel-art fallback, %ld fail; vector generation %.0f ms total (%.2f ms each, one core)",
                      names.count, vector, fallback, fails, ms, ms / Double(max(1, vector))))
+        // 3D models (ItemModels.swift): build cost (background queue in play) and size. The first-person buffer holds
+        // Renderer.heldVertCap vertices: a model and its overlay at 6 per quad must fit.
+        let (models, mean, worst, avgQ, mostQ, bytes) = ItemModels.measure()
+        print(String(format: "itemcheck: %ld item models, build %.2f ms mean, %.2f worst; %.0f quads mean, %ld most; %.1f MB if every model is kept",
+                     models, mean, worst, avgQ, mostQ, Double(bytes) / 1_048_576))
+        if mostQ * 12 > Renderer.heldVertCap {
+            fails += 1
+            print("itemcheck FAIL: a model of \(mostQ) quads overflows the held-item buffer (\(Renderer.heldVertCap) vertices)")
+        }
         return fails
     }
 }

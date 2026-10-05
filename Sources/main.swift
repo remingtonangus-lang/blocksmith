@@ -1729,6 +1729,7 @@ if let out = arg("--atlas") {
 
 if let out = arg("--snapshot") {
     HudExtras.enabled = CommandLine.arguments.contains("--hints")
+    ItemModels.synchronous = true           // one-frame shots: item models built on the spot, not in the background
     let code = Snapshot.run(out)
     PrefsSandbox.end()
     exit(PadTest.failures > 0 ? 3 : code)
