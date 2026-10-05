@@ -13,6 +13,12 @@ var times := PackedFloat32Array()
 var gpu_sum := 0.0
 var draws_sum := 0.0
 var prims_sum := 0.0
+# CPU split (GPU time reads 0 on the CI Mac's Metal; frame time minus these says how GPU-bound a segment is):
+# every script _process of the frame, timed between a marker node that runs first and this node, which runs
+# last (Performance's TIME_* monitors came back in inconsistent units), and the renderer's own CPU time.
+var proc_sum := 0.0
+var rcpu_sum := 0.0
+var _mark: Node
 var results: Array = []
 var timed_out := false
 var peak_static := 0.0
@@ -38,6 +44,10 @@ func start(segs: Array) -> void:
 	cam.make_current()
 	G.cam = cam
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	process_priority = 100000
+	_mark = _FrameMark.new()
+	_mark.process_priority = -100000
+	G.main.add_child(_mark)
 	started_ms = Time.get_ticks_msec()
 	# Watchdog: every segment's time plus warm-up and a generous margin for shader compiles and streaming.
 	var total := 0.0
@@ -63,6 +73,7 @@ func _next() -> void:
 	warm = 0.0
 	times = PackedFloat32Array()
 	gpu_sum = 0.0; draws_sum = 0.0; prims_sum = 0.0
+	proc_sum = 0.0; rcpu_sum = 0.0
 	if s.has("setup"):
 		(s["setup"] as Callable).call()
 	_place(0.0)
@@ -121,8 +132,8 @@ func _process(delta: float) -> void:
 	times.append(delta * 1000.0)
 	var rid := get_viewport().get_viewport_rid()
 	gpu_sum += RenderingServer.viewport_get_measured_render_time_gpu(rid)
-	draws_sum += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
-	prims_sum += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+	rcpu_sum += RenderingServer.viewport_get_measured_render_time_cpu(rid)
+	proc_sum += (Time.get_ticks_usec() - int(_mark.get_meta("t0", Time.get_ticks_usec()))) / 1000.0
 	t += delta
 	var dur: float = s["duration"]
 	_place(t / dur)
@@ -153,11 +164,13 @@ func _finish_segment() -> void:
 			"max": snappedf(_pct(sorted, 1.0), 0.01)},
 		"low1_fps": snappedf(1000.0 / maxf(0.001, _pct(sorted, 0.99)), 0.1),
 		"gpu_ms_avg": snappedf(gpu_sum / n, 0.01),
+		"scripts_ms_avg": snappedf(proc_sum / n, 0.01), "render_cpu_ms_avg": snappedf(rcpu_sum / n, 0.01),
 		"draw_calls_avg": int(draws_sum / n), "primitives_avg": int(prims_sum / n),
 	}
 	results.append(r)
-	G.log_line("benchmark %s: %.1f fps avg, p50 %.2f ms, p99 %.2f ms, gpu %.2f ms, draws %d" % [r["name"],
-		r["avg_fps"], r["frame_ms"]["p50"], r["frame_ms"]["p99"], r["gpu_ms_avg"], r["draw_calls_avg"]])
+	G.log_line("benchmark %s: %.1f fps avg, p50 %.2f ms, p99 %.2f ms, gpu %.2f ms, scripts %.2f ms, render cpu %.2f ms, draws %d" % [r["name"],
+		r["avg_fps"], r["frame_ms"]["p50"], r["frame_ms"]["p99"], r["gpu_ms_avg"], r["scripts_ms_avg"],
+		r["render_cpu_ms_avg"], r["draw_calls_avg"]])
 
 
 func _write() -> void:
@@ -205,3 +218,9 @@ func _rss_mb() -> float:
 func _commit() -> String:
 	var f := FileAccess.open("res://build_info.txt", FileAccess.READ)
 	return f.get_as_text().strip_edges() if f else "dev"
+
+
+## Runs before every other _process of the frame and stamps the time.
+class _FrameMark extends Node:
+	func _process(_d: float) -> void:
+		set_meta("t0", Time.get_ticks_usec())
