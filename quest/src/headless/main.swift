@@ -90,6 +90,25 @@ if let out = arg("--questsim"), let ctx = vkctx {
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
+// Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
+do {
+    var rng = SRng(7)
+    var pfMs: [Double] = []
+    var found = 0
+    for i in 0..<60 {
+        let ax = Int(spawn.x) + rng.int(40) - 20, az = Int(spawn.z) + rng.int(40) - 20
+        let bx = ax + rng.int(40) - 20, bz = az + rng.int(40) - 20
+        let a = V3(Float(ax) + 0.5, Float(world.topY(ax, az) + 1), Float(az) + 0.5)
+        let b = V3(Float(bx) + 0.5, Float(world.topY(bx, bz) + 1), Float(bz) + 0.5)
+        let t = CFAbsoluteTimeGetCurrent()
+        if PathFinder.find(world, from: a, to: b, tall: 2, maxNodes: i % 3 == 0 ? 1500 : 400) != nil { found += 1 }
+        pfMs.append((CFAbsoluteTimeGetCurrent() - t) * 1000)
+    }
+    let total = pfMs.reduce(0, +)
+    pfMs.sort()
+    print(String(format: "pathfind: 60 searches (%d found), total %.1f ms, median %.2f ms, worst %.2f ms", found, total, pfMs[30], pfMs.last!))
+}
+
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).
 let pm = PadManager.shared
 var tickMs: [Double] = []

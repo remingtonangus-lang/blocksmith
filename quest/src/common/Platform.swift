@@ -88,3 +88,8 @@ enum QuestPaths {
 @inline(__always) func fmod(_ x: Float, _ y: Float) -> Float { fmodf(x, y) }
 @inline(__always) func hypot(_ x: Float, _ y: Float) -> Float { hypotf(x, y) }
 #endif
+
+#if os(Android)
+// Bionic's usleep isn't imported into Swift (Sources/Coop.swift's split-screen check waits with it).
+@discardableResult func usleep(_ us: UInt32) -> Int32 { Thread.sleep(forTimeInterval: Double(us) / 1_000_000); return 0 }
+#endif
