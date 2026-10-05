@@ -126,6 +126,9 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 22:35: game.log now has a "setup: sky .. ms, terrain .. ms, capital .. ms, ..." line per launch, so
+  the next Mac CI log shows where a first launch's 36 s between "generated" and "world ready" goes (a clean first
+  launch here: generated 6.4 s, ready 12.2 s; nothing like 36 s off Metal).
 - 2026-10-05 22:20: stale caches. Every cache version bump left its old file in user:// for good (each world
   version 49 MB: 452 MB of dead world, terrain-material, leaf-atlas and audio caches on the dev box). G.prune_cache()
   runs at startup and deletes the older versions of those four caches, keeping the current one of each and anything

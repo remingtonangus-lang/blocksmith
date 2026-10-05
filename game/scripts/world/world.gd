@@ -17,22 +17,26 @@ var _focus := Vector3.ZERO
 
 
 func setup(g: WorldGen) -> void:
+	_mark_t = Time.get_ticks_usec()
 	gen = g
 	G.world = self
 	sky = SkySystem.new()
 	sky.name = "Sky"
 	add_child(sky)
 	sky.setup()
+	_mark("sky")
 	G.sky = sky
 	terrain = Terrain.new()
 	terrain.name = "Terrain"
 	add_child(terrain)
 	terrain.setup(gen)
+	_mark("terrain")
 	G.terrain = terrain
 	water = WaterSystem.new()
 	water.name = "Water"
 	add_child(water)
 	water.setup(gen)
+	_mark("water")
 	cities = Node3D.new()
 	cities.name = "Capital"
 	add_child(cities)
@@ -42,8 +46,10 @@ func setup(g: WorldGen) -> void:
 	cities.add_child(capital)
 	var cs: Vector3 = gen.sites["capital"]
 	capital.build(cs, 1500.0, G.seed * 3 + 1, "Candor")
+	_mark("capital")
 	city_list.append(capital)
 	_add_optional("res://scripts/world/vegetation.gd", "Vegetation", "vegetation")
+	_mark("vegetation")
 	if vegetation:
 		for c in city_list:
 			vegetation.add_trees(c.trees)
@@ -52,14 +58,17 @@ func setup(g: WorldGen) -> void:
 	bases.name = "Bases"
 	add_child(bases)
 	bases.build(gen, capital.mat)
+	_mark("bases")
 	roads = Roads.new()
 	roads.name = "Roads"
 	add_child(roads)
 	roads.setup(gen)
+	_mark("roads")
 	var battle := Battle.new()
 	battle.name = "Battle"
 	add_child(battle)
 	battle.setup()
+	_mark("battle")
 	var combat := Combat.new()
 	combat.name = "Combat"
 	add_child(combat)
@@ -68,12 +77,14 @@ func setup(g: WorldGen) -> void:
 	destruction.name = "Destruction"
 	add_child(destruction)
 	destruction.setup()
+	_mark("combat")
 	if "vehicles" in OS.get_environment("CAPITAL_SKIP").split(","):
 		return
 	var veh := Vehicles.new()
 	veh.name = "Vehicles"
 	add_child(veh)
 	veh.setup(capital.mat)
+	_mark("vehicles")
 	var hud := Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
@@ -82,8 +93,22 @@ func setup(g: WorldGen) -> void:
 			var s: Dictionary = bases.sites[k]
 			vegetation.exclude.append([Vector2(s["pos"].x, s["pos"].z), s["radius"]])
 	_add_optional("res://scripts/world/weather.gd", "Weather", "weather")
+	_mark("weather")
 	if weather:
 		G.weather = weather
+	G.log_line("setup: " + ", ".join(_marks))
+
+
+# Setup timing for game.log ("setup: sky 7 ms, terrain 1731 ms, ..."): a first Mac launch spent 36 s between the
+# generated world and "world ready" that no other machine shows.
+var _marks := PackedStringArray()
+var _mark_t := 0
+
+
+func _mark(label: String) -> void:
+	var now := Time.get_ticks_usec()
+	_marks.append("%s %d ms" % [label, (now - _mark_t) / 1000])
+	_mark_t = now
 
 
 func _exit_tree() -> void:
