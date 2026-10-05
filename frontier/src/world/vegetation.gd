@@ -1,9 +1,11 @@
 extends Node3D
 ## Trees, shrubs and grass for the whole map.
 ## Trees: deterministic scatter per 1024 m region (worker threads) from biome/moisture/slope/altitude. Every tree is
-## drawn as a billboard in its region's MultiMesh (one draw per region, all species; shaders/billboard_tree.gdshader);
-## within NEAR_END of the camera the billboard collapses and the full mesh (per 256 m chunk, per species variant,
-## shaders/foliage.gdshader) takes over, fading per instance so the swap never pops a whole chunk.
+## drawn as an impostor in its region's MultiMesh (one draw per region, all species; shaders/impostor_tree.gdshader),
+## baked at startup from the same meshes and materials (src/world/impostor_baker.gd, cached in user://); within
+## NEAR_END of the camera (SHRUB_END for shrubs) the full mesh (per 256 m chunk, per species variant,
+## shaders/foliage.gdshader) takes over through a per-instance screen dither that is the exact complement of the
+## impostor's, so the hand-off never pops a tree or a chunk.
 ## Grass: GPU-placed clumps in 16 m cells around the camera (shaders/grass.gdshader).
 
 const REGION := 1024.0
@@ -12,6 +14,8 @@ const VARIANTS := 3
 const GRASS_CELL := 16.0
 const NEAR_END := 200.0          # full meshes up to here (per instance), billboards beyond
 const SHRUB_END := 110.0
+const SMALL_SHRUB_FAR := 900.0
+const LOD_BAND := 15.0           # dithered mesh -> impostor cross-fade just inside NEAR_END / SHRUB_END
 
 var world: WorldData
 var camera: Camera3D
@@ -20,10 +24,10 @@ var grass_dist := 80.0
 var grass_density := 1.0
 var species_list: Array = []
 var _meshes := {}            # species -> [lod0 mesh per variant]
-var _sizes := {}             # species -> [Vector2(width, height) per variant]
 var _mats := {}              # species -> {bark, leaf}
 var _bill_mat: ShaderMaterial
 var _bill_mesh: ArrayMesh
+var impostors: ImpostorBaker    # null when headless (bots) or the bake failed
 var _leaf_tex: Texture2D
 var _regions := {}           # Vector2i -> MultiMeshInstance3D (billboards)
 var _region_chunks := {}     # Vector2i(chunk) -> Array of [species, variant, Transform3D]
@@ -48,15 +52,15 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 	var gen := TreeGen.new()
 	for sp in species_list:
 		var vs := []
-		var sz := []
 		for v in VARIANTS:
-			var m := gen.build(sp, hash(sp) + v * 7919, 0)
-			vs.append(m)
-			var a := m.get_aabb()
-			sz.append(Vector2(maxf(a.size.x, a.size.z) * 0.9, a.size.y))
+			vs.append(gen.build(sp, hash(sp) + v * 7919, 0))
 		_meshes[sp] = vs
-		_sizes[sp] = sz
 		_mats[sp] = _make_materials(sp)
+	if not Game.headless and tree_dist > 1.0:
+		var ib := ImpostorBaker.new()
+		if ib.bake(self, _meshes, species_list, VARIANTS):
+			impostors = ib
+			ib.release_images()
 	_setup_billboards()
 	_setup_grass()
 	world.river_at(0.0, 0.0)        # build lazy caches on the main thread before workers read them
@@ -110,6 +114,7 @@ func _make_materials(sp: String) -> Dictionary:
 	bark.set_shader_parameter("tint", bt)
 	bark.set_shader_parameter("tree_height", spec.height[1])
 	bark.set_shader_parameter("lod_end", end)
+	bark.set_shader_parameter("lod_band", LOD_BAND)
 	var leaf := ShaderMaterial.new()
 	leaf.shader = load("res://shaders/foliage.gdshader")
 	leaf.set_shader_parameter("is_leaf", true)
@@ -118,6 +123,7 @@ func _make_materials(sp: String) -> Dictionary:
 	leaf.set_shader_parameter("tree_height", spec.height[1])
 	leaf.set_shader_parameter("sway", 1.4 if small else 1.0)
 	leaf.set_shader_parameter("lod_end", end)
+	leaf.set_shader_parameter("lod_band", LOD_BAND)
 	for v in VARIANTS:
 		var m: ArrayMesh = _meshes[sp][v]
 		m.surface_set_material(0, bark)
@@ -132,26 +138,26 @@ func _make_materials_for_test(sp: String, m: ArrayMesh) -> Dictionary:
 
 func _setup_billboards() -> void:
 	_bill_mat = ShaderMaterial.new()
-	_bill_mat.shader = load("res://shaders/billboard_tree.gdshader")
-	_bill_mat.set_shader_parameter("leaf_tex", _leaf_tex)
-	var tints := PackedVector4Array()
-	var barks := PackedVector4Array()
+	_bill_mat.shader = load("res://shaders/impostor_tree.gdshader")
+	var info := PackedVector4Array()
 	for sp in species_list:
 		var spec: Dictionary = TreeGen.SPECIES[sp]
-		var lt: Color = spec.leaf_tint
-		var shape: float = {"cone": 0.0, "cone_round": 1.0, "round": 2.0, "oval": 2.0, "bush": 3.0}.get(spec.crown, 2.0)
-		tints.append(Vector4(lt.r, lt.g, lt.b, 1.0 if spec.leaf != "" else 0.0))
-		var bt := Vector4(0.3, 0.24, 0.19, shape)
-		if spec.bark == "aspen":
-			bt = Vector4(0.75, 0.74, 0.68, shape)
-		elif spec.bark == "dead":
-			bt = Vector4(0.42, 0.38, 0.34, shape)
-		barks.append(bt)
-	_bill_mat.set_shader_parameter("species_tint", tints)
-	_bill_mat.set_shader_parameter("species_bark", barks)
-	_bill_mat.set_shader_parameter("near_end", NEAR_END)
-	_bill_mat.set_shader_parameter("shrub_end", SHRUB_END)
+		var end := SHRUB_END if spec.crown == "bush" else NEAR_END
+		# knee-high brush is under a pixel past ~900 m: stop drawing it there instead of dithering specks
+		var far := minf(tree_dist, SMALL_SHRUB_FAR) if float(spec.height[1]) < 2.0 else tree_dist
+		for v in VARIANTS:
+			info.append(Vector4(end, float(spec.height[1]), 1.0 if spec.leaf != "" else 0.0, far))
+	_bill_mat.set_shader_parameter("entry_info", info)
+	_bill_mat.set_shader_parameter("lod_band", LOD_BAND)
 	_bill_mat.set_shader_parameter("far_end", tree_dist)
+	_bill_mat.set_shader_parameter("shadow_end", float(Game.quality.get("shadow_distance", 300.0)) + 30.0)
+	if impostors != null:
+		_bill_mat.set_shader_parameter("albedo_atlas", impostors.albedo)
+		_bill_mat.set_shader_parameter("normal_atlas", impostors.normal)
+		_bill_mat.set_shader_parameter("atlas_px", Vector2(impostors.atlas_size))
+		_bill_mat.set_shader_parameter("entry_rect", impostors.entry_rect)
+		_bill_mat.set_shader_parameter("entry_frame", impostors.entry_frame)
+		_bill_mat.set_shader_parameter("entry_crown", impostors.entry_crown)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var quad := [Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0), Vector3(0.5, 1, 0), Vector3(-0.5, 1, 0)]
@@ -161,6 +167,8 @@ func _setup_billboards() -> void:
 		st.set_uv(uv[k])
 		st.add_vertex(quad[k])
 	_bill_mesh = st.commit()
+	# the shader inflates the unit quad to the tree's frame: give culling a box that holds the tallest tree
+	_bill_mesh.custom_aabb = AABB(Vector3(-25, -5, -25), Vector3(50, 50, 50))
 
 func _process(_dt: float) -> void:
 	var _pt0 := Time.get_ticks_usec()
@@ -172,6 +180,9 @@ func _process_impl(_dt: float) -> void:
 		return
 	var cp := camera.global_position
 	RenderingServer.global_shader_parameter_set("player_pos", Game.player.global_position if Game.player else cp)
+	if impostors != null and Game.sky != null and Game.sky.sun != null:
+		var l: DirectionalLight3D = Game.sky.sun if Game.sky.sun.visible or Game.sky.moon == null else Game.sky.moon
+		_bill_mat.set_shader_parameter("light_dir", l.global_basis.z)
 	_update_regions(cp)
 	_update_near(cp, 2)
 	_update_grass(cp)
@@ -248,9 +259,8 @@ func _generate_region(k: Vector2i) -> void:
 					var rot := r.randf_range(0.0, TAU)
 					var b := Basis(Vector3.UP, rot).rotated(Vector3.RIGHT, r.randf_range(-0.04, 0.04)).scaled(Vector3(s, s, s))
 					list.append([pick, v, Transform3D(b, Vector3(x, y, z))])
-					var si := species_list.find(pick)
-					var size: Vector2 = _sizes[pick][v] * s
-					bill.append_array([1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, float(si), size.x, size.y, r.randf()])
+					var entry := species_list.find(pick) * VARIANTS + v
+					bill.append_array([1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, float(entry), s, rot, r.randf()])
 			chunks[ck] = list
 	_mutex.lock()
 	_results[k] = {"chunks": chunks, "bill": bill}
@@ -274,7 +284,10 @@ func _finish_region(k: Vector2i, keep: bool) -> void:
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	mmi.material_override = _bill_mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# impostors keep casting (turned to the sun) between NEAR_END and the shadow distance, so tree shadows do not
+	# end at the hand-off ring
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if impostors != null else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visible = impostors != null
 	mmi.name = "TreeBillboards_%d_%d" % [k.x, k.y]
 	add_child(mmi)
 	_regions[k] = mmi

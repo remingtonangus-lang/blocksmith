@@ -4,6 +4,8 @@ extends RefCounted
 ## grower; output is an ArrayMesh with surface 0 = bark tubes, surface 1 = foliage cards. Vertex COLOR carries wind
 ## data for shaders/foliage.gdshader: r = sway weight (0 at the root .. 1 at twig tips), g = branch phase,
 ## b = branch level / 3, a = 1 for foliage. UV2 holds the card's local offset for leaf flutter.
+## Optional shrub keys: "spread" = crown radius / height (default 0.5: as wide as tall; sagebrush is low and wide),
+## "lobes" = irregularity of the outline (uneven dome, lopsided sides) so no two bushes share a silhouette.
 
 const SPECIES := {
 	"ponderosa": {"height": [16.0, 26.0], "trunk_r": 0.32, "levels": 2, "branches": [26, 5], "start": 0.38,
@@ -32,10 +34,12 @@ const SPECIES := {
 		"card": [1.0, 1.0], "cards_per_tip": 0, "bark": "dead", "leaf_tint": Color(1, 1, 1), "curve": 0.08},
 	"sagebrush": {"height": [0.7, 1.3], "trunk_r": 0.04, "levels": 2, "branches": [6, 3], "start": 0.0,
 		"angle": [35.0, 40.0], "len": [0.8, 0.5], "droop": 0.0, "crown": "bush", "leaf": "sage",
-		"card": [0.5, 0.42], "cards_per_tip": 3, "fill": 108, "bark": "dead", "leaf_tint": Color(0.52, 0.56, 0.46), "curve": 0.3},
+		"card": [0.5, 0.42], "cards_per_tip": 3, "fill": 170, "bark": "dead", "leaf_tint": Color(0.52, 0.56, 0.46), "curve": 0.3,
+		"spread": 0.95, "lobes": 0.32},
 	"rabbitbrush": {"height": [0.6, 1.1], "trunk_r": 0.03, "levels": 2, "branches": [7, 3], "start": 0.0,
 		"angle": [30.0, 35.0], "len": [0.8, 0.5], "droop": 0.0, "crown": "bush", "leaf": "fine",
-		"card": [0.45, 0.4], "cards_per_tip": 3, "fill": 90, "bark": "dead", "leaf_tint": Color(0.85, 0.72, 0.22), "curve": 0.25},
+		"card": [0.45, 0.4], "cards_per_tip": 3, "fill": 130, "bark": "dead", "leaf_tint": Color(0.85, 0.72, 0.22), "curve": 0.25,
+		"spread": 0.75, "lobes": 0.22},
 }
 
 var rng := RandomNumberGenerator.new()
@@ -56,6 +60,7 @@ var _crown_center := Vector3.ZERO
 var _crown_radius := 3.0
 var _leaf_row := 0
 var _anchors: Array[Vector3] = []     # points on outer branches (crown fill attaches clusters here)
+var _lobe_ph := Vector3.ZERO          # per-build phases of the shrub outline lobes
 var _anchor_dirs: Array[Vector3] = []
 
 ## Build one tree variant. detail: 0 = full, 1 = reduced (fewer sides/cards) for the mid LOD.
@@ -71,10 +76,12 @@ func build(species: String, seed: int, detail: int = 0) -> ArrayMesh:
 	_crown_radius = maxf((crown_top - crown_bot) * 0.5, _height * 0.25)
 	var trunk_dir := Vector3(rng.randf_range(-0.04, 0.04), 1.0, rng.randf_range(-0.04, 0.04)).normalized()
 	if _sp.crown == "bush":
-		# shrubs: several stems from the ground
+		# shrubs: several stems from the ground, leaning out further on wide shrubs
 		var stems := rng.randi_range(3, 6)
+		var lean := 0.6 * float(_sp.get("spread", 0.5)) / 0.5
+		_lobe_ph = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
 		for s in stems:
-			var d := Vector3(rng.randf_range(-0.6, 0.6), 1.0, rng.randf_range(-0.6, 0.6)).normalized()
+			var d := Vector3(rng.randf_range(-lean, lean), 1.0, rng.randf_range(-lean, lean)).normalized()
 			_branch(Vector3.ZERO, d, _height * rng.randf_range(0.8, 1.1), float(_sp.trunk_r) * rng.randf_range(0.6, 1.0), 0, detail, rng.randf())
 	else:
 		_branch(Vector3.ZERO, trunk_dir, _height, float(_sp.trunk_r) * rng.randf_range(0.85, 1.15), 0, detail, rng.randf())
@@ -90,14 +97,23 @@ func _fill_crown(detail: int) -> void:
 	var count: int = int(_sp.get("fill", 220)) / (2 if detail > 0 else 1)
 	var crown_bot: float = _height * float(_sp.start)
 	var crown_h := _height - crown_bot
+	var shaped: bool = _sp.has("spread")
 	var tries := 0
 	var placed := 0
 	while placed < count and tries < count * 6:
 		tries += 1
 		var t := rng.randf()
-		var y := crown_bot + t * crown_h
-		var rad := _crown_radius_at(t) * maxf(crown_h, _height * 0.3) * 0.5
 		var a := rng.randf() * TAU
+		var rad := _crown_radius_at(t) * maxf(crown_h, _height * 0.3) * 0.5
+		if shaped:
+			# low irregular dome: widest a third of the way up, uneven top, lopsided outline
+			var lob: float = _sp.lobes
+			var top := 1.0 - lob * (0.5 + 0.5 * sin(a * 2.0 + _lobe_ph.z))
+			t *= top
+			var u := (t - 0.3) / 0.7
+			var prof := lerpf(0.75, 1.0, t / 0.3) if t < 0.3 else sqrt(maxf(1.0 - u * u, 0.0))
+			rad = float(_sp.spread) * _height * prof * (1.0 + lob * (0.6 * sin(a * 2.0 + _lobe_ph.x) + 0.4 * sin(a * 3.0 + _lobe_ph.y)))
+		var y := crown_bot + t * crown_h
 		var rr := rad * sqrt(rng.randf()) * (0.75 + 0.25 * rng.randf())
 		# bias outward: leaves live at the crown surface, not the core
 		rr = lerpf(rr, rad, 0.55)
@@ -112,7 +128,7 @@ func _fill_crown(detail: int) -> void:
 				best = i
 		if best < 0 or bd > pow(rad * 0.6 + 1.2, 2):
 			continue
-		var anchor := _anchors[best].lerp(p, 0.35)
+		var anchor := _anchors[best].lerp(p, 0.7 if shaped else 0.35)
 		_cluster(anchor, _anchor_dirs[best], detail)
 		placed += 1
 
