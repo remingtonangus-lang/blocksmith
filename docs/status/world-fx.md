@@ -106,6 +106,9 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 - Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
   `Game.fx.storm` (a wind load for their support analysis), `World.scorch` and charcoal (burnt blocks could count as
   weak), `Waves.height` (wrecks afloat).
+- Weather and glass: Chunk.rainTop (highest sky-stopping or solid block) for rain, splashes, cauldrons and lightning;
+  snow settles on glass, top slabs and upside-down stairs. Floods don't fill sealed rooms (roofed columns fill only
+  beside standing water). `--fxtest snow` glass-roof and `--fxtest flood` sealed-hut oracles.
 - Floods: shoreline blocks now close up when the next cell fills and open when it drains (stale half-height blocks
   along cell boundaries showed as thin bright lines across the flood); `--fxtest flood` checks for grooves.
 - Next in this area: flood edge cases (villages in valleys, caves, saves mid-flood), snow on stairs / slabs, fire in
