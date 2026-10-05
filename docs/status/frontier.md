@@ -73,6 +73,8 @@ runner, Metal) and the Mac monitor.
   hunting (12 species, pelt quality, skinning); camp; road graph + GPS routes on map/HUD; hold-ups and store
   robberies (src/systems/robbery.gd); fishing (8 species by river/creek/lake, cast/strike/line-tension fight,
   keep or release, sold at the butcher; src/systems/fishing.gd).
+- **Story complete (first pass)**: chapters 1-6, 27 missions, three endings locked by Standing, playable spring-1900
+  epilogue, credits from LICENSES.md; retry from checkpoint; camp life with companions and 105 camp lines.
 - **Missions**: MissionDirector (goto/say/spawn/wait_dead/interact/checkpoint, markers, autopilot, softlock oracle);
   Chapter 1 complete (5 missions: Rider from the West, The Drover, Inquiries, Greer's Post, A Fire at Willow Bend)
   with original dialogue (design/dialogue/ch1.json); letterboxed cinematic dialogue camera.
