@@ -98,6 +98,21 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 05:40: terrain and road bugs from the shot sweep.
+  - Front Track was buried 18 m under Red Track: the two share a corridor. A road now pins its height to
+    earlier roads where they overlap.
+  - Pass Road ran in a 190 m slot canyon with vertical walls. Carving now uses real cut-and-fill (0.8 banks
+    sized by cut depth, measured before carving), a level strip one texel wider than the road, and a
+    symmetric 16 % grade relaxation. Banks never cut under a river.
+  - Fort Lumen's roads started at its centre and ran through the barracks; the patrol crawler hit them and
+    threw its rider off. Roads now meet the fort at its gate.
+  - Riding: standing still on a moving vehicle holds the player's spot in the deck frame (1.5 m drift in
+    20 s before; the oracle now requires under 0.5 m).
+  - Fog weather: the far sea showed as a dark band and the river as a bright cyan ribbon. Fog, terrain haze
+    and water haze now share the sky's pale tone, and the water's glints fade in fog.
+  - The sea vanished from shots after horizon_test (its setup hid the ocean).
+  - Cloud raymarch jitter now uses interleaved gradient noise (the sky was speckled).
+  Tests 82, scenarios 8, all green locally.
 - 2026-10-05 04:20: M7 continued.
   - Pad bridge: rewritten in Objective-C after Swift's IOUSBHost names did not match; it now compiles on the
     macOS runner, ships as `Alabaster.app/Contents/MacOS/padbridge`, and the game starts it when no pad is
@@ -114,8 +129,8 @@ The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in
     render read RGB 3,1,0). The sky shader now blends toward a pale multiple-scattering colour in heavy haze.
   - Found while hunting: the bisecting aids SHOT_HIDE, SHOT_PROBE, SHOT_HOUR, SHOT_WEATHER and
     `--drawreport` (see the code).
-  Open: cloud raymarch grain on High (per-pixel jitter, no TAA); the river is too bright and cyan in fog;
-  Front Track runs 18 m under the ground at one point; the weapon's left glove reads as a floating blob.
+  Open (2026-10-05 05:40): white sleeves vanish against white aprons in the first-person view; the main river
+  sits on a short cliff beside Pass Road's cut.
 - 2026-10-05 02:20: GAME BUILD READY 6cc8be3 (release capital-latest). M6 complete: weapons (1-4, R, G, V, RMB aim),
   collapsing towers, burning vehicle wrecks, visible explosions/smoke/dust, synthesized audio. The benchmark now
   runs on the Mac: CI's macOS runner (paravirtual GPU, High, 1024x656) completed all three segments and wrote
