@@ -53,7 +53,7 @@ func start(segs: Array) -> void:
 	var total := 0.0
 	for sg in segments:
 		total += float(sg["duration"]) + WARMUP
-	_limit = total + 180.0 + 100.0     # + the GPU ablation
+	_limit = total + 180.0 + 180.0     # + the GPU ablation
 	if OS.get_environment("BENCH_LIMIT") != "":
 		_limit = float(OS.get_environment("BENCH_LIMIT"))     # slow software renderers in development
 	G.log_line("benchmark: %d segments, preset %s, driver %s, adapter %s" % [segments.size(), Settings.preset,
@@ -303,21 +303,27 @@ func _ab_collect(n: Node, out: Dictionary) -> void:
 		_ab_collect(c, out)
 
 
-# GPU feature ablation (after the segments; --no-ablation skips it): at the battle camera, with the battle's
-# simulation paused, each rendering feature or world group in turn is measured on, then off, 60 frames each:
-# saved = on - off. GPU timers read 0 on Metal, so frame time is the measure of what each costs on this machine.
-# (One baseline at the start drifted with the running battle: later items came out up to -14 ms.)
+# GPU feature ablation (after the segments; --no-ablation skips it): at the battle camera, with the battle and the
+# vehicles paused, each rendering feature or world group in turn alternates on / off four times in 24-frame
+# windows; saved = the mean over the four pairs of (median on - median off). GPU timers read 0 on Metal, so frame
+# time is the measure of what each costs on this machine. (One baseline at the start drifted with the running
+# battle to -14 ms; single 60-frame pairs on the CI Mac still swung from 17 to 25 ms for the same scene.)
 var _ga_items: Array = []
 var _ga_i := -2               # -1 = baseline, 0.. = items
 var _ga_n := 0
 var _ga_sum := 0.0
 var _ga_base := 0.0
 var _ga_out := {}
-const GA_SETTLE := 15
-const GA_FRAMES := 60
-var _ga_off := false          # measuring the "off" half of the current item
+const GA_SETTLE := 8
+const GA_FRAMES := 24
+const GA_PAIRS := 4
+var _ga_off := false          # measuring the "off" half of the current pair
 var _ga_on_ms := 0.0
-var _ga_paused: Node = null
+var _ga_pair := 0
+var _ga_diff := 0.0
+var _ga_on_sum := 0.0
+var _ga_win := PackedFloat32Array()
+var _ga_paused: Array = []
 
 
 func _start_gpu_ablation() -> void:
@@ -330,10 +336,13 @@ func _start_gpu_ablation() -> void:
 	if sg.has("setup"):
 		(sg["setup"] as Callable).call()
 	_place(0.35)
-	# Freeze the fight (soldiers, shells, explosions) so every window sees the same scene.
-	_ga_paused = G.world.get_node_or_null("Battle")
-	if _ga_paused:
-		_ga_paused.process_mode = Node.PROCESS_MODE_DISABLED
+	# Freeze the fight (soldiers, shells, explosions) and the traffic (frigate, dropships, convoys) so every window
+	# sees the same scene.
+	for nm in ["Battle", "Vehicles"]:
+		var nd := G.world.get_node_or_null(nm)
+		if nd:
+			nd.process_mode = Node.PROCESS_MODE_DISABLED
+			_ga_paused.append(nd)
 	var env: Environment = G.sky.env if G.sky else null
 	var sun: DirectionalLight3D = G.sky.sun if G.sky else null
 	if sun:
@@ -372,6 +381,10 @@ func _start_gpu_ablation() -> void:
 		_ga_items.append(["grass", _set_vis.bind([gn, gf], false), _set_vis.bind([gn, gf], true)])
 	_ga_i = 0
 	_ga_off = false
+	_ga_pair = 0
+	_ga_diff = 0.0
+	_ga_on_sum = 0.0
+	_ga_win.clear()
 	_ga_n = 0
 	_ga_sum = 0.0
 	_ga_out = {"segment": sg["name"], "base_ms": 0.0, "items": []}
@@ -388,22 +401,32 @@ func _ga_step(delta: float) -> void:
 	_ga_n += 1
 	if _ga_n <= GA_SETTLE:
 		return
-	_ga_sum += delta * 1000.0
-	if _ga_n < GA_SETTLE + GA_FRAMES:
+	_ga_win.append(delta * 1000.0)
+	if _ga_win.size() < GA_FRAMES:
 		return
-	var avg := _ga_sum / GA_FRAMES
+	var w := _ga_win.duplicate()
+	w.sort()
+	var med := w[w.size() / 2]
+	_ga_win.clear()
 	_ga_n = 0
-	_ga_sum = 0.0
 	if not _ga_off:
-		_ga_on_ms = avg
-		_ga_base += avg
+		_ga_on_ms = med
 		_ga_off = true
 		(_ga_items[_ga_i][1] as Callable).call()
 		return
 	(_ga_items[_ga_i][2] as Callable).call()
-	(_ga_out["items"] as Array).append({"feature": _ga_items[_ga_i][0], "ms_saved": snappedf(_ga_on_ms - avg, 0.01),
-		"on_ms": snappedf(_ga_on_ms, 0.01)})
 	_ga_off = false
+	_ga_diff += _ga_on_ms - med
+	_ga_on_sum += _ga_on_ms
+	_ga_pair += 1
+	if _ga_pair < GA_PAIRS:
+		return
+	_ga_base += _ga_on_sum / GA_PAIRS
+	(_ga_out["items"] as Array).append({"feature": _ga_items[_ga_i][0], "ms_saved": snappedf(_ga_diff / GA_PAIRS, 0.01),
+		"on_ms": snappedf(_ga_on_sum / GA_PAIRS, 0.01)})
+	_ga_pair = 0
+	_ga_diff = 0.0
+	_ga_on_sum = 0.0
 	_ga_i += 1
 	if _ga_i >= _ga_items.size():
 		_ga_out["base_ms"] = snappedf(_ga_base / _ga_items.size(), 0.01)
@@ -411,8 +434,10 @@ func _ga_step(delta: float) -> void:
 
 
 func _ga_finish() -> void:
-	if _ga_paused and is_instance_valid(_ga_paused):
-		_ga_paused.process_mode = Node.PROCESS_MODE_INHERIT
+	for nd in _ga_paused:
+		if is_instance_valid(nd):
+			(nd as Node).process_mode = Node.PROCESS_MODE_INHERIT
+	_ga_paused.clear()
 	if _ga_out.has("items"):
 		var items: Array = _ga_out["items"]
 		items.sort_custom(func(a, b): return a["ms_saved"] > b["ms_saved"])

@@ -126,6 +126,20 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 18:00: GAME BUILD READY 6ff706e (capital-latest, 17:41 UTC; the first Mac attempt had no runner and GitHub
+  rejected pushes for a while, so this was the one re-run). It adds grass tiling and the paired GPU ablation. CI Mac
+  (paravirtual, High):
+
+  | Segment | fps (89dad69) | fps now | p99 | primitives | draws |
+  |---|---|---|---|---|---|
+  | City | 38.1 | 52.4 | 39.9 ms | 4.0 M | 292 |
+  | Battle | 33.1 | 41.3 | 54.4 ms | 5.4 M | 689 |
+  | Forest | 38.3 | 47.7 | 54.0 ms | 4.5 M | 350 |
+
+  The paired ablation is still too noisy to rank anything: "on" windows of the same scene ranged from 17 to 25 ms,
+  giving bases -8.3 and sun shadows -0.9. The larger readings are probably real: terrain 6.4, clouds 2.3, SSAO 2.1,
+  2 shadow cascades instead of 4 saving 1.5 ms. Next: alternate on/off four times per feature, compare medians, and
+  pause the vehicles too.
 - 2026-10-05 16:55: grass tiling measured on the CI Mac (run 40, 221a183). The build was not published: GitHub rejected
   the tag and shots pushes ("fatal error in commit_refs"), and the first Mac attempt never got a runner. Both are
   infra; capital-latest still holds 89dad69.
