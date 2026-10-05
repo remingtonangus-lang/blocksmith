@@ -1206,6 +1206,29 @@ def _spring_weights(builder, obj, g, co, depth, ring_pts, zs, thetas, keep_seg, 
     builder.spring_chains = getattr(builder, "spring_chains", []) + [{"garment": gid, "chains": names}]
 
 
+def _copy_weights_nearest(src, dst):
+    """Give every vertex of dst the skin weights of the nearest vertex of src (both in rest pose)."""
+    from mathutils.kdtree import KDTree
+    sco = C.get_co(src)
+    kd = KDTree(len(sco))
+    for i, c in enumerate(sco):
+        kd.insert(c, i)
+    kd.balance()
+    names = {vg.index: vg.name for vg in src.vertex_groups}
+    sw = [[(names[e.group], e.weight) for e in v.groups if e.weight > 1e-4 and names[e.group] != C.KEEP_EDGE]
+          for v in src.data.vertices]
+    for vg in list(dst.vertex_groups):
+        dst.vertex_groups.remove(vg)
+    groups = {}
+    for i, c in enumerate(C.get_co(dst)):
+        _, j, _ = kd.find(c)
+        for name, w in sw[j]:
+            vg = groups.get(name)
+            if vg is None:
+                vg = groups[name] = dst.vertex_groups.new(name=name)
+            vg.add([i], w, "REPLACE")
+
+
 def tube(builder, info, g):
     t = g["type"]
     seed = g.get("seed", 0)
@@ -1255,7 +1278,8 @@ def tube(builder, info, g):
         if under is not None:
             sd = np.clip((s_top - zz) / max(s_top - s_bot, 1e-3), 0, 1)
             r_skirt = (env + under.get("ease", 0.02) + under.get("flare", 0.18) * sd ** 1.4) * 1.005 ** ri
-            r = np.maximum(r, r_skirt * (1 + 0.035 * sd ** 2) + under.get("fold", 0.012) + 0.012)
+            # clear the skirt's outward folds and waves plus this apron's own inward folds
+            r = np.maximum(r, r_skirt * (1 + 0.035 * sd ** 2) + under.get("fold", 0.012) + g.get("fold", 0.012) + 0.008)
         if prev_r is not None:
             r = np.maximum(r, prev_r * (1.0 if t != "skirt" else 1.005))
         prev_r = r
@@ -1329,6 +1353,16 @@ def tube(builder, info, g):
             legs = info.body & info.dom_in(("thigh_", "calf_")) & (info.co[:, 2] > z_bot + 0.12) & (info.co[:, 2] < z_top - 0.05)
             _mark_covered(builder, info, legs, rings=1)
         return _finish(builder, obj, g, occl, wear, uv2=luv, rim=g.get("rim", 0.003), hem=_hem_distance(obj))
+    skirt_obj = None
+    if under is not None:
+        skirt_obj = next((o for k, o, _, e in builder.parts if k == "garment" and e.get("type") == "skirt"), None)
+    if skirt_obj is not None:
+        # an apron over a skirt deforms exactly like the skirt beneath (same spring chains and leg weights), so the
+        # skirt can't swing through it
+        _copy_weights_nearest(skirt_obj, obj)
+        occl = 0.8 + 0.2 * np.clip(fold / 0.012 + 0.5, 0, 1)
+        wear = np.clip((depth - 0.85) / 0.15, 0, 1) * 0.8
+        return _finish(builder, obj, g, occl, wear, uv2=luv, rim=g.get("rim", 0.003), hem=_hem_distance(obj))
     # weights: pelvis at the waist -> thighs/calves with depth, split by side
     gp = obj.vertex_groups.new(name="pelvis")
     gl = obj.vertex_groups.new(name="thigh_l")
@@ -1374,11 +1408,17 @@ HAT_PROFILES = {
 
 
 def hat(builder, info, g):
-    style = HAT_PROFILES[g.get("style", "cattleman")]
+    style = dict(HAT_PROFILES[g.get("style", "cattleman")])
     head_m = info.body & info.dom_in(("head",))
     hco = info.co[head_m]
     top = hco[:, 2].max()
-    band_z = top - g.get("depth", 0.07)
+    depth = g.get("depth", 0.07)
+    band_z = top - depth
+    if not style.get("cap"):
+        # the crown must clear the skull even under the top crease and front pinch (and the forward tilt): a
+        # crease deeper than the head's clearance let the scalp poke through the crown
+        tilt_m = 0.09 * math.sin(math.radians(g.get("tilt", 4.0)))
+        style["crown_h"] = max(style["crown_h"], depth + style["crease"] + 0.5 * style["pinch"] + tilt_m + 0.012)
     sl = hco[np.abs(hco[:, 2] - band_z) < 0.01]
     cx, cy = sl[:, 0].mean(), sl[:, 1].mean()
     rx = (sl[:, 0].max() - sl[:, 0].min()) / 2 + 0.008
@@ -1411,8 +1451,10 @@ def hat(builder, info, g):
                 prof.append(("top", -style["taper"] - s * 0.075, H + style.get("round_top", 0.0) * s))
     verts = []
     for kind, r_off, h in prof:
-        rr_x = np.maximum(rx + r_off, 0.004)
-        rr_y = np.maximum(ry + r_off, 0.004)
+        # crown-top rings never collapse to a point: a degenerate ring folded the top fan and showed its dark inside
+        floor_r = 0.3 if kind == "top" else 0.0
+        rr_x = np.maximum(rx + r_off, max(0.004, floor_r * rx))
+        rr_y = np.maximum(ry + r_off, max(0.004, floor_r * ry))
         x = cx + rr_x * ex
         y = cy + rr_y * ey
         zz = np.full(K, band_z + h)
@@ -1457,6 +1499,13 @@ def hat(builder, info, g):
     b = bmesh.new()
     b.from_mesh(me)
     bmesh.ops.recalc_face_normals(b, faces=b.faces)
+    # the crown top (last profile rings + centre fan) must face up
+    top0 = next((i for i, p in enumerate(prof) if p[0] == "top"), nr)
+    b.faces.ensure_lookup_table()
+    for fi, f in enumerate(b.faces):
+        on_top = fi >= (top0 - 1) * K if top0 < nr else fi >= (nr - 1) * K
+        if on_top and f.normal.z < 0:
+            f.normal_flip()
     b.to_mesh(me)
     b.free()
     for p in me.polygons:
@@ -1488,6 +1537,7 @@ def hat(builder, info, g):
     g = dict(g)
     g["slot"] = "hat"
     builder.hat_info = dict(band_z=band_z, cx=cx, cy=cy, rx=rx - 0.004, ry=ry - 0.004, crown_h=style["crown_h"],
+                            crease=style.get("crease", 0.0),
                             taper=style["taper"], tilt=tilt)
     return _finish(builder, obj, g, occl, wear, uv2=luv, rim=0.0)
 
@@ -1512,7 +1562,7 @@ def squash_hair_under_hat(builder, hair_obj):
     # band zone: hair just below the band can flare a little but not beyond the brim underside
     x2 = x * s
     y2 = y * s
-    z2 = np.minimum(z, hi["crown_h"] - 0.012)
+    z2 = np.minimum(z, hi["crown_h"] - hi.get("crease", 0.0) * np.exp(-(x / 0.03) ** 2) - 0.012)
     ct, st = math.cos(hi["tilt"]), math.sin(hi["tilt"])
     yy = y2 * ct - z2 * st
     zz = y2 * st + z2 * ct
@@ -1587,7 +1637,8 @@ def beard(builder, info, g):
         col = obj.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
         cc = np.ones((len(obj.data.vertices), 4), dtype=np.float32)
         bd = _boundary_distance(obj, 4)
-        cc[:, 3] = layer_alpha[li] * (0.3 + 0.7 * np.clip(bd / 3.0, 0, 1))
+        # strands thin out toward the edge of the beard region (feathered outline instead of a cut-out mass)
+        cc[:, 3] = layer_alpha[li] * (0.1 + 0.9 * np.clip(bd / 4.0, 0, 1) ** 1.5)
         cc[:, :3] = 0.5 + 0.5 * frac          # inner shells darker (self-shadowing of the hair mass)
         uvl = obj.data.uv_layers[0].data      # each shell samples the strand texture at a different offset
         a = np.empty(len(uvl) * 2, dtype=np.float32)
@@ -1622,30 +1673,37 @@ def beard(builder, info, g):
 
 
 def beard_texture(density):
-    """Procedural hair-strand texture (original): grey-scale strands whose alpha falls off along each strand, dense
-    enough that the inner shell reads as a solid mass and the outer shells as a fuzzy edge. Cached on disk."""
+    """Procedural hair-strand texture (original): many fine strands, each tapering in alpha from root to tip, over a
+    faint base so only the innermost shell reads as a dense mass; outer shells show separate strands. Cached."""
     from PIL import Image, ImageDraw, ImageFilter
-    path = os.path.join(C.cache_dir(), "beard_strands_v5_%d.png" % int(density * 100))
+    path = os.path.join(C.cache_dir(), "beard_strands_v6_%d.png" % int(density * 100))
     if os.path.exists(path):
         return path
     rng = np.random.default_rng(1899)
     S = 512
-    alpha = Image.new("L", (S, S), 125)   # inner shells read as a dense mass, outer shells only show strands
-    lum = Image.new("L", (S, S), 150)
+    alpha = Image.new("L", (S, S), 70)
+    lum = Image.new("L", (S, S), 120)
     da = ImageDraw.Draw(alpha)
     dl = ImageDraw.Draw(lum)
-    n = int(5200 * density)
+    n = int(11000 * density)
     for _ in range(n):
         x, y = rng.uniform(0, S, 2)
-        L = rng.uniform(40, 110)
-        a = rng.normal(math.pi / 2, 0.35)
-        v = int(rng.uniform(150, 255))
-        for ox in (-S, 0, S):           # wrap so the texture tiles
-            for oy in (-S, 0, S):
-                pts = [(x + ox, y + oy), (x + ox + math.cos(a) * L, y + oy + math.sin(a) * L)]
-                da.line(pts, fill=v, width=3)
-                dl.line(pts, fill=int(rng.uniform(170, 255)), width=2)
-    alpha = alpha.filter(ImageFilter.GaussianBlur(0.6))
+        L = rng.uniform(25, 80)
+        a = rng.normal(math.pi / 2, 0.45)
+        v0 = rng.uniform(170, 255)
+        l0 = rng.uniform(120, 255)
+        w = 2 if rng.random() < 0.35 else 1
+        segs = 4
+        for k in range(segs):   # taper: alpha falls toward the tip
+            t0, t1 = k / segs, (k + 1) / segs
+            va = int(v0 * (1.0 - 0.75 * t0))
+            for ox in (-S, 0, S):           # wrap so the texture tiles
+                for oy in (-S, 0, S):
+                    p0 = (x + ox + math.cos(a) * L * t0, y + oy + math.sin(a) * L * t0)
+                    p1 = (x + ox + math.cos(a) * L * t1, y + oy + math.sin(a) * L * t1)
+                    da.line([p0, p1], fill=va, width=w)
+                    dl.line([p0, p1], fill=int(l0), width=w)
+    alpha = alpha.filter(ImageFilter.GaussianBlur(0.4))
     img = Image.merge("RGBA", (lum, lum, lum, alpha))
     img.save(path)
     return path

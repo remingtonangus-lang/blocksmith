@@ -4,6 +4,9 @@ extends Node
 ## XROrigin3D rig that follows the player (seated or standing height), and maps controllers to the player's
 ## intent: left stick moves (head-relative), right stick snap/smooth turns, triggers aim/fire with the right hand,
 ## grips interact/mount. Comfort: vignette while moving or riding, snap turn by default, height calibration.
+## Physical play (guns, reloads, reach-to-interact, menu laser, reins) lives in VRPlay (vr_play.gd); hands are VRHand.
+## `--vr_sim` runs all of it without a headset: VRSim (vr_sim.gd) drives the XR trackers and the head camera
+## renders to the window instead of an HMD.
 
 var xr: XRInterface
 var origin: XROrigin3D
@@ -22,8 +25,18 @@ var menu_vp: SubViewport
 var menu_quad: MeshInstance3D
 var _menu_was_open := false
 var _btn_prev := {}
+var sim: VRSim                    # desktop simulator (--vr_sim), null with a real runtime
+var play: VRPlay
+var hands := {}                   # "left"/"right" -> VRHand
+var _body_turn := false
+const SIM_FOV := 100.0
 
 static func try_start() -> VR:
+	if Game.args.has("vr_sim"):
+		var s := VR.new()
+		s.name = "VR"
+		s.sim = VRSim.new()
+		return s
 	var iface := XRServer.find_interface("OpenXR")
 	if iface == null:
 		return null
@@ -36,11 +49,15 @@ static func try_start() -> VR:
 func attach(p: Node, root: Node) -> void:
 	player = p
 	var vp := root.get_viewport()
-	vp.use_xr = true
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-	Engine.physics_ticks_per_second = 72
+	if sim != null:
+		add_child(sim)                            # trackers first, so the rig's nodes find them
+	else:
+		vp.use_xr = true
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+		Engine.physics_ticks_per_second = 72
 	origin = XROrigin3D.new()
 	origin.name = "XROrigin"
+	origin.process_mode = Node.PROCESS_MODE_ALWAYS   # controllers keep tracking while a menu pauses the tree
 	root.add_child(origin)
 	cam = XRCamera3D.new()
 	cam.near = 0.05
@@ -54,16 +71,21 @@ func attach(p: Node, root: Node) -> void:
 	right.tracker = &"right_hand"
 	origin.add_child(right)
 	for c in [left, right]:
-		var m := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(0.05, 0.05, 0.14)
-		m.mesh = bm
-		c.add_child(m)
+		var h := VRHand.new()
+		h.setup("left" if c == left else "right")
+		c.add_child(h)
+		hands[h.side] = h
 	Game.camera = cam
 	Game.is_vr = true
 	if player.get("camera") != null:
 		player.camera = cam
+	if sim != null:
+		cam.keep_aspect = Camera3D.KEEP_WIDTH     # a Quest 3 eye sees ~104 deg across; the window shows about that
+		cam.fov = SIM_FOV
 	_build_vignette()
+	play = VRPlay.new()
+	add_child(play)
+	play.setup(self, player, left, right)
 	process_mode = Node.PROCESS_MODE_ALWAYS       # menus pause the tree; panels and menu input keep working
 	_build_panels.call_deferred()
 
@@ -128,6 +150,8 @@ func _ui(action: String) -> void:
 		menu_vp.push_input(e)
 
 func _process(_dt: float) -> void:
+	if sim != null and cam != null:
+		cam.fov = SIM_FOV                         # the flat-screen settings (menus.gd) write Game.camera.fov
 	if menu_quad == null or cam == null:
 		return
 	var open: bool = not Game.menus.stack.is_empty()
@@ -138,8 +162,10 @@ func _process(_dt: float) -> void:
 		menu_quad.look_at(cam.global_position + Vector3(0, -0.1, 0), Vector3.UP)
 		menu_quad.rotate_object_local(Vector3.UP, PI)
 	menu_quad.visible = open
+	menu_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if open else SubViewport.UPDATE_DISABLED
 	if hud_quad:
 		hud_quad.visible = not open
+		hud_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED if open else SubViewport.UPDATE_ALWAYS
 	_menu_was_open = open
 	# menu (left hand) opens pause; while a menu is open the right stick / A / B drive focus navigation
 	if left.get_is_active() and _edge(left, &"menu_button"):
@@ -181,11 +207,17 @@ func _physics_process(dt: float) -> void:
 	var mv := left.get_vector2(&"primary") if left.get_is_active() else Vector2.ZERO
 	var head_yaw := cam.global_rotation.y
 	player.cam_yaw = head_yaw
+	# the (shadow-only) body turns after the head once it has looked well away, like a person shifting their feet
+	var off := absf(wrapf(head_yaw - float(player.facing), -PI, PI))
+	_body_turn = player.get("on_horse") == null and (off > 0.6 or (_body_turn and off > 0.05))
+	if _body_turn:
+		player.facing = lerp_angle(player.facing, head_yaw, 1.0 - exp(-5.0 * dt))
 	player.intent.move = Vector2(mv.x, mv.y)
 	player.intent.sprint = left.is_button_pressed(&"primary_click")
-	player.intent.aim = right.get_float(&"grip") > 0.5
-	player.intent.fire = right.get_float(&"trigger") > 0.6
-	player.intent.interact = right.is_button_pressed(&"ax_button")
+	# aim/fire come from the hands (VRPlay: draw by gripping at the holster, fire from the real muzzle); A is a
+	# fallback interact with whatever the HUD prompts
+	player.intent.fire = false
+	player.intent.interact = right.is_button_pressed(&"ax_button") and not play.holding
 	player.intent.jump = right.is_button_pressed(&"by_button")
 	# turning: snap by default (comfort), smooth optional
 	var turn := right.get_vector2(&"primary").x if right.get_is_active() else 0.0
@@ -201,8 +233,15 @@ func _physics_process(dt: float) -> void:
 	var head_local := cam.position
 	var target: Vector3 = player.global_position - origin.global_basis * Vector3(head_local.x, 0.0, head_local.z)
 	var on_horse = player.get("on_horse")
-	if on_horse != null:
-		target.y += 0.9
-	origin.global_position = target
+	origin.global_position = target           # mounted: the rider's origin sits below the seat, so the head lands right
+	if hands.has("right"):
+		hands.right.holding = play.holding
+	if hands.has("left"):
+		hands.left.holding = play.two_hand
 	var moving: float = clampf(float(player.get("speed")) / 4.0, 0.0, 1.0) if player.get("speed") != null else 0.0
-	(vignette.material_override as ShaderMaterial).set_shader_parameter("amount", maxf(moving, 0.6 if on_horse != null else 0.0) * 0.7)
+	if on_horse != null:
+		# riding: always some vignette, more with pace and turning (the horse moves you, not your legs)
+		var hs: float = absf(float(on_horse.get("speed"))) if on_horse.get("speed") != null else 0.0
+		var yr: float = absf(float(on_horse.get("yaw_rate"))) if on_horse.get("yaw_rate") != null else 0.0
+		moving = clampf((0.35 if hs > 0.5 else 0.0) + hs / 12.0 + yr * 0.25, 0.0, 1.0)
+	(vignette.material_override as ShaderMaterial).set_shader_parameter("amount", moving * 0.7)

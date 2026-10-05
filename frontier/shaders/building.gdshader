@@ -32,10 +32,16 @@ global uniform float wetness;
 
 varying vec3 v_wpos;
 varying vec3 v_wnrm;
+varying vec4 v_tint;
 
 void vertex() {
 	v_wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	// door leaves are MultiMesh instances of an uncoloured mesh: the paint colour comes per instance
+	v_tint = COLOR;
+	if (INSTANCE_CUSTOM.a > 0.5) {
+		v_tint.rgb *= INSTANCE_CUSTOM.rgb;
+	}
 }
 
 void fragment() {
@@ -60,10 +66,10 @@ void fragment() {
 	alb *= 1.0 + n1 * macro_var;
 	// paint tint
 	// tints are authored in sRGB (like a paint chart): convert to linear before multiplying
-	vec3 tint = mix(vec3(1.0), pow(COLOR.rgb, vec3(2.2)), tint_amount);
+	vec3 tint = mix(vec3(1.0), pow(v_tint.rgb, vec3(2.2)), tint_amount);
 	alb *= tint;
 	// weathering: sun-bleached, greyer, a little lighter on exposed wood; plus grime streaks
-	float w = clamp(COLOR.a * (0.7 + 0.5 * n1), 0.0, 1.0);
+	float w = clamp(v_tint.a * (0.7 + 0.5 * n1), 0.0, 1.0);
 	float l2 = dot(alb, vec3(0.299, 0.587, 0.114));
 	alb = mix(alb, vec3(l2) * vec3(1.03, 1.0, 0.94) * 1.05, w * 0.45);
 	float vertical = 1.0 - abs(v_wnrm.y);

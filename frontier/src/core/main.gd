@@ -21,7 +21,6 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	Game.world = world
-	CharacterFactory.warm_up()            # character scenes + animation library load on worker threads
 	Game.roads = RoadGraph.new()
 	Game.roads.build(world)
 	# --- audio (src/audio/audio_director.gd): registers itself as Game.audio in _ready ---
@@ -84,6 +83,10 @@ func _ready() -> void:
 	settlements.setup(world)
 	print("boot: %s %d ms" % ["settlements", Time.get_ticks_msec() - t0])
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
+	# character scenes + animation library load on a worker from here: started after the boot draws (impostor bake
+	# force_draw) so their texture uploads never race a synchronous frame (CI's GPU hung there, b873a47 probe)
+	if not Game.args.has("looks"):          # --looks N (low-memory shots): only the looks towns use, on demand
+		CharacterFactory.warm_up()
 	var ws := WorldState.new()
 	ws.name = "WorldState"
 	add_child(ws)
@@ -229,3 +232,31 @@ func _apply_viewport_quality() -> void:
 
 func _exit_tree() -> void:
 	CharacterFactory.shutdown()
+	_clear_static_caches()
+
+## Static vars holding Resources (materials, meshes, textures, scenes) outlive the rendering server at teardown and
+## corrupt the heap on exit ("double free" / "corrupted size" aborts after a clean run). Drop them while servers live.
+func _clear_static_caches() -> void:
+	Horse.player_horse = null
+	Horse.all = []
+	Horse._road_segs = []
+	Nerve._ink_tex = null
+	WeaponFX._pool = []
+	WeaponFX._meshes = {}
+	WeaponFX._smoke_mat = null
+	WeaponModel._cache = {}
+	Ragdoll._active = []
+	Effects._mat = null
+	Effects._chip_mat = null
+	Effects._spark_mat = null
+	Effects._flash_mat = null
+	Effects._hole_tex = {}
+	Effects._decals = []
+	Effects._tints = {}
+	GunGear._leather = null
+	GunGear._leather_dark = null
+	GunGear._brass = null
+	UITheme._fonts = {}
+	TownMats._mats = {}
+	SignText._atlases = {}
+	TownProps._meshes = {}

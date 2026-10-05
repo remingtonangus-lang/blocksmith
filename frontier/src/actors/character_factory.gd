@@ -30,19 +30,12 @@ static var _clips: Dictionary = {}
 static var _materials: CharacterMaterials
 static var _mutex := Mutex.new()
 static var _warming := false
-static var _warm_group := -1
-static var _warm_anim := -1
 
 
 ## Wait for the warm-up and drop every cached resource before the engine tears down (static Resource caches that
 ## outlive the script server abort the process at exit).
 static func shutdown() -> void:
-	if _warm_group >= 0:
-		WorkerThreadPool.wait_for_group_task_completion(_warm_group)
-		_warm_group = -1
-	if _warm_anim >= 0:
-		WorkerThreadPool.wait_for_task_completion(_warm_anim)
-		_warm_anim = -1
+	_reap_tasks(true)
 	_scenes.clear()
 	_anim_lib = null
 	_materials = null
@@ -80,15 +73,40 @@ static func warm_up() -> void:
 		if not added:
 			break
 		round += 1
-	_warm_anim = WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
-	_warm_group = WorkerThreadPool.add_group_task(func(i: int):
-		var id: String = todo[i]
-		if not _is_ready(id):
+	animation_library_if_ready()
+	# one look at a time on one worker: parallel glTF builds pushed every look's texture uploads into the first
+	# frames at once (CI's paravirtual GPU timed out on that frame) and starved world streaming of cores
+	_task_ids.append(WorkerThreadPool.add_task(func():
+		var t0 := Time.get_ticks_msec()
+		for id in todo:
+			if _is_ready(id):
+				continue
 			var ps := _build_scene(id, _info(id))
 			if ps:
 				_mutex.lock()
 				_scenes[id] = ps
-				_mutex.unlock(), todo.size(), -1, false, "character scenes")
+				_mutex.unlock()
+		print("characters: %d looks ready in %d ms" % [todo.size(), Time.get_ticks_msec() - t0]), false, "character scenes"))
+	# every WorkerThreadPool task must be waited on: reap finished ones as spawns happen and block on the rest when
+	# the tree shuts down (an unwaited task aborted the process at exit)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree and not tree.root.tree_exiting.is_connected(_reap_tasks):
+		tree.root.tree_exiting.connect(_reap_tasks.bind(true))
+
+
+static var _task_ids: Array = []
+static var _group_ids: Array = []
+
+
+static func _reap_tasks(block := false) -> void:
+	for id in _task_ids.duplicate():
+		if block or WorkerThreadPool.is_task_completed(id):
+			WorkerThreadPool.wait_for_task_completion(id)
+			_task_ids.erase(id)
+	for id in _group_ids.duplicate():
+		if block or WorkerThreadPool.is_group_task_completed(id):
+			WorkerThreadPool.wait_for_group_task_completion(id)
+			_group_ids.erase(id)
 
 
 static func _is_ready(id: String) -> bool:
@@ -148,6 +166,8 @@ static func spawn(seed: int, role := "", opts := {}) -> FrontierCharacter:
 	if pool.is_empty():
 		push_warning("CharacterFactory: no generated characters found (run tools/characters/run.sh or fetch_assets.sh)")
 		return null
+	if not _task_ids.is_empty() or not _group_ids.is_empty():
+		_reap_tasks()
 	if _warming:
 		# prefer looks already prepared off-thread; any ready look beats a main-thread glTF parse mid-game
 		var ready := Array(pool).filter(_is_ready)
@@ -162,14 +182,20 @@ static func spawn(seed: int, role := "", opts := {}) -> FrontierCharacter:
 	return spawn_id(id, o)
 
 
+## Phase timings (ms) of the last spawn_id call: scene (load/build the look), instantiate, materials, setup.
+static var last_spawn_ms := {}
+
+
 static func spawn_id(id: String, opts := {}) -> FrontierCharacter:
 	var info := _info(id)
 	if info.is_empty():
 		push_warning("CharacterFactory: unknown character " + id)
 		return null
+	var t0 := Time.get_ticks_usec()
 	var scene := _scene(id, info)
 	if scene == null:
 		return null
+	var t1 := Time.get_ticks_usec()
 	var model: Node3D = scene.instantiate()
 	model.name = "Model"
 	var ch := FrontierCharacter.new()
@@ -177,25 +203,64 @@ static func spawn_id(id: String, opts := {}) -> FrontierCharacter:
 	ch.character_id = id
 	ch.info = info
 	ch.add_child(model)
+	var t2 := Time.get_ticks_usec()
 	if _materials == null:
 		_materials = CharacterMaterials.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(id + ":" + str(opts.get("variant_seed", 0)))
 	_materials.apply(model, info, rng, opts)
-	ch.setup(model, animation_library(), opts)
+	var t3 := Time.get_ticks_usec()
+	ch.setup(model, animation_library_if_ready() if not opts.get("block_anims", false) else animation_library(), opts)
+	var t4 := Time.get_ticks_usec()
+	last_spawn_ms = {"scene": (t1 - t0) / 1000.0, "instantiate": (t2 - t1) / 1000.0, "materials": (t3 - t2) / 1000.0,
+		"setup": (t4 - t3) / 1000.0, "total": (t4 - t0) / 1000.0}
 	return ch
 
 
-static func animation_library() -> AnimationLibrary:
+static var _anim_loading := false
+
+
+## The shared clip library if it is already loaded, else null (and a background load is started). Spawns use this so
+## the first townsfolk never wait on animations.glb on the main thread; FrontierCharacter attaches the library when
+## it arrives.
+static func animation_library_if_ready() -> AnimationLibrary:
 	_mutex.lock()
-	var have := _anim_lib != null
+	var lib := _anim_lib
+	var loading := _anim_loading
+	if lib == null and not loading:
+		_anim_loading = true
 	_mutex.unlock()
-	if have:
-		return _anim_lib
+	if lib == null and not loading:
+		_task_ids.append(WorkerThreadPool.add_task(func(): animation_library(), false, "character anims"))
+	return lib
+
+
+static var _anim_loader := false   # someone is inside _load_anim_library
+
+
+## Blocking: the shared clip library, loading it here if no other thread is (else waits for that load).
+static func animation_library() -> AnimationLibrary:
+	while true:
+		_mutex.lock()
+		var have := _anim_lib != null
+		var busy := _anim_loader
+		if not have and not busy:
+			_anim_loader = true
+		_mutex.unlock()
+		if have:
+			return _anim_lib
+		if not busy:
+			break
+		OS.delay_msec(2)
+	var tl := Time.get_ticks_msec()
 	var lib := _load_anim_library()
+	print("characters: animation library (%d clips) in %d ms on %s" % [lib.get_animation_list().size() if lib else 0,
+		Time.get_ticks_msec() - tl, "main thread" if OS.get_thread_caller_id() == OS.get_main_thread_id() else "a worker"])
 	_mutex.lock()
 	if _anim_lib == null:
 		_anim_lib = lib
+	_anim_loader = false
+	_anim_loading = false
 	_mutex.unlock()
 	return _anim_lib
 
@@ -252,6 +317,10 @@ static func _scene(id: String, info: Dictionary) -> PackedScene:
 
 static func _build_scene(id: String, info: Dictionary) -> PackedScene:
 	var path := asset_dir().path_join(str(info.get("file", id + ".glb")))
+	if ResourceLoader.exists(path):
+		var res = load(path)
+		if res is PackedScene and not _has_anim_player(res):
+			return res     # the imported scene as is: no instantiate + re-pack (half the cold-spawn cost)
 	var root := _load_glb(path)
 	if root == null:
 		push_warning("CharacterFactory: cannot load " + path)
@@ -265,6 +334,14 @@ static func _build_scene(id: String, info: Dictionary) -> PackedScene:
 	ps.pack(root)
 	root.free()
 	return ps
+
+
+static func _has_anim_player(ps: PackedScene) -> bool:
+	var st := ps.get_state()
+	for i in st.get_node_count():
+		if st.get_node_type(i) == &"AnimationPlayer":
+			return true
+	return false
 
 
 static func _load_glb(path: String) -> Node:

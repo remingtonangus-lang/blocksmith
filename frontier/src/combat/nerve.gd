@@ -48,7 +48,7 @@ func activate() -> void:
 	active = true
 	marks.clear()
 	Engine.time_scale = SLOW
-	if overlay:
+	if overlay and not Game.is_vr:        # VR grades the world instead (src/xr/vr_play.gd): a screen overlay sits on the HUD sheet
 		overlay.visible = true
 	if Game.audio:
 		Game.audio.set_nerve(true)
@@ -114,12 +114,16 @@ func _process(dt: float) -> void:
 			if _exec_t <= 0.0 and not marks.is_empty():
 				var m: Dictionary = marks.pop_front()
 				var origin := gun.owner_actor.global_position + Vector3(0, 1.45, 0)
+				var holder = gun.owner_actor.get("holder")
+				if Game.is_vr and holder != null and holder.has_drawn_model():
+					origin = holder.muzzle_transform().origin   # from the gun in the player's hand
 				var tgt: Vector3 = m.pos
 				# re-aim at the marked body part if the target moved (marks stick to hitboxes)
 				if m.node != null and is_instance_valid(m.node):
 					tgt = (m.node as Node3D).global_position
 				gun.cooldown = 0.0
-				_cut_to(origin, tgt)
+				if not Game.is_vr:                  # no camera cuts in a headset
+					_cut_to(origin, tgt)
 				gun.fire(origin, (tgt - origin).normalized(), true, 0.15)
 				_free_ink(m)
 				_exec_t = 0.11 if Game.headless else 0.3

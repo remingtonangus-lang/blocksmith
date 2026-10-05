@@ -62,6 +62,22 @@ FACE_SHAPES = {
 for v in ("sil", "PP", "FF", "TH", "DD", "kk", "CH", "SS", "nn", "RR", "aa", "E", "I", "O", "U"):
     FACE_SHAPES["vis_" + v] = [("viseme_" + v, 1.0)]
 
+
+
+def merged_face_shapes():
+    """NPC set: left/right pairs (blink, squint, wide, smile, sneer, look_up, look_down) merged into one symmetric
+    shape each (37 -> 30 shapes; FrontierCharacter drives "<name>" with max(<name>_L, <name>_R))."""
+    out = {}
+    for name, parts in FACE_SHAPES.items():
+        if name.endswith("_R") and name[:-2] + "_L" in FACE_SHAPES:
+            continue
+        if name.endswith("_L") and name[:-2] + "_R" in FACE_SHAPES:
+            out[name[:-2]] = parts + FACE_SHAPES[name[:-2] + "_R"]
+        else:
+            out[name] = parts
+    return out
+
+
 HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes", "beard", "cornea")
 
 
@@ -364,3 +380,94 @@ def decimate(obj, ratio, keep_shapes=True):
             obj.data.attributes[aname].data.foreach_get("vector", a)
             add_shape(obj, kname, co + a.reshape(n, 3))
             obj.data.attributes.remove(obj.data.attributes[aname])
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Godot import sidecars: textures pre-extracted next to the .glb (the names Godot's "Extract Textures" uses,
+# <glb stem>_<image name>.<ext>) with .import files asking for VRAM compression (S3TC/BPTC on desktop, ETC2/ASTC on
+# the Quest), plus a .glb.import with the scene options. Godot keeps the [params] of an existing .import file and
+# fills in uid/paths itself; with the texture already present it doesn't re-extract an uncompressed copy.
+TEXTURE_IMPORT = """[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/normal_map={normal}
+mipmaps/generate=true
+detect_3d/compress_to=0
+"""
+
+SCENE_IMPORT = """[remap]
+
+importer="scene"
+type="PackedScene"
+
+[params]
+
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=false
+meshes/light_baking=0
+animation/import={anim}
+gltf/embedded_image_handling=1
+gltf/naming_version=2
+"""
+
+
+def godot_sidecars(glb_path, animations=False):
+    """Write <stem>_<image>.<ext> + .import (VRAM compressed) for every image in the glb and <glb>.import.
+    Returns the texture files written. Stale textures of earlier builds with the same stem are removed."""
+    import json as _json
+    import struct as _struct
+    import re as _re
+    d = os.path.dirname(glb_path)
+    stem = os.path.splitext(os.path.basename(glb_path))[0]
+    data = open(glb_path, "rb").read()
+    n = _struct.unpack("<I", data[12:16])[0]
+    j = _json.loads(data[20:20 + n])
+    bin0 = 20 + n + 8
+    normals = set()
+    for m in j.get("materials", []):
+        nt = m.get("normalTexture")
+        if nt is not None:
+            normals.add(j["textures"][nt["index"]]["source"])
+    written = []
+    for i, im in enumerate(j.get("images", [])):
+        if "bufferView" not in im:
+            continue
+        ext = ".png" if im.get("mimeType", "image/png") == "image/png" else ".jpg"
+        name = "%s_%s%s" % (stem, im.get("name", "image_%d" % i), ext)
+        bv = j["bufferViews"][im["bufferView"]]
+        with open(os.path.join(d, name), "wb") as f:
+            f.write(data[bin0 + bv.get("byteOffset", 0):][:bv["byteLength"]])
+        _write_import(os.path.join(d, name + ".import"), TEXTURE_IMPORT.format(normal=1 if i in normals else 0))
+        written.append(name)
+    # stale textures from earlier builds of this character (not of a longer id sharing the prefix)
+    longer = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith(".glb") and x != stem + ".glb"
+              and x.startswith(stem + "_")]
+    keep = set(written) | set(w + ".import" for w in written)
+    pat = _re.compile(r"^%s_.+\.(png|jpg)(\.import)?$" % _re.escape(stem))
+    for x in os.listdir(d):
+        if pat.match(x) and x not in keep and not any(x.startswith(L + "_") for L in longer):
+            os.remove(os.path.join(d, x))
+    _write_import(glb_path + ".import", SCENE_IMPORT.format(anim="true" if animations else "false"))
+    return written
+
+
+def _write_import(path, text):
+    """Write a sidecar, keeping the uid Godot gave an earlier import of the same file (scenes reference textures by
+    uid; a fresh uid on every rebuild leaves "invalid UID" fallbacks in already-imported scenes)."""
+    uid = None
+    if os.path.exists(path):
+        for line in open(path):
+            if line.startswith("uid="):
+                uid = line.strip()
+                break
+    if uid:
+        text = text.replace("\n\n[params]", "\n" + uid + "\n\n[params]", 1)   # into the [remap] section
+    with open(path, "w") as f:
+        f.write(text)

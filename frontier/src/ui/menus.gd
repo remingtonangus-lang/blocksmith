@@ -9,7 +9,24 @@ const JOURNAL = preload("res://src/missions/journal.gd")
 var panel: PanelContainer
 var stack: Array[Control] = []
 var settings := {"quality": "high", "render_scale": -1.0, "fov": 62.0, "mouse_sens": 1.0, "invert_y": false,
-	"subtitles": true, "vol_master": 1.0, "vol_music": 0.8, "vol_sfx": 1.0, "vol_voice": 1.0, "snap_turn": true}
+	"subtitles": true, "vol_master": 1.0, "vol_music": 0.8, "vol_sfx": 1.0, "vol_voice": 1.0, "snap_turn": true,
+	"aim_assist": "controller", "aim_toggle": false, "colour_mode": "off", "colour_strength": 1.0, "text_scale": 1.0,
+	"binds": {}}
+## Rebindable actions (settings > Controls): keyboard key and gamepad button per action. Aim/fire stay on the
+## mouse buttons and triggers; look and move axes stay on the sticks.
+const REBIND := [["move_forward", "Move forward"], ["move_back", "Move back"], ["move_left", "Move left"],
+	["move_right", "Move right"], ["sprint", "Sprint / spur horse"], ["walk_toggle", "Walk toggle"], ["jump", "Jump"],
+	["crouch", "Crouch"], ["interact", "Interact / talk / greet"], ["mount", "Mount / dismount"],
+	["whistle", "Whistle for horse"], ["ride_auto", "Follow the road"], ["reload", "Reload"], ["nerve", "Nerve"],
+	["weapon_wheel", "Weapon wheel"], ["holster", "Holster"], ["camera_side", "Swap shoulder"], ["melee", "Melee"],
+	["lasso", "Lasso"], ["fish", "Fish"], ["antagonize", "Antagonize"], ["defuse", "Defuse"], ["map", "Map"],
+	["journal", "Journal"], ["satchel", "Satchel"]]
+const PAD_NAMES := MenusNames.PAD
+var access: Accessibility
+var _default_events := {}         # action -> events before any rebinding (for Reset)
+var _binds_applied := {}
+var _capture := {}                # {action, kind: "key"|"pad", button} while waiting for a press
+var _bind_t := 0.0
 var map_view: Control
 var waypoint := Vector3.INF
 var route := PackedVector3Array()
@@ -18,10 +35,29 @@ var _route_t := 0.0
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	access = Accessibility.new()
+	access.name = "Accessibility"
+	add_child(access)
 	_load_settings()
 	apply_settings()
 
+func _input(event: InputEvent) -> void:
+	if _capture.is_empty() or not event.is_pressed() or event.is_echo():
+		return
+	if _capture.kind == "key" and event is InputEventKey:
+		if event.physical_keycode != KEY_ESCAPE:
+			_set_bind(_capture.action, "key", int(event.physical_keycode))
+		_end_capture()
+		get_viewport().set_input_as_handled()
+	elif _capture.kind == "pad" and event is InputEventJoypadButton:
+		if event.button_index != JOY_BUTTON_START:
+			_set_bind(_capture.action, "pad", int(event.button_index))
+		_end_capture()
+		get_viewport().set_input_as_handled()
+
 func _unhandled_input(event: InputEvent) -> void:
+	if not _capture.is_empty():
+		return
 	if event.is_action_pressed("pause"):
 		if stack.is_empty():
 			open_pause()
@@ -128,6 +164,9 @@ func open_pause() -> void:
 	v.add_child(_button("Resume", back))
 	v.add_child(_button("Map", open_map))
 	v.add_child(_button("Journal", open_journal))
+	v.add_child(_button("Satchel", Satchel.open))
+	if Game.has_meta("news") and Game.get_meta("news").has_paper():
+		v.add_child(_button("Today's Paper", func(): Game.get_meta("news").open_last()))
 	v.add_child(_button("Settings", open_settings))
 	v.add_child(_button("Save Game", func():
 		if Game.state and Game.state.save_game("manual"):
@@ -190,8 +229,189 @@ func open_settings() -> void:
 			_slider(0.0, 1.0, 0.05, settings[k], func(x):
 				settings[k] = x
 				apply_settings())))
+	var more := HBoxContainer.new()
+	more.add_theme_constant_override("separation", 12)
+	more.add_child(_button("Controls", open_controls))
+	more.add_child(_button("Accessibility", open_accessibility))
+	more.add_child(_button("Back", back))
+	v.add_child(more)
+	_push(p)
+
+# ------------------------------------------------------------------ accessibility
+func open_accessibility() -> void:
+	var p := _paper_panel(Vector2(820, 0))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	p.add_child(v)
+	v.add_child(UITheme.label("Accessibility", 44, "display", UITheme.INK, false))
+	v.add_child(HSeparator.new())
+	v.add_child(_row("Aim assist", _options(["Off", "Controller only", "Always"], ["off", "controller", "always"], "aim_assist")))
+	var tg := CheckBox.new()
+	tg.button_pressed = settings.aim_toggle
+	tg.toggled.connect(func(b):
+		settings.aim_toggle = b
+		apply_settings())
+	v.add_child(_row("Toggle aim (press, not hold)", tg))
+	v.add_child(_row("Colour vision", _options(Accessibility.COLOUR_LABELS, Accessibility.COLOUR_MODES, "colour_mode")))
+	v.add_child(_row("Colour correction strength", _slider(0.2, 1.5, 0.05, settings.colour_strength, func(x):
+		settings.colour_strength = x
+		apply_settings())))
+	v.add_child(_row("Text and menu size", _slider(0.8, 1.5, 0.05, settings.text_scale, func(x):
+		settings.text_scale = x
+		apply_settings())))
+	var subs := CheckBox.new()
+	subs.button_pressed = settings.subtitles
+	subs.toggled.connect(func(b):
+		settings.subtitles = b
+		apply_settings())
+	v.add_child(_row("Subtitles", subs))
 	v.add_child(_button("Back", back))
 	_push(p)
+
+func _options(labels: Array, values: Array, key: String) -> OptionButton:
+	var o := OptionButton.new()
+	for l in labels:
+		o.add_item(str(l))
+	o.selected = maxi(values.find(settings.get(key, values[0])), 0)
+	o.item_selected.connect(func(i):
+		settings[key] = values[i]
+		apply_settings())
+	return o
+
+# ------------------------------------------------------------------ controls (rebinding)
+func open_controls() -> void:
+	_snapshot_defaults()
+	var p := _paper_panel(Vector2(980, 700))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	p.add_child(v)
+	v.add_child(UITheme.label("Controls", 44, "display", UITheme.INK, false))
+	v.add_child(UITheme.label("Choose a binding, then press the new key or button (Esc / Menu cancels).", 22, "italic", UITheme.INK_SOFT, false))
+	v.add_child(HSeparator.new())
+	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true   # D-pad focus scrolls rows below the fold into reach
+	scroll.custom_minimum_size = Vector2(920, 470)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	v.add_child(scroll)
+	for a in REBIND:
+		var action: String = a[0]
+		if not InputMap.has_action(action):
+			continue
+		var h := HBoxContainer.new()
+		var l := UITheme.label(a[1], 26, "body", UITheme.INK, false)
+		l.custom_minimum_size = Vector2(380, 0)
+		h.add_child(l)
+		for kind in ["key", "pad"]:
+			var b := _button(_bind_text(action, kind), func(): pass)
+			b.custom_minimum_size = Vector2(230, 0)
+			b.set_meta("bind", [action, kind])
+			b.pressed.connect(_begin_capture.bind(action, kind, b))
+			h.add_child(b)
+		list.add_child(h)
+	var note := UITheme.label(_conflicts_text(), 20, "italic", UITheme.INK_SOFT, false)
+	note.name = "Conflicts"
+	v.add_child(note)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.add_child(_button("Reset to defaults", func():
+		reset_binds()
+		back()
+		open_controls()))
+	row.add_child(_button("Back", back))
+	v.add_child(row)
+	_push(p)
+
+func _begin_capture(action: String, kind: String, b: Button) -> void:
+	b.text = "press a key…" if kind == "key" else "press a button…"
+	# armed next frame so the press that chose this row is not taken as the new binding
+	(func(): _capture = {"action": action, "kind": kind, "button": b}).call_deferred()
+
+func _end_capture() -> void:
+	var b: Button = _capture.get("button")
+	if b and is_instance_valid(b):
+		b.text = _bind_text(_capture.action, _capture.kind)
+		var n = b.get_parent().get_parent().get_parent().get_parent().get_node_or_null("Conflicts")
+		if n:
+			n.text = _conflicts_text()
+	_capture = {}
+
+func _key_name(code: int) -> String:
+	if code <= 0:
+		return "—"
+	var k := DisplayServer.keyboard_get_keycode_from_physical(code) if not Game.headless else code
+	return OS.get_keycode_string(k)
+
+func _bind_text(action: String, kind: String) -> String:
+	for e in InputMap.action_get_events(action):
+		if kind == "key" and e is InputEventKey:
+			return _key_name(e.physical_keycode if e.physical_keycode != 0 else e.keycode)
+		if kind == "pad" and e is InputEventJoypadButton:
+			return PAD_NAMES.get(e.button_index, "Button %d" % e.button_index)
+	return "—"
+
+func _conflicts_text() -> String:
+	var used := {}
+	var out: PackedStringArray = []
+	for a in REBIND:
+		if not InputMap.has_action(a[0]):
+			continue
+		for e in InputMap.action_get_events(a[0]):
+			if e is InputEventKey:
+				var k := "key %s" % _key_name(e.physical_keycode)
+				if used.has(k) and a[0] not in ["mount", "melee"]:
+					out.append("%s is on both %s and %s" % [_key_name(e.physical_keycode), used[k], a[1]])
+				used[k] = a[1]
+	return "" if out.is_empty() else "Note: " + "; ".join(out)
+
+func _snapshot_defaults() -> void:
+	InputSetup.ensure()
+	for a in REBIND:
+		if InputMap.has_action(a[0]) and not _default_events.has(a[0]):
+			_default_events[a[0]] = InputMap.action_get_events(a[0]).duplicate()
+
+func _set_bind(action: String, kind: String, code: int) -> void:
+	_snapshot_defaults()
+	var b: Dictionary = settings.binds.get(action, {})
+	b[kind] = code
+	settings.binds[action] = b
+	_apply_bind(action)
+	_save_settings()
+
+func _apply_bind(action: String) -> void:
+	if not InputMap.has_action(action):
+		return
+	var b: Dictionary = settings.binds.get(action, {})
+	for e in InputMap.action_get_events(action):
+		if (b.has("key") and e is InputEventKey) or (b.has("pad") and e is InputEventJoypadButton):
+			InputMap.action_erase_event(action, e)
+	if int(b.get("key", -1)) > 0:
+		var k := InputEventKey.new()
+		k.physical_keycode = int(b.key)
+		InputMap.action_add_event(action, k)
+	if b.has("pad") and int(b.pad) >= 0:
+		var j := InputEventJoypadButton.new()
+		j.button_index = int(b.pad)
+		InputMap.action_add_event(action, j)
+	_binds_applied[action] = true
+
+## Saved bindings onto actions that exist (systems register some actions late, so this re-runs until all landed).
+func apply_binds() -> void:
+	_snapshot_defaults()
+	for action in settings.binds.keys():
+		if not _binds_applied.has(action) and InputMap.has_action(action):
+			_apply_bind(str(action))
+
+func reset_binds() -> void:
+	for action in _default_events.keys():
+		InputMap.action_erase_events(action)
+		for e in _default_events[action]:
+			InputMap.action_add_event(action, e)
+	settings.binds = {}
+	_binds_applied = {}
+	_save_settings()
 
 func _row(label: String, ctl: Control) -> HBoxContainer:
 	var h := HBoxContainer.new()
@@ -224,8 +444,11 @@ func apply_settings() -> void:
 	if Game.player:
 		Game.player.set("mouse_sens", 0.0025 * settings.mouse_sens)
 		Game.player.set("invert_y", settings.invert_y)
-	if Game.camera and Game.player and "cam_dist" in Game.player:
-		Game.camera.fov = settings.fov
+	if Game.player and "base_fov" in Game.player:
+		Game.player.base_fov = settings.fov
+	if access:
+		access.apply(settings)
+	apply_binds()
 	for bus in [["Master", "vol_master"], ["Music", "vol_music"], ["SFX", "vol_sfx"], ["Voice", "vol_voice"]]:
 		var i := AudioServer.get_bus_index(bus[0])
 		if i >= 0:
@@ -261,10 +484,15 @@ func open_map() -> void:
 	map_view.offset_right = -60
 	map_view.offset_bottom = -60
 	map_view.focus_mode = Control.FOCUS_ALL
+	map_view.clip_contents = true   # the paper stays inside its frame; the margin carries the hint
 	map_view.menus = self
 	root.add_child(map_view)
 	var hint := UITheme.label("Click / A: set waypoint     Scroll / triggers: zoom     Drag / stick: pan     Esc / B: close", 22, "italic", UITheme.PAPER)
-	hint.position = Vector2(70, 18)
+	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hint.offset_top = -48
+	hint.offset_bottom = -14
 	root.add_child(hint)
 	_push(root)
 
@@ -284,6 +512,11 @@ func _update_route() -> void:
 	route = Game.roads.route(Game.player.global_position, waypoint)
 
 func _process(dt: float) -> void:
+	_bind_t -= dt
+	if _bind_t <= 0.0:
+		_bind_t = 1.0
+		if _binds_applied.size() < settings.binds.size():
+			apply_binds()
 	_route_t -= dt
 	if _route_t <= 0.0 and waypoint != Vector3.INF and Game.player:
 		_route_t = 3.0
@@ -320,7 +553,7 @@ func open_journal() -> void:
 			var m = load(path).new()
 			titles[m.id] = m.title
 			chapters[m.id] = m.chapter
-			regions[m.id] = m.region if m.stranger else ""
+			regions[m.id] = ((("The Outfit" if m.companion != "" else "A stranger") + " — " + m.region) if m.stranger else "")
 		# --journal_all (evidence shots): every page written
 		var ids: Array = titles.keys() if Game.args.has("journal_all") else md.completed
 		for id in ids:
@@ -355,6 +588,7 @@ func open_journal() -> void:
 	left.add_child(status)
 	left.add_child(HSeparator.new())
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true   # D-pad focus scrolls rows below the fold into reach
 	scroll.custom_minimum_size = Vector2(430, 430)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.add_child(scroll)
@@ -377,6 +611,7 @@ func open_journal() -> void:
 	e_body.add_theme_font_size_override("normal_font_size", 25)
 	e_body.add_theme_color_override("default_color", UITheme.INK)
 	right.add_child(e_body)
+	var mh := [null]          # the map sheet (a holder: lambdas capture by value)
 	var sketch = JOURNAL.Sketch.new()
 	sketch.custom_minimum_size = Vector2(520, 250)
 	sketch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -385,9 +620,36 @@ func open_journal() -> void:
 		var ch: int = int(chapters.get(id, 1))
 		e_title.text = str(titles.get(id, id))
 		var where: String = str(regions.get(id, ""))
-		e_sub.text = ("A stranger — %s" % where) if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
+		e_sub.text = where if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
 		e_body.text = JOURNAL.text_for(id, flags)
+		var medal_line: String = load("res://src/missions/presentation.gd").medal_text(id, flags)
+		if medal_line != "":
+			e_body.text += "\n\n" + medal_line
+		sketch.visible = true
+		if mh[0] != null and is_instance_valid(mh[0]):
+			mh[0].visible = false
 		sketch.set_kind(JOURNAL.sketch_for(id), hash(id))
+	# bounties, legendary hunts and treasure maps: pages written from the flags, a map sheet for the maps
+	var extras: Array = JOURNAL.extra_entries(flags, Game.state.inventory if Game.state else {})
+	var show_extra := func(e: Dictionary) -> void:
+		e_title.text = str(e.title)
+		e_sub.text = str(e.sub)
+		e_body.text = str(e.text)
+		if int(e.get("map", 0)) > 0 and Game.has_meta("treasure"):
+			sketch.visible = false
+			if mh[0] != null and is_instance_valid(mh[0]):
+				mh[0].queue_free()
+			var msk = load("res://src/systems/treasure.gd").MapSketch.new()
+			mh[0] = msk
+			msk.custom_minimum_size = Vector2(620, 300)
+			msk.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			msk.setup(load("res://src/systems/treasure.gd").target(int(e.map)), int(e.map))
+			right.add_child(msk)
+		else:
+			sketch.visible = true
+			if mh[0] != null and is_instance_valid(mh[0]):
+				mh[0].visible = false
+			sketch.set_kind(str(e.sketch), hash(str(e.title)))
 	if done.is_empty():
 		e_title.text = "Nothing written yet"
 		e_body.text = "The pages are clean. Tom used to say a clean page is a lie waiting for a pencil."
@@ -403,6 +665,14 @@ func open_journal() -> void:
 		b.add_theme_font_size_override("font_size", 24)
 		b.focus_entered.connect(func(): show_entry.call(id))
 		list.add_child(b)
+	if not extras.is_empty():
+		list.add_child(UITheme.label("Bounties, hunts & maps", 20, "caps", UITheme.OXBLOOD, false))
+		for e in extras:
+			var ee: Dictionary = e
+			var eb := _button("   " + str(ee.title), func(): show_extra.call(ee))
+			eb.add_theme_font_size_override("font_size", 24)
+			eb.focus_entered.connect(func(): show_extra.call(ee))
+			list.add_child(eb)
 	if not done.is_empty():
 		show_entry.call(done.back())
 	v.add_child(_button("Back", back))

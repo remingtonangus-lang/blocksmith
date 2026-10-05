@@ -1,0 +1,658 @@
+{
+ "note": "Newspapers (src/systems/newspaper.gd): front-page stories picked from story flags, completed missions and the news log of Ruth's deeds, with weather, prices, advertisements and notices. Original writing.",
+ "mastheads": {
+  "port_linden": {
+   "name": "The Port Linden Lantern",
+   "motto": "Printed every week since 1881",
+   "editor": "Augustus Fenn, Editor & Proprietor",
+   "price": 0.05
+  },
+  "bitter_spring": {
+   "name": "The Sable County Courier",
+   "motto": "Bitter Spring, Sable County",
+   "editor": "J. P. Winslow, Publisher",
+   "price": 0.05
+  },
+  "coldwater": {
+   "name": "The Kestrel Miners' Advocate",
+   "motto": "Coldwater — Labor Omnia Vincit",
+   "editor": "Published by the Kestrel Union",
+   "price": 0.05
+  },
+  "mesquite_wells": {
+   "name": "The Ocotillo Star",
+   "motto": "Mesquite Wells — El Norte y el Sur",
+   "editor": "R. Ochoa, Editor",
+   "price": 0.05
+  }
+ },
+ "stories": [
+  {
+   "id": "land_offer",
+   "head": "SYNDICATE OFFERS FOR SABLE BASIN LAND",
+   "deck": "Meridian & Western Men Buying Ahead of the Drought",
+   "body": "Agents of the Meridian & Western Land and Rail Syndicate are offering two dollars the acre for river-bottom land, cash, and three for any parcel with water on it. Several families have sold. Several have not, and say they have been visited at night for their trouble.",
+   "when": {},
+   "priority": 0
+  },
+  {
+   "id": "willow_bend",
+   "head": "SHOOTING AT WILLOW BEND",
+   "deck": "Two Syndicate Riders Dead; Wounded Drover Saved by a Stranger",
+   "body": "Two men in the employ of the syndicate's range department were killed at the river crossing at Willow Bend, where they had come upon a drover of the Lindqvist outfit. Witnesses describe a woman on a dun mare who 'did not appear to hurry.' The sheriff has made no arrests and says he does not intend to try.",
+   "when": {
+    "completed": [
+     "c1_drover"
+    ],
+    "not_completed": [
+     "c2_lantern"
+    ]
+   },
+   "priority": 2
+  },
+  {
+   "id": "press",
+   "head": "THE LANTERN WILL NOT BE PUT OUT",
+   "deck": "Hired Men Take a Sledge to This Paper's Press",
+   "body": "On Tuesday last two men entered the offices of this newspaper and set about the press with a sledge. They were interrupted by a lady visitor. The editor wishes it known that the Lantern has been printed every week since 1881 and will be printed next week, and the week after, and the week after that.",
+   "when": {
+    "completed": [
+     "c2_lantern"
+    ],
+    "not_completed": [
+     "c2_terms"
+    ]
+   },
+   "priority": 3
+  },
+  {
+   "id": "exchange",
+   "head": "LINDEN EXCHANGE ENTERED BY NIGHT",
+   "deck": "Bank Says Nothing of Value Taken; Deputies Fire on Fleeing Party",
+   "body": "The Linden Exchange Bank was entered by its rear door on Thursday night. The bank's directors state that nothing of value was removed, which raises the question, in this office at least, of what was kept there that the bank considers of no value.",
+   "when": {
+    "completed": [
+     "c2_exchange"
+    ],
+    "not_completed": [
+     "c3_ranch"
+    ]
+   },
+   "priority": 3
+  },
+  {
+   "id": "poster",
+   "head": "WOMAN SOUGHT IN BANK AFFAIR",
+   "deck": "Reward of ${bounty} Posted at Mr. Pell's Complaint",
+   "body": "A reward has been posted for a woman described as tall, weathered and scarred through the left eyebrow, wanted in connection with the Exchange affair. The likeness on the bill has been drawn, it is said, from an old exhibition poster. This paper has seen the poster and observes that the artist was generous with the hat.",
+   "when": {
+    "flag_set": [
+     "ruth_poster"
+    ],
+    "not_completed": [
+     "c3_ranch"
+    ]
+   },
+   "priority": 6
+  },
+  {
+   "id": "deeds_print",
+   "head": "FORGED DEEDS IN THE EXCHANGE VAULT",
+   "deck": "Quitclaim Signed by a Man Two Days in His Grave",
+   "body": "This paper has examined a quitclaim deed bearing the signature of Arliss Doane, dated two days after his burial on the hill above Bitter Spring. Mr. Doane's penmanship appears to have improved considerably in death. We print a facsimile below and invite the Water Board to explain it.",
+   "when": {
+    "flag": {
+     "deeds_kept": true
+    },
+    "not_completed": [
+     "c3_doc"
+    ]
+   },
+   "priority": 5
+  },
+  {
+   "id": "windmill",
+   "head": "RIDERS PULL DOWN HALVORSEN MILL",
+   "deck": "Widow Halvorsen Says Her South Section Is Not For Sale",
+   "body": "Riders said to be in the employ of Cutter Shale pulled down the north windmill on the Halvorsen place in broad daylight. Mrs. Halvorsen informs this paper that she has buried one husband on that ground and does not propose to sell it to the men who would have her buried beside him.",
+   "when": {
+    "completed": [
+     "c3_ranch"
+    ],
+    "not_completed": [
+     "c3_drive"
+    ]
+   },
+   "priority": 3
+  },
+  {
+   "id": "drive",
+   "head": "HALVORSEN HERD REACHES THE YBARRA WELL",
+   "deck": "Drive Through the Breaks Under Fire",
+   "body": "Mrs. Halvorsen's cattle have reached water at the Ybarra place after a drive through the Ocotillo Breaks, in the course of which the herd was twice stampeded. {drive_detail}",
+   "when": {
+    "completed": [
+     "c3_drive"
+    ],
+    "not_completed": [
+     "c3_fork"
+    ]
+   },
+   "priority": 3
+  },
+  {
+   "id": "cutter_jailed",
+   "head": "CUTTER SHALE IN THE COUNTY JAIL",
+   "deck": "Sheriff Mabry Holds Syndicate Man Without Bail",
+   "body": "Cutter Shale, lately of the syndicate's range department, was delivered to the county jail at Bitter Spring by a party who declined to give her name. Sheriff Mabry, to the surprise of all and perhaps of himself, has refused bail.",
+   "when": {
+    "flag": {
+     "cutter_fate": "jailed"
+    },
+    "not_completed": [
+     "c4_mine"
+    ]
+   },
+   "priority": 5
+  },
+  {
+   "id": "cutter_dead",
+   "head": "CUTTER SHALE DEAD ON THE DRY FORK",
+   "deck": "Line Camp Broken; No Mourners Reported",
+   "body": "Cutter Shale was killed at his line camp on the Dry Fork. The undertaker reports a plain box and no mourners, and has sent his account to the syndicate's offices in Port Linden, where it has not been paid.",
+   "when": {
+    "flag": {
+     "cutter_fate": "dead"
+    },
+    "not_completed": [
+     "c4_mine"
+    ]
+   },
+   "priority": 5
+  },
+  {
+   "id": "powder",
+   "head": "POWDER FIRED IN NUMBER TWO DRIFT",
+   "deck": "Kestrel Company Calls It an Accident; Miners Call It Something Else",
+   "body": "A charge of powder was fired at noon on Thursday in the number two drift of the Kestrel mine while four men of the striking union were inside. {mine_detail} The company's superintendent, Mr. Garrity, was unavailable for comment and is said to be unavailable for some time.",
+   "when": {
+    "completed": [
+     "c4_mine"
+    ],
+    "not_completed": [
+     "c4_strike"
+    ]
+   },
+   "priority": 4
+  },
+  {
+   "id": "strike",
+   "head": "THE KESTREL STRIKE SETTLED",
+   "deck": "{strike_deck}",
+   "body": "The strike at Coldwater, which began with the company's notice of reduced wages paid in scrip, has ended. {strike_detail}",
+   "when": {
+    "completed": [
+     "c4_strike"
+    ],
+    "not_completed": [
+     "c5_train"
+    ]
+   },
+   "priority": 4
+  },
+  {
+   "id": "express",
+   "head": "MERIDIAN EXPRESS STOPPED AT KESSLER'S TANK",
+   "deck": "Express Car Opened; {train_deck}",
+   "body": "The westbound express was stopped at Kessler's Tank on Thursday afternoon by a party of riders who boarded the express car at speed. {train_detail} Riders believed to be syndicate men emerged from the caboose and gave chase.",
+   "when": {
+    "completed": [
+     "c5_train"
+    ],
+    "not_completed": [
+     "c5_owe"
+    ]
+   },
+   "priority": 5
+  },
+  {
+   "id": "ledger",
+   "head": "MR. PELL'S LEDGER",
+   "deck": "This Paper Prints the Syndicate's Private Accounts in Full",
+   "body": "Beginning on this page and continuing over the next four, the Lantern prints the private ledger of Mr. Lucius Pell: every payment to every man, including those made to the Shale brothers in the month of the Harlan's Siding robbery. The editor has been offered a great deal of money not to print it. He has printed it.",
+   "when": {
+    "flag": {
+     "ledger_to_fenn": true
+    },
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "priority": 6
+  },
+  {
+   "id": "money_gone",
+   "head": "SYNDICATE PAYROLL NEVER RECOVERED",
+   "deck": "Express Robbers Still at Large",
+   "body": "The payroll taken from the Meridian express at Kessler's Tank has not been recovered, nor has any trace of it been found. The syndicate offers a reward. So, it is said, does Mr. Pell personally, and his terms are less particular.",
+   "when": {
+    "flag": {
+     "ledger_to_fenn": false
+    },
+    "completed": [
+     "c5_owe"
+    ],
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "priority": 6
+  },
+  {
+   "id": "warrants",
+   "head": "RAID ON THE WILLOW BEND CAMP",
+   "deck": "Warrants Sworn by Mr. Pell; Riders Led by Eben Shale",
+   "body": "At dawn on Sunday riders under Eben Shale, bearing warrants sworn by Mr. Pell, descended on the camp at Willow Bend. {raid_detail}",
+   "when": {
+    "completed": [
+     "c6_warrants"
+    ],
+    "not_completed": [
+     "c6_eben"
+    ]
+   },
+   "priority": 6
+  },
+  {
+   "id": "eben",
+   "head": "{eben_head}",
+   "deck": "The End of the Shale Brothers at San Lazaro",
+   "body": "{eben_detail}",
+   "when": {
+    "completed": [
+     "c6_eben"
+    ],
+    "not_completed": [
+     "c6_ink"
+    ]
+   },
+   "priority": 7
+  },
+  {
+   "id": "pell_arrested",
+   "head": "LUCIUS PELL ARRESTED",
+   "deck": "Territorial Marshal Takes Syndicate Lawyer from His Office",
+   "body": "Mr. Lucius Pell was taken into custody in the Meridian & Western offices by the territorial marshal on the strength of his own ledger. He asked for his hat. He was permitted his hat.",
+   "when": {
+    "flag": {
+     "pell_fate": "arrested"
+    }
+   },
+   "priority": 8
+  },
+  {
+   "id": "pell_free",
+   "head": "NEW DEPOT FOR PORT LINDEN",
+   "deck": "Mr. Pell Lays the Cornerstone",
+   "body": "Mr. Lucius Pell laid the cornerstone of the syndicate's new depot on Wednesday, before a crowd of employees who had been given the afternoon off to attend. Mr. Pell spoke of progress. This paper notes that progress has a ledger, and that the ledger has not been found.",
+   "when": {
+    "flag": {
+     "pell_fate": "untouched"
+    }
+   },
+   "priority": 8
+  },
+  {
+   "id": "pell_robbed",
+   "head": "SYNDICATE OFFICE ROBBED BY DAY",
+   "deck": "City Marshal's Men Exchange Fire with Riders",
+   "body": "Riders entered the Meridian & Western offices in broad day and opened Mr. Pell's own safe. The city marshal's men arrived in time to exchange shots and not in time to do anything else.",
+   "when": {
+    "flag": {
+     "pell_fate": "robbed"
+    }
+   },
+   "priority": 8
+  },
+  {
+   "id": "spring",
+   "head": "SPRING IN THE SABLE COUNTRY",
+   "deck": "Creeks Running; Calves on the South Section",
+   "body": "The snow is off the Kestrel and the creeks are running bank-full. Mrs. Halvorsen reports calves on the south section. Those who remember last autumn say the valley looks like a different country. It is the same country. It is the people in it who have changed.",
+   "when": {
+    "completed": [
+     "c6_spring"
+    ]
+   },
+   "priority": 9
+  },
+  {
+   "id": "store_robbery",
+   "head": "STORE ROBBED IN {town_upper}",
+   "deck": "Clerk Empties Till at Gunpoint; ${take} Taken",
+   "body": "The {shop} at {town} was robbed by a lone rider who, the clerk states, 'never raised her voice.' The sum of ${take} was taken. The county has added the matter to a list that grows longer by the week.",
+   "when": {
+    "record": "store_robbery"
+   },
+   "priority": 6
+  },
+  {
+   "id": "robberies",
+   "head": "WAVE OF ROBBERIES ALARMS THE COUNTY",
+   "deck": "{count} Hold-Ups Reported Since the Leaves Turned",
+   "body": "Merchants in the Sable country report {count} robberies since autumn. Several now keep a shotgun under the counter. One keeps two.",
+   "when": {
+    "record": "store_robbery",
+    "record_min": 3
+   },
+   "priority": 7
+  },
+  {
+   "id": "bounty",
+   "head": "OUTLAW {name_upper} BROUGHT TO JUSTICE",
+   "deck": "County Pays ${amount} Reward",
+   "body": "{name}, wanted by the county, has been {how}. The reward of ${amount} was paid to the party responsible, who did not stay for the photographer.",
+   "when": {
+    "record": "bounty"
+   },
+   "priority": 5
+  },
+  {
+   "id": "gunfight",
+   "head": "GUNFIGHT IN THE STREETS OF {town_upper}",
+   "deck": "Shots Exchanged in Broad Day; Citizens Take Cover",
+   "body": "A gunfight broke out in {town} on {weekday}, in the course of which some {shots} shots were fired. Citizens sheltered behind water troughs and the Methodist church. The town council will meet to discuss the matter, and to discuss the church windows.",
+   "when": {
+    "record": "gunfight"
+   },
+   "priority": 6
+  },
+  {
+   "id": "wanted",
+   "head": "REWARD: ${bounty}",
+   "deck": "For the Woman Known as Ruth Caddell",
+   "body": "A reward of ${bounty} is posted in {county} for the woman Ruth Caddell. She is described as tall, weathered, and dangerous when crossed, and as being seldom crossed twice.",
+   "when": {
+    "bounty_min": 100
+   },
+   "priority": 4
+  },
+  {
+   "id": "locomobile",
+   "head": "STEAM CARRIAGE ALARMS THE GREER ROAD",
+   "deck": "Inventor Pettigrew's Locomobile Runs Off Without Him",
+   "body": "Mr. Erasmus Pettigrew's steam road-carriage, the Locomobile, Mark Four, ran away with nobody aboard on the Greer's Post road and was stopped by a passing horsewoman. {pett_detail}",
+   "when": {
+    "completed": [
+     "s_carriage"
+    ]
+   },
+   "priority": 2
+  },
+  {
+   "id": "novel",
+   "head": "MISS RUTHIE RIDES AGAIN",
+   "deck": "A New Serial in Ten Parts, from Chicago",
+   "body": "The newsstand at the depot reports brisk sales of a dime novel concerning the exploits of 'Miss Ruthie, the Ozark Wonder,' illustrated from a genuine photograph taken in the Thornwood. The publisher promises nine further parts. The lady herself could not be reached.",
+   "when": {
+    "flag": {
+     "posed_for_novel": true
+    }
+   },
+   "priority": 2
+  },
+  {
+   "id": "comet",
+   "head": "COMET SEEN OVER THE KESTREL",
+   "deck": "Late Mr. Silas Wren's Figures Proven Correct",
+   "body": "A comet with a long tail was observed low over the Kestrel ridge at a quarter past two in the morning, as predicted by Mr. Silas Wren, formerly of the Naval Observatory. Mr. Wren died that night upon his rock. He was not alone.",
+   "when": {
+    "flag": {
+     "stayed_for_comet": true
+    }
+   },
+   "priority": 3
+  },
+  {
+   "id": "water_line",
+   "head": "THE WATER LINE THAT ISN'T",
+   "deck": "Survey Stakes Across the Ybarra and Halvorsen Lands",
+   "body": "This paper has come into possession of a surveyor's field book showing a pipe line from the deep wells of the Breaks to sections owned by the syndicate. The syndicate denies any such line. We print the stakes below. Readers may walk them for themselves.",
+   "when": {
+    "flag": {
+     "field_book_to_fenn": true
+    }
+   },
+   "priority": 4
+  },
+  {
+   "id": "marvel",
+   "head": "MEDICINE SHOW ELIXIR WAS LAUDANUM",
+   "deck": "Loggers Pour Forty Bottles in Thornwood Creek",
+   "body": "Professor Cassius Marvel's Celebrated Kestrel Elixir, sold at a dollar a bottle at the Thornwood logging camp, has been shown to be laudanum and molasses. The loggers have poured it out. The creek is reported very calm.",
+   "when": {
+    "flag": {
+     "exposed_marvel": true
+    }
+   },
+   "priority": 2
+  },
+  {
+   "id": "pledge",
+   "head": "TEMPERANCE VICTORY AT COLDWATER",
+   "deck": "Silver Dollar Saloon Poured into the Street",
+   "body": "Mrs. Hannah Bright of the Cold Water League, assisted by a lady with a hatchet and an excellent aim, emptied the barrels of the Silver Dollar into Coldwater's main street on Saturday night. The proprietor, Mr. Jack Bright, is the lady's husband. The League declines to say whether this was a coincidence.",
+   "when": {
+    "flag": {
+     "smashed_barrels": true
+    }
+   },
+   "priority": 2
+  },
+  {
+   "id": "legend",
+   "head": "{name_upper} BROUGHT DOWN",
+   "deck": "Trapper Thackery Confirms the Pelt",
+   "body": "The animal known in the Sable country as {name} has been killed, after a season in which it was blamed for more losses than the syndicate. Mr. Eli Thackery, the trapper at Greer's Post, has examined the pelt and declares there is not another like it in the territory. The hunter declined to be named, and to be photographed.",
+   "when": {
+    "record": "legend"
+   },
+   "priority": 5
+  },
+  {
+   "id": "treasure",
+   "head": "BURIED GOLD AT SAN LAZARO?",
+   "deck": "Old Bars Said to Have Been Dug Up Beneath a Dead Mesquite",
+   "body": "Rumours reach this office of gold bars, of an old mint and a war-time stamp, dug up near the San Lazaro mission. The mission sisters say the only gold they have seen this year was in a sunset. This paper reserves judgment.",
+   "when": {
+    "record": "treasure"
+   },
+   "priority": 5
+  },
+  {
+   "id": "legends_rumour",
+   "head": "TRAPPER'S TALES AT GREER'S POST",
+   "deck": "A Grey Wolf the Size of a Pony, and Other Wonders",
+   "body": "Mr. Eli Thackery, who traps the Kestrel and sells furs at Greer's Post, tells of four animals in the Sable country unlike any others: a grey she-wolf, an old bear that wears bullets like medals, a pale cat on the mission wall, and a bull elk of fourteen points. He tells it for the price of a drink. This paper paid, and does not regret it.",
+   "when": {
+    "not_completed": [
+     "c3_drive"
+    ]
+   },
+   "priority": -1
+  }
+ ],
+ "subs": {
+  "drive_detail": [
+   [
+    "drive_route",
+    "narrows",
+    "The drovers chose the Narrows and were fired upon from the rim."
+   ],
+   [
+    "drive_route",
+    "mesa",
+    "The drovers went round by the mesa and were stampeded by dry lightning in the night."
+   ]
+  ],
+  "mine_detail": [
+   [
+    "miners_saved",
+    ">=4",
+    "All four were dug out alive by their fellows and a lady who was passing."
+   ],
+   [
+    "miners_saved",
+    "<4",
+    "Thomas Rees did not come out. He was twenty-two."
+   ]
+  ],
+  "strike_deck": [
+   [
+    "strike_terms",
+    "signed",
+    "Garrity Signs the Union's Terms Under Duress"
+   ],
+   [
+    "strike_terms",
+    "inspector",
+    "Company Letters Placed Before the Territorial Inspector"
+   ]
+  ],
+  "strike_detail": [
+   [
+    "strike_terms",
+    "signed",
+    "Mr. Garrity signed the miners' terms late at night, at what his lawyers describe as the point of a pistol. The company will contest it. The miners are back at work in the meantime, at full wages, in coin."
+   ],
+   [
+    "strike_terms",
+    "inspector",
+    "The superintendent's own letters, ordering the powder, have been placed before the territorial mine inspector. The miners have chosen to wait for the law, which is slow, and theirs."
+   ]
+  ],
+  "train_deck": [
+   [
+    "payroll_taken",
+    true,
+    "Payroll and Ledger Taken"
+   ],
+   [
+    "payroll_taken",
+    false,
+    "A Single Ledger Taken; Payroll Left in the Safe"
+   ]
+  ],
+  "train_detail": [
+   [
+    "messenger_killed",
+    false,
+    "The express messenger was persuaded to open the car without bloodshed, a circumstance this paper notes with relief."
+   ],
+   [
+    "messenger_killed",
+    true,
+    "The express messenger, a man named Abbott, was shot dead in the door of his car."
+   ]
+  ],
+  "raid_detail": [
+   [
+    "camp_held",
+    true,
+    "The camp's people held their ground and the raiders withdrew."
+   ],
+   [
+    "camp_stand",
+    false,
+    "The camp scattered before them and the riders followed a false trail into the hills."
+   ]
+  ],
+  "eben_head": [
+   [
+    "eben_fate",
+    "jailed",
+    "EBEN SHALE TAKEN ALIVE"
+   ],
+   [
+    "eben_fate",
+    "dead",
+    "EBEN SHALE KILLED AT SAN LAZARO"
+   ],
+   [
+    "eben_fate",
+    "executed",
+    "EBEN SHALE SHOT DEAD IN MISSION CHAPEL"
+   ]
+  ],
+  "eben_detail": [
+   [
+    "eben_fate",
+    "jailed",
+    "Eben Shale, chief of the syndicate's range detectives and the last of the Shale brothers, was brought into Bitter Spring alive to await the circuit judge. He asked for his Bible. It was given him."
+   ],
+   [
+    "eben_fate",
+    "dead",
+    "Eben Shale was killed in the roofless chapel at the San Lazaro mission in a fair exchange of shots, according to the only witness, who is not talking to this paper."
+   ],
+   [
+    "eben_fate",
+    "executed",
+    "Eben Shale was found dead upon his knees in the San Lazaro chapel. Those who found him say he had not drawn."
+   ]
+  ],
+  "pett_detail": [
+   [
+    "invested_pettigrew",
+    true,
+    "Mr. Pettigrew reports that his rescuer also became his first shareholder."
+   ],
+   [
+    "invested_pettigrew",
+    false,
+    "Mr. Pettigrew reports that his rescuer declined to invest. He has written her name down."
+   ]
+  ]
+ },
+ "filler": {
+  "weather": {
+   "CLEAR": "Fair and dry, wind from the south-west. No rain is expected, nor has any been expected for some time.",
+   "FAIR": "Fair, with high cloud by afternoon. Farmers are advised not to get their hopes up.",
+   "OVERCAST": "Overcast and cool. The clouds have been seen to pass over without stopping, as they do.",
+   "RAIN": "Rain, at last, from the west. The creeks are rising and the roads are not to be recommended.",
+   "STORM": "Thunderstorms over the plain. The telegraph office reports the wire down between Bitter Spring and the Siding.",
+   "FOG": "Fog on the lake and along the river bottoms until mid-morning. Steamboats are sounding their whistles.",
+   "DUST": "Dust from the south. Housewives are advised to keep the windows shut and their tempers likewise.",
+   "SNOW": "Snow on the Kestrel above the four-thousand-foot line. The pass is reported closed to wagons."
+  },
+  "prices": [
+   "CATTLE, per head at Bitter Spring: fat steers $14; cows $11. Buyers few, sellers many.",
+   "SILVER, per ounce at the Coldwater assay: 61 cents. Lead 4 cents the pound.",
+   "FLOUR, per hundredweight: $2.40 at Greer's Post, $2.75 at Coldwater, where freight is dear.",
+   "HAY, per ton: $9, and scarce. The drought has made a philosopher of every horse.",
+   "COFFEE, Arbuckle-style, per pound: 25 cents. Tobacco, plug: 50 cents.",
+   "LAND, river bottom, per acre: two dollars to the syndicate, priceless to those who live on it."
+  ],
+  "ads": [
+   "DR. AMBROSE'S RESTORATIVE TONIC. For the blood, the nerves and the general disposition. Sold at all good general stores. Accept no imitations, of which there are several.",
+   "STEADY-HAND BITTERS. Favoured by marksmen, surgeons and men who must sign their names before breakfast.",
+   "HALVORSEN SADDLERY & HARNESS. Bitter Spring. Repairs while you wait, or while you drink, as you prefer.",
+   "THE GILDED SPUR. Bitter Spring's finest saloon. Billiards, cards, cold beer when the ice comes in. No firearms at the bar.",
+   "FAUSTO'S CANTINA, Mesquite Wells. Mescal, mutton and music. The doctor is sometimes in.",
+   "M. & W. RAILROAD. Through tickets to the East. The future is coming whether you like it or not; ride in comfort.",
+   "LINDEN EXCHANGE BANK. Safety. Discretion. Our vault has never been entered. (Management.)",
+   "THE CORINTHIAN HOTEL, Port Linden. Steam heat, electric bells, and a dining room the equal of St. Louis.",
+   "SPLIT-CANE FISHING RODS, imported, at the General Store. Trout don't read newspapers. You may as well catch them.",
+   "WANTED: A schoolteacher for the Windmill Flats district. Must be of good character and handy with a stove."
+  ],
+  "notices": [
+   "STRAYED from the Voss place: one brindle cow answering to 'the Senator.' Finder rewarded.",
+   "The Ladies' Aid will hold a box supper at the Methodist church on Saturday. Gentlemen are reminded to bring money.",
+   "LOST between Greer's and the river: a silver watch, engraved. It may not keep good time, but it keeps the owner's.",
+   "The circuit judge is expected in Bitter Spring the first Monday of the month, roads permitting.",
+   "Mr. Fenn regrets that letters to the editor written in pencil on the backs of wanted posters cannot be printed.",
+   "NOTICE. The Water Board will sit on the second Tuesday. Members of the public with deeds are advised to bring them, and their lawyers.",
+   "Revival meeting under canvas at the Windmill Flats crossroads every night this week. 'Saint' Gideon Crane will preach against the railroad."
+  ]
+ }
+}

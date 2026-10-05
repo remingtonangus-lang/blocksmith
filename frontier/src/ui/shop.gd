@@ -119,6 +119,7 @@ func open_ui() -> void:
 	refresh.call()
 	v.add_child(HSeparator.new())
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true   # D-pad focus scrolls rows below the fold into reach
 	scroll.custom_minimum_size = Vector2(800, 400)
 	var list := VBoxContainer.new()
 	scroll.add_child(list)

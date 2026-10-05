@@ -196,7 +196,7 @@ func table_chairs(cx: float, cz: float, y := 0.0, round_table := true, n := 4, g
 		var p := Vector3(cx + sin(a) * r, y, cz + cos(a) * r)
 		var face := Vector3(cx - p.x, 0.0, cz - p.z)
 		prop(chair, p, rad_to_deg(atan2(face.x, face.z)) + rng.randf_range(-12, 12))
-		spot("chair", p, face, {"sit_height": 0.46, "table": Vector3(cx, y, cz)})
+		spot("chair", p, face, {"sit_height": 0.46, "table": Vector3(cx, y, cz), "cards": game})
 	if game:
 		inn.tint = Color(0.15, 0.32, 0.18, 0.1)
 		inn.cyl("cloth", Vector3(cx, y + 0.76, cz), Vector3(cx, y + 0.765, cz), 0.5, 14, true)
@@ -531,7 +531,8 @@ func _f_store() -> void:
 	prop("CashRegister_01", Vector3(x1 - 1.3, 0.95, z0 + 2.6), -90.0, 0.85)
 	prop("wicker_basket_01", Vector3(x1 - 1.3, 0.95, z0 + 3.6), 20.0)
 	prop("jug_01", Vector3(x1 - 1.3, 0.95, z1 - 1.6), 0.0)
-	spot("shopkeeper", Vector3(x1 - 0.6, 0.0, (z0 + z1) * 0.5), Vector3(-1, 0, 0), {"work": "counter"})
+	# behind the till, where the counter leaves a full-width aisle to the wall (walkable for the clerk)
+	spot("shopkeeper", Vector3(x1 - 0.5, 0.0, z0 + 2.6), Vector3(-1, 0, 0), {"work": "counter"})
 	spot("shop_counter", Vector3(x1 - 2.1, 0.0, z0 + 2.6), Vector3(1, 0, 0))
 	spot("shop_counter", Vector3(x1 - 2.1, 0.0, (z0 + z1) * 0.5), Vector3(1, 0, 0))
 	var cx := (x0 + x1) * 0.5 - 0.6

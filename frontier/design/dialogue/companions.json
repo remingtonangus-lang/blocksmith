@@ -1,0 +1,517 @@
+{
+ "note": "Companion personal missions (src/missions/companions/). Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  },
+  "rider": {
+   "name": "Range Rider",
+   "voice": "man_rough"
+  },
+  "tate": {
+   "name": "Orrin Tate",
+   "voice": "man_town"
+  },
+  "collector": {
+   "name": "Tate's Man",
+   "voice": "man_rough"
+  },
+  "teamster": {
+   "name": "Injured Teamster",
+   "voice": "man_rough"
+  },
+  "rosa": {
+   "name": "Rosa Ybarra",
+   "voice": "woman_town"
+  },
+  "pike": {
+   "name": "Amos Pike",
+   "voice": "man_rough"
+  },
+  "thorne": {
+   "name": "Captain Thorne",
+   "voice": "lawman"
+  },
+  "elder": {
+   "name": "Old Man",
+   "voice": "man_old"
+  },
+  "mother": {
+   "name": "Young Mother",
+   "voice": "woman_town"
+  }
+ },
+ "lines": [
+  {
+   "id": "p_hap_01",
+   "speaker": "hap",
+   "line": "Mrs. Caddell. There's a draw past the Halvorsen road where I put my crew in the ground last summer. Olle, Nils and old Pieter. I never said the words over them. I was too busy being shot.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_hap_02",
+   "speaker": "ruth",
+   "line": "Then we'll go and say them.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_hap_03",
+   "speaker": "hap",
+   "line": "I'll bring the hymnal. I can't read it, but it helps to hold it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_hap_04",
+   "speaker": "hap",
+   "line": "That's new. That wire. That wasn't there.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_hap_05",
+   "speaker": "rider",
+   "line": "Syndicate land, old man. Says so on the sign. Your friends are trespassing, and so are you.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_hap_06",
+   "speaker": "hap",
+   "line": "They are dead. They are not trespassing. They are only lying down.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_hap_07",
+   "speaker": "rider",
+   "line": "Then they won't mind the fence.",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_hap_08",
+   "speaker": "ruth",
+   "line": "Hap. Hold the horses. I'm going to cut the wire.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_hap_09",
+   "speaker": "hap",
+   "line": "There. There, boys. Nobody fences you in now. Rest easy.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_hap_10",
+   "speaker": "ruth",
+   "line": "Sing, Hap. Sing to them through the wire. Let these men listen.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_hap_11",
+   "speaker": "hap",
+   "line": "Den stora vita skaran... I don't know the English. The tune is the same in heaven, I think.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_hap_12",
+   "speaker": "rider",
+   "line": "Go on, old man. Finish it. We'll wait.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_hap_13",
+   "speaker": "hap",
+   "line": "Thank you, Mrs. Caddell. They were good boys. Olle cheated at cards, but kindly.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_hap_14",
+   "speaker": "hap",
+   "line": "Now they have a Swede singing over them. That's the worst thing that ever happened to them, and they've been shot.",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_hap_15",
+   "speaker": "ruth",
+   "line": "I've heard worse singing, Hap. Not much worse. But some.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_del_01",
+   "speaker": "del",
+   "line": "Cher, a man of Orrin Tate's came by camp tonight while you were out. Tate holds my marker. Forty dollars and interest, and the interest has teeth.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_del_02",
+   "speaker": "del",
+   "line": "There's a night boat from the Port Linden pier at eleven. I can be on it. You'd never have to see Tate's men around the fire again.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_del_03",
+   "speaker": "ruth",
+   "line": "You'll want company to the pier, then.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_del_04",
+   "speaker": "del",
+   "line": "I always want company. I never ask for it. That's the difference between me and a dog.",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_del_05",
+   "speaker": "collector",
+   "line": "Arceneaux! Mr. Tate figured you'd come for the boat.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_del_06",
+   "speaker": "tate",
+   "line": "Delphine. You've grown thin on honest living. Forty dollars, or the boat goes without you, one way or the other.",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_del_07",
+   "speaker": "ruth",
+   "line": "Here's your forty. Count it twice. You'll want to remember the feeling.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_del_08",
+   "speaker": "tate",
+   "line": "Paid in full. You keep expensive friends, Delphine.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_del_09",
+   "speaker": "del",
+   "line": "Nobody's ever paid my way before. Now I'll have to stay. I'd be in your debt, and I don't run out on a debt. Not that kind.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_del_10",
+   "speaker": "ruth",
+   "line": "Here's a ticket for the boat, Del. Paid. Go if you want. I won't think less of you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_del_11",
+   "speaker": "del",
+   "line": "You'd let me go. Just like that.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_del_12",
+   "speaker": "del",
+   "line": "Then I'm staying. A woman doesn't run from the only person who'd let her. Tate, you'll get your forty when I win it off you, fair.",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_del_13",
+   "speaker": "tate",
+   "line": "Then you'll get nothing. Boys.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_del_14",
+   "speaker": "del",
+   "line": "That's the trouble with staying, cher. Everyone knows where to find you.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_del_15",
+   "speaker": "ruth",
+   "line": "That's also the good of it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_doc_01",
+   "speaker": "doc",
+   "line": "A letter. From Philadelphia. From the widow of the man I killed, if you'll forgive my precision.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_doc_02",
+   "speaker": "doc",
+   "line": "Mrs. Agnes Whitcomb. She writes that she has forgiven me. Fourteen years. I'd rather she'd cursed me. I know what to do with a curse.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_doc_03",
+   "speaker": "rosa",
+   "line": "Doctor! Señora! A wagon went over at the wells, on the teamster. His legs. Please, quickly!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "p_doc_04",
+   "speaker": "doc",
+   "line": "My bag. My bag, Caddell, and your fastest horse.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_doc_05",
+   "speaker": "doc",
+   "line": "Hold him. Hold him still, and talk to him. Anything. Tell him about your husband.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_doc_06",
+   "speaker": "teamster",
+   "line": "Am I going to lose them, Doc? I've got a route. I've got a wife.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "p_doc_07",
+   "speaker": "doc",
+   "line": "You'll keep the left. The right I'll argue with. Now bite this, and think of your wife.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_doc_08",
+   "speaker": "doc",
+   "line": "We were late. The leg's gone. He'll live. That will have to be enough for him, and for me.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_doc_09",
+   "speaker": "doc",
+   "line": "Both legs, and him cursing like a sailor. My hands didn't shake. Not once. Did you notice?",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_doc_10",
+   "speaker": "ruth",
+   "line": "I noticed.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_doc_11",
+   "speaker": "doc",
+   "line": "Now. The letter. Tell me what to do with it. I find I can't decide, which is new.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_doc_12",
+   "speaker": "ruth",
+   "line": "Answer it. Tell her about today. Tell her you set a man's leg in the dirt with steady hands.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_doc_13",
+   "speaker": "doc",
+   "line": "She forgave the drunk. I'll write and introduce her to the doctor. I think she'd like him better. I'm beginning to.",
+   "emotion": "sad"
+  },
+  {
+   "id": "p_doc_14",
+   "speaker": "ruth",
+   "line": "Burn it. You don't owe her your absolution. You owe it to the man in the cantina with the broken legs.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_doc_15",
+   "speaker": "doc",
+   "line": "Ashes, then. Philadelphia always did burn well.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_billy_01",
+   "speaker": "billy",
+   "line": "Mrs. Caddell. Amos Pike, the foreman at Thornwood, he's still got Chance. My colt. I raised him from a foal on skimmed milk and he's the only thing I ever owned.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_billy_02",
+   "speaker": "billy",
+   "line": "Pike says the colt's camp property, for the board I ate. I worked fourteen hours a day for that board.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_billy_03",
+   "speaker": "ruth",
+   "line": "You want to go and get him.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_billy_04",
+   "speaker": "billy",
+   "line": "Tonight. There's no moon. I know where the dogs sleep.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_billy_05",
+   "speaker": "ruth",
+   "line": "Crouch low, stay behind me, and if I say run, you run. Not toward the shooting. Away from it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_billy_06",
+   "speaker": "billy",
+   "line": "Chance. Chance, it's me. Easy now. You got fat. They fed you better than me.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_billy_07",
+   "speaker": "ruth",
+   "line": "Here's fifteen dollars on the gatepost, under a stone. Pike will find it in the morning. Now he can't call it stealing.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_billy_08",
+   "speaker": "billy",
+   "line": "He doesn't deserve fifteen cents.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_billy_09",
+   "speaker": "ruth",
+   "line": "No. But you deserve to own your horse clean.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_billy_10",
+   "speaker": "ruth",
+   "line": "Take him. They owe you three years of wages. That's worth one colt.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_billy_11",
+   "speaker": "billy",
+   "line": "That's what I said! That's exactly what I said!",
+   "emotion": "amused"
+  },
+  {
+   "id": "p_billy_12",
+   "speaker": "pike",
+   "line": "Who's at the corral? Pruitt, is that you? Thief! Get the dogs up!",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_billy_13",
+   "speaker": "billy",
+   "line": "He's mine. He's really mine. I'm going to teach him to rein like your mare.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_billy_14",
+   "speaker": "billy",
+   "line": "I'll do it like you did, when I'm grown. Exactly like you did. You'll see.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_billy_15",
+   "speaker": "ruth",
+   "line": "That's what I'm afraid of, Billy.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_joseph_01",
+   "speaker": "joseph",
+   "line": "There's a cavalry captain at the Coldwater livery asking for me by my old name. Thorne. I scouted for him in ninety. He has a job.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_joseph_02",
+   "speaker": "thorne",
+   "line": "Kehoe. A family left the Pine Ridge agency for the winter hunting ground without a pass. Old man, women, children. I need them found before the snow does it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_joseph_03",
+   "speaker": "joseph",
+   "line": "Before the snow does it. That's a kind way to put it, Captain.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_joseph_04",
+   "speaker": "joseph",
+   "line": "Come with me, Ruth. I'll find them. I'd rather it was me than his Crow scouts. After that, I don't know.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_joseph_05",
+   "speaker": "joseph",
+   "line": "Pony tracks, unshod, and a travois. They're going up the north fork. Slowly. Someone's sick.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_joseph_06",
+   "speaker": "elder",
+   "line": "We are going where my father hunted. That is all. My grandson has a cough. The agency beef was green.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_joseph_07",
+   "speaker": "mother",
+   "line": "Are you the soldiers?",
+   "emotion": "afraid"
+  },
+  {
+   "id": "p_joseph_08",
+   "speaker": "joseph",
+   "line": "No. We're the ones ahead of the soldiers. Take this meat. Keep north of the lake.",
+   "emotion": "warm"
+  },
+  {
+   "id": "p_joseph_09",
+   "speaker": "ruth",
+   "line": "I'll tell Thorne they went down the south canyon toward the railroad. It's a lie he'll believe because he wants to.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_joseph_10",
+   "speaker": "thorne",
+   "line": "South. Toward the line. Well. That's that, then. Obliged, ma'am.",
+   "emotion": "dry"
+  },
+  {
+   "id": "p_joseph_11",
+   "speaker": "ruth",
+   "line": "It's your fight, Joseph. Tell him what you want to tell him.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "p_joseph_12",
+   "speaker": "joseph",
+   "line": "I found them, Captain. I won't tell you where. I saw what happened at Wounded Knee. I'll not carry another family to it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "p_joseph_13",
+   "speaker": "thorne",
+   "line": "You'll never trade a horse to the army again, Kehoe. I'll see to it.",
+   "emotion": "angry"
+  },
+  {
+   "id": "p_joseph_14",
+   "speaker": "joseph",
+   "line": "The army never paid on time anyway.",
+   "emotion": "tired"
+  },
+  {
+   "id": "p_joseph_15",
+   "speaker": "joseph",
+   "line": "You let me say it myself. Most people would have said it for me, and been proud of how well they said it.",
+   "emotion": "warm"
+  }
+ ]
+}

@@ -38,6 +38,9 @@ runner, Metal) and the Mac monitor.
   `--no_settlements`, `--no_actor_lod`, `--noaudio`.
 - Self-tests: `--pokertest`, `--audiotest`, `--script res://src/missions/ch3/herd_selftest.gd`,
   `--script res://src/missions/ch5/train_selftest.gd`.
+- Tree impostors: `godot --path frontier res://scenes/impostor_test.tscn -- --out DIR [--species a,b] [--dist 200
+  --fov 42] [--yaw 22.5] [--time 12.5] [--rebake]` → baked atlases + mesh|impostor pairs side by side; in shots
+  `--impostor_tint` tints the impostors red to show where the 200 m hand-off falls.
 
 ## Delivery
 - `.github/workflows/frontier.yml` (push to this branch, paths frontier/**): macOS-14 runner → worldgen (cached),
@@ -66,8 +69,10 @@ runner, Metal) and the Mac monitor.
 - **Water**: lake + river ribbons, refraction/absorption via depth, lit scattering body colour + silt murk, flowing
   normals calmed with distance, foam, rain ripples, Fresnel.
 - **Vegetation**: 10 procedural species (ponderosa, fir, cottonwood, aspen, juniper, oak, mesquite, snag, sagebrush,
-  rabbitbrush) with crown-volume leaf clusters + procedural leaf atlas, wind; region billboards (1 draw/region) +
-  near full meshes with per-instance fade; trunk colliders; GPU grass clumps (geometry blades, control-map density,
+  rabbitbrush) with crown-volume leaf clusters + procedural leaf atlas, wind; distant trees are impostors baked at
+  startup from those meshes and materials (8 azimuths, 4 for shrubs; albedo + normal/depth atlases, 22 MB, cached in
+  user://impostors), lit by the real sun with crown self-shadowing, 1 draw/region; near full meshes hand off through
+  a complementary per-pixel dither at 200 m (110 m shrubs); trunk colliders; GPU grass clumps (geometry blades, control-map density,
   wind, player push).
 - **Player**: weighty third-person locomotion (walk/jog/sprint, stamina, slope, momentum turns, fall damage), orbit
   camera with collision, aim/fire/reload/holster/weapon switch, recoil, hitboxes, regen, death/respawn.
@@ -106,6 +111,22 @@ runner, Metal) and the Mac monitor.
   choices remembered in camp talk and other strangers; fishing, hunting, poker, glass balls, sneaking, a runaway
   Locomobile), eighteen roadside encounter kinds (`src/ai/encounters.gd`, `--bot encounters`), and a journal page per
   mission in Ruth's voice with ink sketches drawn in code (`src/missions/journal.gd`; `--journal_all` for shots).
+- **World reactivity** (`src/systems/social.gd`, `newspaper.gd`, `social.json`, `newspaper.json`): greet / antagonize
+  (T: insult → shove → draw or flee) / defuse (N) with lines by voice and Standing band; gossip and reactive barks
+  from flags, crimes, bounties, weather and hour (lawmen eye a wanted Ruth, shop clerks remember robberies); 5¢
+  newspapers per town with dated front pages (32 story templates + weather, markets, ads, notices); five companion
+  missions (`src/missions/companions/`) that change camp talk. `--bot social`.
+- **Open-world activities** (`--bot openworld`): bounty board of eight named outlaws (hideouts and roaming camps,
+  tie and carry alive across the saddle for 1.5x or bring proof, turn-in at the sheriff, fines paid at the board;
+  `src/ai/bounties.gd`); four legendary animals with clue trails, unique pelts and outfits from the trapper at
+  Greer's Post (`src/systems/legendary.gd`); a three-map treasure chain drawn over the real terrain to gold bars
+  (`src/systems/treasure.gd`); insulting/shoving a lawman is a fined misdemeanour; satchel reads papers and maps.
+- **Mission presentation** (`--bot presentation`): conversation camera (two-shot open, cut per speaker to an
+  over-the-shoulder shot on one side of the line, letterbox, practical DOF on Forward+, the pair facing and looking
+  at each other, talk clips / nods); title cards (chapter, region, story date) and results cards (time, accuracy,
+  head shots, 2-3 optional objectives per main mission rated gold/silver/bronze in WorldState and the journal;
+  `src/missions/presentation.gd`); gold sells at the Linden Exchange or to Greer; legendary outfits retint Ruth
+  (`src/systems/outfits.gd`); bounties turn in at any sheriff. Feature shots `mission_talk`, `results_card`.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
@@ -133,10 +154,20 @@ runner, Metal) and the Mac monitor.
   frontier-assets.yml → `animals.zip`, `fetch_assets.sh animals`), `Horse` riding controller, `HorseVisual`
   (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
   oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
-- **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
+- **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette, HUD/menu
+  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), gloved
+  procedural hands with finger curl, physical guns (holster draw, real sights, two-hand fore-end snap, trigger +
+  haptics, lever/bolt/pump by hand, gate/break reloads with rounds from the belt, Nerve by pointing), reach-to-grab
+  doors/counters/boards/horse, menu laser, reins. Evidence: `res://scenes/vr_studio.tscn` (CI step "VR shots"),
+  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md.
 
 ## In flight (parallel worktree agents; merged here when they report)
-- Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
+- Settlements: NPC routines, draw-call and memory cuts (settlements ≈ 680 MB headless), sign renames.
+- Characters: memory/VRAM compression (`--charmem`), quality pass follow-ups.
+- Weapons: VR hands and guns (`--vr_sim`).
+- Writer: greet/antagonize, gossip, newspapers, companion missions.
+- Impostors: baked tree impostors replacing the distant billboards.
+- Wildlife/horses: fur shells, face detail, turn-in-place, rider polish (reins, mount clips), gallop spine flex.
 
 ## Ranked gaps
 Critic round 1 (2026-10-05, 2 blind critics, pack = CI tour a4d48b8 + character/horse look-dev sheets; averaged
@@ -183,3 +214,34 @@ Work order from this round:
 - 2026-10-05: character quality pass (worktree agent): garments/drape/springs, updos, faces + lip-sync, riding and
   weapon-handling clips, tri budgets + LODs.
 - 2026-10-05: wildlife workstream (worktree): quadruped.py + 11 species, animal coat shader, animal.gd model wiring, per-species gait oracle (wildlife_test.tscn, `--bot hunt`), RiderIK (see WILDLIFE.md).
+- 2026-10-05: CI device-lost bisected (3ba9a99): the paravirtual GPU still lost the device with every world feature
+  off and rendered once screen-space subsurface scattering (character skin) was off too. The probe now tries
+  sss / horse / characters first, so evidence renders keep the whole world. Open risk: confirm SSS on a real M1
+  (Metal) with the monitor benchmark; if it hitches there, drop skin SSS on medium/low.
+- 2026-10-05: character memory pass (worktree agent): VRAM-compressed pre-extracted textures + .import sidecars,
+  blend shapes on a minimal Face mesh, shared per-look materials with instance-uniform tints, lazy cloth springs,
+  --charmem report (per NPC look ~7 MB, per instance ~1 MB on software Vulkan), warm-up tasks waited at exit.
+- 2026-10-05: CI probe c06b035: the paravirtual GPU's "hangs" are frame time, not one bad feature. With actors and
+  settlements off the town shot took ~1.2 s per frame; the bench (High, 1080p) draws 26.7M (town) to 62M (forest)
+  primitives per frame, far over an M1 budget. Vegetation agent: tree mesh range/LODs, far shadow casters, grass
+  LOD0; settlements agent: town draws/prims. Probe now tries the Low preset before kill-switches.
+- 2026-10-05: UI round (me): `--bot ui` controller-only dead-end oracle found gamepad A/B missing from
+  ui_accept/ui_cancel (menus could not be pressed with a controller) and Controls rows below the fold unreachable;
+  fixed. Added rebinding (keys + pad buttons, reset), Accessibility (aim assist off/controller/always, toggle aim,
+  colour-vision correction, text size), Satchel in the pause menu; the FOV setting now drives the camera.
+- 2026-10-05: merged wildlife (11 species), writer round (social/gossip/newspapers/companions), character memory
+  pass (NPC look ~7 MB), VR hands/guns + `--vr_sim`, baked tree impostors. Character warm-up is one look at a time.
+- 2026-10-05: OPEN: intermittent native heap corruption — `--bot openworld` aborts at exit ~1 run in 3 ("corrupted
+  size vs. prev_size", main thread, after workers exit); one worker-thread SIGSEGV seen mid-missions once in ~6 runs.
+  Static Resource caches are now cleared in main._exit_tree (didn't fix it). Needs a symbolised engine build
+  (debug Godot on CI) to locate; CI judges bots on their PASS lines, so it doesn't redden runs.
+- 2026-10-05: character round 3 (worktree agent): skin shader (pores, regional roughness, wrap-light scatter for
+  Mobile/no-SSS, two-lobe spec), NPC L/R face-shape merge, hat crowns clear the skull, aprons share skirt weights,
+  hashed-alpha strand beards/updos, clip library never loads on the main thread at spawn.
+- 2026-10-05: me: storm sky closes into one grey deck with faint shadows; minimap arrow/route/frame were hidden
+  under the map texture (fixed) + live contours; brass stat dials; prompts follow device/rebinding; town buildings
+  drive interior audio (reverb, indoor beds, saloon crowd; oracle in --bot systems); human foot IK (--bot footik:
+  ankles 13.2/3.7 cm -> 7.5/7.5 cm on a 15 degree slope); terrain far patches stop casting shadows.
+- 2026-10-05: merged writer presentation round (conversation cameras, title/results cards, medals, gold, outfits,
+  any-sheriff turn-ins), character round 3, geometry budget (tree LODs, closer impostor hand-off), settlements
+  round (prop decimation, interior culling, town-life layers). Container restart mid-session: agents resumed.

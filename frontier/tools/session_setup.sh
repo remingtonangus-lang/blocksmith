@@ -14,4 +14,8 @@ python3 -c "import numpy, scipy, PIL, skimage" 2>/dev/null || pip install -q num
 cd "$ROOT/frontier"
 [ -f data/world/height.r16 ] || python3 tools/worldgen.py >/dev/null 2>&1 || true
 [ -d assets/ext ] || bash tools/fetch_assets.sh >/dev/null 2>&1 || true
+# prop textures imported VRAM compressed (older checkouts imported them lossless: ~0.9 GB of texture memory)
+if [ -d assets/ext/props ] && ! grep -qs "compress/mode=2" assets/ext/props/barrel_03/textures/barrel_03_diff_1k.jpg.import; then
+  python3 tools/prop_imports.py >/dev/null 2>&1 || true
+fi
 echo "frontier session ready: $(godot --version 2>/dev/null)"

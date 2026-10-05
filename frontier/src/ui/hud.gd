@@ -9,6 +9,7 @@ var root: Control
 var map_panel: Control
 var map_rect: TextureRect
 var map_mat: ShaderMaterial
+var map_overlay: Control
 var gauges: Control
 var ammo_label: Label
 var weapon_label: Label
@@ -23,6 +24,9 @@ var _loc_t := 0.0
 var _hit_t := 0.0
 var _last_place := ""
 var cinematic := false
+
+var _prompt_raw := ""           # prompt as written; re-rendered when the input device changes
+var _prompt_pad := false
 
 func setup(p: Node) -> void:
 	player = p
@@ -66,9 +70,20 @@ func _build_map() -> void:
 	map_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_mat = ShaderMaterial.new()
 	map_mat.shader = load("res://shaders/ui_map_inset.gdshader")
+	if Game.terrain and Game.terrain.material and Game.world:
+		map_mat.set_shader_parameter("heightmap", Game.terrain.material.get_shader_parameter("heightmap"))
+		map_mat.set_shader_parameter("h_range", Game.world.h_range)
+		map_mat.set_shader_parameter("map_size", Game.world.size_m)
+		map_mat.set_shader_parameter("has_heights", true)
 	map_rect.material = map_mat
 	map_panel.add_child(map_rect)
-	map_panel.draw.connect(_draw_map_overlay)
+	# frame, route and player arrow on their own layer above the map texture (drawn on the panel itself they sat
+	# underneath its child and never showed)
+	map_overlay = Control.new()
+	map_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	map_panel.add_child(map_overlay)
+	map_overlay.draw.connect(_draw_map_overlay)
 
 func _build_gauges() -> void:
 	gauges = Control.new()
@@ -108,6 +123,9 @@ func _layout() -> void:
 		l.add_theme_font_size_override("font_size", int(l.get_meta("base_size") * u))
 
 func _process(dt: float) -> void:
+	if Accessibility.last_pad != _prompt_pad:   # keyboard <-> controller: prompts switch glyphs
+		_prompt_pad = Accessibility.last_pad
+		prompt(_prompt_raw)
 	if player == null or Game.world == null:
 		return
 	root.visible = not cinematic
@@ -117,7 +135,7 @@ func _process(dt: float) -> void:
 	map_mat.set_shader_parameter("center", Vector2((p.x + w.size_m * 0.5) / w.size_m, (p.z + w.size_m * 0.5) / w.size_m))
 	map_mat.set_shader_parameter("rotation", yaw)
 	map_mat.set_shader_parameter("zoom", 0.045 if player.get("on_horse") == null else 0.07)
-	map_panel.queue_redraw()
+	map_overlay.queue_redraw()
 	gauges.queue_redraw()
 	crosshair.queue_redraw()
 	var gun = player.get("gun")
@@ -149,8 +167,9 @@ func _process(dt: float) -> void:
 	location_label.modulate.a = clampf(_loc_t, 0.0, 1.0)
 
 func prompt(text: String) -> void:
+	_prompt_raw = text
 	if prompt_label:
-		prompt_label.text = text
+		prompt_label.text = InputGlyphs.sub(text)
 
 func subtitle(speaker: String, text: String, seconds := 4.0) -> void:
 	subtitle_label.text = ("%s:  %s" % [speaker, text]) if speaker != "" else text
@@ -167,8 +186,8 @@ func _draw_map_overlay() -> void:
 	var s := map_panel.size
 	var c := s * 0.5
 	# frame: ink border with a brass inner rule
-	map_panel.draw_rect(Rect2(Vector2.ZERO, s), UITheme.INK, false, 4.0)
-	map_panel.draw_rect(Rect2(Vector2(5, 5), s - Vector2(10, 10)), UITheme.BRASS, false, 1.5)
+	map_overlay.draw_rect(Rect2(Vector2.ZERO, s), UITheme.INK, false, 4.0)
+	map_overlay.draw_rect(Rect2(Vector2(5, 5), s - Vector2(10, 10)), UITheme.BRASS, false, 1.5)
 	# GPS route in red ink (world -> inset: same transform as the map shader)
 	var mn = Game.get("menus")
 	if mn != null and mn.route.size() > 1 and Game.world:
@@ -187,7 +206,7 @@ func _draw_map_overlay() -> void:
 			var px: float = cy * qx - sn * qz
 			var py: float = sn * qx + cy * qz
 			pts.append(s * 0.5 + Vector2(px, py) * s)
-		map_panel.draw_polyline(pts, UITheme.OXBLOOD, 3.0, true)
+		map_overlay.draw_polyline(pts, UITheme.OXBLOOD, 3.0, true)
 	# player marker: a small arrowhead pointing where the body faces relative to the camera
 	var face: float = player.get("facing") if player.get("facing") != null else 0.0
 	var yaw: float = player.cam_yaw if "cam_yaw" in player else 0.0
@@ -195,35 +214,44 @@ func _draw_map_overlay() -> void:
 	var tip := c + Vector2(sin(a), -cos(a)) * 11.0
 	var l := c + Vector2(sin(a + 2.5), -cos(a + 2.5)) * 8.0
 	var r := c + Vector2(sin(a - 2.5), -cos(a - 2.5)) * 8.0
-	map_panel.draw_colored_polygon(PackedVector2Array([tip, l, c, r]), UITheme.OXBLOOD)
-	map_panel.draw_polyline(PackedVector2Array([tip, l, c, r, tip]), UITheme.INK, 1.5)
+	map_overlay.draw_colored_polygon(PackedVector2Array([tip, l, c, r]), UITheme.OXBLOOD)
+	map_overlay.draw_polyline(PackedVector2Array([tip, l, c, r, tip]), UITheme.INK, 1.5)
 	# north tick
 	var yaw2: float = player.cam_yaw if "cam_yaw" in player else 0.0
 	var npos := c + Vector2(sin(yaw2), -cos(yaw2)) * (s.x * 0.5 - 14.0)
-	map_panel.draw_string(UITheme.font("caps"), npos + Vector2(-6, 6), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * s.y / 250.0), UITheme.INK)
+	map_overlay.draw_string(UITheme.font("caps"), npos + Vector2(-6, 6), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * s.y / 250.0), UITheme.INK)
 
 func _draw_gauges() -> void:
+	## Brass dials stacked beside the map: an ink arc fills clockwise from the top with the stat, the initial is
+	## set in the display face, and a dial pulses when it runs low. The horse's dial joins while mounted.
 	var s := gauges.size
 	var vals := [
-		[float(player.get("health")) / 100.0 if player.get("health") != null else 1.0, UITheme.OXBLOOD],
-		[float(player.get("stamina")) / 100.0 if player.get("stamina") != null else 1.0, UITheme.OCHRE],
-		[(player.nerve.meter / player.nerve.max_meter) if player.get("nerve") != null else 1.0, UITheme.SLATE],
+		[float(player.get("health")) / 100.0 if player.get("health") != null else 1.0, UITheme.OXBLOOD, "H"],
+		[float(player.get("stamina")) / 100.0 if player.get("stamina") != null else 1.0, UITheme.OCHRE, "S"],
+		[(player.nerve.meter / player.nerve.max_meter) if player.get("nerve") != null else 1.0, UITheme.SLATE, "N"],
 	]
 	var horse = player.get("on_horse")
 	if horse != null and horse.get("stamina") != null:
-		vals.append([float(horse.stamina) / 100.0, UITheme.BRASS])
-	var bw := s.x / 4.6
+		vals.append([float(horse.stamina) / 100.0, UITheme.BRASS, "M"])
+	var slot := s.y / 4.0
+	var r := minf(s.x * 0.46, slot * 0.42)
+	var font := UITheme.font("display")
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
 	for i in vals.size():
-		var x := i * bw * 1.15
-		var rect := Rect2(Vector2(x, 0), Vector2(bw, s.y))
-		gauges.draw_rect(rect, Color(0, 0, 0, 0.35))
+		var c := Vector2(s.x * 0.5, s.y - slot * (i + 0.5))
 		var v: float = clampf(vals[i][0], 0.0, 1.0)
-		var fill := Rect2(Vector2(x + 3, 3 + (s.y - 6) * (1.0 - v)), Vector2(bw - 6, (s.y - 6) * v))
-		gauges.draw_rect(fill, vals[i][1])
-		gauges.draw_rect(rect, UITheme.INK, false, 2.0)
-		for k in range(1, 4):
-			var y := s.y * k / 4.0
-			gauges.draw_line(Vector2(x, y), Vector2(x + bw * 0.35, y), UITheme.INK, 1.0)
+		var col: Color = vals[i][1]
+		if v < 0.25:
+			col = col.lerp(Color(1, 0.95, 0.85), pulse * 0.6)
+		gauges.draw_circle(c, r, Color(0.07, 0.05, 0.04, 0.62))
+		gauges.draw_arc(c, r * 0.74, -PI * 0.5, -PI * 0.5 + TAU, 40, Color(0.25, 0.2, 0.15, 0.6), r * 0.3, true)
+		if v > 0.001:
+			gauges.draw_arc(c, r * 0.74, -PI * 0.5, -PI * 0.5 + TAU * v, 40, col, r * 0.3, true)
+		gauges.draw_arc(c, r, 0.0, TAU, 48, UITheme.BRASS, maxf(r * 0.09, 1.5), true)
+		gauges.draw_arc(c, r * 0.56, 0.0, TAU, 32, UITheme.INK, 1.2, true)
+		var fs := int(r * 0.78)
+		var tw := font.get_string_size(vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		gauges.draw_string(font, c + Vector2(-tw * 0.5, fs * 0.36), vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.PAPER)
 
 func _draw_crosshair() -> void:
 	var aiming: bool = player.get("intent") != null and player.intent.get("aim", false)

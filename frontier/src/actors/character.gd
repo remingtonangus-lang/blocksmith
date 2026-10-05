@@ -85,6 +85,9 @@ func setup(m: Node3D, lib: AnimationLibrary, _opts := {}) -> void:
 		anim.root_motion_track = NodePath("Skeleton:Root")
 	if lib:
 		anim.add_animation_library(CharacterFactory.ANIM_LIB_NAME, lib)
+	else:
+		_lib_pending = true    # the shared library is still loading off-thread: attached in _process
+		m.visible = false      # (no T-pose flash meanwhile)
 	if skeleton:
 		# clips are authored on the canonical rig: scale hips/root translation to this body's leg length
 		var ref := float(CharacterFactory.catalog().get("animations", {}).get("rest_hips_height", 0.0))
@@ -92,12 +95,40 @@ func setup(m: Node3D, lib: AnimationLibrary, _opts := {}) -> void:
 		if ref > 0.0 and hips >= 0:
 			skeleton.motion_scale = skeleton.get_bone_global_rest(hips).origin.y / ref
 	if skeleton:
-		_setup_springs()
+		# garment springs are built on demand within SPRING_NEAR of the camera (see _proximity) and freed beyond
+		# SPRING_FAR: a crowd at the far end of town carries no simulator nodes
+		_spring_ok = true
 		look = CharacterLook.new()
 		look.name = "Look"
 		skeleton.add_child(look)
 	_rng.seed = hash(character_id)
 	_next_blink = _rng.randf_range(1.0, 4.0)
+
+
+const SPRING_NEAR := 30.0
+const SPRING_FAR := 40.0
+var _spring_ok := false               # false once we know this look has no spring chains
+var _prox_t := 0.0
+
+
+func _proximity(delta: float) -> void:
+	## Every ~0.5 s: build/free the cloth springs by camera distance, gaze modifier only near the camera.
+	_prox_t -= delta
+	if _prox_t > 0.0 or skeleton == null or not is_inside_tree():
+		return
+	_prox_t = 0.5
+	var cam := get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(global_position) if cam else 0.0
+	if springs == null and _spring_ok and dist < SPRING_NEAR and visible:
+		_setup_springs()
+		if springs == null:
+			_spring_ok = false
+	elif springs != null and dist > SPRING_FAR:
+		springs.get_parent().remove_child(springs)
+		springs.queue_free()
+		springs = null
+	if look:
+		look.active = dist < SPRING_NEAR
 
 
 func _setup_springs() -> void:
@@ -153,8 +184,30 @@ func _setup_springs() -> void:
 		springs.add_child(cap)
 
 
+var _lib_pending := false
+var _pending_play: Array = []
+
+
+func _attach_library() -> void:
+	var lib := CharacterFactory.animation_library_if_ready()
+	if lib == null:
+		return
+	_lib_pending = false
+	anim.add_animation_library(CharacterFactory.ANIM_LIB_NAME, lib)
+	if model:
+		model.visible = true
+	if not _pending_play.is_empty():
+		play(_pending_play[0], 0.0, _pending_play[2])
+		if _pending_play[3] >= 0.0:
+			seek(_pending_play[3])
+		_pending_play = []
+
+
 func play(clip: String, blend := 0.2, speed := 1.0) -> void:
 	if anim == null:
+		return
+	if _lib_pending:
+		_pending_play = [clip, blend, speed, -1.0]
 		return
 	var full := clip if clip.contains("/") else CharacterFactory.ANIM_LIB_NAME + "/" + clip
 	if not anim.has_animation(full):
@@ -164,6 +217,9 @@ func play(clip: String, blend := 0.2, speed := 1.0) -> void:
 
 
 func seek(t: float) -> void:
+	if _lib_pending and not _pending_play.is_empty():
+		_pending_play[3] = t
+		return
 	if anim and anim.current_animation != "":
 		anim.seek(t, true)
 
@@ -350,6 +406,9 @@ func set_hat_visible(v: bool) -> void:
 
 # --- internals -----------------------------------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	if _lib_pending:
+		_attach_library()
+	_proximity(delta)
 	var _pt0 := Time.get_ticks_usec()
 	_physics_tick_anim(delta)
 	Game.acc("charanim", _pt0)
@@ -406,9 +465,17 @@ func _apply_face() -> void:
 				d[str(mi.mesh.get_blend_shape_name(i))] = i
 			_shape_idx[key] = d
 		var idx: Dictionary = _shape_idx[key]
+		var merged := {}
 		for s in w.keys():
 			if idx.has(s):
 				mi.set_blend_shape_value(idx[s], w[s])
+			elif s.ends_with("_L") or s.ends_with("_R"):
+				# NPC looks carry one symmetric shape per left/right pair
+				var base: String = s.substr(0, s.length() - 2)
+				if idx.has(base):
+					merged[base] = maxf(merged.get(base, 0.0), w[s])
+		for b in merged:
+			mi.set_blend_shape_value(idx[b], merged[b])
 
 
 func _find_skeleton(n: Node) -> Skeleton3D:
@@ -445,6 +512,11 @@ var tree: AnimationTree
 var _bs_max := 4.05
 var _aim_w := 0.0
 var _aim_target := 0.0
+var _seat_w := 0.0
+var _seat_target := 0.0
+var _act_w := 0.0
+var _act_target := 0.0
+var _act_clip := ""
 var _dead := false
 var _lod_acc := 0.0
 var _lod_frame := 0
@@ -456,6 +528,11 @@ const TREE_CLIPS := ["ride_idle", "ride_walk", "ride_trot", "ride_canter", "ride
 	"lever_reload", "holster", "unholster", "mount_left", "dismount_left",
 	"idle", "walk_brisk", "jog", "run", "sprint", "sit_idle", "pistol_aim_two_hand", "rifle_aim",
 	"hit_front", "hit_back", "hit_left", "hit_right", "hit_head"]
+# town-life action layer (set_activity loops / gesture one-shots); activities get looping copies "<clip>_loop"
+const ACTIVITY_CLIPS := ["sit_idle", "lean_rail", "lean_wall", "drink", "drink_smoke", "talk_1", "talk_2", "idle_wait",
+	"idle_shift", "pick_up", "walk_wounded", "walk_relaxed", "idle_crouch"]
+const GESTURE_CLIPS := ["sit_down", "stand_up", "wave", "shrug", "talk_directions", "handshake", "drink", "pick_up",
+	"walk_stop"]
 static var _tree_lib: AnimationLibrary
 static var _tree_frame := -1
 
@@ -466,13 +543,18 @@ static func clear_static() -> void:
 static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
 	if _tree_lib == null:
 		_tree_lib = AnimationLibrary.new()
-		for c in TREE_CLIPS:
-			if full.has_animation(c):
+		for c in TREE_CLIPS + GESTURE_CLIPS:
+			if full.has_animation(c) and not _tree_lib.has_animation(c):
 				_tree_lib.add_animation(c, full.get_animation(c))
+		for c in ACTIVITY_CLIPS:
+			if full.has_animation(c):
+				var a: Animation = full.get_animation(c).duplicate()
+				a.loop_mode = Animation.LOOP_LINEAR if a.loop_mode != Animation.LOOP_NONE else Animation.LOOP_PINGPONG
+				_tree_lib.add_animation(c + "_loop", a)
 	return _tree_lib
 
 func _ensure_tree() -> void:
-	if tree != null or anim == null or skeleton == null:
+	if tree != null or anim == null or skeleton == null or _lib_pending:
 		return
 	# one tree build per frame across all characters (a crowd entering view would otherwise build them all at once)
 	var f := Engine.get_process_frames()
@@ -532,7 +614,31 @@ func _build_tree() -> void:
 	root.add_node("ride_mix", ride_mix, Vector2(300, -50))
 	root.connect_node("ride_mix", 0, "loco_ts")
 	root.connect_node("ride_mix", 1, "ride")
-	root.connect_node("upper", 0, "ride_mix")
+	var sit := AnimationNodeAnimation.new()
+	sit.animation = CharacterFactory.ANIM_LIB_NAME + "/sit_idle"
+	root.add_node("sit", sit, Vector2(200, -150))
+	var seated := AnimationNodeBlend2.new()
+	root.add_node("seated", seated, Vector2(300, -50))
+	root.connect_node("seated", 0, "ride_mix")
+	root.connect_node("seated", 1, "sit")
+	# action layer: a looping activity pose (bar lean, seated, drinking, talking) over locomotion, then gestures
+	var activity_anim := AnimationNodeAnimation.new()
+	activity_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/idle_wait_loop"
+	root.add_node("activity_anim", activity_anim, Vector2(200, -300))
+	var activity_mix := AnimationNodeBlend2.new()
+	root.add_node("activity", activity_mix, Vector2(400, -150))
+	root.connect_node("activity", 0, "seated")
+	root.connect_node("activity", 1, "activity_anim")
+	var gest_anim := AnimationNodeAnimation.new()
+	gest_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/wave"
+	root.add_node("gest_anim", gest_anim, Vector2(400, -300))
+	var gest := AnimationNodeOneShot.new()
+	gest.fadein_time = 0.25
+	gest.fadeout_time = 0.35
+	root.add_node("gesture", gest, Vector2(600, -150))
+	root.connect_node("gesture", 0, "activity")
+	root.connect_node("gesture", 1, "gest_anim")
+	root.connect_node("upper", 0, "gesture")
 	root.connect_node("upper", 1, "aim_kind")
 	var hit_anim := AnimationNodeAnimation.new()
 	hit_anim.animation = CharacterFactory.ANIM_LIB_NAME + "/hit_front"
@@ -594,6 +700,42 @@ func set_locomotion(speed: float, state := "", _on_floor := true) -> void:
 		tree.set("parameters/loco/blend_position", 0.0)
 		tree.set("parameters/ride/blend_position", clampf(speed, 0.0, 16.0))
 	_ride_target = 1.0 if riding else 0.0
+
+## Town life: hold a looping full-body activity ("sit_idle", "lean_rail", "drink", "drink_smoke", "talk_1",
+## "talk_2", "idle_wait", "lean_wall"...), "" returns to locomotion. Blends over ~0.4 s.
+func set_activity(clip: String) -> void:
+	_ensure_tree()
+	if tree == null:
+		return
+	if clip == "":
+		_act_target = 0.0
+		return
+	var full := CharacterFactory.ANIM_LIB_NAME + "/" + clip + "_loop"
+	var node := (tree.tree_root as AnimationNodeBlendTree).get_node("activity_anim") as AnimationNodeAnimation
+	if not tree.has_animation(full):
+		return
+	if node.animation != StringName(full):
+		if _act_w > 0.05 and _act_clip != "":
+			_act_w = 0.0              # switching poses: restart the blend from locomotion (short dip, no pop)
+		node.animation = full
+	_act_clip = clip
+	_act_target = 1.0
+
+func activity() -> String:
+	return _act_clip if _act_target > 0.5 else ""
+
+## One-shot gesture over everything below the aim layer: "wave", "shrug", "sit_down", "stand_up", "drink",
+## "talk_directions", "handshake", "pick_up". Returns the clip length (0 when unavailable).
+func gesture(clip: String) -> float:
+	_ensure_tree()
+	if tree == null:
+		return 0.0
+	var full := CharacterFactory.ANIM_LIB_NAME + "/" + clip
+	if not tree.has_animation(full):
+		return 0.0
+	((tree.tree_root as AnimationNodeBlendTree).get_node("gest_anim") as AnimationNodeAnimation).animation = full
+	tree.set("parameters/gesture/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	return tree.get_animation(full).length
 
 ## kind: "" (none), "pistol", "rifle". Raises the upper body into an aim pose over the locomotion.
 func set_aim(kind: String) -> void:
@@ -681,6 +823,10 @@ func _physics_tick_anim(delta: float) -> void:
 	tree.set("parameters/ride_mix/blend_amount", _ride_w)
 	if model:
 		model.position.y = ride_seat_drop * _ride_w
+	_seat_w = move_toward(_seat_w, _seat_target, delta * 4.0)
+	tree.set("parameters/seated/blend_amount", _seat_w)
+	_act_w = move_toward(_act_w, _act_target, delta * 2.5)
+	tree.set("parameters/activity/blend_amount", _act_w)
 	# animation LOD: full rate near the camera, every 3rd/6th frame further out
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var every := 1
@@ -691,8 +837,10 @@ func _physics_tick_anim(delta: float) -> void:
 			springs.active = dist < 30.0
 	_lod_acc += delta
 	_lod_frame += 1
+	if not is_visible_in_tree():
+		return
 	if _lod_frame % every == 0:
-		tree.advance(_lod_acc)
+		tree.advance(minf(_lod_acc, 0.5))
 		_lod_acc = 0.0
 
 func revive() -> void:

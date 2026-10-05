@@ -808,6 +808,144 @@
    "emotion": "dry"
   },
   {
+   "id": "camp_hap_crew_wire",
+   "speaker": "hap",
+   "line": "I go out to the draw on Sundays now. No wire. The boys have the whole sky to look at.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hap_crew_sang",
+   "speaker": "hap",
+   "line": "Those riders at the draw tip their hats to me now. One of them asked me for the words to the hymn. I made some up.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_paid",
+   "speaker": "del",
+   "line": "I'm keeping a ledger of what I owe you, cher. It's the first honest ledger in the territory, and the most expensive.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_ticket",
+   "speaker": "del",
+   "line": "I kept the steamer ticket. I take it out sometimes and don't use it. It's a very satisfying piece of paper.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_doc_answered",
+   "speaker": "doc",
+   "line": "Mrs. Whitcomb has written back. She asks after the teamster. I'm told I'm to have a correspondence, at my age.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_burned",
+   "speaker": "doc",
+   "line": "I keep a little ash from that letter in my pocketbook. Physicians are superstitious. We have to be; nobody else will.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_billy_paid",
+   "speaker": "billy",
+   "line": "Chance is coming along. I paid for him, you know. Well, you did. But it's the same, isn't it? It's clean.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_billy_taken",
+   "speaker": "billy",
+   "line": "Pike's still telling everybody I stole Chance. I tell them I collected my wages. That's what you'd say.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_joseph_false",
+   "speaker": "joseph",
+   "line": "Thorne's patrol spent a week in the south canyon. I hear they found a great many rocks.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_joseph_refused",
+   "speaker": "joseph",
+   "line": "No army contract this winter. I find I sleep better without one.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_del_stays_1",
+   "speaker": "billy",
+   "line": "Del, are you going away? Hap says you nearly took the night boat.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_del_stays_2",
+   "speaker": "del",
+   "line": "Nearly is a fine word, Billy. It covers a great deal of nothing.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_del_stays_3",
+   "speaker": "ruth",
+   "line": "She's staying. She's in debt to me now, and she never runs out on a debt.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_stays_4",
+   "speaker": "del",
+   "line": "Never. Well. Not on that kind.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_doc_letter_1",
+   "speaker": "hap",
+   "line": "You've been writing all evening, Doctor. Is it a book?",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_letter_2",
+   "speaker": "doc",
+   "line": "A letter. To a widow in Philadelphia. About a teamster at Mesquite Wells. It's a long story with a short man in it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_letter_3",
+   "speaker": "ruth",
+   "line": "He's telling her about his steady hands.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_joseph_own_1",
+   "speaker": "joseph",
+   "line": "The old man on the north fork sent word by a trader. They made the hunting ground. The boy's cough is better.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_joseph_own_2",
+   "speaker": "ruth",
+   "line": "And Thorne?",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_joseph_own_3",
+   "speaker": "joseph",
+   "line": "Thorne will always be Thorne. But I said my own piece to him. I've waited nine years to say it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_billy_example_1",
+   "speaker": "billy",
+   "line": "Hap, watch. I'm going to rein Chance just like Mrs. Caddell does. Like this. See?",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_billy_example_2",
+   "speaker": "hap",
+   "line": "You'll grow up to be just like her, I think.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_billy_example_3",
+   "speaker": "ruth",
+   "line": "God help us both.",
+   "emotion": "tired"
+  },
+  {
    "id": "camp_act_stew",
    "speaker": "hap",
    "line": "Sit. Eat. Don't tell me what's in it and I won't tell you either.",
@@ -1221,6 +1359,106 @@
    "when": {
     "flag": {
      "field_book_to_fenn": false
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_hap_crew_wire",
+   "who": "hap",
+   "when": {
+    "flag": {
+     "hap_crew": "wire"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_hap_crew_sang",
+   "who": "hap",
+   "when": {
+    "flag": {
+     "hap_crew": "sang"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_paid",
+   "who": "del",
+   "when": {
+    "flag": {
+     "del_marker": "paid"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_ticket",
+   "who": "del",
+   "when": {
+    "flag": {
+     "del_marker": "ticket"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_doc_answered",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "doc_letter": "answered"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_doc_burned",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "doc_letter": "burned"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_billy_paid",
+   "who": "billy",
+   "when": {
+    "flag": {
+     "billy_colt": "paid"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_billy_taken",
+   "who": "billy",
+   "when": {
+    "flag": {
+     "billy_colt": "taken"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_joseph_false",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "joseph_trail": "false"
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_joseph_refused",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "joseph_trail": "refused"
     }
    },
    "weight": 2.0
@@ -1710,6 +1948,82 @@
     }
    },
    "priority": 2,
+   "once": true
+  },
+  {
+   "id": "del_stays",
+   "who": [
+    "del",
+    "billy"
+   ],
+   "lines": [
+    "camp_del_stays_1",
+    "camp_del_stays_2",
+    "camp_del_stays_3",
+    "camp_del_stays_4"
+   ],
+   "when": {
+    "flag_set": [
+     "del_marker"
+    ]
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "doc_letter",
+   "who": [
+    "doc",
+    "hap"
+   ],
+   "lines": [
+    "camp_doc_letter_1",
+    "camp_doc_letter_2",
+    "camp_doc_letter_3"
+   ],
+   "when": {
+    "flag": {
+     "doc_letter": "answered"
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "joseph_own",
+   "who": [
+    "joseph"
+   ],
+   "lines": [
+    "camp_joseph_own_1",
+    "camp_joseph_own_2",
+    "camp_joseph_own_3"
+   ],
+   "when": {
+    "flag": {
+     "joseph_trail": "refused"
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "billy_example",
+   "who": [
+    "billy",
+    "hap"
+   ],
+   "lines": [
+    "camp_billy_example_1",
+    "camp_billy_example_2",
+    "camp_billy_example_3"
+   ],
+   "when": {
+    "flag_set": [
+     "billy_colt"
+    ]
+   },
+   "priority": 3,
    "once": true
   }
  ]

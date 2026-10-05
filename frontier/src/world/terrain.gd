@@ -14,6 +14,12 @@ var camera: Camera3D
 var lod_range_scale := 2.6         # ranges[l] = LEAF * scale * 2^l ; quality presets tune this
 var mm: MultiMesh
 var mmi: MultiMeshInstance3D
+var mm_far: MultiMesh               # patches beyond the shadow range: drawn without shadow casting
+var mmi_far: MultiMeshInstance3D
+var shadow_range := 350.0
+var _sel_far: PackedFloat32Array = PackedFloat32Array()
+var _count_far := 0
+var _cp := Vector3.ZERO
 var material: ShaderMaterial
 var _minmax: PackedFloat32Array    # [64*64*2] leaf min/max
 var _pyr: Array = []               # per level: PackedFloat32Array min/max grid
@@ -55,6 +61,21 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 	mmi.custom_aabb = AABB(Vector3(-world.size_m, -100, -world.size_m), Vector3(world.size_m * 2, world.h_range + 200, world.size_m * 2))
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(mmi)
+	# the shadow maps end at the quality's shadow distance: patches past it only cost depth/shadow passes when they
+	# cast (one MultiMesh with a map-sized AABB went into every cascade, ~4x the terrain triangles per frame)
+	shadow_range = float(Game.quality.get("shadow_distance", 300.0)) + 60.0
+	mm_far = MultiMesh.new()
+	mm_far.transform_format = MultiMesh.TRANSFORM_3D
+	mm_far.use_custom_data = true
+	mm_far.mesh = mm.mesh
+	mm_far.instance_count = 2048
+	mm_far.visible_instance_count = 0
+	mmi_far = MultiMeshInstance3D.new()
+	mmi_far.multimesh = mm_far
+	mmi_far.material_override = material
+	mmi_far.custom_aabb = mmi.custom_aabb
+	mmi_far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi_far)
 	_coll_body = StaticBody3D.new()
 	_coll_body.name = "TerrainCollision"
 	_coll_body.collision_layer = 1
@@ -203,12 +224,21 @@ func _process_impl(_dt: float) -> void:
 func _select(cp: Vector3) -> void:
 	_planes = camera.get_frustum()
 	_count = 0
+	_count_far = 0
+	_cp = cp
 	if _sel.size() != mm.instance_count * 16:
 		_sel.resize(mm.instance_count * 16)
+	if _sel_far.size() != mm_far.instance_count * 16:
+		_sel_far.resize(mm_far.instance_count * 16)
 	var root_size := LEAF * pow(2.0, LEVELS - 1)
 	_visit(LEVELS - 1, 0, 0, root_size, cp)
 	mm.buffer = _sel
 	mm.visible_instance_count = _count
+	mm_far.buffer = _sel_far
+	mm_far.visible_instance_count = _count_far
+	# the shadow-casting set only spans the shadow range around the camera, so far cascades cull it cheaply
+	var r := shadow_range + LEAF * 2.0
+	mmi.custom_aabb = AABB(Vector3(cp.x - r, -100.0, cp.z - r), Vector3(r * 2.0, world.h_range + 200.0, r * 2.0))
 
 func _node_aabb(level: int, nx: int, nz: int, size: float) -> AABB:
 	var grid: PackedFloat32Array = _pyr[level]
@@ -246,19 +276,28 @@ func _visit(level: int, nx: int, nz: int, size: float, cp: Vector3) -> void:
 	_emit(level, box.position.x, box.position.z, size)
 
 func _emit(level: int, x0: float, z0: float, size: float) -> void:
-	if _count >= mm.instance_count:
-		return
-	var o := _count * 16
-	# Transform3D (basis rows + origin) in MultiMesh buffer layout: row-major 3x4
-	_sel[o + 0] = size; _sel[o + 1] = 0.0; _sel[o + 2] = 0.0; _sel[o + 3] = x0
-	_sel[o + 4] = 0.0; _sel[o + 5] = 1.0; _sel[o + 6] = 0.0; _sel[o + 7] = 0.0
-	_sel[o + 8] = 0.0; _sel[o + 9] = 0.0; _sel[o + 10] = size; _sel[o + 11] = z0
+	var near := Vector2(clampf(_cp.x, x0, x0 + size) - _cp.x, clampf(_cp.z, z0, z0 + size) - _cp.z).length() < shadow_range
 	var r := _ranges[level]
-	_sel[o + 12] = r * 0.72        # morph start
-	_sel[o + 13] = r * 0.98        # morph end
-	_sel[o + 14] = size / PATCH    # vertex spacing
-	_sel[o + 15] = float(level)
-	_count += 1
+	# Transform3D (basis rows + origin) in MultiMesh buffer layout: row-major 3x4, then custom data
+	# (morph start, morph end, vertex spacing, level). Packed arrays are values: write the member arrays directly.
+	if near:
+		if _count >= mm.instance_count:
+			return
+		var o := _count * 16
+		_sel[o + 0] = size; _sel[o + 1] = 0.0; _sel[o + 2] = 0.0; _sel[o + 3] = x0
+		_sel[o + 4] = 0.0; _sel[o + 5] = 1.0; _sel[o + 6] = 0.0; _sel[o + 7] = 0.0
+		_sel[o + 8] = 0.0; _sel[o + 9] = 0.0; _sel[o + 10] = size; _sel[o + 11] = z0
+		_sel[o + 12] = r * 0.72; _sel[o + 13] = r * 0.98; _sel[o + 14] = size / PATCH; _sel[o + 15] = float(level)
+		_count += 1
+	else:
+		if _count_far >= mm_far.instance_count:
+			return
+		var o := _count_far * 16
+		_sel_far[o + 0] = size; _sel_far[o + 1] = 0.0; _sel_far[o + 2] = 0.0; _sel_far[o + 3] = x0
+		_sel_far[o + 4] = 0.0; _sel_far[o + 5] = 1.0; _sel_far[o + 6] = 0.0; _sel_far[o + 7] = 0.0
+		_sel_far[o + 8] = 0.0; _sel_far[o + 9] = 0.0; _sel_far[o + 10] = size; _sel_far[o + 11] = z0
+		_sel_far[o + 12] = r * 0.72; _sel_far[o + 13] = r * 0.98; _sel_far[o + 14] = size / PATCH; _sel_far[o + 15] = float(level)
+		_count_far += 1
 
 # ---------------------------------------------------------------- collision
 func _update_collision() -> void:

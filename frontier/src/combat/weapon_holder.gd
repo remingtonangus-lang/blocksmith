@@ -22,6 +22,7 @@ var hand: Node3D                 # BoneAttachment3D when a skeleton is found
 var aim_override = null          # Vector3 world aim point set by a caller (else derived from the actor)
 var saddle: Node3D = null        # when set (mounted), long guns ride in a scabbard on this node
 var snap := false                # skip the draw/holster blend (screenshots, teleports)
+var vr_hold := false             # VR: the drawn gun is placed by the player's hand (src/xr/vr_play.gd), not here
 var _current := ""
 var _was_reloading := false
 var _last_clip := -1
@@ -156,14 +157,19 @@ func _process(dt: float) -> void:
 	for id in models:
 		var wm: WeaponModel = models[id]
 		var hol := _holster_global(wm, ref)
+		if id == gun.weapon_id() and vr_hold and gun.drawn:
+			continue                        # held in a VR hand
 		if id == gun.weapon_id() and draw_t > 0.0:
 			var hand_x := _hand_global(wm, ref)
 			var u := draw_t * draw_t * (3.0 - 2.0 * draw_t)
 			wm.global_transform = hol.interpolate_with(hand_x, u)
 		else:
 			wm.global_transform = hol
-	_standin_arms(m, ref)
-	if hands != null and is_instance_valid(hands):
+	if not vr_hold:
+		_standin_arms(m, ref)
+	if hands != null and is_instance_valid(hands) and vr_hold:
+		hands.mode = ""
+	elif hands != null and is_instance_valid(hands):
 		var aim = _aim_point()
 		hands.model = m
 		hands.body = Basis(Vector3.UP, ref.basis.get_euler().y)

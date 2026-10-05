@@ -58,20 +58,28 @@ characters` downloads it into `frontier/assets/ext/characters/`, which Character
 
 ## What a character .glb contains
 `Rig` (Skeleton3D: humanoid bones + `LeftEye`/`RightEye` + garment spring chains `<garment>_c<k>_<i>`) with meshes
-`Body` (skin + garments, one surface per material), `Head` (face skin, eyes, corneas, brows, lashes, teeth, tongue,
-beard — the only mesh with blend shapes), `Hair` (MakeHuman hair or a procedural updo), `Hat` (hideable:
-`set_hat_visible(false)`), and `LOD1` (~8 k tris) / `LOD2` (~2.5 k tris): every part joined and decimated, no blend
+`Body` (skin incl. scalp/neck/eyes/corneas + garments, one surface per material, plus the parts of teeth/brows/beard no
+face shape moves), `Face` (only what the face shapes move: skin around eyes/mouth/jaw, brows, lashes, teeth, tongue,
+beard — the only mesh with blend shapes; deltas under 0.2 mm are dropped so the scalp stays out), `Hair` (MakeHuman
+hair or a procedural updo), `Hat` (hideable: `set_hat_visible(false)`), and `LOD1` (~8 k tris) / `LOD2` (~2.5 k
+tris): every part joined and decimated, no blend
 shapes. CharacterMaterials sets visibility ranges (LOD0 < 16 m < LOD1 < 42 m < LOD2). Vertex colour: skin r cavity
 occlusion, g oily T-zone, b stubble mask; cloth r fold occlusion, g wear, b distance to the hem. UV2 = metres for
 fabric tiling. Materials are named `skin`, `eyes`, `cornea`, `brows`, `lashes`, `teeth`, `tongue`, `hair`,
 `hair_updo`, `beard`, `cloth:<garment>:<fabric>`, `leather:<garment>:leather`; CharacterMaterials builds:
-- skin.gdshader: MakeHuman CC0 albedo × tint, SSS, three-octave procedural pore / fine-crease micro-normal (deeper
-  with age) fading with distance, cavity AO, shinier T-zone, sun weathering, stubble dots, global `wetness`.
+- skin.gdshader: MakeHuman CC0 albedo × tint with low-frequency haemoglobin / melanin / venous mottling; cellular
+  (Worley) pore pits + grain + age creases as a micro-normal, faded by screen-space frequency (pits slightly darker
+  and rougher); regional roughness (oily T-zone from vertex colour g, matte cheeks, rough stubble); cavity AO; sun
+  weathering; stubble dots; global `wetness`. Custom `light()`: energy-normalised wrap diffuse with a red-shifted
+  scatter term, two-lobe GGX specular (oily + broad lobe, F0 ~0.026) and a faint peach-fuzz sheen. The wrap is the
+  subsurface look wherever screen-space SSS is missing: CharacterMaterials sets `wrap` 0.22 + SSS 0.45 on Forward+,
+  `wrap` 0.5 + SSS 0 on Mobile/Quest or with `--disable sss` (`CharacterMaterials.sss_available()`).
 - cloth.gdshader (double-sided, insides darker): Poly Haven CC0 fabric tiled on UV2 and re-tinted, garment detail,
   procedural drape wrinkles in model space, turned-hem crease + running stitch near every hem, wear, dust rising from
   the ground, fold AO, wool sheen, wetness. Seed variants re-roll garment colours from their palettes.
-- hair.gdshader: luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight; beards and updos use the
-  vertex colour (shell occlusion / hairline fade).
+- hair.gdshader (MakeHuman hair cards): luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight.
+- strands.gdshader (beards, updos): the same with hashed alpha (stochastic dithered coverage + A2C) instead of a hard
+  scissor, so the stacked shells build density strand by strand; vertex colour = shell occlusion / density.
 - cornea: additive clear dome over each iris (specular highlight and reflections only) — wet eyes.
 
 Garment construction (garments.py): body-derived shells cut *exactly* along their edges with bmesh bisect (collar
@@ -90,7 +98,8 @@ Skirts, frock-coat tails and duster tails carry spring-bone chains: FrontierChar
 30 m of the camera. Women's period hair: procedural updos (hair cap swept up from a soft hairline + low chignon,
 top-knot, or Gibson-girl pompadour) with a generated strand texture.
 
-Face blend shapes (38): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
+Face blend shapes (37 on Ruth; 30 on NPCs, whose left/right pairs blink, squint, wide, smile, sneer, look_up,
+look_down are merged into one symmetric shape each, driven with max(L, R)): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
 `jaw_open`, `smile_L/R`, `frown`, `sneer_L/R`, `pucker`, `funnel`, `press`, `cheek_puff`, `look_up_L/R`,
 `look_down_L/R` (eyelids follow vertical gaze, driven by CharacterLook), visemes `vis_PP FF TH DD kk CH SS nn RR aa
 E I O U` (`vis_sil` = basis). Built from the CC0 ARKit face units + Meta-style visemes
@@ -104,7 +113,9 @@ on the character or any ancestor (the Human / Player node MissionDirector.say() 
 mouth (audio names sil PP FF TH DD kk CH SS nn RR aa E ih oh ou -> our visemes) and the line's emotion tag holds an
 expression for the line (warm, amused, angry, afraid/scared, sad, tired, tense, dry, shout, whisper, calm). Lines
 without viseme timing fall back to a text-driven viseme timeline. `speak(line_id)` plays a line on the character.
-Beards: five alpha shells with per-vertex length jitter, dense dark roots to sparse light tips.
+Beards: five alpha shells with per-vertex length jitter, dense dark roots to sparse light tips; a generated texture
+of ~9 k fine strands tapering in alpha from root to tip over a faint base, density feathered to zero at the edge
+of the beard region (no cut-out outline).
 
 ## Roster (appearance.py)
 36 NPCs from seeds 0..35 over 12 roles — rancher, cowhand, townsman, gentleman, worker, drifter, lawman, elder,
@@ -119,12 +130,33 @@ bodices with corseted fronts, floor-length skirts, aprons, sashes; hats: cattlem
 cap, straw boater. Tags (`rider`, `ranch`, `townsfolk`, `wealthy`, `labour`, `outlaw`, `law`, `hero`, role, sex) drive
 `CharacterFactory.spawn(seed, role)`.
 
-Budgets (tris, LOD0, enforced by the builder): NPCs <= 24 k (head decimated with its blend shapes kept, beard shells
+Budgets (tris, LOD0, enforced by the builder): NPCs <= 24 k (face decimated with its blend shapes kept, beard shells
 and teeth decimated, the body takes the remaining cut), Ruth <= 39 k (subdivided eyes, 2 K skin). LOD1 ~8 k, LOD2
-~2.5 k. Textures: hero skin 2 K; NPC skin 1 K, hair and MakeHuman shoes 512, eyes 512, brows/lashes/teeth/tongue
-256 (every unique NPC loads its own copies: ~27 MB per unique NPC + ~11 MB per instance on llvmpipe, measured with
-character_shots). Godot imports the extracted textures lossless; VRAM compression would cut that ~4x but needs
-shipped .import sidecars next to pre-extracted textures (tested locally, not wired into the zip yet).
+~2.5 k. Textures: hero skin 2 K; NPC skin 1 K, hair and MakeHuman shoes 512, eyes 512, brows/lashes/teeth/tongue 256.
+
+## Memory (8 GB M1, Quest)
+- Textures ship pre-extracted next to each .glb (`<id>_<image>.png/.jpg`, the names Godot's "Extract Textures" uses)
+  with `.import` sidecars asking for VRAM compression (`compress/mode=2`: S3TC/BPTC on desktop, ETC2/ASTC for the
+  Quest; normal maps flagged), and `<id>.glb.import` turns off Godot's auto LODs and shadow meshes (the generator
+  ships LOD1/LOD2). `mhcore.godot_sidecars()` writes them and keeps the uid of an earlier import. Without the
+  pre-extracted file Godot re-extracts an uncompressed copy; with a sidecar but no file the scene embeds textures
+  (that was the "scene doubled" in the first experiment).
+- Blend shapes live on `Face` only, at its minimum vertex count (~4–5 k verts for an NPC incl. 5 beard shells).
+- Materials are built once per look and shared by its instances (CharacterMaterials caches by id); seed variants
+  re-colour garments through instance uniforms (`cloth.gdshader` `tint_0..7`, a material names its `tint_slot`).
+- Spring-bone simulators are built within 30 m of the camera and freed beyond 40 m; the gaze modifier runs within
+  30 m.
+- Spawning: `spawn_id` never loads the clip library on the main thread (`animation_library_if_ready()`; the
+  character stays hidden until the library arrives and then plays the clip it was asked for), and a look that isn't
+  warmed yet reuses the imported PackedScene directly (no instantiate + re-pack). `CharacterFactory.last_spawn_ms`
+  holds the phase timings of the last spawn; `--charmem` prints cold/warm spawn costs.
+- `--charmem` report: `godot [--headless] --path frontier res://scenes/character_shots.tscn -- --charmem
+  [--ids a,b] [--instances 30] [--out DIR]` prints per-look RSS / static / video deltas and analytic texture,
+  mesh, blend-shape and LOD MB, then the per-instance cost, and writes `charmem.json`.
+- Measured (software Vulkan, 2026-10-05): per NPC look 6.2 MB video + 1.1 MB CPU (was ~17 + 15); Ruth 13.5 MB video;
+  per instance 0.49 MB video + 0.35 MB CPU (1.1 MB RSS). Headless per look 5.6–7.5 MB CPU. Headless town bot:
+  characters add ~150 MB peak RSS (16 looks + 28 instances + clips). llvmpipe additionally JIT-compiles every
+  pipeline variant on first use (~350 MB once), which a hardware driver doesn't.
 
 ## Animation library (retarget.py -> animations.glb, animations.json)
 CMU mocap (cgspeed BVH) retargeted onto the canonical rig, 30 fps, in place with root motion on `Root`

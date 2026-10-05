@@ -3,6 +3,7 @@ extends Node3D
 ## godot --path frontier --resolution 960x540 res://scenes/character_shots.tscn -- --out DIR
 ##   [--ids a,b,c | --seeds 0..9] [--mode lineup|faces|anim|all] [--anim walk] [--t 0.4] [--frames 6]
 ## Spawns characters through CharacterFactory, frames them, renders and saves PNGs, then quits (hard timeout).
+## --charmem [--ids a,b] [--instances N]: memory report instead (src/tests/char_mem.gd, design/CHARACTERS.md).
 
 var out_dir := "user://shots"
 var sun: DirectionalLight3D
@@ -14,6 +15,13 @@ func _ready() -> void:
 	frames = int(Game.args.get("frames", 6))
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	_setup_world()
+	if Game.args.has("charmem"):
+		var cam := _camera()
+		cam.position = Vector3(3, 1.4, 4)
+		cam.look_at(Vector3(3, 1.0, -3))
+		await load("res://src/tests/char_mem.gd").new().run(self)
+		get_tree().quit(0)
+		return
 	var chars := _spawn_all()
 	if chars.is_empty():
 		push_error("character_shots: nothing to show")

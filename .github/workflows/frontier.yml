@@ -150,39 +150,49 @@ jobs:
       - name: Bots (oracles)
         id: bots
         if: ${{ !cancelled() }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           set -o pipefail
           mkdir -p snaps
-          "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
-          grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
+          # the story run (42 missions) alone outgrew one shared watchdog: run it beside the other bots (3 cores)
+          mkdir -p "$RUNNER_TEMP/home_missions"   # own user:// (saves, sign atlas cache) for the parallel process
+          HOME="$RUNNER_TEMP/home_missions" "$GODOT" --headless --path frontier -- --bot missions --seconds 75 --report "$PWD/snaps/bot_report_missions.json" --watchdog 900 > bots_missions.log 2>&1 &
+          MPID=$!
+          "$GODOT" --headless --path frontier -- --bot road,explore,ride,gaits,town,gunfight,hunt,camp,encounters,social,openworld,presentation,systems,ui,footik --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 900 > bots_world.log 2>&1 || true
+          wait $MPID || true
+          cat bots_world.log bots_missions.log > bots.log
+          grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" bots.log || true
+          ok=$(grep -c "BOTS PASS" bots.log || true)
+          [ "$ok" = "2" ] && echo "BOTS ALL PASS" >> bots.log
+          grep -q "BOTS ALL PASS" bots.log || { grep -vE "^\s*$" bots.log | grep -vi navigation | tail -40; false; }
 
       - name: GPU probe (find features the CI GPU cannot render)
         id: gpuprobe
         if: ${{ !cancelled() }}
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: |
           # The paravirtual GPU + MoltenVK loses the device on something in the scene. The least restrictive set that
           # renders is used for the evidence renders below (real Macs render everything through Metal).
           # A hung GPU blocks the engine's own watchdog, so each attempt gets a hard external timeout.
           mkdir -p snaps/probe
-          try() {   # $1 = disable flags, $2 = extra args; prints OK on success
-            local name="probe_${1:-all}${2:+_player}"; name="${name//,/_}"; name="${name// /}"
-            perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --watchdog 140 ${1:+--disable $1} $2 > "snaps/probe/$name.log" 2>&1 || true
-            if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo OK; fi
+          try() {   # $1 = disable flags, $2 = quality preset, $3 = hard timeout (s); prints OK on success
+            local name="probe_${2}_${1:-all}"; name="${name//,/_}"; local lim="${3:-170}"
+            perl -e 'alarm shift; exec @ARGV' "$lim" "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --quality "$2" --watchdog $((lim - 10)) ${1:+--disable $1} --player 2>&1 | perl -MTime::HiRes=time -pe 'BEGIN{$t=time} printf "%6.1f ", time-$t' > "snaps/probe/$name.log" || true
+            if [ -f "snaps/probe/$name.png" ] && ! grep -qE "device was lost|Lost VkDevice" "snaps/probe/$name.log"; then echo OK; fi
           }
-          # 3ba9a99 bisection: still lost with every world feature off, renders once Godot's screen-space subsurface
-          # scattering (character skin) is off too, so actor features are tried first; the full set is the fallback.
-          safe=""
-          if [ "$(try "" --player)" != OK ]; then
-            safe="sss,horse,characters,settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
-            for flags in sss sss,horse sss,horse,characters; do
-              if [ "$(try "$flags" --player)" = OK ]; then safe="$flags"; echo "player renders with --disable '$flags'"; break; fi
-              echo "player lost with --disable '$flags'"
-            done
-          fi
+          # c06b035: with actors + settlements off the town shot took ~1.2 s per frame on this GPU (bench: 26-62M prims
+          # per frame at High), so the "hangs" are frames past the GPU watchdog. Prefer a lighter preset over dropping
+          # towns and people from the evidence; feature kill-switches are the last resort.
+          A="sss,horse,characters"
+          safe="$A,settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"; q="low"
+          for attempt in "high:" "low:" "low:sss" "low:$A" "low:$A,settlements"; do
+            aq="${attempt%%:*}"; af="${attempt#*:}"
+            if [ "$(try "$af" "$aq")" = OK ]; then safe="$af"; q="$aq"; echo "renders at $aq with --disable '$af'"; break; fi
+            echo "lost/hung at $aq with --disable '$af'"
+          done
+          echo "FRONTIER_QUALITY=${q}" >> $GITHUB_ENV
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
-          echo "gpu probe: --disable '${safe}'" | tee snaps/probe/result.txt
+          echo "gpu probe: --quality ${q} --disable '${safe}'" | tee snaps/probe/result.txt
 
       - name: Benchmark (High preset, 1920x1080)
         id: bench
@@ -209,7 +219,7 @@ jobs:
           set -o pipefail
           # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
           # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
-          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
+          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality ${FRONTIER_QUALITY:-high} --frames 30 --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
           ls snaps/*.png
 
       - name: Feature shots (HUD, combat, menus, wildlife, riding, camp, dialogue)
@@ -218,8 +228,18 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps/features
-          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
+          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality ${FRONTIER_QUALITY:-high} --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
           ls snaps/features/
+
+      - name: VR shots (desktop VR simulator on the studio set)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          mkdir -p snaps/vr
+          # --vr_sim drives the real VR rig (head, controllers, panels, hands, guns) without a headset; see frontier/design/VR.md
+          perl -e 'alarm shift; exec @ARGV' 540 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 res://scenes/vr_studio.tscn -- --out "$PWD/snaps/vr" --res 1920x1080 --watchdog 500 2>&1 | tee vr.log | grep -E "vr_studio|WATCHDOG|SCRIPT ERROR" || true
+          ls snaps/vr/
 
       - name: Audio evidence (verify report from the audio build)
         if: ${{ !cancelled() }}
@@ -252,7 +272,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHORT=${GITHUB_SHA::7}
-          BOTS=$(grep -c "BOTS PASS" bots.log || true)
+          BOTS=$(grep -c "BOTS ALL PASS" bots.log || true)
           FPS=$(python3 -c "import json;d=json.load(open('snaps/benchmark.json'));o=d['overall'];print('%.0f fps avg, %.0f fps 1%% low, p99 %.1f ms, RSS %.0f MB'%(o['fps'],o['low1'],o['p99'],d['memory']['rss_mb']))" 2>/dev/null || echo "n/a")
           NOTES="Rolling build of Sable River (Frontier) from claude/frontier-game @ ${SHORT}.
 
@@ -278,7 +298,7 @@ jobs:
             echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
             echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
             echo "GPU probe: $(cat probe/result.txt 2>/dev/null)"; echo
-            for f in *.png features/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            for f in *.png features/*.png vr/*.png probe/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
             echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
           } > README.md
           git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A
@@ -287,7 +307,7 @@ jobs:
 
       - name: Fail if bots failed
         if: ${{ !cancelled() }}
-        run: grep -q "BOTS PASS" bots.log
+        run: grep -q "BOTS ALL PASS" bots.log
 
   quest:
     runs-on: ubuntu-latest

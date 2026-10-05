@@ -16,25 +16,77 @@ var _fabric_cache: Dictionary = {}
 var _shader_cache: Dictionary = {}
 
 
+var _look_cache: Dictionary = {}   # character id -> {material key -> [Material, tint slot or -1]}
+
+const TINT_SLOTS := 8
+
+
 func apply(model: Node, info: Dictionary, rng: RandomNumberGenerator, opts := {}) -> void:
+	## Materials are built once per look and shared by every instance of it (same uniform sets, better batching);
+	## a seed variant's garment colours go into per-instance shader uniforms (cloth.gdshader tint_0..7) instead of
+	## new materials.
 	var mats: Dictionary = info.get("materials", {})
-	var done: Dictionary = {}
-	for mi in _meshes(model):
+	var id := str(info.get("id", ""))
+	var cache: Dictionary = _look_cache.get(id, {})
+	var fresh := cache.is_empty()
+	var variant := opts.has("variant_seed") and int(opts["variant_seed"]) != 0
+	var tints := {}                       # slot -> Color for this instance
+	var tinted := {}                      # MeshInstance3D -> true when one of its surfaces reads a tint slot
+	var meshes := _meshes(model)
+	for mi in meshes:
 		for s in mi.mesh.get_surface_count():
 			var m: Material = mi.mesh.surface_get_material(s)
 			if m == null:
 				continue
 			var key := m.resource_name
-			if not done.has(key):
-				done[key] = _make(key, m, mats.get(key, {}), info, rng, opts)
-			if done[key]:
-				mi.set_surface_override_material(s, done[key])
+			if not cache.has(key):
+				var slot := -1
+				var meta: Dictionary = mats.get(key, {})
+				var kind := key.get_slice(":", 0)
+				if kind in ["cloth", "leather", "metal"] and (meta.get("palette", []) as Array).size() > 0:
+					var used := 0
+					for k in cache:
+						if cache[k][1] >= 0:
+							used += 1
+					if used < TINT_SLOTS:
+						slot = used
+				var made := _make(key, m, meta, info, rng, {})
+				if made is ShaderMaterial and slot >= 0:
+					made.set_shader_parameter("tint_slot", slot)
+				cache[key] = [made, slot]
+			var entry: Array = cache[key]
+			if entry[0]:
+				mi.set_surface_override_material(s, entry[0])
+			if entry[1] >= 0:
+				tinted[mi] = true
+			if variant and entry[1] >= 0 and not tints.has(entry[1]):
+				var palette: Array = mats.get(key, {}).get("palette", [])
+				tints[entry[1]] = _col(palette[rng.randi_range(0, palette.size() - 1)], Color(1, 1, 1))
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		_lod_ranges(mi)
+	if fresh and id != "":
+		_look_cache[id] = cache
+	for mi in tinted:
+		for slot in tints:
+			var c: Color = tints[slot]
+			mi.set_instance_shader_parameter("tint_%d" % slot, Color(c.r, c.g, c.b, 1.0))
 	if opts.get("no_hat", false):
 		var hat := model.find_child("Hat", true, false)
 		if hat:
 			hat.visible = false
+
+
+static func sss_available() -> bool:
+	if RenderingServer.get_current_rendering_method() != "forward_plus":
+		return false
+	if Game.disabled("sss"):
+		return false
+	return int(ProjectSettings.get_setting("rendering/environment/subsurface_scattering/subsurface_scattering_quality", 1)) > 0
+
+
+func forget(id: String) -> void:
+	## Drop a look's shared materials (CharacterFactory calls this when it evicts the look).
+	_look_cache.erase(id)
 
 
 const LOD0_END := 16.0
@@ -95,6 +147,8 @@ func _fabric(name: String) -> Dictionary:
 			if img:
 				img.generate_mipmaps()
 				d[k] = ImageTexture.create_from_image(img)
+	for k in d:
+		d[k].resource_name = "fabric/%s/%s" % [name, k]
 	_fabric_cache[name] = d
 	return d
 
@@ -117,6 +171,11 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			sm.set_shader_parameter("stubble", float(meta.get("stubble", 0.0)))
 			sm.set_shader_parameter("stubble_color", _col(meta.get("stubble_color"), Color(0.12, 0.09, 0.07)))
 			sm.set_shader_parameter("skin_age", clampf((float(info.get("age", 30)) - 20.0) / 50.0, 0.0, 1.0))
+			# wrap-light scatter: light where Forward+ screen-space SSS runs, stronger where it doesn't (Mobile/Quest,
+			# --disable sss on CI's paravirtual GPU)
+			var sss_on := sss_available()
+			sm.set_shader_parameter("wrap", 0.22 if sss_on else 0.5)
+			sm.set_shader_parameter("sss", 0.45 if sss_on else 0.0)
 			return sm
 		"eyes":
 			var em := StandardMaterial3D.new()
@@ -129,7 +188,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			return em
 		"beard":
 			var bs := ShaderMaterial.new()
-			bs.shader = _shader("hair")
+			bs.shader = _shader("strands")
 			bs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
 			bs.set_shader_parameter("use_normal", false)
 			bs.set_shader_parameter("use_vertex_color", true)
@@ -156,7 +215,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			return hm
 		"hair", "hair_updo":
 			var hs := ShaderMaterial.new()
-			hs.shader = _shader("hair")
+			hs.shader = _shader("strands" if kind == "hair_updo" else "hair")
 			hs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
 			var nt := _tex(src, "normal")
 			hs.set_shader_parameter("use_normal", nt != null)
