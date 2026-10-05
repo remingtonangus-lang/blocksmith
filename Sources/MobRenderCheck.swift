@@ -83,8 +83,69 @@ enum MobRenderCheck {
             if !invisible.isEmpty { fails += 1 }
         }
         g.fancyGraphics = keepFancy
+        fails += live(g, r, w, h)
         g.mobs.mobs = saved
         print("mobcheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails
+    }
+
+    // Live: mobs that spawned and updated through Game.tick (a survival night) must draw too. Each is rendered alone
+    // from a clear viewpoint a few blocks away (night vision on, so a dark mob in a dark cave still differs from the
+    // empty frame) and checked for a broken state (NaN position or yaw, zero scale).
+    static func live(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int) -> Int {
+        let p = g.player
+        let keepTime = g.time, keepSurvival = g.survival, keepPos = p.pos, keepYaw = p.yaw, keepPitch = p.pitch
+        g.time = 0.62 * DAY_LENGTH
+        g.survival = true
+        g.paused = false
+        p.flying = true
+        g.mobs.mobs.removeAll()
+        for _ in 0..<(60 * 45) {
+            g.tick(1.0 / 60)
+            g.health = 20
+            if g.menu != nil { g.closeMenu(); g.paused = false }
+        }
+        let all = g.mobs.mobs
+        var broken: [String] = [], invisible: [String] = []
+        var drawn = 0, skipped = 0, kinds = Set<MobKind>()
+        g.applyEffect(.nightVision, amp: 0, seconds: 60)
+        func clear(_ a: V3, _ b: V3) -> Bool {
+            for i in 0...16 {
+                let q = a + (b - a) * (Float(i) / 16)
+                if g.world.collides(q - V3(0.1, 0.1, 0.1), q + V3(0.1, 0.1, 0.1)) { return false }
+            }
+            return true
+        }
+        for m in all where kinds.count < 40 {
+            let ok = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.yaw.isFinite && m.scale > 0.01
+            if !ok { broken.append("\(m.kind) pos \(m.pos) yaw \(m.yaw) scale \(m.scale)"); continue }
+            if kinds.contains(m.kind) { continue }
+            let c = m.pos + V3(0, m.height * 0.5, 0)
+            let d: Float = 2.5 + max(m.height, m.halfW * 2) * 1.5
+            let views = [V3(d, 1.5, 0), V3(-d, 1.5, 0), V3(0, 1.5, d), V3(0, 1.5, -d), V3(0.7 * d, d, 0.7 * d)]
+            guard let off = views.first(where: { clear(c + $0, c) }) else { skipped += 1; continue }
+            let eye = c + off
+            p.pos = eye - V3(0, p.eyeHeight, 0)
+            let to = c - eye
+            p.yaw = atan2f(-to.x, -to.z)
+            p.pitch = atan2f(to.y, simd_length(V2(to.x, to.z)))
+            g.mobs.mobs = []
+            _ = pixels(r, w, h)
+            let base = pixels(r, w, h)
+            g.mobs.mobs = [m]
+            let n = changed(base, pixels(r, w, h))
+            kinds.insert(m.kind)
+            if n < 30 { invisible.append("\(m.kind) (\(n) px)") } else { drawn += 1 }
+        }
+        g.effects.remove(.nightVision)
+        g.mobs.mobs = all
+        g.time = keepTime; g.survival = keepSurvival
+        p.pos = keepPos; p.yaw = keepYaw; p.pitch = keepPitch
+        var line: String = "mobcheck live: \(all.count) mobs after a 45 s survival night, \(kinds.count) kinds viewed, \(drawn) drawn"
+        line += ", \(skipped) without a clear view"
+        if !invisible.isEmpty { line += "; invisible: " + invisible.joined(separator: ", ") }
+        if !broken.isEmpty { line += "; broken state: " + broken.prefix(6).joined(separator: ", ") }
+        print(line)
+        return (invisible.isEmpty && broken.isEmpty && !all.isEmpty) ? 0 : 1
     }
 }

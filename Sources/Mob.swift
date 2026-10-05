@@ -1633,6 +1633,8 @@ private func parts(_ m: Mob) -> [Part] {
 }
 
 // Writes the mob triangles (camera-relative) into `out`; returns the vertex count written.
+enum MobLight { static var nightVision: Float = 0 }
+
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil) -> Int {
     let CT = Mesher.cornerTable
@@ -1640,6 +1642,8 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     let order = [0, 1, 2, 0, 2, 3]
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
+    // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
+    let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
     for m in mobs {
         // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
         // the loaded area was rebuilt each frame (a quarter of the frame's CPU encode in the flight profile).
@@ -1656,7 +1660,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
         let fill: Float = max(0.035, (0.05 + 0.2 * Settings.shared.lightBrightness) * near)
         var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-        bright = bright + (1 - bright) * world.dim.ambient
+        bright = bright + (1 - bright) * amb
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
         let scale: Float = m.sized ? 1 : m.scale
