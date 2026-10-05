@@ -560,6 +560,19 @@ enum CoopTest {
         var bit2 = 20
         c.withSeat(1, g) { bit2 = g.health; g.health = 20; g.player.vel = .zero }
         check(bit2 < 20 && g.health == hpBefore, "conjurer fangs bite player 2 (\(bit2)), not player 1")
+        // Player 1's ender pearl landing beside player 2 takes player 1 there and leaves player 2 alone (thrown items
+        // flew in the turn of the player nearest them: player 2 was teleported).
+        let p2at = c.seatPlayer(1, g).pos
+        let p1home = p1.pos
+        let pearl = Fireball(p2at + V3(1.5, 3, 0), V3(0, -20, 0), big: false, byPlayer: true)    // thrown in seat 0's turn
+        pearl.kind = .pearl
+        g.projectiles.fireballs.append(pearl)
+        for _ in 0..<20 { g.tick(1.0 / 60) }
+        let p2after = c.seatPlayer(1, g).pos
+        check(simd_length(p1.pos - p2at) < 4 && simd_length(p2after - p2at) < 0.5,
+              String(format: "player 1's pearl moves player 1 (%.0f blocks from player 2) and not player 2 (%.1f)", simd_length(p1.pos - p2at), simd_length(p2after - p2at)))
+        p1.pos = p1home; p1.vel = .zero
+        g.health = 20
         g.survival = false
         p1.vel = .zero
         // One pause for both.
