@@ -33,6 +33,7 @@ final class FloodModel {
     var known: [Bool]
     var fillTop: [Int]                          // world y the cell's columns are filled below (exclusive), 0 none
     var flow: [Float]                           // scratch
+    var roofPending: [IVec3] = []               // roofed columns waiting for water beside them (retryRoofed)
     var placed = Set<IVec3>()
     var timer: Float = 0
     var sampleCursor = 0
@@ -259,6 +260,37 @@ final class FloodModel {
             if t > cur { left -= fill(w, cell: k, to: t, budget: left) }
             else if t < cur - 1 || (t == 0 && cur > 0) { left -= drain(w, cell: k, to: t, budget: left) }
         }
+        if !roofPending.isEmpty && left > 0 { left -= retryRoofed(w, budget: left) }
+    }
+
+    // Roofed columns a fill passed over with no water beside them yet: their opening may face a cell filled later
+    // in the same pass (cells fill in index order), so they are tried again after it, until the water reaches them
+    // or their cell's level drops below them (code review: doorways facing +x / +z stayed dry).
+    private func retryRoofed(_ w: World, budget: Int) -> Int {
+        let cs = FloodModel.cellSize
+        var used = 0
+        for _ in 0..<3 {
+            var keep: [IVec3] = []
+            var progress = false
+            for p in roofPending {
+                let ci = floorDiv(p.x - ox, cs), cj = floorDiv(p.z - oz, cs)
+                guard ci >= 0 && ci < N && cj >= 0 && cj < N else { continue }
+                let k = ci + cj * N
+                guard known[k] && fillTop[k] > p.y else { continue }
+                let b = w.rawBlock(p.x, p.y, p.z)
+                guard b == AIR || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b)) else { continue }
+                guard used < budget && besideWater(w, p.x, p.y, p.z) else { keep.append(p); continue }
+                let id = isShore(w, p.x, p.y, p.z, cell: k) ? FloodModel.edge : FloodModel.flood
+                if w.setBlockAsync(p.x, p.y, p.z, id) {
+                    placed.insert(p); used += 1; writes += 1
+                    used += closeShores(w, p.x, p.y, p.z)
+                    progress = true
+                }
+            }
+            roofPending = keep
+            if !progress || roofPending.isEmpty { break }
+        }
+        return used
     }
 
     // Fills the cell's columns up to y (exclusive): air and soft blocks above each column's ground.
@@ -281,7 +313,10 @@ final class FloodModel {
                     // Only over this column's own ground (water never hangs over a drop inside the cell).
                     let below = w.rawBlock(x, y - 1, z)
                     guard !FloodModel.passT[Int(below)] || Blocks.fluidKind[Int(below)] == 1 else { continue }
-                    if roofed(w, x, y, z) && !besideWater(w, x, y, z) { continue }
+                    if roofed(w, x, y, z) && !besideWater(w, x, y, z) {
+                        if pass == 1 && roofPending.count < 4096 { roofPending.append(IVec3(x, y, z)) }
+                        continue
+                    }
                     let id = isShore(w, x, y, z, cell: k) ? FloodModel.edge : FloodModel.flood
                     if w.setBlockAsync(x, y, z, id) {
                         placed.insert(IVec3(x, y, z)); used += 1; writes += 1

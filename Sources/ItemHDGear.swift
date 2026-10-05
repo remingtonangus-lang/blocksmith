@@ -295,10 +295,14 @@ extension ItemHD {
             if !star {
                 // Flame licks round the dark core (critic: a grey cannonball).
                 for k in 0..<7 {
-                    let a = Float(k) * 2 * .pi / 7 - .pi / 2
+                    let a: Float = Float(k) * 2 * Float.pi / 7 - Float.pi / 2
                     let dv = V2(cosf(a), sinf(a)), pv = V2(-sinf(a), cosf(a))
                     let b: V2 = V2(0.5, 0.52) + dv * 0.24
-                    cv.add(cv.poly([b + pv * 0.09, b + dv * 0.2 + pv * 0.03, b - pv * 0.09]), ys, soft(k % 2 == 0 ? 0xF8A030 : 0xF8D040), r: 0.04)
+                    let p0: V2 = b + pv * 0.09
+                    let tip: V2 = dv * 0.2 + pv * 0.03
+                    let p1: V2 = b + tip
+                    let p2: V2 = b - pv * 0.09
+                    cv.add(cv.poly([p0, p1, p2]), ys, soft(k % 2 == 0 ? 0xF8A030 : 0xF8D040), r: 0.04)
                 }
             }
             cv.add(d, ys, star ? M("stone", base) : soft(0x3A2A1A), r: 0.3)

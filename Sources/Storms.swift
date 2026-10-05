@@ -256,18 +256,12 @@ extension Game {
         }
         for lz in 0..<CS { for lx in 0..<CS {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
-            var y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
+            // The block the snow lies on: the highest one that stops rain (glass and other see-through solids too:
+            // snow piled up on floors under glass roofs; Chunk.rainTop), not counting the snow's own deeper layers
+            // (they collide; one and two layers don't).
+            var y = Int(c.rainTop[lx + lz * CS])
             guard y > 0 && y < CH - 2 else { continue }
-            // Glass (and other see-through solids) doesn't stop the sky column but does stop the snow: it settles on
-            // the highest solid block above (it piled up on floors under glass roofs).
-            // (Not its own deeper layers, which collide; only up to the chunk's highest stored block.)
-            var yy = y + 2
-            let scanTop = min(CH - 2, y + 40, c.blocks.storedCount / CSQ)
-            while yy < scanTop {
-                let b = c.blocks[Chunk.index(lx, yy, lz)]
-                if Blocks.collide[Int(b)] && snowLayers(b) < 0 { y = yy }
-                yy += 1
-            }
+            if snowLayers(c.blocks[Chunk.index(lx, y, lz)]) > 0 { y -= 1 }
             let cur = snowLayers(world.rawBlock(x, y + 1, z))
             if cur < 0 || (cur == 0 && !snowing) { continue }
             let top = world.rawBlock(x, y, z)

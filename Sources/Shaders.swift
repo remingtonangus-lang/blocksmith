@@ -523,6 +523,7 @@ fragment float4 entityFS(EntOut in [[stage_in]],
                          texture2d_array<float> tex [[texture(0)]],
                          constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
+    float2 uvdx = dfdx(in.uv), uvdy = dfdy(in.uv);     // (before the discard: the item model faces' inner sample)
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
     if (in.overlay < -0.5) {
@@ -536,8 +537,9 @@ fragment float4 entityFS(EntOut in [[stage_in]],
         float aD = tex.sample(texSampler, in.uv + float2(0, px.y * d), L).a, aU = tex.sample(texSampler, in.uv - float2(0, px.y * d), L).a;
         float2 g = float2(aR - aL, aD - aU);
         bool edge = min(min(aR, aL), min(aD, aU)) < 0.5 && dot(g, g) > 1e-4;
-        // (Sampled outside the per-pixel branch: implicit mip derivatives need every pixel of the quad to sample.)
-        float4 inner = tex.sample(texSampler, in.uv + (edge ? normalize(g) : float2(0.0)) * px * (d + 1.0), L);
+        // (The face's own gradients: the offset jumps between neighbouring pixels, so implicit derivatives picked a
+        // blurred mip right at the outline.)
+        float4 inner = tex.sample(texSampler, in.uv + (edge ? normalize(g) : float2(0.0)) * px * (d + 1.0), L, gradient2d(uvdx, uvdy));
         if (edge && inner.a > 0.5) { rgb = inner.rgb; }
     }
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)

@@ -19,6 +19,7 @@ enum ItemHD {
 
     static func hex(_ h: UInt32) -> V3 { V3(Float((h >> 16) & 255), Float((h >> 8) & 255), Float(h & 255)) / 255 }
 
+    static let woodBase = mats["wood"]!.base       // (shade() per pixel: no dictionary lookup there)
     static let mats: [String: Mat] = [
         "wood": Mat(kind: .wood, base: hex(0xC89A62), dark: hex(0x7A5630), light: hex(0xF0D49E)),
         "handle": Mat(kind: .wood, base: hex(0x94683C), dark: hex(0x4A3018), light: hex(0xC89A62)),
@@ -271,7 +272,7 @@ enum ItemHD {
             col *= 0.92 + 0.1 * g                                   // a quiet grain (critic: strong stripes read as wicker)
             // A few dark plank lines across the grain, so a wooden head reads as cut wood, not as its handle.
             let line = (axisT * 5 + vnoise(p.x, p.y, 5, 9) * 0.6).truncatingRemainder(dividingBy: 1)
-            if m.base == mats["wood"]!.base && line < 0.06 { col *= 0.62 }      // tool heads only (boats read as wicker)
+            if m.base == woodBase && line < 0.06 { col *= 0.62 }      // tool heads only (boats read as wicker)
             col += (m.light - col) * (powf(max(0, refl.z), 12) * 0.35)
         case .stone:
             let nn: Float = vnoise(p.x, p.y, 22, 7) * 0.65 + vnoise(p.x, p.y, 60, 8) * 0.35
