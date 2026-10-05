@@ -87,6 +87,9 @@ func _ready() -> void:
 	var md := MissionDirector.new()
 	md.name = "Missions"
 	add_child(md)
+	var enc = load("res://src/ai/encounters.gd").new()
+	enc.name = "Encounters"
+	add_child(enc)
 	if Game.args.has("time"):
 		sky.set_time(Game.arg_f("time", 9.0))
 	if Game.args.has("weather"):

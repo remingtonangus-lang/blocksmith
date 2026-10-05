@@ -58,7 +58,18 @@ static func run(runner: Node) -> Dictionary:
 			if got <= 0.0 or st.money <= m1:
 				_fail(res, "selling a perfect deer pelt paid nothing")
 		res.checks["shops"] = shops.size()
-	# 5. save -> scramble -> load equality
+	# 5. every random encounter stages and resolves (autopilot) without errors
+	var enc = Game.get("encounters")
+	if enc != null:
+		Game.missions.autopilot = true
+		for kind in enc.TYPES:
+			var at: Vector3 = p.global_position + Vector3(30, 0, 30)
+			await enc.start(kind, at)
+		Game.missions.autopilot = false
+		res.checks["encounters"] = enc.history.duplicate()
+		if enc.history.size() < enc.TYPES.size():
+			_fail(res, "only %d/%d encounters ran" % [enc.history.size(), enc.TYPES.size()])
+	# 6. save -> scramble -> load equality
 	var money := st.money
 	var standing := st.standing
 	var pos: Vector3 = p.global_position

@@ -1,0 +1,28 @@
+{
+  "note": "Random encounter dialogue. Original writing.",
+  "speakers": {
+    "wagoner": {"name": "Wagoner", "voice": "old_man_a"},
+    "bandit": {"name": "Road Agent", "voice": "rough_male_a"},
+    "deputy": {"name": "Deputy", "voice": "young_male"},
+    "prisoner": {"name": "Prisoner", "voice": "rough_male_b"},
+    "snakebit": {"name": "Prospector", "voice": "old_man_b"},
+    "hunter": {"name": "Meat Hunter", "voice": "gruff_male"},
+    "widow": {"name": "Mourner", "voice": "older_woman"}
+  },
+  "lines": [
+    {"id": "enc_wagon_01", "speaker": "wagoner", "line": "Wheel's off the axle and my back's not what it was in the war. Don't suppose you'd lend a shoulder?", "emotion": "tired"},
+    {"id": "enc_wagon_02", "speaker": "ruth", "line": "Hold the team steady. On three.", "emotion": "warm"},
+    {"id": "enc_wagon_03", "speaker": "wagoner", "line": "Bless you. Here, take this. Flour's spoiled but the coffee ain't.", "emotion": "warm"},
+    {"id": "enc_robbery_01", "speaker": "bandit", "line": "That's far enough. Purse, pistol and the horse, in that order, and nobody's widow-making today.", "emotion": "angry"},
+    {"id": "enc_robbery_02", "speaker": "ruth", "line": "Already a widow. You'll have to do better than that.", "emotion": "dry"},
+    {"id": "enc_prisoner_01", "speaker": "prisoner", "line": "Ma'am! Ma'am, this boy's taking me to hang for a horse I paid for. Cut me loose and I'll make it worth your while.", "emotion": "afraid"},
+    {"id": "enc_prisoner_02", "speaker": "deputy", "line": "Don't you listen to him. Ride on, ma'am. This is county business.", "emotion": "tense"},
+    {"id": "enc_prisoner_03", "speaker": "ruth", "line": "County business. Then I'll leave it to the county.", "emotion": "neutral"},
+    {"id": "enc_snake_01", "speaker": "snakebit", "line": "Rattler got me through the boot. Leg's going numb. You carry anything for it?", "emotion": "afraid"},
+    {"id": "enc_snake_02", "speaker": "ruth", "line": "Sit down and stop walking on it. This'll taste like a tannery.", "emotion": "warm"},
+    {"id": "enc_snake_03", "speaker": "snakebit", "line": "Owe you my leg and likely the rest of me. There's a creek past the mesa where the color shows. Go look.", "emotion": "warm"},
+    {"id": "enc_hunter_01", "speaker": "hunter", "line": "Venison, fresh this morning. Four bits a quarter. Cheaper than shooting it yourself and twice as quiet.", "emotion": "neutral"},
+    {"id": "enc_grave_01", "speaker": "widow", "line": "He wanted to be buried where he could see the river. Couldn't dig it deep enough. Ground's like iron.", "emotion": "sad"},
+    {"id": "enc_grave_02", "speaker": "ruth", "line": "Give me the shovel. Sit a while.", "emotion": "warm"}
+  ]
+}
