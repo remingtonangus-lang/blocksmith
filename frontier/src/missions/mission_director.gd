@@ -119,7 +119,8 @@ func _ready() -> void:
 	# world reactivity systems (social talk + gossip, newspapers); main.gd may add them itself later
 	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"],
 			["legendary", "res://src/systems/legendary.gd"], ["treasure", "res://src/systems/treasure.gd"],
-			["presentation", "res://src/missions/presentation.gd"], ["outfits", "res://src/systems/outfits.gd"]]:
+			["presentation", "res://src/missions/presentation.gd"], ["outfits", "res://src/systems/outfits.gd"],
+			["horse_care", "res://src/systems/horse_care.gd"], ["travel", "res://src/systems/travel.gd"], ["climate", "res://src/systems/climate.gd"]]:
 		if not Game.has_meta(sys[0]):
 			var n: Node = load(sys[1]).new()
 			n.name = "Sys_" + sys[0]

@@ -1,5 +1,5 @@
 {
- "note": "Camp life at Willow Bend: barks (one line when Ruth walks up) and fireside conversations (two to four lines), picked by src/ai/camp.gd from story flags, Standing, money, bounties, recent crimes (WorldState.crimes_log), kills, catches and the chapter. Conditions: flag {name: value}, flag_set [names], chapter_min/max, standing_min/max, money_min/max, bounty_min, kills_civilian_min, kills_outlaw_min, recent_crime kind, item_prefix. Original writing.",
+ "note": "Camp life at Willow Bend: barks (one line when Ruth walks up) and fireside conversations (two to four lines), picked by src/ai/camp.gd from story flags, Standing, money, bounties, recent crimes (WorldState.crimes_log), kills, catches and the chapter. Conditions: flag {name: value}, flag_set [names], morale_min/max, chapter_min/max, standing_min/max, money_min/max, bounty_min, kills_civilian_min, kills_outlaw_min, recent_crime kind, item_prefix. Original writing.",
  "speakers": {
   "ruth": {
    "name": "Ruth Caddell",
@@ -946,6 +946,66 @@
    "emotion": "tired"
   },
   {
+   "id": "camp_hap_morale_high",
+   "speaker": "hap",
+   "line": "Full larder, dry tents, nobody shot this week. I keep waiting for the catch. My mother said there's always a catch.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hap_morale_low",
+   "speaker": "hap",
+   "line": "Beans again. I could make beans taste of something if I had anything to make them taste of.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_del_morale_high",
+   "speaker": "del",
+   "line": "This is the first camp I've been in where nobody's counting the spoons. It's unnerving, cher.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_morale_low",
+   "speaker": "del",
+   "line": "Morale's lower than a snake's belly, and I've seen better odds at a Baptist card table.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_morale_high",
+   "speaker": "doc",
+   "line": "There's quinine in the chest and bandages that were never a shirt. I may have to start practising medicine.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_morale_low",
+   "speaker": "doc",
+   "line": "I set Billy's finger with a spoon and a prayer. The prayer did more. Get us some supplies, Caddell.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_billy_morale_high",
+   "speaker": "billy",
+   "line": "Hap made a pie! A real one! With a top on it! I think we're rich.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_billy_morale_low",
+   "speaker": "billy",
+   "line": "Nobody's talking much. Is it something I did? I didn't do anything. Mostly.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_joseph_morale_high",
+   "speaker": "joseph",
+   "line": "The horses are fat and the boxes are full. A camp like this could winter, if it had to.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_joseph_morale_low",
+   "speaker": "joseph",
+   "line": "Short on cartridges, short on flour. Short on reasons, some nights.",
+   "emotion": "tired"
+  },
+  {
    "id": "camp_act_stew",
    "speaker": "hap",
    "line": "Sit. Eat. Don't tell me what's in it and I won't tell you either.",
@@ -1462,6 +1522,86 @@
     }
    },
    "weight": 2.0
+  },
+  {
+   "line": "camp_hap_morale_high",
+   "who": "hap",
+   "when": {
+    "morale_min": 70
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_hap_morale_low",
+   "who": "hap",
+   "when": {
+    "morale_max": 35
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_del_morale_high",
+   "who": "del",
+   "when": {
+    "morale_min": 70
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_del_morale_low",
+   "who": "del",
+   "when": {
+    "morale_max": 35
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_doc_morale_high",
+   "who": "doc",
+   "when": {
+    "morale_min": 70
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_doc_morale_low",
+   "who": "doc",
+   "when": {
+    "morale_max": 35
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_billy_morale_high",
+   "who": "billy",
+   "when": {
+    "morale_min": 70
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_billy_morale_low",
+   "who": "billy",
+   "when": {
+    "morale_max": 35
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_joseph_morale_high",
+   "who": "joseph",
+   "when": {
+    "morale_min": 70
+   },
+   "weight": 2.5
+  },
+  {
+   "line": "camp_joseph_morale_low",
+   "who": "joseph",
+   "when": {
+    "morale_max": 35
+   },
+   "weight": 2.5
   }
  ],
  "conversations": [
