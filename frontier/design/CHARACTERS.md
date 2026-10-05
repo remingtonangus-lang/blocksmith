@@ -67,13 +67,19 @@ shapes. CharacterMaterials sets visibility ranges (LOD0 < 16 m < LOD1 < 42 m < L
 occlusion, g oily T-zone, b stubble mask; cloth r fold occlusion, g wear, b distance to the hem. UV2 = metres for
 fabric tiling. Materials are named `skin`, `eyes`, `cornea`, `brows`, `lashes`, `teeth`, `tongue`, `hair`,
 `hair_updo`, `beard`, `cloth:<garment>:<fabric>`, `leather:<garment>:leather`; CharacterMaterials builds:
-- skin.gdshader: MakeHuman CC0 albedo × tint, SSS, three-octave procedural pore / fine-crease micro-normal (deeper
-  with age) fading with distance, cavity AO, shinier T-zone, sun weathering, stubble dots, global `wetness`.
+- skin.gdshader: MakeHuman CC0 albedo × tint with low-frequency haemoglobin / melanin / venous mottling; cellular
+  (Worley) pore pits + grain + age creases as a micro-normal, faded by screen-space frequency (pits slightly darker
+  and rougher); regional roughness (oily T-zone from vertex colour g, matte cheeks, rough stubble); cavity AO; sun
+  weathering; stubble dots; global `wetness`. Custom `light()`: energy-normalised wrap diffuse with a red-shifted
+  scatter term, two-lobe GGX specular (oily + broad lobe, F0 ~0.026) and a faint peach-fuzz sheen. The wrap is the
+  subsurface look wherever screen-space SSS is missing: CharacterMaterials sets `wrap` 0.22 + SSS 0.45 on Forward+,
+  `wrap` 0.5 + SSS 0 on Mobile/Quest or with `--disable sss` (`CharacterMaterials.sss_available()`).
 - cloth.gdshader (double-sided, insides darker): Poly Haven CC0 fabric tiled on UV2 and re-tinted, garment detail,
   procedural drape wrinkles in model space, turned-hem crease + running stitch near every hem, wear, dust rising from
   the ground, fold AO, wool sheen, wetness. Seed variants re-roll garment colours from their palettes.
-- hair.gdshader: luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight; beards and updos use the
-  vertex colour (shell occlusion / hairline fade).
+- hair.gdshader (MakeHuman hair cards): luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight.
+- strands.gdshader (beards, updos): the same with hashed alpha (stochastic dithered coverage + A2C) instead of a hard
+  scissor, so the stacked shells build density strand by strand; vertex colour = shell occlusion / density.
 - cornea: additive clear dome over each iris (specular highlight and reflections only) — wet eyes.
 
 Garment construction (garments.py): body-derived shells cut *exactly* along their edges with bmesh bisect (collar
@@ -92,7 +98,8 @@ Skirts, frock-coat tails and duster tails carry spring-bone chains: FrontierChar
 30 m of the camera. Women's period hair: procedural updos (hair cap swept up from a soft hairline + low chignon,
 top-knot, or Gibson-girl pompadour) with a generated strand texture.
 
-Face blend shapes (38): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
+Face blend shapes (37 on Ruth; 30 on NPCs, whose left/right pairs blink, squint, wide, smile, sneer, look_up,
+look_down are merged into one symmetric shape each, driven with max(L, R)): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
 `jaw_open`, `smile_L/R`, `frown`, `sneer_L/R`, `pucker`, `funnel`, `press`, `cheek_puff`, `look_up_L/R`,
 `look_down_L/R` (eyelids follow vertical gaze, driven by CharacterLook), visemes `vis_PP FF TH DD kk CH SS nn RR aa
 E I O U` (`vis_sil` = basis). Built from the CC0 ARKit face units + Meta-style visemes
@@ -106,7 +113,9 @@ on the character or any ancestor (the Human / Player node MissionDirector.say() 
 mouth (audio names sil PP FF TH DD kk CH SS nn RR aa E ih oh ou -> our visemes) and the line's emotion tag holds an
 expression for the line (warm, amused, angry, afraid/scared, sad, tired, tense, dry, shout, whisper, calm). Lines
 without viseme timing fall back to a text-driven viseme timeline. `speak(line_id)` plays a line on the character.
-Beards: five alpha shells with per-vertex length jitter, dense dark roots to sparse light tips.
+Beards: five alpha shells with per-vertex length jitter, dense dark roots to sparse light tips; a generated texture
+of ~9 k fine strands tapering in alpha from root to tip over a faint base, density feathered to zero at the edge
+of the beard region (no cut-out outline).
 
 ## Roster (appearance.py)
 36 NPCs from seeds 0..35 over 12 roles — rancher, cowhand, townsman, gentleman, worker, drifter, lawman, elder,
@@ -137,6 +146,10 @@ and teeth decimated, the body takes the remaining cut), Ruth <= 39 k (subdivided
   re-colour garments through instance uniforms (`cloth.gdshader` `tint_0..7`, a material names its `tint_slot`).
 - Spring-bone simulators are built within 30 m of the camera and freed beyond 40 m; the gaze modifier runs within
   30 m.
+- Spawning: `spawn_id` never loads the clip library on the main thread (`animation_library_if_ready()`; the
+  character stays hidden until the library arrives and then plays the clip it was asked for), and a look that isn't
+  warmed yet reuses the imported PackedScene directly (no instantiate + re-pack). `CharacterFactory.last_spawn_ms`
+  holds the phase timings of the last spawn; `--charmem` prints cold/warm spawn costs.
 - `--charmem` report: `godot [--headless] --path frontier res://scenes/character_shots.tscn -- --charmem
   [--ids a,b] [--instances 30] [--out DIR]` prints per-look RSS / static / video deltas and analytic texture,
   mesh, blend-shape and LOD MB, then the per-instance cost, and writes `charmem.json`.

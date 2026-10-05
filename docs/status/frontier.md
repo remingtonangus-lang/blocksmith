@@ -229,3 +229,6 @@ Work order from this round:
   size vs. prev_size", main thread, after workers exit); one worker-thread SIGSEGV seen mid-missions once in ~6 runs.
   Static Resource caches are now cleared in main._exit_tree (didn't fix it). Needs a symbolised engine build
   (debug Godot on CI) to locate; CI judges bots on their PASS lines, so it doesn't redden runs.
+- 2026-10-05: character round 3 (worktree agent): skin shader (pores, regional roughness, wrap-light scatter for
+  Mobile/no-SSS, two-lobe spec), NPC L/R face-shape merge, hat crowns clear the skull, aprons share skirt weights,
+  hashed-alpha strand beards/updos, clip library never loads on the main thread at spawn.

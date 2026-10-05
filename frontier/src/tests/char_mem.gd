@@ -35,6 +35,32 @@ func run(h: Node3D) -> Dictionary:
 						_seen_tex[tex] = true
 			break
 	await _settle(8)
+	# spawn cost: a look not built yet (cold), then the same look again (warm: scene cached), each incl. its first frame
+	var cold_id := ""
+	for c in CharacterFactory.catalog().get("characters", []):
+		if not ids.has(str(c["id"])) and not CharacterFactory._is_ready(str(c["id"])):
+			cold_id = str(c["id"])
+			break
+	var spawn_report := {}
+	for pass_name in ["cold", "warm", "warm2"]:
+		if cold_id == "":
+			break
+		var ts := Time.get_ticks_usec()
+		var sc: FrontierCharacter = CharacterFactory.spawn_id(cold_id, {"variant_seed": 7})
+		var phases: Dictionary = CharacterFactory.last_spawn_ms.duplicate()
+		var ta := Time.get_ticks_usec()
+		host.add_child(sc)
+		sc.position = Vector3(-8, 0, -6)
+		sc.play("idle", 0.0)
+		var tb := Time.get_ticks_usec()
+		await host.get_tree().process_frame
+		var tc := Time.get_ticks_usec()
+		phases["add_child"] = (tb - ta) / 1000.0
+		phases["first_frame"] = (tc - tb) / 1000.0
+		phases["spawn_call"] = (ta - ts) / 1000.0
+		spawn_report[pass_name] = phases
+		print("charmem spawn %-5s %s: %s" % [pass_name, cold_id, JSON.stringify(phases)])
+	await _settle(4)
 	var base := _sample()
 	var looks := []
 	var x := 0.0
@@ -79,6 +105,7 @@ func run(h: Node3D) -> Dictionary:
 	for l in looks:
 		sum_look += l.rss_mb
 	var report := {"headless": DisplayServer.get_name() == "headless", "looks": looks, "per_instance": per,
+		"spawn_ms": spawn_report,
 		"looks_mean_rss_mb": sum_look / max(looks.size(), 1), "total_rss_delta_mb": _mb(tot.rss - base.rss),
 		"total_video_mb": _mb(tot.video), "count_looks": looks.size(), "count_instances": looks.size() + n}
 	print("charmem total: %d looks + %d instances -> rss +%.1f MB (looks mean %.1f MB/look)"
