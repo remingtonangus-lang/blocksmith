@@ -30,10 +30,32 @@ func apply(model: Node, info: Dictionary, rng: RandomNumberGenerator, opts := {}
 			if done[key]:
 				mi.set_surface_override_material(s, done[key])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		_lod_ranges(mi)
 	if opts.get("no_hat", false):
 		var hat := model.find_child("Hat", true, false)
 		if hat:
 			hat.visible = false
+
+
+const LOD0_END := 16.0
+const LOD1_END := 42.0
+
+func _lod_ranges(mi: MeshInstance3D) -> void:
+	## Generator LODs: Body/Head/Hair/Hat (full detail, blend shapes) near, LOD1 (~8 k tris) mid, LOD2 (~2.5 k) far.
+	match String(mi.name):
+		"LOD1":
+			mi.visibility_range_begin = LOD0_END
+			mi.visibility_range_end = LOD1_END
+		"LOD2":
+			mi.visibility_range_begin = LOD1_END
+		_:
+			if mi.get_parent() and mi.get_parent().find_child("LOD1", false, false) != null:
+				mi.visibility_range_end = LOD0_END
+	if mi.name == "LOD1" or mi.name == "LOD2":
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	mi.visibility_range_end_margin = 1.5 if mi.visibility_range_end > 0.0 else 0.0
+	mi.visibility_range_begin_margin = 1.5 if mi.visibility_range_begin > 0.0 else 0.0
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 
 func _meshes(n: Node, out: Array[MeshInstance3D] = []) -> Array[MeshInstance3D]:
@@ -94,6 +116,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			sm.set_shader_parameter("weathering", float(meta.get("weathering", 0.2)))
 			sm.set_shader_parameter("stubble", float(meta.get("stubble", 0.0)))
 			sm.set_shader_parameter("stubble_color", _col(meta.get("stubble_color"), Color(0.12, 0.09, 0.07)))
+			sm.set_shader_parameter("skin_age", clampf((float(info.get("age", 30)) - 20.0) / 50.0, 0.0, 1.0))
 			return sm
 		"eyes":
 			var em := StandardMaterial3D.new()
@@ -104,7 +127,17 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			em.clearcoat = 1.0
 			em.clearcoat_roughness = 0.02
 			return em
-		"brows", "lashes", "beard":
+		"beard":
+			var bs := ShaderMaterial.new()
+			bs.shader = _shader("hair")
+			bs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
+			bs.set_shader_parameter("use_normal", false)
+			bs.set_shader_parameter("use_vertex_color", true)
+			var bc := _col(meta.get("tint"), Color(0.3, 0.22, 0.15))
+			bs.set_shader_parameter("hair_color", Color(maxf(bc.r, 0.07), maxf(bc.g, 0.055), maxf(bc.b, 0.045)))
+			bs.set_shader_parameter("alpha_cut", 0.4)
+			return bs
+		"brows", "lashes":
 			var hm := StandardMaterial3D.new()
 			hm.albedo_texture = _tex(src, "albedo")
 			hm.albedo_color = _col(meta.get("tint"), Color(1, 1, 1))
@@ -121,7 +154,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 				hm.metallic_specular = 0.25
 				hm.roughness = 0.75
 			return hm
-		"hair":
+		"hair", "hair_updo":
 			var hs := ShaderMaterial.new()
 			hs.shader = _shader("hair")
 			hs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
@@ -130,7 +163,17 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			if nt:
 				hs.set_shader_parameter("normal_tex", nt)
 			hs.set_shader_parameter("hair_color", _col(meta.get("tint"), Color(0.25, 0.17, 0.11)))
+			hs.set_shader_parameter("use_vertex_color", kind == "hair_updo")
 			return hs
+		"cornea":
+			# additive clear dome: only the specular highlight and reflections land on the iris (wet eyes)
+			var cm2 := StandardMaterial3D.new()
+			cm2.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			cm2.albedo_color = Color(0, 0, 0)
+			cm2.roughness = 0.04
+			cm2.metallic_specular = 1.0
+			cm2.cull_mode = BaseMaterial3D.CULL_BACK
+			return cm2
 		"teeth", "tongue":
 			var tm := StandardMaterial3D.new()
 			tm.albedo_texture = _tex(src, "albedo")

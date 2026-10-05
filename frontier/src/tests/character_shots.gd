@@ -26,6 +26,8 @@ func _ready() -> void:
 		await _lineup(chars, "lineup_walk.png", str(Game.args.get("anim", "walk")), float(Game.args.get("t", 0.35)))
 	if mode in ["faces", "all"]:
 		await _faces(chars)
+	if mode == "talk":
+		await _talk(chars[0], str(Game.args.get("line", "alarm_gunfire__man_town")))
 	print("character_shots: done -> ", ProjectSettings.globalize_path(out_dir))
 	get_tree().quit(0)
 
@@ -86,7 +88,7 @@ func _spawn_all() -> Array:
 	var x := -0.5 * 0.9 * (chars.size() - 1)
 	for c in chars:
 		add_child(c)
-		c.position = Vector3(x, 0, 0)
+		c.position = Vector3(x, float(Game.args.get("lift", 0.0)) if str(c.get_meta("clip", "")).begins_with("ride") or str(c.get_meta("clip", "")).contains("mount") else 0.0, 0)
 		c.rotation_degrees.y = float(Game.args.get('turn', 0.0))
 		x += 0.9
 	return chars
@@ -145,6 +147,41 @@ func _faces(chars: Array) -> void:
 			cam.look_at(head + Vector3(0, -0.035, 0))
 			await _render("face_%02d_%d.png" % [i, k])
 		c.visible = false
+
+func _talk(c, line: String) -> void:
+	## Lip-sync check: plays a voice line on the character and renders the face every 0.12 s.
+	if Game.audio == null:
+		var ad = load("res://src/audio/audio_director.gd").new()
+		ad.name = "Audio"
+		get_tree().root.add_child.call_deferred(ad)
+		await get_tree().process_frame
+		Game.audio = ad
+		await get_tree().process_frame
+	for o in get_children():
+		if o is FrontierCharacter and o != c:
+			o.visible = false
+	c.auto_blink = false
+	_pose_all([c], "idle", 0.1)
+	await get_tree().process_frame
+	var cam := _camera()
+	cam.fov = 22.0
+	sun.rotation_degrees = Vector3(-28, 28, 0)
+	var head: Vector3 = c.head_position()
+	cam.position = head + Vector3(0.2, 0.0, 0.85)
+	cam.look_at(head + Vector3(0, -0.04, 0))
+	var dur: float = c.speak(line)
+	print("talk: line %s dur %.2f" % [line, dur])
+	var t0 := Time.get_ticks_msec()
+	var i := 0
+	while i < 8:
+		await get_tree().process_frame
+		var el := (Time.get_ticks_msec() - t0) / 1000.0
+		if el >= 0.12 * i:
+			var img := get_viewport().get_texture().get_image()
+			img.save_png(out_dir.path_join("talk_%d.png" % i))
+			print("talk frame %d at %.2f s speaking=%s" % [i, el, c.speaking])
+			i += 1
+
 
 func _camera() -> Camera3D:
 	var cam := get_viewport().get_camera_3d()

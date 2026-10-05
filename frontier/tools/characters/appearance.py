@@ -223,8 +223,8 @@ def outfit_male(r, kind, years):
         G.append(_g("coat", "coat", "wool", r.choice(P["coat"]), P["coat"], offset=0.02,
                     below_crotch=0.06 if kind == "town" else 0.1, open=True, seed=r.randrange(999)))
         if kind == "gentleman":
-            G.append(_g("coattails", "tails", "wool", G[-1]["tint"], below_knee=0.08, flare=0.03, opening=0.4,
-                        ease=0.022))
+            G.append(_g("coattails", "tails", "wool", G[-1]["tint"], below_knee=0.1, flare=0.015, opening=0.45,
+                        ease=0.012, fold=0.006, chains=6, chain_bones=2))
     if kind == "drifter" or (kind == "work_rider" and r.random() < 0.2):
         col = r.choice(P["duster"])
         G.append(_g("duster", "coat", "canvas", col, P["duster"], offset=0.024, loose=0.025, below_crotch=0.02,
@@ -301,7 +301,10 @@ def make_spec(seed, role=None, cid=None):
         if years > 55 and r.random() < 0.3:
             hair = "short04"
     else:
-        hair = r.choice(["braid01", "ponytail01", "long01", "braid01"])
+        # 1899: most women wear their hair up (bun / chignon / Gibson pompadour); some braids and ponytails
+        hair = r.choice(["updo", "updo", "updo", "braid01", "ponytail01"])
+        if years > 45 and r.random() < 0.6:
+            hair = "updo"
     spec = {
         "id": cid or ("npc_%03d" % seed), "seed": seed, "role": role, "sex": sex, "age": years, "ethnicity": eth,
         "lod": "npc", "macro": macro,
@@ -316,6 +319,11 @@ def make_spec(seed, role=None, cid=None):
         "hair": hair, "hair_color": list(HAIR[hcol]), "hair_grey": 0.0,
         "clothes": outfit_male(r, kind, years) if male else outfit_female(r, kind, years),
     }
+    if spec["hair"] == "updo":
+        spec["hair"] = None
+        style = r.choice(["bun_low", "bun_high", "gibson"]) if years < 50 else r.choice(["bun_low", "bun_high"])
+        spec["clothes"].insert(0, {"kind": "proc", "type": "updo", "id": "updo", "style": style,
+                                   "volume": round(r.uniform(0.006, 0.01), 4)})
     if male:
         b = _pick_w(r, [("moustache", 30), ("full", 14), ("short", 16), ("chin", 4), ("mutton", 6), (None, 30)])
         spec["stubble"] = round(r.uniform(0.25, 0.8), 2)

@@ -150,13 +150,15 @@ class CharacterBuilder:
             return
         import garments
         # order: hats first (hair squash), beards, then body layers inner -> outer
-        procs.sort(key=lambda g: {"hat": 0, "beard": 1}.get(g["type"], 2))
+        procs.sort(key=lambda g: {"hat": 0, "beard": 1, "updo": 1}.get(g["type"], 2))
         for g in procs:
             obj = garments.build(self, g)
             if obj is None:
                 continue
             if g["type"] == "beard":
                 self.parts.append(("beard", obj, None, g))
+            elif g["type"] == "updo":
+                self.parts.append(("hair", obj, None, g))
             else:
                 gg = dict(g)
                 if g["type"] == "hat":
@@ -226,6 +228,40 @@ class CharacterBuilder:
             right = [int(i) for i in np.nonzero(co[:, 0] <= 0)[0]]
             gl.add(left, 1.0, "REPLACE")
             gr.add(right, 1.0, "REPLACE")
+            self._cornea(obj, co)
+
+    def _cornea(self, eyes, co):
+        """Clear corneal dome in front of each iris (additive specular material "cornea": wet highlights)."""
+        c = eyes.copy()
+        c.data = eyes.data.copy()
+        bpy.context.collection.objects.link(c)
+        me = c.data
+        nrm = np.empty(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get("normal", nrm)
+        nrm = nrm.reshape(-1, 3)
+        centers = {1: np.array(self.joint_centers["joint-l-eye"]), -1: np.array(self.joint_centers["joint-r-eye"])}
+        side = np.where(co[:, 0] > 0, 1, -1)
+        cen = np.stack([centers[int(sd)] for sd in side])
+        rel = co - cen
+        rad = np.linalg.norm(rel, axis=1)
+        fwd = -rel[:, 1] / np.maximum(rad, 1e-6)          # 1 at the pupil (faces -Y)
+        keep = fwd > 0.55
+        b = bmesh.new()
+        b.from_mesh(me)
+        b.verts.ensure_lookup_table()
+        bmesh.ops.delete(b, geom=[f for f in b.faces if not all(keep[v.index] for v in f.verts)], context="FACES")
+        bmesh.ops.delete(b, geom=[v for v in b.verts if not v.link_faces], context="VERTS")
+        b.to_mesh(me)
+        b.free()
+        cc = C.get_co(c)
+        side = np.where(cc[:, 0] > 0, 1, -1)
+        cen = np.stack([centers[int(sd)] for sd in side])
+        rel = cc - cen
+        r = np.linalg.norm(rel, axis=1, keepdims=True)
+        f = np.clip(-rel[:, 1:2] / np.maximum(r, 1e-6), 0, 1)
+        C.set_co(c, cen + rel * (1.025 + 0.06 * (f - 0.55).clip(0) ** 2))
+        C.assign_single_material(c, C.make_material("cornea", color=(0, 0, 0, 1), roughness=0.03))
+        self.parts.append(("cornea", c, None, {}))
 
     def _rename_bones(self):
         rig = self.rig
@@ -252,6 +288,8 @@ class CharacterBuilder:
         self.mat_skin = C.make_material("skin", albedo=skin.get("diffuseTexture"), roughness=0.55, size=S)
         C.assign_single_material(self.basemesh, self.mat_skin)
         for kind, obj, mh, extra in self.parts:
+            if mh is None and kind != "eyes":
+                continue   # procedural parts (garments, updo, beard) carry their own materials
             if kind == "eyes":
                 mm = C.parse_mhmat(self._eye_mat(sp.get("eye_color", "brownlight")))
                 C.assign_single_material(obj, C.make_material("eyes", albedo=mm.get("diffuseTexture"),
@@ -261,18 +299,22 @@ class CharacterBuilder:
                 name = {"eyebrows": "brows", "eyelashes": "lashes", "hair": "hair"}[kind]
                 C.assign_single_material(obj, C.make_material(
                     name, albedo=mm.get("diffuseTexture"), normal=mm.get("normalmapTexture") if kind == "hair" else None,
-                    roughness=0.45, alpha=True, size=1024 if kind == "hair" else 512))
+                    roughness=0.45, alpha=True,
+                    size=(1024 if kind == "hair" else 512) if self.hero else (512 if kind == "hair" else 256)))
             elif kind in ("teeth", "tongue"):
                 mm = C.parse_mhmat(mh.material) if mh.material else {}
                 C.assign_single_material(obj, C.make_material("teeth" if kind == "teeth" else "tongue",
-                                                              albedo=mm.get("diffuseTexture"), roughness=0.3, size=512))
+                                                              albedo=mm.get("diffuseTexture"), roughness=0.3,
+                                                              size=512 if self.hero else 256))
             elif kind == "clothes":
                 mm = C.parse_mhmat(mh.material) if mh.material else {}
                 fabric = extra.get("fabric", "none")
                 C.assign_single_material(obj, C.make_material(
                     "%s:%s:%s" % (extra.get("material", "cloth"), extra.get("id", extra["asset"]), fabric),
                     albedo=mm.get("diffuseTexture"),
-                    normal=mm.get("normalmapTexture"), ao=mm.get("aomapTexture"), roughness=0.8, size=S))
+                    normal=mm.get("normalmapTexture"), ao=mm.get("aomapTexture"), roughness=0.8,
+                    size=S if self.hero else 512))
+        # NPC texture memory (every unique NPC loads its own copies): skin 1 K, hair/shoes 512, small parts 256
 
     def _eye_mat(self, color):
         p = os.path.join(mhenv.MH_ASSETS, "eyes", "materials", color + ".mhmat")
@@ -309,12 +351,47 @@ class CharacterBuilder:
                 c[:, 3] = 1.0
                 if o is bm:
                     c[:, 2] = mask
+                    c[:, 0] = self._cavity(bm)
+                    if self.oily_full is not None:
+                        c[:, 1] = self.oily_full[oi]
                 col.data.foreach_set("color", c.ravel())
             me.color_attributes.active_color = me.color_attributes["Col"]
+
+    def _cavity(self, obj):
+        """Per-vertex cavity occlusion from mean curvature (creases of lids, nose wings, lips, ears darker)."""
+        co = C.get_co(obj)
+        me = obj.data
+        e = np.empty(len(me.edges) * 2, dtype=np.int32)
+        me.edges.foreach_get("vertices", e)
+        e = e.reshape(-1, 2)
+        acc = np.zeros_like(co)
+        cnt = np.zeros(len(co))
+        np.add.at(acc, e[:, 0], co[e[:, 1]])
+        np.add.at(acc, e[:, 1], co[e[:, 0]])
+        np.add.at(cnt, e[:, 0], 1)
+        np.add.at(cnt, e[:, 1], 1)
+        lap = acc / np.maximum(cnt, 1)[:, None] - co
+        nrm = np.empty(len(co) * 3, dtype=np.float32)
+        me.vertices.foreach_get("normal", nrm)
+        k = (lap * nrm.reshape(-1, 3)).sum(axis=1)      # > 0: concave
+        return np.clip(1.0 - np.clip(k, 0, None) * 180.0, 0.45, 1.0).astype(np.float32)
 
     def _skin_masks(self):
         """Stubble mask on the original basemesh indices (before helpers/covered vertices are deleted)."""
         self.stubble_full = None
+        self.oily_full = None
+        import garments
+        if getattr(self, "_body_info", None) is None:
+            self._body_info = garments.BodyInfo(self)
+            self._body_info.eye_z = (self.joint_centers["joint-l-eye"].z + self.joint_centers["joint-r-eye"].z) / 2
+        info = self._body_info
+        co = info.co
+        head = info.body & info.dom_in(("head",))
+        front = co[:, 1] < info.head[1] - 0.03
+        nose = (np.abs(co[:, 0]) < 0.022) & (co[:, 2] > info.mouth_z + 0.012) & (co[:, 2] < info.eye_z + 0.02)
+        forehead = (np.abs(co[:, 0]) < 0.05) & (co[:, 2] > info.eye_z + 0.025) & (co[:, 2] < info.eye_z + 0.07)
+        chin = (np.abs(co[:, 0]) < 0.02) & (co[:, 2] < info.mouth_z - 0.015) & (co[:, 2] > info.chin_z)
+        self.oily_full = (head & front & (nose | forehead | chin)).astype(np.float32)
         if self.spec.get("sex", "male") == "male":
             import garments
             if getattr(self, "_body_info", None) is None:
@@ -336,9 +413,11 @@ class CharacterBuilder:
         self._prepare_attributes()
         for kind, obj, mh, extra in self.parts:
             if kind == "teeth":
-                C.decimate(obj, 0.5 if self.hero else 0.22)
+                C.decimate(obj, 0.4 if self.hero else 0.2)
+            elif kind == "hair" and not self.hero and len(obj.data.polygons) > 1200:
+                C.decimate(obj, 0.65, keep_shapes=False)
             elif kind == "beard" and not self.hero:
-                C.decimate(obj, 0.5)
+                C.decimate(obj, 0.42)
         bm = self.basemesh
         oi = np.empty(len(bm.data.vertices), dtype=np.int32)
         bm.data.attributes["orig_index"].data.foreach_get("value", oi)
@@ -390,10 +469,53 @@ class CharacterBuilder:
             if not any(m.type == "ARMATURE" for m in target.modifiers):
                 mod = target.modifiers.new("Armature", "ARMATURE")
                 mod.object = self.rig
-            if not self.hero and name in ("Body", "Hat"):
-                C.decimate(target, self.spec.get("body_decimate", 0.5 if name == "Body" else 0.6), keep_shapes=False)
-            self._limit_weights(target)
+            if name in ("Body", "Hat"):
+                r = (0.75 if name == "Body" else 0.8) if self.hero else (0.42 if name == "Body" else 0.55)
+                C.decimate(target, self.spec.get("body_decimate", r), keep_shapes=False)
+            if name == "Head" and not self.hero:
+                C.decimate(target, self.spec.get("head_decimate", 0.62), keep_shapes=True)
+            self._limit_weights(target, keep_edge=True)
             self.objects[name] = target
+        # hard triangle budget (QUALITY_BAR / CHARACTERS.md): NPC <= 25 k, hero <= 40 k; the body takes the cut
+        budget = self.spec.get("tri_budget", 39000 if self.hero else 24000)
+        tri = {}
+        for n, o in self.objects.items():
+            o.data.calc_loop_triangles()
+            tri[n] = len(o.data.loop_triangles)
+        if sum(tri.values()) > budget and "Body" in self.objects:
+            room = budget - (sum(tri.values()) - tri["Body"])
+            C.decimate(self.objects["Body"], max(0.3, room / tri["Body"]), keep_shapes=False)
+        for o in self.objects.values():
+            self._limit_weights(o)   # final: bone groups only (drops keep_edge)
+
+    def _make_lods(self):
+        """LOD1 / LOD2: every part joined and decimated (no blend shapes); CharacterFactory switches them by
+        visibility range. Targets ~8 k and ~2.5 k triangles."""
+        srcs = [o for n, o in self.objects.items() if n in ("Body", "Head", "Hair", "Hat")]
+        total = 0
+        for o in srcs:
+            o.data.calc_loop_triangles()
+            total += len(o.data.loop_triangles)
+        for lname, target in (("LOD1", 8000), ("LOD2", 2500)):
+            copies = []
+            for o in srcs:
+                cpy = o.copy()
+                cpy.data = o.data.copy()
+                bpy.context.collection.objects.link(cpy)
+                cpy.shape_key_clear()
+                copies.append(cpy)
+            for o in bpy.context.selected_objects:
+                o.select_set(False)
+            for o in copies:
+                o.select_set(True)
+            bpy.context.view_layer.objects.active = copies[0]
+            bpy.ops.object.join()
+            lod = copies[0]
+            lod.name = lname
+            lod.data.name = lname
+            C.decimate(lod, min(1.0, target / max(total, 1)), keep_shapes=False)
+            self._limit_weights(lod)
+            self.objects[lname] = lod
 
     def _head_vertex_mask(self, bm, oi):
         """Vertices that move under any face shape (dilated), plus everything weighted mostly to the head bone."""
@@ -434,9 +556,19 @@ class CharacterBuilder:
         bmsh.free()
         me.update()
 
-    def _limit_weights(self, obj):
-        """Godot skins use 4 influences per vertex: keep the top 4 and normalise; drop non-bone groups."""
+    def _limit_weights(self, obj, keep_edge=False):
+        """Godot skins use 4 influences per vertex: keep the top 4 and normalise; drop non-bone groups
+        (keep_edge=True carries the garment-edge decimation guard through, outside the 4-influence limit)."""
         bones = set(b.name for b in self.rig.data.bones)
+        edge = None
+        g = obj.vertex_groups.get(C.KEEP_EDGE)
+        if keep_edge and g is not None:
+            edge = {}
+            gi = g.index
+            for v in obj.data.vertices:
+                for e in v.groups:
+                    if e.group == gi and e.weight > 0:
+                        edge.setdefault(round(e.weight, 2), []).append(v.index)
         for vg in list(obj.vertex_groups):
             if vg.name not in bones:
                 obj.vertex_groups.remove(vg)
@@ -445,9 +577,14 @@ class CharacterBuilder:
         obj.select_set(True)
         bpy.ops.object.vertex_group_limit_total(group_select_mode="ALL", limit=4)
         bpy.ops.object.vertex_group_normalize_all(group_select_mode="ALL", lock_active=False)
+        if edge:
+            g = obj.vertex_groups.new(name=C.KEEP_EDGE)
+            for w, idx in edge.items():
+                g.add(idx, w, "REPLACE")
 
     # ------------------------------------------------------------------------------------------------------------
     def export(self):
+        self._make_lods()
         os.makedirs(self.out_dir, exist_ok=True)
         path = os.path.join(self.out_dir, self.spec["id"] + ".glb")
         bpy.ops.object.select_all(action="DESELECT")
@@ -466,7 +603,7 @@ class CharacterBuilder:
         for name, o in self.objects.items():
             o.data.calc_loop_triangles()
             tris[name] = len(o.data.loop_triangles)
-        self.report.update({"glb": os.path.basename(path), "tris": tris, "tris_total": sum(tris.values()),
+        self.report.update({"glb": os.path.basename(path), "tris": tris, "tris_total": sum(v for k, v in tris.items() if not k.startswith("LOD")),
                             "bytes": os.path.getsize(path),
                             "height_m": round(max(v.co.z for v in self.objects["Head"].data.vertices), 3)})
         return self.report

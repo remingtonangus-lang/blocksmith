@@ -86,10 +86,14 @@ runner, Metal) and the Mac monitor.
   (FluidR3 GM, MIT), Kokoro-82M TTS (Apache-2.0) for Ruth + NPC barks (`design/dialogue/`), CC0/PD Commons recordings
   in CI. CI job `audio` in frontier-assets.yml publishes `audio.zip`; `tools/fetch_assets.sh audio` fetches it.
 - **Characters** (`frontier/design/CHARACTERS.md`): MakeHuman CC0 bodies via MPFB2 run headless in the `bpy`
-  module, game rig with Godot humanoid bone names + eye bones, 34 face blend shapes (CC0 ARKit units + visemes),
-  procedural 1899 garments/hats/beards, 36 seeded NPCs over 12 roles + Ruth Caddell (hero LOD, duster variant),
-  CMU mocap retargeted to `animations.glb` (65 clips incl. procedural aim/hit/lean, root motion, foot contacts).
-  Godot: `CharacterFactory.spawn(seed, role)` → `FrontierCharacter` (clips, visemes, expressions, blink, gaze).
+  module, game rig with Godot humanoid bone names + eye bones, 38 face blend shapes (CC0 ARKit units + visemes +
+  gaze-following lids), procedural 1899 garments (bisect-cut edges, drape/blouse/trouser break, stitch + wrinkle
+  shading, spring-bone skirts/coat tails), women's updos, shell beards, corneas, skin cavity/oily/stubble masks,
+  36 seeded NPCs over 12 roles (<= 24 k tris) + Ruth Caddell (<= 39 k, duster variant), LOD1/LOD2 meshes.
+  CMU mocap + IK-keyframed clips in `animations.glb` (76 clips: locomotion, aim with forend support hand, reloads,
+  holster, riding seat set + mount/dismount left). Godot: `CharacterFactory.spawn(seed, role)` →
+  `FrontierCharacter` (AnimationTree driver incl. ride blend space and action one-shots, lip-sync from AudioDirector
+  viseme events + emotion moods, blink, gaze).
   CI job `characters` publishes `characters.zip`; `tools/fetch_assets.sh characters` fetches it.
 - **Horses** (`frontier/design/HORSES.md`): procedural horse generator
   `frontier/tools/animals/horse_gen.py` (Blender bpy: SDF anatomy → mesh/LODs, rig, weights, mane/tail cards, eyes,
@@ -128,3 +132,5 @@ runner, Metal) and the Mac monitor.
 - 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.
 - 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
 - 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
+- 2026-10-05: character quality pass (worktree agent): garments/drape/springs, updos, faces + lip-sync, riding and
+  weapon-handling clips, tri budgets + LODs.

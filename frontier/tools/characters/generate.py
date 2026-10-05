@@ -42,6 +42,7 @@ def catalogue_entry(spec, report):
                  "stubble": spec.get("stubble", 0.0) if spec["sex"] == "male" else 0.0,
                  "stubble_color": _mul(hc, 0.9)},
         "hair": {"tint": hc},
+        "hair_updo": {"tint": hc},
         "brows": {"tint": _mul(hc, 0.85)},
         "lashes": {"tint": [0.09, 0.07, 0.06]},
         "beard": {"tint": _mul(hc, 1.15)},
@@ -49,7 +50,7 @@ def catalogue_entry(spec, report):
     for g in spec.get("clothes", []):
         if g.get("kind") == "mh":
             g = dict(g, type="mh")
-        elif g.get("kind") != "proc" or g["type"] == "beard":
+        elif g.get("kind") != "proc" or g["type"] in ("beard", "updo"):
             continue
         key = "%s:%s:%s" % (g.get("material", "cloth"), g["id"], g.get("fabric", "wool"))
         m = {"tint": g.get("tint"), "dirt": DIRT.get(role, 0.3)}
