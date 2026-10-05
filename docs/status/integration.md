@@ -153,6 +153,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - Verified at 128 px: citadel_far trees whole (no bare trunks or leaf plates round the site); horizon_ring_evening reads
   as faint far ground in the haze. base_patrol frames the camera on a leaf canopy (patrol not in view): stream D's shot.
 
+- Session log 08:10-08:40 UTC: run 651 (7264bb4) superseded by 076df09 while still queued (no runner had started it);
+  run 652 (076df09) superseded by aada510 after its fast lane (emissive glow shots checked) and before its heavy build
+  started. Also pushed: horizon ring per world seed, villagers/golems don't stroll into caves, village cave sealing
+  counts a floor at the fill depth.
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
