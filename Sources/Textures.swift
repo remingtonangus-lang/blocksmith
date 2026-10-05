@@ -1113,7 +1113,11 @@ enum TextureGen {
                         if a == 0 { zero += 1 } else if a == 255 { full += 1 }
                         if a >= 128 { pass += 1 }
                     }
-                    let isCut = zero > 0 && pass > 0 && zero + full >= n * n * 9 / 10
+                    // Below 128 px the HD leaves come out of the downscale with soft edges (fewer pure 0 / 255 texels):
+                    // at 90 % they missed the cutout test and thinned to bare trunks at mid range (fast-lane shots at
+                    // 32 px: a citadel's forest read as dead trees). The 128 px game keeps the old test.
+                    let binary = n >= 128 ? n * n * 9 / 10 : n * n * 3 / 4
+                    let isCut = zero > 0 && pass > 0 && zero + full >= binary
                     fp[l] = isCut
                     cp[l] = Float(pass) / Float(n * n)
                     if isCut { bleed(px + o, n) }
