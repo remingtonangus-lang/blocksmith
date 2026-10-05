@@ -1751,12 +1751,14 @@ final class Game {
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
+        calmMobs()
         openMenu(DeathMenu(game: self, message: "Player \(cause)"))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
         alive = true
+        calmMobs()
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
@@ -1784,6 +1786,26 @@ final class Game {
         xpLevel = 0
         xpPoints = 0
         timeSinceRest = 0
+    }
+
+    // The player died (and again on respawn): every mob forgets them - anger, sight memory, chase path, a hisser's fuse,
+    // a soldier's last sighting, a stalker's anger - in every loaded dimension, and goes back to idle. Neutral mobs only
+    // forgave after half a minute out of sight, a clock that sat at zero while the player was dead, so voidwalkers came
+    // straight back after a respawn (playtest 2026-10-05). Split screen: only the mobs nearest this player.
+    func calmMobs() {
+        var all: [MobManager] = [mobs]
+        for d in dims.values where d.mobs !== mobs { all.append(d.mobs) }
+        for mm in all {
+            for m in mm.mobs where !coop.active || mm !== mobs || seatOwns(m.pos) {
+                if !m.tamed { m.aggro = false }
+                m.lockTime = 0
+                m.anger = 0
+                m.fuse = 0
+                m.flyTarget = nil
+                m.path = PathState()
+                if let b = m.brain { b.lastSeen = nil; b.seenAgo = 99; b.sees = false; b.charge = 0 }
+            }
+        }
     }
 
     // Footsteps, landing thuds and splashes.
