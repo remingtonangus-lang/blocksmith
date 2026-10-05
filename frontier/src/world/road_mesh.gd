@@ -39,6 +39,10 @@ func _build_arrays(world: WorldData, roads: Array) -> Dictionary:
 		var prev_l: Array = []
 		for i in samples.size():
 			var c: Vector2 = samples[i]
+			# settlement cores: the planned streets replace the road (settlements.gd paints them; lots stand here)
+			if _in_settlement_core(world, c):
+				prev_l = []
+				continue
 			var t: Vector2 = (samples[mini(i + 1, samples.size() - 1)] - samples[maxi(i - 1, 0)]).normalized()
 			var side := Vector2(-t.y, t.x)
 			var ring: Array = []
@@ -80,6 +84,13 @@ func _add_meshes(tiles: Dictionary) -> void:
 		mi.name = "Road_%d_%d" % [tk.x, tk.y]
 		add_child(mi)
 	print("roads: %d ribbon tiles" % tiles.size())
+
+## Inside 0.72 x the radius of a town or POI (matches TownLayout.road_connectors' entry ring).
+static func _in_settlement_core(world: WorldData, c: Vector2) -> bool:
+	for t in world.features.get("towns", []) + world.features.get("pois", []):
+		if Vector2(c.x - float(t.x), c.y - float(t.z)).length() < float(t.r) * 0.72:
+			return true
+	return false
 
 func _quad_strip(t: Array, a: Array, b: Array) -> void:
 	for k in ACROSS - 1:

@@ -223,3 +223,18 @@ combined with original procedural work and retargeted CMU motion capture. Every 
 Not used: MakeHuman *community* assets (mixed CC0/CC-BY, per-asset licences) and the system pack's modern garments
 (logo T-shirts, jeans, sneakers); no Mixamo or other commercial animation. Local development without access to the
 MakeHuman mirrors can point `FRONTIER_MH_ASSETS` at any unmodified copy of the same CC0 pack.
+
+Used by the settlements (src/world/settlements.gd and the building kit): every `build/*` material and
+`cloth/canvas` above as wall/roof/floor/awning textures; the listed `props/*` models furnish interiors and streets.
+Excluded on purpose: `props/Barrel_01` (modern hazard markings).
+
+## Fonts (SIL Open Font License 1.1)
+Shipped in `frontier/assets/fonts/` with their licence texts (`OFL-*.txt`); rasterised at runtime into MSDF
+atlases for painted sign lettering (`src/world/sign_text.gd`).
+
+| Font | Copyright | Licence | Source |
+|---|---|---|---|
+| Rye | 2011 Sorkin Type Co, Reserved Font Name "Rye" | OFL 1.1 | https://github.com/google/fonts/tree/main/ofl/rye |
+| Sancreek | 2011 The Sancreek Project Authors | OFL 1.1 | https://github.com/google/fonts/tree/main/ofl/sancreek |
+| Old Standard TT (Regular, Bold) | 2011 The Old Standard Project Authors | OFL 1.1 | https://github.com/google/fonts/tree/main/ofl/oldstandardtt |
+| Ewert | 2011 Johan Kallas, Mihkel Virkus, Reserved Font Name "Ewert" | OFL 1.1 | https://github.com/google/fonts/tree/main/ofl/ewert |

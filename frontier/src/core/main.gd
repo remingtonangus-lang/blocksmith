@@ -167,7 +167,11 @@ func _place_shops() -> void:
 		var board = load("res://src/ai/bounties.gd").new()
 		board.name = "BountyBoard_%s" % tid
 		add_child(board)
-		board.global_position = Vector3(t.x - 18.0, world.height(t.x - 18.0, t.z + 16.0), t.z + 16.0)
+		var bspot = settlements.get_shop_spot(tid, "board") if settlements and settlements.has_method("get_shop_spot") else null
+		if bspot is Vector3:
+			board.global_position = bspot
+		else:
+			board.global_position = Vector3(t.x - 18.0, world.height(t.x - 18.0, t.z + 16.0), t.z + 16.0)
 		board.setup(tid)
 
 func _spawn_player() -> void:
