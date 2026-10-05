@@ -12,7 +12,25 @@ func _initialize() -> void:
 	print("== Alabaster tests on Godot %s" % Engine.get_version_info()["string"])
 
 
+class ErrorCount extends Logger:
+	var n := 0
+	var first := ""
+
+	func _log_error(_function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type == ERROR_TYPE_SCRIPT:
+			if first == "":
+				first = "%s (%s:%d)" % [rationale if rationale != "" else code, file, line]
+			n += 1
+
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+
+var _errors := ErrorCount.new()
+
+
 func _process(_delta: float) -> bool:
+	OS.add_logger(_errors)
 	_compile_all("res://scripts")
 	_compile_all("res://tests")
 	var files := DirAccess.get_files_at("res://tests")
@@ -26,7 +44,13 @@ func _process(_delta: float) -> bool:
 				continue
 			var inst: Object = s.new()
 			var t0 := Time.get_ticks_msec()
+			var errs := _errors.n
+			_errors.first = ""
 			inst.run(self)
+			# A runtime script error aborts the file's remaining checks silently (a removed function once skipped
+			# five world checks and the run still reported 0 failed).
+			if _errors.n > errs:
+				fail("%d script error(s), first: %s" % [_errors.n - errs, _errors.first])
 			print("  %s: %d ms" % [f, Time.get_ticks_msec() - t0])
 			if inst is Node:
 				inst.free()

@@ -106,11 +106,8 @@ func generate(use_cache: bool = true) -> void:
 	var task := WorkerThreadPool.add_group_task(_gen_row, N, -1, true, "worldgen rows")
 	WorkerThreadPool.wait_for_group_task_completion(task)
 	heights = PackedFloat32Array()
-	heights.resize(N * N)
-	for z in N:
-		var row: PackedFloat32Array = _rows[z]
-		for x in N:
-			heights[z * N + x] = row[x]
+	for row in _rows:
+		heights.append_array(row)
 	_rows.clear()
 	progress = 0.45
 	print("world: base heights %d ms" % (Time.get_ticks_msec() - t0))
@@ -150,43 +147,48 @@ func _smooth01(e0: float, e1: float, x: float) -> float:
 
 
 ## Raw landscape height before rivers and sites.
-func base_height(x: float, z: float) -> float:
-	var u := x / HALF
-	var v := z / HALF
-	var wx := _n_warp.get_noise_2d(x, z) * 0.16
-	var wz := _n_warp.get_noise_2d(x + 7100.0, z - 3900.0) * 0.16
-	var d := Vector2(u * 0.97 + wx, v + wz).length() + _n_coast.get_noise_2d(x, z) * 0.11
-	var land := 1.0 - _smooth01(0.6, 0.93, d)
-	var reg := _n_region.get_noise_2d(x, z)
-	var north := _smooth01(-0.12, -0.55, v + reg * 0.18)
-	var west := _smooth01(-0.18, -0.48, u + reg * 0.14) * (1.0 - north * 0.7)
-	var east := _smooth01(0.12, 0.42, u - reg * 0.1) * (1.0 - north)
-	var hills := (_n_hills.get_noise_2d(x, z) * 0.5 + 0.5)
-	var h := 18.0 + hills * hills * 170.0
-	# Western plateau with escarpments and canyons.
-	var plat := 330.0 + _n_plat.get_noise_2d(x, z) * 55.0
-	var cn := absf(_n_canyon.get_noise_2d(x, z))
-	if cn < 0.09:
-		var c := (0.09 - cn) / 0.09
-		plat -= c * c * 210.0
-	h = lerpf(h, plat, west)
-	# Eastern coastal plain.
-	h = lerpf(h, 10.0 + hills * 26.0, east * 0.85)
-	# Northern mountains.
-	var r := _n_ridge.get_noise_2d(x, z) * 0.5 + 0.5
-	h += pow(r, 1.7) * 2300.0 * north
-	# Coast and sea floor.
-	var shore := clampf(land * 1.6, 0.0, 1.0)
-	h = lerpf(-6.0 - (1.0 - land) * 170.0, h, shore * shore)
-	return h
-
-
 func _gen_row(z: int) -> void:
+	# One row of base heights. Everything is inlined with local references: GDScript calls on self from the
+	# worker pool serialize (base heights took 8.5 s on 4 cores; a call-per-texel loop ran slower pooled than
+	# alone).
+	var n_warp := _n_warp; var n_coast := _n_coast; var n_region := _n_region; var n_hills := _n_hills
+	var n_plat := _n_plat; var n_canyon := _n_canyon; var n_ridge := _n_ridge
 	var row := PackedFloat32Array()
 	row.resize(N)
-	var wz := -HALF + (z + 0.5) * CELL
-	for x in N:
-		row[x] = base_height(-HALF + (x + 0.5) * CELL, wz)
+	var zf := -HALF + (z + 0.5) * CELL
+	var v := zf / HALF
+	for xi in N:
+		var x := -HALF + (xi + 0.5) * CELL
+		var u := x / HALF
+		var wx := n_warp.get_noise_2d(x, zf) * 0.16
+		var wz := n_warp.get_noise_2d(x + 7100.0, zf - 3900.0) * 0.16
+		var d := Vector2(u * 0.97 + wx, v + wz).length() + n_coast.get_noise_2d(x, zf) * 0.11
+		var t := clampf((d - 0.6) / 0.33, 0.0, 1.0)
+		var land := 1.0 - t * t * (3.0 - 2.0 * t)
+		var reg := n_region.get_noise_2d(x, zf)
+		t = clampf((v + reg * 0.18 + 0.12) / -0.43, 0.0, 1.0)
+		var north := t * t * (3.0 - 2.0 * t)
+		t = clampf((u + reg * 0.14 + 0.18) / -0.3, 0.0, 1.0)
+		var west := t * t * (3.0 - 2.0 * t) * (1.0 - north * 0.7)
+		t = clampf((u - reg * 0.1 - 0.12) / 0.3, 0.0, 1.0)
+		var east := t * t * (3.0 - 2.0 * t) * (1.0 - north)
+		var hills := (n_hills.get_noise_2d(x, zf) * 0.5 + 0.5)
+		var h := 18.0 + hills * hills * 170.0
+		# Western plateau with escarpments and canyons.
+		var plat := 330.0 + n_plat.get_noise_2d(x, zf) * 55.0
+		var cn := absf(n_canyon.get_noise_2d(x, zf))
+		if cn < 0.09:
+			var c := (0.09 - cn) / 0.09
+			plat -= c * c * 210.0
+		h = lerpf(h, plat, west)
+		# Eastern coastal plain.
+		h = lerpf(h, 10.0 + hills * 26.0, east * 0.85)
+		# Northern mountains.
+		var r := n_ridge.get_noise_2d(x, zf) * 0.5 + 0.5
+		h += pow(r, 1.7) * 2300.0 * north
+		# Coast and sea floor.
+		var shore := clampf(land * 1.6, 0.0, 1.0)
+		row[xi] = lerpf(-6.0 - (1.0 - land) * 170.0, h, shore * shore)
 	_rows[z] = row
 
 
@@ -436,24 +438,17 @@ func _river_finish(r: Dictionary) -> void:
 
 
 func _paint_mask() -> void:
-	for tz in N:
-		var wz := -HALF + (tz + 0.5) * CELL
-		for tx in N:
-			var i := tz * N + tx
-			var h := heights[i]
-			var wx := -HALF + (tx + 0.5) * CELL
-			var wet := 0
-			if water[i] > -100.0:
-				wet = 255
-			var f := 0.0
-			if h > 2.5 and h < 1500.0 and wet == 0:
-				var slope := _slope_at(tx, tz)
-				f = clampf(_n_forest.get_noise_2d(wx, wz) * 1.3 + 0.35, 0.0, 1.0)
-				f *= 1.0 - _smooth01(0.55, 0.9, slope)
-				f *= 1.0 - _smooth01(1100.0, 1500.0, h)
-				f *= _smooth01(2.5, 9.0, h)
-			mask[i * 4 + 2] = wet
-			mask[i * 4 + 3] = int(f * 255.0)
+	# Rows on the worker pool (single-threaded this took 3.6 s, a quarter of world generation).
+	_mask_rows.resize(N)
+	print("T rows start %d" % Time.get_ticks_msec())
+	var task := WorkerThreadPool.add_group_task(_paint_row, N, -1, true, "worldgen mask")
+	WorkerThreadPool.wait_for_group_task_completion(task)
+	var m := PackedByteArray()
+	for row in _mask_rows:
+		m.append_array(row)
+	mask = m
+	_mask_rows.clear()
+	print("T rows done %d" % Time.get_ticks_msec())
 	# Urban and base pads clear the forest.
 	for name in FLATTEN:
 		var p: Vector2 = SITE_XZ[name]
@@ -475,6 +470,43 @@ func _paint_mask() -> void:
 					var kp := (1.0 - _smooth01(r * 0.4, r * 0.55, d)) * pave
 					mask[i * 4 + 1] = maxi(mask[i * 4 + 1], int(kp * 255.0))
 					mask[i * 4 + 3] = int(mask[i * 4 + 3] * (1.0 - k))
+
+
+var _mask_rows := []
+
+
+## Water and forest channels of one mask row (the others are copied as they are).
+func _paint_row(tz: int) -> void:
+	# Local references: indexing the members from every worker contended on their shared reference count.
+	var hs := heights
+	var ws := water
+	var noise := _n_forest
+	var row := mask.slice(tz * N * 4, (tz + 1) * N * 4)
+	var wz := -HALF + (tz + 0.5) * CELL
+	var z0 := maxi(tz - 1, 0) * N
+	var z1 := mini(tz + 1, N - 1) * N
+	var dzs := 1.0 / ((z1 - z0) / N * CELL)
+	for tx in N:
+		var i := tz * N + tx
+		var h := hs[i]
+		var wet := 0
+		if ws[i] > -100.0:
+			wet = 255
+		var f := 0.0
+		if h > 2.5 and h < 1500.0 and wet == 0:
+			var x0 := maxi(tx - 1, 0); var x1 := mini(tx + 1, N - 1)
+			var dx := (hs[tz * N + x1] - hs[tz * N + x0]) / ((x1 - x0) * CELL)
+			var dz := (hs[z1 + tx] - hs[z0 + tx]) * dzs
+			var slope := sqrt(dx * dx + dz * dz)
+			f = clampf(noise.get_noise_2d(-HALF + (tx + 0.5) * CELL, wz) * 1.3 + 0.35, 0.0, 1.0)
+			# _smooth01 inlined: GDScript calls on self from the workers serialize (pooled ran slower than a loop).
+			var a := clampf((slope - 0.55) / 0.35, 0.0, 1.0)
+			var b := clampf((h - 1100.0) / 400.0, 0.0, 1.0)
+			var c := clampf((h - 2.5) / 6.5, 0.0, 1.0)
+			f *= (1.0 - a * a * (3.0 - 2.0 * a)) * (1.0 - b * b * (3.0 - 2.0 * b)) * (c * c * (3.0 - 2.0 * c))
+		row[tx * 4 + 2] = wet
+		row[tx * 4 + 3] = int(f * 255.0)
+	_mask_rows[tz] = row
 
 
 func _slope_at(tx: int, tz: int) -> float:

@@ -64,7 +64,13 @@ func run(t) -> void:
 	t.check(step < 150.0, "no terrain step steeper than the natural land (max %.0f m per texel)" % step)
 	# Determinism: a second generator with the same seed agrees.
 	var g2 := WorldGen.new(1337)
-	t.near(g2.base_height(1234.5, -987.25), g.base_height(1234.5, -987.25), 0.0001, "base height deterministic")
+	g2._rows.resize(g2.N)
+	g2._gen_row(700)
+	var r2: PackedFloat32Array = g2._rows[700]
+	var g4 := WorldGen.new(1337)
+	g4._rows.resize(g4.N)
+	g4._gen_row(700)
+	t.check(r2 == g4._rows[700], "base heights deterministic")
 	# The cache round-trips.
 	g._save_cache()
 	var g3 := WorldGen.new(1337)
