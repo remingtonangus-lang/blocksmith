@@ -93,6 +93,18 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thunderstorm over a burning plank field with
 400 damaged blocks: weather.tick_ms p50/p95/max, fire / flood / storm worst, decal quads. Not gated.
 
+## HANDOFF (2026-10-05, usage nearly out)
+
+- Branch claude/bs-world-fx is rebased on playtest 313ecce (head d5a0af2 + this note). NOT yet fast-forwarded into
+  claude/blocksmith-playtest: the last full run (a6b86d0) failed checks (agent life seed 777 never reached its bed),
+  play (Blight took 0 damage from 388 arrows), tours (ride crew post drift) and shots (basetest patrol 1 of 5 away).
+  All appeared only after the 313ecce rebase (94 playtest commits: split-screen arrow/seat ownership, soldier posts).
+  The A/B fast run on d5a0af2 (--ab-noworldfx --ab-noitemart vs normal, focus.log on ci-fast-claude-bs-world-fx)
+  decides: if the failures persist with my code off they are playtest regressions -> fast-forward; else fix first.
+- Done and verified on CI: item art (icons, 3D held/dropped models, critic rounds in docs/qa/items/critic.md), floods
+  (no grooves, sealed rooms dry), glass stops rain/snow/lightning, snow drifts walkable, first fire tick hitch fixed.
+- PR #9 entry drafted (not posted): world fx + item art summary; post it when the fast-forward lands.
+
 ## State / next
 
 - 2026-10-05 (later): rebased onto playtest 679a0e8, then 6b7ee95 (BUGS.md rows merged); heavy lane on the bff7650 rebase passed
