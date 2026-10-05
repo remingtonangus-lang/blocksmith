@@ -76,6 +76,7 @@ func _build_river(r: Dictionary) -> void:
 		st.set_uv(Vector2(0, uv0)); st.add_vertex(v0[0])
 		st.set_uv(Vector2(1, uv1)); st.add_vertex(v1[1])
 		st.set_uv(Vector2(0, uv1)); st.add_vertex(v1[0])
+	_build_banks(verts, pts, surf, widths)
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -84,4 +85,57 @@ func _build_river(r: Dictionary) -> void:
 		Color(0.17, 0.15, 0.10), Color(0.05, 0.06, 0.04))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.name = str(r.name).replace(" ", "")
+	add_child(mi)
+
+## Gravel and wet-mud margins on both sides of a river: a terrain-hugging strip from just under the water line to a
+## few metres up the bank, darker and glossier near the water, fading into the terrain outward.
+var _bank_mat: ShaderMaterial
+
+func _build_banks(verts: Array, pts: Array, surf: Array, widths: Array) -> void:
+	if Game.headless or Game.terrain == null:
+		return
+	if _bank_mat == null:
+		_bank_mat = ShaderMaterial.new()
+		_bank_mat.shader = load("res://shaders/river_bank.gdshader")
+		_bank_mat.set_shader_parameter("tex_ah", Game.terrain.material.get_shader_parameter("tex_ah"))
+		_bank_mat.set_shader_parameter("tex_nr", Game.terrain.material.get_shader_parameter("tex_nr"))
+	var w: WorldData = Game.world
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const ACROSS := 5
+	var rows: Array = []
+	for i in pts.size():
+		var p := Vector2(pts[i][0], pts[i][1])
+		var a := Vector2(pts[maxi(i - 1, 0)][0], pts[maxi(i - 1, 0)][1])
+		var b := Vector2(pts[mini(i + 1, pts.size() - 1)][0], pts[mini(i + 1, pts.size() - 1)][1])
+		var dir := (b - a).normalized()
+		var nrm := Vector2(-dir.y, dir.x)
+		var y: float = surf[i]
+		var row := []
+		for side in [1.0, -1.0]:
+			var ring := []
+			for k in ACROSS:
+				var u := float(k) / float(ACROSS - 1)
+				var off: float = widths[i] * 0.5 - 1.5 + u * 7.0
+				var q: Vector2 = p + nrm * side * off
+				var h := maxf(w.height(q.x, q.y), y - 0.6) + 0.03
+				ring.append([Vector3(q.x, h, q.y), u, verts[i][2], h - y])
+			row.append(ring)
+		rows.append(row)
+	for i in rows.size() - 1:
+		for s_i in 2:
+			var r0: Array = rows[i][s_i]
+			var r1: Array = rows[i + 1][s_i]
+			for k in ACROSS - 1:
+				var quad := [r0[k], r1[k], r1[k + 1], r0[k], r1[k + 1], r0[k + 1]] if s_i == 1 else [r0[k], r0[k + 1], r1[k + 1], r0[k], r1[k + 1], r1[k]]
+				for e in quad:
+					st.set_normal(Vector3.UP)
+					st.set_uv(Vector2(e[1], e[2]))
+					st.set_uv2(Vector2(e[3], 0.0))
+					st.add_vertex(e[0])
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _bank_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.name = "RiverBanks"
 	add_child(mi)
