@@ -26,6 +26,7 @@ final class Circuit {
     var sensor: [IVec3: (Int, Int)] = [:]           // murk sensors: (output, until tick)
     private var edge = Set<IVec3>()                  // components currently seeing power (edge detection)
     private var burn: [IVec3: [Int]] = [:]           // torch toggle times (burnout)
+    private var pressedAt: [IVec3: Int] = [:]        // plates and detector rails: last tick something was on them
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
     private var hopperCooldown: [IVec3: Int] = [:]
     private var busy = false
@@ -620,9 +621,11 @@ final class Circuit {
                     let heavy = Blocks.key(base(b)).hasPrefix("heavy")
                     level = n == 0 ? 0 : min(15, heavy ? (n + 9) / 10 : n)
                 } else { level = n > 0 ? 1 : 0 }
+                if n > 0 { pressedAt[p] = now }
                 if level != s {
-                    // Plates release after 20 ticks (10 for weighted) with nothing on them.
-                    if level < s && now % (Circuit.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
+                    // Plates release 20 ticks (10 weighted) after the last press (reference; a global 20-tick boundary
+                    // gave pulses of 1 to 20 ticks).
+                    if level < s && now - (pressedAt[p] ?? 0) < (Circuit.kind(b) == .weightedPlate ? 10 : 20) { continue }
                     setQuiet(p, base(b) + BlockID(level))
                     g.sfx(level > s ? .plateOn : .plateOff, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
@@ -666,7 +669,7 @@ final class Circuit {
             default: break
             }
         }
-        for p in remove { tracked.remove(p) }
+        for p in remove { tracked.remove(p); pressedAt[p] = nil }
     }
 
     private func railPowered(_ p: IVec3, _ b: BlockID) -> Bool {
@@ -692,8 +695,9 @@ final class Circuit {
             let b = block(p)
             let s = st(b)
             let has = carts.contains { Int(floor($0.x)) == p.x && Int(floor($0.z)) == p.z && abs($0.y - Float(p.y)) < 1.2 }
+            if has { pressedAt[p] = now }
             if has && s < 6 { setQuiet(p, base(b) + BlockID(s + 6)); wakeAround(p); mark(p + IVec3(0, -1, 0)); wakeAround(p + IVec3(0, -1, 0)) }
-            else if !has && s >= 6 && now % 20 == 0 { setQuiet(p, base(b) + BlockID(s - 6)); wakeAround(p); wakeAround(p + IVec3(0, -1, 0)) }
+            else if !has && s >= 6 && now - (pressedAt[p] ?? 0) >= 20 { setQuiet(p, base(b) + BlockID(s - 6)); wakeAround(p); wakeAround(p + IVec3(0, -1, 0)) }
         }
     }
 
