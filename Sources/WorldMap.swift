@@ -57,6 +57,25 @@ final class MapCache {
         return nil
     }
 
+    // Many lookups under one lock (the minimap asked per cell: a lock, a hash and an unlock each, a few thousand a
+    // frame: flight profile). Misses are queued as in color(_:_:).
+    func batch(_ body: ((Int, Int) -> UInt32?) -> Void) {
+        var missing = false
+        lock.lock()
+        body { x, z in
+            let k = MapCache.key(floorDiv(x, MapCache.cellBlocks), floorDiv(z, MapCache.cellBlocks))
+            if let c = self.cells[k] { return c }
+            if !self.pending.contains(k) { self.pending.insert(k); self.queue.append(k) }
+            missing = true
+            return nil
+        }
+        if queue.count > 40000 { let drop = queue.prefix(queue.count - 40000); for d in drop { pending.remove(d) }; queue.removeFirst(queue.count - 40000) }
+        let start = missing && !working
+        if start { working = true }
+        lock.unlock()
+        if start { worker.async { [weak self] in self?.drain() } }
+    }
+
     // Samples queued cells, newest requests first (what is on screen now).
     private func drain() {
         while true {
@@ -215,8 +234,8 @@ enum MapDraw {
     static func color(_ c: UInt32, _ a: Float = 1) -> V4 { V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, a) }
 
     static func terrain(_ out: inout [HudLine], x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float) {
-        let cache = MapCache.shared
         let unknown: UInt32 = 0x1E2024
+        MapCache.shared.batch { lookup in
         for r in 0..<rows {
             var runStart = 0
             var runColor: UInt32 = 0xFFFFFFFF
@@ -225,7 +244,7 @@ enum MapDraw {
                 var col: UInt32 = 0xFFFFFFFE
                 if c < cols {
                     let bx = Int(floor(wx + (Float(c) - Float(cols) / 2) * Float(bpc)))
-                    col = cache.color(bx, bz) ?? unknown
+                    col = lookup(bx, bz) ?? unknown
                 }
                 if col != runColor {
                     if c > 0 && runColor != 0xFFFFFFFF {
@@ -235,6 +254,7 @@ enum MapDraw {
                     runColor = col
                 }
             }
+        }
         }
     }
 
