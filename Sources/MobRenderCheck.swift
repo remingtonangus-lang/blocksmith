@@ -57,8 +57,11 @@ enum MobRenderCheck {
         let fwd = V3(-sinf(p.yaw), 0, -cosf(p.yaw))
         let keepFancy = g.fancyGraphics
         let saved = g.mobs.mobs
-        for fancy in [true, false] {
+        let keepScale = g.renderScale
+        // Fancy, Fast, and Fancy at a TV's reduced World Scale (the HDR target smaller than the screen).
+        for (fancy, scale) in [(true, Float(1)), (false, Float(1)), (true, Float(0.7))] {
             g.fancyGraphics = fancy
+            g.renderScale = scale
             g.mobs.mobs.removeAll()
             _ = pixels(r, w, h)                                 // warm-up (pipelines, residency)
             let base = pixels(r, w, h)
@@ -77,13 +80,17 @@ enum MobRenderCheck {
                 if c < 30 { invisible.append("\(k) (\(c) px)") } else { drawn += 1 }
             }
             g.mobs.mobs.removeAll()
-            let mode = fancy ? "Fancy" : "Fast"
+            let mode = (fancy ? "Fancy" : "Fast") + (scale < 1 ? " at world scale \(Int(scale * 100))%" : "")
             print("mobcheck \(mode): \(drawn) kinds drawn, \(invisible.count) invisible\(invisible.isEmpty ? "" : ": " + invisible.joined(separator: ", "))")
             if !noParts.isEmpty { print("mobcheck \(mode): no model parts (not checked): \(noParts.joined(separator: ", "))") }
             if !invisible.isEmpty { fails += 1 }
         }
+        g.renderScale = keepScale
+        for fancy in [true, false] {
+            g.fancyGraphics = fancy
+            fails += live(g, r, w, h)
+        }
         g.fancyGraphics = keepFancy
-        fails += live(g, r, w, h)
         g.mobs.mobs = saved
         print("mobcheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails
@@ -148,7 +155,7 @@ enum MobRenderCheck {
         g.mobs.mobs = all
         g.time = keepTime; g.survival = keepSurvival
         p.pos = keepPos; p.yaw = keepYaw; p.pitch = keepPitch
-        var line: String = "mobcheck live: \(all.count) mobs after a 45 s survival night, \(kinds.count) kinds viewed, \(drawn) drawn"
+        var line: String = "mobcheck live \(g.fancyGraphics ? "Fancy" : "Fast"): \(all.count) mobs after a 45 s survival night, \(kinds.count) kinds viewed, \(drawn) drawn"
         line += ", \(skipped) without a clear view"
         if !invisible.isEmpty { line += "; invisible: " + invisible.joined(separator: ", ") }
         if !broken.isEmpty { line += "; broken state: " + broken.prefix(6).joined(separator: ", ") }
