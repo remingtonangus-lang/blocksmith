@@ -1698,11 +1698,16 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
+        // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
+        // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
+        let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
+        let tiny: Float = 1.2 / max(0.25, scale)
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
-            let rot = p.rotation
             let size = p.mx - p.mn
+            if far && max(size.x, max(size.y, size.z)) < tiny { continue }
+            let rot = p.rotation
             for f in 0..<6 {
                 for k in order {
                     let ci = (f * 4 + k) * 3
