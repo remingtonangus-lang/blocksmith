@@ -764,7 +764,18 @@ final class WorldGen: TerrainGenerator {
                                 let cur = b[i]
                                 if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
                                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
-                                b[i] = y <= lavaLevel ? LAVA : AIR
+                                if y <= lavaLevel { b[i] = LAVA; continue }
+                                // Aquifers, as in the cave carver: a ravine through a flooded cell fills with its water
+                                // (never over open air), and next to a flooded cell across a chunk edge it keeps a rock
+                                // barrier (it cut straight up to the water: gencheck leaks "underground border").
+                                if aquiferWet(x, y, z) {
+                                    if b[i - CSQ] == AIR { continue }
+                                    b[i] = WATER; continue
+                                }
+                                let ex = x & 15, ez = z & 15
+                                if (ex == 0 && aquiferWet(x - 1, y, z)) || (ex == 15 && aquiferWet(x + 1, y, z)) { continue }
+                                if (ez == 0 && aquiferWet(x, y, z - 1)) || (ez == 15 && aquiferWet(x, y, z + 1)) { continue }
+                                b[i] = AIR
                             }
                         }
                     }
