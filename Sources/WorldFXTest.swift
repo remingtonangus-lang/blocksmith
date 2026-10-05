@@ -233,26 +233,26 @@ enum WorldFXTest {
         let cam = river + V3(-26, 34, 30)
         look(g, from: cam, at: river)
         shot(g, r, w, h, out + "/fx_flood_0.png")
-        // A sealed stone hut (7 x 7, walls and a roof, no door) on low ground near the river: the flood rises round
-        // it but must not fill it from the inside.
-        let rx = Int(floor(river.x)), rz = Int(floor(river.z))
-        var waterY = -1
-        for y in stride(from: wd.topY(rx, rz), to: max(0, wd.topY(rx, rz) - 30), by: -1) where Blocks.fluidKind[Int(wd.rawBlock(rx, y, rz))] == 1 {
-            waterY = y; break
-        }
+        // Heavy rain for 10 minutes of model time (the model steps every 0.5 s).
+        fm.forcedRain = 1.4
+        func runModel(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fm.update(FloodModel.updateEvery, game: g) } }
+        runModel(300)
+        let mid = fm.placed.count
+        // A sealed stone hut (7 x 7, walls and a roof, no door) on dry ground right beside the rising flood (5 minutes
+        // in): the water comes up round it but must not fill it from the inside. (Placed before the rain, on a site
+        // picked by height alone, the flood never reached it.)
         var hut: (Int, Int, Int)? = nil                 // corner x, z, floor y
-        if waterY > 0 {
-            search: for d in stride(from: 6, through: 30, by: 2) {
-                for (sx, sz) in [(d, 0), (-d, 0), (0, d), (0, -d), (d, d), (-d, -d), (d, -d), (-d, d)] {
-                    let hx = rx + sx - 3, hz = rz + sz - 3
-                    var lo = Int.max, hi = Int.min, wet = false
-                    for dz in 0..<7 { for dx in 0..<7 {
-                        let t = wd.topY(hx + dx, hz + dz)
-                        lo = min(lo, t); hi = max(hi, t)
-                        if Blocks.isLiquid(wd.rawBlock(hx + dx, t, hz + dz)) { wet = true }
-                    } }
-                    if !wet && hi - lo <= 2 && lo >= waterY && lo <= waterY + 2 { hut = (hx, hz, hi + 1); break search }
-                }
+        let edgeWater = Array(fm.placed.prefix(4000)).enumerated().filter { $0.offset % 7 == 0 }.map { $0.element }
+        search: for p in edgeWater {
+            for (sx, sz) in [(5, 0), (-11, 0), (0, 5), (0, -11), (5, 5), (-11, -11)] {
+                let hx = p.x + sx, hz = p.z + sz
+                var lo = Int.max, hi = Int.min, wet = false
+                for dz in 0..<7 { for dx in 0..<7 {
+                    let t = wd.topY(hx + dx, hz + dz)
+                    lo = min(lo, t); hi = max(hi, t)
+                    if Blocks.isLiquid(wd.rawBlock(hx + dx, t, hz + dz)) || Blocks.isLiquid(wd.rawBlock(hx + dx, t + 1, hz + dz)) { wet = true }
+                } }
+                if !wet && lo >= p.y - 2 && hi <= p.y { hut = (hx, hz, hi + 1); break search }
             }
         }
         if let (hx, hz, fy) = hut {
@@ -265,11 +265,6 @@ enum WorldFXTest {
                 }
             } }
         }
-        // Heavy rain for 10 minutes of model time (the model steps every 0.5 s).
-        fm.forcedRain = 1.4
-        func runModel(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fm.update(FloodModel.updateEvery, game: g) } }
-        runModel(300)
-        let mid = fm.placed.count
         runModel(300)
         let peak = fm.placed.count
         let depth = fm.maxDepth
