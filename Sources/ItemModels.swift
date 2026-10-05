@@ -31,7 +31,8 @@ enum ItemModels {
     // An item's tinted overlay layer (potion liquid, spawn egg shell, tipped arrow head) and its colour.
     static func overlay(_ item: ItemID) -> (Int, V3)? {
         guard case let (l, c)? = Items.overlayLayer(item) else { return nil }
-        return (l, TextureGen.hex(c))
+        let h = TextureGen.hex(c)
+        return (l, V3(h.x, h.y, h.z))
     }
 
     // Called from TextureGen.base (concurrently, one layer per call) with the layer's final pixels.
