@@ -129,7 +129,12 @@ runner, Metal) and the Mac monitor.
   frontier-assets.yml → `animals.zip`, `fetch_assets.sh animals`), `Horse` riding controller, `HorseVisual`
   (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
   oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
-- **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
+- **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette, HUD/menu
+  sheets. Desktop simulator `--vr_sim` (fake XR trackers drive the same rig; `--vr_stereo` side-by-side), gloved
+  procedural hands with finger curl, physical guns (holster draw, real sights, two-hand fore-end snap, trigger +
+  haptics, lever/bolt/pump by hand, gate/break reloads with rounds from the belt, Nerve by pointing), reach-to-grab
+  doors/counters/boards/horse, menu laser, reins. Evidence: `res://scenes/vr_studio.tscn` (CI step "VR shots"),
+  `--features DIR --vr_sim` in-world. Design + Quest knobs: frontier/design/VR.md.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.

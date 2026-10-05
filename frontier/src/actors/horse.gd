@@ -243,7 +243,7 @@ func _on_ik_done() -> void:
 func _process(dt: float) -> void:
 	if state == State.RIDDEN and rider != null:
 		_place_rider(dt)
-		if rider.get("camera") != null and rider.camera != null and not (rider.get("bot_driven") and Game.args.has("bot_no_cam")):
+		if rider.get("camera") != null and rider.camera != null and not Game.is_vr and not (rider.get("bot_driven") and Game.args.has("bot_no_cam")):
 			_ride_camera(dt)
 	elif rider == null and player_horse == self and Game.player != null and Game.player.get("on_horse") == null:
 		if not Game.player.get("bot_driven") and Input.is_action_just_pressed("whistle"):
@@ -270,7 +270,7 @@ func _control(dt: float) -> Dictionary:
 	var fwd := forward()
 	if state == State.RIDDEN and rider != null and _mount_t < 0.0:
 		var it: Dictionary = rider.intent
-		if not rider.get("bot_driven"):
+		if not rider.get("bot_driven") and not Game.is_vr:   # VR: reins/sticks write rider.intent (src/xr/vr_play.gd)
 			_read_rider_input(dt)
 		var mv: Vector2 = it.get("move", Vector2.ZERO)
 		var sprint: bool = it.get("sprint", false)

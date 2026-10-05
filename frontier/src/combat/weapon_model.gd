@@ -34,6 +34,8 @@ var markers := {}                # name -> Node3D
 var cylinder_index := 0.0        # cumulative cylinder steps (revolvers); the "_cyl" channel follows it
 var spent := 0                   # fired cases still in the cylinder (ejected on reload)
 var barrel_fired := 0            # break-action: barrels fired since the last reload
+var manual_cycle := false        # VR: lever/bolt/pump stay closed after a shot until cycle_action() (by hand)
+var needs_cycle := false
 var _kick: Node3D                # recoil pivot (at the grip)
 var _ch := {}                    # channel -> 0..1
 var _tracks: Array = []          # [t0, t1, channel, from(or NAN), to]
@@ -211,10 +213,15 @@ func _process(dt: float) -> void:
 			continue
 		i += 1
 	# recoil spring (stiff, slightly under-damped)
+	# (sub-stepped: one long frame — a hitch, a slow software render — must not blow the spring up)
 	var k := 520.0
 	var c := 2.0 * sqrt(k) * 0.62
-	_rec_v += (-k * _rec_x - c * _rec_v) * dt
-	_rec_x += _rec_v * dt
+	var left_t := minf(dt, 0.25)
+	while left_t > 0.0:
+		var h := minf(left_t, 1.0 / 120.0)
+		_rec_v += (-k * _rec_x - c * _rec_v) * h
+		_rec_x += _rec_v * h
+		left_t -= h
 	var r: float = def.get("recoil", 4.0)
 	var heavy := 1.0 if def.get("slot", "") == "sidearm" else 0.55
 	_kick.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(r * 2.6 * heavy) * _rec_x),
@@ -303,13 +310,22 @@ func fire_anim() -> void:
 		"lever":
 			if hs.size() > 0:
 				_key(hs[0], 0.0, 0.025, 0.0, 1.0)
-			_cycle_lever(ct * 0.15, ct)
+			if manual_cycle:
+				needs_cycle = true
+			else:
+				_cycle_lever(ct * 0.15, ct)
 		"bolt":
-			_cycle_bolt(ct * 0.12, ct)
+			if manual_cycle:
+				needs_cycle = true
+			else:
+				_cycle_bolt(ct * 0.12, ct)
 		"pump":
 			if hs.size() > 0:
 				_key(hs[0], 0.0, 0.025, 0.0, 1.0)
-			_cycle_pump(ct * 0.18, ct)
+			if manual_cycle:
+				needs_cycle = true
+			else:
+				_cycle_pump(ct * 0.18, ct)
 		"break":
 			var h := "hammer_r" if barrel_fired % 2 == 0 else "hammer_l"
 			if parts.has(h):
@@ -317,6 +333,15 @@ func fire_anim() -> void:
 			elif hs.size() > 0:
 				_key(hs[0], 0.0, 0.025, 0.0, 1.0)
 			barrel_fired += 1
+
+## Work the action by hand (VR): lever throw, bolt lift-and-draw, pump stroke; ejects the spent case.
+func cycle_action() -> void:
+	var ct: float = def.get("cock_time", 0.5)
+	needs_cycle = false
+	match action:
+		"lever": _cycle_lever(0.0, ct * 0.85)
+		"bolt": _cycle_bolt(0.0, ct * 0.8)
+		"pump": _cycle_pump(0.0, ct * 0.8)
 
 func _cyl_step(t0: float, t1: float) -> void:
 	if not parts.has("cylinder"):

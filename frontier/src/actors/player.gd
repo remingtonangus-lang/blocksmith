@@ -69,7 +69,7 @@ func setup(cam: Camera3D) -> void:
 	_cam_target = global_position + Vector3(0, 1.6, 0)
 	if not Game.headless and not bot_driven and not Game.args.has("bot") and not Game.args.has("benchmark"):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if OS.has_feature("android") or Game.args.has("vr"):
+	if OS.has_feature("android") or Game.args.has("vr") or Game.args.has("vr_sim"):
 		var vr := VR.try_start()
 		if vr != null:
 			add_child(vr)
@@ -301,7 +301,7 @@ func _read_human_intent(dt: float) -> void:
 func _physics_process(dt: float) -> void:
 	if on_horse != null:
 		return
-	if not bot_driven:
+	if not bot_driven and not Game.is_vr:          # VR writes intent from the controllers (src/xr/vr.gd)
 		_read_human_intent(dt)
 	if busy != null:
 		intent.move = Vector2.ZERO
