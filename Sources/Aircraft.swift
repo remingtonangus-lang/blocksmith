@@ -76,12 +76,18 @@ enum Aircraft {
         return b
     }
 
+    static var timing = ""                    // the last spawn's cost by part (the citadel log shows it)
+
     // An aircraft with its crew: a Capital pilot seated at the controls (and troops in the seats for the Kestrel).
     @discardableResult
     static func spawn(_ kind: String, at: V3, yaw: Float, game g: Game, troops: Int = 0, crewed: Bool = true) -> Ship {
         let heli = kind != "heron"
+        let t0 = CFAbsoluteTimeGetCurrent()
         let bp = heli ? kestrel() : heron()
+        let t1 = CFAbsoluteTimeGetCurrent()
         let s = g.world.ships.spawn(bp, at: at, yaw: yaw, name: heli ? "Capital Kestrel" : "Capital Heron", role: heli ? "kestrel" : "capplane")
+        let t2 = CFAbsoluteTimeGetCurrent()
+        defer { timing = String(format: "blueprint %.1f ms, ship %.1f ms, crew %.1f ms", (t1 - t0) * 1000, (t2 - t1) * 1000, (CFAbsoluteTimeGetCurrent() - t2) * 1000) }
         s.faction = Faction.steelhold.rawValue
         s.initialBlocks = s.blockCount
         FlightModel.attach(s)

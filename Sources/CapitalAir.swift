@@ -77,7 +77,7 @@ extension Game {
             k.home = pad
             r.airShip = k.id
             ph = 1; t = 0
-            b.note(String(format: "%@ kestrel lifts off the pad (built in %.1f ms)", r.key, builtMs))
+            b.note(String(format: "%@ kestrel lifts off the pad (built in %.1f ms: %@)", r.key, builtMs, Aircraft.timing))
             if simd_length(player.pos - pad) < 160 { onToast?("A Capital Kestrel lifts off") }
             s = k
         }

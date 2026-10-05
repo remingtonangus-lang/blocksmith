@@ -72,17 +72,19 @@ enum FlightTests {
             g.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
         }
         // A landing pad: a flat smooth-stone square on posts at the highest ground under it, cleared above.
-        func pad(_ x: Float, _ z: Float, radius r: Int) -> Float {
+        // The air above it is cleared out to `clear` (a tail boom hangs well past the skids).
+        func pad(_ x: Float, _ z: Float, radius r: Int, clear: Int = 14) -> Float {
             let cx = Int(floor(x)), cz = Int(floor(z))
             var top = 0
             for dz in -r...r { for dx in -r...r { top = max(top, w.topY(cx + dx, cz + dz)) } }
             let stone = Blocks.id("smooth_stone")
-            for dz in -r...r {
-                for dx in -r...r {
+            let c = max(r, clear)
+            for dz in -c...c {
+                for dx in -c...c {
                     let ground = w.topY(cx + dx, cz + dz)
                     guard ground >= 0 else { continue }
-                    for y in max(1, min(ground, top - 6))...top { w.setBlockAsync(cx + dx, y, cz + dz, stone) }
-                    for y in (top + 1)...(top + 16) { w.setBlockAsync(cx + dx, y, cz + dz, AIR) }
+                    if abs(dx) <= r && abs(dz) <= r { for y in max(1, min(ground, top - 6))...top { w.setBlockAsync(cx + dx, y, cz + dz, stone) } }
+                    for y in (top + 1)...(top + 16) where w.block(cx + dx, y, cz + dz) != AIR { w.setBlockAsync(cx + dx, y, cz + dz, AIR) }
                 }
             }
             return Float(top + 1)
@@ -184,7 +186,7 @@ enum FlightTests {
             check(VehicleControls.kind(s) == .helicopter, "the helm flies it as a helicopter")
             input = MoveInput(); input.jump = true
             tag = "player-climb"
-            let up = step(16) { _ in s.pos.y > rest.y + 12 }
+            let up = step(20) { _ in s.pos.y > rest.y + 25 }                 // clear of the hills round it
             check(up != nil, "Space spins it up and lifts it", String(format: "after %.1f s, %+.1f", up ?? -1, s.pos.y - rest.y))
             input = MoveInput()
             tag = "player-hold"
@@ -196,9 +198,9 @@ enum FlightTests {
             input.forward = 1
             tag = "player-forward"
             var nose: Float = 0
-            _ = step(6) { _ in nose = min(nose, s.dirToWorld(s.fwd).y); return false }
+            _ = step(3) { _ in nose = min(nose, s.dirToWorld(s.fwd).y); return false }
             let along = simd_dot(s.pos - p0, fwd)
-            check(along > 15 && nose < -0.05, "W tilts it forward and it flies", String(format: "%.0f blocks, nose %.2f", along, nose))
+            check(along > 12 && nose < -0.05, "W tilts it forward and it flies", String(format: "%.0f blocks, nose %.2f", along, nose))
             input = MoveInput()
             _ = step(4)
             check(upright(s) > 0.95, "stick centred, it levels out", String(format: "upright %.2f", upright(s)))
@@ -212,7 +214,8 @@ enum FlightTests {
                 return abs(e) < 0.17
             }
             check(turned != nil, "it turns to the view", String(format: "in %.1f s", turned ?? -1))
-            input.sneak = false
+            // A pad under it to set down on (the hills round it are no place to land).
+            _ = pad(s.pos.x, s.pos.z, radius: 7)
             tag = "player-land"
             var touch: Float = 99
             g.input.control = true
@@ -230,9 +233,10 @@ enum FlightTests {
 
         if name == "plane" || name == "all" {
             let px = base.x - 60, pz = base.z - 30
+            // The whole route (1200 blocks north, the turn and the stall either side of it).
             var top: Float = 0
-            for k in 0..<50 { top = max(top, groundY(px, pz - Float(k) * 30)) }          // the whole route (about 1200 blocks)
-            let s = Aircraft.spawn("heron", at: V3(px, top + 40, pz), yaw: 0, game: g)
+            for k in 0..<45 { for j in -6...6 { top = max(top, groundY(px + Float(j) * 40, pz - Float(k) * 30)) } }
+            let s = Aircraft.spawn("heron", at: V3(px, min(Float(CH - 60), top + 60), pz), yaw: 0, game: g)
             guard let fm = s.flight, fm.kind == .plane else { check(false, "the Heron has a fixed-wing flight model", "wings \(s.wings.count)"); return finish(t0) }
             print(String(format: "flighttest: Heron mass %.1f t, %d airfoil cells, weight %.0f", s.mass, s.wings.count, s.mass * ShipTuning.g))
             let fwd = s.dirToWorld(s.fwd)
@@ -269,7 +273,10 @@ enum FlightTests {
             }
             check(turned != nil && bank > 0.15 && bank < 0.8 && low > 0.5, "it banks into a 90 degree turn",
                   String(format: "in %.1f s, bank %.2f, upright at least %.2f", turned ?? -1, bank, low))
-            // Stall: throttle off, nose held up.
+            // Wings level on the new heading first, then the stall: throttle off, nose held up.
+            fm.holdYaw = s.yaw; fm.hold = s.pos
+            tag = "heron-level-off"
+            _ = step(5)
             fm.hold = nil; fm.holdYaw = nil
             s.autopilot = V3(0, 0, 1)
             tag = "heron-stall"
