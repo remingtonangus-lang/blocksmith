@@ -262,7 +262,7 @@ extension Game {
                     if lx >= 0 && lx < CS && lz >= 0 && lz < CS { occupied.insert(lx + lz * CS) }
                 } }
             }
-            mark(player.pos, 0.3)
+            for i in 0..<max(1, coop.seatCount) { mark(coop.seatPlayer(i, self).pos, 0.3) }      // every player (split screen)
             for m in mobs.mobs { mark(m.pos, m.spec.halfW) }
         }
         for lz in 0..<CS { for lx in 0..<CS {

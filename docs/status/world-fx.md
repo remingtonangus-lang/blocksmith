@@ -109,7 +109,7 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 - Perf gate (flight24 resident peak, gate 1.4x of 512 = 717 MB): 742 on run 992b76f. Same-runner A/B (fast lane,
   --ab-noitemart / --ab-noworldfx): default 656 / 637, item art off 634, world-fx ticks off 586, both off 649 MB - run
   to run noise of about 70 MB, no consistent cost from either; resident after loading ~460-500, the renderer +80-115.
-  Rebased onto playtest 4d315cd, then c801470 (their allocation-free EntityWriter.quad4 kept, my decal quad and wind-leaning rain streaks on top).
+  Rebased onto playtest 4d315cd, c801470, then 313ecce (94 commits: split-screen weather per seat kept with rainTop, lightning per seat with ship strikes and wind fires, their no-burn rule for blocks holding items ported into Fire.swift).
 - Held/dropped critic round 2 (docs/qa/items/critic.md): apple 4 -> 6, dropped 2 -> 5, shield 6; dropped items now
   rest close over the ground; banners drawn as vectors (the last pixel-art family; explorer_mark overlay remains).
 - Code review (no compiler here): flood retries roofed columns until water reaches their opening; snow lies on

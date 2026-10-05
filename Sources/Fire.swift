@@ -65,7 +65,9 @@ extension World {
                 let q = p + d
                 let nb = block(q.x, q.y, q.z)
                 if kindT[Int(nb)] == .glass && Rand.int(in: 0..<12) == 0 { onGlassHeat?(q) }    // heat cracks glass
-                guard fl[Int(nb)] else { continue }
+                // Blocks holding items (barrels, chiseled bookshelves, lecterns) don't burn away: their contents were
+                // left behind with no block to open (playtest's rule, carried over from World.fireTick).
+                guard fl[Int(nb)], blockEntities[q] == nil else { continue }
                 anyFlammable = true
                 if nb == smolder { continue }               // already burning (Fire: embers below)
                 // Downwind neighbours catch sooner, upwind ones later; flames climb.
