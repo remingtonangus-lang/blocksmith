@@ -53,7 +53,9 @@ func start(segs: Array) -> void:
 	var total := 0.0
 	for sg in segments:
 		total += float(sg["duration"]) + WARMUP
-	_limit = total + 180.0
+	_limit = total + 180.0 + 60.0      # + the GPU ablation
+	if OS.get_environment("BENCH_LIMIT") != "":
+		_limit = float(OS.get_environment("BENCH_LIMIT"))     # slow software renderers in development
 	G.log_line("benchmark: %d segments, preset %s, driver %s, adapter %s" % [segments.size(), Settings.preset,
 		RenderingServer.get_current_rendering_driver_name(), RenderingServer.get_video_adapter_name()])
 	_next()
@@ -64,6 +66,9 @@ func _next() -> void:
 		_finish_segment()
 	seg_i += 1
 	if seg_i >= segments.size():
+		if not Settings.has_arg("no-ablation") and _ga_items.is_empty() and not timed_out:
+			_start_gpu_ablation()
+			return
 		_write()
 		return
 	var s: Dictionary = segments[seg_i]
@@ -106,6 +111,9 @@ func _catmull(a: Array, i: int, k: float) -> Vector3:
 
 
 func _process(delta: float) -> void:
+	if _ga_i >= -1 and not _ga_items.is_empty():
+		_ga_step(delta)
+		return
 	if seg_i < 0 or seg_i >= segments.size():
 		return
 	var wall := (Time.get_ticks_msec() - started_ms) / 1000.0
@@ -193,6 +201,7 @@ func _write() -> void:
 		"upscaler": ["bilinear", "fsr1", "fsr2", "metalfx_spatial", "metalfx_temporal", "nearest"][vp.scaling_3d_mode],
 		"vsync": DisplayServer.window_get_vsync_mode() != DisplayServer.VSYNC_DISABLED,
 		"segments": results,
+		"gpu_ablation": _ga_out,
 		"timeout": timed_out,
 		"command_line": Settings.raw_cmdline,
 		"overall_avg_fps": snappedf(all_fps / maxf(1, results.size()), 0.1),
@@ -292,3 +301,100 @@ func _ab_collect(n: Node, out: Dictionary) -> void:
 				out[key] = []
 			(out[key] as Array).append(c)
 		_ab_collect(c, out)
+
+
+# GPU feature ablation (after the segments; --no-ablation skips it): at the battle camera, each rendering
+# feature or world group in turn is switched off for 90 measured frames. GPU timers read 0 on Metal, so the
+# frame time saved is the measure of what each costs on this machine (the M1's own answer to "what to cut").
+var _ga_items: Array = []
+var _ga_i := -2               # -1 = baseline, 0.. = items
+var _ga_n := 0
+var _ga_sum := 0.0
+var _ga_base := 0.0
+var _ga_out := {}
+const GA_SETTLE := 20
+const GA_FRAMES := 90
+
+
+func _start_gpu_ablation() -> void:
+	var idx := segments.size() - 1
+	for k in segments.size():
+		if segments[k]["name"] == "battle":
+			idx = k
+	seg_i = idx
+	var sg: Dictionary = segments[idx]
+	if sg.has("setup"):
+		(sg["setup"] as Callable).call()
+	_place(0.35)
+	var env: Environment = G.sky.env if G.sky else null
+	var sun: DirectionalLight3D = G.sky.sun if G.sky else null
+	if sun:
+		_ga_items.append(["sun shadows", func(): sun.shadow_enabled = false, func(): sun.shadow_enabled = true])
+	if G.sky:
+		var steps: float = G.sky.sky_mat.get_shader_parameter("cloud_steps")
+		_ga_items.append(["raymarched clouds", func(): G.sky.sky_mat.set_shader_parameter("cloud_steps", 0.0),
+			func(): G.sky.sky_mat.set_shader_parameter("cloud_steps", steps)])
+	if env:
+		for f in ["ssao_enabled", "ssil_enabled", "sdfgi_enabled", "volumetric_fog_enabled", "glow_enabled", "ssr_enabled"]:
+			if env.get(f):
+				_ga_items.append([f.trim_suffix("_enabled"), func(): env.set(f, false), func(): env.set(f, true)])
+	var w: Node = G.world
+	for nm in ["Terrain", "Vegetation", "Water", "Capital", "Bases", "Roads", "Vehicles", "Battle"]:
+		var n := w.get_node_or_null(nm) as Node3D
+		if n and n.visible:
+			_ga_items.append([nm.to_lower(), func(): n.visible = false, func(): n.visible = true])
+	var veg: Node = w.vegetation
+	if veg and veg.get("grass_near"):
+		var gn: Node3D = veg.grass_near
+		var gf: Node3D = veg.get("_grass_far")
+		_ga_items.append(["grass", _set_vis.bind([gn, gf], false), _set_vis.bind([gn, gf], true)])
+	_ga_i = -1
+	_ga_n = 0
+	_ga_sum = 0.0
+	G.log_line("benchmark: GPU ablation at '%s', %d features" % [sg["name"], _ga_items.size()])
+
+
+func _ga_step(delta: float) -> void:
+	if (Time.get_ticks_msec() - started_ms) / 1000.0 > _limit:
+		G.log_line("benchmark: TIMEOUT in the GPU ablation; writing what was measured")
+		timed_out = true
+		_ga_finish()
+		return
+	_place(0.35)
+	_ga_n += 1
+	if _ga_n <= GA_SETTLE:
+		return
+	_ga_sum += delta * 1000.0
+	if _ga_n < GA_SETTLE + GA_FRAMES:
+		return
+	var avg := _ga_sum / GA_FRAMES
+	_ga_n = 0
+	_ga_sum = 0.0
+	if _ga_i == -1:
+		_ga_base = avg
+		_ga_out = {"segment": segments[seg_i]["name"], "base_ms": snappedf(avg, 0.01), "items": []}
+	else:
+		(_ga_items[_ga_i][2] as Callable).call()
+		(_ga_out["items"] as Array).append({"feature": _ga_items[_ga_i][0], "ms_saved": snappedf(_ga_base - avg, 0.01)})
+	_ga_i += 1
+	if _ga_i >= _ga_items.size():
+		_ga_finish()
+		return
+	(_ga_items[_ga_i][1] as Callable).call()
+
+
+func _ga_finish() -> void:
+	if _ga_out.has("items"):
+		var items: Array = _ga_out["items"]
+		items.sort_custom(func(a, b): return a["ms_saved"] > b["ms_saved"])
+		G.log_line("benchmark GPU ablation (%s, base %.2f ms): %s" % [_ga_out["segment"], _ga_out["base_ms"],
+			", ".join(items.map(func(x): return "%s %.2f" % [x["feature"], x["ms_saved"]]))])
+	_ga_items.clear()
+	_ga_i = -2
+	_write()
+
+
+func _set_vis(nodes: Array, v: bool) -> void:
+	for n in nodes:
+		if n is Node3D:
+			(n as Node3D).visible = v
