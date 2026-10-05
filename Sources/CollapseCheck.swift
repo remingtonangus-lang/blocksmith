@@ -214,7 +214,13 @@ enum CollapseCheck {
             } }
             fill(w, IVec3(o.x + 2, top, o.z - 1), IVec3(o.x + 14, top, o.z + 1), brick)
             fill(w, IVec3(o.x - 14, o.y + 10, o.z - 2), IVec3(o.x - 11, o.y + 12, o.z + 1), brick)
-            st.box = (IVec3(o.x - 18, o.y - 2, o.z - 6), IVec3(o.x + 18, top + 6, o.z + 6))
+            // A hall roof 24 across on four corner posts (a monument's halls: most of it past the bricks' reach).
+            for (px, pz) in [(-12, 8), (11, 8), (-12, 31), (11, 31)] {
+                let x = o.x + px, z = o.z + pz
+                fill(w, IVec3(x, w.topY(x, z) + 1, z), IVec3(x, o.y + 13, z), brick)
+            }
+            fill(w, IVec3(o.x - 12, o.y + 14, o.z + 8), IVec3(o.x + 11, o.y + 14, o.z + 31), brick)
+            st.box = (IVec3(o.x - 18, o.y - 2, o.z - 6), IVec3(o.x + 18, o.y + 20, o.z + 34))
             st.view = (V3(Float(o.x), Float(o.y + 6), Float(o.z + 30)), 0, -0.05)
         case "wreck":
             w.ships.spawnCapital("crawler", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
@@ -441,6 +447,18 @@ enum CollapseCheck {
         mine(hulk[0], 4)
         r.check(standing(hulk) == hulk0 - 1, "mining a floating hulk brings nothing else down (\(standing(hulk)) of \(hulk0 - 1))")
         r.check(w.ships.asBuiltKept > 0, "the as-built rule held them (\(w.ships.asBuiltKept) blocks kept)")
+        // Mining into the big roof: two searches over it (after the damage, and with the hole filled back in), within
+        // a frame's budget.
+        var roof: [IVec3] = []
+        for z in (o.z + 8)...(o.z + 31) { for x in (o.x - 12)...(o.x + 11) { roof.append(IVec3(x, o.y + 14, z)) } }
+        let roof0 = standing(roof)
+        var worstMs = 0.0
+        for c in [IVec3(o.x, o.y + 14, o.z + 20), IVec3(o.x - 6, o.y + 14, o.z + 14), IVec3(o.x + 9, o.y + 14, o.z + 9)] {
+            mine(c, 2)
+            worstMs = max(worstMs, w.ships.collapseMs)
+        }
+        r.check(standing(roof) == roof0 - 3, "mining into an old hall roof brings nothing else down (\(standing(roof)) of \(roof0 - 3))")
+        r.check(worstMs < 10, String(format: "and costs a frame's budget at most (%.1f ms, under 10)", worstMs))
         // The pillar's foot mined out: what it held, the old overhang with it, comes down.
         for c in base { let b = w.rawBlock(c.x, c.y, c.z); if b != AIR { g.breakBlock(c, b, drop: false) } }
         var t = 0
