@@ -70,6 +70,7 @@ var _track_d := 0.0
 var _blood_d := 0.0
 var _foot := 1.0
 var carried_by: Node3D = null       # the horse carrying this carcass
+var resting := false                # bedded down in its inactive hours (the ecology oracle samples this)
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
 	var t0 := Time.get_ticks_usec()
@@ -240,6 +241,7 @@ func is_active_now() -> bool:
 	match spec.active:
 		"day": return h > 6.0 and h < 19.0
 		"night": return h < 6.5 or h > 18.5
+		"crepuscular": return (h > 4.5 and h < 10.0) or (h > 16.0 and h < 21.5)
 		_: return true
 
 func _physics_process(dt: float) -> void:
@@ -284,7 +286,18 @@ func _senses() -> Node3D:
 	return null
 
 func _calm(dt: float) -> void:
-	if t_state <= 0.0:
+	var active := is_active_now()
+	if t_state <= 0.0 and not active:
+		# resting hours: bedded down where it stands (herd members drift back to the leader first)
+		t_state = rng.randf_range(10.0, 25.0)
+		goal = Vector3.INF
+		if leader != null and is_instance_valid(leader) and leader.alive and leader != self \
+				and leader.global_position.distance_to(global_position) > 12.0:
+			goal = leader.global_position + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4))
+		state = State.WANDER if goal != Vector3.INF else State.GRAZE
+		resting = goal == Vector3.INF
+	elif t_state <= 0.0:
+		resting = false
 		t_state = rng.randf_range(4.0, 12.0)
 		if leader != null and is_instance_valid(leader) and leader.alive:
 			goal = leader.global_position + Vector3(rng.randf_range(-8, 8), 0, rng.randf_range(-8, 8))
@@ -307,7 +320,7 @@ func _calm(dt: float) -> void:
 				a.threat = t
 				a.state = State.ALERT
 				a.t_state = rng.randf_range(0.3, 1.0)
-	elif spec.diet == "predator" and rng.randf() < 0.002:
+	elif spec.diet == "predator" and rng.randf() < (0.002 if active else 0.0003):
 		prey = _find_prey()
 		if prey != null:
 			state = State.STALK
