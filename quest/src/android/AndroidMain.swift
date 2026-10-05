@@ -16,11 +16,11 @@ private let state = AndroidState()
 // stdout / stderr -> logcat (tag Blocksmith), line by line, and to `logFile` (the app's external files folder, so a
 // whole session can be pulled with adb after the fact; the previous launch's log is kept as blocksmith.prev.log).
 private func redirectOutputToLogcat(logFile: String?) {
-    var file: UnsafeMutablePointer<FILE>?
+    var fd: Int32 = -1                  // plain POSIX file (Bionic's FILE is opaque to Swift)
     if let path = logFile {
         let prev = path.replacingOccurrences(of: ".log", with: ".prev.log")
         _ = unlink(prev); _ = rename(path, prev)
-        file = fopen(path, "w")
+        fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
     }
     let cap = 8 << 20
     var written = 0
@@ -41,13 +41,14 @@ private func redirectOutputToLogcat(logFile: String?) {
                 if buf[i] == 10 {
                     line.append(0)
                     line.withUnsafeBufferPointer { p in
-                        p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { c in
-                            _ = __android_log_write(Int32(ANDROID_LOG_INFO.rawValue), "Blocksmith", c)
-                            if let f = file, written < cap {
-                                written += p.count
-                                fputs(c, f); fputc(10, f); fflush(f)
-                            }
+                        p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) {
+                            _ = __android_log_write(Int32(ANDROID_LOG_INFO.rawValue), "Blocksmith", $0)
                         }
+                    }
+                    if fd >= 0 && written < cap {
+                        line[line.count - 1] = 10                  // the terminator becomes the newline
+                        written += line.count
+                        _ = line.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
                     }
                     line.removeAll(keepingCapacity: true)
                 } else if line.count < 4000 { line.append(buf[i]) }

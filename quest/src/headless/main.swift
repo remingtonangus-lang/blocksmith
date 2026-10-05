@@ -93,6 +93,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).
 let pm = PadManager.shared
 var tickMs: [Double] = []
+var slow: [(Double, Double, Int, Int, Int)] = []
 let frames = 72 * 20
 let p0 = game.player.pos
 for i in 0..<frames {
@@ -105,11 +106,19 @@ for i in 0..<frames {
     if i == 800 || i == 840 { p.menu = true }
     pm.touch = p
     let a = CFAbsoluteTimeGetCurrent()
+    world.update(center: game.player.pos)  // streaming first (game.tick's own call then finds little left)
+    let b = CFAbsoluteTimeGetCurrent()
     game.tick(1.0 / 72)
-    world.update(center: game.player.pos)
-    tickMs.append((CFAbsoluteTimeGetCurrent() - a) * 1000)
+    let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
+    tickMs.append(ms)
+    slow.append((ms, (b - a) * 1000, i, world.chunks.count, game.mobs.mobs.count))
 }
 pm.touch = nil
+// The slowest frames, split into world streaming (results applied, scheduling) and the rest of the game tick.
+slow.sort { $0.0 > $1.0 }
+for (ms, upd, i, ch, mobs) in slow.prefix(6) {
+    print(String(format: "  slow tick #%d: %.2f ms (world.update %.2f, game %.2f) chunks %d mobs %d", i, ms, upd, ms - upd, ch, mobs))
+}
 tickMs.sort()
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
