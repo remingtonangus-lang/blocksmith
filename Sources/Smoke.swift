@@ -212,6 +212,10 @@ enum Smoke {
                              rd, game.fancyGraphics ? "Fancy" : "Fast", t, frameMs.last ?? 0, residentMB(),
                              Double(device.currentAllocatedSize) / 1_048_576, game.mobs.mobs.count, Bench.coverage(world, pp) * 100))
                 print("smoke rd \(rd) mob drawing: " + MobDrawStats.line)      // mobs were invisible in real play (2026-10-05)
+                // What lives in memory (resident grew ~20 MB/s while flying, runs 605-634): chunks alive vs loaded, and
+                // the long-lived collections.
+                let stashed: Int = game.mobs.stored.values.reduce(0) { $0 + $1.count }
+                print("smoke rd \(rd) memory: chunks alive \(Chunk.alive), loaded \(world.chunks.count); stashed mobs \(stashed); map cells \(MapCache.shared.cellCount); block entities \(world.blockEntities.count); gravity queue \(world.gravityQueue.count); fluid pending \(world.fluidPending.count); jobs \(world.pendingJobs)")
                 fflush(stdout)
             }
             if i % 30 == 0 {
