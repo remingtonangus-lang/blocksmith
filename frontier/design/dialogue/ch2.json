@@ -1,0 +1,1025 @@
+{
+ "note": "Chapter 2 dialogue, Paper and Iron (Port Linden, Thornwood). id, speaker, line, emotion (neutral/dry/warm/angry/afraid/tired/amused/sad/tense). Speaker voice fields name voice types from voices.json. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "fenn": {
+   "name": "Augustus Fenn",
+   "voice": "man_town"
+  },
+  "ebbing": {
+   "name": "Carl Ebbing",
+   "voice": "man_rough"
+  },
+  "snell": {
+   "name": "Wade Snell",
+   "voice": "man_rough"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "stroud": {
+   "name": "Abel Stroud",
+   "voice": "shopkeeper"
+  },
+  "hask": {
+   "name": "Lyle Hask",
+   "voice": "man_town"
+  },
+  "merrow": {
+   "name": "Josiah Merrow",
+   "voice": "man_old"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "tolliver": {
+   "name": "Lew Tolliver",
+   "voice": "man_rough"
+  },
+  "cobb": {
+   "name": "Ansel Cobb",
+   "voice": "man_town"
+  },
+  "dodd": {
+   "name": "Ephraim Dodd",
+   "voice": "man_old"
+  },
+  "deputy": {
+   "name": "Linden County Deputy",
+   "voice": "lawman"
+  },
+  "pell": {
+   "name": "Lucius Pell",
+   "voice": "man_town"
+  },
+  "breck": {
+   "name": "Saul Breck",
+   "voice": "man_rough"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  }
+ },
+ "lines": [
+  {
+   "id": "c2_lan_01",
+   "speaker": "ruth",
+   "line": "Brick, coal smoke and a steamboat whistle. Greer says Eben Shale wears a necktie here. I'd pay to see the knot.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_lan_02",
+   "speaker": "ruth",
+   "line": "That's not a printing press running. That's one being argued with.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_03",
+   "speaker": "ebbing",
+   "line": "The man said the press, Wade. Not the furniture. He's particular about furniture.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_lan_04",
+   "speaker": "snell",
+   "line": "Then he can come swing the hammer himself. Two dollars don't cover lifting.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_lan_05",
+   "speaker": "fenn",
+   "line": "That is a Washington hand press, gentlemen. It is older than either of you and considerably better read.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_lan_06",
+   "speaker": "ruth",
+   "line": "Morning. Is this the newspaper, or did I walk in on a review?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_07",
+   "speaker": "ebbing",
+   "line": "Paper's closed, ma'am. Shut for repairs. Come back in a month. Or don't, that's simpler.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_lan_08",
+   "speaker": "ruth",
+   "line": "Two dollars, I heard. That's wages for breaking a press. Nobody's paying you for a funeral, and I'd hate to see you work for free.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_09",
+   "speaker": "snell",
+   "line": "She's got a point, Carl. She's got two, and they're both looking at us.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_lan_10",
+   "speaker": "ebbing",
+   "line": "You tell the man it was a woman stopped us. See how that sits with him.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_lan_11",
+   "speaker": "ruth",
+   "line": "Put the hammers down. I won't ask twice. I never did learn how.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_lan_12",
+   "speaker": "ebbing",
+   "line": "Lady wants it the hard way, Wade. Lady can have it.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_lan_13",
+   "speaker": "fenn",
+   "line": "Augustus Fenn. Editor, proprietor, and as of this morning the only one of the three still standing.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_14",
+   "speaker": "ruth",
+   "line": "Ruth Caddell. I read your Lantern in Bitter Spring. Four dollars the acre.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_15",
+   "speaker": "fenn",
+   "line": "Then you're one of my eleven readers. The other ten use it to wrap fish, which is at least honest work.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_lan_16",
+   "speaker": "ruth",
+   "line": "Who sent them?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_lan_17",
+   "speaker": "fenn",
+   "line": "Nobody sends anybody in Port Linden, Mrs. Caddell. Things simply happen to people who print the wrong numbers. Walk with me.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_lan_18",
+   "speaker": "fenn",
+   "line": "The new glass on the left is the Meridian and Western land office. They replace a window before anybody's had the chance to break it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_lan_19",
+   "speaker": "ruth",
+   "line": "And the building with the iron shutters?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_20",
+   "speaker": "fenn",
+   "line": "The Linden Exchange Bank. Syndicate money sleeps there. So does most of the town's, though the town sleeps worse.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_lan_21",
+   "speaker": "fenn",
+   "line": "A lawyer named Lucius Pell signs for both. Nobody's ever seen him carry anything heavier than a pen. Nobody's needed to.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_lan_22",
+   "speaker": "ruth",
+   "line": "I'm looking for Eben Shale.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_lan_23",
+   "speaker": "fenn",
+   "line": "Everybody is. Eben's the one man in Port Linden who is always somewhere else when it happens.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_24",
+   "speaker": "fenn",
+   "line": "What I need is paper. A deed, a ledger, a signature where it oughtn't to be. Opinions I have plenty of. They don't stop anybody.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_lan_25",
+   "speaker": "ruth",
+   "line": "And what do I get?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_26",
+   "speaker": "fenn",
+   "line": "A name in print. Yours, if you want it. Pell's, if you can earn it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_lan_27",
+   "speaker": "ruth",
+   "line": "Print it. Ruth Caddell, widow of Tom Caddell, express messenger. Let it get around who's asking.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_lan_28",
+   "speaker": "fenn",
+   "line": "Brave or foolish. In my trade we set them in the same type.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_29",
+   "speaker": "ruth",
+   "line": "Leave me out of it. Paper keeps a long memory, and I'd like mine short.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_lan_30",
+   "speaker": "fenn",
+   "line": "A reader who values her privacy. You'll be lonely in this town.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_lan_31",
+   "speaker": "fenn",
+   "line": "Pell's clerk, Lyle Hask, carries the books between the land office and the bank. Tonight he carries them to the Corinthian. He plays cards badly and often.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_lan_32",
+   "speaker": "ruth",
+   "line": "Then I'd better play well.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_01",
+   "speaker": "ruth",
+   "line": "Gilt mirrors over a sawdust floor. Port Linden can't decide if it's rich or only loud.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_02",
+   "speaker": "del",
+   "line": "I wouldn't take that chair. The last man in it left in his shirtsleeves, and it was a good shirt.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_03",
+   "speaker": "ruth",
+   "line": "And you're telling me out of kindness.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_04",
+   "speaker": "del",
+   "line": "Out of interest. Delphine Arceneaux. Del, to people I've lost money to, which is a short list, and I keep it that way.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_05",
+   "speaker": "del",
+   "line": "The dealer is Abel Stroud. The one with ink on his cuffs is Lyle Hask. The old one is Mr. Merrow, who has folded every hand since the war.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_cards_06",
+   "speaker": "del",
+   "line": "If you sit, watch Stroud's hands when he squares the deck. Not his face. His face has never done anything worth watching.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_07",
+   "speaker": "ruth",
+   "line": "Why tell me?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_08",
+   "speaker": "del",
+   "line": "Because if Stroud's dealing to Hask, he's dealing against me. I owe more than I'd like, to people who'd like more than I owe.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_cards_09",
+   "speaker": "ruth",
+   "line": "I'll mind my own cards.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_10",
+   "speaker": "del",
+   "line": "Everybody does, cher. That's how Stroud eats.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_11",
+   "speaker": "stroud",
+   "line": "Quarter ante. Fifty cents before the draw, a dollar after. The house deals. The house always deals.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_cards_12",
+   "speaker": "merrow",
+   "line": "Sit down or go home, madam. I'm seventy-one. I haven't the time for both.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_cards_13",
+   "speaker": "ruth",
+   "line": "Mr. Stroud, put the deck down. Face up, and slow. The bottom card's the queen of clubs.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_14",
+   "speaker": "stroud",
+   "line": "The lady's had a long evening. Somebody fetch her a sarsaparilla.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_15",
+   "speaker": "del",
+   "line": "Turn it over, Abel. I'd love to be wrong. I've had so little practice.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_16",
+   "speaker": "ruth",
+   "line": "Twice. You square the deck twice before Mr. Hask's big hands, Mr. Stroud. A man that tidy ought to be keeping books.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_17",
+   "speaker": "ruth",
+   "line": "You deal like a man with a train to catch, Mr. Stroud.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_18",
+   "speaker": "stroud",
+   "line": "Fast hands are a dealer's living, ma'am. Say it again and they'll be a dealer's argument.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_19",
+   "speaker": "del",
+   "line": "She has the wrong finger on it but the right man. The bottom card, Abel. Show the table.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_cards_20",
+   "speaker": "del",
+   "line": "Well, I won't let it go. Abel, you've dealt Lyle the bottom of the deck all night, and I am tired of paying for it.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_cards_21",
+   "speaker": "stroud",
+   "line": "Nobody calls the house a cheat in the house. Floyd!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_cards_22",
+   "speaker": "hask",
+   "line": "I keep books. I don't keep guns. Whatever Stroud did, he did it with his own hands.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_cards_23",
+   "speaker": "ruth",
+   "line": "And whose money did his hands win?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_24",
+   "speaker": "hask",
+   "line": "Mr. Quint's. Mr. Pell's. It's the same coat with two pockets.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_cards_25",
+   "speaker": "del",
+   "line": "Horace Quint holds my marker. Four hundred dollars, and Stroud has been adding to it all week, a dollar at a time.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_cards_26",
+   "speaker": "ruth",
+   "line": "Everybody takes back what he put in. It was never a game, so nobody won it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_27",
+   "speaker": "merrow",
+   "line": "Forty years at cards, and the first time anybody gave anything back. I may take up religion. Something moderate.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_28",
+   "speaker": "ruth",
+   "line": "Stroud owes me for the evening. I'll collect it off the felt.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_29",
+   "speaker": "del",
+   "line": "Practical. I admire that in a woman. I'd admire it less in a partner.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_30",
+   "speaker": "del",
+   "line": "Quint will want his four hundred by Saturday. After that he'll want me, and not for my conversation.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_cards_31",
+   "speaker": "ruth",
+   "line": "I've got a camp at Willow Bend. A drover who sings hymns badly and a boy who steals horses back. There's room.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_cards_32",
+   "speaker": "del",
+   "line": "Is that charity, Mrs. Caddell? I come out in hives.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_cards_33",
+   "speaker": "ruth",
+   "line": "It's work. You know money. I want to know where it's going, and where it's been.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_cards_34",
+   "speaker": "del",
+   "line": "Then I'll bring my own deck. Nobody touches it but me.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_cards_35",
+   "speaker": "ruth",
+   "line": "Go home, Mr. Hask. Tell Mr. Pell his clerk lost at cards. It'll be the first true line in his books.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_01",
+   "speaker": "ruth",
+   "line": "Hask's books said Thornwood timber, paid in Exchange notes. Pine country and paper money. One of them's bound to burn.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_thorn_02",
+   "speaker": "billy",
+   "line": "You'll want somebody who knows the camp. Which dogs bite and which ones just carry on about it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_thorn_03",
+   "speaker": "ruth",
+   "line": "What I'll want is you back at Willow Bend, helping Hap with the fence.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_04",
+   "speaker": "billy",
+   "line": "Hap said you'd say that. Then he said he wasn't chasing me, on account of his stitches.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_thorn_05",
+   "speaker": "ruth",
+   "line": "Who runs the camp?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_06",
+   "speaker": "billy",
+   "line": "Lew Tolliver. He says I owe twenty-two dollars for boots and board. The boots were two sizes big. I grew into one of 'em.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_07",
+   "speaker": "ruth",
+   "line": "Go home, Billy.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_08",
+   "speaker": "billy",
+   "line": "Yes'm. Home's this way, as it happens. Through the timber. Past the camp.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_thorn_09",
+   "speaker": "ruth",
+   "line": "Stay behind me. When I say run, you run, and you don't look back to see if I meant it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_10",
+   "speaker": "billy",
+   "line": "I'm awful good at running. It's most of what I'm good at.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_thorn_11",
+   "speaker": "billy",
+   "line": "That's the flume up yonder. They float the logs down to the lake when there's water. There ain't been water since July.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_thorn_12",
+   "speaker": "ruth",
+   "line": "Drought's hard on a timber camp.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_13",
+   "speaker": "billy",
+   "line": "Drought's hard on everybody but the men buying. Tolliver says that's only business. Tolliver says a lot of things, mostly loud.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_14",
+   "speaker": "billy",
+   "line": "Get down. That's him by the cook shack. The one in the city coat ain't from here.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_thorn_15",
+   "speaker": "tolliver",
+   "line": "Pell's notes are paper. My men want silver. Paper don't spend in Thornwood.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_thorn_16",
+   "speaker": "cobb",
+   "line": "Paper spends everywhere, Tolliver, once there's nobody left to refuse it. The Exchange holds the silver. Thursday night it holds a good deal of it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_thorn_17",
+   "speaker": "tolliver",
+   "line": "And if somebody was to walk in Thursday and take it off them?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_18",
+   "speaker": "cobb",
+   "line": "Then Mr. Pell would be terribly surprised. He's arranged to be.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_thorn_19",
+   "speaker": "ruth",
+   "line": "Arranged to be surprised. That's a lawyer's sentence if I ever heard one.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_20",
+   "speaker": "tolliver",
+   "line": "Pruitt! I see you, boy! You owe me for boots!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_thorn_21",
+   "speaker": "ruth",
+   "line": "Twenty-two dollars. For boots two sizes big, that's the dearest leather in the territory.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_22",
+   "speaker": "tolliver",
+   "line": "Pleasure doing business. Take him. He eats like a mule.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_thorn_23",
+   "speaker": "billy",
+   "line": "I don't eat like a mule. Mules eat better.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_24",
+   "speaker": "cobb",
+   "line": "That woman was at the Corinthian. Mr. Pell will want to know where she goes. See that she doesn't get there.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_25",
+   "speaker": "ruth",
+   "line": "He owes you nothing. You had two summers of work out of him for one pair of boots.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_thorn_26",
+   "speaker": "tolliver",
+   "line": "Then I'll take it out of you, lady. Boys!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_thorn_27",
+   "speaker": "billy",
+   "line": "You paid for me. Nobody ever paid for me. Except the boots, and I paid for those twice.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_thorn_28",
+   "speaker": "billy",
+   "line": "They'd have dragged me back. You know that? By the collar, like a stray.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_thorn_29",
+   "speaker": "ruth",
+   "line": "Don't make it into something. You're a hand now. Hands work.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_thorn_30",
+   "speaker": "billy",
+   "line": "Yes'm. What do I call you? Mrs. Caddell sounds like a schoolteacher.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_thorn_31",
+   "speaker": "ruth",
+   "line": "Ruth will do. And Billy. Thursday night, the Exchange. You didn't hear any of it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_thorn_32",
+   "speaker": "billy",
+   "line": "Hear any of what?",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_thorn_33",
+   "speaker": "ruth",
+   "line": "Here's what I've got. Call the rest the wages you never paid him.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_01",
+   "speaker": "del",
+   "line": "Two watchmen. One old, one asleep. The back door's a Yale lock that thinks it's cleverer than it is.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_02",
+   "speaker": "ruth",
+   "line": "That city coat at Thornwood said Pell had arranged to be surprised.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_03",
+   "speaker": "del",
+   "line": "Lawyers say all sorts of things. Mostly it's billable.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_04",
+   "speaker": "ruth",
+   "line": "Somebody let a boy and a woman with a gun hear exactly where the silver sleeps. That's not luck, Del. That's an invitation.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_05",
+   "speaker": "del",
+   "line": "Then we're expected, and it would be rude not to come. Four hundred dollars, Ruth. Quint doesn't send a second letter. He sends a man.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_bank_06",
+   "speaker": "ruth",
+   "line": "We go in. We take nothing I can't carry and can't explain.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_07",
+   "speaker": "dodd",
+   "line": "I'm sixty-one years old and they pay me two dollars a week. You'll not find a hero in this coat.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_bank_08",
+   "speaker": "ruth",
+   "line": "I wasn't looking for one. Hold still. The knot's for your sake, so they'll know you never opened the door.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_bank_09",
+   "speaker": "dodd",
+   "line": "Who's there? I've a whistle, and I'm not afraid to blow it!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_bank_10",
+   "speaker": "del",
+   "line": "He's not afraid to blow it. Wonderful. Inside, Ruth, now. We've a minute less than we had.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_bank_11",
+   "speaker": "del",
+   "line": "It's empty. Ruth, it's empty. Not a dime. Somebody swept it out like a church on a Monday.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_bank_12",
+   "speaker": "ruth",
+   "line": "Not empty. Look at this box. Quitclaim deeds. Willow Bend. The Ybarra well. Halvorsen's south section.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_13",
+   "speaker": "ruth",
+   "line": "Arliss Doane signed this one on the twelfth. I stood at his grave on the tenth.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_bank_14",
+   "speaker": "del",
+   "line": "There's a satchel by the door. Fifty dollars, maybe. It's bait, Ruth. It's practically wearing a bow.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_15",
+   "speaker": "ruth",
+   "line": "Bait or not, it's money, and they've already decided what to call me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_16",
+   "speaker": "del",
+   "line": "That's the spirit I was afraid of.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_17",
+   "speaker": "ruth",
+   "line": "Leave it. Whoever left it there can explain it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_18",
+   "speaker": "del",
+   "line": "Fifty dollars on the floor of a bank and you step over it. I'll never understand you, and I'm going to enjoy trying.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_bank_19",
+   "speaker": "deputy",
+   "line": "Linden County! Come out of the Exchange with your hands where God can see them!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_bank_20",
+   "speaker": "del",
+   "line": "That's not the watchman. Those are deputies, and deputies don't come in ones.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_bank_21",
+   "speaker": "del",
+   "line": "They were waiting. Not for a thief. For you. Somebody wanted Ruth Caddell standing in an empty vault.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_22",
+   "speaker": "ruth",
+   "line": "Then they've got their picture. And I've got their paper.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_bank_23",
+   "speaker": "del",
+   "line": "Paper burns, cher.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_bank_24",
+   "speaker": "ruth",
+   "line": "Not once it's printed. Fenn has a press and nothing left to lose.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_bank_25",
+   "speaker": "ruth",
+   "line": "Those deputies had wives and a county wage. They came because a lawyer told them where to stand.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c2_terms_01",
+   "speaker": "ruth",
+   "line": "Sun's up. Fenn will want these before the ink in his head dries.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_terms_02",
+   "speaker": "ruth",
+   "line": "They used the drawing off the old Exhibition bills. I was nineteen. They've added the scar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_03",
+   "speaker": "fenn",
+   "line": "Mrs. Caddell. We have a guest. He let himself in before I'd unlocked, which is remarkable in a man who isn't a burglar.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_04",
+   "speaker": "pell",
+   "line": "Lucius Pell. Don't get up, Augustus, it's your chair. Mrs. Caddell, you look like your likeness, which is rare. Most people disappoint their posters.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_terms_05",
+   "speaker": "pell",
+   "line": "I read about you in the Lantern. Tom Caddell's widow, asking questions. I make a point of reading the Lantern. Someone should.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_06",
+   "speaker": "pell",
+   "line": "Mr. Greer sold me your name for six dollars. I'd have paid twenty. I hope that doesn't hurt your feelings.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_07",
+   "speaker": "ruth",
+   "line": "You put my face on a door.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_08",
+   "speaker": "pell",
+   "line": "The county did. I described you. Accurately, I'd like to think. I'm told the reward is generous.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_terms_09",
+   "speaker": "ruth",
+   "line": "For an empty vault.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_terms_10",
+   "speaker": "pell",
+   "line": "The vault held eleven thousand dollars on Thursday afternoon. The bank's books say so. Books, Mrs. Caddell, are what a court believes.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_terms_11",
+   "speaker": "pell",
+   "line": "You have papers that belong to my clients. Return them and the complaint is withdrawn. A clerical error. They happen.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_terms_12",
+   "speaker": "ruth",
+   "line": "Arliss Doane signed one of those papers two days after his funeral. Was that clerical?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_13",
+   "speaker": "pell",
+   "line": "Mr. Doane was a man of remarkable energy.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_14",
+   "speaker": "ruth",
+   "line": "Take them.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_terms_15",
+   "speaker": "pell",
+   "line": "Sensible. You'll find sense is a cheaper habit than courage, and it keeps longer.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_terms_16",
+   "speaker": "fenn",
+   "line": "I'll set the shipping news, then. Ships at least go somewhere.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c2_terms_17",
+   "speaker": "ruth",
+   "line": "I'll keep them. Your clients may apply to me, care of the Lantern.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_18",
+   "speaker": "pell",
+   "line": "As you like. I never argue with people, Mrs. Caddell. I outlast them.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c2_terms_19",
+   "speaker": "fenn",
+   "line": "Then I print tonight, and God look after my windows.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_20",
+   "speaker": "fenn",
+   "line": "There are two men across the street reading your poster very slowly. I don't believe it's the prose.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c2_terms_21",
+   "speaker": "ruth",
+   "line": "Back door?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_22",
+   "speaker": "fenn",
+   "line": "Through the composing room. Mind the type cases. They've been through enough this week.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_23",
+   "speaker": "breck",
+   "line": "Two hundred dollars standing in the street! Mrs. Caddell! Don't make me spoil the likeness.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c2_terms_24",
+   "speaker": "breck",
+   "line": "Fella at the bank says your paper's been pulled. Fella at the bank ain't paying me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_25",
+   "speaker": "hap",
+   "line": "There's a picture of you nailed up by the depot in Bitter Spring. They gave you a hard mouth.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_terms_26",
+   "speaker": "ruth",
+   "line": "I have a hard mouth.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c2_terms_27",
+   "speaker": "hap",
+   "line": "Well. They spelled Caddell right. That's more than anybody ever did for Lindqvist.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_terms_28",
+   "speaker": "del",
+   "line": "Your price is higher than mine ever got. I've been worth less, and I've been worth a great deal more, but never in print.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_terms_29",
+   "speaker": "billy",
+   "line": "I could take it down. Nobody looks twice at a kid by the depot.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c2_terms_30",
+   "speaker": "billy",
+   "line": "Do I get a poster? When I'm older?",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_terms_31",
+   "speaker": "ruth",
+   "line": "No poster, Billy. Not ever.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c2_terms_32",
+   "speaker": "ruth",
+   "line": "Tom used to say the company's real guns were the pens. I thought it was something messengers said to feel brave.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c2_terms_33",
+   "speaker": "hap",
+   "line": "Supper's beans. I'm told that's a crime in Linden County too.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c2_terms_34",
+   "speaker": "del",
+   "line": "Withdrawn, the notice says. Nobody in the history of the world has believed a notice that says withdrawn.",
+   "emotion": "dry"
+  }
+ ]
+}

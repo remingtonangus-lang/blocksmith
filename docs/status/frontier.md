@@ -67,6 +67,9 @@ runner, Metal) and the Mac monitor.
   items, save/load (user://saves), autosave on mission complete.
 - **Missions**: MissionDirector (goto/say/spawn/wait_dead/interact/checkpoint, markers, autopilot, softlock oracle);
   Chapter 1: "Rider from the West", "The Drover" with original dialogue (design/dialogue/ch1.json).
+- **Chapter 2 "Paper and Iron"** (`src/missions/ch2/`, `design/dialogue/ch2.json`): 5 missions; director verbs choose
+  (bots: `--choices 0,1,0`), follow, sneak_to, escape, paper, minigame, post_bounty; five-card-draw poker with a
+  catchable stacked deck (`src/minigames/`, self-test `--pokertest`).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

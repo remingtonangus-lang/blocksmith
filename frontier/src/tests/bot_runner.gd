@@ -264,6 +264,30 @@ func _run_missions() -> Dictionary:
 	res.completed = md.completed.duplicate()
 	for f in failed:
 		_fail(res, f)
+	# story coverage: every line said exists in the dialogue tables; report the choices and minigames played
+	var said := 0
+	var choices := []
+	for ln in Game.log_lines:
+		var parts := ln.split(" ", false, 2)
+		if parts.size() < 3:
+			continue
+		var data = JSON.parse_string(parts[2])
+		if typeof(data) != TYPE_DICTIONARY:
+			continue
+		if parts[1] == "say":
+			said += 1
+			if not md.dialogue.has(str(data.get("id", ""))):
+				_fail(res, "dialogue line '%s' missing from design/dialogue" % data.get("id", ""))
+		elif parts[1] == "choice":
+			choices.append("%s:%d" % [data.get("mission", ""), int(data.get("index", 0))])
+		elif parts[1] == "minigame_end":
+			print("  minigame %s: %s" % [data.get("name", ""), JSON.stringify(data)])
+	res.lines_said = said
+	res.choices = choices
+	print("  lines said %d, choices %s" % [said, " ".join(choices)])
+	var pk: Dictionary = load("res://src/minigames/poker_engine.gd").selftest()
+	if not pk.ok:
+		_fail(res, "poker self-test: %d failed" % pk.fails)
 	if md.completed.size() < MissionDirector.MISSIONS.size():
 		_fail(res, "completed %d/%d missions" % [md.completed.size(), MissionDirector.MISSIONS.size()])
 	var errs: Array = Game.error_logger.take().slice(err0)
