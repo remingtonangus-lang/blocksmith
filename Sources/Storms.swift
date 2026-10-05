@@ -262,6 +262,12 @@ extension Game {
             var y = Int(c.rainTop[lx + lz * CS])
             guard y > 0 && y < CH - 2 else { continue }
             if snowLayers(c.blocks[Chunk.index(lx, y, lz)]) > 0 { y -= 1 }
+            // Drifts left under a glass roof by the old sky-column pass settle back to one layer.
+            let hy = Int(c.height[lx + lz * CS])
+            if hy + 1 < y, hy > 0 {
+                let under = snowLayers(c.blocks[Chunk.index(lx, hy + 1, lz)])
+                if under > 1 { writes.append((lx, hy + 1, lz, Game.snowLayerIDs[under - 1])); fx.snowChanges += 1 }
+            }
             let cur = snowLayers(world.rawBlock(x, y + 1, z))
             if cur < 0 || (cur == 0 && !snowing) { continue }
             let top = world.rawBlock(x, y, z)

@@ -318,7 +318,10 @@ extension Game {
         // The grip point of a tool's icon (lower left, on the handle) sits in the hand.
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.2)
         let o = hand - ax * grip.x - ay * grip.y
-        ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0, overlay: ItemModels.overlay(held.item))
+        if !ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0, overlay: ItemModels.overlay(held.item)) {
+            // The model still being built (ItemModels.quads): the flat icon in its place for a frame or two.
+            wr.sprite(center: o, half: size * 0.5, right: simd_normalize(ax), up: simd_normalize(ay), layer: layer, light: light)
+        }
     }
 }
 
