@@ -147,10 +147,15 @@ func _body(body: int) -> void:
 		slot = 3; box(Vector3(0, 1.69, -0.12), Vector3(0.2, 0.015, 0.08))
 		slot = 2; limb(Vector3(0, 1.685, 0), Vector3(0, 1.705, 0), 0.118, 0.118, 10)
 	elif cinder:
-		# Bowl helmet with a brim, a gas mask with a filter canister.
+		# Domed helmet with a flared skirt over the neck and sides and a short visor ridge (a wide flat brim read
+		# as a conical straw hat), goggles over a gas mask with a filter canister.
 		slot = 7; blob(Vector3(0, 1.6, 0), Vector3(0.1, 0.12, 0.11))
-		slot = 2; blob(Vector3(0, 1.68, 0.0), Vector3(0.14, 0.08, 0.15) * bulk)
-		slot = 2; limb(Vector3(0, 1.655, 0), Vector3(0, 1.665, 0), 0.17 * bulk, 0.17 * bulk, 12)
+		slot = 2; blob(Vector3(0, 1.675, 0.005), Vector3(0.135, 0.095, 0.145) * bulk)
+		slot = 2; limb(Vector3(0, 1.655, 0.02), Vector3(0, 1.585, 0.035), 0.132 * bulk, 0.15 * bulk, 12)
+		slot = 3; box(Vector3(0, 1.665, -0.135 * bulk), Vector3(0.2, 0.025, 0.05))
+		slot = 0
+		for gx in [-0.045, 0.045]:
+			blob(Vector3(gx, 1.62, -0.1), Vector3(0.035, 0.03, 0.02))
 		slot = 0; blob(Vector3(0, 1.58, -0.08), Vector3(0.08, 0.07, 0.06))
 		slot = 0; limb(Vector3(0, 1.55, -0.12), Vector3(0, 1.52, -0.2), 0.035, 0.035, 8)
 		slot = 0; box(Vector3(0.0, 1.63, -0.105), Vector3(0.12, 0.035, 0.02))

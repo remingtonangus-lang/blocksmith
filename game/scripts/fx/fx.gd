@@ -337,8 +337,12 @@ func _process(delta: float) -> void:
 		_warm += 1
 		if _warm % 10 == 1:
 			var at := cam.global_position - cam.global_transform.basis.z * 6.0
+			# Microscopic as well as transparent: the colour ramp can override the emitted alpha, and a warm-up
+			# cloud particle showed as a grey column in shots.
+			var tiny := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.0005), at)
 			for ps in [dust, sparks, smoke, cloud, fire, blood_p, debris]:
-				_emit(ps, at, Vector3.ZERO, Color(1, 1, 1, 0))
+				(ps as GPUParticles3D).emit_particle(tiny, Vector3.ZERO, Color(1, 1, 1, 0), Color(),
+					GPUParticles3D.EMIT_FLAG_POSITION | GPUParticles3D.EMIT_FLAG_ROTATION_SCALE | GPUParticles3D.EMIT_FLAG_VELOCITY | GPUParticles3D.EMIT_FLAG_COLOR)
 	# Tracers fly at 850 m/s and draw as 9 m streaks.
 	var k := 0
 	for i in TRACERS:
