@@ -77,20 +77,24 @@ extension Mob {
         if !baby && (v.food ?? 0) >= 12 && breedCooldown <= 0,
            let mate = g.mobs.mobs.first(where: { $0 !== self && $0.kind == .villager && !$0.baby && $0.breedCooldown <= 0
                                                  && ($0.villager?.food ?? 0) >= 12 && simd_length($0.pos - pos) < 8 }) {
-            let beds = g.mobs.mobs.filter { $0.kind == .villager }.count
-            var freeBed = false
-            for dz in -16...16 where !freeBed { for dx in -16...16 where !freeBed { for dy in -3...3 {
-                if Blocks.key(Blocks.groupBase[Int(w.block(c.x + dx, c.y + dy, c.z + dz))]).hasSuffix("_bed_head") {
-                    freeBed = beds < 64; break
+            // A bed nobody has claimed (reference takeVacantBed: the baby gets it). Any bed in range used to do, so one
+            // bed let a village breed to 64.
+            let claimed = Set(g.mobs.mobs.compactMap { $0.villager?.bed }.map { IVec3($0[0], $0[1], $0[2]) })
+            var freeBed: IVec3?
+            for dz in -16...16 where freeBed == nil { for dx in -16...16 where freeBed == nil { for dy in -3...3 {
+                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                if Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_bed_head") && !claimed.contains(q) {
+                    freeBed = q; break
                 }
             } } }
-            if freeBed {
+            if let bed = freeBed {
                 v.food = (v.food ?? 0) - 12
                 if var mv = mate.villager { mv.food = (mv.food ?? 0) - 12; mate.villager = mv }
                 breedCooldown = 300; mate.breedCooldown = 300
                 let kid = Mob(.villager, at: (pos + mate.pos) * 0.5)
                 kid.baby = true; kid.scale = 0.5
                 var kv = VillagerData(); kv.type = v.type
+                kv.bed = [bed.x, bed.y, bed.z]
                 kid.villager = kv
                 g.mobs.mobs.append(kid)
                 g.particles.hearts(at: kid.pos + V3(0, 1, 0))

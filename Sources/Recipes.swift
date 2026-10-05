@@ -546,6 +546,24 @@ enum Recipes {
         return m
     }()
 
+    // Experience per item smelted (reference values by result; food 0.35, most building blocks 0.1).
+    static func smeltXP(_ out: ItemID) -> Float {
+        let k = Items.key(out)
+        switch k {
+        case "iron_ingot", "copper_ingot": return 0.7
+        case "gold_ingot", "diamond", "emerald", "green_dye": return 1
+        case "netherite_scrap": return 2
+        case "redstone", "brick": return 0.3
+        case "lapis_lazuli", "quartz": return 0.2
+        case "charcoal", "sponge": return 0.15
+        case "terracotta": return 0.35
+        default: break
+        }
+        if Items.def(out).food != nil { return k == "dried_kelp" ? 0.1 : 0.35 }
+        if k.hasSuffix("_terracotta") && !k.hasSuffix("glazed_terracotta") { return 0.35 }
+        return 0.1
+    }
+
     static func smelt(_ i: ItemID) -> ItemID? {
         if smelting[Items.key(i)] == nil, let r = smeltingExtra[Items.key(i)], Items.has(r), r != Items.key(i) { return Items.id(r) }
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }

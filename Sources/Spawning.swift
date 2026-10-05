@@ -129,7 +129,7 @@ extension MobManager {
         passiveTimer -= dt
         if passiveTimer <= 0 {
             passiveTimer = 20
-            if w.dim == .overworld && count(.creature, near: p) < SpawnCategory.creature.cap { trySpawnPassive(game) }
+            if w.dim == .overworld && count(.creature, near: p) < cap(.creature, w) { trySpawnPassive(game) }
         }
         populateTimer -= dt
         if populateTimer <= 0 { populateTimer = 1; populateChunks(game) }
@@ -137,11 +137,18 @@ extension MobManager {
         if hostileTimer <= 0 {
             hostileTimer = 0.25
             if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent && $0.kind.category == .monster } }
-            if game.survival && game.difficulty > 0 && count(.monster, near: p) < SpawnCategory.monster.cap {
+            if game.survival && game.difficulty > 0 && count(.monster, near: p) < cap(.monster, w) {
                 for _ in 0..<4 { trySpawnHostile(game) }
             }
             trySpawnWaterAndAmbient(game)
         }
+    }
+
+    // Reference mob caps scale with the spawnable area: (2 x render distance + 1)^2 chunks out of the 17 x 17 at 8 (a flat
+    // 70 monsters crowded into a small area at low render distances).
+    func cap(_ c: SpawnCategory, _ w: World) -> Int {
+        let rd = max(1, min(8, w.renderDistance))
+        return max(1, c.cap * (2 * rd + 1) * (2 * rd + 1) / 289)
     }
 
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
@@ -257,7 +264,7 @@ extension MobManager {
         if w.dim == .nether { trySpawnEmberdeep(game); return }
         if w.dim == .end { trySpawnEnd(game); return }
         let pp = game.player.pos
-        guard count(.monster, near: pp) < SpawnCategory.monster.cap else { return }
+        guard count(.monster, near: pp) < cap(.monster, w) else { return }
         let rd = min(w.renderDistance, 8)
         let pcx = floorDiv(Int(floor(pp.x)), CS), pcz = floorDiv(Int(floor(pp.z)), CS)
         let x0 = (pcx + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
@@ -297,7 +304,7 @@ extension MobManager {
                 groupSize -= 1
                 if groupSize <= 0 { break }
             }
-            if count(.monster, near: pp) >= SpawnCategory.monster.cap { return }
+            if count(.monster, near: pp) >= cap(.monster, w) { return }
         }
     }
 
@@ -452,31 +459,37 @@ extension MobManager {
                 // Surface water: squid / dolphins (water creature) or fish (water ambient).
                 guard let e = Spawns.pick(Spawns.water(b)) else { return }
                 let cat = e.kind.category
-                guard count(cat, near: pp) < cat.cap else { return }
+                guard count(cat, near: pp) < cap(cat, w) else { return }
                 spawnSwimmers(w, e.kind, x, y, z, Rand.int(in: e.min...e.max))
             } else if y <= SEA - 33 && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block == 0 {
-                if b == .lushCaves && Blocks.key(w.block(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < SpawnCategory.axolotls.cap {
+                if b == .lushCaves && Blocks.key(w.block(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < cap(.axolotls, w) {
                     spawnSwimmers(w, .axolotl, x, y, z, Rand.int(in: 4...6))
-                } else if count(.undergroundWater, near: pp) < SpawnCategory.undergroundWater.cap {
+                } else if count(.undergroundWater, near: pp) < cap(.undergroundWater, w) {
                     spawnSwimmers(w, .glowSquid, x, y, z, Rand.int(in: 2...4))
                 }
-            } else if b == .lushCaves && count(.waterAmbient, near: pp) < SpawnCategory.waterAmbient.cap {
+            } else if b == .lushCaves && count(.waterAmbient, near: pp) < cap(.waterAmbient, w) {
                 spawnSwimmers(w, .tropicalFish, x, y, z, 8)
             }
             return
         }
         // Bats: below sea level, a coin flip, then light <= random 0...3 (reference Halloween rule not modelled).
-        if id == AIR && y < SEA && Rand.bool() && count(.ambient, near: pp) < SpawnCategory.ambient.cap {
+        if id == AIR && y < SEA && Rand.bool() && count(.ambient, near: pp) < cap(.ambient, w) {
             let l = w.lightAt(x, y, z)
             if max(l.block, l.sky) <= Rand.int(in: 0..<4) && !Blocks.collide[Int(w.block(x, y + 1, z))] {
                 let bat = Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 if !bat.collides(bat.pos, w) { mobs.append(bat) }
             }
         }
-        // Nightwings: at night, over a player who hasn't slept for 3+ days (reference insomnia odds).
-        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Rand.float(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
-           mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(SEA) {
-            let n = 1 + Rand.int(in: 0...(game.difficulty + 1))
+        // Nightwings over a player who hasn't slept for 3+ days (reference PhantomSpawner): one check every 60-119 s
+        // (this runs every 0.25 s), passing a local-difficulty roll and insomnia odds (t - 3 days) / t; 1 to
+        // 1 + difficulty of them, no cap. It rolled every 0.25 s: about ten times too many.
+        phantomTimer -= 0.25
+        let rest = Float(game.timeSinceRest)
+        if phantomTimer <= 0 { phantomTimer = Rand.float(in: 60..<120) } else { return }
+        if game.survival && game.daylight < 0.3 && rest > 3600 && game.effectiveDifficulty > Rand.float(in: 0..<3)
+            && Rand.float(in: 0..<1) < (rest - 3600) / rest,
+           game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(SEA) {
+            let n = 1 + Rand.int(in: 0...max(0, game.difficulty))
             for _ in 0..<n {
                 mobs.append(Mob(.phantom, at: pp + V3(Rand.float(in: -10...10), 20 + Rand.float(in: 0...14), Rand.float(in: -10...10))))
             }
