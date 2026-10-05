@@ -535,10 +535,10 @@ fragment float4 entityFS(EntOut in [[stage_in]],
         float aR = tex.sample(texSampler, in.uv + float2(px.x * d, 0), L).a, aL = tex.sample(texSampler, in.uv - float2(px.x * d, 0), L).a;
         float aD = tex.sample(texSampler, in.uv + float2(0, px.y * d), L).a, aU = tex.sample(texSampler, in.uv - float2(0, px.y * d), L).a;
         float2 g = float2(aR - aL, aD - aU);
-        if (min(min(aR, aL), min(aD, aU)) < 0.5 && dot(g, g) > 1e-4) {
-            float4 inner = tex.sample(texSampler, in.uv + normalize(g) * px * (d + 1.0), L);
-            if (inner.a > 0.5) { rgb = inner.rgb; }
-        }
+        bool edge = min(min(aR, aL), min(aD, aU)) < 0.5 && dot(g, g) > 1e-4;
+        // (Sampled outside the per-pixel branch: implicit mip derivatives need every pixel of the quad to sample.)
+        float4 inner = tex.sample(texSampler, in.uv + (edge ? normalize(g) : float2(0.0)) * px * (d + 1.0), L);
+        if (edge && inner.a > 0.5) { rgb = inner.rgb; }
     }
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)
     rgb *= in.color.rgb;
