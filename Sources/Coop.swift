@@ -540,8 +540,10 @@ enum CoopTest {
         check(hp2 < 20 && g.health == hp1, "a blast beside player 2 hurts player 2 (\(hp2)) and not player 1 (\(g.health))")
         // An enemy round fired at player 2 hits player 2 (rounds flew only in player 1's turn and only hit player 1).
         c.withSeat(1, g) { g.health = 20; g.lastHurtAt = -10 }
-        let chest2: V3 = spot + V3(0, 1, 0)
-        g.arms.slugs.append(Slug(pos: chest2 + V3(5, 0, 0), vel: V3(-60, 0, 0), kind: .bullet, damage: 3, fromPlayer: false,
+        // Straight down from over their head: player 2 stands on the column's top block, so the line is open sky (fired
+        // across from the side, a hill or a trunk could stop it first).
+        let above2: V3 = c.seatPlayer(1, g).pos + V3(0, 6, 0)
+        g.arms.slugs.append(Slug(pos: above2, vel: V3(0, -60, 0), kind: .bullet, damage: 3, fromPlayer: false,
                                  shooter: nil, by: "a test", life: 2, gravity: 0))
         for _ in 0..<12 { g.tick(1.0 / 60) }
         var shot2 = 20
