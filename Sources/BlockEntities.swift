@@ -52,7 +52,7 @@ final class BlockEntity: Codable {
         if k == .frame { delay = 0 }
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
@@ -73,6 +73,11 @@ final class BlockEntity: Codable {
         if kind == .frame || kind == .lectern { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
         if kind == .shelf { level = Int((try? c.decode(Float.self, forKey: .delay)) ?? 0) }
         patterns = (try? c.decode([Int].self, forKey: .pat)) ?? []
+        // A proving spawner's cooldown and round, and a campfire's cooking (a reload reset them: a beaten spawner fought
+        // and rewarded again at once, raw food cooked instantly).
+        cooldown = (try? c.decode(Float.self, forKey: .cd)) ?? 0
+        spawned = (try? c.decode(Int.self, forKey: .sp)) ?? 0
+        if let k = try? c.decode([Int].self, forKey: .cooks), k.count == 4 { cooks = k }
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -90,6 +95,9 @@ final class BlockEntity: Codable {
         if kind == .frame || kind == .lectern { try c.encode(delay, forKey: .delay) }
         if kind == .shelf { try c.encode(Float(level), forKey: .delay) }
         if !patterns.isEmpty { try c.encode(patterns, forKey: .pat) }
+        if cooldown != 0 { try c.encode(cooldown, forKey: .cd) }
+        if spawned != 0 { try c.encode(spawned, forKey: .sp) }
+        if kind == .campfire && cooks.contains(where: { $0 != 0 }) { try c.encode(cooks, forKey: .cooks) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.
