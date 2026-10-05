@@ -122,4 +122,13 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   run of 6f459b3; ~25 s of real time for ~20 min of game time). Merged into claude/blocksmith-playtest.
 - Also fixed on the way: crawlers rest on the real ground where it is loaded (the generator's height misses carved
   valleys), riders of a long hull stay simulated at its far end (frigate bow crew were stashed with their chunk).
-- Next (same session): destruction physics and persistent wrecks (branch claude/bs-destruction, notes to follow here).
+- 2026-10-05: riding merged into claude/blocksmith-playtest at c181086 (rebased on 639eb75; ride check PASS, 10 scenes).
+  Fixed on the way: troops leaving by the crawler's ramp (a mob without a deck boards by the player's holds; a hull
+  shoving mobs tests the overlap exactly in its frame and lifts at most a stair step; riders carried into the ground
+  beside the hull step up).
+- 2026-10-05: destruction and wrecks: `--collapsecheck` PASS on e40799a (9 scenes: bridge, mine, tower, stands,
+  massive, desert, frigate, wreck, dropship). Support search 1.4 ms for a 60-high tower, 3.4 ms for a capped 6000-cell
+  search; laying a 10k-block frigate hull down 37 ms (was 70). Full heavy run next, then the merge.
+- Open: a Capital base has 34 blocks the support analysis finds unsupported untouched (capital stone and trim, light
+  panels; the main tower's landing pad reaches ~22 blocks off the terrace, capital stone spans 14, and its braces hang
+  from the pad rather than running to the tower wall). `--structcheck` unstable class measures it per structure.
