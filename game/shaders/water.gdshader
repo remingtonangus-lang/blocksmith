@@ -105,7 +105,7 @@ void fragment() {
 	EMISSION = mix(body * (1.0 - foam), horizon_fog.rgb, haze_k);
 	ROUGHNESS = mix(0.03 + sea_state * 0.05 + weather_wetness * 0.06, 0.8, foam);
 	METALLIC = 0.0;
-	SPECULAR = 0.5;
+	SPECULAR = 0.5 * (1.0 - haze_k);   // sun glints fade into the fog with everything else
 	NORMAL = nv;
 	ALPHA = 1.0;
 }

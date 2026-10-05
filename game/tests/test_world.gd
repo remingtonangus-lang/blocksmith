@@ -48,6 +48,12 @@ func run(t) -> void:
 			if p.y > 0.5:
 				worst = maxf(worst, p.y - g.height_at(p.x, p.z) - (p.y - pts[i + 1].y))
 		t.check(worst < 9.0, "river surface stays on its channel (max %.1f m above the ground beyond the local drop)" % worst)
+	# No road is buried by another one carved later over the same corridor (Front Track sat 18 m under Red Track's).
+	var buried := 0.0
+	for r in g.roads:
+		for p in (r["pts"] as PackedVector3Array):
+			buried = minf(buried, p.y - g.height_at(p.x, p.z))
+	t.check(buried > -1.5, "roads stay on the ground (lowest %.1f m)" % buried)
 	# Determinism: a second generator with the same seed agrees.
 	var g2 := WorldGen.new(1337)
 	t.near(g2.base_height(1234.5, -987.25), g.base_height(1234.5, -987.25), 0.0001, "base height deterministic")

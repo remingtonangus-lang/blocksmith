@@ -226,7 +226,9 @@ func _update(delta: float) -> void:
 	var hz := Color(0.58, 0.66, 0.78).lerp(Color(0.5, 0.52, 0.55), cloud_cover * 0.7) * lerpf(0.02, 1.0, daylight) * (1.0 - cloud_dark * 0.55)
 	if sun_up > -0.1 and sun_up < 0.2:
 		hz = hz.lerp(Color(0.9, 0.6, 0.4) * hz.get_luminance() * 1.6, (1.0 - absf(sun_up - 0.05) / 0.15) * 0.5)
-	RenderingServer.global_shader_parameter_set("horizon_fog", Vector4(hz.r, hz.g, hz.b, 0.000045 * haze + fog_extra))
+	# The water fogs itself: match the terrain's exponential + height fog (3x fog_extra) so rivers and the sea do not
+	# stand out bright and clear in fog weather.
+	RenderingServer.global_shader_parameter_set("horizon_fog", Vector4(hz.r, hz.g, hz.b, 0.000045 * haze + fog_extra * 3.5))
 	if Settings.has_arg("noambient"):
 		env.ambient_light_energy = 0.0
 		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED

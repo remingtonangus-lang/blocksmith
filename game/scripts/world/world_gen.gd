@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 11
+const GEN_VERSION := 12
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -534,6 +534,7 @@ func _build_roads() -> void:
 			elif water[_tx(wz + 64.0) * N + _tx(wx)] > -100.0 or water[_tx(wz - 64.0) * N + _tx(wx)] > -100.0 or water[_tx(wz) * N + _tx(wx + 64.0)] > -100.0 or water[_tx(wz) * N + _tx(wx - 64.0)] > -100.0:
 				cost += 4.0
 			astar.set_point_weight_scale(Vector2i(gx, gz), cost)
+	_road_grid = {}
 	for r in ROADS:
 		var a: Vector2 = SITE_XZ[r[0]]
 		var b: Vector2 = SITE_XZ[r[1]]
@@ -552,7 +553,8 @@ func _build_roads() -> void:
 		for k in 3:
 			pts = _chaikin(pts)
 		pts = _resample(pts, 10.0)
-		roads.append(_road_profile(pts, r[2], r[3]))
+		roads.append(_road_profile(pts, r[2], r[3], _road_grid))
+		_index_road(roads[roads.size() - 1])
 	for road in roads:
 		_carve_road(road)
 		var pts: PackedVector3Array = road["pts"]
@@ -593,8 +595,36 @@ func _resample(p: PackedVector2Array, step: float) -> PackedVector2Array:
 	return out
 
 
-## Heights along the road: smoothed terrain, grades limited to 9 %, bridges held above rivers.
-func _road_profile(pts: PackedVector2Array, name: String, faction: String) -> Dictionary:
+var _road_grid := {}                    # 16 m cell -> [Vector3 road point...] of the roads built so far
+
+
+func _index_road(road: Dictionary) -> void:
+	for p in (road["pts"] as PackedVector3Array):
+		var k := Vector2i(floori(p.x / 16.0), floori(p.z / 16.0))
+		if not _road_grid.has(k):
+			_road_grid[k] = []
+		(_road_grid[k] as Array).append(p)
+
+
+## Height of an earlier road within 14 m of (x, z), or NAN. Roads that share a corridor must share a height:
+## Red Track once carved its own profile 18 m above Front Track's where A* sent both down one valley.
+func _road_pin(x: float, z: float) -> float:
+	var best := 14.0
+	var y := NAN
+	var c := Vector2i(floori(x / 16.0), floori(z / 16.0))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			for p in _road_grid.get(c + Vector2i(dx, dz), []):
+				var d := Vector2(p.x - x, p.z - z).length()
+				if d < best:
+					best = d
+					y = p.y
+	return y
+
+
+## Heights along the road: smoothed terrain, grades limited to 9 %, bridges held above rivers, pinned to earlier
+## roads where they overlap.
+func _road_profile(pts: PackedVector2Array, name: String, faction: String, grid: Dictionary = {}) -> Dictionary:
 	var n := pts.size()
 	var h := PackedFloat32Array()
 	h.resize(n)
@@ -612,20 +642,27 @@ func _road_profile(pts: PackedVector2Array, name: String, faction: String) -> Di
 			for k in range(maxi(0, i - 3), mini(n, i + 4)):
 				br[k] = 1
 	bridge = br
+	var pin := PackedFloat32Array()
+	pin.resize(n)
+	for i in n:
+		pin[i] = _road_pin(pts[i].x, pts[i].y) if not grid.is_empty() else NAN
 	for pass_i in 4:
 		var sm := h.duplicate()
 		for i in range(2, n - 2):
 			sm[i] = (h[i - 2] + h[i - 1] * 2.0 + h[i] * 2.0 + h[i + 1] * 2.0 + h[i + 2]) / 8.0
 		h = sm
+		for i in n:
+			if not is_nan(pin[i]):
+				h[i] = pin[i]
 	for i in n:
-		if bridge[i] == 1:
+		if bridge[i] == 1 and is_nan(pin[i]):
 			var w := maxf(water[_tx(pts[i].y) * N + _tx(pts[i].x)], 0.0)
 			h[i] = maxf(h[i], w + 7.0)
 	var grade := 0.09 * 10.0
 	for i in range(1, n):
-		h[i] = clampf(h[i], h[i - 1] - grade, h[i - 1] + grade)
+		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i - 1] - grade, h[i - 1] + grade)
 	for i in range(n - 2, -1, -1):
-		h[i] = clampf(h[i], h[i + 1] - grade, h[i + 1] + grade)
+		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i + 1] - grade, h[i + 1] + grade)
 	var out := PackedVector3Array()
 	for i in n:
 		out.append(Vector3(pts[i].x, h[i], pts[i].y))
