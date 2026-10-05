@@ -832,7 +832,7 @@ final class Mob {
                 speed = spec.speed * 2
                 // Far from its target, an angry voidwalker blinks closer (reference teleport-towards).
                 if dist > 16 && Rand.float(in: 0..<1) < dt * 0.5 {
-                    let back = simd_normalize(V3(pos.x - player.x, 0, pos.z - player.z))
+                    let back = simd_normalize(V3(pos.x - player.x + 1e-4, 0, pos.z - player.z))     // straight above: no NaN
                     let to = player + back * Rand.float(in: 3...8)
                     let x = Int(floor(to.x)), z = Int(floor(to.z))
                     let top = w.topY(x, z)
@@ -931,6 +931,8 @@ final class Mob {
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
+            if abs(vel.x) < 1e-5 { vel.x = 0 }          // settled: no subnormal tail for `!= 0` tests to see
+            if abs(vel.z) < 1e-5 { vel.z = 0 }
         }
         if kind == .drowned && inWater && canTarget {
             vel.y += ((player.y - pos.y) * 2 - vel.y) * min(1, dt * 3)
@@ -975,7 +977,9 @@ final class Mob {
                 while up <= 1.01 && collides(l + V3(0, up, 0), w) { up += 0.1 }
                 if up <= 1.01 { l.y += up; pos = s.toWorld(l) }
             }
-            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
+            // A length test, not `!= 0`: a crew member's velocity decays geometrically into subnormal floats at its post,
+            // and normalizing those gave NaN, which trapped in the collision test (Int(floor(NaN)); level frigate decks).
+            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && lv.x * lv.x + lv.z * lv.z > 1e-6 {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
                 let h = simd_normalize(V2(lv.x, lv.z))
                 let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)

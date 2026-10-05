@@ -994,7 +994,8 @@ extension ShipManager {
             let dist = max(1, simd_length(toHome))
             let r: Float = s.role == "capfrigate" ? 240 : 420          // the Capital frigate keeps station over its citadel
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
-            want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
+            let steer: V2 = tangent + toHome * ((dist - r) / (r * dist))
+            want = simd_normalize(steer + V2(1e-4, 0))                  // at home exactly: no NaN
         }
         if let k = st.testTurn {
             want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
@@ -1056,7 +1057,8 @@ extension ShipManager {
             let dist = max(1, simd_length(toHome))
             let r: Float = 140
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
-            want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
+            let steer: V2 = tangent + toHome * ((dist - r) / (r * dist))
+            want = simd_normalize(steer + V2(1e-4, 0))                  // at home exactly: no NaN
         }
         if let k = st.testTurn {
             want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
