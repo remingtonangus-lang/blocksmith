@@ -142,7 +142,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1000, path.get_file()])
-	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
+	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s (cover %.2f dark %.2f rain %.2f)  ~%.1f ms/frame" % [path, px,
+		cam.global_position.y, pz, yaw, pitch, hour, weather, main.sky.cover, main.sky.dark, main.sky.rain, ft])
 
 var _horse: Horse
 
