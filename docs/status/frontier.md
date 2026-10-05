@@ -106,6 +106,11 @@ runner, Metal) and the Mac monitor.
   choices remembered in camp talk and other strangers; fishing, hunting, poker, glass balls, sneaking, a runaway
   Locomobile), eighteen roadside encounter kinds (`src/ai/encounters.gd`, `--bot encounters`), and a journal page per
   mission in Ruth's voice with ink sketches drawn in code (`src/missions/journal.gd`; `--journal_all` for shots).
+- **World reactivity** (`src/systems/social.gd`, `newspaper.gd`, `social.json`, `newspaper.json`): greet / antagonize
+  (T: insult → shove → draw or flee) / defuse (N) with lines by voice and Standing band; gossip and reactive barks
+  from flags, crimes, bounties, weather and hour (lawmen eye a wanted Ruth, shop clerks remember robberies); 5¢
+  newspapers per town with dated front pages (32 story templates + weather, markets, ads, notices); five companion
+  missions (`src/missions/companions/`) that change camp talk. `--bot social`.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

@@ -61,7 +61,7 @@ func react(h: Node) -> void:
 	var b = h.brain
 	if b.state in [b.State.SURRENDER, b.State.COMBAT, b.State.FLEE]:
 		return
-	var armed: bool = h.gun != null and not h.gun.weapons.is_empty()
+	var armed: bool = h.get("holder") != null or str(h.role) in ["lawman", "rancher", "gambler", "gunman", "hunter", "drover", "cowhand"]
 	if h.faction == "law" or (armed and b.bravery > 0.5):
 		b.aggressive = true
 		b.target = Game.player
@@ -87,6 +87,8 @@ func rob(h: Node) -> float:
 		Game.state.add_item(loot)
 	Game.state.crime("robbery", h.global_position, h)
 	history.append({"kind": "holdup", "cash": cash, "loot": loot})
+	if Game.has_meta("news"):
+		Game.get_meta("news").record("holdup", {"cash": cash})
 	Game.log_event("robbed", {"npc": str(h.name), "cash": cash, "loot": loot})
 	Game.say("Took $%.2f%s." % [cash, (" and " + loot.replace("_", " ")) if loot != "" else ""], 3.0)
 	# let them go: they run for the law once Ruth turns her back
@@ -113,6 +115,8 @@ func rob_shop(shop: Node) -> float:
 	Game.state.crime("robbery", shop.global_position, null)
 	robbed_shops[str(shop.get_path())] = (Game.sky.day if Game.sky else 0) + 3
 	history.append({"kind": "store", "cash": take, "shop": shop.kind})
+	if Game.has_meta("news"):
+		Game.get_meta("news").record("store_robbery", {"town": shop.town_id, "shop": shop.kind, "take": take})
 	Game.log_event("store_robbed", {"shop": shop.kind, "town": shop.town_id, "take": take})
 	Game.say("The clerk empties the till: $%.2f. Better ride." % take, 4.0)
 	return take

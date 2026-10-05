@@ -10,6 +10,15 @@ var requires: Array[String] = []
 var start_pos := Vector3.ZERO      # where the mission marker sits in the world (empty = starts automatically)
 var stranger := false              # a side story: never chained, started at its marker
 var region := ""                   # where it happens (journal)
+var needs_flags := {}              # story flags that must hold too (a companion recruited and alive): {flag: value}
+var companion := ""                # a companion's personal mission (camp marker, journal)
+
+func flags_ok() -> bool:
+	for k in needs_flags.keys():
+		var v = Game.state.flags.get(k) if Game.state else null
+		if v == null or v != needs_flags[k]:
+			return false
+	return true
 
 func run(_d) -> Variant:
 	return true

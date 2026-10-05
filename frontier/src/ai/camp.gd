@@ -557,6 +557,10 @@ func selftest() -> Dictionary:
 		["paid Pip's debt", base.call(["billy", "hap"], {"flags": {"paid_pip_debt": true}}), "pip"],
 		["faced Rourke down", base.call(["billy", "del"], {"flags": {"paid_pip_debt": false}}), "pip_rourke"],
 		["a share in the Locomobile", base.call(["billy", "hap"], {"flags": {"invested_pettigrew": true}}), "locomobile"],
+		["Del stayed", base.call(["del", "billy"], {"flags": {"del_marker": "ticket"}}), "del_stays"],
+		["Doc answered the letter", base.call(["doc", "hap"], {"flags": {"doc_letter": "answered"}}), "doc_letter"],
+		["Joseph said his piece", base.call(["joseph"], {"chapter": 4, "flags": {"joseph_trail": "refused"}}), "joseph_own"],
+		["Billy's colt", base.call(["billy", "hap"], {"flags": {"billy_colt": "taken"}}), "billy_example"],
 	]
 	for cs in cases:
 		var got: Dictionary = pick_conversation(cs[1])
@@ -584,6 +588,12 @@ func selftest() -> Dictionary:
 		["billy", {"flags": {"posed_for_novel": true}}, "camp_billy_novel"],
 		["hap", {"flags": {"spared_partner": false}}, "camp_hap_widow_alone"],
 		["joseph", {"flags": {"field_book_to_fenn": true}}, "camp_joseph_map"],
+		["hap", {"flags": {"hap_crew": "sang"}}, "camp_hap_crew_sang"],
+		["hap", {"flags": {"hap_crew": "wire"}}, "camp_hap_crew_wire"],
+		["joseph", {"flags": {"joseph_trail": "false"}}, "camp_joseph_false"],
+		["billy", {"flags": {"billy_colt": "paid"}}, "camp_billy_paid"],
+		["del", {"flags": {"del_marker": "paid"}}, "camp_del_paid"],
+		["doc", {"flags": {"doc_letter": "burned", "doc_sober": true}}, "camp_doc_burned"],
 	]
 	for bc in bark_cases:
 		var seen := false

@@ -65,6 +65,11 @@ const MISSIONS := [
 	"res://src/missions/strangers/cold_water_pledge.gd",
 	"res://src/missions/strangers/the_surveyor.gd",
 	"res://src/missions/strangers/doctor_marvel.gd",
+	"res://src/missions/companions/hymns_for_the_crew.gd",
+	"res://src/missions/companions/dels_marker.gd",
+	"res://src/missions/companions/letter_from_philadelphia.gd",
+	"res://src/missions/companions/a_horse_of_his_own.gd",
+	"res://src/missions/companions/two_rivers.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -110,6 +115,13 @@ func _ready() -> void:
 		if FileAccess.file_exists(path):
 			_load_dialogue(path)
 	_load_dialogue("res://design/dialogue/strangers.json")
+	_load_dialogue("res://design/dialogue/companions.json")
+	# world reactivity systems (social talk + gossip, newspapers); main.gd may add them itself later
+	for sys in [["social", "res://src/systems/social.gd"], ["news", "res://src/systems/newspaper.gd"]]:
+		if not Game.has_meta(sys[0]):
+			var n: Node = load(sys[1]).new()
+			n.name = "Sys_" + sys[0]
+			add_child.call_deferred(n)
 	if Game.args.has("pokertest"):
 		_pokertest.call_deferred()
 
@@ -139,7 +151,7 @@ func available() -> Array:
 		var m: Mission = load(path).new()
 		if completed.has(m.id):
 			continue
-		var ok := true
+		var ok := m.flags_ok()
 		for req in m.requires:
 			if not completed.has(req):
 				ok = false
@@ -479,7 +491,7 @@ func _strangers_tick(dt: float) -> void:
 				var sm: Mission = load(path).new()
 				if sm.stranger and sm.start_pos != Vector3.ZERO:
 					_stranger_all.append(sm)
-		_stranger_list = _stranger_all.filter(func(m): return not completed.has(m.id) and m.requires.all(func(r): return completed.has(r)))
+		_stranger_list = _stranger_all.filter(func(m): return not completed.has(m.id) and m.flags_ok() and m.requires.all(func(r): return completed.has(r)))
 		var ids := _stranger_list.map(func(m): return m.id)
 		for k in _stranger_marks.keys():
 			if not ids.has(k) or active != null:
