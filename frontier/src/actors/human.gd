@@ -267,7 +267,7 @@ func shoot_at(p: Vector3, accuracy_scale: float) -> bool:
 		return false
 	var muzzle := global_position + Vector3(0, 1.42, 0) + Vector3(-sin(facing), 0, -cos(facing)) * 0.35
 	var dir := (p - muzzle).normalized()
-	gun.fire(muzzle, dir, true, accuracy_scale * 2.0)
+	gun.fire(muzzle, dir, true, accuracy_scale)
 	# flash at the visible gun's real muzzle when a WeaponHolder shows one (ballistics keep `muzzle`)
 	if holder and holder.has_drawn_model():
 		var mt := holder.muzzle_transform()

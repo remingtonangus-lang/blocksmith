@@ -100,8 +100,8 @@ func setup(quality: Dictionary) -> void:
 	env.volumetric_fog_sky_affect = 0.0
 	env.volumetric_fog_temporal_reprojection_enabled = true
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.06
-	env.adjustment_contrast = 1.04
+	env.adjustment_saturation = 1.08       # AgX is gentle: a little more contrast/colour keeps daylight from reading milky
+	env.adjustment_contrast = 1.12
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
 	cam_attr = CameraAttributesPractical.new()
@@ -303,7 +303,7 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	moon.light_energy = 0.07 * phase_lit * moon_up * clampf(1.0 - cover * 0.8, 0.1, 1.0)
 	moon.visible = moon.light_energy > 0.002
 	var night := 1.0 - sun_up
-	env.ambient_light_energy = lerpf(0.72, 0.6, night) * (1.0 - dark * 0.35) * (1.0 + cover * 0.4)
+	env.ambient_light_energy = lerpf(0.56, 0.6, night) * (1.0 - dark * 0.35) * (1.0 + cover * 0.55)
 	env.ambient_light_sky_contribution = 1.0
 	# fog colour = horizon colour (aerial perspective), heavier in fog/rain/dust
 	var fogc := Color((hor.x + hor_sun.x) * 0.5, (hor.y + hor_sun.y) * 0.5, (hor.z + hor_sun.z) * 0.5)

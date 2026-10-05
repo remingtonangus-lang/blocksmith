@@ -524,7 +524,7 @@ func _memory() -> Dictionary:
 ## What each bot actually exercised, for the summary line (critics read these; zeros must mean something).
 static func _metrics(res: Dictionary) -> String:
 	var out := ""
-	for k in ["enemies", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
+	for k in ["enemies", "enemy_shots", "enemy_hits", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
 			"npcs", "npc_minutes", "pelt_quality", "kills", "skinned", "lines_said", "stances", "slide_cm"]:
 		if res.has(k):
 			var v = res[k]

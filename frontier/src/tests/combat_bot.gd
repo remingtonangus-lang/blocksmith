@@ -12,8 +12,7 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 	var w: WorldData = Game.world
 	var tree := runner.get_tree()
 	# open country near the outfit camp with some cover (trees / terrain)
-	var c := w.poi("caddell_camp")
-	var center := Vector3(c.x + 120.0, 0, c.z - 60.0)
+	var center := _arena(w, Vector3(500.0, 0, 1500.0))     # open plains, away from towns and camps
 	center.y = w.height(center.x, center.z) + 1.0
 	Game.terrain.ensure_collision_at(center)
 	player.global_position = center
@@ -36,9 +35,15 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 			"name": "Shale Rider", "weapon": ["lockhart_sa", "merriman_lever", "calder_double"][i], "skill": 0.45})
 		enemies.append(h)
 		group.append(h)
+	var enemy_shots := [0]
+	var enemy_hits := [0]
 	for h in enemies:
 		h.brain.group = group
+		h.gun.fired.connect(func(_id, _o, _d): enemy_shots[0] += 1)
+		h.gun.hit_landed.connect(func(info): if info.get("target") == player.damageable: enemy_hits[0] += 1)
 	res.enemies = enemies.size()
+	res["enemy_shots"] = 0
+	res["enemy_hits"] = 0
 	var hits_taken := [0]
 	player.damageable.damaged.connect(func(_i): hits_taken[0] += 1)
 	var player_hits := [0]
@@ -54,6 +59,9 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 		var dt := runner.get_physics_process_delta_time()
 		t += dt
 		var alive := enemies.filter(func(e): return is_instance_valid(e) and e.alive)
+		if Game.args.has("debug_fight") and int(t * 60.0) % 300 == 0:
+			for e in alive:
+				print("  t=%.0f %s state=%s target=%s dist=%.0f pos=%s" % [t, e.name, e.brain.State.keys()[e.brain.state], str(e.brain.target.name) if e.brain.target else "-", e.global_position.distance_to(player.global_position), str(e.global_position)])
 		for e in enemies:
 			if is_instance_valid(e) and e.brain.state == e.brain.State.COMBAT:
 				engaged[e.name] = true
@@ -91,6 +99,8 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 	player.intent.aim = false
 	player.intent.fire = false
 	res.duration = t
+	res.enemy_shots = enemy_shots[0]
+	res.enemy_hits = enemy_hits[0]
 	res.engaged = engaged.size()
 	res.used_cover = covered.size()
 	res.player_hits_taken = hits_taken[0]
@@ -119,3 +129,35 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 static func _fail(res: Dictionary, why: String) -> void:
 	res.ok = false
 	res.failures.append(why)
+
+## Open, dry, gently sloped ground near the camp, clear of water and settlements for 45 m around.
+static func _arena(w: WorldData, near: Vector3) -> Vector3:
+	var st = Game.main.get("settlements")
+	for ring in [0.0, 150.0, 300.0, 500.0, 800.0, 1200.0, 1600.0]:
+		for k in 16:
+			var a := TAU * k / 16.0
+			var p := near + Vector3(cos(a) * ring, 0, sin(a) * ring)
+			var ok := true
+			var hmin := INF
+			var hmax := -INF
+			for dx in range(-45, 46, 15):
+				for dz in range(-45, 46, 15):
+					if w.is_water(p.x + dx, p.z + dz) or (1.0 - w.normal(p.x + dx, p.z + dz).y) > 0.18:
+						ok = false
+					var h := w.height(p.x + dx, p.z + dz)
+					hmin = minf(hmin, h)
+					hmax = maxf(hmax, h)
+			if hmax - hmin > 5.0:          # a ridge between the fighters would block every sight line
+				ok = false
+			var bio := w.ctrl(p.x, p.z).b
+			if bio < 0.55 or bio > 0.82:   # scattered woodland: trees and rocks to fight from, not a forest
+				ok = false
+			var veg = Game.main.get("vegetation")
+			if ok and veg and veg.has_method("trees_near") and veg.trees_near(p, 40.0).size() > 8:
+				ok = false
+			for t in w.features.get("towns", []) + w.features.get("pois", []):
+				if Vector2(p.x - float(t.x), p.z - float(t.z)).length() < float(t.r) + 150.0:
+					ok = false
+			if ok:
+				return p
+	return near + Vector3(120, 0, -60)

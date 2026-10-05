@@ -270,16 +270,16 @@ func _combat(dt: float) -> void:
 				aim_t = lerpf(0.5, 0.25, skill)
 		if burst <= 0 or peek_t <= 0.0 or suppress > 1.2:
 			peeking = false
-			peek_t = rng.randf_range(1.0, 2.5) + suppress
+			peek_t = rng.randf_range(0.8, 1.8) + suppress * 0.7
 	else:
 		body.intent.crouch = cover != Vector3.INF
 		if body.gun.clip.get(body.gun.weapon_id(), 0) < 2:
 			body.gun.start_reload()
 		if peek_t <= 0.0 and not body.gun.reloading:
 			peeking = true
-			burst = rng.randi_range(1, 3)
+			burst = rng.randi_range(2, 4)
 			aim_t = 0.0
-			peek_t = rng.randf_range(2.0, 3.5)
+			peek_t = rng.randf_range(2.5, 4.0)
 
 func _try_shoot(_dt: float, tp: Vector3, scale: float) -> bool:
 	if target_seen_t > 1.5 or combat_t < lerpf(1.6, 0.7, skill):
@@ -288,7 +288,9 @@ func _try_shoot(_dt: float, tp: Vector3, scale: float) -> bool:
 	var tv: Vector3 = target.get("velocity") if target.get("velocity") != null else Vector3.ZERO
 	var warmup := lerpf(2.2, 1.0, clampf(combat_t / 8.0, 0.0, 1.0))
 	var dist := body.global_position.distance_to(tp)
-	var s := scale * lerpf(4.0, 1.6, skill) * warmup * (1.0 + tv.length() * 0.15) * (1.0 + suppress * 0.6) * (1.0 + dist / 60.0)
+	# tuned so a steady target at 25-40 m is hit roughly one shot in four by an average gunman: a real threat,
+	# survivable because Ruth's damage scale and regen are generous
+	var s := scale * lerpf(2.4, 1.0, skill) * warmup * (1.0 + tv.length() * 0.12) * (1.0 + suppress * 0.5) * (1.0 + dist / 90.0)
 	var aim_point := tp + Vector3(0, rng.randf_range(0.9, 1.5), 0) + tv * 0.08
 	return body.shoot_at(aim_point, s)
 
