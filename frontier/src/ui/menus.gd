@@ -11,7 +11,8 @@ var stack: Array[Control] = []
 var settings := {"quality": "high", "render_scale": -1.0, "fov": 62.0, "mouse_sens": 1.0, "invert_y": false,
 	"subtitles": true, "vol_master": 1.0, "vol_music": 0.8, "vol_sfx": 1.0, "vol_voice": 1.0, "snap_turn": true,
 	"aim_assist": "controller", "aim_toggle": false, "colour_mode": "off", "colour_strength": 1.0, "text_scale": 1.0,
-	"binds": {}}
+	"binds": {}, "vr_turn": "snap30", "vr_turn_speed": 100.0, "vr_vignette": 1.0, "vr_height_mode": "standing",
+	"vr_stand_eye": 0.0, "vr_seated_eye": 1.2}
 ## Rebindable actions (settings > Controls): keyboard key and gamepad button per action. Aim/fire stay on the
 ## mouse buttons and triggers; look and move axes stay on the sticks.
 const REBIND := [["move_forward", "Move forward"], ["move_back", "Move back"], ["move_left", "Move left"],
@@ -267,8 +268,38 @@ func open_accessibility() -> void:
 		settings.subtitles = b
 		apply_settings())
 	v.add_child(_row("Subtitles", subs))
+	if Game.is_vr:
+		_vr_comfort_rows(v)
 	v.add_child(_button("Back", back))
 	_push(p)
+
+## VR comfort (src/xr/vr.gd reads these): turning, vignette strength, play position and height calibration.
+func _vr_comfort_rows(v: VBoxContainer) -> void:
+	v.add_child(HSeparator.new())
+	v.add_child(UITheme.label("VR comfort", 32, "display", UITheme.INK, false))
+	v.add_child(_row("Turning", _options(["Snap 30°", "Snap 45°", "Smooth"], ["snap30", "snap45", "smooth"], "vr_turn")))
+	v.add_child(_row("Smooth turn speed", _slider(45.0, 180.0, 5.0, float(settings.vr_turn_speed), func(x):
+		settings.vr_turn_speed = x
+		apply_settings())))
+	v.add_child(_row("Comfort vignette", _slider(0.0, 1.5, 0.05, float(settings.vr_vignette), func(x):
+		settings.vr_vignette = x
+		apply_settings())))
+	v.add_child(_row("Play position", _options(["Standing", "Seated"], ["standing", "seated"], "vr_height_mode")))
+	var cal := _button("Calibrate height (stand or sit naturally, look ahead)", func():
+		var rig = _vr_rig()
+		if rig != null:
+			var h: float = rig.calibrate()
+			if Game.has_method("say"):
+				Game.say("Eye height set to %.2f m" % h, 2.5))
+	v.add_child(cal)
+
+func _vr_rig() -> Node:
+	if Game.player == null:
+		return null
+	for c in Game.player.get_children():
+		if c is VR:
+			return c
+	return null
 
 func _options(labels: Array, values: Array, key: String) -> OptionButton:
 	var o := OptionButton.new()
@@ -450,6 +481,9 @@ func apply_settings() -> void:
 		Game.player.base_fov = settings.fov
 	if access:
 		access.apply(settings)
+	var rig := _vr_rig()
+	if rig != null:
+		rig.apply_settings(settings)
 	apply_binds()
 	for bus in [["Master", "vol_master"], ["Music", "vol_music"], ["SFX", "vol_sfx"], ["Voice", "vol_voice"]]:
 		var i := AudioServer.get_bus_index(bus[0])

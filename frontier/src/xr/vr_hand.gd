@@ -52,6 +52,8 @@ func setup(s: String) -> void:
 	add_child(palm)
 	var cuff := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
+	cm.radial_segments = 12
+	cm.rings = 1
 	cuff.mesh = cm
 	cuff.material_override = _mat
 	cm.top_radius = 0.03
@@ -66,6 +68,8 @@ func setup(s: String) -> void:
 	sm.top_radius = 0.034
 	sm.bottom_radius = 0.042
 	sm.height = 0.26
+	sm.radial_segments = 12
+	sm.rings = 1
 	sleeve.mesh = sm
 	var cloth := StandardMaterial3D.new()
 	cloth.albedo_color = Color(0.86, 0.82, 0.74)
@@ -91,6 +95,8 @@ func setup(s: String) -> void:
 			parent.add_child(seg)
 			var mi := MeshInstance3D.new()
 			var cap := CapsuleMesh.new()
+			cap.radial_segments = 8         # the fallback hand stays cheap (Quest): 64-segment capsules were 3.5k tris each
+			cap.rings = 2
 			cap.radius = 0.0095 - k * 0.001
 			cap.height = float(lens[i][k]) + cap.radius
 			mi.mesh = cap
@@ -115,6 +121,8 @@ func setup(s: String) -> void:
 		tp.add_child(seg2)
 		var mi2 := MeshInstance3D.new()
 		var cap2 := CapsuleMesh.new()
+		cap2.radial_segments = 8
+		cap2.rings = 2
 		cap2.radius = 0.011
 		cap2.height = 0.04
 		mi2.mesh = cap2

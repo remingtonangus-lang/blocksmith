@@ -9,17 +9,21 @@ headset and the desktop simulator take the same code paths.
 |---|---|
 | `src/xr/vr.gd` (VR) | Starts OpenXR (`--vr`, Android) or the simulator (`--vr_sim`), builds the XROrigin rig, moves the HUD and menus onto sheets (HUD head-locked, menus world-locked), stick locomotion, snap turn, comfort vignette, origin follows the player. |
 | `src/xr/vr_sim.gd` (VRSim) | Desktop simulator: registers the `head`, `left_hand`, `right_hand` trackers with XRServer and drives their poses and inputs (mouse/keys or scripted). `--vr_stereo` adds a side-by-side eye pair. |
-| `src/xr/vr_hand.gd` (VRHand) | Procedural gloved hand (palm, 4×3 finger segments, 2-segment thumb, cuff, shirt sleeve) with finger curl from grip / trigger / thumb touch. |
+| `src/xr/vr_body.gd` (VRBody) | The player's own FrontierCharacter as the VR body: a SkeletonModifier3D (extends GunHands) — head/neck follow the HMD, two-bone arm IK to the controllers, finger curl, head meshes shadow-only. |
+| `src/xr/vr_hand.gd` (VRHand) | Pose source for each hand (grip→aim frame, fist centre, finger inputs). Its procedural low-poly glove is drawn only when there is no character skeleton. |
 | `src/xr/vr_play.gd` (VRPlay) | Physical play: holster draw, gun hold, two-hand snap, trigger + haptics, hand-worked actions, reload gestures, Nerve, reach-to-interact, menu laser, reins. |
 | `src/tests/vr_shots.gd` (VRShots) | Scripted VR scenes (poses + inputs) shared by the studio and the in-world feature shots. |
-| `src/tests/vr_studio.gd`, `scenes/vr_studio.tscn` | Light studio set (no world streaming) for VR evidence. |
+| `src/tests/vr_studio.gd`, `scenes/vr_studio.tscn` | Light studio set (no world streaming) for VR evidence; spectator views (`*_ext`) show the IK'd body from outside; `--dump` lists every mesh with its triangle count; `--flat` runs it without VR. |
 | `shaders/vr_vignette.gdshader` | Comfort vignette. |
 
 Touch points elsewhere (all small and marked): `player.gd` (start VR on `--vr_sim`; no keyboard intent in VR),
 `horse.gd` (no keyboard rider input or third-person ride camera in VR), `nerve.gd` (no screen overlay or camera cuts
 in VR; execution shots leave the real muzzle), `weapon_holder.gd` (`vr_hold`: the hand places the drawn gun),
 `weapon_model.gd` (`manual_cycle` / `needs_cycle` / `cycle_action()`; recoil spring sub-stepped), `game.gd` +
-`sky.gd` (quest preset: 2 shadow cascades, no glow).
+`sky.gd` (quest preset: 2 shadow cascades, no glow, no water refraction, mounted horse shadows from LOD1; Mobile shadow filter),
+`settlements.gd` (Mobile: commit on the main thread), `horse_visual.gd` (Mobile hair variant),
+`water.gd` + `water.gdshader` (`WATER_OPAQUE` variant), `menus.gd` (Accessibility > VR comfort rows),
+`weapon_holder.gd` (`mount_offset()`, see Riding).
 
 ## Desktop simulator (`--vr_sim`)
 No OpenXR runtime is needed. VRSim creates `XRPositionalTracker`/`XRControllerTracker` objects named like the
@@ -31,7 +35,7 @@ Run it:
 ```
 godot --path frontier -- --vr_sim                 # play: mouse = head, keys below
 godot --path frontier -- --vr_sim --vr_stereo     # side-by-side stereo pair (IPD 64 mm)
-godot --path frontier res://scenes/vr_studio.tscn -- --out DIR [--views hud,menu,hands,gun_aim,fire,two_hand,reload,nerve,riding,door,door_open,stereo]
+godot --path frontier res://scenes/vr_studio.tscn -- --out DIR [--views hud,menu,comfort,hands,body,body_ext,gun_aim,fire,two_hand,two_hand_ext,reload,bolt,pump,nerve,riding,riding_ext,door,door_open,stereo]
 godot --path frontier -- --features DIR --vr_sim [--only vr_hud,vr_gun_aim,...]   # in-world VR evidence
 ```
 Interactive keys: mouse looks (head); LMB right trigger, RMB right grip, Q left grip, F left trigger, E A,
@@ -48,18 +52,29 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
 (published to `ci-snaps-claude-frontier-game`). The in-world `--vr_sim` feature run needs the full world in memory
 (> 5 GB), so it is not part of CI; run it on the Mac.
 
-## Hands and body
-- Hands are procedural (gloves, so they suit any character): palm box, jointed capsule fingers, thumb, leather cuff
-  and a linen sleeve that runs back out of view. Grip curls the middle/ring/little fingers, trigger the index, a
-  thumb touch (`primary_touch`/`ax_touch`/`by_touch`) the thumb; holding a gun wraps the hand with the index on
-  the trigger. Curl is smoothed (24 /s).
-- Hand frame = the aim frame; the fist centre (`VRHand.FIST`) sits on the grip-pose origin, which is where guns,
-  rounds and reins are attached (`aim_transform()`).
-- The third-person body stays in the scene as **shadows only** (cast shadow mode SHADOWS_ONLY, re-applied every
-  second because character models arrive late), so the player sees their shadow and mirrors/shadows read right with
-  no face inside the camera. The body turns after the head once it looks more than ~35° away. An IK'd upper body
-  (arms to the controllers) is a follow-up: GunHands already solves arms to a gun; it would need targets from the
-  controllers instead of `grip_r`/`grip_l`.
+## Body and hands (the player's own character)
+- **VRBody** (`vr_body.gd`) is added as the last SkeletonModifier3D on the player's FrontierCharacter skeleton
+  (after the animation, GunHands and the look-at) as soon as the character model exists. It reuses GunHands' rig
+  measurements, `_arm()` two-bone IK and `_orient()`:
+  - head bone onto the HMD orientation, neck halfway, a little chest lean with the head pitch;
+  - each arm reaches its controller: the wrist sits behind the fist (GunHands' `pistol_r` offset, mirrored for the
+    left) and the hand's anatomical frame matches the controller's aim frame, so the character's own hand closes
+    round the held gun, the fore-end, the reins or a door handle; elbows point down and out;
+  - fingers curl from the controller (grip: middle/ring/little, trigger: index, thumb touch: thumb), or wrap a held
+    gun with GunHands' grip tables (index squeezes with the trigger).
+- **Visible from the neck down**: head, hair, hat, beard, eyes and face meshes cast shadows only (so shadows and
+  mirrors keep the whole person); everything else draws. The camera sits at the character's animated eyes, low-passed
+  in the player's frame so walk bob never moves the view (the gameplay clips stand ~10 cm taller than the rest pose:
+  a rest-pose camera sat inside the neck and the arms came up past the eyes), 5 cm forward so the collar stays
+  behind and below when looking down. In VR the third-person aim clip is not played (it leaned the torso into the
+  camera); the arms come from the controllers.
+- A held gun puts the hands where GunHands puts them in third person (grip_r, and the fore-end grip_l for long guns,
+  with the tuned wrist offsets and hand frames in gun space), so the hold reads the same from both cameras.
+- **Room-scale lean**: leaning moves the view up to 35 cm from where the head "belongs"; that rest point follows the
+  head over a couple of seconds (the body catches up), so positional tracking is never cancelled.
+- **Body yaw** follows the head once it looks more than ~35° away (like shifting your feet).
+- The capsule glove (VRHand) is only drawn if there is no character skeleton (stand-in body); it is now 8-segment
+  low-poly (the old 64-segment capsules were 3.5 k triangles each, ~200 k for two hands).
 
 ## Guns (WeaponModel + WeaponHolder)
 - **Draw**: grip the right hand within 0.32 m of the holstered sidearm's grip, or within 0.48 m of the long gun (or
@@ -75,7 +90,8 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   Empty or uncycled → dry click and a light tick.
 - **Actions by hand** (`WeaponModel.manual_cycle`): after a shot the lever/bolt/pump stays closed
   (`needs_cycle`) until worked: flick the gun down (> 1.3 m/s along the gun's down axis) to throw a lever; grab the
-  bolt knob (`GunHands.BOLT_KNOB`) with the left hand; jerk the fore-end back (> 0.9 m/s) on a pump.
+  bolt knob (`GunHands.BOLT_KNOB`) with the left hand and work it back and forward (below); jerk the fore-end back
+  (> 0.9 m/s) on a pump.
   `cycle_action()` plays the model's own cycle (ejecting the case).
 - **Reloads** (rounds come from the hand, not a timer — `GunHandler.reloading` is held open with an infinite timer):
   - loading-gate revolvers: roll the gun onto its left side (right side up) → gate opens and the hammer goes to half
@@ -84,7 +100,12 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   - rounds: squeeze the left hand at the belt (left front of the hips) → a cartridge or shell appears in the
     fingers; bring it within 0.11 m of the gate / breech / port → +1 round (`clip`/`ammo`), click, haptic; the
     holder's `_reload_watch` plays the model's per-round animation (`reload_anim`);
-  - lever and bolt rifles and the pump load through the port any time (`reload_anim(n)` per round).
+  - bolt rifles: grab the bolt knob with the left hand, draw it back along the gun (the spent case flies at the end
+    of the stroke) and let go: it stays open (`bolt_v`, posed with `WeaponModel.pose()`); rounds go in through the
+    open action only; grab it again and push it home to chamber. The gun will not fire with the bolt open;
+  - the pump loads through its loading gate under the receiver, ahead of the trigger guard (`VRPlay.LOAD_GATE`);
+    roll the gun belly-up and push shells in;
+  - lever guns load through the side gate (`reload_anim(n)` animates the gate per round).
 - **Nerve**: left Y with a gun out → slow time and a world grade (the screen overlay would land on the HUD sheet, so
   VR desaturates the Environment instead); the trigger marks where the muzzle points (`Nerve.mark` from the muzzle);
   Y again or letting go of the gun fires the marks; execution shots leave the real muzzle and the camera never cuts.
@@ -102,54 +123,88 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   grab sets the neutral; move the hands left/right to steer (±14 cm = full), push both forward (> 7 cm) to urge the
   horse up a pace (each push is a tap of the pace system), pull back (> 6 cm) to stop. Holding the reins walks on;
   let go to ride on the left stick instead. Rider input and the ride camera are off in VR; the head is the camera.
-- **Comfort**: snap turn 30° by default (smooth optional), vignette while moving on foot (with speed) and while
-  riding (pace + turn rate), HUD sheet head-locked and slightly low, menus world-locked.
+  Mounted, the long gun draws only from the scabbard mouth itself (0.16 m), so rein hands by the pommel never pull it.
+  Note: while riding, the skeleton's readable bone poses keep the hips about a metre above (and behind) the drawn,
+  seated body (the ride clips seat the body at draw time; root motion is on `Skeleton:Root`). The third-person gun
+  belt and holster floated above the rider because of it. `WeaponHolder.mount_offset()` (seat point minus the read
+  hips) now maps read bone positions onto the drawn body for the belt/holster and the VR arm IK targets; the mounted
+  camera sits straight above the saddle seat by the character's hips-to-eyes height.
+- **Comfort** (Settings > Accessibility > VR comfort, shown in VR; saved with the other settings):
+  - Turning: Snap 30° (default), Snap 45° or Smooth, with a smooth turn speed (45–180°/s, default 100);
+  - Comfort vignette strength (0 = off … 1.5; default 1): darkens the periphery while moving on foot (with speed)
+    and while riding (pace + turn rate);
+  - Play position: Standing or Seated, and **Calibrate height**: stand or sit naturally and press it; the measured
+    eye height maps your real eyes onto the character's (standing and not calibrated: the head height one second
+    into the session is taken as your eye height; seated defaults to 1.2 m), so crouching in the room still lowers
+    the view;
+  - HUD sheet head-locked and slightly low, menus world-locked.
 
 ## Quest performance (Mobile renderer)
 The Quest export switches to the Mobile renderer (`rendering_method.mobile="mobile"`, `tools/setup_quest.sh`) and
-the `quest` preset (`game.gd`). What that means:
+the `quest` preset (`game.gd`). Everything below was checked here with `--rendering-method mobile --quality quest`
+on lavapipe (software Vulkan), which runs the same Mobile renderer code paths; nothing has been profiled on a Quest.
 
 | Feature | Mobile | quest preset |
 |---|---|---|
 | SSAO, SSIL, SSR, SDFGI, volumetric fog | not available (Forward+ only) | all off |
-| Subsurface scattering (skin) | not available; Godot warns once and renders the skin without SSS | — |
-| Screen/depth textures (water refraction, Nerve overlay) | supported, but cost a copy per view | water still uses them (see knobs) |
-| Glow | supported, but a full-screen chain per eye | **off** (new) |
-| Directional shadows | supported | 60 m, 2048, **2 cascades** (new; was 4) |
+| Subsurface scattering (skin) | not available; Godot warns once and draws skin without SSS | — |
+| Screen/depth textures (water refraction, Nerve overlay) | supported, but a copy per view | **water uses the `WATER_OPAQUE` variant** (no refraction) |
+| Glow | supported, but a full-screen chain per eye | off |
+| Directional shadows | supported | 60 m, 2048, 2 cascades; **soft filter Very Low** (see below) |
+| Hair cards with alpha-to-coverage (horse mane/tail) | — | Mobile uses a plain alpha-scissor variant |
 | MSAA | supported (cheap on tile GPUs) | 2× |
-| Environment adjustments (Nerve grade) | supported (verified) | used by VR Nerve |
+| Environment adjustments (Nerve grade) | supported | used by VR Nerve |
 | Cloud shadows, moon shadows, TAA, upscalers | — | off |
 
-Verified here by rendering the VR studio with `--rendering-method mobile --quality quest` (lavapipe): hands, guns,
-characters, horse, reins, HUD sheet, the Nerve grade and the vignette all render; the only engine warning is the
-skin SSS. One studio-only difference: the studio ground (StandardMaterial with a triplanar packed albedo) renders
-dark grey on Mobile; the game terrain uses its own shader and wasn't checked on Mobile here.
+### Bugs found and fixed on the Mobile renderer
+- **Boot deadlock with towns**: building a settlement on a worker thread (ArrayMesh/MultiMesh creation and
+  material assignment in `settlements._prepare`) deadlocked the boot under Mobile (gdb: main thread and a worker
+  each waiting on a condition variable inside the engine, the other workers blocked on that worker's mutex; never
+  happens on Forward+). With `--disable settlements` the world rendered. Fix: on Mobile the worker only runs the
+  kits (`_build_kits`) and the meshes are committed on the main thread (`_commit_kits`, ~0.35–0.7 s per town here);
+  Forward+ keeps the all-in-worker path.
+- **StandardMaterial3D surfaces got no sunlight**: with the project's soft shadow filter (quality 3; 2 also
+  fails), every StandardMaterial3D surface lost all direct light whenever the sun cast shadows: the ground,
+  imported props and guns read dark grey (that was the "dark-grey studio ground", not a texture problem). Custom
+  shaders (terrain, foliage, grass, characters, buildings) were unaffected. Fix: Mobile uses filter quality 1 (Soft
+  Very Low), via `soft_shadow_filter_quality.mobile=1` in project.godot and at start-up in `game.gd` when the
+  current rendering method is mobile. Measured: studio ground (68,66,60) → (151,127,96), the same as Forward+.
+- The terrain, grass, trees (incl. impostors), roads, river water and sky render correctly on Mobile after these
+  fixes (in-world town shot, quest preset, 480×270: 62 draws / 1.09 M primitives). In-world VR shots with characters
+  were OOM-killed in this shared sandbox; the VR numbers below come from the studio set.
 
-Draw calls and primitives per frame (mono, the simulator; multiview renders both eyes in one pass on Quest) in
-the studio on Mobile + quest preset: HUD-only view 22 draws / 138 k primitives; gun scene with three figures
-65 draws / 320 k; mounted with the horse in view 161 draws / 1.16 M. The same views on Forward+ with the desktop
-preset cost 65 / 242 / 448 draws (4 shadow cascades, depth prepass), so the quest preset roughly thirds the draw count. The feature-shot and studio logs now print
-`draws / objects / prims` per shot, so the CI logs (High preset on the Mac runner) carry the same numbers for the
-in-world scenes.
+### Draw calls and primitives (mono, `--vr_sim`, studio, Mobile + quest)
+| View | before (start of round) | after |
+|---|---|---|
+| HUD only | 22 / 138 k | 65 / 126 k |
+| hands in front of the face | 141 / 1.03 M | 108 / 291 k |
+| revolver aimed, 3 figures | 65 / 308 k | 88 / 176 k |
+| mounted, reins, horse in view | **161 / 1.16 M** | **123 / 344 k** |
 
-Knobs and recommendations for the device pass (not profiled on a Quest yet):
-- the horse at close range is the heaviest single item (LOD0 body 26 k tris plus mane/tail cards; most of the
-  1.16 M primitives above come with it, shadow pass included): drop to Body_LOD1 and fewer hair cards in VR when
-  mounted (the rider never sees the horse's body from more than a metre or two);
-- character LOD0 budgets (24 k) are fine for a few people; the quest crowd budget is 6 full-detail characters
-  (`character_factory.gd`);
-- water: a no-refraction variant for the quest preset would remove the per-eye screen copy;
-- keep the HUD sheet at 1600×900 and the menu sheet at 1920×1080 (each is one extra 2D viewport, updated every frame;
-  only the visible sheet renders: the menu sheet while a menu is open, the HUD sheet otherwise);
-- holstered and slung guns switch to their LOD1 merged mesh beyond 9 m (`WeaponModel.set_detail`), so the player's
-  own guns are the only LOD0 guns in a normal scene.
+Where the mounted 1.16 M went: the procedural gloves (two hands of 64-segment capsules, ~200 k triangles, drawn
+again in every shadow cascade) are replaced by the character's own hands (gloves stay as an 8-segment fallback);
+the mounted horse casts its shadows with its 8 k LOD1 body instead of the 26 k hero mesh; and the studio sun now
+follows the preset's 2 cascades (the game's quest sky already did; with 4 cascades the after-figure is 579 k).
+More draw calls than before in some views come from the character body now being drawn (body, belt, holster) and
+from the merged character/town-life changes; all stay well within a Quest budget (~200-300 per eye pass with
+multiview).
+The studio and feature-shot logs print `draws / objects / prims` per shot; `vr_studio.tscn --dump` lists every mesh
+with its triangle count, visibility range and shadow mode.
+
+Knobs still open for the device pass:
+- character LOD0 budgets (24 k) are fine for a few people; the quest crowd budget is 6 full-detail characters;
+- the HUD sheet (1600×900) and menu sheet (1920×1080) are extra 2D viewports; only the visible one renders;
+- holstered and slung guns switch to their LOD1 mesh beyond 9 m (`WeaponModel.set_detail`);
+- settlement commits on the main thread on Mobile could be spread over several frames if the hitch shows on device.
 
 ## Known gaps
 - Not run on a headset yet; thresholds (flick speeds, reach radii, rein offsets) are first guesses tuned in the
   simulator.
-- Hands are procedural capsules, not the character's own hands; no finger tracking.
-- No IK'd upper body; the body is shadows-only.
-- Bolt rifles load through the port without opening the bolt by hand; pump loading port is approximated by the
-  ejection port.
+- No finger tracking (controller curls only); no elbow tracking (poles are fixed per side).
+- The head follows the HMD by orientation only: crouching in the room lowers the view but not the body.
+- Mounted, the rider's head turns from the read pose; seen from outside it can look a little high/back.
+- The Accessibility colour filter lives in the menu canvas, so in VR it only filters the menu sheet.
 - Laser clicks are mouse events pushed into the menu viewport (works with the existing Control menus).
 - In-world VR shots need the Mac (memory); CI renders the studio set.
+- The Mobile fixes were found on lavapipe; the shadow-filter and alpha-to-coverage problems may be driver-specific,
+  but the workarounds are cheap and correct on any GPU.

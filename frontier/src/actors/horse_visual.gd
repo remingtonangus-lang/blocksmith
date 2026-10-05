@@ -110,7 +110,7 @@ func _setup_materials() -> void:
 	body_mat = ShaderMaterial.new()
 	body_mat.shader = load("res://shaders/horse_coat.gdshader" if species == "horse" else "res://shaders/animal_coat.gdshader")
 	hair_mat = ShaderMaterial.new()
-	hair_mat.shader = load("res://shaders/horse_hair.gdshader")
+	hair_mat.shader = _hair_shader()
 	for mi in meshes:
 		var n := String(mi.name).to_lower()
 		if n.begins_with("body"):
@@ -453,3 +453,15 @@ func _build_fallback() -> void:
 		leg.position = off
 		leg.material_override = mat
 		add_child(leg)
+
+## Mobile renderer (Quest): the hair cards' alpha-to-coverage drew every card as an opaque slab there (a grey
+## "staircase" along the neck from the saddle); plain alpha scissor cuts the strands. One shared variant.
+static var _hair_variant: Shader
+static func _hair_shader() -> Shader:
+	var base: Shader = load("res://shaders/horse_hair.gdshader")
+	if RenderingServer.get_current_rendering_method() != "mobile" and not Game.args.has("hair_no_a2c"):
+		return base
+	if _hair_variant == null:
+		_hair_variant = Shader.new()
+		_hair_variant.code = base.code.replace(", alpha_to_coverage;", ";").replace("ALPHA_ANTIALIASING_EDGE = 0.3;", "")
+	return _hair_variant

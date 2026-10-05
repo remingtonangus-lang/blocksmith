@@ -279,7 +279,15 @@ func ensure_built(id: String) -> void:
 
 ## Worker-thread part: run the kit over every spec, merge geometry per cell, commit meshes and MultiMesh
 ## resources. No scene-tree access and no physics objects here (those are created in _attach).
+## Mobile renderer (Quest): creating the ArrayMeshes / MultiMeshes and assigning their materials from the worker
+## thread deadlocked the boot (worker and main thread both waiting inside the renderer; seen with
+## --rendering-method mobile). There the worker only runs the kits and the commit happens on the main thread.
+static var MAIN_THREAD_COMMIT: bool = Game.render_threads_unsafe()
+
 func _prepare(plan: Dictionary) -> Dictionary:
+	return _commit_kits(_build_kits(plan))
+
+func _build_kits(plan: Dictionary) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
 	var ext := {}
 	var inn := {}
@@ -305,6 +313,16 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		tp[key] = tp.get(key, 0) + Time.get_ticks_usec() - t1
 		rec["cell"] = ck
 		recs.append(rec)
+	return {"ext": ext, "inn": inn, "props": props, "oprops": oprops, "recs": recs, "tp": tp, "t0": t0}
+
+func _commit_kits(d: Dictionary) -> Dictionary:
+	var ext: Dictionary = d.ext
+	var inn: Dictionary = d.inn
+	var props: Dictionary = d.props
+	var oprops: Dictionary = d.oprops
+	var recs: Array = d.recs
+	var tp: Dictionary = d.tp
+	var t0: int = d.t0
 	var t2 := Time.get_ticks_usec()
 	var mats := TownMats.get_all()
 	var plain := TownMats.plain_keys()
@@ -591,7 +609,10 @@ func _stream() -> void:
 	_task_town = best
 	_task_result = {}
 	var plan: Dictionary = tb.plan
-	_task = WorkerThreadPool.add_task(func(): _task_result = _prepare(plan), false, "settlement " + best)
+	if MAIN_THREAD_COMMIT:
+		_task = WorkerThreadPool.add_task(func(): _task_result = _build_kits(plan), false, "settlement " + best)
+	else:
+		_task = WorkerThreadPool.add_task(func(): _task_result = _prepare(plan), false, "settlement " + best)
 
 func _finish_task(block: bool) -> void:
 	if _task < 0:
@@ -601,6 +622,8 @@ func _finish_task(block: bool) -> void:
 	WorkerThreadPool.wait_for_task_completion(_task)
 	_task = -1
 	var t: Dictionary = towns[_task_town]
+	if MAIN_THREAD_COMMIT:
+		_task_result = _commit_kits(_task_result)
 	_attach(t, _task_result)
 	_task_result = {}
 

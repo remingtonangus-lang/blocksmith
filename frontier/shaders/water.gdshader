@@ -5,8 +5,13 @@ render_mode blend_mix, depth_draw_always, cull_back, diffuse_burley, specular_sc
 
 #include "res://shaders/inc/noise.gdshaderinc"
 
+// WATER_OPAQUE (defined by water.gd on the quest preset): no screen/depth texture reads, so the Mobile renderer
+// skips the per-eye back-buffer copy; the water body is shaded as a fixed depth of tinted water instead.
+#ifndef WATER_OPAQUE
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
+#endif
+uniform float opaque_depth = 2.5;      // WATER_OPAQUE: assumed water depth under the surface (m)
 uniform vec3 deep_color : source_color = vec3(0.05, 0.12, 0.13);
 uniform vec3 shallow_color : source_color = vec3(0.32, 0.36, 0.26);
 uniform float absorption = 0.32;
@@ -72,6 +77,10 @@ void fragment() {
 	vec3 n = normalize(vec3(-g.x * 0.18 * wave_scale, 1.0, -g.y * 0.18 * wave_scale));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
+#ifdef WATER_OPAQUE
+	float thick = opaque_depth;
+	vec3 refr = mix(shallow_color, deep_color, 0.5) * 0.5;
+#else
 	// depth below the surface along the view ray
 	float d_raw = texture(depth_tex, SCREEN_UV).r;
 	vec4 ndc = vec4(SCREEN_UV * 2.0 - 1.0, d_raw, 1.0);
@@ -88,6 +97,7 @@ void fragment() {
 	v2.xyz /= v2.w;
 	if (-v2.z < surf_depth) ruv = SCREEN_UV;          // don't refract things in front of the water
 	vec3 refr = textureLod(screen_tex, ruv, 0.0).rgb;
+#endif
 	float absorb = 1.0 - exp(-thick * absorption * (1.0 + murk * 2.5));
 	absorb = max(absorb, murk * 0.35 * smoothstep(0.0, 0.4, thick));     // suspended silt even in the shallows
 	vec3 water_col = mix(shallow_color, deep_color, clamp(thick / 6.0, 0.0, 1.0));

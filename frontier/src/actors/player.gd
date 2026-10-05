@@ -473,7 +473,7 @@ func _after_move(dt: float) -> void:
 	if visual and visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
 	if visual and visual.has_method("set_aim"):
-		visual.set_aim(_aim_kind() if intent.aim else "")
+		visual.set_aim(_aim_kind() if intent.aim and not Game.is_vr else "")   # VR: the arms follow the controllers (VRBody); the aim clip would lean the torso past the camera
 	loco.tick(visual, facing, speed, dt, intent.aim or intent.crouch or cover.active or Melee.is_down(self) or busy != null)
 	# crouch: hitboxes drop, crouched idle pose
 	_crouch_k = move_toward(_crouch_k, 1.0 if intent.crouch else 0.0, dt * 6.0)

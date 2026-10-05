@@ -47,6 +47,8 @@ static func shutdown() -> void:
 static func warm_up() -> void:
 	if _warming or not available():
 		return
+	if Game.render_threads_unsafe():
+		return            # no off-thread glTF builds here (see Game.render_threads_unsafe); looks load on first use
 	_warming = true
 	# a role-diverse subset sized by quality preset (every look resident at once costs GPU memory an 8 GB Mac and a
 	# Quest can't spare); spawns pick among prepared looks, so a town still reads varied
