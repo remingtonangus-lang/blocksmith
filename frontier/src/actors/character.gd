@@ -388,6 +388,8 @@ func die(info: Dictionary) -> void:
 		play(clip, 0.12)
 	auto_blink = false
 	clear_look()
+	# the clip starts the fall, then physics takes over (src/combat/ragdoll.gd; LOD-limited, settles and freezes)
+	Ragdoll.begin(self, info, 0.28)
 
 func _physics_tick_anim(delta: float) -> void:
 	if tree == null or not tree.active:
@@ -409,6 +411,7 @@ func _physics_tick_anim(delta: float) -> void:
 		_lod_acc = 0.0
 
 func revive() -> void:
+	Ragdoll.cancel(self)
 	_dead = false
 	auto_blink = true
 	if anim:
