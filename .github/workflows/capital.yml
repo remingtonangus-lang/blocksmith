@@ -194,7 +194,7 @@ jobs:
           for b in Alabaster.app/Contents/MacOS/*; do lipo "$b" -thin arm64 -output "$b.arm64" && mv "$b.arm64" "$b"; done
           # The pad bridge for GIP pads macOS has no driver for (PowerA 20D6:2074); a build error must not
           # block the release, so it is reported and skipped.
-          if swiftc -O -target arm64-apple-macos13 ../tools/padbridge/main.swift -o Alabaster.app/Contents/MacOS/padbridge -framework IOUSBHost -framework IOKit 2> ../../ci-padbridge.log; then
+          if clang -O2 -fobjc-arc -arch arm64 -mmacosx-version-min=13.0 ../tools/padbridge/main.m -o Alabaster.app/Contents/MacOS/padbridge -framework Foundation -framework IOKit -framework IOUSBHost 2> ../../ci-padbridge.log; then
             echo "padbridge built"; else echo "padbridge FAILED to build:"; cat ../../ci-padbridge.log; fi
           codesign --force --deep -s - Alabaster.app
           codesign -dv Alabaster.app 2>&1 | head -5

@@ -42,7 +42,7 @@ driver claims it, so neither GameController nor SDL's HID paths can open it. Fro
 likely **not** see it. `--padcheck` records what the engine actually sees (`padcheck.json`; the macOS CI runner has no
 pad, so this needs one run on the Mac). The fallback is the pad bridge (`game/tools/padbridge`, a userspace GIP driver
 over IOUSBHost that sends pad state to the game over UDP 127.0.0.1:47731); `Controls.gd` reads it as a virtual pad.
-The bridge (`game/tools/padbridge/main.swift`) is compiled on the macOS runner into `Alabaster.app/Contents/MacOS/
+The bridge (`game/tools/padbridge/main.m`, Objective-C: the IOUSBHost Swift names did not match on CI) is compiled on the macOS runner into `Alabaster.app/Contents/MacOS/
 padbridge` (its build log is `ci/ci-padbridge.log` on capital-shots); the game starts it by itself 1.5 s after
 launch when the engine sees no pad (`--no-padbridge` turns that off) and stops it on quit. It opens interface 0 of
 20D6:2074 (other GIP pads: `padbridge VID PID` in hex), sends the GIP power-on, parses input reports 0x20 and the
