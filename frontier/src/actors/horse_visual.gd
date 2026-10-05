@@ -1,10 +1,11 @@
 class_name HorseVisual
 extends Node3D
-## The horse's body: the generated model (tools/animals/horse_gen.py -> horse.glb), coat/hair materials, an
-## AnimationTree that crossfades the gait cycles and plays one-shot actions on top, terrain foot IK (HorseIK) and
-## the saddle seat transform for the rider. Falls back to a simple stand-in when the model has not been fetched.
-##   Model search order: res://assets/ext/animals/horse.glb (CI asset pack, tools/fetch_assets.sh animals),
-##   res://assets/animals_out/horse.glb (local `python3 frontier/tools/animals/horse_gen.py`).
+## Body of any generated quadruped (tools/animals/quadruped.py -> <species>.glb; the horse and the wildlife share
+## one bone layout): coat/hair materials, LOD ranges, an AnimationTree that crossfades the looping cycles (gaits,
+## idles) and plays one-shot actions on top, terrain foot IK (HorseIK), hoof/paw sole positions for the gait oracle
+## and, for the horse, the saddle seat transform. Falls back to a simple stand-in when the model is missing.
+##   Model search order: res://assets/ext/animals/<species>.glb (CI asset pack, tools/fetch_assets.sh animals),
+##   res://assets/animals_out/<species>.glb (local `python3 frontier/tools/animals/quadruped.py --species ...`).
 
 const MODEL_PATHS := ["res://assets/ext/animals/horse.glb", "res://assets/animals_out/horse.glb"]
 const LOCO_STATES := ["idle", "idle_rest", "graze", "walk", "trot", "canter", "gallop", "canter_r", "gallop_r", "swim",
@@ -31,16 +32,23 @@ var _playback: AnimationNodeStateMachinePlayback
 var _action_node: AnimationNodeAnimation
 var _sole_local := {}             # leg -> Vector3 sole offset in the hoof bone's frame
 var _hoof_bone := {}
+var species := "horse"
+var loop_states: Array = []        # looping animations available as locomotion states
+var size_scale := 1.0              # withers height / horse withers height (LOD distances scale with it)
 
 static func model_path() -> String:
-	for p in MODEL_PATHS:
+	return model_path_for("horse")
+
+static func model_path_for(sp: String) -> String:
+	for p in ["res://assets/ext/animals/%s.glb" % sp, "res://assets/animals_out/%s.glb" % sp]:
 		if ResourceLoader.exists(p):
 			return p
 	return ""
 
-func build(coat_in: Dictionary) -> void:
+func build(coat_in: Dictionary, sp: String = "horse") -> void:
 	coat = coat_in
-	var path := model_path()
+	species = sp
+	var path := model_path_for(sp)
 	if path != "":
 		var ps: PackedScene = load(path)
 		if ps != null:
@@ -50,9 +58,10 @@ func build(coat_in: Dictionary) -> void:
 		return
 	has_model = true
 	add_child(model)
-	var mp := path.get_base_dir().path_join("horse_gaits.json")
+	var mp := path.get_base_dir().path_join("%s_gaits.json" % sp)
 	if FileAccess.file_exists(mp):
 		meta = JSON.parse_string(FileAccess.get_file_as_string(mp))
+	size_scale = clampf(float(meta.get("rest", {}).get("withers_height", 1.555)) / 1.555, 0.15, 1.5)
 	skeleton = _find(model, "Skeleton3D") as Skeleton3D
 	anim_player = _find(model, "AnimationPlayer") as AnimationPlayer
 	_setup_materials()
@@ -60,7 +69,8 @@ func build(coat_in: Dictionary) -> void:
 	if anim_player != null:
 		_setup_tree()
 	if skeleton != null:
-		_setup_seat()
+		if species == "horse":
+			_setup_seat()
 		_setup_legs()
 		ik = HorseIK.new()
 		ik.name = "HorseIK"
@@ -85,7 +95,7 @@ func _collect_meshes(n: Node) -> void:
 func _setup_materials() -> void:
 	_collect_meshes(model)
 	body_mat = ShaderMaterial.new()
-	body_mat.shader = load("res://shaders/horse_coat.gdshader")
+	body_mat.shader = load("res://shaders/horse_coat.gdshader" if species == "horse" else "res://shaders/animal_coat.gdshader")
 	hair_mat = ShaderMaterial.new()
 	hair_mat.shader = load("res://shaders/horse_hair.gdshader")
 	for mi in meshes:
@@ -98,6 +108,11 @@ func _setup_materials() -> void:
 				hair_mat.set_shader_parameter("strands", src.albedo_texture)
 			mi.material_override = hair_mat
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		elif n.begins_with("eye") and species != "horse":
+			var am := ShaderMaterial.new()
+			am.shader = load("res://shaders/animal_eye.gdshader")
+			AnimalCoats.apply_eyes(species, am)
+			mi.material_override = am
 		elif n.begins_with("eye"):
 			var em := StandardMaterial3D.new()
 			em.albedo_color = Color(0.05, 0.03, 0.02)
@@ -112,27 +127,33 @@ func _setup_materials() -> void:
 				var m := mi.mesh.surface_get_material(s)
 				if m is BaseMaterial3D:
 					m.roughness = clampf(m.roughness, 0.3, 0.9)
-	HorseCoats.apply(coat, body_mat, hair_mat)
+	if species == "horse":
+		HorseCoats.apply(coat, body_mat, hair_mat)
+	else:
+		AnimalCoats.apply(coat, body_mat, meta.get("anchors", {}))
 
 func _setup_lods() -> void:
 	# explicit LODs exported as Body_LOD1 / Body_LOD2: switch by distance
 	for mi in meshes:
 		var n := String(mi.name)
+		var k := maxf(size_scale, 0.35)
 		if n == "Body":
-			mi.visibility_range_end = 23.0
+			mi.visibility_range_end = 23.0 * k
 			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 		elif n == "Body_LOD1":
-			mi.visibility_range_begin = 22.0
-			mi.visibility_range_end = 71.0
+			mi.visibility_range_begin = 22.0 * k
+			mi.visibility_range_end = 71.0 * k
 			mi.material_override = body_mat
 		elif n == "Body_LOD2":
-			mi.visibility_range_begin = 70.0
-			mi.visibility_range_end = 900.0
+			mi.visibility_range_begin = 70.0 * k
+			mi.visibility_range_end = 900.0 * k
 			mi.material_override = body_mat
 		elif n.begins_with("Mane") or n.begins_with("Tail") or n.begins_with("Forelock"):
 			mi.visibility_range_end = 260.0
+		elif n.begins_with("Antler") or n.begins_with("Horn"):
+			mi.visibility_range_end = 400.0 * k
 		elif not n.begins_with("Body"):
-			mi.visibility_range_end = 160.0
+			mi.visibility_range_end = 160.0 * k
 
 func _setup_tree() -> void:
 	var lib := anim_player.get_animation_library("")
@@ -142,7 +163,15 @@ func _setup_tree() -> void:
 		a.loop_mode = Animation.LOOP_LINEAR if info.get("loop", an in LOCO_STATES and an not in ["dead", "fallen"]) else Animation.LOOP_NONE
 	var sm := AnimationNodeStateMachine.new()
 	var names: Array = []
-	for st in LOCO_STATES:
+	var states: Array = LOCO_STATES
+	if species != "horse":
+		states = []
+		for an in lib.get_animation_list():
+			if meta.get("anims", {}).get(an, {}).get("loop", false):
+				states.append(String(an))
+		states.append_array(["dead", "carcass_pose"])
+	loop_states = states
+	for st in states:
 		var src: String = st
 		if not anim_player.has_animation(src):
 			src = _alias(st)
@@ -157,7 +186,7 @@ func _setup_tree() -> void:
 			if a == b:
 				continue
 			var tr := AnimationNodeStateMachineTransition.new()
-			tr.xfade_time = 0.28 if not (b in ["dead", "fallen"]) else 0.5
+			tr.xfade_time = 0.28 if not (b in ["dead", "fallen", "carcass_pose"]) else (0.5 if b != "carcass_pose" else 0.05)
 			tr.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
 			sm.add_transition(a, b, tr)
 	var bt := AnimationNodeBlendTree.new()
@@ -191,6 +220,7 @@ func _alias(st: String) -> String:
 		"idle_rest", "graze", "turn": return "idle"
 		"swim": return "trot"
 		"dead", "fallen": return "death"
+		"carcass_pose": return "carcass"
 	return ""
 
 func _setup_seat() -> void:
@@ -275,6 +305,12 @@ func set_care(dirt: float, mud: float, wet: float, sweat: float) -> void:
 		hair_mat.set_shader_parameter("wet", wet)
 
 const TACK := ["saddle", "blanket", "bridle", "reins", "bags", "saddlebags", "stirrup", "bedroll", "cinch", "bit", "tack", "fender"]
+
+## Hide a model part by mesh-name prefix (e.g. "Antlers" for does / cows).
+func hide_part(prefix: String) -> void:
+	for mi in meshes:
+		if String(mi.name).begins_with(prefix):
+			mi.visible = false
 
 func set_tack_visible(on: bool) -> void:
 	for mi in meshes:

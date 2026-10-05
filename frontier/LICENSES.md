@@ -17,6 +17,8 @@ domain, or a permissive open licence recorded below. No assets from other games,
 | World terrain, rivers, roads, towns layout | `frontier/tools/worldgen.py` (procedural, seed 1899) |
 | Buildings, props, vegetation meshes | Procedural generators in `frontier/src/` |
 | Horse: mesh, rig, skin weights, gaits/actions, mane/tail hair cards + strand texture, eyes, saddle/tack, blanket and leather textures | `frontier/tools/animals/horse_gen.py` (signed-distance anatomy, Blender 5 `bpy` as a build tool, scikit-image marching cubes); no external data or references bundled |
+| Wildlife: mule deer, elk, pronghorn, bison, wolf, coyote, fox, cougar, black bear, raccoon, jackrabbit (meshes, rigs, gaits, actions, antlers/horns) | `frontier/tools/animals/quadruped.py` + `species/*.py` (procedural, same pipeline as the horse; proportions from public zoological measurements, no external data bundled) |
+| Wildlife coats and eyes | `frontier/shaders/animal_coat.gdshader`, `animal_eye.gdshader` (procedural) |
 | Horse coats and markings, hair shading | `frontier/shaders/horse_coat.gdshader`, `horse_hair.gdshader` (procedural) |
 | Sky, clouds, weather, water shaders | Original shaders |
 | Story, characters, dialogue, place names | Original writing (`frontier/design/`) |

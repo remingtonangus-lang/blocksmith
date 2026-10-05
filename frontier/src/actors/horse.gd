@@ -850,6 +850,7 @@ func mount(r: Node3D, side: float = 0.0) -> bool:
 	if r.has_signal("mounted"):
 		r.emit_signal("mounted", self)
 	mounted_by.emit(r)
+	_attach_rider_ik(r)
 	Game.log_event("horse_mount", {"side": "right" if side > 0 else "left"})
 	return true
 
@@ -885,6 +886,9 @@ func dismount(side: float = 0.0, thrown := false) -> bool:
 	if r.has_signal("dismounted"):
 		r.emit_signal("dismounted")
 	dismounted_by.emit(r)
+	if _rider_ik != null and is_instance_valid(_rider_ik):
+		_rider_ik.queue_free()
+	_rider_ik = null
 	# auto-hitch near a post
 	for post in get_tree().get_nodes_in_group("hitching_post"):
 		if post is Node3D and post.global_position.distance_to(global_position) < 5.0:
@@ -915,6 +919,19 @@ func _dismount_point(side: float) -> Vector3:
 		if not space.intersect_shape(q, 1).is_empty():
 			return Vector3.INF
 	return pt
+
+var _rider_ik: RiderIK = null
+
+## Procedural riding pose (RiderIK) on a humanoid rider (FrontierCharacter skeleton with Godot humanoid bones).
+func _attach_rider_ik(r: Node3D) -> void:
+	var vis = r.get("visual")
+	var sk: Skeleton3D = vis.get("skeleton") if vis != null and vis.get("skeleton") != null else null
+	if sk == null or sk.find_bone("LeftUpperLeg") < 0:
+		return
+	_rider_ik = RiderIK.new()
+	_rider_ik.name = "RiderIK"
+	sk.add_child(_rider_ik)
+	_rider_ik.setup(self)
 
 func _place_rider(dt: float) -> void:
 	var seat := visual.seat_transform()

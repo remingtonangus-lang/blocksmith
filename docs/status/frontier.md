@@ -182,3 +182,4 @@ Work order from this round:
 - 2026-10-05: combat feel (worktree): arm IK onto guns, leather belt/holster/sling/scabbard, death ragdolls, surface impacts + fading decals, night muzzle light, casing sounds, Nerve grade/ink marks/camera cuts (see WEAPONS.md).
 - 2026-10-05: character quality pass (worktree agent): garments/drape/springs, updos, faces + lip-sync, riding and
   weapon-handling clips, tri budgets + LODs.
+- 2026-10-05: wildlife workstream (worktree): quadruped.py + 11 species, animal coat shader, animal.gd model wiring, per-species gait oracle (wildlife_test.tscn, `--bot hunt`), RiderIK (see WILDLIFE.md).

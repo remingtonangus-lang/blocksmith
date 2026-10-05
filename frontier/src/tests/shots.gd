@@ -3,6 +3,7 @@ extends Node
 ## or --tour DIR (named vantage points in TOUR). Waits for streaming/shaders, saves PNGs, prints timings, quits.
 ## --horse D [--horse_seed S --horse_breed B --horse_yaw DEG --horse_anim A]: stand a horse D metres in front of
 ## the camera (side-on by default) for in-world horse shots.
+## --animal sp[,sp...] [--animal_dist D]: wild animals (generated models when fetched) posed in front of the camera.
 
 const TOUR := [
 	# name, x, z, height above ground, yaw (deg, 0 = north, 90 = east), pitch, hour, weather
@@ -104,6 +105,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	main.sky.cam_attr.auto_exposure_speed = 30.0     # converge within the few frames a shot renders
 	if Game.args.has("horse"):
 		_place_horse(cam)
+	if Game.args.has("animal"):
+		_place_animals(cam)
 	var t0 := Time.get_ticks_msec()
 	# let streaming (tree chunks, collision, grass) settle before counting frames
 	var veg = main.vegetation
@@ -161,3 +164,23 @@ func _place_horse(cam: Camera3D) -> void:
 	if Game.args.has("horse_anim") and _horse.visual.anim_player:
 		_horse.set_physics_process(false)
 		_horse.visual.set_locomotion(str(Game.args["horse_anim"]), 1.0)
+
+## --animal species[,species...] [--animal_dist D]: a few wild animals grazing in front of the camera.
+func _place_animals(cam: Camera3D) -> void:
+	var w: WorldData = Game.world
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var right := fwd.cross(Vector3.UP)
+	var list := str(Game.args["animal"]).split(",")
+	var d0 := Game.arg_f("animal_dist", 12.0)
+	for i in list.size():
+		var p := cam.global_position + fwd * (d0 + i * 3.0) + right * ((i % 3) - 1) * 3.5
+		p.y = w.height(p.x, p.z) + 0.05
+		Game.terrain.ensure_collision_at(p)
+		var a := Animal.spawn(main, p, list[i], 1000 + i)
+		a.heading = atan2(-right.x, -right.z) + (0.4 if i % 2 == 0 else -2.6)
+		a.set_physics_process(false)
+		a.visual.rotation.y = a.heading
+		if a.model_vis != null:
+			a.model_vis.set_locomotion(["graze", "idle", "alert", "look"][i % 4], 1.0)

@@ -13,6 +13,18 @@ const REF := {
 	"gallop": [["RH"], ["LH"], ["RF"], ["LF"]],          # 4-beat transverse (left lead)
 	"gallop_r": [["LH"], ["RH"], ["LF"], ["RF"]],
 }
+## Reference footfall sequences by gait TYPE (written per gait into <species>_gaits.json by the generator), so
+## one oracle checks the horse and every wildlife species: rotary gallops for canids/felids/bears, the half-bound
+## of rabbits, the pronk/stot of mule deer.
+const REF_TYPES := {
+	"walk_lateral": [["LH"], ["LF"], ["RH"], ["RF"]],
+	"trot_diagonal": [["LH", "RF"], ["LF", "RH"]],
+	"canter": [["RH"], ["LH", "RF"], ["LF"]],
+	"gallop_transverse": [["RH"], ["LH"], ["RF"], ["LF"]],
+	"gallop_rotary": [["RH"], ["LH"], ["LF"], ["RF"]],
+	"bound": [["LF"], ["RF"], ["LH", "RH"]],
+	"pronk": [["LF", "LH", "RF", "RH"]],
+}
 const LEGS := ["LF", "RF", "LH", "RH"]
 const CONTACT_H := 0.03
 const BEAT_TOL := 0.07
@@ -49,14 +61,16 @@ static func analyse_animation(v: HorseVisual, gait: String, steps := 240) -> Dic
 		v.tree.active = true
 	if v.ik:
 		v.ik.enabled = true
-	return analyse_samples(samples, gait, L)
+	return analyse_samples(samples, gait, L, str(info.get("type", "")), v.size_scale)
 
 ## samples: [{t, pos: {leg: Vector3 world/model}, ground: {leg: float}}]; cycle: expected period (s) or 0.
-static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dictionary:
+static func analyse_samples(samples: Array, gait: String, cycle := 0.0, gait_type := "", size := 1.0) -> Dictionary:
+	var contact_h := maxf(CONTACT_H * clampf(size, 0.2, 1.5), 0.012)
+	var planted_h := maxf(0.012 * clampf(size, 0.2, 1.5), 0.005)
 	var onsets := {}
 	var slides := []
 	var contact_frac := {}
-	var min_len := maxf(cycle * 0.06, 0.04) if cycle > 0.0 else 0.05
+	var min_len := maxf(cycle * 0.06, minf(0.04, cycle * 0.1)) if cycle > 0.0 else 0.05   # short cycles: short stances
 	for leg in LEGS:
 		onsets[leg] = []
 		# contact segments (h < CONTACT_H), debounced: short dips/lifts are ignored
@@ -65,7 +79,7 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 		for s in samples:
 			var p: Vector3 = s.pos[leg]
 			var h: float = p.y - float(s.ground[leg])
-			if h < CONTACT_H:
+			if h < contact_h:
 				cur.append([float(s.t), p, h])
 			elif cur.size() > 0:
 				segs.append(cur)
@@ -85,7 +99,7 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 			var anchor = null
 			var worst := 0.0
 			for e in seg:
-				if e[2] < 0.012:
+				if e[2] < planted_h:
 					var p: Vector3 = e[1]
 					if anchor == null:
 						anchor = p
@@ -104,7 +118,8 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 	if ints.size() > 0:
 		T = ints[ints.size() / 2]
 	var res := {"ok": true, "gait": gait, "period": T, "failures": [], "contact": contact_frac}
-	var ref: Array = REF.get(gait, [])
+	var ref: Array = REF_TYPES.get(gait_type, REF.get(gait, []))
+	res.type = gait_type
 	if T <= 0.0 or ref.is_empty():
 		res.ok = false
 		res.failures.append("no periodic contacts")
@@ -122,10 +137,11 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 		var sy := 0.0
 		var nn := 0
 		for t in onsets[leg]:
-			# nearest lead onset at or before t
+			# nearest lead onset (either side: the phase is taken modulo T, and a leg that lands with the lead can
+			# cross the contact height a sample earlier than the lead's first counted onset)
 			var t0 := -INF
 			for tl in lead_on:
-				if tl <= t + 1e-4 and tl > t0:
+				if t0 == -INF or absf(tl - t) < absf(t0 - t):
 					t0 = tl
 			if t0 == -INF:
 				continue

@@ -3,8 +3,10 @@ extends CharacterBody3D
 ## Wildlife: one script for every species (table below). Grazers move in herds and flee from threats they see,
 ## hear or smell (wind-dependent); predators stalk and chase prey (and sometimes the player); birds and small game
 ## flush. Day/night activity. Hunting: pelt quality from weapon + hit zone + shot count, skinning via interact,
-## carcass/pelt items with prices. Visuals come from the quadruped pipeline when present (animals/<species>.glb),
-## else a simple stand-in body.
+## carcass/pelt items with prices. Visuals come from the quadruped pipeline (tools/animals/quadruped.py ->
+## animals/<species>.glb, driven through HorseVisual: AnimationTree from the ecology state and speed, foot IK near the
+## camera, hit zones riding on the head/body/leg bones), else a simple stand-in body. Predators are in group
+## `predator` (horses fear them) and alarm nearby horses when they attack.
 
 const SPECIES := {
 	"mule_deer": {"name": "Mule Deer", "size": Vector3(0.5, 1.0, 1.6), "hp": 70.0, "walk": 1.3, "run": 13.0, "herd": [2, 6],
@@ -54,6 +56,12 @@ var hit_zones: Array = []
 var killer_weapon := ""
 var skinned := false
 var alive := true
+var model_vis: HorseVisual = null     # generated model (null = stand-in)
+var anim_gait := ""
+var _idle_t := 0.0
+var _idle_kind := "idle"
+var _prev_state := -1
+var _body_shape: CollisionShape3D
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
 	var t0 := Time.get_ticks_usec()
@@ -84,6 +92,7 @@ func _setup() -> void:
 	cs.shape = box
 	cs.position.y = sz.y * 0.55
 	add_child(cs)
+	_body_shape = cs
 	damageable = Damageable.new()
 	damageable.max_health = spec.hp
 	damageable.kind = "animal"
@@ -91,8 +100,49 @@ func _setup() -> void:
 	add_child(damageable)
 	damageable.damaged.connect(_on_damaged)
 	damageable.died.connect(_on_died)
+	_build_visual()
+	_build_hitboxes()
+	if spec.diet == "predator" or species == "black_bear":
+		add_to_group("predator")
+	heading = rng.randf() * TAU
+	add_to_group("animals")
+	if Game.terrain:
+		Game.terrain.foci.append(self)
+	tree_exiting.connect(func(): if Game.terrain: Game.terrain.foci.erase(self))
+
+## Hit zones: with a generated model they ride on the bones (head moves with grazing, everything rolls over with
+## the death animation); the stand-in uses static boxes. Both turn with the visual (the body never rotates).
+func _build_hitboxes() -> void:
+	var sz: Vector3 = spec.size
+	if model_vis != null and model_vis.skeleton != null:
+		var sk := model_vis.skeleton
+		var an: Dictionary = model_vis.meta.get("anchors", {})
+		var body_len: float = (float(an.get("y_front", sz.z * 0.36)) - float(an.get("y_rear", -sz.z * 0.36)))
+		var mid_y: float = (float(an.get("y_front", 0.3)) + float(an.get("y_rear", -0.3))) * 0.5
+		var z_mid: float = (float(an.get("z_back", sz.y)) + float(an.get("z_belly", sz.y * 0.5))) * 0.5
+		var depth: float = float(an.get("z_back", sz.y)) - float(an.get("z_belly", sz.y * 0.5))
+		var chest := BoxShape3D.new()
+		chest.size = Vector3(sz.x * 0.95, depth * 1.05, body_len * 0.95)
+		_bone_hitbox(sk, "body", "chest", chest, Vector3(0, z_mid, -mid_y))
+		var head := SphereShape3D.new()
+		var poll: Array = an.get("poll", [0, sz.z * 0.4, sz.y])
+		var nose: Array = an.get("nose", [0, sz.z * 0.5, sz.y * 0.9])
+		head.radius = maxf(Vector3(poll[0], poll[1], poll[2]).distance_to(Vector3(nose[0], nose[1], nose[2])) * 0.42, 0.05)
+		var hc := (Vector3(poll[0], poll[2], -poll[1]) + Vector3(nose[0], nose[2], -nose[1])) * 0.5
+		_bone_hitbox(sk, "head", "head", head, hc)
+		var leg_len: float = float(an.get("z_belly", sz.y * 0.5))
+		for b in ["forearm_L", "forearm_R", "tibia_L", "tibia_R"]:
+			var bi := sk.find_bone(b)
+			if bi < 0:
+				continue
+			var cap := CapsuleShape3D.new()
+			cap.radius = maxf(sz.x * 0.12, 0.03)
+			cap.height = leg_len * 0.9
+			var rest := sk.get_bone_global_rest(bi)
+			_bone_hitbox(sk, b, "leg", cap, Vector3(rest.origin.x, leg_len * 0.5, rest.origin.z))
+		return
 	var hb := Node3D.new()
-	add_child(hb)
+	visual.add_child(hb)
 	var body := BoxShape3D.new()
 	body.size = Vector3(sz.x, sz.y * 0.5, sz.z * 0.78)
 	Damageable.make_hitbox(hb, damageable, "chest", body, Transform3D(Basis(), Vector3(0, sz.y * 0.62, 0)))
@@ -103,19 +153,43 @@ func _setup() -> void:
 		var legs := BoxShape3D.new()
 		legs.size = Vector3(sz.x * 0.7, sz.y * 0.38, sz.z * 0.14)
 		Damageable.make_hitbox(hb, damageable, "leg", legs, Transform3D(Basis(), Vector3(0, sz.y * 0.19, lz * sz.z * 0.32)))
-	_build_visual()
-	heading = rng.randf() * TAU
-	add_to_group("animals")
-	if Game.terrain:
-		Game.terrain.foci.append(self)
-	tree_exiting.connect(func(): if Game.terrain: Game.terrain.foci.erase(self))
+
+## A hit zone attached to a bone; `at` is the zone centre in the model's rest space.
+func _bone_hitbox(sk: Skeleton3D, bone: String, zone: String, shape: Shape3D, at: Vector3) -> void:
+	var bi := sk.find_bone(bone)
+	if bi < 0:
+		return
+	var ba := BoneAttachment3D.new()
+	ba.bone_name = bone
+	sk.add_child(ba)
+	var rest := sk.get_bone_global_rest(bi)
+	var local := rest.affine_inverse() * Transform3D(Basis.IDENTITY, at)
+	local.basis = rest.basis.inverse()            # keep the zone axis-aligned with the body at rest
+	Damageable.make_hitbox(ba, damageable, zone, shape, local)
 
 func _build_visual() -> void:
-	var path := "res://assets/ext/animals/%s.glb" % species
-	if ResourceLoader.exists(path):
-		var ps: PackedScene = load(path)
-		visual = ps.instantiate()
-	else:
+	var path := HorseVisual.model_path_for(species)
+	if path != "":
+		var v := HorseVisual.new()
+		v.build(AnimalCoats.roll(species, int(rng.seed % 1000003)), species)
+		if v.has_model:
+			model_vis = v
+			visual = v
+			var variants: Dictionary = v.meta.get("variants", {})
+			for vn in variants:
+				if rng.randf() < 0.5:                       # e.g. does: no antlers, a little smaller
+					var vd: Dictionary = variants[vn]
+					for part in vd.get("hide", []):
+						v.hide_part(part)
+					v.scale = Vector3.ONE * float(vd.get("scale", 1.0))
+					break
+			if v.ik:
+				v.ik.ground_fn = func(x: float, z: float) -> float: return Game.world.height(x, z) if Game.world else 0.0
+				v.ik.enabled = false
+			add_child(visual)
+			return
+		v.free()
+	if true:
 		visual = Node3D.new()
 		var sz: Vector3 = spec.size
 		var mat := StandardMaterial3D.new()
@@ -311,8 +385,57 @@ func _move(dt: float) -> void:
 	else:
 		move_and_slide()
 	visual.rotation.y = heading
-	if visual.has_method("set_gait"):
+	if _body_shape:
+		_body_shape.rotation.y = heading
+	if model_vis != null:
+		_animate(dt)
+	elif visual.has_method("set_gait"):
 		visual.set_gait(speed)
+
+## Ecology state + speed -> animation: idles (idle / graze / look) while calm, alert, walk / trot / run gait with
+## playback speed matched to ground speed, attack one-shots; foot IK only near the camera (LOD).
+func _animate(dt: float) -> void:
+	var mv := model_vis
+	var gaits: Dictionary = mv.meta.get("gaits", {})
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var cd := cam.global_position.distance_to(global_position) if cam != null else 0.0
+	if mv.ik:
+		mv.ik.enabled = cam != null and cd < 35.0 * maxf(mv.size_scale, 0.4)
+	if mv.tree:
+		mv.tree.active = cd < 60.0 + 150.0 * mv.size_scale or not alive     # animation LOD: far animals hold a pose
+	if state == State.ATTACK and _prev_state != State.ATTACK:
+		mv.play_action("attack")
+		Horse.alarm(global_position, 45.0, 1.1, "predator")
+	_prev_state = state
+	if speed < 0.15:
+		var want := "idle"
+		if state == State.ALERT:
+			want = "alert"
+		elif state == State.GRAZE or state == State.WANDER:
+			_idle_t -= dt
+			if _idle_t <= 0.0:
+				_idle_t = rng.randf_range(4.0, 10.0)
+				var r := rng.randf()
+				_idle_kind = "graze" if r < 0.55 else ("look" if r < 0.75 else "idle")
+			want = _idle_kind
+		mv.set_locomotion(want if want in mv.loop_states else "idle", 1.0)
+		anim_gait = want
+		return
+	var run_g: String = mv.meta.get("run_gait", "gallop")
+	if state == State.FLEE and mv.meta.has("flee_gait") and speed < float(spec.run) * 0.6:
+		run_g = str(mv.meta.flee_gait)
+	var walk_g: String = mv.meta.get("walk_gait", "walk")
+	var choice := walk_g
+	var walk_s: float = float(gaits.get(walk_g, {}).get("speed", 1.5))
+	var run_s: float = float(gaits.get(run_g, {}).get("speed", float(spec.run)))
+	var trot_s: float = float(gaits.get("trot", {}).get("speed", 0.0))
+	if trot_s > 0.0 and speed > (walk_s + trot_s) * 0.5:
+		choice = "trot"
+	if speed > ((trot_s if trot_s > 0.0 else walk_s) + run_s) * 0.5 or (trot_s <= 0.0 and speed > walk_s * 1.4):
+		choice = run_g
+	var gs: float = float(gaits.get(choice, {}).get("speed", speed)) * mv.scale.x
+	mv.set_locomotion(choice, clampf(speed / maxf(gs, 0.1), 0.5, 1.8))
+	anim_gait = choice
 
 func _on_damaged(info: Dictionary) -> void:
 	shots_taken += 1
@@ -333,8 +456,13 @@ func _on_died(info: Dictionary) -> void:
 	if Game.state:
 		Game.state.kills.animal += 1
 	Game.log_event("animal_killed", {"species": species, "quality": pelt_quality(), "zones": hit_zones})
-	var tw := create_tween()
-	tw.tween_property(visual, "rotation:z", PI * 0.5, 0.6).set_ease(Tween.EASE_IN)
+	if model_vis != null:
+		model_vis.set_locomotion("dead", 1.0)
+		if model_vis.ik:
+			model_vis.ik.enabled = false
+	else:
+		var tw := create_tween()
+		tw.tween_property(visual, "rotation:z", PI * 0.5, 0.6).set_ease(Tween.EASE_IN)
 	add_to_group("interactable")
 
 func interact_prompt() -> String:
@@ -374,6 +502,11 @@ func skin() -> Dictionary:
 	if Game.state:
 		Game.state.add_item(item)
 		Game.state.add_item("meat_" + species, 1)
-	visual.scale = Vector3(1, 0.6, 1)
+	if model_vis != null:
+		model_vis.set_locomotion("carcass_pose", 1.0)
+		if model_vis.body_mat:
+			model_vis.body_mat.set_shader_parameter("skinned", 1.0)
+	else:
+		visual.scale = Vector3(1, 0.6, 1)
 	Game.log_event("skinned", {"species": species, "quality": q})
 	return {"item": item, "quality": q, "value": float(spec.pelt) * [0.0, 0.4, 0.75, 1.0][q]}
