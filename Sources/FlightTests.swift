@@ -216,7 +216,17 @@ enum FlightTests {
                 return abs(e) < 0.17
             }
             check(turned != nil, "it turns to the view", String(format: "in %.1f s", turned ?? -1))
-            // A pad under it to set down on (the hills round it are no place to land).
+            // Stick against the drift until it stops (a player brakes so), then a pad under it to set down on (the
+            // hills round it are no place to land).
+            tag = "player-brake"
+            let stopped = step(12) { _ in
+                let f = s.dirToWorld(s.fwd), r = simd_normalize(simd_cross(f, V3(0, 1, 0)))
+                input.forward = max(-1, min(1, -simd_dot(s.vel, f) * 0.25))
+                input.strafe = max(-1, min(1, -simd_dot(s.vel, r) * 0.25))
+                return simd_length(V2(s.vel.x, s.vel.z)) < 0.6
+            }
+            input = MoveInput()
+            check(stopped != nil, "the stick brakes it to a hover", String(format: "after %.1f s, %.1f b/s", stopped ?? -1, simd_length(s.vel)))
             _ = pad(s.pos.x, s.pos.z, radius: 7)
             tag = "player-land"
             var touch: Float = 99
