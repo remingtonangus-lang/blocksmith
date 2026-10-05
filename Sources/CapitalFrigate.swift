@@ -1,12 +1,12 @@
 import Foundation
 import simd
 
-// The Capital's frigate (role "capfrigate"; replaces the Skyward Frigate's airship look, Future ideas #1 and
-// Remington's 2026-10-04 list). An original design: a sleek, modern flying warship at true frigate scale (142 blocks
-// = 142 m long, 27 wide), white and light-grey armour in faceted, chined planes: a V hull widening to a hard chine,
-// tumblehome sides up to the deck, an enclosed faceted deckhouse with an integrated pyramid mast and flat radar faces
-// (no masts, sails, rigging or wooden-ship shapes), a stealth-shaped bow gun, vertical launch cells, two close-in
-// gun mounts, a hangar and flight deck aft, and four drive nozzles in the transom with lift strips under the keel.
+// The Capital's frigate (role "capfrigate"). An original far-future warship (Remington 2026-10-05: frigates are
+// space-navy warships of around 2500 AD, not ships of the sea, with hallways and rooms like the citadel): 200 blocks
+// long, white and light-grey armour with graphite, a tall armoured prow wedge round the spinal gun's muzzle, a slimmer
+// midsection with a dorsal spine, a raked bridge tower set aft, a wider engine block with drive nacelles and six
+// glowing nozzles, a hangar open through both flanks, and inside two decks of corridors and rooms over the hangar and
+// the hold (ShipInteriors.swift), an engine room with a gallery, ladders between them and a dorsal hatch.
 // Bow toward -Z at z 0, keel at y 0, centreline x 0. Kinematic like the other capital ships (CapitalShips.swift).
 
 extension BlockRegistry {
@@ -68,58 +68,62 @@ extension TextureGen {
 }
 
 extension Capital {
-    static let capFrigateLength = 142
+    static let capFrigateLength = 200
     // Keel height over the highest ground around: the Capital frigate cruises above its citadels' towers (72 high).
     static func cruiseClearance(_ role: String) -> Float { role == "capfrigate" ? 78 : 30 }
 
-    // Hull half-width at deck level along the length: a long fine bow, parallel midbody, slight taper at the transom.
-    static func cfHalf(_ z: Int) -> Float {
+    // Hull section at z (bow at z 0, toward -Z): half-width, bottom, top. A far-future warship's lines: a tall
+    // armoured prow wedge round the spinal gun's muzzle, a slimmer neck and midsection with the habitation decks, and a
+    // wider, taller engine block aft (Remington 2026-10-05: frigates are space-navy warships, not ships of the sea).
+    static func cfSection(_ z: Int) -> (Float, Float, Float) {
         let zf = Float(z)
-        if zf < 52 { return max(1, 13.5 * powf(zf / 52, 0.62)) }
-        if zf > 128 { return 13.5 - (zf - 128) * 0.12 }
-        return 13.5
+        func lerp(_ a: Float, _ b: Float, _ t: Float) -> Float { a + (b - a) * max(0, min(1, t)) }
+        if z < 44 {
+            let hw: Float = lerp(9, 15, zf / 12), yb: Float = lerp(8, 2, zf / 20), yt: Float = lerp(17, 24, zf / 30)
+            return (hw, yb, yt)
+        }
+        if z < 60 {
+            let t: Float = (zf - 44) / 16
+            return (lerp(15, 12, t), lerp(2, 3, t), lerp(24, 22, t))
+        }
+        if z < 140 { return (12, 3, 22) }
+        let t: Float = (zf - 140) / 12
+        return (lerp(12, 16, t), lerp(3, 1, t), lerp(22, 26, t))
     }
-    // Keel height: the forefoot rises toward the bow.
-    static func cfKeel(_ z: Int) -> Float { z < 34 ? 2 + Float(34 - z) * 0.22 : 2 }
-    // Deck height: 14 amidships, with sheer rising toward the bow.
-    static func cfDeck(_ z: Int) -> Float { z < 36 ? 14 + Float(36 - z) * 0.07 : 14 }
 
-    // Inside the hull: a V below the hard chine (y 8), tumblehome above it up to the deck, a raked stem.
+    // Inside the main hull: the section with chamfered upper and lower edges.
     static func cfHull(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard z >= 0 && z < capFrigateLength else { return false }
+        let ax = Float(abs(x)), yf = Float(y)
+        let (hw, yb, yt) = cfSection(z)
+        guard ax <= hw && yf >= yb && yf <= yt else { return false }
+        let topC: Float = (ax - (hw - 5)) + (yf - (yt - 5))
+        let botC: Float = (ax - (hw - 4)) + ((yb + 4) - yf)
+        return topC <= 5 && botC <= 4
+    }
+    // The bridge tower: raked front, set aft on the dorsal line.
+    static func cfTower(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard z >= 108 && z <= 136 && y >= 22 && y <= 31 else { return false }
+        let half: Float = 7 - Float(y - 22) * 0.25
+        guard Float(abs(x)) <= half else { return false }
+        return Float(z - 108) >= Float(y - 22) * 1.2
+    }
+    // The dorsal spine ridge.
+    static func cfSpine(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard z >= 40 && z <= 107 && abs(x) <= 2 else { return false }
+        let (_, _, yt) = cfSection(z)
         let yf = Float(y)
-        let deck = cfDeck(z)
-        guard yf <= deck else { return false }
-        let k = cfKeel(z)
-        guard yf >= k else { return false }
-        if z < 20 && Float(z) < (deck - yf) * 0.55 { return false }     // the stem rakes forward toward the deck
-        let h = cfHalf(z)
-        let w: Float
-        if yf <= 8 { w = h * (0.32 + 0.68 * (yf - k) / max(1, 8 - k)) } else { w = h * (1 - 0.13 * (yf - 8) / max(1, deck - 8)) }
-        return Float(abs(x)) <= w
+        return yf > yt - 1 && yf <= yt + 2 - Float(abs(x))
     }
-    // The deckhouse: tumblehome sides, a raked front, stepping down aft to the hangar (a square aft end).
-    static func cfHouse(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard y >= 15 && y <= (z > 85 ? 22 : 26) && z <= 102 else { return false }
-        let yf = Float(y - 15)
-        let front: Float = 46 + yf * 0.7
-        guard Float(z) >= front else { return false }
-        let half: Float = 10 - yf * 0.32
-        return Float(abs(x)) <= half
+    // Drive nacelles on the engine block's flanks.
+    static func cfNacelle(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard z >= 150 && z < capFrigateLength else { return false }
+        let dx = Float(abs(x) - 17), dy = Float(y - 12)
+        let r: Float = z < 156 ? Float(z - 150) * 0.85 : 5
+        return dx * dx + dy * dy <= r * r
     }
-    // The exhaust stack: a faceted, inward-leaning block abaft the mast.
-    static func cfStack(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard y >= 27 && y <= 31 else { return false }
-        let t = Float(y - 27)
-        return Float(abs(x)) <= 3.5 - t * 0.3 && Float(z) >= 77 + t * 0.6 && z <= 84
-    }
-    // The integrated mast: a faceted pyramid rising from the deckhouse roof.
-    static func cfMast(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard y >= 27 && y <= 37 else { return false }
-        let t = Float(y - 27)
-        let half: Float = 5.5 - t * 0.42
-        let z0: Float = 58 + t * 0.55, z1: Float = 74 - t * 0.55
-        return Float(abs(x)) <= half && Float(z) >= z0 && Float(z) <= z1
+    static func cfSolid(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        cfHull(x, y, z) || cfTower(x, y, z) || cfSpine(x, y, z) || cfNacelle(x, y, z)
     }
 
     // A stealth-shaped gunhouse with one long barrel.
@@ -144,121 +148,131 @@ extension Capital {
     }
 
     static func capitalFrigate() -> HullBuilder {
-        let W = 15, L = capFrigateLength
-        let hb = HullBuilder(sx: 2 * W + 1, sy: 40, sz: L, ox: W)
+        let W = 23, L = capFrigateLength, H = 36
+        let hb = HullBuilder(sx: 2 * W + 1, sy: H, sz: L, ox: W)
         let plate = id("capital_plate", id("white_concrete")), panel = id("capital_panel", plate), trim = id("capital_trim", plate)
         let graphite = id("capital_graphite", id("warship_hull")), glass = id("capital_glass", id("armored_glass", GLASS))
         let light = id("light_panel"), engine = id("ship_engine"), console = id("command_console")
-        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { cfHull(x, y, z) || cfHouse(x, y, z) || cfMast(x, y, z) || cfStack(x, y, z) }
-        // Shell: only the outer skin is built (the inside is decks and rooms), coloured by height.
-        for z in 0..<L { for y in 0..<40 { for x in -W...W where solid(x, y, z) {
-            let edge: Bool = !solid(x + 1, y, z) || !solid(x - 1, y, z) || !solid(x, y + 1, z) || !solid(x, y - 1, z)
-                || !solid(x, y, z + 1) || !solid(x, y, z - 1)
+        let deck = id("steel_grating", trim), iron = id("iron_block")
+        // Shell: only the outer skin (the inside is decks and rooms).
+        for z in 0..<L { for y in 0..<H { for x in -W...W where cfSolid(x, y, z) {
+            let edge: Bool = !cfSolid(x + 1, y, z) || !cfSolid(x - 1, y, z) || !cfSolid(x, y + 1, z) || !cfSolid(x, y - 1, z)
+                || !cfSolid(x, y, z + 1) || !cfSolid(x, y, z - 1)
             if !edge { continue }
-            var b: BlockID = ((z / 6) + (y / 5)) % 4 == 0 ? panel : plate
-            if y <= 3 { b = graphite }                              // boot-top along the keel
-            if y == 8 && cfHull(x, y, z) { b = trim }                // the chine line
-            if cfHull(x, y, z) && !cfHull(x, y + 1, z) && !cfHouse(x, y + 1, z) { b = trim }   // weather deck
-            if cfStack(x, y, z) && y == 31 { b = graphite }                  // exhaust grille
+            let main = cfHull(x, y, z)
+            let (hw, _, yt) = cfSection(z)
+            let flank: Bool = main && Float(abs(x)) >= hw - 0.5
+            var b: BlockID = ((z / 8) + (y / 6)) % 5 == 0 ? panel : plate
+            if main && y <= 4 { b = graphite }                                  // ventral armour
+            if flank && y == Int(yt) - 8 { b = trim }                            // the flank stripe
+            if cfNacelle(x, y, z) && !main { b = z % 6 == 0 ? trim : panel }
+            // Lit windows only where people live: the two habitation decks midships.
+            let deckRow: Bool = y == 15 || y == 20
+            if flank && deckRow && z > 50 && z < 138 && z % 4 == 1 { b = light }
             hb.set(x, y, z, b)
         } } }
-        // Lower deck inside the hull, and the deck under the deckhouse (inner cells, not part of the skin).
-        for z in 18..<128 { for x in -W...W where cfHull(x, 8, z) && cfHull(x + 1, 8, z) && cfHull(x - 1, 8, z) { hb.set(x, 8, z, trim) } }
-        for z in 46...102 { for x in -W...W where cfHull(x, 14, z) && cfHouse(x, 15, z) { hb.set(x, 14, z, trim) } }
-        // Radar faces: flat graphite arrays on the mast's four sides.
-        for y in 29...33 {
-            let t = Float(y - 27)
-            let half = Int(5.5 - t * 0.42)
-            let z0 = Int(ceilf(58 + t * 0.55)), z1 = Int(74 - t * 0.55)
-            for x in -max(0, half - 1)...max(0, half - 1) { hb.set(x, y, z0, graphite); hb.set(x, y, z1, graphite) }
-            for z in (z0 + 2)...(z1 - 2) { hb.set(half, y, z, graphite); hb.set(-half, y, z, graphite) }
-        }
-        hb.set(0, 38, 66, graphite); hb.set(0, 39, 66, light)       // sensor dome and masthead light
-        // Bridge: a smoked-glass band across the raked front and the forward sides, the helm, consoles.
-        for y in 22...24 { for x in -9...9 {
-            let z = Int(ceilf(46 + Float(y - 15) * 0.7))
-            if cfHouse(x, y, z) { hb.set(x, y, z, glass) }
+        // The spinal gun: a tube through the prow, its muzzle open in the bow, the breech at the neck.
+        let gy = 12
+        for z in 0...44 { for y in (gy - 3)...(gy + 3) { for x in -3...3 {
+            let r: Float = sqrtf(Float(x * x + (y - gy) * (y - gy)))
+            if r >= 1.8 && r < 3 { hb.set(x, y, z, iron) } else if r < 1.8 && z < 2 { hb.set(x, y, z, AIR) }
+        } } }
+        hb.fill(-3, 3, gy - 3, gy + 3, 41, 45, iron)
+        hb.mainGun = (V3(Float(W) + 0.5, Float(gy) + 0.5, -1), V3(0, 0, -1))
+        // The hangar: open through both flanks amidships, its deck at 4, the crew deck over it.
+        hb.fill(-12, 12, 4, 4, 66, 104, deck)
+        for z in 72...98 { for y in 5...10 { for sx in [-1, 1] {
+            var xe = 0
+            while cfHull(sx * (xe + 1), y, z) { xe += 1 }
+            hb.set(sx * xe, y, z, AIR)
+        } } }
+        for x in [-12, 12] { for z in [71, 99] { for y in 5...10 { hb.set(x, y, z, trim) } } }
+        for z in stride(from: 70, through: 102, by: 8) { for x in [-6, 0, 6] { hb.set(x, 11, z, light) } }
+        // The hold aft of the hangar and the engine room: one deck at 4 to the stern, a gallery at 14 along the sides.
+        for z in 105...197 { for x in -15...15 where cfHull(x, 4, z) && cfHull(x, 6, z) && hb.get(x, 4, z) == AIR { hb.set(x, 4, z, deck) } }
+        for z in 144...196 { for x in -15...15 where abs(x) >= 10 && cfHull(x, 14, z) && cfHull(x, 16, z) && hb.get(x, 14, z) == AIR { hb.set(x, 14, z, deck) } }
+        for sx in [-1, 1] { hb.fill(sx * 5, sx * 9, 6, 8, 168, 182, engine) }
+        for z in stride(from: 148, through: 196, by: 8) { for x in [-12, 0, 12] where hb.get(x, 24, z) == AIR && cfHull(x, 24, z) { hb.set(x, 24, z, light) } }
+        hb.ladderWell(x: 11, z: 145, y0: 4, y1: 14, back: 1)
+        hb.ladderWell(x: -11, z: 195, y0: 4, y1: 14, back: -1)
+        // Two decks of corridors and rooms over the hangar and the hold (the citadel's comforts, a warship's rooms).
+        let style = InteriorStyle(floor: deck, wall: panel, trim: trim, light: light, bed: "white",
+                                  armoryLoot: "steelhold_armory", supplyLoot: "steelhold_supply")
+        let inside: (Int, Int, Int) -> Bool = { x, y, z in Capital.cfHull(x, y, z) }
+        hb.interiorDeck(y: 12, h: 4, hw: 12, z0: 46, z1: 140, rooms: [.mess, .quarters, .armory, .quarters, .medbay, .storage, .quarters, .brig],
+                        style: style, seed: 0xCF01, inside: inside)
+        hb.interiorDeck(y: 17, h: 4, hw: 12, z0: 50, z1: 138, rooms: [.briefing, .quarters, .engineering, .quarters, .armory, .storage],
+                        style: style, seed: 0xCF02, inside: inside)
+        // Ladders: hangar and hold up to the crew deck, crew deck to the upper deck at both ends, up to the bridge,
+        // and a dorsal hatch from the upper deck onto the hull (boarding from above).
+        hb.ladderWell(x: -1, z: 107, y0: 4, y1: 12, back: -1)
+        hb.ladderWell(x: 1, z: 52, y0: 12, y1: 17, back: 1)
+        hb.ladderWell(x: -1, z: 136, y0: 12, y1: 17, back: -1)
+        hb.ladderWell(x: 4, z: 128, y0: 17, y1: 22, back: 1)
+        hb.ladderWell(x: 5, z: 62, y0: 17, y1: 22, back: 1)
+        // Bridge in the tower: its floor (the hull's top and the tower share their inside cells), then a smoked-glass
+        // band round the raked front and the sides, the helm, consoles.
+        for z in 108...136 { for x in -7...7 where cfTower(x, 23, z) && hb.get(x, 22, z) == AIR { hb.set(x, 22, z, deck) } }
+        for y in 26...28 { for x in -7...7 {
+            let z = 108 + Int(ceilf(Float(y - 22) * 1.2))
+            if cfTower(x, y, z) { hb.set(x, y, z, glass) }
         } }
-        for z in 54...62 { for y in 22...23 {
-            let half = Int(10 - Float(y - 15) * 0.32)
+        for z in 114...132 { for y in 26...27 {
+            let half = Int(7 - Float(y - 22) * 0.25)
             hb.set(half, y, z, glass); hb.set(-half, y, z, glass)
         } }
-        hb.fill(-6, 6, 21, 21, 53, 66, trim)                        // bridge deck (to the ladder head at z 66: stream B found it a block short)
-        hb.set(0, 22, 55, Blocks.id("ship_helm[south]"))
-        for x in [-4, -2, 2, 4] { hb.set(x, 22, 54, console) }
-        hb.set(0, 25, 60, light); hb.set(0, 25, 64, light)
-        let ladder = Blocks.id("ladder")
-        for y in 15...21 { hb.set(-7, y, 66, trim); hb.set(-6, y, 66, ladder + 3) }
-        hb.set(-6, 21, 66, AIR)
-        // Side doors from the weather deck into the deckhouse.
-        for sx in [-1, 1] { for y in 15...16 { for k in 9...10 { hb.set(sx * k, y, 80, AIR); hb.set(sx * k, y, 81, AIR) } } }
-        // Forward: vertical launch cells (graphite hatches) ahead of the deckhouse, the bow gun before them.
-        for z in stride(from: 31, through: 41, by: 2) { for x in stride(from: -4, through: 4, by: 2) { hb.set(x, 14, z, graphite) } }
-        for z in stride(from: 31, through: 41, by: 4) { for x in [-3, 3] {
-            hb.pods.append((V3(Float(x + W) + 0.5, 15.5, Float(z) + 0.5), simd_normalize(V3(0, 1, -0.15))))
-        } }
-        hb.set(0, 15, 22, Blocks.id("ship_turret_ring"))
-        hb.turrets.append((hb.grid(0, 15, 22), capitalGun(), naval))
-        hb.mainGun = (V3(Float(W) + 0.5, 16.5, 10), V3(0, 0, -1))
-        // Close-in guns on the deckhouse roof, fore and aft.
-        for z in [52, 96] {
-            var top = 26
-            while top > 15 && !cfHouse(0, top, z) { top -= 1 }
-            hb.set(0, top + 1, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, top + 1, z), capitalCIWS(), auto))
+        hb.set(0, 23, 113, Blocks.id("ship_helm[south]"))
+        for x in [-4, -2, 2, 4] { hb.set(x, 23, 112, console) }
+        for z in [118, 126] { hb.set(0, 30, z, light) }
+        // Weapons: the bow gun over the prow, a second gun on the engine block, close-in guns on the bridge roof and
+        // the engine block's shoulders; launch cells along the spine.
+        hb.set(0, 25, 30, Blocks.id("ship_turret_ring"))
+        hb.turrets.append((hb.grid(0, 25, 30), capitalGun(), naval))
+        hb.set(0, 27, 156, Blocks.id("ship_turret_ring"))
+        hb.turrets.append((hb.grid(0, 27, 156), capitalGun(), naval))
+        hb.set(0, 32, 124, Blocks.id("ship_turret_ring"))
+        hb.turrets.append((hb.grid(0, 32, 124), capitalCIWS(), auto))
+        for sx in [-1, 1] {
+            var top = 30
+            while top > 20 && !cfHull(sx * 9, top, 172) { top -= 1 }
+            hb.set(sx * 9, top + 1, 172, Blocks.id("ship_turret_ring"))
+            hb.turrets.append((hb.grid(sx * 9, top + 1, 172), capitalCIWS(), auto))
         }
-        // Hangar open aft onto the flight deck; landing markings and edge lights.
-        for y in 15...21 { for x in -6...6 { hb.set(x, y, 102, AIR) } }
-        // Boat bays: recesses in both flanks under the deckhouse, graphite inside.
-        for sx in [-1, 1] { for z in 86...94 {
-            var xe = 0
-            while cfHull(xe + 1, 11, z) { xe += 1 }
-            for y in 10...12 { hb.set(sx * xe, y, z, AIR); hb.set(sx * (xe - 1), y, z, graphite) }
-            hb.set(sx * (xe - 1), 9, z, graphite); hb.set(sx * (xe - 1), 13, z, graphite)
-            if z == 86 || z == 94 { for y in 10...12 { hb.set(sx * xe, y, z, graphite) } }
+        for z in stride(from: 48, through: 100, by: 6) { for sx in [-1, 1] {
+            let (_, _, yt) = cfSection(z)
+            hb.set(sx * 4, Int(yt), z, graphite)
+            if z % 12 == 0 { hb.pods.append((V3(Float(sx * 4 + W) + 0.5, yt + 1.5, Float(z) + 0.5), simd_normalize(V3(0, 1, -0.15)))) }
         } }
-        for z in 104..<136 where z % 4 == 0 { hb.set(0, 14, z, panel) }
-        for z in stride(from: 106, through: 134, by: 7) { for sx in [-1, 1] {
-            let e = Int(cfHalf(z) * 0.87) - 1
-            hb.set(sx * e, 14, z, light)
-        } }
-        // The Capital chevron on both bow flanks: a graphite V on the white plate, just above the chine.
+        // Drive: four nozzles in the stern face and one in each nacelle, glowing while the engines run.
+        for (nx, ny, nr) in [(-7, 9, 3), (7, 9, 3), (-7, 19, 3), (7, 19, 3), (-17, 12, 3), (17, 12, 3)] {
+            hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
+            for y in (ny - nr - 1)...(ny + nr + 1) { for x in (nx - nr - 1)...(nx + nr + 1) where cfSolid(x, y, L - 1) {
+                let rr = Float((x - nx) * (x - nx) + (y - ny) * (y - ny))
+                if rr < Float(nr * nr) { hb.set(x, y, L - 1, light); hb.set(x, y, L - 2, light) }
+                else if rr < Float((nr + 1) * (nr + 1)) { hb.set(x, y, L - 1, graphite) }
+            } }
+        }
+        // The Capital chevron on both flanks of the prow, navigation lights.
         let chevron = ["X.....X", ".X...X.", "..X.X..", "...X..."]
         for (row, line) in chevron.enumerated() { for (k, ch) in line.enumerated() where ch == "X" {
-            let y = 13 - row, z = 26 + k
+            let y = 19 - row, z = 22 + k
             var xe = 0
             while cfHull(xe + 1, y, z) { xe += 1 }
             hb.set(xe, y, z, graphite); hb.set(-xe, y, z, graphite)
         } }
-        // Flight-deck markings: edge lines, a landing circle with a cross at its centre, a hangar threshold bar.
-        for z in 104...137 { let e = Int(cfHalf(z) * 0.87) - 2; hb.set(e, 14, z, panel); hb.set(-e, 14, z, panel) }
-        for z in 113...129 { for x in -8...8 {
-            let r2 = x * x + (z - 121) * (z - 121)
-            if r2 >= 30 && r2 <= 42 { hb.set(x, 14, z, graphite) }
+        hb.set(0, 17, 0, light)
+        for z in stride(from: 40, through: 190, by: 15) { for x in [-3, 3] where cfHull(x, 1, z) || cfHull(x, 2, z) || cfHull(x, 3, z) {
+            var b = 0
+            while b < 6 && !cfHull(x, b, z) { b += 1 }
+            hb.set(x, b, z, light)
         } }
-        for k in -2...2 { hb.set(k, 14, 121, graphite); hb.set(0, 14, 121 + k, graphite) }
-        for x in -6...6 { hb.set(x, 14, 104, graphite) }
-        // Drive: an engine room aft (critical systems), four nozzles in the transom, lift strips under the keel.
-        for sx in [-1, 1] { hb.fill(sx * 5 - 2, sx * 5 + 2, 5, 7, 118, 132, engine) }
-        for nx in [-7, 7] { for ny in [7, 11] {
-            hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
-            for y in (ny - 3)...(ny + 3) { for x in (nx - 3)...(nx + 3) where cfHull(x, y, L - 1) {
-                let rr = Float((x - nx) * (x - nx) + (y - ny) * (y - ny))
-                if rr < 5 { hb.set(x, y, L - 1, light); hb.set(x, y, L - 2, light) }
-                else if rr < 10 { hb.set(x, y, L - 1, trim) }
-            } }
-        } }
-        for z in stride(from: 40, through: 124, by: 12) { for x in [-2, 2] { hb.set(x, 2, z, light) } }
-        // Navigation lights on the bow and the stern quarters.
-        hb.set(0, 13, 1, light)
-        hb.chests.append((hb.grid(0, 15, 92), "steelhold_supply"))
-        hb.set(0, 15, 92, Blocks.id("chest"))
-        hb.chests.append((hb.grid(3, 22, 63), "steelhold_vault"))
-        hb.set(3, 22, 63, Blocks.id("chest"))
-        // Crew: the helmsman, a gunner for the bow gun and one per close-in mount, and a security detail in the hangar.
-        hb.post(0, 22, 56, .driver)
-        for (x, y, z) in [(3, 15, 28), (2, 22, 60), (4, 15, 96)] { hb.post(x, y, z, .gunner) }
-        for (x, y, z) in [(-4, 15, 92), (4, 15, 90), (-3, 15, 98), (0, 9, 70), (-6, 9, 100)] { hb.post(x, y, z, .troop) }
+        // Stores: supplies in the hangar, the captain's chest on the bridge.
+        hb.set(9, 5, 90, Blocks.id("chest")); hb.chests.append((hb.grid(9, 5, 90), "steelhold_supply"))
+        hb.set(3, 23, 131, Blocks.id("chest")); hb.chests.append((hb.grid(3, 23, 131), "steelhold_vault"))
+        // Crew: the helmsman, a gunner per gun group, and a security detail in the hangar, the hold and the crew deck.
+        hb.post(0, 23, 115, .driver)
+        for (x, y, z) in [(0, 18, 58), (2, 23, 126), (0, 5, 150)] { hb.post(x, y, z, .gunner) }
+        for (x, y, z) in [(-6, 5, 80), (6, 5, 94), (-4, 5, 100), (0, 5, 120), (0, 13, 90)] { hb.post(x, y, z, .troop) }
         return hb
     }
 }

@@ -13,8 +13,8 @@ import simd
 //   board       on a moving crawler: up the side ladder, over the roof walkway and through the hatch into the command
 //               deck, back out and down the ladder to the ground, round to the rear ramp, up it into the troop bay,
 //               and down it to the ground again
-//   frigateboard a creative bot flies down onto a cruising, turning Capital frigate's flight deck, walks through the
-//               hangar, the deckhouse and a side door onto the weather deck to the bow, back again, and flies off
+//   frigateboard a creative bot flies in through a cruising, turning Capital frigate's starboard hangar opening, lands,
+//               climbs to the crew deck, walks its corridor forward and back, slides down again and flies out to port
 //   crew        a crewed crawler driving S-turns: every soldier holds its post; then half its wheels are shot away:
 //               it grinds to a stop, the crew stay aboard and fight two enemy soldiers
 //   troops      a crewed crawler meets enemy soldiers: it stops, lowers its ramp and its bay troops walk out down it
@@ -470,25 +470,26 @@ enum RideCheck {
         st.testSpeed = 5
         for _ in 0..<60 { sc.agent.step(Bot()) }
         let p = g.player
-        p.pos = s.toWorld(V3(15.5, 24, 132))
-        p.vel = s.velocity(at: p.pos) * 0.5
+        // Ship space: the Capital frigate's centreline is x 23.5; the hangar deck is at 4 (feet 5), open through both
+        // flanks for z 72-98; the ladder from the hangar to the crew deck (feet 13) is at x 22.5, z 107.5.
+        p.pos = s.toWorld(V3(23.5 + 24, 7.2, 85.5))
+        p.vel = s.velocity(at: p.pos)
         p.flying = true
         p.yaw = s.yaw
         p.lastUpdatePos = p.pos
         _ = w.loadSync(center: p.pos, radius: 3)
-        let mon = Monitor(sc, deckY: 15)
+        let mon = Monitor(sc, deckY: 5)
+        mon.spikeLimit = 6                           // ladders and doorways: walking into a wall stops the bot
         let bot = Bot()
         var phase = 0, wp = 0
         var phaseT: Float = 0
         var reached: [String] = []
-        let names = ["fly down onto the flight deck",
-                     "walk through the hangar, the deckhouse and the starboard door, forward along the side deck and back aft to the flight deck",
-                     "do the same on the port side", "take off and fly clear"]
-        // Starboard loop (ship space; the Capital frigate's centreline is x 15.5): the side deck outside the door is one
-        // block wide, unrailed.
-        let out: [V3] = [V3(15.5, 15, 112), V3(15.5, 15, 101), V3(19.5, 15, 95), V3(19.5, 15, 84), V3(24.0, 15, 81),
-                         V3(25.5, 15, 81), V3(26.6, 15, 81), V3(26.6, 15, 52), V3(26.6, 15, 106), V3(20.5, 15, 112)]
-        let back: [V3] = out.map { V3(31 - $0.x, $0.y, $0.z) }
+        let names = ["fly in through the starboard hangar opening and land on the hangar deck",
+                     "walk the hangar to the ladder and climb to the crew deck",
+                     "walk the crew deck's corridor forward and back",
+                     "go down the ladder to the hangar",
+                     "walk out through the port opening and take off"]
+        let corridor: [V3] = [V3(23.5, 13, 100.5), V3(23.5, 13, 60.5), V3(23.5, 13, 104.5), V3(23.5, 13, 107.5)]
         func advance(_ why: String) {
             reached.append(String(format: "%@ at %.0f s", why, phaseT))
             r.note("reached: " + why)
@@ -496,27 +497,49 @@ enum RideCheck {
         }
         bot.plan = { stt in
             let aboard = w.ships.aboard === s
-            switch phase {
-            case 0:
-                if aboard && stt.onGround { advance(names[0]); return AgentAction.idle }
-                let tw = s.toWorld(V3(15.5, 15, 118))
-                var a = walk(stt, to: tw)
-                let d = simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z))
-                a.forward = d > 1 && a.forward > 0 ? 1 : 0
-                a.sneak = d < 5
-                return a
-            case 1, 2:
-                let route = phase == 1 ? out : back
-                if wp >= route.count { advance(names[phase]); return AgentAction.idle }
+            let l = s.toLocal(stt.pos)
+            func go(_ route: [V3]) -> AgentAction? {
+                if wp >= route.count { return nil }
                 let tw = s.toWorld(route[wp])
                 if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.4 { wp += 1; return AgentAction.idle }
                 return walk(stt, to: tw)
+            }
+            switch phase {
+            case 0:
+                if aboard && stt.onGround { advance(names[0]); return AgentAction.idle }
+                let tw = s.toWorld(V3(29.5, 5, 85.5))
+                var a = walk(stt, to: tw)
+                let d = simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z))
+                a.forward = d > 0.8 && a.forward > 0 ? 1 : 0
+                a.sneak = l.x < 34                   // inside the flank: down onto the deck
+                return a
+            case 1:
+                if let a = go([V3(23.5, 5, 100.5), V3(23.5, 5, 107.5)]) { return a }
+                if l.y > 12.9 && aboard && stt.onGround && l.x > 22.95 { advance(names[1]); return AgentAction.idle }
+                // Into the rungs (against the wall behind them), climbing; at the top, off onto the corridor floor.
+                var a = walk(stt, to: s.toWorld(V3(l.y > 12.4 ? 24.0 : 21.0, 0, 107.5)))
+                a.forward = 1
+                a.jump = true
+                return a
+            case 2:
+                if let a = go(corridor) { return a }
+                if aboard { advance(names[2]) }
+                return AgentAction.idle
             case 3:
-                if !aboard && phaseT > 1 { advance(names[3]); return AgentAction.idle }
+                if aboard && stt.onGround && l.y < 5.5 { advance(names[3]); return AgentAction.idle }
+                // Into the shaft beside the corridor, no input while it slides down the ladder.
+                return l.y > 11.5 ? walk(stt, to: s.toWorld(V3(22.0, 0, 107.5))) : AgentAction.idle
+            case 4:
+                if let a = go([V3(23.5, 5, 100.5), V3(23.5, 5, 85.5), V3(14.5, 5, 85.5), V3(2.5, 5, 85.5)]) {
+                    var b = a
+                    if l.x < 13 && phaseT > 0.5 && !p.flying { b.key = KeyBinds.key(.fly) }
+                    return b
+                }
+                if !aboard && phaseT > 1 { advance(names[4]); return AgentAction.idle }
                 var a = AgentAction()
-                if phaseT < 0.025 { a.key = KeyBinds.key(.fly) }
-                a.jump = phaseT > 0.2
-                a.strafe = phaseT > 0.5 ? 1 : 0
+                if !p.flying { a.key = KeyBinds.key(.fly) }
+                a.jump = true
+                a.strafe = -1
                 return a
             default:
                 return AgentAction.idle
@@ -526,8 +549,8 @@ enum RideCheck {
             phaseT += 1.0 / 60
             g.hunger = 20
             sc.agent.step(bot)
-            mon.sample(standing: false, aboard: phase == 1 || phase == 2, flatDeck: true)
-            if phase >= 4 { break }
+            mon.sample(standing: false, aboard: phase >= 1 && phase <= 3, flatDeck: false)
+            if phase >= 5 { break }
             if i % (60 * 20) == 0 {
                 let l = s.toLocal(p.pos)
                 r.note(String(format: "t %3.0f s: phase %ld, bot ship-space %.2f,%.2f,%.2f, aboard %@, flying %@", Float(i) / 60, phase,
