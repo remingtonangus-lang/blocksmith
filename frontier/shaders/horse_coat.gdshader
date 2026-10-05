@@ -101,7 +101,7 @@ void fragment() {
 	float head = smoothstep(1.02, 1.12, p.y) * smoothstep(1.35, 1.55, p.z + p.y * 0.0);
 	float muzzle = smoothstep(1.40, 1.50, p.y) * smoothstep(1.62, 1.50, p.z);
 	col = mix(col, col * vec3(0.55, 0.5, 0.5), muzzle * 0.8);
-	vec3 eye_l = vec3(-0.1, 1.212, 1.805), eye_r = vec3(0.1, 1.212, 1.805);
+	vec3 eye_l = vec3(-0.095, 1.217, 1.795), eye_r = vec3(0.095, 1.217, 1.795);
 	float eye_ring = 1.0 - smoothstep(0.02, 0.055, min(distance(p, eye_l), distance(p, eye_r)));
 	col *= 1.0 - 0.45 * eye_ring;
 
@@ -165,7 +165,7 @@ void fragment() {
 		float strip = (1.0 - smoothstep(wid, wid + 0.01, abs(p.x + (fbm(p * 20.0) - 0.5) * 0.02))) * step(0.36, u) * step(u, 1.02);
 		float fw = star + (face_white >= 2.0 ? strip : 0.0);
 		white = max(white, clamp(fw, 0.0, 1.0) * front * smoothstep(1.0, 1.1, p.y));
-		white = max(white, snip * (1.0 - smoothstep(0.02, 0.03, length(vec2(p.x, (u - 0.9) * 0.4)))) * front);
+		white = max(white, snip * (1.0 - smoothstep(0.02, 0.03, length(vec2(p.x, (u - 0.9) * 0.4)))) * front * smoothstep(1.35, 1.42, p.y));
 	}
 	col = mix(col, vec3(0.92, 0.9, 0.86), clamp(white, 0.0, 1.0));
 

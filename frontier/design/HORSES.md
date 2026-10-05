@@ -126,8 +126,42 @@ Horse.player_horse       # the horse spawned beside the player (main.gd)
   (`--bot all` includes both).
 - In-world shot: `... -- --shot out.png --at town:bitter_spring --horse 8 [--horse_yaw 90 --horse_anim gallop]`.
 
-## Results
-(see the report section at the end, updated by the builder)
+## Results (2026-10-05, local: 4 cores, software Vulkan)
+Gait oracle on the bare animation (`horse_test.tscn --oracle`; model space, ground moving at the authored speed):
+```
+GAIT walk    PASS  beats=4  order=LH LF RH RF   slide=2.7 cm/stance
+GAIT trot    PASS  beats=2  order=LH+RF LF+RH   slide=3.4 cm/stance
+GAIT canter  PASS  beats=3  order=RH LH+RF LF   slide=4.3 cm/stance
+GAIT gallop  PASS  beats=4  order=RH LH RF LF   slide=8.8 cm/stance
+```
+(raw keys only; the residual is the touchdown frame of the fast gaits and breakover). In the world, after foot IK +
+foot locking (`--bot gaits`, samples taken after the IK modifier):
+```
+GAIT walk    PASS  beats=4  order=LH LF RH RF   slide=0.6 cm/stance (max 1.4)
+GAIT trot    PASS  beats=2  order=LH+RF LF+RH   slide=0.4 cm/stance (max 1.7)
+GAIT canter  PASS  beats=3  order=RH LH+RF LF   slide=0.8 cm/stance (max 3.7)
+GAIT gallop  PASS  beats=4  order=RH LH RF LF   slide=0.9 cm/stance (max 5.6)
+HORSE API: dismount right side=ok; whistle: arrived in 6.1 s; brush dirt=0.0; mounted right; gunfire fear 0.00 -> 1.01
+BOT gaits: PASS
+```
+`--bot ride --seconds 420` (Bitter Spring -> Mesquite Wells, 2.8 km road, tapping to a gallop, easing to a canter
+on low stamina): `ARRIVED 2774 m in 320 s (avg 8.7 m/s), waypoints 349/350, stuck 0, falls 0, stumbles 0`;
+in-ride oracles `gallop PASS 1.2 cm/stance (184 stances)`, `canter PASS 4.5 cm/stance`. Look-dev renders take ~4 s
+per shot (no world); an in-world 960x540 frame ~2.5 min on llvmpipe.
 
 ## Gaps / next
-See the end of this file.
+- Anatomy is convincing at gameplay distance and acceptable in close-up, but not reference tier: the head reads a
+  little long/narrow from the front and the eyes are bare spheres (no lids/lashes); muscle definition comes from
+  smooth primitives + baked curvature only (no sculpted veins/wrinkles, no normal map); the mane is thin from the
+  near side. A sculpt pass via displacement from a painted height map would be the next step.
+- Hair cards are skinned only (wind/motion flutter in the shader); SpringBoneSimulator3D on mane/tail bones would
+  give real secondary motion.
+- Gaits are procedural (IK + style curves), not mocap: walk/trot read well; canter/gallop poses are plausible but
+  the swing phase is a little stiff; transitions are crossfades (no dedicated transition clips); turning in place
+  uses a stepping loop + yaw.
+- Lead changes are crossfades between `canter`/`gallop` and their `_r` mirror (no authored flying change).
+- Rider: the player stand-in is placed on the seat; no rider animation set (reins, posting, mount/dismount clips).
+- Tack is rigid (no cloth on the blanket/fenders, stirrups don't swing); saddlebag inventory is an array API only.
+- Fear reacts to `Horse.alarm()` and group `predator`; the gunplay/wildlife sessions need to call/populate them.
+- Swimming uses a paddle loop at a fixed float height; no splash VFX or hoof/breath sounds yet (audio session).
+- Quest build: same model; LOD2 (2k tris) and hair cut-off distances are the knobs; not profiled on device.

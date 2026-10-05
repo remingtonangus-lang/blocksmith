@@ -17,9 +17,17 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
   4 towns + 8 POIs flattened, A*-routed graded roads, graded railroad; control map (roads, moisture, biome, sediment).
 - Asset pipeline: `frontier-assets` workflow (ubuntu) → release `frontier-assets` (catalog.zip, ext.zip).
 
+- Horses (worktree session, see `frontier/design/HORSES.md`): procedural horse generator
+  `frontier/tools/animals/horse_gen.py` (Blender bpy: SDF anatomy → mesh/LODs, rig, weights, mane/tail cards, eyes,
+  stock-saddle tack, IK-solved gait cycles + idles/actions → `horse.glb` + `horse_gaits.json`; CI job `animals` in
+  frontier-assets.yml → `animals.zip`, `fetch_assets.sh animals`), `Horse` riding controller, `HorseVisual`
+  (AnimationTree, coats), `HorseIK` (terrain foot IK + foot locking), coat/hair shaders, `--bot ride|gaits` with gait
+  oracle, look-dev scene `scenes/horse_test.tscn`, player's horse spawned in `main.gd`.
+
 ## Ranked gaps
 (Scores from blind critic rounds against QUALITY_BAR.md; gap = weight × (10 − score).)
 1. Everything playable: no game exists yet — build the vertical slice (terrain render, sky, player, horse, town).
 
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch.
+- 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).

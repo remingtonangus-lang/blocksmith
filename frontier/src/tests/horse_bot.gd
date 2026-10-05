@@ -264,3 +264,47 @@ func _gaits(res: Dictionary) -> void:
 	player.intent.move = Vector2.ZERO
 	if horse.visual.ik:
 		print("  foot IK: %d solves, last offsets %s" % [horse.visual.ik.calls, str(horse.visual.ik.offsets)])
+	await _api_checks(res)
+
+## Mount/dismount on both sides, whistle, fear, care: exercised once, failures become oracle failures.
+func _api_checks(res: Dictionary) -> void:
+	var notes := []
+	for i in 60:
+		await get_tree().physics_frame
+	if not horse.dismount(1.0):
+		_fail(res, "dismount right failed")
+	var side: float = (player.global_position - horse.global_position).dot(horse.global_transform.basis.x)
+	notes.append("dismount right side=%s" % ("ok" if side > 0.3 else "WRONG"))
+	if side <= 0.3:
+		_fail(res, "dismounted on the wrong side")
+	# walk away, whistle: the horse must come within 4 m
+	player.global_position = horse.global_position + Vector3(25, 0, 0)
+	player.global_position.y = Game.world.height(player.global_position.x, player.global_position.z) + 0.1
+	horse.call_to(player)
+	var t := 0.0
+	while t < 20.0 and horse.global_position.distance_to(player.global_position) > 4.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	notes.append("whistle: arrived in %.1f s" % t if t < 20.0 else "whistle: NOT arrived")
+	if t >= 20.0:
+		_fail(res, "called horse did not arrive")
+	horse.dirt = 0.8
+	horse.brush()
+	horse.feed("oats")
+	notes.append("brush dirt=%.1f bond_xp=%.0f" % [horse.dirt, horse.bond_xp])
+	if not horse.mount(player, 1.0):
+		_fail(res, "mount right failed")
+	for i in 70:
+		await get_tree().physics_frame
+	notes.append("mounted right: on_horse=%s" % str(player.on_horse == horse))
+	var r0 := horse.fear
+	Horse.alarm(horse.global_position + Vector3(5, 0, 0), 40.0, 1.0, "gunfire")
+	notes.append("gunfire fear %.2f -> %.2f" % [r0, horse.fear])
+	if horse.fear <= r0:
+		_fail(res, "horse not frightened by gunfire")
+	for i in 120:
+		await get_tree().physics_frame
+	if horse.rider == null:
+		notes.append("rider thrown by the rear (low bond)")
+		horse.mount(player, -1.0)
+	print("HORSE API: " + "; ".join(notes))

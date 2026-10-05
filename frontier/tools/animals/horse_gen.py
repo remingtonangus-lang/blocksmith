@@ -274,14 +274,14 @@ def build_prims():
     L = np.linalg.norm(Np - Pp)
     HU = [  # u along the face, depth below the face line, half width, n_top, n_bot
         (-0.02, 0.18, 0.085, 2.2, 2.0),
-        (0.08, 0.25, 0.104, 2.7, 2.1),
-        (0.24, 0.255, 0.114, 3.0, 2.1),
-        (0.40, 0.215, 0.100, 2.9, 2.2),
+        (0.08, 0.25, 0.104, 3.4, 2.1),
+        (0.24, 0.255, 0.114, 4.0, 2.1),
+        (0.40, 0.215, 0.100, 3.4, 2.2),
         (0.56, 0.185, 0.074, 2.7, 2.2),
         (0.72, 0.168, 0.063, 2.6, 2.2),
-        (0.86, 0.160, 0.058, 2.4, 2.2),
-        (0.95, 0.142, 0.060, 2.2, 2.2),
-        (1.00, 0.10, 0.048, 2.0, 2.0),
+        (0.86, 0.160, 0.063, 2.4, 2.2),
+        (0.95, 0.142, 0.068, 2.3, 2.2),
+        (1.00, 0.10, 0.054, 2.0, 2.0),
     ]
     loft([(tuple(Pp + fd * u * L - zp * d * 0.5), hw, d * 0.5, nt, nb, 0.0) for u, d, hw, nt, nb in HU], ["head"], k=0.03)
     ell((-0.056, 1.14, 1.765), (0.05, 0.115, 0.105), ["head", "jaw"], k=0.05, axis=(0, 0.75, -0.66))   # jowl / masseter
@@ -291,8 +291,9 @@ def build_prims():
     ell((-0.041, 1.468, 1.508), (0.021, 0.03, 0.026), ["head"], k=0.02, axis=tuple(fd))                 # nostril flare
     ell((-0.045, 1.48, 1.51), (0.009, 0.022, 0.012), ["head"], k=0.008, op="s", axis=tuple(fd), side=(1, 0.0, -0.4))  # nostril
     rc((-0.032, 1.395, 1.452), (-0.012, 1.485, 1.442), 0.0055, 0.004, ["head"], k=0.006, op="s")      # mouth line
-    ell((-0.094, 1.19, 1.840), (0.024, 0.05, 0.02), ["head"], k=0.025, axis=(0, 0.85, -0.2))            # orbit ridge
-    ell((-0.097, 1.21, 1.805), (0.019, 0.022, 0.02), ["head"], k=0.008, op="s")                         # eye socket
+    ell((0, 1.205, 1.848), (0.092, 0.11, 0.028), ["head"], k=0.03, mirror=False, axis=(0, 0.62, -0.78))  # flat forehead
+    ell((-0.094, 1.195, 1.828), (0.024, 0.05, 0.02), ["head"], k=0.025, axis=(0, 0.85, -0.2))           # orbit ridge
+    ell((-0.097, 1.215, 1.795), (0.019, 0.022, 0.02), ["head"], k=0.008, op="s")                        # eye socket
     ear_a, ear_b = V(-0.056, 1.11, 1.965), V(-0.082, 1.145, 2.115)
     ax = ear_b - ear_a
     rc(tuple(ear_a - ax * 0.15), tuple(ear_a + ax * 0.45), 0.024, 0.026, ["ear_L"], k=0.025, sx=1.25)
@@ -1706,7 +1707,7 @@ def hair_texture(w=256, h=512, seed=5):
     bri = np.zeros((h, w))
     ys = np.arange(h)
     cols = np.arange(w)
-    for k in range(260):
+    for k in range(420):
         x0 = rng.uniform(0, w)
         L = rng.uniform(0.55, 1.0) * h
         amp = rng.uniform(0.5, 3.0)
@@ -1752,7 +1753,7 @@ def build_hair(prims, arm, mat):
     neck_prims = sub_prims(prims, V(-0.4, 0.3, 1.2), V(0.4, 1.3, 2.3))
     # ---- mane: roots along the crest (top midline), falling to the horse's right (off side)
     polys, widths, sides = [], [], []
-    ys = np.linspace(0.47, 1.075, 64)
+    ys = np.linspace(0.46, 1.08, 96)
     roots = []
     for y in ys:
         z = surface_top(neck_prims, 0.0, y)
@@ -1778,7 +1779,7 @@ def build_hair(prims, arm, mat):
                 d /= np.linalg.norm(d)
                 pts.append(p)
             polys.append(np.array(pts))
-            widths.append(np.linspace(0.05, 0.035, n) * (1.0 if layer == 0 else 0.8))
+            widths.append(np.linspace(0.062, 0.045, n) * (1.0 if layer == 0 else 0.85))
             sides.append(np.repeat(tang[i][None, :], n, 0))
     # ---- forelock: from the poll between the ears down the forehead
     head_prims = sub_prims(prims, V(-0.3, 1.0, 1.5), V(0.3, 1.6, 2.2))
@@ -1877,13 +1878,13 @@ def build_eyes(arm):
     obs = []
     for sx in (-1, 1):
         bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=14, v_segments=10, radius=0.0215)
+        bmesh.ops.create_uvsphere(bm, u_segments=14, v_segments=10, radius=0.0195)
         me = bpy.data.meshes.new("Eye")
         bm.to_mesh(me)
         bm.free()
         ob = bpy.data.objects.new("Eye_" + ("L" if sx < 0 else "R"), me)
         bpy.context.scene.collection.objects.link(ob)
-        ob.data.transform(Matrix.Translation(Vector((sx * 0.087, 1.212, 1.805))))
+        ob.data.transform(Matrix.Translation(Vector((sx * 0.088, 1.217, 1.795))))
         shade_smooth(ob)
         obs.append(ob)
     eye = obs[0]
@@ -2002,10 +2003,10 @@ def build_tack(prims, arm):
     bz0 = back_z(0.0)
     bz42 = back_z(0.42)
     # blanket and skirts conform to the back
-    emit("Blanket", np.maximum(shell(0.001, 0.015), rbox(P, V(0, 0.205, 1.325), V(0.6, 0.33, 0.23), 0.05)), wool,
+    emit("Blanket", np.maximum(shell(0.005, 0.019), rbox(P, V(0, 0.205, 1.325), V(0.6, 0.33, 0.23), 0.05)), wool,
          "spine_thorax", uv="blanket")
-    skirt = np.maximum(shell(0.017, 0.027), rbox(P, V(0, 0.205, 1.385), V(0.6, 0.265, 0.145), 0.06))
-    seat = np.maximum(shell(0.028, 0.072), rbox(P, V(0, 0.205, 1.50), V(0.19, 0.225, 0.13), 0.05))
+    skirt = np.maximum(shell(0.019, 0.029), rbox(P, V(0, 0.205, 1.385), V(0.6, 0.265, 0.145), 0.06))
+    seat = np.maximum(shell(0.029, 0.074), rbox(P, V(0, 0.205, 1.50), V(0.19, 0.225, 0.13), 0.05))
     cantle = rbox(P, V(0, 0.0, bz0 + 0.115), V(0.16, 0.022, 0.07), 0.02)
     swell = rbox(P, V(0, 0.425, bz42 + 0.10), V(0.135, 0.045, 0.08), 0.03)
     horn = np.minimum(d_rc(P, V(0, 0.44, bz42 + 0.15), V(0, 0.475, bz42 + 0.225), 0.021, 0.019),
@@ -2030,7 +2031,7 @@ def build_tack(prims, arm):
         st.append(np.maximum(outer, -inner))
         st.append(d_rc(P, c + V(0, 0, 0.06), c + V(-sx * 0.02, 0, 0.27), 0.012, 0.012))   # leather strap to the fender
     emit("Stirrups", np.minimum.reduce(st), dark, "spine_thorax")
-    emit("Cinch", np.maximum(shell(0.0, 0.011), np.maximum(rbox(P, V(0, 0.43, 0.95), V(0.6, 0.042, 0.26), 0.02),
+    emit("Cinch", np.maximum(shell(0.006, 0.016), np.maximum(rbox(P, V(0, 0.43, 0.95), V(0.6, 0.042, 0.26), 0.02),
                                                            P[:, 2] - 1.15)), canvas, "spine_thorax")
     bags = []
     for sx in (-1, 1):
@@ -2042,7 +2043,7 @@ def build_tack(prims, arm):
         c = V(sx * (xs + 0.045), -0.17, 1.27)
         bags.append(rbox(P, c, V(0.04, 0.12, 0.105), 0.025))
         bags.append(rbox(P, c + V(sx * 0.012, 0, 0.07), V(0.035, 0.125, 0.05), 0.02))       # flap
-    bags.append(np.maximum(shell(0.0, 0.01), rbox(P, V(0, -0.17, 1.40), V(0.6, 0.035, 0.15), 0.02)))
+    bags.append(np.maximum(shell(0.006, 0.015), rbox(P, V(0, -0.17, 1.40), V(0.6, 0.035, 0.15), 0.02)))
     emit("Saddlebags", np.minimum.reduce(bags), dark, "spine_lumbar")
     bzb = back_z(-0.065)
     roll = d_rc(P, V(-0.30, -0.065, bzb + 0.07), V(0.30, -0.065, bzb + 0.07), 0.062, 0.062)
