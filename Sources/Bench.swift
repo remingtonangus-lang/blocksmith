@@ -82,6 +82,7 @@ enum Bench {
             case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
+            case "mobprof": mobLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
                 flight(device, seed, rd: Int(name.dropFirst(6)) ?? 16, seconds: quick ? 5 : 12, speed: 20)
             default: print("bench: unknown scene \(s)")
@@ -404,6 +405,23 @@ enum Bench {
         put("edit.break_ms", b, "mean,p50,max")
         put("edit.place_ms", p, "mean,p50,max")
         print("bench edit: break mean \(f(b.mean)) ms max \(f(b.max)) ms, place mean \(f(p.mean)) ms max \(f(p.max)) ms (synchronous remesh)")
+    }
+
+    // The mobs scene's 150 mobs ticking for `seconds`, for perf/profile.sh (the scene itself takes about a second; run
+    // 634: tick 0.31 ms empty and 6.7 us a mob, 10x and 4x the 2026-10-02 baseline, with nothing saying where).
+    static func mobLoop(_ device: MTLDevice, _ seed: UInt64, seconds: Double) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        let kinds: [MobKind] = [.cow, .sheep, .pig, .chicken, .zombie, .skeleton, .spider, .rabbit, .wolf, .horse]
+        for i in 0..<150 {
+            let x = Int(floor(pos.x)) + (i % 15) * 2 - 15, z = Int(floor(pos.z)) + (i / 15) * 3 - 15
+            let y = game.mobs.grassSurface(world, x, z) ?? (world.topY(x, z) + 1)
+            game.mobs.mobs.append(Mob(kinds[i % kinds.count], at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
+        }
+        let a = now
+        var n = 0
+        while now - a < seconds { game.player.pos = pos; game.tick(1.0 / 60); n += 1 }
+        print("bench mobprof: \(n) ticks in \(f(seconds, 0)) s, \(game.mobs.mobs.count) mobs alive")
     }
 
     static func mobs(_ device: MTLDevice, _ seed: UInt64) {

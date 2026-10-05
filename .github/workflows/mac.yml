@@ -253,6 +253,7 @@ jobs:
           bash perf/profile.sh flight16 10 2>&1 | tee out/profile.log
           bash perf/profile.sh meshprof 8 2>&1 | tee -a out/profile.log
           bash perf/profile.sh genprof 8 2>&1 | tee -a out/profile.log
+          bash perf/profile.sh mobprof 8 2>&1 | tee -a out/profile.log
 
       - name: Playthrough (progression tests)
         id: play
