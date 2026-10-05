@@ -600,7 +600,9 @@ enum Snapshot {
                 let p = pos + f * spot.1 + r * spot.2
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 var y = game.mobs.grassSurface(world, x, z) ?? (world.gen.column(x, z).height + 1)
-                if nether {
+                // Underground (the surface well above the eye): on the floor below the camera, as in the Nether (in a
+                // cave they stood on the ground above its ceiling: cave_dark_mobs drew the same image as lush_caves).
+                if nether || y > Int(floor(pos.y)) + 4 {
                     y = Int(floor(pos.y)) + 1
                     while y > Int(pos.y) - 12 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
                     if spot.0 == .ghast || spot.0 == .blaze { y += spot.0 == .ghast ? 5 : 2 }
