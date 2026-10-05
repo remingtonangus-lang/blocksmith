@@ -222,27 +222,36 @@ func _draw_map_overlay() -> void:
 	map_overlay.draw_string(UITheme.font("caps"), npos + Vector2(-6, 6), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * s.y / 250.0), UITheme.INK)
 
 func _draw_gauges() -> void:
+	## Brass dials stacked beside the map: an ink arc fills clockwise from the top with the stat, the initial is
+	## set in the display face, and a dial pulses when it runs low. The horse's dial joins while mounted.
 	var s := gauges.size
 	var vals := [
-		[float(player.get("health")) / 100.0 if player.get("health") != null else 1.0, UITheme.OXBLOOD],
-		[float(player.get("stamina")) / 100.0 if player.get("stamina") != null else 1.0, UITheme.OCHRE],
-		[(player.nerve.meter / player.nerve.max_meter) if player.get("nerve") != null else 1.0, UITheme.SLATE],
+		[float(player.get("health")) / 100.0 if player.get("health") != null else 1.0, UITheme.OXBLOOD, "H"],
+		[float(player.get("stamina")) / 100.0 if player.get("stamina") != null else 1.0, UITheme.OCHRE, "S"],
+		[(player.nerve.meter / player.nerve.max_meter) if player.get("nerve") != null else 1.0, UITheme.SLATE, "N"],
 	]
 	var horse = player.get("on_horse")
 	if horse != null and horse.get("stamina") != null:
-		vals.append([float(horse.stamina) / 100.0, UITheme.BRASS])
-	var bw := s.x / 4.6
+		vals.append([float(horse.stamina) / 100.0, UITheme.BRASS, "M"])
+	var slot := s.y / 4.0
+	var r := minf(s.x * 0.46, slot * 0.42)
+	var font := UITheme.font("display")
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
 	for i in vals.size():
-		var x := i * bw * 1.15
-		var rect := Rect2(Vector2(x, 0), Vector2(bw, s.y))
-		gauges.draw_rect(rect, Color(0, 0, 0, 0.35))
+		var c := Vector2(s.x * 0.5, s.y - slot * (i + 0.5))
 		var v: float = clampf(vals[i][0], 0.0, 1.0)
-		var fill := Rect2(Vector2(x + 3, 3 + (s.y - 6) * (1.0 - v)), Vector2(bw - 6, (s.y - 6) * v))
-		gauges.draw_rect(fill, vals[i][1])
-		gauges.draw_rect(rect, UITheme.INK, false, 2.0)
-		for k in range(1, 4):
-			var y := s.y * k / 4.0
-			gauges.draw_line(Vector2(x, y), Vector2(x + bw * 0.35, y), UITheme.INK, 1.0)
+		var col: Color = vals[i][1]
+		if v < 0.25:
+			col = col.lerp(Color(1, 0.95, 0.85), pulse * 0.6)
+		gauges.draw_circle(c, r, Color(0.07, 0.05, 0.04, 0.62))
+		gauges.draw_arc(c, r * 0.74, -PI * 0.5, -PI * 0.5 + TAU, 40, Color(0.25, 0.2, 0.15, 0.6), r * 0.3, true)
+		if v > 0.001:
+			gauges.draw_arc(c, r * 0.74, -PI * 0.5, -PI * 0.5 + TAU * v, 40, col, r * 0.3, true)
+		gauges.draw_arc(c, r, 0.0, TAU, 48, UITheme.BRASS, maxf(r * 0.09, 1.5), true)
+		gauges.draw_arc(c, r * 0.56, 0.0, TAU, 32, UITheme.INK, 1.2, true)
+		var fs := int(r * 0.78)
+		var tw := font.get_string_size(vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		gauges.draw_string(font, c + Vector2(-tw * 0.5, fs * 0.36), vals[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.PAPER)
 
 func _draw_crosshair() -> void:
 	var aiming: bool = player.get("intent") != null and player.intent.get("aim", false)
