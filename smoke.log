@@ -1,0 +1,109 @@
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 1084 ms, upload 398 ms)
+smoke rd 8 Fancy: 10 s, frame 9.9 ms, resident 257 MB, Metal 198 MB, mobs 65, coverage 100%
+smoke rd 8 mob drawing: mobs 65 (0 within 32), 6876 vertices written, 6876 drawn via Fancy buffer, 44 culled, 0 dropped (buffer full)
+smoke rd 8 Fancy: 20 s, frame 8.7 ms, resident 258 MB, Metal 198 MB, mobs 70, coverage 100%
+smoke rd 8 mob drawing: mobs 70 (0 within 32), 4248 vertices written, 4248 drawn via Fancy buffer, 52 culled, 0 dropped (buffer full)
+smoke rd 8: menu tour starts with PauseMenu, paused true
+smoke rd 8: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 8 Fancy: 30 s, frame 13.5 ms, resident 259 MB, Metal 198 MB, mobs 71, coverage 100%
+smoke rd 8 mob drawing: mobs 71 (0 within 32), 12420 vertices written, 12420 drawn via Fancy buffer, 26 culled, 0 dropped (buffer full)
+smoke rd 8 Fancy: 40 s, frame 29.6 ms, resident 402 MB, Metal 202 MB, mobs 22, coverage 90%
+smoke rd 8 mob drawing: mobs 22 (0 within 32), 3384 vertices written, 3384 drawn via Fancy buffer, 7 culled, 0 dropped (buffer full)
+smoke rd 8 Fancy: 50 s, frame 10.0 ms, resident 598 MB, Metal 218 MB, mobs 77, coverage 94%
+smoke rd 8 mob drawing: mobs 77 (0 within 32), 8316 vertices written, 8316 drawn via Fancy buffer, 49 culled, 0 dropped (buffer full)
+smoke rd 8 Fancy: 60 s, frame 11.5 ms, resident 792 MB, Metal 222 MB, mobs 13, coverage 100%
+smoke rd 8 mob drawing: mobs 13 (0 within 32), 2880 vertices written, 2880 drawn via Fancy buffer, 4 culled, 0 dropped (buffer full)
+smoke rd 8: 3600 frames in 60.0 s wall, frame p50 11.33 p95 30.25 p99 50.38 max 951.63 ms, coverage min 68%, mobs max 93, travelled 3187 blocks, resident peak 784 MB, menu closed
+smoke rd 8: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0000 white=0.1374 std=42.5 hash=618a64a41b9dbbd2
+smoke rd 8: PASS
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 1016 ms, upload 376 ms)
+smoke rd 16 Fancy: 10 s, frame 11.9 ms, resident 396 MB, Metal 238 MB, mobs 251, coverage 98%
+smoke rd 16 mob drawing: mobs 251 (0 within 32), 32688 vertices written, 32688 drawn via Fancy buffer, 138 culled, 0 dropped (buffer full)
+smoke rd 16 Fancy: 20 s, frame 7.9 ms, resident 405 MB, Metal 242 MB, mobs 273, coverage 100%
+smoke rd 16 mob drawing: mobs 273 (0 within 32), 20664 vertices written, 20664 drawn via Fancy buffer, 192 culled, 0 dropped (buffer full)
+smoke rd 16: menu tour starts with PauseMenu, paused true
+smoke rd 16: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 16 Fancy: 30 s, frame 12.7 ms, resident 409 MB, Metal 242 MB, mobs 275, coverage 100%
+smoke rd 16 mob drawing: mobs 275 (0 within 32), 23112 vertices written, 23112 drawn via Fancy buffer, 188 culled, 0 dropped (buffer full)
+smoke rd 16 Fancy: 40 s, frame 19.3 ms, resident 556 MB, Metal 242 MB, mobs 39, coverage 49%
+smoke rd 16 mob drawing: mobs 39 (0 within 32), 3456 vertices written, 3456 drawn via Fancy buffer, 25 culled, 0 dropped (buffer full)
+smoke rd 16 Fancy: 50 s, frame 10.3 ms, resident 786 MB, Metal 258 MB, mobs 91, coverage 53%
+smoke rd 16 mob drawing: mobs 91 (0 within 32), 5832 vertices written, 5832 drawn via Fancy buffer, 69 culled, 0 dropped (buffer full)
+smoke rd 16 Fancy: 60 s, frame 16.7 ms, resident 1005 MB, Metal 258 MB, mobs 61, coverage 51%
+smoke rd 16 mob drawing: mobs 61 (0 within 32), 5904 vertices written, 5904 drawn via Fancy buffer, 35 culled, 0 dropped (buffer full)
+smoke rd 16: 3600 frames in 60.0 s wall, frame p50 13.32 p95 31.28 p99 48.59 max 655.15 ms, coverage min 43%, mobs max 275, travelled 3187 blocks, resident peak 998 MB, menu closed
+smoke rd 16: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd16.png magenta=0.00000 black=0.0000 white=0.1374 std=54.5 hash=802727c26ed61b37
+smoke rd 16: PASS
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 882 ms, upload 329 ms)
+smoke rd 24 Fancy: 10 s, frame 77.6 ms, resident 597 MB, Metal 286 MB, mobs 220, coverage 96%
+smoke rd 24 mob drawing: mobs 220 (0 within 32), 29808 vertices written, 29808 drawn via Fancy buffer, 129 culled, 0 dropped (buffer full)
+smoke rd 24 Fancy: 20 s, frame 25.9 ms, resident 720 MB, Metal 290 MB, mobs 549, coverage 100%
+smoke rd 24 mob drawing: mobs 549 (0 within 32), 49248 vertices written, 49248 drawn via Fancy buffer, 379 culled, 0 dropped (buffer full)
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fancy: 30 s, frame 20.2 ms, resident 826 MB, Metal 290 MB, mobs 560, coverage 100%
+smoke rd 24 mob drawing: mobs 560 (0 within 32), 32040 vertices written, 32040 drawn via Fancy buffer, 445 culled, 0 dropped (buffer full)
+smoke rd 24 Fancy: 40 s, frame 7.1 ms, resident 974 MB, Metal 294 MB, mobs 45, coverage 29%
+smoke rd 24 mob drawing: mobs 45 (0 within 32), 4968 vertices written, 4968 drawn via Fancy buffer, 23 culled, 0 dropped (buffer full)
+smoke rd 24 Fancy: 50 s, frame 20.4 ms, resident 1207 MB, Metal 314 MB, mobs 122, coverage 33%
+smoke rd 24 mob drawing: mobs 122 (0 within 32), 13032 vertices written, 13032 drawn via Fancy buffer, 84 culled, 0 dropped (buffer full)
+smoke rd 24 Fancy: 60 s, frame 19.3 ms, resident 1456 MB, Metal 318 MB, mobs 63, coverage 32%
+smoke rd 24 mob drawing: mobs 63 (0 within 32), 5076 vertices written, 5076 drawn via Fancy buffer, 47 culled, 0 dropped (buffer full)
+smoke rd 24: 3600 frames in 63.5 s wall, frame p50 14.91 p95 32.93 p99 50.14 max 823.42 ms, coverage min 27%, mobs max 562, travelled 3187 blocks, resident peak 1436 MB, menu closed
+smoke rd 24: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.1374 std=55.3 hash=4ecc2573a22e0204
+smoke rd 24: PASS
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 1027 ms, upload 373 ms)
+smoke rd 24 Fast: 10 s, frame 14.4 ms, resident 525 MB, Metal 257 MB, mobs 286, coverage 94%
+smoke rd 24 mob drawing: mobs 286 (0 within 32), 33876 vertices written, 33876 drawn via Fast buffer, 182 culled, 0 dropped (buffer full)
+smoke rd 24 Fast: 20 s, frame 12.3 ms, resident 669 MB, Metal 265 MB, mobs 566, coverage 100%
+smoke rd 24 mob drawing: mobs 566 (0 within 32), 48564 vertices written, 48564 drawn via Fast buffer, 401 culled, 0 dropped (buffer full)
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fast: 30 s, frame 11.5 ms, resident 799 MB, Metal 265 MB, mobs 583, coverage 100%
+smoke rd 24 mob drawing: mobs 583 (0 within 32), 33084 vertices written, 33084 drawn via Fast buffer, 467 culled, 0 dropped (buffer full)
+smoke rd 24 Fast: 40 s, frame 3.2 ms, resident 917 MB, Metal 269 MB, mobs 22, coverage 26%
+smoke rd 24 mob drawing: mobs 22 (0 within 32), 2808 vertices written, 2808 drawn via Fast buffer, 9 culled, 0 dropped (buffer full)
+smoke rd 24 Fast: 50 s, frame 6.0 ms, resident 1107 MB, Metal 285 MB, mobs 111, coverage 26%
+smoke rd 24 mob drawing: mobs 111 (1 within 32), 9756 vertices written, 9756 drawn via Fast buffer, 83 culled, 0 dropped (buffer full)
+smoke rd 24 Fast: 60 s, frame 10.7 ms, resident 1321 MB, Metal 293 MB, mobs 73, coverage 30%
+smoke rd 24 mob drawing: mobs 73 (0 within 32), 5724 vertices written, 5724 drawn via Fast buffer, 54 culled, 0 dropped (buffer full)
+smoke rd 24: 3600 frames in 60.0 s wall, frame p50 8.66 p95 19.38 p99 25.13 max 466.93 ms, coverage min 19%, mobs max 584, travelled 3187 blocks, resident peak 1308 MB, menu closed
+smoke rd 24: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.0010 std=46.5 hash=886cb66e29a55544
+smoke rd 24 Fast: PASS
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 924 ms, upload 332 ms)
+smoke rd 8 split: t 0 s player 2 at 10.5 149.0 8.5 ground no water no menu none
+smoke rd 8 Fancy: 10 s, frame 16.5 ms, resident 272 MB, Metal 216 MB, mobs 74, coverage 100%
+smoke rd 8 mob drawing: mobs 74 (0 within 32), 23904 vertices written, 23904 drawn via Fancy buffer, 77 culled, 0 dropped (buffer full)
+smoke rd 8 split: t 10 s player 2 at 10.3 149.0 8.3 ground yes water no menu none
+smoke rd 8 Fancy: 20 s, frame 23.5 ms, resident 275 MB, Metal 216 MB, mobs 81, coverage 100%
+smoke rd 8 mob drawing: mobs 81 (0 within 32), 23148 vertices written, 23148 drawn via Fancy buffer, 84 culled, 0 dropped (buffer full)
+smoke rd 8 split: t 20 s player 2 at 10.3 149.0 8.3 ground yes water no menu none
+smoke rd 8: menu tour starts with PauseMenu, paused true
+smoke rd 8: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 8 Fancy: 30 s, frame 16.0 ms, resident 278 MB, Metal 216 MB, mobs 82, coverage 100%
+smoke rd 8 mob drawing: mobs 82 (0 within 32), 31608 vertices written, 31608 drawn via Fancy buffer, 59 culled, 0 dropped (buffer full)
+smoke rd 8 split: t 30 s player 2 at 14.7 150.0 3.3 ground yes water no menu none
+smoke rd 8 Fancy: 40 s, frame 30.0 ms, resident 465 MB, Metal 252 MB, mobs 104, coverage 90%
+smoke rd 8 mob drawing: mobs 104 (0 within 32), 16020 vertices written, 16020 drawn via Fancy buffer, 46 culled, 0 dropped (buffer full)
+smoke rd 8 split: t 40 s player 2 at 14.3 152.0 -1.7 ground yes water no menu none
+smoke rd 8 Fancy: 50 s, frame 16.0 ms, resident 687 MB, Metal 280 MB, mobs 172, coverage 95%
+smoke rd 8 mob drawing: mobs 172 (0 within 32), 25632 vertices written, 25632 drawn via Fancy buffer, 82 culled, 0 dropped (buffer full)
+smoke rd 8 split: t 50 s player 2 at 14.3 152.0 -1.7 ground yes water no menu none
+smoke rd 8 Fancy: 60 s, frame 59.4 ms, resident 884 MB, Metal 284 MB, mobs 111, coverage 100%
+smoke rd 8 mob drawing: mobs 111 (0 within 32), 21348 vertices written, 21348 drawn via Fancy buffer, 41 culled, 0 dropped (buffer full)
+smoke rd 8: 3600 frames in 74.5 s wall, frame p50 17.05 p95 40.03 p99 65.02 max 808.66 ms, coverage min 90%, mobs max 207, travelled 3187 blocks, resident peak 880 MB, menu closed
+smoke rd 8: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0050 white=0.0802 std=88.4 hash=ec7853b7d0bd3adb
+smoke rd 8 split screen: player 2 moved 12 blocks
+smoke rd 8: FAIL player 2 barely moved
+::error::smoke rd 8c (split screen): exit 1 (new: reported, not gating yet)
+smoke: PASS at render distance 8 16 24 24f 8c

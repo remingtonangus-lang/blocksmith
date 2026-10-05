@@ -1,0 +1,16 @@
+rerun (debug build): fi
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "fi"
+(lldb) run
+2026-10-05 13:07:10.858523+0000 Blocksmith[14380:39160] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-05 13:07:10.962533+0000 Blocksmith[14380:39160] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-05 13:07:11.900210+0000 Blocksmith[14380:39021] [vppu]         vpPlatformUtil.mm:312   Cannot retrieve theDeviceBoardID string...
+2026-10-05 13:07:12.173596+0000 Blocksmith[14380:39021] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x6000005ece40> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-05 13:07:23.211207+0000 Blocksmith[14380:39198] [AMCP] 135427          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-05 13:07:45.991214+0000 Blocksmith[14380:39198] [AMCP] 135427          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-05 13:07:46.063862+0000 Blocksmith[14380:39198] [AMCP] 135427          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+textures without a painter: missing
+textures: 1680 layers at 128 px, BC3, 35.0 MB with mips (build 100034 ms, upload 32849 ms)
+2026-10-05 13:10:00.478607+0000 Blocksmith[14380:39198] [AMCP] 135427          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+usb-gip: watching for wired Xbox (GIP) controllers: 045e, 0e6f, 0f0d, 10f5, 1532, 20d6, 24c6, 2dc8
