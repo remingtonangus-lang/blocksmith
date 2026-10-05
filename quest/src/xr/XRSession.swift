@@ -2,6 +2,9 @@ import Foundation
 import simd
 import CVulkan
 import COpenXR
+#if os(Android)
+import CAndroidGlue
+#endif
 
 struct XrError: Error, CustomStringConvertible {
     let what: String
@@ -607,7 +610,7 @@ final class XRSession {
         // moment could hold the tick off a core for ~3 ms).
         if exts.contains("XR_KHR_android_thread_settings"),
            let setThread = proc("xrSetAndroidApplicationThreadKHR", PFN_xrSetAndroidApplicationThreadKHR.self) {
-            let tid = UInt32(gettid())
+            let tid = UInt32(blocksmith_gettid())
             let a = setThread(session, XR_ANDROID_THREAD_TYPE_APPLICATION_MAIN_KHR, tid)
             let r = setThread(session, XR_ANDROID_THREAD_TYPE_RENDERER_MAIN_KHR, tid)
             print("xr: frame thread \(tid) registered (main \(a.rawValue), renderer \(r.rawValue))")

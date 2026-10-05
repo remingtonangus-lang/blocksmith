@@ -22,7 +22,7 @@ enum Banners {
         ("flower", "Flower Charge", "flower_banner_pattern"), ("thing", "Thing", "thing_banner_pattern"), ("globe", "Globe", "globe_banner_pattern"),
         ("piglin", "Snout", "piglin_banner_pattern"), ("flow", "Flow", "flow_banner_pattern"), ("guster", "Gust", "guster_banner_pattern"),
     ]
-    static var colors: [String] { BlockRegistry.colors.map { $0.0 } }
+    static let colors: [String] = BlockRegistry.colors.map { $0.0 }      // built once (read per frame for captains' banners)
     static func encode(_ pattern: Int, _ color: Int) -> Int { pattern * 16 + color }
     static func decode(_ v: Int) -> (pattern: Int, color: Int) { (v / 16, v % 16) }
     static func tint(_ color: Int) -> V3 {
@@ -39,13 +39,13 @@ enum Banners {
     }
 
     // The omen banner carried by raid captains (reference layer list, white base).
-    static var ominous: [Int] {
+    static let ominous: [Int] = {
         let p = { (k: String) in patterns.firstIndex { $0.0 == k } ?? 0 }
         let c = { (k: String) in colors.firstIndex(of: k) ?? 0 }
         return [encode(p("rhombus"), c("cyan")), encode(p("stripe_bottom"), c("light_gray")), encode(p("stripe_center"), c("gray")),
                 encode(p("border"), c("light_gray")), encode(p("stripe_middle"), c("black")), encode(p("half_horizontal"), c("light_gray")),
                 encode(p("circle"), c("light_gray")), encode(p("border"), c("black"))]
-    }
+    }()
 
     // Pattern coverage at a cloth pixel (x 0..15, y 0..31 top-down): alpha 0...1.
     static func coverage(_ key: String, _ x: Int, _ y: Int) -> Float {

@@ -156,14 +156,17 @@ public struct simd_float3x3: Equatable {
         set { var v = self[c]; v[r] = newValue; self[c] = v }
     }
     @inlinable public var transpose: simd_float3x3 {
-        simd_float3x3(rows: [columns.0, columns.1, columns.2])
+        simd_float3x3.fromRows(columns.0, columns.1, columns.2)
     }
     @inlinable public var determinant: Float { simd_dot(columns.0, simd_cross(columns.1, columns.2)) }
+    @inlinable static func fromRows(_ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>) -> simd_float3x3 {
+        simd_float3x3(columns: (SIMD3(a.x, b.x, c.x), SIMD3(a.y, b.y, c.y), SIMD3(a.z, b.z, c.z)))
+    }
     @inlinable public var inverse: simd_float3x3 {
         let a = columns.0, b = columns.1, c = columns.2
         let r0 = simd_cross(b, c), r1 = simd_cross(c, a), r2 = simd_cross(a, b)
         let inv = 1 / simd_dot(a, r0)
-        return simd_float3x3(rows: [r0 * inv, r1 * inv, r2 * inv])
+        return simd_float3x3.fromRows(r0 * inv, r1 * inv, r2 * inv)
     }
     @inlinable public static func == (a: simd_float3x3, b: simd_float3x3) -> Bool {
         a.columns.0 == b.columns.0 && a.columns.1 == b.columns.1 && a.columns.2 == b.columns.2
@@ -228,7 +231,8 @@ public struct simd_float4x4: Equatable {
         set { var v = self[c]; v[r] = newValue; self[c] = v }
     }
     @inlinable public var transpose: simd_float4x4 {
-        simd_float4x4(rows: [columns.0, columns.1, columns.2, columns.3])
+        let a = columns.0, b = columns.1, c = columns.2, d = columns.3
+        return simd_float4x4(columns: (SIMD4(a.x, b.x, c.x, d.x), SIMD4(a.y, b.y, c.y, d.y), SIMD4(a.z, b.z, c.z, d.z), SIMD4(a.w, b.w, c.w, d.w)))
     }
     @inlinable public var determinant: Float {
         let m = self
@@ -239,35 +243,38 @@ public struct simd_float4x4: Equatable {
         return det
     }
     @inlinable static func minor3(_ m: simd_float4x4, skipCol: Int) -> Float {
-        var cs: [SIMD3<Float>] = []
-        for c in 0..<4 where c != skipCol { cs.append(SIMD3(m[c, 1], m[c, 2], m[c, 3])) }
-        return simd_dot(cs[0], simd_cross(cs[1], cs[2]))
+        func col(_ c: Int) -> SIMD3<Float> { SIMD3(m[c, 1], m[c, 2], m[c, 3]) }
+        let a = col(skipCol == 0 ? 1 : 0), b = col(skipCol <= 1 ? 2 : 1), c = col(skipCol <= 2 ? 3 : 2)
+        return simd_dot(a, simd_cross(b, c))
     }
-    // General 4x4 inverse (cofactor expansion, as in MESA's gluInvertMatrix), column-major storage.
+    // General 4x4 inverse (cofactor expansion, as in MESA's gluInvertMatrix), column-major storage. Scalars only: the
+    // array form allocated twice per call (questcheck allocation trace: four times per rendered frame).
     @inlinable public var inverse: simd_float4x4 {
-        var m = [Float](repeating: 0, count: 16)
-        for c in 0..<4 { for r in 0..<4 { m[c * 4 + r] = self[c, r] } }
-        var inv = [Float](repeating: 0, count: 16)
-        inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10]
-        inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10]
-        inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9]
-        inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9]
-        inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10]
-        inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10]
-        inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9]
-        inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9]
-        inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6]
-        inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6]
-        inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5]
-        inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5]
-        inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6]
-        inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6]
-        inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5]
-        inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5]
-        let det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12]
+        let c0 = columns.0, c1 = columns.1, c2 = columns.2, c3 = columns.3
+        let m0 = c0.x, m1 = c0.y, m2 = c0.z, m3 = c0.w
+        let m4 = c1.x, m5 = c1.y, m6 = c1.z, m7 = c1.w
+        let m8 = c2.x, m9 = c2.y, m10 = c2.z, m11 = c2.w
+        let m12 = c3.x, m13 = c3.y, m14 = c3.z, m15 = c3.w
+        let i0: Float = m5 * m10 * m15 - m5 * m11 * m14 - m9 * m6 * m15 + m9 * m7 * m14 + m13 * m6 * m11 - m13 * m7 * m10
+        let i4: Float = -m4 * m10 * m15 + m4 * m11 * m14 + m8 * m6 * m15 - m8 * m7 * m14 - m12 * m6 * m11 + m12 * m7 * m10
+        let i8: Float = m4 * m9 * m15 - m4 * m11 * m13 - m8 * m5 * m15 + m8 * m7 * m13 + m12 * m5 * m11 - m12 * m7 * m9
+        let i12: Float = -m4 * m9 * m14 + m4 * m10 * m13 + m8 * m5 * m14 - m8 * m6 * m13 - m12 * m5 * m10 + m12 * m6 * m9
+        let i1: Float = -m1 * m10 * m15 + m1 * m11 * m14 + m9 * m2 * m15 - m9 * m3 * m14 - m13 * m2 * m11 + m13 * m3 * m10
+        let i5: Float = m0 * m10 * m15 - m0 * m11 * m14 - m8 * m2 * m15 + m8 * m3 * m14 + m12 * m2 * m11 - m12 * m3 * m10
+        let i9: Float = -m0 * m9 * m15 + m0 * m11 * m13 + m8 * m1 * m15 - m8 * m3 * m13 - m12 * m1 * m11 + m12 * m3 * m9
+        let i13: Float = m0 * m9 * m14 - m0 * m10 * m13 - m8 * m1 * m14 + m8 * m2 * m13 + m12 * m1 * m10 - m12 * m2 * m9
+        let i2: Float = m1 * m6 * m15 - m1 * m7 * m14 - m5 * m2 * m15 + m5 * m3 * m14 + m13 * m2 * m7 - m13 * m3 * m6
+        let i6: Float = -m0 * m6 * m15 + m0 * m7 * m14 + m4 * m2 * m15 - m4 * m3 * m14 - m12 * m2 * m7 + m12 * m3 * m6
+        let i10: Float = m0 * m5 * m15 - m0 * m7 * m13 - m4 * m1 * m15 + m4 * m3 * m13 + m12 * m1 * m7 - m12 * m3 * m5
+        let i14: Float = -m0 * m5 * m14 + m0 * m6 * m13 + m4 * m1 * m14 - m4 * m2 * m13 - m12 * m1 * m6 + m12 * m2 * m5
+        let i3: Float = -m1 * m6 * m11 + m1 * m7 * m10 + m5 * m2 * m11 - m5 * m3 * m10 - m9 * m2 * m7 + m9 * m3 * m6
+        let i7: Float = m0 * m6 * m11 - m0 * m7 * m10 - m4 * m2 * m11 + m4 * m3 * m10 + m8 * m2 * m7 - m8 * m3 * m6
+        let i11: Float = -m0 * m5 * m11 + m0 * m7 * m9 + m4 * m1 * m11 - m4 * m3 * m9 - m8 * m1 * m7 + m8 * m3 * m5
+        let i15: Float = m0 * m5 * m10 - m0 * m6 * m9 - m4 * m1 * m10 + m4 * m2 * m9 + m8 * m1 * m6 - m8 * m2 * m5
+        let det: Float = m0 * i0 + m1 * i4 + m2 * i8 + m3 * i12
         let s: Float = det == 0 ? 0 : 1 / det
-        return simd_float4x4(columns: (SIMD4(inv[0], inv[1], inv[2], inv[3]) * s, SIMD4(inv[4], inv[5], inv[6], inv[7]) * s,
-                                       SIMD4(inv[8], inv[9], inv[10], inv[11]) * s, SIMD4(inv[12], inv[13], inv[14], inv[15]) * s))
+        return simd_float4x4(columns: (SIMD4(i0, i1, i2, i3) * s, SIMD4(i4, i5, i6, i7) * s,
+                                       SIMD4(i8, i9, i10, i11) * s, SIMD4(i12, i13, i14, i15) * s))
     }
     @inlinable public static func == (a: simd_float4x4, b: simd_float4x4) -> Bool {
         a.columns.0 == b.columns.0 && a.columns.1 == b.columns.1 && a.columns.2 == b.columns.2 && a.columns.3 == b.columns.3

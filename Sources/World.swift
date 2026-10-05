@@ -269,9 +269,15 @@ final class World {
                                           w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
     }
 
+    // Scratch for collides / sweep (frame thread only): taken and handed back, so a call never allocates its box list
+    // (every walking mob sweeps a few times a tick: ~270 allocations a tick before; questcheck's allocation trace).
+    private var boxScratch: [(V3, V3)] = []
+
     func collides(_ mn: V3, _ mx: V3) -> Bool {
         let eps: Float = 1e-4
-        var boxes: [(V3, V3)] = []
+        var boxes = boxScratch
+        boxScratch = []
+        defer { boxes.removeAll(keepingCapacity: true); boxScratch = boxes }
         for y in Int(floor(mn.y))...Int(floor(mx.y - eps)) {
             for z in Int(floor(mn.z))...Int(floor(mx.z - eps)) {
                 for x in Int(floor(mn.x))...Int(floor(mx.x - eps)) {
@@ -293,7 +299,9 @@ final class World {
         var lo = mn, hi = mx
         if d > 0 { hi[a] += d } else { lo[a] += d }
         let eps: Float = 1e-4
-        var boxes: [(V3, V3)] = []
+        var boxes = boxScratch
+        boxScratch = []
+        defer { boxes.removeAll(keepingCapacity: true); boxScratch = boxes }
         for y in Int(floor(lo.y - 0.5))...Int(floor(hi.y)) {   // -0.5: fences etc. poke up to 1.5
             for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
                 for x in Int(floor(lo.x))...Int(floor(hi.x - eps)) {

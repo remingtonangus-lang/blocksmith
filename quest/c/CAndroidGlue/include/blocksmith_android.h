@@ -5,3 +5,7 @@
 #include <android/looper.h>
 #include <aaudio/AAudio.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+
+// The calling thread's kernel id (gettid() isn't visible to Swift from bionic's headers; syscall is variadic).
+static inline unsigned int blocksmith_gettid(void) { return (unsigned int)syscall(__NR_gettid); }

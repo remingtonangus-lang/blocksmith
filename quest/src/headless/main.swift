@@ -56,6 +56,13 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+do {   // the simd shim's array-free 4x4 inverse and transpose
+    let m = simd_float4x4(SIMD4(2, 0.5, 0, 0), SIMD4(-1, 3, 0.25, 0), SIMD4(0.5, 0, 1.5, 0), SIMD4(4, -2, 7, 1))
+    let e = m * m.inverse, i = matrix_identity_float4x4, t = m.transpose
+    let err = max(simd_length(e.columns.0 - i.columns.0), simd_length(e.columns.1 - i.columns.1),
+                  simd_length(e.columns.2 - i.columns.2), simd_length(e.columns.3 - i.columns.3))
+    check(err < 1e-5 && t[1, 0] == m[0, 1] && t[3, 2] == m[2, 3], String(format: "simd shim: inverse (error %.1e) and transpose", err))
+}
 let warm = QuestWarmup.run()                                          // as the app's loading thread does
 check(warm.ms < 500, String(format: "warmup tables built (%.0f ms)", warm.ms))
 var quads = 0, sections = 0
@@ -147,7 +154,7 @@ for i in 0..<frames {
     world.update(center: game.player.pos)  // streaming first (game.tick's own call then finds little left)
     let b = CFAbsoluteTimeGetCurrent()
     let al0 = AllocCount.now
-    game.tick(1.0 / 72)
+    if i == 1000 || i == 1001 { AllocCount.traced("tick\(i)") { game.tick(1.0 / 72) } } else { game.tick(1.0 / 72) }
     if let x = al0, let y = AllocCount.now { tickAllocs.append(y - x) }
     let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
     tickMs.append(ms)
