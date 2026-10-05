@@ -108,7 +108,8 @@ enum Aircraft {
         FlightModel.attach(s)
         let seats = s.crewStations
         for (i, seat) in seats.prefix(crewed ? 1 + troops : 0).enumerated() {
-            let m = Mob(i == 0 ? .soldierCrew : (i % 3 == 0 ? .soldierOfficer : .soldierRecruit), at: s.toWorld(seat + V3(0, 0.05, 0)))
+            // The pilot, then troopers (door gunners: 32-block sight), an officer in the fourth seat.
+            let m = Mob(i == 0 ? .soldierCrew : (i % 3 == 0 ? .soldierOfficer : .soldierTrooper), at: s.toWorld(seat + V3(0, 0.05, 0)))
             m.faction = Faction.steelhold.rawValue
             m.persistent = true
             m.deck = s
