@@ -126,6 +126,12 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 23:15: run 54 (9b154d2): all jobs green but publish (the shots push got HTTP 408 from GitHub after
+  7 min; failed job re-run once). Tree split of the GPU ablation, first sample (battle, base 17.42 ms): vegetation
+  4.90 = trees: impostors 1.85 + trees: near 0.73 + grass 3.71 (overlapping groups), trees: shadow proxies 0.00.
+  So the far impostor cards cost more than the near trees and the proxies cost nothing; the impostor fragment
+  (alpha-tested cards, discard defeats early depth) is the suspect. Waiting for a second sample before trimming
+  (this runner's noise is +-25 %). fps 48.1 / 43.9 / 53.2.
 - 2026-10-05 22:45: CI run 52 (d38d671) green, published. Where a first Mac launch's 36 s goes, from the new
   setup line: sky 0.2, terrain 3.5, capital 5.4, vegetation 2.2, bases 0.7, battle 8.5, vehicles 0.8, weather
   5.7 s (27 s); a cached second launch loads in 3.96 s. It is first-use shader/pipeline compilation (here a cold
