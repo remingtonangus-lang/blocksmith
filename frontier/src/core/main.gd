@@ -69,6 +69,9 @@ func _ready() -> void:
 	var ws := WorldState.new()
 	ws.name = "WorldState"
 	add_child(ws)
+	var wfx = load("res://src/world/weather_fx.gd").new()
+	wfx.name = "WeatherFX"
+	add_child(wfx)
 	var pop = load("res://src/ai/population.gd").new()
 	pop.name = "Population"
 	add_child(pop)
