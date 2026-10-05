@@ -9,17 +9,20 @@ headset and the desktop simulator take the same code paths.
 |---|---|
 | `src/xr/vr.gd` (VR) | Starts OpenXR (`--vr`, Android) or the simulator (`--vr_sim`), builds the XROrigin rig, moves the HUD and menus onto sheets (HUD head-locked, menus world-locked), stick locomotion, snap turn, comfort vignette, origin follows the player. |
 | `src/xr/vr_sim.gd` (VRSim) | Desktop simulator: registers the `head`, `left_hand`, `right_hand` trackers with XRServer and drives their poses and inputs (mouse/keys or scripted). `--vr_stereo` adds a side-by-side eye pair. |
-| `src/xr/vr_hand.gd` (VRHand) | Procedural gloved hand (palm, 4×3 finger segments, 2-segment thumb, cuff, shirt sleeve) with finger curl from grip / trigger / thumb touch. |
+| `src/xr/vr_body.gd` (VRBody) | The player's own FrontierCharacter as the VR body: a SkeletonModifier3D (extends GunHands) — head/neck follow the HMD, two-bone arm IK to the controllers, finger curl, head meshes shadow-only. |
+| `src/xr/vr_hand.gd` (VRHand) | Pose source for each hand (grip→aim frame, fist centre, finger inputs). Its procedural low-poly glove is drawn only when there is no character skeleton. |
 | `src/xr/vr_play.gd` (VRPlay) | Physical play: holster draw, gun hold, two-hand snap, trigger + haptics, hand-worked actions, reload gestures, Nerve, reach-to-interact, menu laser, reins. |
 | `src/tests/vr_shots.gd` (VRShots) | Scripted VR scenes (poses + inputs) shared by the studio and the in-world feature shots. |
-| `src/tests/vr_studio.gd`, `scenes/vr_studio.tscn` | Light studio set (no world streaming) for VR evidence. |
+| `src/tests/vr_studio.gd`, `scenes/vr_studio.tscn` | Light studio set (no world streaming) for VR evidence; spectator views (`*_ext`) show the IK'd body from outside; `--dump` lists every mesh with its triangle count; `--flat` runs it without VR. |
 | `shaders/vr_vignette.gdshader` | Comfort vignette. |
 
 Touch points elsewhere (all small and marked): `player.gd` (start VR on `--vr_sim`; no keyboard intent in VR),
 `horse.gd` (no keyboard rider input or third-person ride camera in VR), `nerve.gd` (no screen overlay or camera cuts
 in VR; execution shots leave the real muzzle), `weapon_holder.gd` (`vr_hold`: the hand places the drawn gun),
 `weapon_model.gd` (`manual_cycle` / `needs_cycle` / `cycle_action()`; recoil spring sub-stepped), `game.gd` +
-`sky.gd` (quest preset: 2 shadow cascades, no glow).
+`sky.gd` (quest preset: 2 shadow cascades, no glow, no water refraction, mounted horse LOD1; Mobile shadow filter),
+`water.gd` + `water.gdshader` (`WATER_OPAQUE` variant), `menus.gd` (Accessibility > VR comfort rows),
+`weapon_holder.gd` (`mount_offset()`, see Riding).
 
 ## Desktop simulator (`--vr_sim`)
 No OpenXR runtime is needed. VRSim creates `XRPositionalTracker`/`XRControllerTracker` objects named like the
@@ -31,7 +34,7 @@ Run it:
 ```
 godot --path frontier -- --vr_sim                 # play: mouse = head, keys below
 godot --path frontier -- --vr_sim --vr_stereo     # side-by-side stereo pair (IPD 64 mm)
-godot --path frontier res://scenes/vr_studio.tscn -- --out DIR [--views hud,menu,hands,gun_aim,fire,two_hand,reload,nerve,riding,door,door_open,stereo]
+godot --path frontier res://scenes/vr_studio.tscn -- --out DIR [--views hud,menu,comfort,hands,body,body_ext,gun_aim,fire,two_hand,two_hand_ext,reload,bolt,pump,nerve,riding,riding_ext,door,door_open,stereo]
 godot --path frontier -- --features DIR --vr_sim [--only vr_hud,vr_gun_aim,...]   # in-world VR evidence
 ```
 Interactive keys: mouse looks (head); LMB right trigger, RMB right grip, Q left grip, F left trigger, E A,
@@ -48,18 +51,24 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
 (published to `ci-snaps-claude-frontier-game`). The in-world `--vr_sim` feature run needs the full world in memory
 (> 5 GB), so it is not part of CI; run it on the Mac.
 
-## Hands and body
-- Hands are procedural (gloves, so they suit any character): palm box, jointed capsule fingers, thumb, leather cuff
-  and a linen sleeve that runs back out of view. Grip curls the middle/ring/little fingers, trigger the index, a
-  thumb touch (`primary_touch`/`ax_touch`/`by_touch`) the thumb; holding a gun wraps the hand with the index on
-  the trigger. Curl is smoothed (24 /s).
-- Hand frame = the aim frame; the fist centre (`VRHand.FIST`) sits on the grip-pose origin, which is where guns,
-  rounds and reins are attached (`aim_transform()`).
-- The third-person body stays in the scene as **shadows only** (cast shadow mode SHADOWS_ONLY, re-applied every
-  second because character models arrive late), so the player sees their shadow and mirrors/shadows read right with
-  no face inside the camera. The body turns after the head once it looks more than ~35° away. An IK'd upper body
-  (arms to the controllers) is a follow-up: GunHands already solves arms to a gun; it would need targets from the
-  controllers instead of `grip_r`/`grip_l`.
+## Body and hands (the player's own character)
+- **VRBody** (`vr_body.gd`) is added as the last SkeletonModifier3D on the player's FrontierCharacter skeleton
+  (after the animation, GunHands and the look-at) as soon as the character model exists. It reuses GunHands' rig
+  measurements, `_arm()` two-bone IK and `_orient()`:
+  - head bone onto the HMD orientation, neck halfway, a little chest lean with the head pitch;
+  - each arm reaches its controller: the wrist sits behind the fist (GunHands' `pistol_r` offset, mirrored for the
+    left) and the hand's anatomical frame matches the controller's aim frame, so the character's own hand closes
+    round the held gun, the fore-end, the reins or a door handle; elbows point down and out;
+  - fingers curl from the controller (grip: middle/ring/little, trigger: index, thumb touch: thumb), or wrap a held
+    gun with GunHands' grip tables (index squeezes with the trigger).
+- **Visible from the neck down**: head, hair, hat, beard, eyes and face meshes cast shadows only (so shadows and
+  mirrors keep the whole person); everything else draws. The camera sits at the character's eyes (rest pose, so walk
+  bob never moves the view; 1 cm forward so the collar stays behind and below when looking down).
+- **Room-scale lean**: leaning moves the view up to 35 cm from where the head "belongs"; that rest point follows the
+  head over a couple of seconds (the body catches up), so positional tracking is never cancelled.
+- **Body yaw** follows the head once it looks more than ~35° away (like shifting your feet).
+- The capsule glove (VRHand) is only drawn if there is no character skeleton (stand-in body); it is now 8-segment
+  low-poly (the old 64-segment capsules were 3.5 k triangles each, ~200 k for two hands).
 
 ## Guns (WeaponModel + WeaponHolder)
 - **Draw**: grip the right hand within 0.32 m of the holstered sidearm's grip, or within 0.48 m of the long gun (or
@@ -75,7 +84,8 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   Empty or uncycled → dry click and a light tick.
 - **Actions by hand** (`WeaponModel.manual_cycle`): after a shot the lever/bolt/pump stays closed
   (`needs_cycle`) until worked: flick the gun down (> 1.3 m/s along the gun's down axis) to throw a lever; grab the
-  bolt knob (`GunHands.BOLT_KNOB`) with the left hand; jerk the fore-end back (> 0.9 m/s) on a pump.
+  bolt knob (`GunHands.BOLT_KNOB`) with the left hand and work it back and forward (below); jerk the fore-end back
+  (> 0.9 m/s) on a pump.
   `cycle_action()` plays the model's own cycle (ejecting the case).
 - **Reloads** (rounds come from the hand, not a timer — `GunHandler.reloading` is held open with an infinite timer):
   - loading-gate revolvers: roll the gun onto its left side (right side up) → gate opens and the hammer goes to half
@@ -84,7 +94,12 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   - rounds: squeeze the left hand at the belt (left front of the hips) → a cartridge or shell appears in the
     fingers; bring it within 0.11 m of the gate / breech / port → +1 round (`clip`/`ammo`), click, haptic; the
     holder's `_reload_watch` plays the model's per-round animation (`reload_anim`);
-  - lever and bolt rifles and the pump load through the port any time (`reload_anim(n)` per round).
+  - bolt rifles: grab the bolt knob with the left hand, draw it back along the gun (the spent case flies at the end
+    of the stroke) and let go: it stays open (`bolt_v`, posed with `WeaponModel.pose()`); rounds go in through the
+    open action only; grab it again and push it home to chamber. The gun will not fire with the bolt open;
+  - the pump loads through its loading gate under the receiver, ahead of the trigger guard (`VRPlay.LOAD_GATE`);
+    roll the gun belly-up and push shells in;
+  - lever guns load through the side gate (`reload_anim(n)` animates the gate per round).
 - **Nerve**: left Y with a gun out → slow time and a world grade (the screen overlay would land on the HUD sheet, so
   VR desaturates the Environment instead); the trigger marks where the muzzle points (`Nerve.mark` from the muzzle);
   Y again or letting go of the gun fires the marks; execution shots leave the real muzzle and the camera never cuts.
@@ -102,8 +117,20 @@ CI: the "VR shots" step of `.github/workflows/frontier.yml` renders the studio v
   grab sets the neutral; move the hands left/right to steer (±14 cm = full), push both forward (> 7 cm) to urge the
   horse up a pace (each push is a tap of the pace system), pull back (> 6 cm) to stop. Holding the reins walks on;
   let go to ride on the left stick instead. Rider input and the ride camera are off in VR; the head is the camera.
-- **Comfort**: snap turn 30° by default (smooth optional), vignette while moving on foot (with speed) and while
-  riding (pace + turn rate), HUD sheet head-locked and slightly low, menus world-locked.
+  Mounted, the long gun draws only from the scabbard mouth itself (0.16 m), so rein hands by the pommel never pull it.
+  Note: while riding, the skeleton's readable bone poses keep the hips about a metre above (and behind) the drawn,
+  seated body (the ride clips seat the body at draw time; root motion is on `Skeleton:Root`). The third-person gun
+  belt and holster floated above the rider because of it. `WeaponHolder.mount_offset()` (seat point minus the read
+  hips) now maps read bone positions onto the drawn body for the belt/holster, the VR arm IK targets and the
+  mounted camera.
+- **Comfort** (Settings > Accessibility > VR comfort, shown in VR; saved with the other settings):
+  - Turning: Snap 30° (default), Snap 45° or Smooth, with a smooth turn speed (45–180°/s, default 100);
+  - Comfort vignette strength (0 = off … 1.5; default 1): darkens the periphery while moving on foot (with speed)
+    and while riding (pace + turn rate);
+  - Play position: Standing or Seated, and **Calibrate height**: stand or sit naturally and press it; the measured
+    eye height maps your real eyes onto the character's (standing uncalibrated = 1:1 real height; seated defaults to
+    1.2 m and is raised to the character's eye height);
+  - HUD sheet head-locked and slightly low, menus world-locked.
 
 ## Quest performance (Mobile renderer)
 The Quest export switches to the Mobile renderer (`rendering_method.mobile="mobile"`, `tools/setup_quest.sh`) and
@@ -147,9 +174,9 @@ Knobs and recommendations for the device pass (not profiled on a Quest yet):
 ## Known gaps
 - Not run on a headset yet; thresholds (flick speeds, reach radii, rein offsets) are first guesses tuned in the
   simulator.
-- Hands are procedural capsules, not the character's own hands; no finger tracking.
-- No IK'd upper body; the body is shadows-only.
-- Bolt rifles load through the port without opening the bolt by hand; pump loading port is approximated by the
-  ejection port.
+- No finger tracking (controller curls only); no elbow tracking (poles are fixed per side).
+- The head follows the HMD by orientation only: crouching in the room lowers the view but not the body.
+- Mounted, the rider's head turns from the read pose; seen from outside it can look a little high/back.
+- The Accessibility colour filter lives in the menu canvas, so in VR it only filters the menu sheet.
 - Laser clicks are mouse events pushed into the menu viewport (works with the existing Control menus).
 - In-world VR shots need the Mac (memory); CI renders the studio set.

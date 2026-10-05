@@ -87,8 +87,25 @@ func _bone(n: String, fallback: Vector3) -> Vector3:
 	if skel != null and is_instance_valid(skel):
 		var i := GunHands.bone_index(skel, n)
 		if i >= 0:
-			return (skel.global_transform * skel.get_bone_global_pose(i)).origin
+			return (skel.global_transform * skel.get_bone_global_pose(i)).origin + _mount_off
 	return _visual().global_transform * fallback
+
+## Mounted, the ride clips draw the rider with the hips on the saddle, but the skeleton's readable bone poses keep
+## them at standing height (about a metre higher and behind; root motion on Skeleton:Root). This maps read bone
+## positions onto the drawn body (belt, holster, VR arms); zero on foot.
+var _mount_off := Vector3.ZERO
+func mount_offset() -> Vector3:
+	var horse = actor.get("on_horse") if actor != null else null
+	if not (horse is Node3D) or skel == null or not is_instance_valid(skel):
+		return Vector3.ZERO
+	var hv = horse.get("visual")
+	if hv == null or not hv.has_method("seat_transform"):
+		return Vector3.ZERO
+	var i := GunHands.bone_index(skel, "Hips")
+	if i < 0:
+		return Vector3.ZERO
+	var hips := (skel.global_transform * skel.get_bone_global_pose(i)).origin
+	return (hv.seat_transform() as Transform3D).origin - hips
 
 ## Hip half-width for the belt/holster (from the hip joints on a character, the capsule radius otherwise).
 func _hip_w() -> float:
@@ -139,6 +156,7 @@ func _process(dt: float) -> void:
 		_rig_t = 1.0                    # the character model may arrive after the holder
 		_find_hand()
 	_sync()
+	_mount_off = mount_offset()
 	var drawn: bool = gun.drawn and actor.get("alive") != false
 	draw_t = move_toward(draw_t, 1.0 if drawn else 0.0, 1.0 if snap else dt / DRAW_TIME)
 	var m := model()

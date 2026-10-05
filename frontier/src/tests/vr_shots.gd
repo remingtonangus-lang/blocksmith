@@ -7,6 +7,7 @@ extends RefCounted
 ## and places the player before each scene; `yaw` is the facing in degrees clockwise from -Z (as feature shots).
 
 var host: Node
+var _weapons0: Array = []
 
 func _init(h: Node) -> void:
 	host = h
@@ -61,6 +62,13 @@ func reset() -> void:
 	var pl = Game.player
 	pl.gun.drawn = false
 	pl.intent.aim = false
+	if _weapons0.is_empty():
+		_weapons0 = pl.gun.weapons.duplicate()
+	elif pl.gun.weapons != _weapons0:
+		pl.gun.weapons.assign(_weapons0)
+		pl.gun.current = 0
+	v.play.bolt_v = 0.0
+	v.play._bolt_drag = false
 	for w in pl.gun.weapons:                    # every scene starts with full guns
 		pl.gun.clip[w] = int(Weapons.get_def(w).get("capacity", 6))
 	if pl.nerve and pl.nerve.active:
@@ -95,6 +103,16 @@ static func sight_hand(m: WeaponModel, h: Transform3D, d: float) -> Transform3D:
 	var sr := m.marker_local("sight_rear").origin if m.marker("sight_rear") != null else g + Vector3(0, 0.03, 0.0)
 	var b := h.basis
 	return Transform3D(b, h.origin - b.z * d - b * (sr - g))
+
+## Long guns: eye over the comb, butt in the shoulder (GunHands' third-person cheek weld), returned as the right
+## hand's aim frame.
+static func shoulder_hand(m: WeaponModel, h: Transform3D) -> Transform3D:
+	var g := m.marker_local("grip_r").origin
+	var sr := m.marker_local("sight_rear").origin
+	var eye_local := Vector3(0, sr.y + 0.014, GunHands._butt_z(m) - 0.215)
+	var b := h.basis
+	var origin := h.origin - b * eye_local
+	return Transform3D(b, origin + b * g)
 
 func targets(yaw: float) -> Array:
 	var foes: Array = []
@@ -143,7 +161,7 @@ func two_hand(yaw: float) -> void:
 		return
 	var v := vr()
 	var h := head(0, -2)
-	var r := sight_hand(m, h, 0.34)
+	var r := shoulder_hand(m, h)
 	# support hand on the fore-end (grip_l) of the gun as the right hand holds it
 	var gl: Vector3 = r * (m.marker_local("grip_l").origin - m.marker_local("grip_r").origin)
 	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(r.basis * Basis(Vector3.FORWARD, deg_to_rad(-70)), gl)), r)
@@ -221,3 +239,96 @@ func reach(yaw: float, target: Vector3, squeeze := true) -> void:
 	if squeeze:
 		v.sim.set_input("left", &"grip", 1.0)
 		await host._settle(20)
+
+# ------------------------------------------------------------------ body, comfort, more reloads
+## Look down at yourself: the character's own arms and hands on the controllers, the body from the neck down.
+func body(yaw: float) -> void:
+	var v := vr()
+	pose(yaw, head(0, -58), aim(Vector3(-0.17, 1.12, -0.36), 20, -5, -35), aim(Vector3(0.2, 1.02, -0.2), 0, -45, 10))
+	v.sim.set_input("right", &"grip", 0.45)
+	await host._settle(25)
+
+## Revolver aimed in the right hand, left hand reaching out (for the third-person IK check).
+func reach_out(yaw: float) -> void:
+	var m := await draw(0, yaw)
+	if m == null:
+		return
+	var v := vr()
+	var h := head(-10, -2)
+	v.sim.set_pose(h, aim(Vector3(-0.32, 1.42, -0.42), -25, 10, -70), sight_hand(m, h, 0.5))
+	await host._settle(12)
+
+func comfort(yaw: float) -> void:
+	pose(yaw, head(0, 4), rest_left(), aim(Vector3(0.18, 1.3, -0.3), -4, 14))
+	await host._settle(8)
+	Game.menus.open_pause()
+	await host._settle(4)
+	if Game.menus.has_method("open_accessibility"):
+		Game.menus.open_accessibility()
+	await host._settle(20)
+
+func _long_gun(id: String) -> void:
+	var pl = Game.player
+	pl.gun.weapons.assign(["lockhart_sa", id])
+	pl.gun.clip[id] = 1
+	await host._settle(4)
+
+## Bolt rifle: grab the knob, draw it back (case out), leave it open, bring a round from the belt to the port.
+func bolt_reload(yaw: float) -> void:
+	await _long_gun("bowden_bolt")
+	var m := await draw(1, yaw)
+	if m == null:
+		return
+	var v := vr()
+	var h := head(-8, -28)
+	var r := aim(Vector3(0.1, 1.26, -0.38), -12, 4, 25)
+	v.sim.set_pose(h, rest_left(), r)
+	await host._settle(4)
+	var knob := to_local((m.parts["bolt"].node as Node3D).global_transform * (GunHands.BOLT_KNOB["bowden_bolt"] as Vector3))
+	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(Basis.IDENTITY, knob)), r)
+	await host._settle(3)
+	v.sim.set_input("left", &"grip", 1.0)
+	await host._settle(3)
+	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(Basis.IDENTITY, knob + r.basis.z * 0.12)), r)
+	await host._settle(6)
+	v.sim.set_input("left", &"grip", 0.0)
+	await host._settle(3)
+	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(Basis.IDENTITY, to_local(v.play._belt_point()))), r)
+	await host._settle(3)
+	v.sim.set_input("left", &"grip", 1.0)
+	await host._settle(3)
+	var port := to_local(v.play._port(m))
+	v.sim.set_pose(h, aim(port + Vector3(-0.08, 0.05, 0.08), 30, -25, -40), r)
+	await host._settle(10)
+	if Game.args.has("vr_debug"):
+		print("  dbg bolt_v %.2f clip %s" % [v.play.bolt_v, Game.player.gun.clip])
+
+## Pump gun: roll it belly-up and feed a shell into the loading gate under the receiver.
+func pump_reload(yaw: float) -> void:
+	await _long_gun("brennan_pump")
+	var m := await draw(1, yaw)
+	if m == null:
+		return
+	var v := vr()
+	var h := head(-5, -32)
+	var r := aim(Vector3(0.08, 1.24, -0.4), -15, 12, 135)
+	v.sim.set_pose(h, rest_left(), r)
+	await host._settle(4)
+	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(Basis.IDENTITY, to_local(v.play._belt_point()))), r)
+	await host._settle(3)
+	v.sim.set_input("left", &"grip", 1.0)
+	await host._settle(3)
+	var gate := to_local(v.play._port(m))
+	# first shell goes in (inside reach), then a second one is shown on its way
+	v.sim.set_pose(h, aim(gate, 20, -20, -30), r)
+	await host._settle(4)
+	v.sim.set_input("left", &"grip", 0.0)
+	await host._settle(2)
+	v.sim.set_pose(h, VRSim.grip_to_aim(Transform3D(Basis.IDENTITY, to_local(v.play._belt_point()))), r)
+	await host._settle(2)
+	v.sim.set_input("left", &"grip", 1.0)
+	await host._settle(3)
+	v.sim.set_pose(h, aim(gate + Vector3(-0.07, -0.06, 0.1), 20, -20, -30), r)
+	await host._settle(10)
+	if Game.args.has("vr_debug"):
+		print("  dbg pump clip %s" % [Game.player.gun.clip])
