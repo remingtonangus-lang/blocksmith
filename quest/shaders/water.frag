@@ -31,12 +31,5 @@ void main() {
         a = mix(a, 1.0, fres * 0.55);
     }
     float f = smoothstep(u.fogColor.w, u.params.x, oDist);
-    // The sRGB swapchain blends in linear light, which makes gamma-authored translucent water read darker and more
-    // opaque than the Mac's gamma-space blend: keep its alpha lower and its colour lifted to match the earlier look.
-    float lin = u.misc.z > 1.5 ? 1.0 : 0.0;
-    vec3 col = mix(rgb, fogColorAlong(oRel), f);
-    col = pow(max(col, vec3(0.0)), vec3(mix(1.0, 0.85, lin)));
-    float alpha = mix(a, 1.0, f * 0.8);
-    alpha *= mix(1.0, 0.8, lin * (1.0 - f));
-    outColor = finalColor(vec4(col, alpha));
+    outColor = finalColor(vec4(mix(rgb, fogColorAlong(oRel), f), mix(a, 1.0, f * 0.8)));
 }

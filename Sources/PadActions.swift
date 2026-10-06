@@ -100,8 +100,11 @@ extension AimAssist {
         let eye = g.player.eye
         guard let h = World.rayBox(eye, g.player.look, lo, hi), h.0 <= reach + 0.2 else { last = t; return t }
         if let nt = t {
-            let c = V3(Float(nt.hit.x) + 0.5, Float(nt.hit.y) + 0.5, Float(nt.hit.z) + 0.5)
-            if simd_length(c - eye) + 0.6 < h.0 { last = t; return t }
+            // Compare entry distances along the ray, not centres: a block just placed in front of the old target is only
+            // ~1 closer, and holding on to the old target made every held placement after the first a no-op.
+            let lo2 = V3(Float(nt.hit.x), Float(nt.hit.y), Float(nt.hit.z))
+            let enter = World.rayBox(eye, g.player.look, lo2, lo2 + V3(repeating: 1))?.0 ?? h.0
+            if enter + 0.3 < h.0 { last = t; return t }
         }
         return prev
     }

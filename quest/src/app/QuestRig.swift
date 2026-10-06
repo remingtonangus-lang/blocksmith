@@ -22,6 +22,9 @@ final class QuestRig {
     // Reclined play: the tracking space is also tilted so the gaze at the last recentre becomes the level, forward
     // direction (world, horizon, HUD and panels all follow). Identity when standing or seated upright.
     private(set) var tilt = simd_quatf()
+    private var tiltAxis = V3(1, 0, 0)
+    private var tiltBase: Float = 0
+    private(set) var pitchOffset: Float = 0        // reclined look up/down in steps (right stick), reset by a recentre
     private(set) var pivotY: Float = 1.6
 
     var yawRot: simd_quatf { simd_quatf(angle: bodyYaw, axis: V3(0, 1, 0)) }
@@ -31,6 +34,12 @@ final class QuestRig {
     func toWorld(_ p: V3) -> V3 { feet + V3(0, QuestRig.eyeHeight, 0) + fullRot.act(V3(p.x - anchor.x, p.y - pivotY, p.z - anchor.z)) }
     func toWorldDir(_ d: V3) -> V3 { fullRot.act(d) }
     func toWorldRot(_ q: simd_quatf) -> simd_quatf { fullRot * q }
+
+    // Reclined look up (+) / down (-): the levelled world tips by a step about the recentre's right axis.
+    func stepPitch(_ delta: Float) {
+        pitchOffset = max(-80 * .pi / 180, min(80 * .pi / 180, pitchOffset + delta))
+        tilt = simd_quatf(angle: tiltBase + pitchOffset, axis: tiltAxis)
+    }
 
     // The loading scene works in raw tracking space: the head's floor-relative eye height.
     func floorEyeY(xr: XRInput) -> Float { xr.floorSpace ? max(1.0, trackingHead.y) : 0 }
@@ -49,8 +58,11 @@ final class QuestRig {
             pivotY = h
             if QuestSettings.reclined {
                 let (ty, gp) = XRMath.yawPitch(headRot)
-                tilt = simd_quatf(angle: -gp, axis: V3(cosf(ty), 0, -sinf(ty)))
-            } else { tilt = simd_quatf() }
+                tiltAxis = V3(cosf(ty), 0, -sinf(ty))
+                tiltBase = -gp
+            } else { tiltBase = 0 }
+            pitchOffset = 0
+            tilt = simd_quatf(angle: tiltBase, axis: tiltAxis)
             print(String(format: "rig: recentred, head %.2f m above the %@, eye offset %.2f", h, xr.floorSpace ? "floor" : "origin", heightOffset))
         }
         feet = game.player.pos + V3(0, stepOffset, 0)

@@ -8,10 +8,10 @@ import CVulkan
 //    the player's eye at the point the ray hits, so the game's targeting, mining, using and shooting pick exactly what
 //    the laser points at.
 //  - The left stick moves relative to the head (or the left controller); it is pre-rotated into the aim frame the
-//    game moves in. The right stick turns the body (snap or smooth); its flicks up/down are D-pad up (fly) / down (drop).
-//  - Buttons: right trigger = RT (break / attack / fire), right grip or left trigger = LT (use / place / aim),
-//    A jump, B sneak / back, X pick block / reload, Y inventory, left grip = LB, right stick click = RB (hotbar
-//    right, hold for the weapon wheel), left stick click = sprint, menu = pause.
+//    game moves in. The right stick turns the body (snap or smooth); reclined, its up/down tips the view in steps.
+//  - Buttons: right trigger = RT (break / attack / fire), right grip = LT (use / place / aim), left trigger = fly toggle,
+//    A jump, B sneak / back, X pick block / reload, Y inventory, hold left grip = drop, right stick click hold = the
+//    weapon wheel (the hotbar is picked by pointing at a slot and pulling the trigger), left stick click = sprint, menu = pause.
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -31,10 +31,13 @@ final class QuestControls {
 
     private var snapArmed = true
     private var flickArmed = true
-    private var flick = 0                      // 1 up, -1 down (a short D-pad press)
+    private var flyPulse = 0
+    private var prevFlyPull = false
+    private var dropHold: Float = 0
+    private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
-    private var flickTime: Float = 0
+    private var prevSelTrig = false
     private var vignette: Float = 0            // current strength 0...1
     private(set) var wallFade: Float = 0       // the view fading to black with the head inside a solid block, 0...1
     private var turnFlash: Float = 0
@@ -135,12 +138,17 @@ final class QuestControls {
             }
             rig.bodyYaw = rig.bodyYaw.truncatingRemainder(dividingBy: 2 * .pi)
         }
-        // Right stick flicks up/down: D-pad up (fly) / down (drop), a 3-frame press.
+        // Right stick up/down: only in Reclined Mode, where it looks up/down in snapped steps (like snap turn).
         let ty = R.stick.y
-        if wheel { flickArmed = false; snapArmed = false }
-        else if flickArmed && abs(ty) > 0.8 && abs(R.stick.x) < 0.5 { flick = ty > 0 ? 1 : -1; flickTime = 0.05; flickArmed = false }
-        else if abs(ty) < 0.3 { flickArmed = true }
-        if flickTime > 0 { flickTime -= dt } else { flick = 0 }
+        if wheel || inMenu { flickArmed = false; snapArmed = false }
+        else if flickArmed && abs(ty) > 0.75 && abs(R.stick.x) < 0.5 {
+            flickArmed = false
+            if QuestSettings.reclined {
+                rig.stepPitch((ty > 0 ? 1 : -1) * QuestSettings.pitchStep * .pi / 180)
+                turnFlash = max(turnFlash, 0.6)
+            }
+        } else if abs(ty) < 0.3 { flickArmed = true }
+        game.padHotbarScroll = false
 
         // Roomscale: the head's walk since last frame moves the player through collision.
         roomScale()
@@ -157,7 +165,16 @@ final class QuestControls {
         // Pad for the game.
         var p = PadSnapshot()
         p.rt = R.trigger
-        p.lt = max(R.squeeze, L.trigger)
+        p.lt = R.squeeze
+        // L trigger: fly on/off (the pad's D-pad up press, a 3-frame pulse on the pull).
+        let flyPull = L.trigger > 0.6
+        if flyPull && !prevFlyPull && !inMenu { flyPulse = 3 }
+        prevFlyPull = flyPull
+        p.up = flyPulse > 0
+        if flyPulse > 0 { flyPulse -= 1 }
+        // Hold L grip: drop the held item (the pad's D-pad down; holding on drops the whole stack).
+        if L.squeeze > 0.6 && !inMenu { dropHold += dt } else { dropHold = 0 }
+        p.down = dropHold > 0.4
         p.a = R.button1
         p.b = R.button2
         // X: a tap is pick block / reload (sent when it is let go); held, it swaps the offhand (the pad's D-pad right).
@@ -189,12 +206,10 @@ final class QuestControls {
             p.y = yPulse > 0
             if yPulse > 0 { yPulse -= 1 }
         }
-        p.lb = L.squeeze > 0.6
+        p.lb = L.squeeze > 0.6 && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
         p.rb = R.stickClick
         p.l3 = L.stickClick
         p.menu = L.menu
-        p.up = flick == 1
-        p.down = flick == -1
         if wheel { p.rx = R.stick.x; p.ry = R.stick.y }
         if inMenu {
             // Menus: the left stick moves the pad cursor as on the Mac; the laser is the mouse.
@@ -212,6 +227,7 @@ final class QuestControls {
             if QuestSettings.headLocomotion || !L.aimValid { moveYaw = rig.headYaw }
             else { moveYaw = XRMath.yawPitch(rig.toWorldRot(L.aimRot)).0 }
             aimGame()
+            if hotbarPointer(R) { p.rt = 0 }
             if game.world.ships.pilot != nil {
                 // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
                 p.lx = L.stick.x; p.ly = L.stick.y
@@ -570,14 +586,18 @@ final class QuestControls {
         hudYawT = hudYawT.truncatingRemainder(dividingBy: 2 * .pi)
         let fwd = V3(-sinf(hudYawT), 0, -cosf(hudYawT))
         let drop = QuestSettings.hudDrop
-        let want = rig.trackingHead + fwd * 1.25 + V3(0, -drop, 0)
+        // `drop` is where the hotbar sits below eye level (0.42 at 1.25 m is ~18 degrees): the panel is raised to match.
+        let Lh = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
+        let panelH = 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW)
+        let hotbarBelowCentre = ((Lh.hotbarY0 + Lh.slot / 2) / Float(QuestControls.panelH) - 0.5) * panelH
+        let want = rig.trackingHead + fwd * 1.25 + V3(0, -drop + hotbarBelowCentre, 0)
         var pos = hudPosT ?? want
         pos += (want - pos) * min(1, dt * 12)
         if simd_length(want - pos) > 0.5 { pos = want }
         hudPosT = pos
         panelCenterT = pos
         panelYawT = hudYawT
-        panelPitch = -atan2f(drop, 1.25) * 0.95             // tilted to face the eyes
+        panelPitch = -atan2f(drop, 1.25) * 0.7              // the hotbar end tilted to face the eyes
         panelSize = V2(1.25, 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
@@ -585,6 +605,31 @@ final class QuestControls {
     private func panelAxes() -> (V3, V3, V3) {
         let q = simd_quatf(angle: panelYaw, axis: V3(0, 1, 0)) * simd_quatf(angle: panelPitch, axis: V3(1, 0, 0))
         return (q.act(V3(1, 0, 0)), q.act(V3(0, 1, 0)), q.act(V3(0, 0, 1)))
+    }
+
+    // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
+    // does not break blocks meanwhile). Returns true while the laser is over the hotbar.
+    private func hotbarPointer(_ R: XRHand) -> Bool {
+        let trig = R.trigger > 0.6
+        defer { prevSelTrig = trig }
+        guard mode == .hud, game.menu == nil, game.world.ships.pilot == nil else { hotbarHover = nil; return false }
+        let (rx, uy, n) = panelAxes()
+        let denom = simd_dot(aimDir, n)
+        guard denom < -1e-3 else { hotbarHover = nil; return false }
+        let t = simd_dot(panelCenter - aimOrigin, n) / denom
+        guard t > 0 else { hotbarHover = nil; return false }
+        let hit = aimOrigin + aimDir * t
+        let px = (simd_dot(hit - panelCenter, rx) / panelSize.x + 0.5) * Float(QuestControls.panelW)
+        let py = (0.5 - simd_dot(hit - panelCenter, uy) / panelSize.y) * Float(QuestControls.panelH)
+        let L = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
+        let i = Int(floor((px - L.hotbarX0) / L.slot))
+        guard i >= 0 && i < 9 && py >= L.hotbarY0 - L.slot * 0.5 && py < L.hotbarY0 + L.slot * 1.5 else { hotbarHover = nil; return false }
+        if hotbarHover != i { hotbarHover = i; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) }
+        if trig && !prevSelTrig {
+            game.select(i)
+            app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300)
+        }
+        return true
     }
 
     // The laser on the menu panel drives the game's mouse.

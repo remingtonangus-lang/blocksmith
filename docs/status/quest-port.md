@@ -268,3 +268,14 @@ swapchain (darker/more opaque). Compensated in water.frag (alpha x0.8, colour li
 formats in XRSession.swift:277. (2) Caves: Mac's caveFill ported to chunk.vert (misc.w = QuestSettings.brightness, default 0.75) + Brightness row on the VR
 page. (3) Smooth turning is now default at 90 deg/s; snap kept as an option; QuestSim snap checks set it explicitly. (4) cc12b60f verified in the build.
 No Quest was attached to adb, so nothing installed.
+
+## Task 17 (Quest controls, untested on headset; Quest sources compile only in the quest CI lane)
+- Rapid placing: the real limiter was AimAssist.sticky (Sources/PadActions.swift): it kept the old target while a freshly placed block
+  in front of it was only ~1 closer (centre test, 0.6 margin), so every held placement after the first hit an occupied cell. Now compares
+  entry distances (0.3 margin). Also helps Mac pads. The 0.2 s cooldown from cc12b60f was fine.
+- Water: quest/shaders/water.frag restored byte-for-byte from 6c996db (v0.13); the sRGB "compensation" in dc74393e was the regression.
+  chunk.vert is unchanged since (cave fill/brightness kept).
+- Controls: snap turn default (key renamed quest.smoothTurn2 so old saved values reset); R stick up/down = reclined-only pitch steps
+  (QuestRig.stepPitch, 15 deg); L trigger = fly toggle; hold L grip = drop (0.4 s, keep holding = stack); R grip alone places;
+  hotbar by pointing + R trigger (QuestControls.hotbarPointer; Game.padHotbarScroll=false); HUD raised so the hotbar centre is
+  `hudDrop` below eye level (0.42 at 1.25 m ~ 18 deg). Help rows in QuestOptions.touchRows updated.

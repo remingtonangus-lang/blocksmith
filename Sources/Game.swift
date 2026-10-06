@@ -251,6 +251,7 @@ final class Game {
 
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
+    var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
     private(set) var clock: Double = 0
     var toastText = ""
@@ -770,8 +771,8 @@ final class Game {
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
         if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
         let bumpersFree = world.ships.pilot == nil      // at the helm RB / LB climb and descend
-        if bumpersFree && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
-        if bumpersFree && p.lb && !q.lb { select(selected - 1) }
+        if bumpersFree && padHotbarScroll && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
+        if bumpersFree && padHotbarScroll && p.lb && !q.lb { select(selected - 1) }
 
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos
