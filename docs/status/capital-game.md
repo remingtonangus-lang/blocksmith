@@ -126,6 +126,11 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-06 00:45: run 57 (405f4f3) green. Paired verdict on the far impostor thinning: "trees: impostors unthinned"
+  -0.65 ms (drawing every card costs 0.65 ms more in alternating windows of the same run). Kept: it clears the -0.3
+  ms bar set beforehand and is visually neutral, but this run's noise floor was high (raymarched clouds -2.25,
+  shadow proxies +1.68), so confidence is low; the paired item stays in the ablation and every CI run adds a
+  sample. fps city / battle / forest 49.4 / 41.4 / 52.0.
 - 2026-10-06 00:15: run 56 (8d5f92f, impostor thinning) green. Its ablation read trees: impostors 3.70 ms (1.85,
   1.64 before), but grass doubled in the same run (6.14 vs 2.85) and battle fps rose (48.2 vs 43.9 / 45.0, low 1 %
   36.5): cross-run samples on this runner cannot judge a 1-2 ms change. The benchmark now has a paired item,
