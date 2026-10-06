@@ -294,7 +294,8 @@ enum QuestSim {
         game.world.setBlock(hc.0, hc.1, hc.2, hwBefore)
         frames(30) { _ in idleHands() }
         check(fadeIn > 0.8 && controls.wallFade < 0.05,
-              String(format: "VR head in a wall: the view fades (%.2f) and clears once out (%.2f)", fadeIn, controls.wallFade))
+              String(format: "VR head in a wall: the view fades (%.2f) and clears once out (%.2f)", fadeIn, controls.wallFade)
+              + " alive \(game.alive) fly \(game.player.flying) menu \(game.menu.map { "\(type(of: $0))" } ?? "none") paused \(game.paused) before \(hwBefore) head \(hw) now \(rig.headWorld) feet \(game.player.pos)")
 
         // 9c. Death and respawn: the death screen opens as the menu panel in front, its button (laser + trigger)
         // respawns, the HUD comes back and the camera follows the player to the spawn.
