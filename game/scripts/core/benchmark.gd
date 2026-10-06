@@ -394,6 +394,13 @@ func _start_gpu_ablation() -> void:
 			_ga_items.append(["trees: shadow proxies", _set_vis.bind(proxies, false), _set_vis.bind(proxies, true)])
 		if not imps.is_empty():
 			_ga_items.append(["trees: impostors", _set_vis.bind(imps, false), _set_vis.bind(imps, true)])
+		# Paired check of the far-card thinning (cross-run samples were too noisy to judge it): the "off" state
+		# draws every card, so a negative saving is what the thinning saves.
+		var im: ShaderMaterial = veg.get("imp_mat")
+		if im and not imps.is_empty():
+			var tmin: float = im.get_shader_parameter("thin_min") if im.get_shader_parameter("thin_min") != null else 0.3
+			_ga_items.append(["trees: impostors unthinned", func(): im.set_shader_parameter("thin_min", 1.0),
+				func(): im.set_shader_parameter("thin_min", tmin)])
 	_ga_i = 0
 	_ga_off = false
 	_ga_pair = 0

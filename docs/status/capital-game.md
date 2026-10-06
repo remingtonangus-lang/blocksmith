@@ -126,6 +126,11 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-06 00:15: run 56 (8d5f92f, impostor thinning) green. Its ablation read trees: impostors 3.70 ms (1.85,
+  1.64 before), but grass doubled in the same run (6.14 vs 2.85) and battle fps rose (48.2 vs 43.9 / 45.0, low 1 %
+  36.5): cross-run samples on this runner cannot judge a 1-2 ms change. The benchmark now has a paired item,
+  "trees: impostors unthinned" (thin_min 1.0 against 0.3 in alternating windows of the same run): a negative value
+  is what the thinning saves. Kept or reverted on that number.
 - 2026-10-05 23:55: impostor trim. Second tree-split sample (run 55, battle base 16.96 ms): vegetation 8.41, grass 2.85,
   trees: impostors 1.64, near 0.39, shadow proxies -0.19, so impostors are the largest tree cost twice (1.85,
   1.64). The impostor vertex shader now (a) keeps a stable hashed subset of the cards beyond 1200 m (down to 30 % at
