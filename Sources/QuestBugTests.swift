@@ -25,6 +25,7 @@ enum QuestBugTests {
             guard Items.has(k) else { check(false, "\(k) missing"); continue }
             let a = ItemStack(Items.id(k), 1).def.attack
             let z = Mob(.zombie, at: game.player.pos + V3(0, 0, -3))
+            z.equip = nil                                       // no random armour roll
             var hits = 0
             while z.health > 0 && hits < 20 {
                 z.invulnerable = 0
