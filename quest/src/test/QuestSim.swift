@@ -166,6 +166,7 @@ enum QuestSim {
             check(game.world.block(at.x, at.y, at.z) == Blocks.id("gold_block"), "VR place: left trigger placed a gold block at \(at)")
         } else { check(false, "VR place: no target") }
 
+        let standPos = game.player.pos
         // 7. Inventory: holding Y (left upper button) opens it (a tap toggles flying); the panel sits in front; the laser drives the mouse.
         frames(36) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(3) { _ in idleHands() }
@@ -286,7 +287,8 @@ enum QuestSim {
         check(abs(glidePitch + 0.5) < 0.05, String(format: "VR gliding: the look follows the head (pitch %.2f, head -0.50)", glidePitch))
 
         // 9b2. Head in a wall: a solid block where the head is fades the view to black; gone, the view clears.
-        frames(2) { _ in idleHands() }
+        game.player.pos = standPos; game.player.vel = .zero
+        frames(8) { _ in idleHands() }
         let hw = rig.headWorld
         let hc = (Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z)))
         let hwBefore = game.world.block(hc.0, hc.1, hc.2)
