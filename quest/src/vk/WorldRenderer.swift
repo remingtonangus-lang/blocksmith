@@ -70,7 +70,10 @@ final class WorldRenderer {
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, simd_clamp((0.6 - daylight) / 0.35, 0, 1))
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky ? 1 : (game.dim.dim == .end ? 2 : 0))
-        u.misc = V4(skyKind, 1, scene.linearOutput ? 2.2 : 1, QuestSettings.brightness)
+        // Eye darkness: skylight 12+ at the eye (daylight, near the surface) 0 ... skylight 6 or less (caves, deep dives) 1.
+        let ek = simd_clamp((caveK - 0.4) / 0.4, 0, 1)
+        let dark = 1 - ek * ek * (3 - 2 * ek)
+        u.misc = V4(skyKind, game.dim.dim.hasSky ? dark : 1, scene.linearOutput ? 2.2 : 1, QuestSettings.brightness)
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : sky))
         return (u, clear)
     }

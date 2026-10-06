@@ -13,7 +13,8 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 horizon;          // sky: rgb horizon (= fog), w = sun glow
     mat4 starRot;
     vec4 starTint;
-    vec4 misc;             // x = sky kind (0 none, 1 overworld dome, 2 hollow), y = panel alpha, z = output gamma (2.2 sRGB target)
+    vec4 misc;             // x = sky kind (0 none, 1 overworld dome, 2 hollow), y = eye darkness (cave fill weight),
+                           // z = output gamma (2.2 sRGB target), w = Brightness
 } u;
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;

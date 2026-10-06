@@ -282,7 +282,19 @@ No Quest was attached to adb, so nothing installed.
 
 ## Task 20 (2026-10-06): water, waves, controls, combat, mobs
 
-### WATER-NOTES (third attempt, NOT fixed; stopped by Remington to ship the rest)
+### WATER-NOTES (fourth attempt: cause found)
+Cause: the Quest cave fill (dc74393e, chunk.vert) puts a cool minimum light of 0.26-0.57 (Brightness 0.75, x2 Fast)
+on every vertex with skylight 0. Water is skyStop and skylight drops 1 per block below the surface, so every ocean floor
+deeper than ~15 blocks is "skylight 0" exactly like a cave: the deep seabed went from the old 0.055 floor (near black)
+to a lit grey-blue that shows through the translucent water, flattening the dark deep-ocean look into a mediocre teal.
+The task-20 skylight gate (fill off at skylight 5+) only fixed shallow seabeds. The Brightness contrast term (g = 0.2)
+also lifted mid-depth seabeds ~15-20%. The Mac A/B missed it (that view's seabed was shallow; Fancy has its own water).
+Fix: misc.y = eye darkness (from the smoothed eye skylight caveK: 0 at skylight 12+, 1 at 6 or less; 1 without sky).
+chunk.vert scales the fill by it and blends Brightness toward neutral 0.5 by it, with the v48 0.055 floor back: standing
+in daylight the world (and every seabed) shades exactly like v48; in caves / deep dives / the Emberdeep the fill and
+Brightness work as before (eased in over ~0.5 s by caveK's smoothing). No cost (one uniform, two multiplies).
+
+#### Earlier attempts (kept for history)
 Builds: versionCode = quest.yml run number. v48 = 2a9b5c3 (water looked good), v51 = c2eaa41 (first green build of
 dc74393e), v52 = db2596a (water.frag restored to v0.13), v57 = adf1e7b.
 Ruled out (diff of quest/ v48..HEAD: only chunk.vert, WorldRenderer.swift misc.w, controls/options/sim files):
