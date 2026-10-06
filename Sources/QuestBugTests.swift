@@ -1,3 +1,4 @@
+import Foundation
 import simd
 
 // `--questbugs`: checks for the Quest playtest bug list of 2026-10-06 (task 20): ore drop counts, sword damage against a

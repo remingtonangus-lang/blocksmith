@@ -22,3 +22,4 @@ BehaviorSim.swift
 CustomMusic.swift
 MobRenderCheck.swift
 RideCheck.swift
+QuestBugTests.swift
