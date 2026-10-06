@@ -219,6 +219,8 @@ final class Game {
 
     // Mining / using
     var mining: IVec3?
+    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.8...1.5 = how hard); consumed by interact
+    private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -804,13 +806,17 @@ final class Game {
 
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
-        let reach: Float = survival ? 4.5 : 5
+        let swung = swingPower > 0
+        let swingPow = swingPower
+        swingPower = 0
+        if swung { swingGrace = 0.7 }
+        let reach: Float = swung ? 5.5 : (survival ? 4.5 : 5)
         target = AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
         breakCooldown -= dt
         placeCooldown -= dt
-        let breakHeld = input.leftDown || p.rt > 0.5
+        let breakHeld = input.leftDown || p.rt > 0.5 || swung
         // Right stick click is a quick melee swing (Halo Infinite default layout); L3 + R3 is the bug-notes chord.
-        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
+        let breakNow = swung || input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
@@ -824,7 +830,7 @@ final class Game {
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5) {
+        if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5)) {
             let (m, dist) = hit
             if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
@@ -858,10 +864,10 @@ final class Game {
             if breakNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
-                let charge = min(1, attackTimer * spd)
+                let charge = swung ? 1 : min(1, attackTimer * spd)
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
-                var dmg = max(0, base) * (0.2 + 0.8 * charge * charge)
+                var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
                 // Reference crit: falling, and not sprinting, swimming, climbing, blind or riding.
                 let feetB = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y + 0.1)), Int(floor(player.pos.z)))
                 let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround && !player.sprinting && !player.inWater
@@ -941,6 +947,7 @@ final class Game {
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
+                    if swung && secs > 0 { mineProgress += max(0, 0.07 * swingPow - fdt) / secs }      // a swing is worth ~0.07 s of digging
                     swing = max(swing, 0.5)
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
@@ -968,6 +975,8 @@ final class Game {
                     }
                 }
             }
+        } else if swingGrace > 0 && mining != nil {
+            swingGrace -= fdt                                   // between swings the chipped block keeps its progress
         } else {
             mining = nil
             mineProgress = 0

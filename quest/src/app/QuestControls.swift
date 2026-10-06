@@ -9,9 +9,10 @@ import CVulkan
 //    the laser points at.
 //  - The left stick moves relative to the head (or the left controller); it is pre-rotated into the aim frame the
 //    game moves in. The right stick turns the body (snap or smooth); reclined, its up/down tips the view in steps.
-//  - Buttons: right trigger = RT (break / attack / fire), right grip = LT (use / place / aim), left trigger = fly toggle,
-//    A jump, B sneak / back, X pick block / reload, Y inventory, hold left grip = drop, right stick click hold = the
-//    weapon wheel (the hotbar is picked by pointing at a slot and pulling the trigger), left stick click = sprint, menu = pause.
+//  - Buttons: right trigger = RT (break / attack / fire; Swing Mode: a full-arm swing breaks / attacks instead),
+//    left trigger = LT (use / place / aim), A jump, B sneak / back (hold: drop), X pick block / reload, Y fly toggle
+//    (hold: inventory), left grip = previous hotbar slot, right grip = next, right stick click hold = the
+//    weapon wheel (the grips step the hotbar), left stick click = sprint, menu = pause.
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -26,14 +27,20 @@ final class QuestControls {
     private(set) var hint: String?
     private var hintShown: String?
     private var hintKey = ""
+    static var keyboardHook: ((Bool) -> Void)?
     static let hintW = 640, hintH = 48
     static let panelW = 1024, panelH = 640
 
     private var snapArmed = true
     private var flickArmed = true
     private var flyPulse = 0
-    private var prevFlyPull = false
-    private var dropHold: Float = 0
+    private var yBlock = false
+    private var bHold: Float = 0, bPulse = 0
+    private var prevGripL = false, prevGripR = false
+    // Swing Mode: the aiming hand's motion (tracking space, relative to the head).
+    private var swingPrev: V3?, swingStart = V3.zero
+    private var swingPeak: Float = 0, swingCool: Float = 0
+    private var swingActive = false, swingFired = false
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
@@ -96,11 +103,11 @@ final class QuestControls {
         Renderer.questHideCrosshair = true
         self.panel = panel
         if let p = panel { hintPanel = try? HudPanel(scene: p.scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096) }
-        // Prompts name the Touch controls: the game's LT (use) is the grip, RT the trigger.
+        // Prompts name the Touch controls: the game's LT (use) is the left trigger, RT the right one.
         Glyphs.labelOverride = { g in
             switch g {
-            case .lt: return "Grip"
-            case .rt: return "Trigger"
+            case .lt: return "L Trigger"
+            case .rt: return "R Trigger"
             case .lb: return "L Grip"
             case .rb: return "R Stick"
             default: return nil
@@ -116,6 +123,8 @@ final class QuestControls {
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
+        // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
+        QuestControls.keyboardHook?(game.menu.map { $0.capturesText && !($0 is KeyboardMenu) } ?? false)
 
         // The weapon wheel (hold the right stick click) takes the right stick to pick a gun: no turning meanwhile.
         let wheel = !inMenu && (R.stickClick || WeaponWheel.shared.open)
@@ -164,19 +173,42 @@ final class QuestControls {
 
         // Pad for the game.
         var p = PadSnapshot()
-        p.rt = R.trigger
-        p.lt = R.squeeze
-        // L trigger: fly on/off (the pad's D-pad up press, a 3-frame pulse on the pull).
-        let flyPull = L.trigger > 0.6
-        if flyPull && !prevFlyPull && !inMenu { flyPulse = 3 }
-        prevFlyPull = flyPull
-        p.up = flyPulse > 0
-        if flyPulse > 0 { flyPulse -= 1 }
-        // Hold L grip: drop the held item (the pad's D-pad down; holding on drops the whole stack).
-        if L.squeeze > 0.6 && !inMenu { dropHold += dt } else { dropHold = 0 }
-        p.down = dropHold > 0.4
+        // Swing Mode: a real arm swing breaks / attacks with a tool or the bare hand (the right trigger then only works
+        // for other items: guns, bows, food, blocks). Off: the right trigger breaks / attacks.
+        let held = game.held
+        let swingItem = held.isEmpty || held.def.tool != .none
+        let swinging = QuestSettings.swingMode && swingItem
+        p.rt = swinging ? 0 : R.trigger
+        p.lt = L.trigger                                    // use / place (hold to repeat)
+        if !inMenu && game.alive {
+            let power = swingUpdate(R, dt: dt)
+            if swinging && power > 0 && !game.paused {
+                game.swingPower = power
+                app.input.haptic(aimHand, amplitude: 0.5, seconds: 0.04, frequency: 200)
+            }
+        } else { swingPrev = nil; swingActive = false }
+        // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
+        let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
+        if !inMenu && game.world.ships.pilot == nil {
+            if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+        }
+        prevGripL = lGrip; prevGripR = rGrip
         p.a = R.button1
-        p.b = R.button2
+        // B: a tap is sneak / back (sent when it is let go); held, it drops the held item (the pad's D-pad down; keep
+        // holding for the whole stack).
+        if inMenu {
+            p.b = R.button2
+            bHold = 0; bPulse = 0
+        } else {
+            if R.button2 { bHold += dt } else {
+                if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
+                bHold = 0
+            }
+            p.b = bPulse > 0
+            if bPulse > 0 { bPulse -= 1 }
+            p.down = bHold > 0.4
+        }
         // X: a tap is pick block / reload (sent when it is let go); held, it swaps the offhand (the pad's D-pad right).
         if inMenu {
             p.x = L.button1
@@ -192,17 +224,19 @@ final class QuestControls {
             p.right = swapPulse > 0
             if swapPulse > 0 { swapPulse -= 1 }
         }
-        // Y: a tap opens the inventory (sent when it is let go); held, it is the pad's View held: the world map.
+        // Y: a tap toggles flying (the pad's D-pad up, sent when it is let go); held, it opens the inventory.
         if inMenu {
-            p.y = L.button2
-            yHold = L.button2 ? yHold : 0; yLong = false; yPulse = 0
+            yBlock = yBlock && L.button2                        // the Y that opened the inventory doesn't also click in it
+            p.y = L.button2 && !yBlock
+            yHold = 0; yLong = false; yPulse = 0; flyPulse = 0
         } else {
             if L.button2 { yHold += dt } else {
-                if yHold > 0 && !yLong { yPulse = 3 }
+                if yHold > 0 && !yLong { flyPulse = 3 }
                 yHold = 0; yLong = false
             }
-            if yHold > 0.35 { yLong = true }
-            p.view = yLong
+            if yHold > 0.35 && !yLong { yLong = true; yBlock = true; yPulse = 3 }
+            p.up = flyPulse > 0
+            if flyPulse > 0 { flyPulse -= 1 }
             p.y = yPulse > 0
             if yPulse > 0 { yPulse -= 1 }
         }
@@ -227,7 +261,7 @@ final class QuestControls {
             if QuestSettings.headLocomotion || !L.aimValid { moveYaw = rig.headYaw }
             else { moveYaw = XRMath.yawPitch(rig.toWorldRot(L.aimRot)).0 }
             aimGame()
-            if hotbarPointer(R) { p.rt = 0 }
+            hotbarHover = nil
             if game.world.ships.pilot != nil {
                 // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
                 p.lx = L.stick.x; p.ly = L.stick.y
@@ -605,6 +639,34 @@ final class QuestControls {
     private func panelAxes() -> (V3, V3, V3) {
         let q = simd_quatf(angle: panelYaw, axis: V3(0, 1, 0)) * simd_quatf(angle: panelPitch, axis: V3(1, 0, 0))
         return (q.act(V3(1, 0, 0)), q.act(V3(0, 1, 0)), q.act(V3(0, 0, 1)))
+    }
+
+    // Full-arm swing detector: a swing starts when the hand passes 1.4 m/s, lands once it has travelled 25 cm from where it
+    // started at a peak of 2 m/s (wrist flicks move the hand only a few cm), and ends when the hand slows below 0.6 m/s.
+    // Returns the power (0.8...1.5, from the peak speed) on the frame a swing lands, else 0.
+    private func swingUpdate(_ R: XRHand, dt: Float) -> Float {
+        let rig = app.rig
+        let hp = R.gripValid ? R.gripPos : R.aimPos
+        guard dt > 1e-3, R.aimValid || R.gripValid else { swingPrev = nil; swingActive = false; return 0 }
+        let pos = hp - rig.trackingHead
+        defer { swingPrev = pos }
+        guard let prev = swingPrev else { return 0 }
+        let sp = simd_length(pos - prev) / dt
+        swingCool -= dt
+        var out: Float = 0
+        if !swingActive {
+            swingFired = false
+            if sp > 1.4 { swingActive = true; swingStart = prev; swingPeak = sp }
+        } else {
+            swingPeak = max(swingPeak, sp)
+            if sp < 0.6 { swingActive = false }
+            else if !swingFired && swingCool <= 0 && swingPeak >= 2.0 && simd_length(pos - swingStart) >= 0.25 {
+                swingFired = true
+                swingCool = 0.2
+                out = max(0.8, min(1.5, swingPeak / 3))
+            }
+        }
+        return out
     }
 
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger

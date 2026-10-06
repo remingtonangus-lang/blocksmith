@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -182,7 +182,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -270,6 +270,10 @@ final class PauseMenu: Menu {
         case .controls:
             title = "Controls"
             rows = ControlsReference.rows().map { ($0, "noop") } + [("Done", "back")]
+        case .shortcuts:
+            title = "Shortcuts"
+            subtitle = "Teleport to the nearest one"
+            rows = Game.shortcutList.map { ($0.1, "sc:" + $0.0) } + [("Back to Spawn", "sc:spawn"), ("Back", "back")]
         case .worlds:
             title = "Worlds"
             worlds = WorldStore.list()
@@ -419,6 +423,11 @@ final class PauseMenu: Menu {
             cat = PadManager.shared.usingPad ? .controller : .video
             go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
+        case "shortcuts": go(.shortcuts); resetCursor = true
+        case _ where id.hasPrefix("sc:"):
+            g.closeMenu()
+            g.shortcutTeleport(String(id.dropFirst(3)))
+            return
         case "keys": go(.keys); binding = nil; resetCursor = true
         case "padmap": go(.padmap); padBinding = nil; resetCursor = true
         case _ where id.hasPrefix("pbind:"):

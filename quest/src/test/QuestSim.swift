@@ -122,7 +122,8 @@ enum QuestSim {
         check(want != nil && game.target?.hit == want?.hit,
               "VR aim: game target \(game.target.map { "\($0.hit)" } ?? "nil") = hand ray hit \(want.map { "\($0.hit)" } ?? "nil")")
 
-        // 5. Break: the right trigger breaks the targeted block (creative).
+        // 5. Break: the right trigger breaks the targeted block (creative; Swing Mode off).
+        QuestSettings.swingMode = false
         if let t = game.target?.hit {
             let before = game.world.block(t.x, t.y, t.z)
             frames(6) { _ in idleHands(); sim.hands[1].aimRot = down; sim.hands[1].trigger = 1 }
@@ -131,20 +132,40 @@ enum QuestSim {
             check(before != AIR && after != before, "VR break: right trigger broke \(Blocks.name(before)) at \(t) (now \(Blocks.name(after)))")
         }
 
-        // 6. Place: right grip with a block in hand places it against the targeted face.
+        // 5b. Swing Mode: a full-arm swing breaks the targeted block with the bare hand; a wrist flick does not.
+        QuestSettings.swingMode = true
+        game.inventory.held = .empty
+        frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
+        if let t = game.target?.hit {
+            let before = game.world.block(t.x, t.y, t.z)
+            frames(8) { i in
+                idleHands(); sim.hands[1].aimRot = down
+                sim.hands[1].gripPos = sim.hands[1].aimPos + V3(0, 0.012 * Float(i % 2), 0)       // a flick: a centimetre
+            }
+            let flicked = game.world.block(t.x, t.y, t.z)
+            frames(8) { i in
+                idleHands(); sim.hands[1].aimRot = down
+                sim.hands[1].gripPos = sim.hands[1].aimPos + V3(0, 0.09 * Float(i), 0)           // an arm swing
+            }
+            frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
+            let after = game.world.block(t.x, t.y, t.z)
+            check(flicked == before && after != before, "VR swing: flick left \(Blocks.name(flicked)), arm swing broke \(Blocks.name(before)) (now \(Blocks.name(after)))")
+        } else { check(false, "VR swing: no target") }
+
+        // 6. Place: the left trigger with a block in hand places it against the targeted face.
         game.inventory.held = ItemStack(Items.id("gold_block"), 64)
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         if let t = game.target {
             let at = IVec3(t.hit.x + t.normal.x, t.hit.y + t.normal.y, t.hit.z + t.normal.z)
-            frames(4) { _ in idleHands(); sim.hands[1].aimRot = down; sim.hands[1].squeeze = 1 }
+            frames(4) { _ in idleHands(); sim.hands[1].aimRot = down; sim.hands[0].trigger = 1 }
             frames(6) { _ in idleHands(); sim.hands[1].aimRot = down }
-            check(game.world.block(at.x, at.y, at.z) == Blocks.id("gold_block"), "VR place: right grip placed a gold block at \(at)")
+            check(game.world.block(at.x, at.y, at.z) == Blocks.id("gold_block"), "VR place: left trigger placed a gold block at \(at)")
         } else { check(false, "VR place: no target") }
 
-        // 7. Inventory: Y (left upper button) opens it; the panel sits in front; the laser drives the mouse.
-        frames(3) { _ in idleHands(); sim.hands[0].button2 = true }
+        // 7. Inventory: holding Y (left upper button) opens it (a tap toggles flying); the panel sits in front; the laser drives the mouse.
+        frames(36) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(3) { _ in idleHands() }
-        check(game.menu != nil, "VR inventory: Y opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
+        check(game.menu != nil, "VR inventory: Y hold opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
         // Point the right ray at the panel centre (1.15 m ahead, 0.1 m down of the head when it opened).
         let haptics0 = sim.hapticCount
         var hitTarget = V3.zero
@@ -198,13 +219,12 @@ enum QuestSim {
               "VR weapon wheel: opened \(opened), picked \(Items.key(game.held.item)), body turned \(rig.bodyYaw - yW) rad")
         game.inventory.main[0] = .empty; game.inventory.main[1] = .empty
 
-        // 8c. Holding Y opens the world map (a tap still opens the inventory, checked above).
-        frames(72) { _ in idleHands(); sim.hands[0].button2 = true }
-        let mapOpen = game.menu is MapMenu
-        frames(3) { _ in idleHands() }
-        check(mapOpen && !(game.menu is InventoryMenu || game.menu is CreativeMenu), "VR map: holding Y opened \(mapOpen ? "the world map" : String(describing: game.menu.map { type(of: $0) }))")
-        if game.menu != nil { game.closeMenu() }
-        frames(3) { _ in idleHands() }
+        // 8c. Tapping Y toggles flying.
+        let flew = game.player.flying
+        frames(3) { _ in idleHands(); sim.hands[0].button2 = true }
+        frames(6) { _ in idleHands() }
+        check(game.player.flying != flew, "VR fly: a Y tap toggled flying (\(flew) -> \(game.player.flying))")
+        game.player.flying = flew
 
         // 8d. Holding X swaps the offhand (a torch from the hand to the offhand).
         let torch = Items.id("torch")
@@ -409,7 +429,7 @@ enum QuestSim {
         check(hudDev < 0.08, String(format: "VR ship: the HUD stayed with the user (distance to the head varied %.3f m)", hudDev))
 
         // Inventory aboard: the menu panel stays in front of the user while the ship keeps moving and turning.
-        frames(3) { _ in idleHands(); sim.hands[0].button2 = true }
+        frames(36) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(3) { _ in idleHands() }
         let menuDist0 = simd_length(host.controlsPanelCenter() - rig.headWorld)
         frames(144) { _ in idleHands() }
@@ -452,7 +472,7 @@ enum QuestSim {
         }
         try snapshot()
         sim.headRot = headRot0
-        frames(4) { _ in aimAtChest(); sim.hands[1].squeeze = 1 }
+        frames(4) { _ in aimAtChest(); sim.hands[0].trigger = 1 }
         frames(4) { _ in aimAtChest() }
         check(game.menu is ChestMenu, "VR ship: grip opened the chest on the moving deck (\(game.menu.map { String(describing: type(of: $0)) } ?? "nothing"))")
         if game.menu != nil { game.closeMenu() }

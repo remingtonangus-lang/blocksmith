@@ -80,6 +80,49 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
     }
 }
 
+// The system soft keyboard (command box): shown / hidden by the controls, its key presses arrive as AKeyEvents from the
+// activity's input queue and are typed into the game's text capture.
+private func keyChar(_ code: Int32, shift: Bool) -> String? {
+    switch code {
+    case 29...54: return String(UnicodeScalar(UInt8((shift ? 65 : 97) + code - 29)))          // A-Z
+    case 7...16:
+        if shift { return Array(")!@#$%^&*(")[Int(code - 7)].description }
+        return String(code - 7)
+    case 62: return " "
+    case 66, 160: return "\n"
+    case 67: return "\u{8}"
+    case 76: return shift ? "?" : "/"
+    case 69: return shift ? "_" : "-"
+    case 56: return shift ? ">" : "."
+    case 55: return shift ? "<" : ","
+    case 70: return shift ? "+" : "="
+    case 74: return shift ? ":" : ";"
+    case 75: return shift ? "\"" : "'"
+    case 77: return "@"
+    case 81: return "+"
+    case 155: return "*"
+    case 68: return shift ? "~" : "`"
+    default: return nil
+    }
+}
+
+private func handleInput(_ app: UnsafeMutablePointer<android_app>?, _ event: OpaquePointer?) -> Int32 {
+    guard let event, AInputEvent_getType(event) == Int32(AINPUT_EVENT_TYPE_KEY),
+          AKeyEvent_getAction(event) == Int32(AKEY_EVENT_ACTION_DOWN),
+          let game = state.app?.game, game.menu?.capturesText == true,
+          let c = keyChar(AKeyEvent_getKeyCode(event), shift: AKeyEvent_getMetaState(event) & 1 != 0) else { return 0 }
+    game.input.typed += c
+    return 1
+}
+
+private var keyboardShown = false
+private func setSoftKeyboard(_ activity: UnsafeMutablePointer<ANativeActivity>, _ show: Bool) {
+    guard show != keyboardShown else { return }
+    keyboardShown = show
+    if show { ANativeActivity_showSoftInput(activity, UInt32(ANATIVEACTIVITY_SHOW_SOFT_INPUT_FORCED)) }
+    else { ANativeActivity_hideSoftInput(activity, 0) }
+}
+
 @_cdecl("android_main")
 public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     guard let app else { return }
@@ -100,6 +143,9 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
+    app.pointee.onInputEvent = { a, e in handleInput(a, e) }
+    keyboardShown = false
+    QuestControls.keyboardHook = { show in setSoftKeyboard(activity, show) }
 
     var xr: XRSession?
     var failed = false

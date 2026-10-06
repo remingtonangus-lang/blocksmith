@@ -25,6 +25,7 @@ final class CommandMenu: Menu {
         for c in s {
             if c == "\u{8}" { if !line.isEmpty { line.removeLast() } }
             else if c == "\t" { complete() }
+            else if c == "\n" { run(); game.closeMenu(); return }          // Enter from the Quest's system keyboard
             else if line.count < 120 { line.append(c) }
         }
     }

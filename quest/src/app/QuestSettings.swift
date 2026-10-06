@@ -58,6 +58,8 @@ enum QuestSettings {
     static var seated: Bool { get { bool("quest.seated", false) } set { store(newValue, "quest.seated") } }
     // Reclined (lying down): recentring also levels the view to the current gaze pitch; implies seated.
     static var reclined: Bool { get { bool("quest.reclined", false) } set { store(newValue, "quest.reclined") } }
+    // Swing Mode: a full-arm swing breaks / attacks (on); off: the right trigger does.
+    static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }

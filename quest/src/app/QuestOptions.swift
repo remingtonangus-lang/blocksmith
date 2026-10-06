@@ -28,7 +28,7 @@ enum QuestOptions {
         // the Mac's microphone bug notes.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "bugnotes", "controls", "keys", "padmap"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_reclined", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_reclined", "q_swing", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -40,6 +40,7 @@ enum QuestOptions {
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
             "q_reclined": "Lying down: Recenter View also levels the world, horizon, HUD and menus to where you look now, pitch included.",
+            "q_swing": "On: break blocks and hit mobs by really swinging your arm at them (small wrist flicks don't count). Off: the right trigger breaks and attacks.",
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing.",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
@@ -68,6 +69,7 @@ enum QuestOptions {
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Reclined Mode: \(on(S.reclined))", "q_reclined"),
+                ("Swing Mode: \(on(S.swingMode))", "q_swing"),
                 ("Recenter View", "q_recenter"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
@@ -86,16 +88,16 @@ enum QuestOptions {
     // The Touch layout (right-handed; Dominant Hand swaps the hands).
     static let touchRows = [
         "Right laser: aim at blocks, menus",
-        "R trigger: break / attack / fire",
-        "R grip: use / place (hold to repeat)",
-        "L trigger: fly on / off",
+        "Swing Mode: swing your arm to break / attack",
+        "R trigger: break / attack / fire (Swing Mode off)",
+        "L trigger: use / place (hold to repeat)",
+        "L grip: previous hotbar slot  R grip: next",
         "L stick: move (teleport: aim)",
         "R stick: turn (reclined: up/down look)",
-        "A: jump      B: sneak / back",
+        "A: jump      B: sneak / back; hold: drop item",
         "X: pick block; hold: offhand",
-        "Y: inventory; hold: world map",
-        "Hold L grip: drop item (keep holding: stack)",
-        "Hotbar: point at a slot, pull R trigger",
+        "Y: fly on / off; hold: inventory",
+        "(World map: pause menu)",
         "Hold R stick click: weapon wheel",
         "L stick click: sprint  Menu: pause",
     ]
@@ -119,6 +121,7 @@ enum QuestOptions {
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_seated": S.seated.toggle(); hooks.recenter()
         case "q_reclined": S.reclined.toggle(); hooks.recenter()
+        case "q_swing": S.swingMode.toggle()
         case "q_recenter": hooks.recenter()
         case "q_hand": S.leftHanded.toggle()
         case "q_hz":
