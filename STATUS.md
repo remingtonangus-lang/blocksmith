@@ -1123,3 +1123,10 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Swing Mode (Options > VR, default ON, QuestSettings.swingMode): QuestControls.swingUpdate detects a full-arm swing (peak >= 2 m/s, >= 25 cm of hand travel; wrist flicks ignored), sets Game.swingPower (0.8-1.5); Game.interact treats it as a break/attack at 5.5 reach, each swing is worth ~0.07 s of digging (stone + stone pickaxe ~ 8 swings), damage scales with power, 0.04 s haptic. Untested on a headset: thresholds in swingUpdate are the knobs.
 - System keyboard: text boxes (command console etc.) call ANativeActivity_showSoftInput; AKeyEvents are typed into game.input (AndroidMain.handleInput, QWERTY keycode map). Untested on a headset; the in-game Keyboard button still works as fallback.
 - Pause menu > Shortcuts (all platforms, Sources/Shortcuts.swift): nearest Capital Citadel, crawler, frigates, carriage, village, outpost, manor, temple, etc. + Back to Spawn.
+
+## 2026-10-06 task 20 (Quest bugs), session log
+- Pushed claude/quest-port 86a8a29 (Quest CI run 37518698152 green, APK versionCode 60 on quest-dist; no Quest on adb,
+  not installed) and the shared Sources part to claude/blocksmith-playtest (de453f1d).
+- Done: head-yaw-only movement, swim out onto 1-block banks, real-size held tools, full-damage swings, skeleton bows,
+  mob sounds (+ Quest ITD/head shadow), mob detail/shading, ocean vertex waves; `Blocksmith --questbugs` checks pass.
+- NOT fixed: Quest water look. Notes and next suspects: docs/status/quest-port.md "WATER-NOTES".
