@@ -767,7 +767,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
             box(-4, 12, -2, 8, 12, 4, bone, 5), box(-4, 24, -4, 8, 8, 8, bone, 5), box(-4.3, 30, -4.3, 8.6, m.variant == 1 ? 0.2 : 2, 8.6, moss, 4),
             Part(mn: V3(-6, 12, -1), mx: V3(-4, 24, 1), pivot: V3(-5, 23, 0), rotX: 1.4, color: bone, pattern: 5),
             Part(mn: V3(4, 12, -1), mx: V3(6, 24, 1), pivot: V3(5, 23, 0), rotX: 1.4, color: bone, pattern: 5),
-        ] + eyes(27, -4, 1, 1.5)
+        ] + eyes(27, -4, 1, 1.5) + bowParts(x: 5, pivot: V3(5, 23, 0), handY: 12, rotX: 1.4)
     default:
         return [box(-4, 0, -4, 8, 8, 8, V3(1, 0, 1))]
     }

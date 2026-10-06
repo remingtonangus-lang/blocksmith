@@ -8,6 +8,7 @@ layout(location = 1) out float oShade;
 layout(location = 2) out vec3 oLocal;
 layout(location = 3) flat out float oPattern;
 layout(location = 4) out float oDist;
+layout(location = 5) out vec3 oRel;
 void main() {
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(pos.xyz, 1.0);
     oColor = color.rgb;
@@ -15,4 +16,5 @@ void main() {
     oLocal = local.xyz;
     oPattern = pos.w;
     oDist = length(pos.xyz);
+    oRel = pos.xyz;
 }

@@ -41,6 +41,12 @@ void main() {
     float skyL = float((w1 >> 22) & 15u) / 15.0;
     float blkL = float((w1 >> 26) & 15u) / 15.0;
     vec3 rel = p + origin;
+    // Ocean waves: water surface corners (14/16 up a source cell) at sea level under open sky bob with the swell.
+    // Every corner at that height moves (tops and the upper edge of sides alike), so faces stay joined.
+    if (tintMode == 3u && ((w0 >> 9) & 15u) == 14u && skyL > 0.9) {
+        vec3 wp = rel + u.eye.xyz;
+        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x;
+    }
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
     oLayer = float(layer);
@@ -62,7 +68,9 @@ void main() {
     float g = (b - 0.5) * 0.8;
     lit = clamp(lit + lit * (1.0 - lit) * g, 0.0, 1.0);
     float nearK = mix(1.0, 0.45, smoothstep(5.0, 30.0, length(rel)));
-    float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0;
+    // Only where the sky can't reach (caves, deep interiors): at skylight 5+ (seabeds 10 blocks down, the surface at
+    // night) the fill would wash out the dark depth gradient that makes water read as deep (v51 regression).
+    float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0 * (1.0 - smoothstep(0.0, 0.34, skyL));
     lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, float(ao) / 3.0));
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     oShade = lit * (faceShade[face] * aoCurve[ao]);

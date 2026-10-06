@@ -18,6 +18,18 @@ layout(set = 0, binding = 0, std140) uniform Frame {
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;
 
+// Ocean swell (chunk.vert moves sea-level water surfaces by it, water.frag tilts the surface normal by its slope):
+// three long, slow sines, ~6 cm high. xyz = height, d/dx, d/dz at world xz.
+vec3 oceanWave(vec2 w, float t) {
+    float a1 = w.x * 0.31 + w.y * 0.17 + t * 0.9;
+    float a2 = w.y * 0.27 - w.x * 0.11 + t * 0.7;
+    float a3 = w.x * 0.53 - w.y * 0.43 + t * 1.3;
+    float h = sin(a1) * 0.032 + sin(a2) * 0.024 + sin(a3) * 0.012;
+    float dx = cos(a1) * 0.032 * 0.31 - cos(a2) * 0.024 * 0.11 + cos(a3) * 0.012 * 0.53;
+    float dz = cos(a1) * 0.032 * 0.17 + cos(a2) * 0.024 * 0.27 - cos(a3) * 0.012 * 0.43;
+    return vec3(h, dx, dz);
+}
+
 float hash21(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);

@@ -28,14 +28,13 @@ enum QuestOptions {
         // the Mac's microphone bug notes.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "bugnotes", "controls", "keys", "padmap"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_reclined", "q_swing", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_seated", "q_reclined", "q_swing", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
             "q_snap": "How far one snap turn goes.",
             "q_tspeed": "How fast smooth turning goes.",
             "q_move": "Smooth: the left stick walks. Teleport: push the left stick forward, aim the arc, release to jump there.",
-            "q_dir": "Walk toward where the left controller points, or where you look.",
             "q_vig": "Darkens the edges of the view while moving, turning and riding ships. Higher is more comfortable.",
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
@@ -64,7 +63,6 @@ enum QuestOptions {
                 S.smoothTurn ? ("Smooth Turn Speed: \(Int(S.smoothTurnSpeed)) deg/s", "q_tspeed")
                              : ("Snap Angle: \(angle(S.snapAngle)) deg", "q_snap"),
                 ("Movement: \(S.teleport ? "Teleport" : "Smooth")", "q_move"),
-                ("Move Direction: \(S.headLocomotion ? "Head" : "Controller")", "q_dir"),
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
@@ -116,7 +114,6 @@ enum QuestOptions {
         case "q_snap": S.snapAngle = step(snapAngles, S.snapAngle, back)
         case "q_tspeed": S.smoothTurnSpeed = step(turnSpeeds, S.smoothTurnSpeed, back)
         case "q_move": S.teleport.toggle()
-        case "q_dir": S.headLocomotion.toggle()
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_seated": S.seated.toggle(); hooks.recenter()

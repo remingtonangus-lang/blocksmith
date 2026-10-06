@@ -219,7 +219,7 @@ final class Game {
 
     // Mining / using
     var mining: IVec3?
-    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.8...1.5 = how hard); consumed by interact
+    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (1 = a full-strength hit); consumed by interact
     private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0

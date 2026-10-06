@@ -256,11 +256,12 @@ final class QuestControls {
         } else {
             panelHitUV = nil
             prevTrigger = R.trigger > 0.6; prevGrip = R.squeeze > 0.6
-            // Locomotion frame: the head (or the moving hand) yaw; the game moves relative to the aim yaw.
-            let moveYaw: Float
-            if QuestSettings.headLocomotion || !L.aimValid { moveYaw = rig.headYaw }
-            else { moveYaw = XRMath.yawPitch(rig.toWorldRot(L.aimRot)).0 }
+            // Locomotion frame: the head yaw only (snap/smooth turns included). The right hand aims, the left hand
+            // just holds the stick: neither controller's pointing direction steers walking or swimming.
+            let moveYaw = rig.headYaw
             aimGame()
+            let cp = cosf(rig.headPitch)
+            game.player.moveLook = V3(-sinf(moveYaw) * cp, sinf(rig.headPitch), -cosf(moveYaw) * cp)
             hotbarHover = nil
             if game.world.ships.pilot != nil {
                 // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
@@ -643,7 +644,8 @@ final class QuestControls {
 
     // Full-arm swing detector: a swing starts when the hand passes 1.4 m/s, lands once it has travelled 25 cm from where it
     // started at a peak of 2 m/s (wrist flicks move the hand only a few cm), and ends when the hand slows below 0.6 m/s.
-    // Returns the power (0.8...1.5, from the peak speed) on the frame a swing lands, else 0.
+    // Returns 1 on the frame a swing lands, else 0: every real swing deals the weapon's full listed damage (reference
+    // values: wooden sword 4 ... Duskium 8), however fast it was.
     private func swingUpdate(_ R: XRHand, dt: Float) -> Float {
         let rig = app.rig
         let hp = R.gripValid ? R.gripPos : R.aimPos
@@ -663,7 +665,7 @@ final class QuestControls {
             else if !swingFired && swingCool <= 0 && swingPeak >= 2.0 && simd_length(pos - swingStart) >= 0.25 {
                 swingFired = true
                 swingCool = 0.2
-                out = max(0.8, min(1.5, swingPeak / 3))
+                out = 1
             }
         }
         return out
@@ -840,9 +842,16 @@ final class QuestControls {
             let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
             let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up = rot.act(simd_normalize(V3(0, 1, 0.15)))
             let side = rot.act(V3(1, 0, 0))
-            let c = pos + rot.act(V3(0, 0.07, -0.12))
-            for (i, o) in [Float(0), 0.006].enumerated() {
-                wr.sprite(center: c + side * o, half: 0.12, right: r, up: up, layer: layer, light: light * (i == 0 ? 1 : 0.7))
+            // Real-life size: a sword's icon diagonal ~0.85 m, other tools / bows ~0.7 m, everything else a 24 cm icon.
+            // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
+            let k = Items.key(held.item)
+            let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
+            let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
+            let h: Float = big ? 0.3 : (tool ? 0.25 : 0.12)
+            let c = big || tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
+                                : pos + rot.act(V3(0, 0.07, -0.12))
+            for (i, o) in [Float(0), 0.05 * h].enumerated() {
+                wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 ? 1 : 0.7))
             }
         }
         app.scene.commit(off, wr.n, EntityVert.self)

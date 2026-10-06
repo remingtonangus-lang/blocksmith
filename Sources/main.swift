@@ -1055,6 +1055,7 @@ enum Snapshot {
             // The minimap samples on a worker; fill its area now so the single frame shows it.
             MapCache.shared.prefill(world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 72, step: 4)
         }
+        if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false

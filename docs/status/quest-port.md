@@ -279,3 +279,46 @@ No Quest was attached to adb, so nothing installed.
   (QuestRig.stepPitch, 15 deg); L trigger = fly toggle; hold L grip = drop (0.4 s, keep holding = stack); R grip alone places;
   hotbar by pointing + R trigger (QuestControls.hotbarPointer; Game.padHotbarScroll=false); HUD raised so the hotbar centre is
   `hudDrop` below eye level (0.42 at 1.25 m ~ 18 deg). Help rows in QuestOptions.touchRows updated.
+
+## Task 20 (2026-10-06): water, waves, controls, combat, mobs
+
+### WATER-NOTES (third attempt, NOT fixed; stopped by Remington to ship the rest)
+Builds: versionCode = quest.yml run number. v48 = 2a9b5c3 (water looked good), v51 = c2eaa41 (first green build of
+dc74393e), v52 = db2596a (water.frag restored to v0.13), v57 = adf1e7b.
+Ruled out (diff of quest/ v48..HEAD: only chunk.vert, WorldRenderer.swift misc.w, controls/options/sim files):
+- water.frag: identical to v48 since db2596a, so not the cause.
+- Swapchain / sRGB: unchanged since the first port (fc5b3598 / 520c6cf6; `git log -S SRGB`). There was no sRGB switch
+  in "v0.49" (run 49 was cancelled). Blend state, depth write, far-to-near translucent order (SceneRenderer "water"
+  PipeDesc), textures, fog, sky: unchanged in quest/.
+- chunk.vert cave fill (dc74393e, Mac Fast caveFill port) is the ONLY quest render change in the window. Mac A/B with
+  the same fill on/off (seed 777 ocean, noon, Fast): mean colour of the ocean region (72,134,174) vs (72,134,173),
+  i.e. no visible daytime effect. Kept anyway, now gated by vertex skylight (fades out by skylight 5) in chunk.vert and
+  the Mac Fast chunkVS, so the night surface / dark seabeds aren't lifted.
+Best remaining suspects:
+1. Shared Sources/ changes merged after v48 that feed the Quest mesh: Mesher.swift waterlogging (kelp/seagrass cells
+   now drawn as water source cells, internal water faces next to kelp gone), Blocks.swift waterlogged twins
+   (`skyStop = true`, changes heightmap/skylight under water), World.swift fluid changes. A v48-vs-HEAD Mac Fast A/B of
+   a low ocean view (seed 777 --up 2 --fast) was started, then stopped; do that first next time (two fast builds).
+2. The Brightness contrast term in chunk.vert (`lit + lit*(1-lit)*g`, g = 0.2 at default 0.75): lifts mid-tones of the
+   seabed slightly; try Brightness 0.5 on the headset (g = 0) as a quick device test.
+3. Time of day / position differences in what Remington compares; ask for the bug note's seed/position if one exists.
+
+### Ocean waves (new)
+chunk.vert: water corners at 14/16 of a cell (source surfaces) at sea level (world y 124.5-127.5) under open sky
+move by `oceanWave` (common.glsl: three long sines, ~6 cm). All corners at that height move, so tops and side faces
+stay joined. water.frag tilts the ripple normal by the wave slope. A few ALU per water vertex only.
+
+### Other task-20 fixes (checked by `Blocksmith --questbugs`, all pass on the Mac build; Quest-only parts compile in quest CI)
+- Movement: left stick follows head yaw only (the "Move Direction: Controller" option is gone); sprint-swimming and
+  ladder pushes follow the head (Player.moveLook), not the aiming hand.
+- Swim-out: pushing into a wall in water lifts you (5 m/s while there's room 0.6 up), step-up works in water and for
+  0.15 s after leaving it (Player.wetGrace): a 1-block bank above the surface is climbed in ~1.4 s.
+- Held tools/weapons: sprites at real size (sword ~0.85 m diagonal, other tools/bows ~0.7 m), gripped at the handle.
+- Swing Mode: every landed swing is a full hit (was 0.8-1.5x from swing speed, a normal swing gave 0.8x); sword values
+  were already 4/5/6/7/8 (stone kills a 20 HP zombie in 4). Note swings faster than the 0.5 s hurt invulnerability
+  don't add damage (reference behaviour).
+- Ore drops were already lapis 4-9 / sparkstone 4-5 with reference Fortune; now covered by the check.
+- Skeletons/strays/parched/bogged hold a bow (bowParts), raise it while drawing and shoot from it (Mob.bowMuzzle).
+- Mob sounds: snow golem voice, creeper / magma cube idle; Quest mixer adds interaural delay + far-ear head shadow.
+- Mob looks: more detail boxes (zombie, skeleton, creeper, spider, farm animals), feet/underside shading in
+  writeMobVertices, full Mac mob shader ported to quest mob.frag (all patterns, emissive, gloss).

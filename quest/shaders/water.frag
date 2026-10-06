@@ -21,7 +21,9 @@ void main() {
         vec3 vdir = normalize(oRel);
         vec3 wp = oRel + u.eye.xyz;
         vec2 rip = vec2(sin(wp.x * 1.7 + wp.z * 0.9 + t * 1.6), sin(wp.z * 2.1 - wp.x * 0.7 + t * 1.3)) * 0.06;
-        vec3 n = normalize(vec3(rip.x, 1.0, rip.y));
+        bool sea = wp.y > 124.5 && wp.y < 127.5;
+        vec3 wave = sea ? oceanWave(wp.xz, t) : vec3(0.0);
+        vec3 n = normalize(vec3(rip.x - wave.y * 3.0, 1.0, rip.y - wave.z * 3.0));
         float fres = pow(1.0 - clamp(-vdir.y, 0.0, 1.0), 3.0);
         float lit = max(oShade.x, max(oShade.y, oShade.z));
         rgb = mix(rgb, u.fogColor.rgb * (0.6 + 0.4 * lit), fres * 0.45);

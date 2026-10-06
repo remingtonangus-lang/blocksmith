@@ -2,9 +2,9 @@ import Foundation
 import simd
 
 // The Quest's SoundEngine: the same API as the Mac's AVAudioEngine front end (Sources/SoundEngine.swift), mixed in
-// software. The game thread queues voices and re-aims them every tick (equal-power panning in head space, linear
-// distance rolloff, occlusion and underwater low-pass, a little cave reverb); the audio thread (AAudio on Android,
-// QuestAudioOutput) pulls stereo frames from render(). Music and jukebox discs are rendered a block at a time on a
+// software. The game thread queues voices and re-aims them every tick (equal-power panning in head space, an interaural
+// delay and head-shadow low-pass on the far ear, linear distance rolloff, occlusion and underwater low-pass, a little
+// cave reverb); the audio thread (AAudio on Android, QuestAudioOutput) pulls stereo frames from render(). Music and jukebox discs are rendered a block at a time on a
 // background queue (MusicStream) and mixed in from a ring.
 
 // A PCM clip shared between the game thread and the mixer (immutable once made).
@@ -26,8 +26,9 @@ final class SoundEngine {
         var loop = false
         var gl: Float = 0, gr: Float = 0           // current per-channel gain
         var tl: Float = 0, tr: Float = 0           // target per-channel gain
-        var cutoff: Float = 1          // one-pole low-pass coefficient (1 = open)
-        var lp: Float = 0              // filter state
+        var cutL: Float = 1, cutR: Float = 1       // per-ear one-pole low-pass coefficient (1 = open); the far ear adds head shadow
+        var lp: Float = 0, lpR: Float = 0          // filter state (left, right)
+        var itd: Float = 0, titd: Float = 0        // interaural delay in clip frames, current / target (+: left ear later)
         var active = false
         var world: V3? = nil           // world position (re-aimed on setListener)
         var range: Float = 16
@@ -102,7 +103,7 @@ final class SoundEngine {
         mixLock.unlock()
         if let d = disc {
             if let p = discPos {
-                let (gl, gr, _) = pan(p, range: 64, gain: 1, occlusion: discOcclusion)
+                let (gl, gr, _, _) = pan(p, range: 64, gain: 1, occlusion: discOcclusion)
                 d.setPan(gl, gr)
             }
         }
@@ -113,7 +114,7 @@ final class SoundEngine {
         discOcclusion = occlusion
         guard let d = disc else { return }
         if let p = p {
-            let (gl, gr, _) = pan(p, range: 64, gain: 1, occlusion: occlusion)
+            let (gl, gr, _, _) = pan(p, range: 64, gain: 1, occlusion: occlusion)
             d.setPan(gl, gr)
             d.volume = AudioSettings.volume(.master) * AudioSettings.volume(.blocks) * 1.2
         }
@@ -124,7 +125,8 @@ final class SoundEngine {
     }
 
     // Equal-power pan + linear rolloff (the Mac's environment node: reference 1.5, max 16, scaled by range).
-    private func pan(_ p: V3, range: Float, gain: Float, occlusion: Float) -> (Float, Float, Float) {
+    // Also returns the lateral position az (-1 hard left ... +1 hard right) for the interaural delay and head shadow.
+    private func pan(_ p: V3, range: Float, gain: Float, occlusion: Float) -> (Float, Float, Float, Float) {
         let rel = p - eye
         let k = 16 / max(1, range)
         let x = simd_dot(rel, right) * k, y = simd_dot(rel, up) * k, z = -simd_dot(rel, fwd) * k
@@ -137,15 +139,25 @@ final class SoundEngine {
         // Sounds behind the listener lose a little top end (a cheap front/back cue).
         let behind: Float = z > 0 && d > 0.01 ? z / d : 0
         let cutoff = max(0.05, (1 - 0.65 * occlusion) * (1 - 0.35 * behind))
-        return (g * cosf(a) * 1.2, g * sinf(a) * 1.2, cutoff)
+        return (g * cosf(a) * 1.2, g * sinf(a) * 1.2, cutoff, az)
     }
+
+    static let maxITD: Float = 0.00063 * Float(SoundEngine.rate)     // frames
+    static let shadowDepth: Float = 0.45
+    static let itdSlew: Float = 0.01        // frames of delay change per output frame (<= 1% pitch bend while turning)
 
     private func aim(_ v: inout Voice) {
         if let p = v.world {
-            let (l, r, c) = pan(p, range: v.range, gain: v.baseGain, occlusion: v.occlusion)
-            v.tl = l; v.tr = r; v.cutoff = c
+            let (l, r, c, az) = pan(p, range: v.range, gain: v.baseGain, occlusion: v.occlusion)
+            v.tl = l; v.tr = r
+            // Head shadow: the far ear loses some top end (one-pole coefficient 1 -> ~0.55, about 5-6 kHz at 44.1 kHz).
+            let shadow: Float = 1 - SoundEngine.shadowDepth * abs(az)
+            v.cutL = az > 0 ? c * shadow : c
+            v.cutR = az < 0 ? c * shadow : c
+            // Interaural time difference: up to ~0.63 ms on the far ear (positive delays the left ear).
+            v.titd = SoundEngine.maxITD * az
         } else {
-            v.tl = v.baseGain; v.tr = v.baseGain; v.cutoff = 1
+            v.tl = v.baseGain; v.tr = v.baseGain; v.cutL = 1; v.cutR = 1; v.titd = 0
         }
     }
 
@@ -237,7 +249,7 @@ final class SoundEngine {
             }
         }
         aim(&nv)
-        nv.gl = nv.tl; nv.gr = nv.tr
+        nv.gl = nv.tl; nv.gr = nv.tr; nv.itd = nv.titd
         mixLock.lock()
         voices[idx] = nv
         mixLock.unlock()
@@ -268,6 +280,7 @@ final class SoundEngine {
                 nv.world = pos; nv.range = s.range; nv.occlusion = occlusion
                 nv.baseGain = 0
                 aim(&nv)
+                nv.itd = nv.titd
                 loopVoices[free] = nv
                 l.voice = free
             }
@@ -373,24 +386,48 @@ final class SoundEngine {
         let len = d.count
         if len < 2 { v.active = false; return }
         let dgl = (v.tl - v.gl) / Float(n), dgr = (v.tr - v.gr) / Float(n)
-        var gl = v.gl, gr = v.gr, pos = v.pos, lp = v.lp
-        let rate = v.rate, cut = v.cutoff
+        var gl = v.gl, gr = v.gr, pos = v.pos, lpl = v.lp, lpr = v.lpR, itd = v.itd
+        let rate = v.rate, cutL = v.cutL, cutR = v.cutR, titd = v.titd
+        let looping = v.loop
+        let span = Double(len - 1)
+        let slew = SoundEngine.itdSlew
         d.withUnsafeBufferPointer { src in
             for i in 0..<n {
                 var k = Int(pos)
                 if k >= len - 1 {
-                    if v.loop { pos -= Double(len - 1); k = Int(pos) } else { v.active = false; break }
+                    if looping { pos -= span; k = Int(pos) } else { v.active = false; break }
                 }
                 let f = Float(pos - Double(k))
                 let s = src[k] + (src[k + 1] - src[k]) * f
-                lp += (s - lp) * cut
-                l[i] += lp * gl
-                r[i] += lp * gr
+                // The far ear reads the same clip a little earlier (an alloc-free delay line: the clip is the buffer).
+                var sd = s
+                if itd != 0 {
+                    let lag: Double = Double(abs(itd)) * rate
+                    var q = pos - lag
+                    if q < 0 && looping { q += span }
+                    sd = 0
+                    if q >= 0 {
+                        let kq = Int(q)
+                        if kq < len - 1 {
+                            let fq = Float(q - Double(kq))
+                            sd = src[kq] + (src[kq + 1] - src[kq]) * fq
+                        }
+                    }
+                }
+                let inL: Float = itd > 0 ? sd : s
+                let inR: Float = itd > 0 ? s : sd
+                lpl += (inL - lpl) * cutL
+                lpr += (inR - lpr) * cutR
+                l[i] += lpl * gl
+                r[i] += lpr * gr
                 gl += dgl; gr += dgr
                 pos += rate
+                // Glide the delay toward its target (smooth while the head turns).
+                let e: Float = titd - itd
+                itd += max(-slew, min(slew, e))
             }
         }
-        v.gl = v.tl; v.gr = v.tr; v.pos = pos; v.lp = lp
+        v.gl = v.tl; v.gr = v.tr; v.pos = pos; v.lp = lpl; v.lpR = lpr; v.itd = itd
     }
 }
 

@@ -7,7 +7,7 @@ import Foundation
 enum MobVoice {
     enum Family {
         case silent, grunt, moo, bleat, cluck, groan, rattle, hiss, warble, squish, wail, crackle, hum, growl, bark, meow, neigh, buzz, chirp, roar
-        case bubble, click, rumble, creak, trill, snort, wind, squeak, soldier
+        case bubble, click, rumble, creak, trill, snort, wind, squeak, soldier, snow
     }
     struct Profile { var family: Family; var f0: Float; var size: Float }
 
@@ -71,7 +71,7 @@ enum MobVoice {
         case .pillager, .vindicator: return Profile(family: .hum, f0: 150, size: 1.2)
         case .evoker: return Profile(family: .hum, f0: 170, size: 1.1)
         case .ironGolem: return Profile(family: .rumble, f0: 90, size: 1.6)
-        case .snowGolem: return Profile(family: .silent, f0: 0, size: 1)
+        case .snowGolem: return Profile(family: .snow, f0: 900, size: 1)
         case .ravager: return Profile(family: .growl, f0: 110, size: 1.8)
         case .polarBear: return Profile(family: .growl, f0: 130, size: 1.5)
         case .wolf: return Profile(family: .bark, f0: 520, size: 1)
@@ -136,7 +136,37 @@ enum MobVoice {
         let pr = profile(k)
         let f = pr.f0 * p / powf(pr.size, 0.35), sz = pr.size
         var out: [Float]
+        // Quiet idle calls for two otherwise wordless mobs (the caller plays them softly).
+        if s == .ambient && k == .creeper {
+            // A faint dry rustle with a couple of fizzing ticks.
+            let rustle = Synth.window(g.wash(0.45, lp: 3200 * p, hp: 900, wobble: 0.6, rate: 9, gain: 0.35))
+            let ticks = g.grains(5, spread: 0.35, lp: 6000 * p, hp: 2200, decay: 0.004, gain: 0.6)
+            return Synth.mix(rustle, ticks, at: g.frames(0.05))
+        }
+        if s == .ambient && k == .magmaCube {
+            // A low wet squelch and a slow lava-ish bubble.
+            let squelch = g.burst(0.22, lp: 380 * p, hp: 45, attack: 0.02, decay: 0.07, gain: 2.0)
+            let pops = g.bubbles(0.5, count: 3, fLo: 110 * p, fHi: 260 * p, len: 0.09, gain: 0.7)
+            return Synth.mix(squelch, pops, at: g.frames(0.08))
+        }
         switch pr.family {
+        case .snow:
+            let (d, a, b) = shape(s, dur: 0.6 * sz, f0: f, f1: f * 0.8)
+            switch s {
+            case .ambient:
+                // Airy hum over a soft packed-snow crunch.
+                let air = Synth.window(g.wash(d, lp: 1500 * p, hp: 250, wobble: 0.7, rate: 3, gain: 0.45))
+                let hum = g.tone(d, f0: a * 0.25, f1: b * 0.25, wave: .sine, attack: 0.12, release: 0.2, vib: 0.03, vibRate: 4, gain: 0.18)
+                out = Synth.mix(Synth.mix(air, hum), g.material(.snow, pitch: p, scale: 0.6, gain: 0.35), at: g.frames(d * 0.3))
+            case .hurt:
+                // A crunchy packed-snow hit.
+                let crunch = g.material(.snow, pitch: p * 1.15, scale: 0.9, gain: 0.8)
+                out = Synth.mix(crunch, g.grains(7, spread: 0.12, lp: 4500 * p, hp: 1200, decay: 0.006, gain: 0.7))
+            case .death:
+                // Snow crumbling apart: three crunches settling into a soft fall of grains.
+                let crunches = g.repeated({ g in g.material(.snow, pitch: p * 0.9, scale: 1.1, gain: 0.7) }, times: 3, interval: 0.16, jitter: 0.25)
+                out = Synth.mix(crunches, g.grains(22, spread: 0.9, lp: 3500 * p, hp: 700, decay: 0.01, gain: 0.6), at: g.frames(0.1))
+            }
         case .silent:
             out = g.modes(0.05, [(800, 0.2, 0.01)])
         case .soldier:
