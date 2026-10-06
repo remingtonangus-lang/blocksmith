@@ -1,0 +1,54 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.318 - Forward+ - Using Device #0: Unknown - llvmpipe (LLVM 20.1.2, 256 bits)
+libpulse.so.0: cannot open shared object file: No such file or directory
+libpulse.so.0: cannot open shared object file: No such file or directory
+ERROR: Condition "status < 0" is true. Returning: ERR_CANT_OPEN
+   at: init_output_device (drivers/alsa/audio_driver_alsa.cpp:97)
+WARNING: All audio drivers failed, falling back to the dummy driver.
+     at: initialize (servers/audio/audio_server.cpp:258)
+
+Alabaster 0.1.0 on Linux, vulkan / llvmpipe (LLVM 20.1.2, 256 bits), preset High, args { "shots": "/home/runner/work/blocksmith/blocksmith/ci/shots", "preset": "High", "scale": "1", "shard": "3/4" }
+command line: /home/runner/godot/godot --path game --rendering-driver vulkan --resolution 1280x720 -- --shots /home/runner/work/blocksmith/blocksmith/ci/shots --preset High --scale 1 --shard 3/4
+loading: shaping the land (0.3 s)
+world: base heights 4101 ms
+loading: flattening sites (4.1 s)
+loading: carving rivers (4.3 s)
+world: rivers 5422 ms
+loading: planting forests (5.4 s)
+loading: laying roads (6.6 s)
+road Coast Road: 2.1 km, 13 bridge points (5664.0, 7.0, 1648.872), mid (5053.862, 22.0, 957.8625)
+road Citadel Way: 2.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (3397.151, 22.0, -698.8494)
+road Airfield Road: 2.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (2399.161, 178.7405, -2037.288)
+road Pass Road: 3.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (1040.947, 352.331, -1583.053)
+road Western Highway: 5.7 km, 17 bridge points (1632.0, 23.70129, 774.7112), mid (1705.179, 29.47277, 736.0)
+road Battery Lane: 1.0 km, 0 bridge points (0.0, 0.0, 0.0), mid (-173.9506, 51.80337, 1490.049)
+road Front Track: 1.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (-1318.576, 110.8705, 1498.966)
+road Ash Track: 2.4 km, 0 bridge points (0.0, 0.0, 0.0), mid (-3552.399, 328.4763, 1464.81)
+road Red Track: 2.2 km, 0 bridge points (0.0, 0.0, 0.0), mid (-2023.669, 157.7099, 2151.669)
+world: roads 8278 ms
+world: generated in 8295 ms
+loading: done (8.3 s)
+city Candor: 695 buildings, 55 skyways, 12409 trees, 4960 lamps
+setup: sky 28 ms, terrain 3083 ms, water 41 ms, capital 962 ms, vegetation 861 ms, bases 163 ms, roads 26 ms, battle 438 ms, combat 9 ms, vehicles 103 ms, weather 259 ms
+world ready in 14.28 s
+WARNING: Realtime Skies can only use a radiance size of 256. Radiance size will be set to 256 internally.
+     at: set_mode (servers/rendering/renderer_rd/environment/sky.cpp:619)
+     GDScript backtrace (most recent call first):
+         [0] start (res://scripts/core/shots.gd:29)
+         [1] _build (res://scripts/main.gd:154)
+         [2] _process (res://scripts/main.gd:111)
+shot turret_close: /home/runner/work/blocksmith/blocksmith/ci/shots/turret_close.png (210730 ms) camera @Camera3D@4482 at (2440.0, 64.27802, -790.0)
+battle: 136 soldiers (Capital 78, Cinder 46 alive), kills [10, 2], drawn [46, 3, 7, 47, 2, 7]
+battle_ground: behind soldier 30, enemy 102 at 148 m, 9 soldiers in frame
+shot battle_ground: /home/runner/work/blocksmith/blocksmith/ci/shots/battle_ground.png (74540 ms) camera @Camera3D@4482 at (-1647.685, 136.0299, 1286.867)
+shot pass_road: /home/runner/work/blocksmith/blocksmith/ci/shots/pass_road.png (18699 ms) camera @Camera3D@4482 at (1011.832, 374.331, -1624.648)
+vehicle destroyed: Gunship2 at (-2332.0, 293.0, 1081.0) (direct hit 0.7 from faction 1)
+shot gunship_pad: /home/runner/work/blocksmith/blocksmith/ci/shots/gunship_pad.png (21238 ms) camera @Camera3D@4482 at (2450.0, 66.27802, -880.0)
+vehicle destroyed: Gunship1 at (-1206.0, 215.0, 1507.0) (direct hit 0.7 from faction 0)
+shot collapse: /home/runner/work/blocksmith/blocksmith/ci/shots/collapse.png (60748 ms) camera @Camera3D@4482 at (4069.0, 72.79345, -979.0)
+shot snow_peaks: /home/runner/work/blocksmith/blocksmith/ci/shots/snow_peaks.png (15631 ms) camera @Camera3D@4482 at (1100.0, 1003.7, -5500.0)
+shot forest_rain: /home/runner/work/blocksmith/blocksmith/ci/shots/forest_rain.png (29354 ms) camera @Camera3D@4482 at (1020.0, 39.43025, 3460.0)
+shot front_line: /home/runner/work/blocksmith/blocksmith/ci/shots/front_line.png (27432 ms) camera @Camera3D@4482 at (-2150.0, 190.35, 950.0)
+shots: done (8)
+WARNING: 33 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

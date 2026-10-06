@@ -1,0 +1,203 @@
+{
+  "command_line": "game/build/Alabaster.app/Contents/MacOS/Alabaster --windowed --resolution 1280x720 -- --benchmark --preset High",
+  "commit": "24b07e617b",
+  "cores": 3,
+  "cpu": "Apple M1 (Virtual)",
+  "date": "2026-10-06T00:50:47",
+  "driver": "metal",
+  "engine": "4.7.2-stable (official)",
+  "game": "Alabaster",
+  "gpu": "Apple Paravirtual device (Apple5)",
+  "gpu_ablation": {
+    "base_ms": 18.79,
+    "items": [
+      {
+        "feature": "glow",
+        "ms_saved": 1.86,
+        "on_ms": 19.76
+      },
+      {
+        "feature": "vegetation",
+        "ms_saved": 1.86,
+        "on_ms": 21.19
+      },
+      {
+        "feature": "capital",
+        "ms_saved": 1.78,
+        "on_ms": 20.01
+      },
+      {
+        "feature": "shadows: hard filter",
+        "ms_saved": 1.46,
+        "on_ms": 19.17
+      },
+      {
+        "feature": "shadows: 2 cascades not 4",
+        "ms_saved": 1.03,
+        "on_ms": 17.38
+      },
+      {
+        "feature": "ssao",
+        "ms_saved": 0.96,
+        "on_ms": 18.36
+      },
+      {
+        "feature": "shadows: terrain not casting",
+        "ms_saved": 0.87,
+        "on_ms": 18.92
+      },
+      {
+        "feature": "battle",
+        "ms_saved": 0.74,
+        "on_ms": 18.4
+      },
+      {
+        "feature": "sun shadows",
+        "ms_saved": 0.57,
+        "on_ms": 17.98
+      },
+      {
+        "feature": "grass",
+        "ms_saved": 0.39,
+        "on_ms": 18.4
+      },
+      {
+        "feature": "water",
+        "ms_saved": 0.27,
+        "on_ms": 19.36
+      },
+      {
+        "feature": "trees: near",
+        "ms_saved": 0.03,
+        "on_ms": 17.59
+      },
+      {
+        "feature": "roads",
+        "ms_saved": -0.09,
+        "on_ms": 17.34
+      },
+      {
+        "feature": "vehicles",
+        "ms_saved": -0.52,
+        "on_ms": 19.39
+      },
+      {
+        "feature": "raymarched clouds",
+        "ms_saved": -0.91,
+        "on_ms": 17.01
+      },
+      {
+        "feature": "bases",
+        "ms_saved": -1.19,
+        "on_ms": 18.47
+      },
+      {
+        "feature": "terrain",
+        "ms_saved": -1.24,
+        "on_ms": 18.18
+      },
+      {
+        "feature": "trees: impostors",
+        "ms_saved": -2.24,
+        "on_ms": 19.47
+      },
+      {
+        "feature": "trees: shadow proxies",
+        "ms_saved": -4.25,
+        "on_ms": 18.89
+      },
+      {
+        "feature": "trees: impostors unthinned",
+        "ms_saved": -4.37,
+        "on_ms": 20.63
+      }
+    ],
+    "segment": "battle"
+  },
+  "load_seconds": 4.29,
+  "memory": {
+    "static_end_mb": 0.0,
+    "static_peak_mb": 0.0,
+    "vram_peak_mb": 509.8
+  },
+  "os": "macOS",
+  "os_version": "15.7.9",
+  "overall_avg_fps": 51.3,
+  "preset": "High",
+  "rss_mb": 913.1,
+  "scale_3d": 0.670000016689301,
+  "segments": [
+    {
+      "avg_fps": 57.3,
+      "draw_calls_avg": 293,
+      "frame_ms": {
+        "avg": 17.46,
+        "max": 80.1,
+        "p50": 16.67,
+        "p90": 19.05,
+        "p95": 20.0,
+        "p99": 25.0,
+        "p999": 73.56
+      },
+      "frames": 1719,
+      "gpu_ms_avg": 0.0,
+      "low1_fps": 40.0,
+      "name": "city",
+      "primitives_avg": 3982921,
+      "render_cpu_ms_avg": 0.66,
+      "scripts_ms_avg": 2.34,
+      "seconds": 30.01
+    },
+    {
+      "avg_fps": 47.0,
+      "draw_calls_avg": 690,
+      "frame_ms": {
+        "avg": 21.27,
+        "max": 67.01,
+        "p50": 20.83,
+        "p90": 23.33,
+        "p95": 24.24,
+        "p99": 29.56,
+        "p999": 41.43
+      },
+      "frames": 1411,
+      "gpu_ms_avg": 0.0,
+      "low1_fps": 33.8,
+      "name": "battle",
+      "primitives_avg": 5382386,
+      "render_cpu_ms_avg": 0.82,
+      "scripts_ms_avg": 2.17,
+      "seconds": 30.01
+    },
+    {
+      "avg_fps": 49.6,
+      "draw_calls_avg": 352,
+      "frame_ms": {
+        "avg": 20.17,
+        "max": 82.49,
+        "p50": 18.07,
+        "p90": 25.0,
+        "p95": 32.77,
+        "p99": 50.0,
+        "p999": 74.09
+      },
+      "frames": 1488,
+      "gpu_ms_avg": 0.0,
+      "low1_fps": 20.0,
+      "name": "forest",
+      "primitives_avg": 4473171,
+      "render_cpu_ms_avg": 0.95,
+      "scripts_ms_avg": 2.2,
+      "seconds": 30.01
+    }
+  ],
+  "timeout": false,
+  "upscaler": "metalfx_temporal",
+  "version": "0.1.0",
+  "vsync": false,
+  "wall_seconds": 247.1,
+  "window": [
+    1024,
+    656
+  ]
+}

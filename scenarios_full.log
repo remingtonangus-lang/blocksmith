@@ -1,0 +1,100 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Alabaster 0.1.0 on Linux, vulkan / , preset High, args { "scenario": "all" }
+command line: /home/runner/godot/godot --headless --path game -- --scenario all
+world: loaded cache in 65 ms
+loading: cached (0.1 s)
+city Candor: 695 buildings, 55 skyways, 12409 trees, 4960 lamps
+setup: sky 5 ms, terrain 3017 ms, water 22 ms, capital 1022 ms, vegetation 1134 ms, bases 47 ms, roads 11 ms, battle 42 ms, combat 3 ms, vehicles 40 ms, weather 11 ms
+world ready in 5.43 s
+scenario ride: PASS rode 88 m, drifted 0.34 m on the deck (ended at (0.290161, 2.57589, 3.271729))
+  drive t 0.5 pos (2438.006, 50.37017, -749.9958) vel (0.164027, -3.086935, -0.064428) (3.1 m/s) grounded 4
+  drive t 1.0 pos (2439.134, 50.10554, -750.3647) vel (4.031631, 0.886544, -1.602458) (4.4 m/s) grounded 6
+  drive t 1.5 pos (2441.99, 50.19064, -751.5525) vel (7.52628, -0.308676, -3.094839) (8.1 m/s) grounded 6
+  drive t 2.0 pos (2446.754, 50.12871, -753.5685) vel (10.89509, 0.015719, -4.638297) (11.8 m/s) grounded 6
+  drive t 2.5 pos (2452.837, 50.08754, -756.0828) vel (13.93374, -0.018349, -5.841947) (15.1 m/s) grounded 6
+  drive t 3.0 pos (2460.772, 50.19595, -759.5313) vel (16.70599, 0.405013, -7.263778) (18.2 m/s) grounded 6
+  drive t 3.5 pos (2469.384, 50.28183, -763.2809) vel (18.84212, -0.358124, -8.210086) (20.6 m/s) grounded 6
+  drive t 4.0 pos (2479.784, 50.78851, -767.938) vel (21.22106, 1.996842, -8.910128) (23.1 m/s) grounded 5
+  drive t 4.5 pos (2489.354, 51.2105, -771.6464) vel (16.67654, -0.475637, -3.905905) (17.1 m/s) grounded 4
+  drive t 5.0 pos (2495.627, 50.97643, -772.7587) vel (15.37595, -0.430578, -1.905016) (15.5 m/s) grounded 5
+  drive t 5.5 pos (2503.434, 50.97092, -773.4358) vel (18.03571, 0.124507, -1.314685) (18.1 m/s) grounded 6
+  drive t 6.0 pos (2513.593, 50.98034, -774.0502) vel (21.12396, -0.025691, -1.140063) (21.2 m/s) grounded 6
+  drive t 6.5 pos (2524.158, 50.68308, -774.6378) vel (21.01941, 0.608668, -1.146455) (21.1 m/s) grounded 6
+  drive t 7.0 pos (2534.958, 50.92284, -775.3306) vel (20.94369, 1.049232, -0.689457) (21.0 m/s) grounded 6
+  drive t 7.5 pos (2545.591, 51.0155, -775.9929) vel (23.16333, -0.364201, -0.1828) (23.2 m/s) grounded 6
+  drive t 8.0 pos (2548.238, 50.91058, -777.2209) vel (0.912462, 0.3463, -1.396356) (1.7 m/s) grounded 6
+  drive t 8.5 pos (2548.525, 50.98322, -777.6342) vel (0.442466, -0.036963, -0.526684) (0.7 m/s) grounded 6
+  drive t 9.0 pos (2548.735, 50.96814, -777.8638) vel (0.379401, 0.004792, -0.399579) (0.6 m/s) grounded 6
+  drive t 9.5 pos (2548.918, 50.97148, -778.0474) vel (0.389016, 0.000992, -0.367567) (0.5 m/s) grounded 6
+  drive t 10.0 pos (2549.124, 50.97095, -778.2298) vel (0.407489, -0.000424, -0.343271) (0.5 m/s) grounded 6
+  drive t 10.5 pos (2549.324, 50.97102, -778.3894) vel (0.424863, 0.000104, -0.320997) (0.5 m/s) grounded 6
+  drive t 11.0 pos (2549.547, 50.97103, -778.548) vel (0.442301, -0.000109, -0.296317) (0.5 m/s) grounded 6
+  drive t 11.5 pos (2549.764, 50.97103, -778.6846) vel (0.457405, -0.000091, -0.272443) (0.5 m/s) grounded 6
+  drive t 12.0 pos (2550.003, 50.97103, -778.8177) vel (0.472112, -0.000003, -0.246071) (0.5 m/s) grounded 6
+scenario drive: PASS travelled 116 m in 12 s, up 1.00, 0.6 m above ground
+  fly t 0.5 pos (2580.0, 58.24948, -910.0) vel (0.0, 6.767109, -0.0) heading 0.00
+  fly t 1.0 pos (2580.0, 62.55939, -910.0) vel (0.0, 9.876741, -0.0) heading 0.00
+  fly t 1.5 pos (2580.0, 67.85058, -910.0) vel (0.0, 11.06102, -0.0) heading 0.00
+  fly t 2.0 pos (2580.0, 73.51545, -910.0) vel (0.0, 11.51205, -0.0) heading 0.00
+  fly t 2.5 pos (2580.0, 79.32265, -910.0) vel (0.0, 11.68382, -0.0) heading 0.00
+  fly t 3.0 pos (2580.0, 85.18406, -910.0) vel (0.0, 11.74924, -0.0) heading 0.00
+vehicle destroyed: Gunship1 at (-1788.0, 231.0, 1561.0) (direct hit 0.7 from faction 0)
+  fly t 3.5 pos (2580.0, 91.06611, -910.0) vel (0.0, 11.77415, -0.0) heading 0.00
+  fly t 4.0 pos (2580.0, 96.956, -910.0) vel (0.0, 11.78364, -0.0) heading 0.00
+  fly t 4.5 pos (2580.0, 102.8489, -910.0) vel (0.0, 11.78725, -0.0) heading 0.00
+  fly t 5.0 pos (2580.0, 108.7429, -910.0) vel (0.0, 11.78863, -0.0) heading 0.00
+  fly t 5.5 pos (2580.0, 114.6374, -910.0) vel (0.0, 11.78915, -0.0) heading 0.00
+  fly t 6.0 pos (2580.0, 120.532, -910.0) vel (0.0, 11.78935, -0.0) heading 0.00
+  fly t 6.5 pos (2578.064, 124.7645, -911.1311) vel (-9.391188, 5.380135, -1.119817) heading 2.24
+  fly t 7.0 pos (2572.58, 126.2882, -909.1314) vel (-12.47991, 0.687137, 10.02417) heading 2.88
+  fly t 7.5 pos (2566.726, 125.8442, -901.6846) vel (-10.47888, -2.434495, 20.60077) heading 3.07
+  fly t 8.0 pos (2562.072, 124.1061, -889.1653) vel (-7.512252, -4.244563, 29.48181) heading 3.12
+  fly t 8.5 pos (2558.89, 121.7303, -872.4675) vel (-4.888769, -4.977845, 36.91468) heading 3.14
+  fly t 9.0 pos (2556.9, 119.2169, -852.3492) vel (-2.927189, -4.880408, 43.11773) heading 3.14
+  fly t 9.5 pos (2555.745, 116.92, -829.4071) vel (-1.608012, -4.198272, 48.2645) heading 3.14
+  fly t 10.0 pos (2555.126, 115.071, -804.132) vel (-0.800958, -3.156135, 52.51852) heading 3.14
+  fly t 10.5 pos (2554.824, 113.7981, -776.9291) vel (-0.354853, -1.940738, 56.03836) heading 3.14
+  fly t 11.0 pos (2554.69, 113.1375, -748.1481) vel (-0.138723, -0.81077, 58.74162) heading 3.14
+  fly t 11.5 pos (2554.633, 112.8802, -718.4261) vel (-0.053064, -0.308777, 59.9118) heading 3.14
+  fly t 12.0 pos (2554.612, 112.7821, -688.3361) vel (-0.020276, -0.117596, 60.35747) heading 3.14
+  fly t 12.5 pos (2554.604, 112.7449, -658.1066) vel (-0.007742, -0.044786, 60.52719) heading 3.14
+  fly t 13.0 pos (2554.604, 112.7308, -627.8238) vel (-0.002954, -0.017057, 60.59182) heading 3.14
+  fly t 13.5 pos (2554.604, 112.7254, -597.5205) vel (-0.001127, -0.006496, 60.61644) heading 3.14
+  fly t 14.0 pos (2554.604, 112.7234, -567.2095) vel (-0.000426, -0.002474, 60.62582) heading 3.14
+scenario fly: PASS climbed 64 m in 6 s, flew 344 m in 8 s
+vehicle destroyed: Gunship2 at (-2276.0, 294.0, 1029.0) (direct hit 0.7 from faction 1)
+vehicle destroyed: Gunship1 at (-1193.0, 216.0, 1466.0) (direct hit 0.7 from faction 0)
+scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+scenario battle: PASS kills Capital 58 Cinder 53, alive 83 / 38, under ground 0
+scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.5 deg; launcher empty true, its rocket exploded true
+  destroy: building 18 h 52 at (4179.0, 22.79345, -1129.0), hp 1900
+  destroy: collapsed after 4 shells, 28 pieces, top piece at 54 m
+vehicle destroyed: Gunship1 at (-2163.0, 291.0, 959.0) (direct hit 0.7 from faction 1)
+scenario destroy: PASS 28 pieces, top piece fell 52 m in 8 s, 0 lost/NaN, collision removed true
+scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+  stand fort_lumen: y 49.08 surface 49.08
+  stand citadel: y 56.28 surface 56.28
+  stand front: y 133.08 surface 133.08
+  stand forest: y 40.24 surface 40.24
+vehicle destroyed: Gunship1 at (-1477.0, 216.0, 1670.0) (direct hit 0.7 from faction 0)
+  stand radar: y 1350.99 surface 1350.99
+  stand harbor: y 6.98 surface 6.98
+  stand spawn: y 50.35 surface 50.35
+scenario stand: PASS 7 sites, fell or stuck at: 
+scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+scenario ride: PASS rode 88 m, drifted 0.34 m on the deck (ended at (0.290161, 2.57589, 3.271729))
+scenario drive: PASS travelled 116 m in 12 s, up 1.00, 0.6 m above ground
+scenario fly: PASS climbed 64 m in 6 s, flew 344 m in 8 s
+scenario dropship: PASS delivered after 130 s, 13 m from the landing zone
+scenario battle: PASS kills Capital 58 Cinder 53, alive 83 / 38, under ground 0
+scenario weapons: PASS carbine fired 16 rounds in 1.5 s, view climbed 11.5 deg; launcher empty true, its rocket exploded true
+scenario destroy: PASS 28 pieces, top piece fell 52 m in 8 s, 0 lost/NaN, collision removed true
+scenario parked: PASS 1 spawn crawlers moved 0.01 m (up 0.98) in 30 s
+scenario trees: PASS trunk radius 0.68 m: closest approach 1.04 m from its axis (needs > r + 0.2; without trunk collision the player walked through), soldier pushed out to 1.38 m
+scenario forest_drive: PASS travelled 212 m in 12 s into forest (trunks within 2.5 m of the line: 15 on the path, 0 of them not felled), felled 17 trees, up 0.99
+scenario stand: PASS 7 sites, fell or stuck at: 
+scenario menu: PASS opened and paused true, preset applied true, closed and resumed true
+scenarios done: 0 failed

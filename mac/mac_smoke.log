@@ -1,0 +1,35 @@
+padbridge: looking for 20d6:2074
+WARNING: MetalFX temporal upscaling is not supported by the current renderer or hardware. Falling back to MetalFX Spatial scaling.
+     at: _configure_3d_render_buffers (servers/rendering/renderer_viewport.cpp:173)
+ERROR: 2 shaders of type ParticlesShaderRD were never freed
+   at: ~ShaderRD (servers/rendering/renderer_rd/shader_rd.cpp:1236)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Metal 3.2 - Forward+ - Using Device #0: Apple - Apple Paravirtual device (Apple5)
+
+Alabaster 0.1.0 on macOS, metal / Apple Paravirtual device (Apple5), preset High, args { "smoke": "40", "windowed": true }
+command line: game/build/Alabaster.app/Contents/MacOS/Alabaster --windowed --resolution 1280x720 -- --smoke 40
+loading: shaping the land (0.1 s)
+pad bridge started (pid 6383): no pad seen by the engine
+world: base heights 2589 ms
+loading: flattening sites (2.6 s)
+loading: carving rivers (2.8 s)
+world: rivers 3462 ms
+loading: planting forests (3.5 s)
+loading: laying roads (4.0 s)
+road Coast Road: 2.1 km, 13 bridge points (5664.0, 7.0, 1648.872), mid (5053.862, 22.0, 957.8625)
+road Citadel Way: 2.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (3397.151, 22.0, -698.8494)
+road Airfield Road: 2.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (2399.161, 178.7405, -2037.288)
+road Pass Road: 3.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (1040.947, 352.331, -1583.053)
+road Western Highway: 5.7 km, 17 bridge points (1632.0, 23.70129, 774.7112), mid (1705.179, 29.47277, 736.0)
+road Battery Lane: 1.0 km, 0 bridge points (0.0, 0.0, 0.0), mid (-173.9506, 51.80337, 1490.049)
+road Front Track: 1.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (-1318.576, 110.8705, 1498.966)
+road Ash Track: 2.4 km, 0 bridge points (0.0, 0.0, 0.0), mid (-3552.399, 328.4763, 1464.81)
+road Red Track: 2.2 km, 0 bridge points (0.0, 0.0, 0.0), mid (-2023.669, 157.7099, 2151.669)
+world: roads 5080 ms
+world: generated in 5109 ms
+loading: done (5.2 s)
+city Candor: 695 buildings, 55 skyways, 12409 trees, 4960 lamps
+setup: sky 274 ms, terrain 3941 ms, water 23 ms, capital 5912 ms, vegetation 2594 ms, bases 440 ms, roads 33 ms, battle 9306 ms, combat 11 ms, vehicles 653 ms, weather 6053 ms
+world ready in 34.47 s
+smoke: ok, 2325 frames in 40.0 s (58.1 fps), mem 0 MB
+ERROR: 2 RID allocations of type 'N10RendererRD15MaterialStorage6ShaderE' were leaked at exit.

@@ -1,0 +1,39 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+== Alabaster tests on Godot 4.7.2-stable (official)
+  test_cache.gd: 2 ms
+  test_controls.gd: 0 ms
+world: base heights 3086 ms
+world: rivers 4347 ms
+road Coast Road: 2.1 km, 13 bridge points (5664.0, 7.0, 1648.872), mid (5053.862, 22.0, 957.8625)
+road Citadel Way: 2.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (3397.151, 22.0, -698.8494)
+road Airfield Road: 2.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (2399.161, 178.7405, -2037.288)
+road Pass Road: 3.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (1040.947, 352.331, -1583.053)
+road Western Highway: 5.7 km, 17 bridge points (1632.0, 23.70129, 774.7112), mid (1705.179, 29.47277, 736.0)
+road Battery Lane: 1.0 km, 0 bridge points (0.0, 0.0, 0.0), mid (-173.9506, 51.80337, 1490.049)
+road Front Track: 1.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (-1318.576, 110.8705, 1498.966)
+road Ash Track: 2.4 km, 0 bridge points (0.0, 0.0, 0.0), mid (-3552.399, 328.4763, 1464.81)
+road Red Track: 2.2 km, 0 bridge points (0.0, 0.0, 0.0), mid (-2023.669, 157.7099, 2151.669)
+world: roads 7080 ms
+world: generated in 7096 ms
+    36 far tree cells (one impostor cell): 4911 trees, 54 ms
+    1 near tree cell: 180 trees, 2.1 ms
+    avoid(): 0.92 us per call in the forest
+  test_vegetation.gd: 7175 ms
+world: base heights 3932 ms
+world: rivers 5179 ms
+road Coast Road: 2.1 km, 13 bridge points (5664.0, 7.0, 1648.872), mid (5053.862, 22.0, 957.8625)
+road Citadel Way: 2.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (3397.151, 22.0, -698.8494)
+road Airfield Road: 2.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (2399.161, 178.7405, -2037.288)
+road Pass Road: 3.7 km, 0 bridge points (0.0, 0.0, 0.0), mid (1040.947, 352.331, -1583.053)
+road Western Highway: 5.7 km, 17 bridge points (1632.0, 23.70129, 774.7112), mid (1705.179, 29.47277, 736.0)
+road Battery Lane: 1.0 km, 0 bridge points (0.0, 0.0, 0.0), mid (-173.9506, 51.80337, 1490.049)
+road Front Track: 1.5 km, 0 bridge points (0.0, 0.0, 0.0), mid (-1318.576, 110.8705, 1498.966)
+road Ash Track: 2.4 km, 0 bridge points (0.0, 0.0, 0.0), mid (-3552.399, 328.4763, 1464.81)
+road Red Track: 2.2 km, 0 bridge points (0.0, 0.0, 0.0), mid (-2023.669, 157.7099, 2151.669)
+world: roads 7694 ms
+world: generated in 7724 ms
+    worldgen 7724 ms
+    height range -181 .. 2099
+  test_world.gd: 8441 ms
+== 91 passed, 0 failed
