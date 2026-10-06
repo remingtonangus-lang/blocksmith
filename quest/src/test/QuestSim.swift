@@ -124,7 +124,9 @@ enum QuestSim {
 
         // 5. Break: the right trigger breaks the targeted block (creative; Swing Mode off).
         QuestSettings.swingMode = false
+        var brokenCell: IVec3?
         if let t = game.target?.hit {
+            brokenCell = t
             let before = game.world.block(t.x, t.y, t.z)
             frames(6) { _ in idleHands(); sim.hands[1].aimRot = down; sim.hands[1].trigger = 1 }
             frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
@@ -135,6 +137,7 @@ enum QuestSim {
         // 5b. Swing Mode: a full-arm swing breaks the targeted block with the bare hand; a wrist flick does not.
         QuestSettings.swingMode = true
         game.inventory.held = .empty
+        if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // fill the hole the trigger test left
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         if let t = game.target?.hit {
             let before = game.world.block(t.x, t.y, t.z)
@@ -149,6 +152,7 @@ enum QuestSim {
             }
             frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
             let after = game.world.block(t.x, t.y, t.z)
+            if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }       // the platform stays whole for the next checks
             check(flicked == before && after != before, "VR swing: flick left \(Blocks.name(flicked)), arm swing broke \(Blocks.name(before)) (now \(Blocks.name(after)))")
         } else { check(false, "VR swing: no target") }
 
