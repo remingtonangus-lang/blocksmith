@@ -51,6 +51,7 @@ extension MobVoice.Family {
         case .wind: return "whirls"
         case .squeak: return "squeaks"
         case .soldier: return "talks"
+        case .snow: return "crunches"
         }
     }
 }

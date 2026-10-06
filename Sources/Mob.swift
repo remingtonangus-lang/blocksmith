@@ -308,6 +308,7 @@ final class Mob {
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
     var circleAngle: Float = 0
+    var aimHold: Float = 0          // bow mobs: > 0 while drawing on a target (arms raised, bow up)
     weak var healTarget: Mob?       // hollow crystal currently healing the dragon
     var sitDamage = 0               // damage the wyrm has taken during this perch
     var sideHeads: [Float] = [1, 1.5]   // Blight side heads: seconds until each fires again
@@ -424,6 +425,13 @@ final class Mob {
     }
 
     var forward: V3 { V3(-sinf(yaw), 0, -cosf(yaw)) }
+    /// Where a ranged mob's shot leaves: the bow in its raised right hand (skeletons), else just in front of the eyes.
+    var bowMuzzle: V3 {
+        guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
+        let r = V3(cosf(yaw), 0, -sinf(yaw))
+        return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+    }
+    static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
     func intersects(_ b: IVec3) -> Bool {
@@ -786,20 +794,23 @@ final class Mob {
                 }
             } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
+            aimHold = max(0, aimHold - dt)
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
                 face(v.pos)
+                aimHold = 0.8
                 let dv = simd_length(v.pos - pos)
                 speed = dv > 10 ? spec.speed : (dv < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dv < 16 {
                     attackCooldown = crossbowReload
                     var d = v.pos + V3(0, v.height * 0.6, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
-                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2))
+                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if canTarget && w.canSee(eye, g.player.eye) {
                 face(player)
+                aimHold = 0.8
                 speed = dist > 10 ? spec.speed : (dist < 5 ? -spec.speed * 0.6 : 0)
                 // Bow skeletons circle-strafe in range, switching side now and then (reference ranged bow goal).
                 if kind != .pillager && kind != .illusioner && dist <= 12 {
@@ -817,7 +828,7 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
+                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -1313,6 +1324,24 @@ struct Part {
     func place(_ lp: V3, _ r: simd_float3x3) -> V3 { r * (lp - pivot) + pivot }
 }
 
+// A bow gripped in a hand at model x `x` (arm hanging from `pivot`, hand end at `handY`, arm turned by `rotX`). Arm-local
+// -y points along the arm, so with the arm raised (rotX ~1.45) the bow's limbs (along arm-local z) stand upright in
+// front of the mob, tips curving back toward it, the string on the archer's side.
+func bowParts(x: Float, pivot: V3, handY: Float, rotX r: Float) -> [Part] {
+    let wood = V3(0.45, 0.3, 0.14), dark = V3(0.3, 0.19, 0.09), str = V3(0.85, 0.85, 0.8)
+    let g = handY - 1.2                                   // grip centre, just past the fingers
+    func b(_ y0: Float, _ y1: Float, _ z0: Float, _ z1: Float, _ c: V3, _ w: Float = 0.5) -> Part {
+        Part(mn: V3(x - w, y0, z0), mx: V3(x + w, y1, z1), pivot: pivot, rotX: r, color: c)
+    }
+    return [
+        b(g - 0.8, g + 0.8, -1.2, 1.2, dark, 0.6),          // grip wrap
+        b(g - 0.5, g + 0.5, -4.5, -1.2, wood), b(g - 0.5, g + 0.5, 1.2, 4.5, wood),
+        b(g + 0.2, g + 1.4, -6.5, -4.5, wood), b(g + 0.2, g + 1.4, 4.5, 6.5, wood),
+        b(g + 1.2, g + 2.4, -7.5, -6.5, dark), b(g + 1.2, g + 2.4, 6.5, 7.5, dark),
+        b(g + 2.0, g + 2.25, -6.8, 6.8, str, 0.12),         // string
+    ]
+}
+
 func box(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float = 0) -> Part {
     Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
 }
@@ -1324,6 +1353,11 @@ private func parts(_ m: Mob) -> [Part] {
     let swing = sinf(m.walkPhase) * 0.7 * m.walkAmount
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 0) -> Part {
         Part(mn: V3(x - w / 2, 0, z - w / 2), mx: V3(x + w / 2, h, z + w / 2), pivot: V3(x, h, z), rotX: swing * ph, color: c, pattern: pat)
+    }
+    // A hoof / foot band over the bottom `hh` of a leg(...) with the same arguments (same pivot and swing).
+    func hoof(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ hh: Float = 1.5) -> Part {
+        let e: Float = w / 2 + 0.15
+        return Part(mn: V3(x - e, 0, z - e), mx: V3(x + e, hh, z + e), pivot: V3(x, h, z), rotX: swing * ph, color: c)
     }
     let black = V3(0.06, 0.06, 0.06)
     func eyes(_ y: Float, _ z: Float, _ sep: Float, _ size: Float = 1.2, _ c: V3 = V3(0.06, 0.06, 0.06)) -> [Part] {
@@ -1337,6 +1371,7 @@ private func parts(_ m: Mob) -> [Part] {
         var extra: [Part] = []
         if fv == 2 { extra = [box(-6, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7)), box(4, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7))] }   // long horns
         if fv == 3 { extra = [box(-6.5, 11, -9.5, 13, 3, 19, hide * 0.85, 2), box(-4.5, 22, -14, 9, 2, 5, hide * 0.85, 2)] }          // shaggy coat
+        let hoofC = V3(0.17, 0.13, 0.1)
         return extra + [
             Part(mn: V3(-6, 12, -9), mx: V3(6, 22, 9), color: hide, pattern: 1),
             Part(mn: V3(-4, 15, -15), mx: V3(4, 23, -9), pivot: V3(0, 19, -9), color: hide, pattern: 1),
@@ -1344,14 +1379,18 @@ private func parts(_ m: Mob) -> [Part] {
             box(-5, 21, -13, 1, 3, 1, V3(0.85, 0.82, 0.72)), box(4, 21, -13, 1, 3, 1, V3(0.85, 0.82, 0.72)),
             leg(-3.5, -6, 4, 12, 1, hide, 1), leg(3.5, -6, 4, 12, -1, hide, 1),
             leg(-3.5, 6, 4, 12, -1, hide, 1), leg(3.5, 6, 4, 12, 1, hide, 1),
+            box(-1.8, 16.6, -15.8, 1, 0.9, 0.2, V3(0.32, 0.18, 0.16)), box(0.8, 16.6, -15.8, 1, 0.9, 0.2, V3(0.32, 0.18, 0.16)),   // nostrils
+            hoof(-3.5, -6, 4, 12, 1, hoofC), hoof(3.5, -6, 4, 12, -1, hoofC), hoof(-3.5, 6, 4, 12, -1, hoofC), hoof(3.5, 6, 4, 12, 1, hoofC),
         ] + eyes(20, -15, 1.8)
     case .sheep:
         let wc = TextureGen.hex(BlockRegistry.colorHex[m.woolColor] ?? 0xE9ECEC)
-        let wool = V3(wc.x, wc.y, wc.z), skin = V3(0.72, 0.62, 0.52)
+        let wool = V3(wc.x, wc.y, wc.z), skin = V3(0.72, 0.62, 0.52), hoofC = V3(0.24, 0.2, 0.17)
         var p = [
             Part(mn: V3(-3, 15, -14), mx: V3(3, 21, -7), pivot: V3(0, 18, -7), color: skin),
             leg(-3, -5, 3.5, 12, 1, skin), leg(3, -5, 3.5, 12, -1, skin),
             leg(-3, 5, 3.5, 12, -1, skin), leg(3, 5, 3.5, 12, 1, skin),
+            box(-1, 15.8, -14.2, 2, 0.8, 0.2, V3(0.34, 0.25, 0.22)),                          // nose
+            hoof(-3, -5, 3.5, 12, 1, hoofC), hoof(3, -5, 3.5, 12, -1, hoofC), hoof(-3, 5, 3.5, 12, -1, hoofC), hoof(3, 5, 3.5, 12, 1, hoofC),
         ] + eyes(18, -14, 1.2)
         if m.sheared { p.append(box(-4.5, 12, -7, 9, 8, 14, skin)) }
         else { p.append(box(-6, 11, -8, 12, 11, 16, wool, 2)); p.append(box(-3.5, 19.5, -12.5, 7, 2.5, 5.5, wool, 2)) }
@@ -1368,6 +1407,9 @@ private func parts(_ m: Mob) -> [Part] {
             Part(mn: V3(-4, 6, -3), mx: V3(-3, 10, 3), pivot: V3(-3, 10, 0), rotZ: -flap, color: white, pattern: 3),
             Part(mn: V3(3, 6, -3), mx: V3(4, 10, 3), pivot: V3(3, 10, 0), rotZ: flap, color: white, pattern: 3),
             leg(-1.5, 0.5, 1, 5, 1, orange), leg(1.5, 0.5, 1, 5, -1, orange),
+            // three-toed feet, swinging with the legs
+            Part(mn: V3(-2.5, 0, -1), mx: V3(-0.5, 0.4, 1.2), pivot: V3(-1.5, 5, 0.5), rotX: swing, color: orange * 0.9),
+            Part(mn: V3(0.5, 0, -1), mx: V3(2.5, 0.4, 1.2), pivot: V3(1.5, 5, 0.5), rotX: -swing, color: orange * 0.9),
         ] + eyes(13, -7, 1.2, 1)
     case .pig:
         let pink = [V3(0.94, 0.62, 0.6), V3(0.94, 0.62, 0.6), V3(0.56, 0.37, 0.27), V3(0.88, 0.66, 0.6)][min(3, m.variant)]
@@ -1379,6 +1421,8 @@ private func parts(_ m: Mob) -> [Part] {
             box(-2, 9, -16, 4, 3, 1, V3(0.98, 0.72, 0.7)),
             box(-1.2, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)), box(0.4, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)),
             leg(-3, -5, 4, 6, 1, pink), leg(3, -5, 4, 6, -1, pink), leg(-3, 5, 4, 6, -1, pink), leg(3, 5, 4, 6, 1, pink),
+            hoof(-3, -5, 4, 6, 1, pink * 0.55, 1.2), hoof(3, -5, 4, 6, -1, pink * 0.55, 1.2),
+            hoof(-3, 5, 4, 6, -1, pink * 0.55, 1.2), hoof(3, 5, 4, 6, 1, pink * 0.55, 1.2),
         ] + eyes(13, -15, 2)
     case .wither, .snowGolem, .evoker, .vex, .ravager, .zombieVillager:
         return extraParts(m, swing: swing)
@@ -1415,7 +1459,7 @@ private func parts(_ m: Mob) -> [Part] {
         let armLen: Float = en ? 30 : 12
         let bodyY = legH
         let zombieLike = m.kind == .zombie || m.kind == .husk || m.kind == .drowned
-        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) ? 1.45 : 0
+        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) || (sk && m.aimHold > 0) ? 1.45 : 0
         let armAngle = armFwd + (armFwd == 0 ? swing : 0)
         let pat: Float = sk ? 5 : 4
         let armC = sk || en ? skin : shirt
@@ -1433,7 +1477,35 @@ private func parts(_ m: Mob) -> [Part] {
             if m.carriedBlock != 0 { p.append(box(-5, bodyY + 4, -12, 10, 10, 10, Mob.carryColor(m.carriedBlock), 4)) }
         } else {
             p += eyes(hy + 3.5, -4, 1, 1.5, sk ? V3(0.15, 0.15, 0.15) : (m.kind == .drowned ? V3(0.3, 0.9, 0.9) : black))
-            if sk { p.append(box(-2, hy + 1, -4.1, 4, 1, 0.2, V3(0.2, 0.2, 0.2))) }
+            if zombieLike {
+                // Face: sunken sockets round the eyes and a dark mouth; skin-coloured hands at the arm ends (same pivot
+                // and swing as the arms), a torn shirt hem, shoes on the feet (not the barefoot drowned).
+                let sock = skin * 0.55, armB = bodyY + 12 - armLen
+                p += [box(-3, hy + 3, -4.1, 2.5, 2.5, 0.1, sock), box(0.5, hy + 3, -4.1, 2.5, 2.5, 0.1, sock),
+                      box(-2, hy + 1, -4.15, 4, 0.8, 0.15, skin * 0.32),
+                      Part(mn: V3(-4 - limb - 0.12, armB, -limb / 2 - 0.12), mx: V3(-3.9, armB + 3, limb / 2 + 0.12),
+                           pivot: V3(-4 - limb / 2, bodyY + 10, 0), rotX: armAngle, color: skin, pattern: 4),
+                      Part(mn: V3(3.9, armB, -limb / 2 - 0.12), mx: V3(4 + limb + 0.12, armB + 3, limb / 2 + 0.12),
+                           pivot: V3(4 + limb / 2, bodyY + 10, 0), rotX: armAngle, color: skin, pattern: 4),
+                      box(-3, bodyY, -2.12, 2.5, 1.4, 0.12, pants * 0.85), box(1.2, bodyY + 5.5, -2.12, 1.6, 2, 0.12, skin, 4)]
+                if m.kind != .drowned {
+                    let shoe = m.kind == .husk ? V3(0.3, 0.24, 0.17) : V3(0.2, 0.18, 0.21)
+                    p += [Part(mn: V3(-limb - 0.13, 0, -limb / 2 - 0.13), mx: V3(-0.03, 2, limb / 2 + 0.13), pivot: V3(-limb / 2, legH, 0), rotX: swing, color: shoe),
+                          Part(mn: V3(0.03, 0, -limb / 2 - 0.13), mx: V3(limb + 0.13, 2, limb / 2 + 0.13), pivot: V3(limb / 2, legH, 0), rotX: -swing, color: shoe)]
+                }
+            }
+            if sk {
+                p.append(box(-2, hy + 1, -4.1, 4, 1, 0.2, V3(0.2, 0.2, 0.2)))
+                // Skull and ribcage: dark sockets and nose hole, rib bars over a dark chest cavity, a pelvis band.
+                let hole = V3(0.07, 0.07, 0.07)
+                p += [box(-3, hy + 3, -4.1, 2.5, 2.5, 0.1, hole), box(0.5, hy + 3, -4.1, 2.5, 2.5, 0.1, hole),
+                      box(-0.5, hy + 2.2, -4.12, 1, 1, 0.12, hole),
+                      box(-3, bodyY + 3.5, -2.12, 6, 7.5, 0.12, skin * 0.16),
+                      box(-3.2, bodyY + 4.5, -2.3, 6.4, 1, 0.3, skin, 5), box(-3.2, bodyY + 6.7, -2.3, 6.4, 1, 0.3, skin, 5),
+                      box(-3.2, bodyY + 8.9, -2.3, 6.4, 1, 0.3, skin, 5), box(-3, bodyY, -2.2, 6, 2, 0.2, skin * 0.92, 5)]
+                p += bowParts(x: 4 + limb / 2, pivot: V3(4 + limb / 2, bodyY + 10, 0), handY: bodyY + 12 - armLen,
+                              rotX: armFwd == 0 ? -armAngle : armAngle)
+            }
             if illager { p.append(box(-1, hy + 1, -6, 2, 4, 2, skin)) }                           // nose
             if m.kind == .witch {
                 p += [box(-5, hy + 8, -5, 10, 1, 10, V3(0.15, 0.1, 0.18)), box(-3, hy + 9, -3, 6, 4, 6, V3(0.15, 0.1, 0.18)),
@@ -1447,12 +1519,16 @@ private func parts(_ m: Mob) -> [Part] {
         let white = m.fuse > 0 && Int(m.fuse * 8) % 2 == 0
         let c = white ? V3(1, 1, 1) : g
         let s = pulse
+        let dk = c * 0.68                                       // mottled darker patches over body and head
         return [
+            box(-3 * s, 13, -2 * s - 0.1, 2, 2, 0.1, dk), box(1 * s, 9, -2 * s - 0.1, 2, 2.5, 0.1, dk),
+            box(-1 * s, 14, 2 * s, 2.5, 2, 0.1, dk), box(-4 * s - 0.1, 23, -1, 0.1, 2, 2.5, dk),
+            box(4 * s, 19.5, 0, 0.1, 2, 2, dk), box(-1 * s, 26, -2, 3, 0.1, 2, dk),
             box(-4 * s, 6, -2 * s, 8 * s, 12, 4 * s, c, 4),
             box(-4 * s, 18, -4 * s, 8 * s, 8, 8 * s, c, 4),
             // Hisser face (original): wide-set glowing slit eyes, zigzag hissing mouth.
-            box(-4 * s, 22, -4.2 * s, 1, 1, 0.3, black), box(-3 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)),
-            box(2 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)), box(3 * s, 22, -4.2 * s, 1, 1, 0.3, black),
+            box(-4 * s, 22, -4.2 * s, 1, 1, 0.3, black), box(-3 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3), 9),
+            box(2 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3), 9), box(3 * s, 22, -4.2 * s, 1, 1, 0.3, black),
             box(-4 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(-2 * s, 20, -4.2 * s, 1, 1, 0.3, black),
             box(1 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(3 * s, 20, -4.2 * s, 1, 1, 0.3, black),
             box(-3 * s, 19, -4.2 * s, 1, 1, 0.3, black), box(-1 * s, 19, -4.2 * s, 2, 1, 0.3, black), box(2 * s, 19, -4.2 * s, 1, 1, 0.3, black),
@@ -1460,18 +1536,26 @@ private func parts(_ m: Mob) -> [Part] {
         ]
     case .spider, .caveSpider:
         let body = m.kind == .caveSpider ? V3(0.1, 0.22, 0.26) : V3(0.2, 0.17, 0.15)
+        let red = V3(0.9, 0.1, 0.1)
         var p: [Part] = [
             box(-5, 4, 0, 10, 8, 12, body, 4),
             box(-3, 5, -4, 6, 6, 4, body, 4),
             box(-4, 4, -12, 8, 8, 8, body, 4),
-            box(-3, 8, -12.2, 1.5, 1.5, 0.3, V3(0.9, 0.1, 0.1)), box(1.5, 8, -12.2, 1.5, 1.5, 0.3, V3(0.9, 0.1, 0.1)),
-            box(-1, 9.5, -12.2, 2, 1, 0.3, V3(0.9, 0.1, 0.1)),
+            // Glowing eye cluster: two big eyes, a brow bar, four small ones; dark fangs below.
+            box(-3, 8, -12.2, 1.5, 1.5, 0.3, red, 9), box(1.5, 8, -12.2, 1.5, 1.5, 0.3, red, 9),
+            box(-1, 9.5, -12.2, 2, 1, 0.3, red, 9),
+            box(-3.5, 10.2, -12.15, 1, 1, 0.15, red, 9), box(2.5, 10.2, -12.15, 1, 1, 0.15, red, 9),
+            box(-2, 6.6, -12.15, 0.8, 0.8, 0.15, red, 9), box(1.2, 6.6, -12.15, 0.8, 0.8, 0.15, red, 9),
+            box(-2, 4, -12.6, 1, 2, 0.6, body * 0.45), box(1, 4, -12.6, 1, 2, 0.6, body * 0.45),
         ]
         for i in 0..<4 {
             let z = -3 + Float(i) * 2
             let wiggle = sinf(m.walkPhase * 2 + Float(i)) * 0.3 * m.walkAmount
             p.append(Part(mn: V3(3, 7, z - 1), mx: V3(18, 9, z + 1), pivot: V3(3, 8, z), rotX: wiggle, rotZ: -0.5, color: body))
             p.append(Part(mn: V3(-18, 7, z - 1), mx: V3(-3, 9, z + 1), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body))
+            // knee joints (same pivot and turn as the leg)
+            p.append(Part(mn: V3(10, 6.7, z - 1.25), mx: V3(11.6, 9.3, z + 1.25), pivot: V3(3, 8, z), rotX: wiggle, rotZ: -0.5, color: body * 0.6))
+            p.append(Part(mn: V3(-11.6, 6.7, z - 1.25), mx: V3(-10, 9.3, z + 1.25), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body * 0.6))
         }
         return p
     case .hoglin:
@@ -1787,9 +1871,14 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let ci = (f * 4 + k) * 3
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     var q = p.place(lp, rot)
+                    // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
+                    // box's lower end, so legs and bellies read as shaded rather than flat-lit.
+                    let t = min(1, max(0, q.y * 0.1))
+                    let ground: Float = glow ? 1 : 0.72 + 0.28 * t * t * (3 - 2 * t)
+                    let ao = ground * (CT[ci + 1] == 0 ? 0.9 : 1)
                     q *= scale / 16
                     let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * lit), local: V4(lp, 0))
+                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * lit * ao), local: V4(lp, 0))
                     n += 1
                 }
             }
@@ -1883,8 +1972,11 @@ final class MobManager {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
                     game.sfx(.soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
-                } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
-                    game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                } else if MobVoice.profile(m.kind).family != .silent {
+                    // Hissers and magma cubes only rustle / squelch faintly; everyone else calls at the usual level.
+                    let quiet: Bool = m.kind == .creeper || m.kind == .magmaCube
+                    let vol: Float = quiet ? 0.25 : (m.baby ? 0.45 : 0.6)
+                    game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), vol, at: m.pos + V3(0, m.height * 0.8, 0))
                 }
             }
         }

@@ -53,6 +53,9 @@ final class Player {
 
     var eye: V3 { pos + V3(0, prone ? 0.4 : ((sneaking && !flying) ? eyeHeight - 0.35 : eyeHeight), 0) }
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
+    /// Direction sprint-swimming and ladder pushing follow when it isn't the look (VR: the head, not the aiming hand).
+    var moveLook: V3? = nil
+    var wetGrace: Float = 0         // s since leaving water that the bank climb / step-up still apply (getting out over the edge)
 
     func collides(at p: V3, _ w: World) -> Bool {
         w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
@@ -148,6 +151,9 @@ final class Player {
         let f = V3(-sinf(yaw), 0, -cosf(yaw))
         let r = V3(cosf(yaw), 0, -sinf(yaw))
         var wish = f * input.forward + r * input.strafe
+        let swimLook = moveLook ?? look
+        var fh = f
+        if let m = moveLook, m.x * m.x + m.z * m.z > 1e-6 { fh = simd_normalize(V3(m.x, 0, m.z)) }
         let len = simd_length(wish)
         if len > 1 { wish /= len }
 
@@ -191,7 +197,7 @@ final class Player {
             var sp: Float = 5.6 * speedMul
             if depthStrider > 0 { sp *= 1 + 0.1 * Float(min(3, depthStrider)) }
             if dolphinsGrace { sp *= 1.8 }
-            let t = look * sp
+            let t = swimLook * sp
             let ks = 1 - expf(-5 * dt)
             vel += (t - vel) * ks
         } else if inFluid {
@@ -220,7 +226,7 @@ final class Player {
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.
         if !flying && (Player.climbable(feet) || Player.climbable(body)) {
-            if input.jump || (input.forward > 0.1 && (collides(at: pos + f * 0.35, w))) { vel.y = 2.35 }
+            if input.jump || (input.forward > 0.1 && (collides(at: pos + fh * 0.35, w))) { vel.y = 2.35 }
             else if input.sneak { vel.y = max(vel.y, 0) }
             else { vel.y = max(vel.y, -3) }
             airPeak = pos.y
@@ -234,7 +240,11 @@ final class Player {
                 if !groundBelow(p, w) { vel[a] = 0 }
             }
         }
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround)
+        // Step-up also works while swimming and just after (feet within 0.6 of a bank top walk straight out, as in the
+        // reference, whose water check is the whole body box: it keeps pushing until the feet clear the surface).
+        wetGrace = inWater ? 0.15 : max(0, wetGrace - dt)
+        let wetish = inFluid || wetGrace > 0
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
         var landed = false
         var bounce: Float = 0
         if hit.y {
@@ -253,6 +263,11 @@ final class Player {
             if collides(at: pos + d, w) && !collides(at: pos + d + V3(0, 1.05, 0), w) && !collides(at: pos + V3(0, 1.05, 0), w) {
                 vel.y = 8.6 + 2 * Float(jumpBoost)
             }
+        }
+        // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
+        // while there's room 0.6 higher), so a one-block bank is easy to get onto.
+        if wetish && !flying && (hit.x || hit.z) && simd_length(wish) > 0.3 && !collides(at: pos + V3(0, 0.6, 0), w) {
+            vel.y = max(vel.y, 5.0)
         }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
