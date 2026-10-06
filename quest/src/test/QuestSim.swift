@@ -225,10 +225,12 @@ enum QuestSim {
 
         // 8c. Tapping Y toggles flying.
         let flew = game.player.flying
+        let flyPos = game.player.pos
         frames(3) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(6) { _ in idleHands() }
-        check(game.player.flying != flew, "VR fly: a Y tap toggled flying (\(flew) -> \(game.player.flying))")
+        check(game.player.flying != flew, "VR fly: a Y tap toggled flying (\(flew) -> \(game.player.flying)) y \(flyPos.y) -> \(game.player.pos.y)")
         game.player.flying = flew
+        game.player.pos = flyPos; game.player.vel = .zero
 
         // 8d. Holding X swaps the offhand (a torch from the hand to the offhand).
         let torch = Items.id("torch")
