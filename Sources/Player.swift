@@ -55,6 +55,9 @@ final class Player {
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
     /// Direction sprint-swimming and ladder pushing follow when it isn't the look (VR: the head, not the aiming hand).
     var moveLook: V3? = nil
+    /// Yaw the walking/flying stick input is relative to when it isn't the aim yaw (VR: the head, never the hand).
+    /// Set each tick by the VR controls, so nothing that turns `yaw` later in the tick (aim assist, pad look) can steer.
+    var moveYaw: Float? = nil
     var wetGrace: Float = 0         // s since leaving water that the bank climb / step-up still apply (getting out over the edge)
 
     func collides(at p: V3, _ w: World) -> Bool {
@@ -148,8 +151,9 @@ final class Player {
         sneaking = (input.sneak || forcedCrouch) && !flying && !prone
         sprinting = (input.sprint && input.forward > 0 && !sneaking) || swimming
 
-        let f = V3(-sinf(yaw), 0, -cosf(yaw))
-        let r = V3(cosf(yaw), 0, -sinf(yaw))
+        let my = moveYaw ?? yaw
+        let f = V3(-sinf(my), 0, -cosf(my))
+        let r = V3(cosf(my), 0, -sinf(my))
         var wish = f * input.forward + r * input.strafe
         let swimLook = moveLook ?? look
         var fh = f

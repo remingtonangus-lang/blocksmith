@@ -31,6 +31,16 @@ enum XRMath {
     }
 
     // Yaw (about +Y, the game's convention: 0 looks -Z, positive turns left) and pitch of a rotation's forward axis.
+    /// Yaw of the body under a head pose, stable at every pitch and roll: the forward vector dominates while looking
+    /// level, the head's up vector takes over as the gaze tips down or up (f.xz * u.y - u.xz * f.y is exactly the
+    /// level forward for any pitch, and roll only shortens it). atan2 of the raw forward spins and jitters when
+    /// looking near straight down (walking while looking at the ground).
+    static func levelYaw(_ q: simd_quatf) -> Float {
+        let f = q.act(V3(0, 0, -1)), u = q.act(V3(0, 1, 0))
+        let hx = f.x * u.y - u.x * f.y, hz = f.z * u.y - u.z * f.y
+        return hx * hx + hz * hz < 1e-8 ? atan2f(-f.x, -f.z) : atan2f(-hx, -hz)
+    }
+
     static func yawPitch(_ q: simd_quatf) -> (Float, Float) {
         let f = q.act(V3(0, 0, -1))
         let yaw = atan2f(-f.x, -f.z)

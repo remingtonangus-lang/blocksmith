@@ -5,6 +5,11 @@ import simd
 // 10-20 min, thunder 3-13 min while raining), per-biome precipitation (rain, snow, or none in dry
 // biomes), darker skies, lightning strikes with fire and mob conversions, snow layers and ice, rain
 // putting out fires and burning entities.
+extension Game {
+    // The renderer moves the sea surface with OceanSwell (the Quest sets this at start; the Mac's water is flat).
+    static var oceanSwellDrawn = false
+}
+
 struct Weather: Codable {
     var raining = false
     var thundering = false
@@ -12,6 +17,23 @@ struct Weather: Codable {
     var thunderTime: Float = Rand.float(in: 600...9000)
     var rain: Float = 0                                       // 0...1 fade
     var thunder: Float = 0
+
+    // Sea state (Remington, v61): 0 calm, rain ~0.4, a thunderstorm 1 (fades with the weather). Scales the ocean
+    // swell and how fast boats wear out.
+    var sea: Float { min(1, 0.4 * rain + 0.6 * thunder) }
+    // Swell height multiplier: calm seas 0.6x the old ~6 cm swell, storms 5x.
+    var swell: Float { 0.6 + 4.4 * sea }
+}
+
+// The ocean swell's height (metres) at a world xz; the same three sines as oceanWave in quest/shaders/common.glsl, before
+// Weather.swell. Boats ride it where it is drawn (`Game.oceanSwellDrawn`: the Quest; the Mac's water is flat).
+enum OceanSwell {
+    static func height(_ x: Float, _ z: Float, _ t: Float) -> Float {
+        let a1: Float = x * 0.31 + z * 0.17 + t * 0.9
+        let a2: Float = z * 0.27 - x * 0.11 + t * 0.7
+        let a3: Float = x * 0.53 - z * 0.43 + t * 1.3
+        return sinf(a1) * 0.032 + sinf(a2) * 0.024 + sinf(a3) * 0.012
+    }
 }
 
 // A lightning bolt being drawn (0.3 s) at a point.

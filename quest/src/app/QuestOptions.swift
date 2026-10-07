@@ -90,14 +90,16 @@ enum QuestOptions {
         "R trigger: break / attack / fire (Swing Mode off)",
         "L trigger: use / place (hold to repeat)",
         "L grip: previous hotbar slot  R grip: next",
-        "L stick: move (teleport: aim)",
+        "L stick: move, head-relative (teleport: aim)",
+        "L stick fully forward: sprint",
+        "L stick click: sneak (tap: stay sneaking)",
         "R stick: turn (reclined: up/down look)",
-        "A: jump      B: sneak / back; hold: drop item",
+        "A: jump      B: back; hold: drop item",
         "X: pick block; hold: offhand",
         "Y: fly on / off; hold: inventory",
         "(World map: pause menu)",
         "Hold R stick click: weapon wheel",
-        "L stick click: sprint  Menu: pause",
+        "Menu: pause",
     ]
 
     static func angle(_ a: Float) -> String { a == a.rounded() ? "\(Int(a))" : String(format: "%.1f", a) }

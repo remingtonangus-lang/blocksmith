@@ -416,6 +416,9 @@ extension Mob {
         let enraged = r == 3 && health < spec.health / 2
         b.aimHold = max(b.aimHold, 1.5)
         let muzzle = SoldierRig.muzzleWorld(self)
+        // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
+        // only): a wall, window, door or fence between the gun and the target holds the shot.
+        guard g.world.clearShot(muzzle, target) else { b.aimTime = 0; return }
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
         aimAt += g.player.vel * flight * 0.8
@@ -453,9 +456,10 @@ extension Mob {
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).
     private func suppress(_ g: Game, _ b: SoldierBrain, _ gs: GunSpec, at t: V3, rank: Soldier.Rank) {
+        let muzzle = SoldierRig.muzzleWorld(self)
+        guard g.world.clearShot(muzzle, t) else { return }           // suppressing fire never goes through a wall either
         b.aimHold = max(b.aimHold, 1.2)
         b.recoil = 1
-        let muzzle = SoldierRig.muzzleWorld(self)
         let dir = simd_normalize(t - muzzle)
         let scale = Soldier.difficultyScale(g.difficulty) * rank.damage
         if gs.shot == .bullet {

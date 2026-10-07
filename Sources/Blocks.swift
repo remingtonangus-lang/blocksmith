@@ -248,7 +248,7 @@ final class BlockRegistry {
     // Registers 4 horizontal-facing states (north, south, west, east = front on -Z, +Z, -X, +X).
     // `d.tex` gives side textures; `front` replaces the facing face. Returns the first state.
     @discardableResult
-    func addFacing(_ d: BlockDef, front: String, boxes: [Box] = []) -> BlockID {
+    func addFacing(_ d: BlockDef, front: String, boxes: [Box] = [], boxesFor: ((Int) -> [Box])? = nil) -> BlockID {
         var first: BlockID = 0
         let faceFor = [5, 4, 1, 0]
         for (k, dir) in ["north", "south", "west", "east"].enumerated() {
@@ -258,7 +258,7 @@ final class BlockRegistry {
             if s.tex.count == 1 { s.tex = Array(repeating: s.tex[0], count: 6) }
             s.tex[faceFor[k]] = front
             s.hidden = d.hidden || k != 0
-            s.boxes = boxes.map { var b = $0; b.tex = []; return b }
+            s.boxes = boxesFor?(k) ?? boxes.map { var b = $0; b.tex = []; return b }
             let id = add(s)
             if k == 0 { first = id }
         }
@@ -600,7 +600,25 @@ final class BlockRegistry {
                 b.tex = ["\(n)_bed_side", "\(n)_bed_side", part == "foot" ? "\(n)_bed_top_foot" : "\(n)_bed_top_head", "oak_planks", "\(n)_bed_side", "\(n)_bed_side"]
                 b.render = .model; b.opaque = false; b.hardness = 0.2; b.sound = .wood; b.skyStop = true
                 b.hidden = part == "head"
-                addFacing(b, front: "\(n)_bed_side", boxes: [Box(0, 3, 0, 16, 9, 16), Box(0, 0, 0, 3, 3, 3), Box(13, 0, 0, 16, 3, 3), Box(0, 0, 13, 3, 3, 16), Box(13, 0, 13, 16, 3, 16)])
+                // Model (Remington, v61: beds looked flat): a wooden frame with a tall headboard and a low footboard,
+                // a quilted mattress in the bed's colour and a white pillow. Drawn for facing 0 (head toward +Z) and
+                // turned for the others, each box with its own textures.
+                let wood = Tex.id("spruce_planks"), wool = Tex.id("\(n)_wool"), quilt = Tex.id("\(n)_bed_top_foot"), white = Tex.id("white_wool")
+                let W = [UInt16](repeating: wood, count: 6), P = [UInt16](repeating: white, count: 6)
+                let M: [UInt16] = [wool, wool, quilt, wood, wool, wool]
+                let base: [Box] = part == "head"
+                    ? [Box(0, 0, 14, 16, 13, 16, tex: W), Box(0, 3, 0, 16, 6, 14, tex: W), Box(1, 6, 0, 15, 9, 14, tex: M),
+                       Box(2, 9, 8, 14, 11, 13, tex: P)]
+                    : [Box(0, 0, 0, 16, 8, 2, tex: W), Box(0, 3, 2, 16, 6, 16, tex: W), Box(1, 6, 2, 15, 9, 16, tex: M)]
+                addFacing(b, front: "\(n)_bed_side", boxesFor: { k in
+                    base.map { bx in
+                        func turn(_ x: Int, _ z: Int) -> (Int, Int) {
+                            switch k { case 1: return (16 - x, 16 - z); case 2: return (z, 16 - x); case 3: return (16 - z, x); default: return (x, z) }
+                        }
+                        let a = turn(Int(bx.x0), Int(bx.z0)), c = turn(Int(bx.x1), Int(bx.z1))
+                        return Box(min(a.0, c.0), Int(bx.y0), min(a.1, c.1), max(a.0, c.0), Int(bx.y1), max(a.1, c.1), tex: bx.tex)
+                    }
+                })
             }
         }
         var ct = BlockDef("crafting_table", "Crafting Table")
@@ -608,7 +626,7 @@ final class BlockRegistry {
         ct.hardness = 2.5; ct.tool = .axe; ct.sound = .wood
         add(ct)
         var fur = BlockDef("furnace", "Furnace")
-        fur.tex = ["furnace_side", "furnace_side", "furnace_top", "furnace_top", "furnace_side", "furnace_side"]
+        fur.tex = ["furnace_body", "furnace_body", "furnace_plate", "furnace_plate", "furnace_body", "furnace_body"]
         fur.hardness = 3.5; fur.tool = .pickaxe; fur.requiresTool = true
         addFacing(fur, front: "furnace_front")
         var furLit = fur

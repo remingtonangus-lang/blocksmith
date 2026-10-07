@@ -63,7 +63,7 @@ enum Snapshot {
         let world = World(seed: seed, device: device, save: nil, dim: snapDim)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)
-        var pos = game.findSpawn()
+        var pos = game.findSpawn(varied: false)      // reference shots keep the old origin
         if let x = Float(arg("--x") ?? ""), let z = Float(arg("--z") ?? "") {
             let hgt = world.gen.column(Int(floor(x)), Int(floor(z))).height
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
@@ -240,11 +240,20 @@ enum Snapshot {
             case "death":
                 game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
             case "commands":
-                for c in ["/help", "/time set noon", "/give diamond 5", "/give hisser_head", "/locate sea_temple", "/summon hisser", "hello", "/tp ~ ~2 ~", "/xp 5L", "/bogus"] { game.command(c) }
+                for c in ["/help", "/time set noon", "/give diamond sword 1", "/give hisser-head", "/locate sea temple", "/summon hisser", "hello", "/tp ~ ~2 ~", "/bogus", "/bases", "/rare"] { game.command(c) }
                 for l in game.commandLog { print("console: " + l) }
-                let m = CommandMenu(game: game, prefill: "/give dia")
-                m.complete()
+                let m = CommandMenu(game: game, prefill: "/locate military")
+                print("console: suggestions " + m.suggestions.joined(separator: ", "))
                 game.openMenu(m)
+            case "invsearch", "craftsearch":
+                game.inventory.main[22] = ItemStack(Items.id("saddle"), 1)
+                if which == "invsearch" {
+                    let m = InventoryMenu(game: game); m.query = "sad"
+                    game.openMenu(m)
+                } else {
+                    let m = CraftingBookMenu(game: game, size: 3); m.query = "sad"; m.searching = true; m.refresh()
+                    game.openMenu(m)
+                }
             case "craftbook", "craftbook_all", "craftbook2":
                 // The crafting book (CraftingBook.swift) with a starter kit: logs, cobblestone, iron, sticks, string.
                 for (i, (n, c)) in [("oak_log", 12), ("cobblestone", 30), ("iron_ingot", 9), ("stick", 8), ("string", 3), ("coal", 6),
@@ -1055,6 +1064,7 @@ enum Snapshot {
             // The minimap samples on a worker; fill its area now so the single frame shows it.
             MapCache.shared.prefill(world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 72, step: 4)
         }
+        if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.

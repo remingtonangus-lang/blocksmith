@@ -675,7 +675,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let eye = cameraEye().eye
         var n = 0
         if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active,
-           let pre = writeMobBuffer(eye: eye, daylight: game.daylight, cull: mobCullFrustum(width, height)) {
+           let pre = writeMobBuffer(eye: eye, daylight: game.renderDaylight, cull: mobCullFrustum(width, height)) {
             mobPre = pre
             n = pre.count
         }
@@ -801,7 +801,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog
         }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
-        let daylight = game.daylight
+        let daylight = game.renderDaylight
         // Night vision lifts every light level toward full brightness.
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
@@ -1361,7 +1361,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let gi = gunIndex, !game.sniperScoped {
                 let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.all[gi].reload - game.arms.reload) * 3) : 0
                 an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
-                                            bob: V3(0, bob, 0), light: light, into: armPtr + an)
+                                            bob: V3(0, bob, 0), light: light, rounds: game.arms.reload > 0 ? 0 : game.held.tag, into: armPtr + an)
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(VW), height: Double(VH), znear: 0, zfar: 0.001))
@@ -1772,7 +1772,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
                 playerPreview(x: o.x + 27 * s, y: o.y + 9 * s, w: 48 * s, h: 68 * s, quad)
                 text("Crafting", o.x + 97 * s, o.y + 7 * s, s, titleC, shadow: false)
-                arrowRight(o.x + 134 * s, o.y + 34.5 * s, 16 * s, s, V4(0.5, 0.5, 0.5, 1))
+                text("Open the book", o.x + 97 * s, o.y + 20 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
+                text("to craft", o.x + 97 * s, o.y + 30 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
+                if let im = m as? InventoryMenu, let sb = im.slots.first(where: { if case .button(let i) = $0.kind { return i == InventoryMenu.searchBtn } else { return false } }) {
+                    let x = o.x + Float(sb.x) * s, y = o.y + Float(sb.y) * s
+                    rect(x, y, Float(sb.w) * s, Float(sb.h) * s, game.menuHover === sb ? V4(0.2, 0.32, 0.68, 1) : (im.searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
+                    let caret = im.searching && Int(game.clock * 2) % 2 == 0 ? "_" : ""
+                    var t = im.query.isEmpty && !im.searching ? "Search..." : im.query + caret
+                    while textWidth(t, s) > Float(sb.w - 4) * s && t.count > 1 { t.removeFirst() }
+                    text(t, x + 2 * s, y + 3 * s, s, im.query.isEmpty && !im.searching ? V4(0.85, 0.85, 0.85, 1) : V4(1, 1, 0.7, 1))
+                    if !im.query.isEmpty {
+                        let n = im.slots.filter { $0.isPlayerInv && im.matches($0.stack) }.count
+                        text(n == 0 ? "Not carried" : "\(n) found", o.x + 97 * s, o.y + 46 * s, s, n == 0 ? V4(0.6, 0.12, 0.1, 1) : V4(0.1, 0.42, 0.12, 1), shadow: false)
+                    }
+                }
             }
             if m is CraftingTableMenu { arrowRight(o.x + 89 * s, o.y + 36 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1)) }
             if let b = m as? BrewingMenu {
@@ -1966,15 +1979,42 @@ final class Renderer: NSObject, MTKViewDelegate {
                 while textWidth(ln, s) > 254 * s && !ln.isEmpty { ln.removeFirst() }
                 let caret = Int(game.clock * 2) % 2 == 0 ? "_" : ""
                 text(ln + caret, o.x + 12 * s, o.y + 19 * s, s, V4(0.95, 0.95, 0.95, 1))
-                rect(o.x + 8 * s, o.y + 32 * s, 264 * s, 100 * s, V4(0.12, 0.12, 0.14, 0.85))
-                let log = game.commandLog.suffix(9)
-                for (i, l) in log.enumerated() {
-                    var t = l
-                    while textWidth(t, s) > 258 * s && !t.isEmpty { t.removeLast() }
-                    let c = l.hasPrefix("  ") ? V4(0.75, 0.75, 0.75, 1) : (l.hasPrefix("/") ? V4(1, 1, 0.55, 1) : V4(1, 1, 1, 1))
-                    text(t, o.x + 11 * s, o.y + Float(35 + i * 11) * s, s, c)
+                // Suggestions (Tab or click): the completed name with its underscores, underlined like a link.
+                let sug = cm.suggestions
+                for sl in cm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind, i >= CommandMenu.suggestBase else { continue }
+                    let k = i - CommandMenu.suggestBase
+                    guard k < sug.count else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.18, 0.18, 0.22, 1))
+                    var t = sug[k]
+                    while textWidth(t, s) > Float(sl.w - 4) * s && t.count > 2 { t = String(t.dropLast(2)) + "." }
+                    text(t, x + 2 * s, y + 2 * s, s, k == 0 ? V4(1, 1, 0.6, 1) : V4(0.85, 0.85, 0.85, 1))
+                    rect(x + 2 * s, y + 10 * s, textWidth(t, s), s, k == 0 ? V4(1, 1, 0.6, 0.8) : V4(0.6, 0.6, 0.6, 0.6))
                 }
-                if game.commandLog.isEmpty { text("Type /help, Tab completes names", o.x + 11 * s, o.y + 35 * s, s, V4(0.6, 0.6, 0.6, 1)) }
+                // The log, newest at the bottom; long lines (coordinates) wrap instead of being cut off.
+                let logY: Float = sug.isEmpty ? 32 : 45, logH: Float = sug.isEmpty ? 100 : 87
+                rect(o.x + 8 * s, o.y + logY * s, 264 * s, logH * s, V4(0.12, 0.12, 0.14, 0.85))
+                var wrapped: [(String, V4)] = []
+                for l in game.commandLog.suffix(12) {
+                    let c = l.hasPrefix("  ") ? V4(0.75, 0.75, 0.75, 1) : (l.hasPrefix("/") ? V4(1, 1, 0.55, 1) : V4(1, 1, 1, 1))
+                    var rest = Substring(l)
+                    while !rest.isEmpty {
+                        var n = rest.count
+                        while n > 1 && textWidth(String(rest.prefix(n)), s) > 258 * s { n -= 1 }
+                        if n < rest.count, let sp = rest.prefix(n).lastIndex(of: " "), rest.distance(from: rest.startIndex, to: sp) > 8 {
+                            n = rest.distance(from: rest.startIndex, to: sp) + 1
+                        }
+                        wrapped.append((String(rest.prefix(n)), c))
+                        rest = rest.dropFirst(n)
+                        if !rest.isEmpty { rest = Substring("    " + rest) }
+                    }
+                }
+                let fit = Int((logH - 4) / 11)
+                for (i, (t, c)) in wrapped.suffix(fit).enumerated() {
+                    text(t, o.x + 11 * s, o.y + Float(Int(logY) + 3 + i * 11) * s, s, c)
+                }
+                if game.commandLog.isEmpty { text("Type /help, Tab completes names", o.x + 11 * s, o.y + (logY + 3) * s, s, V4(0.6, 0.6, 0.6, 1)) }
                 for sl in cm.slots where sl.isButton {
                     guard case .button(let i) = sl.kind, i < CommandMenu.buttons.count else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
@@ -2225,6 +2265,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(bx + s, by + s, bs - s, bs - s, V4(1, 1, 1, 1))
                 rect(bx + s, by + s, bs - 2 * s, bs - 2 * s, V4(0.545, 0.545, 0.545, 1))
                 itemIcon(sl.stack, x + s, y + s, 16 * s)
+                if let im = m as? InventoryMenu, !im.query.isEmpty, sl.isPlayerInv {
+                    // Inventory search: matches framed in gold, everything else dimmed.
+                    if im.matches(sl.stack) { frame(bx, by, bs, bs, s, V4(1, 0.85, 0.2, 1)) }
+                    else { rect(bx + s, by + s, bs - 2 * s, bs - 2 * s, V4(0.15, 0.15, 0.17, 0.7)) }
+                }
                 if sl === game.menuHover {
                     rect(x + s, y + s, 16 * s, 16 * s, V4(1, 1, 1, 0.45))
                     // Controller cursor: a bright frame that reads from the sofa.

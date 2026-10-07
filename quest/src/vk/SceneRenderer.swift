@@ -16,6 +16,7 @@ struct FrameUniforms {
     var starRot = matrix_identity_float4x4
     var starTint = V4(1, 1, 1, 0)
     var misc = V4(0, 1, 0, 0)
+    var waves = V4(1, 0, 0, 0)       // x = ocean swell scale (Weather.swell)
 }
 
 // One frame's camera: the head centre in world space and each eye's camera-relative view-projection.

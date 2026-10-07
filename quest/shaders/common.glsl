@@ -15,13 +15,15 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 starTint;
     vec4 misc;             // x = sky kind (0 none, 1 overworld dome, 2 hollow), y = eye darkness (cave fill weight),
                            // z = output gamma (2.2 sRGB target), w = Brightness
+    vec4 waves;            // x = ocean swell scale (calm 0.6, thunderstorm 5: Weather.swell)
 } u;
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;
 
 // Ocean swell (chunk.vert moves sea-level water surfaces by it, water.frag tilts the surface normal by its slope):
-// three long, slow sines, ~6 cm high. xyz = height, d/dx, d/dz at world xz.
-vec3 oceanWave(vec2 w, float t) {
+// three long, slow sines, ~6 cm high, times the weather's swell scale (u.waves.x; Sources/Weather.swift OceanSwell
+// mirrors it for boats). xyz = height, d/dx, d/dz at world xz.
+vec3 oceanWave1(vec2 w, float t) {
     float a1 = w.x * 0.31 + w.y * 0.17 + t * 0.9;
     float a2 = w.y * 0.27 - w.x * 0.11 + t * 0.7;
     float a3 = w.x * 0.53 - w.y * 0.43 + t * 1.3;
@@ -30,6 +32,7 @@ vec3 oceanWave(vec2 w, float t) {
     float dz = cos(a1) * 0.032 * 0.17 + cos(a2) * 0.024 * 0.27 - cos(a3) * 0.012 * 0.43;
     return vec3(h, dx, dz);
 }
+vec3 oceanWave(vec2 w, float t) { return oceanWave1(w, t) * u.waves.x; }
 
 float hash21(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);

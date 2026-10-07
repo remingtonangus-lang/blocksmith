@@ -123,6 +123,14 @@ enum WeaponAudio {
             var o = shot(&g, p: p * 1.3, size: 0.5, bright: 1.25, tail: 0.3, mech: 0.35)
             o = Synth.mix(o, casing(&g, p: p * 1.2, gain: 0.25), at: g.frames(0.3))
             return o
+        case 14:  // loaded: a magazine seats (thunk) and the bolt slams home (bright double clack)
+            var o = Synth.mix(g.burst(0.05, lp: 1800, hp: 120, attack: 0.001, decay: 0.012, gain: 1.4), g.modes(0.07, [(420 * p, 0.5, 0.02)]))
+            o = Synth.mix(o, Synth.mix(g.burst(0.04, lp: 5200, hp: 900, attack: 0.0005, decay: 0.008, gain: 1.5), g.modes(0.08, [(1900 * p, 0.4, 0.012), (2900 * p, 0.2, 0.008)])), at: g.frames(0.16))
+            o = Synth.mix(o, g.modes(0.06, [(2400 * p, 0.25, 0.01)]), at: g.frames(0.22))
+            return o
+        case 15:  // last round gone: a hollow metallic ping (the bolt locks open)
+            return Synth.mix(g.modes(0.5, [(3150 * p, 0.6, 0.18), (4720 * p, 0.3, 0.12), (6300 * p, 0.12, 0.06)]),
+                             g.burst(0.03, lp: 7000, hp: 2000, attack: 0.0005, decay: 0.006, gain: 0.7))
         default:  // 12 turret whine: servo traverse
             let whine = g.tone(1.0, f0: 220 * p, f1: 760 * p, wave: .saw, attack: 0.05, release: 0.15, vib: 0.02, vibRate: 18, gain: 0.25)
             return Synth.mix(Synth.lowpass(whine, 2600), g.crackle(1.0, density: 40, f: 2200, q: 3, gain: 0.4))

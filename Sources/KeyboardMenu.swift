@@ -6,7 +6,7 @@ import Foundation
 // Menu (or "Done") returns, B returns too.
 final class KeyboardMenu: Menu {
     let target: Menu
-    static let rowsLower = ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,.?"]
+    static let rowsLower = ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,._"]      // _ for command names
     var upper = false
     var keys: [String] = []
     init(game: Game, target: Menu) {
@@ -22,7 +22,7 @@ final class KeyboardMenu: Menu {
             for (c, ch) in row.enumerated() {
                 let b = MenuSlot(8 + c * 16, 32 + r * 18, nil, 0, .button(keys.count)); b.w = 14; b.h = 16
                 slots.append(b)
-                let sym = Array("!/-~:;()+=")[c]
+                let sym = Array("!/-~:;()?=")[c]
                 keys.append(upper ? (r == 0 ? String(sym) : String(ch).uppercased()) : String(ch))
             }
         }
@@ -66,6 +66,8 @@ final class KeyboardMenu: Menu {
         case let am as AnvilMenu: return ("Item name", am.name)
         case let cm as CommandMenu: return ("Command", cm.line)
         case let cr as CreativeMenu: return ("Search", cr.query)
+        case let cb as CraftingBookMenu: return ("Search recipes", cb.query)
+        case let im as InventoryMenu: return ("Search inventory", im.query)
         default: return ("Text", "")
         }
     }

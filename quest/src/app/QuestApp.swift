@@ -84,6 +84,7 @@ final class QuestApp {
         let world = World(seed: seed, device: device, save: save)
         world.renderDistance = QuestSettings.renderDistance
         let game = Game(world: world, save: save, persistent: true)
+        Game.oceanSwellDrawn = true                  // boats ride the drawn swell (Weather.swift OceanSwell)
         if let m = meta { game.apply(m) } else {
             game.player.pos = game.spawnPoint
             if let sv = req.survival { game.survival = sv }

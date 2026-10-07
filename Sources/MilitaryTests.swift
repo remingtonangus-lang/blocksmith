@@ -265,6 +265,40 @@ extension MobTests {
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
+        // Line of fire: a glass wall (see-through, so the soldier "sees" the player) between a trooper and the player
+        // holds every shot; it opens up when the wall goes.
+        let glass = Blocks.id("glass")
+        for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 6, glass) } }
+        game.health = 20; game.alive = true; game.menu = nil
+        let tw = Mob(.soldierTrooper, at: at(0, -14)); tw.persistent = true; tw.variant = Guns.rifle; tw.yaw = .pi
+        mm.mobs.append(tw)
+        var throughGlass = 0, sawThroughGlass = false
+        t = 0
+        while t < 5 {
+            mm.update(0.05, game: game)
+            if tw.soldierBrain.sees { sawThroughGlass = true }
+            throughGlass += game.arms.slugs.filter { $0.shooter == ObjectIdentifier(tw) }.count
+            game.arms.slugs.removeAll()
+            game.player.pos = at(0, 0); game.player.vel = .zero
+            game.health = 20; game.alive = true; tw.pos = at(0, -14)
+            t += 0.05
+        }
+        for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 6, AIR) } }
+        var afterWall = 0
+        t = 0
+        while t < 5 && afterWall == 0 {
+            mm.update(0.05, game: game)
+            afterWall += game.arms.slugs.filter { $0.shooter == ObjectIdentifier(tw) }.count
+            game.arms.slugs.removeAll()
+            game.player.pos = at(0, 0); game.player.vel = .zero
+            game.health = 20; game.alive = true; tw.pos = at(0, -14)
+            t += 0.05
+        }
+        check(sawThroughGlass && throughGlass == 0 && afterWall > 0, "trooper holds fire behind a glass wall, fires once it is gone",
+              "saw \(sawThroughGlass), \(throughGlass) shots through glass, \(afterWall) after")
+        mm.mobs.removeAll()
+        game.arms.slugs.removeAll()
+
         // Deck gun: traverses onto the player and fires twin shells.
         let gun = Mob(.deckGun, at: at(0, -45) + V3(0, 0, 0)); gun.persistent = true; gun.yaw = 0
         mm.mobs.append(gun)

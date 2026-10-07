@@ -7,12 +7,14 @@ import CVulkan
 //  - The right-hand ray (left-handed: the left) is cast into the world; the game's look direction is then aimed from
 //    the player's eye at the point the ray hits, so the game's targeting, mining, using and shooting pick exactly what
 //    the laser points at.
-//  - The left stick moves relative to the head (or the left controller); it is pre-rotated into the aim frame the
-//    game moves in. The right stick turns the body (snap or smooth); reclined, its up/down tips the view in steps.
+//  - The left stick moves relative to the head yaw only (Player.moveYaw): the controllers' pointing never steers
+//    walking, flying, swimming or ladders. The right stick turns the body (snap or smooth); reclined, its up/down
+//    tips the view in steps.
 //  - Buttons: right trigger = RT (break / attack / fire; Swing Mode: a full-arm swing breaks / attacks instead),
-//    left trigger = LT (use / place / aim), A jump, B sneak / back (hold: drop), X pick block / reload, Y fly toggle
+//    left trigger = LT (use / place / aim), A jump, B back (hold: drop), X pick block / reload, Y fly toggle
 //    (hold: inventory), left grip = previous hotbar slot, right grip = next, right stick click hold = the
-//    weapon wheel (the grips step the hotbar), left stick click = sprint, menu = pause.
+//    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), stick fully forward =
+//    sprint, menu = pause.
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -36,6 +38,8 @@ final class QuestControls {
     private var flyPulse = 0
     private var yBlock = false
     private var bHold: Float = 0, bPulse = 0
+    private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
+    private var sneakLatch = false              // tapped: sneak until the next tap
     private var prevGripL = false, prevGripR = false
     // Swing Mode: the aiming hand's motion (tracking space, relative to the head).
     private var swingPrev: V3?, swingStart = V3.zero
@@ -205,7 +209,7 @@ final class QuestControls {
                 if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
                 bHold = 0
             }
-            p.b = bPulse > 0
+            p.b = bPulse > 0 || L.stickClick || sneakLatch      // sneak (Game reads the pad's B as sneak)
             if bPulse > 0 { bPulse -= 1 }
             p.down = bHold > 0.4
         }
@@ -242,7 +246,19 @@ final class QuestControls {
         }
         p.lb = L.squeeze > 0.6 && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
         p.rb = R.stickClick
-        p.l3 = L.stickClick
+        // Left stick click: sneak. Held, you sneak while it is held; a tap (under 0.3 s) latches sneaking until the next
+        // tap (cleared by flying or water, where holding it descends). Sprint is the stick pushed fully forward.
+        if inMenu {
+            l3Hold = 0; sneakLatch = false
+        } else {
+            if L.stickClick { l3Hold += dt } else {
+                if l3Hold > 0 && l3Hold < 0.3 { sneakLatch.toggle() }
+                l3Hold = 0
+            }
+            if game.player.flying || game.player.inWater { sneakLatch = false }
+            if L.stickClick && l3Hold >= 0.3 { sneakLatch = false }
+        }
+        p.l3 = false
         p.menu = L.menu
         if wheel { p.rx = R.stick.x; p.ry = R.stick.y }
         if inMenu {
@@ -258,10 +274,17 @@ final class QuestControls {
             prevTrigger = R.trigger > 0.6; prevGrip = R.squeeze > 0.6
             // Locomotion frame: the head yaw only (snap/smooth turns included). The right hand aims, the left hand
             // just holds the stick: neither controller's pointing direction steers walking or swimming.
-            let moveYaw = rig.headYaw
+            rig.updateMoveYaw(dt: dt)
+            let moveYaw = rig.moveYaw
+            if game.swingPower > 0, let m = swingTarget() {
+                // A landed swing hits the mob in front of you: mid-swing the laser points anywhere but at it.
+                aimOrigin = game.player.eye
+                aimDir = simd_normalize(m.pos + V3(0, m.height * 0.5, 0) - aimOrigin)
+            }
             aimGame()
             let cp = cosf(rig.headPitch)
             game.player.moveLook = V3(-sinf(moveYaw) * cp, sinf(rig.headPitch), -cosf(moveYaw) * cp)
+            game.player.moveYaw = moveYaw                   // Player turns the stick by this, not by the aim yaw
             hotbarHover = nil
             if game.world.ships.pilot != nil {
                 // At the helm the stick is throttle and steering: raw, whatever way the hand or head points.
@@ -270,11 +293,8 @@ final class QuestControls {
             } else if QuestSettings.teleport && game.riding == nil {
                 teleport(L)
             } else {
-                let d = moveYaw - game.player.yaw
-                let s = L.stick
-                // Stick (x right, y forward) turned from the locomotion frame into the aim frame.
-                p.lx = s.x * cosf(d) + s.y * sinf(d)
-                p.ly = -s.x * sinf(d) + s.y * cosf(d)
+                // Raw stick (x right, y forward): Player.moveYaw is the head, so nothing the aim does matters.
+                p.lx = L.stick.x; p.ly = L.stick.y
             }
         }
         PadManager.shared.touch = p
@@ -644,8 +664,9 @@ final class QuestControls {
 
     // Full-arm swing detector: a swing starts when the hand passes 1.4 m/s, lands once it has travelled 25 cm from where it
     // started at a peak of 2 m/s (wrist flicks move the hand only a few cm), and ends when the hand slows below 0.6 m/s.
-    // Returns 1 on the frame a swing lands, else 0: every real swing deals the weapon's full listed damage (reference
-    // values: wooden sword 4 ... Duskium 8), however fast it was.
+    // Returns the swing's power on the frame it lands, else 0: 0.75 at the slowest swing that counts (2 m/s), 1.0 at an
+    // ordinary swing (3.5 m/s), 1.25 at 5 m/s and up. Game scales the weapon's listed damage and the swing's digging by
+    // it, so an average swing equals a fully charged trigger attack.
     private func swingUpdate(_ R: XRHand, dt: Float) -> Float {
         let rig = app.rig
         let hp = R.gripValid ? R.gripPos : R.aimPos
@@ -665,10 +686,35 @@ final class QuestControls {
             else if !swingFired && swingCool <= 0 && swingPeak >= 2.0 && simd_length(pos - swingStart) >= 0.25 {
                 swingFired = true
                 swingCool = 0.2
-                out = 1
+                out = max(0.75, min(1.25, 0.75 + (swingPeak - 2.0) / 3.0 * 0.5))
             }
         }
         return out
+    }
+
+    // The mob a landed swing hits: the nearest living one within arm's reach of the swinging hand (2.2 m of the grip,
+    // 4 m of the eye) and in front of the head (within ~75 deg), the hand's laser direction ignored.
+    private func swingTarget() -> Mob? {
+        let rig = app.rig
+        let hd = app.input.hands[aimHand]
+        let hand = rig.toWorld(hd.gripValid ? hd.gripPos : hd.aimPos)
+        let eye = game.player.eye
+        let fwd = V3(-sinf(rig.headYaw), 0, -cosf(rig.headYaw))
+        var best: Mob? = nil
+        var bestD: Float = 2.2
+        for m in game.mobs.mobs where m.health > 0 && m.kind != .boat {
+            let c = m.pos + V3(0, m.height * 0.5, 0)
+            let toEye = c - eye
+            let de = simd_length(toEye)
+            guard de < 4 else { continue }
+            if de > 0.3 && simd_dot(simd_normalize(V3(toEye.x, 0, toEye.z)), fwd) < 0.25 { continue }
+            // Distance from the hand to the mob's box, not its centre (big mobs count up close).
+            let hx = max(0, abs(hand.x - m.pos.x) - m.halfW), hz = max(0, abs(hand.z - m.pos.z) - m.halfW)
+            let hy = max(0, max(m.pos.y - hand.y, hand.y - (m.pos.y + m.height)))
+            let d = sqrtf(hx * hx + hy * hy + hz * hz)
+            if d < bestD { bestD = d; best = m }
+        }
+        return best
     }
 
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
@@ -809,16 +855,20 @@ final class QuestControls {
         let rot = rig.toWorldRot(hd.aimRot)
         let pe = game.player.eye
         let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
-        let skyK: Float = 0.12 + 0.88 * game.daylight
+        let skyK: Float = 0.12 + 0.88 * game.renderDaylight
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self)
             guard cap > 1024 else { return }
-            let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light, into: ptr)
+            // Real size in the hand (rifle ~0.9 m, sidearm ~0.25 m): 2.4x the screen model. Empty: no magazine, red light.
+            let gk: Float = 2.4
+            let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
+                                          rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, into: ptr)
             let ads = V3(0, -0.085, -0.44)
+            let grip = CapitalArms.models[gi].grip * (0.0125 * gk)
             for i in 0..<n {
                 let v = ptr[i].pos
-                let local = V3(v.x, v.y, v.z) - ads + V3(0, 0.035, 0.06)      // the grip sits in the hand
+                let local = V3(v.x, v.y, v.z) - ads - grip + V3(0, 0.015, 0.06)      // the grip sits in the hand
                 let w = rot.act(local) + pos
                 ptr[i].pos = V4(w.x, w.y, w.z, v.w)
             }
@@ -842,12 +892,13 @@ final class QuestControls {
             let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
             let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up = rot.act(simd_normalize(V3(0, 1, 0.15)))
             let side = rot.act(V3(1, 0, 0))
-            // Real-life size: a sword's icon diagonal ~0.85 m, other tools / bows ~0.7 m, everything else a 24 cm icon.
+            // Larger than life again (Remington, v61: real size read too small): a sword's icon diagonal ~1.2 m, other
+            // tools / bows ~1 m, everything else a 32 cm icon.
             // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
             let k = Items.key(held.item)
             let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
             let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
-            let h: Float = big ? 0.3 : (tool ? 0.25 : 0.12)
+            let h: Float = big ? 0.42 : (tool ? 0.36 : 0.16)
             let c = big || tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
             for (i, o) in [Float(0), 0.05 * h].enumerated() {

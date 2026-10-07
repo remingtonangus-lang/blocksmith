@@ -334,3 +334,40 @@ stay joined. water.frag tilts the ripple normal by the wave slope. A few ALU per
 - Mob sounds: snow golem voice, creeper / magma cube idle; Quest mixer adds interaural delay + far-ear head shadow.
 - Mob looks: more detail boxes (zombie, skeleton, creeper, spider, farm animals), feet/underside shading in
   writeMobVertices, full Mac mob shader ported to quest mob.frag (all patterns, emissive, gloss).
+
+## Task 21 (2026-10-07): Remington's v61 bug round (18 items + corrections a-d)
+
+### Movement: what was actually wrong
+The Quest walked in the *aim* frame: the stick was rotated by `headYaw - player.yaw`, and `player.yaw` is the right
+hand's aim. Anything that moved `player.yaw` later in the same tick (`aimGame`, gun aim assist, PadLook) leaked into
+the walk direction, so waving the right hand bent movement. `headYaw` was also `atan2` of the head's forward vector,
+which jitters and spins when looking steeply up or down. Now: `Player.moveYaw` is a separate locomotion yaw,
+`QuestRig.updateMoveYaw` takes the head's *level* yaw (`XRMath.levelYaw`, stable under pitch and roll, no position
+or lean term), smooths it (~80 ms) and adds the snap-turn/recenter body yaw; the left stick is passed raw. Walking,
+flying, swimming and ladders use only it. `--questbugs` proves a randomly waving hand changes displacement by 0.
+
+### Status
+- [x] 1 movement: left stick + smoothed head yaw only (correction b); questbugs walk/strafe/fly/swim/ladder checks
+- [x] 2 sneak: left stick click (hold; tap latches), on the Shortcuts page
+- [x] 3 melee: swing mining 8x; swing damage = trigger damage on average, 0.75x-1.25x by swing speed (correction a)
+- [x] 4 troopers: muzzle-to-target `World.clearShot` (any collidable block stops fire); mobtests glass-wall check
+- [x] 5 lily pads: water top face no longer culled under lily pads (Mesher)
+- [x] 6 spawn: seed-random origin across x and the latitude bands (`Game.spawnOrigin`)
+- [x] 7 rare buildings: spacing x1.5 (about 0.44x as many)
+- [x] 8 military bases: `--structscan` (24 seeds: min 2, mean 9.7 per 4096^2; gating in snap.sh)
+- [x] 9 guns loaded/empty: magazine hidden + red indicator strip when empty, loaded/last-round sounds, HUD text
+- [x] 10 crafting: manual grid removed, recipe book only
+- [x] 12 inventory search (inventory and recipe book)
+- [x] 15 commands: suggestions/autocomplete, /bases /citadels /frigates /villages /rare, wrapped log lines;
+      spaces or hyphens accepted for underscores, autocomplete inserts them, keyboard has "_" (correction c)
+- [x] d guns: more model detail, held guns 2.4x on Quest
+- [x] 11 nights: renderers light the world with `Game.renderDaylight` (floor 0.26 instead of 0.12, still moon-blue);
+      Fancy night ambient raised; gameplay daylight (spawning, sleep, sensors) unchanged
+- [x] 13 saddle: use a saddle while riding a tamed horse saddles it; on a wild horse a toast says how to tame it
+- [x] 14 bed remodel (frame, headboard, footboard, quilted mattress, pillow; turned per facing) + furnace retexture
+      (stone blocks, riveted iron band, arched mouth, iron top plate with flue; dispensers keep the old stone)
+- [x] 16 Quest held tools ~1.4x bigger again
+- [x] 17 fall damage: 4 free blocks, then 0.6 per block (10 blocks: 4 hp, was 7)
+- [x] 18 sea state from the weather (`Weather.sea`/`swell`): Quest swell 0.6x calm .. 5x thunderstorm (uniform
+      `waves.x`), boats ride it; boats wear while sailed (~100 min per point calm, ~3 min rain, ~30 s storm) with
+      warnings. The Mac's water stays flat (no swell there).

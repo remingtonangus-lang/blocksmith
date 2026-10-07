@@ -17,6 +17,11 @@ final class QuestRig {
     private(set) var feet = V3.zero
     private(set) var headWorld = V3.zero
     private(set) var headYaw: Float = 0
+    /// Locomotion yaw: the head's level yaw (XRMath.levelYaw, pitch/roll-proof) in tracking space, smoothed over
+    /// ~80 ms, plus bodyYaw (snap / smooth turns and ship carry apply instantly). Head position never enters it.
+    private(set) var moveYaw: Float = 0
+    private var moveYawT: Float = 0
+    private var moveYawSet = false
     private(set) var headPitch: Float = 0
     static let eyeHeight: Float = 1.62
     // Reclined play: the tracking space is also tilted so the gaze at the last recentre becomes the level, forward
@@ -68,6 +73,18 @@ final class QuestRig {
         feet = game.player.pos + V3(0, stepOffset, 0)
         headWorld = toWorld(trackingHead)
         (headYaw, headPitch) = XRMath.yawPitch(toWorldRot(headRot))
+    }
+
+    /// Per frame with the frame's dt: smooths the level head yaw (tracking space) the stick is relative to.
+    func updateMoveYaw(dt: Float) {
+        let ty = XRMath.levelYaw(headRot)
+        if !moveYawSet { moveYawT = ty; moveYawSet = true }
+        var d = ty - moveYawT
+        while d > .pi { d -= 2 * .pi }
+        while d < -.pi { d += 2 * .pi }
+        moveYawT += d * min(1, dt / 0.08)
+        moveYawT = moveYawT.truncatingRemainder(dividingBy: 2 * .pi)
+        moveYaw = moveYawT + bodyYaw
     }
 
     // After the player moved (roomscale, Game.tick): the camera follows the feet.

@@ -51,7 +51,7 @@ final class WorldRenderer {
         var fogColor = underwater ? game.underwaterFog : sky
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
-        let daylight = game.daylight
+        let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
         let sd = game.sunDir
@@ -63,6 +63,7 @@ final class WorldRenderer {
         u.invViewProj = (u.viewProj.0.inverse, u.viewProj.1.inverse)
         u.fogColor = V4(fogColor, fogStart)
         u.params = V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0)
+        u.waves = V4(game.weather.swell, 0, 0, 0)
         u.sunDir = V4(sd, ambient)
         u.eye = V4(eye, fogGlow)
         u.zenith = V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi))
@@ -131,7 +132,7 @@ final class WorldRenderer {
         let underwater = game.player.headInWater
         let hasSky = game.dim.dim.hasSky
         scene.drawSky(s)
-        let daylight = game.daylight
+        let daylight = game.renderDaylight
         if !underwater && hasSky && simd_clamp((0.6 - daylight) / 0.35, 0, 1) > 0 { scene.drawStars(s) }
         if !underwater && hasSky {
             let sd = game.sunDir
@@ -157,8 +158,8 @@ final class WorldRenderer {
         guard !game.mobs.mobs.isEmpty || tp else { return }
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
-        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap)
-        if tp { n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n) }
+        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap)
+        if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         scene.commit(off, n, MobVert.self)
         scene.drawScratch(s, "mob", offset: off, count: n)
     }

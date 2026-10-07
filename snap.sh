@@ -126,6 +126,8 @@ done
 "$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck        # gating: plants that lose their support pop (Remington, 2026-10-05)
 "$BIN" --snapshot snaps/rulescheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --rulescheck || true      # world rules from the fidelity audits (not gating yet)
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
+"$BIN" --snapshot snaps/questbugs.png --seed 12345 --find plains --time 0.3 --rd 4 --questbugs        # gating: Quest playtest checks (VR locomotion ignores the hand, swings, swim-out)
+"$BIN" --snapshot snaps/structscan.png --structscan 8      # gating: every seed has a Capital citadel near spawn; rare-building density per 4096^2
 "$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest        # gating: split screen seat checks (green since run 563)

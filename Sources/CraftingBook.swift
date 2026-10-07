@@ -127,10 +127,28 @@ enum CraftBook {
     static func stackTimes(_ r: Recipe) -> Int { max(1, (r.result.maxStack + r.result.count - 1) / max(1, r.result.count)) }
 }
 
+// Text search over item names (display name or key; spaces, hyphens and underscores alike).
+enum ItemSearch {
+    static func matches(_ item: ItemID, _ q: String) -> Bool {
+        let n = Game.norm(q)
+        guard !n.isEmpty else { return true }
+        return Game.norm(Items.name(item)).contains(n) || Items.key(item).contains(n)
+    }
+    // Typing into a search query: backspace, Enter/Tab end the search (returns false), length capped.
+    static func type(_ s: String, into q: inout String) -> Bool {
+        for c in s {
+            if c == "\u{8}" { if !q.isEmpty { q.removeLast() } }
+            else if c == "\n" || c == "\r" || c == "\t" { return false }
+            else if q.count < 24 { q.append(c) }
+        }
+        return true
+    }
+}
+
 final class CraftingBookMenu: Menu, CustomDrawnMenu {
     static let cols = 8, rows = 5, perPage = cols * rows
     static let tabBase = 600, tileBase = 700
-    static let prevPage = 690, nextPage = 691, filterBtn = 692
+    static let prevPage = 690, nextPage = 691, filterBtn = 692, searchBtn = 693
     static let craft1 = 800, craftStack = 801, craftMax = 802, amountDown = 803, amountUp = 804, craftAmount = 805, gridBtn = 806
     static let amounts = [1, 2, 3, 4, 5, 8, 10, 16, 20, 32, 64]
     static var lastTab: CraftCategory = .craftable
@@ -145,6 +163,14 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     var pool: [ItemID: Int] = [:]
     var holdA: Double = 0, repeatT: Double = 0  // A held on a tile: repeat crafting
     var lastCraftMessage = ""
+    var query = ""                             // search: every recipe whose result matches, whatever the tab
+    var searching = false
+    override var capturesText: Bool { searching }
+    override func typed(_ s: String) {
+        searching = ItemSearch.type(s, into: &query)
+        page = 0
+        refresh()
+    }
 
     // Every recipe that fits this grid, one per result item, grouped by category (cached per grid size).
     static var byCategory: [Int: [CraftCategory: [Int]]] = [:]
@@ -177,6 +203,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             b.w = 20; b.h = 20
             slots.append(b)
         }
+        let sb = MenuSlot(112, 38, nil, 0, .button(CraftingBookMenu.searchBtn)); sb.w = 72; sb.h = 12
+        slots.append(sb)
         for (id, x, w) in [(CraftingBookMenu.prevPage, 8, 22), (CraftingBookMenu.filterBtn, 64, 64), (CraftingBookMenu.nextPage, 162, 22)] {
             let b = MenuSlot(x, 164, nil, 0, .button(id)); b.w = w; b.h = 12
             slots.append(b)
@@ -189,9 +217,12 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let b = MenuSlot(x, 207, nil, 0, .button(id)); b.w = w; b.h = 16
             slots.append(b)
         }
-        // The manual grid (a table's 3x3, or the inventory with its 2x2 grid and armour).
-        let gb = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); gb.w = 140; gb.h = 16
-        slots.append(gb)
+        // No manual grid any more (Remington, 2026-10-06: recipe-book crafting only). From the inventory's 2x2 book the
+        // button goes back to the inventory (armour, off hand); a table's book has none.
+        if size == 2 {
+            let gb = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); gb.w = 140; gb.h = 16
+            slots.append(gb)
+        }
         addPlayerInventory(y: 189, x: 8)
         refresh()
     }
@@ -201,7 +232,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     func refresh() {
         pool = CraftBook.pool(game)
         let cat = CraftingBookMenu.catalogue(size)
-        if tab == .craftable {
+        if !query.isEmpty {
+            list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter { ItemSearch.matches(Recipes.all[$0].result.item, query) }
+        } else if tab == .craftable {
             list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter { RecipeBook.craftable(Recipes.all[$0], pool) }
         } else {
             let all = cat[tab] ?? []
@@ -220,6 +253,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     func switchTab(_ d: Int) {
         let n = CraftCategory.allCases.count
         tab = CraftCategory(rawValue: (tab.rawValue + d + n) % n) ?? .craftable
+        query = ""; searching = false
         CraftingBookMenu.lastTab = tab
         page = 0
         refresh()
@@ -267,6 +301,10 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             page = 0; refresh(); game.sfx(.click, 0.4)
         case CraftingBookMenu.prevPage: flip(-1)
         case CraftingBookMenu.nextPage: flip(1)
+        case CraftingBookMenu.searchBtn:
+            searching.toggle()
+            if !searching { query = ""; page = 0; refresh() }
+            game.sfx(.click, 0.4)
         case CraftingBookMenu.filterBtn:
             CraftingBookMenu.showAll.toggle(); page = 0; refresh(); game.sfx(.click, 0.4)
         case CraftingBookMenu.craft1, CraftingBookMenu.craftStack, CraftingBookMenu.craftMax, CraftingBookMenu.craftAmount:
@@ -280,7 +318,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             amount = a[max(0, min(a.count - 1, k + (id == CraftingBookMenu.amountUp ? 1 : -1)))]
             game.sfx(.click, 0.3)
         case CraftingBookMenu.gridBtn:
-            game.switchMenu(to: size == 3 ? CraftingTableMenu(game: game) : InventoryMenu(game: game))
+            if size == 2 { game.switchMenu(to: InventoryMenu(game: game)) }
         default: break
         }
     }
@@ -345,7 +383,13 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             if on { box(sl.x, sl.y + sl.h - 2, sl.w, 2, focus) }
             if Items.has(t.icon) { icon(ItemStack(Items.id(t.icon), 1), sl.x + 2, sl.y + 2) }
         }
-        label("\(tab.name)  -  page \(page + 1)/\(pages)", 8, 40, ink, maxW: 180)
+        label(query.isEmpty ? "\(tab.name)  -  \(page + 1)/\(pages)" : "\(list.count) found  -  \(page + 1)/\(pages)", 8, 40, ink, maxW: 102)
+        // Search field: click to type (the Quest's keyboard / the pad keyboard opens), click again to clear.
+        if let sb = slots.first(where: { if case .button(let id) = $0.kind { return id == CraftingBookMenu.searchBtn } else { return false } }) {
+            box(sb.x, sb.y, sb.w, sb.h, hover === sb ? focus : (searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
+            let caret = searching && Int(game.clock * 2) % 2 == 0 ? "_" : ""
+            label(query.isEmpty && !searching ? "Search..." : query + caret, sb.x + 3, sb.y + 2, query.isEmpty && !searching ? V4(0.85, 0.85, 0.85, 1) : V4(1, 1, 0.7, 1), maxW: sb.w - 6)
+        }
         // Recipe tiles: craftable bright with a green rim, the rest dimmed.
         for k in 0..<CraftingBookMenu.perPage {
             let sl = slots[CraftCategory.allCases.count + k]
@@ -361,7 +405,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }
         }
         if list.isEmpty {
-            label(tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here", 14, 100, ink, maxW: 170)
+            label(!query.isEmpty ? "No recipe matches \"\(query)\"" : (tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here"), 14, 100, ink, maxW: 170)
         }
         // Page and filter buttons.
         for sl in slots {
@@ -430,7 +474,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             case CraftingBookMenu.amountDown: t = "-"
             case CraftingBookMenu.amountUp: t = "+"
             case CraftingBookMenu.craftAmount: t = "Craft \(amount)x"
-            default: t = size == 3 ? "Manual grid" : "Inventory & 2x2 grid"
+            default: t = "Back to inventory"
             }
             label(t, sl.x + (sl.w - Font.width(t)) / 2, sl.y + 4)
         }

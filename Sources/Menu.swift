@@ -345,7 +345,19 @@ final class InventoryMenu: Menu, HasRecipeBook {
     let craft = CraftingGrid(2)
     let book = RecipeBook(size: 2)
     var craftGrid: ItemContainer { craft.grid }
+    static let searchBtn = 480          // outside the recipe book's 490..<600 range (it rebuilds those)
+    var query = ""                     // search: matching slots light up, the rest dim (Renderer)
+    var searching = false
+    override var capturesText: Bool { searching }
+    override func typed(_ s: String) { searching = ItemSearch.type(s, into: &query) }
+    func matches(_ st: ItemStack) -> Bool { !st.isEmpty && ItemSearch.matches(st.item, query) }
     override func buttonPressed(_ i: Int) {
+        if i == InventoryMenu.searchBtn {
+            searching.toggle()
+            if !searching { query = "" }
+            game.sfx(.click, 0.4)
+            return
+        }
         // The book button opens the 2x2 crafting book (CraftingBook.swift), the same screen as a table's.
         if i == 490 { game.switchMenu(to: CraftingBookMenu(game: game, size: 2)); return }
         _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() }
@@ -354,8 +366,9 @@ final class InventoryMenu: Menu, HasRecipeBook {
         super.init("", game: game)
         for i in 0..<4 { slots.append(MenuSlot(8, 8 + i * 18, game.inventory.armor, i, .armor(ArmorSlot(rawValue: i)!))) }
         slots.append(MenuSlot(77, 62, game.inventory.offhand, 0))
-        for r in 0..<2 { for c in 0..<2 { slots.append(MenuSlot(98 + c * 18, 18 + r * 18, craft.grid, c + r * 2)) } }
-        slots.append(MenuSlot(154, 28, craft.result, 0, .result))
+        // No 2x2 grid (recipe-book crafting only): the Craft button opens the crafting book.
+        let sb = MenuSlot(97, 62, nil, 0, .button(InventoryMenu.searchBtn)); sb.w = 72; sb.h = 14
+        slots.append(sb)
         addPlayerInventory()
         showInventoryLabel = false
         // Only the book button: crafting by recipe is the crafting book's job (LB/RB or the button open it).

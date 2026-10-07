@@ -123,7 +123,13 @@ extension Game {
         // Saddles and chests.
         let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
-            m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
+            m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6)
+            onToast?("Saddled: you can steer it now"); return true
+        }
+        // A saddle on a wild horse: say how to tame it (then mount, below, or nothing when already riding it).
+        if key == "saddle" && m.horseLike && rideable.contains(m.kind) && !m.saddled && !m.tamed && !m.baby {
+            onToast?(riding === m ? "Not tamed yet: keep riding until hearts appear" : "Tame it first: ride it until hearts appear, then use the saddle")
+            if riding === m { return true }
         }
         // Horse armour (leather/iron/gold/diamond) and wolf armour.
         // armorTier: 1 leather, 2 iron, 3 gold, 4 diamond, 6 copper, 7 duskium (5 is wolf armour).

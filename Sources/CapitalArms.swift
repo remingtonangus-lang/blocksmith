@@ -29,7 +29,42 @@ enum CapitalArms {
         Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
     }
 
-    static let models: [GunModel] = (0..<7).map { model($0) }
+    static let models: [GunModel] = (0..<7).map { i in
+        var g = model(i)
+        g.parts += details(i)                    // appended after the magazine parts: their indices stay put
+        return g
+    }
+
+    // Small fittings that read up close (Quest: the gun is held at real size): triggers, rail notches, scope turrets,
+    // barrel vents, slide serrations, muzzle devices.
+    static func details(_ i: Int) -> [Part] {
+        var p: [Part] = []
+        if i != Guns.launcher { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade
+        switch i {
+        case Guns.rifle:
+            for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
+            p.append(b(-0.2, -0.55, -13.2, 0.4, 0.5, 0.5, silver, pMetal))                               // sling loop
+        case Guns.smg:
+            p.append(b(-0.55, 0.75, -13.1, 1.1, 0.9, 1.2, graphite, pMetal))                              // flash hider
+            p.append(b(-0.65, 0.5, -10.4, 1.3, 0.25, 3.0, grey, pMetal))                                   // shroud slots
+        case Guns.shotgun:
+            for k in 0..<4 { p.append(b(-0.4, 2.4, -16.5 + Float(k) * 2.6, 0.8, 0.18, 1.1, grey, pMetal)) } // rib vents
+        case Guns.sniper:
+            p.append(b(-0.35, 4.8, -4.4, 0.7, 0.55, 0.9, silver, pMetal))                                 // elevation turret
+            p.append(b(0.8, 3.65, -4.4, 0.55, 0.7, 0.9, silver, pMetal))                                  // windage turret
+        case Guns.launcher:
+            p.append(b(-0.9, 3.8, -12, 1.8, 1.2, 0.3, graphite, pMetal))                                  // front sight
+            p.append(b(-0.7, 3.8, 4, 1.4, 0.9, 0.3, graphite, pMetal))                                    // rear sight
+        case Guns.arc:
+            p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
+        default:
+            for k in 0..<3 {                                                                              // slide serrations
+                p.append(b(0.7, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
+                p.append(b(-0.76, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
+            }
+        }
+        return p
+    }
 
     // Pistol grip raked back: two stacked boxes (parts carry no rotation of their own).
     static func grip(_ x: Float, _ w: Float, top: Float, _ c: V3) -> [Part] {
