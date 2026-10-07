@@ -20,9 +20,9 @@ final class CommandMenu: Menu {
             b.w = 63; b.h = 16
             slots.append(b)
         }
-        for k in 0..<4 {
-            let b = MenuSlot(8 + k * 66, 31, nil, 0, .button(CommandMenu.suggestBase + k))
-            b.w = 64; b.h = 12
+        for k in 0..<3 {                       // three chips wide enough for names like pillager_outpost
+            let b = MenuSlot(8 + k * 88, 31, nil, 0, .button(CommandMenu.suggestBase + k))
+            b.w = 86; b.h = 12
             slots.append(b)
         }
     }
@@ -77,7 +77,7 @@ final class CommandMenu: Menu {
         if words.count == 1 {
             let pool = first.isEmpty ? Game.shortcutNames.map { "/" + $0 } : (Game.commandNames + Game.shortcutNames).map { "/" + $0 }
             let w = first.lowercased()
-            return Array(pool.filter { $0.hasPrefix(w) && $0 != w }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(4))
+            return Array(pool.filter { $0.hasPrefix(w) && $0 != w }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(3))
         }
         let pool: [(key: String, name: String)]
         switch first.lowercased() {
@@ -96,7 +96,7 @@ final class CommandMenu: Menu {
         if hits.count < 4 { hits += pool.filter { $0.key.contains(typed) && !$0.key.hasPrefix(typed) }.map { $0.key } }
         if hits.count == 1 && hits[0] == typed { return [] }
         var seen = Set<String>()
-        return Array(hits.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(4))
+        return Array(hits.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }.prefix(3))
     }
 
     // Tab / a suggestion button: take a suggestion (the first by default).

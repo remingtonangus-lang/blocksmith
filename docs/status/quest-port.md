@@ -363,7 +363,7 @@ flying, swimming and ladders use only it. `--questbugs` proves a randomly waving
 - [x] d guns: more model detail, held guns 2.4x on Quest
 - [x] 11 nights: renderers light the world with `Game.renderDaylight` (floor 0.26 instead of 0.12, still moon-blue);
       Fancy night ambient raised; gameplay daylight (spawning, sleep, sensors) unchanged
-- [x] 13 saddle: use a saddle while riding a tamed horse saddles it; on a wild horse a toast says how to tame it
+- [x] 13 saddle: craftable (3 leather over leather-iron-leather; there was no recipe), found by search; use it while riding a tamed horse saddles it; on a wild horse a toast says how to tame it
 - [x] 14 bed remodel (frame, headboard, footboard, quilted mattress, pillow; turned per facing) + furnace retexture
       (stone blocks, riveted iron band, arched mouth, iron top plate with flue; dispensers keep the old stone)
 - [x] 16 Quest held tools ~1.4x bigger again
