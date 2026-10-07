@@ -104,7 +104,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     }
                 }
             }
-            if let (sx, sz) = shore {
+            if let sh = shore {
+                let (sx, sz) = sh
                 let saved = (game.player.pos, game.player.flying, game.time)
                 // Face the deep water from the shore point.
                 var best: (Float, Float) = (0, 1), bestH = Int.max

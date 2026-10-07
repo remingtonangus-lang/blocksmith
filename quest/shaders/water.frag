@@ -96,7 +96,8 @@ void main() {
     r.y = abs(r.y);                                                        // ripples can tip it under the horizon
     vec3 refl = skyAlong(r) * mix(0.25, 1.0, skyVis);
     // The water's own colour (tint, lit like the surface): what fills the view where the bed can't be seen.
-    vec3 deep = oTint * (lit * 0.34 + 0.015) * (0.85 + 0.3 * texL);
+    // Tuned to the Mac's Fancy ocean seen ~40 degrees down at noon (seed 12345 --find ocean: about 35, 61, 93).
+    vec3 deep = (oTint * 0.38 + vec3(0.03, 0.05, 0.04)) * (lit + 0.04) * (0.85 + 0.3 * texL);
     vec3 pm;        // premultiplied colour
     float A;        // coverage: how much of the bed behind is replaced
     if (top) {

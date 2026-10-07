@@ -371,3 +371,41 @@ flying, swimming and ladders use only it. `--questbugs` proves a randomly waving
 - [x] 18 sea state from the weather (`Weather.sea`/`swell`): Quest swell 0.6x calm .. 5x thunderstorm (uniform
       `waves.x`), boats ride it; boats wear while sailed (~100 min per point calm, ~3 min rain, ~30 s storm) with
       warnings. The Mac's water stays flat (no swell there).
+
+## Task 22 (2026-10-07): Remington's v63 bug round 2 (11 items + water port)
+
+Causes found (fixed unless noted):
+- Sprint: the only Quest path was the pad's auto-sprint (stick y > 0.95 after the dead-zone curve, held 0.35 s); the
+  Touch stick's round gate rarely gives that, and a latched sneak (stick click) blocked it. QuestControls now starts it
+  at >0.8 deflection within ~40 deg of forward after 0.1 s (game L3 edge), clears a latched sneak, ticks the left hand,
+  and toasts the first time.
+- Horses: speeds already varied (4.8-14.5 b/s, uniform) but unridden horses all wandered at the same spec speed. Now
+  4.8-16 b/s, and wander/bolt speed scales with the stat (fast horses visibly move faster); ridden steering uses the
+  head yaw (Player.moveYaw), not the aiming hand.
+- Cave light -> dark -> light: eye adaptation was the eye block's skylight at 4 %/frame against a narrow 12-6 ramp, and
+  the cave fill stopped at vertex skylight 5, leaving cave-mouth walls (skylight 5-10) darker than both outside and the
+  filled inside. Now: eye + 4 open neighbours, ~0.7 s real-time ease, ramp 13.5-4.5, fill fades out by skylight 10.
+- Mobs dark in caves: the Quest never set MobLight.fill / nightVision (the Mac Renderer does): mobs kept a 0.21 fill
+  against ~0.57 cave walls. WorldRenderer sets them per frame (same fill and eye darkness as chunk.vert).
+- Trigger damage: hits landed at the cooldown's charge (0.2 + 0.8 c^2); Quest players click every ~0.3 s, so an iron
+  sword did ~2.5. Game.bufferAttacks (Quest): a click before the cooldown waits for it (0.7 s) and lands full strength.
+  questbugs: a click every 0.25 s kills a 20 HP husk in 4 iron-sword hits.
+- Swing Mode is physical: the drawn blade (fist for bare hands) must enter a mob box or a block (swept segment, so
+  passing near does nothing) at >= 2.2 m/s tip speed; power = tip speed / 4.5 (0.5-1.5x); one hit per swing; the
+  swing hits what it touched (Game.swingBlock / swingMob), not the laser target. QuestSim: an air swing with the laser
+  on a block does nothing, a punch into it breaks it.
+- Held tools with Swing Mode off: no code path hides them (drawHeld ignores Swing Mode). QuestSim now renders an iron
+  sword held up with Swing Mode off (vrsim_held.png) to check on CI; not reproduced.
+- Water (the pretty Mac water had never been ported): water.frag is now a port of the Fancy waterVibFS without scene
+  copies: Schlick Fresnel to a sky-dome reflection, ripple + swell normals, sun glint, depth absorption from the
+  mesher's per-corner water depth (Mesher.waterDepthAO, Quest only: AO bits of water faces), shore foam, rain rings,
+  tumbling side faces, the surface from below. Swell: 11/7/4.5 m waves, 14 cm crest x Weather.swell (calm 0.6, storm
+  5; it was 20-40 m long and ~4 cm: invisible), damped on shores. Edge see-through: the translucent pass culls back
+  faces above water (inner side faces blended over the surface). questcheck renders a shore view (stereo_water.png).
+- Water on lava: worldgen never ticked lava touching water; WorldGen.hardenLava turns it to obsidian / cobblestone.
+  Water not flowing: saved chunks scheduled no fluid ticks, and surface water beside air was skipped; World.springs
+  now covers saved chunks, flowing cells and the surface band; pistons schedule fluids.
+- Villagers did go to bed but stood beside it (no lying pose): Mob.lying draws them on their back on the mattress.
+- Bed heads dropped nothing (the head half has no item) while removing the foot: either half drops the bed now.
+- Saddles: MountMenu (inventory while riding, or sneak-use a tamed mount): saddle, horse armour, chested pack; saddles
+  and horse armour drop when the mount dies.
