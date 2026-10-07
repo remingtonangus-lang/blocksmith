@@ -2411,9 +2411,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             let hungerTint: V4 = game.effects.has(.hunger) ? V4(0.6, 0.8, 0.4, 1) : V4(1, 1, 1, 1)
-            for i in 0..<10 {
-                let f = game.hunger - i * 2
-                heartSprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh, hungerTint)
+            if let mount = game.riding, mount.health > 0, mount.kind.spec.behavior != .vehicle, mount.kind != .boat {
+                // Riding an animal: its hearts replace the hunger row (rows of 10 upward), as in the reference.
+                let slots = (max(mount.kind.spec.health, mount.health) + 1) / 2
+                for i in 0..<slots {
+                    let h = mount.health - i * 2
+                    heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x0 + total - isz - Float(i % 10) * step, yh - Float(i / 10) * rowStep, V4(1, 1, 1, 1))
+                }
+            } else {
+                for i in 0..<10 {
+                    let f = game.hunger - i * 2
+                    heartSprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh, hungerTint)
+                }
             }
             let armorY = yh - Float(rows - 1) * rowStep - step - s
             let ap = game.inventory.armorPoints
@@ -2510,6 +2519,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(first.1 ? "Challenge Complete!" : "Advancement Made!", x + 8 * s, y + 6 * s, s, first.1 ? V4(0.9, 0.5, 1, 1) : V4(1, 1, 0.33, 1))
                 text(first.0, x + 8 * s, y + 18 * s, s)
             }
+        }
+        // Sprinting: a small tag left of the hotbar (VR has no FOV kick, so the speed change alone was easy to miss).
+        if game.player.sprinting && !game.player.flying && game.menu == nil {
+            let tw = textWidth(">> SPRINT", s), tx = L.hotbarX0 - tw - 36 * s, ty = L.hotbarY0 + 6 * s
+            rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0, 0, 0, 0.45))
+            text(">> SPRINT", tx, ty, s, V4(0.55, 0.95, 1, 1))
         }
         // Toast (item names, messages) above the hotbar, fading out.
         let since = game.clock - game.toastTime

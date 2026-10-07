@@ -32,26 +32,26 @@ struct GunSpec {
 
 enum Guns {
     static let all: [GunSpec] = [
-        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "rifle_rounds", mag: 30, interval: 0.12, auto: true, damage: 5, pellets: 1,
+        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "rifle_rounds", mag: 45, interval: 0.12, auto: true, damage: 5, pellets: 1,
                 spread: 0.022, aimSpread: 0.005, speed: 160, recoil: 0.013, reload: 2.0, range: 110, durability: 1200, zoom: 0.78,
                 shot: .bullet, sound: 0, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "rifle_rounds", mag: 40, interval: 0.07, auto: true, damage: 3, pellets: 1,
+        GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "rifle_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
                 spread: 0.045, aimSpread: 0.026, speed: 130, recoil: 0.009, reload: 1.6, range: 70, durability: 1500, zoom: 0.9,
                 shot: .bullet, sound: 1, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 6, interval: 0.85, auto: false, damage: 3, pellets: 9,
+        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 3, pellets: 9,
                 spread: 0.09, aimSpread: 0.07, speed: 110, recoil: 0.07, reload: 2.6, range: 40, durability: 500, zoom: 0.9,
                 shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 5, interval: 1.3, auto: false, damage: 24, pellets: 1,
+        GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 8, interval: 1.3, auto: false, damage: 24, pellets: 1,
                 spread: 0.06, aimSpread: 0.0006, speed: 320, recoil: 0.09, reload: 2.8, range: 260, durability: 400, zoom: 0.22,
                 shot: .bullet, sound: 3, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_launcher", name: "Skybreaker Launcher", ammo: "rocket_ammo", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
+        GunSpec(key: "gun_launcher", name: "Skybreaker Launcher", ammo: "rocket_ammo", mag: 2, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.02, aimSpread: 0.008, speed: 34, recoil: 0.12, reload: 2.6, range: 160, durability: 150, zoom: 0.85,
                 shot: .rocket, sound: 4, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_arc", name: "Arc Lance", ammo: "arc_cell", mag: 8, interval: 0.9, auto: false, damage: 14, pellets: 1,
+        GunSpec(key: "gun_arc", name: "Arc Lance", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 14, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
-        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 12, interval: 0.22, auto: false, damage: 4, pellets: 1,
+        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
     ]

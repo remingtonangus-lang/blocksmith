@@ -288,6 +288,7 @@ final class Mob {
     var fire: Float = 0             // seconds left burning
     var fireTick: Float = 0
     var aggro = false               // voidwalker / spider provoked
+    var stare: Float = 0            // voidwalker: s the player has looked it in the face (1.5 s provokes it)
     var inLove: Float = 0
     var breedCooldown: Float = 0
     var age: Float = 0              // babies grow up at 1200 s
@@ -861,7 +862,9 @@ final class Mob {
                 let rel = head - g.player.eye
                 let rd = max(0.1, simd_length(rel))
                 // Reference isLookingAtMe: dot > 1 - 0.025 / distance (about 4 degrees at 10 blocks; it was a fixed 8).
-                if simd_dot(g.player.look, rel / rd) > 1 - 0.025 / rd && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
+                // A steady look for 1.5 s provokes it, not a glance (Remington, Quest round 3); looking away drains it.
+                if simd_dot(g.player.look, rel / rd) > 1 - 0.025 / rd && w.canSee(g.player.eye, head) { stare += dt } else { stare = max(0, stare - dt * 2) }
+                if stare >= 1.5 { aggro = true; stare = 0; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
             voidwalkerTick(dt, g)
@@ -2182,9 +2185,9 @@ final class MobManager {
     }
 
     // Nearest mob along a ray.
-    func raycast(_ o: V3, _ d: V3, maxDist: Float) -> (Mob, Float)? {
+    func raycast(_ o: V3, _ d: V3, maxDist: Float, except: Mob? = nil) -> (Mob, Float)? {
         var best: (Mob, Float)?
-        for m in mobs {
+        for m in mobs where m !== except {
             if let t = m.rayHit(o, d, maxDist: maxDist), t < (best?.1 ?? .greatestFiniteMagnitude) { best = (m, t) }
         }
         return best
