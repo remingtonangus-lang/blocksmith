@@ -463,8 +463,10 @@ final class WorldGen: TerrainGenerator {
         mark(2)
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
-        carveCaves(&b, caves, bx, bz, tops, wls, cols)
-        carveRavines(&b, bx, bz, tops, wls)
+        var aquifer: [Int32] = []
+        carveCaves(&b, caves, bx, bz, tops, wls, cols, &aquifer)
+        carveRavines(&b, bx, bz, tops, wls, &aquifer)
+        drainAquifers(&b, aquifer)
         supportFalling(&b, tops)
 
         mark(3)
@@ -693,7 +695,8 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Caves
 
-    private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cols: [Terrain.Column]) {
+    private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cols: [Terrain.Column],
+                            _ aquifer: inout [Int32]) {
         let lavaLevel = YOFF - 55
         for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
@@ -723,19 +726,37 @@ final class WorldGen: TerrainGenerator {
                 // Never open the sea floor: keep a shell under water.
                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
                 if y <= lavaLevel { b[i] = LAVA; continue }
-                // Aquifers: some 16-block cells below sea level hold water up to a local level. Where a flooded
-                // cell meets a dry one the dry side keeps a rock barrier, and water never sits over open cave air
-                // (gencheck "leak": cave water stood as vertical walls at cell edges, about 65 per chunk).
-                if aquiferWet(wx, y, wz) {
-                    if b[i - CSQ] == AIR { continue }
-                    b[i] = WATER; continue
-                }
-                let ex = wx & 15, ez = wz & 15
-                if (ex == 0 && aquiferWet(wx - 1, y, wz)) || (ex == 15 && aquiferWet(wx + 1, y, wz)) { continue }
-                if (ez == 0 && aquiferWet(wx, y, wz - 1)) || (ez == 15 && aquiferWet(wx, y, wz + 1)) { continue }
+                // Aquifers: some 16-block cells below sea level hold water up to a local level; drainAquifers then
+                // lets out whatever isn't held in a basin.
+                if aquiferWet(wx, y, wz) { b[i] = WATER; aquifer.append(Int32(i)); continue }
                 b[i] = AIR
             }
         } }
+    }
+
+    // Aquifer water stays only where it is held: a cell with open air beside or below it (or the chunk edge, whose
+    // far side isn't known here) drains to air, and so does everything that leaned on it. What is left are pools in
+    // real basins: no flat 16-block water slabs cut off by rock plugs at chunk edges, no stone plates left under the
+    // water, nothing hanging or spilling when the chunk loads (Quest round 3: ugly cave pools).
+    private func drainAquifers(_ b: inout [BlockID], _ cells: [Int32]) {
+        if cells.isEmpty { return }
+        var wet = [Bool](repeating: false, count: b.count)
+        for c in cells where b[Int(c)] == WATER { wet[Int(c)] = true }
+        func open(_ j: Int) -> Bool { b[j] == AIR }
+        func exposed(_ i: Int) -> Bool {
+            let x = i & 15, z = (i >> 4) & 15
+            if x == 0 || x == 15 || z == 0 || z == 15 { return true }
+            return open(i - 1) || open(i + 1) || open(i - CS) || open(i + CS) || (i >= CSQ && open(i - CSQ))
+        }
+        var stack = cells.map { Int($0) }.filter { wet[$0] && exposed($0) }
+        while let i = stack.popLast() {
+            guard wet[i] else { continue }
+            wet[i] = false
+            b[i] = AIR
+            let x = i & 15, z = (i >> 4) & 15
+            for j in [x > 0 ? i - 1 : -1, x < 15 ? i + 1 : -1, z > 0 ? i - CS : -1, z < 15 ? i + CS : -1, i + CSQ < b.count ? i + CSQ : -1]
+            where j >= 0 && wet[j] { stack.append(j) }
+        }
     }
 
     @inline(__always) func aquiferWet(_ wx: Int, _ y: Int, _ wz: Int) -> Bool {
@@ -747,7 +768,7 @@ final class WorldGen: TerrainGenerator {
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
     // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
-    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int]) {
+    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ aquifer: inout [Int32]) {
         let rsz = 112
         let lavaLevel = YOFF - 55
         for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
@@ -789,16 +810,8 @@ final class WorldGen: TerrainGenerator {
                                 if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
                                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
                                 if y <= lavaLevel { b[i] = LAVA; continue }
-                                // Aquifers, as in the cave carver: a ravine through a flooded cell fills with its water
-                                // (never over open air), and next to a flooded cell across a chunk edge it keeps a rock
-                                // barrier (it cut straight up to the water: gencheck leaks "underground border").
-                                if aquiferWet(x, y, z) {
-                                    if b[i - CSQ] == AIR { continue }
-                                    b[i] = WATER; continue
-                                }
-                                let ex = x & 15, ez = z & 15
-                                if (ex == 0 && aquiferWet(x - 1, y, z)) || (ex == 15 && aquiferWet(x + 1, y, z)) { continue }
-                                if (ez == 0 && aquiferWet(x, y, z - 1)) || (ez == 15 && aquiferWet(x, y, z + 1)) { continue }
+                                // Aquifers, as in the cave carver (drainAquifers keeps only basins).
+                                if aquiferWet(x, y, z) { b[i] = WATER; aquifer.append(Int32(i)); continue }
                                 b[i] = AIR
                             }
                         }

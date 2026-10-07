@@ -274,7 +274,19 @@ extension MobManager {
         guard top > 2 else { return }
         // Structure spawns (reference overrides): marauders at watchtowers in any light, spikefish around sea temples.
         if let sc = w.gen.structures, trySpawnInStructure(sc, game, x0, z0, top) { return }
-        guard let y = floorBelow(w, x0, Rand.int(in: 2...(top + 1)), z0, minY: 1) else { return }
+        // Half the attempts try the surface; the rest an exact random height that only counts when it is already an
+        // open spot (cave air). Walking down from any random y turned every sample inside rock into a cave-floor spawn,
+        // so caves got most of the mobs and the surface few (Quest round 3).
+        let y: Int
+        if Rand.int(in: 0..<2) == 0 {
+            guard let ys = floorBelow(w, x0, top + 1, z0, minY: max(1, top - 8)) else { return }
+            y = ys
+        } else {
+            let yr = Rand.int(in: 2...(top + 1))
+            guard Blocks.opaque[Int(w.block(x0, yr - 1, z0))] && !Blocks.collide[Int(w.block(x0, yr, z0))]
+                    && !Blocks.collide[Int(w.block(x0, yr + 1, z0))] else { return }
+            y = yr
+        }
         if w.block(x0, y - 1, z0) == BEDROCK { return }
         var spawned = 0
         for _ in 0..<3 {
