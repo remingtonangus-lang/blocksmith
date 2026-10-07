@@ -409,3 +409,29 @@ Causes found (fixed unless noted):
 - Bed heads dropped nothing (the head half has no item) while removing the foot: either half drops the bed now.
 - Saddles: MountMenu (inventory while riding, or sneak-use a tamed mount): saddle, horse armour, chested pack; saddles
   and horse armour drop when the mount dies.
+
+## Task 23 (2026-10-07): Remington's round 3 bug list (10 items; features queued in docs/requests/round3-features-after-reset.md)
+
+Causes found (fixed unless noted):
+- Sprint (third report): a Touch stick shoved forward also *clicks*; that click was sneak (held = sneaking), and
+  sneaking blocks sprinting. A stick click that starts with the stick pushed out (> 0.45) is now a sprint, only a
+  centred click sneaks; the push zone is wider (> 0.7 within ~45 deg). A ">> SPRINT" tag shows left of the hotbar
+  while sprinting, "Too hungry to sprint" toasts in survival at hunger <= 6. QuestSim 1b checks a push and a pushed
+  click both sprint (> 4 blocks in 1 s, not sneaking). Never had a device-path test before.
+- Capital friendly fire: Capital shells (bases.quiet) broke citadel blocks and hurt Capital troops; Explosion now
+  spares both inside a citadel. Capital ships never pick or keep a target inside a citadel (they'd shell their own
+  walls), so a stationed frigate no longer harasses a player raiding its base. Frigate wrecks don't crater a base.
+- Manned heavy gun: the gunner stood 1.3 m behind the turret centre at deck height: inside the 5.5 m gunhouse model.
+  Now on the roof ahead of the cupola (eye ~7 m up, over the barrels); leaving puts him behind the rear overhang.
+- Magazines: rifle 45, SMG 60, shotgun 10, sniper 8, launcher 2, arc 12, sidearm 18.
+- Spawning: the hostile spawner walked down from a random y to the first floor, so every sample inside rock became a
+  cave spawn. Now half the attempts take the surface, the rest an exact random y that must already be open.
+- Cave pools: aquifer cells filled flat 16-block slabs with rock plugs at chunk edges and stone plates under them.
+  Now carved wet cells fill, then drainAquifers lets out any water touching air beside/below (or the chunk edge):
+  only basin pools remain. gencheck (3 seeds, 288 chunks): no underground water leaks.
+- Horses: the attack ray skips the mount you ride (raycast except:); mount hearts replace the hunger row (survival).
+- Held tools vanishing: not reproduced; likely the 8 MB scratch ring filling on busy frames (drawHeld draws last
+  and silently returns when < 96 verts fit) or an aim-pose tracking blip. Now 12 MB with a 1 MB tail only hands and
+  the held item may use (overflow logged once), and drawHeld keeps the last tracked aim pose.
+- Blurry tools: entity.frag samples texel-exact from mip 0 within 4 m of the eye (min filter + mip blend smeared it).
+- Voidwalkers: 1.5 s of steady stare (drains 2x when looking away), not a glance.
