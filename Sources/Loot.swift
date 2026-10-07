@@ -111,6 +111,9 @@ enum Mining {
         let base = Blocks.groupBase[Int(b)]
         let gkey = Blocks.key(base), stage = Int(b - base)
         func binom(_ n: Int, _ p: Float) -> Int { (0..<n).reduce(0) { a, _ in a + (Rand.float(in: 0..<1) < p ? 1 : 0) } }
+        // Either half of a bed drops the bed (the head has no item of its own: breaking a village bed by its pillow end
+        // removed both halves and dropped nothing, Quest v63).
+        if gkey.hasSuffix("_bed_head") { return one(String(gkey.dropLast(5))) }
         switch gkey {
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")

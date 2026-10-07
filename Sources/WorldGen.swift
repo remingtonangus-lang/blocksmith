@@ -487,8 +487,31 @@ final class WorldGen: TerrainGenerator {
         mark(5)
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
         freeze(&b, bx, bz, biomes, cols, tops)
+        hardenLava(&b)
         mark(6)
         return b
+    }
+
+    // Lava the generator left touching water (an aquifer or sea over a lava pocket, a river or ravine cutting a lava
+    // lake) hardens as the fluid tick would have made it: sources to obsidian, flowing lava to cobblestone. Nothing
+    // ticked it at generation, so water sat on open lava (Quest v63 report). Within the chunk; the runtime tick
+    // handles contact made later.
+    func hardenLava(_ b: inout [BlockID]) {
+        let fk = Blocks.fluidKind, lv = Blocks.fluidLevel
+        b.withUnsafeMutableBufferPointer { p in
+            for y in 0..<CH {
+                for z in 0..<CS {
+                    for x in 0..<CS {
+                        let i = Chunk.index(x, y, z)
+                        guard fk[Int(p[i])] == 2 else { continue }
+                        let wet = (y + 1 < CH && fk[Int(p[i + CSQ])] == 1) || (y > 0 && fk[Int(p[i - CSQ])] == 1)
+                            || (x > 0 && fk[Int(p[i - 1])] == 1) || (x < CS - 1 && fk[Int(p[i + 1])] == 1)
+                            || (z > 0 && fk[Int(p[i - CS])] == 1) || (z < CS - 1 && fk[Int(p[i + CS])] == 1)
+                        if wet { p[i] = lv[Int(p[i])] == 0 ? OBSIDIAN : COBBLE }
+                    }
+                }
+            }
+        }
     }
 
     // Single blocks the cave and ravine carvers left hanging with air on all six sides (gencheck floating_block: lone

@@ -21,7 +21,7 @@ struct Weather: Codable {
     // Sea state (Remington, v61): 0 calm, rain ~0.4, a thunderstorm 1 (fades with the weather). Scales the ocean
     // swell and how fast boats wear out.
     var sea: Float { min(1, 0.4 * rain + 0.6 * thunder) }
-    // Swell height multiplier: calm seas 0.6x the old ~6 cm swell, storms 5x.
+    // Swell height multiplier: calm seas 0.6x the ~14 cm swell (OceanSwell), storms 5x.
     var swell: Float { 0.6 + 4.4 * sea }
 }
 
@@ -29,10 +29,12 @@ struct Weather: Codable {
 // Weather.swell. Boats ride it where it is drawn (`Game.oceanSwellDrawn`: the Quest; the Mac's water is flat).
 enum OceanSwell {
     static func height(_ x: Float, _ z: Float, _ t: Float) -> Float {
-        let a1: Float = x * 0.31 + z * 0.17 + t * 0.9
-        let a2: Float = z * 0.27 - x * 0.11 + t * 0.7
-        let a3: Float = x * 0.53 - z * 0.43 + t * 1.3
-        return sinf(a1) * 0.032 + sinf(a2) * 0.024 + sinf(a3) * 0.012
+        // ~11 m, ~7 m and ~4.5 m swells, 14 cm at the crest before the weather's scale (calm 0.6x: ~17 cm crest to
+        // trough; thunderstorm 5x). The old 20-40 m, 7 cm swell was invisible on the Quest (v63: "no waves at all").
+        let a1: Float = x * 0.50 + z * 0.27 + t * 1.8
+        let a2: Float = z * 0.82 - x * 0.36 + t * 2.3
+        let a3: Float = x * 1.08 - z * 0.88 + t * 2.9
+        return sinf(a1) * 0.07 + sinf(a2) * 0.045 + sinf(a3) * 0.025
     }
 }
 

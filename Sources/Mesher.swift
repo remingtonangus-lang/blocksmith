@@ -19,6 +19,14 @@ struct SectionMesh {
 //   w1: u(5) v(5)<<5 layer(10)<<10 ao(2)<<20 sky(4)<<22 block(4)<<26 overlay(1)<<30
 // 4 verts per quad (corners 0..3 CCW seen from outside), drawn with a shared index buffer.
 enum Mesher {
+    // Water top faces carry the water depth in their AO bits (Quest only: its water shader reads it; the Mac's water
+    // shaders shade water by AO-free rules and the Fancy path measures depth from the scene).
+    #if os(macOS)
+    static var waterDepthAO = false
+    #else
+    static var waterDepthAO = true
+    #endif
+
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
     static let dark = [UInt8](repeating: 0, count: 4096)
     static let fullSky = [UInt8](repeating: 0xF0, count: 4096)
@@ -616,6 +624,26 @@ enum Mesher {
                         if lod > 0 && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
                         if isLiquid || rt != rCube || lod > 0 {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
+                            if Mesher.waterDepthAO && fk == 1 && f != 3 && liquidTop {
+                                // Quest: the water's depth at each corner of a surface cell in the AO bits (water never
+                                // uses AO; sides get it too so the swell, damped on the shore by it, keeps them joined): the
+                                // mean depth of the up-to-4 columns sharing the corner, dry ones 0. The Quest water
+                                // shader turns it into absorption (see the bed in the shallows, dark deep water) and
+                                // shoreline foam: it has no copy of the scene's depth like the Mac's Fancy water.
+                                for c in 0..<4 {
+                                    let ci = (f * 4 + c) * 3
+                                    var sum = 0
+                                    for dz in -1...0 {
+                                        for dx in -1...0 {
+                                            let cx = x + CT[ci] + dx, cz = z + CT[ci + 2] + dz
+                                            var k = 0
+                                            while k < 9 && fkT[Int(at(cx, y - k, cz))] == 1 { k += 1 }
+                                            sum += k
+                                        }
+                                    }
+                                    aos[c] = sum <= 3 ? 3 : (sum < 8 ? 2 : (sum < 20 ? 1 : 0))     // mean <= 0.75, < 2, < 5, 5+
+                                }
+                            }
                         } else {
                             for c in 0..<4 {
                                 let ci = (f * 4 + c) * 3

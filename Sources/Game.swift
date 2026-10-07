@@ -219,10 +219,15 @@ final class Game {
 
     // Mining / using
     var mining: IVec3?
+    // VR (Quest): a trigger attack pressed before the attack cooldown has recharged waits for it (up to 0.7 s) and then
+    // lands at full strength, instead of a weak 0.2-0.8x hit. Quest players click like on a pad, every ~0.3 s: an iron
+    // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
+    var bufferAttacks = false
+    var attackQueued: Float = 0
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
-    private var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
+    private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 
     // Audio (nil when headless or if the audio device can't start)
@@ -635,6 +640,8 @@ final class Game {
     }
 
     func openInventory() {
+        // Riding a horse, donkey, mule or camel: its inventory (saddle, armour, pack), as in the reference game.
+        if let r = riding, MountMenu.opens(r), r.tamed { openMenu(MountMenu(game: self, mob: r)); return }
         openMenu(survival ? InventoryMenu(game: self) : CreativeMenu(game: self))
     }
 
@@ -872,10 +879,18 @@ final class Game {
             blockSound(.itemFrameRemove, at: t.hit, 0.7)
             return
         }
+        attackQueued -= fdt
+        if mobHit == nil { attackQueued = 0 }
         if let m = mobHit {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
-            if breakNow {
+            let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
+            var attackNow = breakNow
+            if bufferAttacks {
+                if breakNow && !ready { attackQueued = 0.7; attackNow = false }
+                else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
+            }
+            if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
                 let charge = min(1, attackTimer * spd)
@@ -1586,6 +1601,9 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
+        // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
+        if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
+        if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
         // needs a baby, so behind a plain !baby it could never drop.)
         if !m.baby || m.isZombie {

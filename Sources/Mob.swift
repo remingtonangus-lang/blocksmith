@@ -323,6 +323,7 @@ final class Mob {
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
     var variant = 0                 // colour / breed variant
     var sitting = false
+    var lying = false               // a villager asleep in its bed: drawn on its back along the bed (VillageLife)
     var collar = 0
     var saddled = false
     var armorTier = 0               // horse / wolf armour
@@ -663,6 +664,7 @@ final class Mob {
         case .ravager: speed = aiRavager(dt, g, dist: dist, canTarget: canTarget)
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .animal: speed = animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
+            if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
         case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
@@ -1857,6 +1859,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
+        let lie = m.lying
         // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
         // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
         let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
@@ -1872,6 +1875,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let ci = (f * 4 + k) * 3
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     var q = p.place(lp, rot)
+                    if lie { q = V3(q.x, 4 - q.z, q.y) }          // on its back: model up runs toward the pillow
                     // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
                     // box's lower end, so legs and bellies read as shaded rather than flat-lit.
                     let t = min(1, max(0, q.y * 0.1))

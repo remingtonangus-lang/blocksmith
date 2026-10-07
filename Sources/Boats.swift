@@ -83,15 +83,22 @@ extension Game {
 
     // Chested donkeys, mules and llamas: sneak-right-click opens their packs.
     func openPack(_ m: Mob) -> Bool {
+        // A tamed mount's gear and pack (MountMenu): sneak-use it, or use it while riding.
+        if MountMenu.opens(m), m.tamed, !m.baby, input.shift || riding === m { openMenu(MountMenu(game: self, mob: m)); return true }
         guard m.chested, [MobKind.donkey, .mule, .llama, .traderLlama].contains(m.kind), input.shift || riding === m else { return false }
+        openMenu(PackMenu(game: self, container: packContainer(m), title: m.customName ?? m.kind.name))
+        return true
+    }
+
+    // A chested mount's cargo, sized for its kind (llamas 3-15 slots by strength).
+    func packContainer(_ m: Mob) -> ItemContainer {
         let slots = m.kind == .llama || m.kind == .traderLlama ? 3 * max(1, min(5, (m.variant >> 4) & 7)) : 15
         if m.cargo == nil || m.cargo!.count != slots {
             let c = ItemContainer(slots)
             if let old = m.cargo { for i in 0..<min(old.count, slots) { c[i] = old[i] } }
             m.cargo = c
         }
-        openMenu(PackMenu(game: self, container: m.cargo!, title: m.customName ?? m.kind.name))
-        return true
+        return m.cargo!
     }
 }
 
