@@ -159,6 +159,41 @@ enum QuestBugTests {
             game.bufferAttacks = false
             (game.inventory.held, p.yaw, p.pitch, game.paused, p.pos, p.flying) = save
         }
+        // Round 2 (v63): a bed's head half drops the bed; a saddled horse drops its saddle; the mount screen takes the
+        // saddle off; a villager asleep lies on its bed.
+        check(Mining.drops(Blocks.id("red_bed_head"), .empty).contains { Items.key($0.item) == "red_bed" }, "bed head drops the bed")
+        do {
+            let h = Mob(.horse, at: p.pos + V3(2, 0, 0))
+            h.owner = true; h.saddled = true; h.armorTier = 2
+            let before = game.drops.items.count
+            game.mobDied(h)
+            let got = game.drops.items[before...].map { Items.key($0.stack.item) }
+            check(got.contains("saddle") && got.contains("iron_horse_armor"), "saddled, armoured horse drops \(got.filter { $0.contains("saddle") || $0.contains("armor") })")
+            game.drops.items.removeLast(game.drops.items.count - before)
+            let h2 = Mob(.horse, at: p.pos + V3(2, 0, 0))
+            h2.owner = true; h2.saddled = true
+            let menu = MountMenu(game: game, mob: h2)
+            let saddleSlot = menu.slots[0]
+            let took = saddleSlot.stack
+            saddleSlot.stack = .empty
+            menu.onClose()
+            check(Items.key(took.item) == "saddle" && !h2.saddled, "mount screen: saddle slot held \(Items.key(took.item)), horse saddled after taking it: \(h2.saddled)")
+        }
+        do {
+            let bx = Int(floor(p.pos.x)) + 3, by = Int(floor(p.pos.y)) + 50, bz = Int(floor(p.pos.z))
+            let w = game.world
+            for x in (bx - 1)...(bx + 1) { for z in (bz - 1)...(bz + 2) { w.setBlock(x, by - 1, z, STONE); for y in by...(by + 2) { w.setBlock(x, y, z, AIR) } } }
+            w.setBlock(bx, by, bz, Blocks.id("red_bed")); w.setBlock(bx, by, bz + 1, Blocks.id("red_bed_head"))     // facing 0: head toward +z
+            let v = Mob(.villager, at: V3(Float(bx) + 1.5, Float(by), Float(bz) + 1.5))
+            var vd = VillagerData(); vd.bed = [bx, by, bz + 1]; v.villager = vd
+            let saveT = game.time
+            game.time = 0.75 * DAY_LENGTH
+            let asleep = v.villagerNight(game)
+            check(asleep && v.lying && abs(v.pos.y - (Float(by) + 0.5625)) < 0.01 && abs(v.pos.z - (Float(bz + 1) + 0.5 - 1.45)) < 0.01,
+                  String(format: "villager at night: asleep %@, lying %@ on the bed at y %.2f", asleep ? "yes" : "no", v.lying ? "yes" : "no", v.pos.y - Float(by)))
+            game.time = saveT
+            for x in (bx - 1)...(bx + 1) { for z in (bz - 1)...(bz + 2) { for y in (by - 1)...(by + 2) { w.setBlock(x, y, z, AIR) } } }
+        }
         print("questbugs: \(fails) failures")
         return fails
     }

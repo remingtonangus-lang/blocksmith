@@ -91,6 +91,38 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 game.player.pos = saved
             } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
         }
+        // The water look (water.frag: Fresnel sky, glint, swell, depth, shore foam): from a beach toward the sea, at
+        // noon; compared with the Mac's Fancy water by eye (Quest v63: the water had never been ported).
+        do {
+            let e = game.player.eye
+            var shore: (Int, Int)?
+            search: for r in stride(from: 8, through: 1600, by: 8) {
+                for dir in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
+                    let x = Int(e.x) + dir.0 * r, z = Int(e.z) + dir.1 * r
+                    if world.gen.column(x, z).height < SEA - 6 && world.gen.column(x - dir.0 * 14, z - dir.1 * 14).height >= SEA {
+                        shore = (x - dir.0 * 14, z - dir.1 * 14); break search
+                    }
+                }
+            }
+            if let (sx, sz) = shore {
+                let saved = (game.player.pos, game.player.flying, game.time)
+                // Face the deep water from the shore point.
+                var best: (Float, Float) = (0, 1), bestH = Int.max
+                for a in 0..<16 {
+                    let ang = Float(a) / 16 * 2 * .pi
+                    let h = world.gen.column(sx + Int(sinf(ang) * 16), sz + Int(cosf(ang) * 16)).height
+                    if h < bestH { bestH = h; best = (sinf(ang), cosf(ang)) }
+                }
+                game.player.pos = V3(Float(sx) + 0.5 - best.0 * 4, Float(SEA) + 3, Float(sz) + 0.5 - best.1 * 4)
+                game.player.flying = true
+                game.time = 0.22 * DAY_LENGTH
+                _ = world.loadSync(center: game.player.pos, radius: 4)
+                let wp = path.replacingOccurrences(of: ".png", with: "_water.png")
+                // RenderTest's yaw: forward = (-sin yaw, -cos yaw).
+                try RenderTest.render(game: game, ctx: ctx, path: wp, yaw: atan2f(-best.0, -best.1), pitch: -0.3)
+                (game.player.pos, game.player.flying, game.time) = saved
+            } else { print("render: no shore within 1600 blocks (water view skipped)") }
+        }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }

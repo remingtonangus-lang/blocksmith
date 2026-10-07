@@ -344,3 +344,52 @@ extension Mob {
         }
     }
 }
+
+// A mount's inventory (Quest v63: a saddle could never come off): the saddle slot, a horse's armour slot and a chested
+// mount's pack, over the player's inventory. Opened with the inventory while riding a horse-like mount, or by
+// sneak-using a tamed one. The mount's saddle and armour follow the slots when the screen closes.
+final class MountMenu: Menu {
+    static let saddleKinds: Set<MobKind> = [.horse, .donkey, .mule, .camel, .skeletonHorse, .zombieHorse]
+    static let armorItems: [Int: String] = [1: "leather_horse_armor", 2: "iron_horse_armor", 3: "golden_horse_armor",
+                                            4: "diamond_horse_armor", 6: "copper_horse_armor", 7: "netherite_horse_armor"]
+    static func opens(_ m: Mob) -> Bool { saddleKinds.contains(m.kind) || (m.horseLike && m.chested) }
+    static func armorTier(_ key: String) -> Int? { armorItems.first { $0.value == key }?.key }
+
+    let mob: Mob
+    let gear = ItemContainer(2)
+    init(game: Game, mob m: Mob) {
+        mob = m
+        super.init(m.customName ?? m.kind.name, game: game)
+        if MountMenu.saddleKinds.contains(m.kind) {
+            if m.saddled { gear[0] = ItemStack(Items.id("saddle"), 1) }
+            let s = MenuSlot(8, 18, gear, 0)
+            s.filter = { Items.key($0.item) == "saddle" }
+            s.limit = 1
+            slots.append(s)
+        }
+        if m.kind == .horse {
+            if let k = MountMenu.armorItems[m.armorTier], Items.has(k) { gear[1] = ItemStack(Items.id(k), 1) }
+            let a = MenuSlot(8, 36, gear, 1)
+            a.filter = { MountMenu.armorTier(Items.key($0.item)) != nil }
+            a.limit = 1
+            slots.append(a)
+        }
+        if m.chested {
+            let c = game.packContainer(m)
+            let rows = c.count >= 3 && c.count % 3 == 0 ? 3 : 1
+            let cols = c.count / rows
+            for r in 0..<rows { for col in 0..<cols { slots.append(MenuSlot(80 + col * 18, 18 + r * 18, c, col + r * cols)) } }
+        }
+        addPlayerInventory()
+    }
+
+    override func onClose() {
+        if MountMenu.saddleKinds.contains(mob.kind) {
+            let had = mob.saddled
+            mob.saddled = Items.key(gear[0].item) == "saddle"
+            if had && !mob.saddled && game.riding === mob && mob.tamed { game.onToast?("Saddle off: it won't steer") }
+        }
+        if mob.kind == .horse { mob.armorTier = gear[1].isEmpty ? 0 : (MountMenu.armorTier(Items.key(gear[1].item)) ?? 0) }
+        if mob.saddled || mob.armorTier > 0 { mob.persistent = true }
+    }
+}

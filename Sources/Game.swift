@@ -647,6 +647,8 @@ final class Game {
     }
 
     func openInventory() {
+        // Riding a horse, donkey, mule or camel: its inventory (saddle, armour, pack), as in the reference game.
+        if let r = riding, MountMenu.opens(r), r.tamed { openMenu(MountMenu(game: self, mob: r)); return }
         openMenu(survival ? InventoryMenu(game: self) : CreativeMenu(game: self))
     }
 
@@ -1616,6 +1618,9 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
+        // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
+        if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
+        if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
         // needs a baby, so behind a plain !baby it could never drop.)
         if !m.baby || m.isZombie {

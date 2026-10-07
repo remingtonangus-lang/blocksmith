@@ -124,19 +124,34 @@ extension Mob {
     // Night (from 12000 ticks): head for the claimed bed and stay there (sleeping) until morning.
     func villagerNight(_ g: Game) -> Bool {
         let f = g.dayFraction
-        guard f > 0.5 && f < 0.995, let b = villager?.bed else { sitting = false; return false }
+        guard f > 0.5 && f < 0.995, let b = villager?.bed else { wake(); return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
         if simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z)) > 1.2 {
             // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
             // here and then let the day schedule re-aim the same tick, so few villagers ever reached their beds).
             if !gaveUp(V3(bedPos.x, Float(b[1]), bedPos.z)) { bedWalk = V3(bedPos.x, Float(b[1]), bedPos.z) }
-            sitting = false
+            wake()
             return false
         }
-        sitting = true          // asleep in bed
+        // Asleep in bed: lying on the mattress from the foot end, head on the pillow (it stood beside the bed, so
+        // villagers never looked asleep: Quest v63). Facing = direction from the foot to the head.
+        let hb = g.world.block(b[0], b[1], b[2])
+        guard Blocks.key(Blocks.groupBase[Int(hb)]).hasSuffix("_bed_head") else { wake(); return false }
+        let dirs = [V2(0, 1), V2(0, -1), V2(1, 0), V2(-1, 0)]
+        let d = dirs[Int(hb - Blocks.groupBase[Int(hb)]) & 3]
+        sitting = true
+        lying = true
+        pos = V3(Float(b[0]) + 0.5 - d.x * 1.45, Float(b[1]) + 0.5625, Float(b[2]) + 0.5 - d.y * 1.45)
+        yaw = atan2f(d.x, d.y)
         sleptAt = g.time
-        vel.x = 0; vel.z = 0
+        vel = .zero
         return true
+    }
+
+    private func wake() {
+        if lying { pos.y += 0.1 }       // off the mattress, beside the pillow end
+        sitting = false
+        lying = false
     }
 
     // MARK: Daytime schedule
