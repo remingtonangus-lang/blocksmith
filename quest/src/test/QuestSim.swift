@@ -134,7 +134,8 @@ enum QuestSim {
             check(before != AIR && after != before, "VR break: right trigger broke \(Blocks.name(before)) at \(t) (now \(Blocks.name(after)))")
         }
 
-        // 5b. Swing Mode: a full-arm swing breaks the targeted block with the bare hand; a wrist flick does not.
+        // 5b. Swing Mode (physical): a fast swing through the air with the laser on the block does nothing; a punch that
+        // carries the fist into the block breaks it.
         QuestSettings.swingMode = true
         game.inventory.held = .empty
         if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // fill the hole the trigger test left
@@ -143,12 +144,15 @@ enum QuestSim {
             let before = game.world.block(t.x, t.y, t.z)
             frames(8) { i in
                 idleHands(); sim.hands[1].aimRot = down
-                sim.hands[1].gripPos = sim.hands[1].aimPos + V3(0, 0.012 * Float(i % 2), 0)       // a flick: a centimetre
+                sim.hands[1].aimPos += V3(0.09 * Float(i % 2), 0, 0)           // a 6.5 m/s swing in the air, laser on it
             }
             let flicked = game.world.block(t.x, t.y, t.z)
-            frames(8) { i in
+            let reachDir = down.act(V3(0, 0, -1))
+            var k = 0
+            frames(40) { _ in
                 idleHands(); sim.hands[1].aimRot = down
-                sim.hands[1].gripPos = sim.hands[1].aimPos + V3(0, 0.09 * Float(i), 0)           // an arm swing
+                if game.world.block(t.x, t.y, t.z) == before { k += 1 }
+                sim.hands[1].aimPos += reachDir * (0.06 * Float(k))             // a 4.3 m/s punch into the block
             }
             frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
             let after = game.world.block(t.x, t.y, t.z)
@@ -364,6 +368,20 @@ enum QuestSim {
 
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out)
+        // The held sword with Swing Mode off, the hand raised in front of the face (v63: tools must show in the hand).
+        do {
+            let keep = (game.inventory.held, QuestSettings.swingMode)
+            game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
+            QuestSettings.swingMode = false
+            let raised = simd_quatf(angle: 0.35, axis: V3(1, 0, 0))
+            frames(3) { _ in
+                idleHands()
+                sim.hands[1].aimPos = sim.headPos + V3(0.18, -0.22, -0.3); sim.hands[1].gripPos = sim.hands[1].aimPos
+                sim.hands[1].aimRot = raised; sim.hands[1].gripRot = raised
+            }
+            try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_held.png"))
+            (game.inventory.held, QuestSettings.swingMode) = keep
+        }
         // Getting hurt: a red glow at the edges of the view (not a tinted HUD panel).
         game.hurtFlash = 0.35
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_hurt.png"))

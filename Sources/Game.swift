@@ -219,12 +219,21 @@ final class Game {
 
     // Mining / using
     var mining: IVec3?
+    // VR (Quest): a trigger attack pressed before the attack cooldown has recharged waits for it (up to 0.7 s) and then
+    // lands at full strength, instead of a weak 0.2-0.8x hit. Quest players click like on a pad, every ~0.3 s: an iron
+    // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
+    var bufferAttacks = false
+    // Quest Swing Mode: what the swung tool physically touched on the frame swingPower is set (QuestControls.swingContact):
+    // the swing hits exactly that, not what the laser points at. Consumed by interact with swingPower.
+    var swingBlock: (hit: IVec3, normal: IVec3)?
+    var swingMob: Mob?
+    var attackQueued: Float = 0
     var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
     private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
-    private var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
+    private(set) var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
     var swing: Float = 0              // arm swing animation 1 -> 0
 
     // Audio (nil when headless or if the audio device can't start)
@@ -829,10 +838,12 @@ final class Game {
         let fdt = Float(dt)
         let swung = swingPower > 0
         let swingPow = swingPower
+        let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
         swingPower = 0
         if swung { swingGrace = 0.7 }
         let reach: Float = swung ? 5.5 : (survival ? 4.5 : 5)
-        target = AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
+        target = swung && touched ? swingBlock : AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
+        swingBlock = nil; swingMob = nil
         breakCooldown -= dt
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5 || swung
@@ -851,7 +862,8 @@ final class Game {
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5)) {
+        if swung && touched { mobHit = touchedMob }
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5)) {
             let (m, dist) = hit
             if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
@@ -879,10 +891,18 @@ final class Game {
             blockSound(.itemFrameRemove, at: t.hit, 0.7)
             return
         }
+        attackQueued -= fdt
+        if mobHit == nil { attackQueued = 0 }
         if let m = mobHit {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
-            if breakNow {
+            let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
+            var attackNow = breakNow
+            if bufferAttacks && !swung {
+                if breakNow && !ready { attackQueued = 0.7; attackNow = false }
+                else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
+            }
+            if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
                 let charge = swung ? 1 : min(1, attackTimer * spd)

@@ -231,7 +231,7 @@ extension Mob {
                     else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
-            yaw = g.player.yaw
+            yaw = g.player.moveYaw ?? g.player.yaw          // VR: steer with the head, not the aiming hand
             let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
             speed = saddled || !tamed ? base * max(-0.25, inp.forward) : 0
             // Hold jump to charge, release to leap (horses); camels dash.
@@ -284,8 +284,9 @@ extension Mob {
         return 1 + 1.15 * sinf(Float.pi * boostTime / boostTotal)
     }
 
-    // Per-horse speed and jump strength from its variant bits (reference ranges 4.8-14.5 b/s).
-    var horseSpeed: Float { 4.8 + Float((variant >> 4) & 15) / 15 * 9.7 }
+    // Per-horse speed and jump strength from its variant bits: 4.8-16 b/s (reference 4.8-14.5; the best rolls go past
+    // it so a good horse is genuinely fast). Unridden horses wander and bolt in proportion (Mob.update).
+    var horseSpeed: Float { 4.8 + Float((variant >> 4) & 15) / 15 * 11.2 }
     var horseJump: Float { 0.4 + Float((variant >> 8) & 15) / 15 * 0.6 }
 }
 

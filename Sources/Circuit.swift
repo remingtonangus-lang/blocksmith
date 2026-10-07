@@ -339,6 +339,7 @@ final class Circuit {
     func setQuiet(_ p: IVec3, _ b: BlockID) {
         busy = true
         w.setBlockAsync(p.x, p.y, p.z, b)
+        w.scheduleFluid(around: p)              // a piston pulling a block away from water lets it flow
         busy = false
         // Observers still see it.
         for d in 0..<6 {

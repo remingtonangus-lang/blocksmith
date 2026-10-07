@@ -91,7 +91,7 @@ enum QuestOptions {
         "L trigger: use / place (hold to repeat)",
         "L grip: previous hotbar slot  R grip: next",
         "L stick: move, head-relative (teleport: aim)",
-        "L stick fully forward: sprint",
+        "L stick pushed forward: sprint (hand ticks)",
         "L stick click: sneak (tap: stay sneaking)",
         "R stick: turn (reclined: up/down look)",
         "A: jump      B: back; hold: drop item",

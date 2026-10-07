@@ -30,11 +30,27 @@ final class WorldRenderer {
         ships = ShipDraw(scene: scene)
     }
 
-    // Skylight at the eye, smoothed (Renderer.updateCave): fog and sky darken underground.
+    // Skylight around the eye, smoothed (Renderer.updateCave): fog and sky darken underground, and the eye darkness
+    // (misc.y) brings in the cave fill. Eye adaptation is one continuous fade: the eye block plus four open neighbours
+    // two blocks out (a cave mouth starts the fade before you are inside it, a 1-block overhang doesn't flick it), eased
+    // over ~0.7 s by real time. It was the eye block alone at 4 % a frame (~0.3 s), against a narrow skylight 12-6 ramp:
+    // walking in, the walls went dark before the fill came on, then the fill snapped in bright (Quest v63 report).
+    private var caveClock = 0.0
     private func updateCave(_ eye: V3) {
         guard game.dim.dim.hasSky else { caveK = 1; return }
-        let target = Float(game.world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))).sky) / 15
-        caveK = caveK < 0 ? target : caveK + (target - caveK) * 0.04
+        let w = game.world
+        let x = Int(floor(eye.x)), y = Int(floor(eye.y)), z = Int(floor(eye.z))
+        var sum = Float(w.lightAt(x, y, z).sky) * 2, n: Float = 2
+        func add(_ bx: Int, _ bz: Int) {
+            if Blocks.opaque[Int(w.block(bx, y, bz))] { return }          // inside a wall says nothing about the sky
+            sum += Float(w.lightAt(bx, y, bz).sky); n += 1
+        }
+        add(x + 2, z); add(x - 2, z); add(x, z + 2); add(x, z - 2)
+        let target = sum / (n * 15)
+        let now = CFAbsoluteTimeGetCurrent()
+        let dt = Float(min(0.1, max(0, now - caveClock)))
+        caveClock = now
+        caveK = caveK < 0 ? target : caveK + (target - caveK) * (1 - expf(-dt / 0.7))
     }
     var caveScale: Float { 0.08 + 0.92 * min(1, max(0, caveK) * 1.6) }
 
@@ -63,7 +79,7 @@ final class WorldRenderer {
         u.invViewProj = (u.viewProj.0.inverse, u.viewProj.1.inverse)
         u.fogColor = V4(fogColor, fogStart)
         u.params = V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0)
-        u.waves = V4(game.weather.swell, 0, 0, 0)
+        u.waves = V4(game.weather.swell, game.wetWorld ? min(1, game.weather.rain) : 0, 0, 0)
         u.sunDir = V4(sd, ambient)
         u.eye = V4(eye, fogGlow)
         u.zenith = V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi))
@@ -71,10 +87,17 @@ final class WorldRenderer {
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, simd_clamp((0.6 - daylight) / 0.35, 0, 1))
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky ? 1 : (game.dim.dim == .end ? 2 : 0))
-        // Eye darkness: skylight 12+ at the eye (daylight, near the surface) 0 ... skylight 6 or less (caves, deep dives) 1.
-        let ek = simd_clamp((caveK - 0.4) / 0.4, 0, 1)
+        // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
+        // a wide ramp so the fill grows in step with the walls darkening.
+        let ek = simd_clamp((caveK - 0.3) / 0.6, 0, 1)
         let dark = 1 - ek * ek * (3 - 2 * ek)
         u.misc = V4(skyKind, game.dim.dim.hasSky ? dark : 1, scene.linearOutput ? 2.2 : 1, QuestSettings.brightness)
+        // Mobs, dropped items and the held item are lit on the CPU (writeMobVertices): give them the same cave fill as
+        // the terrain around them (chunk.vert: (0.06 + 0.3 Brightness) x 2, by eye darkness). The Quest never set these
+        // (the Mac's Renderer does), so mobs kept the 0.21 default fill and looked black against filled cave walls.
+        let eyeDark: Float = game.dim.dim.hasSky ? dark : 1
+        MobLight.fill = (0.06 + 0.3 * QuestSettings.brightness) * 2 * eyeDark
+        MobLight.nightVision = nv
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : sky))
         return (u, clear)
     }
@@ -103,7 +126,7 @@ final class WorldRenderer {
         if !skip.contains("extra") { extraOpaque?(s, eye) }
         if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
         if !skip.contains("sky") { drawSkyLayer(s, eye) }
-        if !skip.contains("trans") { scene.drawTranslucent(s) }
+        if !skip.contains("trans") { scene.drawTranslucent(s, underwater: game.player.headInWater) }
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000

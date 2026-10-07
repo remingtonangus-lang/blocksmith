@@ -663,6 +663,7 @@ final class Mob {
         case .ravager: speed = aiRavager(dt, g, dist: dist, canTarget: canTarget)
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .animal: speed = animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
+            if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
         case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and

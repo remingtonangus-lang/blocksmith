@@ -13,8 +13,8 @@ import CVulkan
 //  - Buttons: right trigger = RT (break / attack / fire; Swing Mode: a full-arm swing breaks / attacks instead),
 //    left trigger = LT (use / place / aim), A jump, B back (hold: drop), X pick block / reload, Y fly toggle
 //    (hold: inventory), left grip = previous hotbar slot, right grip = next, right stick click hold = the
-//    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), stick fully forward =
-//    sprint, menu = pause.
+//    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), stick pushed forward =
+//    sprint (a tick on the left hand), menu = pause.
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -40,11 +40,17 @@ final class QuestControls {
     private var bHold: Float = 0, bPulse = 0
     private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
     private var sneakLatch = false              // tapped: sneak until the next tap
+    private var sprintHold: Float = 0           // s the left stick has been pushed into the sprint zone
+    private var sprintPulse = 0
+    private var sprintCool: Float = 0
+    private var sprintShown = false             // the first sprint of a session says so in a toast
     private var prevGripL = false, prevGripR = false
-    // Swing Mode: the aiming hand's motion (tracking space, relative to the head).
-    private var swingPrev: V3?, swingStart = V3.zero
-    private var swingPeak: Float = 0, swingCool: Float = 0
-    private var swingActive = false, swingFired = false
+    // Swing Mode: the held tool's blade samples last frame (tracking space) and the swing's arming (swingContact).
+    private var blade = [V3](repeating: .zero, count: 8)
+    private var bladeValid = false
+    private var bladeHead = V3.zero
+    private var swingArmed = true
+    private var swingIdle: Float = 0
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
@@ -101,6 +107,7 @@ final class QuestControls {
         self.app = app
         self.game = game
         hudHost = Renderer(game: game)
+        game.bufferAttacks = true                       // trigger attacks wait for the cooldown: full-strength hits
         // TV-style HUD scale (bigger text) unless the player picked one: the panel is read at arm's length.
         if UserDefaults.standard.object(forKey: "couchMode") == nil { HudLayout.couch = true }
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
@@ -184,13 +191,7 @@ final class QuestControls {
         let swinging = QuestSettings.swingMode && swingItem
         p.rt = swinging ? 0 : R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)
-        if !inMenu && game.alive {
-            let power = swingUpdate(R, dt: dt)
-            if swinging && power > 0 && !game.paused {
-                game.swingPower = power
-                app.input.haptic(aimHand, amplitude: 0.5, seconds: 0.04, frequency: 200)
-            }
-        } else { swingPrev = nil; swingActive = false }
+        if !inMenu && game.alive && swinging && !game.paused { swingContact(R, dt: dt) } else { bladeValid = false }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
         if !inMenu && game.world.ships.pilot == nil {
@@ -258,7 +259,7 @@ final class QuestControls {
             if game.player.flying || game.player.inWater { sneakLatch = false }
             if L.stickClick && l3Hold >= 0.3 { sneakLatch = false }
         }
-        p.l3 = false
+        p.l3 = false                                    // (sprint sets it below)
         p.menu = L.menu
         if wheel { p.rx = R.stick.x; p.ry = R.stick.y }
         if inMenu {
@@ -276,7 +277,7 @@ final class QuestControls {
             // just holds the stick: neither controller's pointing direction steers walking or swimming.
             rig.updateMoveYaw(dt: dt)
             let moveYaw = rig.moveYaw
-            if game.swingPower > 0, let m = swingTarget() {
+            if game.swingPower > 0, let m = game.swingMob {
                 // A landed swing hits the mob in front of you: mid-swing the laser points anywhere but at it.
                 aimOrigin = game.player.eye
                 aimDir = simd_normalize(m.pos + V3(0, m.height * 0.5, 0) - aimOrigin)
@@ -296,6 +297,23 @@ final class QuestControls {
                 // Raw stick (x right, y forward): Player.moveYaw is the head, so nothing the aim does matters.
                 p.lx = L.stick.x; p.ly = L.stick.y
             }
+            // Sprint: the stick pushed most of the way out within ~40 degrees of straight ahead, for 0.1 s. The pad's
+            // auto-sprint wanted y > 0.95 after the dead-zone curve for 0.35 s, which the Touch stick's round gate
+            // rarely gives; a latched sneak (an accidental stick click) also blocked it. The game's L3 edge starts
+            // the sprint (it ends when the stick comes back); pushing into the zone clears a latched sneak, and the
+            // left hand gets a double tick so it is obvious.
+            let st = L.stick, sm = simd_length(st)
+            if sm > 0.8 && st.y > sm * 0.76 && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
+            sprintCool -= dt
+            let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
+            if sprintHold > 0.1 && fed && !game.player.sprinting && sprintCool <= 0 && !L.stickClick {
+                sprintPulse = 3; sprintCool = 0.6
+                sneakLatch = false
+                app.input.haptic(moveHand, amplitude: 0.45, seconds: 0.05, frequency: 120)
+                if !sprintShown { sprintShown = true; game.onToast?("Sprinting: keep the left stick pushed forward") }
+            }
+            p.l3 = sprintPulse > 0
+            if sprintPulse > 0 { sprintPulse -= 1 }
         }
         PadManager.shared.touch = p
         lastFeet = game.player.pos
@@ -662,59 +680,65 @@ final class QuestControls {
         return (q.act(V3(1, 0, 0)), q.act(V3(0, 1, 0)), q.act(V3(0, 0, 1)))
     }
 
-    // Full-arm swing detector: a swing starts when the hand passes 1.4 m/s, lands once it has travelled 25 cm from where it
-    // started at a peak of 2 m/s (wrist flicks move the hand only a few cm), and ends when the hand slows below 0.6 m/s.
-    // Returns the swing's power on the frame it lands, else 0: 0.75 at the slowest swing that counts (2 m/s), 1.0 at an
-    // ordinary swing (3.5 m/s), 1.25 at 5 m/s and up. Game scales the weapon's listed damage and the swing's digging by
-    // it, so an average swing equals a fully charged trigger attack.
-    private func swingUpdate(_ R: XRHand, dt: Float) -> Float {
+    // Physical Swing Mode: the held tool (or fist) is a blade from the hand to its tip, in the same place drawHeld draws
+    // it. A hit lands only when that blade actually moves into a mob's box or a block this frame (the swept tip/blade
+    // segment, so a tool merely passing near a block does nothing) at a tip speed of at least 2.2 m/s (resting or slowly
+    // pushing the tool into something does nothing). Power = tip speed / 4.5 m/s (an ordinary swing), 0.5x-1.5x: Game
+    // multiplies the weapon's listed damage and the swing's digging by it, so an average swing equals a trigger attack.
+    // One hit per swing: the next one arms once the tip slows below 1.5 m/s or has touched nothing for 0.3 s.
+    private func swingContact(_ R: XRHand, dt: Float) {
         let rig = app.rig
-        let hp = R.gripValid ? R.gripPos : R.aimPos
-        guard dt > 1e-3, R.aimValid || R.gripValid else { swingPrev = nil; swingActive = false; return 0 }
-        let pos = hp - rig.trackingHead
-        defer { swingPrev = pos }
-        guard let prev = swingPrev else { return 0 }
-        let sp = simd_length(pos - prev) / dt
-        swingCool -= dt
-        var out: Float = 0
-        if !swingActive {
-            swingFired = false
-            if sp > 1.4 { swingActive = true; swingStart = prev; swingPeak = sp }
-        } else {
-            swingPeak = max(swingPeak, sp)
-            if sp < 0.6 { swingActive = false }
-            else if !swingFired && swingCool <= 0 && swingPeak >= 2.0 && simd_length(pos - swingStart) >= 0.25 {
-                swingFired = true
-                swingCool = 0.2
-                out = max(0.75, min(1.25, 0.75 + (swingPeak - 2.0) / 3.0 * 0.5))
-            }
+        guard dt > 1e-3, R.aimValid else { bladeValid = false; return }
+        let (h, tool) = heldSize()
+        let rot = R.aimRot
+        let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up = rot.act(simd_normalize(V3(0, 1, 0.15)))
+        let base = R.aimPos + rot.act(V3(0, 0.01, -0.03))
+        // Blade samples in tracking space (blade[0...3] this frame, [4...7] last frame): the upper half of the item's
+        // icon diagonal (the tip at s = 1), or the fist.
+        for i in 0..<4 {
+            blade[i + 4] = blade[i]
+            let s = 0.4 + 0.2 * Float(i)
+            blade[i] = tool ? base + (r * (2 * s - 0.38) + up * (2 * s - 0.5)) * h : R.aimPos + r * (0.04 * Float(i))
         }
-        return out
+        let head = rig.trackingHead, prevHead = bladeHead
+        bladeHead = head
+        guard bladeValid else { bladeValid = true; return }
+        // Tip speed relative to the head (walking or turning doesn't swing the tool).
+        let speed = simd_length((blade[3] - head) - (blade[7] - prevHead)) / dt
+        swingIdle += dt
+        if speed < 1.5 || swingIdle > 0.3 { swingArmed = true }
+        guard swingArmed && speed >= 2.2 else { return }
+        let w = game.world
+        var mob: Mob?
+        var block: (hit: IVec3, normal: IVec3)?
+        for i in stride(from: 3, through: 0, by: -1) where mob == nil && block == nil {
+            let a = rig.toWorld(blade[i + 4]), b = rig.toWorld(blade[i])
+            for m in game.mobs.mobs where m.health > 0 && m.kind != .boat && m.kind.spec.behavior != .vehicle && m !== game.riding {
+                let e: Float = 0.08
+                if b.x > m.pos.x - m.halfW - e && b.x < m.pos.x + m.halfW + e && b.z > m.pos.z - m.halfW - e && b.z < m.pos.z + m.halfW + e
+                    && b.y > m.pos.y - e && b.y < m.pos.y + m.height + e { mob = m; break }
+            }
+            if mob != nil { break }
+            let d = b - a, len = simd_length(d)
+            if len > 1e-4, let hit = w.raycast(a, d / len, maxDist: len) { block = hit }
+        }
+        guard mob != nil || block != nil else { return }
+        swingArmed = false
+        swingIdle = 0
+        game.swingPower = max(0.5, min(1.5, speed / 4.5))
+        game.swingMob = mob
+        game.swingBlock = mob == nil ? block : nil
+        app.input.haptic(aimHand, amplitude: mob != nil ? 0.7 : 0.5, seconds: 0.05, frequency: mob != nil ? 160 : 220)
     }
 
-    // The mob a landed swing hits: the nearest living one within arm's reach of the swinging hand (2.2 m of the grip,
-    // 4 m of the eye) and in front of the head (within ~75 deg), the hand's laser direction ignored.
-    private func swingTarget() -> Mob? {
-        let rig = app.rig
-        let hd = app.input.hands[aimHand]
-        let hand = rig.toWorld(hd.gripValid ? hd.gripPos : hd.aimPos)
-        let eye = game.player.eye
-        let fwd = V3(-sinf(rig.headYaw), 0, -cosf(rig.headYaw))
-        var best: Mob? = nil
-        var bestD: Float = 2.2
-        for m in game.mobs.mobs where m.health > 0 && m.kind != .boat {
-            let c = m.pos + V3(0, m.height * 0.5, 0)
-            let toEye = c - eye
-            let de = simd_length(toEye)
-            guard de < 4 else { continue }
-            if de > 0.3 && simd_dot(simd_normalize(V3(toEye.x, 0, toEye.z)), fwd) < 0.25 { continue }
-            // Distance from the hand to the mob's box, not its centre (big mobs count up close).
-            let hx = max(0, abs(hand.x - m.pos.x) - m.halfW), hz = max(0, abs(hand.z - m.pos.z) - m.halfW)
-            let hy = max(0, max(m.pos.y - hand.y, hand.y - (m.pos.y + m.height)))
-            let d = sqrtf(hx * hx + hy * hy + hz * hz)
-            if d < bestD { bestD = d; best = m }
-        }
-        return best
+    // The held item's drawn size (drawHeld): the icon's half size, and whether it is held as a tool by the handle.
+    private func heldSize() -> (Float, Bool) {
+        let held = game.held
+        if held.isEmpty { return (0, false) }
+        let k = Items.key(held.item)
+        let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
+        let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
+        return (big ? 0.42 : (tool ? 0.36 : 0.16), big || tool)
     }
 
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
@@ -895,11 +919,8 @@ final class QuestControls {
             // Larger than life again (Remington, v61: real size read too small): a sword's icon diagonal ~1.2 m, other
             // tools / bows ~1 m, everything else a 32 cm icon.
             // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
-            let k = Items.key(held.item)
-            let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
-            let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
-            let h: Float = big ? 0.42 : (tool ? 0.36 : 0.16)
-            let c = big || tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
+            let (h, tool) = heldSize()
+            let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
             for (i, o) in [Float(0), 0.05 * h].enumerated() {
                 wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 ? 1 : 0.7))

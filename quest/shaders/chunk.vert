@@ -16,9 +16,13 @@ layout(location = 5) flat out float oAnim;
 layout(location = 6) out float oDist;
 layout(location = 7) out vec3 oRel;
 layout(location = 8) flat out float oFace;
+layout(location = 9) out float oWDepth;     // water.frag: metres of water under a top corner, -1 not water
 
 const float faceShade[8] = float[](0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00);
 const float aoCurve[4] = float[](0.42, 0.62, 0.81, 1.0);
+// Water top faces carry the water depth in their AO bits (Mesher.waterDepthAO): mean column depth 5+, 2-5, 0.75-2, shore.
+const float waterDepthM[4] = float[](12.0, 3.5, 1.4, 0.25);
+const float waveK[4] = float[](1.0, 1.0, 0.7, 0.2);                 // the swell dies out on the shore (no water over beaches)
 
 void main() {
     uint w0 = v.x, w1 = v.y;
@@ -45,7 +49,7 @@ void main() {
     // Every corner at that height moves (tops and the upper edge of sides alike), so faces stay joined.
     if (tintMode == 3u && ((w0 >> 9) & 15u) == 14u && skyL > 0.9) {
         vec3 wp = rel + u.eye.xyz;
-        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x;
+        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * waveK[ao];
     }
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
@@ -71,12 +75,15 @@ void main() {
     float g = (b - 0.5) * 0.8;
     lit = clamp(max(lit, vec3(0.055)) + lit * (1.0 - lit) * g, 0.0, 1.0);
     float nearK = mix(1.0, 0.45, smoothstep(5.0, 30.0, length(rel)));
-    // Only where the sky can't reach (caves, deep interiors): at skylight 5+ (the surface at night) the fill would
-    // wash out the dark depth gradient.
-    float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0 * (1.0 - smoothstep(0.0, 0.34, skyL)) * dk;
-    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, float(ao) / 3.0));
+    // Where the sky reaches only weakly (caves, cave mouths, deep interiors); fades out by skylight 10. It was gone by
+    // skylight 5, leaving a dark band of skylight 5-10 walls at a cave mouth between the lit outside and the filled
+    // inside (light -> dark -> light walking in). dk already keeps it off on the night surface and daylight seabeds.
+    float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0 * (1.0 - smoothstep(0.15, 0.68, skyL)) * dk;
+    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, tintMode == 3u ? 1.0 : float(ao) / 3.0));
     lit = mix(lit, vec3(1.0), u.sunDir.w);
-    oShade = lit * (faceShade[face] * aoCurve[ao]);
+    bool water = tintMode == 3u;
+    oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;
+    oShade = lit * (faceShade[face] * (water ? 1.0 : aoCurve[ao]));
     oDist = length(rel);
     oRel = rel;
     oFace = float(face);

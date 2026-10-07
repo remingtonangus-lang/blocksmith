@@ -421,7 +421,11 @@ final class SceneRenderer {
         let defs: [String: PipeDesc] = [
             "solid": PipeDesc(vert: "chunk.vert", frag: "chunk_solid.frag", input: .chunk),
             "cut": PipeDesc(vert: "chunk.vert", frag: "chunk_cut.frag", input: .chunk),
-            "water": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le, cull: none),
+            // Translucent faces cull their backs from above the water: with no depth write and no per-face sorting, the
+            // inner side faces of a pool's edge, a drop-off or a waterfall blended over the surface in front of them (the
+            // "see-through glitch" at water edges, Quest v63). Under water the surface is seen from below: no culling.
+            "water": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le),
+            "waterUnder": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le, cull: none),
             "sky": PipeDesc(vert: "sky.vert", frag: "sky.frag", depthWrite: false, compare: le, cull: none),
             "star": PipeDesc(vert: "star.vert", frag: "star.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
             "body": PipeDesc(vert: "body.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
@@ -898,9 +902,9 @@ final class SceneRenderer {
     }
 
     // Water and other translucent faces, far to near.
-    func drawTranslucent(_ s: Slot) {
+    func drawTranslucent(_ s: Slot, underwater: Bool = false) {
         bindTerrainBuffers(s)
-        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("water"))
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(underwater ? "waterUnder" : "water"))
         for i in stride(from: nRec - 1, through: 0, by: -1) {
             let (c, sy, _) = visible[i]
             let sec = c.sections[sy]
