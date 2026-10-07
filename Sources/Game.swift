@@ -864,8 +864,9 @@ final class Game {
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if swung && touched { mobHit = touchedMob }
-        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5)) {
+        if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
+        // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5), except: riding) {
             let (m, dist) = hit
             if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
@@ -1029,7 +1030,7 @@ final class Game {
         let h = held
         // Saddling the horse you sit on (the mount itself can't be aimed at from the saddle).
         if useNow, let r = riding, Items.key(h.item) == "saddle", animalInteract(r) { swing = 1; return }
-        if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
+        if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5, except: riding)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {

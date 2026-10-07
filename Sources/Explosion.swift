@@ -10,6 +10,9 @@ enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true) {
         let w = g.world
+        // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
+        let own = g.bases.quiet
+        let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
@@ -97,7 +100,7 @@ enum Explosion {
             g.player.vel += push
         }
         g.coop.eachSeat(g, hitPlayer)
-        for m in g.mobs.mobs where m !== except {
+        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)

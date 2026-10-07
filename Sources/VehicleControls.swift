@@ -99,6 +99,7 @@ final class Turrets {
     var reload: Float = 0
     var lastFired: Double = -10
 
+    static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
 
     // Rumble / harness helper: true while the player is on a gun.
@@ -119,8 +120,8 @@ final class Turrets {
     func leave(_ g: Game) {
         guard let m = manned else { return }
         manned = nil
-        let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
-        g.player.pos = m.pos + side * 1.6
+        let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
+        g.player.pos = m.pos - fwd * 11                 // behind the gunhouse's rear overhang (the model has no collision)
         g.player.vel = .zero
     }
 
@@ -138,9 +139,10 @@ final class Turrets {
         m.yaw += max(-turn, min(turn, dyaw))
         g.player.pitch = max(-0.17, min(0.9, g.player.pitch))
         b.pitch += max(-1.2 * dt, min(1.2 * dt, g.player.pitch - b.pitch))
-        // Stand behind the breech.
+        // Stand on the gunhouse roof ahead of the cupola, over the breeches: the eye is above the barrels with a clear
+        // view forward (behind the breech put it inside the 5.5 m armoured box, so nothing was visible: Quest round 3).
         let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
-        g.player.pos = m.pos - fwd * 1.3
+        g.player.pos = m.pos - fwd * 2.5 + V3(0, Turrets.roofY, 0)
         g.player.vel = .zero
         g.player.onGround = true
         reload -= dt

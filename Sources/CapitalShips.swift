@@ -902,11 +902,11 @@ extension ShipManager {
     private func targetValid(_ t: CapTarget, _ g: Game) -> Bool {
         if t.player {
             var ok = false
-            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 }
+            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !g.bases.inAnyBase(g.player.pos) }
             return ok
         }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
-        if let m = t.mob { return m.health > 0 }
+        if let m = t.mob { return m.health > 0 && !g.bases.inAnyBase(m.pos) }
         return false
     }
 
@@ -937,14 +937,15 @@ extension ShipManager {
                 let pp = g.player.pos
                 let onIt = self.aboard?.root === s || self.standing(on: pp)?.root === s
                 let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(pp.x - $0.x, pp.z - $0.z)) < 96 } ?? true
-                guard g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(pp) && guardsPlayer else { return }
+                // Never on a player inside a citadel: its shells would land on its own base (Quest round 3).
+                guard g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(pp) && guardsPlayer && !g.bases.inAnyBase(pp) else { return }
                 let d = self.boundsDistance(s, pp)
                 if d < bd { bd = d; best = CapTarget(point: pp + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true, seat: i) }
             }
         }
         if let foe = nearestFoe(of: s.factionValue, near: c, range: st.sight + simd_length(s.worldMax - s.worldMin) * 0.5, game: g) {
             let d = boundsDistance(s, foe.point)
-            if leashed(foe.point) && (d < bd * 0.8 || best == nil) { best = foe; bd = d }
+            if leashed(foe.point) && !g.bases.inAnyBase(foe.point) && (d < bd * 0.8 || best == nil) { best = foe; bd = d }
         }
         if let cur = st.target, targetValid(cur, g), let b = best {
             let dc = boundsDistance(s, cur.point)
@@ -1476,7 +1477,7 @@ extension ShipManager {
             s.angVel = V3(0.4, 1.2, 0.2)
             if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
             if keelY <= ground + 1 || st.phaseT > 30 {
-                Explosion.explode(at: s.pos, power: 4, game: g)
+                Explosion.explode(at: s.pos, power: 4, game: g, breakBlocks: !g.bases.inAnyBase(s.pos))
                 remove(s)
                 capState.removeValue(forKey: s.id)
             }

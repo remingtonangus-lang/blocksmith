@@ -85,7 +85,11 @@ final class SceneRenderer {
     private var slots: [Slot] = []
     private var slotIdx = 0
     static let recordCap = 1 << 16
-    static let scratchSize = 8 << 20
+    static let scratchSize = 12 << 20
+    // The last MB is kept for the hands and the held item (priority writers): a busy frame (mobs, particles, items)
+    // used to fill the ring first and the held tool silently vanished until the scene got quieter (Quest round 3).
+    static let handTail = 1 << 20
+    private(set) var scratchFull = 0               // frames something didn't fit (logged once)
     private var tintSets: [ObjectIdentifier: VkDescriptorSet] = [:]
     private var queryPool: VkQueryPool?
     private var tsPeriod: Double = 0           // ns per timestamp tick
@@ -732,19 +736,23 @@ final class SceneRenderer {
     // Scratch vertices for this frame (returns the byte offset, or nil when full).
     private var scratchOff = 0
     func resetScratch() { scratchOff = 0 }
-    func push<T>(_ s: Slot, _ items: [T]) -> Int? {
+    func push<T>(_ s: Slot, _ items: [T], priority: Bool = false) -> Int? {
         if items.isEmpty { return nil }
         let n = items.count * MemoryLayout<T>.stride
         let off = (scratchOff + 255) & ~255
-        guard off + n <= SceneRenderer.scratchSize else { return nil }
+        guard off + n <= SceneRenderer.scratchSize - (priority ? 0 : SceneRenderer.handTail) else {
+            if scratchFull == 0 { print("SceneRenderer: scratch ring full (\(off + n) bytes)") }
+            scratchFull += 1
+            return nil
+        }
         _ = items.withUnsafeBytes { memcpy(s.scratch.mapped! + off, $0.baseAddress!, n) }
         scratchOff = off + n
         return off
     }
     // Raw room in the scratch ring for writers (EntityWriter / mob vertices): pointer, byte offset, capacity in items.
-    func reserve<T>(_ s: Slot, _ type: T.Type, max cap: Int = Int.max) -> (UnsafeMutablePointer<T>, Int, Int) {
+    func reserve<T>(_ s: Slot, _ type: T.Type, max cap: Int = Int.max, priority: Bool = false) -> (UnsafeMutablePointer<T>, Int, Int) {
         let off = (scratchOff + 255) & ~255
-        let room = max(0, SceneRenderer.scratchSize - off) / MemoryLayout<T>.stride
+        let room = max(0, SceneRenderer.scratchSize - (priority ? 0 : SceneRenderer.handTail) - off) / MemoryLayout<T>.stride
         return ((s.scratch.mapped! + off).bindMemory(to: T.self, capacity: max(1, room)), off, min(room, cap))
     }
     func commit<T>(_ off: Int, _ count: Int, _ type: T.Type) { scratchOff = off + count * MemoryLayout<T>.stride }

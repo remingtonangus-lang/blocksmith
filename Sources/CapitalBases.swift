@@ -117,6 +117,7 @@ final class BaseWatch {
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
+    func inAnyBase(_ p: V3) -> Bool { records.values.contains { $0.inside(p) } }
     static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
 
     // One watch per Game (the harness and the app each make one game).

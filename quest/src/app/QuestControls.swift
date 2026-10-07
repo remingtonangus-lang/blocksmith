@@ -39,10 +39,14 @@ final class QuestControls {
     private var yBlock = false
     private var bHold: Float = 0, bPulse = 0
     private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
+    private var lastAimHand: XRHand?               // drawHeld: the last tracked aim pose
     private var sneakLatch = false              // tapped: sneak until the next tap
+    private var prevStickClickL = false
+    private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
     private var sprintHold: Float = 0           // s the left stick has been pushed into the sprint zone
     private var sprintPulse = 0
     private var sprintCool: Float = 0
+    private var hungryToast: Float = 0
     private var sprintShown = false             // the first sprint of a session says so in a toast
     private var prevGripL = false, prevGripR = false
     // Swing Mode: the held tool's blade samples last frame (tracking space) and the swing's arming (swingContact).
@@ -199,6 +203,12 @@ final class QuestControls {
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
         }
         prevGripL = lGrip; prevGripR = rGrip
+        // A stick click with the stick pushed out is the push itself clicking (Touch sticks click when shoved forward):
+        // it sprints. Only a click with the stick near the centre sneaks (that click held sneaking, which blocks sprint).
+        if L.stickClick && !prevStickClickL { clickSprint = simd_length(L.stick) > 0.45 }
+        if !L.stickClick { clickSprint = false }
+        prevStickClickL = L.stickClick
+        let sneakClick = L.stickClick && !clickSprint
         p.a = R.button1
         // B: a tap is sneak / back (sent when it is let go); held, it drops the held item (the pad's D-pad down; keep
         // holding for the whole stack).
@@ -210,7 +220,7 @@ final class QuestControls {
                 if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
                 bHold = 0
             }
-            p.b = bPulse > 0 || L.stickClick || sneakLatch      // sneak (Game reads the pad's B as sneak)
+            p.b = bPulse > 0 || sneakClick || sneakLatch      // sneak (Game reads the pad's B as sneak)
             if bPulse > 0 { bPulse -= 1 }
             p.down = bHold > 0.4
         }
@@ -252,12 +262,12 @@ final class QuestControls {
         if inMenu {
             l3Hold = 0; sneakLatch = false
         } else {
-            if L.stickClick { l3Hold += dt } else {
+            if sneakClick { l3Hold += dt } else {
                 if l3Hold > 0 && l3Hold < 0.3 { sneakLatch.toggle() }
                 l3Hold = 0
             }
             if game.player.flying || game.player.inWater { sneakLatch = false }
-            if L.stickClick && l3Hold >= 0.3 { sneakLatch = false }
+            if sneakClick && l3Hold >= 0.3 { sneakLatch = false }
         }
         p.l3 = false                                    // (sprint sets it below)
         p.menu = L.menu
@@ -297,21 +307,23 @@ final class QuestControls {
                 // Raw stick (x right, y forward): Player.moveYaw is the head, so nothing the aim does matters.
                 p.lx = L.stick.x; p.ly = L.stick.y
             }
-            // Sprint: the stick pushed most of the way out within ~40 degrees of straight ahead, for 0.1 s. The pad's
+            // Sprint: the stick pushed most of the way out within ~45 degrees of straight ahead, for 0.1 s (or the stick clicked while pushed). The pad's
             // auto-sprint wanted y > 0.95 after the dead-zone curve for 0.35 s, which the Touch stick's round gate
             // rarely gives; a latched sneak (an accidental stick click) also blocked it. The game's L3 edge starts
             // the sprint (it ends when the stick comes back); pushing into the zone clears a latched sneak, and the
             // left hand gets a double tick so it is obvious.
             let st = L.stick, sm = simd_length(st)
-            if sm > 0.8 && st.y > sm * 0.76 && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
+            if sm > 0.7 && st.y > sm * 0.7 && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
             sprintCool -= dt
             let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
-            if sprintHold > 0.1 && fed && !game.player.sprinting && sprintCool <= 0 && !L.stickClick {
+            if (sprintHold > 0.1 || (clickSprint && st.y > 0.3)) && fed && !game.player.sprinting && sprintCool <= 0 {
                 sprintPulse = 3; sprintCool = 0.6
                 sneakLatch = false
                 app.input.haptic(moveHand, amplitude: 0.45, seconds: 0.05, frequency: 120)
                 if !sprintShown { sprintShown = true; game.onToast?("Sprinting: keep the left stick pushed forward") }
             }
+            hungryToast -= dt
+            if sprintHold > 0.1 && !fed && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
             p.l3 = sprintPulse > 0
             if sprintPulse > 0 { sprintPulse -= 1 }
         }
@@ -838,7 +850,7 @@ final class QuestControls {
                 }
             }
         }
-        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        if let off = app.scene.push(s, v, priority: true) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
         giveVerts(v)
         drawHeld(s, eye: eye)
         drawTeleport(s, eye: eye)
@@ -870,8 +882,9 @@ final class QuestControls {
     // The held item in the aiming hand: guns as their solid models (barrel along the ray), blocks as small cubes,
     // other items as two-layer sprites leaning forward like they're gripped.
     private func drawHeld(_ s: SceneRenderer.Slot, eye: V3) {
-        let hd = app.input.hands[aimHand]
-        guard hd.aimValid, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
+        // A frame without a valid aim pose (tracking blip) keeps the last one instead of hiding the tool.
+        if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
+        guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
         let held = game.held
         if held.isEmpty { return }
         let rig = app.rig
@@ -882,7 +895,7 @@ final class QuestControls {
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
         if let gi = game.heldGun {
-            let (ptr, off, cap) = app.scene.reserve(s, MobVert.self)
+            let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
             guard cap > 1024 else { return }
             // Real size in the hand (rifle ~0.9 m, sidearm ~0.25 m): 2.4x the screen model. Empty: no magazine, red light.
             let gk: Float = 2.4
@@ -900,7 +913,7 @@ final class QuestControls {
             app.scene.drawScratch(s, "mob", offset: off, count: n)
             return
         }
-        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 96)
+        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 96, priority: true)
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
         if let b = held.def.block, !Blocks.flatIcon(b) {

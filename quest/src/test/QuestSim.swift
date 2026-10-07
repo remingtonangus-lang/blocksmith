@@ -89,6 +89,18 @@ enum QuestSim {
         frames(10) { _ in idleHands() }
         let d = game.player.pos - p0
         check(-d.z > 3 && abs(d.x) < 1.5, String(format: "VR walk: left stick forward moved (%.2f, %.2f) (want -Z)", d.x, d.z))
+        // 1b. Sprint through the device path: a slightly off-centre push (the Touch gate) sprints, and so does a push
+        // that clicks the stick (that click used to sneak, and sneaking blocks sprinting).
+        for (name, click) in [("push", false), ("pushed click", true)] {
+            frames(20) { _ in idleHands() }
+            let s0 = game.player.pos
+            var sprinted = false
+            frames(72) { _ in idleHands(); sim.hands[0].stick = V2(0.25, 0.85); sim.hands[0].stickClick = click; sprinted = sprinted || game.player.sprinting }
+            let v = simd_length(V2(game.player.pos.x - s0.x, game.player.pos.z - s0.z))
+            check(sprinted && game.player.sprinting && !game.player.sneaking, "VR sprint (\(name)): sprinting \(game.player.sprinting), sneaking \(game.player.sneaking)")
+            check(v > 4.0, String(format: "VR sprint (%@): %.2f blocks in 1 s (a walk at this push ~3.3)", name, v))
+        }
+        frames(10) { _ in idleHands() }
 
         QuestSettings.smoothTurn = false   // smooth is the default; these checks are for the snap comfort option
         // 2. Snap turn: right stick right turns the body 45 degrees clockwise (yaw decreases).
