@@ -1130,3 +1130,11 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Done: head-yaw-only movement, swim out onto 1-block banks, real-size held tools, full-damage swings, skeleton bows,
   mob sounds (+ Quest ITD/head shadow), mob detail/shading, ocean vertex waves; `Blocksmith --questbugs` checks pass.
 - NOT fixed: Quest water look. Notes and next suspects: docs/status/quest-port.md "WATER-NOTES".
+
+## 2026-10-07 task 21 (Remington's v61 bug round: 18 items + corrections a-d), session log
+- claude/quest-port: d4e928e (checkpoint, Quest CI 37623329213 green) + 58d3d48 (saddle recipe, wider suggestion
+  chips). Shared Sources part on claude/blocksmith-playtest 031ddce3 [full] (Quest swing-mode hunks not on that branch).
+- All items done; per-item list and the movement root cause in docs/status/quest-port.md "Task 21". Checks run
+  locally: questbugs 0 failures, mobtests (new trooper glass-wall check ok), structscan, padtest (same 15 failures as
+  the untouched baseline: environment, not this work), precheck 0 errors; menu shots of commands / searches viewed.
+- Not done: Mac water has no swell (waves are a Quest feature; boats on the Mac only wear, no bob).
