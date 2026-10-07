@@ -1724,15 +1724,54 @@ enum HDTex {
     // Furnace (same layout as the small painters): a bevelled smooth-stone casing; the front with a vent slot and a
     // fire mouth framed in dark iron with a grate; lit, the mouth glows with flames over embers.
     static let furnaceStone: Gen = polished(stone([(0, 0x6A6A6C), (0.5, 0x7E7E80), (1, 0x949494)], veins: 0.3, strata: 0), calm: 0.45, rim: 1 / 16)
+    // The furnace (retextured, Remington v61): squared dark stone blocks under a riveted iron band, an arched mouth in
+    // an iron frame; the top an iron plate with a round flue. furnace_side (dispensers, droppers) keeps the old stone.
+    static let furnaceBody: Gen = masonry(rows: 4, perRow: 2, offset: 0.5, mortarW: 1 / 20,
+                                          [(0, 0x55555A), (0.5, 0x6C6C70), (1, 0x86868A)], mortar: 0x302E2C, chips: 1.2)
+    // A riveted iron band across the top quarter-eighth of a furnace face.
+    static func furnaceBand(_ src: Img, n: Int, s: Int) -> Img {
+        var img = src
+        let u = n / 16
+        let fine = vnoise(n, max(1, n / 64), s &+ 4)
+        let iron = col(0x3C3C40)
+        for y in 0..<(2 * u) { for x in 0..<n {
+            let m = x % (4 * u)
+            let rivet = y >= u / 2 && y < u * 3 / 2 && m >= 3 * u / 2 && m < 5 * u / 2
+            let edge: Float = y >= 2 * u - max(1, u / 2) ? 0.6 : 1
+            let k: Float = edge * (0.85 + 0.25 * fine[y * n + x]) * (rivet ? 1.6 : 1)
+            let c: V3 = iron * k
+            img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+        } }
+        return img
+    }
+    static let furnacePlate: Gen = { n, s in
+        let u = n / 16
+        var img = metal(0x4A4A4E, patina: 0.1)(n, s)
+        let fine = vnoise(n, max(1, n / 64), s &+ 3)
+        let c = Float(n) / 2, fu = Float(u)
+        for y in 0..<n { for x in 0..<n {
+            let dx = Float(x) + 0.5 - c, dy = Float(y) + 0.5 - c
+            let d = (dx * dx + dy * dy).squareRoot()
+            let p = img[x, y]
+            var k: Float = 1
+            if d < 3.6 * fu { k = 0.18 + 0.12 * fine[y * n + x] * (d / (3.6 * fu)) }
+            else if d < 4.8 * fu { k = d < 4.2 * fu ? 1.35 : 0.8 }
+            let cx = x < n / 2 ? x : n - 1 - x, cy = y < n / 2 ? y : n - 1 - y
+            if cx >= u && cx < 2 * u && cy >= u && cy < 2 * u { k = 1.6 }               // corner rivets
+            img[x, y] = V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), 1)
+        } }
+        return img
+    }
     static func furnaceHD(front: Bool, lit: Bool) -> Gen {
         { n, s in
             let u = n / 16
-            var img = furnaceStone(n, s)
+            var img = front ? furnaceBody(n, s) : furnaceStone(n, s)
             let fine = vnoise(n, max(1, n / 64), s &+ 2)
             let flick = fbm(n, max(1, n / 16), 3, s &+ 5)
             func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
             guard front else { return img }
             let iron = col(0x3A3A3A)
+            img = furnaceBand(img, n: n, s: s)
             // Vent slot.
             for y in (3 * u)..<(6 * u) { for x in (4 * u)..<(12 * u) {
                 let lip: Float = y < 3 * u + u / 2 ? 0.6 : 1
@@ -1742,13 +1781,14 @@ enum HDTex {
             // Iron frame around the mouth.
             for y in (8 * u)..<(15 * u) { for x in (3 * u)..<(13 * u) {
                 let inMouth = x >= 4 * u && x < 12 * u && y >= 9 * u && y < 14 * u
+                    && !(y < 10 * u && (x < 5 * u || x >= 11 * u))                         // arched top corners
                 if inMouth { continue }
                 let lit2: Float = y < 8 * u + u / 3 ? 1.25 : 0.95
                 let fk: Float = lit2 * (0.9 + 0.2 * fine[y * n + x])
                 put(x, y, iron * fk)
             } }
             // The mouth: dark (or burning), with grate bars along the bottom.
-            for y in (9 * u)..<(14 * u) { for x in (4 * u)..<(12 * u) {
+            for y in (9 * u)..<(14 * u) { for x in (4 * u)..<(12 * u) where !(y < 10 * u && (x < 5 * u || x >= 11 * u)) {
                 let i = y * n + x
                 var c: V3
                 if lit {
@@ -5743,6 +5783,8 @@ enum HDTex {
         "crafting_table_side": craftingTable(1),
         "crafting_table_front": craftingTable(2),
         "furnace_side": furnaceHD(front: false, lit: false),
+        "furnace_body": { n, s in furnaceBand(furnaceBody(n, s), n: n, s: s) },
+        "furnace_plate": furnacePlate,
         "furnace_front": furnaceHD(front: true, lit: false),
         "furnace_front_on": furnaceHD(front: true, lit: true),
         "furnace_top": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),

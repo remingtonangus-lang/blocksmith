@@ -592,7 +592,9 @@ enum Mesher {
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
                             // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
                             // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).
-                            if collideT[Int(nb)] && layerT[Int(nb)] != translucent && fkT[Int(nb)] == 0 { continue }
+                            // Never the top face: a lily pad (or carpet, slab, trapdoor) resting on the surface left a
+                            // hole in the water under it, showing the seabed through every pad (Quest playtest, v61).
+                            if NT[f * 3 + 1] != 1 && collideT[Int(nb)] && layerT[Int(nb)] != translucent && fkT[Int(nb)] == 0 { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
                         } else if leafT[bi] && leafT[Int(nb)] {

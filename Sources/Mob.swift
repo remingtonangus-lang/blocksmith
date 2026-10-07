@@ -254,6 +254,7 @@ final class Mob {
     var yaw: Float
     var onGround = false
     var health: Int
+    var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
     var walkPhase: Float = 0
     var walkAmount: Float = 0

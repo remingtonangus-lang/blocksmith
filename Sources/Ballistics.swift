@@ -406,6 +406,7 @@ extension Game {
                 h.tag += n
                 inventory.held = h
                 a.cooldown = 0.15
+                if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(gs.mag)") }
             }
             return true
         }
@@ -450,6 +451,7 @@ extension Game {
         var h = held
         h.tag -= 1
         inventory.held = h
+        if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
         let k = gs.recoil * (1 - 0.45 * a.aim)
         player.pitch = min(1.55, player.pitch + k)
@@ -517,10 +519,15 @@ extension Game {
     var gunHUD: (text: String, color: V4)? {
         guard let gi = heldGun else { return nil }
         let gs = Guns.all[gi]
-        if arms.reload > 0 { return ("Reloading...", V4(1, 0.85, 0.4, 1)) }
-        let reserve = survival ? "\(ammoCount(gs.ammo))" : "--"
+        if arms.reload > 0 { return ("RELOADING...", V4(1, 0.85, 0.4, 1)) }
+        let reserve = survival ? ammoCount(gs.ammo) : -1
         let n = held.tag
-        return ("\(n) / \(reserve)", n == 0 ? V4(1, 0.35, 0.3, 1) : V4(1, 1, 1, 1))
+        if n == 0 {
+            let how = PadManager.shared.usingPad ? "X" : KeyBinds.name(KeyBinds.key(.reload))
+            return (reserve == 0 ? "EMPTY - no ammo" : "EMPTY - reload (\(how))", V4(1, 0.3, 0.25, 1))
+        }
+        let text = "LOADED \(n) / \(reserve < 0 ? "--" : "\(reserve)")"
+        return (text, n * 4 <= gs.mag ? V4(1, 0.75, 0.3, 1) : V4(0.6, 1, 0.75, 1))
     }
 
     // Current cone of fire for the crosshair (nil without a gun).

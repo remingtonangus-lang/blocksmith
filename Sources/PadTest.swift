@@ -259,11 +259,11 @@ enum PadTest {
             let r = Recipes.all.first { $0.result.item == planks }!
             let made = CraftBook.craft(r, times: 1, game: g)
             check(made == 0 && count(logs) == 1 && g.drops.items.isEmpty, "a full inventory stops crafting cleanly")
-            // The manual grid is one button away, and its book button comes back.
+            // No manual grid: the table's book has no grid button, and pressing its id does nothing.
+            check(!cb.slots.contains { if case .button(let id) = $0.kind { return id == CraftingBookMenu.gridBtn } else { return false } },
+                  "the table's crafting book has no manual grid button")
             cb.buttonPressed(CraftingBookMenu.gridBtn)
-            check(g.menu is CraftingTableMenu, "Manual grid opens the 3x3 grid")
-            (g.menu as? CraftingTableMenu)?.buttonPressed(490)
-            check(g.menu is CraftingBookMenu, "the grid's book button returns to the crafting book")
+            check(g.menu is CraftingBookMenu, "the crafting book stays open (no manual grid)")
             g.closeMenu()
             // The inventory's crafting (no table): the same book with 2x2 recipes only, LB/RB from the inventory.
             g.inventory.main.slots = Array(repeating: .empty, count: 36)
@@ -294,7 +294,7 @@ enum PadTest {
                 let pick = Items.id("iron_pickaxe")
                 check(!CraftingBookMenu.catalogue(2).values.contains { $0.contains { Recipes.all[$0].result.item == pick } }, "3x3 recipes (iron pickaxe) stay out of the 2x2 book")
                 ib.buttonPressed(CraftingBookMenu.gridBtn)
-                check(g.menu is InventoryMenu, "the 2x2 book's grid button returns to the inventory")
+                check(g.menu is InventoryMenu, "the 2x2 book's back button returns to the inventory")
             } else { check(false, "RB in the inventory opens the 2x2 crafting book") }
             g.closeMenu()
             g.inventory.main.slots = Array(repeating: .empty, count: 36)

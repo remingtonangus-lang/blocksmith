@@ -497,6 +497,23 @@ enum TextureGen {
         }
         p["furnace_side"] = furnaceSide
         p["furnace_top"] = { x, y in cobbleP(x, y) }
+        // The furnace itself (retextured, Remington v61): squared dark stone blocks under a riveted iron band; the top an
+        // iron plate with a round flue. (Dispensers and droppers keep furnace_side / furnace_top.)
+        let furnaceBody: Painter = { x, y in
+            if y <= 1 { return hex(y == 0 && x % 4 == 2 ? 0x707074 : 0x3C3C40) }
+            let row = (y - 2) / 4
+            if (y - 2) % 4 == 3 || (x + (row % 2) * 4) % 8 == 7 { return hex(0x343230) }
+            return hex(0x6E6E72, 0.86 + 0.16 * r(x / 2 + row * 5, row, 104))
+        }
+        p["furnace_body"] = furnaceBody
+        p["furnace_plate"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if d < 3.6 { return hex(0x141414, 0.8 + 0.3 * r(x, y, 107)) }
+            if d < 4.8 { return hex(0x5A5A60) }
+            if (x == 1 || x == 14) && (y == 1 || y == 14) { return hex(0x76767C) }
+            return hex(0x45454A, 0.9 + 0.12 * r(x, y, 108))
+        }
         func furnaceFront(_ lit: Bool) -> Painter {
             { x, y in
                 if x >= 4 && x <= 11 && y >= 9 && y <= 13 {
@@ -507,7 +524,7 @@ enum TextureGen {
                 if (x == 3 || x == 12) && y >= 8 && y <= 14 { return hex(0x3A3A3A) }
                 if y == 8 && x >= 3 && x <= 12 { return hex(0x3A3A3A) }
                 if y >= 3 && y <= 5 && x >= 4 && x <= 11 { return hex(0x4A4A4A) }
-                return furnaceSide(x, y)
+                return furnaceBody(x, y)
             }
         }
         p["furnace_front"] = furnaceFront(false)

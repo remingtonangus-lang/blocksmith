@@ -122,12 +122,20 @@ enum Guns {
 
     // The Capital finish models (CapitalArms.swift), shared with the soldiers' hands.
     static let models: [[Part]] = CapitalArms.models.map { $0.parts }
+    static let magParts: [Set<Int>] = CapitalArms.models.map { Set($0.mag) }
+    // Ammo light on the left of the receiver (the shooter's side): cyan with rounds in, red when empty.
+    static let indicator: [Part] = CapitalArms.models.map { m in
+        let r = m.parts[0]
+        let y = r.mn.y + (r.mx.y - r.mn.y) * 0.62
+        return Part(mn: V3(r.mn.x - 0.12, y, r.mn.z + 1.2), mx: V3(r.mn.x + 0.02, y + 0.55, r.mn.z + 4.2), color: CapitalArms.glow, pattern: CapitalArms.pGlow)
+    }
     static let order = [0, 1, 2, 0, 2, 3]
     static let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
 
     // First-person gun, written straight into a mob-pipeline vertex buffer (view space).
-    static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float,
-                                 into out: UnsafeMutablePointer<MobVert>) -> Int {
+    /// `rounds` 0 hides the magazine and turns the ammo light red; `scale` enlarges the model (Quest: held in the hand).
+    static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float, rounds: Int = 1,
+                                 scale: Float = 1, into out: UnsafeMutablePointer<MobVert>) -> Int {
         let CT = Mesher.cornerTable
         let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.085, -0.44)   // a little below the line of sight: the top and barrel show (at -0.05 only the stock's back face did: critic, run 385 gun_aim)
         let sway: V3 = bob * (1 - aim * 0.8)
@@ -136,9 +144,13 @@ enum Guns {
         let yawR: Float = (1 - aim) * 0.07
         let pitchR: Float = kick * 0.07 - lower * 0.6
         let cy = cosf(yawR), sy = sinf(yawR), cp = cosf(pitchR), sp = sinf(pitchR)
-        let s: Float = 0.0125
+        let s: Float = 0.0125 * scale
         var n = 0
-        for p in models[gi] {
+        var ind = indicator[gi]
+        if rounds <= 0 { ind.color = V3(1.9, 0.25, 0.18) }
+        for (pi, p0) in (models[gi] + [ind]).enumerated() {
+            if rounds <= 0 && magParts[gi].contains(pi) { continue }            // empty: the magazine is out
+            let p = p0
             let size = p.mx - p.mn
             let ca = cosf(p.rotX), sa = sinf(p.rotX)
             for f in 0..<6 {
@@ -220,7 +232,7 @@ enum Guns {
         }
     }
 
-    static let soundCount = 14
+    static let soundCount = 16      // 14 loaded (bolt home), 15 last round (bolt locks open)
     static var sounds: [Snd] { (0..<soundCount).map { Snd.gun($0) } }
 }
 

@@ -17,7 +17,7 @@ enum BigStructures {
     // MARK: Ocean monument
 
     static func monument(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "monument", spacing: 32, separation: 5, salt: 10387313, reach: 3) { [unowned gen] seed, cx, cz in
+        StructureType(name: "monument", spacing: 48, separation: 8, salt: 10387313, reach: 3) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             let b = gen.column(x, z).biome
             guard b.isDeepOcean else { return nil }
@@ -78,7 +78,7 @@ enum BigStructures {
     // MARK: Woodland mansion
 
     static func mansion(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "mansion", spacing: 80, separation: 20, salt: 10387319, reach: 3) { [unowned gen] seed, cx, cz in
+        StructureType(name: "mansion", spacing: 120, separation: 30, salt: 10387319, reach: 3) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             guard gen.column(x, z).biome == .darkForest else { return nil }
             let y = gen.groundY(x, z)
@@ -224,7 +224,7 @@ enum BigStructures {
     // MARK: Ancient city
 
     static func ancientCity(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "ancient_city", spacing: 24, separation: 8, salt: 20083232, reach: 4) { [unowned gen] seed, cx, cz in
+        StructureType(name: "ancient_city", spacing: 36, separation: 12, salt: 20083232, reach: 4) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             guard gen.climate(x, z).e < -0.6 else { return nil }             // murk depths erosion band
             let y = YOFF - 51
@@ -283,7 +283,7 @@ enum BigStructures {
     // MARK: Trial chambers
 
     static func trialChambers(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "trial_chambers", spacing: 34, separation: 12, salt: 94251327, reach: 3) { seed, cx, cz in
+        StructureType(name: "trial_chambers", spacing: 51, separation: 18, salt: 94251327, reach: 3) { seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             var rng = SRng(seed)
             let y = YOFF - 40 + rng.int(21)
@@ -412,7 +412,7 @@ enum BigStructures {
     // MARK: Trail ruins (buried; suspicious gravel)
 
     static func trailRuins(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "trail_ruins", spacing: 34, separation: 8, salt: 83469867, reach: 1) { [unowned gen] seed, cx, cz in
+        StructureType(name: "trail_ruins", spacing: 51, separation: 12, salt: 83469867, reach: 1) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             let b = gen.column(x, z).biome
             guard [.taiga, .snowyTaiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .oldGrowthBirchForest, .jungle].contains(b) else { return nil }

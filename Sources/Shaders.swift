@@ -116,7 +116,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     // (1, 0.76, 0.46) turned grey stone tan in torch-lit interiors).
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     // Moonlight: what little skylight is left at night is cool blue rather than grey.
-    float3 skyTint = mix(float3(0.6, 0.7, 1.0), float3(1.0), smoothstep(0.1, 0.55, u.params.y));
+    float3 skyTint = mix(float3(0.6, 0.7, 1.0), float3(1.0), smoothstep(0.26, 0.6, u.params.y));
     // Reference light curve (l / (4 - 3l)) with the default-brightness gamma lift, so a torch (14, -1 per
     // block) clearly lights ~6-7 blocks around it. Block light is never scaled by daylight.
     float blk0 = blkL / (4.0 - 3.0 * blkL);

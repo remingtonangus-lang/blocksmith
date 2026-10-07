@@ -279,6 +279,8 @@ extension Snd {
             case 9: return "Heavy gun fires"
             case 10: return "Alarm blares"
             case 11: return "Radio chatter"
+            case 14: return "Gun loaded"
+            case 15: return "Gun empty"
             default: return "Turret turns"
             }
         case .gunReload: return "Reloading"

@@ -64,6 +64,61 @@ enum QuestBugTests {
         }
         check(p.onGround && p.pos.y >= Float(y0) + 0.99, String(format: "swim out onto a 1-block bank: %.2f s, y %.2f (bank %d)", t, p.pos.y, y0 + 1))
         (p.pos, p.vel, p.yaw, p.flying, p.moveLook) = save
+        // VR locomotion: with Player.moveYaw (the head) set, the aim yaw/pitch (the right hand, randomised every
+        // tick here) must not change where the stick takes you: walking, flying, sprint-swimming and ladders.
+        do {
+            let head: Float = 0.7                                    // head yaw: forward = (-sin, -cos)
+            let fwd = V3(-sinf(head), 0, -cosf(head))
+            let save = (p.pos, p.vel, p.yaw, p.pitch, p.flying, p.moveLook, p.moveYaw, p.swimming)
+            var seed: UInt32 = 12345
+            func rnd() -> Float { seed = seed &* 1664525 &+ 1013904223; return Float(seed >> 8) / Float(1 << 24) }
+            func run(_ mode: String, input: MoveInput, start: V3, ticks: Int, handStill: Bool) -> V3 {
+                p.pos = start; p.vel = .zero; p.flying = mode == "fly"; p.swimming = false
+                p.inWater = false; p.headInWater = false; p.onGround = false
+                p.moveYaw = head
+                p.moveLook = V3(-sinf(head), 0, -cosf(head))
+                p.yaw = 2.5; p.pitch = 0.4
+                for _ in 0..<ticks {
+                    if !handStill { p.yaw = (rnd() - 0.5) * 6.2; p.pitch = (rnd() - 0.5) * 3 }
+                    p.update(dt: 1.0 / 60, input: input, world: w)
+                }
+                return p.pos - start
+            }
+            // Flat floor at y0+3 (over the pool area, which is sealed below), walls far away.
+            for x in (x0 - 8)...(x0 + 8) { for z in (z0 - 8)...(z0 + 8) { for y in (y0 + 3)...(y0 + 9) { w.setBlock(x, y, z, y == y0 + 3 ? STONE : AIR) } } }
+            let floorP = V3(Float(x0) + 0.5, Float(y0) + 4, Float(z0) + 0.5)
+            for (mode, inp) in [("walk", MoveInput(forward: 1)), ("strafe", MoveInput(forward: 0, strafe: 1)), ("fly", MoveInput(forward: 1, sprint: true))] {
+                let a = run(mode, input: inp, start: floorP, ticks: 60, handStill: true)
+                let b = run(mode, input: inp, start: floorP, ticks: 60, handStill: false)
+                let dir = simd_normalize(V3(b.x, 0, b.z))
+                let want = mode == "strafe" ? V3(cosf(head), 0, -sinf(head)) : fwd
+                check(simd_length(V3(a.x, 0, a.z)) > 1.5 && simd_length(a - b) < 1e-3 && simd_dot(dir, want) > 0.999,
+                      String(format: "VR %@: moved %.2f along the head (dot %.4f), hand waving changes it by %.4f", mode, simd_length(V3(b.x, 0, b.z)), simd_dot(dir, want), simd_length(a - b)))
+            }
+            // Sprint-swimming in a deep pool: follows moveLook (the head), not the hand.
+            for x in (x0 - 8)...(x0 + 8) { for z in (z0 - 8)...(z0 + 8) { for y in (y0 + 4)...(y0 + 8) { w.setBlock(x, y, z, WATER) } } }
+            let deep = V3(Float(x0) + 0.5, Float(y0) + 5.5, Float(z0) + 0.5)
+            var swim = MoveInput(forward: 1); swim.sprint = true
+            let sa = run("swim", input: swim, start: deep, ticks: 90, handStill: true)
+            let sb = run("swim", input: swim, start: deep, ticks: 90, handStill: false)
+            let sdir = simd_normalize(V3(sb.x, 0, sb.z))
+            check(p.swimming && simd_length(sa - sb) < 1e-3 && simd_dot(sdir, fwd) > 0.999 && simd_length(V3(sa.x, 0, sa.z)) > 2,
+                  String(format: "VR swim: swimming %d, moved %.2f along the head (dot %.4f), hand waving changes it by %.4f", p.swimming ? 1 : 0, simd_length(V3(sb.x, 0, sb.z)), simd_dot(sdir, fwd), simd_length(sa - sb)))
+            // Ladder: a wall straight ahead of the head with a ladder on it; pushing forward climbs whatever the hand does.
+            for x in (x0 - 8)...(x0 + 8) { for z in (z0 - 8)...(z0 + 8) { for y in (y0 + 4)...(y0 + 9) { w.setBlock(x, y, z, AIR) } } }
+            // The player stands in a vine shaft (climbable, no collision box, stone all round): pushing forward
+            // presses into the wall ahead of the head and climbs, whatever the hand does.
+            let vine = Blocks.id("vine")
+            if vine != 0 {
+                for dx in -1...1 { for dz in -1...1 { for y in (y0 + 4)...(y0 + 9) {
+                    w.setBlock(x0 + dx, y, z0 + dz, dx == 0 && dz == 0 ? vine : STONE) } } }
+                let la1 = run("ladder", input: MoveInput(forward: 1), start: floorP, ticks: 90, handStill: true)
+                let la2 = run("ladder", input: MoveInput(forward: 1), start: floorP, ticks: 90, handStill: false)
+                check(la1.y > 2.5 && abs(la1.y - la2.y) < 1e-3, String(format: "VR ladder: climbed %.2f with the hand still, %.2f waving", la1.y, la2.y))
+                for dx in -1...1 { for dz in -1...1 { for y in (y0 + 4)...(y0 + 9) { w.setBlock(x0 + dx, y, z0 + dz, AIR) } } }
+            } else { check(false, "vine block missing") }
+            (p.pos, p.vel, p.yaw, p.pitch, p.flying, p.moveLook, p.moveYaw, p.swimming) = save
+        }
         // Skeletons hold a bow (more parts than the bare biped), raised while drawing.
         let sk = Mob(.skeleton, at: p.pos)
         let idle = mobModelParts(sk).count

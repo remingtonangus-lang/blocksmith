@@ -133,8 +133,23 @@ extension Mob {
         if inLava { health = 0; return }
         // Friction per tick from what is under the boat (reference: water 0.9, land = block slipperiness).
         var friction: Float = 0.05
+        // Open sea: the hull rides the swell (where it is drawn) and wears out, slowly in calm water, fast in storms
+        // (Remington, v61): about 100 min of sailing per point in calm, 3 min in rain, half a minute in a thunderstorm.
+        let ocean = surface.map { abs($0 - Float(SEA) - 0.9) < 1.6 } ?? false
+        let sea: Float = ocean ? g.weather.sea : 0
+        if ridden && surface != nil {
+            boatWear += dt * (1 / 1500 + 0.03 * sea * sea)
+            if boatWear >= 1 {
+                boatWear -= 1; health -= 1
+                g.sfx(.place(.wood), 0.8, at: pos)
+                if health == 2 { g.onToast?(sea > 0.3 ? "The storm is battering your boat" : "Your boat is wearing out") }
+                if health == 1 { g.onToast?("Your boat is about to break up!") }
+            }
+        }
         if let s = surface {
-            let target = s - 0.35
+            let swell: Float = ocean && Game.oceanSwellDrawn
+                ? OceanSwell.height(pos.x, pos.z, Float(g.time.truncatingRemainder(dividingBy: 1000))) * g.weather.swell : 0
+            let target = s - 0.35 + swell
             let under = target - pos.y
             if under > 0.6 {
                 // Deep under water: bob up (reference: boats pop up; a submerged ridden boat ejects the rider).

@@ -288,12 +288,29 @@ final class Game {
 
     // MARK: Setup / persistence
 
-    func findSpawn() -> V3 {
+    /// The world spawn: a spiral search for dry land from a seed-chosen origin. The climate runs in latitude bands
+    /// along z (Terrain.latPeriod), so a search from (0, 0) put every world in the same temperate mid-latitude band;
+    /// the origin now lands anywhere in one full climate cycle (tropics to poles) and 6000 blocks east-west, and the
+    /// seed also picks how far down the land list to go (so two seeds near the same coast still differ).
+    /// `varied: false` keeps the old search from (0, 0) (snapshot harness defaults, stable reference shots).
+    /// Seed-chosen spawn search origin in 16-block cells (x, z) and how many land cells to pass over.
+    static func spawnOrigin(seed: UInt64) -> (Int, Int, Int) {
+        var rng = SRng(seed ^ 0x5EA5_0F_5A3)
+        let half = Int(Terrain.latPeriod / 2) / 16
+        let ox = rng.range(-375, 375), oz = rng.range(-half, half)
+        return (ox, oz, rng.int(4))
+    }
+
+    func findSpawn(varied: Bool = true) -> V3 {
+        let o = varied ? Game.spawnOrigin(seed: world.seed) : (0, 0, 0)
+        let ox = o.0, oz = o.1
+        var skip = o.2
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<4000 {
-            let (h, biome) = world.gen.column(x * 16 + 8, z * 16 + 8)
+            let cx = (x + ox) * 16 + 8, cz = (z + oz) * 16 + 8
+            let (h, biome) = world.gen.column(cx, cz)
             if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach {
-                return V3(Float(x * 16 + 8) + 0.5, Float(h + 1), Float(z * 16 + 8) + 0.5)
+                if skip > 0 { skip -= 1 } else { return V3(Float(cx) + 0.5, Float(h + 1), Float(cz) + 0.5) }
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
             x += dx; z += dz
@@ -457,6 +474,10 @@ final class Game {
         let overcast = 1 - 0.3 * weather.rain - 0.25 * weather.thunder
         return max(0.1, d * overcast) + lightningFlash * 0.6
     }
+
+    // Daylight as the renderers light the world: at night it stops at 0.26 instead of 0.12 (Remington, v61: nights were
+    // too dark to play), still dim and moon-blue. Gameplay (spawning, sleeping, sensors) keeps `daylight`.
+    var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.26) : daylight }
 
     var skyColor: V3 {
         if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
@@ -974,6 +995,8 @@ final class Game {
 
         // Use
         let h = held
+        // Saddling the horse you sit on (the mount itself can't be aimed at from the saddle).
+        if useNow, let r = riding, Items.key(h.item) == "saddle", animalInteract(r) { swing = 1; return }
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && useSpawnEgg(on: target) { swing = 1; return }
@@ -2033,14 +2056,15 @@ final class Game {
         guard survival else { air = 15; return }
 
         // Reference: ceil(distance - 3 - Jump Boost), scaled by what you land on (hay and honey 0.2, beds 0.5, slime 0
-        // unless sneaking). The threshold was 3.5: a jump off a 3-block ledge did 1 instead of 2.
-        let safeFall = 3.05 + Float(effects.level(.jumpBoost))
+        // unless sneaking). Softened for Blocksmith (Remington, v61): 4 blocks are free and each block past that does
+        // 0.6 (a 10-block drop 4 hp instead of 7, a 23-block drop 12 instead of 20).
+        let safeFall = 4.05 + Float(effects.level(.jumpBoost))
         if fall > safeFall && !player.inWater {
             let p = player.pos
             let land = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z))))])
-            var k: Float = 1
-            if land == "hay_block" || land == "honey_block" { k = 0.2 }
-            else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.5 }
+            var k: Float = 0.6
+            if land == "hay_block" || land == "honey_block" { k = 0.12 }
+            else if land.hasSuffix("_bed") || land.hasSuffix("_bed_head") { k = 0.3 }
             else if land == "slime_block" && !player.sneaking { k = 0 }
             let over: Float = fall - safeFall
             let dmg = Int(ceilf(over * k))                          // safeFall carries a 0.05 margin for measuring noise
