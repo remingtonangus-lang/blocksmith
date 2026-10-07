@@ -1138,3 +1138,12 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   locally: questbugs 0 failures, mobtests (new trooper glass-wall check ok), structscan, padtest (same 15 failures as
   the untouched baseline: environment, not this work), precheck 0 errors; menu shots of commands / searches viewed.
 - Not done: Mac water has no swell (waves are a Quest feature; boats on the Mac only wear, no bob).
+
+## 2026-10-07 task 22 (Remington's v63 bug round 2: 11 items + Quest water port), session log
+- claude/quest-port: f9142c6 + a16cb95 + e68efe0; Quest CI 37680626306 green (host checks incl. physical swing test,
+  APK versionCode 64 on quest-dist). No headset on adb: not installed.
+- Per-item causes and fixes in docs/status/quest-port.md "Task 22". questbugs 0 failures locally (new: trigger spam
+  4 hits, bed head drop, horse gear drop, mount screen, villager lying in bed).
+- CI renders: vrsim_held.png shows the sword with Swing Mode off (item 6 not reproduced off-device);
+  stereo_water.png camera sits too low (sea only at the horizon): a better water view is next.
+- Shared Sources part goes to claude/blocksmith-playtest as its own commit (no Swing Mode hunks there).
