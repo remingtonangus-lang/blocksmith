@@ -232,7 +232,7 @@ final class WeaponWheel {
             out.append(HudLine(text: name, x: cx - Float(Font.width(name)) * s / 2, y: cy - 10 * s, scale: s, color: V4(1, 0.9, 0.5, 1)))
             if let gi = Guns.index(st.item) {
                 let gs = Guns.all[gi]
-                let ammo = "\(st.tag)/\(gs.mag)  +\(g.survival ? g.ammoCount(gs.ammo) : 99)"
+                let ammo = "\(st.tag)/\(Guns.magSize(st))  +\(g.survival ? g.ammoCount(gs.ammo) : 99)"
                 out.append(HudLine(text: ammo, x: cx - Float(Font.width(ammo)) * s / 2, y: cy + 2 * s, scale: s))
             }
         }

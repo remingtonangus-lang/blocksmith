@@ -22,6 +22,9 @@ struct Slug {
     var dead = false
     var whizzed = false           // a near miss on the player already made its whizz
     var seat: Int8 = -1           // split screen: the seat that fired it (its hits, marker and provoked mobs are theirs)
+    var pierce: Int8 = 0          // Penetration: further mobs this round may pass on to (each at 70% damage)
+    var incendiary = false        // Incendiary: hit mobs burn 4 s
+    var pierced: [ObjectIdentifier] = []   // mobs this round already went through
 }
 
 struct Beam {
@@ -60,9 +63,10 @@ final class Armory {
     }
 
     // The first mob along a segment (skipping the shooter, and soldiers' own side for their rounds).
-    static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool) -> (Mob, Float)? {
+    static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool, skip: [ObjectIdentifier] = []) -> (Mob, Float)? {
         var best: (Mob, Float)?
         for m in g.mobs.mobs where m.health > 0 && m !== g.riding {
+            if !skip.isEmpty && skip.contains(ObjectIdentifier(m)) { continue }
             if let sh = shooter, ObjectIdentifier(m) == sh { continue }
             if friendly && m.kind.steelhold { continue }
             if let t = m.rayHit(o, d, maxDist: len), t < (best?.1 ?? .greatestFiniteMagnitude) { best = (m, t) }
@@ -126,7 +130,7 @@ final class Armory {
             var player = false
             if s.kind != .grenade {
                 if !s.fromPlayer, let t = Armory.playerHit(g, s.pos, dir, len, pad: s.kind == .bullet ? 0 : 0.2) { hitT = t; player = true }
-                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
+                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
             }
             // Shells and rockets burst on ship hulls (they flew through them); the shooter's own deck aside.
             if s.kind == .shell || s.kind == .rocket {
@@ -160,6 +164,17 @@ final class Armory {
             }
             if hitT <= len {
                 let at = s.pos + dir * hitT
+                if let m = mob, s.kind == .bullet, s.pierce > 0 {
+                    // Penetration: the round carries on through this mob at 70% damage.
+                    impactMob(s, m, at: at, dir: dir, g)
+                    s.pierced.append(ObjectIdentifier(m))
+                    s.pierce -= 1
+                    s.damage *= 0.7
+                    s.traveled += hitT
+                    s.pos = at
+                    slugs[i] = s
+                    continue
+                }
                 s.dead = true
                 slugs[i] = s
                 if let m = mob { impactMob(s, m, at: at, dir: dir, g) } else if player { impactPlayer(s, at: at, dir: dir, g) }
@@ -219,6 +234,7 @@ final class Armory {
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
+        if s.incendiary && !m.spec.fireImmune { m.fire = max(m.fire, 4) }
         if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem {
             // Rounds spark off heavy plate.
             for _ in 0..<4 {
@@ -266,7 +282,7 @@ final class Armory {
     }
 
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
-    func beam(_ g: Game, from o: V3, dir: V3, range: Float, damage: Float, fromPlayer: Bool, shooter: Mob?, by: String) {
+    func beam(_ g: Game, from o: V3, dir: V3, range: Float, damage: Float, fromPlayer: Bool, shooter: Mob?, by: String, incendiary: Bool = false) {
         var end = range
         if let b = Armory.blockHit(g.world, o, dir, range) { end = b.0 }
         var mob: Mob?
@@ -278,7 +294,7 @@ final class Armory {
         if let m = mob {
             let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
             m.hit(from: o, damage: Int(damage * (boss ? 0.35 : 1)), knockback: 0.4)
-            if !m.spec.fireImmune { m.fire = max(m.fire, 3) }
+            if !m.spec.fireImmune { m.fire = max(m.fire, incendiary ? 4 : 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
         } else if player {
             g.hurtPlayer(Int(damage), from: o, cause: "was vaporised by \(by)", knockback: 0.4, type: .projectile)
@@ -315,7 +331,7 @@ final class Armory {
             switch s.kind {
             case .bullet:
                 let tail = min(s.traveled, min(2.5, sp * 0.02))
-                if tail > 0.05 { streak(s.pos - d * tail, s.pos, 0.022, V4(2.6, 2.1, 1.1, 1)) }
+                if tail > 0.05 { streak(s.pos - d * tail, s.pos, 0.022, s.incendiary ? V4(2.8, 1.5, 0.5, 1) : V4(2.6, 2.1, 1.1, 1)) }
             case .rocket:
                 let side = simd_length(simd_cross(d, V3(0, 1, 0))) > 0.01 ? simd_normalize(simd_cross(d, V3(0, 1, 0))) : V3(1, 0, 0)
                 let up = simd_cross(side, d)
@@ -386,8 +402,8 @@ extension Game {
     @discardableResult
     func startReload(_ gi: Int) -> Bool {
         let gs = Guns.all[gi]
-        guard held.tag < gs.mag, ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
-        arms.reload = gs.reload
+        guard held.tag < Guns.magSize(held), ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
+        arms.reload = Guns.reloadTime(held, gi)
         arms.reloadGun = gi
         arms.aim = 0
         sfx(.gunReload(gs.sound), 0.8)
@@ -414,12 +430,13 @@ extension Game {
             a.reload -= dt
             if a.reload <= 0 {
                 var h = held
-                let n = min(gs.mag - h.tag, ammoCount(gs.ammo))
+                let mag = Guns.magSize(h)
+                let n = min(mag - h.tag, ammoCount(gs.ammo))
                 takeAmmo(gs.ammo, n)
                 h.tag += n
                 inventory.held = h
                 a.cooldown = 0.15
-                if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(gs.mag)") }
+                if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(mag)") }
             }
             return true
         }
@@ -443,14 +460,21 @@ extension Game {
         let gs = Guns.all[gi]
         let a = arms
         let look = player.look
-        let spread = gs.spread + (gs.aimSpread - gs.spread) * a.aim + a.bloom
+        let st = held
+        let steady = Guns.steadiness(st)
+        let spread = (gs.spread + (gs.aimSpread - gs.spread) * a.aim) * steady + a.bloom
+        let pierce = Int8(Enchant.level(.penetration, st))
+        let fiery = Enchant.level(.incendiary, st) > 0
         let muzzle = player.eye + look * 0.3
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
                 let d = Guns.scatter(look, spread)
-                a.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player",
-                             life: gs.range / gs.speed, gravity: 1.5))
+                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player",
+                             life: gs.range / gs.speed, gravity: 1.5)
+                s.pierce = pierce
+                s.incendiary = fiery
+                a.spawn(s)
             }
         case .rocket:
             let d = Guns.scatter(look, spread)
@@ -459,19 +483,20 @@ extension Game {
             s.power = Guns.rocketPower
             a.spawn(s)
         case .beam:
-            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player")
+            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player",
+                   incendiary: fiery)
         }
         var h = held
         h.tag -= 1
         inventory.held = h
         if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
-        let k = gs.recoil * (1 - 0.45 * a.aim)
+        let k = gs.recoil * (1 - 0.45 * a.aim) * steady
         player.pitch = min(1.55, player.pitch + k)
         player.yaw += Rand.float(in: -0.4...0.4) * k
         a.recoilDebt += k * 0.65
         a.kick = 1
-        a.bloom = min(gs.spread * 0.8, a.bloom + gs.spread * 0.18)
+        a.bloom = min(gs.spread * 0.8, a.bloom + gs.spread * 0.18 * steady)
         a.cooldown = gs.interval
         a.sinceShot = 0
         a.shotsFired += 1
@@ -540,7 +565,7 @@ extension Game {
             return (reserve == 0 ? "EMPTY - no ammo" : "EMPTY - reload (\(how))", V4(1, 0.3, 0.25, 1))
         }
         let text = "LOADED \(n) / \(reserve < 0 ? "--" : "\(reserve)")"
-        return (text, n * 4 <= gs.mag ? V4(1, 0.75, 0.3, 1) : V4(0.6, 1, 0.75, 1))
+        return (text, n * 4 <= Guns.magSize(held) ? V4(1, 0.75, 0.3, 1) : V4(0.6, 1, 0.75, 1))
     }
 
     // Current cone of fire for the crosshair (nil without a gun).

@@ -16,6 +16,7 @@ enum Ench: Int, CaseIterable {
     case mending, vanishingCurse
     case density, breach, windBurst
     case lunge
+    case extendedMag, quickReload, stability, penetration, incendiary     // guns (Steelhold)
 }
 
 // What an item is, for enchantment purposes.
@@ -27,6 +28,7 @@ struct ECat: OptionSet {
     static let mace = ECat(rawValue: 2048), durable = ECat(rawValue: 4096), wearable = ECat(rawValue: 8192)
     static let vanishable = ECat(rawValue: 16384), shears = ECat(rawValue: 32768)
     static let spear = ECat(rawValue: 65536)
+    static let gun = ECat(rawValue: 131072)
     static let armor: ECat = [.head, .chest, .legs, .feet]
     static let mining: ECat = [.digger, .axe]
 }
@@ -98,6 +100,12 @@ enum Enchant {
             d("breach", "Breach", 4, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, group: 2),
             d("wind_burst", "Wind Burst", 3, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, treasure: true),
             d("lunge", "Lunge", 3, 5, .spear, nil, (5, 8), (25, 8), anvil: 2),          // spears: the jab carries the player forward
+            // Guns (Steelhold): costs and weights in the bow's league.
+            d("extended_mag", "Extended Magazine", 3, 5, .gun, nil, (5, 10), (35, 10), anvil: 2),
+            d("quick_reload", "Quick Reload", 3, 5, .gun, nil, (8, 10), (38, 10), anvil: 2),
+            d("stability", "Stability", 3, 10, .gun, nil, (1, 10), (21, 10), anvil: 1),
+            d("penetration", "Penetration", 4, 2, .gun, nil, (12, 10), (42, 10), anvil: 4),
+            d("incendiary", "Incendiary", 1, 2, .gun, nil, (20, 0), (50, 0), anvil: 4),
         ]
     }()
     static func def(_ e: Ench) -> EnchDef { defs[e.rawValue] }
@@ -178,7 +186,8 @@ enum Enchant {
         if k == "trident" { c.insert(.trident) }
         if k == "fishing_rod" { c.insert(.rod) }
         if k == "mace" { c.insert(.mace) }
-        if k.hasSuffix("_spear") { c.insert(.spear) }                     // spears: the melee enchantments (no sweep) + Lunge
+        if k.hasSuffix("_spear") { c.insert(.spear) }
+        if Guns.index(item) != nil { c.insert(.gun) }                     // spears: the melee enchantments (no sweep) + Lunge
         if k == "jetpack" { return c }                                  // fuel tank, not wear: no Mending/Unbreaking
         if d.durability > 0 { c.insert(.durable); c.insert(.vanishable) }
         if d.armorSlot != nil || k == "carved_pumpkin" || k.hasSuffix("_skull") || k.hasSuffix("_head") { c.insert(.wearable); c.insert(.vanishable) }
@@ -194,6 +203,7 @@ enum Enchant {
         reg.setEnchantability("turtle_helmet", 9)
         for n in ["book", "bow", "crossbow", "trident", "fishing_rod"] { reg.setEnchantability(n, 1) }
         reg.setEnchantability("mace", 15)
+        for g in Guns.all { reg.setEnchantability(g.key, 12) }
     }
 
     // Can `e` go on this item at the table (primary) or anvil (supported)?

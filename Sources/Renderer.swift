@@ -1359,7 +1359,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Guns are drawn as solid models (aiming moves them to the centre of the view).
             let gunIndex = game.heldGun
             if let gi = gunIndex, !game.sniperScoped {
-                let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.all[gi].reload - game.arms.reload) * 3) : 0
+                let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.reloadTime(game.held, gi) - game.arms.reload) * 3) : 0
                 an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
                                             bob: V3(0, bob, 0), light: light, rounds: game.arms.reload > 0 ? 0 : game.held.tag, into: armPtr + an)
             }
