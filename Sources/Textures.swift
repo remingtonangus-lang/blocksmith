@@ -68,6 +68,20 @@ enum TextureGen {
     // Ore: clusters of coloured specks over a base painter.
     // Ore: 4-6 nuggets of 2-4 pixels set into the rock, each with a bright top-left pixel, a darker
     // second shade and a one-pixel dark rim below/right (reads as embedded crystal).
+    // Titanium ore: three tiny flecks near the host rock's brightness, no dark outline or highlight, so it is hard to spot.
+    static func faintOre(_ base: @escaping Painter, _ c: UInt32, _ c2: UInt32, salt: Int) -> Painter {
+        var cells = [Bool](repeating: false, count: 256)
+        let shapes: [[(Int, Int)]] = [[(0, 0), (1, 0)], [(0, 0), (0, 1)], [(0, 0), (1, 1)], [(0, 0)]]
+        for i in 0..<3 {
+            let ox = 1 + Int(r(i, 0, salt) * 13), oy = 1 + Int(r(i, 1, salt) * 13)
+            for (dx, dy) in shapes[Int(r(i, 2, salt) * 4) % 4] { cells[(ox + dx) + (oy + dy) * 16] = true }
+        }
+        let map = cells
+        return { x, y in
+            guard map[x + y * 16] else { return base(x, y) }
+            return r(x, y, salt + 3) < 0.5 ? hex(c) : hex(c2)
+        }
+    }
     static func ore(_ base: @escaping Painter, _ c: UInt32, _ c2: UInt32, salt: Int) -> Painter {
         var cells = [Int](repeating: -1, count: 256)          // nugget index per pixel
         var tops: [(Int, Int)] = []
@@ -325,7 +339,7 @@ enum TextureGen {
         p["coal_ore"] = ore(stone, 0x1E1E1E, 0x3A3A3A, salt: 50)
         p["iron_ore"] = ore(stone, 0xD8AF93, 0xAF8E77, salt: 51)
         p["gold_ore"] = ore(stone, 0xFCEE4B, 0xE0A423, salt: 52)
-        p["diamond_ore"] = ore(stone, 0x5DECF5, 0x2BC7AC, salt: 53)
+        p["diamond_ore"] = faintOre(stone, 0x9DA3AA, 0x7E858E, salt: 53)      // titanium: sparse low-contrast flecks
         p["lapis_ore"] = ore(stone, 0x2749A8, 0x1B3A90, salt: 54)
         p["redstone_ore"] = ore(stone, 0xFF0000, 0xAA0000, salt: 55)
         p["emerald_ore"] = ore(stone, 0x17DD62, 0x0B8B3A, salt: 56)
@@ -333,7 +347,7 @@ enum TextureGen {
         p["deepslate_coal_ore"] = ore(deepslate, 0x1E1E1E, 0x3A3A3A, salt: 50)
         p["deepslate_iron_ore"] = ore(deepslate, 0xD8AF93, 0xAF8E77, salt: 51)
         p["deepslate_gold_ore"] = ore(deepslate, 0xFCEE4B, 0xE0A423, salt: 52)
-        p["deepslate_diamond_ore"] = ore(deepslate, 0x5DECF5, 0x2BC7AC, salt: 53)
+        p["deepslate_diamond_ore"] = faintOre(deepslate, 0x5E636B, 0x4A4F57, salt: 53)
         p["deepslate_lapis_ore"] = ore(deepslate, 0x2749A8, 0x1B3A90, salt: 54)
         p["deepslate_redstone_ore"] = ore(deepslate, 0xFF0000, 0xAA0000, salt: 55)
         p["deepslate_copper_ore"] = ore(deepslate, 0xE0724A, 0x57B892, salt: 57)
@@ -554,7 +568,11 @@ enum TextureGen {
         p["coal_block"] = storage(0x1E1E1E, 110)
         p["iron_block"] = storage(0xDCDCDC, 111)
         p["gold_block"] = storage(0xF8D84A, 112)
-        p["diamond_block"] = storage(0x62EDE0, 113)
+        p["diamond_block"] = { x, y in            // titanium: brushed grey-blue metal
+            if x == 0 || y == 0 { return hex(0xA7B3C2, 1.2) }
+            if x == 15 || y == 15 { return hex(0xA7B3C2, 0.68) }
+            return hex(0xA7B3C2, 0.9 + 0.08 * r(0, y, 113) + 0.04 * r(x / 4, y, 114))
+        }
         p["emerald_block"] = storage(0x2ADB6A, 114)
         p["lapis_block"] = storage(0x2A5BC8, 115)
         p["redstone_block"] = storage(0xB01010, 116)
