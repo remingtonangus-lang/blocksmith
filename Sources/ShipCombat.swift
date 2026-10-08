@@ -169,6 +169,30 @@ extension ShipManager {
         }
     }
 
+    // The first solid ship block along a segment (0.4-block steps), skipping the root `except`: hand-held rockets
+    // and heavy gun shells (Armory) flew straight through hulls.
+    func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
+        let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
+        for s in list where s.root.id != except && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
+            && lo.y < s.worldMax.y && hi.z > s.worldMin.z && lo.z < s.worldMax.z {
+            let n = max(1, Int(ceil(len / 0.4)))
+            for i in 0...n {
+                let t = len * Float(i) / Float(n)
+                let l = s.toLocal(o + d * t)
+                if Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] { return (t, s) }
+            }
+        }
+        return nil
+    }
+
+    // A 42 cm shell striking a Capital vessel (Quest round 4: hits barely scratched them): the drive engines are
+    // knocked out (a frigate goes down, a crawler stops: CapitalShips' disable check) and the hull is torn open.
+    func heavyHit(_ s: Ship, at p: V3, game: Game) {
+        let r = s.root
+        blast(at: p, power: 6, game: game)
+        if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
+    }
+
     // Whether a world point is inside a solid block of a ship other than the root `except`.
     func shipBlock(at p: V3, except: Int) -> Bool {
         for s in list where s.root.id != except && p.x > s.worldMin.x && p.x < s.worldMax.x && p.y > s.worldMin.y && p.y < s.worldMax.y

@@ -128,6 +128,19 @@ final class Armory {
                 if !s.fromPlayer, let t = Armory.playerHit(g, s.pos, dir, len, pad: s.kind == .bullet ? 0 : 0.2) { hitT = t; player = true }
                 if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
             }
+            // Shells and rockets burst on ship hulls (they flew through them); the shooter's own deck aside.
+            if s.kind == .shell || s.kind == .rocket {
+                let own = s.fromPlayer ? (w.ships.aboard?.root.id ?? -1) : -1
+                if let h = w.ships.segmentHit(s.pos, dir, len, except: own), h.0 < hitT,
+                   Armory.blockHit(w, s.pos, dir, h.0).map({ $0.0 >= h.0 }) ?? true {
+                    let at = s.pos + dir * max(0, h.0 - 0.3)
+                    s.dead = true
+                    slugs[i] = s
+                    detonate(s, at: at, g)
+                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g) }
+                    continue
+                }
+            }
             let block = Armory.blockHit(w, s.pos, dir, len)
             if let b = block, b.0 < hitT {
                 let at = s.pos + dir * max(0, b.0 - 0.05)

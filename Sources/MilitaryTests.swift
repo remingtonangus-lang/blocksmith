@@ -303,6 +303,20 @@ extension MobTests {
         let gun = Mob(.deckGun, at: at(0, -45) + V3(0, 0, 0)); gun.persistent = true; gun.yaw = 0
         mm.mobs.append(gun)
         var shells = 0
+        // Unmanned it never fires (Quest round 4: an empty turret shelled the player after the garrison was dead).
+        t = 0
+        while t < 25 && shells == 0 {
+            gun.updateDeckGun(0.05, game)
+            shells = game.arms.slugs.filter { $0.kind == .shell }.count
+            game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
+            t += 0.05
+        }
+        check(shells == 0, "unmanned deck gun holds fire", "\(shells) shells")
+        let gunner = Mob(.soldierTrooper, at: gun.pos + V3(0, 0, -9)); gunner.persistent = true
+        gunner.soldierBrain.orderStation = .gunner
+        mm.mobs.append(gunner)
+        gun.soldierBrain.losTimer = 0
         t = 0
         // A true-scale 42 cm turret traverses at 0.2 rad/s: half a turn takes about 16 s.
         while t < 25 && shells == 0 {
