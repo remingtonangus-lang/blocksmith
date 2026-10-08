@@ -759,8 +759,10 @@ final class Game {
         mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
         if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
-        mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
-        if mi.forward <= 0.3 { player.sprinting = false }
+        // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
+        let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
+        mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0
+        if push <= 0.3 { player.sprinting = false }
         if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {

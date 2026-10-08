@@ -149,7 +149,11 @@ final class Player {
         if gliding { glide(dt, w); return }
 
         sneaking = (input.sneak || forcedCrouch) && !flying && !prone
-        sprinting = (input.sprint && input.forward > 0 && !sneaking) || swimming
+        // VR (moveYaw set): sprint in any stick direction, at full sprint speed however far the stick is pushed (the
+        // Touch stick's round gate rarely gives full deflection, so sprinting at a partial push was barely faster than a
+        // full walk, Quest round 4).
+        let vrSprint = moveYaw != nil && input.sprint && !sneaking && !swimming && input.forward * input.forward + input.strafe * input.strafe > 0.09
+        sprinting = (input.sprint && input.forward > 0 && !sneaking) || swimming || vrSprint
 
         let my = moveYaw ?? yaw
         let f = V3(-sinf(my), 0, -cosf(my))
@@ -159,7 +163,7 @@ final class Player {
         var fh = f
         if let m = moveLook, m.x * m.x + m.z * m.z > 1e-6 { fh = simd_normalize(V3(m.x, 0, m.z)) }
         let len = simd_length(wish)
-        if len > 1 { wish /= len }
+        if len > 1 || (vrSprint && len > 1e-3) { wish /= len }
 
         var speed: Float
         if flying { speed = sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9 }
