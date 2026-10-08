@@ -417,6 +417,11 @@ enum QuestSim {
         }
         let ships = game.world.ships
         ships.encounters = false
+        // Swing Mode off (5b left it on): snapping the aim onto the chest in one frame reads as a swing, and since round 4
+        // a swing breaks what the laser picks (it broke the chest).
+        let swingKeep = QuestSettings.swingMode
+        QuestSettings.swingMode = false
+        defer { QuestSettings.swingMode = swingKeep }
         if game.menu != nil { game.closeMenu() }
         game.inventory.held = .empty
         let pp = game.player.pos
