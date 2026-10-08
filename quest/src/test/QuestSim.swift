@@ -501,7 +501,10 @@ enum QuestSim {
         }
         frames(6) { _ in aimAtChest() }
         let hint = host.controlsHint() ?? "none"
-        check(hint.contains("Open"), "VR ship: hint on the chest: \(hint)")
+        let st = ships.target.map { "\($0.ship.name) \($0.cell) b\($0.ship.grid.get($0.cell.x, $0.cell.y, $0.cell.z))" } ?? "nil"
+        check(hint.contains("Open"), "VR ship: hint on the chest: \(hint) (menu \(game.menu != nil), pilot \(ships.pilot?.name ?? "nil"), "
+              + "ship target \(st), world target \(game.target.map { "\($0.hit)" } ?? "nil"), chest b\(ship.grid.get(chestCell.x, chestCell.y, chestCell.z)), "
+              + "commandeerable \(game.commandeerable()?.name ?? "nil"), kinematic \(ship.kinematic), wrecked \(ship.wrecked), aboard \(ships.aboard?.name ?? "nil"))")
         // Look at the chest for the snapshot (the laser, its dot, the hint label and the deck ring in view).
         let headRot0 = sim.headRot
         frames(2) { _ in
