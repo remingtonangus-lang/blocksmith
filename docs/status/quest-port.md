@@ -455,3 +455,7 @@ claude/blocksmith-playtest as cherry-picks.
 - Junk pickup (15): dirt-like blocks, flowers, grass, ferns, saplings, leaves, vines, seeds need standing over them 1 s or
   crouching; drops from blocks you break still come straight in.
 - VR sprint (16): 1.3x a full walk in any stick direction at any push past 0.3.
+- Shipped: Quest CI run 37812876024 green, APK versionCode 69 on quest-dist (commit 6968b57). Not installed (adb saw no
+  Quest). The first run failed QuestSim's VR ship chest check: 5b left Swing Mode on, and the test's one-frame aim snap
+  onto the deck chest counted as a swing, which since item 10 breaks the laser's block. Fixed in the test (Swing Mode off
+  for shipRide). The check now also prints the interaction state when it fails.
