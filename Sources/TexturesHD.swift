@@ -2138,7 +2138,7 @@ enum HDTex {
                         let centre: Float = cl(1 - (cx * cx + cy * cy) / 8)
                         if on {
                             let gk: Float = 0.8 + 0.25 * centre + 0.1 * blot[i]
-                            c = col(0xF8D080) * gk
+                            c = col(0xFFE8C8) * gk
                         } else {
                             let dk: Float = 0.75 + 0.2 * blot[i] + 0.1 * centre
                             c = col(0x6A3A22) * dk
@@ -2819,7 +2819,7 @@ enum HDTex {
         }
     }
 
-    // Repeater and comparator tops (smooth stone slab with a carved sparkstone trace, glowing when on), daylight
+    // Repeater and comparator tops (smooth stone slab with a carved copper trace, glowing when on), daylight
     // detector tops (glass cells in a wooden cross frame) and its plank sides, and the lever's cobble base.
     static let slabStone: Gen = polished(stone([(0, 0x8E8E8E), (0.5, 0xA2A2A2), (1, 0xB4B4B4)], veins: 0, strata: 0), calm: 0.35, rim: 1 / 20)
     static func diodeFace(_ kind: String) -> Gen {
@@ -2830,7 +2830,7 @@ enum HDTex {
             case "repeater", "repeater_on", "comparator", "comparator_on":
                 var img = slabStone(n, s)
                 let on = kind.hasSuffix("_on"), comp = kind.hasPrefix("comparator")
-                let lit: V3 = on ? col(0xF0281A) : col(0x5A1410)
+                let lit: V3 = on ? col(0xFFA860) : col(0x5E3420)
                 for y in 0..<n { for x in 0..<n {
                     let lx = x / u, ly = y / u
                     let mid: Bool = lx == 7 || lx == 8
@@ -5732,8 +5732,8 @@ enum HDTex {
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "soul_torch": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "soul_torch_wall": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
-        "redstone_torch": torchHD(core: 0xFF6A5A, flame: 0xE8201A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
-        "redstone_torch_off": torchHD(core: 0x6A2018, flame: 0x4A1410, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "redstone_torch": torchHD(core: 0xFFC080, flame: 0xF08A40, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "redstone_torch_off": torchHD(core: 0x7A4A2C, flame: 0x5E3420, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "copper_torch": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "copper_torch_wall": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "vine": vineHD,
@@ -5919,7 +5919,6 @@ enum HDTex {
         "diamond_block": metal(0xA7B3C2, tiles: 2, shine: 0.14),
         "emerald_block": gemBlock([(0, 0x0E6A30), (0.5, 0x2AB85A), (1, 0x9AF0B8)]),
         "lapis_block": gemBlock([(0, 0x142A78), (0.5, 0x2A4EB0), (1, 0x6A8AE0)], cells: 7, flecks: true),
-        "redstone_block": gemBlock([(0, 0x6A0806), (0.5, 0xB01810), (1, 0xF05040)], cells: 6),
         "coal_block": gemBlock([(0, 0x101012), (0.5, 0x222226), (1, 0x3E3E44)], cells: 7),
         "red_mushroom_block": mushroomCap([(0, 0x8A1410), (0.5, 0xB82420), (1, 0xD43A30)], spots: 7),
         "brown_mushroom_block": lumps([(0, 0x6A4A32), (0.5, 0x8A6448), (1, 0xA27C5C)], cells: 14),
@@ -6031,7 +6030,6 @@ enum HDTex {
         "iron_ore": ore(stone(stoneGrey), 0xC4966E, 0xECCCAA),
         "copper_ore": ore(stone(stoneGrey), 0xB8683C, 0x6ECAA4),
         "gold_ore": ore(stone(stoneGrey), 0xD8A824, 0xFCE878),
-        "redstone_ore": ore(stone(stoneGrey), 0x9A0E0E, 0xFF3C3C),
         "lapis_ore": ore(stone(stoneGrey), 0x1C3A9C, 0x4C7CEC),
         "diamond_ore": ore(stone(stoneGrey), 0x98A1AD, 0xB3BCC7, clusters: 4, faint: true),
         "emerald_ore": ore(stone(stoneGrey), 0x12A04A, 0x7CF4A8),
@@ -6039,7 +6037,6 @@ enum HDTex {
         "deepslate_iron_ore": ore(stone(deepslate), 0xB08660, 0xDEBC98),
         "deepslate_gold_ore": ore(stone(deepslate), 0xCC9C20, 0xF4DE70),
         "deepslate_diamond_ore": ore(stone(deepslate), 0x69717D, 0x7F8794, clusters: 4, faint: true),
-        "deepslate_redstone_ore": ore(stone(deepslate), 0x8C0C0C, 0xF03232),
         "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC),
         "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498),
         "deepslate_copper_ore": ore(stone(deepslate), 0xA85E36, 0x60BA96)
@@ -6226,8 +6223,10 @@ enum HDTex {
                 let dens: Float = 0.35 + 0.5 * clump[i]
                 guard h2(x, y, s &+ 11) < dens else { continue }
                 let v: Float = (0.28 + 0.62 * k) * (0.75 + 0.45 * grain[i])
-                var c = V3(v, v * 0.07 + 0.015, 0.02)
-                if level > 0 && h2(x, y, s &+ 13) < 0.02 * k { c = V3(1, 0.55 + 0.3 * k, 0.45) }    // glints
+                // Copper wire: dull dark copper (0x5E3420) at 0 -> glowing copper-orange (0xFFA860) at 15.
+                let base = col(0x5E3420) * (1 - k) + col(0xFFA860) * k
+                var c: V3 = base * (v / (0.28 + 0.62 * k))
+                if level > 0 && h2(x, y, s &+ 13) < 0.02 * k { c = col(0xFFE0B0) }    // glints
                 img.px[i] = V4(min(1, c.x), c.y, c.z, 1)
             }}
             return img

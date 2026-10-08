@@ -342,7 +342,6 @@ enum TextureGen {
         p["gold_ore"] = ore(stone, 0xFCEE4B, 0xE0A423, salt: 52)
         p["diamond_ore"] = faintOre(stone, 0xB3BCC7, 0x98A1AD, salt: 53)      // titanium: sparse low-contrast flecks
         p["lapis_ore"] = ore(stone, 0x2749A8, 0x1B3A90, salt: 54)
-        p["redstone_ore"] = ore(stone, 0xFF0000, 0xAA0000, salt: 55)
         p["emerald_ore"] = ore(stone, 0x17DD62, 0x0B8B3A, salt: 56)
         p["copper_ore"] = ore(stone, 0xE0724A, 0x57B892, salt: 57)
         p["deepslate_coal_ore"] = ore(deepslate, 0x1E1E1E, 0x3A3A3A, salt: 50)
@@ -350,7 +349,6 @@ enum TextureGen {
         p["deepslate_gold_ore"] = ore(deepslate, 0xFCEE4B, 0xE0A423, salt: 52)
         p["deepslate_diamond_ore"] = faintOre(deepslate, 0x7F8794, 0x69717D, salt: 53)
         p["deepslate_lapis_ore"] = ore(deepslate, 0x2749A8, 0x1B3A90, salt: 54)
-        p["deepslate_redstone_ore"] = ore(deepslate, 0xFF0000, 0xAA0000, salt: 55)
         p["deepslate_copper_ore"] = ore(deepslate, 0xE0724A, 0x57B892, salt: 57)
         p["deepslate"] = deepslate
         p["andesite"] = rock(0x888889, grain: 0.18, blotch: 0.2, salt: 63)

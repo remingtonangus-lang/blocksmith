@@ -8,7 +8,7 @@ enum SaveMigration {
     static let format = 3
 
     // old block key (without a [state] suffix) -> new block key
-    static var blockAliases: [String: String] = [:]
+    static var blockAliases: [String: String] = ["redstone_ore": "copper_ore", "deepslate_redstone_ore": "deepslate_copper_ore"]
     // old item key -> new item key
     static var itemAliases: [String: String] = [:]
 

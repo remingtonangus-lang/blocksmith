@@ -11,7 +11,7 @@ import Foundation
 enum CraftCategory: Int, CaseIterable {
     case craftable, building, decoration, utility, sparkstone, tools, combat, food, transport, misc
     var name: String {
-        ["Craftable Now", "Building Blocks", "Decoration", "Utility & Storage", "Sparkstone", "Tools", "Combat", "Food",
+        ["Craftable Now", "Building Blocks", "Decoration", "Utility & Storage", "Circuits", "Tools", "Combat", "Food",
          "Transport", "Materials & Misc"][rawValue]
     }
     var icon: String {

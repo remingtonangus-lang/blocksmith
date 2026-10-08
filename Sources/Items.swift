@@ -150,7 +150,7 @@ final class ItemRegistry {
         item("lapis_lazuli", "Lapis Lazuli", "gem", 0x2A5BC8)
         item("amethyst_shard", "Amethyst Shard", "gem", 0xA87CE0)
         item("quartz", "Ember Quartz", "gem", 0xEDE6DE)
-        item("redstone", "Sparkstone Dust", "dust", 0xE01010)
+        item("redstone", "Copper Wire", "copper_wire", 0xE0845C)
         item("glowstone_dust", "Lumenstone Dust", "dust", 0xF5D878)
         item("gunpowder", "Gunpowder", "dust", 0x6E6E6E)
         item("sugar", "Sugar", "dust", 0xF4F4F4)

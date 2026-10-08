@@ -63,7 +63,7 @@ enum Mining {
     static let fortuneOres: Set<String> = ["coal_ore", "deepslate_coal_ore", "diamond_ore", "deepslate_diamond_ore", "emerald_ore",
                                            "deepslate_emerald_ore", "nether_quartz_ore", "lapis_ore", "deepslate_lapis_ore", "iron_ore",
                                            "deepslate_iron_ore", "gold_ore", "deepslate_gold_ore", "copper_ore", "deepslate_copper_ore",
-                                           "nether_gold_ore", "redstone_ore", "deepslate_redstone_ore"]
+                                           "nether_gold_ore"]
 
     // Drops with Silk Touch and Fortune applied (reference ore / plant formulas).
     static func enchantedDrops(_ b: BlockID, _ tool: ItemStack) -> [ItemStack] {
@@ -152,7 +152,6 @@ enum Mining {
         case "diamond_ore", "deepslate_diamond_ore": return one("raw_titanium")
         case "emerald_ore": return one("emerald")
         case "lapis_ore", "deepslate_lapis_ore": return one("lapis_lazuli", rnd(4, 9))
-        case "redstone_ore", "deepslate_redstone_ore": return one("redstone", rnd(4, 5))
         case "glowstone": return one("glowstone_dust", rnd(2, 4))
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)

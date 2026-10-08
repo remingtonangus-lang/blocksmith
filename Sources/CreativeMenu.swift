@@ -5,7 +5,7 @@ import Foundation
 final class CreativeMenu: Menu {
     enum Tab: Int, CaseIterable {
         case all, building, natural, functional, sparkstone, tools, food, misc, search
-        var name: String { ["All Items", "Building Blocks", "Natural Blocks", "Functional Blocks", "Sparkstone", "Tools & Combat", "Food & Potions", "Ingredients", "Search"][rawValue] }
+        var name: String { ["All Items", "Building Blocks", "Natural Blocks", "Functional Blocks", "Copper Circuits", "Tools & Combat", "Food & Potions", "Ingredients", "Search"][rawValue] }
         var icon: String { ["compass", "bricks", "grass_block", "crafting_table", "redstone", "iron_pickaxe", "apple", "stick", "spyglass"][rawValue] }
         var short: String { ["All", "Build", "Nature", "Use", "Spark", "Tools", "Food", "Misc", "Find"][rawValue] }
     }
