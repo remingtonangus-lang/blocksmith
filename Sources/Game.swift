@@ -1530,7 +1530,7 @@ final class Game {
             be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
         }
         if drop {
-            for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
+            for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5, deliberate: true) }
             exhaustion += 0.005
         }
         // A standing torch on the broken block falls off. Plants that lose their support (whole cane stacks, vines

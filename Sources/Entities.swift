@@ -66,6 +66,8 @@ final class ItemEntity {
     var age: Float = 0
     var pickupDelay: Float
     var onGround = false
+    var deliberate = false          // dropped by a block the player broke: picked up even if junk
+    var hover: Float = 0            // seconds the player has stood over it (junk pickup)
     let spin = Rand.float(in: 0..<(2 * .pi))
 
     init(_ s: ItemStack, at p: V3, vel v: V3, delay: Float = 0.5) {
@@ -122,11 +124,29 @@ final class ItemEntityManager {
         }
     }
 
-    func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5) {
+    func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5, deliberate: Bool = false) {
         if s.isEmpty { return }
         let v = vel ?? V3(Rand.float(in: -1...1), Rand.float(in: 2...3.5), Rand.float(in: -1...1))
-        items.append(ItemEntity(s, at: p, vel: v, delay: delay))
+        let e = ItemEntity(s, at: p, vel: v, delay: delay)
+        e.deliberate = deliberate
+        items.append(e)
     }
+
+    // Junk that isn't vacuumed up (Quest round 4): dirt-like blocks and plants (flowers, grass, ferns, saplings, leaves,
+    // vines, seeds). The player gets them by standing over them for a second or crouching on them, or by breaking the
+    // block themselves.
+    private static var junkCache: [ItemID: Bool] = [:]
+    static func isJunk(_ s: ItemStack) -> Bool {
+        if let j = junkCache[s.item] { return j }
+        let k = Items.key(s.item)
+        var j = ["dirt", "coarse_dirt", "rooted_dirt", "grass_block", "podzol", "mycelium", "mud", "dirt_path", "vine", "lily_pad",
+                 "seagrass", "kelp", "moss_carpet", "hanging_roots", "glow_lichen", "wheat_seeds", "sugar_cane", "cactus"].contains(k)
+            || k.hasSuffix("_leaves")
+        if !j, let b = s.def.block { j = Blocks.render[Int(b)] == RenderType.cross.rawValue }
+        junkCache[s.item] = j
+        return j
+    }
+    private var junkHinted = false
 
     // Returns the stacks picked up this frame (for sound/feedback).
     @discardableResult
@@ -140,10 +160,20 @@ final class ItemEntityManager {
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < 1.3 && abs(d.z) < 1.3 && d.y > -0.8 && d.y < 2.3 {
+                    if !e.deliberate && ItemEntityManager.isJunk(e.stack) {
+                        e.hover += dt
+                        if e.hover < 1 && !game.player.sneaking {
+                            if !junkHinted && e.hover > 0.3 {
+                                junkHinted = true
+                                game.onToast?("Plants and dirt aren't picked up on the move: stand over them a moment or crouch")
+                            }
+                            continue
+                        }
+                    }
                     let before = e.stack.count
                     e.stack = game.inventory.add(e.stack)
                     if e.stack.count != before || e.stack.isEmpty { picked += 1 }
-                }
+                } else { e.hover = 0 }
             }
         }
         if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
