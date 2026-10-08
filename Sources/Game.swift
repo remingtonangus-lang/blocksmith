@@ -228,6 +228,7 @@ final class Game {
     var swingBlock: (hit: IVec3, normal: IVec3)?
     var swingMob: Mob?
     var attackQueued: Float = 0
+    weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
     private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
@@ -857,6 +858,12 @@ final class Game {
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
             Turrets.shared.mount(self, hit.0); return
+        }
+        // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
+        // chest or other usable block, or a ship's container.
+        if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
+            takeCommand(s); return
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }

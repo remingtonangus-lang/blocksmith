@@ -428,6 +428,11 @@ final class QuestControls {
                              "anvil", "loom", "grindstone", "stonecutter", "brewing", "beacon", "crafter", "lectern"].contains { k.contains($0) }
                 h = use + (opens ? " Open " : " Use ") + Blocks.name(b)
             }
+            // Within reach of a helm the player can take (dropships, frigates, any vessel): use takes command.
+            if h == nil, let s = game.commandeerable() {
+                h = use + " Take command"
+                key = "c\(s.id)"
+            }
         }
         if h != nil && key != hintKey { app.input.haptic(aimHand, amplitude: 0.18, seconds: 0.015, frequency: 220) }
         hintKey = h == nil ? "" : key
