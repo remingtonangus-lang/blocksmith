@@ -32,6 +32,7 @@ final class SoldierBrain {
     var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
     var charge: Float = 0
     var kick: Float = 0             // deck gun barrel recoil 1 -> 0
+    var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
     var cover: V3?                  // a spot out of the player's sight to reload in
     var coverSearch: Float = 0
     var flank: V3?                  // where a flanking trooper / relocating marksman is heading
@@ -544,6 +545,7 @@ extension Mob {
         if b.losTimer <= 0 {
             b.losTimer = 0.4
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
+            b.crewed = deckGunCrewed(g)
         }
         if b.sees && canTarget {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
@@ -558,7 +560,9 @@ extension Mob {
                 b.seenAgo = 0
             }
         }
-        guard let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
+        // Spotting still raises the alarm (above), but only a live gunner lays and fires the gun: an empty turret kept
+        // shelling the player after the whole garrison was dead (Quest round 4).
+        guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
         // Ballistic solution (low arc) for the heavy shells, half-leading the target.
         let v: Float = HeavyTurret.speed, grav: Float = HeavyTurret.gravity
         var aimP = tgt
@@ -602,6 +606,17 @@ extension Mob {
         } else if !aligned {
             b.charge = max(0, b.charge - dt * 2)
         }
+    }
+}
+
+extension Mob {
+    // A live soldier posted at this deck gun (CapitalBases sends two per barbette, ~9 blocks behind it, as gunners).
+    func deckGunCrewed(_ g: Game) -> Bool {
+        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && m.brain?.orderStation == .gunner {
+            let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
+            if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
+        }
+        return false
     }
 }
 
@@ -653,7 +668,7 @@ enum HeavyTurret {
     static let trunnionZ: Float = -6                // ... and ahead of the turret centre
     static let barrel: Float = 21                   // trunnion to muzzle
     static let spacing: Float = 2.25                // half the distance between the barrels
-    static let speed: Float = 110, gravity: Float = 20
+    static let speed: Float = 260, gravity: Float = 3  // flat direct fire: ~2 m of drop at 220 m (Quest round 4)
     static let pitchMin: Float = -0.09, pitchMax: Float = 0.52     // -5 to +30 degrees
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
