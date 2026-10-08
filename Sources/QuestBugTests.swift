@@ -202,6 +202,28 @@ enum QuestBugTests {
             game.time = saveT
             for x in (bx - 1)...(bx + 1) { for z in (bz - 1)...(bz + 2) { for y in (by - 1)...(by + 2) { w.setBlock(x, y, z, AIR) } } }
         }
+        // The bonded horse (Quest round 4): ridden while tamed it bonds; stored with a chunk 2,000+ blocks away, a call
+        // brings it to a spot near the player (out of the store, no copy left) and it gallops up.
+        do {
+            let h = Mob(.horse, at: game.player.pos + V3(2, 0, 0))
+            h.owner = true; h.saddled = true
+            game.bondHorse(h)
+            h.pos = game.player.pos + V3(2100, 0, 300)
+            let k = ChunkKey(x: floorDiv(Int(h.pos.x), CS), z: floorDiv(Int(h.pos.z), CS))
+            game.mobs.stored[k, default: []].append(h.record)
+            let surv = game.survival
+            game.survival = true
+            let called = game.callHorse()
+            let back = game.mobs.mobs.first { $0.bond == game.horseBond }
+            let d = back.map { simd_length($0.pos - game.player.pos) } ?? 999
+            let left = game.mobs.stored.values.joined().contains { $0.extra?["bond"] == game.horseBond }
+            let run = back.flatMap { $0.bondedHorseAI(0.05, game, dist: d) } ?? 0
+            check(called && back != nil && d < 20 && !left && run > 0,
+                  String(format: "horse call from 2,100 blocks: back %@, %.1f blocks from the player, store copy left %@, runs at %.1f", back != nil ? "yes" : "no", d, left ? "yes" : "no", run))
+            game.mobs.mobs.removeAll { $0.bond != 0 }
+            game.horseBond = 0; game.horseCall = 0
+            game.survival = surv
+        }
         print("questbugs: \(fails) failures")
         return fails
     }

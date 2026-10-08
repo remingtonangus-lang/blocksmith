@@ -229,6 +229,8 @@ final class Game {
     var swingMob: Mob?
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
+    var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
+    var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
     private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
@@ -785,7 +787,9 @@ final class Game {
             if player.impact >= 1 { damage(Int(player.impact), "experienced kinetic energy") }
             player.impact = 0
         }
-        if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
+        // In survival (no flying) the fly button calls the bonded horse (Riding.swift); the double-tapped jump doesn't.
+        if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { if !(survival && callHorse()) { toggleFly() } }
+        if horseCall > 0 { horseCall -= fdt }
         if input.tapped(KeyBinds.key(.photo)) { togglePhotoMode(); return }
         if input.tapped(KeyBinds.key(.skipTrack)) { skipMusicTrack() }
         if input.tapped(KeyBinds.key(.fastFly)) {
