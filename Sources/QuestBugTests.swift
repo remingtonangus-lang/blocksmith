@@ -16,10 +16,9 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
-        // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9, sparkstone dust 4-5).
+        // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)
-        for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9),
-                                    ("redstone_ore", "redstone", 4, 5), ("deepslate_redstone_ore", "redstone", 4, 5)] {
+        for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9)] {
             var mn = 99, mx = 0
             for _ in 0..<400 {
                 let n = Mining.drops(Blocks.id(ore), pick).filter { Items.key($0.item) == item }.reduce(0) { $0 + $1.count }
@@ -326,6 +325,32 @@ enum QuestBugTests {
             var worn = ItemStack(Items.id("steel_chestplate"), 1); worn.damage = 200
             let fix = Enchant.combine(worn, ItemStack(steel, 1), rename: nil, creative: true)
             check((fix?.out.damage ?? 999) < 200, "r3 steel: steel ingot repairs a steel chestplate on the anvil")
+        }
+        // Round 3 copper: sparkstone is gone, copper wire carries power.
+        do {
+            let bad = Items.allKeys.map { Items.name(Items.id($0)) } + (0..<Blocks.count).map { Blocks.name(BlockID($0)) }
+            let hits = bad.filter { $0.contains("Sparkstone") || $0.contains("Redstone") }
+            check(hits.isEmpty, "r3 copper: no Sparkstone/Redstone display names (\(hits.prefix(3)))")
+            check(!Blocks.has("redstone_ore") && !Blocks.has("deepslate_redstone_ore"), "r3 copper: sparkstone ores unregistered")
+            check(SaveMigration.blockID("redstone_ore") == Blocks.id("copper_ore")
+                  && SaveMigration.blockID("deepslate_redstone_ore") == Blocks.id("deepslate_copper_ore"), "r3 copper: saved sparkstone ore loads as copper ore")
+            let cu = Items.id("copper_ingot"), wire = Items.id("redstone"), stick = Items.id("stick")
+            let rw = Recipes.match([cu, stick, 0, 0, 0, 0, 0, 0, 0], 3, 3)
+            check(rw?.result.item == wire && rw?.result.count == 4, "r3 copper: copper ingot + stick crafts 4 copper wire")
+            let t = Items.id("redstone_torch"), st = Items.id("stone")
+            let rr = Recipes.match([t, wire, t, st, st, st, 0, 0, 0], 3, 3)
+            check(rr?.result.item == Items.id("repeater"), "r3 copper: repeater crafts with copper wire")
+            // Copper battery -> 3 wire -> lamp on a stone floor high above the terrain.
+            let w = game.world
+            let bx = Int(floor(game.player.pos.x)) + 2, bz = Int(floor(game.player.pos.z)) + 2, gy = min(CH - 8, w.topY(bx, bz) + 6)
+            for x in -1...5 { for k in 1...2 { w.setBlock(bx + x, gy + k, bz, AIR) }; w.setBlock(bx + x, gy, bz, Blocks.id("stone")) }
+            w.setBlock(bx, gy + 1, bz, Blocks.id("redstone_block"))
+            for x in 1...3 { w.setBlock(bx + x, gy + 1, bz, Blocks.id("redstone_wire")) }
+            w.setBlock(bx + 4, gy + 1, bz, Blocks.id("redstone_lamp"))
+            var lit = false
+            for _ in 0..<40 where !lit { w.redstone.tick(); lit = Blocks.key(w.block(bx + 4, gy + 1, bz)).hasPrefix("redstone_lamp[lit") }
+            check(lit, "r3 copper: copper battery -> copper wire lights a copper lamp (\(Blocks.key(w.block(bx + 4, gy + 1, bz))))")
+            for x in -1...5 { for k in 0...2 { w.setBlock(bx + x, gy + k, bz, AIR) } }
         }
     }
 }

@@ -555,7 +555,7 @@ final class BlockRegistry {
         // Hardness per the reference (gold, lapis and copper are softer: 3); blast resistance from refResistance.
         for (n, d, lvl, h) in [("coal_block", "Block of Coal", 0, 5), ("iron_block", "Block of Iron", 1, 5), ("gold_block", "Block of Gold", 2, 3),
                                ("diamond_block", "Block of Titanium", 2, 5), ("emerald_block", "Block of Emerald", 2, 5),
-                               ("lapis_block", "Block of Lapis Lazuli", 1, 3), ("redstone_block", "Block of Sparkstone", 0, 5),
+                               ("lapis_block", "Block of Lapis Lazuli", 1, 3), ("redstone_block", "Copper Battery", 0, 5),
                                ("copper_block", "Block of Copper", 1, 3)] as [(String, String, Int, Float)] {
             cube(n, d, n, h: h, lvl: lvl, req: true, snd: .stone)
         }
@@ -647,7 +647,6 @@ final class BlockRegistry {
         cube("red_sand", "Red Sand", "red_sand", h: 0.5, tool: .shovel, snd: .sand)
         cube("terracotta", "Terracotta", "terracotta", h: 1.25, req: true)
         cube("lapis_ore", "Lapis Lazuli Ore", "lapis_ore", h: 3, lvl: 1, req: true)
-        cube("redstone_ore", "Sparkstone Ore", "redstone_ore", h: 3, lvl: 2, req: true)
         cube("emerald_ore", "Emerald Ore", "emerald_ore", h: 3, lvl: 2, req: true)
         cube("copper_ore", "Copper Ore", "copper_ore", h: 3, lvl: 1, req: true)
         cube("deepslate_coal_ore", "Deeprock Coal Ore", "deepslate_coal_ore", h: 4.5, req: true)
@@ -655,7 +654,6 @@ final class BlockRegistry {
         cube("deepslate_gold_ore", "Deeprock Gold Ore", "deepslate_gold_ore", h: 4.5, lvl: 2, req: true)
         cube("deepslate_diamond_ore", "Deeprock Titanium Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
         cube("deepslate_lapis_ore", "Deeprock Lapis Lazuli Ore", "deepslate_lapis_ore", h: 4.5, lvl: 1, req: true)
-        cube("deepslate_redstone_ore", "Deeprock Sparkstone Ore", "deepslate_redstone_ore", h: 4.5, lvl: 2, req: true)
         cube("deepslate_copper_ore", "Deeprock Copper Ore", "deepslate_copper_ore", h: 4.5, lvl: 1, req: true)
         cube("mossy_cobblestone", "Mossy Cobblestone", "mossy_cobblestone", h: 2, req: true)
         cube("smooth_stone", "Smooth Stone", "smooth_stone", h: 2, req: true)

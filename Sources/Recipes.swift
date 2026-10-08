@@ -240,6 +240,9 @@ enum Recipes {
         r.append(shapeless(["iron_ingot"], "iron_nugget", 9))
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "copper_nugget"], "copper_ingot"))
         r.append(shapeless(["copper_ingot"], "copper_nugget", 9))
+        // Copper Wire (save key redstone): one copper ingot drawn over a stick spool -> 4 (a lone ingot already
+        // makes 9 nuggets, so the wire recipe needs the stick to stay distinct).
+        r.append(shapeless(["copper_ingot", "stick"], "redstone", 4))
         r.append(shaped(["N", "C", "S"], ["N": "copper_nugget", "C": "#coals", "S": "stick"], "copper_torch", 4))
         r.append(shaped(["NNN", "NTN", "NNN"], ["N": "copper_nugget", "T": "copper_torch"], "copper_lantern", 1))
         r.append(shaped(["III", "III"], ["I": "copper_ingot"], "copper_bars", 16))
@@ -520,7 +523,7 @@ enum Recipes {
         "iron_ore": "iron_ingot", "gold_ore": "gold_ingot", "copper_ore": "copper_ingot",
         "deepslate_iron_ore": "iron_ingot", "deepslate_gold_ore": "gold_ingot", "deepslate_copper_ore": "copper_ingot",
         "diamond_ore": "diamond", "deepslate_diamond_ore": "diamond", "coal_ore": "coal", "deepslate_coal_ore": "coal",
-        "emerald_ore": "emerald", "lapis_ore": "lapis_lazuli", "redstone_ore": "redstone",
+        "emerald_ore": "emerald", "lapis_ore": "lapis_lazuli",
         "sand": "glass", "red_sand": "glass", "cobblestone": "stone", "stone": "smooth_stone", "cobbled_deepslate": "deepslate",
         "clay_ball": "brick", "clay": "terracotta", "oak_log": "charcoal", "birch_log": "charcoal", "spruce_log": "charcoal",
         "oak_wood": "charcoal", "beef": "cooked_beef", "porkchop": "cooked_porkchop", "chicken": "cooked_chicken",
@@ -534,7 +537,7 @@ enum Recipes {
                                    "potato": "baked_potato", "kelp": "dried_kelp", "cactus": "green_dye", "sea_pickle": "lime_dye",
                                    "wet_sponge": "sponge", "netherrack": "nether_brick", "ancient_debris": "netherite_scrap",
                                    "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz", "deepslate_lapis_ore": "lapis_lazuli",
-                                   "deepslate_redstone_ore": "redstone", "deepslate_emerald_ore": "emerald", "chorus_fruit": "popped_chorus_fruit",
+                                   "deepslate_emerald_ore": "emerald", "chorus_fruit": "popped_chorus_fruit",
                                    "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "quartz_block": "smooth_quartz",
                                    "stone_bricks": "cracked_stone_bricks", "basalt": "smooth_basalt", "clay": "terracotta", "glass": "glass",
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",

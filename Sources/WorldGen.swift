@@ -879,9 +879,8 @@ final class WorldGen: TerrainGenerator {
         if biomes.contains(where: { $0.isBadlands }) {
             for _ in 0..<50 { vein(&b, bx, bz, &rng, gold, dGold, y: y(rng.range(32, 256)), size: 9) }
         }
-        let red = g("redstone_ore"), dRed = g("deepslate_redstone_ore")
-        for _ in 0..<4 { vein(&b, bx, bz, &rng, red, dRed, y: y(rng.range(-64, 15)), size: 8) }
-        for _ in 0..<8 { vein(&b, bx, bz, &rng, red, dRed, y: y(max(-64, triangle(&rng, -96, -32))), size: 8) }
+        // Copper also feeds wiring (sparkstone ore is gone): two extra deep copper veins.
+        for _ in 0..<2 { vein(&b, bx, bz, &rng, copper, dCopper, y: y(rng.range(-64, 15)), size: 10) }
         let lapis = g("lapis_ore"), dLapis = g("deepslate_lapis_ore")
         for _ in 0..<2 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(triangle(&rng, -32, 32)), size: 7) }
         for _ in 0..<4 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(rng.range(-64, 64)), size: 7) }
