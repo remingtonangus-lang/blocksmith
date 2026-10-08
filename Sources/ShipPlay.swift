@@ -51,10 +51,17 @@ extension Game {
         p.pos = s.toLocal(w0)
         p.lastUpdatePos = s.toLocal(p.lastUpdatePos)
         p.yaw -= yawOff
+        // The Quest's locomotion yaw and look (Player.moveYaw / moveLook) are world-space too: left as they were, the
+        // stick walked along the ship's heading instead of the head's on a turned or turning deck (Quest round 4).
+        let moveYaw0 = p.moveYaw, moveLook0 = p.moveLook
+        if let y = moveYaw0 { p.moveYaw = y - yawOff }
+        if let l = moveLook0 { p.moveLook = s.dirToLocal(l) }
         p.airPeak = p.pos.y + fall
         world.frame = s
         p.update(dt: dt, input: mi, world: world)
         world.frame = nil
+        p.moveYaw = moveYaw0
+        p.moveLook = moveLook0
         let held = ships.holdsRider(s, p.pos, halfW: p.halfW) || ships.atShipLadder(s, p.pos, halfW: p.halfW)
         // Back to world space.
         ships.riderShip = s
