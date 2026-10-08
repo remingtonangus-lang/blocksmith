@@ -302,7 +302,7 @@ enum QuestBugTests {
             return t / 256
         }
         let dTi = diff("diamond_ore"), dFe = diff("iron_ore")
-        check(dTi < dFe, String(format: "titanium ore contrast vs stone %.4f < iron ore %.4f", dTi, dFe))
+        check(dTi < 0.6 * dFe && dTi > 0.15 * dFe, String(format: "titanium ore contrast vs stone %.4f: harder to spot than iron ore (%.4f) but visible", dTi, dFe))
     }
 }
 

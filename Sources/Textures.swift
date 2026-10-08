@@ -68,11 +68,12 @@ enum TextureGen {
     // Ore: clusters of coloured specks over a base painter.
     // Ore: 4-6 nuggets of 2-4 pixels set into the rock, each with a bright top-left pixel, a darker
     // second shade and a one-pixel dark rim below/right (reads as embedded crystal).
-    // Titanium ore: three tiny flecks near the host rock's brightness, no dark outline or highlight, so it is hard to spot.
+    // Titanium ore: five small silvery flecks a little brighter than the host rock, no dark outline: findable up close,
+    // easy to miss at a glance (about a third of iron ore's contrast).
     static func faintOre(_ base: @escaping Painter, _ c: UInt32, _ c2: UInt32, salt: Int) -> Painter {
         var cells = [Bool](repeating: false, count: 256)
-        let shapes: [[(Int, Int)]] = [[(0, 0), (1, 0)], [(0, 0), (0, 1)], [(0, 0), (1, 1)], [(0, 0)]]
-        for i in 0..<3 {
+        let shapes: [[(Int, Int)]] = [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1)], [(0, 0), (1, 0), (0, 1)], [(0, 0), (1, 0)]]
+        for i in 0..<5 {
             let ox = 1 + Int(r(i, 0, salt) * 13), oy = 1 + Int(r(i, 1, salt) * 13)
             for (dx, dy) in shapes[Int(r(i, 2, salt) * 4) % 4] { cells[(ox + dx) + (oy + dy) * 16] = true }
         }
@@ -339,7 +340,7 @@ enum TextureGen {
         p["coal_ore"] = ore(stone, 0x1E1E1E, 0x3A3A3A, salt: 50)
         p["iron_ore"] = ore(stone, 0xD8AF93, 0xAF8E77, salt: 51)
         p["gold_ore"] = ore(stone, 0xFCEE4B, 0xE0A423, salt: 52)
-        p["diamond_ore"] = faintOre(stone, 0x9DA3AA, 0x7E858E, salt: 53)      // titanium: sparse low-contrast flecks
+        p["diamond_ore"] = faintOre(stone, 0xB3BCC7, 0x98A1AD, salt: 53)      // titanium: sparse low-contrast flecks
         p["lapis_ore"] = ore(stone, 0x2749A8, 0x1B3A90, salt: 54)
         p["redstone_ore"] = ore(stone, 0xFF0000, 0xAA0000, salt: 55)
         p["emerald_ore"] = ore(stone, 0x17DD62, 0x0B8B3A, salt: 56)
@@ -347,7 +348,7 @@ enum TextureGen {
         p["deepslate_coal_ore"] = ore(deepslate, 0x1E1E1E, 0x3A3A3A, salt: 50)
         p["deepslate_iron_ore"] = ore(deepslate, 0xD8AF93, 0xAF8E77, salt: 51)
         p["deepslate_gold_ore"] = ore(deepslate, 0xFCEE4B, 0xE0A423, salt: 52)
-        p["deepslate_diamond_ore"] = faintOre(deepslate, 0x5E636B, 0x4A4F57, salt: 53)
+        p["deepslate_diamond_ore"] = faintOre(deepslate, 0x7F8794, 0x69717D, salt: 53)
         p["deepslate_lapis_ore"] = ore(deepslate, 0x2749A8, 0x1B3A90, salt: 54)
         p["deepslate_redstone_ore"] = ore(deepslate, 0xFF0000, 0xAA0000, salt: 55)
         p["deepslate_copper_ore"] = ore(deepslate, 0xE0724A, 0x57B892, salt: 57)
