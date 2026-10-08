@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 // Natural spawning and despawning, following the reference NaturalSpawner:
-// - Categories with caps (for the 17x17 chunks around a player): monster 70, creature 10, ambient 15,
+// - Categories with caps (for the 17x17 chunks around a player): monster 24 (reference 70), creature 10, ambient 15,
 //   water creature 5, water ambient 20, underground water creature 5, axolotls 5. Persistent mobs
 //   (named, structure, raid...) don't count.
 // - Monsters: a random column in a chunk within 8 chunks, a random height up to the surface, then up to
@@ -18,7 +18,8 @@ import simd
 //   per tick; animals, villagers and golems are persistent.
 enum SpawnCategory: Int, CaseIterable {
     case monster, creature, ambient, waterCreature, waterAmbient, undergroundWater, axolotls, misc
-    var cap: Int { [70, 10, 15, 5, 20, 5, 5, 0][rawValue] }
+    // Monsters 24 (reference 70): Quest round 4 found the surface crowded even after round 3, so a third of it.
+    var cap: Int { [24, 10, 15, 5, 20, 5, 5, 0][rawValue] }
     var despawns: Bool { self != .creature && self != .misc }
     var farDistance: Float { self == .waterAmbient ? 64 : 128 }
 }
@@ -119,6 +120,13 @@ extension MobManager {
         for m in mobs where m.kind.category == c && !m.persistent && m.customName == nil && m.health > 0 {
             if abs(m.pos.x - p.x) < 136 && abs(m.pos.z - p.z) < 136 { n += 1 }
         }
+        return n
+    }
+
+    // Hostile monsters within `r` blocks (3D), persistent or not: the local crowding check for cave spawns.
+    func monstersNear(_ p: V3, _ r: Float) -> Int {
+        var n = 0
+        for m in mobs where m.kind.hostile && m.health > 0 && simd_length_squared(m.pos - p) < r * r { n += 1 }
         return n
     }
 
@@ -288,6 +296,12 @@ extension MobManager {
             y = yr
         }
         if w.block(x0, y - 1, z0) == BEDROCK { return }
+        // Underground spots: one attempt in four, at most 2 a pack, and none while 6 monsters are already within 32
+        // blocks (a cave let ~50 converge on the player, Quest round 4).
+        let underground = y < top - 8
+        if underground {
+            guard Rand.int(in: 0..<4) == 0, monstersNear(pp, 32) < 6 else { return }
+        }
         var spawned = 0
         for _ in 0..<3 {
             var x = x0, z = z0
@@ -312,7 +326,7 @@ extension MobManager {
                 if m.collides(at, w) { continue }
                 finishMonster(m, game)
                 spawned += 1
-                if spawned >= 4 { return }                      // reference cluster cap: 4 a spawn attempt (it ran to 12)
+                if spawned >= (underground ? 2 : 4) { return }  // reference cluster cap: 4 a spawn attempt (it ran to 12)
                 groupSize -= 1
                 if groupSize <= 0 { break }
             }
