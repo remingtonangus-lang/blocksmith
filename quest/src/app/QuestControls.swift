@@ -178,9 +178,11 @@ final class QuestControls {
         roomScale()
 
         // Aim from the aiming hand.
-        if R.aimValid {
-            aimOrigin = rig.toWorld(R.aimPos)
-            aimDir = simd_normalize(rig.toWorldDir(R.aimRot.act(V3(0, 0, -1))))
+        // A tracking blip keeps the last tracked hand pose (the head fallback drew the laser straight out of the eye, where
+        // it can't be seen: one way it vanished).
+        if let A = R.aimValid ? R : lastAimHand {
+            aimOrigin = rig.toWorld(A.aimPos)
+            aimDir = simd_normalize(rig.toWorldDir(A.aimRot.act(V3(0, 0, -1))))
         } else {
             aimOrigin = rig.headWorld
             aimDir = simd_normalize(rig.toWorldDir(rig.headRot.act(V3(0, 0, -1))))
@@ -843,17 +845,19 @@ final class QuestControls {
         giveVerts(v)
         drawHeld(s, eye: eye)
         drawTeleport(s, eye: eye)
-        // Laser: to the hit point (menus, a target within reach) or a short fading stub.
+        // Laser: to the hit point (menus, a target within reach) or a 3 m beam fading to a faint end. Always drawn
+        // (Quest round 4: it vanished at times): a tracking blip keeps the last aim (aimOrigin/aimDir hold it), it has
+        // priority room in the scratch ring, and with nothing hit it no longer fades out to nothing within 0.6 m.
         let inMenu = game.menu != nil || game.paused
-        if xr.hands[aimHand].aimValid {
+        if xr.hands[aimHand].aimValid || lastAimHand != nil {
             let o = aimOrigin - eye
-            let len: Float = aimHit.map { simd_length($0 - aimOrigin) } ?? (inMenu ? 1.5 : 0.6)
+            let len: Float = aimHit.map { max(0.05, simd_length($0 - aimOrigin)) } ?? (inMenu ? 1.5 : 3)
             let end = o + aimDir * len
-            let side0 = simd_normalize(simd_cross(aimDir, simd_normalize(o + aimDir * 0.5)))
-            let side = side0 * 0.0015
+            let side0 = simd_normalize(simd_cross(aimDir, simd_normalize(o + aimDir * 0.5 + V3(0.0001, 0, 0))))
+            let side = side0 * 0.002
             let hot = inMenu ? (panelHitUV != nil) : (game.target != nil)
-            let c0 = hot ? V4(0.55, 0.9, 1, 0.85) : V4(1, 1, 1, 0.45)
-            let c1 = V4(c0.x, c0.y, c0.z, aimHit == nil ? 0 : c0.w)
+            let c0 = hot ? V4(0.55, 0.9, 1, 0.85) : V4(1, 1, 1, 0.6)
+            let c1 = V4(c0.x, c0.y, c0.z, aimHit == nil ? 0.2 : c0.w)
             var lv = takeVerts()
             defer { giveVerts(lv) }
             QuestControls.quad(&lv, V4(o - side, 1), V4(end - side, 1), V4(end + side, 1), V4(o + side, 1), c0, c1, c1, c0)
@@ -864,7 +868,7 @@ final class QuestControls {
                 let u = simd_normalize(simd_cross(r, aimDir)) * 0.012
                 QuestControls.quad(&lv, c - r - u, c + r - u, c + r + u, c - r + u, V4(c0.x, c0.y, c0.z, 0.9))
             }
-            if let off = app.scene.push(s, lv) { app.scene.drawScratch(s, "simple", offset: off, count: lv.count) }
+            if let off = app.scene.push(s, lv, priority: true) { app.scene.drawScratch(s, "simple", offset: off, count: lv.count) }
         }
     }
 
