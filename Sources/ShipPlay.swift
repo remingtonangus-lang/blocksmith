@@ -25,6 +25,7 @@ extension Game {
         if let s = ships.pilot {
             if pilotTick(s, mi, dt) { ships.riderShip = nil; return }
         }
+        commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
         // Boarding takes a hold on the ship (its deck under the feet, its ladder, its cabin air): beside or under a
@@ -214,6 +215,43 @@ extension Game {
         return true
     }
 
+    // MARK: Commandeering (Quest round 4: dropships and frigates couldn't be taken, and a helm had to be hit exactly)
+    // A vessel whose helm the player may take from where they stand: within 6 blocks of the helm (a dropship: 9, it
+    // hovers while unloading), or anywhere aboard a Capital flier. The use button takes it (Game.interact), with a toast
+    // on entering the zone and a label on the Quest.
+    func commandeerable() -> Ship? {
+        let ships = world.ships
+        guard ships.pilot == nil, alive, menu == nil else { return nil }
+        let p = player.pos
+        var best: Ship?
+        var bd = Float.greatestFiniteMagnitude
+        for s in ships.list where s.parent == nil && !s.wrecked && s.helm != nil {
+            // Crewed vessels and Capital fliers only: near the player's own builds use keeps placing blocks.
+            if s.kinematic ? !ships.canCommandeer(s) : !s.isVessel { continue }
+            guard let stand = helmStand(s) else { continue }
+            let d = simd_length(s.toWorld(stand) - p)
+            let zone: Float = s.role == "dropship" ? 9 : 6
+            let aboard = s.kinematic && (ships.aboard?.root === s || ships.boundsDistance(s, p) < (s.role == "dropship" ? 3 : 0.5))
+            if (d < zone || aboard) && d < bd { best = s; bd = d }
+        }
+        return best
+    }
+
+    func takeCommand(_ s: Ship) {
+        let first = s.kinematic && !s.captured
+        world.ships.aboard = s
+        startPiloting(s)
+        player.vel = s.velocity(at: player.pos)
+        if first { onToast?("You have taken command of the \(s.name)! \(Prompt.g(.sneak)) leaves the helm") }
+    }
+
+    // The zone prompt: a toast each time the player comes within reach of a helm they can take.
+    func commandeerHintTick() {
+        let s = commandeerable()
+        if let s, s !== commandeerHint { onToast?("\(Prompt.g(.use)) Take command of the \(s.name)") }
+        commandeerHint = s
+    }
+
     func startPiloting(_ s: Ship) {
         let ships = world.ships
         ships.pilot = s
@@ -342,7 +380,9 @@ extension Game {
             return true
         }
         if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
-            // Capital ships can't be steered or taken apart: break the helm to cripple one (CapitalShips.swift).
+            // Capital fliers can be commandeered; other Capital ships can't be steered or taken apart: break the helm to
+            // cripple one (CapitalShips.swift).
+            if s.root.kinematic && ships.canCommandeer(s) && !sneak { takeCommand(s); return true }
             if s.root.kinematic {
                 onToast?("The \(s.root.name)'s helm is locked. Destroy it to cripple the ship.")
                 return true

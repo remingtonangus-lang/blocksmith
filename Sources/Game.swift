@@ -226,6 +226,7 @@ final class Game {
     var attackQueued: Float = 0
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
+    weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -848,6 +849,12 @@ final class Game {
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
             Turrets.shared.mount(self, hit.0); return
+        }
+        // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
+        // chest or other usable block, or a ship's container.
+        if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
+            takeCommand(s); return
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }

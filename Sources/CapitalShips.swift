@@ -520,6 +520,7 @@ enum Capital {
         hb.set(0, 2, 7, light); hb.set(0, 2, 15, light)
         hb.set(0, 4, 10, Blocks.id("ship_turret_ring"))
         hb.turrets.append((hb.grid(0, 4, 10), autocannon(), auto))
+        hb.set(0, 2, 6, Blocks.id("ship_helm[south]"))           // the pilot's controls at the front of the bay (commandeer)
         return hb
     }
 
@@ -815,6 +816,7 @@ extension ShipManager {
                 capState.removeValue(forKey: s.id)
                 continue
             }
+            if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
             if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             if !st.announced && pd < 420 {
                 st.announced = true
@@ -1041,6 +1043,35 @@ extension ShipManager {
     }
 
     // Holds a frigate upright (only yaw is steered; drift from rounding is taken out).
+    // Capital fliers the player can take command of from the helm (Quest round 4: the frigate's helm was locked and a
+    // dropship had none). Crawlers stay locked.
+    func canCommandeer(_ s: Ship) -> Bool {
+        s.kinematic && s.parent == nil && !s.wrecked && s.helm != nil && (s.role == "dropship" || s.isFlyingCapital)
+    }
+
+    // A commandeered Capital flier, flown straight from the helm's throttle, steer and climb (kinematic, as its AI
+    // flew it); with nobody at the helm it holds station. Its AI, guns and troop drops stay off for good.
+    private func commandeeredTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        let steered = pilot === s
+        let drop = s.role == "dropship"
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+        let speed: Float = drop ? 24 : 16
+        var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * speed : 0)
+        want.y = steered ? s.climb * (drop ? 8 : 5) : 0
+        // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
+        let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
+        let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
+        if s.worldMin.y < top + 3 { want.y = max(want.y, (top + 3 - s.worldMin.y) * 2) }
+        if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
+        s.vel += (want - s.vel) * min(1, dt * 1.2)
+        let yawRate: Float = steered ? -s.steer * (drop ? 0.9 : 0.3) : 0
+        s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
+        levelUp(s, dt)
+        st.target = nil
+        for t in turrets(of: s) { t.aimAt = nil }
+    }
+
     private func levelUp(_ s: Ship, _ dt: Float) {
         let up = s.dirToWorld(V3(0, 1, 0))
         let axis = simd_cross(up, V3(0, 1, 0))

@@ -779,6 +779,22 @@ extension ShipTest {
             let on = w.ships.standing(on: g.player.pos)?.root === frigate
             let moved = simd_length(V2(g.player.pos.x - start.x, g.player.pos.z - start.z))
             check(on, String(format: "boarded: the player stays on the frigate's hangar deck in flight (moved %.1f blocks with it)", moved))
+            // Commandeer (Quest round 4): aboard, the use button takes the bridge helm; forward throttle flies her.
+            let can = g.commandeerable() === frigate
+            if can { g.takeCommand(frigate) }
+            let f0 = frigate.pos
+            let fwd = frigate.dirToWorld(V3(0, 0, -1))
+            var mi = MoveInput()
+            mi.forward = 1
+            for _ in 0..<300 {
+                g.health = 20
+                g.shipPlayerUpdate(1.0 / 60, mi)
+                w.ships.update(1.0 / 60, game: g)
+            }
+            let gone = simd_dot(frigate.pos - f0, fwd)
+            check(can && w.ships.pilot === frigate && gone > 15,
+                  String(format: "commandeer: aboard, use takes the frigate's helm and she flies ahead under the player's throttle (%.1f blocks)", gone))
+            g.leaveHelm()
             g.player.flying = true
         }
         // The shot: from the camera toward the crawler.

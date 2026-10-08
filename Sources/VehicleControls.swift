@@ -14,6 +14,7 @@ enum VehicleControls {
 
     static func kind(_ s: Ship) -> Kind {
         if !s.rotors.isEmpty { return .helicopter }
+        if s.kinematic && (s.role == "dropship" || s.isFlyingCapital) { return .airship }   // commandeered Capital fliers
         if !s.wings.isEmpty && s.balloons == 0 { return .aircraft }
         if s.balloons > 0 { return .airship }
         if !s.wheels.isEmpty && s.submerged <= 0.01 { return .land }
