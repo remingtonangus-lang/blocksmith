@@ -352,6 +352,74 @@ enum QuestBugTests {
             check(lit, "r3 copper: copper battery -> copper wire lights a copper lamp (\(Blocks.key(w.block(bx + 4, gy + 1, bz))))")
             for x in -1...5 { for k in 0...2 { w.setBlock(bx + x, gy + k, bz, AIR) } }
         }
+        // Round 3 jetpack: real Game.tick with the jump key held, in open air high above the terrain.
+        do {
+            let p = game.player, w = game.world
+            let save = (p.pos, p.vel, p.flying, game.survival, game.inventory.armor[1], p.moveYaw)
+            let jet = Items.id("jetpack")
+            let jump = KeyBinds.key(.jump)
+            let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
+            let gy = min(CH - 60, w.topY(x, z) + 30)
+            func pad() {                                             // a 3x3 stone pad with air above
+                for dx in -1...1 { for dz in -1...1 { w.setBlock(x + dx, gy, z + dz, STONE); for k in 1...40 where gy + k < CH { w.setBlock(x + dx, gy + k, z + dz, AIR) } } }
+            }
+            func standOn() { p.pos = V3(Float(x) + 0.5, Float(gy + 1), Float(z) + 0.5); p.vel = .zero; p.airPeak = p.pos.y; p.pendingFall = 0; for _ in 0..<10 { game.tick(1.0 / 60) } }
+            func run(_ secs: Float, hold: Bool) -> Float {
+                var top = p.pos.y
+                for i in 0..<Int(secs * 60) {
+                    if hold { game.input.keys.insert(jump); if i == 0 { game.input.pressed.insert(jump) } } else { game.input.keys.remove(jump) }
+                    game.tick(1.0 / 60)
+                    top = max(top, p.pos.y)
+                }
+                game.input.keys.remove(jump)
+                return top
+            }
+            pad()
+            game.survival = true; p.flying = false; p.moveYaw = nil
+            let paused0 = game.paused                                 // the harness game starts paused
+            game.paused = false; if game.menu != nil { game.closeMenu() }
+            game.inventory.armor[1] = ItemStack(jet, 1)
+            standOn()
+            let y0 = p.pos.y
+            let top = run(3, hold: true)
+            let used = game.inventory.armor[1].damage
+            check(top - y0 > 10 && used >= 50 && used <= 62, String(format: "r3 jetpack: 3 s of jump held climbs %.1f blocks, burns %d fuel (want > 10, ~57-60)", top - y0, used))
+            let yr = p.pos.y
+            _ = run(0.5, hold: false)
+            check(p.pos.y < yr - 0.5, String(format: "r3 jetpack: released, the player falls (%.1f -> %.1f)", yr, p.pos.y))
+            var empty = ItemStack(jet, 1); empty.damage = Jetpack.tank
+            game.inventory.armor[1] = empty
+            pad(); standOn()
+            let e0 = p.pos.y
+            let etop = run(1.5, hold: true)
+            check(etop - e0 < 1.5 && etop - e0 > 0.8, String(format: "r3 jetpack: empty tank holding jump only jumps (%.2f blocks)", etop - e0))
+            var half = ItemStack(jet, 1); half.damage = 1000
+            let coal = ItemStack(Items.id("coal"), 1)
+            let rf = Fireworks.craft([half, coal, coal, .empty, .empty, .empty, .empty, .empty, .empty])
+            check(rf?.0.damage == 400 && rf?.keep.isEmpty == true, "r3 jetpack: jetpack + 2 coal refuels +600 (damage 1000 -> \(rf?.0.damage ?? -1))")
+            var near = ItemStack(jet, 1); near.damage = 100
+            let rf2 = Fireworks.craft([near, coal, coal, .empty, .empty, .empty, .empty, .empty, .empty])
+            check(rf2?.0.damage == 0 && rf2?.keep == [2], "r3 jetpack: surplus fuel stays in the grid (keep \(rf2?.keep.sorted() ?? []))")
+            check(Fireworks.craft([ItemStack(jet, 1)] + Array(repeating: ItemStack.empty, count: 8)) == nil, "r3 jetpack: a lone jetpack is not a recipe")
+            let S = Items.id("steel_ingot"), W = Items.id("redstone"), B = Items.id("bucket"), C = Items.id("copper_ingot")
+            let rj = Recipes.match([S, W, S, S, B, S, C, 0, C], 3, 3)
+            check(rj?.result.item == jet && rj?.result.damage == 0, "r3 jetpack: steel + copper wire + bucket + copper crafts a full jetpack")
+            check(!Enchant.category(jet).contains(.durable), "r3 jetpack: not enchantable (no Mending/Unbreaking)")
+            // Creative double-tap still toggles flying with a jetpack worn.
+            game.survival = false; p.flying = false
+            game.inventory.armor[1] = ItemStack(jet, 1)
+            pad(); standOn()
+            for i in 0..<20 {
+                if i == 0 || i == 10 { game.input.keys.insert(jump); game.input.pressed.insert(jump) }
+                if i == 3 || i == 13 { game.input.keys.remove(jump) }
+                game.tick(1.0 / 60)
+            }
+            game.input.keys.remove(jump)
+            check(p.flying, "r3 jetpack: creative double-tap jump still toggles flying")
+            (p.pos, p.vel, p.flying, game.survival, game.inventory.armor[1], p.moveYaw) = save
+            game.paused = paused0
+            for dx in -1...1 { for dz in -1...1 { w.setBlock(x + dx, gy, z + dz, AIR) } }
+        }
     }
 }
 

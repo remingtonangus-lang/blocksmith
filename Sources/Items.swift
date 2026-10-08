@@ -418,6 +418,11 @@ final class ItemRegistry {
         ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
         ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
         add(ely)
+        // Jetpack (Jetpack.swift): worn in the chest slot; durability is the fuel tank (1200 ticks = 60 s of thrust).
+        var jet = ItemDef("jetpack", "Jetpack")
+        jet.sprite = Sprite(mask: "jetpack", base: 0x7C8590, extras: ["c": 0xC8743A, "d": 0x8A4A22, "s": 0x3A3E44])
+        jet.maxStack = 1; jet.armorSlot = .chest; jet.armor = 0; jet.durability = Jetpack.tank
+        add(jet)
         // Durability / combat numbers for the weapon items above.
         for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
                                    ("carrot_on_a_stick", 25, 1, 4), ("warped_fungus_on_a_stick", 100, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {

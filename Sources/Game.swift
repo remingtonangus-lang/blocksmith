@@ -824,6 +824,7 @@ final class Game {
             if mi.sneak { dismount() }
         } else {
             player.autoJump = autoJump
+            jetpackTick(fdt, mi)
             shipPlayerUpdate(fdt, mi)
             powderSnowTick(fdt)
             vibrationTick(fdt)
@@ -880,6 +881,7 @@ final class Game {
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
+        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
             Turrets.shared.mount(self, hit.0); return
@@ -1937,7 +1939,7 @@ final class Game {
             dmg *= 1 - eff / 25
             // Only wearable armour wears: a carved pumpkin or a head (durability 0) vanished on the first hit, and
             // Glider Wings don't take damage from hits (reference).
-            for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0 && Items.key(inventory.armor[i].item) != "elytra" {
+            for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0 && !["elytra", "jetpack"].contains(Items.key(inventory.armor[i].item)) {
                 var s = inventory.armor[i]
                 if Enchant.wearSkipped(s) { continue }
                 s.damage += max(1, amount / 4)

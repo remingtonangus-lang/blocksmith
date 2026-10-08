@@ -28,6 +28,10 @@ final class Player {
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
     var gliding = false            // glider wings flight
+    var jetThrust = false          // jetpack thrusting this frame (set by Game.jetpackTick before update)
+    var jetHold: Float = 0         // seconds jump has been held (jetpack takes over after 0.15 s)
+    var jetBurn: Float = 0         // fractional fuel ticks burnt
+    var jetEmptyWarned = false
     var boost: Float = 0           // firework rocket boost left (s)
     var levitate: Float = 0        // sentry bolt levitation left (s)
     var levitateAmp = 0
@@ -187,8 +191,9 @@ final class Player {
         let held = flying ? nil : (Player.stuck(feet) ?? Player.stuck(body))
         if let s = held { speed *= s.h }
 
+        if jetThrust { speed *= 1.3 }
         let target = wish * speed
-        let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : 5))
+        let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : (jetThrust ? 8 : 5)))
         let k = 1 - expf(-accel * dt)
         vel.x += (target.x - vel.x) * k
         vel.z += (target.z - vel.z) * k
@@ -217,6 +222,10 @@ final class Player {
         } else if levitate > 0 {
             levitate -= dt
             vel.y += (0.9 * Float(levitateAmp + 1) - vel.y) * (1 - expf(-4 * dt))
+            airPeak = pos.y
+        } else if jetThrust {
+            // Jetpack: ease the climb toward ~6 blocks/s; the fall restarts from wherever the thrust stops.
+            vel.y += (6 - vel.y) * (1 - expf(-4 * dt))
             airPeak = pos.y
         } else {
             vel.y -= (slowFalling && vel.y < 0 ? 2.8 : 28) * dt
