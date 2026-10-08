@@ -149,30 +149,27 @@ enum QuestSim {
             check(before != AIR && after != before, "VR break: right trigger broke \(Blocks.name(before)) at \(t) (now \(Blocks.name(after)))")
         }
 
-        // 5b. Swing Mode (physical): a fast swing through the air with the laser on the block does nothing; a punch that
-        // carries the fist into the block breaks it.
+        // 5b. Swing Mode (Quest round 4: no physical contact needed): a fast swing of the hand with the laser on a block
+        // within reach breaks it; a slow hand move does nothing.
         QuestSettings.swingMode = true
         game.inventory.held = .empty
         if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // fill the hole the trigger test left
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         if let t = game.target?.hit {
             let before = game.world.block(t.x, t.y, t.z)
+            frames(20) { i in
+                idleHands(); sim.hands[1].aimRot = down
+                sim.hands[1].aimPos += V3(0.004 * Float(i % 2), 0, 0)          // ~0.3 m/s: not a swing
+            }
+            let slow = game.world.block(t.x, t.y, t.z)
             frames(8) { i in
                 idleHands(); sim.hands[1].aimRot = down
-                sim.hands[1].aimPos += V3(0.09 * Float(i % 2), 0, 0)           // a 6.5 m/s swing in the air, laser on it
-            }
-            let flicked = game.world.block(t.x, t.y, t.z)
-            let reachDir = down.act(V3(0, 0, -1))
-            var k = 0
-            frames(40) { _ in
-                idleHands(); sim.hands[1].aimRot = down
-                if game.world.block(t.x, t.y, t.z) == before { k += 1 }
-                sim.hands[1].aimPos += reachDir * (0.06 * Float(k))             // a 4.3 m/s punch into the block
+                sim.hands[1].aimPos += V3(0.09 * Float(i % 2), 0, 0)           // a 6.5 m/s swing, laser on the block
             }
             frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
             let after = game.world.block(t.x, t.y, t.z)
             if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }       // the platform stays whole for the next checks
-            check(flicked == before && after != before, "VR swing: flick left \(Blocks.name(flicked)), arm swing broke \(Blocks.name(before)) (now \(Blocks.name(after)))")
+            check(slow == before && after != before, "VR swing: slow move left \(Blocks.name(slow)), swing with the laser on it broke \(Blocks.name(before)) (now \(Blocks.name(after)))")
         } else { check(false, "VR swing: no target") }
 
         // 6. Place: the left trigger with a block in hand places it against the targeted face.

@@ -837,6 +837,22 @@ final class Game {
 
     // MARK: Interaction (attack, mine, use)
 
+    var swordHeld: Bool { Items.key(held.item).hasSuffix("_sword") }
+
+    // With a sword: the nearest living mob within reach and 10 degrees of the aim (when the ray itself just misses).
+    func mobNearAim(reach: Float) -> (Mob, Float)? {
+        var best: (Mob, Float)?
+        let eye = player.eye, look = player.look
+        for m in mobs.mobs where m.health > 0 && m !== riding && m.kind != .boat && m.kind.spec.behavior != .vehicle {
+            let c = m.pos + V3(0, m.height * 0.5, 0) - eye
+            let d = simd_length(c)
+            guard d < reach + m.halfW, d > 0.1, simd_dot(c / d, look) > 0.985, d < (best?.1 ?? .greatestFiniteMagnitude) else { continue }
+            guard world.canSee(eye, m.pos + V3(0, m.height * 0.5, 0)) else { continue }
+            best = (m, d)
+        }
+        return best
+    }
+
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
         let swung = swingPower > 0
@@ -844,8 +860,10 @@ final class Game {
         let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
         swingPower = 0
         if swung { swingGrace = 0.7 }
-        let reach: Float = swung ? 5.5 : (survival ? 4.5 : 5)
-        target = swung && touched ? swingBlock : AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
+        // A Quest swing reaches 6 blocks and takes the nearest block on the laser (no stickiness to an older, farther one).
+        let reach: Float = swung ? 6 : (survival ? 4.5 : 5)
+        let ray = world.raycast(player.eye, player.look, maxDist: reach)
+        target = swung && touched ? swingBlock : (swung ? ray : AimAssist.sticky(self, ray, reach: reach))
         swingBlock = nil; swingMob = nil
         breakCooldown -= dt
         placeCooldown -= dt
@@ -873,9 +891,13 @@ final class Game {
         var mobHit: Mob?
         if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
-        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 5.5 : 3.5), except: riding) {
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 6 : 3.5), except: riding)
+                    ?? (swordHeld ? mobNearAim(reach: swung ? 6 : 3.5) : nil) {
             let (m, dist) = hit
-            if let t = target {
+            // A sword means to hit the creature: it wins over a block in front of it (grass, a leaf, a fence).
+            if swordHeld {
+                mobHit = m
+            } else if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
                 if dist < simd_length(c - player.eye) - 0.4 { mobHit = m }
             } else {

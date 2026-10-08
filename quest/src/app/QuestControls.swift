@@ -697,12 +697,11 @@ final class QuestControls {
         return (q.act(V3(1, 0, 0)), q.act(V3(0, 1, 0)), q.act(V3(0, 0, 1)))
     }
 
-    // Physical Swing Mode: the held tool (or fist) is a blade from the hand to its tip, in the same place drawHeld draws
-    // it. A hit lands only when that blade actually moves into a mob's box or a block this frame (the swept tip/blade
-    // segment, so a tool merely passing near a block does nothing) at a tip speed of at least 2.2 m/s (resting or slowly
-    // pushing the tool into something does nothing). Power = tip speed / 4.5 m/s (an ordinary swing), 0.5x-1.5x: Game
-    // multiplies the weapon's listed damage and the swing's digging by it, so an average swing equals a trigger attack.
-    // One hit per swing: the next one arms once the tip slows below 1.5 m/s or has touched nothing for 0.3 s.
+    // Swing Mode: the held tool (or fist) is a blade from the hand to its tip, in the same place drawHeld draws it. A swing
+    // is the tip moving at 2.2 m/s or more (relative to the head); it attacks what the laser picks within the normal
+    // 6-block reach (Game.interact: the nearest block on the ray; with a sword, a mob first). The tool no longer has to
+    // physically touch the target (Quest round 4 undid that rule). Power = tip speed / 4.5 m/s, 0.5x-1.5x. One hit per
+    // swing: the next one arms once the tip slows below 1.5 m/s or 0.3 s have passed.
     private func swingContact(_ R: XRHand, dt: Float) {
         let rig = app.rig
         guard dt > 1e-3, R.aimValid else { bladeValid = false; return }
@@ -725,27 +724,12 @@ final class QuestControls {
         swingIdle += dt
         if speed < 1.5 || swingIdle > 0.3 { swingArmed = true }
         guard swingArmed && speed >= 2.2 else { return }
-        let w = game.world
-        var mob: Mob?
-        var block: (hit: IVec3, normal: IVec3)?
-        for i in stride(from: 3, through: 0, by: -1) where mob == nil && block == nil {
-            let a = rig.toWorld(blade[i + 4]), b = rig.toWorld(blade[i])
-            for m in game.mobs.mobs where m.health > 0 && m.kind != .boat && m.kind.spec.behavior != .vehicle && m !== game.riding {
-                let e: Float = 0.08
-                if b.x > m.pos.x - m.halfW - e && b.x < m.pos.x + m.halfW + e && b.z > m.pos.z - m.halfW - e && b.z < m.pos.z + m.halfW + e
-                    && b.y > m.pos.y - e && b.y < m.pos.y + m.height + e { mob = m; break }
-            }
-            if mob != nil { break }
-            let d = b - a, len = simd_length(d)
-            if len > 1e-4, let hit = w.raycast(a, d / len, maxDist: len) { block = hit }
-        }
-        guard mob != nil || block != nil else { return }
         swingArmed = false
         swingIdle = 0
         game.swingPower = max(0.5, min(1.5, speed / 4.5))
-        game.swingMob = mob
-        game.swingBlock = mob == nil ? block : nil
-        app.input.haptic(aimHand, amplitude: mob != nil ? 0.7 : 0.5, seconds: 0.05, frequency: mob != nil ? 160 : 220)
+        game.swingMob = nil
+        game.swingBlock = nil
+        app.input.haptic(aimHand, amplitude: 0.5, seconds: 0.05, frequency: 200)
     }
 
     // The held item's drawn size (drawHeld): the icon's half size, and whether it is held as a tool by the handle.
