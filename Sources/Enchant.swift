@@ -170,7 +170,7 @@ enum Enchant {
         case .shears: c.insert(.shears)
         default: break
         }
-        if let a = d.armorSlot, k != "elytra" {
+        if let a = d.armorSlot, k != "elytra", k != "jetpack" {      // jetpack: fuel, not wear
             c.insert([ECat.head, .chest, .legs, .feet][a.rawValue])
         }
         if k == "bow" { c.insert(.bow) }
@@ -179,6 +179,7 @@ enum Enchant {
         if k == "fishing_rod" { c.insert(.rod) }
         if k == "mace" { c.insert(.mace) }
         if k.hasSuffix("_spear") { c.insert(.spear) }                     // spears: the melee enchantments (no sweep) + Lunge
+        if k == "jetpack" { return c }                                  // fuel tank, not wear: no Mending/Unbreaking
         if d.durability > 0 { c.insert(.durable); c.insert(.vanishable) }
         if d.armorSlot != nil || k == "carved_pumpkin" || k.hasSuffix("_skull") || k.hasSuffix("_head") { c.insert(.wearable); c.insert(.vanishable) }
         if k == "compass" || k == "recovery_compass" { c.insert(.vanishable) }

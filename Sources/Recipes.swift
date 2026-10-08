@@ -229,6 +229,7 @@ enum Recipes {
         }
         // Steel: iron + coal or charcoal -> blend, smelted only in a blast furnace
         r.append(shapeless(["iron_ingot", "iron_ingot", "#coals"], "steel_blend", 2))
+        r.append(shaped(["SWS", "SBS", "C C"], ["S": "steel_ingot", "W": "redstone", "B": "bucket", "C": "copper_ingot"], "jetpack"))
         // Storage blocks and nuggets
         for (item, block) in [("coal", "coal_block"), ("iron_ingot", "iron_block"), ("gold_ingot", "gold_block"),
                               ("diamond", "diamond_block"), ("emerald", "emerald_block"), ("lapis_lazuli", "lapis_block"),

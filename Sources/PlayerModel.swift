@@ -82,6 +82,13 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
     parts.append(head(V3(-2, 27, -4.2), V3(-1, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(2, 27, -4.2), V3(3, 28.5, -4.1), V3(0.2, 0.3, 0.55)))
     parts.append(head(V3(-2, 25, -4.15), V3(2, 25.8, -4.05), V3(0.55, 0.35, 0.3)))
+    if Items.key(armor[1].item) == "jetpack" && !armor[1].isEmpty {
+        // Jetpack on the back: two steel tanks with copper nozzles.
+        for x: Float in [-3.6, 0.4] {
+            parts.append(Part(mn: V3(x, 13, 2), mx: V3(x + 3.2, 23, 5), pivot: .zero, rotX: 0, color: V3(0.48, 0.52, 0.57), pattern: 8))
+            parts.append(Part(mn: V3(x + 0.6, 11, 2.6), mx: V3(x + 2.6, 13, 4.4), pivot: .zero, rotX: 0, color: V3(0.78, 0.45, 0.23)))
+        }
+    }
     if !g.inventory.held.isEmpty {
         let c: V3 = g.inventory.held.def.block != nil ? V3(0.55, 0.45, 0.35) : V3(0.7, 0.7, 0.72)
         parts.append(Part(mn: V3(5, 9, -5), mx: V3(7, 13, -1), pivot: V3(6, 22, 0), rotX: walk + hit, color: c))

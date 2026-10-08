@@ -17,6 +17,7 @@ enum Fireworks {
 
     // Special crafting (dynamic ingredients). Returns the result and grid slots that are not consumed.
     static func craft(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
+        if let j = Jetpack.refuel(g) { return j }
         let items = g.enumerated().filter { !$0.element.isEmpty }
         guard !items.isEmpty else { return nil }
         let keys = items.map { Items.key($0.element.item) }

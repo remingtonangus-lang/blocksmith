@@ -52,7 +52,7 @@ final class CombatHUD {
             var row = 0
             for i in 0..<4 {
                 let st = g.inventory.armor[i]
-                guard !st.isEmpty, st.def.durability > 0 else { continue }
+                guard !st.isEmpty, st.def.durability > 0, Items.key(st.item) != "jetpack" else { continue }
                 let f = max(0, 1 - Float(st.damage) / Float(st.def.durability))
                 let x = L.hotbarX0 - 30 * s, y = L.hotbarY0 + Float(row) * 5 * s + 1 * s
                 out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(22 * s, 3 * s)))
@@ -61,6 +61,7 @@ final class CombatHUD {
                 row += 1
             }
         }
+        out += Jetpack.gauge(g, L)
         // Vehicle gauges while piloting (or riding aboard).
         if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil {
             let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 64 * s
