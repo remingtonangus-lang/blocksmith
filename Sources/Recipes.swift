@@ -220,13 +220,15 @@ enum Recipes {
             r.append(shaped(["  X", " # ", "#  "], k, "\(t)_spear"))
         }
         // Armor
-        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper")] {
+        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper"), ("steel_ingot", "steel")] {
             let k: [Character: String] = ["X": m]
             r.append(shaped(["XXX", "X X"], k, a == "leather" ? "leather_helmet" : "\(a)_helmet"))
             r.append(shaped(["X X", "XXX", "XXX"], k, "\(a)_chestplate"))
             r.append(shaped(["XXX", "X X", "X X"], k, "\(a)_leggings"))
             r.append(shaped(["X X", "X X"], k, "\(a)_boots"))
         }
+        // Steel: iron + coal or charcoal -> blend, smelted only in a blast furnace
+        r.append(shapeless(["iron_ingot", "iron_ingot", "#coals"], "steel_blend", 2))
         // Storage blocks and nuggets
         for (item, block) in [("coal", "coal_block"), ("iron_ingot", "iron_block"), ("gold_ingot", "gold_block"),
                               ("diamond", "diamond_block"), ("emerald", "emerald_block"), ("lapis_lazuli", "lapis_block"),
@@ -514,7 +516,7 @@ enum Recipes {
     // MARK: Smelting
 
     static let smelting: [String: String] = [
-        "raw_iron": "iron_ingot", "raw_gold": "gold_ingot", "raw_copper": "copper_ingot", "raw_titanium": "diamond",
+        "raw_iron": "iron_ingot", "raw_gold": "gold_ingot", "raw_copper": "copper_ingot", "raw_titanium": "diamond", "steel_blend": "steel_ingot",
         "iron_ore": "iron_ingot", "gold_ore": "gold_ingot", "copper_ore": "copper_ingot",
         "deepslate_iron_ore": "iron_ingot", "deepslate_gold_ore": "gold_ingot", "deepslate_copper_ore": "copper_ingot",
         "diamond_ore": "diamond", "deepslate_diamond_ore": "diamond", "coal_ore": "coal", "deepslate_coal_ore": "coal",
@@ -551,7 +553,7 @@ enum Recipes {
     static func smeltXP(_ out: ItemID) -> Float {
         let k = Items.key(out)
         switch k {
-        case "iron_ingot", "copper_ingot": return 0.7
+        case "iron_ingot", "copper_ingot", "steel_ingot": return 0.7
         case "gold_ingot", "diamond", "emerald", "green_dye": return 1
         case "netherite_scrap": return 2
         case "redstone", "brick": return 0.3

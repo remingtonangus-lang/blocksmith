@@ -294,6 +294,30 @@ enum QuestBugTests {
         }
         let dTi = diff("diamond_ore"), dFe = diff("iron_ore")
         check(dTi < 0.6 * dFe && dTi > 0.15 * dFe, String(format: "titanium ore contrast vs stone %.4f: harder to spot than iron ore (%.4f) but visible", dTi, dFe))
+        // Round 3 steel: 2 iron + coal/charcoal -> 2 steel blend, blast furnace only, steel armour tier.
+        do {
+            let iron = Items.id("iron_ingot"), blend = Items.id("steel_blend"), steel = Items.id("steel_ingot")
+            for c in ["coal", "charcoal"] {
+                let r = Recipes.match([iron, iron, Items.id(c), 0, 0, 0, 0, 0, 0], 3, 3)
+                check(r?.result.item == blend && r?.result.count == 2, "r3 steel: 2 iron + \(c) crafts 2 steel blend")
+            }
+            check(Recipes.smelt(blend) == steel, "r3 steel: steel blend smelts into a steel ingot")
+            check(BlockEntity.allowed(steel, blend, in: "blast_furnace") && !BlockEntity.allowed(steel, blend, in: "furnace")
+                  && !BlockEntity.allowed(steel, blend, in: "smoker"), "r3 steel: blend smelts only in a blast furnace")
+            let s = Items.id("steel_ingot"), e: ItemID = 0
+            let grids: [(String, [ItemID])] = [("helmet", [s, s, s, s, e, s, e, e, e]), ("chestplate", [s, e, s, s, s, s, s, s, s]),
+                                               ("leggings", [s, s, s, s, e, s, s, e, s]), ("boots", [s, e, s, s, e, s, e, e, e])]
+            var pts = 0
+            for (p, g) in grids {
+                let r = Recipes.match(g, 3, 3)
+                check(r?.result.item == Items.id("steel_\(p)"), "r3 steel: steel \(p) crafts")
+                pts += Items.def(Items.id("steel_\(p)")).armor
+            }
+            check(pts == 17, "r3 steel: steel armour totals 17 points (\(pts))")
+            var worn = ItemStack(Items.id("steel_chestplate"), 1); worn.damage = 200
+            let fix = Enchant.combine(worn, ItemStack(steel, 1), rename: nil, creative: true)
+            check((fix?.out.damage ?? 999) < 200, "r3 steel: steel ingot repairs a steel chestplate on the anvil")
+        }
     }
 }
 
