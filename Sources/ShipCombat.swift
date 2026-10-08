@@ -109,7 +109,7 @@ extension ShipManager {
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
-        var blasts: [(V3, Float, Int)] = []
+        var blasts: [(V3, Float, Int, Bool)] = []
         for sh in shells {
             sh.age += dt
             let start = sh.pos
@@ -138,10 +138,11 @@ extension ShipManager {
             let len = simd_length(end - start)
             let n = max(1, Int(ceil(len / 0.4)))
             var hit: V3?
+            var onHull = false
             for i in 1...n {
                 let p = start + (end - start) * (Float(i) / Float(n))
                 if Blocks.collide[Int(reader.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { hit = p; break }
-                if shipBlock(at: p, except: sh.owner) { hit = p; break }
+                if shipBlock(at: p, except: sh.owner) { hit = p; onHull = true; break }
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     if g.mobs.mobs.contains(where: { $0.health > 0 && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) { hit = p; break }
                     // Any player's body (split screen: shells passed through player 2); the shooter's own helmsman aside.
@@ -154,17 +155,21 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
-            if let p = hit { blasts.append((p, sh.power, sh.owner)); continue }
+            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull)); continue }
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
-        for (p, power, owner) in blasts {
+        for (p, power, owner, onHull) in blasts {
             if let g = game {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
-                g.bases.quiet = list.first { $0.id == owner }?.factionValue == .steelhold
+                let from = list.first { $0.id == owner }
+                g.bases.quiet = from?.factionValue == .steelhold
                 Explosion.explode(at: p, power: power, game: g)
                 g.bases.quiet = false
+                // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
+                // scratched paint, Quest round 4).
+                if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
             } else { blast(at: p, power: power, game: nil) }
         }
     }
