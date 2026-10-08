@@ -837,7 +837,8 @@ final class Game {
 
     // MARK: Interaction (attack, mine, use)
 
-    var swordHeld: Bool { Items.key(held.item).hasSuffix("_sword") }
+    // A sword in VR (Quest: swings and trigger attacks) means to hit the creature (Quest round 4); Mac aiming is unchanged.
+    var swordHeld: Bool { bufferAttacks && Items.key(held.item).hasSuffix("_sword") }
 
     // With a sword: the nearest living mob within reach and 10 degrees of the aim (when the ray itself just misses).
     func mobNearAim(reach: Float) -> (Mob, Float)? {
