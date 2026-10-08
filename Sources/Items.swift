@@ -136,6 +136,8 @@ final class ItemRegistry {
         item("raw_copper", "Raw Copper", "lump", 0xD6784E)
         item("raw_titanium", "Raw Titanium", "lump", 0xA9B4C0)
         item("iron_ingot", "Iron Ingot", "ingot", 0xD8D8D8)
+        item("steel_blend", "Steel Blend", "lump", 0x3E4248)
+        item("steel_ingot", "Steel Ingot", "ingot", 0x6F7A86)
         item("gold_ingot", "Gold Ingot", "ingot", 0xFAD64A)
         item("copper_ingot", "Copper Ingot", "ingot", 0xE0845C)
         item("netherite_ingot", "Duskium Ingot", "ingot", 0x4D494D)
@@ -388,7 +390,7 @@ final class ItemRegistry {
         // Armor: (name, points per slot head/chest/legs/feet, durability multiplier, toughness, colour)
         let armors: [(String, String, [Int], Int, Float, UInt32)] = [
             ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
-            ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
+            ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("steel", "Steel", [2, 7, 6, 2], 24, 1, 0x6F7A86), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
             ("diamond", "Titanium", [3, 8, 6, 3], 33, 2, 0xA7B3C2), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
             ("copper", "Copper", [2, 4, 3, 1], 11, 0, 0xC87A55),
         ]
