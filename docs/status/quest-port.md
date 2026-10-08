@@ -435,3 +435,23 @@ Causes found (fixed unless noted):
   the held item may use (overflow logged once), and drawHeld keeps the last tracked aim pose.
 - Blurry tools: entity.frag samples texel-exact from mip 0 within 4 m of the eye (min filter + mip blend smeared it).
 - Voidwalkers: 1.5 s of steady stare (drains 2x when looking away), not a glance.
+
+## Round 4 (2026-10-08): Remington's v0.66 playtest list (docs/requests/round4.md, 16 items)
+All 16 done, one commit each (see `git log --grep "Round 4"`). Gameplay items (1-7, 9, 11, 12, 14, 15) are also on
+claude/blocksmith-playtest as cherry-picks.
+- Capital: dropships land at a random bearing round the podium (1); deck guns fire only with a live gunner (2); heavy
+  shells fly flat at 260 m/s and burst on hulls, one hit kills a Capital vessel's drive and blasts the hull (3, 4);
+  shells hitting another hull add a 1.5x ship blast (5); Capital ships need a clear line of fire within 180 blocks (6).
+- Vehicles: Capital fliers can be commandeered: the use button aboard or within 6 blocks of a crewed helm (9 for a
+  hovering dropship), toast + 'Take command' label; frigate bridge helm and a new dropship helm fly kinematically (7, 9).
+  On a ship's deck the head-yaw walk is turned into the ship's frame (8).
+- Swing Mode: a real swing attacks what the laser picks within 6 blocks, nearest block first; a sword prefers a mob on or
+  within 10 degrees of the ray (10).
+- Spawning: monster cap 70 -> 24; underground 1 attempt in 4, packs of 2, none with 6 monsters within 32 blocks (11, 12).
+- Laser always drawn: keeps the last hand pose through tracking blips, priority scratch room, 3 m beam fading to 0.2 (13).
+- Bonded horse (14): the last tamed horse ridden is yours (saved); unridden it stays within ~10 blocks; Y (fly button) in
+  survival calls it: gallops over if near, otherwise it is brought ~14 blocks behind you from any distance, even stored
+  with a chunk 2,000+ blocks off. questbugs checks a call from 2,100 blocks.
+- Junk pickup (15): dirt-like blocks, flowers, grass, ferns, saplings, leaves, vines, seeds need standing over them 1 s or
+  crouching; drops from blocks you break still come straight in.
+- VR sprint (16): 1.3x a full walk in any stick direction at any push past 0.3.
