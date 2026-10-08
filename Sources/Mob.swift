@@ -342,6 +342,7 @@ final class Mob {
     var spellTimer: Float = 2       // conjurer: next spell
     var vexCooldown: Float = 0
     var stun: Float = 0             // siegebeast: stunned by a shield block, then roars
+    var bond: Float = 0             // the player's bonded horse (Game.horseBond; Riding.swift), saved
     var playerBuilt = false         // iron golem built by the player (never attacks them)
     var cureTimer: Float = 0        // zombie villager being cured
     var charged = false             // hisser struck by lightning (bigger blast)
@@ -664,7 +665,7 @@ final class Mob {
         case .evoker: speed = aiEvoker(dt, g, dist: dist, canTarget: canTarget)
         case .ravager: speed = aiRavager(dt, g, dist: dist, canTarget: canTarget)
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
-        case .animal: speed = animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
+        case .animal: speed = bondedHorseAI(dt, g, dist: dist) ?? animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
             if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
         case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
         case .witch:

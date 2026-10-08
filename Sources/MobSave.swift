@@ -92,6 +92,7 @@ extension Mob {
         // golden apple was wasted, the golem turned on its builder near unhappy villagers).
         if cureTimer > 0 { d["cure"] = cureTimer }
         if playerBuilt { d["built"] = 1 }
+        if bond != 0 { d["bond"] = bond }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -110,6 +111,7 @@ extension Mob {
         if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
         cureTimer = d["cure"] ?? 0
         playerBuilt = (d["built"] ?? 0) > 0
+        bond = d["bond"] ?? 0
     }
 }
 

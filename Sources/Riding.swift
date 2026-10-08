@@ -196,6 +196,70 @@ extension Game {
     }
 }
 
+// MARK: The bonded horse (Quest round 4, like a ranch horse in an open-world western)
+// The last tamed horse (donkey, mule) the player rode is theirs: unridden it keeps within ~10 blocks of them, and the fly
+// button in survival (Quest: tap Y; pad: D-pad up; keys: the fly key) calls it: loaded within 64 blocks it gallops over;
+// farther away, or stored with its chunk thousands of blocks off, it is brought to a spot ~14 blocks behind the player
+// and runs up.
+extension Game {
+    func bondHorse(_ m: Mob) {
+        // Any other horse loaded with an old bond is just a horse again.
+        for o in mobs.mobs where o.bond != 0 && o !== m { o.bond = 0 }
+        horseBond = Float(Rand.int(in: 1...16_000_000))
+        m.bond = horseBond
+        m.persistent = true
+        onToast?("This is your horse now: \(Prompt.g(.fly)) calls it")
+    }
+
+    // Returns false when there is no bonded horse (the fly button keeps its "no flying" toast).
+    func callHorse() -> Bool {
+        guard horseBond != 0 else { return false }
+        if riding?.bond == horseBond { return true }
+        var horse = mobs.mobs.first { $0.bond == horseBond && $0.health > 0 }
+        if horse == nil {
+            for (k, list) in mobs.stored {
+                guard let i = list.firstIndex(where: { $0.extra?["bond"] == horseBond }) else { continue }
+                var l = list
+                let r = l.remove(at: i)
+                mobs.stored[k] = l.isEmpty ? nil : l
+                if let m = Mob.from(r) { mobs.mobs.append(m); horse = m }
+                break
+            }
+        }
+        guard let h = horse else { onToast?("Your horse doesn't answer (it may have died)"); horseBond = 0; return true }
+        let d = simd_length(h.pos - player.pos)
+        if d > 64 || !world.isLoaded(Int(floor(h.pos.x)), Int(floor(h.pos.z))) {
+            // Out of sight behind the player, on the ground, then it runs up.
+            let back = V3(sinf(player.yaw), 0, cosf(player.yaw))
+            var spot = player.pos + back * 14
+            let x = Int(floor(spot.x)), z = Int(floor(spot.z))
+            if world.isLoaded(x, z) { spot.y = Float(world.topY(x, z) + 1) } else { spot = player.pos }
+            h.pos = world.freeSpawn(spot)
+            h.vel = .zero
+        }
+        horseCall = 25
+        sfx(.mob(h.kind, .ambient), 1.2, at: h.pos)
+        onToast?("You call your horse")
+        return true
+    }
+}
+
+extension Mob {
+    // Unridden, the bonded horse keeps near the player and gallops to them when called; nil = not the bonded horse.
+    func bondedHorseAI(_ dt: Float, _ g: Game, dist: Float) -> Float? {
+        guard bond != 0, bond == g.horseBond, tamed, g.riding !== self, g.alive else { return nil }
+        if g.horseCall > 0 && dist < 3 { g.horseCall = 0 }
+        let called = g.horseCall > 0
+        if dist > 80 { return nil }                       // left far behind: it waits until called
+        if called || dist > 10 {
+            face(g.player.pos)
+            return spec.speed * (called || dist > 18 ? 2.2 : 1.2)
+        }
+        wander()
+        return moving ? spec.speed * 0.3 : 0
+    }
+}
+
 extension Mob {
     // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and magmastriders follow
     // the stick; untamed horses buck until tamed.
@@ -231,6 +295,7 @@ extension Mob {
                     else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
+            if tamed && kind != .camel && bond != g.horseBond { g.bondHorse(self) }
             yaw = g.player.moveYaw ?? g.player.yaw          // VR: steer with the head, not the aiming hand
             let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
             speed = saddled || !tamed ? base * max(-0.25, inp.forward) : 0

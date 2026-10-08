@@ -224,6 +224,8 @@ final class Game {
     // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
     var bufferAttacks = false
     var attackQueued: Float = 0
+    var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
+    var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -775,7 +777,9 @@ final class Game {
             if player.impact >= 1 { damage(Int(player.impact), "experienced kinetic energy") }
             player.impact = 0
         }
-        if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
+        // In survival (no flying) the fly button calls the bonded horse (Riding.swift); the double-tapped jump doesn't.
+        if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { if !(survival && callHorse()) { toggleFly() } }
+        if horseCall > 0 { horseCall -= fdt }
         if input.tapped(KeyBinds.key(.photo)) { togglePhotoMode(); return }
         if input.tapped(KeyBinds.key(.skipTrack)) { skipMusicTrack() }
         if input.tapped(KeyBinds.key(.fastFly)) {
