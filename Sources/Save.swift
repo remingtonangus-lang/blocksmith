@@ -56,10 +56,15 @@ final class SaveManager {
 
     func loadMeta() -> WorldMeta? {
         guard let d = try? Data(contentsOf: metaURL) else { return nil }
-        return try? JSONDecoder().decode(WorldMeta.self, from: d)
+        guard let m = try? JSONDecoder().decode(WorldMeta.self, from: d) else { return nil }
+        if !backupChecked { backupChecked = true; SaveMigration.backupIfNeeded(dir: dir, meta: m) }
+        return m
     }
+    private var backupChecked = false
 
-    func saveMeta(_ m: WorldMeta) {
+    func saveMeta(_ m0: WorldMeta) {
+        var m = m0
+        m.extra = (m.extra ?? [:]).merging(["format": String(SaveMigration.format)]) { _, n in n }
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let d = try? enc.encode(m) { try? d.write(to: metaURL, options: .atomic) }
@@ -117,7 +122,7 @@ final class SaveManager {
             guard p + len <= bytes.count else { return nil }
             let name = String(decoding: bytes[p..<(p + len)], as: UTF8.self)
             p += len
-            palette.append(Blocks.has(name) ? Blocks.id(name) : AIR)
+            palette.append(SaveMigration.blockID(name) ?? AIR)
         }
         guard bytes.count - p == CSQ * CH * 2 else { return nil }
         var out = [BlockID](repeating: 0, count: CSQ * CH)

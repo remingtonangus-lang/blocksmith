@@ -1011,7 +1011,7 @@ final class ShipManager {
             guard n > 0 else { continue }
             let raw = ((try? (sv.cells as NSData).decompressed(using: .lzfse)) as Data?) ?? sv.cells
             guard raw.count == n * 2 else { continue }
-            let palette = sv.palette.map { Blocks.has($0) ? Blocks.id($0) : AIR }
+            let palette = sv.palette.map { SaveMigration.blockID($0) ?? AIR }
             var blocks = [BlockID](repeating: AIR, count: n)
             raw.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
                 let u = p.bindMemory(to: UInt16.self)

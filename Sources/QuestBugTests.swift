@@ -10,6 +10,12 @@ enum QuestBugTests {
             print("questbugs: \(ok ? "ok  " : "FAIL") \(msg)")
             if !ok { fails += 1 }
         }
+        // `--only r3`: just the round 3 checks (save migration and the round 3 features), for quick local runs.
+        if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "r3" {
+            round3(game, check)
+            print("questbugs: \(fails) failures")
+            return fails
+        }
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9, sparkstone dust 4-5).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)
         for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9),
@@ -224,7 +230,55 @@ enum QuestBugTests {
             game.horseBond = 0; game.horseCall = 0
             game.survival = surv
         }
+        round3(game, check)
         print("questbugs: \(fails) failures")
         return fails
     }
+
+    // Round 3 features (docs/requests/round3-features-after-reset.md).
+    static func round3(_ game: Game, _ check: (Bool, String) -> Void) {
+        // Round 3 save migration: an old-format world (no extra["format"]) with aliased block and item names.
+        do {
+            let fm = FileManager.default
+            let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bs-migr-\(UInt32.random(in: 0...UInt32.max))")
+            let wdir = tmp.appendingPathComponent("Worlds/Old World", isDirectory: true)
+            let saveB = SaveMigration.blockAliases, saveI = SaveMigration.itemAliases
+            let stateKey = (0..<Blocks.count).map { Blocks.key(BlockID($0)) }.first { $0.contains("[") && !$0.hasPrefix("#") } ?? "stone"
+            let stateBase = String(stateKey.prefix { $0 != "[" }), suffix = String(stateKey.dropFirst(stateBase.count))
+            SaveMigration.blockAliases["old_test_rock"] = "cobblestone"
+            SaveMigration.blockAliases["old_test_state"] = stateBase
+            SaveMigration.itemAliases["old_test_gem"] = "diamond"
+            var sm = SaveManager(dir: wdir)
+            var bytes: [UInt8] = []
+            let names = ["air", "old_test_rock", "old_test_state" + suffix]
+            bytes += [UInt8(names.count), 0, 0, 0]
+            for n in names { let u = Array(n.utf8); bytes += [UInt8(u.count & 255), UInt8(u.count >> 8)] + u }
+            var idx = [UInt16](repeating: 0, count: CSQ * CH)
+            idx[0] = 1; idx[1] = 2
+            for v in idx { bytes += [UInt8(v & 255), UInt8(v >> 8)] }
+            let comp = try? (Data(bytes) as NSData).compressed(using: .lzfse) as Data
+            try? comp?.write(to: sm.chunkURL(ChunkKey(x: 0, z: 0)))
+            var meta = game.meta
+            meta.extra = nil
+            try? JSONEncoder().encode(meta).write(to: sm.metaURL)
+            _ = sm.loadMeta()
+            _ = SaveManager(dir: wdir).loadMeta()
+            let backups = ((try? fm.contentsOfDirectory(atPath: tmp.appendingPathComponent("Backups").path)) ?? [])
+            let listed = (try? fm.contentsOfDirectory(atPath: tmp.appendingPathComponent("Worlds").path)) ?? []
+            check(backups.count == 1 && backups[0].hasPrefix("Old World-before-r3-") && listed == ["Old World"],
+                  "pre-round-3 backup made once outside the world list (\(backups), worlds \(listed))")
+            let blocks = sm.loadChunk(ChunkKey(x: 0, z: 0)) ?? []
+            let k0 = blocks.isEmpty ? "-" : Blocks.key(blocks[0]), k1 = blocks.count < 2 ? "-" : Blocks.key(blocks[1])
+            check(k0 == "cobblestone" && k1 == stateKey, "aliased chunk blocks load as \(k0), \(k1) (want cobblestone, \(stateKey))")
+            let st = try? JSONDecoder().decode([ItemStack].self, from: Data(#"[{"id":"old_test_gem","n":5},{"id":"stick","n":2}]"#.utf8))
+            let ok = st?.count == 2 && Items.key(st![0].item) == "diamond" && st![0].count == 5 && Items.key(st![1].item) == "stick"
+            check(ok, "aliased items load (\(st.map { $0.map { "\(Items.key($0.item))x\($0.count)" } } ?? []))")
+            sm.saveMeta(meta)
+            sm = SaveManager(dir: wdir)
+            check(sm.loadMeta().map { !SaveMigration.needsMigration($0) } ?? false, "next save stamps format \(SaveMigration.format)")
+            SaveMigration.blockAliases = saveB; SaveMigration.itemAliases = saveI
+            try? fm.removeItem(at: tmp)
+        }
+    }
 }
+
