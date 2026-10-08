@@ -886,9 +886,10 @@ final class WorldGen: TerrainGenerator {
         for _ in 0..<2 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(triangle(&rng, -32, 32)), size: 7) }
         for _ in 0..<4 { vein(&b, bx, bz, &rng, lapis, dLapis, y: y(rng.range(-64, 64)), size: 7) }
         let diamond = DIAMOND_ORE, dDiamond = g("deepslate_diamond_ore")
-        for _ in 0..<7 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 4) }
-        if rng.int(9) == 0 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 12) }
-        for _ in 0..<4 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 8) }
+        // Titanium (save key diamond_ore): rarer than the reference diamond veins.
+        for _ in 0..<5 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 3) }
+        if rng.int(12) == 0 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 8) }
+        for _ in 0..<2 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 6) }
         if biomes.contains(where: { $0.isPeak || $0 == .windsweptHills || $0 == .windsweptGravellyHills || $0 == .windsweptForest || $0 == .meadow || $0 == .grove }) {
             let em = g("emerald_ore")
             let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em

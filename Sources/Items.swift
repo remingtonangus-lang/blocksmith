@@ -134,6 +134,7 @@ final class ItemRegistry {
         item("raw_iron", "Raw Iron", "lump", 0xD8AF93)
         item("raw_gold", "Raw Gold", "lump", 0xF8D23C)
         item("raw_copper", "Raw Copper", "lump", 0xD6784E)
+        item("raw_titanium", "Raw Titanium", "lump", 0xA9B4C0)
         item("iron_ingot", "Iron Ingot", "ingot", 0xD8D8D8)
         item("gold_ingot", "Gold Ingot", "ingot", 0xFAD64A)
         item("copper_ingot", "Copper Ingot", "ingot", 0xE0845C)
@@ -142,7 +143,7 @@ final class ItemRegistry {
         item("iron_nugget", "Iron Nugget", "nugget", 0xD8D8D8)
         item("copper_nugget", "Copper Nugget", "nugget", 0xC87A55)
         item("gold_nugget", "Gold Nugget", "nugget", 0xFAD64A)
-        item("diamond", "Diamond", "gem", 0x4AEDD9)
+        item("diamond", "Titanium Ingot", "ingot", 0xA7B3C2)
         item("emerald", "Emerald", "gem", 0x17DD62)
         item("lapis_lazuli", "Lapis Lazuli", "gem", 0x2A5BC8)
         item("amethyst_shard", "Amethyst Shard", "gem", 0xA87CE0)
@@ -256,7 +257,7 @@ final class ItemRegistry {
         item("leather_horse_armor", "Leather Horse Armor", "horse_armor", 0xA0592B, stack: 1)
         item("iron_horse_armor", "Iron Horse Armor", "horse_armor", 0xE0E0E0, stack: 1)
         item("golden_horse_armor", "Golden Horse Armor", "horse_armor", 0xF8D84A, stack: 1)
-        item("diamond_horse_armor", "Diamond Horse Armor", "horse_armor", 0x4AEDD9, stack: 1)
+        item("diamond_horse_armor", "Titanium Horse Armor", "horse_armor", 0xA7B3C2, stack: 1)
         item("copper_horse_armor", "Copper Horse Armor", "horse_armor", 0xC87A55, stack: 1)
         item("netherite_horse_armor", "Duskium Horse Armor", "horse_armor", 0x5A555A, stack: 1)   // smithing upgrade of diamond
         item("lead", "Lead", "lead", 0xB08A5A)
@@ -346,7 +347,7 @@ final class ItemRegistry {
         let tiers: [(String, String, Int, Int, Float, UInt32)] = [
             ("wooden", "Wooden", 0, 59, 2, 0x9A7A4A), ("stone", "Stone", 1, 131, 4, 0x8A8A8A),
             ("iron", "Iron", 2, 250, 6, 0xE0E0E0), ("golden", "Golden", 0, 32, 12, 0xF8D84A),
-            ("diamond", "Diamond", 3, 1561, 8, 0x4AEDD9), ("netherite", "Duskium", 4, 2031, 9, 0x5A555A),
+            ("diamond", "Titanium", 3, 1561, 8, 0xA7B3C2), ("netherite", "Duskium", 4, 2031, 9, 0x5A555A),
             ("copper", "Copper", 1, 190, 5, 0xC87A55),                     // between stone and iron; mines like stone
         ]
         let swordDmg: [Float] = [4, 5, 6, 4, 7, 8, 5], axeDmg: [Float] = [7, 9, 9, 7, 9, 10, 9]
@@ -388,7 +389,7 @@ final class ItemRegistry {
         let armors: [(String, String, [Int], Int, Float, UInt32)] = [
             ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
             ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
-            ("diamond", "Diamond", [3, 8, 6, 3], 33, 2, 0x4AEDD9), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
+            ("diamond", "Titanium", [3, 8, 6, 3], 33, 2, 0xA7B3C2), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
             ("copper", "Copper", [2, 4, 3, 1], 11, 0, 0xC87A55),
         ]
         let pieces: [(String, String, ArmorSlot, Int)] = [("helmet", "Helmet", .head, 11), ("chestplate", "Chestplate", .chest, 16),

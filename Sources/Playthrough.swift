@@ -100,7 +100,7 @@ final class Playthrough {
     static let keepWords = ["pickaxe", "sword", "bow", "arrow", "_axe", "shovel", "helmet", "chestplate", "leggings", "boots", "elytra",
                             "ender_pearl", "ender_eye", "dragon_egg", "torch", "soul_sand", "skull", "obsidian", "flint_and_steel", "blaze",
                             "nether_star", "diamond", "iron_ingot", "bucket", "crafting_table", "furnace", "glass", "shield", "bread",
-                            "cooked", "golden", "stick", "planks", "log", "cobblestone", "raw_iron", "coal"]
+                            "cooked", "golden", "stick", "planks", "log", "cobblestone", "raw_iron", "raw_titanium", "coal"]
     func makeRoom(_ need: Int = 4) {
         var free = (0..<36).filter { inv[$0].isEmpty }.count
         guard free < need else { return }
@@ -569,19 +569,28 @@ final class Playthrough {
             // Up to four ores: a drop can fall into lava or a crevice down there (the iron step retries the same way).
             var next: IVec3? = d
             var attempts = 0
-            while let o = next, count("diamond") == 0, attempts < 4 {
+            while let o = next, count("raw_titanium") == 0, attempts < 4 {
                 attempts += 1
                 _ = hold("iron_pickaxe")
                 let ok = mine(o)
                 if ok { collect(near: center(o)) }
-                if count("diamond") == 0 {
-                    info(String(format: "diamond attempt %ld at %ld %ld %ld: mined %@, now %@, %ld drops near", attempts, o.x, o.y - YOFF, o.z,
+                if count("raw_titanium") == 0 {
+                    info(String(format: "titanium attempt %ld at %ld %ld %ld: mined %@, now %@, %ld drops near", attempts, o.x, o.y - YOFF, o.z,
                                 ok ? "yes" : "no", baseKey(world.block(o.x, o.y, o.z)), game.drops.items.filter { simd_length($0.pos - self.center(o)) < 12 }.count))
                     if baseKey(world.block(o.x, o.y, o.z)).hasSuffix("diamond_ore") { world.setBlock(o.x, o.y, o.z, STONE) }
                     next = findBlock(near: IVec3(home.x, 0, home.z), radius: 5 * CS, yRange: 1...(YOFF + 16), { $0 == "diamond_ore" || $0 == "deepslate_diamond_ore" })
                 }
             }
-            check(count("diamond") >= 1, "mine: diamond with an iron pickaxe at y \(d.y - YOFF) (\(count("diamond")), \(attempts) ore\(attempts == 1 ? "" : "s"))")
+            check(count("raw_titanium") >= 1, "mine: raw titanium with an iron pickaxe at y \(d.y - YOFF) (\(count("raw_titanium")), \(attempts) ore\(attempts == 1 ? "" : "s"))")
+        }
+        // Raw titanium smelts into titanium ingots (save key "diamond") in the furnace from the iron step.
+        if let be = world.blockEntities[fp], count("raw_titanium") > 0 {
+            let n = count("raw_titanium")
+            be.container[0] = ItemStack(id("raw_titanium"), n); inv.remove(id("raw_titanium"), n)
+            be.container[1] = ItemStack(id(planks), 5); be.container[2] = .empty
+            _ = tick(30, pin: game.player.pos) { be.container[2].count >= n }
+            check(be.container[2].count >= n && Items.key(be.container[2].item) == "diamond", "smelt: \(be.container[2].count) titanium ingots from \(n) raw titanium")
+            game.inventory.add(be.container[2]); be.container[2] = .empty
         }
         if count("diamond") < 5 { give("diamond", 5 - count("diamond"), bulk: "more diamonds") }
         craft(["DDD", " S ", " S "], ["D": "diamond", "S": "stick"], "diamond_pickaxe")

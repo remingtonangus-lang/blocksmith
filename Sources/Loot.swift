@@ -149,7 +149,7 @@ enum Mining {
         case "iron_ore", "deepslate_iron_ore": return one("raw_iron")
         case "gold_ore", "deepslate_gold_ore": return one("raw_gold")
         case "copper_ore", "deepslate_copper_ore": return one("raw_copper", rnd(2, 5))
-        case "diamond_ore", "deepslate_diamond_ore": return one("diamond")
+        case "diamond_ore", "deepslate_diamond_ore": return one("raw_titanium")
         case "emerald_ore": return one("emerald")
         case "lapis_ore", "deepslate_lapis_ore": return one("lapis_lazuli", rnd(4, 9))
         case "redstone_ore", "deepslate_redstone_ore": return one("redstone", rnd(4, 5))

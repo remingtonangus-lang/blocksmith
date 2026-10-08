@@ -270,6 +270,30 @@ enum QuestBugTests {
             SaveMigration.blockAliases = saveB; SaveMigration.itemAliases = saveI
             try? fm.removeItem(at: tmp)
         }
+        // Titanium replaces diamond on screen (save keys stay diamond_*).
+        let diaItems = Items.defs.filter { $0.display.contains("Diamond") }.map { $0.name }
+        let diaBlocks = Blocks.defs.filter { $0.display.contains("Diamond") }.map { $0.name }
+        check(diaItems.isEmpty && diaBlocks.isEmpty, "no display name says Diamond (items \(diaItems.prefix(3)), blocks \(diaBlocks.prefix(3)))")
+        let ipick = ItemStack(Items.id("iron_pickaxe"), 1)
+        var tiOK = true
+        for ore in ["diamond_ore", "deepslate_diamond_ore"] {
+            for _ in 0..<50 {
+                let d = Mining.drops(Blocks.id(ore), ipick)
+                if !(d.count == 1 && Items.key(d[0].item) == "raw_titanium" && d[0].count == 1) { tiOK = false }
+            }
+        }
+        check(tiOK, "titanium ore with an iron pickaxe drops raw_titanium x1")
+        let sm = Recipes.smelt(Items.id("raw_titanium")).map { Items.key($0) } ?? "nil"
+        check(sm == "diamond", "raw_titanium smelts into \(sm) (want diamond = Titanium Ingot)")
+        let pt = TextureGen.painters()
+        func diff(_ a: String) -> Float {
+            guard let f = pt[a], let st = pt["stone"] else { return 99 }
+            var t: Float = 0
+            for y in 0..<16 { for x in 0..<16 { let p = f(x, y), q = st(x, y); t += abs(p.x - q.x) + abs(p.y - q.y) + abs(p.z - q.z) } }
+            return t / 256
+        }
+        let dTi = diff("diamond_ore"), dFe = diff("iron_ore")
+        check(dTi < dFe, String(format: "titanium ore contrast vs stone %.4f < iron ore %.4f", dTi, dFe))
     }
 }
 

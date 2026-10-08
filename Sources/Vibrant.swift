@@ -164,7 +164,7 @@ final class Vibrant {
             for b in Blocks.boxes[id] { for t in b.tex where Int(t) < layers { mode[Int(t)] = max(mode[Int(t)], k) } }
         }
         for l in 0..<layers where dark[l] && mode[l] > 0 { mode[l] = 0 }
-        for (l, n) in Tex.names.enumerated() where l < layers && mode[l] == 0 && n.hasSuffix("_ore") && !n.contains("coal") {
+        for (l, n) in Tex.names.enumerated() where l < layers && mode[l] == 0 && n.hasSuffix("_ore") && !n.contains("coal") && !n.contains("diamond") {   // titanium ore: no glint
             mode[l] = -1
         }
         return mode

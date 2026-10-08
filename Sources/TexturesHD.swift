@@ -4023,7 +4023,7 @@ enum HDTex {
     }
 
     // Ore: crystal clusters (faceted Voronoi chips) set into a stone material, with a dark rim.
-    static func ore(_ base: @escaping Gen, _ c0: UInt32, _ c1: UInt32, clusters: Int = 6) -> Gen {
+    static func ore(_ base: @escaping Gen, _ c0: UInt32, _ c1: UInt32, clusters: Int = 6, faint: Bool = false) -> Gen {
         { n, s in
             var img = base(n, s &+ 31)
             let facets = voronoi(n, max(8, n / 6), s &+ 5, jitter: 1)
@@ -4033,7 +4033,7 @@ enum HDTex {
             let wob = fbm(n, max(1, n / 16), 2, s &+ 6)
             for _ in 0..<clusters {
                 let cx: Float = Float(n) * (0.1 + rng.float() * 0.8), cy: Float = Float(n) * (0.1 + rng.float() * 0.8)
-                let r: Float = Float(n) * (0.06 + rng.float() * 0.05)
+                let r: Float = Float(n) * (faint ? 0.025 + rng.float() * 0.02 : 0.06 + rng.float() * 0.05)
                 let ri = Int(r * 1.5) + 2
                 for dy in -ri...ri { for dx in -ri...ri {
                     let x = Int(cx) + dx, y = Int(cy) + dy
@@ -4043,10 +4043,10 @@ enum HDTex {
                     if d < r {
                         let f: Float = facets.id[i]
                         var c = a * (1 - f) + b * f
-                        if facets.f2[i] - facets.f1[i] < Float(n) / 128 { c *= 0.62 }       // facet edges
-                        if dx < 0 && dy < 0 && f > 0.6 { c = simd_min(V3(1, 1, 1), c * 1.2) }  // glint
+                        if !faint && facets.f2[i] - facets.f1[i] < Float(n) / 128 { c *= 0.62 }       // facet edges
+                        if !faint && dx < 0 && dy < 0 && f > 0.6 { c = simd_min(V3(1, 1, 1), c * 1.2) }  // glint
                         img.px[i] = V4(c.x, c.y, c.z, 1)
-                    } else if d < r + Float(n) / 70 {
+                    } else if !faint && d < r + Float(n) / 70 {
                         img.px[i] = V4(img.px[i].x * 0.68, img.px[i].y * 0.68, img.px[i].z * 0.68, 1)
                     }
                 } }
@@ -5916,7 +5916,7 @@ enum HDTex {
         "barrel_bottom": barrelTop
     ]
     static let tablePart4: [String: Gen] = [
-        "diamond_block": gemBlock([(0, 0x2A9A9A), (0.5, 0x6ADCD8), (1, 0xD0FFFA)]),
+        "diamond_block": metal(0xA7B3C2, tiles: 2, shine: 0.14),
         "emerald_block": gemBlock([(0, 0x0E6A30), (0.5, 0x2AB85A), (1, 0x9AF0B8)]),
         "lapis_block": gemBlock([(0, 0x142A78), (0.5, 0x2A4EB0), (1, 0x6A8AE0)], cells: 7, flecks: true),
         "redstone_block": gemBlock([(0, 0x6A0806), (0.5, 0xB01810), (1, 0xF05040)], cells: 6),
@@ -6033,12 +6033,12 @@ enum HDTex {
         "gold_ore": ore(stone(stoneGrey), 0xD8A824, 0xFCE878),
         "redstone_ore": ore(stone(stoneGrey), 0x9A0E0E, 0xFF3C3C),
         "lapis_ore": ore(stone(stoneGrey), 0x1C3A9C, 0x4C7CEC),
-        "diamond_ore": ore(stone(stoneGrey), 0x3CC8D2, 0xBEFAFA),
+        "diamond_ore": ore(stone(stoneGrey), 0x8C939C, 0x9DA3AA, clusters: 3, faint: true),
         "emerald_ore": ore(stone(stoneGrey), 0x12A04A, 0x7CF4A8),
         "deepslate_coal_ore": ore(stone(deepslate), 0x161618, 0x3A3A3E),
         "deepslate_iron_ore": ore(stone(deepslate), 0xB08660, 0xDEBC98),
         "deepslate_gold_ore": ore(stone(deepslate), 0xCC9C20, 0xF4DE70),
-        "deepslate_diamond_ore": ore(stone(deepslate), 0x34B8C2, 0xAEF0F0),
+        "deepslate_diamond_ore": ore(stone(deepslate), 0x4E535B, 0x5E636B, clusters: 3, faint: true),
         "deepslate_redstone_ore": ore(stone(deepslate), 0x8C0C0C, 0xF03232),
         "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC),
         "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498),
