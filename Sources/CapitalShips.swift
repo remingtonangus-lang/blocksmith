@@ -940,6 +940,11 @@ extension ShipManager {
                 // Never on a player inside a citadel: its shells would land on its own base (Quest round 3).
                 guard g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(pp) && guardsPlayer && !g.bases.inAnyBase(pp) else { return }
                 let d = self.boundsDistance(s, pp)
+                // In sight and in a sane range only: a frigate killed a player inside a house the moment they
+                // switched to survival, nobody near (Quest round 4). Sighted from the hull's centre or its top.
+                guard d < min(bd, 180) else { return }
+                let eye = g.player.eye
+                guard self.world.clearShot(s.pos, eye) || self.world.clearShot(V3(s.pos.x, s.worldMax.y + 1, s.pos.z), eye) else { return }
                 if d < bd { bd = d; best = CapTarget(point: pp + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true, seat: i) }
             }
         }
