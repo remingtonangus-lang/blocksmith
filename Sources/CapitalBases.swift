@@ -338,24 +338,30 @@ extension Game {
         if Int(r.calm) % 8 == 0 && r.calm < 40 { sfx(.gun(10), 1.2, at: r.centre) }
     }
 
-    // Where a dropship sets its troops down: dry, open ground at plaza level beside the reflecting pool (the plaza's
-    // centre is the pool: troops landed there swam in it, run 68beaf1).
+    // Where a dropship sets its troops down: dry, open ground at plaza level, never in the reflecting pool (the plaza's
+    // centre: troops landed there swam in it, run 68beaf1). A random bearing round the whole podium each call (every
+    // landing set down on the same plaza cell, so the enemy always came from one spot, Quest round 4); the plaza ring
+    // is the fallback.
     func dropZone(_ r: BaseRecord) -> V3 {
-        let c = r.plaza
-        for rad in stride(from: Float(10), through: 26, by: 4) {
-            for k in 0..<8 {
-                let a = Float(k) / 8 * 2 * Float.pi + 0.3
-                let x = c.x + cosf(a) * rad, z = c.z + sinf(a) * rad
-                let ix = Int(floor(x)), iz = Int(floor(z))
-                guard world.isLoaded(ix, iz) else { continue }
-                let top = world.topY(ix, iz)
-                guard abs(Float(top + 1) - c.y) < 3, !Blocks.isLiquid(world.block(ix, top, iz)), Blocks.collide[Int(world.block(ix, top, iz))] else { continue }
-                var open = true
-                for dy in 1...4 where Blocks.collide[Int(world.block(ix, top + dy, iz))] || Blocks.isLiquid(world.block(ix, top + dy, iz)) { open = false }
-                if open { return V3(x, Float(top + 1), z) }
+        let level = r.plaza.y
+        let a0 = Rand.float(in: 0..<(2 * Float.pi))
+        let rings: [(V3, [Float])] = [(r.centre, [38, 34, 41, 30]), (r.plaza, [10, 14, 18, 22, 26])]
+        for (c, radii) in rings {
+            for rad in radii {
+                for k in 0..<12 {
+                    let a = Float(k) / 12 * 2 * Float.pi + a0
+                    let x = c.x + cosf(a) * rad, z = c.z + sinf(a) * rad
+                    let ix = Int(floor(x)), iz = Int(floor(z))
+                    guard world.isLoaded(ix, iz) else { continue }
+                    let top = world.topY(ix, iz)
+                    guard abs(Float(top + 1) - level) < 3, !Blocks.isLiquid(world.block(ix, top, iz)), Blocks.collide[Int(world.block(ix, top, iz))] else { continue }
+                    var open = true
+                    for dy in 1...4 where Blocks.collide[Int(world.block(ix, top + dy, iz))] || Blocks.isLiquid(world.block(ix, top + dy, iz)) { open = false }
+                    if open { return V3(x, Float(top + 1), z) }
+                }
             }
         }
-        return c
+        return r.plaza
     }
 
     // After a lockdown: crews leave the turrets and everyone goes back to their posts.
