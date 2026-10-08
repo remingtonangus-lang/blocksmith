@@ -90,12 +90,23 @@ enum Guns {
          Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4)]
     }
 
+    // Enchantment-adjusted numbers (Extended Magazine, Quick Reload, Stability); NPC guns carry no enchantments.
+    static func magSize(_ s: ItemStack) -> Int {
+        guard let gi = index(s.item) else { return 0 }
+        let base = all[gi].mag
+        let l = Enchant.level(.extendedMag, s)
+        guard l > 0 else { return base }
+        return max(base + 1, Int((Float(base) * (1 + 0.25 * Float(l))).rounded(.up)))
+    }
+    static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) }
+    static func steadiness(_ s: ItemStack) -> Float { 1 - 0.18 * Float(Enchant.level(.stability, s)) }
+
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
     static func tooltip(_ s: ItemStack) -> [String] {
         guard let gi = index(s.item) else { return [] }
         let g = all[gi]
         let ammoName = Items.has(g.ammo) ? Items.def(Items.id(g.ammo)).display : g.ammo
-        var out = ["Loaded: \(s.tag) / \(g.mag)", "Ammo: \(ammoName)"]
+        var out = ["Loaded: \(s.tag) / \(magSize(s))", "Ammo: \(ammoName)"]
         switch g.shot {
         case .bullet:
             let dmg = g.pellets > 1 ? "\(Int(g.damage)) x \(g.pellets)" : "\(Int(g.damage))"

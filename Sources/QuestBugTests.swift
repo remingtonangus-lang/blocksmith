@@ -420,6 +420,70 @@ enum QuestBugTests {
             game.paused = paused0
             for dx in -1...1 { for dz in -1...1 { w.setBlock(x + dx, gy, z + dz, AIR) } }
         }
+        // Round 3 gun enchantments: Extended Magazine, Quick Reload, Stability, Penetration, Incendiary.
+        do {
+            let rifle = Items.id("gun_rifle"), sword = Items.id("iron_sword")
+            func gun(_ e: Ench, _ l: Int) -> ItemStack { var s = ItemStack(rifle, 1); s.ench = Enchant.pack([(e, l)]); return s }
+            let gi = Guns.rifle, base = Guns.all[gi]
+            let big = gun(.extendedMag, 3)
+            check(Guns.magSize(big) > base.mag && Guns.magSize(ItemStack(rifle, 1)) == base.mag,
+                  "r3 gun ench: Extended Magazine III mag \(Guns.magSize(big)) > \(base.mag)")
+            var launcher = ItemStack(Items.id("gun_launcher"), 1)
+            launcher.ench = Enchant.pack([(.extendedMag, 1)])
+            check(Guns.magSize(launcher) == 3, "r3 gun ench: launcher Extended Magazine I holds 3 (\(Guns.magSize(launcher)))")
+            // A reload fills to the enchanted magazine.
+            let slots0 = game.inventory.main.slots, sel0 = game.selected, surv0 = game.survival
+            game.inventory.main.slots = Array(repeating: .empty, count: 36)
+            game.selected = 0
+            game.inventory.held = big
+            for i in 1...3 { game.inventory.main[i] = ItemStack(Items.id("rifle_rounds"), 64) }
+            game.arms.reload = 0; game.arms.cooldown = 0; game.arms.heldGun = gi; game.arms.heldSlot = 0
+            let pad = PadSnapshot()
+            let started = game.startReload(gi)
+            var t: Float = 0
+            while t < 3 { _ = game.gunInteract(pad, pad, fire: false, firePressed: false, aim: false, dt: 0.05); t += 0.05 }
+            check(started && game.held.tag == Guns.magSize(big), "r3 gun ench: reload fills to \(Guns.magSize(big)) (tag \(game.held.tag))")
+            game.inventory.main.slots = slots0; game.selected = sel0; game.survival = surv0; game.arms.reload = 0
+            check(Guns.reloadTime(gun(.quickReload, 3), gi) < base.reload, "r3 gun ench: Quick Reload III reload \(Guns.reloadTime(gun(.quickReload, 3), gi)) s < \(base.reload) s")
+            check(Guns.steadiness(gun(.stability, 3)) < 1 && Guns.steadiness(ItemStack(rifle, 1)) == 1, "r3 gun ench: Stability III tightens spread and recoil")
+            // Penetration II: the round passes through 2 mobs and stops in the 3rd (4 zombies in a line).
+            let mobs0 = game.mobs.mobs, slugs0 = game.arms.slugs
+            let o = V3(game.player.pos.x, Float(CH - 30), game.player.pos.z)
+            func line(pierce: Int8, fire: Bool) -> [Mob] {
+                let zs = (0..<4).map { i -> Mob in let m = Mob(.zombie, at: o + V3(Float(3 + 2 * i), -1, 0)); m.persistent = true; return m }
+                game.mobs.mobs = zs
+                game.arms.slugs.removeAll()
+                var s = Slug(pos: o, vel: V3(160, 0, 0), kind: .bullet, damage: 5, fromPlayer: true, shooter: nil, by: "Player", life: 1, gravity: 0)
+                s.pierce = pierce; s.incendiary = fire
+                game.arms.spawn(s)
+                for _ in 0..<10 { game.arms.update(0.02, game) }
+                return zs
+            }
+            let hp = Mob(.zombie, at: o).health
+            let p2 = line(pierce: 2, fire: false).map { $0.health < hp }
+            check(p2 == [true, true, true, false], "r3 gun ench: Penetration II round hits 3 mobs in a line, not the 4th (\(p2))")
+            let p0 = line(pierce: 0, fire: false).map { $0.health < hp }
+            check(p0 == [true, false, false, false], "r3 gun ench: plain round stops in the first mob (\(p0))")
+            let burn = line(pierce: 0, fire: true)
+            check(burn[0].fire > 0 && burn[1].fire == 0, "r3 gun ench: Incendiary round sets the mob alight (fire \(burn[0].fire))")
+            game.mobs.mobs = mobs0; game.arms.slugs = slugs0
+            // Enchanting table can offer gun enchantments for a rifle; never for a sword.
+            var tableGun = false, swordGun = false
+            let gunSet: Set<Ench> = [.extendedMag, .quickReload, .stability, .penetration, .incendiary]
+            for seed in 0..<300 {
+                var r = SRng(UInt64(seed + 1))
+                if Enchant.select(item: rifle, level: Int.random(in: 1...30), rng: &r).contains(where: { gunSet.contains($0.0) }) { tableGun = true }
+                if Enchant.select(item: sword, level: 30, rng: &r).contains(where: { gunSet.contains($0.0) }) { swordGun = true }
+            }
+            check(tableGun && !swordGun, "r3 gun ench: table enchants rifles with gun enchantments (sword never: \(!swordGun))")
+            var book = ItemStack(Items.id("enchanted_book"), 1); book.ench = Enchant.pack([(.penetration, 2)])
+            let onRifle = Enchant.combine(ItemStack(rifle, 1), book, rename: nil, creative: false)
+            let onSword = Enchant.combine(ItemStack(sword, 1), book, rename: nil, creative: false)
+            check(Enchant.level(.penetration, onRifle?.out ?? .empty) == 2 && Enchant.level(.penetration, onSword?.out ?? .empty) == 0,
+                  "r3 gun ench: Penetration book applies to a rifle on the anvil, not to a sword")
+            check(!(0..<200).contains { _ in Enchant.randomly(sword).contains { gunSet.contains($0.0) } } && Enchant.displayLine(.penetration, 2) == "Penetration II",
+                  "r3 gun ench: random loot enchants keep gun enchantments off swords; tooltip 'Penetration II'")
+        }
     }
 }
 
