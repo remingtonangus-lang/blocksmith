@@ -40,6 +40,8 @@ enum RenderTest {
             if fi == 2 { AllocCount.traced("record") { wr.record(s, targets[fi % 2], cam) } } else { wr.record(s, targets[fi % 2], cam) }
             if fi == 2, let x = al0, let y = AllocCount.now { print("render: world record allocations per frame (steady): \(y - x)") }
             vkCmdEndRenderPass(s.cmd)
+            // A pending bug-note screenshot, as QuestApp records it (left eye back in COLOR_ATTACHMENT_OPTIMAL after).
+            QuestScreenshot.service(s, ctx: ctx, image: img.image, format: VK_FORMAT_R8G8B8A8_UNORM, width: width, height: height)
             vkBarrier(s.cmd, img.image, from: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, to: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers: 2,
                       srcAccess: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_TRANSFER_READ_BIT.rawValue,
                       srcStage: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
@@ -49,6 +51,7 @@ enum RenderTest {
             vkCmdCopyImageToBuffer(s.cmd, img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &r)
             try scene.submit(s)
             scene.waitIdle()
+            QuestScreenshot.collect(began: nil)
             ms.append((CFAbsoluteTimeGetCurrent() - a) * 1000)
         }
         print(String(format: "rendertest: %d sections visible, %d draws, %d quads; cull %.2f ms, CPU record %.2f ms, frame (lavapipe) %.0f ms",

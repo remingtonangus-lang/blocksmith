@@ -279,7 +279,8 @@ final class XRSession {
         colorFormat = f
         var sci = XrSwapchainCreateInfo()
         sci.type = XR_TYPE_SWAPCHAIN_CREATE_INFO
-        sci.usageFlags = XrSwapchainUsageFlags(XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT)
+        sci.usageFlags = XrSwapchainUsageFlags(XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT
+                                              | XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT)   // bug-note screenshots (QuestScreenshot)
         sci.format = Int64(f.rawValue)
         sci.sampleCount = 1
         sci.width = UInt32(width)

@@ -74,7 +74,38 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         game.player.pitch = -0.2
         if let up = Float(arg("--up") ?? "") { game.player.pos.y += up; game.player.flying = true }
         if let t = Double(arg("--time") ?? "") { game.time = t * DAY_LENGTH }
+        // Bug-note screenshot (QuestScreenshot) during the main view: GPU blit 640 -> 320 px wide.
+        let shotBlit = tmp.appendingPathComponent("shots/shot_blit.png").path
+        QuestScreenshot.targetWidth = 320
+        QuestScreenshot.request(path: shotBlit)
         try RenderTest.render(game: game, ctx: ctx, path: path, yaw: Float(arg("--yaw") ?? "") ?? 0.6, pitch: Float(arg("--pitch") ?? "") ?? -0.25)
+        QuestScreenshot.waitForWrites()
+        func pngSize(_ p: String) -> (Int, Int, Int) {
+            guard let d = FileManager.default.contents(atPath: p), d.count > 24 else { return (0, 0, 0) }
+            let b = [UInt8](d)
+            func be(_ i: Int) -> Int { Int(b[i]) << 24 | Int(b[i + 1]) << 16 | Int(b[i + 2]) << 8 | Int(b[i + 3]) }
+            return (be(16), be(20), d.count)
+        }
+        do {
+            let (w, h, n) = pngSize(shotBlit)
+            check(QuestScreenshot.lastWritten == shotBlit && w == 320 && h == 320 && n > 2000 && QuestScreenshot.lastMeanLuma > 10,
+                  "screenshot (blit): \(w)x\(h), \(n) bytes, mean luma \(QuestScreenshot.lastMeanLuma)")
+        }
+        // The CPU fallback (full-size copy, box-filtered on the utility queue) on a small extra view.
+        let shotCopy = tmp.appendingPathComponent("shots/shot_copy.png").path
+        QuestScreenshot.forceCopy = true
+        QuestScreenshot.targetWidth = 100
+        QuestScreenshot.request(path: shotCopy)
+        try RenderTest.render(game: game, ctx: ctx, path: tmp.appendingPathComponent("shots/scene_small.png").path, width: 200, height: 160,
+                              yaw: 0.6, pitch: -0.25)
+        QuestScreenshot.waitForWrites()
+        do {
+            let (w, h, n) = pngSize(shotCopy)
+            check(QuestScreenshot.lastWritten == shotCopy && w == 100 && h == 80 && n > 500 && QuestScreenshot.lastMeanLuma > 10,
+                  "screenshot (copy + CPU downscale): \(w)x\(h), \(n) bytes, mean luma \(QuestScreenshot.lastMeanLuma)")
+        }
+        QuestScreenshot.forceCopy = false
+        QuestScreenshot.targetWidth = 640
         // A second view toward the nearest volcano, from 700 blocks away (past the render distance, so only its
         // impostor from Sources/LandmarkRender.swift draws there; the camera may stand over unloaded ground).
         if let wg = world.gen as? WorldGen {

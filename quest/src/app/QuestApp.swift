@@ -248,6 +248,7 @@ final class QuestApp {
         if f.shouldRender, f.imageIndex >= 0, f.imageIndex < targets.count {
             let a = CFAbsoluteTimeGetCurrent()
             let s = scene.beginFrame()
+            QuestScreenshot.collect(began: s)          // a capture whose frame has completed -> PNG on a utility queue
             let target = targets[f.imageIndex]
             let cam = rig.camera(xr: xr, far: farPlane)
             if QuestApp.debugClearOnly {
@@ -258,6 +259,8 @@ final class QuestApp {
                 recordLoading(s, target, cam)
             }
             vkCmdEndRenderPass(s.cmd)
+            // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
+            QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
             do { try scene.submit(s) } catch { print("submit: \(error)") }
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
         }
