@@ -115,18 +115,38 @@ enum MilitaryBase {
     static func type(_ gen: WorldGen) -> StructureType {
         // One candidate per 40x40-chunk region (64 left most players never meeting one: Remington playtest 2).
         // The Capital citadel (CapitalBase.swift) under the old key: 113 across, so it reaches 4 chunks from its start.
-        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 4) { [unowned gen] seed, cx, cz in
-            let x = cx * CS + 8, z = cz * CS + 8
-            guard MilitaryBase.biomes.contains(gen.column(x, z).biome) else { return nil }
+        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 4) { [unowned gen] seed, cx0, cz0 in
             // Open, fairly flat ground over the whole footprint.
-            let y = gen.groundY(x, z)
-            guard y > SEA + 1 else { return nil }
-            let R = CapitalBase.podium
-            for (dx, dz) in [(-R, -R), (R, -R), (-R, R), (R, R), (0, -R), (0, R), (-R, 0), (R, 0)] {
-                let gy = gen.column(x + dx, z + dz).height          // 2D height: cheap enough for a 40-chunk grid
-                if abs(gy - y) > 12 || gy <= SEA { return nil }
-                if gen.column(x + dx, z + dz).biome.isOcean { return nil }
+            func site(_ cx: Int, _ cz: Int) -> Int? {
+                let x = cx * CS + 8, z = cz * CS + 8
+                guard MilitaryBase.biomes.contains(gen.column(x, z).biome) else { return nil }
+                let y = gen.groundY(x, z)
+                guard y > SEA + 1 else { return nil }
+                let R = CapitalBase.podium
+                for (dx, dz) in [(-R, -R), (R, -R), (-R, R), (R, R), (0, -R), (0, R), (-R, 0), (R, 0)] {
+                    let gy = gen.column(x + dx, z + dz).height          // 2D height: cheap enough for a 40-chunk grid
+                    if abs(gy - y) > 12 || gy <= SEA { return nil }
+                    if gen.column(x + dx, z + dz).biome.isOcean { return nil }
+                }
+                return y
             }
+            // The region's first spot (where citadels always stood); if that ground is unfit, up to six more spots in
+            // the same placement square (so the spacing holds), but only on ground no saved world had generated yet:
+            // only ~1 region in 4 had a citadel and Remington's nearest was 773 blocks out (task 23).
+            var cx = cx0, cz = cz0
+            var found = site(cx, cz)
+            if found == nil, let sc = gen.structures {
+                let rx = floorDiv(cx0, 40), rz = floorDiv(cz0, 40)
+                let s32 = UInt32(truncatingIfNeeded: seed)
+                for k in 1...6 {
+                    let ax = rx * 40 + Int(hashf(rx, rz, 7100 + k, s32) * 25.99), az = rz * 40 + Int(hashf(rx, rz, 7200 + k, s32) * 25.99)
+                    guard sc.clear(cx: ax, cz: az, reach: 5), let y = site(ax, az) else { continue }
+                    cx = ax; cz = az; found = y
+                    break
+                }
+            }
+            guard let y = found else { return nil }
+            let x = cx * CS + 8, z = cz * CS + 8
             let y0 = y + 1
             let e = CapitalBase.A + 8               // the site plus the ring where cut trees' leaves are cleared
             let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed) })

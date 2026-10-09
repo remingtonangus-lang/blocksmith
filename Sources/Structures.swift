@@ -166,6 +166,17 @@ final class StructureCache {
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
+    // Chunks a saved world had already generated before structures were added or moved (task 23: Capital cities,
+    // denser citadels). New placements must keep clear of them, or they would appear cut off at the edge of explored
+    // ground. Set once by World.init from SaveManager.structureGuard() before any chunk is generated.
+    var legacy: Set<Int64> = []
+    @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
+    // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
+    func clear(cx: Int, cz: Int, reach r: Int) -> Bool {
+        if legacy.isEmpty { return true }
+        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where legacy.contains(StructureCache.key(x, z)) { return false } }
+        return true
+    }
     init(seed: UInt64, types: [StructureType], fixed: [StructureStart] = []) {
         self.seed = seed; self.types = types; self.fixed = fixed
     }
@@ -177,9 +188,7 @@ final class StructureCache {
         if let c = cache[key] { lock.unlock(); return c }
         lock.unlock()
         let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
-        var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
-        let span = t.spacing - t.separation
-        let cx = rx * t.spacing + rng.int(span), cz = rz * t.spacing + rng.int(span)
+        let (cx, cz) = candidate(t, rx, rz)
         let s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
         lock.lock()
         cache[key] = s
@@ -190,6 +199,13 @@ final class StructureCache {
         }
         lock.unlock()
         return s
+    }
+
+    // The region's first candidate chunk (where a start always stood before task 23's alternates).
+    func candidate(_ t: StructureType, _ rx: Int, _ rz: Int) -> (Int, Int) {
+        var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
+        let span = t.spacing - t.separation
+        return (rx * t.spacing + rng.int(span), rz * t.spacing + rng.int(span))
     }
 
     func startsNear(cx: Int, cz: Int, _ t: StructureType) -> [StructureStart] {
@@ -375,6 +391,10 @@ enum Loot {
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
                                       ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
                                       ("experience_bottle", 3, 8, 6)]),
+        // Capital cities (CapitalCity.swift): offices and homes; the odd base component or patrol orders.
+        "capital_city": (3...6, [("bread", 2, 5, 14), ("cookie", 3, 8, 8), ("apple", 2, 5, 10), ("paper", 3, 9, 10), ("book", 1, 3, 8),
+                                 ("emerald", 1, 4, 8), ("gold_ingot", 1, 4, 6), ("clock", 1, 1, 3), ("compass", 1, 1, 3),
+                                 ("rifle_rounds", 8, 24, 6), ("glass_bottle", 2, 4, 4), ("white_wool", 2, 6, 5)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_launcher", 1, 1, 5), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
