@@ -22,8 +22,8 @@ enum MusicMood: String, CaseIterable {
     var label: String {
         switch self {
         case .title: return "Title"
-        case .day: return "Overworld Day"
-        case .night: return "Overworld Night"
+        case .day: return "Surface Day"
+        case .night: return "Surface Night"
         case .underground: return "Underground"
         case .underwater: return "Underwater"
         case .ember: return "Emberdeep"

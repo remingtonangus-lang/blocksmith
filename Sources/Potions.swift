@@ -18,9 +18,9 @@ enum Potions {
             t.append(PotionType(key: k, display: d, effects: fx, color: c))
         }
         add("water", "Water Bottle", [], color: 0x385DC6)
-        add("mundane", "Mundane Potion", [], color: 0x385DC6)
-        add("thick", "Thick Potion", [], color: 0x385DC6)
-        add("awkward", "Awkward Potion", [], color: 0x385DC6)
+        add("mundane", "Plain Potion", [], color: 0x385DC6)
+        add("thick", "Cloudy Potion", [], color: 0x385DC6)
+        add("awkward", "Base Potion", [], color: 0x385DC6)
         func trio(_ k: String, _ d: String, _ e: Effect, _ n: Float, _ long: Float?, _ strong: (Float, Int)?) {
             add(k, d, [(e, n, 0)])
             if let l = long { add("long_" + k, d, [(e, l, 0)]) }
