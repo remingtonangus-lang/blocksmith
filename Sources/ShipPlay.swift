@@ -301,7 +301,7 @@ extension Game {
             return true
         }
         let eye = player.eye, look = player.look
-        let reach: Float = survival ? 4.5 : 5
+        let reach: Float = 6                              // as on the ground (Game.interact)
         var best: (Ship, IVec3, IVec3, Float)?
         for s in ships.list where eye.x > s.worldMin.x - reach && eye.x < s.worldMax.x + reach && eye.y > s.worldMin.y - reach
             && eye.y < s.worldMax.y + reach && eye.z > s.worldMin.z - reach && eye.z < s.worldMax.z + reach {
