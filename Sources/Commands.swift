@@ -129,7 +129,7 @@ extension Game {
         ("buried_treasure", "Buried Treasure"), ("mineshaft", "Mineshaft"), ("ocean_ruin", "Ocean Ruin"),
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
         ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire"),
-        ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"),
+        ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"), ("boreal_station", "Boreal Station"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
         ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage")]
 
@@ -317,7 +317,7 @@ extension Game {
             guard let v = Int(a[1]), v > 0 else { return ["Usage: /xp <amount>[L]"] }
             addXP(min(v, 100_000_000))                   // n * 2 in the Mending split overflowed near Int.max
             return ["Gave \(v) experience points to Player"]
-        case "bases": return locateAll(["military_base"])
+        case "bases": return locateAll(["military_base", "boreal_station"])
         case "cities": return locateAll(["capital_city"])
         case "citadels": return locateAll(["military_base", "ancient_city"])
         case "frigates": return locateAll(["frigate", "warfrigate"])

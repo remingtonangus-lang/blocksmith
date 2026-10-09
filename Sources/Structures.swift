@@ -170,11 +170,14 @@ final class StructureCache {
     // denser citadels). New placements must keep clear of them, or they would appear cut off at the edge of explored
     // ground. Set once by World.init from SaveManager.structureGuard() before any chunk is generated.
     var legacy: Set<Int64> = []
+    // The same guard taken again when Boreal Stations arrived (2026-10-09): chunks saved before that.
+    var legacyStations: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
-    func clear(cx: Int, cz: Int, reach r: Int) -> Bool {
-        if legacy.isEmpty { return true }
-        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where legacy.contains(StructureCache.key(x, z)) { return false } }
+    func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
+    func clear(cx: Int, cz: Int, reach r: Int, guardSet: Set<Int64>) -> Bool {
+        if guardSet.isEmpty { return true }
+        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where guardSet.contains(StructureCache.key(x, z)) { return false } }
         return true
     }
     init(seed: UInt64, types: [StructureType], fixed: [StructureStart] = []) {

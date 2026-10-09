@@ -101,7 +101,10 @@ final class World {
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
-        if dim == .overworld, let save, let sc = (gen as? WorldGen)?.structures { sc.legacy = save.structureGuard() }
+        if dim == .overworld, let save, let sc = (gen as? WorldGen)?.structures {
+            sc.legacy = save.structureGuard()
+            sc.legacyStations = save.structureGuard(file: "structure-guard-stations.txt")
+        }
         World.registry.add(self)
     }
 

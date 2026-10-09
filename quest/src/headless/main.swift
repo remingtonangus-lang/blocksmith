@@ -211,6 +211,11 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 }
                 world.pendingMobs.removeAll()
             }
+            // Boreal Station: the nearest one (BorealStation.views: yard from the air, the gate, a corridor, the hall, the stairs).
+            if let s = world.gen.structures?.nearest(BorealStation.kind, x: Int(spawn.x), z: Int(spawn.z), maxRegions: 6) {
+                _ = world.loadSync(center: V3(Float(s.anchor.x), Float(s.anchor.y), Float(s.anchor.z - 32)), radius: 4)
+                for (n, p, yaw, pitch, t) in BorealStation.views(world, s) { shots.append((n, p, t, yaw, pitch, false)) }
+            }
             for (name, p, t, yaw, pitch, rain) in shots {
                 game.player.pos = p
                 game.time = t * DAY_LENGTH
@@ -236,6 +241,10 @@ if let out = arg("--questsim"), let ctx = vkctx {
     do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
+
+// Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
+if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
+if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

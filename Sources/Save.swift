@@ -64,8 +64,8 @@ final class SaveManager {
     // The chunks this world had generated when it first loaded with task 23's structures (Capital cities, denser
     // citadels): taken once from the chunk folder and kept in structure-guard.txt ("x,z" per line), so the set never
     // grows with chunks generated afterwards (those already have the new structures). A new world's guard is empty.
-    func structureGuard() -> Set<Int64> {
-        let url = dir.appendingPathComponent("structure-guard.txt")
+    func structureGuard(file: String = "structure-guard.txt") -> Set<Int64> {
+        let url = dir.appendingPathComponent(file)
         var out = Set<Int64>()
         if let s = try? String(contentsOf: url, encoding: .utf8) {
             for line in s.split(separator: "\n") {
