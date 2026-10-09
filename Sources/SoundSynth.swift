@@ -367,7 +367,7 @@ struct Synth {
         switch m {
         case .stone:
             return grains(Int(9 * scale), spread: 0.09 * scale, lp: 3200 * p, hp: 500, decay: 0.012, gain: gain * 1.6)
-        case .dirt:
+        case .dirt, .grass:
             return Synth.mix(burst(0.25 * scale, lp: 900 * p, hp: 60, decay: 0.05 * scale, gain: gain * 2.2),
                              grains(Int(5 * scale), spread: 0.08 * scale, lp: 1000 * p, hp: 120, decay: 0.01, gain: gain * 0.5))
         case .gravel:
@@ -384,7 +384,7 @@ struct Synth {
         case .wood:
             let knock = modes(0.3 * scale, [(190 * p, 0.7, 0.05), (410 * p, 0.45, 0.035), (870 * p, 0.2, 0.02)])
             return Synth.mix(Synth.scaled(knock, gain * 1.3), burst(0.05, lp: 3000, hp: 400, decay: 0.008, gain: gain * 0.6))
-        case .plant:
+        case .plant, .leaves:
             return grains(Int(16 * scale), spread: 0.16 * scale, lp: 6000 * p, hp: 1800, decay: 0.01, gain: gain * 0.9)
         case .wool:
             return Synth.mix(burst(0.18 * scale, lp: 1400 * p, hp: 200, attack: 0.005, decay: 0.05 * scale, gain: gain * 1.3),
@@ -595,11 +595,11 @@ struct Synth {
         var out: [Float]
         switch s {
         // Blocks
-        case .breakBlock(let m): out = material(m, pitch: p, scale: 1.4, gain: 0.55)
-        case .place(let m): out = material(m, pitch: p * 1.05, scale: 0.8, gain: 0.45)
-        case .step(let m): out = material(m, pitch: p * 0.95, scale: 0.45, gain: 0.25)
-        case .hit(let m): out = material(m, pitch: p * 1.1, scale: 0.35, gain: 0.3)
-        case .fall(let m): out = Synth.mix(material(m, pitch: p * 0.8, scale: 0.9, gain: 0.5), burst(0.18, lp: 300 * p, hp: 30, decay: 0.04, gain: 2.5))
+        case .breakBlock(let m): out = foleyBreak(m, p: p)
+        case .place(let m): out = foleyPlace(m, p: p)
+        case .step(let m): out = foleyStep(m, p: p)
+        case .hit(let m): out = foleyHit(m, p: p)
+        case .fall(let m): out = foleyFall(m, p: p)
 
         // Player
         case .splash:

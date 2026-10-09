@@ -7,7 +7,7 @@ import simd
 // in SoundEngine.swift, music in Music.swift.
 
 enum SoundMat: Int, CaseIterable {
-    case stone, dirt, sand, wood, plant, glass, snow, gravel, metal, wool, slime, mud, bone, amethyst, soul, sculk, netherrack, deepslate
+    case stone, dirt, sand, wood, plant, glass, snow, gravel, metal, wool, slime, mud, bone, amethyst, soul, sculk, netherrack, deepslate, grass, leaves
     var name: String { String(describing: self) }
 }
 
@@ -312,7 +312,9 @@ final class SoundBank {
     // Short, common sounds get 3 takes; mobs 2; long ambience and one-offs 1.
     static func variants(for s: Snd) -> Int {
         switch s {
-        case .step, .hit, .breakBlock, .place, .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
+        case .step: return 6
+        case .hit, .breakBlock, .place: return 4
+        case .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
         case .birdCall: return 6
         case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot ? 3 : 2
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3

@@ -1558,6 +1558,10 @@ if let dir = arg("--sounds") {
     var total = 0, failures = 0
     var list = SoundBank.allSounds
     for inst in 0..<16 { list.append(.note(inst, 12)) }
+    if let only = ProcessInfo.processInfo.environment["SOUNDS_ONLY"] {   // e.g. SOUNDS_ONLY=step_,gun_ (prefixes)
+        let pre = only.split(separator: ",").map(String.init)
+        list = list.filter { s in pre.contains { s.name.hasPrefix($0) } }
+    }
     var byCategory: [SoundCategory: Int] = [:]
     var slow: [(String, Double)] = []
     for s in list {
