@@ -401,8 +401,16 @@ extension MobManager {
     }
 
     // Babies, jockeys, armour and door breaking for a naturally spawned monster.
+    // The deeper, the tougher: surface monsters from displayed y -16 down to the old floor (x1.6), the Deep tougher still (DeepGen).
+    static func depthPower(_ d: Dim, _ y: Float) -> Float {
+        guard d == .overworld else { return 1 }
+        let yd = y - Float(YOFF)
+        return yd < -16 ? 1 + min(0.6, (-16 - yd) / 80) : 1
+    }
+
     func finishMonster(_ m: Mob, _ game: Game) {
         let w = game.world
+        m.power = MobManager.depthPower(w.dim, m.pos.y)
         m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
         m.canPickUp = ArmorLook.fits(m.kind) && Rand.float(in: 0..<1) < 0.55 * game.regionalDifficulty
         // Sunken: 10% hold something - 10 in 16 a trident, else a fishing rod; 3% a nautilus shell.

@@ -5991,6 +5991,7 @@ enum HDTex {
         "granite": stone([(0, 0x7A4E40), (0.5, 0x9A6A58), (1, 0xB88A74)], veins: 0.4),
         "tuff": stone([(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], veins: 0.5),
         "deepslate": stone(deepslate, veins: 0.4, strata: 0.03, streak: 0.35),
+        "emberslate": stone([(0, 0x221614), (0.5, 0x3A2420), (0.85, 0x56302A), (1, 0x8E3C22)], veins: 0.5, strata: 0.04, streak: 0.3),
         "dirt": dirtGen,
         "coarse_dirt": soil([(0, 0x4C3626), (0.5, 0x6C5038), (1, 0x8A6A4C)], pebble: 0x7C7468, pebbles: 16),
         "grass_block_top": grassTop,

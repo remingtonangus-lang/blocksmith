@@ -43,7 +43,14 @@ final class SaveManager {
     }
 
     // Save folder for another dimension inside this world's folder.
-    func sub(_ folder: String) -> SaveManager { SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true)) }
+    func sub(_ folder: String) -> SaveManager {
+        let m = SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true))
+        m.overworldFloor = false
+        return m
+    }
+    // The surface's chunks lost their bedrock floor (task 22, the Deep below): saved chunks still holding the old
+    // floor (bedrock in internal layers 0-4) get emberslate there as they load, like freshly generated ones.
+    var overworldFloor = true
 
     init(dir d: URL) {
         dir = d
@@ -131,7 +138,12 @@ final class SaveManager {
             p += 2
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
+        if overworldFloor { SaveManager.stripBedrockFloor(&out) }
         return out
+    }
+
+    static func stripBedrockFloor(_ b: inout [BlockID]) {
+        for i in 0..<(CSQ * 5) where b[i] == BEDROCK { b[i] = EMBERSLATE }
     }
 
     // Queues a chunk write on the background save queue (the main thread only hands over the array).

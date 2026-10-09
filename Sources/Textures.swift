@@ -351,6 +351,13 @@ enum TextureGen {
         p["deepslate_lapis_ore"] = ore(deepslate, 0x2749A8, 0x1B3A90, salt: 54)
         p["deepslate_copper_ore"] = ore(deepslate, 0xE0724A, 0x57B892, salt: 57)
         p["deepslate"] = deepslate
+        // Emberslate: deeprock's layering in dark red with hot orange hairline cracks.
+        p["emberslate"] = { x, y in
+            var k: Float = 1 + (r(x, y, 70) - 0.5) * 0.14
+            if (y + Int(r(x / 4, 0, 71) * 3)) % 4 == 0 { k *= 0.82 }
+            if r(x / 2, y, 72) < 0.06 && r(x, y / 2, 73) < 0.5 { return hex(0xC8501C, 0.9 + r(x, y, 74) * 0.2) }
+            return hex(0x5A2622, k)
+        }
         p["andesite"] = rock(0x888889, grain: 0.18, blotch: 0.2, salt: 63)
         p["diorite"] = { x, y in
             let v = r(x, y, 64)

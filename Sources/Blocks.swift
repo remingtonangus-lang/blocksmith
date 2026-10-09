@@ -416,6 +416,8 @@ final class BlockRegistry {
             add(sap)
         }
         cube("deepslate", "Deeprock", "deepslate", h: 3, req: true)
+        // Hot rock of the world's depths: below displayed y -24 it creeps into the deeprock; the Deep is made of it.
+        cube("emberslate", "Emberslate", "emberslate", h: 3.5, req: true)
         // Lava: 9 states like water; opaque, bright, hurts.
         for k in 0...8 {
             var l = BlockDef(k == 0 ? "lava" : (k == 8 ? "lava_falling" : "lava_\(k)"), "Lava")
@@ -883,6 +885,7 @@ let BLUE_FLOWER = Blocks.id("cornflower")
 let TORCH = Blocks.id("torch")
 let LAMP = Blocks.id("glowstone")
 let DEEPSLATE = Blocks.id("deepslate")
+let EMBERSLATE = Blocks.id("emberslate")
 let LAVA = Blocks.id("lava")
 let LAVA_FLOW: [BlockID] = [LAVA] + (1...7).map { Blocks.id("lava_\($0)") }
 let LAVA_FALL = Blocks.id("lava_falling")

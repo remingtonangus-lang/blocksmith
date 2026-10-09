@@ -1873,6 +1873,7 @@ final class Game {
             case 3: scaled = a * 1.5
             default: break
             }
+            if let a = attacker { scaled *= a.power }
             let whole = floorf(scaled)
             amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
         }
