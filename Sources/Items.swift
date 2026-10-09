@@ -227,7 +227,7 @@ final class ItemRegistry {
         item("carrot_on_a_stick", "Carrot on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xF08A1A], stack: 1)
         item("glass_bottle", "Glass Bottle", "bottle", 0xD0DCF0, ["c": 0xDCE8F6])
         item("fermented_spider_eye", "Fermented Spider Eye", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
-        item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xFFF0A0, "d": 0xC89A20])
+        item("glistering_melon_slice", "Gilded Melon Slice", "melon", 0xF0C040, ["c": 0xFFF0A0, "d": 0xC89A20])
         item("rabbit_foot", "Rabbit's Foot", "foot", 0xC8A078, ["c": 0xE8D8C0])
         item("rabbit_hide", "Rabbit Hide", "leather", 0xC8A078)
         item("phantom_membrane", "Nightwing Membrane", "membrane", 0xC8C0A0)
@@ -267,7 +267,7 @@ final class ItemRegistry {
         for (_, disp, need) in Banners.patterns { if let n = need { item(n, "Banner Pattern (\(disp))", "paper", 0xE0D8C0, ["a": 0x5A5040], stack: 1) } }
         item("armor_stand", "Armor Stand", "armor_stand", 0x9A7A4A, stack: 16)
         item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)
-        item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)
+        item("torchflower_seeds", "Flarebloom Seeds", "seeds", 0x5A7A2A)
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
         item("brush", "Brush", "brush", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
         item("echo_shard", "Resonant Shard", "crystal", 0x0A4A58)

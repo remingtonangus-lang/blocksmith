@@ -26,7 +26,7 @@ enum Advancements {
     static let tabs = ["Story", "Emberdeep", "The Hollow", "Adventure", "Husbandry"]
     static let all: [Advancement] = [
         // Story
-        Advancement(id: "root", tab: 0, title: "First Steps", desc: "The heart and story of the game", crit: .item("crafting_table")),
+        Advancement(id: "root", tab: 0, title: "First Steps", desc: "Every world starts at a workbench", crit: .item("crafting_table")),
         Advancement(id: "mine_stone", tab: 0, title: "Rock Bottom", desc: "Mine stone with your new pickaxe", crit: .item("cobblestone")),
         Advancement(id: "upgrade_tools", tab: 0, title: "Better Tools", desc: "Construct a better pickaxe", crit: .item("stone_pickaxe")),
         Advancement(id: "smelt_iron", tab: 0, title: "Metalworks", desc: "Smelt an iron ingot", crit: .item("iron_ingot")),

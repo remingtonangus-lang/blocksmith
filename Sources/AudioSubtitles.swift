@@ -108,7 +108,7 @@ extension Snd {
         case .tridentThrow: return "Trident thrown"
         case .tridentHit: return "Trident hits"
         case .tridentReturn: return "Trident returns"
-        case .riptide: return "Riptide"
+        case .riptide: return "Trident surges"
         case .windCharge: return "Wind bursts"
         case .shearsSnip: return "Shears snip"
         case .ignite: return "Fire lit"
