@@ -15,6 +15,7 @@
 #                toolchain layer from Docker Hub (auth.docker.io, registry-1.docker.io + its blob CDN).
 #   APK:         download.swift.org (Swift SDK for Android bundle), dl.google.com (NDK r30, Android cmdline-tools,
 #                build-tools, platform), repo1.maven.org or Google's Maven Central mirror (OpenXR loader AAR).
+#                Also a JDK 17+ on PATH (sdkmanager, apksigner).
 # Pinned versions match quest.yml; bump them there and here together.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -71,12 +72,12 @@ install_apt() {
   for p in $pkgs; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
   [ -z "$missing" ] && { echo "apt packages present"; return; }
   $SUDO apt-get update -q
-  DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -q --no-install-recommends $missing
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends $missing
 }
 
 install_swift() {
-  if [ -x "$SWIFT_HOME/usr/bin/swift" ]; then "$SWIFT_HOME/usr/bin/swift" --version | head -1; return; fi
-  mkdir -p "$SWIFT_HOME" "$T/dl"
+  if [ -f "$SWIFT_HOME/.complete" ]; then "$SWIFT_HOME/usr/bin/swift" --version | head -1; return; fi
+  rm -rf "$SWIFT_HOME"; mkdir -p "$SWIFT_HOME" "$T/dl"
   if curl -fsSL --retry 2 -o "$T/dl/swift.tar.gz" "$SWIFT_URL"; then
     tar -xzf "$T/dl/swift.tar.gz" -C "$SWIFT_HOME" --strip-components=1
     rm -f "$T/dl/swift.tar.gz"
@@ -84,6 +85,7 @@ install_swift() {
     echo "download.swift.org unreachable: taking the toolchain from Docker Hub's official swift:$SWIFT_VERSION-noble image"
     swift_from_docker_hub
   fi
+  touch "$SWIFT_HOME/.complete"      # marks a finished extraction; an interrupted one is redone
   "$SWIFT_HOME/usr/bin/swift" --version | head -1
 }
 
@@ -109,11 +111,11 @@ print(next(m["digest"] for m in d["manifests"] if m["platform"]["architecture"] 
 }
 
 install_ndk() {
-  if [ -d "$NDK_HOME/toolchains" ]; then echo "NDK r30 present"; return; fi
-  mkdir -p "$T/ndk" "$T/dl"
+  if [ -f "$NDK_HOME/.complete" ]; then echo "NDK r30 present"; return; fi
+  rm -rf "$NDK_HOME"; mkdir -p "$T/ndk" "$T/dl"
   fetch "$NDK_URL" "$T/dl/ndk.zip"
   unzip -q -o "$T/dl/ndk.zip" -d "$T/ndk"
-  rm -f "$T/dl/ndk.zip"
+  rm -f "$T/dl/ndk.zip"; touch "$NDK_HOME/.complete"
 }
 
 install_android_sdk() {
@@ -132,9 +134,10 @@ install_android_sdk() {
     rm -f "$T/dl/cmdline.zip"
   fi
   local sm="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
-  yes | "$sm" --sdk_root="$ANDROID_SDK" --licenses >/dev/null 2>&1 || true
-  "$sm" --sdk_root="$ANDROID_SDK" "build-tools;$BUILD_TOOLS" "platforms;$PLATFORM" | grep -v "^\[" || true
-  ls "$ANDROID_SDK"/build-tools/*/aapt2 >/dev/null
+  yes 2>/dev/null | "$sm" --sdk_root="$ANDROID_SDK" --licenses >/dev/null || true   # yes gets SIGPIPE once licences are accepted
+  "$sm" --sdk_root="$ANDROID_SDK" "build-tools;$BUILD_TOOLS" "platforms;$PLATFORM" > "$T/sdkmanager.log" 2>&1 ||
+    { tail -20 "$T/sdkmanager.log"; echo "cloud-setup.sh: sdkmanager failed ($T/sdkmanager.log)"; exit 1; }
+  ls "$ANDROID_SDK"/build-tools/*/aapt2 "$ANDROID_SDK"/platforms/*/android.jar >/dev/null
 }
 
 install_swift_sdk() {
@@ -142,7 +145,9 @@ install_swift_sdk() {
   if ! swift sdk list 2>/dev/null | grep -q "$SWIFT_SDK"; then
     mkdir -p "$T/dl"
     fetch "$SWIFT_SDK_URL" "$T/dl/android-sdk.artifactbundle.tar.gz"
-    swift sdk install "$T/dl/android-sdk.artifactbundle.tar.gz" --checksum "$SWIFT_SDK_SHA"
+    # SwiftPM checks --checksum only for URLs, not local files, so verify the pin here.
+    echo "$SWIFT_SDK_SHA  $T/dl/android-sdk.artifactbundle.tar.gz" | sha256sum -c -
+    swift sdk install "$T/dl/android-sdk.artifactbundle.tar.gz"
     rm -f "$T/dl/android-sdk.artifactbundle.tar.gz"
   fi
   swift sdk list
@@ -152,7 +157,10 @@ install_swift_sdk() {
 }
 
 install_openxr() {
-  if [ ! -f build/openxr_loader.aar ]; then quest/tools/fetch-openxr.sh; fi
+  # Optional for the host checks (do_check falls back to apt's OpenXR headers); build-apk.sh needs it.
+  if [ ! -f build/openxr_loader.aar ] && ! quest/tools/fetch-openxr.sh; then
+    echo "cloud-setup.sh: OpenXR AAR unavailable; host checks use /usr/include/openxr, the APK build will need it"; return
+  fi
   mkdir -p build/openxr && unzip -q -o build/openxr_loader.aar -d build/openxr
 }
 
@@ -177,8 +185,13 @@ do_install_host() {
 
 do_install() { do_install_host; do_install_apk; }
 
+apk_tools_present() {
+  [ -f "$NDK_HOME/.complete" ] && ls "$ANDROID_SDK"/platforms/*/android.jar >/dev/null 2>&1 &&
+    (load_env; swift sdk list 2>/dev/null | grep -q "$SWIFT_SDK")
+}
+
 do_install_apk() {
-  preflight
+  apk_tools_present || preflight
   step "android ndk r30" install_ndk
   step "android build-tools + platform" install_android_sdk
   step "swift sdk for android" install_swift_sdk
@@ -192,11 +205,11 @@ do_check() {
   mkdir -p build/quest-out
   # linux-check prints the whole compiler output; keep errors only (the full log stays in build/quest-out).
   if ! quest/tools/linux-check.sh build > build/quest-out/linux-check.log 2>&1; then
-    grep -E "error" -A3 build/quest-out/linux-check.log | head -80; echo "linux-check.sh failed (build/quest-out/linux-check.log)"; exit 1
+    { grep -E "error" -A3 build/quest-out/linux-check.log | head -80; } || true; echo "linux-check.sh failed (build/quest-out/linux-check.log)"; exit 1
   fi
   test -x build/quest-linux/questcheck
   BLOCKSMITH_TEXRES=32 ./build/quest-linux/questcheck --render build/quest-out/stereo.png --questsim build/quest-out/vrsim.png \
-    2>&1 | tee build/quest-out/questcheck.log | tail -25
+    2>&1 | tee build/quest-out/questcheck.log | tail -25 || true     # the grep below decides pass/fail
   grep -q "all checks passed" build/quest-out/questcheck.log || { echo "questcheck FAILED (build/quest-out/questcheck.log)"; exit 1; }
   echo "questcheck: all checks passed (renders in build/quest-out/)"
 }
@@ -204,6 +217,8 @@ do_check() {
 do_apk() {
   load_env
   local out="${1:-build/quest-out/blocksmith-quest.apk}"
+  # CI uses the run number (small); epoch minutes stay above it, so a cloud APK installs over a CI one on the headset.
+  export VERSION_CODE="${VERSION_CODE:-$(( $(date +%s) / 60 ))}"
   mkdir -p "$(dirname "$out")"
   quest/tools/build-apk.sh "$out"
 }
@@ -215,12 +230,12 @@ case "${1:-install}" in
   check) step "host checks (linux-check + questcheck)" do_check ;;
   apk) step "apk build" do_apk "${2:-}" ;;
   all)
-    : > "$TIMES"
+    mkdir -p "$(dirname "$TIMES")"; : > "$TIMES"
     do_install_host
     step "host checks (linux-check + questcheck)" do_check
     do_install_apk
     step "apk build" do_apk "${2:-}"
     echo "== timings"; cat "$TIMES"
     ;;
-  *) sed -n 2,19p "$0"; exit 2 ;;
+  *) sed -n 2,20p "$0"; exit 2 ;;
 esac
