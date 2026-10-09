@@ -667,5 +667,7 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
 - On the Mac: `~/ClaudeTools/quest/bugnotes` (headset plugged in) pulls new notes, transcribes them with ElevenLabs
   Scribe via OpenRouter, drops wordless clips and writes docs/playtests/<date>/voice-notes.md (time, words, where you
   were, screenshot). `--clean` also deletes the pulled notes from the headset.
+- Quest CI run 37970910923 green, APK versionCode 84 (24538e3) on quest-dist; storecheck 0 failures on both APKs. Not
+  installed: adb saw no Quest.
 - Checks: `--questbugs --only voice` (10). Fix after the first CI pass: the Bug Notes row was hidden in the Quest pause
   menu along with the Mac-only rows.

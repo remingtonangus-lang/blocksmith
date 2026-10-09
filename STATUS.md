@@ -44,6 +44,11 @@
 > copper replaces sparkstone, jetpack, gun enchantments, lighting pass, save migration + backups. Details and checks:
 > docs/status/quest-port.md "Round 3 features"; APK versionCode 70.
 
+> **Voice bug notes on the Quest (2026-10-09, quest-port):** playtest builds listen while you play and keep only speech
+> (AAC + game-state sidecar + screenshot per note, 2 GB cap, HUD dot); store builds compile it out (storecheck.sh).
+> Mac: `~/ClaudeTools/quest/bugnotes` -> docs/playtests/<date>/voice-notes.md. Details: docs/status/quest-port.md
+> "Task 25b1zzx"; APK versionCode 84.
+
 Per-stream handoffs (2026-10-04, parallel sessions): [integration](docs/status/integration.md) - the other streams
 add docs/status/<stream>.md and a link here.
 
