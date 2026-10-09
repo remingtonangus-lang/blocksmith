@@ -132,6 +132,7 @@ final class Game {
     var bullets: [SentryBolt] = []
     weak var riding: Mob?          // the minecart the player sits in
     var riderPush: Float = 0
+    var sneakHeldFromMenu = false      // the sneak / B that closed a menu is still held: it doesn't dismount
     var clouds: [AcidCloud] = []
     var xpOrbs: [XPOrb] = []           // experience orbs on the ground (GamePotions.xpOrbTick)
     var fangs: [Fang] = []         // conjurer fangs
@@ -660,6 +661,7 @@ final class Game {
     func closeMenu() {
         menuDrag = []
         guard let m = menu, !(m is DeathMenu) else { return }
+        sneakHeldFromMenu = true
         audioMenuClosed(m)
         m.onClose()
         if !carried.isEmpty {
@@ -841,11 +843,14 @@ final class Game {
 
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos
+        if !mi.sneak { sneakHeldFromMenu = false }
         if let r = riding, r.health <= 0 { dismount() }
         if riding != nil {
             riderPush = mi.forward
             rideInput = mi
-            if mi.sneak { dismount() }
+            // B is both a menu's back and sneak: the press that closed the inventory / mount menu must not also throw
+            // the rider off (playtest v78). Dismount takes a fresh sneak press.
+            if mi.sneak && !sneakHeldFromMenu { dismount() }
         } else {
             player.autoJump = autoJump
             jetpackTick(fdt, mi)
