@@ -1,5 +1,13 @@
 # Status
 
+> **Playtest Oct 9 PM (task 25b1zzz, quest-port):** smooth step-ups for every mount and on foot (Mac + Quest camera),
+> horse knee and 13 other models no longer come apart, grass ~1/8 and cactus ~1/3, surface monsters halved (caves kept),
+> bone meal on 64 plants incl. sugar cane, leather 1-3, enchanting offers vary (Fortune/Gentle Touch, multi-enchants),
+> 28 coined names renamed (docs/status/ip-renames.md), copper circuits 111/111 parity rows (docs/status/copper-parity.md),
+> Quest 72 Hz + render distance 12 + background autosave/remesh. Stations answer: docs/status/crafting-stations.md.
+> Checks: `--questbugs --only pm9a|pm9b|pm9d`, `--coppertest`, `tools/namecheck.py --coined`, `tools/quest_perf_gate.sh`.
+> Open: piston 2-tick motion, head-look/attack poses not in the model check, device perf re-measure at rd 12.
+
 > **Quality infrastructure (2026-10-09, task 25b1zx, quest-port + playtest):** work is now judged by
 > docs/STORE_QUALITY.md and measured in docs/status/scorecard.md (every objective RED/AMBER/GREEN with evidence in
 > docs/status/evidence/2026-10-09). Tools (local, no new CI jobs): `tools/bench_routes.sh` (6 routes, p50/p99/hitches/
