@@ -19,38 +19,90 @@ enum WeaponAudio {
 
     // MARK: Building blocks
 
-    // A gunshot: a hard transient crack, a body thump and a filtered tail; `size` scales the body,
-    // `bright` the crack, `tail` the room/barrel ring-out.
+    // A gunshot, layered like a recorded one: the mechanism's snap, the muzzle blast (an N-wave
+    // pressure pulse plus hot noise, driven into saturation), a pitch-dropping body kick, a
+    // low-mid chest band, then the world answering: terrain slapbacks and a diffuse tail.
+    // `size` scales the body, `bright` the crack, `tail` the ring-out, `mech` the action cycling.
     static func shot(_ g: inout Synth, p: Float, size: Float, bright: Float, tail: Float, mech: Float) -> [Float] {
-        let crack = g.burst(0.06, lp: 9000 * bright * p, hp: 1800, attack: 0.0004, decay: 0.006, gain: 3.2)
-        let body = g.burst(0.35 * size, lp: 900 * p / size, hp: 45, attack: 0.0008, decay: 0.035 * size, gain: 3.4)
-        let thump = g.modes(0.25 * size, [(85 * p / size, 1.0, 0.04 * size), (140 * p / size, 0.5, 0.025 * size)])
-        var out = Synth.mix(Synth.mix(crack, body), thump)
-        let ring = g.burst(tail, lp: 2400 * p, hp: 300, attack: 0.01, decay: tail * 0.3, gain: 0.5)
-        out = Synth.mix(out, ring, at: g.frames(0.02))
-        if mech > 0 {
-            // The action cycling: a sci-fi servo chirp and a bolt clack.
-            let servo = g.tone(0.07, f0: 2600 * p, f1: 1800 * p, wave: .tri, attack: 0.002, release: 0.03, gain: 0.25 * mech)
-            let clack = g.modes(0.06, [(1700 * p, 0.35 * mech, 0.01), (3100 * p, 0.2 * mech, 0.006)])
-            out = Synth.mix(out, Synth.mix(servo, clack, at: g.frames(0.03)), at: g.frames(0.07))
+        let sr = Synth.sr
+        // Muzzle blast.
+        var blast = [Float](repeating: 0, count: g.frames(0.14 * size))
+        let tauN: Float = 0.0011 * size, tauX: Float = 0.009 * size
+        for i in blast.indices {
+            let t = Float(i) / sr
+            let rise: Float = t < 0.00015 ? t / 0.00015 : 1
+            let over: Float = rise * expf(-max(0, t - 0.00015) / tauN)
+            let under: Float = -0.38 * expf(-t / (tauN * 5)) * min(1, t / 0.0012)
+            let hiss: Float = g.noise() * expf(-t / tauX) * rise
+            blast[i] = over * 1.5 + under + hiss * 0.85
         }
-        return out
+        blast = Synth.lowpass(blast, min(15000, 8500 * bright * p))
+        blast = Synth.highpass(blast, 110)
+        blast = blast.map { tanhf($0 * 2.4) * 0.9 }
+        // Body kick: a sine whose pitch drops from 1.8x to its rest note.
+        let kickN = g.frames(0.35 * size)
+        var kick = [Float](repeating: 0, count: kickN)
+        let f0: Float = 92 * p / size
+        var ph: Float = 0
+        for i in 0..<kickN {
+            let t = Float(i) / sr
+            ph += f0 * (1 + 0.8 * expf(-t / 0.011)) / sr
+            kick[i] = sinf(2 * .pi * ph) * expf(-t / (0.05 * size)) * min(1, t / 0.0012)
+        }
+        // A limited high crack on top so the shot slices through a busy mix.
+        let crack = g.burst(0.012, lp: 14000, hp: 4000, attack: 0.0002, decay: 0.003, gain: 1.3 * bright).map { tanhf($0 * 3) * 0.5 }
+        blast = Synth.mix(blast, crack)
+        let chest = g.burst(0.2 * size, lp: 950 * p / size, hp: 170 / size, attack: 0.0005, decay: 0.028 * size, gain: 1.6)
+        var out = Synth.mix(Synth.mix(blast, Synth.scaled(kick, 1.25)), chest)
+        // The mechanism: a tight metallic snap just before the blast is masked, so it sits after.
+        if mech > 0 {
+            let snap = Synth.mix(g.modes(0.05, [(2300 * p, 0.3 * mech, 0.006), (3900 * p, 0.2 * mech, 0.004), (6100 * p, 0.1 * mech, 0.003)]),
+                                 g.burst(0.02, lp: 9000, hp: 2500, attack: 0.0002, decay: 0.002, gain: 0.5 * mech))
+            out = Synth.mix(out, snap, at: g.frames(0.055))
+            let carrier = Synth.mix(g.modes(0.07, [(1650 * p, 0.32 * mech, 0.012), (2750 * p, 0.18 * mech, 0.008)]),
+                                    g.tone(0.05, f0: 2400 * p, f1: 1900 * p, wave: .tri, attack: 0.002, release: 0.025, gain: 0.07 * mech))
+            out = Synth.mix(out, carrier, at: g.frames(0.085))
+        }
+        // The world answering: a diffuse tail and three terrain slapbacks, each darker than the last.
+        if tail > 0 {
+            let src = Synth.lowpass(Synth.mix(Synth.scaled(blast, 0.6), chest), 2600 * p)
+            let verb = Synth.reverb(src, size: 1.0 + 0.35 * size, damp: 0.45, mix: 1, tail: tail)
+            out = Synth.mix(out, verb, gain: 0.55)
+            var lp: Float = 2200
+            for (d, gn) in [(Float(0.09), Float(0.32)), (0.21, 0.2), (0.43, 0.12), (0.75, 0.1)] where d < tail + 0.1 {
+                lp *= 0.65
+                out = Synth.mix(out, Synth.lowpass(src, lp, passes: 2), at: g.frames(d * g.rnd(0.85, 1.15)), gain: gn * 1.6)
+            }
+        }
+        let peak = out.reduce(0) { max($0, abs($1)) }
+        return peak > 0 ? out.map { tanhf($0 / peak * 1.3) / tanhf(1.3) } : out
     }
 
-    // A spent casing hitting the ground a moment later.
+    // A spent casing hitting the ground a moment later: a bright brass ring, then a smaller bounce.
     static func casing(_ g: inout Synth, p: Float, gain: Float) -> [Float] {
-        let tink = g.modes(0.18, [(4200 * p * g.rnd(0.95, 1.05), 0.35, 0.05), (6900 * p, 0.15, 0.03)])
-        let tink2 = g.modes(0.12, [(4000 * p, 0.2, 0.03)])
-        return Synth.scaled(Synth.mix(tink, tink2, at: g.frames(0.07)), gain)
+        let f = 4200 * p * g.rnd(0.94, 1.06)
+        let tink = g.modes(0.2, [(f, 0.35, 0.06), (f * 1.62, 0.2, 0.04), (f * 2.41, 0.1, 0.025)])
+        let tink2 = g.modes(0.12, [(f * 1.03, 0.18, 0.035), (f * 1.67, 0.1, 0.02)])
+        let tink3 = g.modes(0.08, [(f * 1.05, 0.08, 0.02)])
+        return Synth.scaled(Synth.mix(Synth.mix(tink, tink2, at: g.frames(0.075)), tink3, at: g.frames(0.12)), gain)
     }
 
-    // Far-off version of a shot: no crack, a low muffled boom and a long rolling echo off the terrain.
+    // Far-off version of a shot: no crack, a low muffled boom, then the rolling echo off hills and
+    // trees (many taps, later ones darker and quieter).
     static func distant(_ g: inout Synth, p: Float, size: Float, roll: Float) -> [Float] {
-        let boom = g.burst(0.5 * size, lp: 320 * p / size, hp: 30, attack: 0.004, decay: 0.08 * size, gain: 3)
-        var out = Synth.lowpass(boom, 900)
-        let tail = g.wash(roll, lp: 420, hp: 40, wobble: 0.6, rate: 4, gain: 0.35)
-        out = Synth.mix(out, Synth.decayEnv(tail, roll * 0.35), at: g.frames(0.05))
-        return Synth.echo(out, delay: 0.32, feedback: 0.35, mix: 0.35, tail: roll * 0.5)
+        var boom = Synth.lowpass(g.burst(0.5 * size, lp: 380 * p / size, hp: 28, attack: 0.003, decay: 0.07 * size, gain: 3), 900)
+        var kick = [Float](repeating: 0, count: g.frames(0.4 * size))
+        Synth.resonate(Synth.contactPulse(0.004), f: 60 * p / size, decay: 0.08 * size, amp: 2.5, into: &kick)
+        boom = Synth.mix(boom, kick)
+        var out = boom
+        let taps = 9
+        for k in 0..<taps {
+            let t = (0.12 + roll * 0.85 * powf(Float(k + 1) / Float(taps), 1.4)) * g.rnd(0.85, 1.15)
+            let gn = 0.55 * powf(0.78, Float(k)) * g.rnd(0.7, 1.1)
+            out = Synth.mix(out, Synth.lowpass(boom, max(180, 700 - 55 * Float(k)), passes: 2), at: g.frames(t), gain: gn)
+        }
+        let rumble = Synth.decayEnv(g.wash(roll, lp: 260, hp: 30, wobble: 0.5, rate: 3, gain: 0.3), roll * 0.3)
+        return Synth.mix(out, rumble, at: g.frames(0.08))
     }
 
     // MARK: Renders
@@ -66,6 +118,7 @@ enum WeaponAudio {
         case 2:   // shotgun: wide blast + pump
             var o = shot(&g, p: p * 0.85, size: 1.6, bright: 0.8, tail: 0.6, mech: 0)
             o = Synth.mix(o, g.burst(0.4, lp: 3500, hp: 300, attack: 0.002, decay: 0.05, gain: 1.4))
+            o = Synth.mix(o, g.texture(0.09, rate: 2500, lo: 3000, hi: 9000, grain: 0.0015, gain: 0.5) { x in 1 - x }, at: g.frames(0.004))   // the pellet spread
             let pump1 = Synth.mix(g.burst(0.06, lp: 2500, hp: 400, decay: 0.012, gain: 1.0), g.modes(0.08, [(800 * p, 0.4, 0.02)]))
             let pump2 = Synth.mix(g.burst(0.05, lp: 3000, hp: 500, decay: 0.01, gain: 1.0), g.modes(0.07, [(1300 * p, 0.4, 0.015)]))
             o = Synth.mix(o, pump1, at: g.frames(0.42))
@@ -182,29 +235,41 @@ enum WeaponAudio {
 
     // Bullet hitting a material: a sharp tick, a material-coloured burst and debris.
     static func impact(_ g: inout Synth, _ m: SoundMat, p: Float) -> [Float] {
-        let tick = g.burst(0.04, lp: 8000, hp: 1500, attack: 0.0004, decay: 0.006, gain: 1.2)
-        let body = g.material(m, pitch: p * 1.2, scale: 0.5, gain: 0.8)
-        var o = Synth.mix(tick, body)
+        let tick = g.burst(0.04, lp: 9000, hp: 1800, attack: 0.0003, decay: 0.004, gain: 1.0)
+        var f = FoleyMat.of(m)
+        f.click = max(f.click, 0.5); f.thump *= 0.5
+        let body = g.foleyContact(f, p: p * 1.15, force: 1, ring: 0.7, texLen: 0.06, texScale: 1.2)
+        var o = Synth.mix(tick, Synth.scaled(body, 0.8))
+        if f.tex > 0.3 { o = Synth.mix(o, g.texture(0.25, rate: 700, lo: 900, hi: 4500, grain: 0.0025, gain: 0.35) { x in (1 - x) * (1 - x) }, at: g.frames(0.03)) }
         if m == .metal { o = Synth.mix(o, g.modes(0.4, [(2300 * p, 0.35, 0.12), (3700 * p, 0.2, 0.08)])) }
-        if m == .stone || m == .deepslate { o = Synth.mix(o, g.grains(5, spread: 0.12, lp: 3500, hp: 600, decay: 0.008, gain: 0.5), at: g.frames(0.03)) }
         return o
     }
 
     // A round passing close by: a supersonic snap with a doppler whizz.
     static func whizz(_ g: inout Synth, p: Float) -> [Float] {
-        let snap = g.burst(0.03, lp: 9000, hp: 3000, attack: 0.0003, decay: 0.004, gain: 1.5)
+        // A supersonic crack (sharp N-wave) then the air tearing past, rising and falling.
+        var snap = [Float](repeating: 0, count: g.frames(0.012))
+        for i in snap.indices { let t = Float(i) / Synth.sr; snap[i] = (t < 0.0004 ? 1 : -0.8) * expf(-t / 0.0015) }
+        snap = Synth.mix(Synth.highpass(snap, 900), g.burst(0.02, lp: 12000, hp: 3500, attack: 0.0002, decay: 0.0025, gain: 0.7))
         var w = g.wash(0.22, lp: 5200 * p, hp: 1800, wobble: 0.2, rate: 30, gain: 0.8)
-        w = Synth.window(w)
+        for i in w.indices { let k = Float(i) / Float(w.count); w[i] *= powf(sinf(.pi * min(1, k * 1.6)), 2) * (1 - k * 0.5) }
         let doppler = g.tone(0.2, f0: 3200 * p, f1: 1700 * p, wave: .sine, attack: 0.02, release: 0.12, gain: 0.12)
         return Synth.mix(snap, Synth.mix(w, doppler), at: g.frames(0.01))
     }
 
     static func flesh(_ g: inout Synth, p: Float) -> [Float] {
-        Synth.mix(g.burst(0.12, lp: 1100 * p, hp: 90, attack: 0.001, decay: 0.03, gain: 2.2), g.burst(0.05, lp: 4000, hp: 900, decay: 0.01, gain: 0.5))
+        var o = Synth.mix(g.burst(0.12, lp: 1100 * p, hp: 90, attack: 0.001, decay: 0.028, gain: 2.0), g.burst(0.05, lp: 4000, hp: 900, decay: 0.008, gain: 0.5))
+        var thud = [Float](repeating: 0, count: g.frames(0.15))
+        Synth.resonate(Synth.contactPulse(0.003), f: 150 * p, decay: 0.03, amp: 2.2, into: &thud)
+        o = Synth.mix(o, thud)
+        return Synth.mix(o, g.squelchNoise(0.08, f0: 400 * p, f1: 900 * p, gain: 0.35), at: g.frames(0.01))
     }
 
     static func grenadeBounce(_ g: inout Synth, p: Float) -> [Float] {
-        Synth.mix(g.modes(0.15, [(1300 * p, 0.45, 0.03), (2900 * p, 0.2, 0.02)]), g.burst(0.05, lp: 3000, hp: 500, decay: 0.01, gain: 0.8))
+        let f = 1300 * p * g.rnd(0.95, 1.05)
+        var o = Synth.mix(g.modes(0.25, [(f, 0.45, 0.05), (f * 2.27, 0.25, 0.035), (f * 3.9, 0.1, 0.02)]), g.burst(0.05, lp: 3000, hp: 500, decay: 0.008, gain: 0.8))
+        o = Synth.mix(o, g.burst(0.04, lp: 600, hp: 60, decay: 0.012, gain: 1.0))
+        return Synth.mix(o, g.modes(0.15, [(f * 1.02, 0.18, 0.03), (f * 2.3, 0.08, 0.02)]), at: g.frames(0.16))
     }
 }
 
