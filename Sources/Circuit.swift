@@ -30,6 +30,9 @@ final class Circuit {
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
     private var hopperCooldown: [IVec3: Int] = [:]
     private var busy = false
+    var lastNote: (Int, Int)?                         // (instrument, pitch) of the last note block played (tests)
+    private(set) var notesPlayed = 0
+    private(set) var bellsRung = 0
 
     init(world: World) { w = world }
 
@@ -92,6 +95,11 @@ final class Circuit {
             }
             mark(p + IVec3(0, 2, 0)); mark(p + IVec3(0, -2, 0))
         }
+        // Wires beside it may change shape (point elsewhere) at the same level: wake what they touch.
+        for d in 2..<6 {
+            let n = p + Circuit.D[d]
+            if Circuit.kind(block(n)) == .wire { wakeAround(n) }
+        }
         // Observers watching this position.
         for d in 0..<6 {
             let n = p + Circuit.D[d]
@@ -103,7 +111,7 @@ final class Circuit {
             }
         }
         let k = Circuit.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
     }
@@ -134,7 +142,7 @@ final class Circuit {
         var out: [IVec3] = []
         for i in 0..<min(blocks.count, CSQ * CH) {
             let k = kinds[Int(blocks[i])]
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
+            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator {
                 out.append(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
@@ -440,7 +448,7 @@ final class Circuit {
             if powered && !was {
                 edge.insert(p)
                 if Circuit.kind(b) == .note { playNote(p, s) }
-                else if Circuit.kind(b) == .bell { game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+                else if Circuit.kind(b) == .bell { bellsRung += 1; game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
                 else { schedule(p, 4) }
             } else if !powered && was { edge.remove(p) }
         case .hopper:
@@ -534,13 +542,13 @@ final class Circuit {
             if lockInput(p, f) { return }
             let input = powerFrom(p, Circuit.opp[Circuit.d6(f)]) > 0
             let powered = (s & 16) != 0
-            if input != powered {
-                setQuiet(p, base(b) + BlockID(s ^ 16))
-                let front = p + Circuit.D[Circuit.d6(f)]
-                mark(front); wakeAround(front)
-                // Keep at least a one-delay pulse: re-check after turning on.
-                if !powered { schedule(p, ((s >> 2) & 3) * 2 + 2) }
-            }
+            // Reference: a due tick turns an unpowered repeater on even if the input already went (a 1-tick pulse
+            // comes out as long as the delay; it used to vanish), then schedules the turn-off.
+            if powered && input { return }
+            setQuiet(p, base(b) + BlockID(s ^ 16))
+            let front = p + Circuit.D[Circuit.d6(f)]
+            mark(front); wakeAround(front)
+            if !powered && !input { schedule(p, ((s >> 2) & 3) * 2 + 2) }
         case .comparator:
             let out = comparatorOutput(p, s)
             comparatorOut[p] = out
@@ -560,6 +568,8 @@ final class Circuit {
         case .lever, .button:
             // Button release.
             if Circuit.kind(b) == .button && s >= 12 {
+                // A wooden button stays pressed while an arrow is stuck in it (reference).
+                if !Circuit.stoneButton(b), game?.arrowStuck(in: p) == true { schedule(p, 30); return }
                 setQuiet(p, base(b) + BlockID(s - 12))
                 game?.sfx(Blocks.key(base(b)).hasPrefix("stone") || Blocks.key(base(b)).hasPrefix("polished") ? .buttonStone : .buttonWood, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 switchChanged(p, s - 12)
@@ -570,6 +580,23 @@ final class Circuit {
             game?.crafterFire(p)
         default: break
         }
+    }
+
+    static func stoneButton(_ b: BlockID) -> Bool {
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        return k.hasPrefix("stone") || k.hasPrefix("polished")
+    }
+
+    // An arrow came to rest in the cell `p`: wooden buttons there press (reference).
+    func arrowLanded(_ p: IVec3) {
+        let b = block(p)
+        guard Circuit.kind(b) == .button, !Circuit.stoneButton(b) else { return }
+        let s = st(b)
+        guard s < 12 else { return }
+        w.setBlock(p.x, p.y, p.z, base(b) + BlockID(s + 12))
+        switchChanged(p, s + 12)
+        schedule(p, 30)
+        game?.sfx(.buttonWood, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
     }
 
     // Lever/button toggled: its neighbours and the block it is on (and that block's neighbours) wake.
@@ -670,6 +697,9 @@ final class Circuit {
                 if (hopperCooldown[p] ?? 0) <= 0 && s < 5 {
                     if g.hopperTransfer(p, out: s % 5) { hopperCooldown[p] = 8 }
                 }
+            case .comparator:
+                // Containers (menus, mobs, crafters, cake bites...) change without a block update: re-read the rear.
+                if comparatorOutput(p, s) != (comparatorOut[p] ?? 0) { schedule(p, 2) }
             case .sculkSensor:
                 if let v = sensor[p], now >= v.1 { sensor[p] = nil; wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
             case .tripHook:
@@ -878,6 +908,7 @@ final class Circuit {
         else if below.hasSuffix("glass") || below == "sea_lantern" || mat == .glass { inst = 3 }                                        // hat
         else if mat == .stone || mat == .deepslate || mat == .netherrack || below == "obsidian" { inst = 4 }                            // bass drum
         else { inst = 0 }                                                                  // harp
+        lastNote = (inst, note); notesPlayed += 1
         game?.sfx(.note(inst, note), 1, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         game?.particles.hearts(at: V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5))
     }

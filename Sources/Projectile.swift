@@ -279,6 +279,8 @@ final class ProjectileManager {
                 let hitAt = a.pos + dir * 0.1
                 let cell = IVec3(Int(floor(hitAt.x)), Int(floor(hitAt.y)), Int(floor(hitAt.z)))
                 if Circuit.kind(w.block(cell.x, cell.y, cell.z)) == .target { w.redstone.hitTarget(cell, at: hitAt, arrow: true) }
+                // The cell the arrow rests in (a button on the face it hit has no collision box).
+                w.redstone.arrowLanded(IVec3(Int(floor(a.pos.x)), Int(floor(a.pos.y)), Int(floor(a.pos.z))))
                 if a.trident != nil { g.tridentHit(a, mob: nil); a.returning = false }
             } else {
                 a.pos += step
