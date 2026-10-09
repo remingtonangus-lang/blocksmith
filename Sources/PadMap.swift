@@ -39,7 +39,7 @@ enum PadMap {
     #else
     static var halo = false
     #endif
-    static var layoutName: String { halo ? "Halo" : "Classic" }
+    static var layoutName: String { halo ? "Shooter" : "Classic" }        // (was "Halo": docs/status/ip-renames.md)
 
     static func save() { UserDefaults.standard.set(map, forKey: "padMap") }
     static func reset() {

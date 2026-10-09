@@ -15,7 +15,7 @@ final class Shell {
     let owner: Int                   // firing ship (its turrets and parent are ignored)
     let power: Float
     var gravity: Float = 20
-    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 MAC slug (craters)
+    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 Tidebreaker slug (craters)
     var life: Float = 10
     // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
     weak var seekShip: Ship?
@@ -100,7 +100,7 @@ extension ShipManager {
                 for k in 0..<4 { wr.cube(center: sh.pos - d * Float(k) * 0.9 - eye, half: 0.45 - Float(k) * 0.08, yaw: sh.age * 9, block: slug, light: 1) }
             case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
             case 3:
-                // The MAC slug: a long white-blue streak.
+                // The Tidebreaker's slug: a long white-blue streak.
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<8 { wr.cube(center: sh.pos - d * Float(k) * 1.2 - eye, half: 0.6 - Float(k) * 0.06, yaw: sh.age * 9, block: mac, light: 1) }
             default: wr.cube(center: sh.pos - eye, half: sh.power > 3 ? 0.26 : 0.18, yaw: sh.age * 9, block: b, light: 1)
@@ -111,6 +111,7 @@ extension ShipManager {
     // Moves shells and detonates them (call once per frame).
     func updateShells(_ dt: Float, game: Game?) {
         for s in list { s.reload = max(0, s.reload - dt) }
+        if let g = game { updateShockwaves(dt, game: g) }
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
@@ -138,6 +139,16 @@ extension ShipManager {
                 }
                 if let g = game, Int(sh.age * 30) % 3 == 0 { g.particles.smoke(at: start, dark: false) }
             }
+            // The Tidebreaker's slug leaves a glowing wake that hangs in the air for a moment.
+            if sh.kind == 3, let g = game {
+                let layer = Int(Tex.id("smoke"))
+                for k in 0..<3 {
+                    let at = start + sh.vel * (dt * Float(k) / 3)
+                    g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.5), Rand.float(in: -0.3...0.3)),
+                                             life: 0.7, maxLife: 0.7, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
+                                             gravity: 0, color: V3(0.6, 0.85, 1), collide: false, glow: true))
+                }
+            }
             sh.vel.y -= sh.gravity * dt
             let end = start + sh.vel * dt
             let len = simd_length(end - start)
@@ -146,7 +157,11 @@ extension ShipManager {
             var onHull = false
             for i in 1...n {
                 let p = start + (end - start) * (Float(i) / Float(n))
-                if Blocks.collide[Int(reader.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { hit = p; break }
+                let bx = Int(floor(p.x)), bz = Int(floor(p.z))
+                if Blocks.collide[Int(reader.get(bx, Int(floor(p.y)), bz))] { hit = p; break }
+                // A Tidebreaker slug past the loaded world lands on the generator's ground (it flew on through it,
+                // unseen: the far end of a long shot from the helm).
+                if sh.kind == 3 && !reader.loaded(bx, bz) && p.y <= Float(world.gen.column(bx, bz).height) + 1 { hit = p; break }
                 if shipBlock(at: p, except: sh.owner) { hit = p; onHull = true; break }
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     if g.mobs.mobs.contains(where: { $0.health > 0 && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) { hit = p; break }
@@ -166,7 +181,7 @@ extension ShipManager {
         }
         shells = keep
         for (p, power, owner, onHull, kind) in blasts {
-            if kind == 3, let g = game { Explosion.crater(at: p, radius: 9, game: g); continue }
+            if kind == 3, let g = game { mainGunImpact(at: p, owner: owner, game: g); continue }
             if let g = game {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
                 let from = list.first { $0.id == owner }

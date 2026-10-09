@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 // `--questbugs --only factions` (task 23): Capital cities and citadels generate and can be found, saved worlds keep
-// their explored ground (the structure guard), the Meridian frigate, its MAC gun, the radar, intercepted orders and
+// their explored ground (the structure guard), the Meridian frigate, its Tidebreaker gun, the radar, intercepted orders and
 // the base components.
 enum FactionTests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
@@ -49,12 +49,12 @@ enum FactionTests {
         check(g.factionGearUse() && g.inventory.main[slot].count == 1, "factions: the radar marks its contacts and is kept")
     }
 
-    // The Meridian frigate: its own faction, foes of the Capital, a fast commandeered helm and a MAC that craters a citadel.
+    // The Meridian frigate: its own faction, foes of the Capital, a fast commandeered helm and a Tidebreaker that craters a citadel.
     static func frigate(_ g: Game, _ check: (Bool, String) -> Void) {
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures else { return }
         let w = g.world
         let px = Int(g.player.pos.x), pz = Int(g.player.pos.z)
-        guard let base = sc.nearest("military_base", x: px, z: pz, maxRegions: 6) else { check(false, "factions: no citadel for the MAC check"); return }
+        guard let base = sc.nearest("military_base", x: px, z: pz, maxRegions: 6) else { check(false, "factions: no citadel for the Tidebreaker check"); return }
         let home = g.player.pos
         defer { g.player.pos = home; g.player.vel = .zero }
         let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
@@ -82,7 +82,7 @@ enum FactionTests {
             let id = w.block(x, y, z)
             if simd_length(d) < 6, id != 0, !Blocks.isLiquid(id), Blocks.hardness[Int(id)] >= 0 { left += 1 }
         } } }
-        check(removed > 300 && left == 0, "factions: a MAC hit craters the citadel (\(removed) of \(before) blocks gone, \(left) left in the bowl, at \(cx),\(top),\(cz))")
+        check(removed > 300 && left == 0, "factions: a Tidebreaker hit craters the citadel (\(removed) of \(before) blocks gone, \(left) left in the bowl, at \(cx),\(top),\(cz))")
         // The frigate itself.
         let n0 = w.ships.list.count
         w.ships.spawnCapital("capfrigate", home: IVec3(cx + 120, 0, cz), yaw: 0.4, region: nil, sync: true)
@@ -93,10 +93,11 @@ enum FactionTests {
         check(foe?.ship.map { $0.root === s } == true, "factions: Capital forces count the frigate as a foe")
         w.ships.capState[s.id]?.mainGunCD = 0
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
-        let fired = w.ships.playerMAC(s, pitch: -0.3, game: g)
-        let again = w.ships.playerMAC(s, pitch: -0.3, game: g)
-        check(fired && !again && w.ships.shells.filter { $0.kind == 3 }.count == shells0 + 1 && (w.ships.macCharge(s) ?? 0) > 5,
-              "factions: the MAC fires from the helm, then recharges")
+        let fired = w.ships.playerMainGun(s, pitch: -0.3, game: g)
+        let again = w.ships.playerMainGun(s, pitch: -0.3, game: g)
+        if let st = w.ships.capState[s.id] { for _ in 0..<Int(MainGun.chargeTime * 60) + 2 { w.ships.mainGunTick(s, st, 1.0 / 60, g) } }
+        check(fired && !again && w.ships.shells.filter { $0.kind == 3 }.count == shells0 + 1 && (w.ships.mainGunCooldown(s) ?? 0) > 5,
+              "factions: the Tidebreaker charges and fires from the helm, then reloads")
         w.ships.shells.removeAll { $0.kind == 3 }
     }
 

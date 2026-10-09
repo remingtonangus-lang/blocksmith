@@ -98,3 +98,8 @@ Riptide
 Warped
 Crimson
 Undying
+# Halo terms (Remington, 2026-10-09: borrow the feel, never the names)
+MAC
+UNSC
+Halo
+Spartan

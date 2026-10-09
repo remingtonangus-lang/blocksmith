@@ -601,6 +601,7 @@ final class ShipManager {
     var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
     var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
+    var shockwaves: [Shockwave] = [] // Tidebreaker impacts spreading out (MainGun.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
     var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)

@@ -141,6 +141,7 @@ final class Game {
     var lastPearl: Double = -10
     var rideInput = MoveInput()
     var falling: [FallingBlock] = []
+    var shake: Float = 0                   // screen-shake trauma 0...1 (MainGun.swift: addShake, shakeView, shakeVR)
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
@@ -2305,6 +2306,7 @@ final class Game {
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
+        shake = max(0, shake - Float(dt) * 1.3)
         TickProf.mark("particles")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {

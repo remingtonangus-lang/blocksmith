@@ -466,7 +466,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             eye = p.viewEye + dir * dist
         }
-        return (eye, camYaw, camPitch)
+        // Screen shake (the Tidebreaker, MainGun.swift).
+        let (sy, sp, so) = game.shakeView
+        return (eye + so, camYaw + sy, camPitch + sp)
     }
 
     // One frame into `final` (the drawable or an offscreen target). Fast: a single pass. Fancy: shadow

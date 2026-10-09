@@ -124,20 +124,75 @@ enum Explosion {
 }
 
 extension Explosion {
-    // A MAC slug's impact (task 23): a bowl-shaped crater of radius r (ragged rim) through every breakable block,
-    // citadel walls included; ship hulls in reach torn (ShipManager.blast); a few drops; a power-8 blast for damage,
-    // sound and flash without its own block breaking.
-    static func crater(at c: V3, radius r: Float, game g: Game) {
-        let w = g.world
-        w.ships.blast(at: c, power: 14, game: g)
-        let ri = Int(ceilf(r))
-        let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
-        var rim: [IVec3] = []
+    // A Tidebreaker slug's impact (task 23; MainGun.swift): a bowl-shaped crater of radius r (ragged rim) through every
+    // breakable block, citadel walls included; ship hulls in reach torn (ShipManager.blast); a few drops; a power-8
+    // blast for damage, sound and flash without its own block breaking. At most `cap` blocks go: cells are taken
+    // nearest first, so a capped crater is still a round bowl, only shallower. All at once here (harness); the game
+    // carves it over a few frames with CraterJob (blocksPerFrame). Returns the number of blocks removed.
+    @discardableResult
+    static func crater(at c: V3, radius r: Float, cap: Int = .max, game g: Game) -> Int {
+        let job = CraterJob(at: c, radius: r, cap: cap, game: g)
+        while !job.step(g, blocks: .max) {}
+        return job.removed
+    }
+
+    // Offsets of the cube of radius ri, nearest first by the bowl's metric (built once per radius).
+    private static var craterOffsetCache: [Int: [SIMD3<Int16>]] = [:]
+    static func craterOffsets(_ ri: Int) -> [SIMD3<Int16>] {
+        if let o = craterOffsetCache[ri] { return o }
+        var o: [(Float, SIMD3<Int16>)] = []
+        o.reserveCapacity((2 * ri + 1) * (2 * ri + 1) * (2 * ri + 1))
         for dy in -ri...ri { for dz in -ri...ri { for dx in -ri...ri {
+            let dyf = Float(dy) * (dy < 0 ? 1.5 : 1)
+            o.append((Float(dx * dx + dz * dz) + dyf * dyf, SIMD3<Int16>(Int16(dx), Int16(dy), Int16(dz))))
+        } } }
+        o.sort { $0.0 < $1.0 }
+        let out = o.map { $0.1 }
+        craterOffsetCache[ri] = out
+        return out
+    }
+}
+
+// A crater carved outward from its centre a slice at a time (the remesh, support and fluid work it causes stays
+// within a frame's budget: 2 454 blocks at once cost 19 ms of one host frame, about 50 ms on the headset). The blast,
+// the ship damage and the flash happen at once; the bowl opens over the next few frames behind the flash and dust.
+final class CraterJob {
+    let center: V3
+    let r: Float
+    let cap: Int
+    private let offsets: [SIMD3<Int16>]
+    private var next = 0
+    private(set) var removed = 0
+    private var rim: [IVec3] = []
+    private(set) var done = false
+    static let blocksPerFrame = 250
+
+    init(at c: V3, radius r: Float, cap: Int, game g: Game) {
+        center = c; self.r = r; self.cap = cap
+        offsets = Explosion.craterOffsets(Int(ceilf(r)))
+        g.world.ships.blast(at: c, power: 14, game: g)
+        Explosion.explode(at: c, power: 8, game: g, breakBlocks: false)
+        g.particles.explosion(at: c + V3(0, 2, 0), power: 8)
+        g.sfx(.debrisRain, 1, at: c + V3(0, 2, 0))
+        g.addFlash(at: c + V3(0, 1, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.6)
+    }
+
+    // Removes up to `blocks` more; true when the crater is finished.
+    @discardableResult
+    func step(_ g: Game, blocks: Int) -> Bool {
+        if done { return true }
+        let w = g.world
+        let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
+        var budget = blocks
+        while next < offsets.count && budget > 0 && removed < cap {
+            let o = offsets[next]
+            next += 1
+            let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
             let y = cy + dy
             guard y > 0 && y < CH - 1 else { continue }
             let dyf = Float(dy) * (dy < 0 ? 1.5 : 1)         // a bowl: shallower than wide
             let d2: Float = Float(dx * dx + dz * dz) + dyf * dyf
+            if d2 > r * r { next = offsets.count; break }     // nearest first: nothing further can be inside
             let edge: Float = r * (0.8 + 0.2 * hashf(cx + dx, y, cz + dz, 911))
             guard d2 <= edge * edge else { continue }
             let x = cx + dx, z = cz + dz
@@ -152,13 +207,16 @@ extension Explosion {
                 for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
             }
             w.setBlockAsync(x, y, z, AIR)
+            removed += 1
+            budget -= 1
             if d2 > (edge - 1.5) * (edge - 1.5) { rim.append(b) }
-        } } }
-        for b in rim { w.scheduleFluid(around: b) }
-        explode(at: c, power: 8, game: g, breakBlocks: false)
-        g.particles.explosion(at: c + V3(0, 2, 0), power: 8)
-        g.sfx(.debrisRain, 1, at: c + V3(0, 2, 0))
-        g.addFlash(at: c + V3(0, 1, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.6)
+        }
+        if next >= offsets.count || removed >= cap {
+            done = true
+            for b in rim { w.scheduleFluid(around: b) }
+            rim.removeAll()
+        }
+        return done
     }
 }
 
