@@ -12,7 +12,7 @@ import simd
 //               the sixth with a landing pad cantilevered to the north, a crown with a beacon mast (a landmark)
 //   side towers two rounded towers east and west, joined to the main tower by an enclosed glass skyway and an open
 //               upper bridge to their roof gardens
-// A Capital frigate (CapitalFrigate.swift) is stationed over every citadel (ShipManager.stationFrigates).
+// (Until task 23 a Capital frigate was stationed over every citadel; the frigate is now the Meridian Navy's.)
 
 extension BlockRegistry {
     func registerCapitalArchitecture() {

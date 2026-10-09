@@ -186,6 +186,7 @@ enum Vessels {
     // MARK: Encounters
 
     static let region = 2048
+    static func warship(_ kind: String) -> Bool { kind == "frigate" || kind == "warfrigate" || kind == "crawler" || kind == "battle" }
     // The encounter of a region (deterministic from the seed): kind and home point, or nil (most regions).
     static func encounter(seed: UInt64, rx: Int, rz: Int, gen: TerrainGenerator) -> (String, IVec3)? {
         let h = hashf(rx, rz, 4111, UInt32(truncatingIfNeeded: seed))
@@ -193,12 +194,16 @@ enum Vessels {
         let x = rx * region + 256 + Int(hashf(rx, rz, 4112, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let z = rz * region + 256 + Int(hashf(rx, rz, 4113, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let col = gen.column(x, z)
-        if h < 0.08 { return ("frigate", IVec3(x, max(col.height, SEA) + 45, z)) }
-        // Capital ships (CapitalShips.swift): 3 % of regions a Stormwarden Frigate, 3 % an Ironback Crawler on land,
-        // 1.5 % the two of them already fighting.
-        if h >= 0.16 && h < 0.19 { return ("warfrigate", IVec3(x, max(col.height, SEA), z)) }
+        // Faction warships (task 23: rare, and only after the end game, ShipManager.encounterTick): 3 % of regions a
+        // Meridian frigate, 1.5 % a Stormwarden Frigate, 1.5 % an Ironback Crawler on land, 0.7 % the two at war.
+        if h < 0.03 { return ("frigate", IVec3(x, max(col.height, SEA) + 45, z)) }
+        if h < 0.08 { return nil }
+        if h >= 0.16 && h < 0.175 { return ("warfrigate", IVec3(x, max(col.height, SEA), z)) }
+        if h >= 0.175 && h < 0.19 { return nil }
         if col.biome.isOcean || col.height < SEA { return nil }
+        if h >= 0.227 { return nil }
         if h >= 0.22 { return ("battle", IVec3(x, col.height + 1, z)) }
+        if h >= 0.205 { return nil }
         if h >= 0.19 { return ("crawler", IVec3(x, col.height + 1, z)) }
         return ("carriage", IVec3(x, col.height + 1, z))
     }
@@ -218,7 +223,6 @@ extension ShipManager {
             // Round every player (split screen: vessels and frigates appeared only where player 1 went).
             for seat in 0..<max(1, g.coop.seatCount) {
             let p = g.coop.seatPlayer(seat, g).pos
-            stationFrigates(g, near: p)
             let rx = floorDiv(Int(p.x), Vessels.region), rz = floorDiv(Int(p.z), Vessels.region)
             for dz in -1...1 { for dx in -1...1 {
                 let key = "\(rx + dx),\(rz + dz)"
@@ -231,6 +235,7 @@ extension ShipManager {
                 // survives in old saves).
                 let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle" || kind == "frigate"
                 if capital {
+                    if !g.postGame { continue }                    // they sail after the end game (the key stays free)
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
                     spawnedRegions.insert(key)
                     let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100
@@ -250,20 +255,6 @@ extension ShipManager {
             }
         }
         crewTick(dt, game: g)
-    }
-
-    // A Capital frigate is stationed over every Capital citadel (military_base): built when the player comes within
-    // 600 blocks, once per citadel (the key is saved with the vessel regions).
-    func stationFrigates(_ g: Game, near at: V3? = nil) {
-        guard let sc = world.gen.structures else { return }
-        let p = at ?? g.player.pos
-        guard let base = sc.nearest("military_base", x: Int(p.x), z: Int(p.z), maxRegions: 1) else { return }
-        let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
-        let key = "citadel:\(cx),\(cz)"
-        if spawnedRegions.contains(key) || capitalPending.contains(key) { return }
-        guard simd_length(V2(Float(cx) - p.x, Float(cz) - p.z)) < 600 else { return }
-        spawnedRegions.insert(key)
-        spawnCapital("capfrigate", home: IVec3(cx, 0, cz), yaw: Float(abs(cx * 3 + cz) % 628) / 100, region: key)
     }
 
     @discardableResult

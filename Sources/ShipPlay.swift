@@ -97,7 +97,7 @@ extension Game {
             // The Capital frigate (CapitalFrigate.swift), built here and now ahead of the player.
             let at = player.pos + f * 160
             ships.spawnCapital("capfrigate", home: IVec3(Int(floor(at.x)), 0, Int(floor(at.z))), yaw: player.yaw, region: nil, sync: true)
-            return ["Summoned the Capital Frigate"]
+            return ["Summoned the Meridian Frigate"]
         case "skyward", "carriage":
             let at = player.pos + f * (a[1].lowercased() == "skyward" ? 50 : 30)
             let x = Int(floor(at.x)), z = Int(floor(at.z))
@@ -114,7 +114,7 @@ extension Game {
                 if best == nil || d < best!.2 { best = (e.0, e.1, d) }
             } }
             guard let b = best else { return ["No vessel within \(Vessels.region * 3) blocks"] }
-            let name = b.0 == "frigate" ? "Capital Frigate" : "Ironstride Siege Carriage"
+            let name = b.0 == "frigate" ? "Meridian Frigate" : "Ironstride Siege Carriage"
             return ["The nearest \(name) patrols around [\(b.1.x), ~, \(b.1.z)] (\(Int(b.2)) blocks away)"]
         default:
             return ["Unknown vessel \(a[1])"]
@@ -136,6 +136,7 @@ extension Game {
         if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
+        if let m = world.ships.macCharge(s) { t += m > 0 ? String(format: "  MAC %.0f s", m.rounded(.up)) : "  MAC ready" }
         return t
     }
 
@@ -287,7 +288,8 @@ extension Game {
         ships.breakCooldown -= dt
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
-            // Attack fires the cannons, raised to the view pitch.
+            // Attack fires the MAC when a Meridian frigate's is charged, else the cannons, raised to the view pitch.
+            if breakNow && ships.playerMAC(s, pitch: player.pitch, game: self) { swing = 1; return true }
             if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
             return true
         }

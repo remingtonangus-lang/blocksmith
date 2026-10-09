@@ -62,6 +62,7 @@ final class CombatHUD {
             }
         }
         out += Jetpack.gauge(g, L)
+        out += g.radarLines(L)
         // Vehicle gauges while piloting (or riding aboard).
         if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil {
             let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 64 * s
@@ -93,7 +94,10 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(w - 26 * s, 5 * s)))
             let ic = integ < 0.35 ? Settings.shared.badColor : (integ < 0.7 ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor)
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
-            if kind == .airship {
+            if let m = g.world.ships.macCharge(ship) {
+                let t = m > 0 ? String(format: "MAC %.0f s", m.rounded(.up)) : "MAC ready"
+                out.append(HudLine(text: t, x: x, y: y0 + 43 * s, scale: s, color: m > 0 ? V4(0.95, 0.75, 0.2, 1) : V4(0.55, 0.85, 1, 1)))
+            } else if kind == .airship {
                 out.append(HudLine(text: String(format: "Lift %d%%", Int(ship.liftLevel * 100)), x: x, y: y0 + 43 * s, scale: s, color: V4(0.8, 0.9, 1, 1)))
             }
             if VehicleControls.armed(g, ship) {

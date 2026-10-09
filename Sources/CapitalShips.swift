@@ -15,8 +15,8 @@ import simd
 // and their fate rests on critical systems: the bridge helm and the drive engines.
 
 enum Faction: Int {
-    case none = 0, steelhold, stormwarden, ironback, ashguard
-    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard"][rawValue] }
+    case none = 0, steelhold, stormwarden, ironback, ashguard, meridian
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -575,12 +575,14 @@ extension BlockRegistry {
             add(d)
         }
         registerCapitalFactionBlocks()
+        registerMeridianBlocks()
     }
 }
 
 extension TextureGen {
     static func capitalPainters(_ p: inout [String: Painter]) {
         capitalFactionPainters(&p)
+        meridianPainters(&p)
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
@@ -608,7 +610,8 @@ extension Ship {
         let r = root
         if r.faction != 0, let f = Faction(rawValue: r.faction) { return f }
         switch r.role {
-        case "frigate", "carriage", "capfrigate": return .steelhold
+        case "frigate", "carriage": return .steelhold
+        case "capfrigate": return .meridian
         case "warfrigate": return .stormwarden
         case "crawler": return .ironback
         default: return .none
@@ -640,8 +643,8 @@ extension ShipManager {
             let frigate = kind != "crawler"
             let cap = kind == "capfrigate"
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
-            let own: Faction = faction ?? (cap ? .steelhold : (frigate ? .stormwarden : .ironback))
-            let name = cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
+            let own: Faction = faction ?? (cap ? .meridian : (frigate ? .stormwarden : .ironback))
+            let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
             let st = CapitalState()
@@ -655,7 +658,7 @@ extension ShipManager {
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
             st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
-            st.sight = cap ? 180 : (frigate ? 300 : 210)
+            st.sight = cap ? 260 : (frigate ? 300 : 210)
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
             st.groundOffset = s.com.y - s.localMin.y
             let hx = Float(home.x) + 0.5, hz = Float(home.z) + 0.5
@@ -889,7 +892,7 @@ extension ShipManager {
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
             if s.wrecked { founder(s, st, dt, g); continue }
             st.retarget -= dt
-            if st.retarget <= 0 || (st.target.map { !targetValid($0, g) } ?? false) {
+            if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
                 st.target = pickTarget(s, st, g)
             } else if var t = st.target {
@@ -902,14 +905,15 @@ extension ShipManager {
         }
     }
 
-    private func targetValid(_ t: CapTarget, _ g: Game) -> Bool {
+    // `spareBases`: a Capital ship's target inside a citadel is dropped (its own base); others keep firing.
+    private func targetValid(_ t: CapTarget, _ g: Game, spareBases: Bool = true) -> Bool {
         if t.player {
             var ok = false
-            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !g.bases.inAnyBase(g.player.pos) }
+            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !(spareBases && g.bases.inAnyBase(g.player.pos)) }
             return ok
         }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
-        if let m = t.mob { return m.health > 0 && !g.bases.inAnyBase(m.pos) }
+        if let m = t.mob { return m.health > 0 && !(spareBases && g.bases.inAnyBase(m.pos)) }
         return false
     }
 
@@ -925,23 +929,15 @@ extension ShipManager {
         let c = s.pos
         var best: CapTarget?
         var bd = st.sight
-        // The Capital frigate guards its citadel: it only engages within its leash of home (it shelled the
-        // mobtests' village 400 blocks from a citadel, run 450).
-        let leashed: (V3) -> Bool = { p in
-            guard s.role == "capfrigate", let h = s.home else { return true }
-            return simd_length(V2(p.x - h.x, p.z - h.z)) < 260
-        }
-        // Stationed over a citadel, unprovoked it only turns on a player over the grounds (96 of home); once engaged,
-        // its whole leash. Roaming encounter frigates hunt as before.
-        let stationed = s.role == "capfrigate" && (st.region?.hasPrefix("citadel") ?? false)
+        // Capital ships spare their own citadels; other factions' (the Meridian's MAC) don't.
+        let spare: (V3) -> Bool = { p in s.factionValue == .steelhold && g.bases.inAnyBase(p) }
         // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget); every player in split screen.
         for i in 0..<max(1, g.coop.seatCount) {
             g.coop.withSeat(i, g) {
                 let pp = g.player.pos
                 let onIt = self.aboard?.root === s || self.standing(on: pp)?.root === s
-                let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(pp.x - $0.x, pp.z - $0.z)) < 96 } ?? true
-                // Never on a player inside a citadel: its shells would land on its own base (Quest round 3).
-                guard g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(pp) && guardsPlayer && !g.bases.inAnyBase(pp) else { return }
+                // A Capital ship never fires on a player inside a citadel: its shells would land on its own base (Quest round 3).
+                guard g.alive && g.survival && g.difficulty > 0 && !onIt && !spare(pp) else { return }
                 let d = self.boundsDistance(s, pp)
                 // In sight and in a sane range only: a frigate killed a player inside a house the moment they
                 // switched to survival, nobody near (Quest round 4). Sighted from the hull's centre or its top.
@@ -953,9 +949,9 @@ extension ShipManager {
         }
         if let foe = nearestFoe(of: s.factionValue, near: c, range: st.sight + simd_length(s.worldMax - s.worldMin) * 0.5, game: g) {
             let d = boundsDistance(s, foe.point)
-            if leashed(foe.point) && !g.bases.inAnyBase(foe.point) && (d < bd * 0.8 || best == nil) { best = foe; bd = d }
+            if !spare(foe.point) && (d < bd * 0.8 || best == nil) { best = foe; bd = d }
         }
-        if let cur = st.target, targetValid(cur, g), let b = best {
+        if let cur = st.target, targetValid(cur, g, spareBases: s.factionValue == .steelhold), let b = best {
             let dc = boundsDistance(s, cur.point)
             if dc < bd * 1.3 && dc < st.sight { return cur }
             _ = b
@@ -993,24 +989,26 @@ extension ShipManager {
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
         var want = fh
-        var speed: Float = 7
+        // The Meridian frigate is a fast ship: roughly twice the Stormwarden's speeds and a quicker helm.
+        let fast: Float = s.role == "capfrigate" ? 2.2 : 1
+        var speed: Float = 7 * fast
         if let t = st.target {
             let to = V2(t.point.x - s.pos.x, t.point.z - s.pos.z)
             let d = max(1, simd_length(to))
             let dir = to / d
             if st.mainGunCD <= 2 && d < 450 {
-                want = dir; speed = 5
+                want = dir; speed = 5 * fast
             } else if d > 220 {
-                want = dir; speed = 10
+                want = dir; speed = 10 * fast
             } else {
                 let tangent = V2(-dir.y, dir.x) * st.orbitDir
                 want = simd_normalize(tangent + dir * ((d - 160) / 80))
-                speed = 6
+                speed = 6 * fast
             }
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))
-            let r: Float = s.role == "capfrigate" ? 240 : 420          // the Capital frigate keeps station over its citadel
+            let r: Float = s.role == "capfrigate" ? 320 : 420
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
             let steer: V2 = tangent + toHome * ((dist - r) / (r * dist))
             want = simd_normalize(steer + V2(1e-4, 0))                  // at home exactly: no NaN
@@ -1035,7 +1033,7 @@ extension ShipManager {
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
         let wantY = min(maxY, st.groundMax + Capital.cruiseClearance(s.role ?? "") + keel)
         s.hoverY = wantY
-        let yawRate = turnToward(s, want, maxRate: 0.07)
+        let yawRate = turnToward(s, want, maxRate: s.role == "capfrigate" ? 0.13 : 0.07)
         let vy = max(-4, min(4, (wantY - s.pos.y) * 0.4))
         let target = V3(fw.x, 0, fw.z) * speed + V3(0, vy, 0)
         s.vel += (target - s.vel) * min(1, dt * 0.6)
@@ -1057,19 +1055,21 @@ extension ShipManager {
         let drop = s.role == "dropship"
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        let speed: Float = drop ? 24 : 16
+        let meridian = s.role == "capfrigate"
+        let speed: Float = drop ? 24 : (meridian ? 42 : 16)
         var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * speed : 0)
-        want.y = steered ? s.climb * (drop ? 8 : 5) : 0
+        want.y = steered ? s.climb * (drop ? 8 : (meridian ? 10 : 5)) : 0
         // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
         let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
         if s.worldMin.y < top + 3 { want.y = max(want.y, (top + 3 - s.worldMin.y) * 2) }
         if s.worldMax.y > Float(CH - 4) { want.y = min(want.y, 0) }
-        s.vel += (want - s.vel) * min(1, dt * 1.2)
-        let yawRate: Float = steered ? -s.steer * (drop ? 0.9 : 0.3) : 0
+        s.vel += (want - s.vel) * min(1, dt * (meridian ? 0.8 : 1.2))
+        let yawRate: Float = steered ? -s.steer * (drop ? 0.9 : (meridian ? 0.45 : 0.3)) : 0
         s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
         levelUp(s, dt)
         st.target = nil
+        st.mainGunCD -= dt                                  // the MAC recharges for its new captain (playerMAC)
         for t in turrets(of: s) { t.aimAt = nil }
     }
 
@@ -1298,6 +1298,14 @@ extension ShipManager {
                 st.mainCharge = 0
                 let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
+                if s.role == "capfrigate" {
+                    // The Meridian's MAC: a slug that craters whatever it hits.
+                    st.mainGunCD = 20
+                    var dir = simd_normalize(t.point + t.vel * (dist / 420) - mw)
+                    if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
+                    fireMAC(s, from: mw, dir: dir, game: g)
+                    return
+                }
                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)

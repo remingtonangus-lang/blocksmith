@@ -229,6 +229,18 @@ enum ShipTest {
                 case "side": chase(g, f, dist: 4, height: 6, side: 28)
                 case "top": chase(g, f, dist: 60, height: 120, side: 0.2)
                 case "deck": chase(g, f, dist: -62, height: 20, side: 0.12)
+                case "under": chase(g, f, dist: -70, height: -14, side: -0.75)        // stern quarter from below
+                case "nose", "tail":
+                    // From fixed points in the hull's grid (bow at grid z 0): the bow quarter from below, or the stern.
+                    let hx = Float(f.grid.sx) / 2, sz = Float(f.grid.sz)
+                    let nose = view == "nose"
+                    let cam = f.toWorld(nose ? V3(hx - 50, -6, -40) : V3(hx + 45, 26, sz + 45))
+                    let to = f.toWorld(nose ? V3(hx, 10, 40) : V3(hx, 14, sz - 20)) - cam
+                    g.player.flying = true
+                    g.player.pos = cam - V3(0, g.player.eyeHeight, 0)
+                    g.player.yaw = atan2f(-to.x, -to.z)
+                    g.player.pitch = atan2f(to.y, horiz(to))
+                case "flank": chase(g, f, dist: 4, height: 6, side: 40)
                 default: chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
                 }
             }

@@ -66,6 +66,11 @@ struct Livery {
             l.trim = V3(0.62, 0.07, 0.05); l.accent = V3(0.75, 0.1, 0.06); l.metal = V3(0.24, 0.24, 0.26)
             l.glow = V3(2.4, 0.35, 0.2); l.glove = V3(0.05, 0.05, 0.05); l.boots = V3(0.03, 0.03, 0.03)
             if m.kind == .ashMarshal { l.cloth = V3(0.1, 0.095, 0.1); l.trim = V3(0.85, 0.1, 0.06) }
+        } else if m.faction == Faction.meridian.rawValue {
+            // The Meridian Navy: olive fatigues, gunmetal plate, amber visors (original livery, no insignia).
+            l.cloth = V3(0.29, 0.31, 0.2); l.legs = V3(0.25, 0.27, 0.18); l.plate = V3(0.34, 0.36, 0.38)
+            l.trim = V3(0.14, 0.15, 0.16); l.metal = V3(0.45, 0.47, 0.5); l.glow = V3(2.2, 1.5, 0.4); l.glove = V3(0.12, 0.12, 0.11)
+            l.accent = V3(0.78, 0.8, 0.82)
         } else if m.faction == Faction.ironback.rawValue {
             l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
             l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)
