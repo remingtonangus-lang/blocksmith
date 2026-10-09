@@ -886,9 +886,10 @@ enum HDTex {
             let veinW: Float = 0.09 * (1 + d / rr)
             let onVein = abs(sinf(a * 7)) < veinW && d > fn * 0.04
             let vein: Float = onVein ? 0.82 : 1
-            let rim: Float = d > rr * wob - fn / 40 ? 1.12 : 1
+            // Darker and wet at the edge (store-quality pass: the old bright rim and pale leaf read as pasted on).
+            let rim: Float = d > rr * wob - fn / 32 ? 0.84 : 1
             let mott: Float = (fine[y * n + x] - 0.5) * 0.12
-            let base: Float = 0.55 + 0.22 * (d / rr) + mott
+            let base: Float = 0.4 + 0.16 * (d / rr) + mott
             let k: Float = base * vein * rim
             img.px[y * n + x] = V4(k, k, k, 1)
         } }

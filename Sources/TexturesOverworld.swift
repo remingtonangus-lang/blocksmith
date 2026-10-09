@@ -212,7 +212,8 @@ extension TextureGen {
         p["lily_pad"] = { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
             if dx * dx + dy * dy > 56 || (dx > 0 && abs(dy) < 1) { return clear }
-            let v: Float = 0.55 + 0.35 * r(x, y, 460)
+            let rim: Float = dx * dx + dy * dy > 40 ? 0.85 : 1            // a darker wet edge, not a bright outline
+            let v: Float = (0.4 + 0.22 * r(x, y, 460)) * rim
             return V4(v, v, v, 1)
         }
         p["vine"] = { x, y in

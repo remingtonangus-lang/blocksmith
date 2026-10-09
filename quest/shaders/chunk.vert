@@ -51,6 +51,11 @@ void main() {
         vec3 wp = rel + u.eye.xyz;
         if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * waveK[ao];
     }
+    // Lily pads (Mesher: a foliage-tinted leaf 1/16 over the surface, at 15/16) ride the same swell as the shallows.
+    else if (tintMode == 2u && face >= 2u && face <= 3u && ((w0 >> 9) & 15u) == 15u && skyL > 0.9) {
+        vec3 wp = rel + u.eye.xyz;
+        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * 0.7;
+    }
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
     oLayer = float(layer);
