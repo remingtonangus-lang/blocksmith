@@ -81,7 +81,7 @@ extension Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if k == "sponge" { spongeAbsorb(p) }
         if k.hasSuffix("_concrete_powder") { hardenConcrete(p) }
-        if k == "wet_sponge" && dim.dim == .nether {
+        if k == "wet_sponge" && dim.dim.ultrawarm {
             world.setBlock(p.x, p.y, p.z, Blocks.id("sponge"))
             sfx(.fizz, 0.8)
         }

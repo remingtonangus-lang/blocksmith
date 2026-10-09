@@ -91,7 +91,7 @@ extension Game {
 
     func travelThroughPortal() {
         let from = dim.dim
-        guard from != .end else { return }
+        guard from != .end && from != .deep else { return }   // gates lit in the Deep lead nowhere
         let to: Dim = from == .overworld ? .nether : .overworld
         let scale: Float = to == .nether ? 1.0 / 8 : 8
         var target = V3(floor(player.pos.x * scale) + 0.5, 0, floor(player.pos.z * scale) + 0.5)

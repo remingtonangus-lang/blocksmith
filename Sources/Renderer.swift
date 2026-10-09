@@ -2590,13 +2590,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         let biome = w.gen.column(bx, bz).biome
         let facing = ["north (-Z)", "west (-X)", "south (+Z)", "east (+X)"][Int((p.yaw / (.pi / 2)).rounded()).mod4]
         var tgt = "none"
-        if let t = game.target { tgt = "\(Blocks.name(w.block(t.hit.x, t.hit.y, t.hit.z))) @ \(t.hit.x) \(t.hit.y - YOFF) \(t.hit.z)" }
+        if let t = game.target { tgt = "\(Blocks.name(w.block(t.hit.x, t.hit.y, t.hit.z))) @ \(t.hit.x) \(t.hit.y - YOFF - game.dim.dim.yShift) \(t.hit.z)" }
         let hour = Int(game.dayFraction * 24 + 6) % 24
         let l = w.lightAt(bx, by, bz)
         return [
             "Blocksmith  \(Int(fps.rounded())) fps  seed \(w.seed)",
-            String(format: "XYZ %.2f / %.2f / %.2f", p.pos.x, p.pos.y - Float(YOFF), p.pos.z),
-            "Block \(bx) \(by - YOFF) \(bz)  Chunk \(floorDiv(bx, CS)) \(floorDiv(bz, CS))  Facing \(facing)",
+            String(format: "XYZ %.2f / %.2f / %.2f", p.pos.x, p.pos.y - Float(YOFF + game.dim.dim.yShift), p.pos.z),
+            "Block \(bx) \(by - YOFF - game.dim.dim.yShift) \(bz)  Chunk \(floorDiv(bx, CS)) \(floorDiv(bz, CS))  Facing \(facing)",
             "Biome \(biome.displayName)  Light sky \(l.sky) block \(l.block)",
             "Chunks \(w.chunks.count) loaded, \(w.meshedCount) meshed, \(drawnChunks) drawn, \(w.pendingJobs) jobs, RD \(w.renderDistance)",
             "Target \(tgt)",

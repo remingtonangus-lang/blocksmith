@@ -418,7 +418,7 @@ extension Mob {
         let w = g.world
         let b = w.gen.column(Int(floor(pos.x)), Int(floor(pos.z))).biome
         // Melts in warm biomes, water and rain-free deserts; leaves a snow trail in cold ones.
-        if inWater || b == .desert || b.isBadlands || w.dim == .nether || b == .savanna || b == .jungle {
+        if inWater || b == .desert || b.isBadlands || w.dim.ultrawarm || b == .savanna || b == .jungle {
             fireTick += dt
             if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.2 }
         } else if onGround {

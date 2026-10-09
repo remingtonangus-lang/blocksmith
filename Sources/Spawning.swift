@@ -272,6 +272,7 @@ extension MobManager {
     func trySpawnHostile(_ game: Game) {
         let w = game.world
         if w.dim == .nether { trySpawnEmberdeep(game); return }
+        if w.dim == .deep { trySpawnDeep(game); return }
         if w.dim == .end { trySpawnEnd(game); return }
         let pp = game.player.pos
         guard count(.monster, near: pp) < cap(.monster, w) else { return }
@@ -403,6 +404,7 @@ extension MobManager {
     // Babies, jockeys, armour and door breaking for a naturally spawned monster.
     // The deeper, the tougher: surface monsters from displayed y -16 down to the old floor (x1.6), the Deep tougher still (DeepGen).
     static func depthPower(_ d: Dim, _ y: Float) -> Float {
+        if d == .deep { return 1.8 + min(0.4, max(0, Float(CH) - y) / Float(CH) * 0.4) }
         guard d == .overworld else { return 1 }
         let yd = y - Float(YOFF)
         return yd < -16 ? 1 + min(0.6, (-16 - yd) / 80) : 1

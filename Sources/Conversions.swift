@@ -29,7 +29,7 @@ extension Mob {
                 && PathFinder.powderSnow != AIR
             target = .stray
         case .piglin, .piglinBrute, .hoglin:
-            progressing = w.dim != .nether
+            progressing = !w.dim.ultrawarm
             target = kind == .hoglin ? .zoglin : .zombifiedPiglin
         case .tadpole:
             progressing = true
@@ -61,7 +61,7 @@ extension Mob {
             let b = w.gen.column(Int(floor(pos.x)), Int(floor(pos.z))).biome
             let warm: Set<Biome> = [.desert, .warmOcean, .jungle, .sparseJungle, .bambooJungle, .mangroveSwamp, .savanna, .savannaPlateau,
                                     .windsweptSavanna, .badlands, .erodedBadlands, .woodedBadlands]
-            m.variant = warm.contains(b) || w.dim == .nether ? 2 : (Spawns.snowy.contains(b) ? 1 : 0)
+            m.variant = warm.contains(b) || w.dim.ultrawarm ? 2 : (Spawns.snowy.contains(b) ? 1 : 0)
         }
         g.mobs.mobs.append(m)
         g.sfx(into == .frog ? .splash : .mobZombie, 0.8, at: pos)

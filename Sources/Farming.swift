@@ -118,7 +118,7 @@ extension Game {
             if Rand.int(in: 0..<4) == 0 && world.block(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
         case "ice":
             // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
-            if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim == .nether ? AIR : WATER); world.scheduleFluid(around: p) }
+            if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim.ultrawarm ? AIR : WATER); world.scheduleFluid(around: p) }
         case "snow":
             if world.lightAt(p.x, p.y, p.z).block > 11 { world.setBlockAsync(p.x, p.y, p.z, AIR) }
         case "sweet_berry_bush":

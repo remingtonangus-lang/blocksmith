@@ -2136,14 +2136,14 @@ final class MobManager {
     }
 
     // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
-    func trySpawnEmberdeep(_ game: Game) {
+    func trySpawnEmberdeep(_ game: Game, base: Int = YOFF) {
         let w = game.world
         let pp = game.player.pos
         let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         // Magmastriders: groups on the lava sea surface.
-        let lavaY = YOFF + EmberGen.lavaLevel
+        let lavaY = base + EmberGen.lavaLevel
         if Rand.float(in: 0..<1) < 0.1 {
             if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
                 && mobs.filter({ $0.kind == .strider }).count < 8 {
@@ -2162,11 +2162,11 @@ final class MobManager {
             }
             return
         }
-        var y = YOFF + Rand.int(in: 1...126)
+        var y = base + Rand.int(in: 1...126)
         // Walk down to a floor with two free blocks above it.
-        while y > YOFF + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
+        while y > base + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
                                  && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
-        if y <= YOFF + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
+        if y <= base + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
         let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
         if simd_length(spawnPos - pp) < 24 { return }
         typealias Entry = (MobKind, Int, Int, Int)      // kind, weight, min group, max group
