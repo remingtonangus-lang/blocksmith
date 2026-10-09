@@ -1070,7 +1070,9 @@ final class Mob {
         if pos.y < -10 { health = 0 }
 
         let hs = simd_length(V2(vel.x, vel.z))
-        walkPhase += hs * dt * 5.5
+        // Horses: long strides, so the gait rate grows slower than the speed (a gallop is ~4 strides/s, not 10).
+        let horsey = kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse
+        walkPhase += hs * dt * 5.5 / (horsey ? 1 + hs * 0.12 : 1)
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
     }
 
