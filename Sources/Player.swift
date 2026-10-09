@@ -80,6 +80,7 @@ final class Player {
     }
 
     static var quarantined = 0
+    static let vrSprintSpeed: Float = 4.317 * 1.6
     static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
     static let cobwebID: BlockID = Blocks.has("cobweb") ? Blocks.id("cobweb") : AIR
     static let soulSandID: BlockID = Blocks.has("soul_sand") ? Blocks.id("soul_sand") : AIR
@@ -178,7 +179,8 @@ final class Player {
             if dolphinsGrace { speed *= 2.2 }
         }
         else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
-        else { speed = sprinting ? 5.612 : 4.317 }
+        // VR sprints at 1.6x a walk (the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
+        else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : 5.612) : 4.317 }
         if !flying { speed *= speedMul }
         if soulSpeed > 0 && onGround {
             let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))

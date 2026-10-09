@@ -783,7 +783,8 @@ final class Game {
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
         mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
-        if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
+        // VR has no auto-sprint: a full push is the walk, the stick click sprints (QuestControls), so the two differ.
+        if input.control || (p.l3 && !q.l3) || (player.moveYaw == nil && PadActions.autoSprint(ls, fdt)) { player.sprinting = true }
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
         let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
         mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0

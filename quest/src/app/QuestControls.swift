@@ -13,8 +13,8 @@ import CVulkan
 //  - Buttons: right trigger = RT (break / attack / fire; Swing Mode: a full-arm swing breaks / attacks instead),
 //    left trigger = LT (use / place / aim), A jump, B back (hold: drop), X pick block / reload, Y fly toggle
 //    (hold: inventory), left grip = previous hotbar slot, right grip = next, right stick click hold = the
-//    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), stick pushed forward =
-//    sprint (a tick on the left hand), menu = pause (hold: recentre the view).
+//    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), the stick clicked while
+//    pushed = sprint (1.6x, a tick on the left hand, edge streaks), menu = pause (hold: recentre the view).
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -43,11 +43,14 @@ final class QuestControls {
     private var sneakLatch = false              // tapped: sneak until the next tap
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
-    private var sprintHold: Float = 0           // s the left stick has been pushed into the sprint zone
+    private var sprintHold: Float = 0           // s the left stick has been pushed fully out without sprinting
     private var sprintPulse = 0
     private var sprintCool: Float = 0
     private var hungryToast: Float = 0
     private var sprintShown = false             // the first sprint of a session says so in a toast
+    private var sprintFx: Float = 0             // speed streaks 0...1 (eased in and out)
+    private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
+    private var sprintHinted = false            // the click-to-sprint hint was shown
     private var prevGripL = false, prevGripR = false
     // Swing Mode: the held tool's blade samples last frame (tracking space) and the swing's arming (swingContact).
     private var blade = [V3](repeating: .zero, count: 8)
@@ -261,7 +264,7 @@ final class QuestControls {
         p.lb = L.squeeze > 0.6 && game.world.ships.pilot != nil      // (the helm's descend; the hotbar no longer scrolls)
         p.rb = R.stickClick
         // Left stick click: sneak. Held, you sneak while it is held; a tap (under 0.3 s) latches sneaking until the next
-        // tap (cleared by flying or water, where holding it descends). Sprint is the stick pushed fully forward.
+        // tap (cleared by flying or water, where holding it descends). A click with the stick pushed out sprints.
         if inMenu {
             l3Hold = 0; sneakLatch = false
         } else {
@@ -323,23 +326,24 @@ final class QuestControls {
                 // Raw stick (x right, y forward): Player.moveYaw is the head, so nothing the aim does matters.
                 p.lx = L.stick.x; p.ly = L.stick.y
             }
-            // Sprint: the stick pushed most of the way out within ~45 degrees of straight ahead, for 0.1 s (or the stick clicked while pushed). The pad's
-            // auto-sprint wanted y > 0.95 after the dead-zone curve for 0.35 s, which the Touch stick's round gate
-            // rarely gives; a latched sneak (an accidental stick click) also blocked it. The game's L3 edge starts
-            // the sprint (it ends when the stick comes back); pushing into the zone clears a latched sneak, and the
-            // left hand gets a double tick so it is obvious.
+            // Sprint: click the left stick while it is pushed (any direction; Touch sticks also click when shoved
+            // hard). It holds until the stick comes back to the middle. A full push alone used to auto-sprint, so the
+            // plain walk at full push never existed and a sprint felt no faster than walking (playtest v78); now the
+            // click is a clear 1.6x jump (Player: VR sprint 6.9 b/s), with a haptic tick and speed streaks.
             let st = L.stick, sm = simd_length(st)
-            if sm > 0.7 && st.y > sm * 0.7 && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
+            if sm > 0.7 && !game.player.sprinting && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
             sprintCool -= dt
             let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
-            if (sprintHold > 0.1 || (clickSprint && st.y > 0.3)) && fed && !game.player.sprinting && sprintCool <= 0 {
-                sprintPulse = 3; sprintCool = 0.6
+            if clickSprint && sm > 0.3 && fed && !game.player.sprinting && sprintCool <= 0 && game.world.ships.pilot == nil {
+                sprintPulse = 3; sprintCool = 0.3
                 sneakLatch = false
-                app.input.haptic(moveHand, amplitude: 0.45, seconds: 0.05, frequency: 120)
-                if !sprintShown { sprintShown = true; game.onToast?("Sprinting: keep the left stick pushed forward") }
+                app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.08, frequency: 120)
+                if !sprintShown { sprintShown = true; game.onToast?("Sprinting: let the stick back to the middle to stop") }
             }
+            // A long full-push walk that never sprinted gets a one-time hint.
+            if sprintHold > 4 && !sprintShown && !sprintHinted && fed { sprintHinted = true; game.onToast?("Click the left stick while moving to sprint") }
             hungryToast -= dt
-            if sprintHold > 0.1 && !fed && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
+            if clickSprint && sm > 0.3 && !fed && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
             p.l3 = sprintPulse > 0
             if sprintPulse > 0 { sprintPulse -= 1 }
         }
@@ -394,7 +398,8 @@ final class QuestControls {
         let moved = simd_length(V2(game.player.pos.x - lastFeet.x, game.player.pos.z - lastFeet.z)) / max(dt, 1e-3)
         let vy = abs(game.player.pos.y - lastFeet.y) / max(dt, 1e-3)
         let speed = relMoved >= 0 ? relMoved : moved + vy * 0.5
-        var want: Float = min(1, max(0, (speed - 1.2) / 6))
+        // A sprint doesn't tunnel the view harder than a walk (the narrower view hid the speed-up: playtest v78).
+        var want: Float = min(1, max(0, (min(speed, 4.4) - 1.2) / 6))
         if ship != nil {
             want = max(want, min(1, shipTurnRate * 2.5), min(1, max(0, shipAccel - 0.5) / 6))
             let shipSpeed = simd_length(carryVel)
@@ -406,6 +411,8 @@ final class QuestControls {
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))
+        let sprintOn = game.player.sprinting && game.player.onGround && !game.player.flying && game.menu == nil && game.riding == nil
+        sprintFx = sprintOn ? min(1, sprintFx + dt * 4) : max(0, sprintFx - dt * 6)
         updateHint()
         // After a recentre (the Meta button, Recenter View) the panels come back in front of the user.
         if rig.recenters != seenRecenters {
@@ -1018,6 +1025,25 @@ final class QuestControls {
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
     }
 
+    // Speed streaks in clip space (w = 2): 28 thin wedges in the outer ring, each sliding outward and fading on its own
+    // phase. Kept faint: they read as motion at the edge without cluttering the view.
+    private func speedStreaks(_ v: inout [SimpleVert], _ k: Float, _ t: Float) {
+        let n = 28
+        for i in 0..<n {
+            let h = hashf(i, 7, 31, 0x5bd1)
+            let a = (Float(i) + h * 0.6) / Float(n) * 2 * .pi
+            let ph = (t * (1.6 + h) + h * 5).truncatingRemainder(dividingBy: 1)
+            let r0: Float = 1.3 + ph * 0.9, r1: Float = r0 + 0.35 + h * 0.25
+            let wdt: Float = 0.006 + 0.004 * h
+            let d = V2(cosf(a), sinf(a)), n2 = V2(-d.y, d.x) * (wdt * r0)
+            let alpha: Float = 0.16 * k * sinf(ph * .pi)
+            let c0 = V4(1, 1, 1, 0), c1 = V4(1, 1, 1, alpha)
+            let p0 = d * r0, p1 = d * r1
+            QuestControls.quad(&v, V4(p0.x - n2.x, p0.y - n2.y, 0, 2), V4(p0.x + n2.x, p0.y + n2.y, 0, 2),
+                               V4(p1.x + n2.x, p1.y + n2.y, 0, 2), V4(p1.x - n2.x, p1.y - n2.y, 0, 2), c0, c0, c1, c1)
+        }
+    }
+
     // A ring in clip space (w = 2): clear in the middle, `color` at the edge; k 0...1 narrows the clear middle.
     private func ring(_ v: inout [SimpleVert], _ k: Float, _ color: V3, maxAlpha: Float = 1) {
         let seg = 32
@@ -1048,6 +1074,8 @@ final class QuestControls {
         if g.sleeping > 0 { tint(V4(0.02, 0.02, 0.06, min(1, g.sleeping / 1.5))) }
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
         if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
+        // Sprinting (VR has no FOV kick): faint streaks rushing outward at the edges of the view.
+        if sprintFx > 0.01 { speedStreaks(&v, sprintFx * fx, Float(g.clock)) }
         if g.onFire > 0 && g.menu == nil {
             let flicker = 0.75 + 0.25 * sinf(Float(g.clock) * 9)
             ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: 0.5)

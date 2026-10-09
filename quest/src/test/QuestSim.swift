@@ -89,17 +89,27 @@ enum QuestSim {
         frames(10) { _ in idleHands() }
         let d = game.player.pos - p0
         check(-d.z > 3 && abs(d.x) < 1.5, String(format: "VR walk: left stick forward moved (%.2f, %.2f) (want -Z)", d.x, d.z))
-        // 1b. Sprint through the device path: a slightly off-centre push (the Touch gate) sprints, and so does a push
-        // that clicks the stick (that click used to sneak, and sneaking blocks sprinting).
+        // 1b. Sprint through the device path (playtest v78: "no faster than walking"): in each direction a full push
+        // walks; clicking the pushed stick sprints, at least 1.5x that walk, and keeps sprinting after the click is let go.
         let sprintFrom = game.player.pos
-        for (name, click) in [("push", false), ("pushed click", true)] {
+        for (name, dir) in [("forward", V2(0.2, 0.88)), ("back", V2(0, -0.9)), ("left", V2(-0.9, 0)), ("right", V2(0.64, 0.64))] {
+            game.player.pos = sprintFrom; game.player.vel = .zero
             frames(20) { _ in idleHands() }
+            frames(12) { _ in idleHands(); sim.hands[0].stick = dir }
+            let w0 = game.player.pos
+            var walkSprinted = false
+            frames(72) { _ in idleHands(); sim.hands[0].stick = dir; walkSprinted = walkSprinted || game.player.sprinting }
+            let walk = simd_length(V2(game.player.pos.x - w0.x, game.player.pos.z - w0.z))
+            game.player.pos = sprintFrom; game.player.vel = .zero
+            frames(20) { _ in idleHands() }
+            frames(12) { i in idleHands(); sim.hands[0].stick = dir; sim.hands[0].stickClick = i < 4 }
             let s0 = game.player.pos
-            var sprinted = false
-            frames(72) { _ in idleHands(); sim.hands[0].stick = V2(0.25, 0.85); sim.hands[0].stickClick = click; sprinted = sprinted || game.player.sprinting }
-            let v = simd_length(V2(game.player.pos.x - s0.x, game.player.pos.z - s0.z))
-            check(sprinted && game.player.sprinting && !game.player.sneaking, "VR sprint (\(name)): sprinting \(game.player.sprinting), sneaking \(game.player.sneaking)")
-            check(v > 4.0, String(format: "VR sprint (%@): %.2f blocks in 1 s (a walk at this push ~3.3)", name, v))
+            var sprinted = true
+            frames(72) { _ in idleHands(); sim.hands[0].stick = dir; sprinted = sprinted && game.player.sprinting }
+            let run = simd_length(V2(game.player.pos.x - s0.x, game.player.pos.z - s0.z))
+            check(!walkSprinted, "VR walk (\(name)): a full push alone must walk, not sprint")
+            check(sprinted && !game.player.sneaking, "VR sprint (\(name)): click held the sprint \(sprinted), sneaking \(game.player.sneaking)")
+            check(run >= walk * 1.5, String(format: "VR sprint (%@): %.2f blocks in 1 s vs walk %.2f (x%.2f, want >= 1.5)", name, run, walk, run / max(walk, 0.01)))
         }
         frames(10) { _ in idleHands() }
         game.player.pos = sprintFrom; game.player.vel = .zero      // back where the walk ended: the aim checks need its view

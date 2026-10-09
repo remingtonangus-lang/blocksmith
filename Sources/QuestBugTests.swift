@@ -114,13 +114,14 @@ enum QuestBugTests {
                 check(simd_length(V3(a.x, 0, a.z)) > 1.5 && simd_length(a - b) < 1e-3 && simd_dot(dir, want) > 0.999,
                       String(format: "VR %@: moved %.2f along the head (dot %.4f), hand waving changes it by %.4f", mode, simd_length(V3(b.x, 0, b.z)), simd_dot(dir, want), simd_length(a - b)))
             }
-            // Sprint (Quest round 4: "the tag shows but the speed is the same"): at a partial Touch push, forward and
-            // sideways, a sprint covers ~1.3x a full-push walk.
+            // Sprint (Quest round 4, playtest v78: "no faster than walking"): at a partial Touch push, in every direction,
+            // a VR sprint covers at least 1.5x a full-push walk (Player.vrSprintSpeed is 1.6x).
             let walkFull = simd_length(run("walk", input: MoveInput(forward: 1), start: floorP, ticks: 60, handStill: true))
-            for (name, f, st) in [("forward", Float(0.85), Float(0.25)), ("sideways", Float(0), Float(0.8))] {
+            for (name, f, st) in [("forward", Float(0.85), Float(0.25)), ("sideways", Float(0), Float(0.8)),
+                                  ("back", Float(-0.8), Float(0)), ("diagonal", Float(0.55), Float(-0.55))] {
                 var sp = MoveInput(forward: f, strafe: st); sp.sprint = true
                 let d = simd_length(run("sprint", input: sp, start: floorP, ticks: 60, handStill: true))
-                check(p.sprinting && d > walkFull * 1.25, String(format: "VR sprint %@: %.2f blocks in 1 s vs a full walk %.2f (x%.2f)", name, d, walkFull, d / walkFull))
+                check(p.sprinting && d > walkFull * 1.5, String(format: "VR sprint %@: %.2f blocks in 1 s vs a full walk %.2f (x%.2f, want >= 1.5)", name, d, walkFull, d / walkFull))
             }
             // Sprint-swimming in a deep pool: follows moveLook (the head), not the hand.
             for x in (x0 - 8)...(x0 + 8) { for z in (z0 - 8)...(z0 + 8) { for y in (y0 + 4)...(y0 + 8) { w.setBlock(x, y, z, WATER) } } }
