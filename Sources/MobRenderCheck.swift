@@ -131,24 +131,33 @@ enum MobRenderCheck {
             let c = m.pos + V3(0, m.height * 0.5, 0)
             let d: Float = 2.5 + max(m.height, m.halfW * 2) * 1.5
             let views = [V3(d, 1.5, 0), V3(-d, 1.5, 0), V3(0, 1.5, d), V3(0, 1.5, -d), V3(0.7 * d, d, 0.7 * d)]
-            guard let off = views.first(where: { clear(c + $0, c) }) else { skipped += 1; continue }
-            let eye = c + off
-            p.pos = eye - V3(0, p.eyeHeight, 0)
-            let to = c - eye
-            p.yaw = atan2f(-to.x, -to.z)
-            p.pitch = atan2f(to.y, simd_length(V2(to.x, to.z)))
-            g.mobs.mobs = []
-            _ = pixels(r, w, h)
-            let base = pixels(r, w, h)
-            g.mobs.mobs = [m]
-            let n = changed(base, pixels(r, w, h))
+            // Every clear view until one shows the mob (a dark enderman against the night sky, a bat side-on: one
+            // view could change under 30 px though the model draws; the CI run after the PM9 spawning change hit both).
+            let clearViews = views.filter { clear(c + $0, c) }
+            if clearViews.isEmpty { skipped += 1; continue }
             kinds.insert(m.kind)
+            func shown(_ mob: Mob) -> Int {
+                var best = 0
+                for off in clearViews where best < 30 {
+                    let eye = c + off
+                    p.pos = eye - V3(0, p.eyeHeight, 0)
+                    let to = c - eye
+                    p.yaw = atan2f(-to.x, -to.z)
+                    p.pitch = atan2f(to.y, simd_length(V2(to.x, to.z)))
+                    g.mobs.mobs = []
+                    _ = pixels(r, w, h)
+                    let base = pixels(r, w, h)
+                    g.mobs.mobs = [mob]
+                    best = max(best, changed(base, pixels(r, w, h)))
+                }
+                return best
+            }
+            let n = shown(m)
             if n < 30 { invisible.append("\(m.kind) (\(n) px)") } else { drawn += 1 }
             // The same mob through a save and a load (Remington plays saved worlds; a fresh harness world has none).
             if let data = try? JSONEncoder().encode(m.record), let rec = try? JSONDecoder().decode(MobRecord.self, from: data),
                let back = Mob.from(rec) {
-                g.mobs.mobs = [back]
-                let nb = changed(base, pixels(r, w, h))
+                let nb = shown(back)
                 if nb < 30 { invisible.append("\(m.kind) after save and load (\(nb) px)") }
             } else { broken.append("\(m.kind) does not survive a save and load") }
         }
