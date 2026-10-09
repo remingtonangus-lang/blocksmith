@@ -26,6 +26,13 @@ extension BlockRegistry {
         if !has("bunker_concrete_stairs") {
             family("bunker_concrete", "bunker_concrete", "Station Concrete", h: 3, tool: .pickaxe, req: true, snd: .stone, stairs: true, slab: true, fence: false, wall: false)
         }
+        // Station railing: plain grey steel rails (bars that connect like iron bars).
+        if !has("station_railing") {
+            var d = BlockDef("station_railing", "Steel Railing")
+            d.tex = ["station_railing"]; d.render = .connect; d.connect = 2; d.layer = .cutout; d.opaque = false
+            d.hardness = 5; d.resistance = 30; d.tool = .pickaxe; d.requiresTool = true; d.skyStop = false
+            add(d)
+        }
         // Corner lamp: a small blue lamp on a wall just under the ceiling; the facing is the way its lens looks.
         if !has("corner_lamp") {
             var d = BlockDef("corner_lamp", "Corner Lamp")
@@ -78,6 +85,13 @@ extension TextureGen {
             if x % 8 == 0 || y % 8 == 0 { return hex(0x5A6168) }
             let tile: Float = 0.94 + 0.06 * r(x / 8, y / 8, 4105)
             return hex(0x7A8591, tile * (0.97 + 0.03 * r(x, y, 4106)))
+        }
+        // Railing: a handrail along the top, a mid rail, slim posts; the rest clear.
+        p["station_railing"] = { x, y in
+            if y <= 1 { return hex(y == 0 ? 0xA8B2BC : 0x6E7882) }
+            if y == 8 || ((x == 1 || x == 14) && y > 1) { return hex(0x8A949E, 0.95 + 0.05 * r(x, y, 4113)) }
+            if x == 7 || x == 8 { return hex(0x7C8690) }
+            return V4(0, 0, 0, 0)
         }
         // Corner lamp: a pale blue lens in a dark steel frame (front), plain frame round the sides.
         p["corner_lamp"] = { x, y in
@@ -274,7 +288,7 @@ enum BorealStation {
             guard let S = found else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
             let e = BorealStation.yard + 8
-            let piece = Piece(min: IVec3(x - e, 2, z - e), max: IVec3(x + e, S + 32, z + e),
+            let piece = Piece(min: IVec3(x - e, S - depth - 4, z - e), max: IVec3(x + e, S + 32, z + e),
                               build: { w in BorealStation.build(&w, x, S, z, seed) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x - 5, S + 1, z + yard + 2))
         }
@@ -321,7 +335,7 @@ enum BorealStation {
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
         let steel = g("steel_plating"), grate = g("steel_grating", steel), hazard = g("hazard_plating", steel)
         let panel = g("light_panel"), console = g("command_console", steel), crate = g("ammo_crate", steel)
-        let glass = g("armored_glass", GLASS), bars = g("iron_bars"), chain = g("chain", bars)
+        let glass = g("armored_glass", GLASS), bars = g("station_railing", g("iron_bars")), chain = g("chain", g("iron_bars"))
         let lamp = g("corner_lamp", panel), cab = g("data_cabinet", console), door = g("bulkhead_door", g("iron_door"))
         let snowB = SNOW, snowL = g("snow", AIR), wool = g("white_wool"), barrel = g("barrel", crate)
         let conSlabTop = g("bunker_concrete_slab[top]", con), steelSlabTop = g("steel_plating_slab[top]", steel)
@@ -417,7 +431,10 @@ enum BorealStation {
         }
         put(-4, S, 16, con); put(-4, S, 17, con)                             // floor over the top of lane A
         // Lights down the shaft, blue lamps on the landings.
-        for y in stride(from: F + 4, through: S - 2, by: 4) { put(-7 + 1, y, 18, panel); put(6 - 1, y + 2, 18, panel) }
+        for y in stride(from: F + 4, through: S - 2, by: 4) {
+            put(-7, y, 18, panel); put(6, y + 2, 18, panel)                   // set into the side walls
+            for dx in [-2, 2] { put(dx, y, 18, panel); put(dx, y + 2, 19, panel) }   // the middle wall, both lanes
+        }
         for dz in [16, 21] { put(-6, F + 4, dz, lamp + 3); put(-5, S - 2, dz == 16 ? 16 : 21, lamp + BlockID(dz == 16 ? 1 : 0)) }
 
         // Bulkheads: steel across the passage, a door in the middle, a light panel above it.
@@ -450,6 +467,10 @@ enum BorealStation {
             } else if let row = hallStair(dx, dz) {
                 for ly in 1..<row { put(dx, F + ly, dz, con) }
                 put(dx, F + row, dz, stairN)
+                if dx == -6 {                                                  // a parapet with a rail on its open side
+                    for ly in 1...row { put(-5, F + ly, dz, con) }
+                    put(-5, F + row + 1, dz, bars)
+                }
             }
         } }
         for (dx, dz) in [(-4, -7), (4, -7)] { put(dx, F + 6, dz, console) }
@@ -529,13 +550,15 @@ enum BorealStation {
             } else if !(dx >= -4 && dx <= 5 && dz >= 16 && dz <= 21) || (dz >= 18 && dz <= 19 && dx <= 3) {
                 put(dx, S, dz, tile)
             }
-            put(dx, S + 6, dz, wall ? con : ((dx & 3) == 0 && (dz & 3) == 2 ? panel : con))
+            put(dx, S + 6, dz, wall ? con : ((dx % 3 + 3) % 3 == 0 && (dz % 3 + 3) % 3 == 1 ? panel : con))
         } }
         put(-7 + 1, S + 6, 18, panel)
         // Rails round the shaft openings.
-        for dx in -3...5 { for dz in [15, 18, 19, 22] { put(dx, S + 1, dz, bars) } }
-        for dz in 16...21 { put(6, S + 1, dz, bars) }
-        put(-4, S + 1, 16, bars); put(-4, S + 1, 17, bars)
+        for y in (S + 1)...(S + 2) {                                        // two high: no jumping onto them
+            for dx in -3...5 { for dz in [15, 18, 19, 22] { put(dx, y, dz, bars) } }
+            for dz in 16...21 { put(6, y, dz, bars) }
+            put(-4, y, 16, bars); put(-4, y, 17, bars)
+        }
         // Entrance: a pair of bulkhead doors in the south wall, a canopy, floodlights.
         for dx in [-6, -5] { put(dx, S + 1, bz1, door + 1); put(dx, S + 2, bz1, door + 9) }
         for dx in (-7)...(-4) { put(dx, S + 3, bz1 + 1, conSlabTop) }

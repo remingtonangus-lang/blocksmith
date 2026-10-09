@@ -96,6 +96,26 @@ enum BorealTests {
                 minLight = min(minLight, l)
                 if l < 8 { dim.append(IVec3(x, F + 1 - YOFF, z)); if dim.count <= 20 { print("  dim cell \(dx) \(dz) (from the centre): light \(l)") } }
             } }
+            // The stairwell and the blockhouse: every cell a player can stand in (open, on something solid).
+            var stairCells = 0, stairDim = 0, stairMin = 15
+            for dz in 15...22 { for dx in -7...6 { for y in (F + 1)...(S + 1) {
+                let x = cx + dx, z = cz + dz
+                guard !Blocks.collide[Int(world.block(x, y, z))], !Blocks.collide[Int(world.block(x, y + 1, z))],
+                      Blocks.collide[Int(world.block(x, y - 1, z))] else { continue }
+                stairCells += 1
+                let l = Int(light[li(x, y, z)])
+                stairMin = min(stairMin, l)
+                if l < 8 { stairDim += 1; if stairDim <= 12 { print("  dim stair cell \(dx) \(y - F) \(dz) (from the centre, rows above the bunker floor): light \(l)") } }
+            } } }
+            check(stairCells > 60 && stairDim == 0, "boreal \(seed): stairwell and blockhouse: \(stairCells) standing cells, darkest block light \(stairMin) (>= 8)")
+            // Landings clear at head height (a light panel once hung in the east landing's walkway).
+            var blocked = 0
+            for dz in 16...21 {
+                for (dx, y) in [(-6, F + 1), (-5, F + 1), (4, F + 9), (5, F + 9), (-6, S + 1), (-5, S + 1)] {
+                    for yy in y...(y + 1) where Blocks.collide[Int(world.block(cx + dx, yy, cz + dz))] { blocked += 1 }
+                }
+            }
+            check(blocked == 0, "boreal \(seed): stair landings clear to head height (\(blocked) blocked cells)")
             check(standCells > 900 && dim.isEmpty, "boreal \(seed): \(standCells) bunker floor cells, darkest block light \(minLight) (>= 8), \(dim.count) dim" + (dim.isEmpty ? "" : " e.g. \(dim.prefix(4).map { "\($0.x) \($0.y) \($0.z)" })"))
 
             // Look.
@@ -121,7 +141,7 @@ enum BorealTests {
             } }
             let ratio = surf > 0 ? Float(concrete) / Float(surf) : 0
             check(ratio > 0.8, String(format: "boreal %llu: %.0f%% of %d bunker wall/floor/ceiling faces are station concrete", seed, ratio * 100, surf))
-            check(lamps >= 60, "boreal \(seed): \(lamps) blue corner lamps in the bunker")
+            check(lamps >= 250, "boreal \(seed): \(lamps) blue corner lamps in the bunker")
             check(doorsLow == 12, "boreal \(seed): \(doorsLow) bulkhead doors in the bunker (12 expected)")
             check(snowInside == 0, "boreal \(seed): no snow in the bunker (\(snowInside))")
             var surfDoors = 0, roofSnow = 0, roofs = 0, yardTops = 0, yardSnow = 0
@@ -134,9 +154,8 @@ enum BorealTests {
                 var y = S + 30
                 while y > S - 2 && world.block(x, y, z) == AIR { y -= 1 }
                 let top = Blocks.key(world.block(x, y, z))
-                let under = Blocks.key(world.block(x, y - 1, z))
                 if y > S + 1 { roofs += 1; if top == "snow" { roofSnow += 1 } }
-                else { yardTops += 1; if top == "snow" || top == "snow_block" || under == "snow_block" { yardSnow += 1 } }
+                else { yardTops += 1; if top == "snow" { yardSnow += 1 } }       // a layer on top, not just snow ground
             } }
             check(surfDoors == 3, "boreal \(seed): \(surfDoors) bulkhead doors on the surface (blockhouse pair + gatehouse)")
             check(roofs > 0 && Float(roofSnow) / Float(max(1, roofs)) > 0.5 && Float(yardSnow) / Float(max(1, yardTops)) > 0.75,
@@ -152,7 +171,8 @@ enum BorealTests {
                 guard s.contains(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) || simd_length(V2(p.x - Float(cx), p.z - Float(cz))) < 40 else { continue }
                 mobs += 1
                 let b = world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-                if Blocks.fullCollide[Int(b)] { stuck += 1; print("  \(k) inside \(Blocks.key(b)) at \(p)") }
+                let head = world.block(Int(floor(p.x)), Int(floor(p.y)) + 1, Int(floor(p.z)))
+                if Blocks.fullCollide[Int(b)] || Blocks.fullCollide[Int(head)] { stuck += 1; print("  \(k) inside \(Blocks.key(b))/\(Blocks.key(head)) at \(p)") }
             }
             check(mobs >= 20 && stuck == 0, "boreal \(seed): \(mobs) garrison mobs, \(stuck) inside blocks")
 
