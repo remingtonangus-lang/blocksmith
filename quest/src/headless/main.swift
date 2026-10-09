@@ -331,6 +331,9 @@ TextureCache.store(texLevels, texURL)
 let texBack = TextureCache.load(texURL)
 check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\(texLevels.count) levels, \(texLevels.map(\.count).reduce(0, +)) bytes)")
 
+// Towns of people and shops (Sources/TownTests.swift).
+TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
+
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

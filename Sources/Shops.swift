@@ -386,8 +386,8 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         func right(_ t: String, _ x: Int, _ y: Int, _ c: V4) { label(t, x - Font.width(t), y, c) }
         // Who and where, and the wallet.
         if let v = data {
-            let line = [v.person.map { "\($0), \(kind.keeper)" }, v.town].compactMap { $0 }.joined(separator: " - ")
-            label(line, 8, 15, mid)
+            let line = [v.person, v.town].compactMap { $0 }.joined(separator: " of ")
+            label(ShopMenu.fit(line, width - 16), 8, 15, mid)
         }
         right("Wallet " + Money.format(game.money), width - 8, 6, V4(0.1, 0.38, 0.12, 1))
         // Tabs and quantity.
@@ -437,8 +437,16 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             box(266, top, 10, span, V4(0.3, 0.28, 0.26, 1))
             box(267, y, 8, h, V4(0.85, 0.8, 0.7, 1))
         }
-        if !status.isEmpty { label(status, 8, height - 13, statusGood ? V4(0.1, 0.3, 0.12, 1) : V4(0.55, 0.14, 0.1, 1)) }
+        if !status.isEmpty { label(ShopMenu.fit(status, width - 16), 8, height - 13, statusGood ? V4(0.1, 0.3, 0.12, 1) : V4(0.55, 0.14, 0.1, 1)) }
         return out
+    }
+
+    // Cuts text to a pixel width with an ellipsis (names and messages never run off the panel).
+    static func fit(_ t: String, _ px: Int) -> String {
+        guard Font.width(t) > px else { return t }
+        var s = t
+        while !s.isEmpty && Font.width(s + "...") > px { s.removeLast() }
+        return s + "..."
     }
 
     var legend: String {
@@ -471,7 +479,7 @@ enum Shop {
         guard n > 0 else {
             m.villager = v
             g.sfx(.villagerNo, 0.6, at: m.pos + V3(0, 1.6, 0))
-            return ("You need \(Money.format(price)) for \(name). You have \(Money.format(g.money)).", false)
+            return ("That's \(Money.format(price)) each. You have \(Money.format(g.money)).", false)
         }
         var left = n
         while left > 0 {
