@@ -546,6 +546,16 @@ enum Snapshot {
             while y < YOFF + 120 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
             pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
+        } else if snapDim == .deep {
+            // The Ash Vault's floor, or with --hell the first open space above the hell band's lava sea.
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = (world.gen as? DeepGen)?.floorY(x, z) ?? 30
+            if CommandLine.arguments.contains("--hell") {
+                y = DeepGen.hellBase + 33
+                while y < DeepGen.hellBase + 120 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
+            } else { y += 1 }
+            pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
+            game.player.pos = pos
         } else if snapDim == .end {
             pos = V3(pos.x, Float(YOFF + 70) + (Float(arg("--up") ?? "") ?? 0), pos.z)
             game.player.pos = pos

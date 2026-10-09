@@ -16,8 +16,13 @@ enum Fortress {
         if rng.int(5) >= 2 { return nil }            // 3 in 5: a bastion slot
         return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8)
     }
+    // The Deep's hell band (DeepGen): a fortress in every slot, its floor at internal y DeepGen.hellBase.
+    static let deepType = StructureType(name: "fortress", spacing: 22, separation: 5, salt: 30084291, reach: 6) { seed, cx, cz in
+        var rng = SRng(seed)
+        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase)
+    }
 
-    static func layout(_ rng: inout SRng, originX ox: Int, originZ oz: Int) -> StructureStart {
+    static func layout(_ rng: inout SRng, originX ox: Int, originZ oz: Int, base: Int = YOFF) -> StructureStart {
         var nodes: [IVec2Key: Node] = [:]
         let maxR = 5
         nodes[IVec2Key(0, 0)] = Node(kind: .bridge, links: [false, false, false, false])
@@ -49,7 +54,7 @@ enum Fortress {
         }
         if blazes == 0, let k = leaves.first { nodes[k]!.kind = .blaze }
 
-        let y = YOFF + rng.range(48, 70)
+        let y = base + rng.range(48, 70)
         var pieces: [Piece] = []
         let seed = rng.next()
         for (k, n) in nodes {
@@ -57,14 +62,14 @@ enum Fortress {
             let r = 6
             let pseed = seed &+ UInt64(bitPattern: Int64(k.x &* 7919 &+ k.z &* 104729))
             pieces.append(Piece(min: IVec3(cxw - r, y - 60, czw - r), max: IVec3(cxw + r, y + 8, czw + r)) { w in
-                build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed)
+                build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed, base: base)
             })
         }
         return StructureStart(kind: "fortress", pieces: pieces, anchor: IVec3(ox, y + 1, oz))
     }
 
     // Blocks of one cell. Arms run from the centre to the cell edge (5 cells) along linked directions.
-    static func build(_ w: inout StructWriter, _ n: Node, cx: Int, cz: Int, y: Int, seed: UInt64) {
+    static func build(_ w: inout StructWriter, _ n: Node, cx: Int, cz: Int, y: Int, seed: UInt64, base: Int = YOFF) {
         let brick = Blocks.id("nether_bricks"), fence = Blocks.id("nether_brick_fence")
         let half = cell / 2
         // Rectangles (x0, z0, x1, z1) covering the cell's floor plan with a given half-width.
@@ -97,7 +102,7 @@ enum Fortress {
             } }
             // Support pillars under the centre room corners and arches under arms.
             for (px, pz) in [(cx - room, cz - room), (cx + room, cz - room), (cx - room, cz + room), (cx + room, cz + room)] {
-                w.pillarDown(px, y - 2, pz, brick, minY: YOFF)
+                w.pillarDown(px, y - 2, pz, brick, minY: base)
             }
             for d in 0..<4 where n.links[d] {
                 let (dx, dz) = dirs[d]
@@ -127,7 +132,7 @@ enum Fortress {
                 }
             } }
             for (px, pz) in [(cx - room - 1, cz - room - 1), (cx + room + 1, cz - room - 1), (cx - room - 1, cz + room + 1), (cx + room + 1, cz + room + 1)] {
-                w.pillarDown(px, y - 2, pz, brick, minY: YOFF)
+                w.pillarDown(px, y - 2, pz, brick, minY: base)
             }
             if n.kind == .wart {
                 // Two ghost sand beds of emberdeep wart with a brick border, stairs up to them.

@@ -92,6 +92,7 @@ final class World {
         case .overworld: gen = WorldGen(seed: seed)
         case .nether: gen = EmberGen(seed: seed)
         case .end: gen = HollowGen(seed: seed)
+        case .deep: gen = DeepGen(seed: seed)
         }
         self.device = device
         self.save = save
@@ -1109,7 +1110,7 @@ final class World {
         let lvT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let kind: UInt8 = lava ? 2 : 1
         let flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
-        let stepLevel = lava && dim != .nether ? 2 : 1
+        let stepLevel = lava && !dim.ultrawarm ? 2 : 1
         for p in batch {
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
             let cur = block(p.x, p.y, p.z)
@@ -1185,7 +1186,7 @@ final class World {
             if next > 7 { continue }
             // Reference spread: only toward the nearest drop within 4 blocks (lava 2, 4 in the Emberdeep); every side
             // when none is in reach. It went all four ways, so channels and farms flooded sideways.
-            let reach = lava && dim != .nether ? 2 : 4
+            let reach = lava && !dim.ultrawarm ? 2 : 4
             var openMask = 0
             for (i, d) in World.sideDirs.enumerated() where fluidCanEnter(block(p.x + d.x, p.y, p.z + d.z), level: next, kind: kind) {
                 openMask |= 1 << i

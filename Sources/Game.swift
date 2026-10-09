@@ -111,6 +111,9 @@ final class Game {
     var dragonKilled = false
     var gateways = 0
     var seenCredits = false
+    // The Deep (task 22): been there (saved), the updraft hint shown this session, the Ashguard war (AshWar.swift).
+    var deepVisited = false
+    var deepUpdraftHinted = false
     var credits: Float?            // seconds into the hollow credits while they are showing
     var dragonSpawnTimer: Float = 3
     private(set) var effects = EffectSet()      // active status effects on the player
@@ -1510,7 +1513,7 @@ final class Game {
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
         // Ice broken without Silk Touch over something solid or liquid leaves water (reference; not in the Emberdeep).
-        if drop && b == Game.iceID && world.dim != .nether && Enchant.level(.silkTouch, held) == 0 {
+        if drop && b == Game.iceID && !world.dim.ultrawarm && Enchant.level(.silkTouch, held) == 0 {
             let under = world.block(p.x, p.y - 1, p.z)
             if Blocks.collide[Int(under)] || Blocks.isLiquid(under) { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         }
@@ -1637,7 +1640,7 @@ final class Game {
             return true
         }
         // Water poured onto a waterloggable block (stairs, slabs, fences, walls, panes, ladders, lanterns) fills it.
-        if k == "water_bucket", dim.dim != .nether, let tg = target {
+        if k == "water_bucket", !dim.dim.ultrawarm, let tg = target {
             let tb = world.block(tg.hit.x, tg.hit.y, tg.hit.z)
             let wb = Blocks.wet[Int(tb)]
             if wb != AIR && !Blocks.wetInvalid[Int(wb)] {
@@ -1651,7 +1654,7 @@ final class Game {
             var at: IVec3?
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
             if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
-                if k == "water_bucket" && dim.dim == .nether {
+                if k == "water_bucket" && dim.dim.ultrawarm {
                     sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
                     world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
@@ -2244,7 +2247,7 @@ final class Game {
         fluidTimer += dt
         if fluidTimer >= 0.25 { fluidTimer = 0; world.fluidTick() }        // water: 5 ticks a step (reference)
         lavaTimer += dt
-        if lavaTimer >= (dim.dim == .nether ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
+        if lavaTimer >= (dim.dim.ultrawarm ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
         fireTimer += dt
         if fireTimer >= Rand.double(in: 1.5...2.0) { fireTimer = 0; world.fireTick() }      // 30 + rand(10) ticks (reference)
         portalTick(Float(dt))
@@ -2271,6 +2274,7 @@ final class Game {
         coop.withSeat(spawnSeat, self) { self.siegeTick() }
         basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
         ashenTick(Float(dt))
+        deepTick(Float(dt))
         advancementTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0

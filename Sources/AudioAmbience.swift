@@ -122,7 +122,7 @@ extension Game {
             let l = world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z)))
             caveTarget = 1 - Float(l.sky) / 15
             if eye.y > Float(SEA + 40) { caveTarget *= 0.5 }
-        case .nether: caveTarget = 0.7
+        case .nether, .deep: caveTarget = 0.7
         case .end: caveTarget = 0.2
         }
         a.cave += (caveTarget - a.cave) * min(1, dt * 1.5)
@@ -233,7 +233,8 @@ extension Game {
 
         // Biome beds.
         switch dim.dim {
-        case .nether:
+        case .deep where !DeepGen.inHell(p.y): ask("bed", .basaltLoop, 0.4)
+        case .nether, .deep:
             let b = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
             let s: Snd
             switch b {
@@ -422,8 +423,9 @@ extension Game {
         if let pm = menu as? PauseMenu, pm.page == .title { return .title }
         switch dim.dim {
         case .nether: return .ember
+        case .deep where DeepGen.inHell(player.pos.y): return .ember
         case .end: return .hollow
-        case .overworld: break
+        case .overworld, .deep: break
         }
         if mobs.of(.wither).contains(where: { $0.health > 0 && simd_length($0.pos - player.pos) < 80 }) { return .boss }
         // Firefights and raids score as combat; a Steelhold garrison nearby keeps a tense underscore.

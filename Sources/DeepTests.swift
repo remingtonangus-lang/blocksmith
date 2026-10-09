@@ -6,6 +6,64 @@ enum DeepTests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
         depthZone(game, check)
         floorMigration(check)
+        deepWorld(check)
+        seam(game, check)
+    }
+
+    // The Deep's layers: molten core, vault floor, the open vault, crust, hell band, upper crust; no bedrock anywhere;
+    // fortresses in the hell band.
+    static func deepWorld(_ check: (Bool, String) -> Void) {
+        let g = DeepGen(seed: 12345)
+        var bedrock = 0, coreOK = true, vaultAir = 0, vaultCols = 0, hellRack = 0, topSolid = true, floorSolid = true
+        for (cx, cz) in [(20, 3), (-15, 9), (40, -30), (2, 2)] {
+            let b = g.generate(cx: cx, cz: cz)
+            for v in b where v == BEDROCK { bedrock += 1 }
+            for lz in 0..<CS { for lx in 0..<CS {
+                for y in 0...DeepGen.coreTop where b[Chunk.index(lx, y, lz)] != LAVA { coreOK = false }
+                let wx = cx * CS + lx, wz = cz * CS + lz
+                let f = g.floorY(wx, wz)
+                if !g.pillar(wx, wz) && !g.lavaRiver(wx, wz) {
+                    vaultCols += 1
+                    if (f + 2..<(DeepGen.ceilingBase - 16)).allSatisfy({ b[Chunk.index(lx, $0, lz)] == AIR }) { vaultAir += 1 }
+                    if !(DeepGen.coreTop + 1...f).allSatisfy({ Blocks.opaque[Int(b[Chunk.index(lx, $0, lz)])] || b[Chunk.index(lx, $0, lz)] == LAVA }) { floorSolid = false }
+                }
+                for y in DeepGen.hellBase..<DeepGen.crustTop where b[Chunk.index(lx, y, lz)] == NETHERRACK { hellRack += 1 }
+                for y in (CH - 4)..<CH where !Blocks.opaque[Int(b[Chunk.index(lx, y, lz)])] { topSolid = false }
+            } }
+        }
+        check(bedrock == 0, "deep: no bedrock in the Deep (\(bedrock))")
+        check(coreOK && floorSolid, "deep: molten core under a solid vault floor")
+        check(vaultAir > vaultCols * 9 / 10, "deep: the Ash Vault is open floor to roof (\(vaultAir) of \(vaultCols) columns)")
+        check(hellRack > 4 * CSQ * 20, "deep: the hell band holds cinderstone terrain (\(hellRack))")
+        check(topSolid, "deep: the top four layers are solid rock (digging down from the surface carries on)")
+        let fort = g.structures?.nearest("fortress", x: 0, z: 0)
+        check(fort.map { $0.anchor.y > DeepGen.hellBase + 40 && $0.anchor.y < DeepGen.hellBase + 80 } ?? false,
+              "deep: fortresses stand in the hell band (nearest at \(fort.map { "\($0.anchor.x) \($0.anchor.y) \($0.anchor.z)" } ?? "none"))")
+    }
+
+    // Digging through the surface's bottom layer lands you at the top of the Deep and climbing out of its top layer
+    // brings you back; the vault's updrafts catch a long fall.
+    static func seam(_ game: Game, _ check: (Bool, String) -> Void) {
+        let home = game.player.pos, homeDim = game.dim.dim
+        game.player.pos = V3(40.5, 0.3, -20.5)
+        game.deepTick(0.05)
+        let x = 40, z = -21
+        let w = game.world
+        check(game.dim.dim == .deep && game.player.pos.y == Float(CH - 3) && w.block(x, CH - 3, z) == AIR && w.block(x, CH - 2, z) == AIR
+              && Blocks.opaque[Int(w.block(x, CH - 4, z))], "deep: falling through the surface floor lands in a pocket at the top of the Deep")
+        game.player.pos.y = Float(CH - 1)
+        game.deepTick(0.05)
+        check(game.dim.dim == .overworld && game.player.pos.y == 1 && game.world.block(x, 1, z) == AIR && Blocks.opaque[Int(game.world.block(x, 0, z))],
+              "deep: climbing out of the Deep's top comes back up at the surface's floor")
+        game.changeDimension(to: .deep, at: V3(300.5, 100, 40.5))
+        game.player.onGround = false
+        game.player.flying = false
+        game.player.vel = V3(0, -20, 0)
+        game.deepTick(0.05)
+        check(game.effects.has(.slowFalling), "deep: the vault's updraft slows a long fall")
+        game.effects.clear()
+        if homeDim != game.dim.dim { game.changeDimension(to: homeDim, at: home) }
+        game.player.pos = home
     }
 
     // The surface's lowest 64 layers: no bedrock floor, solid hot rock at the bottom, emberslate taking over with
