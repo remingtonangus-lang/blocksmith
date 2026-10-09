@@ -108,6 +108,10 @@ See docs/status/store-readiness.md (audit round 1). Not re-measured here.
 
 ## Log
 - 2026-10-09 PM (task 25b1zzz, playtest notes items 1-11): pm9a/pm9b/pm9d checks, --coppertest, namecheck --coined, quest_perf_gate.sh added; verifier found a save-ordering race in the new background autosave (quit during an autosave could land older files last), fixed (sync saveNow flushes the queue first).
+- 2026-10-09 (towns of people): new content checked by TownTests (economy no-arbitrage over every recipe, shop UI fit
+  and overflow, townsfolk schedule/models/defence, 3 generated towns with all 8 shops); VR shop panel rendered in
+  questsim (_shop.png); `--golden` gains town.png and town_shop.png. Player-visible Villager terms renamed
+  (docs/status/ip-renames.md).
 - 2026-10-09 (task 25b1zx): verifier pass (safe spawn GREEN, input matrix AMBER: blind to attack/use/fire effects);
   shallow-cave ambience check added (pass); world audit re-run with water within 1 of spawn (0/50 unsafe).
 - 2026-10-09 (task 25b1z): tools built, everything measured once. Reddest: performance hitches (Quest proxy ashvault

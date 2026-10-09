@@ -417,7 +417,7 @@ enum MobTests {
         let v0 = Mob(.villager, at: pos)
         var d = VillagerData(); d.profession = "farmer"; v0.villager = d
         let acts = [0.05, 0.2, 0.4, 0.48].map { v0.activity($0) }
-        check(acts == [.idle, .work, .meet, .idle], "villager schedule idle/work/meet/idle")
+        check(acts == [.idle, .work, .meet, .social], "villager schedule idle/work/meet/saloon evening")
         d.profession = "nitwit"; v0.villager = d
         check(v0.activity(0.2) == .idle, "villager nitwits don't work")
         let kid = Mob(.villager, at: pos); kid.baby = true

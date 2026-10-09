@@ -165,6 +165,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         if let dir = arg("--golden") {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             let saved = (game.player.pos, game.player.flying, game.time)
+            let savedMobs = game.mobs.mobs
             game.player.flying = true
             var shots: [(String, V3, Double, Float, Float, Bool)] = [         // name, position, day fraction, yaw, pitch, rain
                 ("spawn", spawn, 0.2, 0.5, -0.2, false),
@@ -178,6 +179,38 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 let ext = Float(max(s.max.x - s.min.x, s.max.z - s.min.z))
                 shots.append(("capital_city", c + V3(0, ext * 0.35, ext * 0.6), 0.27, 0, -0.5, false))   // forward = -z
             }
+            // A town (TownBuildings.swift): the shop fronts and signs around the square, from above one side.
+            if let s = world.gen.structures?.nearest("village", x: Int(spawn.x), z: Int(spawn.z), maxRegions: 12) {
+                let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
+                shots.append(("town", c + V3(0, 14, 22), 0.26, 0, -0.45, false))
+                // The general store from up its street (the sign is outward of the keeper), with the townsfolk spawned.
+                world.pendingMobs.removeAll()
+                _ = world.loadSync(center: c, radius: 6)
+                for (name, p) in world.pendingMobs { if let m = Mob.structureMob(name, at: p) { game.mobs.mobs.append(m) } }
+                game.mobs.rebuildIndex()
+                if let (_, kp) = world.pendingMobs.first(where: { $0.0 == "villager:shop_general" }),
+                   let (sp, _) = world.blockEntities.first(where: { $0.1.kind == .sign && $0.1.lines.contains(ShopKind.general.name)
+                       && abs(Float($0.0.x) - kp.x) < 8 && abs(Float($0.0.z) - kp.z) < 8 }) {
+                    let out = simd_normalize(V3(Float(sp.x) + 0.5 - kp.x, 0, Float(sp.z) + 0.5 - kp.z))
+                    let card = abs(out.x) > abs(out.z) ? V3(out.x > 0 ? 1 : -1, 0, 0) : V3(0, 0, out.z > 0 ? 1 : -1)
+                    // From across the street, a little to one side and above head height, looking at the sign: the
+                    // first of a few candidate spots with a clear line of sight (towns differ; a house may stand opposite).
+                    let side = V3(-card.z, 0, card.x)
+                    let target = V3(Float(sp.x) + 0.5, Float(sp.y) + 0.5, Float(sp.z) + 0.5)
+                    let solid = { (q: V3) -> Bool in Blocks.opaque[Int(world.block(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z))))] }
+                    var pick: V3?
+                    search: for out in [7, 5, 9, 4] as [Float] { for sd in [3, -3, 0, 6, -6] as [Float] { for up in [3, 5, 2, 7] as [Float] {
+                        let eye = target + card * out + side * sd + V3(0, up, 0)
+                        let n = Int(simd_length(target - eye) * 4)
+                        if (0..<(n - 2)).allSatisfy({ !solid(eye + (target - eye) * (Float($0) / Float(n))) }) { pick = eye; break search }
+                    } } }
+                    if let eye = pick {
+                        let f = simd_normalize(target - eye)
+                        shots.append(("town_shop", eye - V3(0, game.player.eyeHeight, 0), 0.26, atan2f(-f.x, -f.z), asinf(f.y), false))
+                    } else { print("golden: no clear view of the general store (town_shop skipped)") }
+                }
+                world.pendingMobs.removeAll()
+            }
             for (name, p, t, yaw, pitch, rain) in shots {
                 game.player.pos = p
                 game.time = t * DAY_LENGTH
@@ -188,6 +221,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             }
             game.weather.raining = false; game.weather.rain = 0
             (game.player.pos, game.player.flying, game.time) = saved
+            game.mobs.mobs = savedMobs; game.mobs.rebuildIndex()
+            _ = world.loadSync(center: game.player.pos, radius: 6)        // the spawn area back for the mob draw test
         }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
@@ -330,6 +365,9 @@ let texURL = TextureCache.url(dir: tmp.path + "/cache", size: 16, layers: 12)
 TextureCache.store(texLevels, texURL)
 let texBack = TextureCache.load(texURL)
 check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\(texLevels.count) levels, \(texLevels.map(\.count).reduce(0, +)) bytes)")
+
+// Towns of people and shops (Sources/TownTests.swift).
+TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

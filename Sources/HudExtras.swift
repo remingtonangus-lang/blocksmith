@@ -51,7 +51,7 @@ final class Subtitles {
         case .mobBoarling: return "Boarling snorts"
         case .mobUndeadBoarling: return "Undead Boarling grunts"
         case .fireball: return "Fireball"
-        case .mobVillager: return "Villager mumbles"
+        case .mobVillager: return "Townsperson mumbles"
         case .mobGolem: return "Golem clanks"
         case .anvil: return "Anvil used"
         case .brew: return "Potion brewing"
