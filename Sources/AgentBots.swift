@@ -25,8 +25,13 @@ struct Steer {
         act.forward = abs(turn) < 0.9 ? 1 : 0.2
         if flat < 0.3 { act.forward = 0 }
         act.sprint = run && flat > 6
-        // Step or jump up when the goal is higher, swim up in water.
-        if (goal.y > s.pos.y + 0.55 && s.onGround && flat < 1.8) || s.inWater { act.jump = true }
+        // Step or jump up when the goal is higher, swim up in water, but let go to sink to a waypoint under it (a path
+        // down through a pond and under a grass overhang: the cave bot bobbed at the surface for 60 s and drowned, seed
+        // 12345). Sink in place first: pushing into the overhang or a 2-high gap above the waypoint gives the swim
+        // climb-out boost (Player, as in the reference) and lifts the bot back out.
+        let dive = goal.y < s.pos.y - 0.1 && flat < 1.2
+        if dive && s.inWater && goal.y < s.pos.y - 0.2 { act.forward = 0 }
+        if (goal.y > s.pos.y + 0.55 && s.onGround && flat < 1.8) || (s.inWater && !dive) { act.jump = true }
         // Pressing on but not moving (a low wall, the rim of an empty composter or cauldron it dropped into): hop, as a
         // player would (run 348: the village bot sat in a composter for 45 s).
         let hv: Float = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot()
@@ -640,7 +645,9 @@ final class CaveBot: AgentBot {
             if since > 60 && s.onGround { act.jump = true }
             return act
         default:
-            return AgentAction()
+            // Done (or gave up): keep the head above water while idle.
+            var act = AgentAction(); act.jump = s.inWater
+            return act
         }
     }
 
