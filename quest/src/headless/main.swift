@@ -129,6 +129,35 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 (game.player.pos, game.player.flying, game.time) = saved
             } else { print("render: no shore within 1600 blocks (water view skipped)") }
         }
+        // --golden DIR: the Quest copies of the golden shots (docs/STORE_QUALITY.md; the Mac list is tools/golden.sh):
+        // the world shots this renderer can stage from spawn, compared build to build by a reviewer.
+        if let dir = arg("--golden") {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let saved = (game.player.pos, game.player.flying, game.time)
+            game.player.flying = true
+            var shots: [(String, V3, Double, Float, Float, Bool)] = [         // name, position, day fraction, yaw, pitch, rain
+                ("spawn", spawn, 0.2, 0.5, -0.2, false),
+                ("aerial", spawn + V3(0, 30, 0), 0.25, 3.5, -0.45, false),
+                ("dusk", spawn + V3(0, 2, 0), 0.49, -1.57, -0.07, false),
+                ("night", spawn + V3(0, 2, 0), 0.75, 0.5, 0.15, false),
+                ("rain", spawn + V3(0, 1, 0), 0.3, 0.5, -0.1, true),
+            ]
+            if let s = world.gen.structures?.nearest("capital_city", x: Int(spawn.x), z: Int(spawn.z), maxRegions: 16) {
+                let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
+                let ext = Float(max(s.max.x - s.min.x, s.max.z - s.min.z))
+                shots.append(("capital_city", c + V3(0, ext * 0.35, ext * 0.6), 0.27, 0, -0.5, false))   // forward = -z
+            }
+            for (name, p, t, yaw, pitch, rain) in shots {
+                game.player.pos = p
+                game.time = t * DAY_LENGTH
+                game.weather.raining = rain; game.weather.rain = rain ? 1 : 0
+                _ = world.loadSync(center: p, radius: 6)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/\(name).png", yaw: yaw, pitch: pitch)
+                print("golden: \(dir)/\(name).png")
+            }
+            game.weather.raining = false; game.weather.rain = 0
+            (game.player.pos, game.player.flying, game.time) = saved
+        }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
