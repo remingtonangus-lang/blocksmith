@@ -9,7 +9,7 @@ the selftest naming audit (`--selftest`) and this check keep them out.
 ## How it is checked
 - `python3 tools/namecheck.py --coined` scans every string literal in `Sources/` and `quest/src/` against
   `tools/coined-terms.txt` (internal keys, test/harness files and lines marked `namecheck:ok` are exempt); exit 1 on a hit.
-  Runs first in the CI fast lane (`.github/workflows/mac.yml`, "Coined-name check"), no build needed.
+  Runs in `./snap.sh` (the CI heavy checks shard) next to `--coppertest`, no build needed. (A mac.yml fast-lane step would be better; the agent token cannot push workflow files, so Remington can add `python3 tools/namecheck.py --coined` as a first step there.)
 - `Blocksmith --snapshot /tmp/n.png --rd 2 --questbugs --only pm9d --namedump /tmp/names.txt` checks every registered
   display name at runtime (blocks, items, mobs, biomes, dimensions, advancements + tabs, enchantments, effects, music, credits:
   ~2,080 strings) against the same list and writes them to the dump; `python3 tools/namecheck.py --coined --dump /tmp/names.txt`
