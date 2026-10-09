@@ -600,10 +600,15 @@ enum Snapshot {
             // A few animals standing in front of the camera, legs mid-stride.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
             let nether = CommandLine.arguments.contains("--nethermobs")
+            // --mobkind a,b: those kinds side by side 5 blocks ahead; --mobyaw DEG turns them (90 = side on), --mobwalk A sets
+            // the stride (0 stands), --mobspeed S gives them a velocity (gallop poses), --saddled saddles them.
+            let kindNames = arg("--mobkind")?.split(separator: ",").map(String.init) ?? []
+            let mobKinds: [(MobKind, Float, Float)] = kindNames.compactMap { MobKind.named($0) }.enumerated().map { ($0.element, Float(5), Float($0.offset) * 3.5 - 1.75) }
             let spots: [(MobKind, Float, Float)] = nether
                 ? [(.zombifiedPiglin, 5, -2.5), (.piglin, 5, 0), (.witherSkeleton, 6, 2.5), (.blaze, 8, -3.5), (.magmaCube, 7, 3.5), (.ghast, 22, 2)]
                 : CommandLine.arguments.contains("--hostile")
                 ? [(.zombie, 5, -2.5), (.skeleton, 6, 0), (.creeper, 5, 2.5), (.spider, 9, -3.5), (.enderman, 10, 1), (.slime, 8, 4)]
+                : mobKinds.isEmpty == false ? mobKinds
                 : [(.cow, 6, -2.5), (.sheep, 6, 1.5), (.chicken, 4, 0), (.pig, 10, 3), (.sheep, 9, -4), (.chicken, 5, 2.5)]
             for (i, spot) in spots.enumerated() {
                 let p = pos + f * spot.1 + r * spot.2
@@ -621,6 +626,15 @@ enum Snapshot {
                 m.yaw = game.player.yaw + .pi + Float(i) * 0.9
                 m.walkPhase = Float(i) * 0.8
                 m.walkAmount = 1
+                if !mobKinds.isEmpty {
+                    m.yaw = game.player.yaw + (Float(arg("--mobyaw") ?? "90") ?? 90) * .pi / 180
+                    m.walkAmount = Float(arg("--mobwalk") ?? "1") ?? 1
+                    m.walkPhase = Float(i) * 1.3 + 0.8
+                    let sp = Float(arg("--mobspeed") ?? "0") ?? 0
+                    m.vel = V3(-sinf(m.yaw), 0, -cosf(m.yaw)) * sp
+                    m.callTimer = CommandLine.arguments.contains("--mobgraze") ? 4 : 10
+                    if CommandLine.arguments.contains("--saddled") { m.saddled = true }
+                }
                 game.mobs.mobs.append(m)
             }
         }

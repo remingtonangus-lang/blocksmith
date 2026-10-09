@@ -505,6 +505,121 @@ extension Mob {
 
 // MARK: Models
 
+// The horse family (horse, donkey, mule, skeleton and zombie horses): barrel, chest and rump, an arched neck with a mane,
+// a long head with a muzzle, jointed legs (upper leg, cannon, hoof) and a hanging tail. Walk: diagonal pairs with knee /
+// hock bend; gallop at speed (pairs close up, bigger swing, the body rocks); idle: the tail swishes and the head drops to
+// graze now and then. Units 1/16 block, model faces -Z; the body top stays at y 22 (horse) so saddle and rider line up.
+func horseParts(_ m: Mob) -> [Part] {
+    let small = m.kind == .donkey || m.kind == .mule
+    let c: V3
+    switch m.kind {
+    case .zombieHorse: c = V3(0.33, 0.5, 0.3)
+    case .skeletonHorse: c = V3(0.85, 0.85, 0.82)
+    case .donkey: c = V3(0.5, 0.45, 0.4)
+    case .mule: c = V3(0.35, 0.25, 0.18)
+    default:
+        let coats: [V3] = [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)]
+        c = coats[m.variant % 5]
+    }
+    let bony = m.kind == .skeletonHorse
+    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : c * 0.42)
+    let hoof: V3 = bony ? c * 0.68 : V3(0.17, 0.14, 0.12)
+    let sock: V3 = c * 0.82
+    let muzzle: V3 = c * 0.72 + V3(0.07, 0.07, 0.07)
+    let dark = V3(0.05, 0.05, 0.05)
+    let pat: Float = bony ? 5 : 4
+
+    // Gait state from data already on the mob.
+    let amt = m.walkAmount
+    let hs = simd_length(V2(m.vel.x, m.vel.z))
+    let gal = max(0, min(1, (hs - 4.5) / 3.5)) * amt
+    let ph = m.walkPhase
+    let amp: Float = (0.5 + 0.35 * gal) * amt
+    let bob: Float = abs(sinf(ph)) * (0.3 + 0.9 * gal) * amt
+    let clock = m.callTimer                                   // counts down steadily between calls
+    let idle = max(0, 1 - amt * 2)
+    let gw: Float = min(clock - 1.5, 6 - clock) * 1.5
+    let calm: Float = m.saddled || m.panic > 0 ? 0 : 1
+    let graze: Float = max(0, min(1, gw)) * idle * calm
+
+    let lu: Float = small ? 6.5 : 8, ll: Float = small ? 5 : 5.5, lh: Float = 1.5
+    let hipY: Float = lu + ll + lh                            // 15 horse, 13 donkey
+    let top: Float = hipY + 7 + bob                           // body top (22 horse)
+    let bot: Float = hipY - 2 + bob
+    var p: [Part] = []
+    p.reserveCapacity(40)
+    // Body: barrel, deeper chest in front, rounded rump behind.
+    p.append(Part(mn: V3(-4.2, bot, -8), mx: V3(4.2, top - 0.5, 8), color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.5, bot - 0.5, -11), mx: V3(4.5, top, -4), color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.6, bot + 0.5, 4), mx: V3(4.6, top + 0.3, 11), color: c, pattern: pat))
+
+    // Legs: (x, z, phase offset, front?). Walk: diagonal pairs; gallop: front pair and hind pair close up.
+    let fo: Float = 0.5 * gal
+    let legs: [(Float, Float, Float, Bool)] = [(-2.6, -8.3, 0, true), (2.6, -8.3, .pi + fo, true),
+                                               (-2.7, 8.2, .pi, false), (2.7, 8.2, fo, false)]
+    for (x, z, off, front) in legs {
+        let lp: Float = ph + off + (front ? 0 : .pi * gal)
+        let a: Float = sinf(lp) * amp + (front ? 0 : -0.08)
+        let flex: Float = max(0, cosf(lp)) * (0.6 + 0.5 * gal) * amt
+        let la: Float = front ? a - flex : a + flex * 0.8 + 0.12
+        let hip = V3(x, hipY + bob, z)
+        let knee: V3 = hip + V3(0, -lu * cosf(a), lu * sinf(a))
+        let uw: Float = front ? 3 : 3.4
+        p.append(Part(mn: V3(x - uw / 2, hip.y - lu - 0.4, z - 1.7), mx: V3(x + uw / 2, hip.y + 2, z + 1.7), pivot: hip, rotX: a, color: c, pattern: pat))
+        p.append(Part(mn: V3(x - 1, knee.y - ll, knee.z - 1), mx: V3(x + 1, knee.y + 0.4, knee.z + 1), pivot: knee, rotX: la, color: sock, pattern: pat))
+        p.append(Part(mn: V3(x - 1.3, knee.y - ll - lh, knee.z - 1.4), mx: V3(x + 1.3, knee.y - ll, knee.z + 1.2), pivot: knee, rotX: la, color: hoof))
+    }
+
+    // Neck: rises forward ~40 deg from the top of the chest, nodding with the stride; lowered to graze.
+    let nodS: Float = sinf(ph * 2) * (0.06 + 0.1 * gal) * amt
+    let nA: Float = -0.7 - nodS - graze * 1.25 + gal * 0.12
+    let nL: Float = small ? 10 : 12
+    let nP = V3(0, top - 4, -8.5)
+    p.append(Part(mn: V3(-2.1, nP.y - 1, nP.z - 3.2), mx: V3(2.1, nP.y + nL, nP.z + 2.6), pivot: nP, rotX: nA, color: c, pattern: pat))
+    p.append(Part(mn: V3(-0.8, nP.y + 1, nP.z + 2.4), mx: V3(0.8, nP.y + nL + 1.2, nP.z + 3.6), pivot: nP, rotX: nA, color: mane))
+    // Head: hangs from the poll at the neck's top, angled down; long skull, narrower muzzle, eyes, ears, forelock.
+    let poll: V3 = nP + V3(0, nL * cosf(nA), nL * sinf(nA))
+    let hA: Float = -0.95 + nodS * 0.5 - graze * 0.3
+    func hb(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ col: V3, _ pt: Float = 0) -> Part {
+        Part(mn: poll + V3(x0, y0, z0), mx: poll + V3(x1, y1, z1), pivot: poll, rotX: hA, color: col, pattern: pt)
+    }
+    p.append(hb(-2.3, -2.6, -5.5, 2.3, 2.2, 1.2, c, pat))                 // skull and cheeks
+    p.append(hb(-1.8, -2.4, -11.5, 1.8, 0.8, -5.5, muzzle, pat))          // long face to the muzzle
+    p.append(hb(-1.9, -2.6, -11.7, 1.9, -0.9, -9.8, muzzle * 0.8))        // nose and lips
+    p.append(hb(-1.0, -1.3, -11.8, -0.4, -0.7, -11.5, dark)); p.append(hb(0.4, -1.3, -11.8, 1.0, -0.7, -11.5, dark))   // nostrils
+    p.append(hb(-2.45, 0, -4.2, -2.25, 1.1, -2.9, dark)); p.append(hb(2.25, 0, -4.2, 2.45, 1.1, -2.9, dark))             // eyes
+    let earL: Float = small ? 5.5 : 3
+    let earC: V3 = small ? c * 0.85 : c
+    p.append(hb(-2.1, 2.0, -0.6, -0.9, 2 + earL, 0.6, earC)); p.append(hb(0.9, 2.0, -0.6, 2.1, 2 + earL, 0.6, earC))
+    if !small { p.append(hb(-0.7, 1.4, -2.2, 0.7, 2.5, 0.8, mane)) }   // forelock between the ears
+
+    // Tail: hangs from the top of the rump, a thin dock and a fuller lower part; swishes, lifts at the gallop.
+    let swish: Float = sinf(clock * 2.3) * 0.14 * (1 - amt) + sinf(ph) * 0.1 * amt
+    let tP = V3(0, top - 1, 11)
+    let tA: Float = -0.3 - 0.55 * gal - 0.15 * amt
+    p.append(Part(mn: V3(-1, tP.y - 6, tP.z), mx: V3(1, tP.y + 0.5, tP.z + 2), pivot: tP, rotX: tA, rotZ: swish, color: mane))
+    p.append(Part(mn: V3(-1.6, tP.y - 15, tP.z + 0.2), mx: V3(1.6, tP.y - 5.5, tP.z + 2.8), pivot: tP, rotX: tA, rotZ: swish * 1.3, color: mane))
+
+    if m.saddled {
+        let leather = V3(0.35, 0.2, 0.1)
+        p.append(box(-4.8, top - 0.2, -5, 9.6, 1.4, 9, leather))
+        p.append(box(-1.4, top + 1.2, -5, 2.8, 1.2, 1.4, leather))        // pommel
+        p.append(box(-4.7, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8)); p.append(box(4.3, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8))
+    }
+    if m.chested { p.append(box(-7, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(4.6, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))) }
+    if m.armorTier > 0 {
+        // leather, iron, gold, diamond, (5 is wolf armour), copper, duskium
+        let colors: [V3] = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84), V3(0.62, 0.42, 0.36),
+                            V3(0.78, 0.48, 0.33), V3(0.3, 0.27, 0.28)]
+        let ac = colors[min(colors.count - 1, m.armorTier - 1)]
+        p.append(box(-4.9, bot + 2, -11.4, 9.8, top - bot - 2.4, 9, ac, 8))           // chest plate and flanks
+        p.append(box(-4.9, bot + 3, 4.2, 9.8, top - bot - 3.4, 7.2, ac, 8))
+        p.append(Part(mn: V3(-2.5, nP.y - 0.5, nP.z - 3.6), mx: V3(2.5, nP.y + nL - 1, nP.z + 2.2), pivot: nP, rotX: nA, color: ac, pattern: 8))
+        p.append(hb(-2.5, 0.2, -6, 2.5, 2.4, 1.3, ac, 8))                                  // headpiece
+    }
+    return p
+}
+
 func animalParts(_ m: Mob, swing: Float) -> [Part] {
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 4) -> Part {
         Part(mn: V3(x - w / 2, 0, z - w / 2), mx: V3(x + w / 2, h, z + w / 2), pivot: V3(x, h, z), rotX: swing * ph, color: c, pattern: pat)
@@ -555,23 +670,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(Part(mn: V3(-0.5, 8, 6), mx: V3(0.5, 9, 14), pivot: V3(0, 8.5, 6), rotX: -0.5, color: c))
         return p
     case .horse, .donkey, .mule, .skeletonHorse, .zombieHorse:
-        let c = m.kind == .zombieHorse ? V3(0.33, 0.5, 0.3) : m.kind == .skeletonHorse ? V3(0.85, 0.85, 0.82) : (m.kind == .donkey ? V3(0.5, 0.45, 0.4) : (m.kind == .mule ? V3(0.35, 0.25, 0.18)
-                : [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)][m.variant % 5]))
-        var p = quadruped(.zero, V3(10, 10, 22), legH: 12, head: V3(0, 20, -11), headSize: V3(5, 5, 11), c, legW: 4)
-        p.append(Part(mn: V3(-3, 14, -13), mx: V3(3, 24, -7), pivot: V3(0, 16, -9), rotX: 0.5, color: c, pattern: 4))      // neck
-        if m.kind == .donkey || m.kind == .mule { p.append(box(-3, 25, -9, 1.5, 5, 1, c)); p.append(box(1.5, 25, -9, 1.5, 5, 1, c)) }
-        p.append(Part(mn: V3(-1.5, 16, 11), mx: V3(1.5, 20, 19), pivot: V3(0, 20, 11), rotX: 0.8, color: c * 0.7))              // tail
-        if m.saddled { p.append(box(-5.2, 21.8, -4, 10.4, 1.5, 9, V3(0.35, 0.2, 0.1))) }
-        if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
-        if m.armorTier > 0 {
-            // leather, iron, gold, diamond, (5 is wolf armour), copper, duskium
-            let colors: [V3] = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84), V3(0.62, 0.42, 0.36),
-                                V3(0.78, 0.48, 0.33), V3(0.3, 0.27, 0.28)]
-            let ac = colors[min(colors.count - 1, m.armorTier - 1)]
-            p.append(box(-5.4, 11.6, -10, 10.8, 10.2, 16, ac))
-            p.append(Part(mn: V3(-3.4, 14, -13.4), mx: V3(3.4, 24.4, -6.6), pivot: V3(0, 16, -9), rotX: 0.5, color: ac))
-        }
-        return p
+        return horseParts(m)
     case .llama, .traderLlama:
         let c = m.kind == .traderLlama ? V3(0.85, 0.8, 0.7) : [V3(0.85, 0.8, 0.7), V3(0.95, 0.95, 0.93), V3(0.5, 0.35, 0.25), V3(0.55, 0.52, 0.5)][m.variant % 4]
         var p = quadruped(.zero, V3(10, 10, 16), legH: 13, head: V3(0, 26, -9), headSize: V3(6, 5, 7), c, legW: 4)
