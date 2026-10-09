@@ -487,6 +487,13 @@ final class Game {
     // too dark to play), still dim and moon-blue. Gameplay (spawning, sleeping, sensors) keeps `daylight`.
     var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.26) : daylight }
 
+    // Star brightness: follows the sun's height (reference: faint at sunset, full once the sun is well down) and
+    // clouds hide them. Was keyed off daylight, which put near-full stars in a bright orange sunset sky.
+    var starAlpha: Float {
+        let t = simd_clamp((0.04 - sunDir.y) / 0.26, 0, 1)
+        return t * t * (3 - 2 * t) * (1 - weather.rain)
+    }
+
     var skyColor: V3 {
         if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
         if !dim.dim.hasSky { return dim.dim.fogColor }
