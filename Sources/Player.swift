@@ -131,8 +131,17 @@ final class Player {
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
 
-        // Unstuck: if spawned or placed inside a block, pop upward.
+        // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
+        // sideways: on a moving vehicle the ship-frame round trip leaves the body ~1e-4 inside the wall it walks
+        // along, and popping up a block at a time carried it through an engine stack onto the crawler's roof
+        // (ridecheck board/troops, z 71 face of the troop-bay engines). Feet a hair into the floor (placed at a dropped
+        // item's resting height) rise by that hair, not by whole blocks up through the rock (playthrough "mine" run).
         var tries = 0
+        if collides(at: pos, w) {
+            let nudges: [V3] = [V3(0, 0.002, 0), V3(0.002, 0, 0), V3(-0.002, 0, 0), V3(0, 0, 0.002), V3(0, 0, -0.002),
+                                V3(0, 0.02, 0), V3(0.01, 0, 0), V3(-0.01, 0, 0), V3(0, 0, 0.01), V3(0, 0, -0.01), V3(0, 0.1, 0)]
+            if let n = nudges.first(where: { !collides(at: pos + $0, w) }) { pos += n }
+        }
         while collides(at: pos, w) && tries < 64 { pos.y += 1; tries += 1 }
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
