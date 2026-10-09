@@ -7,6 +7,8 @@ import CAndroidGlue
 // callback pulls frames from SoundEngine.render. No-op elsewhere.
 final class QuestAudioOutput {
     static let shared = QuestAudioOutput()
+    // RMS of the last mixed buffer (0...1), smoothed: the voice notes' detector hears the game through the mic.
+    static var level: Float = 0
     fileprivate var engine: SoundEngine?
     #if os(Android)
     private var stream: OpaquePointer?
@@ -28,6 +30,10 @@ final class QuestAudioOutput {
             let out = Unmanaged<QuestAudioOutput>.fromOpaque(user).takeUnretainedValue()
             let p = data.assumingMemoryBound(to: Float.self)
             if let e = out.engine { e.render(p, frames: Int(frames)) } else { p.initialize(repeating: 0, count: Int(frames) * 2) }
+            var sum: Float = 0
+            for i in 0..<Int(frames) * 2 { sum += p[i] * p[i] }
+            let rms = frames > 0 ? (sum / Float(frames * 2)).squareRoot() : 0
+            QuestAudioOutput.level = max(rms, QuestAudioOutput.level * 0.9)
             return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE)
         }, Unmanaged.passUnretained(self).toOpaque())
         var s: OpaquePointer?

@@ -61,8 +61,9 @@ final class BugNotes {
     static var authorized: Bool { shared.permission }
 
     // From android_main, before the first frame.
-    func setup(activity raw: UnsafeMutableRawPointer, dir d: String) {
+    func setup(activity raw: UnsafeMutableRawPointer, files: String) {
         activity = raw.assumingMemoryBound(to: ANativeActivity.self)
+        let d = files + "/voicenotes"
         dir = d
         try? FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
         permission = activity.map { bs_mic_permission($0) == 1 } ?? false

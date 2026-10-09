@@ -41,6 +41,8 @@ enum QuestSettings {
     static var renderDistance: Int { get { d.object(forKey: "renderDistance") == nil ? 8 : d.integer(forKey: "renderDistance") } set { d.set(newValue, forKey: "renderDistance") } }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }
     // Turning: snap by default (smooth turning is an option, and makes some people sick).
+    // Voice bug notes (playtest builds): set once the first launch has turned them on and asked for the microphone.
+    static var voiceNotesAsked: Bool { get { bool("quest.voiceNotesAsked", false) } set { store(newValue, "quest.voiceNotesAsked") } }
     static var smoothTurn: Bool { get { bool("quest.smoothTurn2", false) } set { store(newValue, "quest.smoothTurn2") } }
     // Cave fill and light-curve lift (Mac Options > Video > Brightness): 0 moody ... 1 bright; Quest default is a notch up.
     static var brightness: Float { get { float("quest.brightness", 0.75) } set { store(newValue, "quest.brightness") } }

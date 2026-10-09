@@ -379,6 +379,7 @@ final class FrameStats {
         guard now - since >= 5 else { return }
         let n = Double(max(1, frames))
         fps = Double(frames) / (now - since)
+        BugNotes.shared.frameTime = fps > 0 ? 1 / fps : 0
         gpuAvg = sumGPU / n; cpuAvg = sumCPU / n
         let w = game?.world
         lastLine = String(format: "perf: %.1f fps (display %.0f Hz), missed %d, worst %.1f ms (cpu %.1f: tick %.1f incl. world %.1f, record %.1f; gpu %.1f) | cpu %.2f ms (tick %.2f, record %.2f) | gpu %.2f ms | sections %d, draws %d, quads %d, cull %.2f ms | chunks %d, jobs %d, mobs %d | mesh slabs %d MB, resident %d MB",

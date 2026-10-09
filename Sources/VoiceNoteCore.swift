@@ -34,7 +34,7 @@ struct VoiceSegmenter {
             leak = r < leak ? leak * 0.95 + r * 0.05 : leak * 0.999 + r * 0.001
         }
         let floorT = max(0.008, noiseFloor * 3)
-        let gameT = leak * ref * 2.5
+        let gameT = leak * ref * 2
         threshold = max(floorT, gameT)
         if !inSpeech {
             above = rms > threshold ? above + dt : 0

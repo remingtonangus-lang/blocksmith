@@ -24,3 +24,4 @@ MobRenderCheck.swift
 RideCheck.swift
 QuestBugTests.swift
 StructScan.swift
+VoiceNoteTests.swift

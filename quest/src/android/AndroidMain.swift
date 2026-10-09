@@ -65,16 +65,19 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
     case Int32(APP_CMD_RESUME):
         state.resumed = true
         QuestAudioOutput.shared.pause(false)
+        BugNotes.shared.setPaused(false)
         print("android: resumed")
     case Int32(APP_CMD_PAUSE):
         state.resumed = false
         QuestAudioOutput.shared.pause(true)
+        BugNotes.shared.setPaused(true)
         state.app?.saveNow()
         print("android: paused")
     case Int32(APP_CMD_SAVE_STATE):
         state.app?.saveNow()
     case Int32(APP_CMD_DESTROY):
         state.destroyRequested = true
+        BugNotes.shared.shutdown()
         print("android: destroy")
     default: break
     }
@@ -142,6 +145,8 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     QuestPaths.setDataRoot(dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
+    // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
+    if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
     app.pointee.onInputEvent = { a, e in handleInput(a, e) }
     keyboardShown = false
