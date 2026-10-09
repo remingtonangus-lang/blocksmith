@@ -41,7 +41,7 @@ enum Advancements {
         Advancement(id: "shiny_gear", tab: 0, title: "Glittering Guard", desc: "Titanium armor saves lives",
                     crit: .anyItem(["diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"])),
         Advancement(id: "enchant_item", tab: 0, title: "Spellbound", desc: "Enchant an item at an Enchanting Table", crit: .event("enchant")),
-        Advancement(id: "cure_zombie_villager", tab: 0, title: "Second Opinion", desc: "Weaken and then cure a Zombie Villager", crit: .event("cure"), challenge: false),
+        Advancement(id: "cure_zombie_villager", tab: 0, title: "Second Opinion", desc: "Weaken and then cure a Zombie Townsperson", crit: .event("cure"), challenge: false),
         Advancement(id: "follow_ender_eye", tab: 0, title: "Following the Eye", desc: "Enter a Stronghold", crit: .event("stronghold")),
         Advancement(id: "enter_the_end", tab: 0, title: "Journey's End?", desc: "Enter the Hollow Gate", crit: .dim(.end)),
         // Emberdeep
@@ -73,7 +73,7 @@ enum Advancements {
         // Adventure
         Advancement(id: "adventure/root", tab: 3, title: "Out There", desc: "Adventure, exploration and combat", crit: .event("kill_any")),
         Advancement(id: "adventure/kill_a_mob", tab: 3, title: "Hunter", desc: "Kill any hostile monster", crit: .event("kill_hostile")),
-        Advancement(id: "adventure/trade", tab: 3, title: "Fair Deal", desc: "Successfully trade with a Villager", crit: .event("trade")),
+        Advancement(id: "adventure/trade", tab: 3, title: "Fair Deal", desc: "Successfully trade with a Townsperson", crit: .event("trade")),
         Advancement(id: "adventure/sleep_in_bed", tab: 3, title: "Good Night", desc: "Sleep in a bed to change your respawn point", crit: .event("sleep")),
         Advancement(id: "adventure/shoot_arrow", tab: 3, title: "Take Aim", desc: "Shoot something with an arrow", crit: .event("arrow_hit")),
         Advancement(id: "adventure/ol_betsy", tab: 3, title: "Crossed", desc: "Shoot a Crossbow", crit: .event("crossbow")),

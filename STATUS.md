@@ -7,6 +7,13 @@
 > Quest 72 Hz + render distance 12 + background autosave/remesh. Stations answer: docs/status/crafting-stations.md.
 > Checks: `--questbugs --only pm9a|pm9b|pm9d`, `--coppertest`, `tools/namecheck.py --coined`, `tools/quest_perf_gate.sh`.
 > Open: piston 2-tick motion, head-look/attack poses not in the model check, device perf re-measure at rd 12.
+> **Towns of people + shops (2026-10-09, branch claude/towns-of-people-j6qgts, PR into quest-port):** villagers are
+> named townsfolk with looks, trades, weapons and a day (work/shop hours, midday meal, evening, sleep); armed folk
+> defend the town, deputies patrol, children run, folk greet you and raise their hands at a gun. Eight shops (general
+> store, saloon, gunsmith, butcher, doctor, stable, tailor, blacksmith) with false fronts, signs, counters and keepers;
+> dollars and cents, buy/sell/services, a VR-readable shop screen, prices tied to progression with a no-arbitrage check.
+> Checks: TownTests in questcheck and `--towntests`; questsim `_shop.png`; `--golden` town shots. Details and
+> pre-mortem: docs/status/towns.md; renames: docs/status/ip-renames.md.
 
 > **Quality infrastructure (2026-10-09, task 25b1zx, quest-port + playtest):** work is now judged by
 > docs/STORE_QUALITY.md and measured in docs/status/scorecard.md (every objective RED/AMBER/GREEN with evidence in

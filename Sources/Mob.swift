@@ -91,7 +91,7 @@ enum MobKind: Int, CaseIterable {
                                       drops: [], xp: 0, call: .click, fireImmune: true, flying: true)
         case .shulker: return Spec(name: "Shellsentry", halfW: 0.5, height: 1, health: 30, speed: 0, behavior: .shulker,
                                    drops: [("shulker_shell", 0, 1)], xp: 5, call: .click, flying: true)
-        case .villager: return Spec(name: "Villager", halfW: 0.3, height: 1.95, health: 20, speed: 1.6, behavior: .villager,
+        case .villager: return Spec(name: "Townsperson", halfW: 0.3, height: 1.95, health: 20, speed: 1.6, behavior: .villager,
                                     drops: [], xp: 0, call: .mobVillager)
         case .ironGolem: return Spec(name: "Iron Golem", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
                                      drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
@@ -128,7 +128,7 @@ enum MobKind: Int, CaseIterable {
                                drops: [], xp: 3, call: .mobVex, flying: true)
         case .ravager: return Spec(name: "Siegebeast", halfW: 0.98, height: 2.2, health: 100, speed: 3, behavior: .ravager, attack: 12,
                                    drops: [("saddle", 1, 1)], xp: 20, call: .mobRavager)
-        case .zombieVillager: return Spec(name: "Zombie Villager", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .zombieVillager: return Spec(name: "Zombie Townsperson", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
@@ -328,6 +328,7 @@ final class Mob {
     var effects: EffectSet?         // status effects (allocated on first use)
     var lootingLevel = 0            // Looting on the weapon that last hit it
     var villager: VillagerData?     // profession, level, trades
+    var town = TownState()          // townsperson: anger, reactions, swings (Townsfolk.swift; not saved)
     var customName: String?         // name tag
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
     var variant = 0                 // colour / breed variant
@@ -431,7 +432,8 @@ final class Mob {
     func provoke(_ g: Game) {
         aggro = true
         g.petsAttack(self)
-        if kind == .villager, var v = villager { v.addGossip(.minorNeg, 25); villager = v }
+        // Hitting a townsperson who is already fighting you (self-defence) doesn't cost more standing or raise a new alarm.
+        if kind == .villager, town.anger <= 0, var v = villager { v.addGossip(.minorNeg, 25); villager = v; g.townAlarm(self) }
         if kind == .zombifiedPiglin {
             for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
         }
@@ -723,9 +725,17 @@ final class Mob {
                     villager = v
                 }
                 findJob(g)
+                if villager?.person == nil || villager?.town == nil { Townsfolk.setup(self, game: g) }
+                else if villager?.role == "child" && !baby { villager?.role = nil; Townsfolk.setup(self, game: g) }     // grew up
                 restock(g)
                 villageTick(g)
             }
+            // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
+            if let s = townDefend(dt, g) {
+                if lying { pos.y += 0.1; lying = false; sitting = false }
+                speed = s; break
+            }
+            if townReact(dt, g) { speed = 0; break }
             if villagerNight(g) { speed = 0; break }
             speed = villagerDay(dt, g)
         case .golem:
@@ -1743,35 +1753,8 @@ private func parts(_ m: Mob) -> [Part] {
             box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
         ] + cartTop(m)
     case .villager:
-        // Robe colour from the biome type; apron / hat colour from the profession.
-        let v = m.villager
-        let robes: [String: V3] = ["plains": V3(0.45, 0.32, 0.22), "desert": V3(0.72, 0.58, 0.34), "savanna": V3(0.62, 0.36, 0.2),
-                                   "snow": V3(0.36, 0.45, 0.6), "jungle": V3(0.32, 0.46, 0.2), "swamp": V3(0.3, 0.38, 0.3),
-                                   "taiga": V3(0.42, 0.3, 0.24)]
-        let jobs: [String: V3] = ["farmer": V3(0.85, 0.75, 0.4), "librarian": V3(0.62, 0.16, 0.15), "cleric": V3(0.5, 0.2, 0.56),
-                                  "armorer": V3(0.18, 0.18, 0.2), "butcher": V3(0.92, 0.92, 0.9), "cartographer": V3(0.3, 0.36, 0.62),
-                                  "fisherman": V3(0.56, 0.46, 0.26), "fletcher": V3(0.42, 0.56, 0.3), "leatherworker": V3(0.46, 0.3, 0.16),
-                                  "mason": V3(0.5, 0.5, 0.52), "shepherd": V3(0.82, 0.82, 0.8), "toolsmith": V3(0.3, 0.3, 0.36),
-                                  "weaponsmith": V3(0.24, 0.24, 0.26), "nitwit": V3(0.3, 0.55, 0.3)]
-        let robe = robes[v?.type ?? "plains"] ?? V3(0.45, 0.32, 0.22), skin = V3(0.72, 0.52, 0.42)
-        var parts = [
-            Part(mn: V3(-4, 0, -3), mx: V3(-0.01, 12, 3), pivot: V3(-2, 12, 0), rotX: swing, color: robe, pattern: 4),
-            Part(mn: V3(0.01, 0, -3), mx: V3(4, 12, 3), pivot: V3(2, 12, 0), rotX: -swing, color: robe, pattern: 4),
-            box(-4, 12, -3, 8, 12, 6, robe, 4),
-            box(-4, 24, -4, 8, 10, 8, skin, 4),
-            box(-1, 26, -6, 2, 4, 2, V3(0.66, 0.46, 0.38)),                                    // nose
-            box(-6, 17, -5, 12, 4, 3, robe, 4),                                               // folded arms
-            box(-4, 30, -4.2, 8, 1, 0.3, V3(0.3, 0.2, 0.15)),                                 // brow
-        ] + eyes(28.5, -4, 1, 1.2, V3(0.2, 0.5, 0.2))
-        if let p = v?.profession, let c = jobs[p] {
-            if p == "nitwit" { parts[2].color = c } else { parts.append(box(-4.2, 4, -3.3, 8.4, 20, 0.3, c, 4)) }       // apron
-            if ["farmer", "fisherman", "fletcher", "shepherd"].contains(p) { parts.append(box(-6, 34, -6, 12, 1, 12, c, 4)); parts.append(box(-4, 34, -4, 8, 2, 8, c, 4)) }
-            if p == "librarian" || p == "cartographer" { parts.append(box(-4.5, 34, -4.5, 9, 1.5, 9, c, 4)) }
-            if p == "armorer" { parts.append(box(-4.3, 27, -4.4, 8.6, 5, 0.4, c)) }             // welding mask
-            if p == "weaponsmith" { parts.append(box(-3, 28, -4.4, 2.5, 2, 0.4, V3(0.1, 0.1, 0.1))) } // eye patch
-            if p == "cleric" { parts.append(box(-4.3, 31, -4.3, 8.6, 4, 8.6, c, 4)) }            // hood top
-        }
-        return parts
+        // Townsfolk: jointed people dressed for their trade, carrying their tool or weapon (TownsfolkModel.swift).
+        return townsfolkParts(m, swing: swing)
     case .ironGolem:
         let iron = V3(0.82, 0.8, 0.76), vine = V3(0.3, 0.55, 0.2)
         let armSwing = m.attackCooldown > 0.9 ? 1.4 : swing * 0.5

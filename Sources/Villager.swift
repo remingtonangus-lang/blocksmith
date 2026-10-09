@@ -42,6 +42,14 @@ struct VillagerData: Codable {
     var food: Int? = nil                 // food points (breeding needs 12)
     var gossip: [Int]? = nil             // what it has heard about the player: see Gossip (VillageLife.swift)
     var gossipDay: Int? = nil            // last day gossip decayed
+    // Townsfolk (Townsfolk.swift, Shops.swift): who they are and what they sell.
+    var person: String? = nil            // "Clara Whitlock"
+    var town: String? = nil              // "Cedar Ford"
+    var role: String? = nil              // shopkeeper, deputy, farmer, craftsman, worker, elder, child
+    var look: Int? = nil                 // appearance seed (skin, hair, clothes)
+    var shop: String? = nil              // ShopKind raw value
+    var stock: [Int]? = nil              // per catalogue entry, refilled daily
+    var stockDay: Int? = nil
 }
 
 enum Villagers {

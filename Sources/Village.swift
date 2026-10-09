@@ -46,7 +46,7 @@ enum Village {
         }
     }
 
-    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut }
+    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut, shop, saloon }
 
     struct Lot {
         let kind: Kind
@@ -68,6 +68,8 @@ enum Village {
         case .smithy: return (8, 7)
         case .library: return (9, 7)
         case .temple: return (5, 9)
+        case .shop: return (9, 7)
+        case .saloon: return (11, 9)
         }
     }
 
@@ -147,6 +149,9 @@ enum Village {
                                       (.library, 4), (.temple, 3), (.jobHut, 16)]
         let jobs = ["butcher", "cartographer", "fletcher", "shepherd", "mason", "leatherworker", "armorer", "fisherman", "toolsmith"]
         var haveSpecial = Set<String>()
+        // Shops line the main streets nearest the square (TownBuildings.swift): the general store and the saloon
+        // first, then the rest in a per-town order. A lot that doesn't fit leaves its shop for the next one.
+        var shopQueue = Village.shopOrder(&rng)
         for r in goodRoads {
             var s = 2
             while s < r.len - 3 {
@@ -155,6 +160,8 @@ enum Village {
                     var kind = Kind.smallHouse
                     for (k, wt) in weights { if roll < wt { kind = k; break }; roll -= wt }
                     if [.smithy, .library, .temple, .pen].contains(kind) && haveSpecial.contains("\(kind)") { kind = .smallHouse }
+                    let shopHere = s < 30 && !shopQueue.isEmpty
+                    if shopHere { kind = shopQueue[0] == .saloon ? .saloon : .shop }
                     let (w, d) = size(kind)
                     // Lot faces the road: its local v axis points away from the street.
                     let px = r.x + r.dx * s, pz = r.z + r.dz * s
@@ -175,10 +182,11 @@ enum Village {
                     // eaves ran into each other (blind critic, run 364 cherry-grove village).
                     claim(ax - nx - 2 * ux, az - nz - 2 * uz, fx + nx + 2 * ux, fz + nz + 2 * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
+                    let job = shopHere ? shopQueue.removeFirst().rawValue : jobs[rng.int(jobs.count)]
                     // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
                     // smithy's stone floor is its own bottom layer, so it sits one lower.
                     let floorY = kind == .smithy ? street : street + 1
-                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: jobs[rng.int(jobs.count)]))
+                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job))
                 }
                 s += rng.range(7, 10)
             }
@@ -289,7 +297,7 @@ enum Village {
 
     static func foundation(_ w: inout StructWriter, _ b: LB, _ m: Mats) {
         let l = b.l
-        let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : (l.kind == .bigHouse ? 13 : 9))
+        let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : ([.bigHouse, .shop, .saloon].contains(l.kind) ? 13 : 9))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
             w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
@@ -489,6 +497,8 @@ enum Village {
             b.set(&w, l.w / 2, 0, l.d - 3, g("lectern"))
             b.set(&w, l.w - 2, 3, 1, b.wallTorch(facing: 0))
             villager(&w, b, u: l.w / 2, v: 2)
+        case .shop, .saloon:
+            shopLot(&w, b, m, ShopKind(rawValue: l.job) ?? .general)
         case .temple:
             house(&w, b, m, wallH: 11, roof: false)
             b.fill(&w, 0, 11, 0, l.w - 1, 11, l.d - 1, m.foundation)
@@ -520,7 +530,7 @@ enum Village {
             w.set(ox + dx, y + 4, oz + dz, m.slab)
         } }
         w.set(ox + 3, y + 1, oz - 3, Blocks.id("bell"))
-        w.mob("villager", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) + 3.5))
+        w.mob("villager:deputy", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) + 3.5))
         w.mob("iron_golem", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) - 3.5))
         // Village animals (reference): a stray cat on the plaza; desert villages keep a camel.
         w.mob("cat", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) + 3.5))

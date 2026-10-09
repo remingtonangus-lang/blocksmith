@@ -58,7 +58,7 @@ Ward, Tide, Wayfinder, Shaper, Raiser, Host, Silence, Snout, Rib, Spire, Flow, B
 - **Mending**: ordinary word, but the enchantment is very strongly associated with the reference game.
 - **Curse of Binding / Curse of Vanishing**: generic fantasy phrasing, but the exact pair is the reference game's.
 - **Wind Burst**: generic, but a recent reference-game enchantment name.
-- **Deep Stride** (was Depth Strider) and **Village Hero** (was Hero of the Village): earlier renames that stay close to the originals.
+- **Deep Stride** (was Depth Strider): an earlier rename that stays close to the original. (Village Hero is now Friend of the Town, below.)
 - **Magmastrider**: an earlier rename of the Strider mob; still contains "strider".
 - **Iron Golem / Snow Golem**: golems are folklore, but these exact names are the reference game's mobs.
 - **Minecart**: one-word spelling popularised by the reference game ("mine cart" is the plain term).
@@ -75,3 +75,19 @@ Ward, Tide, Wayfinder, Shaper, Raiser, Host, Silence, Snout, Rib, Spire, Flow, B
 internal feedback note; docs/status/store-readiness.md has no hits. STATUS.md and docs/status/quest-port.md use reference
 names (nether, shulker, creeper...) as internal shorthand in history notes; they are not player-facing store copy. The PR #9
 "what's new" list lives on GitHub, not in the repo; check it before any store submission.
+
+## Towns of people (2026-10-09, branch claude/towns-of-people-j6qgts)
+Internal keys unchanged, so old saves load.
+
+| Was (player-visible) | Now | Where | Internal key (unchanged) | Session |
+|---|---|---|---|---|
+| Villager (mob name, captions) | Townsperson / Townsfolk; each one also has their own name ("Ada Vance") | Mob.swift spec, AudioSubtitles.swift, HudExtras.swift | `villager` | towns of people, 2026-10-09 |
+| Zombie Villager | Zombie Townsperson | Mob.swift spec, AudioSubtitles.swift ("Zombie townsperson snuffles") | `zombie_villager` | towns of people |
+| "Successfully trade with a Villager" | "Successfully trade with a Townsperson" | Advancements.swift | `adventure/trade` | towns of people |
+| "Weaken and then cure a Zombie Villager" | "... a Zombie Townsperson" | Advancements.swift | `cure_zombie_villager` | towns of people |
+| Village Hero (effect) | Friend of the Town | Effects.swift | `heroOfTheVillage` | towns of people |
+
+Names chosen for new content (checked against RDR2's cast, gangs and towns: no matches): townsfolk first names and
+surnames are common 19th-century American names (Townsfolk.swift); town names are generated from original parts
+("Dry Springs", "Juniper Crossing"); shop names are generic trades (General Store, Gunsmith, Butcher, Doctor, Stable,
+Tailor, Blacksmith, Saloon). Currency is plain dollars and cents.

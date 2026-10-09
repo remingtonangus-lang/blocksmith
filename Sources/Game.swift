@@ -92,6 +92,7 @@ final class Game {
     }
     var health = 20            // half-hearts
     var hunger = 20            // half-drumsticks
+    var townWallet = Money.start   // cents (Shops.swift: Game.money)
     var saturation: Float = 5
     var exhaustion: Float = 0
     var air: Float = 15        // seconds of breath

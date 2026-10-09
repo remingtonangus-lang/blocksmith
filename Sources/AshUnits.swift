@@ -72,6 +72,7 @@ extension Mob {
         if ash { m.ashSetup() }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
+        if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }
         return m
     }
 
