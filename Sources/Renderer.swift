@@ -191,7 +191,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         mobPipeL = try pipe("mobVS", "mobFS", blend: false)
         entityPipeL = try pipe("entityVS", "entityFS", blend: false)
         crackPipeL = try pipe("entityVS", "crackFS", blend: true)
-        skyPipeL = try pipe("skyVS", "skyFS", blend: false)
+        skyPipeL = try pipe("skyVS", "skyFastFS", blend: false)
         hollowSkyPipeL = try pipe("skyVS", "hollowSkyFS", blend: false)
         cloudBoxPipeL = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
         clouds = CloudMesh(device: device)
