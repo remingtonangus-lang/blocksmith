@@ -728,7 +728,7 @@ final class Game {
             advance(dt)
             return
         }
-        if input.tapped(KeyBinds.key(.inventory)) || (p.y && !q.y) { openInventory(); return }
+        if input.tapped(KeyBinds.key(.inventory)) || PadActions.inventoryButton(p, q, self) { openInventory(); return }
         if input.tapped(KeyBinds.key(.advancements)) { openMenu(AdvancementMenu(game: self)); return }
 
         // Look (the weapon wheel takes the sticks / mouse while open; aiming down sights slows the view)

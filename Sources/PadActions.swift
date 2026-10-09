@@ -18,6 +18,23 @@ enum PadActions {
         return sneakLatched
     }
 
+    // Y: Classic opens the inventory on press. Halo: a tap switches back to the previously selected hotbar slot
+    // (Halo's two-weapon swap), holding Y for 0.35 s opens the inventory.
+    static var curSlot = 0, prevSlot = 0
+    static var yDownAt: Double = -1
+    static func inventoryButton(_ p: PadSnapshot, _ q: PadSnapshot, _ g: Game) -> Bool {
+        if g.selected != curSlot { prevSlot = curSlot; curSlot = g.selected }
+        guard PadMap.halo else { yDownAt = -1; return p.y && !q.y }
+        if p.y && !q.y { yDownAt = g.clock }
+        if p.y, yDownAt >= 0, g.clock - yDownAt >= 0.35 { yDownAt = -1; return true }
+        if !p.y && q.y && yDownAt >= 0 {
+            yDownAt = -1
+            if prevSlot != g.selected { g.selected = prevSlot; g.equipAnim = 1; g.sfx(.click, 0.3) }
+        }
+        if !p.y { yDownAt = -1 }
+        return false
+    }
+
     // Left stick pushed fully forward for a moment starts a sprint (it ends when the stick comes back).
     static func autoSprint(_ ls: V2, _ dt: Float) -> Bool {
         guard Settings.shared.autoSprint else { forwardTime = 0; return false }
@@ -119,7 +136,11 @@ extension AimAssist {
 
     static func lookScale(_ g: Game) -> Float {
         guard g.heldGun != nil else { return 1 }
+        #if os(macOS)
+        return max(0.15, g.gunFovScale)   // Halo zoom sensitivity 1.0: on-screen speed while zoomed matches the hip
+        #else
         return powf(max(0.15, g.gunFovScale), 0.8)
+        #endif
     }
 
     static func angles(_ g: Game, _ m: Mob) -> (yaw: Float, pitch: Float, dist: Float) {

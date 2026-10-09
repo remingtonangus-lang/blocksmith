@@ -18,13 +18,19 @@ import Foundation
 // invert Y, dead zone, volume...) still live on Game; GUI scale and couch mode on HudLayout.
 final class Settings {
     static let shared = Settings()
+    #if os(macOS)
+    static let lookDeadKey = "padLookDead10", lookDeadDefault: Float = 0.10
+    #else
+    static let lookDeadKey = "padLookDead", lookDeadDefault: Float = 0.08
+    #endif
 
     // Controller
     // Look feel follows Halo Infinite's controller defaults (PadLook): sensitivity 3/3, acceleration 3, power curve.
     @Pref("padLookSensH") var lookX: Float = 3       // right stick horizontal sensitivity, 1-10
     @Pref("padLookSensV") var lookY: Float = 3       // right stick vertical sensitivity, 1-10
     @Pref("padLookAccel5") var lookAccel: Float = 3  // look acceleration at the stick's edge, 0 (off) - 5
-    @Pref("padLookDead") var lookDead: Float = 0.08  // look stick centre dead zone
+    // Mac default 0.10 (Halo-like); new key on the Mac so the old 0.08 default resets once. The Quest keeps 0.08.
+    @Pref(Settings.lookDeadKey) var lookDead: Float = Settings.lookDeadDefault  // look stick centre dead zone
     @Pref("padLookOuter") var lookOuter: Float = 0.05 // look stick max input threshold (outer dead zone)
     @Pref("padMoveOuter") var moveOuter: Float = 0.05 // move stick max input threshold
     @Pref("padAimAssist") var aimAssist = true       // slow the view over mobs and hold the mined block
@@ -71,7 +77,7 @@ final class Settings {
 
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
-        lookX = 3; lookY = 3; lookAccel = 3; lookDead = 0.08; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
+        lookX = 3; lookY = 3; lookAccel = 3; lookDead = Settings.lookDeadDefault; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
         safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false

@@ -128,6 +128,7 @@ final class PauseMenu: Menu {
         "keys": "Choose which keys walk, jump, open the inventory and more.",
         "padmap": "Move actions to other controller buttons. Prompts follow your layout.",
         "pbindreset": "Put every controller button back to the standard layout.",
+        "playout": "Halo: Y switches to your last hotbar slot, hold Y for the inventory. Classic: Y opens the inventory.",
         "bindreset": "Put every key back to the default layout.",
         "volume": "Overall sound volume.",
         "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
@@ -260,7 +261,7 @@ final class PauseMenu: Menu {
             subtitle = padBinding.map { "Press the button for \(PadMap.actions[$0]) (Menu cancels)" } ?? "Pick an action, then press its new button"
             rows = (0..<PadMap.count).map { i in
                 ("\(PadMap.actions[i]): " + (padBinding == i ? "> ? <" : PadMap.names[PadMap.map[i]]), "pbind:\(i)")
-            } + [("Reset to Defaults", "pbindreset"), ("Done", "back")]
+            } + [("Layout: \(PadMap.layoutName)", "playout"), ("Reset to Defaults", "pbindreset"), ("Done", "back")]
         case .keys:
             title = "Key Bindings"
             subtitle = binding == nil ? "Shift sneaks and Ctrl sprints on every layout" : "Press a key for \(binding!.title) (Esc cancels)"
@@ -434,6 +435,11 @@ final class PauseMenu: Menu {
             padBinding = Int(id.dropFirst(6))
             padBindArmed = g.clock
         case "pbindreset": PadMap.reset(); g.onToast?("Buttons reset to defaults")
+        case "playout":
+            #if os(macOS)
+            PadMap.halo.toggle()
+            g.onToast?(PadMap.halo ? "Halo layout: Y switches weapon, hold Y for inventory" : "Classic layout: Y opens the inventory")
+            #endif
         case _ where id.hasPrefix("bind:"):
             binding = KeyBinds.Action(rawValue: String(id.dropFirst(5)))
         case "bindreset": KeyBinds.reset(); g.onToast?("Keys reset to defaults")
@@ -682,7 +688,8 @@ enum ControlsReference {
             Glyph.rt.s + " / " + Glyph.mouseL.s + " Attack, mine",
             Glyph.lt.s + " / " + Glyph.mouseR.s + " Use, place, eat",
             PadMap.glyph(.lb).s + PadMap.glyph(.rb).s + " / " + Glyphs.key("1-9") + " Hotbar",
-            PadMap.glyph(.y).s + " / " + k(.inventory) + " Inventory",
+            (PadMap.halo ? PadMap.glyph(.y).s + " Switch weapon (hold: inventory),  " + k(.inventory) + " Inventory"
+                          : PadMap.glyph(.y).s + " / " + k(.inventory) + " Inventory"),
             PadMap.glyph(.x).s + " / " + Glyph.mouseM.s + " Pick block",
             PadMap.glyph(.ddown).s + " / " + k(.drop) + " Drop (hold: stack)",
             PadMap.glyph(.dright).s + " / " + k(.offhand) + " Swap off hand",

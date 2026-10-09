@@ -1,5 +1,14 @@
 import Foundation
 
+// LAYOUT PRESETS (Mac gamepads). "Halo" (the Mac default) follows Halo Infinite's default controller layout:
+//   A jump, B crouch (sneak; tap toggles with Sneak: Toggle), X reload / pick block, Y tap = switch weapon (back to
+//   the previously selected hotbar slot, like Halo's two-weapon swap), Y hold = inventory, L3 sprint, R3 melee,
+//   LT aim / use / place, RT fire / break, Menu pause, View camera / map (hold).
+//   LB/RB stay hotbar left/right (RB hold = weapon wheel): Halo puts grenade/equipment there, but this game carries
+//   nine slots, so the bumpers are the only fast way through them; grenades are hotbar items anyway.
+// "Classic" is the older layout: Y opens the inventory at once and nothing switches weapons. Both share the same
+// button permutation below (custom remaps sit on top of either). The Quest has no presets: halo is always false there,
+// so its Touch-controller mapping is unchanged. Switch in Options > Controller > Button Mapping > Layout.
 // Controller button remapping (Options > Controller > Button Mapping). The game reads "logical" buttons
 // (A = jump/select, B = sneak/back...); this table says which physical button drives each one. Remapping is
 // applied as the pad is read, so gameplay and menus both follow it, and prompts show the physical button.
@@ -7,8 +16,8 @@ import Foundation
 enum PadMap {
     static let names = ["A", "B", "X", "Y", "LB", "RB", "L3", "R3", "View", "D-pad Up", "D-pad Down", "D-pad Left", "D-pad Right"]
     // What each logical button does (gameplay / menus / guns / vehicles); remapping moves all of them together.
-    static let actions = ["Jump / Select", "Sneak / Back / Leave", "Pick Block / Reload", "Inventory / Quick Move", "Hotbar Left / Descend",
-                          "Hotbar Right / Weapon Wheel", "Sprint", "Melee", "Camera / World Map (hold)", "Fly", "Drop", "Commands", "Swap Off Hand"]
+    static var actions: [String] { ["Jump / Select", "Sneak / Back / Leave", "Pick Block / Reload", halo ? "Switch Weapon / Inventory (hold)" : "Inventory / Quick Move", "Hotbar Left / Descend",
+                          "Hotbar Right / Weapon Wheel", "Sprint", "Melee", "Camera / World Map (hold)", "Fly", "Drop", "Commands", "Swap Off Hand"] }
     static let glyphs: [Glyph] = [.a, .b, .x, .y, .lb, .rb, .l3, .r3, .view, .dup, .ddown, .dleft, .dright]
     static var count: Int { names.count }
 
@@ -20,8 +29,25 @@ enum PadMap {
     }()
     static var isDefault: Bool { map == Array(0..<count) }
 
+    // Halo layout on (Y tap = switch weapon, Y hold = inventory). Saved as "padLayout"; with nothing saved a Mac
+    // that already has a custom map keeps the Classic behaviour it was set up with, anything else gets Halo.
+    #if os(macOS)
+    static var halo: Bool = {
+        if let s = UserDefaults.standard.string(forKey: "padLayout") { return s == "halo" }
+        return UserDefaults.standard.array(forKey: "padMap") == nil
+    }() { didSet { UserDefaults.standard.set(halo ? "halo" : "classic", forKey: "padLayout") } }
+    #else
+    static var halo = false
+    #endif
+    static var layoutName: String { halo ? "Halo" : "Classic" }
+
     static func save() { UserDefaults.standard.set(map, forKey: "padMap") }
-    static func reset() { map = Array(0..<count); UserDefaults.standard.removeObject(forKey: "padMap") }
+    static func reset() {
+        map = Array(0..<count); UserDefaults.standard.removeObject(forKey: "padMap")
+        #if os(macOS)
+        halo = true
+        #endif
+    }
 
     // Logical `i` now uses physical `phys`; whichever logical had `phys` takes over the old one (a swap).
     static func assign(_ i: Int, _ phys: Int) {
