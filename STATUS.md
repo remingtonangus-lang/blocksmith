@@ -1,5 +1,11 @@
 # Status
 
+> **Factions (2026-10-09, task 23, quest-port + playtest):** the frigate is now the Meridian Navy (its own faction, new
+> hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; MAC gun craters citadels). Capital
+> cities (white low-rise garden cities with covered walkways). Citadels are denser on new ground (saved worlds keep
+> theirs). Post-game warships are rare; base loot gives gun/radar components; a radar and intercepted orders find
+> sites. All factions fight each other. Details: docs/status/quest-port.md "Task 23 factions" on claude/quest-port.
+
 > **World depth + final battle (2026-10-09, task 22, quest-port + playtest):** no bedrock floor (emberslate, magma,
 > tougher monsters deep down); dig through the bottom into the Deep (Dim.deep): crust, a hell band with fortresses,
 > then the Ash Vault, where the Ashguard (an original black-and-red army) holds a citadel at x 0, z 0 with motor pools,
