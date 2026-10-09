@@ -671,3 +671,16 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
   installed: adb saw no Quest.
 - Checks: `--questbugs --only voice` (10). Fix after the first CI pass: the Bug Notes row was hidden in the Quest pause
   menu along with the Mac-only rows.
+
+## Task 25b1zzz (2026-10-09): Oct 9 PM playtest (docs/playtests/2026-10-09-pm/notes.md, items 1-11)
+- Comfort: step-ups/downs are eased in the drawn eye (Sources/ViewStep.swift) for the player, every mount and every mob;
+  Renderer.cameraEye and QuestRig both use it (max 0.05-0.11 block/frame at 72 Hz vs a 1-block snap). Physics unchanged.
+- Models: horse knee was mirrored (lower leg swung off); 13 more kinds had gaps (llama ears, camel head...); all fixed.
+- World: short grass x0.11, desert cactus x0.32 and other plants cut (evidence/2026-10-09-pm/plants.md); surface monsters
+  half the cap, animal packs halved, caves kept; leather 1-3; bone meal on 64 plants incl. sugar cane (BoneMeal.swift).
+- Enchanting offers mixed per slot (Fortune/Gentle Touch show up, 2-3 enchants ~68% at level 30); 28 coined display
+  names renamed (docs/status/ip-renames.md); copper circuits 111/111 parity rows (docs/status/copper-parity.md).
+- Quest perf: 72 Hz before cutting distance, default render distance 12 (saved values < 12 raised once), world-driven
+  remesh off the frame thread, background autosave (a synchronous save flushes it first), fluid budget 2 ms.
+- Checks: `--questbugs --only pm9a|pm9b|pm9d`, `--coppertest`, `tools/namecheck.py --coined` (snap.sh),
+  `tools/quest_perf_gate.sh` (~7 min, quiet Mac). APK versionCode 85 (05dd569), quest run 37990566284 green.
