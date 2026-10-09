@@ -306,6 +306,8 @@ final class Mob {
     var flyTarget: V3?              // wailer / cinderwisp hover target
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
+    var power: Float = 1
     var faction = 0                 // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
@@ -1235,6 +1237,7 @@ final class Mob {
                 lastHurtAmount = damage
             }
         }
+        if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {

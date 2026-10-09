@@ -93,6 +93,7 @@ extension Mob {
         if cureTimer > 0 { d["cure"] = cureTimer }
         if playerBuilt { d["built"] = 1 }
         if bond != 0 { d["bond"] = bond }
+        if power != 1 { d["power"] = power }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -108,6 +109,7 @@ extension Mob {
         trap = (d["trap"] ?? 0) > 0
         hasEgg = (d["egg"] ?? 0) > 0
         canPickUp = (d["pickup"] ?? 0) > 0
+        power = d["power"] ?? 1
         if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
         cureTimer = d["cure"] ?? 0
         playerBuilt = (d["built"] ?? 0) > 0

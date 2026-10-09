@@ -13,7 +13,7 @@ final class WorldGen: TerrainGenerator {
     let s32: UInt32
     let tempN: Noise, humN: Noise, contN: Noise, eroN: Noise, weirdN: Noise
     let ridgeN: Noise, detailN: Noise, dens1: Noise, dens2: Noise
-    let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise
+    let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise, pocketNoise: Noise
     let flora: Noise, surfN: Noise
     let veinTog: Noise, veinA: Noise, veinB: Noise
     let bands: [BlockID]
@@ -29,6 +29,7 @@ final class WorldGen: TerrainGenerator {
         dens1 = Noise(seed: seed &+ 8); dens2 = Noise(seed: seed &+ 9)
         cheeseN = Noise(seed: seed &+ 10); spag1 = Noise(seed: seed &+ 11); spag2 = Noise(seed: seed &+ 12)
         noodle1 = Noise(seed: seed &+ 13); noodle2 = Noise(seed: seed &+ 14); spagMod = Noise(seed: seed &+ 15)
+        pocketNoise = Noise(seed: seed &+ 0x1A7A)
         flora = Noise(seed: seed &+ 16); surfN = Noise(seed: seed &+ 17)
         veinTog = Noise(seed: seed &+ 30); veinA = Noise(seed: seed &+ 31); veinB = Noise(seed: seed &+ 32)
         terrain = Terrain(seed: seed)
@@ -382,7 +383,7 @@ final class WorldGen: TerrainGenerator {
 
         mark(0)
         // 1. Stone / deeprock from density, bedrock floor.
-        let deep = DEEPSLATE
+        let deep = DEEPSLATE, magma = Blocks.id("magma_block")
         // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
         // each block only lerps along y and z: the same operations in the same order as Lattice.sample
         // (bit-identical, groundY relies on it) without 8 lattice loads per block.
@@ -401,15 +402,21 @@ final class WorldGen: TerrainGenerator {
             }
             for y in 0...maxTop {
                 let i = Chunk.index(lx, y, lz)
-                if y < 5 {
-                    if y == 0 || hash3(wx, y, wz, s32) % 5 >= UInt32(y) { b[i] = BEDROCK; continue }
-                }
+                // No bedrock floor: the bottom layers are always solid hot rock, and digging through layer 0 drops into
+                // the Deep below (DeepSeam.swift).
+                if y < 3 { b[i] = EMBERSLATE; continue }
                 let gy = min(Lattice.ny - 2, y >> 3)
                 let fy = Float(y - gy * 8) / 8
                 let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
                 let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
                 if y0 + (y1 - y0) * fz > 0 {
                     let yd = y - YOFF
+                    if yd < -24 {
+                        // The deeper, the hotter: emberslate creeps into the deeprock below -24 and owns it below -56,
+                        // with the odd magma block.
+                        let h = hash3(wx, y, wz, s32 ^ 0xE5B)
+                        if Int(h % 32) < -24 - yd { b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue }
+                    }
                     b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
                 }
             }
@@ -467,6 +474,7 @@ final class WorldGen: TerrainGenerator {
         carveCaves(&b, caves, bx, bz, tops, wls, cols, &aquifer)
         carveRavines(&b, bx, bz, tops, wls, &aquifer)
         drainAquifers(&b, aquifer)
+        lavaPockets(&b, bx, bz)
         supportFalling(&b, tops)
 
         mark(3)
@@ -734,6 +742,29 @@ final class WorldGen: TerrainGenerator {
         } }
     }
 
+    // Sealed lava pockets in the hot rock below -30, more of them deeper: rock that is solid on all six sides (never
+    // beside a cave or the chunk edge, so nothing spills when the chunk loads) turns to lava. Mining into one lets it out.
+    private func lavaPockets(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let top = YOFF - 30
+        for y in 4..<top {
+            let yd = y - YOFF
+            let t: Float = 0.62 - Float(-30 - yd) * 0.006          // 0.62 at -30 ... 0.42 at -64
+            for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+                let i = Chunk.index(lx, y, lz)
+                guard b[i] == EMBERSLATE || b[i] == DEEPSLATE else { continue }
+                let wx = bx + lx, wz = bz + lz
+                guard pocketNoise.noise3(Float(wx) / 9, Float(y) / 6, Float(wz) / 9) > t else { continue }
+                var sealed = true
+                for o in [1, -1, CS, -CS, CSQ, -CSQ] {
+                    let n = b[i + o]
+                    if !(Blocks.opaque[Int(n)] || n == LAVA) { sealed = false; break }
+                }
+                if sealed { b[i] = LAVA }
+            }
+            }
+        }
+    }
+
     // Aquifer water stays only where it is held: a cell with open air beside or below it (or the chunk edge, whose
     // far side isn't known here) drains to air, and so does everything that leaned on it. What is left are pools in
     // real basins: no flat 16-block water slabs cut off by rock plugs at chunk edges, no stone plates left under the
@@ -843,7 +874,7 @@ final class WorldGen: TerrainGenerator {
             // fell at the first block update (gencheck run 357: 623 gravel-over-air blocks in 288 chunks).
             if ore == GRAVEL && ly > 1 && b[Chunk.index(lx, ly - 1, lz)] == AIR { continue }
             if host == STONE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID { b[i] = ore }
-            else if host == DEEPSLATE || host == TUFF_ID { b[i] = deepOre }
+            else if host == DEEPSLATE || host == TUFF_ID || host == EMBERSLATE { b[i] = deepOre }
         }
     }
 

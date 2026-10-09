@@ -550,6 +550,21 @@ enum Snapshot {
             pos = V3(pos.x, Float(YOFF + 70) + (Float(arg("--up") ?? "") ?? 0), pos.z)
             game.player.pos = pos
         }
+        // `--cavey Y`: stand in the nearest open cave space around internal y YOFF + Y (displayed y Y on the surface).
+        if let cy = arg("--cavey").flatMap({ Int($0) }) {
+            let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z)), y0 = cy + YOFF
+            func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+                world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.opaque[Int(world.block(x, y - 1, z))]
+            }
+            search: for r in stride(from: 0, through: 64, by: 2) { for dz in stride(from: -r, through: r, by: 2) { for dx in stride(from: -r, through: r, by: 2) where max(abs(dx), abs(dz)) == r {
+                for dy in [0, -2, 2, -4, 4, -6, 6, -8, 8] where open(x0 + dx, y0 + dy, z0 + dz) {
+                    pos = V3(Float(x0 + dx) + 0.5, Float(y0 + dy) + (Float(arg("--up") ?? "") ?? 0), Float(z0 + dz) + 0.5)
+                    break search
+                }
+            } } }
+            game.player.pos = pos
+            print(String(format: "cavey: standing at %.0f %.0f %.0f", pos.x, pos.y - Float(YOFF), pos.z))
+        }
         // Structure mobs (crystals, boarlings...) that generation queued.
         for (name, mp) in world.pendingMobs {
             if let k = MobKind.named(name) { game.mobs.mobs.append(Mob(k, at: mp)) }
