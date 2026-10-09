@@ -610,5 +610,8 @@ One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first 
   Quest (8 GB Mac / Quest frame rate budget); the realism comes from light, haze and colour instead.
 - No IDs changed, so no save migration. Checks: build clean, 785-sound level check, snapshots judged (day, forest,
   sunset, aerial ocean, night; Fast + Fancy). `[fast: --questbugs]` timed out at CI's 24-minute focus limit (the full
-  suite has outgrown it; run it with `--only r3|deep|factions` on CI). Quest CI 37912600891 green, APK on quest-dist
+  suite has outgrown it); the heavy lane (run 37916232494, tours) ran questbugs: 0 failures. Its other failures are
+  pre-existing (playthrough obsidian/gather/stronghold, agents, padtest worlds menu, physicstest, rulescheck) except
+  perf ships.edit_ms_mean 0.5 -> 2.0 ms (unrelated ship-edit bench, likely runner noise). The Fast sky dome costs
+  ~0.8 ms GPU at 800p on the runner; playtest branch fast lane green. Quest CI 37912600891 green, APK on quest-dist
   (310d4a1). Not installed: adb saw no Quest. Also on claude/blocksmith-playtest (quest shaders dropped there).
