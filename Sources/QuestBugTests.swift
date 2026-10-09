@@ -485,7 +485,7 @@ enum QuestBugTests {
             let gunSet: Set<Ench> = [.extendedMag, .quickReload, .stability, .penetration, .incendiary]
             for seed in 0..<300 {
                 var r = SRng(UInt64(seed + 1))
-                if Enchant.select(item: rifle, level: Int.random(in: 1...30), rng: &r).contains(where: { gunSet.contains($0.0) }) { tableGun = true }
+                if Enchant.select(item: rifle, level: 1 + seed % 30, rng: &r).contains(where: { gunSet.contains($0.0) }) { tableGun = true }
                 if Enchant.select(item: sword, level: 30, rng: &r).contains(where: { gunSet.contains($0.0) }) { swordGun = true }
             }
             check(tableGun && !swordGun, "r3 gun ench: table enchants rifles with gun enchantments (sword never: \(!swordGun))")
