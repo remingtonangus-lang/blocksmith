@@ -300,7 +300,7 @@ final class SoundBank {
     // Sounds worth having ready before the first frame (rendered first by the prewarm thread).
     static var commonSounds: [Snd] {
         var s: [Snd] = []
-        for m in [SoundMat.stone, .dirt, .wood, .plant, .sand, .gravel, .snow] { s += [.step(m), .hit(m), .breakBlock(m), .place(m)] }
+        for m in [SoundMat.grass, .stone, .dirt, .wood, .leaves, .plant, .sand, .gravel, .snow] { s += [.step(m), .hit(m), .breakBlock(m), .place(m)] }
         s += [.click, .open, .uiBack, .pickup, .splash, .land, .hurt, .eat, .attack, .attackSweep, .doorOpen, .doorClose, .chestOpen, .chestClose, .xp, .levelUp, .bow,
               .fireLoop, .waterLoop, .lavaLoop, .rain, .underwaterLoop, .caveAmbience, .birdCall, .caveDrip, .netherMood, .thunder, .explode]
         for k in [MobKind.cow, .sheep, .chicken, .pig, .zombie, .skeleton, .creeper, .spider, .enderman, .villager] {
