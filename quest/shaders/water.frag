@@ -18,16 +18,16 @@ layout(location = 0) out vec4 outColor;
 // broken shoreline foam, rain rings, tumbling side faces, and the surface seen from below (refracted sky, total
 // internal reflection). Alpha blending carries it: out = premultiplied colour / A, A = 1 - (1 - fresnel) x transmittance.
 
-// The sky along a direction (sky.frag's dome without the night band): what the surface mirrors.
+// The sky along a direction, as the Mac's Fancy water mirrors it (VibrantShaders skyAlong): the hazy fog colour at the
+// horizon (so far water fades pale into the haze, not a dark band) up to a deeper blue overhead, plus the sun's disc.
+// (It used the sky dome's horizon/zenith colours: the reflection read darker and more saturated than the Mac's.)
 vec3 skyAlong(vec3 d) {
     if (u.misc.x > 1.5) { return u.horizon.rgb; }
     float h = clamp(d.y * 1.25, 0.0, 1.0);
     h = h * h * (3.0 - 2.0 * h);
-    vec3 col = mix(u.horizon.rgb, u.zenith.rgb, h);
+    vec3 col = mix(fogColorAlong(d), u.fogColor.rgb * vec3(0.45, 0.6, 0.92), h);
     float sd = clamp(dot(d, u.sunDir.xyz), 0.0, 1.0);
-    float band = 1.0 - clamp(abs(d.y) * 3.0, 0.0, 1.0);
-    col += vec3(1.0, 0.55, 0.25) * pow(sd, 5.0) * u.horizon.w * (0.35 + 0.65 * band);
-    col += vec3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * u.params.y;
+    col += vec3(1.0, 0.95, 0.85) * pow(sd, 600.0) * 6.0 * u.params.y;
     return col;
 }
 
@@ -59,7 +59,7 @@ void main() {
                + (vec2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11;
         g *= 0.85 + 0.1 * u.waves.x;                                       // choppier as the sea gets up
         // Ripples a pixel can't resolve alias into contour bands on far water: fade them.
-        g *= 1.0 - 0.8 * smoothstep(24.0, 96.0, oDist);
+        g *= 1.0 - 0.8 * smoothstep(32.0, 128.0, oDist);
         if (u.waves.y > 0.05 && oDist < 32.0) {
             // Rain: expanding drop rings, one per half-block cell at random times.
             vec2 cell = floor(wp.xz * 2.0);
@@ -118,7 +118,7 @@ void main() {
         // Sun glint: a tight HDR core and a soft sheen.
         vec3 hv = normalize(u.sunDir.xyz - v);
         float nh = clamp(dot(n, hv), 0.0, 1.0);
-        vec3 sp = sunC * (pow(nh, 500.0) * 4.0 + pow(nh, 70.0) * 0.18) * sunVis * (1.0 - foam);
+        vec3 sp = sunC * (pow(nh, 500.0) * 7.0 + pow(nh, 70.0) * 0.18) * sunVis * (1.0 - foam);
         pm += sp;
         A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
     } else {
