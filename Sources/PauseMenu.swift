@@ -143,7 +143,7 @@ final class PauseMenu: Menu {
         "difficulty": "How much damage mobs do and whether hunger can kill.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
-        "bugnotes": "Speak bugs while playing; they are saved to Documents/Blocksmith/BugNotes with a screenshot.",
+        "bugnotes": BugNotes.hint,
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
@@ -243,8 +243,10 @@ final class PauseMenu: Menu {
                         ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
-                        ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
+                if BugNotes.available {
+                    rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
+                }
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
                         ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),

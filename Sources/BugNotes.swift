@@ -16,6 +16,8 @@ final class BugNotes {
     enum Mode: Int { case off = 0, always = 1, pushToTalk = 2 }
     static let names = ["Off", "Always Listening", "Push-to-Talk"]
     static let pttKey: UInt16 = 98                  // F7
+    static let available = true
+    static let hint = "Speak bugs while playing; they are saved to Documents/Blocksmith/BugNotes with a screenshot."
 
     static var dir: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Blocksmith/BugNotes", isDirectory: true)
