@@ -78,7 +78,7 @@ final class DeepGen: TerrainGenerator {
         let bx = cx * CS, bz = cz * CS
         let rock = EMBERSLATE, lava = LAVA, glow = LAMP
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
-        let gravel = GRAVEL, soulSoil = Blocks.id("soul_soil")
+        let soulSoil = Blocks.id("soul_soil"), road = Blocks.id("polished_blackstone")
         let gold = Blocks.id("deepslate_gold_ore"), diamond = Blocks.id("deepslate_diamond_ore"), debris = Blocks.id("ancient_debris")
         var floors = [Int](repeating: 0, count: CSQ), ceils = [Int](repeating: 0, count: CSQ)
         for lz in 0..<CS { for lx in 0..<CS {
@@ -102,7 +102,7 @@ final class DeepGen: TerrainGenerator {
                 var v = rock
                 if y == f && !solidColumn {
                     let m = matN.noise2(Float(wx) / 19, Float(wz) / 19)
-                    v = river ? magma : (m > 0.35 ? basalt : (m < -0.4 ? gravel : (h % 9 == 0 ? soulSoil : blackstone)))
+                    v = river ? magma : (AshWar.isRoad(wx, wz) ? road : (m > 0.35 ? basalt : (m < -0.45 ? soulSoil : blackstone)))
                 } else if y == c && !solidColumn {
                     v = matN.noise2(Float(wx) / 23 + 50, Float(wz) / 23) > 0.2 ? basalt : blackstone
                 } else if solidColumn && y > f && y < c {

@@ -8,6 +8,46 @@ enum DeepTests {
         floorMigration(check)
         deepWorld(check)
         seam(game, check)
+        sites(check)
+    }
+
+    // The Ashguard's sites: the citadel at 0, 0 with its marks, lamps, loot and garrison; roads along both axes that
+    // lead to it from anywhere; patrol camps out in the far vault; loot tables that only name real items.
+    static func sites(_ check: (Bool, String) -> Void) {
+        let g = DeepGen(seed: 12345)
+        guard let sc = g.structures else { check(false, "deep: the Deep has structures"); return }
+        let hq = sc.nearest("ash_hq", x: 500, z: -300)
+        check(hq.map { $0.anchor.x == 0 && $0.anchor.z == 0 } ?? false, "deep: the Ashguard citadel stands at x 0, z 0")
+        var count: [BlockID: Int] = [:], chests = 0
+        var mobs: [String] = []
+        for cz in -3...2 { for cx in -3...2 {
+            var b = g.generate(cx: cx, cz: cz)
+            let (ents, ms) = sc.place(into: &b, cx: cx, cz: cz)
+            chests += ents.count
+            mobs += ms.map { $0.0 }
+            for v in b { count[v, default: 0] += 1 }
+        } }
+        let marks = count[Blocks.id("ash_mark")] ?? 0, lamps = count[Blocks.id("ash_lamp")] ?? 0, walls = count[Blocks.id("ash_concrete")] ?? 0
+        check(marks >= 8 && lamps >= 60 && walls > 3000 && chests >= 6,
+              "deep: the citadel is built (\(walls) ashcrete, \(marks) ember marks, \(lamps) lamps, \(chests) chests)")
+        let tanks = mobs.filter { $0.hasPrefix("ash_tank") }.count, troops = mobs.filter { $0.contains("@ash") }.count
+        check(mobs.contains { $0.hasPrefix("ash_marshal") } && tanks >= 4 && troops >= 15,
+              "deep: the citadel's garrison: the Marshal, \(tanks) tanks, \(troops) soldiers (\(mobs.count) units)")
+        let road = Blocks.id("polished_blackstone")
+        let far = [(0, 1500), (-2200, 0), (1, -900)].map { (x, z) -> Bool in
+            let b = g.generate(cx: floorDiv(x, CS), cz: floorDiv(z, CS))
+            return b[Chunk.index(mod(x, CS), g.floorY(x, z), mod(z, CS))] == road
+        }
+        check(!far.contains(false), "deep: the axis roads run on through the far vault (\(far))")
+        var camps = 0
+        for rz in -6...6 { for rx in -6...6 where AshWar.camp(regionX: rx, regionZ: rz) != nil { camps += 1 } }
+        check(camps > 60, "deep: patrol camps across the far vault (\(camps) in 13 x 13 regions)")
+        var missing: [String] = []
+        for t in ["ash_armory", "ash_supply", "ash_fuel", "ash_command"] {
+            guard let e = Loot.tables[t] else { missing.append(t); continue }
+            for (n, _, _, _) in e.entries where !Items.has(String(n.split(separator: "@")[0])) { missing.append(n) }
+        }
+        check(missing.isEmpty, "deep: Ashguard loot tables name real items (missing: \(missing))")
     }
 
     // The Deep's layers: molten core, vault floor, the open vault, crust, hell band, upper crust; no bedrock anywhere;
