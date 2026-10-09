@@ -30,3 +30,6 @@ BenchRoutes.swift
 InputMatrix.swift
 WorldAudit.swift
 PlaytestPM9ATests.swift
+PM9DTests.swift
+PlaytestPM9BTests.swift
+CopperTests.swift

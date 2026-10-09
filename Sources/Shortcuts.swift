@@ -40,7 +40,7 @@ extension Game {
     }
 
     func shortcutTeleport(_ key: String) {
-        guard dim.dim == .overworld else { onToast?("Shortcuts work in the overworld"); return }
+        guard dim.dim == .overworld else { onToast?("Shortcuts work on the Surface"); return }
         if key == "spawn" {
             shortcutLand(Int(spawnPoint.x), Int(spawnPoint.z), on: spawnPoint)
             onToast?("Back at spawn")

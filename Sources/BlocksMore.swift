@@ -38,10 +38,10 @@ extension BlockRegistry {
         }
 
         // Lush caves.
-        model("big_dripleaf", "Big Dripleaf", ["big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top"],
+        model("big_dripleaf", "Big Pondleaf", ["big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top", "big_dripleaf_top"],
               [Box(0, 15, 0, 16, 16, 16), Box(7, 0, 7, 9, 15, 9, tex: t6("big_dripleaf_stem"))], h: 0.1, tool: .axe, snd: .plant)
-        cross("big_dripleaf_stem", "Big Dripleaf Stem", hidden: true)
-        cross("small_dripleaf", "Small Dripleaf")
+        cross("big_dripleaf_stem", "Big Pondleaf Stem", hidden: true)
+        cross("small_dripleaf", "Small Pondleaf")
         cross("spore_blossom", "Spore Blossom")
         cross("hanging_roots", "Hanging Roots")
         var lichen = BlockDef("glow_lichen", "Glow Lichen")
@@ -160,8 +160,8 @@ extension BlockRegistry {
         wire.boxes = [Box(0, 1, 7, 16, 2, 9)]; wire.hardness = 0; wire.hidden = true; wire.skyStop = false
         add(wire)
         // Plants of the snuffler era.
-        cross("torchflower", "Torchflower")
-        for s in 0..<2 { cross(s == 0 ? "torchflower_crop" : "torchflower_crop[1]", "Torchflower Crop", tex: "torchflower_crop\(s)", group: "torchflower_crop", hidden: true) }
+        cross("torchflower", "Flarebloom")
+        for s in 0..<2 { cross(s == 0 ? "torchflower_crop" : "torchflower_crop[1]", "Flarebloom Crop", tex: "torchflower_crop\(s)", group: "torchflower_crop", hidden: true) }
         cross("pitcher_plant", "Pitcher Plant")
         for s in 0..<5 { cross(s == 0 ? "pitcher_crop" : "pitcher_crop[\(s)]", "Pitcher Crop", tex: "pitcher_crop\(min(s, 3))", group: "pitcher_crop", hidden: true) }
         // Archaeology and proving halls.
