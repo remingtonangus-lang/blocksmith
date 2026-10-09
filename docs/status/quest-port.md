@@ -531,3 +531,29 @@ One commit per item (`git log --grep "store-quality"`). Mac worlds backed up fir
 - Checks: Quest CI run 37875068649 green (VR reclined checks pass), APK versionCode 73 on quest-dist (final: run 37878386108, versionCode 74, commit 291e838); Mac CI fast lane
   questbugs 0 failures; mobtests 0 failures; padtest new checks pass. Not installed: adb saw no Quest.
 - Note: a subagent once ran `Blocksmith --mobtests` without --snapshot, which opens the GUI game; use `./snap.sh NAME --mobtests`.
+
+## Task 22 world depth + final battle (2026-10-09)
+One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first to
+`~/Library/Application Support/Blocksmith/Backups/all-worlds-before-task22-depth-20261009`; no block/item IDs changed
+(the old bedrock floor in saved surface chunks is migrated on load; DeepTests load every saved Mac world).
+- 1 No bedrock floor: below y -24 emberslate takes over with magma and sealed lava pockets; monsters deep down are
+  tougher (Mob.power, saved: damage taken / power, dealt x power).
+- 2 The Deep (Dim.deep, DIM-2): a 384-tall dimension stacked under the surface. Dig through the surface floor and you
+  carry on at its top; climb out of its top to come back. Layers top-down: upper crust, a hell band (EmberGen at base
+  200, Emberdeep fortresses), lower crust, the Ash Vault (open ~100-block cavern, pillars, lava rivers, lumenstone
+  roof), molten core. Vault updrafts give slow falling on long drops. F3 y continues below -64.
+- 4a The Ashguard's sites (AshSites.swift): citadel at x 0, z 0 of the vault (walls, towers, command bunker, barracks,
+  motor yard, gun pits), staging column, motor pools, fuel depots, supply hubs, artillery batteries, eight pillbox
+  outposts on a 470 ring, patrol camps beyond; roads along both axes and a ring road. Black ashcrete/plating with red
+  lamps and ember marks; no real insignia anywhere.
+- 4b The fight (AshUnits.swift, AshWar.swift): Cinder tanks (close to 12-26 blocks, 0.6 s tell + muzzle glow before
+  the main gun, coaxial MG; 1.6x damage from behind), half-tracks (circle, pintle MG), field guns (high arc on whatever
+  any unit spotted, helpless inside 20 blocks), trucks (fuel trucks explode), Ashguard soldiers (Steelhold AI in
+  black/red, faction saved), the Ash Marshal (boss bar; marked barrages: a red flare 2 s before each shell; calls four
+  guards at 2/3 and 1/3 health). His death is the victory: the army stands down, an epilogue scrolls, a lift plate in
+  the command bunker carries you to your spawn. Advancements: Bottom of the World, The Vault Below, Tank Buster,
+  Ashes to Ashes. In the Deep a compass points to the citadel. Balance: worst single hit on an unarmoured player 11.
+- Checks: `--questbugs --only deep` (layers, seam, sites, war: tank/half-track/field gun engage, brew-up + salvage,
+  barrage + guard, victory, stand-down, save round trip, lift); full questbugs 0 failures; mobtests + posecheck 0.
+- Perf notes: idle Ashguard vehicles more than 90 blocks away skip their AI; shells from Ashguard guns never break
+  blocks and spare Ashguard units (Game.ashQuiet).
