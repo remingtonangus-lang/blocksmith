@@ -610,6 +610,15 @@ final class Playthrough {
 
         // Obsidian (lava + water) needs the diamond pickaxe.
         section("obsidian + portal")
+        // Ore on the bottom layer: digging next to it can open the floor into the Deep (task 22); the script carried
+        // on down there with the Deep's generator (lava placed on its roof at y 383: store audit).
+        if game.dim.dim != .overworld {
+            info("fell into \(game.dim.dim) while mining; back to the surface")
+            game.changeDimension(to: .overworld, at: game.spawnPoint)
+        }
+        // Home's chunks may have unloaded while the bot mined far off: the lava went into an unloaded column (store audit).
+        game.player.pos = V3(Float(home.x) + 0.5, Float(world.topY(home.x, home.z) + 1), Float(home.z) + 0.5)
+        _ = world.loadSync(center: game.player.pos, radius: 3)
         let op = IVec3(home.x - 3, world.topY(home.x - 3, home.z + 3) + 1, home.z + 3)
         world.setBlock(op.x, op.y, op.z, LAVA)
         world.setBlock(op.x, op.y + 1, op.z, WATER)
@@ -798,7 +807,9 @@ final class Playthrough {
         guard let sh = world.gen.structures?.nearest("stronghold", x: Int(game.player.pos.x), z: Int(game.player.pos.z)) else {
             check(false, "worldgen: a stronghold exists"); return
         }
-        let shd = simd_length(V2(Float(sh.anchor.x), Float(sh.anchor.z)))
+        // The ring is measured from the origin, so the nearest to the origin (the bot may be thousands of blocks out).
+        let sh0 = world.gen.structures?.nearest("stronghold", x: 0, z: 0) ?? sh
+        let shd = simd_length(V2(Float(sh0.anchor.x), Float(sh0.anchor.z)))
         check(shd > 1100 && shd < 3000, "worldgen: nearest stronghold \(Int(shd)) blocks from the origin (first ring 1280-2816)")
         // Throw one: it flies toward the stronghold.
         _ = hold("ender_eye")
