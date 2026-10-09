@@ -428,6 +428,17 @@ enum QuestSim {
                 sim.hands[1].aimRot = raised; sim.hands[1].gripRot = raised
             }
             try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_held.png"))
+            // Natural carry pose (hand at the hip, pointing ahead): the sword and the rifle as a player sees them.
+            for (key, name) in [("iron_sword", "_carry_sword.png"), ("gun_rifle", "_carry_gun.png")] {
+                game.inventory.held = ItemStack(Items.id(key), 1)
+                let carry = simd_quatf(angle: -0.25, axis: V3(1, 0, 0))
+                frames(3) { _ in
+                    idleHands()
+                    sim.hands[1].aimPos = sim.headPos + V3(0.2, -0.45, -0.3); sim.hands[1].gripPos = sim.hands[1].aimPos
+                    sim.hands[1].aimRot = carry; sim.hands[1].gripRot = carry
+                }
+                try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: name))
+            }
             (game.inventory.held, QuestSettings.swingMode) = keep
         }
         // Getting hurt: a red glow at the edges of the view (not a tinted HUD panel).

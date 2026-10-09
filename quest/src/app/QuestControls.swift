@@ -755,7 +755,7 @@ final class QuestControls {
         let k = Items.key(held.item)
         let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
         let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
-        return (big ? 0.42 : (tool ? 0.36 : 0.16), big || tool)
+        return (big ? 0.55 : (tool ? 0.47 : 0.2), big || tool)          // x1.3 (store pass: still read small)
     }
 
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
@@ -904,8 +904,8 @@ final class QuestControls {
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
             guard cap > 1024 else { return }
-            // Real size in the hand (rifle ~0.9 m, sidearm ~0.25 m): 2.4x the screen model. Empty: no magazine, red light.
-            let gk: Float = 2.4
+            // Larger than life (rifle ~1.2 m, sidearm ~0.33 m): 3.2x the screen model. Empty: no magazine, red light.
+            let gk: Float = 3.2
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
                                           rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, into: ptr)
             let ads = V3(0, -0.085, -0.44)
@@ -926,24 +926,30 @@ final class QuestControls {
         if let b = held.def.block, !Blocks.flatIcon(b) {
             let t = Blocks.tint[Int(b)]
             let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-            wr.cube(center: .zero, half: 0.06, yaw: 0, block: b, light: light, tint: tint)
+            wr.cube(center: .zero, half: 0.085, yaw: 0, block: b, light: light, tint: tint)
             for i in 0..<wr.n {
                 let v = ptr[i].pos
-                let w = rot.act(V3(v.x, v.y, v.z) + V3(0, 0.02, -0.09)) + pos
+                let w = rot.act(V3(v.x, v.y, v.z) + V3(0, 0.03, -0.11)) + pos
                 ptr[i].pos = V4(w.x, w.y, w.z, v.w)
             }
         } else {
             let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
-            let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up = rot.act(simd_normalize(V3(0, 1, 0.15)))
-            let side = rot.act(V3(1, 0, 0))
-            // Larger than life again (Remington, v61: real size read too small): a sword's icon diagonal ~1.2 m, other
-            // tools / bows ~1 m, everything else a 32 cm icon.
+            let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up0 = rot.act(simd_normalize(V3(0, 1, 0.15)))
+            let side0 = rot.act(V3(1, 0, 0))
+            // The flat face is rolled ~40 degrees toward the eye (above and inside the hand): held straight it was seen
+            // almost edge-on and read as a thin sliver. The top leans outward, away from the face.
+            let sg: Float = aimHand == 0 ? -1 : 1, ca: Float = 0.766, sa: Float = 0.643
+            let side = side0 * ca - up0 * (sa * sg), up = up0 * ca + side0 * (sa * sg)
+            // Larger than life (Remington, v61 and the store pass: real size read too small): a sword's icon diagonal
+            // ~1.55 m, other tools / bows ~1.3 m, everything else a 40 cm icon.
             // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
             let (h, tool) = heldSize()
             let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
-            for (i, o) in [Float(0), 0.05 * h].enumerated() {
-                wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 ? 1 : 0.7))
+            // Five stacked layers one texel (h/8) thick: a solid object from any angle, not a paper cut-out.
+            for i in 0..<5 {
+                let o = (Float(i) - 2) * h / 32
+                wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 || i == 4 ? 1 : 0.62))
             }
         }
         app.scene.commit(off, wr.n, EntityVert.self)
