@@ -28,8 +28,10 @@ Edits: Villager.swift (VillagerData fields, all optional/Codable), Mob.swift (AI
   priced; shop sizes; prices rise with tiers; no buy-craft-sell or buy-smelt-sell profit over every recipe at the price
   bounds; pricing refusal; buy/sell/service round trips; every shop message and name fits its line; nothing drawn
   outside the panel for 8 shops x 2 tabs x every scroll; 60 named townsfolk; a keeper minds the counter in shop hours;
-  every role has a full model; an armed townsperson fights a zombie; hurting one angers the deputy and the child runs;
-  3 generated towns hold all 8 shop kinds, deputies and a sign per shop.
+  every role has a full model; no shop -> emerald barter -> shop profit (cheapest emerald from shop goods vs the best
+  emerald offer sold back, at the best multipliers; shops neither buy nor sell emeralds); an armed townsperson fights a zombie; hurting one angers the deputy and the child runs;
+  3 generated towns hold all 8 shop kinds, deputies and a sign per shop; every townsperson and keeper spawns on a
+  floor with head room; hitting a townsperson already fighting you costs no more standing.
 - `questcheck --questsim OUT.png`: talking to a storekeeper opens the shop on the VR panel, B closes it; OUT_shop.png.
 - `questcheck --render R.png --golden DIR`: town.png (aerial) and town_shop.png (a general store front).
 - Evidence: docs/status/evidence/2026-10-09/towns_sheet.jpg (left eye of the VR shop panel, town_shop, town).
@@ -43,3 +45,15 @@ Edits: Villager.swift (VillagerData fields, all optional/Codable), Mob.swift (AI
 4. A shop with no keeper, no sign, or a door/counter you cannot reach -> towns check (3 seeds of towns), structcheck
    walkability on Mac CI; keeper sleeps in the shop's own bed.
 5. Old saves break (missing fields) -> VillagerData fields optional; money defaults to $5.00 when absent.
+
+## Verifier pass (independent Opus subagent, 2026-10-09) and what changed
+- Fixed: emerald barter money loop (9 glass bottles bought for $0.45 bartered for an emerald the general store bought
+  at $3.00). Shops no longer trade emeralds; bottles, paper and books repriced; the barter check above guards it.
+- Fixed: keepers spawned on the back shelves (gunsmith inside iron bars) and the shop bed went through the back wall.
+  Counter moved a row forward; keeper row and fittings row are separate; spawn floor/head-room check added.
+- Fixed: self-defence against an angry townsperson kept costing standing until the whole town turned hostile; a
+  pointed gun now costs standing once a minute per person, not every 2.5 s.
+- Fixed: rotten flesh sold for $0.00 at the worst standing (refused now); the shop closes at closing time or when
+  the keeper lies down; darker text on the shop panel; the doctor's half bed is a couch; two surnames swapped.
+- Known: towns generated in a world before this change keep their old buildings (no shops or deputy); new chunks get
+  towns. "Qty: Max" buys up to one stack.

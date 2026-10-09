@@ -38,7 +38,7 @@ extension Village {
         for u in max(0, l.w / 2 - 2)...min(l.w - 1, l.w / 2 + 2) { b.set(&w, u, wallH - 1, -1, m.slab) }
         sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])
         // Inside: the counter, the keeper behind it, the bed in the back corner, light.
-        let cv = l.d - 3                                   // counter row
+        let cv = l.d - 4                                   // counter row: the keeper behind it (cv + 1), fittings at the back (d - 2)
         let counter = blk("stripped_\(Blocks.key(m.log).replacingOccurrences(of: "stripped_", with: ""))", m.planks)
         for u in 1...(l.w - 3) { b.set(&w, u, 0, cv, counter) }
         b.set(&w, l.w / 2 - 1, 1, cv, blk("lantern", AIR))
@@ -49,7 +49,7 @@ extension Village {
         let (x, z) = world(l, l.w / 2, cv + 1)
         w.mob("villager:shop_\(k.rawValue)", V3(Float(x) + 0.5, Float(l.y), Float(z) + 0.5))
         // A townsperson or two about the place (customers by day, sleeping in town at night).
-        if saloon { villager(&w, b, u: 3, v: 2) }
+        if saloon { villager(&w, b, u: l.w / 2, v: 3) }      // between the two tables
     }
 
     static func bandColor(_ k: ShopKind) -> String {
@@ -84,7 +84,7 @@ extension Village {
             for u in 3...(l.w - 2) { b.set(&w, u, 0, back, g("bookshelf")); b.set(&w, u, 1, back, g("white_wool")) }
             b.set(&w, l.w / 2, 3, 0, g("red_wool"))                      // a red cross on the front
             b.set(&w, l.w / 2 - 1, 3, 0, g("white_wool")); b.set(&w, l.w / 2 + 1, 3, 0, g("white_wool"))
-            b.set(&w, l.w - 2, 0, 1, g("white_bed"))
+            b.set(&w, l.w - 2, 0, 1, g("white_wool")); b.set(&w, l.w - 2, 1, 1, g("white_carpet"))   // an examining couch
         case .stable:
             for u in 3...(l.w - 2) { b.set(&w, u, 0, back, g("hay_block")); b.set(&w, u, 1, back, u % 2 == 0 ? g("hay_block") : AIR) }
             b.set(&w, l.w - 2, 0, 1, g("hay_block")); b.set(&w, l.w - 2, 1, 1, g("hay_block"))

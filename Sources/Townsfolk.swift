@@ -33,6 +33,7 @@ struct TownState {
     var mealSpot: V3?
     var mealSearch: Float = 0
     var eating = false
+    var aimMemory: Float = 0        // > 0: already offended by a pointed gun (no further reputation loss)
 }
 
 enum Townsfolk {
@@ -47,10 +48,10 @@ enum Townsfolk {
     static let women: Set<String> = ["Ada", "Beulah", "Clara", "Delia", "Edna", "Etta", "Flora", "Hattie", "Ida", "Josephine",
                                      "Lena", "Lottie", "Mabel", "Minnie", "Nell", "Opal", "Pearl", "Ruth", "Sophronia", "Viola",
                                      "Willa", "Cora", "Iris", "Marian", "Rosalie"]
-    static let surnames = ["Ashby", "Bramwell", "Calloway", "Dunmore", "Ellery", "Fairweather", "Gaskell", "Hale", "Ingram",
+    static let surnames = ["Ashby", "Bramwell", "Calloway", "Dunmore", "Ellery", "Fairweather", "Gartside", "Hale", "Ingram",
                            "Jessup", "Kettering", "Lowell", "Merriweather", "Nash", "Oakes", "Pruitt", "Quill", "Ridley",
                            "Stroud", "Thorne", "Underhill", "Vance", "Whitlock", "Yardley", "Burke", "Coffey", "Dawes",
-                           "Fenwick", "Holloway", "Mercer", "Pickett", "Rowe", "Tillman", "Wainwright"]
+                           "Fenwick", "Holloway", "Merriman", "Pickett", "Rowe", "Tillman", "Wainwright"]
     static let townFirst = ["Cedar", "Copper", "Dry", "Elk", "Flint", "Gold", "Hollow", "Iron", "Juniper", "Lone", "Mill",
                             "Mesa", "Pine", "Red", "Salt", "Silver", "Stone", "Thistle", "Willow", "Wolf", "Ash", "Bitter",
                             "Clear", "Rook", "Sage"]
@@ -236,6 +237,7 @@ extension Mob {
     func townReact(_ dt: Float, _ g: Game) -> Bool {
         town.handsUp = max(0, town.handsUp - dt)
         town.greetCooldown = max(0, town.greetCooldown - dt)
+        town.aimMemory = max(0, town.aimMemory - dt)
         guard g.alive, g.menu == nil, var v = villager else { return false }
         let to = g.player.eye - eye
         let d = simd_length(to)
@@ -246,7 +248,8 @@ extension Mob {
             if aim > 0.9975 && g.world.canSee(g.player.eye, eye) {
                 if town.handsUp <= 0 {
                     if g.clock - Townsfolk.townLastLine > 2 { Townsfolk.say(g, self, ["Easy! Easy now!", "Don't shoot!", "Put that away, mister."][Int(Rand.int(in: 0...2))]) }
-                    v.addGossip(.minorNeg, 2); villager = v
+                    if town.aimMemory <= 0 { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
+                    town.aimMemory = 60
                 }
                 town.handsUp = 2.5
             }

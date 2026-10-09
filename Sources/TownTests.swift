@@ -89,6 +89,35 @@ enum TownTests {
             if Float(a) * Economy.maxSellMult >= Float(a) * Economy.minBuyMult { loops.append("resell \(Items.key(it))") }
         }
         check(loops.isEmpty, "economy: no buy-craft-sell profit (\(checked) paths checked)" + (loops.isEmpty ? "" : ": " + loops.joined(separator: ", ")))
+        barter(sold: sold, bought: bought, check)
+    }
+
+    // The craftsfolk's old emerald barter (Villagers.trades) beside the shops: money must not turn into emeralds
+    // (shop items -> a basket -> an emerald) for less than emeralds turn back into money (an emerald -> an offer ->
+    // a shop), at list prices with the best shop multipliers. Enchanted items can't be sold, so those offers don't count.
+    static func barter(sold: Set<ItemID>, bought: Set<ItemID>, _ check: (Bool, String) -> Void) {
+        func price(_ n: String) -> Int? { Items.has(n) ? Economy.value[n] : nil }
+        var inCost = Float.infinity, inWhy = "-"
+        var outGain: Float = 0, outWhy = "-"
+        var bad: [String] = []
+        for (_, levels) in Villagers.trades { for level in levels { for t in level {
+            let bName = String(t.sell.split(separator: "@")[0])
+            if t.sell == "emerald" && t.buyB == nil, Items.has(t.buy), sold.contains(Items.id(t.buy)), let p = price(t.buy) {
+                let c = Float(p * t.buyN) * Economy.minBuyMult / Float(t.sellN)
+                if c < inCost { inCost = c; inWhy = "\(t.buyN) \(t.buy)" }
+            }
+            if t.buy == "emerald" && !t.sell.contains("@ench") && !t.sell.contains("@book") && t.buyN > 0, Items.has(bName), bought.contains(Items.id(bName)), let p = price(bName) {
+                var extra: Float = 0
+                if let b = t.buyB { guard Items.has(b), sold.contains(Items.id(b)), let pb = price(b) else { continue }; extra = Float(pb * t.buyBN) * Economy.minBuyMult }
+                let g = (Float(p * t.sellN) * Economy.maxSellMult - extra) / Float(t.buyN)
+                if g > outGain { outGain = g; outWhy = "\(t.sellN) \(bName) for \(t.buyN)" }
+            }
+            if t.sell == "emerald" && bought.contains(Items.id("emerald")) { bad.append("shops buy emeralds") }
+        } } }
+        if sold.contains(Items.id("emerald")) { bad.append("shops sell emeralds") }
+        print(String(format: "towntests: barter: cheapest emerald from shop goods %.0f c (%@), best emerald back to money %.0f c (%@)", inCost, inWhy, outGain, outWhy))
+        if outGain > inCost { bad.append(String(format: "emerald in %.0f c < out %.0f c", inCost, outGain)) }
+        check(Set(bad).isEmpty, "economy: no shop -> barter -> shop profit" + (bad.isEmpty ? "" : ": " + Set(bad).sorted().joined(separator: ", ")))
     }
 
     static func pricing(_ check: (Bool, String) -> Void) {
@@ -330,6 +359,11 @@ enum TownTests {
         g.player.pos = base + V3(0, 0, 3)
         victim.provoke(g)
         check(deputy.town.anger > 0 && kid.panic > 0, String(format: "defence: hurting a townsperson angers the deputy (%.0f s) and the child runs (%.0f s)", deputy.town.anger, kid.panic))
+        // Fighting back against the angry deputy is self-defence: five more blows cost no more standing.
+        let rep0 = deputy.villager?.reputation ?? 0
+        for _ in 0..<5 { deputy.provoke(g) }
+        let rep1 = deputy.villager?.reputation ?? 0
+        check(rep1 == rep0, "defence: hitting a townsperson who is already fighting you costs no more standing (\(rep0) -> \(rep1))")
         g.health = 20
         for _ in 0..<120 { deputy.update(0.05, game: g) }
         check(g.health < 20, "defence: the angry deputy hits the player (health \(g.health))")
@@ -355,7 +389,7 @@ enum TownTests {
         let w = makeWorld()
         w.renderDistance = 3
         guard let sc = w.gen.structures else { check(false, "towns: structures"); return }
-        var shopsFound: [ShopKind: Int] = [:], deputies = 0, signs = 0, visited = 0
+        var shopsFound: [ShopKind: Int] = [:], deputies = 0, signs = 0, visited = 0, blocked: [String] = []
         var seen: [IVec3] = []
         for _ in 0..<3 {
             guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
@@ -363,8 +397,13 @@ enum TownTests {
             w.pendingMobs.removeAll()
             _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
             visited += 1
-            for (name, _) in w.pendingMobs {
+            for (name, p) in w.pendingMobs {
                 if name == "villager:deputy" { deputies += 1 }
+                // Everyone in town stands on a floor with room for their body (not on a shelf, not in iron bars).
+                if name.hasPrefix("villager"), w.collides(p + V3(-0.3, 0.01, -0.3), p + V3(0.3, 1.95, 0.3))
+                    || !w.collides(p + V3(-0.3, -0.2, -0.3), p + V3(0.3, -0.01, 0.3)) {
+                    blocked.append("\(name) at \(Int(p.x)) \(Int(p.y)) \(Int(p.z))")
+                }
                 if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) { shopsFound[k, default: 0] += 1 }
             }
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
@@ -376,5 +415,6 @@ enum TownTests {
               "towns: \(visited) towns hold \(all.count)/8 kinds of shop (\(shopsFound.map { "\($0.key.rawValue) \($0.value)" }.sorted().joined(separator: ", "))), \(deputies) deputies")
         let keepers = shopsFound.values.reduce(0, +)
         check(signs >= keepers && keepers > 0, "towns: every shop has its sign (\(signs) signs, \(keepers) shops)")
+        check(blocked.isEmpty, "towns: every townsperson and keeper spawns on a floor with head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
     }
 }

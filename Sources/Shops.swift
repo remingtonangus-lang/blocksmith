@@ -86,8 +86,8 @@ enum Economy {
         "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 900, "diamond": 1500, "emerald": 600,
         "lapis_lazuli": 40, "quartz": 30, "amethyst_shard": 20, "flint": 4, "string": 8, "gunpowder": 40, "slime_ball": 30,
         "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "spider_eye": 12, "ghast_tear": 300, "rabbit_foot": 150,
-        "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 4, "book": 25, "ink_sac": 8,
-        "glass_bottle": 5,
+        "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 6, "book": 32, "ink_sac": 8,
+        "glass_bottle": 14,
         // Wool and cloth
         "white_wool": 30, "black_wool": 34, "gray_wool": 34, "brown_wool": 34, "red_wool": 34, "blue_wool": 34,
         "green_wool": 34, "yellow_wool": 34, "white_carpet": 22,
@@ -156,7 +156,7 @@ enum Economy {
     // What each shop buys from the player.
     static let buys: [ShopKind: [String]] = [
         .general: ["wheat", "carrot", "potato", "beetroot", "pumpkin", "melon_slice", "sugar_cane", "egg", "honeycomb",
-                   "feather", "flint", "paper", "ink_sac", "bone", "string", "emerald", "diamond", "lapis_lazuli", "quartz",
+                   "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
                    "amethyst_shard", "cocoa_beans"],
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_shotgun",
                     "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
@@ -367,13 +367,20 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     // LB / RB switch Buy / Sell, the right stick or the wheel scrolls, and pushing the cursor past the last row
     // scrolls too (MenuInput). The shop closes if its keeper falls or you walk off.
     override func tick() {
-        if let m = mob, m.health <= 0 || simd_length(m.pos - game.player.pos) > 10 { game.closeMenu() }
+        guard let m = mob else { return }
+        if m.health <= 0 || m.lying || simd_length(m.pos - game.player.pos) > 10 { game.closeMenu(); return }
+        // Closing time ends the visit (the saloon stays open late).
+        let f = Float(game.dayFraction)
+        if f < kind.hours.0 || f > kind.hours.1 + 0.005 {
+            Townsfolk.say(game, m, "That's closing time. Come back tomorrow.")
+            game.closeMenu()
+        }
     }
 
     func drawLines(_ L: HudLayout, _ o: V2) -> [HudLine] {
         let s = L.s
         var out: [HudLine] = []
-        let dark = V4(0.18, 0.16, 0.14, 1), mid = V4(0.36, 0.33, 0.3, 1)
+        let dark = V4(0.12, 0.1, 0.09, 1), mid = V4(0.25, 0.22, 0.19, 1)      // dark on the beige panel: legible at headset distance
         func at(_ x: Int, _ y: Int) -> (Float, Float) { (o.x + Float(x) * s, o.y + Float(y) * s) }
         func box(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ c: V4) {
             let (px, py) = at(x, y)
@@ -506,6 +513,7 @@ enum Shop {
         let name = ItemStack(item, 1).def.display
         guard n > 0 else { return ("You have no \(name).", false) }
         let each = ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)).sell(value)
+        guard each > 0 else { return ("\(name) isn't worth anything here.", false) }
         var left = n
         for j in 0..<36 where left > 0 {
             var s = g.inventory.main[j]

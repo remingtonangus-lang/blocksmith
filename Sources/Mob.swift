@@ -432,7 +432,8 @@ final class Mob {
     func provoke(_ g: Game) {
         aggro = true
         g.petsAttack(self)
-        if kind == .villager, var v = villager { v.addGossip(.minorNeg, 25); villager = v; g.townAlarm(self) }
+        // Hitting a townsperson who is already fighting you (self-defence) doesn't cost more standing or raise a new alarm.
+        if kind == .villager, town.anger <= 0, var v = villager { v.addGossip(.minorNeg, 25); villager = v; g.townAlarm(self) }
         if kind == .zombifiedPiglin {
             for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
         }
