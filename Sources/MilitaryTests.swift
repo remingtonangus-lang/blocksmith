@@ -115,13 +115,13 @@ extension MobTests {
             }
         }
 
-        // Reloading: an empty rifle pulls 30 rounds from the inventory.
+        // Reloading: an empty rifle pulls a magazine (45 rounds) from the inventory.
         hold("gun_rifle")
         game.inventory.main[5] = ItemStack(Items.id("rifle_rounds"), 64)
         _ = game.gunInteract(pad, pad, fire: true, firePressed: true, aim: false, dt: 0.05)
         let reloading = game.arms.reload > 0
         trigger(2.2, fire: false)
-        check(reloading && game.held.tag == 30 && game.ammoCount("rifle_rounds") == 34, "rifle reloads from inventory",
+        check(reloading && game.held.tag == 45 && game.ammoCount("rifle_rounds") == 19, "rifle reloads from inventory",
               "tag \(game.held.tag), left \(game.ammoCount("rifle_rounds"))")
 
         // Automatic fire kills a zombie 12 blocks away, kicks the view up, and the view settles back.
