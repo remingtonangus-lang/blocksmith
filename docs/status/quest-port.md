@@ -559,3 +559,37 @@ One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first 
   blocks and spare Ashguard units (Game.ashQuiet).
 - Shipped: Quest CI run 37887470068 green, APK versionCode 75 on quest-dist (commit 5226983); Mac CI fast lane green.
   Also on claude/blocksmith-playtest (324cd95c). Not installed: adb saw no Quest.
+
+## Task 23 factions (2026-10-09)
+- 1 The Meridian Navy (new Faction.meridian, raw 5; ship role stays "capfrigate"): its own faction, hostile to the
+  Capital (citadels, cities, soldiers, Capital vehicles), the Stormwarden Fleet, the Ironback Legion and the Ashguard
+  (nearestFoe: any other non-none faction). New 160-block hull (CapitalFrigate.swift): long dark-grey spine, twin
+  lower bow booms with two rows of lit portholes each, raised bridge with smoked glass and a sensor dome, a bulky
+  octagonal engine block with four big glowing thrusters (exhaust trails). Hangar deck y 9 inside the spine (flank
+  doors z 100-112), ladder to the bridge, helm at (0,25,74), point-defence mounts, missile pods. Commandeered it flies
+  at 42 b/s. MAC: a flat 420 b/s slug, ShipCombat kind 3 -> Explosion.crater (radius-9 bowl through every breakable
+  block, citadel walls included; containers spill). AI fires it every 20 s; the player at the helm every 6 s
+  (attack; HUD "MAC ready / MAC n s"). Meridian crew livery (olive, gunmetal, amber visors).
+- 2 Capital cities (CapitalCity.swift; "capital_city", 56-chunk regions): low flat white buildings with window
+  bands, terraces that follow the ground, grey paving, covered walkways (white pillars, slab roofs) between lots,
+  plazas with fountains, gardens, planter trees, cafe seating with umbrellas, benches, guards. No towers.
+  `/locate capital_city`, `/cities`, map "C" markers.
+- 3 Citadels did generate (about 1 per 4 regions; Remington's nearest was 773 blocks away, outside his explored
+  ground). A failed region spot now tries 6 alternates, so about half the regions hold one. Saved worlds keep their
+  explored ground: structure-guard.txt (written once from the saved chunk files) blocks new structures there.
+  `--structnear SEED X Z` lists the nearest ones. World377: nearest citadel 773, nearest city 811 blocks.
+- 4 Post-game (dragon or Ash Marshal beaten): the faction warships (Meridian frigate, Stormwarden frigate, Ironback
+  crawler, battles) only appear then, and very rarely (2048-block regions; Meridian about 3% of regions); no frigates
+  are stationed at citadels any more. Citadel and frigate loot: firing mechanisms, targeting optics, radar modules
+  and intercepted orders. Guns (sidearm, rifle, SMG, shotgun, sniper, launcher, arc) and the radar set craft only
+  from those components. The radar (held: a bearing panel; use: marks contacts on the map) shows Capital sites, and
+  warships after the end. Intercepted orders mark the nearest unmapped city or citadel (after the end, a warship's
+  patrol) and are used up.
+- Checks: `--questbugs --only factions` (structures on 6 seeds, the guard, every saved Mac world, loot, recipes,
+  radar, orders, MAC crater on a citadel, foe logic, helm MAC); full questbugs, mobtests 0 failures; ridecheck
+  frigate scenes rewritten for the new hull (all pass). Pre-existing flakes on both old and new builds: ride
+  "crew" (0 shots) and "troops" (1-2 troop-ticks). DeepTests' Marshal check made deterministic.
+- Shipped: Quest CI run 37896814716 green, APK versionCode 77 on quest-dist (commit ab57733); Mac CI run 37896814733
+  green. Also on claude/blocksmith-playtest (f471759e; Shortcuts.swift doesn't exist there, so no city shortcut).
+  Not installed: adb saw no Quest. Backup before the first load:
+  ~/Library/Application Support/Blocksmith/Backups/all-worlds-before-task23-factions-20261009.
