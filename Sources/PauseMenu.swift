@@ -539,7 +539,14 @@ final class PauseMenu: Menu {
         case "glyphs": st.glyphStyle = step([0, 1, 2], st.glyphStyle)
         case "rd":
             let opts = [2, 4, 6, 8, 10, 12, 16, 20, 24]
-            g.world.renderDistance = step(opts, g.world.renderDistance)
+            let cur = g.world.renderDistance
+            // A distance the comfort guard stepped down to (not an option) moves to the next option up or down from
+            // it, not round to the first one (playtest Oct 9: 9 -> 4).
+            if !opts.contains(cur) {
+                g.world.renderDistance = back ? (opts.last { $0 < cur } ?? opts[opts.count - 1]) : (opts.first { $0 > cur } ?? opts[0])
+            } else {
+                g.world.renderDistance = step(opts, cur)
+            }
             g.onRenderDistanceChanged?(g.world.renderDistance)
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
         case "fullscreen": g.appAction?("fullscreen")
