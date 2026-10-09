@@ -12,7 +12,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 |---|---|---|
 | Bench routes | `tools/bench_routes.sh [--quest] [--secs 30]` (`--bench F --scenes route_<plains,forest,village,cave,capital,ashvault>`) | frame p50/p99/max, hitches > 25 ms per minute, load, resident memory + growth, mobs |
 | Golden shots + flicker | `tools/golden.sh [OUT] [names]` -> shots/golden/<date>_<sha>/ (git-ignored), flicker via `tools/flicker.py a.png b.png` | the 17-shot list; per-shot flicker ppm on a 0.02 deg camera nudge |
-| Quest golden | `questcheck --golden DIR` (runs in the existing quest lane; artifact quest-host-N/golden) | spawn, aerial, dusk, night, rain, Capital city through the Quest renderer (lavapipe) |
+| Quest golden | `questcheck --golden DIR` (for the existing quest lane: add `--golden build/quest-out/golden` to the questcheck line in .github/workflows/quest.yml; the agent token cannot push workflow files) | spawn, aerial, dusk, night, rain, Capital city through the Quest renderer (lavapipe) |
 | Audio audit | `Blocksmith --snapshot /tmp/a.png --seed 12345 --rd 4 --audioaudit F.md` | coverage per material/mob, dry-vs-wet step mapping, ambience rules (forest noon/night, cave, Deep, Ash Vault) |
 | Audio levels | `Blocksmith --sounds DIR && Blocksmith --music DIR/music --seconds 30 && tools/audiolevels.py DIR --out F.md` | peak dBFS, clipping, BS.1770 LUFS, wet-sounding steps (spectral distance to mud/slime) |
 | World audit | `Blocksmith --worldaudit 50 --secs 30 --out F.md` (~8 min) | safe spawn (game's spawnPoint), structure piece overlaps, distance to village/base/city, mob density by biome/depth/time |
@@ -44,6 +44,8 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | not audited this round (QuestApp pauses on focus loss: QuestApp.swift:239) | RED (UNMEASURED) | - |
 | Response within one frame | input-latency test | not measured | RED (UNMEASURED) | - |
 
+On claude/blocksmith-playtest the same matrix finds 1 conflict: on foot, LB hold = hotbar + drop item.
+
 Notes from the matrix (not conflicts, worth a look): the D-pad left opens Commands even while driving; in the inventory Y does
 nothing and LB/RB open the crafting book; D-pad down drops on tap but not on hold.
 
@@ -63,7 +65,7 @@ light shaping); ore_closeup 1 (framing shows no ore); horse 2 (horse reads, grou
 grid from the air, white boxes); base_battle 2 (stand-in: the frigate battle scene; clouds are slabs); frigate 3 (clean
 silhouette); the_deep 3 (lava and red rock read well); ash_vault 2 (very dark, citadel lights only); inventory 3,
 crafting 3, options 3 (clean, small text); dusk 3 (good sky gradient); night 3 (stars, readable); rain 2 (rain streaks
-fine, grass noisy). Quest copies: first produced by the next quest lane run (artifact quest-host-N/golden).
+fine, grass noisy). Quest copies: produced once the quest.yml line above is added (artifact quest-host-N/golden).
 
 ## 5. Audio
 | Metric | Target | Current | Status | Evidence |

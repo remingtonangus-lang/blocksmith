@@ -1,5 +1,14 @@
 # Status
 
+> **Quality infrastructure (2026-10-09, task 25b1zx, quest-port + playtest):** work is now judged by
+> docs/STORE_QUALITY.md and measured in docs/status/scorecard.md (every objective RED/AMBER/GREEN with evidence in
+> docs/status/evidence/2026-10-09). Tools (local, no new CI jobs): `tools/bench_routes.sh` (6 routes, p50/p99/hitches/
+> memory, `--quest` proxy), `tools/golden.sh` + `tools/flicker.py`, `--audioaudit` + `tools/audiolevels.py`,
+> `--worldaudit 50`, `--inputmatrix`, `tools/uioverflow.sh`, `questcheck --golden`. Reddest: hitches (ashvault 12/min
+> Quest proxy), art style, music loudness/SFX peaks, structure overlaps, creative hint overflow, unmeasured
+> soak/saves/comfort/balance. Open: quest.yml needs `--golden build/quest-out/golden` (token can't push workflows);
+> on the playtest branch the input matrix flags LB hold = hotbar + drop item.
+
 > **Playtest v78 fixes (2026-10-09, task 25b1, quest-port + playtest):** Quest sprint = click the pushed left stick
 > (1.6x walk, any direction; a full push alone walks), 6-block block reach (melee 3.5), closing a menu with B no longer
 > dismounts, pickups from the saddle, monsters spawn in caves again (and a bit more on the surface), hissers flinch when
