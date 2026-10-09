@@ -50,7 +50,7 @@ enum MobKind: Int, CaseIterable {
     var spec: Spec {
         switch self {
         case .cow: return Spec(name: "Cow", halfW: 0.45, height: 1.4, health: 10, speed: 1.0, behavior: .passive,
-                               drops: [("beef", 1, 3), ("leather", 0, 2)], xp: 2, call: .mobCow)
+                               drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
         case .sheep: return Spec(name: "Sheep", halfW: 0.45, height: 1.3, health: 8, speed: 1.0, behavior: .passive,
                                  drops: [("mutton", 1, 2)], xp: 2, call: .mobSheep)
         case .chicken: return Spec(name: "Chicken", halfW: 0.2, height: 0.7, health: 4, speed: 1.0, behavior: .passive,
@@ -80,7 +80,7 @@ enum MobKind: Int, CaseIterable {
         case .magmaCube: return Spec(name: "Lava Blob", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
                                      drops: [], xp: 1, call: .mobSlime, fireImmune: true)
         case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 3.0, behavior: .melee, attack: 6,
-                                  drops: [("porkchop", 2, 4), ("leather", 0, 1)], xp: 5, call: .mobPig)
+                                  drops: [("porkchop", 2, 4), ("leather", 0, 2)], xp: 5, call: .mobPig)
         case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 3.5, behavior: .melee, attack: 13,
                                        drops: [], xp: 20, call: .mobBoarling)
         case .strider: return Spec(name: "Magmastrider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
