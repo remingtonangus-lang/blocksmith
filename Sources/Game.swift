@@ -233,10 +233,16 @@ final class Game {
     // lands at full strength, instead of a weak 0.2-0.8x hit. Quest players click like on a pad, every ~0.3 s: an iron
     // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
     var bufferAttacks = false
+    // Quest Swing Mode: what the swung tool physically touched on the frame swingPower is set (QuestControls.swingContact):
+    // the swing hits exactly that, not what the laser points at. Consumed by interact with swingPower.
+    var swingBlock: (hit: IVec3, normal: IVec3)?
+    var swingMob: Mob?
     var attackQueued: Float = 0
+    weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
-    weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
+    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
+    private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -269,6 +275,7 @@ final class Game {
 
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
+    var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
     private(set) var clock: Double = 0
     var toastText = ""
@@ -776,9 +783,12 @@ final class Game {
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
         mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
-        if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
-        mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
-        if mi.forward <= 0.3 { player.sprinting = false }
+        // VR has no auto-sprint: a full push is the walk, the stick click sprints (QuestControls), so the two differ.
+        if input.control || (p.l3 && !q.l3) || (player.moveYaw == nil && PadActions.autoSprint(ls, fdt)) { player.sprinting = true }
+        // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
+        let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
+        mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0
+        if push <= 0.3 { player.sprinting = false }
         if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
@@ -826,8 +836,8 @@ final class Game {
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
         if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
         let bumpersFree = world.ships.pilot == nil      // at the helm RB / LB climb and descend
-        if bumpersFree && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
-        if bumpersFree && p.lb && !q.lb { select(selected - 1) }
+        if bumpersFree && padHotbarScroll && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
+        if bumpersFree && padHotbarScroll && p.lb && !q.lb { select(selected - 1) }
 
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos
@@ -858,15 +868,40 @@ final class Game {
 
     // MARK: Interaction (attack, mine, use)
 
+    // A sword in VR (Quest: swings and trigger attacks) means to hit the creature (Quest round 4); Mac aiming is unchanged.
+    var swordHeld: Bool { bufferAttacks && Items.key(held.item).hasSuffix("_sword") }
+
+    // With a sword: the nearest living mob within reach and 10 degrees of the aim (when the ray itself just misses).
+    func mobNearAim(reach: Float) -> (Mob, Float)? {
+        var best: (Mob, Float)?
+        let eye = player.eye, look = player.look
+        for m in mobs.mobs where m.health > 0 && m !== riding && m.kind != .boat && m.kind.spec.behavior != .vehicle {
+            let c = m.pos + V3(0, m.height * 0.5, 0) - eye
+            let d = simd_length(c)
+            guard d < reach + m.halfW, d > 0.1, simd_dot(c / d, look) > 0.985, d < (best?.1 ?? .greatestFiniteMagnitude) else { continue }
+            guard world.canSee(eye, m.pos + V3(0, m.height * 0.5, 0)) else { continue }
+            best = (m, d)
+        }
+        return best
+    }
+
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
-        let reach: Float = survival ? 4.5 : 5
-        target = AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
+        let swung = swingPower > 0
+        let swingPow = swingPower
+        let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
+        swingPower = 0
+        if swung { swingGrace = 0.7 }
+        // A Quest swing reaches 6 blocks and takes the nearest block on the laser (no stickiness to an older, farther one).
+        let reach: Float = swung ? 6 : (survival ? 4.5 : 5)
+        let ray = world.raycast(player.eye, player.look, maxDist: reach)
+        target = swung && touched ? swingBlock : (swung ? ray : AimAssist.sticky(self, ray, reach: reach))
+        swingBlock = nil; swingMob = nil
         breakCooldown -= dt
         placeCooldown -= dt
-        let breakHeld = input.leftDown || p.rt > 0.5
+        let breakHeld = input.leftDown || p.rt > 0.5 || swung
         // Right stick click is a quick melee swing (Halo Infinite default layout); L3 + R3 is the bug-notes chord.
-        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
+        let breakNow = swung || input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
@@ -888,10 +923,15 @@ final class Game {
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
+        if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
-        if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding) {
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 6 : 3.5), except: riding)
+                    ?? (swordHeld ? mobNearAim(reach: swung ? 6 : 3.5) : nil) {
             let (m, dist) = hit
-            if let t = target {
+            // A sword means to hit the creature: it wins over a block in front of it (grass, a leaf, a fence).
+            if swordHeld {
+                mobHit = m
+            } else if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
                 if dist < simd_length(c - player.eye) - 0.4 { mobHit = m }
             } else {
@@ -924,17 +964,17 @@ final class Game {
             if useNow && useItemOnMob(m) { swing = 1; return }
             let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
             var attackNow = breakNow
-            if bufferAttacks {
+            if bufferAttacks && !swung {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
             }
             if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
-                let charge = min(1, attackTimer * spd)
+                let charge = swung ? 1 : min(1, attackTimer * spd)
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
-                var dmg = max(0, base) * (0.2 + 0.8 * charge * charge)
+                var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
                 // Reference crit: falling, and not sprinting, swimming, climbing, blind or riding.
                 let feetB = world.block(Int(floor(player.pos.x)), Int(floor(player.pos.y + 0.1)), Int(floor(player.pos.z)))
                 let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround && !player.sprinting && !player.inWater
@@ -1014,6 +1054,7 @@ final class Game {
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
+                    if swung && secs > 0 { mineProgress += max(0, 0.56 * swingPow - fdt) / secs }      // a swing is worth ~0.56 s of digging (Quest: 8x the first cut, which took ~30 swings a block)
                     swing = max(swing, 0.5)
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
@@ -1041,6 +1082,8 @@ final class Game {
                     }
                 }
             }
+        } else if swingGrace > 0 && mining != nil {
+            swingGrace -= fdt                                   // between swings the chipped block keeps its progress
         } else {
             mining = nil
             mineProgress = 0
