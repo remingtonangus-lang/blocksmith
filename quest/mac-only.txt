@@ -25,3 +25,7 @@ RideCheck.swift
 QuestBugTests.swift
 StructScan.swift
 VoiceNoteTests.swift
+AudioAudit.swift
+BenchRoutes.swift
+InputMatrix.swift
+WorldAudit.swift
