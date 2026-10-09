@@ -188,7 +188,27 @@ enum PadTest {
         g.paused = false
         frame(g)
 
-        // Inventory with the pad.
+        // Halo layout (Mac default): Y tap switches back to the last hotbar slot, Y held opens the inventory.
+        #if os(macOS)
+        PadMap.reset()
+        check(PadMap.halo && PadMap.isDefault && PadMap.actions[3].hasPrefix("Switch Weapon"), "Mac default layout is Halo: Y = Switch Weapon / Inventory (hold)")
+        var qs = PadSnapshot(); qs.a = true; qs.y = true; qs.rx = 0.5; qs.lt = 1
+        let qa = PadMap.apply(qs)
+        check(qa.a && qa.y && !qa.b && !qa.x && qa.rx == 0.5 && qa.lt == 1, "the Halo preset leaves a Quest-style snapshot unchanged")
+        g.selected = 2; frame(g); g.selected = 5; frame(g)
+        tap(g, "y")
+        check(g.selected == 2 && g.menu == nil, "Y tap switches to the previous slot (\(g.selected))")
+        tap(g, "y")
+        check(g.selected == 5, "a second Y tap switches back")
+        for _ in 0..<15 { frame(g, pad("y")) }
+        check(g.menu == nil, "a short Y hold does not open the inventory yet")
+        for _ in 0..<15 { frame(g, pad("y")) }
+        check(g.menu != nil, "holding Y opens the inventory")
+        frame(g); g.closeMenu(); frame(g)
+        PadMap.halo = false
+        #endif
+
+        // Inventory with the pad (Classic layout: Y opens it on press).
         g.survival = true
         g.inventory.main[0] = ItemStack(Items.id("cobblestone"), 10)
         g.inventory.main[1] = .empty

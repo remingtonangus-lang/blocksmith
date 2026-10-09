@@ -197,7 +197,11 @@ final class PadLook {
         let st = Settings.shared
         let raw = V2(rx, ry), m0 = simd_length(raw)
         let live = max(0.05, 1 - st.lookDead - st.lookOuter)
+        #if os(macOS)
+        guard m0 >= st.lookDead else { edgeTime = 0; return .zero }
+        #else
         guard m0 >= st.lookDead else { edgeTime = max(0, edgeTime - dt * 4); return .zero }
+        #endif
         let n = min(1, (m0 - st.lookDead) / live)
         let curved: Float
         switch st.lookCurve {
@@ -207,9 +211,17 @@ final class PadLook {
         }
         let v = raw / m0 * curved
         // Acceleration: once the stick reaches its outer edge, the turn rate climbs after a short delay.
+        #if os(macOS)
+        // Halo Infinite feel on Mac pads: after 0.15 s at the edge the rate ramps over 0.6 s to 1 + accel*0.3
+        // (1.9x at the default 3) and drops back the moment the stick leaves the edge.
+        if n >= 0.99 { edgeTime += dt } else { edgeTime = 0 }
+        let ramp = min(1, max(0, (edgeTime - 0.15) / 0.6))
+        let boost = 1 + st.lookAccel * 0.3 * ramp
+        #else
         if n >= 0.99 { edgeTime += dt } else { edgeTime = max(0, edgeTime - dt * 4) }
         let ramp = min(1, max(0, (edgeTime - 0.1) / 0.5))
         let boost = 1 + st.lookAccel * 0.2 * ramp
+        #endif
         let k = sensitivity * friction
         let yawRate = PadLook.rate(st.lookX)               // radians per second at full deflection
         let pitchRate = PadLook.rate(st.lookY) * 0.75
