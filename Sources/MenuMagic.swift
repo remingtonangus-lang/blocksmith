@@ -68,13 +68,11 @@ final class EnchantMenu: Menu {
         costs = [0, 0, 0]
         clues = [nil, nil, nil]
         guard !s.isEmpty, s.ench == 0, s.def.enchantability > 0 else { return }
-        var rng = SRng(game.enchantSeed)
-        costs = Enchant.tableCosts(bookshelves: shelves, rng: &rng)
+        costs = Enchant.tableCosts(bookshelves: shelves, seed: game.enchantSeed)
         for i in 0..<3 {
             if costs[i] < i + 1 { costs[i] = 0; continue }
-            var r = SRng(game.enchantSeed &+ UInt64(i))
-            let l = Enchant.select(item: s.item, level: costs[i], rng: &r)
-            if let first = l.first { clues[i] = first } else { costs[i] = 0 }
+            let o = Enchant.tableOffer(item: s.item, cost: costs[i], seed: game.enchantSeed, slot: i)
+            if let c = o.clue { clues[i] = c } else { costs[i] = 0 }
         }
     }
 
@@ -88,13 +86,8 @@ final class EnchantMenu: Menu {
         guard available(i) else { return }
         game.achieve("enchant")
         var s = box[0]
-        var r = SRng(game.enchantSeed &+ UInt64(i))
-        var l = Enchant.select(item: s.item, level: costs[i], rng: &r)
-        if Items.key(s.item) == "book" {
-            s = ItemStack(Items.id("enchanted_book"), 1)
-            // Books drop one random enchantment when they would get several (reference rule).
-            if l.count > 1 { l.remove(at: Rand.int(in: 0..<l.count)) }
-        }
+        let l = Enchant.tableOffer(item: s.item, cost: costs[i], seed: game.enchantSeed, slot: i).ench
+        if Items.key(s.item) == "book" { s = ItemStack(Items.id("enchanted_book"), 1) }   // (one entry fewer: tableOffer)
         s.ench = Enchant.pack(l)
         box[0] = s
         if game.survival {
