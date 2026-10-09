@@ -22,15 +22,18 @@ extension Village {
         let saloon = k == .saloon
         let wallH = saloon ? 6 : 5
         house(&w, b, m0, wallH: wallH)
-        // False front: the street wall carried up past the roof, capped with a slab line.
-        let front = saloon ? 4 : 3
-        for u in 0..<l.w {
-            for dy in wallH..<(wallH + front) { b.set(&w, u, dy, 0, m.planks) }
-            b.set(&w, u, wallH + front, 0, m.slab)
+        // False front: the street wall carried up past the roof ridge (ridge = wallH + (d + 1) / 2, house's gable) and
+        // over the eaves at the sides, capped with a slab line; the eave in front of it is cut away so the facade reads
+        // as one flat face from the street.
+        let top = wallH + (l.d + 1) / 2 + 1
+        for u in -1...l.w {
+            for dy in wallH..<top { b.set(&w, u, dy, 0, m.planks) }
+            b.set(&w, u, top, 0, m.slab)
+            b.set(&w, u, wallH, -1, AIR)
         }
         // A coloured band across the front, the shop's colour.
         let band = blk(bandColor(k) + "_terracotta", m.log)
-        for u in 1..<(l.w - 1) { b.set(&w, u, wallH + 1, 0, band) }
+        for u in 0..<l.w { b.set(&w, u, top - 2, 0, band) }
         // Awning over the doorway, the sign above the door.
         for u in max(0, l.w / 2 - 2)...min(l.w - 1, l.w / 2 + 2) { b.set(&w, u, wallH - 1, -1, m.slab) }
         sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])

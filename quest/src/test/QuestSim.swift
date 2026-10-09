@@ -227,6 +227,26 @@ enum QuestSim {
         frames(3) { _ in idleHands() }
         check(game.menu == nil, "VR inventory: B closed it")
 
+        // 7b. A town shop on the menu panel (Shops.swift): the general store's counter, keeper in front, at noon.
+        do {
+            let savedTime = game.time
+            game.time = 0.25 * DAY_LENGTH
+            let fw = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let keeper = TownTests.keeper(game, .general, at: game.player.pos + fw * 2)
+            keeper.face(game.player.pos)
+            let savedMobs = game.mobs.mobs
+            game.mobs.mobs.append(keeper); game.mobs.rebuildIndex()
+            _ = game.talkToTownsperson(keeper)
+            frames(3) { _ in idleHands() }
+            check(game.menu is ShopMenu, "VR shop: talking to the storekeeper opens \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
+            try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_shop.png"))
+            frames(3) { _ in idleHands(); sim.hands[1].button2 = true }
+            frames(3) { _ in idleHands() }
+            check(game.menu == nil, "VR shop: B closed it")
+            game.mobs.mobs = savedMobs; game.mobs.rebuildIndex()
+            game.time = savedTime
+        }
+
         // 8. Riding a moving ship (the Skyward Frigate, no crew): the player stays aboard, the rig turns with the hull,
         // the HUD and menu panels stay with the user, the hull moves on every frame, and grip opens a chest on deck.
         try shipRide(game: game, host: host, frames: frames, check: check) {
