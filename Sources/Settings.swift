@@ -18,6 +18,11 @@ import Foundation
 // invert Y, dead zone, volume...) still live on Game; GUI scale and couch mode on HudLayout.
 final class Settings {
     static let shared = Settings()
+    init() {
+        // A saved Safe Area off the 0-10 step list (5% on Remington's Mac, from an older list) could never be stepped
+        // back to (padtest audit, store audit): snap it to the next step.
+        if ![0, 2, 4, 6, 8, 10].contains(safeArea) { safeArea = min(10, max(0, (safeArea + 1) / 2 * 2)) }
+    }
     #if os(macOS)
     static let lookDeadKey = "padLookDead10", lookDeadDefault: Float = 0.10
     #else

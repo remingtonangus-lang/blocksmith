@@ -666,6 +666,9 @@ enum ShipTest {
             g.player.flying = true
             g.player.pos = near
             w.ships.encounters = true
+            let wasKilled = g.dragonKilled
+            g.dragonKilled = true                       // capital ships sail only after the end game (task 23)
+            defer { g.dragonKilled = wasKilled }
             for _ in 0..<7 { g.player.pos = near; w.ships.update(1, game: g) }
             var waited = 0
             while !w.ships.capitalPending.isEmpty && waited < 300 { usleep(50_000); waited += 1; g.player.pos = near; w.ships.update(0.05, game: g) }

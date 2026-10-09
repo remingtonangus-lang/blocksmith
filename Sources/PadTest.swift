@@ -148,7 +148,9 @@ enum PadTest {
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
         try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)], ofItemAtPath: tmp.appendingPathComponent("Beta").path)
-        tap(g, "down*8 a")                         // (Render Distance sits on the pause menu since playtest 2)
+        // Down to Worlds... wherever it sits (a hard-coded down*8 broke when the pause menu grew a row).
+        let wi = pm.rows.firstIndex { $0.1 == "worlds" } ?? 8
+        tap(g, "down*\(wi) a")
         check(pm.page == .worlds, "Worlds... opens the worlds list")
         check(pm.rows.count == 5 && pm.rows[2].1 == "world:Alpha", "worlds list is newest first")
         tap(g, "a")
@@ -277,8 +279,9 @@ enum PadTest {
             g.inventory.main.slots = Array(repeating: ItemStack(Items.id("dirt"), 64), count: 36)
             g.inventory.main[0] = ItemStack(logs, 1)
             let r = Recipes.all.first { $0.result.item == planks }!
+            let dropsBefore = g.drops.items.count            // earlier steps leave items on the ground
             let made = CraftBook.craft(r, times: 1, game: g)
-            check(made == 0 && count(logs) == 1 && g.drops.items.isEmpty, "a full inventory stops crafting cleanly")
+            check(made == 0 && count(logs) == 1 && g.drops.items.count == dropsBefore, "a full inventory stops crafting cleanly (made \(made), logs \(count(logs)), drops \(g.drops.items.count))")
             // No manual grid: the table's book has no grid button, and pressing its id does nothing.
             check(!cb.slots.contains { if case .button(let id) = $0.kind { return id == CraftingBookMenu.gridBtn } else { return false } },
                   "the table's crafting book has no manual grid button")
