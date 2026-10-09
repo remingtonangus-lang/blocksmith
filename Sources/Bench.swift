@@ -65,7 +65,7 @@ enum Bench {
         let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
-        if !scenes.allSatisfy({ $0.hasPrefix("flight") }) { calibrate() }
+        if !scenes.allSatisfy({ $0.hasPrefix("flight") || $0.hasPrefix("route_") }) { calibrate() }
         for s in scenes {
             let ts = now
             print("bench: \(s) starts")
@@ -85,6 +85,7 @@ enum Bench {
             case "mobprof": mobLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
                 flight(device, seed, rd: Int(name.dropFirst(6)) ?? 16, seconds: quick ? 5 : 12, speed: 20)
+            case let name where name.hasPrefix("route_"): route(device, seed, String(name.dropFirst(6)))   // BenchRoutes.swift
             default: print("bench: unknown scene \(s)")
             }
             usleep(300_000)             // let queued worker jobs release their world
