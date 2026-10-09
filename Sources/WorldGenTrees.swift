@@ -381,6 +381,11 @@ extension WorldGen {
         let grassy: Set<BlockID> = [GRASS, SNOWY_GRASS, DIRT, g("podzol"), g("coarse_dirt"), g("moss_block")]
         // Looked up once: these ran per column (several string dictionary lookups each).
         let iceID = g("ice"), snowLayerID = g("snow"), clayID = g("clay"), mudID = g("mud"), seagrassID = g("seagrass"), redSandID = g("red_sand")
+        // Playtest Oct 9 PM #3 ("too much vegetation; grass about 1/8; cactus far too common; review all plants"):
+        // `calm` scales each plant against the v78 densities (old = 1). Measured per biome in
+        // docs/status/evidence/2026-10-09-pm/plants.md; check: `--questbugs --only pm9b`.
+        let old = plantsBeforePM9
+        func calm(_ v: Float) -> Float { old ? 1 : v }
         func flowerFor(_ biome: Biome, _ h: Float, _ wx: Int, _ wz: Int) -> BlockID {
             let pick = Int(h * 997) % 100
             switch biome {
@@ -441,7 +446,7 @@ extension WorldGen {
                         if h2 < chance && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                     }
                 } else if biome == .swamp || biome == .mangroveSwamp {
-                    if depth <= 2 && h < 0.08 && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
+                    if depth <= 2 && h < 0.08 * calm(0.6) && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
                     else if h > 0.8 && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 }
                 continue
@@ -450,7 +455,7 @@ extension WorldGen {
             guard b[above] == AIR || b[above] == snowLayerID else { continue }
             if b[above] == snowLayerID { continue }
             // Sugar cane beside water.
-            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 {
+            if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 * calm(0.4) {
                 let nearWater = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { d in
                     let nx = lx + d.0, nz = lz + d.1
                     return nx >= 0 && nx < CS && nz >= 0 && nz < CS && b[Chunk.index(nx, y, nz)] == WATER
@@ -463,7 +468,8 @@ extension WorldGen {
             switch biome {
             case .desert, .badlands, .erodedBadlands, .woodedBadlands:
                 if ground == SAND || ground == redSandID {
-                    if h < (biome == .desert ? 0.008 : 0.004) {
+                    // Cactus: one every ~16-20 blocks of desert (it was one every ~11, in clumps of 1-3 tall).
+                    if h < (biome == .desert ? 0.008 : 0.004) * calm(0.35) {
                         let clear = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in
                             let nx = lx + d.0, nz = lz + d.1
                             return nx < 0 || nx >= CS || nz < 0 || nz >= CS || b[Chunk.index(nx, y + 1, nz)] == AIR
@@ -473,13 +479,13 @@ extension WorldGen {
                             for k in 1...len { b[Chunk.index(lx, y + k, lz)] = CACTUS }
                             if hashf(wx, 11, wz, s32 ^ 0x3C3E) < 0.25 { b[Chunk.index(lx, y + len + 1, lz)] = g("cactus_flower") }
                         }
-                    } else if h < 0.015 { b[above] = g("dead_bush") }
-                    else if h < 0.03 { b[above] = g("short_dry_grass") }
-                    else if h < 0.036 { b[above] = g("tall_dry_grass") }
-                } else if grassy.contains(ground) && h < 0.1 { b[above] = TALL_GRASS }
+                    } else if h >= 0.008 && h < 0.008 + 0.007 * calm(0.75) { b[above] = g("dead_bush") }
+                    else if h >= 0.015 && h < 0.015 + 0.015 * calm(0.3) { b[above] = g("short_dry_grass") }
+                    else if h >= 0.03 && h < 0.03 + 0.006 * calm(0.3) { b[above] = g("tall_dry_grass") }
+                } else if grassy.contains(ground) && h < 0.1 * calm(0.11) { b[above] = TALL_GRASS }
                 continue
             case .mushroomFields:
-                if h < 0.012 { b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom") }
+                if h < 0.012 * calm(0.75) { b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom") }
                 continue
             default: break
             }
@@ -516,7 +522,7 @@ extension WorldGen {
             if biome == .sunflowerPlains && h > 0.97 {
                 b[above] = g("sunflower"); b[Chunk.index(lx, y + 2, lz)] = g("sunflower") + 1; continue
             }
-            if (biome == .darkForest || biome == .oldGrowthSpruceTaiga) && h > 0.985 {
+            if (biome == .darkForest || biome == .oldGrowthSpruceTaiga) && h > 1 - 0.015 * calm(0.5) {
                 b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom"); continue
             }
             if biome == .paleGarden {
@@ -528,23 +534,28 @@ extension WorldGen {
             // Newer ground cover: leaf litter under forests, wildflowers, bushes, firefly bushes by swamps.
             switch biome {
             case .forest, .darkForest, .birchForest, .oldGrowthBirchForest, .windsweptForest:
-                if h > 0.94 { b[above] = g("leaf_litter"); continue }
-                if (biome == .birchForest || biome == .oldGrowthBirchForest) && h > 0.92 { b[above] = g("wildflowers"); continue }
+                let litter: Float = 0.06 * calm(0.35), wild: Float = 0.02 * calm(0.6)
+                if h > 1 - litter { b[above] = g("leaf_litter"); continue }
+                if (biome == .birchForest || biome == .oldGrowthBirchForest) && h > 1 - litter - wild { b[above] = g("wildflowers"); continue }
             case .meadow:
                 if h > 0.93 { b[above] = g("wildflowers"); continue }
             case .plains, .sunflowerPlains, .windsweptHills:
                 if h > 0.993 { b[above] = g("bush"); continue }
             case .swamp, .mangroveSwamp:
-                if h > 0.975 { b[above] = g("firefly_bush"); continue }
+                if h > 1 - 0.025 * calm(0.4) { b[above] = g("firefly_bush"); continue }
             case .jungle, .sparseJungle, .bambooJungle:
-                if h > 0.95 { b[above] = g("bush"); continue }
+                if h > 1 - 0.05 * calm(0.4) { b[above] = g("bush"); continue }
             case .savanna, .savannaPlateau, .windsweptSavanna:
-                if h > 0.97 { b[above] = g("short_dry_grass"); continue }
+                if h > 1 - 0.03 * calm(0.3) { b[above] = g("short_dry_grass"); continue }
             default: break
             }
             // A calmer ground (playtest v78: "too noisy"): no tall grass, about a third of the short grass, half the
             // flowers and ferns (themed biomes keep their relative richness).
             grassP *= 0.35; flowerP *= 0.5; fernP *= 0.5; tallP = 0
+            // PM9: short grass about 1/8 again (0.11: measured 0.10-0.12 over nine biomes), ferns ~1/3; flowers stay
+            // (themed flower biomes a little calmer).
+            grassP *= calm(0.11); fernP *= calm(0.35)
+            if biome == .flowerForest || biome == .cherryGrove || biome == .meadow { flowerP *= calm(0.7) }
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {
                     let tall = ["lilac", "rose_bush", "peony"][Int(h2 * 20) % 3]
