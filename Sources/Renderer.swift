@@ -1414,6 +1414,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var hudScratch: [HudVert] = []
 
     func buildHUD(_ W: Float, _ H: Float) -> [HudVert] {
+        let uiLog = UILog.path != nil
+        if uiLog { UILog.begin(W, H) }
+        defer { if uiLog { UILog.flush() } }
         // The vertex array keeps its storage from frame to frame (it grew from empty every frame: profile).
         var v = hudScratch
         hudScratch = []
@@ -1438,6 +1441,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         // Plain rectangles (most of the HUD: panels, bars, the minimap) without building corner arrays.
         func rect(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ c: V4) {
+            if uiLog && c.w > 0.5 && w > 8 && h > 8 { UILog.rects.append((x, y, w, h)) }
             let z = V2(0, 0), ex = V4(-1, 0, 0, 0)
             let a = V2(x, y), b = V2(x + w, y), d = V2(x + w, y + h), e = V2(x, y + h)
             v.append(HudVert(pos: a, uv: z, color: c, extra: ex)); v.append(HudVert(pos: b, uv: z, color: c, extra: ex))
@@ -1447,6 +1451,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let game = self.game
         // Pixel-font text; scale = size of one font pixel in screen pixels.
         func text(_ str: String, _ x: Float, _ y: Float, _ scale: Float, _ color: V4 = V4(1, 1, 1, 1), shadow: Bool = true) {
+            if uiLog && color.w > 0.05 { UILog.texts.append((str, x, y, Float(Font.width(str)) * scale, 8 * scale)) }
             var cx = x
             var color = color, shadow = shadow
             let baseColor = color, baseShadow = shadow
