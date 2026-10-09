@@ -337,7 +337,8 @@ final class Game {
         for _ in 0..<4000 {
             let cx = (x + ox) * 16 + 8, cz = (z + oz) * 16 + 8
             let (h, biome) = world.gen.column(cx, cz)
-            if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach {
+            // Not on a mushroom island either: no trees for 100 blocks, so no wood (playthrough seed 12345, store audit).
+            if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach && biome != .mushroomFields {
                 if skip > 0 { skip -= 1 } else { return V3(Float(cx) + 0.5, Float(h + 1), Float(cz) + 0.5) }
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
