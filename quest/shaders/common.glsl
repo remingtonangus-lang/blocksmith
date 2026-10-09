@@ -47,8 +47,15 @@ float vnoise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-vec3 applyFog(vec3 c, float dist) {
+// Fog factor: the render-distance fog plus a gentle aerial haze that starts near (same maths as Shaders.swift fogAmount).
+float fogAmount(float dist) {
     float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    float haze = u.params.w > 0.5 ? 0.0 : 0.3 * clamp(u.params.y, 0.0, 1.0) * (1.0 - exp(-dist * 1.6 / max(u.params.x, 1.0)));
+    return max(f, haze);
+}
+
+vec3 applyFog(vec3 c, float dist) {
+    float f = fogAmount(dist);
     return mix(c, u.fogColor.rgb, f);
 }
 
@@ -60,7 +67,7 @@ vec3 fogColorAlong(vec3 rel) {
 }
 
 vec3 applyFogDir(vec3 c, vec3 rel, float dist) {
-    float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    float f = fogAmount(dist);
     return mix(c, fogColorAlong(rel), f);
 }
 
@@ -85,7 +92,7 @@ vec3 sunShadeN(vec3 n, float base, float w, vec3 sd) {
     vec3 l = normalize(sd);
     float g = clamp(l.y * 2.2, 0.0, 1.0);
     vec3 sunC = mix(vec3(1.22, 0.80, 0.48), vec3(1.04, 1.0, 0.93), g);
-    vec3 d = vec3(0.86, 0.93, 1.06) * 0.66 + sunC * (0.46 * clamp(dot(n, l), 0.0, 1.0));
+    vec3 d = vec3(0.84, 0.92, 1.08) * 0.6 + sunC * (0.54 * clamp(dot(n, l), 0.0, 1.0));
     return mix(vec3(base), d, w);
 }
 vec3 faceNormal(uint f) {
@@ -99,6 +106,7 @@ vec3 filmic(vec3 c) {
     c = mix(c, hi, step(vec3(0.9), c));
     c = c + 0.25 * c * (1.0 - c) * max(2.0 * c - 1.0, 0.0);
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    return max(l + (c - l) * 1.08, vec3(0.0));
+    float lime = clamp((c.g - max(c.r, c.b)) * 1.6, 0.0, 1.0);
+    return max(l + (c - l) * (1.0 - 0.28 * lime), vec3(0.0));
 }
 vec4 worldColor(vec4 c) { return finalColor(vec4(filmic(c.rgb), c.a)); }

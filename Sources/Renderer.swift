@@ -816,7 +816,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
                          sunDir: V4(game.sunDir, ambient),
-                         eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0))
+                         eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0.49 * fogGlow))   // Fast stays below 0.5 (its flag)
         u.dimTint.w = Settings.shared.lightBrightness                            // cave fill strength (Shaders.caveFill)
         if hdrActive {
             let lf = lightFrame
@@ -886,7 +886,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         enc.setFragmentTexture(texture, index: 0)
 
         // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
-        if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
+        if !underwater && hasSky && game.blindFog == nil {   // Fast too (AV polish): same dome the Quest draws
             var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi)),
                                horizon: V4(sky, skyGlow), sun: V4(game.sunDir, daylight))
             enc.setRenderPipelineState(skyPipe)
@@ -909,15 +909,6 @@ final class Renderer: NSObject, MTKViewDelegate {
             var verts: [SimpleVert] = []
             let sd = game.sunDir
             let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
-            if !underwater && hasSky && !game.fancyGraphics {
-                // Fast: a square halo behind the sun (the Fancy sky shades its own glow).
-                let c = sd * 90
-                let r = simd_normalize(simd_cross(sd, V3(0, 0, 1))) * 11
-                let up = simd_normalize(simd_cross(r, sd)) * 11
-                let lo: V3 = c - up, hi: V3 = c + up
-                let q: [V3] = [lo - r, lo + r, hi + r, hi - r]
-                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: V4(1.0, 0.85, 0.5, 0.18))) }
-            }
             let starAlpha = game.starAlpha
             if !underwater && starAlpha > 0 && hasSky {
                 var sp = StarParams(rot: rotationZ(Float(game.dayFraction * 2 * .pi)), tint: V4(1, 1, 1, starAlpha))

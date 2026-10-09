@@ -18,8 +18,8 @@ void main() {
         return;
     }
     if (u.misc.x < 0.5) { outColor = worldColor(vec4(u.horizon.rgb, 1.0)); return; }
-    float h = clamp(d.y * 1.25, 0.0, 1.0);
-    h = h * h * (3.0 - 2.0 * h);
+    float h = smoothstep(0.0, 0.7, d.y);
+    h = sqrt(h) * h + (1.0 - h) * h * h;
     vec3 col = mix(u.horizon.rgb, u.zenith.rgb, h);
     if (d.y < 0.0) { col = u.horizon.rgb; }
     float sd = clamp(dot(d, u.sunDir.xyz), 0.0, 1.0);

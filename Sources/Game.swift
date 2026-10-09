@@ -517,7 +517,7 @@ final class Game {
     var skyColor: V3 {
         if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
         if !dim.dim.hasSky { return dim.dim.fogColor }
-        let day = V3(0.52, 0.72, 0.96), night = V3(0.015, 0.02, 0.06)
+        let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
         let s = sunDir.y
         let dusk = max(0, 1 - abs(s - 0.02) / 0.22)
@@ -532,7 +532,7 @@ final class Game {
     // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
     var skyZenith: V3 {
         let c = skyColor
-        return simd_mix(c * V3(0.45, 0.6, 0.92), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
+        return simd_mix(c * V3(0.36, 0.55, 0.86), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
 
     // MARK: Hotbar / items
