@@ -528,6 +528,6 @@ One commit per item (`git log --grep "store-quality"`). Mac worlds backed up fir
   block placement.
 - fidelitycheck hurt-invulnerability used a zombie (natural armour rounds at random: flaky) -> pig. ridecheck crew/troops
   failures also reproduce on 3e1dc99e (pre-existing flakes).
-- Checks: Quest CI run 37875068649 green (VR reclined checks pass), APK versionCode 73 on quest-dist; Mac CI fast lane
+- Checks: Quest CI run 37875068649 green (VR reclined checks pass), APK versionCode 73 on quest-dist (final: run 37878386108, versionCode 74, commit 291e838); Mac CI fast lane
   questbugs 0 failures; mobtests 0 failures; padtest new checks pass. Not installed: adb saw no Quest.
 - Note: a subagent once ran `Blocksmith --mobtests` without --snapshot, which opens the GUI game; use `./snap.sh NAME --mobtests`.
