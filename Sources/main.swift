@@ -1202,6 +1202,7 @@ enum Snapshot {
         // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
         if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
         var shipFails = 0
+        if let out = arg("--audioaudit") { return AudioAudit.run(game: game, out: out) > 0 ? 1 : 0 }   // STORE_QUALITY objective 5
         if CommandLine.arguments.contains("--audiotest") {
             if AudioTests.run(game: game, at: pos, rd: rd) > 0 { return 1 }
             pos = game.player.pos
@@ -1713,6 +1714,7 @@ if let f = arg("--namecheck") {
     print("namecheck: \(n) names, \(bad) unknown")
     exit(n > 0 && bad == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run()) }   // STORE_QUALITY objective 7
 if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
