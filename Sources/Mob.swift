@@ -2053,9 +2053,27 @@ final class MobManager {
     }
 
     // Surface y (feet) at a column if it's grass with two free blocks above, else nil.
-    func grassSurface(_ w: World, _ x: Int, _ z: Int) -> Int? {
+    // Highest solid-or-liquid block in a column (from CH - 2 down; 1 if none). Reads the chunk's array once instead of
+    // two world lookups per y: animal packs probing up to 24 columns cost 7-25 ms ticks at spawn (--sim 60 profile).
+    static func surfaceScan(_ w: World, _ x: Int, _ z: Int) -> Int {
+        guard w.frame == nil, let c = w.chunkAt(x, z) else {
+            var y = CH - 2
+            while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
+            return y
+        }
+        let lx = mod(x, CS), lz = mod(z, CS)
+        let collide = Blocks.collide
         var y = CH - 2
-        while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
+        while y > 1 {
+            let b = c.blocks[Chunk.index(lx, y, lz)]
+            if collide[Int(b)] || Blocks.isLiquid(b) { break }
+            y -= 1
+        }
+        return y
+    }
+
+    func grassSurface(_ w: World, _ x: Int, _ z: Int) -> Int? {
+        let y = MobManager.surfaceScan(w, x, z)
         guard w.block(x, y, z) == GRASS else { return nil }
         let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
@@ -2097,8 +2115,7 @@ final class MobManager {
 
     // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, mycelium for mushroom cows).
     func animalSurface(_ w: World, _ x: Int, _ z: Int, _ k: MobKind) -> Int? {
-        var y = CH - 2
-        while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
+        let y = MobManager.surfaceScan(w, x, z)
         let g = Blocks.key(w.block(x, y, z))
         let ok: Bool
         switch k {
