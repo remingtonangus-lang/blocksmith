@@ -29,3 +29,4 @@ AudioAudit.swift
 BenchRoutes.swift
 InputMatrix.swift
 WorldAudit.swift
+PlaytestPM9ATests.swift

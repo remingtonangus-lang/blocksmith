@@ -36,6 +36,11 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "pm9a" {
+            PM9ATests.run(game, check)
+            print("questbugs: \(fails) failures")
+            return fails
+        }
         DeepTests.run(game, check)
         FactionTests.run(game, check)
         VoiceNoteTests.run(game, check)

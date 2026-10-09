@@ -99,23 +99,12 @@ final class QuestRig {
         headWorld = toWorld(trackingHead)
     }
 
-    // Steps up and down (stairs, slabs, a block stepped onto) move the player in one tick; the camera follows over
-    // ~0.1 s instead, so the world doesn't jump under the user. Falls, jumps, teleports, riding and ship decks snap.
-    private var lastFeetY: Float?
+    // Steps up and down (stairs, slabs, a block stepped onto, a mount or wheeled vehicle climbing a block) move the
+    // body in one tick; the camera follows the shared eased offset (ViewStep.swift, Game.updateViewStep), the same one
+    // the Mac camera and the drawn mount/rider use, so the world never jumps under the user.
     private(set) var stepOffset: Float = 0
     func smoothSteps(game: Game, dt: Float) {
-        let p = game.player
-        let y = p.pos.y
-        if let ly = lastFeetY {
-            let d = y - ly
-            if p.onGround && !p.flying && game.riding == nil && game.world.ships.aboard == nil && game.world.ships.pilot == nil
-                && abs(d) > 0.05 && abs(d) <= 1.1 {
-                stepOffset -= d
-            }
-        }
-        stepOffset *= expf(-dt * 16)
-        if abs(stepOffset) < 0.002 || abs(stepOffset) > 1.2 { stepOffset = 0 }
-        lastFeetY = y
+        stepOffset = game.player.viewDY
     }
 
     // Loading scene: raw tracking space (no player yet).

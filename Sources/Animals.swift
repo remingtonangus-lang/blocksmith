@@ -568,7 +568,10 @@ func horseParts(_ m: Mob) -> [Part] {
         let flex: Float = max(0, cosf(lp)) * (0.6 + 0.5 * gal) * amt
         let la: Float = front ? a - flex : a + flex * 0.8 + 0.12
         let hip = V3(x, hipY + bob, z)
-        let knee: V3 = hip + V3(0, -lu * cosf(a), lu * sinf(a))
+        // Where the upper leg's rotation (Part.rotX about the hip) carries its lower end: (0, -lu) turns to
+        // (-lu cos a, -lu sin a). The knee had +lu sin a (mirrored), so at every stride the cannon and hoof swung off
+        // the upper leg, the gap widest at the gallop and in a knockback (Quest playtest 2026-10-09 pm item 2).
+        let knee: V3 = hip + V3(0, -lu * cosf(a), -lu * sinf(a))
         let uw: Float = front ? 3 : 3.4
         p.append(Part(mn: V3(x - uw / 2, hip.y - lu - 0.4, z - 1.7), mx: V3(x + uw / 2, hip.y + 2, z + 1.7), pivot: hip, rotX: a, color: c, pattern: pat))
         p.append(Part(mn: V3(x - 1, knee.y - ll, knee.z - 1), mx: V3(x + 1, knee.y + 0.4, knee.z + 1), pivot: knee, rotX: la, color: sock, pattern: pat))
@@ -680,7 +683,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         let c = m.kind == .traderLlama ? V3(0.85, 0.8, 0.7) : [V3(0.85, 0.8, 0.7), V3(0.95, 0.95, 0.93), V3(0.5, 0.35, 0.25), V3(0.55, 0.52, 0.5)][m.variant % 4]
         var p = quadruped(.zero, V3(10, 10, 16), legH: 13, head: V3(0, 26, -9), headSize: V3(6, 5, 7), c, legW: 4)
         p.append(box(-2.5, 17, -10, 5, 10, 4, c, 4))
-        p.append(box(-2.5, 31, -6, 1.5, 3, 1, c)); p.append(box(1, 31, -6, 1.5, 3, 1, c))
+        p.append(box(-2.5, 31, -10.5, 1.5, 3, 1, c)); p.append(box(1, 31, -10.5, 1.5, 3, 1, c))      // ears on the head (floated behind it)
         if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
         if m.kind == .traderLlama { p.append(box(-5.2, 23, -8, 10.4, 1, 16, V3(0.2, 0.3, 0.7))) }
         return p
@@ -699,7 +702,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         let c = m.kind == .camelHusk ? V3(0.6, 0.55, 0.42) : V3(0.85, 0.68, 0.42)
         var p = quadruped(.zero, V3(14, 12, 26), legH: 20, head: V3(0, 34, -17), headSize: V3(6, 6, 10), c, legW: 4)
         p.append(box(-4, 32, -4, 8, 7, 10, c, 4))                          // hump
-        p.append(box(-3, 24, -16, 6, 12, 5, c, 4))                          // neck
+        p.append(box(-3, 24, -17.5, 6, 12, 6.5, c, 4))                      // neck (reaches the head: a 1 px gap floated it)
         if m.saddled { p.append(box(-6, 38.5, -3, 12, 1.5, 10, V3(0.35, 0.2, 0.1))) }
         return p
     case .goat:
@@ -850,7 +853,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
     case .breeze:
         let c = V3(0.75, 0.8, 0.95)
         let spin = Float(m.walkPhase)
-        return [box(-4, 14, -4, 8, 8, 8, c, 4), box(-1, 3, -1, 2, 11, 2, c * 0.9),
+        return [box(-4, 14, -4, 8, 8, 8, c, 4), box(-1, 1, -1, 2, 13, 2, c * 0.9),          // rod down through both rings
                 Part(mn: V3(-5, 6, -5), mx: V3(5, 8, 5), pivot: V3(0, 7, 0), rotX: 0, rotZ: sinf(spin) * 0.2, color: c * 0.85),
                 Part(mn: V3(-4, 0, -4), mx: V3(4, 2, 4), pivot: V3(0, 1, 0), rotX: cosf(spin) * 0.2, color: c * 0.85)] + eyes(18, -4, 1.2, 1.2, V3(0.2, 0.3, 0.6))
     case .creaking:

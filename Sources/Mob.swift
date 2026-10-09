@@ -257,6 +257,7 @@ final class Mob {
     var vel = V3(0, 0, 0)
     var yaw: Float
     var onGround = false
+    var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn model (ViewStep.swift)
     var health: Int
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
@@ -1878,7 +1879,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             }
         }
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
-        let base = m.pos - eye
+        let base = m.pos + V3(0, m.viewDY, 0) - eye
         // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
         let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
         let fill: Float = max(0.04, MobLight.fill * near)
@@ -1962,8 +1963,9 @@ final class MobManager {
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
         if !second { hiveTick(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {
-            let before = m.pos
+            let before = m.pos, wasGround = m.onGround
             m.update(dt, game: game)
+            m.easeStep(fromY: before.y, wasGround: wasGround, dt)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
             // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
             let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite

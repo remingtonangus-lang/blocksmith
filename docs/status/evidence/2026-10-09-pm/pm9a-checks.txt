@@ -1,0 +1,33 @@
+pm9a (Quest playtest 2026-10-09 pm items 1-2): --questbugs --only pm9a
+
+BEFORE the model fixes (horse knee sign, llama ears, camel neck, breeze rod, ash artillery trails):
+questbugs:   detached: blaze speed 0 hurt 0.0 phase 0/16: 12 detached part(s) [3, 4, 5, 6, 7, 8]
+questbugs:   detached: magma_cube speed 0 hurt 0.0 phase 0/16: 1 detached part(s) [3]
+questbugs:   detached: end_crystal speed 0 hurt 0.0 phase 0/16: 1 detached part(s) [0]
+questbugs:   detached: horse speed 3 hurt 0.0 phase 1/16: 2 detached part(s) [10, 11]
+questbugs:   detached: donkey speed 3 hurt 0.0 phase 2/16: 6 detached part(s) [4, 5, 7, 8, 10, 11]
+questbugs:   detached: mule speed 3 hurt 0.0 phase 2/16: 6 detached part(s) [4, 5, 7, 8, 10, 11]
+questbugs:   detached: llama speed 0 hurt 0.0 phase 0/16: 2 detached part(s) [9, 10]
+questbugs:   detached: trader_llama speed 0 hurt 0.0 phase 0/16: 2 detached part(s) [9, 10]
+questbugs:   detached: camel speed 0 hurt 0.0 phase 0/16: 3 detached part(s) [1, 6, 7]
+questbugs:   detached: skeleton_horse speed 3 hurt 0.0 phase 1/16: 2 detached part(s) [10, 11]
+questbugs:   detached: breeze speed 0 hurt 0.0 phase 0/16: 1 detached part(s) [3]
+questbugs:   detached: zombie_horse speed 3 hurt 0.0 phase 1/16: 2 detached part(s) [10, 11]
+questbugs:   detached: camel_husk speed 0 hurt 0.0 phase 0/16: 3 detached part(s) [1, 6, 7]
+questbugs:   detached: ash_artillery speed 0 hurt 0.0 phase 0/16: 4 detached part(s) [5, 6, 7, 10]
+questbugs: FAIL pm9a model: every mob model stays in one piece across walk, gallop, knockback and hurt (19968 poses, 14 kinds with gaps)
+
+AFTER (raw physics = per-frame eye change without easing, i.e. the old camera):
+questbugs: ok   pm9a step: riding a horse (10.8 b/s) up 1-block steps: drawn eye moves 0.109/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a horse (16.0 b/s) up 1-block steps: drawn eye moves 0.133/frame (bound 0.137; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a donkey up 1-block steps: drawn eye moves 0.096/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a mule up 1-block steps: drawn eye moves 0.096/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a skeleton_horse up 1-block steps: drawn eye moves 0.109/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a zombie_horse up 1-block steps: drawn eye moves 0.109/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a camel up 1-block steps: drawn eye moves 0.091/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a pig up 1-block steps: drawn eye moves 0.091/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: riding a strider up 1-block steps: drawn eye moves 0.091/frame (bound 0.120; raw physics 1.00), rose 8.0, settles 0.000, rider-mount drift 0.000
+questbugs: ok   pm9a step: on foot up slab steps: drawn eye moves 0.050/frame (bound 0.120; raw physics 0.50), rose 6.0, settles 0.000
+questbugs: ok   pm9a step: a mob's drawn model eases its step-ups (0.091/frame drawn, 1.00 physics)
+questbugs: ok   pm9a model: every mob model stays in one piece across walk, gallop, knockback and hurt (19392 poses, 0 kinds with gaps)
+questbugs: 0 failures

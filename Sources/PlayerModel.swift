@@ -18,7 +18,7 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let order = [0, 1, 2, 0, 2, 3]
     let cy = cosf(p.yaw), sy = sinf(p.yaw)
     let sneak: Float = p.sneaking && !p.flying ? -0.15 : 0
-    let base = p.pos + V3(0, p.prone ? 0.3 : sneak, 0) - eye
+    let base = p.pos + V3(0, (p.prone ? 0.3 : sneak) + p.viewDY, 0) - eye
     // Swimming / crawling / gliding: the whole body lies along the view, head first.
     let tilt: Float = p.prone ? -.pi / 2 : 0
     let ct = cosf(tilt), st = sinf(tilt)

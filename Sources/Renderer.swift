@@ -446,12 +446,12 @@ final class Renderer: NSObject, MTKViewDelegate {
         let p = game.player
         // Photo mode (Cinematic.swift): the free camera.
         if game.cine.active {
-            if game.cine.followPlayer { return (p.eye, p.yaw, p.pitch) }
+            if game.cine.followPlayer { return (p.viewEye, p.yaw, p.pitch) }
             return (game.cine.pos, game.cine.yaw, game.cine.pitch)
         }
         let tp = game.cameraMode != 0 && game.sleeping == 0
         var camYaw = p.yaw, camPitch = p.pitch
-        var eye = p.eye
+        var eye = p.viewEye
         if tp {
             let front = game.cameraMode == 2
             let dir = front ? p.look : -p.look
@@ -460,11 +460,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             var dist: Float = reach
             var t: Float = 0.1
             while t < reach {
-                let q = p.eye + dir * t
+                let q = p.viewEye + dir * t
                 if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
                 t += 0.1
             }
-            eye = p.eye + dir * dist
+            eye = p.viewEye + dir * dist
         }
         return (eye, camYaw, camPitch)
     }

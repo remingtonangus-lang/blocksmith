@@ -718,6 +718,7 @@ final class Game {
         }
 
         let fdt = Float(dt)
+        defer { updateViewStep(fdt) }                         // eased step-ups for the camera (ViewStep.swift)
         swing = max(0, swing - fdt * 4)
         equipAnim = max(0, equipAnim - fdt * 5)
         attackTimer += fdt
