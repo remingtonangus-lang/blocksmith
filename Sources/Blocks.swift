@@ -91,6 +91,7 @@ final class BlockRegistry {
     var collide: [Bool] = []        // has any collision
     var fullCollide: [Bool] = []    // collision is the full cube
     var cullSame: [Bool] = []
+    var crossSize: [UInt8] = []     // cross plants: drawn size in 1/16 (short grass and flowers are smaller, playtest v78)
     var tint: [UInt8] = []
     var replaceable: [Bool] = []
     var fluidLevel: [Int8] = []
@@ -210,6 +211,7 @@ final class BlockRegistry {
         collide.append(d.collide)
         fullCollide.append(d.collide && (d.render == .cube || (d.render != .model && d.render != .connect && d.boxes.isEmpty)))
         cullSame.append(d.cullSame)
+        crossSize.append(d.render != .cross ? 16 : (BlockRegistry.smallCross[g] ?? BlockRegistry.smallCross[d.name] ?? 16))
         tint.append(d.tint)
         replaceable.append(d.replaceable)
         fluidLevel.append(d.fluid)
@@ -851,6 +853,17 @@ final class BlockRegistry {
 }
 
 let Blocks = BlockRegistry()
+
+extension BlockRegistry {
+    // Ground plants drawn smaller than a full block (in 1/16): a field read as a noisy carpet (playtest v78).
+    static let smallCross: [String: UInt8] = {
+        var m: [String: UInt8] = ["short_grass": 9, "short_dry_grass": 9, "fern": 11]
+        for f in ["allium", "azure_bluet", "blue_orchid", "dandelion", "cornflower", "lily_of_the_valley", "oxeye_daisy",
+                  "poppy", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "torchflower", "open_eyeblossom",
+                  "closed_eyeblossom"] { m[f] = 12 }
+        return m
+    }()
+}
 
 // Frequently used states (resolved once, lazily, by name).
 let AIR: BlockID = 0

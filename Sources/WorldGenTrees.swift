@@ -533,7 +533,7 @@ extension WorldGen {
             case .meadow:
                 if h > 0.93 { b[above] = g("wildflowers"); continue }
             case .plains, .sunflowerPlains, .windsweptHills:
-                if h > 0.985 { b[above] = g("bush"); continue }
+                if h > 0.993 { b[above] = g("bush"); continue }
             case .swamp, .mangroveSwamp:
                 if h > 0.975 { b[above] = g("firefly_bush"); continue }
             case .jungle, .sparseJungle, .bambooJungle:
@@ -542,6 +542,9 @@ extension WorldGen {
                 if h > 0.97 { b[above] = g("short_dry_grass"); continue }
             default: break
             }
+            // A calmer ground (playtest v78: "too noisy"): no tall grass, about a third of the short grass, half the
+            // flowers and ferns (themed biomes keep their relative richness).
+            grassP *= 0.35; flowerP *= 0.5; fernP *= 0.5; tallP = 0
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {
                     let tall = ["lilac", "rose_bush", "peony"][Int(h2 * 20) % 3]
