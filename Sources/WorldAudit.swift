@@ -66,7 +66,7 @@ enum WorldAudit {
             if !Blocks.fullCollide[Int(world.block(sx, sy - 1, sz))] { why.append("no ground (\(Blocks.key(world.block(sx, sy - 1, sz))))") }
             hazard: for dy in -1...1 { for dz in -2...2 { for dx in -2...2 {
                 let k = Blocks.key(world.block(sx + dx, sy + dy, sz + dz))
-                if k.hasPrefix("lava") || (dy >= 0 && dx == 0 && dz == 0 && k.hasPrefix("water")) { why.append("\(k) at spawn"); break hazard }
+                if k.hasPrefix("lava") || (dy >= 0 && abs(dx) <= 1 && abs(dz) <= 1 && k.hasPrefix("water")) { why.append("\(k) at spawn"); break hazard }
             } } }
             if !why.isEmpty { unsafe.append("seed \(seed): " + why.joined(separator: ", ")) }
             // 4. Spawn density: survival, the player hovering 12 blocks up (out of reach), noon then midnight.

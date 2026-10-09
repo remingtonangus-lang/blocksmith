@@ -95,6 +95,20 @@ enum AudioAudit {
                 check(wild(r).isEmpty, "cave under the forest at \(label): no birds, owls or insects", "y \(Int(c.y) - YOFF): \(wild(r).joined(separator: " "))")
             }
         } else { check(false, "found a cave under the forest") }
+        // The reported case (Oct 9, birds in caves): a dark space only 6-20 blocks down, near the surface and its
+        // entrances, searched over a wider square around the forest.
+        var shallow: V3?
+        search2: for dy in 6...20 { for dx in stride(from: -40, through: 40, by: 2) { for dz in stride(from: -40, through: 40, by: 2) {
+            let x = x0 + dx, z = z0 + dz, y = w.gen.column(x, z).height - dy
+            if w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR && Blocks.opaque[Int(w.block(x, y - 1, z))] && w.lightAt(x, y + 1, z).sky <= 4 {
+                shallow = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search2
+            }
+        } } }
+        if let c = shallow {
+            let r = at(c, 0.25)
+            check(wild(r).isEmpty, "shallow dark cave near the forest surface at noon: no birds, owls or insects",
+                  "y \(Int(c.y) - YOFF), sky light \(w.lightAt(Int(c.x), Int(c.y) + 1, Int(c.z)).sky): \(wild(r).joined(separator: " "))")
+        } else { print("audioaudit SKIP: no shallow dark cave within 40 blocks of the forest point") }
         // The Deep (hell band) and the Ash Vault: a game of their own in that dimension.
         let dw = World(seed: w.seed, device: w.device, save: nil, dim: .deep)
         dw.renderDistance = 3
