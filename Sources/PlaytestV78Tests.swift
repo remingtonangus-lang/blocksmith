@@ -77,6 +77,22 @@ enum PlaytestV78Tests {
         }
         (game.survival, game.difficulty, game.health) = hs
         p.pos = save.0
+        // Plants (v78: "too noisy"): fresh ground has no tall grass and short grass on few grass blocks; drawn smaller.
+        var grassTops = 0, short = 0, tall = 0
+        let sx = Int(floor(p.pos.x)), sz = Int(floor(p.pos.z))
+        let tallID = Blocks.id("tall_grass")
+        for x in (sx - 40)...(sx + 40) { for z in (sz - 40)...(sz + 40) where w.isLoaded(x, z) {
+            let y = w.topY(x, z)
+            for yy in (y - 2)...(y + 1) where w.block(x, yy, z) == Blocks.id("grass_block") {
+                grassTops += 1
+                let a = w.block(x, yy + 1, z)
+                if a == TALL_GRASS { short += 1 }
+                if a == tallID { tall += 1 }
+            }
+        } }
+        check(grassTops > 500 && tall == 0 && Float(short) / Float(max(1, grassTops)) < 0.15,
+              String(format: "plants: %d grass blocks, %.1f%% short grass, %d tall grass (want < 15%% and none)", grassTops, Float(short) * 100 / Float(max(1, grassTops)), tall))
+        check(Blocks.crossSize[Int(TALL_GRASS)] < 12 && Blocks.crossSize[Int(Blocks.id("poppy"))] < 16, "plants: short grass and flowers draw smaller than a block")
         spawning(game, check)
     }
 

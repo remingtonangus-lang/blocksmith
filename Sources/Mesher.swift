@@ -227,6 +227,7 @@ enum Mesher {
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
+        let crossT = Blocks.crossSize
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes, collideT = Blocks.collide
         let CT = cornerTable, NT = normalTable, PTab = plantTable
@@ -467,10 +468,11 @@ enum Mesher {
                     if rt == rCross {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
+                        let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                         for q in 0..<4 {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
-                                vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * 16, bz16 + PTab[ci + 2] * 16,
+                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
                                      6, tintV, cornerU[k], cornerV[k], layer, 3, l, false)
                             }
                         }
