@@ -1150,6 +1150,12 @@ final class WorldGen: TerrainGenerator {
             let lo: UInt32 = byte(r) | (byte(g) << 8)
             return lo | (byte(b) << 16) | (255 << 24)
         }
+        // AV polish: plants read less cartoonish: 18% less saturated, a touch toward olive.
+        func natural(_ r: Float, _ g: Float, _ b: Float) -> UInt32 {
+            let l: Float = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            let nr: Float = l + (r - l) * 0.82, ng: Float = (l + (g - l) * 0.82) * 0.97
+            return rgba(nr, ng, (l + (b - l) * 0.82) * 0.88)
+        }
         let cols = chunkColumns(chunkNodes(cx * CS, cz * CS))
         for i in 0..<CSQ {
             let k = cols[i]
@@ -1163,9 +1169,12 @@ final class WorldGen: TerrainGenerator {
                 wsum += wt
             }
             let inv = 1 / wsum
-            t[i] = rgba(gr * inv, gg * inv, gb * inv)
-            t[256 + i] = rgba(fr * inv, fg * inv, fb * inv)
-            t[512 + i] = rgba(wr * inv, wg * inv, wb * inv)
+            t[i] = natural(gr * inv, gg * inv, gb * inv)
+            t[256 + i] = natural(fr * inv, fg * inv, fb * inv)
+            let wr2: Float = wr * inv, wg2: Float = wg * inv, wb2: Float = wb * inv
+            let wl: Float = 0.2126 * wr2 + 0.7152 * wg2 + 0.0722 * wb2   // water: 15% less saturated, a little deeper
+            let wR: Float = (wl + (wr2 - wl) * 0.85) * 0.94, wG: Float = (wl + (wg2 - wl) * 0.85) * 0.94
+            t[512 + i] = rgba(wR, wG, wl + (wb2 - wl) * 0.85)
         }
         return t
     }

@@ -49,18 +49,19 @@ static float3 sunShade(uint face, float base, float w, float3 sd) {
     float3 l = normalize(sd);
     float g = saturate(l.y * 2.2);
     float3 sunC = mix(float3(1.22, 0.80, 0.48), float3(1.04, 1.0, 0.93), g);
-    float3 d = float3(0.86, 0.93, 1.06) * 0.66 + sunC * (0.46 * saturate(dot(faceN[face], l)));
+    float3 d = float3(0.84, 0.92, 1.08) * 0.6 + sunC * (0.54 * saturate(dot(faceN[face], l)));
     return mix(float3(base), d, w);
 }
 // Cheap filmic curve for world surfaces (not HUD): soft shoulder above 0.9, a highlight lift above mid-grey (shadows and 0.5 untouched),
-// saturation 1.08. ~14 ALU per fragment.
+// natural saturation with acid yellow-greens tamed (AV polish: less cartoonish). ~18 ALU per fragment.
 static float3 filmic(float3 c) {
     c = max(c, 0.0);
     float3 hi = 0.9 + 0.1 * (1.0 - exp((0.9 - c) * 10.0));
     c = mix(c, hi, step(0.9, c));
     c = c + 0.25 * c * (1.0 - c) * max(2.0 * c - 1.0, 0.0);
     float l = dot(c, float3(0.2126, 0.7152, 0.0722));
-    return max(l + (c - l) * 1.08, 0.0);
+    float lime = saturate((c.g - max(c.r, c.b)) * 1.6);
+    return max(l + (c - l) * (1.0 - 0.28 * lime), 0.0);
 }
 
 // See Mesher.swift for the vertex layout. tints: 256 grass, 256 foliage, 256 water colours (RGBA8).
@@ -164,22 +165,29 @@ static float3 waterAmbient(float3 lit, float3 albedo, constant Uniforms& u) {
     return u.params.w > 0.5 ? max(lit, albedo * u.fogColor.rgb * 2.2) : lit;
 }
 
-static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
+// Fog factor: the render-distance fog plus a gentle aerial haze that starts near (depth, not a wall at the edge).
+static float fogAmount(float dist, constant Uniforms& u) {
     float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    float haze = u.params.w > 0.5 ? 0.0 : 0.3 * saturate(u.params.y) * (1.0 - exp(-dist * 1.6 / max(u.params.x, 1.0)));
+    return max(f, haze);
+}
+
+static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
+    float f = fogAmount(dist, u);
     return mix(c, u.fogColor.rgb, f);
 }
 
-// Fog colour seen along a view ray: Fancy adds the same warm dawn/dusk glow toward the sun as the sky
+// Fog colour seen along a view ray: adds the same warm dawn/dusk glow toward the sun as the sky
 // dome, so fogged terrain on that horizon melts into the glow instead of cutting a dark silhouette.
 static float3 fogColorAlong(float3 rel, constant Uniforms& u) {
-    float glow = u.eye.w - 1.0;
+    float glow = u.eye.w > 0.5 ? u.eye.w - 1.0 : u.eye.w / 0.49;   // Fast packs its glow below 0.5
     if (glow <= 0.0) { return u.fogColor.rgb; }
     float sd = saturate(dot(normalize(rel), normalize(u.sunDir.xyz)));
     return u.fogColor.rgb + float3(1.0, 0.55, 0.25) * pow(sd, 5.0) * glow;
 }
 
 static float3 applyFogDir(float3 c, float3 rel, float dist, constant Uniforms& u) {
-    float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    float f = fogAmount(dist, u);
     return mix(c, fogColorAlong(rel, u), f);
 }
 
@@ -278,8 +286,9 @@ static float3 skyColor(SkyOut in, constant SkyParams& s) {
     float3 d = normalize(w.xyz / w.w);
     // Slow start: the first few degrees above the horizon stay close to the fog colour, so fogged
     // terrain and trees that poke above the horizon line don't show as pale silhouettes.
-    float h = saturate(d.y * 1.25);
-    h = h * h * (3.0 - 2.0 * h);
+    // AV polish: the haze band hugs the horizon and the deep blue arrives by ~40 degrees up.
+    float h = smoothstep(0.0, 0.7, d.y);
+    h = sqrt(h) * h + (1.0 - h) * h * h;
     float3 col = mix(s.horizon.rgb, s.zenith.rgb, h);
     if (d.y < 0.0) { col = s.horizon.rgb; }   // below the horizon: exactly the fog colour, so far terrain blends in
     float sd = saturate(dot(d, s.sun.xyz));
