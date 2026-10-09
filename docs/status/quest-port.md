@@ -615,3 +615,31 @@ One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first 
   perf ships.edit_ms_mean 0.5 -> 2.0 ms (unrelated ship-edit bench, likely runner noise). The Fast sky dome costs
   ~0.8 ms GPU at 800p on the runner; playtest branch fast lane green. Quest CI 37912600891 green, APK on quest-dist
   (310d4a1). Not installed: adb saw no Quest. Also on claude/blocksmith-playtest (quest shaders dropped there).
+
+## Task 25b1 (2026-10-09): Remington's v78 playtest fixes
+
+Causes found and fixed (one commit each, `git log --grep "Playtest v78"`; also on claude/blocksmith-playtest):
+1. Sprint (fourth report): the real cause was that a full stick push auto-sprinted (QuestControls push zone + the pad's
+   auto-sprint, on by default), so there was no full-push walk to compare against, only 1.3x vs a partial push, and the
+   comfort vignette tunnelled harder at sprint speed, hiding the flow. Now: a full push walks (4.3 b/s); clicking the
+   pushed left stick sprints at 1.6x (Player.vrSprintSpeed 6.9 b/s) in any direction until the stick comes back to the
+   middle; no VR auto-sprint; the vignette caps at walking speed; faint speed streaks at the view's edges, a stronger
+   haptic tick, the ">> SPRINT" tag, and a one-time "Click the left stick while moving to sprint" hint after 4 s of
+   full-push walking. Tests: QuestSim 1b drives the Touch stick in 4 directions (walk must not sprint; click sprint
+   >= 1.5x walk: CI measured 6.9 vs 3.9 b/s, x1.75); questbugs checks 4 directions at the Player level (x1.60).
+2. Reach: blocks break/place from 6 blocks (ground and ship decks, Mac too); melee on mobs 3.5 (Swing Mode was 6).
+3. Riding: the B that closes a menu fired a sneak tap on release outside the menu, and sneak dismounts. Game ignores a
+   sneak still held from a menu (`sneakHeldFromMenu`), QuestControls drops a B release that started in a menu (`bBlock`).
+   Pickup while mounted reaches down to the mount's feet and 1.9 wide (was -0.8 below the rider's feet).
+4. Spawning: caves got zero monsters (the cave sample had to hit the exact floor cell, then a 1-in-4 gate, and night
+   surface mobs filled the cap). The cave sample now falls through open air to the floor, half the samples are at the
+   player's depth when underground, no 1-in-4 gate; with the cap full, caves keep a small share (at most 4 within 32
+   blocks). Monster cap 24 -> 36 before render-distance scaling. 60 s at night, rd 6: surface 15 -> ~20, cave 0 -> 6-10
+   within 48 blocks, 0-2 within 32.
+5. Hisser: fuse 1.75 s (was 1.5); a hit makes it flinch (swell back 0.6 s, paused 0.4 s): iron sword every cooldown
+   kills it in 4 hits with no blast; left alone it still blows at ~2 s.
+6. Plants: new ground has no tall grass, ~1/3 short grass, half the flowers/ferns, fewer plains bushes; short grass
+   draws at 9/16, ferns 11/16, small flowers 12/16 everywhere (saved worlds too: `Blocks.crossSize`, Mesher).
+Checks: `--questbugs --only v78` (12 checks) inside the full `--questbugs` (0 failures locally, incl. every saved Mac
+world loading). No save IDs changed; Mac worlds backed up to Backups/all-worlds-before-task25b1-20261009.
+Quest CI run 37942994351 green, APK versionCode 79 (6300439) on quest-dist. Not installed: adb saw no Quest.
