@@ -44,7 +44,7 @@ enum Smoke {
         frameMs.reserveCapacity(frames)
         var minCov = 1.0, peak = residentMB(), maxMobs = 0, maxDropped = 0
         let start = CFAbsoluteTimeGetCurrent()
-        let flyAt = frames / 2
+        let flyAt = max(frames / 2, min(frames, 1300))       // never on the pause/resume presses at 1200-1240 (a 40 s run paused mid-flight)
         // Watchdog: a hang (deadlock, a GPU wait that never returns) becomes a reported failure instead of a CI timeout.
         let progress = SmokeProgress()
         Thread.detachNewThread {

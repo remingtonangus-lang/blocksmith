@@ -328,6 +328,9 @@ enum OverworldStructures {
             let by = y - 11
             w.set(cx, y - 1, cz - 2, Blocks.id("oak_trapdoor") + 8)
             w.fill(cx - 3, by - 1, cz - 3, cx + 3, by + 4, cz + 3, Blocks.id("stone_bricks"))
+            // Over a cave the lab's floor hung in the air (structcheck floating, seeds 12345/777): a brick footing (not stone:
+            // pillarDown runs on through blocks equal to its own).
+            for px in (cx - 3)...(cx + 3) { for pz in (cz - 3)...(cz + 3) { w.pillarDown(px, by - 2, pz, Blocks.id("stone_bricks"), minY: by - 24) } }
             w.fill(cx - 2, by, cz - 2, cx + 2, by + 3, cz + 2, AIR)
             // The ladder after the room: laid first, the lab's ceiling covered the shaft (structcheck, run 368: both
             // basements' chest and cauldron unreachable).
