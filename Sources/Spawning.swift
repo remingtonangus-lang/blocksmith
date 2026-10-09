@@ -272,6 +272,7 @@ extension MobManager {
     // get a small share of their own: otherwise the surface took every slot and a mining trip met nothing (v78).
     func hostileAttempts(_ game: Game) {
         let full = count(.monster, near: game.player.pos) >= cap(.monster, game.world)
+        if full && game.world.dim != .overworld { return }     // (other dimensions spawn without their own cap check)
         for _ in 0..<4 { trySpawnHostile(game, caveOnly: full) }
     }
 
