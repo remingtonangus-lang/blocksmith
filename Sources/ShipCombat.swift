@@ -15,7 +15,7 @@ final class Shell {
     let owner: Int                   // firing ship (its turrets and parent are ignored)
     let power: Float
     var gravity: Float = 20
-    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile
+    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 MAC slug (craters)
     var life: Float = 10
     // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
     weak var seekShip: Ship?
@@ -91,6 +91,7 @@ extension ShipManager {
         let b = Blocks.has("coal_block") ? Blocks.id("coal_block") : STONE
         let slug = Blocks.has("magma_block") ? Blocks.id("magma_block") : b
         let dart = Blocks.has("iron_block") ? Blocks.id("iron_block") : b
+        let mac = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : slug
         for sh in shells {
             switch sh.kind {
             case 1:
@@ -98,6 +99,10 @@ extension ShipManager {
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<4 { wr.cube(center: sh.pos - d * Float(k) * 0.9 - eye, half: 0.45 - Float(k) * 0.08, yaw: sh.age * 9, block: slug, light: 1) }
             case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
+            case 3:
+                // The MAC slug: a long white-blue streak.
+                let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
+                for k in 0..<8 { wr.cube(center: sh.pos - d * Float(k) * 1.2 - eye, half: 0.6 - Float(k) * 0.06, yaw: sh.age * 9, block: mac, light: 1) }
             default: wr.cube(center: sh.pos - eye, half: sh.power > 3 ? 0.26 : 0.18, yaw: sh.age * 9, block: b, light: 1)
             }
         }
@@ -109,7 +114,7 @@ extension ShipManager {
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
-        var blasts: [(V3, Float, Int, Bool)] = []
+        var blasts: [(V3, Float, Int, Bool, Int)] = []
         for sh in shells {
             sh.age += dt
             let start = sh.pos
@@ -155,12 +160,13 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
-            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull)); continue }
+            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind)); continue }
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
-        for (p, power, owner, onHull) in blasts {
+        for (p, power, owner, onHull, kind) in blasts {
+            if kind == 3, let g = game { Explosion.crater(at: p, radius: 9, game: g); continue }
             if let g = game {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
                 let from = list.first { $0.id == owner }

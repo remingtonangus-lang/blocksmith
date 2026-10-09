@@ -123,6 +123,45 @@ enum Explosion {
     }
 }
 
+extension Explosion {
+    // A MAC slug's impact (task 23): a bowl-shaped crater of radius r (ragged rim) through every breakable block,
+    // citadel walls included; ship hulls in reach torn (ShipManager.blast); a few drops; a power-8 blast for damage,
+    // sound and flash without its own block breaking.
+    static func crater(at c: V3, radius r: Float, game g: Game) {
+        let w = g.world
+        w.ships.blast(at: c, power: 14, game: g)
+        let ri = Int(ceilf(r))
+        let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
+        var rim: [IVec3] = []
+        for dy in -ri...ri { for dz in -ri...ri { for dx in -ri...ri {
+            let y = cy + dy
+            guard y > 0 && y < CH - 1 else { continue }
+            let dyf = Float(dy) * (dy < 0 ? 1.5 : 1)         // a bowl: shallower than wide
+            let d2: Float = Float(dx * dx + dz * dz) + dyf * dyf
+            let edge: Float = r * (0.8 + 0.2 * hashf(cx + dx, y, cz + dz, 911))
+            guard d2 <= edge * edge else { continue }
+            let x = cx + dx, z = cz + dz
+            let id = w.block(x, y, z)
+            if id == AIR || Blocks.isLiquid(id) || Blocks.hardness[Int(id)] < 0 { continue }
+            let b = IVec3(x, y, z)
+            if let be = w.blockEntities.removeValue(forKey: b) {
+                for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
+                be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
+            }
+            if Rand.float(in: 0..<1) < 0.02 {
+                for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
+            }
+            w.setBlockAsync(x, y, z, AIR)
+            if d2 > (edge - 1.5) * (edge - 1.5) { rim.append(b) }
+        } } }
+        for b in rim { w.scheduleFluid(around: b) }
+        explode(at: c, power: 8, game: g, breakBlocks: false)
+        g.particles.explosion(at: c + V3(0, 2, 0), power: 8)
+        g.sfx(.debrisRain, 1, at: c + V3(0, 2, 0))
+        g.addFlash(at: c + V3(0, 1, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.6)
+    }
+}
+
 // Primed TNT: falls, flashes, explodes (power 4) after its fuse.
 final class PrimedTNT {
     var pos: V3

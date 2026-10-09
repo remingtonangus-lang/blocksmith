@@ -81,13 +81,22 @@ enum Guns {
         }
     }
 
-    // Ammunition is crafted (the guns themselves only come from Steelhold fortresses).
+    // Ammunition is crafted; guns need components looted at Capital citadels.
     static func recipes() -> [Recipe?] {
         [Recipes.shapeless(["iron_ingot", "copper_ingot", "gunpowder"], "rifle_rounds", 16),
          Recipes.shapeless(["paper", "gunpowder", "iron_nugget", "iron_nugget"], "shotgun_shells", 6),
          Recipes.shapeless(["iron_ingot", "iron_ingot", "gunpowder", "gunpowder"], "heavy_rounds", 5),
          Recipes.shaped([" I ", "ITI", "IGI"], ["I": "iron_ingot", "T": "tnt", "G": "gunpowder"], "rocket_ammo", 2),
-         Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4)]
+         Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4),
+         // Guns (task 23): only with components from Capital citadels (FactionGear.swift).
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "firing_mechanism"], "gun_sidearm"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism"], "gun_rifle"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "copper_ingot", "firing_mechanism"], "gun_smg"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "iron_ingot", "iron_ingot", "firing_mechanism"], "gun_shotgun"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism", "targeting_optic"], "gun_sniper"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "tnt", "firing_mechanism", "targeting_optic"], "gun_launcher"),
+         Recipes.shapeless(["steel_ingot", "steel_ingot", "redstone", "redstone", "gold_ingot", "firing_mechanism", "targeting_optic"], "gun_arc"),
+         Recipes.shapeless(["radar_module", "compass", "steel_ingot", "steel_ingot", "redstone"], "radar_set")]
     }
 
     // Enchantment-adjusted numbers (Extended Magazine, Quick Reload, Stability); NPC guns carry no enchantments.

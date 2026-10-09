@@ -8,18 +8,18 @@ import simd
 //   crawler     stand, then walk laps (sprinting, jumping) on the command deck of an Ironback Crawler driving S-turns
 //               at full speed over plains, 4 minutes
 //   rough       the same over the roughest ground near spawn
-//   frigate     the same on the flight deck of a Capital frigate cruising and turning, 4 minutes
+//   frigate     the same in the hangar of a Meridian frigate cruising and turning, 4 minutes
 //   warfrigate  the same on the hangar deck of a Stormwarden frigate, 90 s
 //   board       on a moving crawler: up the side ladder, over the roof walkway and through the hatch into the command
 //               deck, back out and down the ladder to the ground, round to the rear ramp, up it into the troop bay,
 //               and down it to the ground again
-//   frigateboard a creative bot flies down onto a cruising, turning Capital frigate's flight deck, walks through the
-//               hangar, the deckhouse and a side door onto the weather deck to the bow, back again, and flies off
+//   frigateboard a creative bot flies down onto a cruising, turning Meridian frigate's spine behind the bridge, walks
+//               each unrailed edge forward to the bridge and back round the gun mount, and flies off
 //   crew        a crewed crawler driving S-turns: every soldier holds its post; then half its wheels are shot away:
 //               it grinds to a stop, the crew stay aboard and fight two enemy soldiers
 //   troops      a crewed crawler meets enemy soldiers: it stops, lowers its ramp and its bay troops walk out down it
-//   frigatecrew a crewed Capital frigate cruising: crew hold their posts; engines destroyed: it crash-lands, crew aboard
-//   frigatecrash a survival bot standing on a frigate's flight deck as its engines die: carried down, survives
+//   frigatecrew a crewed Meridian frigate cruising: crew hold their posts; engines destroyed: it crash-lands, crew aboard
+//   frigatecrash a survival bot standing in a frigate's hangar as its engines die: carried down, survives
 // Oracles: never off the deck or below it, never inside a solid (exact, in the ship's frame), standing drift relative
 // to the deck, deck-relative velocity spikes and shoves, bouncing on a flat deck, world-velocity jumps, laps walked,
 // crew at their posts, smooth stops, no despawn. Report: DIR/ridecheck.md; exit 3 on any failure.
@@ -71,8 +71,8 @@ enum RideCheck {
                           lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
-                deckScene(r, sc, deckY: 15, start: V3(15.5, 15.02, 119.5),
-                          lap: [V3(9.5, 15, 108.5), V3(21.5, 15, 108.5), V3(21.5, 15, 131.5), V3(9.5, 15, 131.5)], seconds: secs(240), turnEvery: 30)
+                deckScene(r, sc, deckY: 9, start: V3(13.5, 9.02, 110.5),                  // the Meridian frigate's hangar deck
+                          lap: [V3(8.5, 9, 116.5), V3(8.5, 9, 72.5), V3(18.5, 9, 72.5), V3(18.5, 9, 116.5)], seconds: secs(240), turnEvery: 30)
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
@@ -467,25 +467,25 @@ enum RideCheck {
         st.testSpeed = 5
         for _ in 0..<60 { sc.agent.step(Bot()) }
         let p = g.player
-        p.pos = s.toWorld(V3(15.5, 24, 132))
+        p.pos = s.toWorld(V3(13.5, 32, 112))
         p.vel = s.velocity(at: p.pos) * 0.5
         p.flying = true
         p.yaw = s.yaw
         p.lastUpdatePos = p.pos
         _ = w.loadSync(center: p.pos, radius: 3)
-        let mon = Monitor(sc, deckY: 15)
+        let mon = Monitor(sc, deckY: 25)
         let bot = Bot()
         var phase = 0, wp = 0
         var phaseT: Float = 0
         var reached: [String] = []
-        let names = ["fly down onto the flight deck",
-                     "walk through the hangar, the deckhouse and the starboard door, forward along the side deck and back aft to the flight deck",
+        let names = ["fly down onto the spine deck behind the bridge",
+                     "walk the starboard edge of the spine forward to the bridge, round the gun mount and back aft",
                      "do the same on the port side", "take off and fly clear"]
-        // Starboard loop (ship space; the Capital frigate's centreline is x 15.5): the side deck outside the door is one
-        // block wide, unrailed.
-        let out: [V3] = [V3(15.5, 15, 112), V3(15.5, 15, 101), V3(19.5, 15, 95), V3(19.5, 15, 84), V3(24.0, 15, 81),
-                         V3(25.5, 15, 81), V3(26.6, 15, 81), V3(26.6, 15, 52), V3(26.6, 15, 106), V3(20.5, 15, 112)]
-        let back: [V3] = out.map { V3(31 - $0.x, $0.y, $0.z) }
+        // Starboard loop (ship space; the Meridian frigate's centreline is x 13.5): the spine roof is unrailed, its
+        // outermost block (x 19.5) above the chamfer.
+        let out: [V3] = [V3(13.5, 25, 112), V3(18.5, 25, 112), V3(18.5, 25, 94), V3(19.5, 25, 94), V3(19.5, 25, 117),
+                         V3(15.5, 25, 117), V3(15.5, 25, 101), V3(13.5, 25, 112)]
+        let back: [V3] = out.map { V3(27 - $0.x, $0.y, $0.z) }
         func advance(_ why: String) {
             reached.append(String(format: "%@ at %.0f s", why, phaseT))
             r.note("reached: " + why)
@@ -496,7 +496,7 @@ enum RideCheck {
             switch phase {
             case 0:
                 if aboard && stt.onGround { advance(names[0]); return AgentAction.idle }
-                let tw = s.toWorld(V3(15.5, 15, 118))
+                let tw = s.toWorld(V3(13.5, 25, 110))
                 var a = walk(stt, to: tw)
                 let d = simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z))
                 a.forward = d > 1 && a.forward > 0 ? 1 : 0
@@ -621,7 +621,7 @@ enum RideCheck {
     // Crew: soldiers ride at their posts while the vehicle drives and turns; then it is disabled and they stay aboard.
     static func crewScene(_ r: Report, _ sc: Scene, seconds: Int, frigate: Bool) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: frigate ? V3(15.5, 15.02, 120.5) : V3(23.5, 22.02, 44.5))
+        place(sc, local: frigate ? V3(13.5, 9.02, 110.5) : V3(23.5, 22.02, 44.5))
         st.testTurn = 1
         let idle = Bot()
         let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
@@ -741,9 +741,9 @@ enum RideCheck {
     // A survival bot on the flight deck when the frigate's engines die: carried down, survives the touchdown.
     static func crashScene(_ r: Report, _ sc: Scene) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: V3(15.5, 15.02, 119.5))
+        place(sc, local: V3(13.5, 9.02, 110.5))
         st.testTurn = 0
-        let mon = Monitor(sc, deckY: 15)
+        let mon = Monitor(sc, deckY: 9)
         let idle = Bot()
         for _ in 0..<(15 * 60) {
             g.hunger = 20

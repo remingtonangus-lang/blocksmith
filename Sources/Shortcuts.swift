@@ -4,7 +4,7 @@ import simd
 // Pause menu > Shortcuts: teleports to the nearest notable structure (the same search as /locate) and back to spawn.
 extension Game {
     static let shortcutList: [(String, String)] = [
-        ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("crawler", "Ironback Crawler"), ("frigate", "Capital Frigate"),
+        ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"),
         ("warfrigate", "Stormwarden Frigate"), ("carriage", "Siege Carriage"), ("village", "Village"),
         ("pillager_outpost", "Marauder Watchtower"), ("mansion", "Forest Manor"), ("monument", "Sea Temple"),
         ("temple", "Temple"), ("great_ruin", "Ancient Spire"), ("ancient_city", "Buried Citadel"),

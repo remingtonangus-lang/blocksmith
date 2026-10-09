@@ -352,7 +352,8 @@ extension MobTests {
         if let sc = world.gen.structures, let type = sc.types.first(where: { $0.name == "military_base" }) {
             var found = 0
             for rz in -6..<6 { for rx in -6..<6 where sc.start(type, regionX: rx, regionZ: rz) != nil { found += 1 } }
-            check(found >= 1 && found <= 60, "fortresses are rare", "\(found) in 144 regions of 40x40 chunks")
+            // Task 23 tries alternate sites in a region whose first spot fails: about half the regions hold one.
+            check(found >= 1 && found <= 90, "fortresses are rare", "\(found) in 144 regions of 40x40 chunks")
             // Lay one out on a plain stone slab, chunk by chunk (a Capital citadel, CapitalBase.swift).
             var built: [String: Int] = [:]
             var mobs: [String: Int] = [:]

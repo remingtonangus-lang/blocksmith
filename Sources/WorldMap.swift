@@ -135,6 +135,8 @@ final class MapCache {
         if let u = marksURL(g), let d = try? Data(contentsOf: u), let m = try? JSONDecoder().decode([Mark].self, from: d) { marks = m }
     }
 
+    func marked(kind: String, x: Int, z: Int) -> Bool { marks.contains { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 } }
+
     func discover(_ g: Game, kind: String, x: Int, z: Int) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         marks.append(Mark(kind: kind, x: x, z: z))
@@ -180,7 +182,9 @@ final class MapCache {
         case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
-        case "vessel_frigate": return ("F", V4(0.6, 0.35, 0.9, 1), "Skyward Frigate patrol")
+        case "vessel_frigate", "vessel_capfrigate": return ("F", V4(0.55, 0.62, 0.4, 1), "Meridian frigate patrol")
+        case "vessel_warfrigate", "vessel_battle": return ("S", V4(0.35, 0.5, 0.95, 1), "Stormwarden frigate patrol")
+        case "vessel_crawler": return ("I", V4(0.75, 0.45, 0.25, 1), "Ironback crawler patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
         case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
@@ -211,6 +215,7 @@ final class MapCache {
         let rx = floorDiv(px, Vessels.region), rz = floorDiv(pz, Vessels.region)
         for dz in -1...1 { for dx in -1...1 {
             guard let e = Vessels.encounter(seed: g.world.seed, rx: rx + dx, rz: rz + dz, gen: g.world.gen) else { continue }
+            if !g.postGame && Vessels.warship(e.0) { continue }          // faction warships sail after the end game
             let ex = e.1.x - px, ez = e.1.z - pz
             if ex * ex + ez * ez < 200 * 200 { discover(g, kind: "vessel_" + e.0, x: e.1.x, z: e.1.z) }
         } }

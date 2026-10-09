@@ -82,11 +82,13 @@ enum DeepTests {
         g.mobs.mobs.removeAll()
         // The Marshal: barrages, his guard, and his fall.
         let marshal = unit("ash_marshal^180", dz: 14)
+        marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks
         var marked = false
         sim(15) { if !g.ashStrikes.isEmpty { marked = true }; return marked }
         marshal.health = marshal.spec.health / 2
-        sim(0.5)
-        let guard_ = g.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && Soldier.rank($0.kind) != nil && $0.kind != .ashMarshal }
+        func guardNow() -> [Mob] { g.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && Soldier.rank($0.kind) != nil && $0.kind != .ashMarshal } }
+        sim(3) { guardNow().count >= 4 }
+        let guard_ = guardNow()
         check(marked && guard_.count >= 4 && guard_.allSatisfy { $0.spec.name.hasPrefix("Ashguard") },
               "deep war: the Marshal marks a barrage and calls his guard (\(guard_.count) Ashguard soldiers)")
         marshal.killedByPlayer = true
