@@ -38,6 +38,7 @@ extension Game {
         player.pos = to
         player.vel = .zero
         player.airPeak = to.y
+        if down { achieve("deep_visit") }
         if down && !deepVisited {
             deepVisited = true
             onToast?("You broke through the bottom of the world")

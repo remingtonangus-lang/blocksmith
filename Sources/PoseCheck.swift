@@ -59,7 +59,7 @@ enum PoseCheck {
         failures = []
         SoldierRig.eye = nil
         var limbs = 0
-        let skip: Set<MobKind> = [.deckGun, .boat, .minecart, .enderDragon, .endCrystal]
+        let skip: Set<MobKind> = [.deckGun, .boat, .minecart, .enderDragon, .endCrystal, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck]
         for k in MobKind.allCases where !skip.contains(k) && Soldier.rank(k) == nil {      // soldiers: soldiers() below
             for state in 0..<4 {
                 let m = pose(k, state)

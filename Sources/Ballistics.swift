@@ -68,7 +68,7 @@ final class Armory {
         for m in g.mobs.mobs where m.health > 0 && m !== g.riding {
             if !skip.isEmpty && skip.contains(ObjectIdentifier(m)) { continue }
             if let sh = shooter, ObjectIdentifier(m) == sh { continue }
-            if friendly && m.kind.steelhold { continue }
+            if friendly && (m.kind.steelhold || m.kind.ash) { continue }
             if let t = m.rayHit(o, d, maxDist: len), t < (best?.1 ?? .greatestFiniteMagnitude) { best = (m, t) }
         }
         return best
@@ -235,7 +235,7 @@ final class Armory {
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
         if s.incendiary && !m.spec.fireImmune { m.fire = max(m.fire, 4) }
-        if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem {
+        if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem || m.kind.ashArmoured {
             // Rounds spark off heavy plate.
             for _ in 0..<4 {
                 g.particles.add(Particle(pos: at, vel: (-dir + V3(Rand.float(in: -1...1), Rand.float(in: 0...1.5), Rand.float(in: -1...1))) * 3,
@@ -277,6 +277,8 @@ final class Armory {
         // The Capital's own shells and grenades don't alarm its citadels (CapitalBases.swift).
         let own = shooter.map { $0.kind.steelhold && $0.factionValue == .steelhold } ?? s.by.hasPrefix("Capital")
         g.bases.quiet = own && !s.fromPlayer
+        g.ashQuiet = !s.fromPlayer && shooter?.factionValue == .ashguard
+        defer { g.ashQuiet = false }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
         g.bases.quiet = false
     }
@@ -366,7 +368,7 @@ extension MobKind {
     // The Steelhold garrison (their rounds pass through each other).
     var steelhold: Bool {
         self == .soldierRecruit || self == .soldierTrooper || self == .soldierMarksman || self == .soldierIronclad || self == .deckGun
-            || self == .soldierOfficer || self == .soldierCrew
+            || self == .soldierOfficer || self == .soldierCrew || self == .ashMarshal
     }
 }
 

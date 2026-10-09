@@ -492,7 +492,12 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
+        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck:
+            return ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
+        case .ashMarshal:
+            return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
+            if faction == Faction.ashguard.rawValue { return ashSoldierAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) }
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.
             if !g.world.ships.isEmpty, g.world.ships.standing(on: pos) != nil { strafe = 0; return 0 }

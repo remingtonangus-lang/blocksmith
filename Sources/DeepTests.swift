@@ -9,6 +9,117 @@ enum DeepTests {
         deepWorld(check)
         seam(game, check)
         sites(check)
+        war(game, check)
+    }
+
+    // The Ashguard fights: on the citadel road (open, levelled) a tank closes in and shells the player, a half-track
+    // and a field gun open fire, vehicles brew up when destroyed, the Marshal marks barrages and calls his guard,
+    // his death is the victory (the army stands down, the epilogue, the lift home), and Ashguard soldiers keep their
+    // colours through a save.
+    static func war(_ g: Game, _ check: (Bool, String) -> Void) {
+        let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival
+        let wasMobs = g.mobs.mobs
+        g.changeDimension(to: .deep, at: V3(0.5, 100, 600.5))
+        let w = g.world
+        let y = Float((w.gen as? DeepGen)?.floorY(0, 600) ?? DeepGen.floorBase) + 1
+        _ = w.loadSync(center: V3(0.5, y, 610.5), radius: 4)
+        g.mobs.mobs.removeAll(); w.pendingMobs.removeAll()
+        g.survival = true; g.paused = false; g.menu = nil; g.alive = true
+        g.player.flying = false
+        let stand = V3(0.5, y, 600.5)
+        var hurt = 0, maxHit = 0
+        func sim(_ secs: Float, until: () -> Bool = { false }) {
+            var e: Float = 0
+            while e < secs {
+                g.health = 20
+                g.tick(0.05)
+                if g.health < 20 { hurt += 1; maxHit = max(maxHit, 20 - g.health) }
+                g.health = 20; g.alive = true
+                g.player.pos = stand; g.player.vel = .zero
+                w.pendingMobs.removeAll()
+                e += 0.05
+                if until() { return }
+            }
+        }
+        func unit(_ name: String, dz: Float, dx: Float = 0) -> Mob {
+            let m = Mob.structureMob(name, at: V3(0.5 + dx, y, 600.5 + dz))!
+            g.mobs.mobs.append(m)
+            return m
+        }
+        let sight = w.canSee(stand + V3(0, 1.6, 0), V3(0.5, y + 2, 634))
+        check(sight, "deep war: the citadel road is open (tank to player line of sight)")
+        // A tank 34 blocks off: it closes in and fires its main gun and MG.
+        let tank = unit("ash_tank^180", dz: 34)
+        let z0 = tank.pos.z
+        var shells = 0
+        sim(25) {
+            if g.arms.slugs.contains(where: { $0.kind == .shell && $0.shooter == ObjectIdentifier(tank) }) { shells += 1 }
+            return false
+        }
+        check(tank.aggro && z0 - tank.pos.z > 4 && shells > 0 && hurt > 0 && maxHit < 16,
+              "deep war: a Cinder tank engages (moved \(Int(z0 - tank.pos.z)) blocks, \(shells) shell ticks, player hurt \(hurt) ticks, worst hit \(maxHit))")
+        // Destroyed by the player: it brews up, drops salvage, the advancement.
+        let drops0 = g.drops.items.count
+        tank.killedByPlayer = true
+        tank.hit(from: stand, damage: tank.health + 400)
+        sim(1.5)
+        check(!g.mobs.mobs.contains { $0 === tank } && g.drops.items.count > drops0 && g.advancements.contains("adventure/ash_tank"),
+              "deep war: a destroyed tank brews up and leaves salvage (Tank Buster)")
+        // Half-track and field gun.
+        hurt = 0
+        let ht = unit("ash_halftrack^180", dz: 30, dx: 3)
+        sim(12)
+        let htHurt = hurt
+        g.mobs.mobs.removeAll { $0 === ht }
+        hurt = 0
+        let gun = unit("ash_artillery^180", dz: 40)
+        var gunShells = 0
+        sim(20) {
+            if g.arms.slugs.contains(where: { $0.kind == .shell && $0.shooter == ObjectIdentifier(gun) }) { gunShells += 1 }
+            return false
+        }
+        check(htHurt > 0 && gunShells > 0, "deep war: a half-track's MG hits (\(htHurt) ticks) and a field gun lobs shells (\(gunShells))")
+        g.mobs.mobs.removeAll()
+        // The Marshal: barrages, his guard, and his fall.
+        let marshal = unit("ash_marshal^180", dz: 14)
+        var marked = false
+        sim(15) { if !g.ashStrikes.isEmpty { marked = true }; return marked }
+        marshal.health = marshal.spec.health / 2
+        sim(0.5)
+        let guard_ = g.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && Soldier.rank($0.kind) != nil && $0.kind != .ashMarshal }
+        check(marked && guard_.count >= 4 && guard_.allSatisfy { $0.spec.name.hasPrefix("Ashguard") },
+              "deep war: the Marshal marks a barrage and calls his guard (\(guard_.count) Ashguard soldiers)")
+        marshal.killedByPlayer = true
+        marshal.hit(from: stand, damage: marshal.health + 400)
+        sim(1)
+        check(g.ashVictory && g.advancements.contains("adventure/ash_victory") && g.creditsAsh && g.credits != nil,
+              "deep war: the Marshal's fall is the victory (advancement, epilogue)")
+        g.credits = nil; g.creditsAsh = false
+        g.mobs.mobs.removeAll()
+        hurt = 0
+        _ = unit("ash_tank^180", dz: 24)
+        sim(10)
+        check(hurt == 0, "deep war: after the victory the Ashguard stands down (\(hurt) hurt ticks)")
+        // Saves: an Ashguard soldier keeps its faction and name.
+        let s0 = Mob.structureMob("soldier_recruit@ash^0", at: stand)!
+        var d: [String: Float] = [:]
+        s0.saveExtra(&d)
+        let s1 = Mob(.soldierRecruit, at: stand)
+        s1.loadExtra(d)
+        check(s1.faction == Faction.ashguard.rawValue && s1.spec.name == "Ashguard Rifleman" && s1.power > 1,
+              "deep war: an Ashguard soldier keeps its colours through a save")
+        // The lift home in the command bunker.
+        g.mobs.mobs.removeAll()
+        let l = AshWar.liftAt
+        _ = w.loadSync(center: V3(Float(l.x), Float(l.y), Float(l.z)), radius: 2)
+        g.player.pos = V3(Float(l.x) + 0.5, Float(l.y + 1), Float(l.z) + 0.5)
+        g.ashTick()
+        check(g.dim.dim == .overworld, "deep war: the lift in the bunker carries the player home after the victory")
+        g.ashVictory = false
+        g.mobs.mobs = wasMobs
+        g.survival = wasSurvival
+        if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
+        g.player.pos = home
     }
 
     // The Ashguard's sites: the citadel at 0, 0 with its marks, lamps, loot and garrison; roads along both axes that

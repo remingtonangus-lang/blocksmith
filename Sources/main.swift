@@ -577,7 +577,7 @@ enum Snapshot {
         }
         // Structure mobs (crystals, boarlings...) that generation queued.
         for (name, mp) in world.pendingMobs {
-            if let k = MobKind.named(name) { game.mobs.mobs.append(Mob(k, at: mp)) }
+            if let m = Mob.structureMob(name, at: mp) { m.persistent = false; game.mobs.mobs.append(m) }
         }
         world.pendingMobs.removeAll()
         if CommandLine.arguments.contains("--dragon") {

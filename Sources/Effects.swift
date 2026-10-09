@@ -407,6 +407,7 @@ extension Game {
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
         if deepVisited { d["deepVisited"] = "1" }
+        if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
@@ -426,6 +427,7 @@ extension Game {
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         deepVisited = d["deepVisited"] == "1"
+        ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {

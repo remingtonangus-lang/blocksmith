@@ -104,7 +104,8 @@ enum MobVoice {
         case .soldierIronclad: return Profile(family: .soldier, f0: 3, size: 1.2)
         case .soldierOfficer: return Profile(family: .soldier, f0: 1, size: 1)
         case .soldierCrew: return Profile(family: .soldier, f0: 0, size: 1)
-        case .deckGun: return Profile(family: .silent, f0: 0, size: 1)
+        case .deckGun, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck: return Profile(family: .silent, f0: 0, size: 1)
+        case .ashMarshal: return Profile(family: .soldier, f0: 3, size: 1.15)
         case .copperGolem: return Profile(family: .click, f0: 900, size: 0.7)
         }
     }
