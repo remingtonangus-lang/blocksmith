@@ -473,7 +473,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
             p.append(box(s < 0 ? -18.6 : 17.6, 6, -3, 1, 6, 6, steel, 8))
         }
         p.append(box(-14, 7, -2, 28, 3, 4, steel, 8))                                  // axle
-        p.append(box(-9, 2, 4, 3, 4, 36, black, 7)); p.append(box(6, 2, 4, 3, 4, 36, black, 7))   // split trails
+        p.append(box(-9, 2, -1, 3, 6, 41, black, 7)); p.append(box(6, 2, -1, 3, 6, 41, black, 7))   // split trails, hinged on the axle
         p.append(box(-11, 0, 38, 22, 4, 3, dark))                                      // spade
         p.append(box(-16, 8, -9, 32, 20, 2, black, 7))                                 // shield
         p.append(box(-16, 23, -9.6, 32, 2, 0.6, red))
