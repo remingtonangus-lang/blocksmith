@@ -155,11 +155,16 @@ final class ItemEntityManager {
         var picked = 0
         let pp = game.player.pos
         let pickOnly = game.coop.current > 0          // split screen: a second seat only picks up
+        // Riding, the player sits ~1.6 blocks up on a horse: reach down to the mount's feet and a bit wider (playtest
+        // v78: items under a horse couldn't be picked up).
+        let ridden = game.riding
+        let reachXZ: Float = ridden != nil ? 1.9 : 1.3
+        let reachDown: Float = ridden.map { max(0.8, pp.y - $0.pos.y + 0.8) } ?? 0.8
         for e in items {
             if !pickOnly { e.update(dt, w) }
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
-                if abs(d.x) < 1.3 && abs(d.z) < 1.3 && d.y > -0.8 && d.y < 2.3 {
+                if abs(d.x) < reachXZ && abs(d.z) < reachXZ && d.y > -reachDown && d.y < 2.3 {
                     if !e.deliberate && ItemEntityManager.isJunk(e.stack) {
                         e.hover += dt
                         if e.hover < 1 && !game.player.sneaking {

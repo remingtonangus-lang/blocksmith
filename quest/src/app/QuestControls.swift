@@ -221,8 +221,10 @@ final class QuestControls {
         if inMenu {
             p.b = R.button2
             bHold = 0; bPulse = 0
+            bBlock = bBlock || R.button2                    // the B that backs out of a menu isn't also a sneak tap
         } else {
-            if R.button2 { bHold += dt } else {
+            if !R.button2 { bBlock = false }
+            if R.button2 && !bBlock { bHold += dt } else if !R.button2 {
                 if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
                 bHold = 0
             }

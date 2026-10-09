@@ -26,8 +26,14 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "v78" {
+            PlaytestV78Tests.run(game, check)
+            print("questbugs: \(fails) failures")
+            return fails
+        }
         DeepTests.run(game, check)
         FactionTests.run(game, check)
+        PlaytestV78Tests.run(game, check)
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)
         for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9)] {
