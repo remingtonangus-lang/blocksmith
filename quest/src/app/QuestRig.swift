@@ -39,6 +39,12 @@ final class QuestRig {
     func toWorld(_ p: V3) -> V3 { feet + V3(0, QuestRig.eyeHeight, 0) + fullRot.act(V3(p.x - anchor.x, p.y - pivotY, p.z - anchor.z)) }
     func toWorldDir(_ d: V3) -> V3 { fullRot.act(d) }
     func toWorldRot(_ q: simd_quatf) -> simd_quatf { fullRot * q }
+    // Level space: tracking space turned by the reclined tilt (identity upright), about the recentre's pivot height.
+    // Panels (HUD, menus) are placed here, so lying down they sit in front of the levelled gaze, not in the room's
+    // horizontal plane (which the tilt would swing below the view). Upright it is tracking space shifted by pivotY.
+    func toLevel(_ p: V3) -> V3 { tilt.act(V3(p.x, p.y - pivotY, p.z)) }
+    func levelToWorld(_ l: V3) -> V3 { feet + V3(0, QuestRig.eyeHeight, 0) + yawRot.act(l - tilt.act(V3(anchor.x, 0, anchor.z))) }
+    var levelHead: V3 { toLevel(trackingHead) }
 
     // Reclined look up (+) / down (-): the levelled world tips by a step about the recentre's right axis.
     func stepPitch(_ delta: Float) {
@@ -77,7 +83,7 @@ final class QuestRig {
 
     /// Per frame with the frame's dt: smooths the level head yaw (tracking space) the stick is relative to.
     func updateMoveYaw(dt: Float) {
-        let ty = XRMath.levelYaw(headRot)
+        let ty = XRMath.levelYaw(tilt * headRot)          // reclined: the levelled gaze, not the room's
         if !moveYawSet { moveYawT = ty; moveYawSet = true }
         var d = ty - moveYawT
         while d > .pi { d -= 2 * .pi }

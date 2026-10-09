@@ -14,7 +14,7 @@ import CVulkan
 //    left trigger = LT (use / place / aim), A jump, B back (hold: drop), X pick block / reload, Y fly toggle
 //    (hold: inventory), left grip = previous hotbar slot, right grip = next, right stick click hold = the
 //    weapon wheel (the grips step the hotbar), left stick click = sneak (tap latches), stick pushed forward =
-//    sprint (a tick on the left hand), menu = pause.
+//    sprint (a tick on the left hand), menu = pause (hold: recentre the view).
 //  - Menus and the HUD are world-space panels (HudPanel); in a menu the laser is the mouse (trigger = left click,
 //    grip = right click).
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
@@ -57,6 +57,7 @@ final class QuestControls {
     private var swingIdle: Float = 0
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
+    private var menuHold: Float = 0, menuLong = false, menuPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var prevSelTrig = false
     private var vignette: Float = 0            // current strength 0...1
@@ -75,14 +76,14 @@ final class QuestControls {
     // moving ship, while turning or walking they stay put around the user instead of being left behind in the world.
     private enum PanelMode { case hud, menu }
     private var mode = PanelMode.hud
-    private var panelCenterT = V3.zero         // tracking space
+    private var panelCenterT = V3.zero         // level space (QuestRig.toLevel)
     private var panelYawT: Float = 0           // tracking-space yaw
     private var panelPitch: Float = 0
     private var panelSize = V2(1.3, 0.8125)
     private var hudYawT: Float = 0             // tracking-space yaw the HUD faces (lazily follows the head)
-    private var hudPosT: V3?                   // smoothed HUD centre (tracking space)
+    private var hudPosT: V3?                   // smoothed HUD centre (level space)
     private var seenRecenters = 0
-    private var panelCenter: V3 { app.rig.toWorld(panelCenterT) }
+    private var panelCenter: V3 { app.rig.levelToWorld(panelCenterT) }
     var panelWorldCenter: V3 { panelCenter }           // (harness)
     private var panelYaw: Float { panelYawT + app.rig.bodyYaw }
 
@@ -272,7 +273,20 @@ final class QuestControls {
             if sneakClick && l3Hold >= 0.3 { sneakLatch = false }
         }
         p.l3 = false                                    // (sprint sets it below)
-        p.menu = L.menu
+        // Menu: a tap pauses (sent when it is let go); held 0.7 s it recentres the view (reclined: world, horizon,
+        // HUD and menus level to the current gaze, pitch included).
+        if L.menu { menuHold += dt } else {
+            if menuHold > 0 && menuHold < 0.7 { menuPulse = 3 }
+            menuHold = 0; menuLong = false
+        }
+        if menuHold >= 0.7 && !menuLong {
+            menuLong = true
+            app.rig.needsRecenter = true
+            game.onToast?(QuestSettings.reclined ? "View levelled to your gaze" : "View recentred")
+            app.input.haptic(moveHand, amplitude: 0.4, seconds: 0.05, frequency: 200)
+        }
+        p.menu = menuPulse > 0
+        if menuPulse > 0 { menuPulse -= 1 }
         if wheel { p.rx = R.stick.x; p.ry = R.stick.y }
         if inMenu {
             // Menus: the left stick moves the pad cursor as on the Mac; the laser is the mouse.
@@ -661,7 +675,7 @@ final class QuestControls {
         let rig = app.rig
         let yaw = rig.headYaw - rig.bodyYaw                  // tracking space
         let fwd = V3(-sinf(yaw), 0, -cosf(yaw))
-        panelCenterT = rig.trackingHead + fwd * 1.15 + V3(0, -0.1, 0)
+        panelCenterT = rig.levelHead + fwd * 1.15 + V3(0, -0.1, 0)
         panelYawT = yaw
         panelPitch = 0
         panelSize = V2(1.5, 1.5 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
@@ -682,7 +696,7 @@ final class QuestControls {
         let Lh = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
         let panelH = 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW)
         let hotbarBelowCentre = ((Lh.hotbarY0 + Lh.slot / 2) / Float(QuestControls.panelH) - 0.5) * panelH
-        let want = rig.trackingHead + fwd * 1.25 + V3(0, -drop + hotbarBelowCentre, 0)
+        let want = rig.levelHead + fwd * 1.25 + V3(0, -drop + hotbarBelowCentre, 0)
         var pos = hudPosT ?? want
         pos += (want - pos) * min(1, dt * 12)
         if simd_length(want - pos) > 0.5 { pos = want }

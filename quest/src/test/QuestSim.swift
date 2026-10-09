@@ -378,6 +378,42 @@ enum QuestSim {
                      aiming ? "yes" : "no", jump, controls.teleports, game.player.onGround ? "yes" : "no"))
         QuestSettings.teleport = false
 
+        // Lying down: Reclined Mode + holding Menu levels world, horizon, HUD and walking to the gaze (pitch included);
+        // a Menu tap still pauses.
+        do {
+            QuestSettings.reclined = true
+            let keepHead = (sim.headPos, sim.headRot)
+            sim.headPos = V3(0.1, 0.35, 0.2)
+            sim.headRot = simd_quatf(angle: 0.3, axis: V3(0, 1, 0)) * simd_quatf(angle: 1.35, axis: V3(1, 0, 0))   // ~77 deg up
+            let rc0 = rig.recenters
+            frames(60) { _ in idleHands(); sim.hands[0].menu = true }
+            frames(4) { _ in idleHands() }
+            check(rig.recenters == rc0 + 1 && !game.paused, "VR reclined: holding Menu recentred once (\(rig.recenters - rc0)) without pausing (\(game.paused))")
+            check(abs(rig.headPitch) < 0.03, String(format: "VR reclined: the gaze is level after the recentre (pitch %.3f)", rig.headPitch))
+            let gaze = V3(-sinf(rig.headYaw), 0, -cosf(rig.headYaw))
+            frames(20) { _ in idleHands() }
+            let toHud = simd_normalize(controls.panelWorldCenter - rig.headWorld)
+            check(simd_dot(toHud, gaze) > 0.8 && toHud.y < 0 && toHud.y > -0.6,
+                  String(format: "VR reclined: the HUD sits ahead and below the levelled gaze (dot %.2f, down %.2f)", simd_dot(toHud, gaze), toHud.y))
+            let r0 = game.player.pos
+            frames(72) { i in idleHands(); sim.hands[0].stick = V2(0, 1); sim.hands[0].aimRot = simd_quatf(angle: Float(i) * 0.2, axis: V3(0, 1, 0)) }
+            frames(10) { _ in idleHands() }
+            let mv = game.player.pos - r0
+            let flat = simd_normalize(V3(mv.x, 0, mv.z))
+            check(simd_length(V2(mv.x, mv.z)) > 2 && simd_dot(flat, gaze) > 0.95,
+                  String(format: "VR reclined: the stick walks along the levelled gaze (moved %.2f, %.2f; dot %.2f)", mv.x, mv.z, simd_dot(flat, gaze)))
+            frames(3) { _ in idleHands(); sim.hands[0].menu = true }
+            frames(4) { _ in idleHands() }
+            check(game.paused, "VR reclined: a Menu tap pauses")
+            frames(3) { _ in idleHands(); sim.hands[0].menu = true }
+            frames(4) { _ in idleHands() }
+            game.paused = false; game.menu = nil
+            QuestSettings.reclined = false
+            (sim.headPos, sim.headRot) = keepHead
+            rig.needsRecenter = true
+            frames(4) { _ in idleHands() }
+        }
+
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out)
         // The held sword with Swing Mode off, the hand raised in front of the face (v63: tools must show in the hand).
