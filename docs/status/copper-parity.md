@@ -21,7 +21,7 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 
 ## Totals
 
-Last run (2026-10-09, fast build, `--seed 12345 --find plains --rd 5`):
+Last run (2026-10-09, fast and release builds, `--seed 12345 --find plains --rd 5`):
 `coppertest: total 111 rows: 111 pass, 0 fail, 0 missing, 0 xpass`.
 111 rows: 111 exist, 111 correct (test passing), 0 missing.
 
