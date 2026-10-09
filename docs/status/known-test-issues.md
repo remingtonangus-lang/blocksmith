@@ -12,3 +12,9 @@ Checks that fail for reasons other than a game bug, and what was done about them
 - **ridecheck `ride troops`** (troop inside the troop-bay engines' z 71 face for one tick): pre-existing flake; troops
   are mobs (Mob physics), the player-side fix for the same face is in Player.update's unstuck.
 - **playthrough `blight`**: pre-existing (the bot's arrows can't finish the Blight in 600 s).
+
+## questbugs `--only deep` flaky (seen 2026-10-09, task 25b1zzz)
+- 1 of 4 local runs failed one check, a different one each time: "depth power ... an 8 hit does 4" (want 5) and
+  "deep war: the Marshal marks a barrage and calls his guard". Best guess: random damage variance / Marshal AI timing
+  in the test, not the pm9 changes (the same build passes 3 of 4 runs). Repro: `Blocksmith --snapshot /tmp/q.png
+  --seed 12345 --find plains --time 0.3 --rd 4 --questbugs --only deep` a few times.
