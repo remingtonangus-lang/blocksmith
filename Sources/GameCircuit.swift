@@ -257,12 +257,7 @@ extension Game {
         case "tnt":
             if Blocks.replaceable[Int(fb)] { tnts.prime(at: front); take() }
         case "bone_meal":
-            let bk = Blocks.key(Blocks.groupBase[Int(fb)])
-            if ["wheat", "carrots", "potatoes", "beetroots"].contains(bk) {
-                let maxStage = bk == "beetroots" ? 3 : 7
-                let st = Int(fb - Blocks.groupBase[Int(fb)])
-                if st < maxStage { world.setBlock(front.x, front.y, front.z, Blocks.groupBase[Int(fb)] + BlockID(min(maxStage, st + Rand.int(in: 2...5)))); take() }
-            } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { saplingAdvance(front, bk) }; take() }
+            if boneMealGrow(front) { take() }
         default:
             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
