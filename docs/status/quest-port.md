@@ -459,3 +459,34 @@ claude/blocksmith-playtest as cherry-picks.
   Quest). The first run failed QuestSim's VR ship chest check: 5b left Swing Mode on, and the test's one-frame aim snap
   onto the deck chest counted as a swing, which since item 10 breaks the laser's block. Fixed in the test (Swing Mode off
   for shipRide). The check now also prints the interaction state when it fails.
+
+## Round 3 features (2026-10-08): docs/requests/round3-features-after-reset.md (6 items + save safety)
+One commit each (`git log --grep "Round 3 ("`); all shared gameplay is also cherry-picked to claude/blocksmith-playtest.
+- Save safety (SaveMigration.swift): renamed/removed block and item keys resolve through alias tables (chunk palettes,
+  ship grids, item stacks) before the unknown -> air fallback; a world without extra["format"] >= 3 is copied once to
+  `<Blocksmith>/Backups/<world>-before-r3-<time>` before it loads (Quest: next to its Worlds folder). Remington's Mac
+  worlds were also copied by hand to Backups/all-worlds-before-r3-manual-20261008.
+- Titanium replaces diamond: save keys stay `diamond_*` (so saved diamonds ARE titanium, nothing to migrate); names,
+  ingot sprite, grey-blue tier colour, worn tint; the ore drops Raw Titanium (smelts to the ingot); ore = five small
+  silver flecks at ~1/3 of iron ore's contrast, no Fancy glint; veins rarer (5x3 + 2x6 + 1-in-12 x8).
+- Steel: 2 iron ingots + coal/charcoal -> 2 Steel Blend; Steel Blend smelts ONLY in a blast furnace -> Steel Ingot;
+  steel armour 17 points (iron 15, titanium 20), toughness 1, anvil repair with steel ingots.
+- Copper replaces sparkstone: the ores are gone (saved ones load as copper ore via the alias table, +2 deep copper veins);
+  Copper Wire = copper ingot + stick -> 4; circuit parts keep their keys and read Copper Wire / Signal Torch / Lamp /
+  Battery / Repeater / Comparator with copper textures.
+- Jetpack (Jetpack.swift): chest slot; steel/copper wire/bucket/copper recipe; 60 s tank (durability bar + HUD gauge);
+  hold jump in the air (Quest: A) to climb ~6 b/s; refuel by crafting it with coal/charcoal (+15 s) or blaze powder (+30 s).
+- Gun enchantments (table + anvil books, guns only): Extended Magazine I-III (+25 %/lvl), Quick Reload I-III (-18 %/lvl),
+  Stability I-III (spread, bloom, recoil -18 %/lvl), Penetration I-IV (a bullet passes through that many mobs at 70 %
+  each; named Penetration because the crossbow's Piercing owns that key), Incendiary (4 s burn, orange tracers).
+- Lighting (Mac Fast path + Quest, same maths, per-vertex): sky-lit faces blend toward a cool sky ambient + warm sun
+  diffuse (golden at dawn/dusk); amber torch light at low levels; a cheap filmic shoulder + 1.08 saturation on world
+  surfaces (not HUD); sun disc with a soft halo in the sky dome. ~14 ALU per fragment, no new passes or uniforms.
+  Quest GLSL can now be checked locally: glslang from KhronosGroup/glslang release main-tot
+  (glslang-main-macos-universal-release.tar.gz), symlinked as glslangValidator, then `python3 quest/tools/shaders.py OUT`.
+- Also: heavy shells expire after 3.5 s (mobtests 'shells land'), mobtests rifle reload expects 45 rounds.
+- Checks: `--questbugs --only r3` (37 checks: migration, titanium, steel, copper circuit, jetpack flight/fuel, gun
+  enchantments) 0 failures; mobtests 0 failures. Known, not from this round: snap checks shard structcheck 8 issues,
+  collisiontest walk_through 3, agent life unmet goals (same on the playtest branch's last heavy run); questbugs
+  stone_sword hits-to-kill is flaky (failed 1 of 3 runs).
+- Tip: `EXTRA_SWIFTC_FLAGS=-O ./build.sh fast` gives an optimized build in a few minutes; harness runs are ~40x faster.
