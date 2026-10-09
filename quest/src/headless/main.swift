@@ -96,31 +96,36 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         do {
             let e = game.player.eye
             var shore: (Int, Int)?
+            var seaDir: (Float, Float) = (1, 0)
             search: for r in stride(from: 8, through: 1600, by: 8) {
                 for dir in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
                     let x = Int(e.x) + dir.0 * r, z = Int(e.z) + dir.1 * r
                     if world.gen.column(x, z).height < SEA - 6 && world.gen.column(x - dir.0 * 14, z - dir.1 * 14).height >= SEA {
-                        shore = (x - dir.0 * 14, z - dir.1 * 14); break search
+                        shore = (x - dir.0 * 14, z - dir.1 * 14); seaDir = (Float(dir.0), Float(dir.1)); break search
                     }
                 }
             }
             if let sh = shore {
                 let (sx, sz) = sh
                 let saved = (game.player.pos, game.player.flying, game.time)
-                // Face the deep water from the shore point.
-                var best: (Float, Float) = (0, 1), bestH = Int.max
-                for a in 0..<16 {
-                    let ang = Float(a) / 16 * 2 * .pi
-                    let h = world.gen.column(sx + Int(sinf(ang) * 16), sz + Int(cosf(ang) * 16)).height
-                    if h < bestH { bestH = h; best = (sinf(ang), cosf(ang)) }
-                }
-                game.player.pos = V3(Float(sx) + 0.5 - best.0 * 4, Float(SEA) + 3, Float(sz) + 0.5 - best.1 * 4)
+                // From the shore point toward the deep water it was found by (looking down at 0.3 rad it saw only the beach).
                 game.player.flying = true
                 game.time = 0.22 * DAY_LENGTH
-                _ = world.loadSync(center: game.player.pos, radius: 4)
-                let wp = path.replacingOccurrences(of: ".png", with: "_water.png")
-                // RenderTest's yaw: forward = (-sin yaw, -cos yaw).
-                try RenderTest.render(game: game, ctx: ctx, path: wp, yaw: atan2f(-best.0, -best.1), pitch: -0.3)
+                let views: [(String, Float, Float, Float, Float)] = [         // name, along the sea direction, side, yaw offset, pitch
+                    ("_water.png", -2, 0, 0, -0.14),
+                    ("_water_ocean.png", 30, 0, 0, -0.08),          // out over deep water, looking out to sea
+                    ("_water_back.png", 30, 0, .pi / 2, -0.1),       // the same spot, side-on to the sun direction
+                ]
+                for (name, along, side, dyaw, pitch) in views {
+                    let px = Float(sx) + 0.5 + seaDir.0 * along - seaDir.1 * side, pz = Float(sz) + 0.5 + seaDir.1 * along + seaDir.0 * side
+                    game.player.pos = V3(px, Float(SEA) + 1.2, pz)
+                    _ = world.loadSync(center: game.player.pos, radius: 4)
+                    // RenderTest's yaw: forward = (-sin yaw, -cos yaw).
+                    let yaw = atan2f(-seaDir.0, -seaDir.1) + dyaw
+                    print("render: water view \(name) " + String(format: "at (%.1f, %.1f) yaw %.1f deg pitch %.1f deg, time 0.22 (Mac: --seed 12345 --x %.0f --z %.0f --yaw %.0f --pitch %.0f --time 0.22)",
+                                 px, pz, yaw * 180 / .pi, pitch * 180 / .pi, px, pz, yaw * 180 / .pi, pitch * 180 / .pi))
+                    try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: name), yaw: yaw, pitch: pitch)
+                }
                 (game.player.pos, game.player.flying, game.time) = saved
             } else { print("render: no shore within 1600 blocks (water view skipped)") }
         }
