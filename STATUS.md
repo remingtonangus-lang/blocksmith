@@ -1,5 +1,9 @@
 # Status
 
+> **Round 3 features (2026-10-08, quest-port + playtest):** titanium replaces diamond, steel armour (blast furnace),
+> copper replaces sparkstone, jetpack, gun enchantments, lighting pass, save migration + backups. Details and checks:
+> docs/status/quest-port.md "Round 3 features"; APK versionCode 70.
+
 Per-stream handoffs (2026-10-04, parallel sessions): [integration](docs/status/integration.md) - the other streams
 add docs/status/<stream>.md and a link here.
 

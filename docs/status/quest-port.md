@@ -485,8 +485,10 @@ One commit each (`git log --grep "Round 3 ("`); all shared gameplay is also cher
   Quest GLSL can now be checked locally: glslang from KhronosGroup/glslang release main-tot
   (glslang-main-macos-universal-release.tar.gz), symlinked as glslangValidator, then `python3 quest/tools/shaders.py OUT`.
 - Also: heavy shells expire after 3.5 s (mobtests 'shells land'), mobtests rifle reload expects 45 rounds.
-- Checks: `--questbugs --only r3` (37 checks: migration, titanium, steel, copper circuit, jetpack flight/fuel, gun
+- Checks: `--questbugs --only r3` (44 checks: migration, titanium, steel, copper circuit, jetpack flight/fuel, gun
   enchantments) 0 failures; mobtests 0 failures. Known, not from this round: snap checks shard structcheck 8 issues,
-  collisiontest walk_through 3, agent life unmet goals (same on the playtest branch's last heavy run); questbugs
-  stone_sword hits-to-kill is flaky (failed 1 of 3 runs).
+  collisiontest walk_through 3, agent life unmet goals (same on the playtest branch's last heavy run). The questbugs
+  sword hits-to-kill check was flaky (zombie natural armour rounds at random); it now allows one extra hit.
+- Shipped: Quest CI run 37865688060 green, APK versionCode 70 on quest-dist (commit 34eb124); questcheck renders look
+  right (directional face shading visible). Not installed: adb saw no Quest. Playtest branch: b48260e1.
 - Tip: `EXTRA_SWIFTC_FLAGS=-O ./build.sh fast` gives an optimized build in a few minutes; harness runs are ~40x faster.
