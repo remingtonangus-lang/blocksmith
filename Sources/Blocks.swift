@@ -679,6 +679,7 @@ final class BlockRegistry {
         registerMilitaryBlocks()
         registerCapitalBlocks()
         registerCapitalArchitecture()
+        registerAshguardBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods
