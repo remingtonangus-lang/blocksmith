@@ -249,7 +249,7 @@ extension Snd {
         case .villagerCelebrate: return "Townsfolk cheer"
         case .zombieBreakDoor: return "Door bashed"
         case .zombieInfect: return "Townsperson infected"
-        case .zombieCure: return "Zombie villager snuffles"
+        case .zombieCure: return "Zombie townsperson snuffles"
         case .phantomSwoop: return "Nightwing swoops"
         case .beeSting: return "Bee stings"
         case .beePollinate: return "Bee buzzes"

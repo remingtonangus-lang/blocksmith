@@ -42,7 +42,7 @@ enum Effect: Int, CaseIterable {
         case .conduitPower: return "Tide Blessing"
         case .dolphinsGrace: return "Swimmer's Grace"
         case .badOmen: return "Ill Omen"
-        case .heroOfTheVillage: return "Village Hero"
+        case .heroOfTheVillage: return "Friend of the Town"
         case .darkness: return "Darkness"
         case .trialOmen: return "Proving Omen"
         case .raidOmen: return "Siege Omen"

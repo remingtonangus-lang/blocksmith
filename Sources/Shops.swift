@@ -195,7 +195,7 @@ struct ShopPricing {
     var buyMult: Float, sellMult: Float, refuses: Bool
 
     // Reputation 100 or more: 10% off and 10% more for what you sell; down to -100: 25% dearer and 25% less paid;
-    // below -100 the shop won't serve you. The Village Hero takes another 5% off (never past minBuyMult).
+    // below -100 the shop won't serve you. Friend of the Town (heroOfTheVillage) takes another 5% off (never past minBuyMult).
     init(reputation rep: Int, hero: Int) {
         let r = Float(max(-100, min(100, rep))) / 100
         var b: Float = r >= 0 ? 1 - 0.1 * r : 1 - 0.25 * r

@@ -128,7 +128,7 @@ enum MobKind: Int, CaseIterable {
                                drops: [], xp: 3, call: .mobVex, flying: true)
         case .ravager: return Spec(name: "Siegebeast", halfW: 0.98, height: 2.2, health: 100, speed: 3, behavior: .ravager, attack: 12,
                                    drops: [("saddle", 1, 1)], xp: 20, call: .mobRavager)
-        case .zombieVillager: return Spec(name: "Zombie Villager", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .zombieVillager: return Spec(name: "Zombie Townsperson", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
