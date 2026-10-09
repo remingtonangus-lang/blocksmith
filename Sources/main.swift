@@ -1202,6 +1202,7 @@ enum Snapshot {
         // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
         if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
         var shipFails = 0
+        if let out = arg("--inputmatrix") { return InputMatrix.run(game: game, at: pos, out: out) > 0 ? 1 : 0 }   // STORE_QUALITY objective 3
         if let out = arg("--audioaudit") { return AudioAudit.run(game: game, out: out) > 0 ? 1 : 0 }   // STORE_QUALITY objective 5
         if CommandLine.arguments.contains("--audiotest") {
             if AudioTests.run(game: game, at: pos, rd: rd) > 0 { return 1 }
