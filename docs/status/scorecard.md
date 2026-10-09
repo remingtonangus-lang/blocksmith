@@ -23,7 +23,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
 | Quest frame time, 6 routes | 72 fps, p99 <= 13.9 ms, <= 1 hitch > 25 ms/min | Mac proxy (2 eyes 1440x1584, rd 8): p99 10.0-11.4 ms on all six; hitches/min plains 2, capital 2 (max 112 ms), ashvault 12 (max 46 ms); 3/6 pass. Device numbers not measured (logcat perf line) | RED | routes_quest_proxy.md |
-| Quest render distance >= 1.5x today | rd 12 at 72 fps (today 8) | not measured (bench at rd 12 not run; no device) | RED (UNMEASURED) | - |
+| Quest render distance >= 1.5x today | rd 12 at 72 fps (today 8) | Quest default now rd 12 at 72 Hz (was 90 Hz, guard cut rd to 5-9 in real play). Mac Quest proxy after the tick fixes: rd 12 p99 8.9-11.1 ms, 0-1 hitch/min (forest 3); 5/6 routes pass. Device not re-measured | AMBER | docs/status/evidence/2026-10-09-pm/quest-perf-log.md, `tools/quest_perf_gate.sh` |
 | Memory | Quest peak <= 3 GB; < 2% growth in 30 min | Mac routes resident peak 292-371 MB; growth over 30 s: plains +10%, forest +14%, village +12% (warm-up, not a soak) | AMBER | routes_mac.md |
 | Thermal soak | 30 min >= 72 fps | not measured (needs device) | RED (UNMEASURED) | - |
 | Load times | title < 8 s, world < 10 s, no holes | route world preload 0.23-0.50 s at rd 8 (headless loadSync, not the app's launch path); title time not measured | AMBER | routes_mac.md (load ms) |
@@ -41,7 +41,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Movement (sprint >= 1.5x every direction) | QuestSim tests | covered by QuestBugTests (`--questbugs`), not re-measured this round | AMBER | Sources/QuestBugTests.swift |
 | Reach | blocks 6, melee ~3 | block reach constant 6 (Game.swift:902); melee not measured | AMBER | code only |
 | Input conflicts | no press does two things | Mac pad: 0 conflicts over 16 buttons x tap/hold x 4 contexts (foot, horse, car, inventory); keyboard: 0 duplicate defaults. Verifier: the diff only sees menu/pause/hotbar/camera/mount/helm/flight/sneak/drop/jump, not attack/use/place/aim/fire/throttle, so 0 is an undercount. Quest Touch bindings not covered; contexts missing: swimming, flying, ship deck, gun held, deck gun | AMBER (verified, weak measure) | input_matrix.md |
-| Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | not audited this round (QuestApp pauses on focus loss: QuestApp.swift:239) | RED (UNMEASURED) | - |
+| Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | step-ups now eased for every mount and on foot, Mac + Quest camera: max 0.05-0.11 block/frame at 72 Hz (fastest horse 0.133, its true climb rate) vs 1.0 snapped before (verified). Rest of the checklist not audited | AMBER | `--questbugs --only pm9a` |
 | Response within one frame | input-latency test | not measured | RED (UNMEASURED) | - |
 
 On claude/blocksmith-playtest the same matrix finds 1 conflict: on foot, LB hold = hotbar + drop item.
@@ -53,8 +53,8 @@ nothing and LB/RB open the crafting book; D-pad down drops on tap but not on hol
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
 | One coherent style (style 3 stylised realism) | all shots match docs/art/style-options/3-stylised-realism.png | every shot is still the blocky 16 px look; scores below | RED | golden_mac_sheet.jpg |
-| Ground noise | calm grass/flowers | no noise metric yet; spawn/rain/horse shots show busy grass tops and leaf litter | RED (no metric) | golden_mac_sheet.jpg |
-| Models | believable mobs | not reviewed (turntables not built) | RED (UNMEASURED) | - |
+| Ground noise | calm grass/flowers | plant counts per biome: short grass 66 -> 7 per chunk (x0.106), desert cactus 1.24 -> 0.40/chunk, ferns/dead bush/cane/leaf litter/flowers cut (verified). No image noise metric yet | AMBER | docs/status/evidence/2026-10-09-pm/plants.md, `--only pm9b` |
+| Models | believable mobs | connectivity: every mob kind stays in one piece over 19,392 walk/gallop/knockback/hurt poses (14 kinds had gaps, incl. the horse knee; verified). Head look/attack/sit poses not covered; believability not reviewed | RED (only connectivity measured) | `--questbugs --only pm9a` |
 | Sky | realistic sky + clouds | blocky cloud slabs (base_battle, frigate); dusk/night readable | RED | golden_mac_sheet.jpg |
 | Defects: flicker | no z-fighting/flicker | 0-4 ppm on 7 world shots (threshold ok < 20; synthetic speckles read 182 ppm, so the detector works); only a 0.02 deg nudge, no time step | AMBER | flicker.txt |
 | Defects: floating trees, light leaks | none | not measured | RED (UNMEASURED) | - |
@@ -82,11 +82,14 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 | First hour | always a next goal | not measured this round | RED (UNMEASURED) | - |
 | Progression | all tiers reachable in sane time, 10 seeds | `--playthrough` exists (one seed, CI heavy lane); 10-seed timings not run | AMBER | Sources/Playthrough.swift |
 | Balance | TTK tables in range | not measured | RED (UNMEASURED) | - |
+| Copper circuits (redstone parity) | every Java redstone component + behaviour | 111/111 checklist rows pass (verified spot-check: real behaviour asserts); pistons move instantly (Java 2 ticks), 0-tick tricks skipped | AMBER | docs/status/copper-parity.md, `--coppertest` |
+| Bone meal | works wherever Bedrock's does | 64 targets grow via the right-click path, 10 non-targets refuse; stems/glow lichen/mangrove leaves/tall seagrass absent from the game | GREEN (verified) | docs/status/evidence/2026-10-09-pm/bonemeal.md, `--only pm9b` |
+| Enchanting table | classic offers incl. Fortune/Gentle Touch, multi-enchants | pickaxe lvl 30: Fortune 32%, Gentle Touch 17%, never together; multi-enchant 63-75% (books 21%) | GREEN (verified) | docs/status/evidence/2026-10-09-pm/pm9d-enchant-distribution.txt, `--only pm9d` |
 
 ## 7. World, mobs and AI
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| Spawn density | not empty, not swarms | 30 s per time of day, 50 seeds, player 12 above spawn: midnight surface hostiles median 10 (max 16, zero on 3 seeds); passive surface median 10 (zero on 1 seed at noon); noon surface hostiles median 5 (max 27; mostly creepers/skeletons/zombies; "surface" = above column height - 6, so shade under trees/overhangs counts) - needs a look | AMBER | world_audit.md |
+| Spawn density | not empty, not swarms | Oct 9 PM: surface monsters halved (3 nights: 63 -> 33, caves 84 -> 93, verified). Earlier: 30 s per time of day, 50 seeds, player 12 above spawn: midnight surface hostiles median 10 (max 16, zero on 3 seeds); passive surface median 10 (zero on 1 seed at noon); noon surface hostiles median 5 (max 27; mostly creepers/skeletons/zombies; "surface" = above column height - 6, so shade under trees/overhangs counts) - needs a look | AMBER | world_audit.md |
 | Behaviour | no stuck mobs, no friendly fire | not measured this round (agents exist: `--agent`) | RED (UNMEASURED) | - |
 | World gen: safe spawn | safe spawn | 0/50 unsafe (game spawnPoint: feet/head clear, full ground, no lava within 2, no water within 1) | GREEN (verified; cactus, fire, cliff edges, nearby hostiles not checked) | world_audit.md |
 | World gen: overlaps | no structure overlaps | 138 piece-level overlaps in 50 seeds x 2048^2: military_base + ruined_portal 26, military_base + village 8, capital_city + ruined_portal 5, ocean_ruin + shipwreck 14, mineshaft + trial_chambers 32 (underground) | RED | world_audit.md |
@@ -100,9 +103,11 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 | Accessibility | subtitles, colour-safe, per-bus volume | per-category volume sliders exist (SoundCategory); subtitles not found | RED | Sources/Sound.swift |
 
 ## 9. Store compliance
+IP names: 28 display strings renamed (docs/status/ip-renames.md), `python3 tools/namecheck.py --coined` 0 hits over 90 terms (CI fast lane); unsure terms flagged for Remington there. AMBER (needs Remington's call on the flagged terms).
 See docs/status/store-readiness.md (audit round 1). Not re-measured here.
 
 ## Log
+- 2026-10-09 PM (task 25b1zzz, playtest notes items 1-11): pm9a/pm9b/pm9d checks, --coppertest, namecheck --coined, quest_perf_gate.sh added; verifier found a save-ordering race in the new background autosave (quit during an autosave could land older files last), fixed (sync saveNow flushes the queue first).
 - 2026-10-09 (task 25b1zx): verifier pass (safe spawn GREEN, input matrix AMBER: blind to attack/use/fire effects);
   shallow-cave ambience check added (pass); world audit re-run with water within 1 of spawn (0/50 unsafe).
 - 2026-10-09 (task 25b1z): tools built, everything measured once. Reddest: performance hitches (Quest proxy ashvault

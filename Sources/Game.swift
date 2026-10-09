@@ -431,6 +431,8 @@ final class Game {
         guard persistent, let s = save else { return }
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
+        // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
+        if !background { SaveIO.flush() }
         world.saveAll()
         mobs.save(to: world.save, background: background)
         drops.save(to: world.save, background: background)
