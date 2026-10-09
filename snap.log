@@ -1,0 +1,12 @@
+posecheck: 568 raised limbs checked, 0 failed
+textures: 1710 layers at 16 px, BC3, 0.6 MB with mips (build 920 ms, upload 476 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck fast.png magenta=0.00000 black=0.0000 white=0.0008 std=29.3 hash=bfaecea078e1823d
+imagecheck fast.png magenta=0.00000 black=0.0000 white=0.0008 std=29.3 hash=bfaecea078e1823d
+seed 12345  pos 31.5 136.0 29.5  rd 4  chunks 109  (drawn 29)
+gen 10059 ms  mesh(all, parallel) 18942 ms  mesh(1 section) 108.14 ms  quads 313011 opaque / 479 water
+frame (encode+GPU, offscreen, median of 30) 9.65 ms  biome forest
+mesh slabs 12 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 113 MB
+memory: resident 150 MB  (section meshes 10 MB)
+wrote snaps/fast.png
+imagecheck: 1 frames, no flags
