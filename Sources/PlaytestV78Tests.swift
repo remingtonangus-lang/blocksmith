@@ -61,7 +61,7 @@ enum PlaytestV78Tests {
         game.survival = true; game.difficulty = 2
         for hitting in [false, true] {
             p.pos = floorP; p.vel = .zero; p.yaw = 0; p.pitch = 0
-            game.health = 20
+            game.health = 400                  // (the test player shrugs off the blast: no death screen for later checks)
             let c = Mob(.creeper, at: floorP + V3(0, 0, -2.5))
             game.mobs.mobs.append(c)
             var t: Float = 0, nextHit: Float = 0.3, hits = 0
@@ -76,6 +76,7 @@ enum PlaytestV78Tests {
             for x in (bx - 9)...(bx + 9) { for z in (bz - 9)...(bz + 9) { for y in (by - 1)...(by + 5) { w.setBlock(x, y, z, y == by - 1 ? STONE : AIR) } } }
         }
         (game.survival, game.difficulty, game.health) = hs
+        check(game.alive && game.menu == nil, "hisser test: the player is alive with no screen open afterwards")
         p.pos = save.0
         // Plants (v78: "too noisy"): fresh ground has no tall grass and short grass on few grass blocks; drawn smaller.
         var grassTops = 0, short = 0, tall = 0
