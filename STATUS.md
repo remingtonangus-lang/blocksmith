@@ -1,5 +1,12 @@
 # Status
 
+> **Store-quality pass (2026-10-09, task 21, quest-port + playtest):** lily pads sit on the water, new horse model and
+> gait, Quest water mirrors the sky like the Mac's Fancy water, far fewer animals, bigger held tools/guns on Quest,
+> Halo Infinite controller layout + feel on the Mac (Layout: Halo/Classic in Button Mapping), Quest recenter on a held
+> Menu button with a working reclined mode, plus first-30-min polish (sunset stars, spawn hitches). Details:
+> docs/status/quest-port.md "Task 21 store-quality pass". Known flaky (pre-existing): ridecheck crew/troops, playthrough
+> gather/stronghold/blight, rulescheck water heads.
+
 > **Round 3 features (2026-10-08, quest-port + playtest):** titanium replaces diamond, steel armour (blast furnace),
 > copper replaces sparkstone, jetpack, gun enchantments, lighting pass, save migration + backups. Details and checks:
 > docs/status/quest-port.md "Round 3 features"; APK versionCode 70.

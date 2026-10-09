@@ -498,7 +498,11 @@ One commit per item (`git log --grep "store-quality"`). Mac worlds backed up fir
 `~/Library/Application Support/Blocksmith/Backups/all-worlds-before-task21-store-20261008`; no block/item IDs changed.
 - 1 Lily pads: a single leaf 1/16 over the water surface (was a 1/16 slab 2/16 above it, edges showing), darker leaf
   with a wet edge (the bright rim outlined it); the Quest's chunk.vert bobs them with the swell (0.7 of the wave).
-- 2 Horse: new model and gait (see the horse commit).
+- 2 Horse family (Animals.swift horseParts): barrel + deep chest + rump, jointed legs (upper, cannon, dark hoof) with
+  knee/hock bend, arched maned neck ~40 deg, long head with muzzle/eyes/ears/forelock, two-part tail; walk in diagonal
+  pairs with head nod and tail sway, gallop above ~4.5 b/s, idle grazing; donkey/mule longer ears, shorter legs. Saddle,
+  chests and armour follow; rider height unchanged. Harness: `./snap.sh NAME --mobs --mobkind horse,donkey [--mobwalk A
+  --mobspeed S --mobgraze --saddled --mobyaw DEG]`.
 - 3 Water: the Quest mirrored the sky dome's horizon/zenith colours, the Mac's Fancy water mirrors the fog-coloured haze
   up to fogColor x (0.45, 0.6, 0.92) plus a sun disc: the Quest's reflection read darker/more saturated. Ported that
   skyAlong, the Mac glint (7) and ripple fade. questcheck now renders three water views (shore to sea, deep water out
@@ -517,3 +521,13 @@ One commit per item (`git log --grep "store-quality"`). Mac worlds backed up fir
 - 8 Recenter: hold the left Menu button 0.7 s (a tap still pauses) or Recenter View. Reclined Mode (saved) levels world,
   horizon, HUD and menus to the gaze incl. pitch: the HUD/menus are now placed in the levelled frame (before, they were
   placed in the room's horizontal plane, which the tilt swung below the view). QuestSim "VR reclined" checks.
+- First-30-min polish (subagent hunt, seeds 12345/777/4242): stars faded by daylight showed near-full in a bright sunset
+  sky (now Game.starAlpha from the sun's height; Quest too); animal pack placement read the world top-down per block
+  (7-25 ms ticks every ~1 s near spawn; now a chunk-array scan); a ~50 ms first tick built three block tables (now in
+  Game.init behind the loading screen). Not fixed: 15-75 ms first frame after load, one 20-35 ms sound tick, ~50 ms first
+  block placement.
+- fidelitycheck hurt-invulnerability used a zombie (natural armour rounds at random: flaky) -> pig. ridecheck crew/troops
+  failures also reproduce on 3e1dc99e (pre-existing flakes).
+- Checks: Quest CI run 37875068649 green (VR reclined checks pass), APK versionCode 73 on quest-dist; Mac CI fast lane
+  questbugs 0 failures; mobtests 0 failures; padtest new checks pass. Not installed: adb saw no Quest.
+- Note: a subagent once ran `Blocksmith --mobtests` without --snapshot, which opens the GUI game; use `./snap.sh NAME --mobtests`.
