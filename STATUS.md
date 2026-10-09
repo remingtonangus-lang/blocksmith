@@ -1,5 +1,11 @@
 # Status
 
+> **Audio + visual polish (2026-10-09, task 24, quest-port + playtest):** every block footstep/break/place rebuilt as
+> layered foley (grass/leaves materials), gunfire, explosions, engines, propellers, wind, rain, birds, melee, hurt, UI
+> rebuilt in the synthesizer (785 sounds, none clipped or silent). Visuals: natural, less cartoonish look on Fast and
+> Quest (sky dome with horizon haze, aerial haze, stronger sun key, tamer greens and water). Details:
+> docs/status/quest-port.md "Task 24 audio + visual polish".
+
 > **Factions (2026-10-09, task 23, quest-port + playtest):** the frigate is now the Meridian Navy (its own faction, new
 > hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; MAC gun craters citadels). Capital
 > cities (white low-rise garden cities with covered walkways). Citadels are denser on new ground (saved worlds keep

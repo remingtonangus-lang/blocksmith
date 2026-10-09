@@ -593,3 +593,22 @@ One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first 
   green. Also on claude/blocksmith-playtest (f471759e; Shortcuts.swift doesn't exist there, so no city shortcut).
   Not installed: adb saw no Quest. Backup before the first load:
   ~/Library/Application Support/Blocksmith/Backups/all-worlds-before-task23-factions-20261009.
+
+## Task 24 audio + visual polish (2026-10-09)
+- Audio (AV polish 1-4, all synthesized: no direct ElevenLabs SFX key is set up, and OpenRouter's ElevenLabs models
+  are speech only): block foley (contact resonators, grain textures, heel/toe steps, fracture + debris; grass and
+  leaves materials; 6 step takes, 4 break/place/hit takes), gunfire (N-wave blast, mechanism, slapbacks, distant
+  echoes, whizz cracks, casings, impacts), engines/propellers, gusting wind, layered rain, four songbirds, layered
+  explosions, melee swooshes, hurt grunts, pickup, UI chimes, level-up. `Blocksmith --sounds DIR`: 785 sounds, level
+  check (peak/RMS/clipping) finds none silent or clipped. Music untouched.
+- Visual (AV polish 5; Fast on the Mac and the Quest shaders kept in step): the Fast path draws the same sky dome as
+  Fancy/Quest (haze band hugging the horizon, deep blue by ~40 degrees), a paler hazy horizon colour, aerial haze
+  that starts near (max 30 % by day, off underwater), ambient 0.6 / sun key 0.54 for more shape, filmic saturation
+  1.0 with acid yellow-greens pulled 28 %, grass/foliage tints 18 % less saturated toward olive, water tints 15 %
+  less saturated. Fast fog glows toward the dusk sun (Fast packs the glow in eye.w below 0.5, its Fast flag).
+- Not done, by choice: higher-resolution block textures. 16 px is the game's look, and 4x texture memory would cost the
+  Quest (8 GB Mac / Quest frame rate budget); the realism comes from light, haze and colour instead.
+- No IDs changed, so no save migration. Checks: build clean, 785-sound level check, snapshots judged (day, forest,
+  sunset, aerial ocean, night; Fast + Fancy). `[fast: --questbugs]` timed out at CI's 24-minute focus limit (the full
+  suite has outgrown it; run it with `--only r3|deep|factions` on CI). Quest CI 37912600891 green, APK on quest-dist
+  (310d4a1). Not installed: adb saw no Quest. Also on claude/blocksmith-playtest (quest shaders dropped there).
