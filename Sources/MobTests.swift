@@ -326,8 +326,8 @@ enum MobTests {
         check(MobKind.zombie.category == .monster && MobKind.cow.category == .creature && MobKind.bat.category == .ambient
               && MobKind.cod.category == .waterAmbient && MobKind.squid.category == .waterCreature && MobKind.glowSquid.category == .undergroundWater
               && MobKind.axolotl.category == .axolotls && MobKind.villager.category == .misc, "spawn categories")
-        check(SpawnCategory.monster.cap == 24 && SpawnCategory.creature.cap == 5 && SpawnCategory.ambient.cap == 15
-              && SpawnCategory.waterAmbient.cap == 20, "spawn caps 24/5/15/20")
+        check(SpawnCategory.monster.cap == 36 && SpawnCategory.creature.cap == 5 && SpawnCategory.ambient.cap == 15
+              && SpawnCategory.waterAmbient.cap == 20, "spawn caps 36/5/15/20")
 
         // Night: monster spawning around the player obeys distance, light, floor and cap rules.
         game.survival = true
