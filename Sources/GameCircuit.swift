@@ -132,8 +132,16 @@ extension Game {
         var n = 0
         coop.eachSeat(self) { if self.alive && on(self.player.pos, self.player.halfW) { n += 1 } }   // player 2 presses plates too
         for m in mobs.mobs where on(m.pos, m.halfW) { n += 1 }
-        if items { for e in drops.items where on(e.pos, 0.125) { n += 1 } }      // each item entity counts once, whatever its stack
+        if items {
+            for e in drops.items where on(e.pos, 0.125) { n += 1 }      // each item entity counts once, whatever its stack
+            for a in projectiles.arrows where a.stuck && !a.dead && on(a.pos, 0.05) { n += 1 }      // arrows too (reference)
+        }
         return n
+    }
+
+    // An arrow stuck in the cell `p` (wooden buttons stay pressed while one is).
+    func arrowStuck(in p: IVec3) -> Bool {
+        projectiles.arrows.contains { $0.stuck && !$0.dead && Int(floor($0.pos.x)) == p.x && Int(floor($0.pos.y)) == p.y && Int(floor($0.pos.z)) == p.z }
     }
 
     // Dispenser / dropper firing out of side `dir` (dir6).
@@ -172,7 +180,30 @@ extension Game {
             return
         }
         let fb = world.block(front.x, front.y, front.z)
+        let aim = simd_normalize(fd + V3(0, 0.1, 0))
+        // Splash/lingering potions and bottles o' enchanting are thrown (reference).
+        if key == "experience_bottle" || (Potions.potion(of: stack.item).map { $0.form == 1 || $0.form == 2 } ?? false) {
+            projectiles.fireball(from: from, dir: aim, big: false, byPlayer: false, potion: stack.item)
+            if let f = projectiles.fireballs.last { f.vel = aim * (key == "experience_bottle" ? 14 : 10) }
+            take(); sfx(.potionThrow, 0.6, at: from)
+            return
+        }
+        // Spawn eggs hatch in front.
+        if let kind = SpawnEggs.kindOf[stack.item] {
+            let m = Mob(kind, at: V3(Float(front.x) + 0.5, Float(front.y), Float(front.z) + 0.5))
+            m.persistent = kind.category != .creature
+            if kind == .slime || kind == .magmaCube { m.makeSlime(size: 1) }
+            mobs.mobs.append(m); take(); sfx(.click, 0.5, at: from)
+            return
+        }
         switch key {
+        case "snowball", "egg", "brown_egg", "blue_egg":
+            let f = Fireball(from, aim * 22, big: false, byPlayer: false)
+            f.kind = key == "snowball" ? .snowball : .egg
+            if f.kind == .egg { f.egg = stack.item }
+            projectiles.fireballs.append(f); take(); sfx(.bow, 0.4, at: from)
+        case "minecart" where Rails.isRail(fb):
+            mobs.mobs.append(Mob(.minecart, at: V3(Float(front.x) + 0.5, Float(front.y) + 0.0625, Float(front.z) + 0.5))); take()
         case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.bow, 0.6, at: from)
         case "fire_charge": projectiles.fireball(from: from, dir: fd, big: false, byPlayer: true); take(); sfx(.fireball, 0.5, at: from)
         case "water_bucket", "lava_bucket":
