@@ -125,6 +125,7 @@ done
 # Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
 "$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck        # gating: plants that lose their support pop (Remington, 2026-10-05)
 "$BIN" --snapshot snaps/rulescheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --rulescheck || true      # world rules from the fidelity audits (not gating yet)
+"$BIN" --snapshot snaps/coppertest.png --seed 12345 --find plains --time 0.3 --up 6 --rd 5 --coppertest        # gating: copper circuit parity, one test per row of docs/status/copper-parity.md
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
 "$BIN" --snapshot snaps/questbugs.png --seed 12345 --find plains --time 0.3 --rd 4 --questbugs        # gating: Quest playtest checks (VR locomotion ignores the hand, swings, swim-out)
 "$BIN" --snapshot snaps/structscan.png --structscan 8      # gating: every seed has a Capital citadel near spawn; rare-building density per 4096^2

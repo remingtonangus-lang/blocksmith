@@ -52,6 +52,9 @@ extension Game {
         let rs = world.redstone
         let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
         switch Circuit.kind(b) {
+        case .wire:
+            guard rs.toggleDot(p) else { return false }
+            sfx(.click, 0.3, at: at)
         case .lever:
             let ns = s >= 12 ? s - 12 : s + 12
             world.setBlock(p.x, p.y, p.z, base + BlockID(ns))
@@ -91,6 +94,7 @@ extension Game {
 
     func isCircuitInteractive(_ p: IVec3) -> Bool {
         switch Circuit.kind(world.block(p.x, p.y, p.z)) {
+        case .wire: return world.redstone.wireConnections(p).isEmpty
         case .lever, .button, .repeater, .comparator, .note, .daylight, .dispenser, .dropper, .hopper: return true
         default: return false
         }
@@ -202,6 +206,43 @@ extension Game {
             f.kind = key == "snowball" ? .snowball : .egg
             if f.kind == .egg { f.egg = stack.item }
             projectiles.fireballs.append(f); take(); sfx(.bow, 0.4, at: from)
+        case "shears":
+            // Shears the first unsheared sheep in front (reference); otherwise nothing happens.
+            let box = V3(Float(front.x) + 0.5, Float(front.y), Float(front.z) + 0.5)
+            if let m = mobs.mobs.first(where: { $0.kind == .sheep && !$0.sheared && !$0.baby && abs($0.pos.x - box.x) < 1 && abs($0.pos.z - box.z) < 1 && abs($0.pos.y - box.y) < 1.5 }) {
+                m.sheared = true
+                let wool = "\(m.woolColor)_wool"
+                if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Rand.int(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
+                stack.damage += 1; c[slot] = stack.damage >= stack.def.durability ? .empty : stack
+                sfx(.shearsSnip, 1, at: m.pos)
+            }
+        case "glass_bottle" where Blocks.fluidKind[Int(fb)] == 1:
+            // Fills from water in front; the water bottle goes back into the dispenser (or out if it is full).
+            if let wb = Potions.item(0, "water") {
+                take()
+                let rest = c.add(ItemStack(wb, 1))
+                if !rest.isEmpty { drops.spawn(rest, at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5) }
+            }
+        case _ where Boats.parse(key) != nil:
+            // Boats go onto water in front (or water just below it), else out as an item.
+            let below = world.block(front.x, front.y - 1, front.z)
+            let y: Float? = Blocks.fluidKind[Int(fb)] == 1 ? Float(front.y) + 0.6 : (fb == AIR && Blocks.fluidKind[Int(below)] == 1 ? Float(front.y) - 0.4 : nil)
+            if let y = y, case let (variant, chest)? = Boats.parse(key) {
+                let boat = Mob(.boat, at: V3(Float(front.x) + 0.5, y, Float(front.z) + 0.5))
+                boat.variant = variant; boat.chested = chest
+                if chest { boat.cargo = ItemContainer(27) }
+                boat.yaw = [0, Float.pi, 0, Float.pi, Float.pi / 2, -Float.pi / 2][dir]
+                mobs.mobs.append(boat); take()
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
+        case _ where key.hasSuffix("shulker_box") && Blocks.has(key):
+            // Placed in front with its contents (reference).
+            if Blocks.replaceable[Int(fb)] {
+                world.setBlock(front.x, front.y, front.z, Blocks.id(key))
+                let be = BlockEntity(.shulker)
+                if let items = stack.contents { for (i, s) in items.prefix(27).enumerated() { be.container[i] = s } }
+                world.blockEntities[front] = be
+                take()
+            }
         case "minecart" where Rails.isRail(fb):
             mobs.mobs.append(Mob(.minecart, at: V3(Float(front.x) + 0.5, Float(front.y) + 0.0625, Float(front.z) + 0.5))); take()
         case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.bow, 0.6, at: from)

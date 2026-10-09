@@ -512,15 +512,7 @@ enum Mesher {
                     if rt == rWire {
                         // Sparkstone dust: a cross when alone, lines toward what it connects to, and
                         // strips up the side of blocks it climbs.
-                        func connects(_ n: BlockID, _ d: Int) -> Bool {
-                            let st = Int(n - gbT[Int(n)])
-                            switch rsK[Int(n)] {
-                            case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator: return true
-                            case .repeater: return ((st & 3) + 2) / 2 == d / 2
-                            case .observer: return st % 6 == d
-                            default: return false
-                            }
-                        }
+                        func connects(_ n: BlockID, _ d: Int) -> Bool { Circuit.dustConnects(n, d) }
                         var conn = [false, false, false, false], climb = [false, false, false, false]
                         let aboveSolid = opaqueT[Int(R[i + RL])]
                         let nOff = [-RW, RW, -1, 1]
@@ -531,7 +523,7 @@ enum Mesher {
                             if opaqueT[Int(n)] && !aboveSolid && rsK[Int(R[i + nOff[k] + RL])] == .wire { conn[k] = true; climb[k] = true }
                         }
                         let count = conn.filter { $0 }.count
-                        if count == 0 { conn = [true, true, true, true] }
+                        if count == 0 && Int(b - gbT[Int(b)]) < 16 { conn = [true, true, true, true] }   // cross (a dot stays bare)
                         else if count == 1, let k = conn.firstIndex(of: true) { conn[[1, 0, 3, 2][k]] = true }
                         var quads: [(Box, Int)] = [(Box(5, 1, 5, 11, 1, 11), 2)]
                         let arms = [Box(6, 1, 0, 10, 1, 5), Box(6, 1, 11, 10, 1, 16), Box(0, 1, 6, 5, 1, 10), Box(11, 1, 6, 16, 1, 10)]

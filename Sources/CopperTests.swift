@@ -112,11 +112,15 @@ enum CopperTests {
             let l = crossLamps()
             return (l.allSatisfy { $0 }, "lamps round a lone wire \(l)")
         }
-        t("wire.dot", missing: true) {
+        t("wire.dot") {
             crossRig()
             use(P(5)); tick(10)
             let l = crossLamps()
-            return (l.allSatisfy { !$0 } && st(P(5)) == 15, "after right-click: lamps \(l), wire \(st(P(5)))")
+            let dot = l.allSatisfy { !$0 } && st(P(5)) & 15 == 15
+            use(P(5)); tick(10)
+            let back = crossLamps().allSatisfy { $0 }
+            wire(P(6, 0, 3)); wire(P(7, 0, 3)); use(P(6, 0, 3))        // a wire with a neighbour does not toggle
+            return (dot && back && st(P(6, 0, 3)) < 16, "dot: lamps \(l), wire \(st(P(5)) & 15); cross again \(back); connected wire stays a line \(st(P(6, 0, 3)) < 16)")
         }
         t("wire.points") {
             on(P(0), "redstone_block"); for x in 1...3 { wire(P(x)) }
@@ -200,7 +204,7 @@ enum CopperTests {
             tick(5); use(P(1, 1)); tick(5)
             return (st(P(0)) == 15 && st(P(2)) == 15, "wires beside the lever's block \(st(P(0))) \(st(P(2)))")
         }
-        t("power.components", missing: true) {
+        t("power.components") {
             on(P(0), "redstone_block"); on(P(1), "repeater", 3); put(P(2), "redstone_lamp"); wire(P(3))
             tick(10)
             return (lit(P(2)) && st(P(3)) == 15, "lamp \(lit(P(2))), wire beyond the strongly powered lamp \(st(P(3)))")
@@ -363,8 +367,26 @@ enum CopperTests {
             let n = until(10) { comparatorOut(P(1)) > 0 }
             return (n == 3, "output on tick \(n) (2 ticks after the engine sees the lever)")
         }
-        t("comparator.frame", missing: true) { (false, "item frame rotation is not read") }
-        t("comparator.lectern", missing: true) { (false, "lectern page and jukebox disc are not read") }
+        t("comparator.frame") {
+            guard Blocks.has("item_frame") else { return (false, "no item frame block") }
+            let f = entity(P(0), "item_frame", .frame)
+            on(P(1), "comparator", 3); tick(4)
+            let empty = comparatorOut(P(1))
+            f.container[0] = item("cobblestone"); f.delay = 2
+            tick(6)
+            return (empty == 0 && comparatorOut(P(1)) == 3, "empty \(empty), item turned twice \(comparatorOut(P(1)))")
+        }
+        t("comparator.lectern") {
+            var book = item("written_book"); book.pages = ["a", "b", "c", "d", "e"]
+            let be = entity(P(0), "lectern", .lectern, [book]); be.delay = 2
+            on(P(1), "comparator", 3)
+            put(P(0, 0, 3), "jukebox"); on(P(1, 0, 3), "comparator", 3)
+            g.jukeboxes.append(JukeboxPlayer(P(0, 0, 3), "ward"))
+            tick(6)
+            let a = comparatorOut(P(1)), b = comparatorOut(P(1, 0, 3))
+            g.jukeboxes.removeAll { $0.pos == P(0, 0, 3) }
+            return (a == 8 && b == 10, "lectern page 3 of 5 -> \(a), jukebox playing disc 10 -> \(b)")
+        }
 
         // MARK: Observer
         t("observer.pulse") {
@@ -664,7 +686,34 @@ enum CopperTests {
             if g.mobs.mobs.count > n1, let m = g.mobs.mobs.last { mobsAdded.append(m) }
             return (cart && pig, "minecart onto the rail \(cart), spawn egg hatched \(pig)")
         }
-        t("dispenser.more", missing: true) { (false, "boats, shulker boxes, shears and glass bottles are not dispensed") }
+        t("dispenser.more") {
+            // Shears on a sheep in front.
+            _ = dispenser(P(1), "dispenser", [item("shears", 1)]); tick(2)
+            let sheep = mob(.sheep, centre(P(2)))
+            _ = pulse(P(1))
+            let shorn = sheep.sheared
+            // Glass bottle from water in front.
+            site()
+            let be = dispenser(P(1), "dispenser", [item("glass_bottle", 1)]); putB(P(2), WATER); tick(2)
+            _ = pulse(P(1))
+            let filled = total(be, Potions.item(0, "water").map { Items.key($0) } ?? "-") == 1
+            air(P(2))
+            // Boat onto water.
+            site()
+            _ = dispenser(P(1), "dispenser", [item("oak_boat", 1)]); putB(P(2), WATER); tick(2)
+            let n0 = g.mobs.mobs.count
+            _ = pulse(P(1))
+            let boat = g.mobs.mobs.count > n0 && g.mobs.mobs.last?.kind == .boat
+            if boat, let m = g.mobs.mobs.last { mobsAdded.append(m) }
+            air(P(2))
+            // Shulker box placed with its contents.
+            site()
+            var box = item("shulker_box", 1); box.contents = [item("cobblestone", 5)]
+            _ = dispenser(P(1), "dispenser", [box]); tick(2)
+            _ = pulse(P(1))
+            let placed = key(P(2)) == "shulker_box" && w.blockEntities[P(2)].map { total($0) } == 5
+            return (shorn && filled && boat && placed, "sheared \(shorn), bottle filled \(filled), boat on water \(boat), shulker box placed \(placed)")
+        }
 
         // MARK: Switches and plates
         t("lever.toggle") {
@@ -793,7 +842,16 @@ enum CopperTests {
             tick(32)
             return (a == 8 && st(P(2)) == 0, "4 blocks away -> sensor 8, wire \(a); after 30 ticks \(st(P(2)))")
         }
-        t("lectern.pulse", missing: true) { (false, "lecterns give no signal") }
+        t("lectern.pulse") {
+            var book = item("written_book"); book.pages = ["a", "b", "c"]
+            let be = entity(P(1), "lectern", .lectern, [book]); be.delay = 0
+            wire(P(2)); tick(3)
+            let menu = BookMenu(game: g, stack: book, source: .lectern(be))
+            menu.buttonPressed(1)                              // next page
+            var seq: [Int] = []
+            for _ in 0..<4 { tick(); seq.append(st(P(2))) }
+            return (Int(be.delay) == 1 && seq.contains(15) && seq.last == 0, "wire while turning a page \(seq)")
+        }
 
         // MARK: Outputs
         t("lamp.timing") {
@@ -908,7 +966,14 @@ enum CopperTests {
             let n = until(40) { st(P(1)) < 6 }
             return (a && n >= 19 && n <= 21, "powered with a cart \(a), released \(n) ticks after it left")
         }
-        t("rail.detectorcomparator", missing: true) { (false, "comparators do not read carts on detector rails") }
+        t("rail.detectorcomparator") {
+            on(P(1), "detector_rail", 1); on(P(2), "comparator", 3); tick(2)
+            let cart = mob(.minecart, centre(P(1), dy: 0.0625))
+            cart.variant = 1; cart.cargo = ItemContainer(27)
+            for i in 0..<27 { cart.cargo?[i] = item("cobblestone", 64) }
+            carts = [cart.pos]; tick(6)
+            return (comparatorOut(P(2)) == 15, "chest cart full -> \(comparatorOut(P(2)))")
+        }
         t("rail.activator") {
             on(P(0), "lever"); for x in 1...3 { on(P(x), "activator_rail", 1) }
             tick(2); use(P(0)); tick(10)
