@@ -31,6 +31,11 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "pm9d" {
+            PM9DTests.run(game, check)
+            print("questbugs: \(fails) failures")
+            return fails
+        }
         DeepTests.run(game, check)
         FactionTests.run(game, check)
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).

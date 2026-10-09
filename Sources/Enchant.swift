@@ -59,39 +59,39 @@ enum Enchant {
         return [
             d("protection", "Protection", 4, 10, .armor, nil, (1, 11), (12, 11), anvil: 1, group: 1),
             d("fire_protection", "Fire Protection", 4, 5, .armor, nil, (10, 8), (18, 8), anvil: 2, group: 1),
-            d("feather_falling", "Feather Falling", 4, 5, .feet, nil, (5, 6), (11, 6), anvil: 2),
+            d("feather_falling", "Soft Landing", 4, 5, .feet, nil, (5, 6), (11, 6), anvil: 2),
             d("blast_protection", "Blast Protection", 4, 2, .armor, nil, (5, 8), (13, 8), anvil: 4, group: 1),
             d("projectile_protection", "Projectile Protection", 4, 5, .armor, nil, (3, 6), (9, 6), anvil: 2, group: 1),
             d("respiration", "Respiration", 3, 2, .head, nil, (10, 10), (40, 10), anvil: 4),
-            d("aqua_affinity", "Aqua Affinity", 1, 2, .head, nil, (1, 0), (41, 0), anvil: 4),
+            d("aqua_affinity", "Tidehand", 1, 2, .head, nil, (1, 0), (41, 0), anvil: 4),
             d("thorns", "Thorns", 3, 1, .chest, .armor, (10, 20), (60, 20), anvil: 8),
             d("depth_strider", "Deep Stride", 3, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, group: 5),
-            d("frost_walker", "Frost Walker", 2, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, treasure: true, group: 5),
+            d("frost_walker", "Rimewalker", 2, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, treasure: true, group: 5),
             d("binding_curse", "Curse of Binding", 1, 1, .wearable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
             d("soul_speed", "Ghost Stride", 3, 1, .feet, nil, (10, 10), (25, 10), anvil: 8, treasure: true),
-            d("swift_sneak", "Swift Sneak", 3, 1, .legs, nil, (25, 25), (75, 25), anvil: 8, treasure: true),
+            d("swift_sneak", "Quiet Step", 3, 1, .legs, nil, (25, 25), (75, 25), anvil: 8, treasure: true),
             d("sharpness", "Sharpness", 5, 10, [.sword, .spear], [.sword, .axe, .spear], (1, 11), (21, 11), anvil: 1, group: 2),
             d("smite", "Smite", 5, 5, [.sword, .spear], [.sword, .axe, .mace, .spear], (5, 8), (25, 8), anvil: 2, group: 2),
-            d("bane_of_arthropods", "Bane of Arthropods", 5, 5, [.sword, .spear], [.sword, .axe, .mace, .spear], (5, 8), (25, 8), anvil: 2, group: 2),
+            d("bane_of_arthropods", "Bugbane", 5, 5, [.sword, .spear], [.sword, .axe, .mace, .spear], (5, 8), (25, 8), anvil: 2, group: 2),
             d("knockback", "Knockback", 2, 5, [.sword, .spear], nil, (5, 20), (55, 20), anvil: 2),
-            d("fire_aspect", "Fire Aspect", 2, 2, [.sword, .spear], [.sword, .mace, .spear], (10, 20), (60, 20), anvil: 4),
+            d("fire_aspect", "Searing Edge", 2, 2, [.sword, .spear], [.sword, .mace, .spear], (10, 20), (60, 20), anvil: 4),
             d("looting", "Looting", 3, 2, [.sword, .spear], nil, (15, 9), (65, 9), anvil: 4),
-            d("sweeping_edge", "Sweeping Edge", 3, 2, .sword, nil, (5, 9), (20, 9), anvil: 4),
+            d("sweeping_edge", "Wide Arc", 3, 2, .sword, nil, (5, 9), (20, 9), anvil: 4),
             d("efficiency", "Efficiency", 5, 10, .mining, [.digger, .axe, .shears], (1, 10), (51, 10), anvil: 1),
-            d("silk_touch", "Silk Touch", 1, 1, .mining, nil, (15, 0), (65, 0), anvil: 8, group: 3),
+            d("silk_touch", "Gentle Touch", 1, 1, .mining, nil, (15, 0), (65, 0), anvil: 8, group: 3),
             d("unbreaking", "Unbreaking", 3, 5, .durable, nil, (5, 8), (55, 8), anvil: 2),
             d("fortune", "Fortune", 3, 2, .mining, nil, (15, 9), (65, 9), anvil: 4, group: 3),
             d("power", "Power", 5, 10, .bow, nil, (1, 10), (16, 10), anvil: 1),
             d("punch", "Punch", 2, 2, .bow, nil, (12, 20), (37, 20), anvil: 4),
             d("flame", "Flame", 1, 2, .bow, nil, (20, 0), (50, 0), anvil: 4),
             d("infinity", "Infinity", 1, 1, .bow, nil, (20, 0), (50, 0), anvil: 8, group: 4),
-            d("luck_of_the_sea", "Luck of the Sea", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
+            d("luck_of_the_sea", "Angler's Luck", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
             d("lure", "Lure", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
             d("loyalty", "Loyalty", 3, 5, .trident, nil, (12, 7), (50, 0), anvil: 1),
             d("impaling", "Impaling", 5, 2, .trident, nil, (1, 8), (21, 8), anvil: 4),
-            d("riptide", "Riptide", 3, 2, .trident, nil, (17, 7), (50, 0), anvil: 4),
+            d("riptide", "Surge", 3, 2, .trident, nil, (17, 7), (50, 0), anvil: 4),
             d("channeling", "Channeling", 1, 1, .trident, nil, (25, 0), (50, 0), anvil: 8),
-            d("multishot", "Multishot", 1, 2, .crossbow, nil, (20, 0), (50, 0), anvil: 4, group: 7),
+            d("multishot", "Spread Shot", 1, 2, .crossbow, nil, (20, 0), (50, 0), anvil: 4, group: 7),
             d("quick_charge", "Quick Charge", 3, 5, .crossbow, nil, (12, 20), (50, 0), anvil: 2),
             d("piercing", "Piercing", 4, 10, .crossbow, nil, (1, 10), (50, 0), anvil: 1, group: 7),
             d("mending", "Mending", 1, 2, .durable, nil, (25, 25), (75, 25), anvil: 4, treasure: true, group: 4),
@@ -272,6 +272,31 @@ enum Enchant {
             lvl /= 2
         }
         return out
+    }
+
+    // splitmix64: the table's per-slot streams. SRng(seed &+ slot) gave three nearly identical xorshift streams, so the
+    // three offers rolled alike (Oct 9 playtest: "only Efficiency and Unbreaking on the pickaxe").
+    static func mix(_ seed: UInt64, _ salt: UInt64) -> UInt64 {
+        var z = seed &+ (salt &+ 1) &* 0x9E3779B97F4A7C15
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
+    }
+
+    // One enchanting-table offer (reference getEnchantmentList): the player's seed + the slot pick the list; a book keeps
+    // one random entry fewer when it would get several; `clue` is the one entry the slot shows ("Fortune II +?").
+    static func tableOffer(item: ItemID, cost: Int, seed: UInt64, slot: Int) -> (ench: [(Ench, Int)], clue: (Ench, Int)?) {
+        var r = SRng(mix(seed, UInt64(slot)))
+        var l = select(item: item, level: cost, rng: &r)
+        if Items.key(item) == "book" && l.count > 1 { l.remove(at: r.int(l.count)) }
+        let clue = l.isEmpty ? nil : l[r.int(l.count)]
+        return (l, clue)
+    }
+
+    // The three slot costs for a player seed (reference: same seed, so the offers only change after an enchant).
+    static func tableCosts(bookshelves: Int, seed: UInt64) -> [Int] {
+        var rng = SRng(mix(seed, 99))
+        return tableCosts(bookshelves: bookshelves, rng: &rng)
     }
 
     // Bookshelves around a table: 2 blocks out, same level or one up, with air between.
