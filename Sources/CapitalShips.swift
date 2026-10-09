@@ -15,8 +15,8 @@ import simd
 // and their fate rests on critical systems: the bridge helm and the drive engines.
 
 enum Faction: Int {
-    case none = 0, steelhold, stormwarden, ironback
-    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion"][rawValue] }
+    case none = 0, steelhold, stormwarden, ironback, ashguard
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -623,6 +623,7 @@ extension Ship {
 
 extension Mob {
     var factionValue: Faction {
+        if kind.ash { return .ashguard }
         guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
         return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold) : .steelhold
     }

@@ -114,6 +114,13 @@ final class Game {
     // The Deep (task 22): been there (saved), the updraft hint shown this session, the Ashguard war (AshWar.swift).
     var deepVisited = false
     var deepUpdraftHinted = false
+    var ashVictory = false
+    var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
+    var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
+    var ashSpot: V3?                // where an Ashguard unit last saw the player (the field guns fire on it)
+    var ashSpotSeen: Double = -999
+    var ashAlertClock: Double = -999
+    var ashStrikes: [(at: V3, t: Float)] = []     // the Marshal's marked barrage: shells land when t runs out
     var credits: Float?            // seconds into the hollow credits while they are showing
     var dragonSpawnTimer: Float = 3
     private(set) var effects = EffectSet()      // active status effects on the player
@@ -716,7 +723,9 @@ final class Game {
             // End credits: scroll; any key, click or A/B skips.
             credits = c + fdt
             let skip = c > 1 && (input.tapped(Key.esc) || input.tapped(Key.space) || input.leftClicked || (p.a && !q.a) || (p.b && !q.b))
-            if skip || c + fdt > Game.creditsLength { returnFromEnd() }
+            if creditsAsh {
+                if skip || c + fdt > AshWar.epilogueLength { credits = nil; creditsAsh = false }
+            } else if skip || c + fdt > Game.creditsLength { returnFromEnd() }
             return
         }
 
@@ -1669,6 +1678,7 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
+        if dim.dim == .deep { ashUnitDied(m) }
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
@@ -2285,14 +2295,12 @@ final class Game {
             let rt = raidTimer
             coop.withSeat(spawnSeat, self) { self.patrolTick(rt) }
             coop.eachSeat(self) { self.blockSecondTick() }
+            ashTick()
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
-                guard let k0 = MobKind.named(name) else { continue }
-                let m = Mob(Soldier.garrison(k0, at: p), at: p)
-                m.persistent = true
-                mobs.mobs.append(m)
+                if let m = Mob.structureMob(name, at: p) { mobs.mobs.append(m) }
             }
             world.pendingMobs.removeAll()
         }

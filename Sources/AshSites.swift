@@ -23,6 +23,7 @@ extension BlockRegistry {
         block("ash_lamp", "Red Signal Lamp", h: 1, emit: 13, snd: .glass)
         block("ash_crate", "Ashguard Crate", side: "ash_crate", top: "ash_crate_top", h: 2, snd: .wood)
         block("ash_sandbags", "Sandbags", h: 1, snd: .sand)
+        block("ash_lift", "Lift Plate", h: -1, emit: 15)
         if !has("ash_drum") {
             var d = BlockDef("ash_drum", "Fuel Drum")
             d.tex = ["ash_drum_side", "ash_drum_side", "ash_drum_top", "ash_drum_top", "ash_drum_side", "ash_drum_side"]
@@ -62,6 +63,13 @@ extension TextureGen {
             if x == 8 || y == 8 { return hex(0x2A1010) }
             let c = Float(abs(x - 8) + abs(y - 8))
             return hex(0xFF5A3C, 1.05 - c * 0.04)
+        }
+        // The lift home (after victory): a glowing plate in a red ring.
+        p["ash_lift"] = { x, y in
+            let d = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
+            if d > 6.5 { return hex(0x1A1A1C) }
+            if d > 5 { return hex(0xD02A1E) }
+            return hex(0xFFD9A0, 0.9 + 0.1 * r(x, y, 3311))
         }
         p["ash_crate"] = { x, y in
             if x == 0 || x == 15 || y == 0 || y == 15 { return hex(0x2A2018) }

@@ -26,6 +26,11 @@ extension MobKind {
         case .soldierOfficer: return 34
         case .soldierCrew: return 28
         case .deckGun: return 80
+        case .ashTank: return 72
+        case .ashHalftrack: return 56
+        case .ashArtillery: return 160
+        case .ashTruck: return 16
+        case .ashMarshal: return 48
         default: return 16
         }
     }

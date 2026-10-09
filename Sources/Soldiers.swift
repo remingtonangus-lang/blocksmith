@@ -32,6 +32,9 @@ final class SoldierBrain {
     var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
     var charge: Float = 0
     var kick: Float = 0             // deck gun barrel recoil 1 -> 0
+    var turret: Float = 0           // Ashguard vehicles: turret / gun world yaw (AshUnits.swift)
+    var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
+    var ashCalls = 0                // ... and how often he has called his guard
     var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
     var cover: V3?                  // a spot out of the player's sight to reload in
     var coverSearch: Float = 0
@@ -87,7 +90,7 @@ enum Soldier {
         case .soldierTrooper: return 1
         case .soldierMarksman: return 2
         case .soldierIronclad: return 3
-        case .soldierOfficer: return 4
+        case .soldierOfficer, .ashMarshal: return 4
         case .soldierCrew: return 5
         default: return nil
         }
@@ -101,6 +104,7 @@ enum Soldier {
         case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
         case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
         case .soldierOfficer: return Guns.pistol
+        case .ashMarshal: return Guns.smg
         case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
         default: return r < 0.5 ? Guns.launcher : Guns.arc
         }
@@ -171,6 +175,7 @@ extension Mob {
     // Base armour of the garrison ranks (added to any worn pieces).
     var steelholdArmor: (Int, Float) {
         if kind == .deckGun { return (20, 8) }
+        if kind.ash { return ashArmor }
         guard let r = Soldier.rank(kind) else { return (0, 0) }
         return (Soldier.ranks[r].armor, Soldier.ranks[r].toughness)
     }
@@ -180,7 +185,8 @@ extension Mob {
     var knockbackTaken: Float {
         switch kind {
         case .soldierIronclad: return 0.15
-        case .deckGun, .ironGolem, .warden: return 0
+        case .deckGun, .ironGolem, .warden, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck: return 0
+        case .ashMarshal: return 0.3
         case .ravager: return 0.25
         case .hoglin, .zoglin: return 0.4
         default: return 1

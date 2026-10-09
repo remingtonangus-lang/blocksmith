@@ -28,6 +28,7 @@ enum MobKind: Int, CaseIterable {
     case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
     case copperGolem
     case soldierOfficer, soldierCrew       // the Capital's officers and pilots / vehicle crews (SoldierRig.swift)
+    case ashTank, ashHalftrack, ashArtillery, ashTruck, ashMarshal     // the Ashguard in the Ash Vault (AshUnits.swift)
 
     struct Spec {
         var name: String
@@ -136,6 +137,8 @@ enum MobKind: Int, CaseIterable {
             return animalSpec
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun, .soldierOfficer, .soldierCrew:
             return militarySpec
+        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal:
+            return ashSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
@@ -239,6 +242,7 @@ enum MobKind: Int, CaseIterable {
         .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
         .copperGolem: "copper_golem",
         .soldierOfficer: "soldier_officer", .soldierCrew: "soldier_crew",
+        .ashTank: "ash_tank", .ashHalftrack: "ash_halftrack", .ashArtillery: "ash_artillery", .ashTruck: "ash_truck", .ashMarshal: "ash_marshal",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -248,7 +252,7 @@ enum MobKind: Int, CaseIterable {
 final class Mob {
     static weak var trace: Mob?     // harness: print this mob's physics steps
     let kind: MobKind
-    let spec: MobKind.Spec
+    var spec: MobKind.Spec       // per mob: the Ashguard renames its soldiers (AshUnits.swift)
     var pos: V3
     var vel = V3(0, 0, 0)
     var yaw: Float
@@ -409,6 +413,7 @@ final class Mob {
         aiTimer = Rand.float(in: 0.5...3)
         callTimer = Rand.float(in: 6...20)
         randomizeVariant()
+        if kind.ash { ashSetup() }
         if kind == .sheep {
             let r = Rand.float(in: 0..<1)
             woolColor = r < 0.81836 ? "white" : (r < 0.86836 ? "black" : (r < 0.91836 ? "gray" : (r < 0.96836 ? "light_gray" : (r < 0.99836 ? "brown" : "pink"))))
@@ -1238,6 +1243,11 @@ final class Mob {
             }
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        // Ashguard armour is thinnest at the back: hits from behind a tank or half-track do 1.6x (flank them).
+        if (kind == .ashTank || kind == .ashHalftrack) && damage > 0 {
+            let d = V2(src.x - pos.x, src.z - pos.z)
+            if simd_length(d) > 0.01 && simd_dot(simd_normalize(d), V2(forward.x, forward.z)) < -0.35 { damage = damage * 8 / 5 }
+        }
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
@@ -1446,6 +1456,10 @@ private func parts(_ m: Mob) -> [Part] {
         return soldierParts(m, swing: swing)
     case .deckGun:
         return deckGunParts(m)
+    case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck:
+        return ashVehicleParts(m)
+    case .ashMarshal:
+        return soldierParts(m, swing: swing)
     case .copperGolem:
         return copperGolemParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:

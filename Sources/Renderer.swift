@@ -1525,7 +1525,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(0, 0, W, H, V4(0, 0, 0, 1))
             let lineH = 14 * s
             let y0 = H + 20 - c * lineH / 1.4
-            for (i, line) in Game.creditsLines.enumerated() {
+            for (i, line) in (game.creditsAsh ? AshWar.epilogue : Game.creditsLines).enumerated() {
                 let y = y0 + Float(i) * lineH
                 if y < -lineH || y > H { continue }
                 let big = i == 0
@@ -1543,6 +1543,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            if let a = game.ashBossBar() { bars.append((a.0, a.1, V4(0.8, 0.1, 0.08, 1))) }
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
@@ -1646,7 +1647,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                         let d = target - game.player.pos
                         let world = atan2f(d.x, -d.z)                 // bearing from north
                         ang = world + game.player.yaw - .pi / 2
-                        if game.dim.dim != .overworld && ik == "compass" { ang = Float(game.clock * 7).truncatingRemainder(dividingBy: 2 * .pi) }
+                        if game.dim.dim != .overworld && game.dim.dim != .deep && ik == "compass" { ang = Float(game.clock * 7).truncatingRemainder(dividingBy: 2 * .pi) }
                     }
                     let r = size * 0.28, w = size * 0.05
                     let dir = V2(cosf(ang), sinf(ang)), nrm = V2(-dir.y, dir.x) * w

@@ -98,6 +98,13 @@ enum Advancements {
         Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Capital 42 cm turret", crit: .event("deck_gun")),
         Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Capital Bulwark",
                     crit: .event("ironclad"), challenge: true),
+        // The Deep and the Ashguard (task 22).
+        Advancement(id: "adventure/deep", tab: 3, title: "Bottom of the World", desc: "Dig through the bottom of the world into the Deep",
+                    crit: .event("deep_visit")),
+        Advancement(id: "adventure/ash_vault", tab: 3, title: "The Vault Below", desc: "Drop into the Ash Vault", crit: .event("ash_vault")),
+        Advancement(id: "adventure/ash_tank", tab: 3, title: "Tank Buster", desc: "Destroy a Cinder Tank", crit: .event("ash_tank")),
+        Advancement(id: "adventure/ash_victory", tab: 3, title: "Ashes to Ashes", desc: "Defeat the Ash Marshal and break the Ashguard",
+                    crit: .event("ash_victory"), challenge: true),
         // Ships (Blocksmith's own: moving block structures).
         Advancement(id: "adventure/set_sail", tab: 3, title: "Anchors Aweigh", desc: "Steer a ship from its helm", crit: .event("pilot_ship")),
         Advancement(id: "adventure/prize_crew", tab: 3, title: "Prize Crew", desc: "Take the helm of a Skyward Frigate or an Ironstride Siege Carriage",
