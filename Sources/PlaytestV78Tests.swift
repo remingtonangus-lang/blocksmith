@@ -56,6 +56,26 @@ enum PlaytestV78Tests {
         check(game.riding == nil, "riding: a fresh sneak / B press dismounts")
         game.input.shift = false
         frames(1)
+        // Hisser: left alone it blows after ~1.75 s; an iron-sword hit every cooldown (0.625 s) kills it first.
+        let hs = (game.survival, game.difficulty, game.health)
+        game.survival = true; game.difficulty = 2
+        for hitting in [false, true] {
+            p.pos = floorP; p.vel = .zero; p.yaw = 0; p.pitch = 0
+            game.health = 20
+            let c = Mob(.creeper, at: floorP + V3(0, 0, -2.5))
+            game.mobs.mobs.append(c)
+            var t: Float = 0, nextHit: Float = 0.3, hits = 0
+            while t < 4 && c.health > 0 {
+                if hitting && t >= nextHit { c.hit(from: p.eye, damage: 6, iframes: true); hits += 1; nextHit += 0.625 }
+                frames(1); t += 1.0 / 60
+            }
+            let blew = c.health <= -1000
+            game.mobs.mobs.removeAll { $0 === c }
+            if hitting { check(!blew && c.health <= 0, String(format: "hisser: steady sword hits kill it before it blows (%d hits, %.2f s, blew %@)", hits, t, blew ? "yes" : "no")) }
+            else { check(blew && t > 1.6, String(format: "hisser: left alone it blows after %.2f s (want > 1.6)", t)) }
+            for x in (bx - 9)...(bx + 9) { for z in (bz - 9)...(bz + 9) { for y in (by - 1)...(by + 5) { w.setBlock(x, y, z, y == by - 1 ? STONE : AIR) } } }
+        }
+        (game.survival, game.difficulty, game.health) = hs
         p.pos = save.0
         spawning(game, check)
     }

@@ -289,6 +289,7 @@ final class Mob {
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
+    var flinch: Float = 0           // hisser: a hit stops the swell this long
     var fire: Float = 0             // seconds left burning
     var fireTick: Float = 0
     var aggro = false               // voidwalker / spider provoked
@@ -443,6 +444,7 @@ final class Mob {
         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
     }
     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+    static let hisserFuse: Float = 1.75   // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra)
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
     func intersects(_ b: IVec3) -> Bool {
@@ -849,7 +851,10 @@ final class Mob {
                 face(player)
                 // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away or out of
                 // sight (behind a wall it un-swells instead of blowing up through it).
-                if (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
+                if flinch > 0 {
+                    flinch -= dt
+                    speed = 0
+                } else if (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt
                     speed = 0
@@ -857,7 +862,7 @@ final class Mob {
                     fuse = max(0, fuse - dt)
                     speed = spec.speed
                 }
-                if fuse >= 1.5 {
+                if fuse >= Mob.hisserFuse {
                     Explosion.explode(at: pos + V3(0, 0.8, 0), power: charged ? 6 : 3, game: g)
                     health = -1000
                     return
@@ -1299,6 +1304,9 @@ final class Mob {
         wasHit = true
         admire = 0
         if spec.flying { vel += V3(0, 1, 0); return }
+        // A hit hisser flinches: its swell drops back 0.6 s and pauses 0.4 s, so steady melee (one swing per sword
+        // cooldown) can finish it before it blows (playtest v78: it went off before enough hits landed).
+        if kind == .creeper && damage > 0 { fuse = max(0, fuse - 0.6); flinch = 0.4 }
         if kind == .enderman && Rand.float(in: 0..<1) < 0.5 { return }
         var away = pos - src
         away.y = 0
