@@ -453,13 +453,11 @@ struct Synth {
     }
 
     mutating func windLoop(_ dur: Float, lp: Float, gain: Float) -> [Float] {
-        Synth.loopify(wash(dur, lp: lp, hp: 60, wobble: 1.5, rate: 0.4, gain: gain), fade: 0.8)
+        windBed(dur, lp: lp, gain: gain)
     }
 
     mutating func rainLoop(_ dur: Float, roof: Bool) -> [Float] {
-        let bed = wash(dur, lp: roof ? 1500 : 6000, hp: roof ? 200 : 1200, wobble: 0.3, rate: 2, gain: roof ? 0.5 : 0.35)
-        let drops = crackle(dur, density: roof ? 60 : 140, f: roof ? 900 : 4500, q: roof ? 3 : 1.5, gain: roof ? 1.2 : 0.8)
-        return Synth.loopify(Synth.mix(bed, drops), fade: 0.4)
+        rainBed(dur, roof: roof)
     }
 
     mutating func underwaterLoop(_ dur: Float) -> [Float] {
@@ -481,22 +479,7 @@ struct Synth {
 
     // A songbird phrase: 2-6 FM chirps with pitch sweeps, sometimes a trill.
     mutating func birdCall(pitch p: Float) -> [Float] {
-        var out: [Float] = []
-        let n = 2 + Int(rnd() * 5)
-        let base: Float = rnd(2200, 4200) * p
-        var t: Float = 0
-        let trill = rnd() < 0.3
-        for k in 0..<n {
-            let len: Float = trill ? 0.04 : rnd(0.05, 0.16)
-            let f0: Float = base * rnd(0.85, 1.2)
-            let up: Bool = rnd() < 0.5
-            let f1: Float = up ? f0 * rnd(1.1, 1.5) : f0 * rnd(0.6, 0.9)
-            let c = tone(len, f0: f0, f1: f1, wave: .sine, attack: 0.006, release: len * 0.5, vib: trill ? 0 : 0.03, vibRate: 40, gain: 0.5)
-            out = Synth.mix(out, c, at: frames(t))
-            t += len + (trill ? 0.015 : rnd(0.03, 0.12))
-            if k == n - 1 && rnd() < 0.4 { t += 0.05 }
-        }
-        return Synth.echo(out, delay: 0.13, feedback: 0.15, mix: 0.2, tail: 0.3)
+        songbird(pitch: p)
     }
 
     // Several crickets: pulse trains (~30 pulses/s) of a 4-5 kHz tone, each cricket with its own rhythm.
@@ -607,27 +590,25 @@ struct Synth {
             out = Synth.mix(out, grains(20, spread: 0.3, lp: 5000, hp: 1500, decay: 0.01, gain: 0.3))
         case .swim: out = Synth.mix(burst(0.35, lp: 1800 * p, hp: 300, attack: 0.03, decay: 0.09, gain: 0.8), bubbles(0.3, count: 4, fLo: 600, fHi: 1500, len: 0.04, gain: 0.3))
         case .land: out = burst(0.18, lp: 300 * p, hp: 30, decay: 0.04, gain: 3)
-        case .hurt:
-            out = Synth.mix(formant(0.22, f0: 260 * p, f1: 150 * p, formants: [(600, 6, 1), (1100, 8, 0.6), (2500, 10, 0.25)], breath: 0.15, vib: 0.03, gain: 1.4),
-                            burst(0.1, lp: 1200, hp: 200, decay: 0.03, gain: 0.5))
-        case .hurtFall: out = Synth.mix(formant(0.3, f0: 240 * p, f1: 130 * p, formants: [(550, 6, 1), (1000, 8, 0.6)], breath: 0.2, gain: 1.3), burst(0.2, lp: 400, hp: 40, decay: 0.05, gain: 2.5))
-        case .hurtDrown: out = Synth.mix(formant(0.35, f0: 220 * p, f1: 160 * p, formants: [(400, 5, 1), (800, 6, 0.5)], breath: 0.3, gain: 1.0), bubbles(0.4, count: 8, fLo: 300, fHi: 900, len: 0.05, gain: 0.5))
-        case .hurtFire: out = Synth.mix(formant(0.28, f0: 300 * p, f1: 200 * p, formants: [(700, 6, 1), (1400, 8, 0.6), (2800, 10, 0.3)], breath: 0.2, vib: 0.08, vibRate: 9, gain: 1.3), burst(0.25, lp: 3000, hp: 800, attack: 0.01, decay: 0.08, gain: 0.4))
+        case .hurt: out = Synth.mix(bodyHit(force: 1, p: p), grunt(0.2, f0: 125 * p, vowel: (620, 1150), voiced: 0.55, gain: 1.1), at: frames(0.008))
+        case .hurtFall: out = Synth.mix(Synth.mix(bodyHit(force: 1.4, p: p * 0.8), burst(0.2, lp: 300, hp: 30, decay: 0.04, gain: 2.0)), grunt(0.24, f0: 120 * p, vowel: (560, 1050), voiced: 0.6, gain: 1.1), at: frames(0.015))
+        case .hurtDrown: out = Synth.mix(Synth.lowpass(grunt(0.3, f0: 115 * p, vowel: (450, 900), voiced: 0.5, gain: 1.0), 1500), bubbles(0.4, count: 8, fLo: 300, fHi: 900, len: 0.05, gain: 0.5))
+        case .hurtFire: out = Synth.mix(grunt(0.24, f0: 135 * p, vowel: (700, 1250), voiced: 0.6, gain: 1.1), crackle(0.3, density: 120, f: 3500, q: 1.5, gain: 0.6))
         case .playerDeath:
-            out = formant(0.9, f0: 230 * p, f1: 90 * p, formants: [(550, 5, 1), (1000, 7, 0.6), (2400, 9, 0.2)], breath: 0.25, vib: 0.05, vibRate: 4, attack: 0.02, release: 0.4, gain: 1.4)
-            out = Synth.mix(out, burst(0.4, lp: 500, hp: 40, attack: 0.1, decay: 0.15, gain: 1.5))
+            out = Synth.mix(bodyHit(force: 1.3, p: p * 0.9), grunt(0.7, f0: 120 * p, vowel: (560, 1000), voiced: 0.6, gain: 1.2), at: frames(0.01))
+            out = Synth.mix(out, Synth.mix(burst(0.4, lp: 400, hp: 40, attack: 0.004, decay: 0.08, gain: 1.6), material(.dirt, pitch: p * 0.8, scale: 1, gain: 0.4)), at: frames(0.45))
         case .eat:
             out = []
             for k in 0..<3 { out = Synth.mix(out, grains(6, spread: 0.04, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.9), at: frames(Float(k) * 0.16)) }
         case .burp: out = formant(0.3, f0: 120 * p, f1: 90 * p, formants: [(400, 4, 1), (900, 5, 0.5)], breath: 0.2, vib: 0.1, vibRate: 12, gain: 1.0)
         case .drink: out = Synth.mix(grains(6, spread: 0.5, lp: 900 * p, hp: 150, decay: 0.05, gain: 1.0), bubbles(0.5, count: 5, fLo: 200, fHi: 500, len: 0.06, gain: 0.5))
-        case .pickup: out = Synth.mix(modes(0.09, [(1500 * p, 0.3, 0.02)]), modes(0.08, [(2100 * p, 0.25, 0.02)]), at: frames(0.03))
+        case .pickup: out = pickupPop(p: p)
         case .dig: out = burst(0.06, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.8)
-        case .attack: out = burst(0.12, lp: 1800 * p, hp: 200, decay: 0.03, gain: 1.4)
-        case .attackSweep: out = Synth.window(wash(0.28, lp: 2600 * p, hp: 500, wobble: 0.2, rate: 30, gain: 0.8))
-        case .attackCrit: out = Synth.mix(burst(0.15, lp: 2200 * p, hp: 300, decay: 0.03, gain: 1.4), modes(0.3, [(2600 * p, 0.3, 0.06), (3900 * p, 0.2, 0.05)]))
-        case .attackKnockback: out = Synth.mix(burst(0.2, lp: 800 * p, hp: 60, decay: 0.05, gain: 2.5), burst(0.1, lp: 3000, hp: 500, decay: 0.02, gain: 0.6))
-        case .attackWeak: out = burst(0.07, lp: 1200 * p, hp: 200, decay: 0.015, gain: 0.9)
+        case .attack: out = Synth.mix(swoosh(0.13, lo: 700 * p, hi: 2200 * p, gain: 0.7), bodyHit(force: 1, p: p), at: frames(0.07))
+        case .attackSweep: out = swoosh(0.3, lo: 600 * p, hi: 2600 * p, gain: 0.9)
+        case .attackCrit: out = Synth.mix(Synth.mix(swoosh(0.12, lo: 900 * p, hi: 3000 * p, gain: 0.7), bodyHit(force: 1.3, p: p * 1.05), at: frames(0.06)), modes(0.35, [(2600 * p, 0.18, 0.08), (3950 * p, 0.1, 0.05)]), at: frames(0.065))
+        case .attackKnockback: out = Synth.mix(Synth.mix(swoosh(0.16, lo: 500 * p, hi: 1800 * p, gain: 0.7), bodyHit(force: 1.6, p: p * 0.85), at: frames(0.08)), burst(0.25, lp: 250, hp: 30, attack: 0.002, decay: 0.05, gain: 1.6), at: frames(0.08))
+        case .attackWeak: out = Synth.mix(swoosh(0.1, lo: 800 * p, hi: 1800 * p, gain: 0.45), bodyHit(force: 0.45, p: p * 1.1), at: frames(0.05))
         case .shieldBlock: out = Synth.mix(modes(0.3, [(240 * p, 0.7, 0.05), (520 * p, 0.4, 0.04), (1100 * p, 0.2, 0.02)]), burst(0.06, lp: 2500, hp: 300, decay: 0.012, gain: 0.8))
         case .shieldBreak: out = Synth.mix(material(.wood, pitch: p * 0.9, scale: 1.6, gain: 0.6), grains(8, spread: 0.2, lp: 4000, hp: 800, decay: 0.01, gain: 0.5))
         case .armorEquip(let t):
@@ -647,8 +628,8 @@ struct Synth {
         case .fishCast: out = Synth.mix(Synth.decayEnv(wash(0.25, lp: 3000, hp: 600, wobble: 0.2, rate: 20, gain: 0.5), 0.08), modes(0.1, [(1400 * p, 0.3, 0.02)]))
         case .fishSplash: out = Synth.mix(burst(0.3, lp: 1600 * p, hp: 200, attack: 0.005, decay: 0.08, gain: 1.2), bubbles(0.3, count: 5, fLo: 500, fHi: 1500, len: 0.04, gain: 0.4))
         case .fishReel: out = Synth.mix(burst(0.3, lp: 2000 * p, hp: 300, attack: 0.005, decay: 0.08, gain: 1.0), grains(6, spread: 0.2, lp: 3000, hp: 800, decay: 0.008, gain: 0.5))
-        case .xp: out = modes(0.2, [(1760 * p, 0.25, 0.05), (2637 * p, 0.12, 0.04)])
-        case .levelUp: out = Synth.mix(Synth.mix(modes(0.5, [(523, 0.3, 0.15)]), modes(0.5, [(659, 0.3, 0.15)]), at: frames(0.1)), modes(0.8, [(784, 0.3, 0.3)]), at: frames(0.2))
+        case .xp: out = uiSound(.xp, p: p)
+        case .levelUp: out = uiSound(.levelUp, p: 1)
         case .totem:
             out = []
             for (k, f) in [392, 523, 659, 784, 1047].enumerated() { out = Synth.mix(out, fm(1.2, f: Float(f), ratio: 2, index: 1.2, decay: 0.5, gain: 0.3), at: frames(Float(k) * 0.09)) }
@@ -676,11 +657,11 @@ struct Synth {
         case .goatHorn: out = Synth.mix(formant(2.6, f0: 220, f1: 196, formants: [(500, 4, 1), (1200, 6, 0.6), (2400, 8, 0.3)], breath: 0.05, vib: 0.12, vibRate: 5, attack: 0.08, release: 0.4, gain: 1.2), voice(2.6, f0: 330, f1: 294, vib: 0.1, lp: 2000, gain: 0.4))
 
         // Interface
-        case .click: out = modes(0.05, [(1100 * p, 0.35, 0.008), (2200 * p, 0.1, 0.004)])
-        case .uiHover: out = modes(0.03, [(1600 * p, 0.2, 0.005)])
-        case .uiBack: out = modes(0.06, [(800 * p, 0.35, 0.01), (1600 * p, 0.1, 0.005)])
-        case .toast: out = Synth.mix(modes(0.3, [(1320 * p, 0.3, 0.08)]), modes(0.35, [(1760 * p, 0.3, 0.1)]), at: frames(0.08))
-        case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
+        case .click: out = uiSound(.click, p: p)
+        case .uiHover: out = uiSound(.uiHover, p: p)
+        case .uiBack: out = uiSound(.uiBack, p: p)
+        case .toast: out = uiSound(.toast, p: p)
+        case .open: out = uiSound(.open, p: p)
 
         // Doors and containers
         case .doorOpen: out = Synth.mix(tone(0.22, f0: 320 * p, f1: 520 * p, wave: .saw, attack: 0.02, release: 0.08, gain: 0.12), material(.wood, pitch: p * 1.1, scale: 0.7, gain: 0.5), at: frames(0.12))
@@ -763,7 +744,7 @@ struct Synth {
         case .bell: out = modes(2.5, [(880, 0.5, 1.8), (2094.4, 0.25, 1.0), (2666.4, 0.15, 0.7), (440, 0.2, 1.5)])
         case .bellResonate: out = Synth.mix(modes(3.5, [(880, 0.3, 2.5), (1760, 0.15, 1.5), (440, 0.25, 2.2)]), wash(3.5, lp: 3000, hp: 600, wobble: 1, rate: 3, gain: 0.1))
         case .tntFuse: out = Synth.mix(wash(4.0, lp: 7000, hp: 2500, wobble: 0.5, rate: 8, gain: 0.5), crackle(4.0, density: 30, f: 5000, q: 2, gain: 0.5))
-        case .explode: out = Synth.mix(burst(2.0, lp: 250 * p, hp: 20, attack: 0.003, decay: 0.5, gain: 4), burst(1.2, lp: 2500, hp: 200, decay: 0.2, gain: 1.2))
+        case .explode: out = explosion(size: 1, p: p)
         case .glassBreak: out = Synth.mix(burst(0.3, lp: 12000, hp: 3000, attack: 0.001, decay: 0.12, gain: 1.0), grains(12, spread: 0.25, lp: 10000, hp: 4000, decay: 0.01, gain: 0.6))
         case .iceCrack: out = Synth.mix(crackle(0.4, density: 90, f: 3000 * p, q: 4, gain: 1.5), modes(0.3, [(1400 * p, 0.2, 0.05)]))
         case .portalTravel: out = Synth.mix(tone(1.2, f0: 200 * p, f1: 900 * p, wave: .sine, attack: 0.1, release: 0.5, vib: 0.1, vibRate: 7, gain: 0.35), wash(1.2, lp: 3000, hp: 300, wobble: 1.5, rate: 3, gain: 0.35))
@@ -793,8 +774,8 @@ struct Synth {
         case .minecartLoop: out = Synth.loopify(Synth.mix(wash(2.5, lp: 900, hp: 80, wobble: 0.4, rate: 6, gain: 0.8), crackle(2.5, density: 40, f: 1800, q: 3, gain: 0.6)), fade: 0.3)
         case .elytraLoop: out = windLoop(3.0, lp: 1500, gain: 0.9)
         case .underwaterLoop: out = underwaterLoop(4.0)
-        case .rain: out = rainLoop(3.0, roof: false)
-        case .rainRoof: out = rainLoop(3.0, roof: true)
+        case .rain: out = rainLoop(8.0, roof: false)
+        case .rainRoof: out = rainLoop(6.0, roof: true)
         case .respawnAnchorLoop: out = droneLoop(4.0, f: 110, partials: 3, detune: 0.01, noiseLP: 600, noiseGain: 0.2, gain: 0.35)
         case .spawnerLoop: out = Synth.loopify(Synth.mix(fireLoop(3.0, size: 0.5, pitch: p * 1.3), tone(3.0, f0: 330, f1: 330, wave: .sine, attack: 0.3, release: 0.3, vib: 0.05, vibRate: 3, gain: 0.08)), fade: 0.05)
         case .netherWastesLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 500, gain: 1.0), droneLoop(5.0, f: 55, partials: 2, detune: 0.02, noiseLP: 0, noiseGain: 0, gain: 0.25)), fade: 0.05)
@@ -839,7 +820,7 @@ struct Synth {
             out = Synth.mix(Synth.mix(c, crackle(0.9, density: 30, f: 700, q: 4, gain: 1.2)), modes(0.4, [(70 * p, 0.8, 0.12)]), at: frames(0.5))
         case .oceanLoop: out = oceanLoop(7.0)
         case .swampLoop: out = Synth.loopify(Synth.mix(frogs(5.0), Synth.scaled(cricketsLoop(5.0, voices: 2), 0.4)), fade: 0.05)
-        case .windLoop: out = windLoop(6.0, lp: 700, gain: 0.8)
+        case .windLoop: out = windLoop(8.6, lp: 700, gain: 0.8)
         case .jungleLoop:
             var j = Synth.scaled(cricketsLoop(5.0, voices: 4), 0.5)
             for _ in 0..<5 { j = Synth.mix(j, Synth.scaled(birdCall(pitch: rnd(0.8, 1.3)), 0.35), at: frames(rnd(0, 4.0))) }
@@ -898,13 +879,8 @@ struct Synth {
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
         case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
-        case .explodeSmall:
-            out = Synth.mix(burst(1.0, lp: 600 * p, hp: 35, attack: 0.002, decay: 0.2, gain: 3.4), burst(0.5, lp: 4500, hp: 700, decay: 0.06, gain: 1.4))
-            out = Synth.mix(out, modes(0.3, [(70 * p, 0.8, 0.08)]))
-        case .explodeLarge:
-            out = Synth.mix(burst(3.0, lp: 200 * p, hp: 18, attack: 0.003, decay: 0.8, gain: 4.5), burst(1.0, lp: 2800, hp: 250, decay: 0.15, gain: 1.6))
-            out = Synth.mix(out, rumble(4.0, f: 32, attack: 0.05, decay: 1.4, gain: 3), at: frames(0.1))
-            out = Synth.echo(out, delay: 0.45, feedback: 0.3, mix: 0.3, tail: 1.2)
+        case .explodeSmall: out = explosion(size: 0.6, p: p)
+        case .explodeLarge: out = explosion(size: 1.8, p: p)
         case .debrisRain:
             out = Synth.mix(grains(28, spread: 1.4, lp: 3000 * p, hp: 300, decay: 0.012, gain: 0.9), grains(10, spread: 1.2, lp: 1200, hp: 100, decay: 0.03, gain: 0.8), at: frames(0.1))
         case .rocketFlightLoop:
