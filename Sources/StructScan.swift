@@ -8,6 +8,26 @@ enum StructScan {
     static let kinds = ["military_base", "village", "mansion", "great_ruin", "temple", "pillager_outpost", "trial_chambers",
                         "trail_ruins", "monument", "ancient_city"]
 
+    // `--structnear SEED X Z`: the nearest Capital citadels (and Capital cities) to a point in one seed's world, with
+    // distances, so a saved world's bases can be checked without loading it.
+    static func near(seed: UInt64, x: Int, z: Int) -> Int {
+        let gen = WorldGen(seed: seed)
+        guard let sc = gen.structures else { return 1 }
+        for k in ["military_base", "capital_city"] {
+            guard let t = sc.types.first(where: { $0.name == k }) else { continue }
+            let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
+            var found: [(Int, IVec3)] = []
+            for dz in -3...3 { for dx in -3...3 {
+                guard let s = sc.start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+                let d = Int(sqrt(Double((s.anchor.x - x) * (s.anchor.x - x) + (s.anchor.z - z) * (s.anchor.z - z))))
+                found.append((d, s.anchor))
+            } }
+            found.sort { $0.0 < $1.0 }
+            print("structnear: \(k): " + found.prefix(5).map { "\($0.1.x),\($0.1.z) (\($0.0) blocks)" }.joined(separator: ", "))
+        }
+        return 0
+    }
+
     static func run(seeds n: Int) -> Int {
         var totals: [String: Int] = [:], minBase = Int.max, spawnBiomes: [String: Int] = [:]
         let halfChunks = 128

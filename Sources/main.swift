@@ -1103,6 +1103,10 @@ enum Snapshot {
             // The minimap samples on a worker; fill its area now so the single frame shows it.
             MapCache.shared.prefill(world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 72, step: 4)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--structnear"), i + 3 < CommandLine.arguments.count {
+            let a = CommandLine.arguments
+            return Int32(StructScan.near(seed: UInt64(a[i + 1]) ?? 0, x: Int(a[i + 2]) ?? 0, z: Int(a[i + 3]) ?? 0))
+        }
         if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
         if CommandLine.arguments.contains("--selftest") {

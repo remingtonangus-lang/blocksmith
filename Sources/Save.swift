@@ -61,6 +61,31 @@ final class SaveManager {
 
     var metaURL: URL { dir.appendingPathComponent("world.json") }
 
+    // The chunks this world had generated when it first loaded with task 23's structures (Capital cities, denser
+    // citadels): taken once from the chunk folder and kept in structure-guard.txt ("x,z" per line), so the set never
+    // grows with chunks generated afterwards (those already have the new structures). A new world's guard is empty.
+    func structureGuard() -> Set<Int64> {
+        let url = dir.appendingPathComponent("structure-guard.txt")
+        var out = Set<Int64>()
+        if let s = try? String(contentsOf: url, encoding: .utf8) {
+            for line in s.split(separator: "\n") {
+                let p = line.split(separator: ",")
+                if p.count == 2, let x = Int(p[0]), let z = Int(p[1]) { out.insert(StructureCache.key(x, z)) }
+            }
+            return out
+        }
+        var lines: [String] = []
+        for f in (try? FileManager.default.contentsOfDirectory(atPath: chunkDir.path)) ?? [] where f.hasPrefix("c.") && f.hasSuffix(".lz") {
+            let p = f.dropFirst(2).dropLast(3).split(separator: ".", omittingEmptySubsequences: false)
+            // "c.-1.-21.lz": the split keeps the signs ("-1", "-21").
+            guard p.count == 2, let x = Int(p[0]), let z = Int(p[1]) else { continue }
+            out.insert(StructureCache.key(x, z))
+            lines.append("\(x),\(z)")
+        }
+        try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        return out
+    }
+
     func loadMeta() -> WorldMeta? {
         guard let d = try? Data(contentsOf: metaURL) else { return nil }
         guard let m = try? JSONDecoder().decode(WorldMeta.self, from: d) else { return nil }

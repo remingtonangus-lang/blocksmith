@@ -178,6 +178,7 @@ final class MapCache {
     static func style(_ kind: String) -> (letter: String, color: V4, name: String) {
         switch kind {
         case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
+        case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate": return ("F", V4(0.6, 0.35, 0.9, 1), "Skyward Frigate patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
@@ -198,11 +199,12 @@ final class MapCache {
 
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
         let px = Int(floor(at.x)), pz = Int(floor(at.z))
-        for t in sc.types where t.name == "military_base" || t.name == "village" {
+        for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" {
             for s in sc.startsNear(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
                 let dx = cx - px, dz = cz - pz
-                if dx * dx + dz * dz < 96 * 96 { discover(g, kind: t.name, x: cx, z: cz) }
+                let r = t.name == "capital_city" ? 150 : 96
+                if dx * dx + dz * dz < r * r { discover(g, kind: t.name, x: cx, z: cz) }
             }
         }
         // Vessel patrols (ShipVessels): their home point counts once you come within 200 blocks of it.
