@@ -683,4 +683,4 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
 - Quest perf: 72 Hz before cutting distance, default render distance 12 (saved values < 12 raised once), world-driven
   remesh off the frame thread, background autosave (a synchronous save flushes it first), fluid budget 2 ms.
 - Checks: `--questbugs --only pm9a|pm9b|pm9d`, `--coppertest`, `tools/namecheck.py --coined` (snap.sh),
-  `tools/quest_perf_gate.sh` (~7 min, quiet Mac). APK versionCode 85 (05dd569), quest run 37990566284 green.
+  `tools/quest_perf_gate.sh` (~7 min, quiet Mac). APK versionCode 88 (fb04509), quest run 38001586934 green.
