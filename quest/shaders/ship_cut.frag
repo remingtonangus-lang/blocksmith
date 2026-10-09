@@ -16,5 +16,5 @@ void main() {
     vec4 c = texture(tex, vec3(oUV, oLayer));
     if (c.a < 0.5) { discard; }
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
-    outColor = finalColor(vec4(mix(c.rgb * t * oShade, u.fogColor.rgb, shipFogF(oDist)), 1.0));
+    outColor = worldColor(vec4(mix(c.rgb * t * oShade, u.fogColor.rgb, shipFogF(oDist)), 1.0));
 }

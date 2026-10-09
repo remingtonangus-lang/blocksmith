@@ -39,7 +39,7 @@ void main() {
     float f = smoothstep(u.fogColor.w, u.params.x, oDist);
     if (oWDepth < 0.0) {
         // Glass, ice and other translucent blocks: as before.
-        outColor = finalColor(vec4(mix(rgb, fogColorAlong(oRel), f), mix(c.a, 1.0, f * 0.8)));
+        outColor = worldColor(vec4(mix(rgb, fogColorAlong(oRel), f), mix(c.a, 1.0, f * 0.8)));
         return;
     }
     vec3 v = normalize(oRel);
@@ -83,9 +83,9 @@ void main() {
             vec3 tir = u.fogColor.rgb * 1.15;
             vec3 col = dot(rd, rd) < 1e-4 ? tir : mix(skyAlong(rd) * 0.85 * mix(0.3, 1.0, skyVis), tir, 0.3);
             col += sunC * pow(clamp(dot(rd, u.sunDir.xyz), 0.0, 1.0), 220.0) * 2.0 * sunVis;
-            outColor = finalColor(vec4(mix(col, u.fogColor.rgb, f), 0.94));
+            outColor = worldColor(vec4(mix(col, u.fogColor.rgb, f), 0.94));
         } else {
-            outColor = finalColor(vec4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8)));
+            outColor = worldColor(vec4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8)));
         }
         return;
     }
@@ -133,5 +133,5 @@ void main() {
     }
     A = mix(A, 1.0, f);
     pm = mix(pm, fogColorAlong(oRel), f);
-    outColor = finalColor(vec4(pm / max(A, 1e-3), A));
+    outColor = worldColor(vec4(pm / max(A, 1e-3), A));
 }

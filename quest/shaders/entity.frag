@@ -19,5 +19,5 @@ void main() {
     if (c.a < 0.5) { discard; }
     vec3 rgb = c.rgb;
     if (oOverlay > 0.5 && c.a < 0.95) { rgb *= vec3(0.57, 0.74, 0.35); }
-    outColor = finalColor(vec4(applyFog(rgb * oColor.rgb, oDist), 1.0));
+    outColor = worldColor(vec4(applyFog(rgb * oColor.rgb, oDist), 1.0));
 }

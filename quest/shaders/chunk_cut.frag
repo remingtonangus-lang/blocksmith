@@ -17,5 +17,5 @@ void main() {
     if (c.a < 0.5) { discard; }
     if (oAnim > 0.5) { c.rgb = lavaGlow(c.rgb, oRel); }
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
-    outColor = finalColor(vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0));
+    outColor = worldColor(vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0));
 }

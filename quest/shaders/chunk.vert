@@ -66,7 +66,7 @@ void main() {
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    vec3 lit = max(sky * skyTint, blk * mix(vec3(1.0, 0.87, 0.68), vec3(1.0, 0.95, 0.86), blk * blk));
+    vec3 lit = max(sky * skyTint, blk * mix(vec3(1.06, 0.82, 0.56), vec3(1.0, 0.95, 0.86), blk * blk));
     // Cave fill (port of Shaders.caveFill, Fast path): a cool minimum light that fades with distance; misc.w = brightness.
     // misc.y = how dark it is at the eye (stand-in for eye adaptation): standing in daylight, Brightness and the fill are
     // off, so seabeds under deep water (skylight 0, like caves) stay near black and the ocean reads deep (v51 regression).
@@ -83,7 +83,8 @@ void main() {
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     bool water = tintMode == 3u;
     oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;
-    oShade = lit * (faceShade[face] * (water ? 1.0 : aoCurve[ao]));
+    float sw = (face < 6u && !water) ? 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
+    oShade = lit * sunShadeN(faceNormal(face), faceShade[face], sw, u.sunDir.xyz) * (water ? 1.0 : aoCurve[ao]);
     oDist = length(rel);
     oRel = rel;
     oFace = float(face);

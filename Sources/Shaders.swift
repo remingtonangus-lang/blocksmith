@@ -40,6 +40,29 @@ constexpr sampler texSampler(mag_filter::nearest, min_filter::linear, mip_filter
 constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
 
+// Round 3 lighting (same maths in quest/shaders/common.glsl and ShipRender.swift): sky-lit faces in daylight blend
+// the fixed face shade toward a cool sky ambient + warm sun diffuse (golden near the horizon), weight w (0...0.75).
+// Per vertex: ~12 ALU. The darkest result (ambient 0.72 x blue tint) stays above 0.9 x the old darkest face (0.55).
+constant float3 faceN[6] = { float3(1,0,0), float3(-1,0,0), float3(0,1,0), float3(0,-1,0), float3(0,0,1), float3(0,0,-1) };
+static float3 sunShade(uint face, float base, float w, float3 sd) {
+    if (face > 5u || w <= 0.0) { return float3(base); }
+    float3 l = normalize(sd);
+    float g = saturate(l.y * 2.2);
+    float3 sunC = mix(float3(1.22, 0.80, 0.48), float3(1.04, 1.0, 0.93), g);
+    float3 d = float3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * saturate(dot(faceN[face], l)));
+    return mix(float3(base), d, w);
+}
+// Cheap filmic curve for world surfaces (not HUD): soft shoulder above 0.9, a highlight lift above mid-grey (shadows and 0.5 untouched),
+// saturation 1.08. ~14 ALU per fragment.
+static float3 filmic(float3 c) {
+    c = max(c, 0.0);
+    float3 hi = 0.9 + 0.1 * (1.0 - exp((0.9 - c) * 10.0));
+    c = mix(c, hi, step(0.9, c));
+    c = c + 0.25 * c * (1.0 - c) * max(2.0 * c - 1.0, 0.0);
+    float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+    return max(l + (c - l) * 1.08, 0.0);
+}
+
 // See Mesher.swift for the vertex layout. tints: 256 grass, 256 foliage, 256 water colours (RGBA8).
 // Per-section record (buffer 2, indexed by instance id = draw index): section origin relative to the
 // camera and the chunk's tint table offset (in words) inside the tint buffer (buffer 3).
@@ -123,10 +146,12 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     // Warm at the edge of a light's reach, near white right next to it (Fancy does the same).
-    float3 lit = max(sky * skyTint, blk * mix(float3(1.0, 0.87, 0.68), float3(1.0, 0.95, 0.86), blk * blk));
+    // Amber at the edge of a light's reach, warm white next to it (round 3: richer, same luma).
+    float3 lit = max(sky * skyTint, blk * mix(float3(1.06, 0.82, 0.56), float3(1.0, 0.95, 0.86), blk * blk));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(caveFill(lit, length(rel), u, 1.0, skyL), float3(1.0), u.sunDir.w);   // cave fill: unlit walls stay readable nearby
-    o.shade = lit * (faceShade[face] * aoCurve[ao]);
+    float sw = 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w);
+    o.shade = lit * sunShade(face, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
     o.dist = length(rel);
     o.rel = rel;
     o.face = float(face);
@@ -187,7 +212,7 @@ fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(applyFogDir(waterAmbient(c.rgb * t * in.shade, c.rgb * t, u), in.rel, in.dist, u), 1.0);
+    return float4(filmic(applyFogDir(waterAmbient(c.rgb * t * in.shade, c.rgb * t, u), in.rel, in.dist, u)), 1.0);
 }
 
 fragment float4 chunkFS(ChunkOut in [[stage_in]],
@@ -201,7 +226,7 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 rgb = waterAmbient(c.rgb * t * in.shade, c.rgb * t, u);
-    return float4(applyFogDir(rgb, in.rel, in.dist, u), 1.0);
+    return float4(filmic(applyFogDir(rgb, in.rel, in.dist, u)), 1.0);
 }
 
 fragment float4 waterFS(ChunkOut in [[stage_in]],
@@ -227,7 +252,7 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
         a = mix(a, 1.0, fres * 0.55);
     }
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
-    return float4(mix(rgb, fogColorAlong(in.rel, u), f), mix(a, 1.0, f * 0.8));
+    return float4(filmic(mix(rgb, fogColorAlong(in.rel, u), f)), mix(a, 1.0, f * 0.8));
 }
 
 // Fancy sky: one full-screen triangle; the fragment shader shades the view direction with a
@@ -248,7 +273,7 @@ vertex SkyOut skyVS(uint vid [[vertex_id]]) {
     return o;
 }
 
-fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
+static float3 skyColor(SkyOut in, constant SkyParams& s) {
     float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
     float3 d = normalize(w.xyz / w.w);
     // Slow start: the first few degrees above the horizon stay close to the fog colour, so fogged
@@ -261,7 +286,10 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     float band = 1.0 - saturate(abs(d.y) * 3.0);                 // the glow hugs the horizon
     float3 warm = float3(1.0, 0.55, 0.25);
     col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
-    col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    // Sun halo: a tight bright core and a wide soft glow, golden near the horizon, white-warm high up.
+    float3 haloC = mix(float3(1.0, 0.62, 0.32), float3(1.0, 0.93, 0.8), saturate(s.sun.y * 3.0));
+    float sd8 = sd * sd; sd8 *= sd8; sd8 *= sd8;
+    col += haloC * (pow(sd, 64.0) * 0.22 + sd8 * 0.07) * s.sun.w;
     // Dusk/dawn: a soft pink band above the horizon opposite the sun (the anti-twilight arch).
     float anti = saturate(-dot(normalize(float3(d.x, 0.0, d.z) + 1e-4), normalize(float3(s.sun.x, 0.0, s.sun.z) + 1e-4)));
     float arch = exp(-pow((d.y - 0.1) / 0.09, 2.0));
@@ -278,9 +306,11 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     }
     // Interleaved-gradient dither of one 8-bit step: the smooth gradient showed bands (critic, sky shots).
     float ign = fract(52.9829189 * fract(dot(in.pos.xy, float2(0.06711056, 0.00583715))));
-    col += (ign - 0.5) / 255.0;
-    return float4(col, 1.0);
+    return col + (ign - 0.5) / 255.0;
 }
+fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) { return float4(skyColor(in, s), 1.0); }
+// Fast path: the same dome through the world tone curve (Fancy tone-maps its HDR target instead).
+fragment float4 skyFastFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) { return float4(filmic(skyColor(in, s)), 1.0); }
 
 struct SimpleVert { float4 pos; float4 color; };
 struct SimpleOut { float4 pos [[position]]; float4 color; };
@@ -492,13 +522,13 @@ static bool mobGlossy(int pt) { return pt == 7 || pt == 8 || pt == 10 || pt == 1
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
     float3 c = mobPattern(in);
     int pt = int(in.pattern + 0.5);
-    if (pt == 9) return float4(applyFog(c, in.dist, u), 1.0);        // emissive: visors, cells, lenses
+    if (pt == 9) return float4(filmic(applyFog(c, in.dist, u)), 1.0);        // emissive: visors, cells, lenses
     float3 col = c * in.shade;
     if (mobGlossy(pt)) {
         float3 n = normalize(cross(dfdx(in.rel), dfdy(in.rel)));
         col += mobSheen(n, in.rel, pt, u.sunDir.xyz, float3(u.params.y)) * saturate(in.shade * 1.3);
     }
-    return float4(applyFog(col, in.dist, u), 1.0);
+    return float4(filmic(applyFog(col, in.dist, u)), 1.0);
 }
 
 // Textured entities: dropped items (cutout) and the block-breaking crack overlay (blended).
@@ -526,7 +556,8 @@ fragment float4 entityFS(EntOut in [[stage_in]],
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)
-    return float4(applyFog(rgb * in.color.rgb, in.dist, u), 1.0);
+    float3 o = applyFog(rgb * in.color.rgb, in.dist, u);
+    return float4(u.eye.w < 0.5 ? filmic(o) : o, 1.0);   // Fancy shares this shader and tone-maps later
 }
 
 // Blended textured quads: the block-breaking crack overlay, rain and snow, lightning.

@@ -48,6 +48,8 @@ void main() {
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     vec3 lit = max(vec3(sky), blk * vec3(1.0, 0.76, 0.46));
     lit = mix(max(lit, vec3(0.035)), vec3(1.0), u.sunDir.w);
-    oShade = lit * (faceShade[face] * aoCurve[ao]);
+    float sw = face < 6u ? 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
+    vec3 nw = (pc.model * vec4(faceNormal(face), 0.0)).xyz;
+    oShade = lit * sunShadeN(nw, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
     oDist = length(rel);
 }

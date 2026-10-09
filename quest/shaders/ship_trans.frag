@@ -16,5 +16,5 @@ void main() {
     vec4 c = texture(tex, vec3(oUV, oLayer));
     vec3 rgb = c.rgb * oTint * max(oShade, vec3(0.05));
     float f = shipFogF(oDist);
-    outColor = finalColor(vec4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8)));
+    outColor = worldColor(vec4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8)));
 }

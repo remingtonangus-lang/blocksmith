@@ -77,3 +77,28 @@ vec3 lavaGlow(vec3 c, vec3 rel) {
 
 // Every world shader computes display (gamma-space) colours like the Mac; an sRGB swapchain stores linear values.
 vec4 finalColor(vec4 c) { return vec4(pow(max(c.rgb, vec3(0.0)), vec3(u.misc.z)), c.a); }
+
+// Round 3 lighting (same maths as Sources/Shaders.swift sunShade/filmic): sky-lit faces in daylight blend the fixed
+// face shade toward a cool sky ambient + warm sun diffuse (golden near the horizon), weight w (0...0.75). Per vertex.
+vec3 sunShadeN(vec3 n, float base, float w, vec3 sd) {
+    if (w <= 0.0) { return vec3(base); }
+    vec3 l = normalize(sd);
+    float g = clamp(l.y * 2.2, 0.0, 1.0);
+    vec3 sunC = mix(vec3(1.22, 0.80, 0.48), vec3(1.04, 1.0, 0.93), g);
+    vec3 d = vec3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * clamp(dot(n, l), 0.0, 1.0));
+    return mix(vec3(base), d, w);
+}
+vec3 faceNormal(uint f) {
+    return f == 0u ? vec3(1, 0, 0) : f == 1u ? vec3(-1, 0, 0) : f == 2u ? vec3(0, 1, 0) : f == 3u ? vec3(0, -1, 0) : f == 4u ? vec3(0, 0, 1) : vec3(0, 0, -1);
+}
+// Cheap filmic curve for world surfaces (not HUD/panels): soft shoulder above 0.9, highlight lift above mid-grey
+// (shadows and 0.5 untouched), saturation 1.08. ~14 ALU per fragment.
+vec3 filmic(vec3 c) {
+    c = max(c, vec3(0.0));
+    vec3 hi = 0.9 + 0.1 * (1.0 - exp((0.9 - c) * 10.0));
+    c = mix(c, hi, step(vec3(0.9), c));
+    c = c + 0.25 * c * (1.0 - c) * max(2.0 * c - 1.0, 0.0);
+    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    return max(l + (c - l) * 1.08, vec3(0.0));
+}
+vec4 worldColor(vec4 c) { return finalColor(vec4(filmic(c.rgb), c.a)); }

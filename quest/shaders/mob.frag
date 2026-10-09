@@ -65,11 +65,11 @@ vec3 mobSheen(vec3 n, vec3 rel, int pt, vec3 toLight, vec3 lightC) {
 void main() {
     vec3 c = mobPattern();
     int pt = int(oPattern + 0.5);
-    if (pt == 9) { outColor = finalColor(vec4(applyFog(c, oDist), 1.0)); return; }
+    if (pt == 9) { outColor = worldColor(vec4(applyFog(c, oDist), 1.0)); return; }
     vec3 col = c * oShade;
     if (pt == 7 || pt == 8 || pt == 10 || pt == 11) {
         vec3 n = normalize(cross(dFdx(oRel), dFdy(oRel)));
         col += mobSheen(n, oRel, pt, u.sunDir.xyz, vec3(u.params.y)) * clamp(oShade * 1.3, 0.0, 1.0);
     }
-    outColor = finalColor(vec4(applyFog(col, oDist), 1.0));
+    outColor = worldColor(vec4(applyFog(col, oDist), 1.0));
 }

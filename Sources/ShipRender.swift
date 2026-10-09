@@ -232,6 +232,24 @@ struct ShipOut {
 constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
 constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
+// Round 3 lighting, as Shaders.swift sunShade/filmic (normal here already in camera-relative world space).
+constant float3 faceN[6] = { float3(1,0,0), float3(-1,0,0), float3(0,1,0), float3(0,-1,0), float3(0,0,1), float3(0,0,-1) };
+static float3 sunShadeN(float3 n, float base, float w, float3 sd) {
+    if (w <= 0.0) { return float3(base); }
+    float3 l = normalize(sd);
+    float g = saturate(l.y * 2.2);
+    float3 sunC = mix(float3(1.22, 0.80, 0.48), float3(1.04, 1.0, 0.93), g);
+    float3 d = float3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * saturate(dot(n, l)));
+    return mix(float3(base), d, w);
+}
+static float3 filmic(float3 c) {
+    c = max(c, 0.0);
+    float3 hi = 0.9 + 0.1 * (1.0 - exp((0.9 - c) * 10.0));
+    c = mix(c, hi, step(0.9, c));
+    c = c + 0.25 * c * (1.0 - c) * max(2.0 * c - 1.0, 0.0);
+    float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+    return max(l + (c - l) * 1.08, 0.0);
+}
 
 // Same vertex format and light curve as chunkVS (Shaders.swift), placed with the ship's transform.
 vertex ShipOut shipVS(uint vid [[vertex_id]],
@@ -277,7 +295,9 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
-    o.shade = lit * (faceShade[face] * aoCurve[ao]);
+    float sw = face < 6u ? 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w) : 0.0;
+    float3 nw = face < 6u ? (d.model * float4(faceN[min(face, 5u)], 0.0)).xyz : float3(0.0, 1.0, 0.0);
+    o.shade = lit * sunShadeN(nw, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
     o.dist = length(rel);
     return o;
 }
@@ -289,21 +309,21 @@ static float3 shipFog(float3 c, float dist, constant Uniforms& u) {
 fragment float4 shipSolidFS(ShipOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]], constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(shipFog(c.rgb * t * in.shade, in.dist, u), 1.0);
+    return float4(filmic(shipFog(c.rgb * t * in.shade, in.dist, u)), 1.0);
 }
 
 fragment float4 shipCutFS(ShipOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]], constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(shipFog(c.rgb * t * in.shade, in.dist, u), 1.0);
+    return float4(filmic(shipFog(c.rgb * t * in.shade, in.dist, u)), 1.0);
 }
 
 fragment float4 shipTransFS(ShipOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]], constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     float3 rgb = c.rgb * in.tint * max(in.shade, float3(0.05));
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
-    return float4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8));
+    return float4(filmic(mix(rgb, u.fogColor.rgb, f)), mix(c.a, 1.0, f * 0.8));
 }
 
 struct LineVert { float4 pos; float4 color; };
