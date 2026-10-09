@@ -643,3 +643,8 @@ Causes found and fixed (one commit each, `git log --grep "Playtest v78"`; also o
 Checks: `--questbugs --only v78` (12 checks) inside the full `--questbugs` (0 failures locally, incl. every saved Mac
 world loading). No save IDs changed; Mac worlds backed up to Backups/all-worlds-before-task25b1-20261009.
 Quest CI run 37942994351 green, APK versionCode 79 (6300439) on quest-dist. Not installed: adb saw no Quest.
+Task 25b1b: the heavy `agent cave seed 12345` failure (bot drowned) is older than 25b1 (same failure on the playtest
+branch, runs since 37875068675) and was a bot bug, not plants/spawning: its path dives into a pond and under a grass
+overhang, but Steer always swam up in water (bobbed at the surface, then drowned idle), and pushing into a 2-high gap
+gave the swim climb-out boost (Player, matches the reference). Steer now sinks to a lower waypoint without pushing
+until level with it; idle bots tread water. All agent lanes green locally (cave 3/3 seeds). Test-only: no ship.

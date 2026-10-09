@@ -4,7 +4,7 @@
 > (1.6x walk, any direction; a full push alone walks), 6-block block reach (melee 3.5), closing a menu with B no longer
 > dismounts, pickups from the saddle, monsters spawn in caves again (and a bit more on the surface), hissers flinch when
 > hit (melee works), calmer ground (no tall grass, less/smaller grass and flowers). Details: docs/status/quest-port.md
-> "Task 25b1".
+> "Task 25b1". Follow-up 25b1b: the failing heavy `agent cave` check was a bot swimming bug (AgentBots Steer), fixed.
 
 > **Audio + visual polish (2026-10-09, task 24, quest-port + playtest):** every block footstep/break/place rebuilt as
 > layered foley (grass/leaves materials), gunfire, explosions, engines, propellers, wind, rain, birds, melee, hurt, UI
