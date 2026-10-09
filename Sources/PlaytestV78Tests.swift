@@ -56,5 +56,44 @@ enum PlaytestV78Tests {
         check(game.riding == nil, "riding: a fresh sneak / B press dismounts")
         game.input.shift = false
         frames(1)
+        p.pos = save.0
+        spawning(game, check)
+    }
+
+    // Monster spawning at night (playtest v78: "no mobs on the ground or in caves at all"): 60 s of the spawner's own
+    // attempts (no mob AI, nothing despawns) at a Quest-like render distance, on the surface and in a cave.
+    static func spawning(_ game: Game, _ check: (Bool, String) -> Void) {
+        let w = game.world, p = game.player
+        let save = (game.survival, game.difficulty, game.time, w.renderDistance, p.pos, game.mobs.mobs)
+        defer { (game.survival, game.difficulty, game.time, w.renderDistance, p.pos, game.mobs.mobs) = save }
+        game.survival = true; game.difficulty = 2; game.time = 0.75 * DAY_LENGTH
+        w.renderDistance = 6
+        func run(_ at: V3) -> (all: Int, near: Int, close: Int, under: Int) {
+            p.pos = at
+            game.mobs.mobs.removeAll { $0.kind.category == .monster }
+            for _ in 0..<(60 * 4) { game.mobs.hostileAttempts(game) }
+            let ms = game.mobs.mobs.filter { $0.kind.category == .monster }
+            let under = ms.filter { Int(floor($0.pos.y)) < w.topY(Int(floor($0.pos.x)), Int(floor($0.pos.z))) - 8 }.count
+            let near = ms.filter { simd_length($0.pos - at) < 48 }.count
+            let close = ms.filter { simd_length($0.pos - at) < 32 }.count
+            return (ms.count, near, close, under)
+        }
+        let sx = Int(floor(save.4.x)), sz = Int(floor(save.4.z))
+        let surf = run(V3(Float(sx) + 0.5, Float(w.topY(sx, sz) + 1), Float(sz) + 0.5))
+        check(surf.all - surf.under >= 4, "spawning: night surface, 60 s: \(surf.all - surf.under) on the ground, \(surf.under) underground (want >= 4 on the ground)")
+        // A cave near the spawn: dark open floor at least 12 below the surface.
+        var cave: V3?
+        search: for r in stride(from: 0, through: 40, by: 4) { for dx in stride(from: -r, through: r, by: 4) { for dz in [-r, r] {
+            let x = sx + dx, z = sz + dz, top = w.topY(x, z)
+            guard top > 20 else { continue }
+            for y in stride(from: top - 12, to: 8, by: -1) where Blocks.opaque[Int(w.block(x, y - 1, z))] && w.block(x, y, z) == AIR && w.block(x, y + 1, z) == AIR && w.lightAt(x, y, z).sky == 0 {
+                cave = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search
+            }
+        } } }
+        if let c = cave {
+            let r = run(c)
+            check(r.under >= 3 && r.near >= 2, String(format: "spawning: in a cave at y %d, 60 s: %d underground, %d within 48 blocks (want >= 3 and >= 2)", Int(c.y) - 64, r.under, r.near))
+            check(r.close <= 8, "spawning: in a cave, no swarm: \(r.close) monsters within 32 blocks (want <= 8)")
+        } else { check(false, "spawning: no cave found near the spawn to test") }
     }
 }

@@ -18,9 +18,10 @@ import simd
 //   per tick; animals, villagers and golems are persistent.
 enum SpawnCategory: Int, CaseIterable {
     case monster, creature, ambient, waterCreature, waterAmbient, undergroundWater, axolotls, misc
-    // Monsters 24 (reference 70): Quest round 4 found the surface crowded even after round 3, so a third of it.
+    // Monsters 36 (reference 70): Quest round 4 found the surface crowded at 70 and cut it to 24, which with the render
+    // distance scaling left a Quest at rd 4-6 with 6-14 monsters over a 270-block square (playtest v78: "none at all").
     // Creatures 5 (reference 10): Remington found the world crowded with animals (store-quality pass).
-    var cap: Int { [24, 5, 15, 5, 20, 5, 5, 0][rawValue] }
+    var cap: Int { [36, 5, 15, 5, 20, 5, 5, 0][rawValue] }
     var despawns: Bool { self != .creature && self != .misc }
     var farDistance: Float { self == .waterAmbient ? 64 : 128 }
 }
@@ -146,9 +147,7 @@ extension MobManager {
         if hostileTimer <= 0 {
             hostileTimer = 0.25
             if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent && $0.kind.category == .monster } }
-            if game.survival && game.difficulty > 0 && count(.monster, near: p) < cap(.monster, w) {
-                for _ in 0..<4 { trySpawnHostile(game) }
-            }
+            if game.survival && game.difficulty > 0 { hostileAttempts(game) }
             trySpawnWaterAndAmbient(game)
         }
     }
@@ -269,13 +268,20 @@ extension MobManager {
         return max(l.block, l.sky - darken)
     }
 
-    func trySpawnHostile(_ game: Game) {
+    // One hostile spawn round (4 attempts, every 0.25 s). With the cap full (night monsters on the surface), caves still
+    // get a small share of their own: otherwise the surface took every slot and a mining trip met nothing (v78).
+    func hostileAttempts(_ game: Game) {
+        let full = count(.monster, near: game.player.pos) >= cap(.monster, game.world)
+        for _ in 0..<4 { trySpawnHostile(game, caveOnly: full) }
+    }
+
+    func trySpawnHostile(_ game: Game, caveOnly: Bool = false) {
         let w = game.world
         if w.dim == .nether { trySpawnEmberdeep(game); return }
         if w.dim == .deep { trySpawnDeep(game); return }
         if w.dim == .end { trySpawnEnd(game); return }
         let pp = game.player.pos
-        guard count(.monster, near: pp) < cap(.monster, w) else { return }
+        guard caveOnly || count(.monster, near: pp) < cap(.monster, w) else { return }
         let rd = min(w.renderDistance, 8)
         let pcx = floorDiv(Int(floor(pp.x)), CS), pcz = floorDiv(Int(floor(pp.z)), CS)
         let x0 = (pcx + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
@@ -288,22 +294,30 @@ extension MobManager {
         // Half the attempts try the surface; the rest an exact random height that only counts when it is already an
         // open spot (cave air). Walking down from any random y turned every sample inside rock into a cave-floor spawn,
         // so caves got most of the mobs and the surface few (Quest round 3).
+        // The cave half walks down through open air only (never from inside rock) to the floor, so a sample anywhere in a
+        // cave's air counts, not only the one cell on its floor (that left caves empty: v78). With the player
+        // underground, half of those samples are near the player's own depth.
         let y: Int
-        if Rand.int(in: 0..<2) == 0 {
+        if !caveOnly && Rand.int(in: 0..<2) == 0 {
             guard let ys = floorBelow(w, x0, top + 1, z0, minY: max(1, top - 8)) else { return }
             y = ys
         } else {
-            let yr = Rand.int(in: 2...(top + 1))
-            guard Blocks.opaque[Int(w.block(x0, yr - 1, z0))] && !Blocks.collide[Int(w.block(x0, yr, z0))]
-                    && !Blocks.collide[Int(w.block(x0, yr + 1, z0))] else { return }
+            let py = Int(floor(pp.y))
+            let playerUnder = py < w.topY(Int(floor(pp.x)), Int(floor(pp.z))) - 8
+            var yr = playerUnder && Rand.int(in: 0..<2) == 0 ? py + Rand.int(in: -16...16) : Rand.int(in: 2...(top + 1))
+            guard yr >= 3, yr <= top + 1, !Blocks.collide[Int(w.block(x0, yr, z0))] else { return }
+            var fall = 0
+            while fall < 16 && yr > 3 && !Blocks.collide[Int(w.block(x0, yr - 1, z0))] { yr -= 1; fall += 1 }
+            guard Blocks.opaque[Int(w.block(x0, yr - 1, z0))] && !Blocks.collide[Int(w.block(x0, yr + 1, z0))] else { return }
             y = yr
         }
         if w.block(x0, y - 1, z0) == BEDROCK { return }
-        // Underground spots: one attempt in four, at most 2 a pack, and none while 6 monsters are already within 32
-        // blocks (a cave let ~50 converge on the player, Quest round 4).
+        // Underground spots: at most 2 a pack, and none while 6 monsters are already within 32 blocks (4 past the cap)
+        // (a cave let ~50 converge on the player, Quest round 4).
         let underground = y < top - 8
+        if caveOnly && !underground { return }
         if underground {
-            guard Rand.int(in: 0..<4) == 0, monstersNear(pp, 32) < 6 else { return }
+            guard monstersNear(pp, 32) < (caveOnly ? 4 : 6) else { return }
         }
         var spawned = 0
         for _ in 0..<3 {
