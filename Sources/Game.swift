@@ -892,8 +892,9 @@ final class Game {
         let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
         swingPower = 0
         if swung { swingGrace = 0.7 }
-        // A Quest swing reaches 6 blocks and takes the nearest block on the laser (no stickiness to an older, farther one).
-        let reach: Float = swung ? 6 : (survival ? 4.5 : 5)
+        // Blocks break and place from 6 blocks away (playtest v78; a Quest swing takes the nearest block on the laser, no
+        // stickiness to an older, farther one). Melee on mobs stays short (3.5, below).
+        let reach: Float = 6
         let ray = world.raycast(player.eye, player.look, maxDist: reach)
         target = swung && touched ? swingBlock : (swung ? ray : AimAssist.sticky(self, ray, reach: reach))
         swingBlock = nil; swingMob = nil
@@ -925,8 +926,8 @@ final class Game {
         var mobHit: Mob?
         if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
-        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : (swung ? 6 : 3.5), except: riding)
-                    ?? (swordHeld ? mobNearAim(reach: swung ? 6 : 3.5) : nil) {
+        else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding)
+                    ?? (swordHeld ? mobNearAim(reach: 3.5) : nil) {
             let (m, dist) = hit
             // A sword means to hit the creature: it wins over a block in front of it (grass, a leaf, a fence).
             if swordHeld {
