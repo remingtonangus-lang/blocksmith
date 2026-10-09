@@ -326,8 +326,8 @@ enum MobTests {
         check(MobKind.zombie.category == .monster && MobKind.cow.category == .creature && MobKind.bat.category == .ambient
               && MobKind.cod.category == .waterAmbient && MobKind.squid.category == .waterCreature && MobKind.glowSquid.category == .undergroundWater
               && MobKind.axolotl.category == .axolotls && MobKind.villager.category == .misc, "spawn categories")
-        check(SpawnCategory.monster.cap == 24 && SpawnCategory.creature.cap == 10 && SpawnCategory.ambient.cap == 15
-              && SpawnCategory.waterAmbient.cap == 20, "spawn caps 24/10/15/20")
+        check(SpawnCategory.monster.cap == 24 && SpawnCategory.creature.cap == 5 && SpawnCategory.ambient.cap == 15
+              && SpawnCategory.waterAmbient.cap == 20, "spawn caps 24/5/15/20")
 
         // Night: monster spawning around the player obeys distance, light, floor and cap rules.
         game.survival = true
@@ -377,7 +377,7 @@ enum MobTests {
         let lit = mm.mobs.filter { m in m.kind.category == .monster && m.kind != .slime && world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))).sky > 7 }
         check(lit.isEmpty, "spawn none in daylight", "\(lit.count) of \(mm.mobs.count) in sky light > 7")
 
-        // Animals: generation-time packs in about 10% of chunks, on grass-like ground, only once per chunk.
+        // Animals: generation-time packs in about 3.5% of chunks, on grass-like ground, only once per chunk.
         mm.mobs.removeAll()
         mm.populated.removeAll()
         for _ in 0..<200 { mm.populateChunks(game) }
@@ -388,7 +388,7 @@ enum MobTests {
             return k.contains("grass") || k.contains("sand") || k.contains("snow") || k.contains("podzol") || k.contains("dirt") || k.contains("mycelium")
                 || k.contains("mud") || k.contains("stone") || k.contains("terracotta") || k.contains("ice") || k.contains("leaves") || k.contains("root")
         }
-        check(animals.count > chunks / 40 && animals.count < chunks, "spawn chunk animal packs", "\(animals.count) animals in \(chunks) chunks")
+        check(animals.count > 0 && animals.count > chunks / 150 && animals.count < chunks / 4, "spawn chunk animal packs", "\(animals.count) animals in \(chunks) chunks")
         check(onGrass, "spawn animals on natural ground")
         let before = mm.mobs.count
         mm.populateChunks(game)
