@@ -6,7 +6,7 @@ Real motion only shifts edges by a fraction of a pixel, so a changed pixel shoul
 A pixel that changes a lot while its whole 3x3 neighbourhood in frame A is flat is flicker: z-fighting, unstable
 shading, sparkling seams or random per-frame effects.
   tools/flicker.py a.png b.png [--name N] [--out mask.png]
-Prints one line: name, flicker pixels per million, verdict (ok < 50 ppm, warn < 500, FLICKER above).
+Prints one line: name, flicker pixels per million, verdict (ok < 20 ppm, warn < 100, FLICKER above).
 """
 import sys
 from PIL import Image
@@ -38,7 +38,7 @@ def main():
                 bad += 1
                 if mask: mask.putpixel((x, y), 255)
     ppm = bad * 1e6 / (w * h)
-    verdict = "ok" if ppm < 50 else "warn" if ppm < 500 else "FLICKER"
+    verdict = "ok" if ppm < 20 else "warn" if ppm < 100 else "FLICKER"   # 263 injected speckles = 182 ppm
     print(f"{name}: {bad} flicker px ({ppm:.0f} ppm) {verdict}")
     if mask: mask.save(out)
     return 0
