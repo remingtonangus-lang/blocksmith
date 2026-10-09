@@ -557,3 +557,5 @@ One commit per item (`git log --grep "Depth item"`). Mac worlds backed up first 
   barrage + guard, victory, stand-down, save round trip, lift); full questbugs 0 failures; mobtests + posecheck 0.
 - Perf notes: idle Ashguard vehicles more than 90 blocks away skip their AI; shells from Ashguard guns never break
   blocks and spare Ashguard units (Game.ashQuiet).
+- Shipped: Quest CI run 37887470068 green, APK versionCode 75 on quest-dist (commit 5226983); Mac CI fast lane green.
+  Also on claude/blocksmith-playtest (324cd95c). Not installed: adb saw no Quest.
