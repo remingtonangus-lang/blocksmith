@@ -31,6 +31,12 @@ extension Village {
             b.set(&w, u, top, 0, m.slab)
             b.set(&w, u, wallH, -1, AIR)
         }
+        // The facade's side wings (u -1 and w) stand on log posts down to the ground; they hung over air before
+        // (structcheck village floating 9 after the towns merge).
+        for u in [-1, l.w] {
+            let (x, z) = world(l, u, 0)
+            w.pillarDown(x, l.y + wallH - 1, z, m.log, minY: l.y - 40)
+        }
         // A coloured band across the front, the shop's colour.
         let band = blk(bandColor(k) + "_terracotta", m.log)
         for u in 0..<l.w { b.set(&w, u, top - 2, 0, band) }
