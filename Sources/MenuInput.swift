@@ -62,6 +62,7 @@ extension Game {
             if let c = creative, menuCursor == before, my != 0, before < c.rows * 9 { c.scrollBy(my) }
             // Long pause/options lists scroll when the cursor pushes past the first/last visible row.
             if let pm = m as? PauseMenu, menuCursor == before, my != 0 { pm.scrollList(my > 0 ? 1 : -1) }
+            if let sm = m as? ShopMenu, menuCursor == before, my != 0 { sm.scrollBy(my > 0 ? 1 : -1) }
             padMoved = true
             if menuCursor != before { sfx(.uiHover, 0.3) }
         }
@@ -80,6 +81,10 @@ extension Game {
             if tab != 0 { c.switchTab(tab) }
             let page = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)
             if page != 0 { c.scrollBy(page * c.rows) }
+        }
+        if let sm = m as? ShopMenu {
+            if scroll != 0 { sm.scrollBy(scroll) }
+            if tab != 0 { sm.buttonPressed(sm.selling ? ShopMenu.tabBuy : ShopMenu.tabSell) }
         }
         if let mm = m as? MerchantMenu, scroll != 0 {
             mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll + scroll))

@@ -11,6 +11,8 @@ enum ExplorerMaps {
         Kind(item: "sea_temple_explorer_map", name: "Sea Temple Explorer Map", structure: "monument", color: 0x3AA8A0),
         Kind(item: "manor_explorer_map", name: "Forest Manor Explorer Map", structure: "mansion", color: 0x6A4A2A),
         Kind(item: "steelhold_explorer_map", name: "Capital Explorer Map", structure: "military_base", color: 0xE0B020),
+        // Sold in town (general store, saloon: Shops.swift): leads to the nearest buried treasure.
+        Kind(item: "treasure_map", name: "Treasure Map", structure: "buried_treasure", color: 0xC03020),
     ]
 
     static func register(_ reg: ItemRegistry) {

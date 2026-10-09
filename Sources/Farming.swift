@@ -427,7 +427,7 @@ extension Game {
             consumeHeld()
             return true
         }
-        if m.kind == .villager && !m.baby { return openTrading(m) }
+        if m.kind == .villager { return talkToTownsperson(m) }
         if startCure(m) { return true }
         if m.kind == .cow && key == "bucket" && !m.baby {
             consumeHeld()

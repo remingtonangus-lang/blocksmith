@@ -406,6 +406,7 @@ extension Game {
         d["patrol"] = "\(patrolTimer)"
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
+        d["money"] = "\(money)"
         if deepVisited { d["deepVisited"] = "1" }
         if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
@@ -426,6 +427,7 @@ extension Game {
         horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
+        money = d["money"].flatMap { Int($0) } ?? Money.start
         deepVisited = d["deepVisited"] == "1"
         ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)

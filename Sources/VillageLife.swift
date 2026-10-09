@@ -39,7 +39,7 @@ extension Mob {
             let k = Blocks.key(Blocks.groupBase[Int(w.block(b[0], b[1], b[2]))])
             if !k.hasSuffix("_bed_head") && !k.hasSuffix("_bed") { v.bed = nil }
         }
-        if v.bed == nil && !baby {
+        if v.bed == nil && !baby && v.role != "deputy" {
             let claimed = Set(g.mobs.mobs.compactMap { $0.villager?.bed }.map { IVec3($0[0], $0[1], $0[2]) })
             search: for r in 1...12 { for dy in -3...3 { for dz in -r...r { for dx in -r...r where abs(dx) == r || abs(dz) == r {
                 let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
@@ -124,7 +124,9 @@ extension Mob {
     // Night (from 12000 ticks): head for the claimed bed and stay there (sleeping) until morning.
     func villagerNight(_ g: Game) -> Bool {
         let f = g.dayFraction
-        guard f > 0.5 && f < 0.995, let b = villager?.bed else { wake(); return false }
+        // The barkeep keeps the saloon open into the night (ShopKind.hours).
+        let late = villager?.shop == ShopKind.saloon.rawValue && Float(f) < ShopKind.saloon.hours.1
+        guard f > 0.5 && f < 0.995, !late, let b = villager?.bed else { wake(); return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
         if simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z)) > 1.2 {
             // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
@@ -156,16 +158,22 @@ extension Mob {
 
     // MARK: Daytime schedule
 
-    enum Activity { case idle, work, meet, play }
+    enum Activity { case idle, work, meet, play, eat, social, patrol }
 
-    // Reference schedules: adults idle / work from 2000 / meet from 9000 / idle from 11000 / rest from 12000;
-    // children idle / play from 3000 / idle from 6000 / play from 10000 / rest from 12000.
+    // Townsfolk days (ticks from sunrise): adults idle / work from 2000 / the midday meal at the saloon 5600-6600 /
+    // work / meet at the bell from 9000 / an evening at the saloon from 11000 / rest from 12000; children idle / play
+    // from 3000 / idle from 6000 / play from 10000 / rest from 12000. Shopkeepers mind their counter through their
+    // shop's hours; deputies patrol the square day and night.
     func activity(_ f: Double) -> Activity {
         let t = f * 24000
         if baby { return t < 3000 ? .idle : (t < 6000 ? .play : (t < 10000 ? .idle : .play)) }
+        if let k = villager?.shopKind { return Float(f) >= k.hours.0 && Float(f) <= k.hours.1 ? .work : .idle }
+        if villager?.role == "deputy" { return .patrol }
         let prof = villager?.profession ?? "none"
+        if t >= 5600 && t < 6600 { return .eat }
         if t >= 2000 && t < 9000 { return prof == "none" || prof == "nitwit" ? .idle : .work }
         if t >= 9000 && t < 11000 { return .meet }
+        if t >= 11000 && t < 12000 { return .social }
         return .idle
     }
 
@@ -221,9 +229,22 @@ extension Mob {
             }
         case .play:
             return stroll(around: home, 16, 1.2)
+        case .eat:
+            // Lunch at the saloon (or at home): standing about while they eat.
+            let spot = townMealSpot(g, dt) ?? home
+            town.eating = simd_length(V2(spot.x - pos.x, spot.z - pos.z)) < 4
+            return stroll(around: spot, 3, 0.7)
+        case .social:
+            if let spot = townMealSpot(g, dt) { return stroll(around: spot, 4, 0.6) }
+        case .patrol:
+            // Deputies walk the square by day and keep a closer watch on it at night.
+            if let bell = meetingPoint(g, dt) {
+                return stroll(around: V3(Float(bell.x) + 0.5, Float(bell.y), Float(bell.z) + 0.5), g.dayFraction > 0.5 ? 6 : 12, 0.7)
+            }
         case .idle:
             break
         }
+        town.eating = false
         return stroll(around: home, 16, 0.6)
     }
 
