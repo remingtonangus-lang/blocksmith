@@ -592,7 +592,7 @@ extension Mob {
                 for sx: Float in [-1, 1] {
                     let muzzle = HeavyTurret.muzzle(self, sx)
                     var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
-                                 shooter: ObjectIdentifier(self), by: spec.name, life: 12, gravity: grav)
+                                 shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
                     HeavyTurret.arm(&s)
                     g.arms.spawn(s)
                     for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
