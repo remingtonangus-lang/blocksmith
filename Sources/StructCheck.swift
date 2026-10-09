@@ -385,6 +385,11 @@ enum StructCheck {
                 if !own { continue }
                 // A world-gen dungeon's chest inside the box (mossy cobblestone floor, a spawner beside it): not the
                 // structure's own (run 373: a Steelhold foundation closed a dungeon's cave opening).
+                // Another structure's chest inside this box (a desert pyramid's treasure room under a citadel, seed
+                // 424242: store audit) is that structure's business.
+                // Its mark: TNT two below the room's centre, four blocks from the chest.
+                if base == "chest" && [(4, 0), (-4, 0), (0, 4), (0, -4)].contains(where: { (dx: Int, dz: Int) -> Bool in
+                    Blocks.key(w.block(x + dx, y - 2, z + dz)) == "tnt" }) { continue }
                 if base == "chest" {
                     var mossy = false, spawner = false
                     for dz in -1...1 { for dx in -1...1 where Blocks.key(w.block(x + dx, y - 1, z + dz)) == "mossy_cobblestone" { mossy = true } }
@@ -530,6 +535,8 @@ enum StructCheck {
         var floating: [IVec3] = []
         for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard let ys = writtenSolid[colKey(x, z)], ys.count >= 3, let y0 = ys.min() else { continue }
+            // A tree canopy the structure planted (capital city parks) hangs over air by nature (store audit: 13 false hits).
+            if Blocks.key(Blocks.groupBase[Int(w.block(x, y0, z))]).hasSuffix("_leaves") { continue }
             if lowestOnGround[colKey(x, z)] == true { continue }
             let below = w.block(x, y0 - 1, z)
             if top(w, x, y0 - 1, z) < 0.4 && Blocks.fluidKind[Int(below)] == 0 && !(y0 - 1 <= 0) {

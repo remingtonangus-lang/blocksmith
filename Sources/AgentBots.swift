@@ -477,7 +477,7 @@ final class LifeBot: AgentBot {
             }
             guard let b = bed else { return act }
             if s.sleeping { slept = true; sleepDetail = String(format: "asleep at day time %.2f", s.timeOfDay); phase = 2; phaseTicks = 0; return act }
-            if phaseTicks > 60 * 70 {
+            if phaseTicks > 60 * 100 {      // 70 s ran out at day time 0.53, the moment the bot first tried (seed 12345)
                 // Where the bot got to and what the game last said (run 634: only the last toast, a frigate's arrival).
                 let off: Float = simd_length(V2(Float(b.x) + 0.5 - s.pos.x, Float(b.z) + 0.5 - s.pos.z))
                 let said = toasts.map { "\"\($0)\"" }.joined(separator: ", ")
@@ -490,7 +490,7 @@ final class LifeBot: AgentBot {
             let d: Float = simd_length(V2(c.x - s.pos.x, c.z - s.pos.z))
             if d > 2.0 { sleepDetail = "walking to the bed"; return walk(s, a, to: c) }
             // At the bed: wait for night, then use it.
-            if aim(s, c + V3(0, 0.3, 0), into: &act) && s.timeOfDay > 0.53 && s.timeOfDay < 0.95 {
+            if aim(s, c + V3(0, 0.3, 0), into: &act) && s.timeOfDay > 0.525 && s.timeOfDay < 0.95 {
                 uses += 1
                 act.use = uses % 20 < 2
             }

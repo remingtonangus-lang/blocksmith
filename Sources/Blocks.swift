@@ -162,6 +162,9 @@ final class BlockRegistry {
             }
             return [b]
         }
+        // Beds: one 9/16 slab (reference). The remodelled bed's stacked frame, mattress and pillow boxes let a walker
+        // sink into the head end (collisiontest walk_through: white_bed_head, store audit).
+        if g.hasSuffix("_bed") || g.hasSuffix("_bed_head") { return [Box(0, 0, 0, 16, 9, 16)] }
         switch g {
         case "sculk_sensor", "calibrated_sculk_sensor": return [Box(0, 0, 0, 16, 8, 16)]
         case "campfire", "soul_campfire": return [Box(0, 0, 0, 16, 7, 16)]

@@ -1829,10 +1829,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                         // The clue is one enchantment the offer holds, maybe with more: "Unbreaking II +?" (a bare "?" read
                         // as a placeholder), cut to stay clear of the cost badge.
                         let line = Enchant.displayLine(c.0, c.1)
+                        // Room ends 2 px before the badge (a fixed 80 px ran under it: "Unbreaking I +?" behind the 6, store audit).
+                        let room: Float = 102 * s - cw - 2 * s - 18 * s
                         var clue = line + " +?"
-                        if textWidth(clue, s) > 80 * s {
+                        if textWidth(clue, s) > room && textWidth(line, s) <= room {
+                            clue = line                                  // the full name beats the "+?" hint
+                        } else if textWidth(clue, s) > room {
                             var cut = line
-                            while textWidth(cut + "..+?", s) > 80 * s && cut.count > 3 { cut.removeLast() }
+                            while textWidth(cut + "..+?", s) > room && cut.count > 3 { cut.removeLast() }
                             clue = cut + "..+?"
                         }
                         text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.12, 0.08, 0.2, 1) : V4(0.22, 0.22, 0.22, 1), shadow: false)
@@ -2087,17 +2091,23 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if textWidth(help, s) <= room {
                         text(help, o.x + (pw - textWidth(help, s)) / 2, o.y + ph - 12 * s, s, helpC, shadow: false)
                     } else {
-                        let hs: Float = s * 0.85
+                        var hs: Float = s * 0.85
                         if textWidth(help, hs) <= room {
                             text(help, o.x + (pw - textWidth(help, hs)) / 2, o.y + ph - 11 * s, hs, helpC, shadow: false)
                         } else {
+                            // Two lines at 0.85, else two lines at 0.72; only past that is the tail cut (store audit:
+                            // "Torches stay..." lost the end of the brightness tip).
                             var l1 = "", rest = ""
-                            for sub in help.split(separator: " ") {
-                                let wd = String(sub)
-                                let tryL: String = l1.isEmpty ? wd : l1 + " " + wd
-                                if rest.isEmpty && textWidth(tryL, hs) <= room { l1 = tryL; continue }
-                                if !rest.isEmpty { rest += " " }
-                                rest += wd
+                            for scale in [Float(0.85), 0.72] {
+                                hs = s * scale; l1 = ""; rest = ""
+                                for sub in help.split(separator: " ") {
+                                    let wd = String(sub)
+                                    let tryL: String = l1.isEmpty ? wd : l1 + " " + wd
+                                    if rest.isEmpty && textWidth(tryL, hs) <= room { l1 = tryL; continue }
+                                    if !rest.isEmpty { rest += " " }
+                                    rest += wd
+                                }
+                                if textWidth(rest, hs) <= room { break }
                             }
                             let full = rest.count
                             while !rest.isEmpty && textWidth(rest, hs) > room { rest.removeLast() }
