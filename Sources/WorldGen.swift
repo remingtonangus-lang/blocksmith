@@ -19,6 +19,8 @@ final class WorldGen: TerrainGenerator {
     let bands: [BlockID]
     let terrain: Terrain
     private(set) var structures: StructureCache? = nil
+    // Test only: the plant densities before playtest Oct 9 PM #3 (the pm9b check measures old vs new on its own generator).
+    var plantsBeforePM9 = false
 
     init(seed: UInt64) {
         self.seed = seed

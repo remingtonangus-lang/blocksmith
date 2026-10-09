@@ -256,6 +256,8 @@ extension Game {
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
         if useNewBlock(t) { swing = 1; return true }
+        // Bone meal on any plant it grows (BoneMeal.swift).
+        if key == "bone_meal" { return useBoneMeal(t.hit) }
         // Cocoa beans go on the side of jungle logs.
         if key == "cocoa_beans" && bkey.hasPrefix("jungle_") && bkey.hasSuffix("_log") && t.normal.y == 0 && Blocks.has("cocoa") {
             let at = t.hit + t.normal
@@ -344,36 +346,6 @@ extension Game {
             consumeHeld()
             swing = 1
             return true
-        }
-        // Bone meal: grows crops and saplings, sprouts grass and flowers on grass blocks.
-        if key == "bone_meal" {
-            var used = false
-            if ["wheat", "carrots", "potatoes", "beetroots"].contains(bkey) {
-                let maxStage = bkey == "beetroots" ? 3 : 7
-                let st = Int(b - Blocks.groupBase[Int(b)])
-                if st < maxStage {
-                    let step = bkey == "beetroots" ? Rand.int(in: 2...5) / 3 : Rand.int(in: 2...5)     // beetroot: +1 on 3 in 4
-                    if step > 0 { world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + step))) }
-                    used = true
-                }
-            } else if bkey.hasSuffix("_sapling") {
-                if Rand.float(in: 0..<1) < 0.45 { saplingAdvance(t.hit, bkey) }
-                used = true
-            } else if b == GRASS {
-                for _ in 0..<24 {
-                    let q = IVec3(t.hit.x + Rand.int(in: -3...3), t.hit.y, t.hit.z + Rand.int(in: -3...3))
-                    if world.block(q.x, q.y, q.z) == GRASS && world.block(q.x, q.y + 1, q.z) == AIR {
-                        world.setBlockAsync(q.x, q.y + 1, q.z, Rand.float(in: 0..<1) < 0.85 ? TALL_GRASS : [RED_FLOWER, YELLOW_FLOWER][Rand.int(in: 0...1)])
-                    }
-                }
-                used = true
-            }
-            if used {
-                consumeHeld()
-                particles.hearts(at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 1, Float(t.hit.z) + 0.5))
-                swing = 1
-            }
-            return used
         }
         // Flint and steel: prime TNT, light a portal frame, or start a fire.
         if key == "flint_and_steel" {

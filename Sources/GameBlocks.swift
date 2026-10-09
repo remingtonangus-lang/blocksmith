@@ -65,8 +65,6 @@ extension Game {
             if key == "sea_pickle" && st < 3 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); return true }
         case "turtle_egg":
             if key == "turtle_egg" && st < 3 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); return true }
-        case "cocoa":
-            if key == "bone_meal" && st < 2 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); particles.hearts(at: c); return true }
         case "jukebox":
             return useJukebox(p)
         case "vault":

@@ -31,6 +31,11 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "pm9b" {
+            PlaytestPM9BTests.run(game, check)
+            print("questbugs: \(fails) failures")
+            return fails
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "voice" {
             VoiceNoteTests.run(game, check)
             print("questbugs: \(fails) failures")
@@ -261,6 +266,7 @@ enum QuestBugTests {
         }
         round3(game, check)
         PlaytestV78Tests.run(game, check)
+        PlaytestPM9BTests.run(game, check)
         print("questbugs: \(fails) failures")
         return fails
     }
