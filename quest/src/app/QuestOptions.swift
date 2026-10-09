@@ -40,7 +40,7 @@ enum QuestOptions {
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
             "q_reclined": "Lying down: Recenter View also levels the world, horizon, HUD and menus to where you look now, pitch included.",
             "q_swing": "On: break blocks and hit mobs by really swinging your arm at them (small wrist flicks don't count). Off: the right trigger breaks and attacks.",
-            "q_recenter": "Puts you back at the centre of your play space at the current height and facing.",
+            "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
@@ -99,7 +99,7 @@ enum QuestOptions {
         "Y: fly on / off; hold: inventory",
         "(World map: pause menu)",
         "Hold R stick click: weapon wheel",
-        "Menu: pause",
+        "Menu: pause; hold: recenter view",
     ]
 
     static func angle(_ a: Float) -> String { a == a.rounded() ? "\(Int(a))" : String(format: "%.1f", a) }
