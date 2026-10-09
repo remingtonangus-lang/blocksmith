@@ -6,44 +6,77 @@ import simd
 // cross-fades by throttle and speed (no per-voice pitch control needed).
 
 enum VehicleAudio {
-    // A combustion engine: firing pulses at `rate` per second through a resonant exhaust, plus a mechanical hum.
+    // A combustion engine: four cylinders firing `rate` times a second (each with its own strength and
+    // timbre, which gives the lumpy idle), pulses ringing an exhaust (pipe modes + a comb for the pipe
+    // length), a crank hum, valve-train ticks and a little saturation to fuse it.
     static func engine(_ g: inout Synth, dur: Float, rate: Float, p: Float, rough: Float) -> [Float] {
         let n = g.frames(dur)
-        var pulses = [Float](repeating: 0, count: n)
-        var t: Float = 0
+        var ex = [Float](repeating: 0, count: n)
+        var ticks = [Float](repeating: 0, count: n)
+        let cyl: [Float] = (0..<4).map { _ in g.rnd(0.75, 1.15) }
+        let pulse = Synth.contactPulse(0.0018 + 0.004 / max(1, rate / 10))
+        var t: Float = 0, k = 0
         while t < dur {
             let at = g.frames(t)
-            let len = min(n - at, g.frames(0.03))
-            if len > 0 {
-                let amp: Float = 0.8 + rough * g.noise() * 0.4
-                for i in 0..<len { pulses[at + i] += amp * expf(-Float(i) / Synth.sr / 0.006) * (g.noise() * 0.6 + 0.6) }
-            }
-            t += (1 / rate) * (1 + rough * 0.08 * g.noise())
+            let a = cyl[k % 4] * (1 + rough * 0.25 * g.noise())
+            for i in 0..<pulse.count where at + i < n { ex[at + i] += pulse[i] * a }
+            // Exhaust pop: a short hot noise burst per firing (the bark you hear from the pipe).
+            let popN = min(n - at, g.frames(0.012))
+            if popN > 0 { for i in 0..<popN { ex[at + i] += g.noise() * 0.004 * a * expf(-Float(i) / (0.0025 * Synth.sr)) } }
+            let tk = at + g.frames(0.25 / rate)
+            if k % 2 == 0, tk < n { ticks[tk] += g.rnd(0.5, 1) }
+            t += (1 / rate) * (1 + rough * 0.03 * g.noise())
+            k += 1
         }
-        let exhaust = Synth.lowpass(Synth.bandpass(pulses, 140 * p, q: 1.4), 900, passes: 2)
-        let hum = g.tone(dur, f0: rate * 2 * p, f1: rate * 2 * p, wave: .saw, attack: 0.2, release: 0.2, gain: 0.08)
-        let whine = g.tone(dur, f0: rate * 9 * p, f1: rate * 9 * p, wave: .sine, attack: 0.2, release: 0.2, gain: 0.025)
-        return Synth.mix(Synth.mix(Synth.scaled(exhaust, 2.2), Synth.lowpass(hum, 600)), whine)
+        var out = [Float](repeating: 0, count: n)
+        let e1: Float = 105 * p
+        let ring: Float = min(0.016, 0.5 / rate)    // each firing rings out before the next one
+        Synth.resonate(ex, f: e1, decay: ring, amp: 3.2, into: &out)
+        Synth.resonate(ex, f: e1 * 2.6, decay: ring * 0.6, amp: 1.8, into: &out)
+        Synth.resonate(ex, f: e1 * 4.7, decay: 0.006, amp: 0.7, into: &out)
+        Synth.resonate(ex, f: 1400 * p, decay: 0.002, amp: 0.25, into: &out)
+        // Pipe length: a short feedback comb.
+        let d = max(1, Int(Synth.sr / (180 * p)))
+        if d < n { for i in d..<n { out[i] += out[i - d] * 0.35 } }
+        let hum = Synth.lowpass(g.tone(dur, f0: rate * 0.5 * p, f1: rate * 0.5 * p, wave: .tri, attack: 0.2, release: 0.2, gain: 0.08), 300)
+        var valves = [Float](repeating: 0, count: n)
+        Synth.resonate(ticks, f: 3800 * p, decay: 0.0015, amp: 0.012, into: &valves)
+        out = Synth.mix(Synth.mix(out, hum), valves)
+        // Chassis and intake: a rattle band that throbs with the firing, more of it as revs rise.
+        var rattle = g.wash(dur, lp: 2600 * p, hp: 500, wobble: 0.3, rate: 8, gain: 0.05 + 0.002 * rate)
+        for i in 0..<n { rattle[i] *= 0.4 + 0.6 * powf(abs(sinf(Float.pi * Float(i) / Synth.sr * rate * 0.5)), 6) }
+        out = Synth.mix(out, rattle)
+        let peak = out.reduce(0) { max($0, abs($1)) }
+        return peak > 0 ? Synth.highpass(out.map { tanhf($0 / peak * 1.6) * 0.8 }, 30) : out
     }
 
-    // Propeller: blade-pass amplitude modulation of a wind band.
+    // Propeller: tonal blade-pass harmonics (with slow beating), plus the chopped air through them.
     static func prop(_ g: inout Synth, dur: Float, bladeRate: Float, p: Float) -> [Float] {
-        let air = g.wash(dur, lp: 1200 * p, hp: 120, wobble: 0.2, rate: 3, gain: 0.8)
-        var out = air
-        for i in 0..<out.count {
-            let t = Float(i) / Synth.sr
-            let ph: Float = t * bladeRate
-            let m: Float = 0.55 + 0.45 * powf(abs(sinf(Float.pi * ph)), 3)
-            out[i] *= m
+        let f = bladeRate * p
+        let n = g.frames(dur)
+        var out = [Float](repeating: 0, count: n)
+        for h in 1...10 {
+            let fh = f * Float(h)
+            guard fh < 3000 else { break }
+            let a = 0.2 / powf(Float(h), 1.1)
+            let ph0 = g.rnd(0, 6.28)
+            for i in 0..<n {
+                let t = Float(i) / Synth.sr
+                out[i] += sinf(2 * .pi * fh * t + ph0) * a * (0.85 + 0.15 * sinf(2 * .pi * 0.7 * t * Float(h)))
+            }
         }
-        let buzz = g.tone(dur, f0: bladeRate * p, f1: bladeRate * p, wave: .tri, attack: 0.2, release: 0.2, gain: 0.1)
-        return Synth.mix(out, Synth.lowpass(buzz, 700))
+        var air = g.wash(dur, lp: min(1600, 500 + f * 12), hp: 90, wobble: 0.2, rate: 3, gain: 0.7)
+        for i in 0..<n {
+            let ph = Float(i) / Synth.sr * f
+            air[i] *= 0.45 + 0.55 * powf(abs(sinf(Float.pi * ph)), 4)
+        }
+        return Synth.mix(Synth.lowpass(out, 1800), air)
     }
 
     static func render(_ g: inout Synth, _ s: Snd, p: Float) -> [Float] {
         switch s {
-        case .engineIdleLoop: return Synth.loopify(engine(&g, dur: 3.0, rate: 11, p: p, rough: 0.6), fade: 0.3)
-        case .engineFullLoop: return Synth.loopify(engine(&g, dur: 3.0, rate: 34, p: p * 1.3, rough: 0.3), fade: 0.3)
+        case .engineIdleLoop: return Synth.loopify(engine(&g, dur: 3.0, rate: 26, p: p, rough: 0.6), fade: 0.3)
+        case .engineFullLoop: return Synth.loopify(engine(&g, dur: 3.0, rate: 74, p: p * 1.25, rough: 0.25), fade: 0.3)
         case .propSlowLoop: return Synth.loopify(prop(&g, dur: 3.0, bladeRate: 9, p: p), fade: 0.3)
         case .propFastLoop: return Synth.loopify(prop(&g, dur: 3.0, bladeRate: 38, p: p * 1.5), fade: 0.3)
         case .airshipWindLoop:
@@ -106,7 +139,7 @@ enum VehicleAudio {
             return Synth.mix(g.material(.wood, pitch: p * 1.1, scale: 0.6, gain: 0.5), g.modes(0.25, [(880 * p, 0.25, 0.08), (1320 * p, 0.15, 0.06)]), at: g.frames(0.05))
         default:   // engineStart: starter whirr, a few uneven catches, settling idle
             var o = Synth.lowpass(g.tone(0.6, f0: 40 * p, f1: 70 * p, wave: .saw, attack: 0.05, release: 0.1, vib: 0.1, vibRate: 12, gain: 0.3), 900)
-            o = Synth.mix(o, engine(&g, dur: 1.2, rate: 9, p: p, rough: 1), at: g.frames(0.5))
+            o = Synth.mix(o, engine(&g, dur: 1.2, rate: 22, p: p, rough: 1), at: g.frames(0.5))
             return o
         }
     }
