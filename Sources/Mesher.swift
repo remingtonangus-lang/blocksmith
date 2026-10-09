@@ -552,6 +552,22 @@ enum Mesher {
                         continue
                     }
 
+                    // A lily pad on water is drawn as a single leaf 1/16 above the surface (water tops sit at 14/16), not a
+                    // slab 2/16 up with edges: floating that high it read as pasted on (store-quality pass). The Quest's
+                    // chunk.vert bobs it with the swell (foliage tint, top face, y at 15/16).
+                    if b == Mesher.lilyPad && ly > 0 && fkT[Int(at(x, y - 1, z))] == 1 {
+                        let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                        let layer = Int(texT[bi * 6 + 2])
+                        for f in 2...3 {
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                let px = CT[ci] == 1 ? 16 : 0, pz = CT[ci + 2] == 1 ? 16 : 0
+                                let (u, v) = faceUV(2, px, 15, pz)
+                                vert(isTrans, bx16 + px, by16 - 1, bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                            }
+                        }
+                        continue
+                    }
                     if rt == rModel || rt == rConnect {
                         var boxes = boxesT[bi]
                         if rt == rConnect {
@@ -752,6 +768,7 @@ enum Mesher {
         return v == 0 ? dark : fullSky
     }
 
+    static let lilyPad: BlockID = Blocks.has("lily_pad") ? Blocks.id("lily_pad") : BlockID.max
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).
