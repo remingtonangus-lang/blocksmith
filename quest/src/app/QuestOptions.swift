@@ -24,10 +24,10 @@ enum QuestOptions {
         hooks = h
         PauseMenu.hostEntry = ("VR Comfort & Controls...", "host:vr")
         // Rows with no meaning in the headset: window, display and frame-rate options (the runtime owns the display),
-        // the field of view (the lenses set it), photo mode's free camera (the head is the camera), split screen and
-        // the Mac's microphone bug notes.
+        // the field of view (the lenses set it), photo mode's free camera (the head is the camera) and split screen.
+        // Bug Notes stays: the playtest build's voice notes (QuestVoiceNotes); store builds' stub has available = false.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
-                                "graphics", "fov", "bugnotes", "controls", "keys", "padmap"]
+                                "graphics", "fov", "controls", "keys", "padmap"]
         PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_seated", "q_reclined", "q_swing", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
