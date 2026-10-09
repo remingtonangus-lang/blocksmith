@@ -1,5 +1,11 @@
 # Status
 
+> **World depth + final battle (2026-10-09, task 22, quest-port + playtest):** no bedrock floor (emberslate, magma,
+> tougher monsters deep down); dig through the bottom into the Deep (Dim.deep): crust, a hell band with fortresses,
+> then the Ash Vault, where the Ashguard (an original black-and-red army) holds a citadel at x 0, z 0 with motor pools,
+> fuel depots, supply hubs, batteries and outposts. Tanks, half-tracks and field guns fight; the Ash Marshal is the
+> final boss; his fall is the victory (epilogue, lift home). Details: quest-port branch docs/status/quest-port.md.
+
 Per-stream handoffs (2026-10-04, parallel sessions): [integration](docs/status/integration.md) - the other streams
 add docs/status/<stream>.md and a link here.
 

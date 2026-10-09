@@ -120,6 +120,8 @@ enum DeepTests {
         g.survival = wasSurvival
         if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
         g.player.pos = home
+        g.player.vel = .zero
+        _ = g.world.loadSync(center: home, radius: 4)        // the lift landed at the world spawn: reload around home
     }
 
     // The Ashguard's sites: the citadel at 0, 0 with its marks, lamps, loot and garrison; roads along both axes that
