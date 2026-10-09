@@ -1,5 +1,10 @@
 # Status
 
+> **Playtest v78 fixes (2026-10-09, task 25b1, cherry-picked from claude/quest-port):** 6-block block reach (melee
+> 3.5), closing a menu with B / sneak no longer dismounts, pickups from the saddle, monsters spawn in caves again (cap
+> 24 -> 36), hissers flinch when hit, calmer ground (no tall grass, less and smaller grass and flowers), VR sprint 1.6x.
+> Checks: `--questbugs --only v78`. Details: quest-port branch docs/status/quest-port.md "Task 25b1".
+
 > **Factions (2026-10-09, task 23, quest-port + playtest):** the frigate is now the Meridian Navy (its own faction, new
 > hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; MAC gun craters citadels). Capital
 > cities (white low-rise garden cities with covered walkways). Citadels are denser on new ground (saved worlds keep
