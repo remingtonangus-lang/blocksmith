@@ -133,14 +133,26 @@ enum MilitaryBase {
             // The region's first spot (where citadels always stood); if that ground is unfit, up to six more spots in
             // the same placement square (so the spacing holds), but only on ground no saved world had generated yet:
             // only ~1 region in 4 had a citadel and Remington's nearest was 773 blocks out (task 23).
+            // Another structure under the site (seed 424242: a citadel flattened a desert pyramid and buried its
+            // treasure room under the plaza, store audit). Only on ground no saved world has seen (clear), so
+            // citadels in explored land never move.
+            func crowded(_ cx: Int, _ cz: Int) -> Bool {
+                guard let sc = gen.structures else { return false }
+                let bx = cx * CS + 8, bz = cz * CS + 8, r = CapitalBase.A + 24
+                for k in ["temple", "village", "pillager_outpost", "mansion", "trail_ruins"] {
+                    if let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1), abs(o.anchor.x - bx) < r, abs(o.anchor.z - bz) < r { return true }
+                }
+                return false
+            }
             var cx = cx0, cz = cz0
             var found = site(cx, cz)
+            if found != nil, let sc = gen.structures, sc.clear(cx: cx0, cz: cz0, reach: 5), crowded(cx0, cz0) { found = nil }
             if found == nil, let sc = gen.structures {
                 let rx = floorDiv(cx0, 40), rz = floorDiv(cz0, 40)
                 let s32 = UInt32(truncatingIfNeeded: seed)
                 for k in 1...6 {
                     let ax = rx * 40 + Int(hashf(rx, rz, 7100 + k, s32) * 25.99), az = rz * 40 + Int(hashf(rx, rz, 7200 + k, s32) * 25.99)
-                    guard sc.clear(cx: ax, cz: az, reach: 5), let y = site(ax, az) else { continue }
+                    guard sc.clear(cx: ax, cz: az, reach: 5), !crowded(ax, az), let y = site(ax, az) else { continue }
                     cx = ax; cz = az; found = y
                     break
                 }
