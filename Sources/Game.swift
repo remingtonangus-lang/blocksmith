@@ -285,6 +285,9 @@ final class Game {
         }
         giveCreativeStarter()
         hookWorld(world)
+        // Per-block-state tables the first game tick builds lazily (gravity, concrete, plant support: a 50 ms first tick
+        // in the world, --sim profile). Built here, behind the load, instead.
+        _ = World.fallingIDs.count; _ = Game.hardened.count; _ = PlantSupport.ruleOf(AIR)
     }
 
     func giveCreativeStarter() {
