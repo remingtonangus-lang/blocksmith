@@ -492,3 +492,28 @@ One commit each (`git log --grep "Round 3 ("`); all shared gameplay is also cher
 - Shipped: Quest CI run 37865688060 green, APK versionCode 70 on quest-dist (commit 34eb124); questcheck renders look
   right (directional face shading visible). Not installed: adb saw no Quest. Playtest branch: b48260e1.
 - Tip: `EXTRA_SWIFTC_FLAGS=-O ./build.sh fast` gives an optimized build in a few minutes; harness runs are ~40x faster.
+
+## Task 21 store-quality pass (2026-10-08): Remington's own list (8 items)
+One commit per item (`git log --grep "store-quality"`). Mac worlds backed up first to
+`~/Library/Application Support/Blocksmith/Backups/all-worlds-before-task21-store-20261008`; no block/item IDs changed.
+- 1 Lily pads: a single leaf 1/16 over the water surface (was a 1/16 slab 2/16 above it, edges showing), darker leaf
+  with a wet edge (the bright rim outlined it); the Quest's chunk.vert bobs them with the swell (0.7 of the wave).
+- 2 Horse: new model and gait (see the horse commit).
+- 3 Water: the Quest mirrored the sky dome's horizon/zenith colours, the Mac's Fancy water mirrors the fog-coloured haze
+  up to fogColor x (0.45, 0.6, 0.92) plus a sun disc: the Quest's reflection read darker/more saturated. Ported that
+  skyAlong, the Mac glint (7) and ripple fade. questcheck now renders three water views (shore to sea, deep water out
+  to sea, deep water side-on) and logs the matching Mac snap flags. Quest GLSL checked locally with glslang
+  (~/ClaudeTools/glslang/bin on PATH, `python3 quest/tools/shaders.py OUT`).
+- 4 Movement: still head yaw + left stick only; reclined it now uses the levelled gaze (it read the room-space head,
+  unstable lying down). QuestSim checks a waving aim hand doesn't bend reclined walking.
+- 5 Animals: generation packs in 3.5% of chunks (was 10%), creature cap 5 (was 10). Already-generated chunks keep theirs.
+- 6 Held items: tools/swords/items 1.3x, guns 3.2x the screen model (was 2.4), blocks 17 cm; tool sprites are five
+  stacked layers (one texel thick) rolled 40 deg toward the eye: held straight they were seen edge-on as slivers.
+  QuestSim renders vrsim_carry_sword/gun.png (hand at the hip).
+- 7 Mac Xbox: Halo Infinite layout preset (default on the Mac only; Quest unchanged): Y tap = switch to the previous
+  hotbar slot, Y hold = inventory, B crouch, R3 melee, L3 sprint, X reload, LB/RB hotbar (Halo's grenade/equipment have
+  no slot equivalent). Look: 170 deg/s at sens 3, vertical 75%, acceleration after 0.15 s to 1.9x, dead zone 0.10,
+  ADS speed scales with zoom. Options > Controller > Button Mapping > Layout switches Halo / Classic. `--padtest`.
+- 8 Recenter: hold the left Menu button 0.7 s (a tap still pauses) or Recenter View. Reclined Mode (saved) levels world,
+  horizon, HUD and menus to the gaze incl. pitch: the HUD/menus are now placed in the levelled frame (before, they were
+  placed in the room's horizontal plane, which the tilt swung below the view). QuestSim "VR reclined" checks.
