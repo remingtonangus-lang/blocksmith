@@ -39,7 +39,8 @@ enum QuestBugTests {
                 hits += 1
             }
             let want = (20 + d - 1) / d
-            check(Int(a) == d && hits == want, "\(k): \(a) damage, zombie (20 HP) dies in \(hits) hits (want \(d), \(want))")
+            // A zombie's 2 natural armour points round each hit down by one at random (~8 % at 5 damage): allow one extra.
+            check(Int(a) == d && (hits == want || hits == want + 1), "\(k): \(a) damage, zombie (20 HP) dies in \(hits) hits (want \(d), \(want))")
         }
         // Climbing out of water: a 3-deep pool with a bank one block above the surface, swim into it.
         let w = game.world
