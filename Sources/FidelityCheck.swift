@@ -97,7 +97,8 @@ enum FidelityCheck {
         fire("bookshelf", 30, 20); fire("tnt", 15, 100); fire("hay_block", 60, 20)
 
         // Hurt invulnerability: within 0.5 s only a bigger hit counts, by the difference.
-        let z = Mob(.zombie, at: V3(0, 100, 0))
+        // (A pig: a zombie's natural armour rounds damage down at random, which made this flaky.)
+        let z = Mob(.pig, at: V3(0, 100, 0))
         let h0 = z.health
         z.hit(from: V3(1, 100, 0), damage: 5, iframes: true)
         z.hit(from: V3(1, 100, 0), damage: 3, iframes: true)
