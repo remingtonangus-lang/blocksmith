@@ -21,7 +21,23 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 
 ## Totals
 
-(filled in from the last `--coppertest` run, see bottom)
+Last run (2026-10-09, fast build, `--seed 12345 --find plains --rd 5`):
+`coppertest: total 111 rows: 111 pass, 0 fail, 0 missing, 0 xpass`.
+111 rows: 111 exist, 111 correct (test passing), 0 missing.
+
+Fixed or added in this pass (everything else already matched): repeater pulse stretching (a 1-tick pulse into a
+delay-4 repeater vanished), comparators re-read containers every tick (chests filled by hand or by a mob never
+updated them), wire redirection wakes what the wire stops pointing at, lamps/note blocks/dispensers/droppers/
+crafters/copper bulbs conduct like stone, wire dot toggle (right-click a lone wire), lectern page-turn pulse and
+comparator reading, jukebox disc reading, item frame rotation reading, detector rail + comparator reads a chest
+cart, arrows press wooden buttons and plates, dispenser throws snowballs/eggs/splash and lingering potions/bottles
+o' enchanting, hatches spawn eggs, places minecarts/boats/shulker boxes, shears sheep, fills glass bottles. The
+mesher now uses the engine's wire connection rule (wire arms toward detector rails, tripwire hooks, trapped chests,
+murk sensors and lecterns were missing).
+
+Bedrock differences (we follow Java): no quasi-connectivity on Bedrock pistons/dispensers; Bedrock has no wire dot;
+Bedrock pistons cannot push some blocks Java can; Bedrock repeaters/comparators have slightly different update
+order. Java numbers are used throughout.
 
 ## Wire (Copper Wire)
 
@@ -29,7 +45,7 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 |---|---|---|---|---|
 | W1 | Signal 15 at the source, -1 per wire, 0 after 15 wires | yes | yes | wire.decay |
 | W2 | A lone wire is a cross: powers all four sides (Java 1.16+ and Bedrock) | yes | yes | wire.cross |
-| W3 | Right-click toggles a lone wire between cross and dot (dot powers nothing beside it) | no | missing | wire.dot |
+| W3 | Right-click toggles a lone wire between cross and dot (dot powers nothing beside it) | yes | yes | wire.dot |
 | W4 | A straight line powers the block it points into, not blocks at its sides | yes | yes | wire.points |
 | W5 | Wire bends toward components (repeater, torch, lever...) and stops pointing where it no longer runs | yes | yes | wire.redirect |
 | W6 | Wire climbs up the side of a block to wire on top | yes | yes | wire.climb |
@@ -48,7 +64,7 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | P2 | Weak power (wire into a block) drives lamps/repeaters but not wire | yes | yes | power.weak |
 | P3 | Copper Battery powers adjacent wire and components, not through a solid block | yes | yes | power.battery |
 | P4 | Lever strongly powers the block it is mounted on | yes | yes | power.lever |
-| P5 | Component blocks (lamp, note block, dispenser, dropper) also conduct like stone | no | missing | power.components |
+| P5 | Component blocks (lamp, note block, dispenser, dropper) also conduct like stone | yes | yes | power.components |
 
 ## Signal Torch
 
@@ -81,10 +97,10 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | C3 | Reads container fullness: floor(1 + fill/slots * 14) | yes | yes | comparator.container |
 | C4 | Reads a container through one solid block | yes | yes | comparator.through |
 | C5 | Reads composter, cake, end portal frame, respawn anchor | yes | yes | comparator.special |
-| C6 | Updates when container contents change (any cause) | yes | ? | comparator.update |
+| C6 | Updates when container contents change (any cause) | yes | yes | comparator.update |
 | C7 | 1 circuit tick delay | yes | yes | comparator.delay |
-| C8 | Reads item frame rotation (1-8) | no | missing | comparator.frame |
-| C9 | Reads lectern page / jukebox disc | no | missing | comparator.lectern |
+| C8 | Reads item frame rotation (1-8) | yes | yes | comparator.frame |
+| C9 | Reads lectern page (1 + page/(pages-1)*14) and jukebox disc number | yes | yes | comparator.lectern |
 
 ## Observer
 
@@ -138,8 +154,9 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | D8 | Bone meal grows crops | yes | yes | dispenser.bonemeal |
 | D9 | Fire charge shoots a fireball | yes | yes | dispenser.firecharge |
 | D10 | Equips armour on a player in front | yes | yes | dispenser.armor |
-| D11 | Throws snowballs/eggs/splash potions | no | missing | dispenser.throwables |
-| D12 | Places shulker boxes, minecarts, boats; spawn eggs; shears sheep; fills bottles | no | missing | dispenser.place |
+| D11 | Throws snowballs/eggs/splash potions | yes | yes | dispenser.throwables |
+| D12 | Places minecarts on rails, hatches spawn eggs | yes | yes | dispenser.place |
+| D13 | Shears sheep, fills glass bottles from water, puts boats on water, places shulker boxes with contents | yes | yes | dispenser.more |
 
 ## Switches and plates
 
@@ -148,7 +165,8 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | S1 | Lever toggles 15 on/off | yes | yes | lever.toggle |
 | S2 | Stone button: 10 circuit ticks (20 game ticks) | yes | yes | button.stone |
 | S3 | Wooden button: 15 circuit ticks (30 game ticks) | yes | yes | button.wood |
-| S4 | Arrows press wooden buttons | no | missing | button.arrow |
+| S4 | Arrows press wooden buttons (held while the arrow stays) | yes | yes | button.arrow |
+| S12 | Arrows press wooden plates | yes | yes | plate.arrow |
 | S5 | Wooden plate: any entity incl. items | yes | yes | plate.wood |
 | S6 | Stone plate: players and mobs only (items ignored) | yes | yes | plate.stone |
 | S7 | Light weighted plate: min(15, entities) | yes | yes | plate.light |
@@ -166,7 +184,7 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | X3 | Target: 1-15 by accuracy, resets after 8 ticks (arrows) | yes | yes | target.hit |
 | X4 | Trapped chest: viewers -> power, strong into the block below | yes | yes | trapped.chest |
 | X5 | Murk Sensor (sculk-equivalent): vibration within 8 blocks, signal by distance, 30 ticks | yes | yes | murk.sensor |
-| X6 | Lectern: pulse on page turn | no | missing | lectern.pulse |
+| X6 | Lectern: pulse on page turn | yes | yes | lectern.pulse |
 
 ## Outputs
 
@@ -192,7 +210,7 @@ Columns: **Exists** = the block/behaviour is in the game; **Correct** = matches 
 | RL2 | Powered rail boosts a moving cart | yes | yes | rail.boost |
 | RL3 | Unpowered powered rail brakes a cart | yes | yes | rail.brake |
 | RL4 | Detector rail powers while a cart is on it | yes | yes | rail.detector |
-| RL5 | Comparator reads a detector rail's cart contents | no | missing | rail.detectorcomparator |
+| RL5 | Comparator reads a detector rail's cart contents | yes | yes | rail.detectorcomparator |
 | RL6 | Activator rail takes power like a powered rail | yes | yes | rail.activator |
 
 ## Crafting and names
