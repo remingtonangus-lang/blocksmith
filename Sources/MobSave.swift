@@ -140,7 +140,7 @@ extension MobManager {
     }
 
     // Everything (live + stored) for the save file.
-    func save(to s: SaveManager?) {
+    func save(to s: SaveManager?, background: Bool = false) {
         guard let s = s else { return }
         var all: [String: [MobRecord]] = [:]
         for (k, v) in stored { all["\(k.x),\(k.z)"] = v }
@@ -148,7 +148,9 @@ extension MobManager {
             let k = "\(floorDiv(Int(floor(m.pos.x)), CS)),\(floorDiv(Int(floor(m.pos.z)), CS))"
             all[k, default: []].append(m.record)
         }
-        if let d = try? JSONEncoder().encode(all) { try? d.write(to: s.dir.appendingPathComponent("mobs.json"), options: .atomic) }
+        let url = s.dir.appendingPathComponent("mobs.json")
+        if background { SaveIO.writeJSON(all, to: url) }       // (MobRecord: value snapshots)
+        else if let d = try? JSONEncoder().encode(all) { try? d.write(to: url, options: .atomic) }
         savePopulated(to: s)
         saveHives(to: s)
     }

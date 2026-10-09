@@ -38,7 +38,19 @@ enum QuestSettings {
     // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
     static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
     // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
-    static var renderDistance: Int { get { d.object(forKey: "renderDistance") == nil ? 8 : d.integer(forKey: "renderDistance") } set { d.set(newValue, forKey: "renderDistance") } }
+    // 12 by default (store gate: 1.5x the old 8 at 72 fps; Oct 9 device log at 9-12: CPU p50 9-10 ms, GPU p50 6-8 ms
+    // of 72 Hz's 13.9). A saved distance under 12 from before this default (the comfort guard's step-downs leaked into
+    // it through the world save: the Oct 9 playtest reopened at 5) is raised once.
+    static var renderDistance: Int {
+        get {
+            if !d.bool(forKey: "quest.rd12") {
+                d.set(true, forKey: "quest.rd12")
+                if d.object(forKey: "renderDistance") != nil && d.integer(forKey: "renderDistance") < 12 { d.set(12, forKey: "renderDistance") }
+            }
+            return d.object(forKey: "renderDistance") == nil ? 12 : d.integer(forKey: "renderDistance")
+        }
+        set { d.set(newValue, forKey: "renderDistance") }
+    }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }
     // Turning: snap by default (smooth turning is an option, and makes some people sick).
     // Voice bug notes (playtest builds): set once the first launch has turned them on and asked for the microphone.

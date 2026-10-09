@@ -109,10 +109,12 @@ final class ItemEntityManager {
     // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
     // back for the things dropped at a death lost them all.
     struct Saved: Codable { var s: ItemStack; var p: [Float]; var age: Float }
-    func save(to sm: SaveManager?) {
+    func save(to sm: SaveManager?, background: Bool = false) {
         guard let sm else { return }
         let list: [Saved] = items.filter { !$0.stack.isEmpty && $0.pos.y.isFinite }.map { Saved(s: $0.stack, p: [$0.pos.x, $0.pos.y, $0.pos.z], age: $0.age) }
-        if let d = try? JSONEncoder().encode(list) { try? d.write(to: sm.dir.appendingPathComponent("drops.json"), options: .atomic) }
+        let url = sm.dir.appendingPathComponent("drops.json")
+        if background { SaveIO.writeJSON(list, to: url) }
+        else if let d = try? JSONEncoder().encode(list) { try? d.write(to: url, options: .atomic) }
     }
     func load(from sm: SaveManager?) {
         guard let sm, let d = try? Data(contentsOf: sm.dir.appendingPathComponent("drops.json")),

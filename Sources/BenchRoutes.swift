@@ -14,6 +14,7 @@ import simd
 extension Bench {
     static func route(_ device: MTLDevice, _ seed: UInt64, _ name: String) {
         let quest = CommandLine.arguments.contains("--quest")
+        if quest { World.fluidSeconds = 0.002 }      // as QuestApp sets it
         let rd = Int(arg("--rd") ?? "") ?? 8
         let seconds = Double(arg("--secs") ?? "") ?? 30
         let dim: Dim = name == "ashvault" ? .deep : .overworld
@@ -69,6 +70,7 @@ extension Bench {
         let dt = quest ? 1.0 / 72 : 1.0 / 60
         let frames = Int(seconds / dt)
         var est: [Double] = [], tick: [Double] = [], gpu: [Double] = []
+        var spikes: [String: (Int, Double)] = [:]
         est.reserveCapacity(frames); tick.reserveCapacity(frames); gpu.reserveCapacity(frames)
         let mem0 = residentMB()
         var peak = mem0
@@ -87,6 +89,12 @@ extension Bench {
                 return (tk, e, g)
             }
             tick.append(tk * 1000); gpu.append(g * 1000)
+            // Tick spikes (a quarter of the Quest budget on the M1, about a full frame on the Quest's XR2): which stage.
+            if tk * 1000 > 4 {
+                let (n, ms) = TickProf.top()
+                let old = spikes[n.description] ?? (0, 0)
+                spikes[n.description] = (old.0 + 1, max(old.1, ms))
+            }
             est.append(max(tk + e, g) * 1000)
             if i % 30 == 0 { peak = max(peak, residentMB()) }
             let slack = start + Double(i + 1) * dt - now
@@ -110,6 +118,8 @@ extension Bench {
         put("\(k).mobs", Double(game.mobs.mobs.count))
         put("\(k).budget_ms", budget)
         put("\(k).pass", over99 && perMin <= 1 ? 1 : 0)
+        let sp = spikes.sorted { $0.value.0 > $1.value.0 }.prefix(6).map { "\($0.key) x\($0.value.0) (max \(f($0.value.1)) ms)" }
+        if !sp.isEmpty { print("bench \(k) tick spikes > 4 ms by stage: " + sp.joined(separator: ", ")) }
         print("bench \(k): frame p50 \(f(fe.p50)) p99 \(f(fe.p99)) max \(f(fe.max)) ms (budget \(f(budget, 1))), \(f(perMin, 1)) hitches >25 ms/min | tick p99 \(f(ft.p99)) GPU p99 \(f(fg.p99)) ms | load \(f(load, 1)) s | resident \(f(mem0, 0)) -> \(f(mem1, 0)) MB (peak \(f(peak, 0))) | \(game.mobs.mobs.count) mobs | \(over99 && perMin <= 1 ? "PASS" : "FAIL")")
     }
 }

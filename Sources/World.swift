@@ -178,6 +178,12 @@ final class World {
         return Int(c.height[mod(x, CS) + mod(z, CS) * CS])
     }
 
+    // While set (Game.advance: mobs, random ticks, snow, falling blocks, fire, circuits...), setBlock leaves even the
+    // sections around the block to the mesh workers, which redraw them a frame or two later. Those edits were each
+    // up to eight sections meshed on the frame thread: the Oct 9 Quest playtest logged a ~60 ms tick in every 5 s
+    // window (11.9 hitches a minute at every render distance). The player's own edits stay synchronous.
+    var deferRemesh = false
+
     // Changes a block and remeshes: the sections around the block synchronously (no holes, correct
     // AO), everything its light could reach in the background.
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
@@ -206,7 +212,7 @@ final class World {
         }
         for (n, sy) in sync {
             n.sections[sy].version += 1
-            remeshSync(n, sy)
+            if !deferRemesh { remeshSync(n, sy) }
         }
         let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
@@ -1032,6 +1038,10 @@ final class World {
     private(set) var fluidPending = Set<IVec3>()
     private(set) var lavaPending = Set<IVec3>()
     static let fluidBudget = 1024
+    // Frame-thread time a fluid tick may take before the rest of its batch waits for the next one (infinite: the
+    // whole batch, the Mac). The Quest sets 2 ms: streamed-in chunks queue up to 96 springs each, and a full
+    // 1024-cell batch took ~20 ms on the M1 (the --quest bench's top tick spike on the plains and cave routes).
+    static var fluidSeconds = Double.infinity
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
@@ -1101,18 +1111,27 @@ final class World {
     func fluidTick(lava: Bool = false) {
         if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
         var batch: [IVec3] = []
-        let src = lava ? lavaPending : fluidPending
-        batch.reserveCapacity(min(src.count, World.fluidBudget))
-        for p in src {
-            batch.append(p)
-            if batch.count >= World.fluidBudget { break }
+        // Read straight from the set (a `let src = fluidPending` copy still held during the removals below made each
+        // tick copy the whole pending set: tens of thousands of cells while streamed-in springs queue up).
+        batch.reserveCapacity(min(lava ? lavaPending.count : fluidPending.count, World.fluidBudget))
+        if lava {
+            for p in lavaPending { batch.append(p); if batch.count >= World.fluidBudget { break } }
+        } else {
+            for p in fluidPending { batch.append(p); if batch.count >= World.fluidBudget { break } }
         }
         if lava { for p in batch { lavaPending.remove(p) } } else { for p in batch { fluidPending.remove(p) } }
         let lvT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let kind: UInt8 = lava ? 2 : 1
         let flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
         let stepLevel = lava && !dim.ultrawarm ? 2 : 1
-        for p in batch {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let timed = World.fluidSeconds.isFinite && !World.deterministic
+        for (bi, p) in batch.enumerated() {
+            // Out of time (Quest): the rest wait for the next fluid tick.
+            if timed && bi & 15 == 15 && CFAbsoluteTimeGetCurrent() - t0 > World.fluidSeconds {
+                if lava { for q in batch[bi...] { lavaPending.insert(q) } } else { for q in batch[bi...] { fluidPending.insert(q) } }
+                break
+            }
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
             let cur = block(p.x, p.y, p.z)
             guard fkT[Int(cur)] == kind else { continue }

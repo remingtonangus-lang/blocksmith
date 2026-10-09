@@ -425,18 +425,22 @@ final class Game {
                   effects: effects.saved, absorption: absorption, enchantSeed: enchantSeed, extra: saveExtra())
     }
 
-    func saveNow() {
+    // background (the autosave): mobs, drops, orbs and the meta are encoded and written on the save queue from value
+    // snapshots taken here; quit, pause and world copies save synchronously (and SaveIO.flush).
+    func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
-        if coop.current != 0 { coop.withSeat(0, self) { self.saveNow() }; return }
+        if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         world.saveAll()
-        mobs.save(to: world.save)
-        drops.save(to: world.save)
+        mobs.save(to: world.save, background: background)
+        drops.save(to: world.save, background: background)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
         // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
         let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
-        if let d = try? JSONEncoder().encode(orbs) { try? d.write(to: s.dir.appendingPathComponent("xporbs.json"), options: .atomic) }
-        s.saveMeta(meta)
+        let orbURL = s.dir.appendingPathComponent("xporbs.json")
+        if background { SaveIO.writeJSON(orbs, to: orbURL) }
+        else if let d = try? JSONEncoder().encode(orbs) { try? d.write(to: orbURL, options: .atomic) }
+        s.saveMeta(meta, background: background)
     }
 
     // MARK: Dimensions
@@ -691,9 +695,11 @@ final class Game {
         let dt = min(rawDt, 0.05)
         let seat = coop.current
         if seat == 0 {
+            TickProf.begin()
             clock += dt
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
             world.update(center: player.pos)
+            TickProf.mark("world.update")
         }
 
         let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
@@ -706,6 +712,7 @@ final class Game {
         let p = pad ?? PadSnapshot()
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
+        if seat == 0 { TickProf.mark("input+hud") }
 
         if p.menu && !q.menu && !(menu is KeyboardMenu) && (menu as? PauseMenu)?.padBinding == nil {
             if paused { if menu is PauseMenu { closeMenu() } else { paused = false } }
@@ -858,15 +865,19 @@ final class Game {
             powderSnowTick(fdt)
             vibrationTick(fdt)
         }
+        TickProf.mark("player move")
         let hmove = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         walkBob += hmove * 2.2
         walkAmount += ((player.onGround && !player.flying ? min(1, hmove / fdt / 4) : 0) - walkAmount) * min(1, fdt * 8)
         audioTick(from: before)
+        TickProf.mark("audio")
         survivalTick(dt, from: before)
+        TickProf.mark("survival")
 
         interact(p, q, dt)
         updateFov(Float(dt))
         if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
+        TickProf.mark("interact")
 
         advance(dt)
     }
@@ -2236,17 +2247,29 @@ final class Game {
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
         if coop.current > 0 { coopAdvance(dt); return }       // a second seat: only its own share (Coop.swift)
-        world.ships.update(Float(dt), game: self)
+        world.ships.update(Float(dt), game: self)              // (docking writes blocks back: stays synchronous, no hole)
+        TickProf.mark("ships")
+        // The world's own changes from here on remesh on the workers (World.deferRemesh), not on the frame thread.
+        let w = world                                          // (a portal can swap `world` mid-advance)
+        w.deferRemesh = true
+        defer { w.deferRemesh = false }
         FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
+        TickProf.mark("flight crews")
         mobs.update(Float(dt), game: self)
+        TickProf.mark("mobs")
         drops.update(Float(dt), game: self)
+        TickProf.mark("drops")
         projectiles.update(Float(dt), game: self)
+        TickProf.mark("projectiles")
         armsTick(Float(dt))
+        TickProf.mark("arms")
         tnts.update(Float(dt), game: self)
+        TickProf.mark("tnt")
         particles.update(Float(dt), world)
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
+        TickProf.mark("particles")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0
@@ -2265,10 +2288,13 @@ final class Game {
         }
         fluidTimer += dt
         if fluidTimer >= 0.25 { fluidTimer = 0; world.fluidTick() }        // water: 5 ticks a step (reference)
+        TickProf.mark("water")
         lavaTimer += dt
         if lavaTimer >= (dim.dim.ultrawarm ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
+        TickProf.mark("lava")
         fireTimer += dt
         if fireTimer >= Rand.double(in: 1.5...2.0) { fireTimer = 0; world.fireTick() }      // 30 + rand(10) ticks (reference)
+        TickProf.mark("fire")
         portalTick(Float(dt))
         endPortalTick()
         updateEyes(Float(dt))
@@ -2286,25 +2312,37 @@ final class Game {
         mapTick()
         rocketTick(Float(dt))
         composterTick()
+        TickProf.mark("misc ticks")
         musicTick(Float(dt))
         audioAmbientTick(Float(dt))
+        TickProf.mark("music+ambience")
         // Village sieges, patrols and wandering traders come for a random player (split screen: only ever round player 1).
         let spawnSeat = coop.active ? Rand.int(in: 0..<coop.seatCount) : 0
         coop.withSeat(spawnSeat, self) { self.siegeTick() }
+        TickProf.mark("siege")
         basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
+        TickProf.mark("bases")
         ashenTick(Float(dt))
+        TickProf.mark("ashen")
         deepTick(Float(dt))
+        TickProf.mark("deep")
         advancementTick()
+        TickProf.mark("advancements")
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
+        TickProf.mark("weather")
         raidTimer += Float(dt)
         // (blockSecondTick per player: campfire contact, Frost Walker, conduit power and shriekers reached only player 1.)
         if raidTimer >= 1 {
             raidTick(raidTimer)
+            TickProf.mark("raid")
             let rt = raidTimer
             coop.withSeat(spawnSeat, self) { self.patrolTick(rt) }
+            TickProf.mark("patrol")
             coop.eachSeat(self) { self.blockSecondTick() }
+            TickProf.mark("block second tick")
             ashTick()
+            TickProf.mark("ash war")
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {
@@ -2312,15 +2350,18 @@ final class Game {
                 if let m = Mob.structureMob(name, at: p) { mobs.mobs.append(m) }
             }
             world.pendingMobs.removeAll()
+            TickProf.mark("structure mobs")
         }
         tickAccum += dt
         while tickAccum >= 0.05 {
             tickAccum -= 0.05
             gameTick()
         }
+        TickProf.mark("game ticks (20 Hz)")
         time += dt
         autosaveTimer += dt
-        if autosaveTimer > 60 { autosaveTimer = 0; saveNow() }
+        if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
+        TickProf.mark("autosave")
     }
 
     // Split-screen co-op (Coop.swift): swaps everything that belongs to one local player with `s`, so the rest of the
@@ -2365,13 +2406,19 @@ final class Game {
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
         randomTicks()
+        TickProf.mark("random ticks")
         precipitationTicks()
+        TickProf.mark("precipitation")
         blockEntityTicks()
+        TickProf.mark("block entities")
         gravityTick()
+        TickProf.mark("gravity")
         beaconTicks += 1
         if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
         spawnerTick(0.05)
+        TickProf.mark("spawners")
         world.redstone.tick()
+        TickProf.mark("circuits")
         // (No minecart: an empty list, without building two arrays 20 times a second.)
         let carts: [V3] = mobs.mobs.contains { $0.kind == .minecart } ? mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos } : []
         world.redstone.detectorCheck(carts)

@@ -43,6 +43,11 @@ final class QuestApp {
             targets.append(try scene.makeTarget(image: img, width: xr.width, height: xr.height, densityMap: dm))
         }
         xr.onRecenter = { [weak self] in self?.rig.needsRecenter = true }
+        World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
+        stats.lowerRate = { [weak xr] in
+            guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
+            return true
+        }
         startLoading()
     }
 
@@ -90,6 +95,9 @@ final class QuestApp {
             if let sv = req.survival { game.survival = sv }
             if let d = req.difficulty { game.difficulty = d }
         }
+        // The headset's own setting, not the save's (Game.apply restores the world's saved distance, which held the
+        // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5).
+        world.renderDistance = QuestSettings.renderDistance
         status("Generating terrain", 0.55)
         _ = world.loadSync(center: game.player.pos, radius: min(3, world.renderDistance))
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
@@ -360,8 +368,11 @@ final class FrameStats {
     private var sumCPU = 0.0, sumTick = 0.0, sumRecord = 0.0, sumGPU = 0.0, worstFrame = 0.0
     // The worst frame's own split (where a hitch went): cpu, game tick, world streaming within it, record, gpu.
     private var worstCPU = 0.0, worstTick = 0.0, worstWorld = 0.0, worstRecord = 0.0, worstGPU = 0.0
+    private var tickStage: StaticString = "-", tickStageMs = 0.0, worstTickAny = 0.0
     private var since = CFAbsoluteTimeGetCurrent()
-    private var lastLowered = 0.0
+    private var lastLowered = 0.0, loggedRD = -1
+    // Set by QuestApp: asks the runtime for 72 Hz; true when the rate changed.
+    var lowerRate: (() -> Bool)?
     private(set) var lastLine = ""
     private(set) var fps = 0.0
     private(set) var gpuAvg = 0.0, cpuAvg = 0.0
@@ -374,6 +385,8 @@ final class FrameStats {
             worstCPU = cpu; worstTick = tick; worstRecord = record; worstGPU = gpu
             worstWorld = (game?.world.perf.updateSeconds ?? 0) * 1000
         }
+        // The slowest tick of the window and its slowest stage (TickProf), whether or not it made the worst frame.
+        if tick > worstTickAny { worstTickAny = tick; (tickStage, tickStageMs) = TickProf.top() }
         if target > 0 && frame > target * 1.5 { missed += 1 }
         let now = CFAbsoluteTimeGetCurrent()
         guard now - since >= 5 else { return }
@@ -387,18 +400,33 @@ final class FrameStats {
                           scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs,
                           w?.chunks.count ?? 0, w?.pendingJobs ?? 0, game?.mobs.mobs.count ?? 0, MeshArena.shared.slabBytes >> 20,
                           FrameStats.residentMB())
+        // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
+        lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         print(lastLine)
         // Comfort guard (VR page option): frames missed in this window with the GPU or CPU near the frame budget
-        // (not a loading hitch) lower the render distance one step, not below 4, for this session.
+        // (not a loading hitch) first drop a refresh rate above 72 Hz to 72 (the store's frame-rate gate: the Oct 9
+        // playtest at 90 Hz ran ~10 ms CPU frames against 11.1 ms and the guard cut render distance 16 -> 5), then
+        // lower the render distance one step, not below 4, for this session.
         let budget = target * 1000
         if QuestSettings.autoRenderDistance, let g = game, budget > 0, Double(missed) > n * 0.05,
-           sumGPU / n > budget * 0.8 || sumCPU / n > budget * 0.8, g.world.renderDistance > 4, now - lastLowered > 15 {
-            g.world.renderDistance -= 1
-            lastLowered = now
-            print("perf: missed frames at the frame budget: render distance lowered to \(g.world.renderDistance) for this session")
-            g.onToast?("Render distance \(g.world.renderDistance) to keep the frame rate (VR Comfort & Controls)")
+           sumGPU / n > budget * 0.8 || sumCPU / n > budget * 0.8, now - lastLowered > 15 {
+            if rate > 72.5, let lower = lowerRate, lower() {
+                lastLowered = now
+                print("perf: missed frames at the frame budget: refresh rate lowered to 72 Hz for this session")
+                g.onToast?("72 Hz to keep the frame rate (VR Comfort & Controls)")
+            } else if g.world.renderDistance > 4 {
+                g.world.renderDistance -= 1
+                lastLowered = now
+                print("perf: missed frames at the frame budget: render distance lowered to \(g.world.renderDistance) for this session")
+                g.onToast?("Render distance \(g.world.renderDistance) to keep the frame rate (VR Comfort & Controls)")
+            }
         }
-        frames = 0; missed = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0
+        // Render distance changes (pause menu, the guard) are logged so a device log can be split by distance.
+        if let g = game, g.world.renderDistance != loggedRD {
+            loggedRD = g.world.renderDistance
+            print("perf: render distance \(loggedRD)")
+        }
+        frames = 0; missed = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0; worstTickAny = 0
         since = now
     }
 }
