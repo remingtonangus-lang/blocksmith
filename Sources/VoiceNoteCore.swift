@@ -133,6 +133,9 @@ enum VoiceNoteContext {
             ("mode", "\(g.survival ? "Survival" : "Creative"), health \(g.health)/20\(g.menu.map { ", screen \(type(of: $0))" } ?? "")"),
             ("time", String(format: "day %d %02d:%02d, %@", Int(g.time / DAY_LENGTH) + 1, Int(hour), Int(hour * 60) % 60, weather)),
             ("fps", String(format: "%.0f", fps)),
+            ("repro", String(format: "./snap.sh note --seed %llu --x %.1f --z %.1f --yaw %.0f --pitch %.0f --time %.3f%@",
+                             g.world.seed, p.pos.x, p.pos.z, Double(p.yaw * 180 / .pi), Double(p.pitch * 180 / .pi), g.dayFraction,
+                             g.dim.dim == .overworld ? "" : " --dim \(g.dim.dim.rawValue)")),
         ]
     }
 

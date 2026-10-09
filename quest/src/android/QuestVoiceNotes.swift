@@ -74,9 +74,10 @@ final class BugNotes {
     }
 
     // App lifecycle: the mic is released while the app is paused (headset off, system menu, permission dialog).
+    // Game.tick doesn't run while paused, so stop the audio thread here.
     func setPaused(_ p: Bool) {
         paused = p
-        if p { pendingPaused = true }
+        if p { pendingPaused = true; lock.lock(); run = false; lock.unlock() }
     }
 
     func shutdown() {
@@ -116,7 +117,7 @@ final class BugNotes {
             firstLaunch = false
             QuestSettings.voiceNotesAsked = true
             Settings.shared.bugNotes = Mode.always.rawValue
-            let on = "Voice bug notes are ON (playtest build): your speech is recorded on the headset with the game state. Options > Interface > Bug Notes"
+            let on = "Playtest build: voice bug notes ON, your speech is saved (Options > Interface)"
             if permission { g.onToast?(on) } else {
                 request { ok in
                     if ok { g.onToast?(on) } else {
