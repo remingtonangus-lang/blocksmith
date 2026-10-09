@@ -19,7 +19,8 @@ import simd
 enum SpawnCategory: Int, CaseIterable {
     case monster, creature, ambient, waterCreature, waterAmbient, undergroundWater, axolotls, misc
     // Monsters 24 (reference 70): Quest round 4 found the surface crowded even after round 3, so a third of it.
-    var cap: Int { [24, 10, 15, 5, 20, 5, 5, 0][rawValue] }
+    // Creatures 5 (reference 10): Remington found the world crowded with animals (store-quality pass).
+    var cap: Int { [24, 5, 15, 5, 20, 5, 5, 0][rawValue] }
     var despawns: Bool { self != .creature && self != .misc }
     var farDistance: Float { self == .waterAmbient ? 64 : 128 }
 }
@@ -175,7 +176,8 @@ extension MobManager {
 
     // MARK: Animals
 
-    // A creature pack in 10% of chunks the first time they load (the reference generation-time spawns).
+    // A creature pack in 3.5% of chunks the first time they load (the reference generation-time spawns put one in 10%;
+    // about a third as many reads as a countryside, not a farmyard).
     func populateChunks(_ game: Game) {
         let w = game.world
         guard w.dim == .overworld else { return }
@@ -199,7 +201,7 @@ extension MobManager {
                 } }
             }
             var rng = SRng(UInt64(hash3(k.x, 7, k.z, 0xA41A1)) | 1)
-            guard rng.float() < 0.1 else { continue }
+            guard rng.float() < 0.035 else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
             spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: k)
