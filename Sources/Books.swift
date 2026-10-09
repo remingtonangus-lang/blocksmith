@@ -84,7 +84,12 @@ final class BookMenu: Menu {
             }
         default: break
         }
-        lectern?.delay = Float(page)
+        if let be = lectern {
+            let turned = Int(be.delay) != page
+            be.delay = Float(page)
+            // A turned page pulses copper wire (reference); comparators read the new page on their own.
+            if turned, let p = game.world.blockEntities.first(where: { $0.value === be })?.key { game.world.redstone.lecternTurned(p) }
+        }
     }
     override func typed(_ s: String) {
         guard editable else { return }

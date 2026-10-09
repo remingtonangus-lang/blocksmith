@@ -30,6 +30,11 @@ final class Circuit {
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
     private var hopperCooldown: [IVec3: Int] = [:]
     private var busy = false
+    private var condLevel: [IVec3: Int] = [:]         // conducting components: last block power (wake neighbours on change)
+    private var lecternOn = Set<IVec3>()              // lecterns giving their page-turn pulse
+    var lastNote: (Int, Int)?                         // (instrument, pitch) of the last note block played (tests)
+    private(set) var notesPlayed = 0
+    private(set) var bellsRung = 0
 
     init(world: World) { w = world }
 
@@ -39,8 +44,10 @@ final class Circuit {
         case none, wire, torch, block, lamp, lever, button, plate, weightedPlate, repeater, comparator, observer, piston, stickyPiston
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
         case rail, poweredRail, detectorRail, activatorRail
-        case tripHook, trappedChest, copperBulb, crafter, sculkSensor
+        case tripHook, trappedChest, copperBulb, crafter, sculkSensor, lectern
     }
+    // Components that are also solid blocks and conduct power like stone (reference: lamps, note blocks, dispensers...).
+    static let conducting: Set<K> = [.lamp, .note, .dispenser, .dropper, .crafter, .copperBulb]
 
     static let kinds: [K] = {
         var t = [K](repeating: .none, count: Blocks.count)
@@ -63,6 +70,7 @@ final class Circuit {
         set("crafter", .crafter); set("sculk_sensor", .sculkSensor); set("calibrated_sculk_sensor", .sculkSensor)
         set("tripwire_hook", .tripHook); set("trapped_chest", .trappedChest)
         for i in 1..<Blocks.count where Int(Blocks.groupBase[i]) == i && Blocks.key(BlockID(i)).hasSuffix("copper_bulb") { set(Blocks.key(BlockID(i)), .copperBulb) }
+        set("lectern", .lectern)
         set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
         return t
     }()
@@ -76,7 +84,11 @@ final class Circuit {
 
     func block(_ p: IVec3) -> BlockID { w.block(p.x, p.y, p.z) }
     // Full opaque cubes conduct power.
-    func conductor(_ b: BlockID) -> Bool { Blocks.opaque[Int(b)] && Circuit.kind(b) == .none && b != AIR }
+    func conductor(_ b: BlockID) -> Bool {
+        guard Blocks.opaque[Int(b)] && b != AIR else { return false }
+        let k = Circuit.kind(b)
+        return k == .none || Circuit.conducting.contains(k)
+    }
 
     // MARK: Change notifications (from World)
 
@@ -92,6 +104,11 @@ final class Circuit {
             }
             mark(p + IVec3(0, 2, 0)); mark(p + IVec3(0, -2, 0))
         }
+        // Wires beside it may change shape (point elsewhere) at the same level: wake what they touch.
+        for d in 2..<6 {
+            let n = p + Circuit.D[d]
+            if Circuit.kind(block(n)) == .wire { wakeAround(n) }
+        }
         // Observers watching this position.
         for d in 0..<6 {
             let n = p + Circuit.D[d]
@@ -103,9 +120,11 @@ final class Circuit {
             }
         }
         let k = Circuit.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
+        if condLevel[p] != nil && Circuit.kind(new) != Circuit.kind(old) { condLevel[p] = nil }
+        if Circuit.kind(new) != .lectern { lecternOn.remove(p) }
     }
 
     func mark(_ p: IVec3) {
@@ -134,7 +153,7 @@ final class Circuit {
         var out: [IVec3] = []
         for i in 0..<min(blocks.count, CSQ * CH) {
             let k = kinds[Int(blocks[i])]
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
+            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor || k == .comparator {
                 out.append(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
@@ -162,6 +181,7 @@ final class Circuit {
         case .detectorRail: return s >= 6 && d == 0 ? 15 : 0
         case .tripHook: return s >= 4 && d == Circuit.opp[Circuit.d6(s & 3)] ? 15 : 0
         case .trappedChest: return d == 0 ? (trapped[q] ?? 0) : 0
+        case .lectern: return d == 0 && lecternOn.contains(q) ? 15 : 0
         default: return 0
         }
     }
@@ -184,11 +204,12 @@ final class Circuit {
         case .repeater: return (s & 16) != 0 && d == Circuit.d6(s & 3) ? 15 : 0
         case .comparator: return d == Circuit.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
         case .observer: return s >= 6 && d == Circuit.opp[s % 6] ? 15 : 0
-        case .wire: return (d == 0 || wirePoints(q, d)) ? s : 0
+        case .wire: return (d == 0 || wirePoints(q, d)) ? s & 15 : 0
         case .detectorRail: return s >= 6 ? 15 : 0
         case .tripHook: return s >= 4 ? 15 : 0
         case .sculkSensor: return sensor[q]?.0 ?? 0
         case .trappedChest: return trapped[q] ?? 0
+        case .lectern: return lecternOn.contains(q) ? 15 : 0
         default: return 0
         }
     }
@@ -203,7 +224,7 @@ final class Circuit {
             if k == .none { continue }
             strong = max(strong, strongOut(n, Circuit.opp[d]))
             if k == .wire {
-                let lv = st(nb)
+                let lv = st(nb) & 15
                 if lv > 0 && (d == 1 || wirePoints(n, Circuit.opp[d])) { weak = max(weak, lv) }
             }
         }
@@ -214,8 +235,8 @@ final class Circuit {
     func powerFrom(_ p: IVec3, _ d: Int, forWire: Bool = false) -> Int {
         let q = p + Circuit.D[d]
         let b = block(q)
-        if Circuit.kind(b) != .none { return Circuit.kind(b) == .wire && forWire ? 0 : sourceOut(q, Circuit.opp[d]) }
         if conductor(b) { let bp = blockPower(q); return forWire ? bp.0 : bp.1 }
+        if Circuit.kind(b) != .none { return Circuit.kind(b) == .wire && forWire ? 0 : sourceOut(q, Circuit.opp[d]) }
         return 0
     }
 
@@ -236,16 +257,21 @@ final class Circuit {
     // MARK: Dust
 
     // Does the component at n make adjacent dust (in direction d from the dust) connect?
-    func connectsDust(_ n: IVec3, _ d: Int) -> Bool {
-        let b = block(n)
-        let s = st(b)
-        switch Circuit.kind(b) {
-        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest, .sculkSensor: return true
-        case .repeater: return (Circuit.d6(s & 3) / 2) == d / 2
+    func connectsDust(_ n: IVec3, _ d: Int) -> Bool { Circuit.dustConnects(block(n), d) }
+
+    // The same rule by block (the mesher draws wire arms with it, off the main thread).
+    static func dustConnects(_ b: BlockID, _ d: Int) -> Bool {
+        let s = Int(b - Blocks.groupBase[Int(b)])
+        switch kind(b) {
+        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest, .sculkSensor, .lectern: return true
+        case .repeater: return (d6(s & 3) / 2) == d / 2
         case .observer: return s % 6 == d        // only its output (back) side, which faces the dust
         default: return false
         }
     }
+
+    // Wire states: level 0-15, +16 for a lone wire right-clicked into a dot (powers nothing beside it).
+    @inline(__always) static func wireLevel(_ s: Int) -> Int { s & 15 }
 
     // Horizontal directions this wire connects to (including slopes up/down).
     func wireConnections(_ q: IVec3) -> [Int] {
@@ -265,7 +291,7 @@ final class Circuit {
         if d == 0 { return true }
         if d == 1 { return false }
         let c = wireConnections(q)
-        if c.isEmpty { return true }
+        if c.isEmpty { return st(block(q)) < 16 }                // cross: all four sides; dot: none
         if c.contains(d) { return true }
         return c.count == 1 && Circuit.opp[c[0]] == d
     }
@@ -323,8 +349,8 @@ final class Circuit {
             settledWires.insert(q)
             let b = block(q)
             let lv = level[q] ?? 0
-            if st(b) != lv {
-                setQuiet(q, base(b) + BlockID(lv))
+            if st(b) & 15 != lv {
+                setQuiet(q, base(b) + BlockID(lv | (st(b) & 16)))
                 // Wake everything the wire can affect: neighbours and what they touch.
                 for d in 0..<6 {
                     let n = q + Circuit.D[d]
@@ -381,6 +407,13 @@ final class Circuit {
     private func update(_ p: IVec3) {
         let b = block(p)
         let s = st(b)
+        if Circuit.conducting.contains(Circuit.kind(b)) && conductor(b) {
+            let bp = blockPower(p).1
+            if (condLevel[p] ?? 0) != bp {
+                condLevel[p] = bp == 0 ? nil : bp
+                for d in 0..<6 { let n = p + Circuit.D[d]; if Circuit.kind(block(n)) != .none { mark(n) } }
+            }
+        }
         switch Circuit.kind(b) {
         case .wire:
             if !settledWires.contains(p) { solveWires(from: p) }
@@ -440,7 +473,7 @@ final class Circuit {
             if powered && !was {
                 edge.insert(p)
                 if Circuit.kind(b) == .note { playNote(p, s) }
-                else if Circuit.kind(b) == .bell { game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+                else if Circuit.kind(b) == .bell { bellsRung += 1; game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
                 else { schedule(p, 4) }
             } else if !powered && was { edge.remove(p) }
         case .hopper:
@@ -511,6 +544,8 @@ final class Circuit {
         switch Circuit.kind(b) {
         case .target:
             if s > 0 { setQuiet(p, base(b)); wakeAround(p) }
+        case .lectern:
+            if lecternOn.remove(p) != nil { wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
         case .torch:
             let attached = s < 2 ? IVec3(0, -1, 0) : Circuit.D[Circuit.opp[Circuit.d6((s - 2) % 4)]]
             let q = p + attached
@@ -534,13 +569,13 @@ final class Circuit {
             if lockInput(p, f) { return }
             let input = powerFrom(p, Circuit.opp[Circuit.d6(f)]) > 0
             let powered = (s & 16) != 0
-            if input != powered {
-                setQuiet(p, base(b) + BlockID(s ^ 16))
-                let front = p + Circuit.D[Circuit.d6(f)]
-                mark(front); wakeAround(front)
-                // Keep at least a one-delay pulse: re-check after turning on.
-                if !powered { schedule(p, ((s >> 2) & 3) * 2 + 2) }
-            }
+            // Reference: a due tick turns an unpowered repeater on even if the input already went (a 1-tick pulse
+            // comes out as long as the delay; it used to vanish), then schedules the turn-off.
+            if powered && input { return }
+            setQuiet(p, base(b) + BlockID(s ^ 16))
+            let front = p + Circuit.D[Circuit.d6(f)]
+            mark(front); wakeAround(front)
+            if !powered && !input { schedule(p, ((s >> 2) & 3) * 2 + 2) }
         case .comparator:
             let out = comparatorOutput(p, s)
             comparatorOut[p] = out
@@ -560,6 +595,8 @@ final class Circuit {
         case .lever, .button:
             // Button release.
             if Circuit.kind(b) == .button && s >= 12 {
+                // A wooden button stays pressed while an arrow is stuck in it (reference).
+                if !Circuit.stoneButton(b), game?.arrowStuck(in: p) == true { schedule(p, 30); return }
                 setQuiet(p, base(b) + BlockID(s - 12))
                 game?.sfx(Blocks.key(base(b)).hasPrefix("stone") || Blocks.key(base(b)).hasPrefix("polished") ? .buttonStone : .buttonWood, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 switchChanged(p, s - 12)
@@ -570,6 +607,40 @@ final class Circuit {
             game?.crafterFire(p)
         default: break
         }
+    }
+
+    static func stoneButton(_ b: BlockID) -> Bool {
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        return k.hasPrefix("stone") || k.hasPrefix("polished")
+    }
+
+    // An arrow came to rest in the cell `p`: wooden buttons there press (reference).
+    func arrowLanded(_ p: IVec3) {
+        let b = block(p)
+        guard Circuit.kind(b) == .button, !Circuit.stoneButton(b) else { return }
+        let s = st(b)
+        guard s < 12 else { return }
+        w.setBlock(p.x, p.y, p.z, base(b) + BlockID(s + 12))
+        switchChanged(p, s + 12)
+        schedule(p, 30)
+        game?.sfx(.buttonWood, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+    }
+
+    // A lectern's page turned: a 2-tick pulse (15, strong into the block below) (reference).
+    func lecternTurned(_ p: IVec3) {
+        guard Circuit.kind(block(p)) == .lectern else { return }
+        lecternOn.insert(p)
+        wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
+        schedule(p, 3)               // the page turns between ticks and the wire sees it next tick: 2 ticks of power
+    }
+
+    // Right-click on a lone wire: cross <-> dot (reference, Java). Returns false for a wire that runs somewhere.
+    func toggleDot(_ p: IVec3) -> Bool {
+        let b = block(p)
+        guard Circuit.kind(b) == .wire, wireConnections(p).isEmpty else { return false }
+        w.setBlock(p.x, p.y, p.z, base(b) + BlockID(st(b) ^ 16))
+        wakeAround(p)
+        return true
     }
 
     // Lever/button toggled: its neighbours and the block it is on (and that block's neighbours) wake.
@@ -611,6 +682,11 @@ final class Circuit {
         return rear >= side ? rear : 0
     }
 
+    // Reference disc numbers (comparator reading of a jukebox).
+    static let discSignal: [String: Int] = ["13": 1, "cat": 2, "blocks": 3, "chirp": 4, "far": 5, "mall": 6, "mellohi": 7, "stal": 8,
+                                            "strad": 9, "ward": 10, "11": 11, "wait": 12, "pigstep": 13, "otherside": 14, "5": 15,
+                                            "relic": 14, "creator": 12, "creator_music_box": 11, "precipice": 13, "tears": 10, "lava_chicken": 9]
+
     func containerSignal(_ q: IVec3) -> Int? {
         guard let be = w.blockEntities[q], be.kind != .spawner else {
             let k = Blocks.key(base(block(q)))
@@ -620,11 +696,34 @@ final class Circuit {
             case "cake": return (7 - off) * 2                                   // slices left x 2
             case "end_portal_frame": return off > 0 ? 15 : 0                    // with an eye
             case "respawn_anchor": return off * 15 / 4                          // 0, 3, 7, 11, 15
+            case "jukebox":                                                     // the disc's number while one is in
+                guard let j = game?.jukeboxes.first(where: { $0.pos == q }) else { return 0 }
+                return Circuit.discSignal[j.disc.replacingOccurrences(of: "music_disc_", with: "")] ?? 1
+            case "detector_rail":                                               // a cart's contents while it is on the rail
+                guard off >= 6 else { return nil }
+                let cart = game?.mobs.mobs.first { $0.kind == .minecart && $0.cargo != nil && Int(floor($0.pos.x)) == q.x
+                    && Int(floor($0.pos.z)) == q.z && abs($0.pos.y - Float(q.y)) < 1.2 }
+                guard let c = cart?.cargo else { return 0 }
+                return Circuit.fill(c)
             default: break
             }
             return nil
         }
-        let c = be.container
+        switch be.kind {
+        case .frame:                                                            // rotation 1-8 with an item in it
+            return be.container.count > 0 && !be.container[0].isEmpty ? (Int(be.delay) & 7) + 1 : 0
+        case .lectern:                                                          // how far through the book
+            guard be.container.count > 0, !be.container[0].isEmpty else { return 0 }
+            let pages = max(1, be.container[0].pages?.count ?? 1)
+            if pages <= 1 { return 15 }
+            let page = min(pages - 1, max(0, Int(be.delay)))
+            return Int(floor(1 + Float(page) / Float(pages - 1) * 14))
+        default: return Circuit.fill(be.container)
+        }
+    }
+
+    // Reference container reading: floor(1 + average slot fullness * 14), 0 when empty.
+    static func fill(_ c: ItemContainer) -> Int {
         guard c.count > 0 else { return 0 }
         var fill: Float = 0
         var any = false
@@ -670,6 +769,9 @@ final class Circuit {
                 if (hopperCooldown[p] ?? 0) <= 0 && s < 5 {
                     if g.hopperTransfer(p, out: s % 5) { hopperCooldown[p] = 8 }
                 }
+            case .comparator:
+                // Containers (menus, mobs, crafters, cake bites...) change without a block update: re-read the rear.
+                if comparatorOutput(p, s) != (comparatorOut[p] ?? 0) { schedule(p, 2) }
             case .sculkSensor:
                 if let v = sensor[p], now >= v.1 { sensor[p] = nil; wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
             case .tripHook:
@@ -878,6 +980,7 @@ final class Circuit {
         else if below.hasSuffix("glass") || below == "sea_lantern" || mat == .glass { inst = 3 }                                        // hat
         else if mat == .stone || mat == .deepslate || mat == .netherrack || below == "obsidian" { inst = 4 }                            // bass drum
         else { inst = 0 }                                                                  // harp
+        lastNote = (inst, note); notesPlayed += 1
         game?.sfx(.note(inst, note), 1, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         game?.particles.hearts(at: V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5))
     }

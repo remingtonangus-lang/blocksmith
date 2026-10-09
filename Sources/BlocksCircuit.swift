@@ -1,7 +1,7 @@
 import Foundation
 
 // Sparkstone components. State layouts (offset from the group's first state):
-//   sparkstone_wire:   power (16)
+//   sparkstone_wire:   power (16) + dot*16
 //   sparkstone_torch:  0 standing lit, 1 standing off, 2+f wall lit, 6+f wall off (f = side the torch faces)
 //   lever / buttons: facing + attach*4 + on*12           attach 0 floor, 1 wall, 2 ceiling  (24)
 //   pressure plates: pressed (2); weighted plates: power (16)
@@ -66,10 +66,10 @@ extension BlockRegistry {
             d.group = group; d.hidden = !first
             return d
         }
-        // Dust.
-        for p in 0..<16 {
+        // Dust: level 0-15, +16 = dot (a lone wire right-clicked so it points nowhere).
+        for p in 0..<32 {
             var d = state(p == 0 ? "redstone_wire" : "redstone_wire[\(p)]", "redstone_wire", "Copper Wire", p == 0)
-            d.tex = ["redstone_dust_\(p)"]; d.render = .wire; d.layer = .cutout; d.opaque = false; d.collide = false
+            d.tex = ["redstone_dust_\(p & 15)"]; d.render = .wire; d.layer = .cutout; d.opaque = false; d.collide = false
             d.hardness = 0; d.sound = .stone; d.skyStop = false; d.boxes = [Box(0, 0, 0, 16, 1, 16)]; d.hidden = true
             add(d)
         }
