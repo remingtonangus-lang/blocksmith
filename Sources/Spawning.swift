@@ -116,6 +116,24 @@ enum Spawns {
 }
 
 extension MobManager {
+    // Playtest Oct 9 PM #4 ("surface mob density: about half"): surface monsters fill this share of the monster cap
+    // (caves keep theirs), animal packs come to this share of new chunks and timed animal spawns this often. The pm9b
+    // check sets it to 1 to measure the old density against the new on the same world.
+    static var surfaceSpawnScale: Float = 0.5
+
+    // Non-persistent monsters near the player standing on the surface (not 8+ blocks under the ground).
+    func surfaceMonsters(near p: V3, _ w: World) -> Int {
+        var n = 0
+        for m in mobs where m.kind.category == .monster && !m.persistent && m.customName == nil && m.health > 0 {
+            guard abs(m.pos.x - p.x) < 136 && abs(m.pos.z - p.z) < 136 else { continue }
+            let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+            if Int(floor(m.pos.y)) >= w.topY(x, z) - 8 { n += 1 }
+        }
+        return n
+    }
+
+    func surfaceCap(_ w: World) -> Int { max(1, Int((Float(cap(.monster, w)) * MobManager.surfaceSpawnScale).rounded())) }
+
     // Mobs of a category counting toward its cap (non-persistent, near the player).
     func count(_ c: SpawnCategory, near p: V3) -> Int {
         var n = 0
@@ -138,7 +156,7 @@ extension MobManager {
         let p = game.player.pos
         passiveTimer -= dt
         if passiveTimer <= 0 {
-            passiveTimer = 20
+            passiveTimer = 20 / max(0.1, MobManager.surfaceSpawnScale)
             if w.dim == .overworld && count(.creature, near: p) < cap(.creature, w) { trySpawnPassive(game) }
         }
         populateTimer -= dt
@@ -200,7 +218,7 @@ extension MobManager {
                 } }
             }
             var rng = SRng(UInt64(hash3(k.x, 7, k.z, 0xA41A1)) | 1)
-            guard rng.float() < 0.035 else { continue }
+            guard rng.float() < 0.035 * MobManager.surfaceSpawnScale else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
             spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: k)
@@ -298,8 +316,11 @@ extension MobManager {
         // The cave half walks down through open air only (never from inside rock) to the floor, so a sample anywhere in a
         // cave's air counts, not only the one cell on its floor (that left caves empty: v78). With the player
         // underground, half of those samples are near the player's own depth.
+        // The surface fills only its share of the cap (PM9 #4); with that share full, a surface sample becomes a cave one
+        // (so caves get the same attempts as before).
+        let surfaceRoom = caveOnly ? 0 : surfaceCap(w) - surfaceMonsters(near: pp, w)
         let y: Int
-        if !caveOnly && Rand.int(in: 0..<2) == 0 {
+        if surfaceRoom > 0 && Rand.int(in: 0..<2) == 0 {
             guard let ys = floorBelow(w, x0, top + 1, z0, minY: max(1, top - 8)) else { return }
             y = ys
         } else {
@@ -320,6 +341,8 @@ extension MobManager {
         if underground {
             guard monstersNear(pp, 32) < (caveOnly ? 4 : 6) else { return }
         }
+        var surfaceLeft = underground ? Int.max : surfaceRoom
+        if surfaceLeft <= 0 { return }
         var spawned = 0
         for _ in 0..<3 {
             var x = x0, z = z0
@@ -344,7 +367,8 @@ extension MobManager {
                 if m.collides(at, w) { continue }
                 finishMonster(m, game)
                 spawned += 1
-                if spawned >= (underground ? 2 : 4) { return }  // reference cluster cap: 4 a spawn attempt (it ran to 12)
+                surfaceLeft -= 1
+                if spawned >= (underground ? 2 : 4) || surfaceLeft <= 0 { return }  // reference cluster cap: 4 a spawn attempt (it ran to 12)
                 groupSize -= 1
                 if groupSize <= 0 { break }
             }
