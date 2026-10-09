@@ -648,3 +648,24 @@ branch, runs since 37875068675) and was a bot bug, not plants/spawning: its path
 overhang, but Steer always swam up in water (bobbed at the surface, then drowned idle), and pushing into a 2-high gap
 gave the swim climb-out boost (Player, matches the reference). Steer now sinks to a lower waypoint without pushing
 until level with it; idle bots tread water. All agent lanes green locally (cave 3/3 seeds). Test-only: no ship.
+
+## Task 25b1zzx (2026-10-09): voice bug notes on the Quest (playtest builds only)
+Say bugs out loud while playing; nothing to press. Code: quest/src/android/QuestVoiceNotes.swift (recorder),
+Sources/VoiceNoteCore.swift (speech segmenter, context, 2 GB cap; shared), quest/c/voice (AAudio mic + AAC encoder),
+quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.py (Mac side).
+- First launch of a playtest build: after ~6 s it turns Bug Notes to Always Listening, asks for the microphone once and
+  says so in a message. Pause > Options > Interface > Bug Notes: Always Listening / Push-to-Talk (click both sticks) / Off.
+  A small dot top-left shows it is listening (grey) or saving a note (red, "Note").
+- Only speech is kept (0.5 s before, 1 s after); silence is never written. Per note in
+  /sdcard/Android/data/com.blocksmith.quest/files/voicenotes: vn-*.aac (16 kHz mono AAC 24 kb/s, flushed as it goes),
+  vn-*.jsonl (build, position, dimension, biome, held item, mount, fps, recent events, a repro line, state every 5 s),
+  vn-*.png (what you saw). Folder capped at 2 GB, oldest first. The mic stops while the app is paused.
+- Game sound: the mic uses the VOICE_COMMUNICATION preset (echo cancellation) and the speech threshold rises with the
+  game's own output level, so music/explosions don't open notes; the synthetic test drops a game-sound-only clip.
+- Store builds: `STORE=1 quest/tools/build-apk.sh` leaves the recorder, mic code and RECORD_AUDIO out;
+  quest/tools/storecheck.sh proves it (a `[store]` commit builds and checks both APKs in the quest lane).
+- On the Mac: `~/ClaudeTools/quest/bugnotes` (headset plugged in) pulls new notes, transcribes them with ElevenLabs
+  Scribe via OpenRouter, drops wordless clips and writes docs/playtests/<date>/voice-notes.md (time, words, where you
+  were, screenshot). `--clean` also deletes the pulled notes from the headset.
+- Checks: `--questbugs --only voice` (10). Fix after the first CI pass: the Bug Notes row was hidden in the Quest pause
+  menu along with the Mac-only rows.
