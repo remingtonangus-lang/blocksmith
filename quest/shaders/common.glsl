@@ -79,13 +79,13 @@ vec3 lavaGlow(vec3 c, vec3 rel) {
 vec4 finalColor(vec4 c) { return vec4(pow(max(c.rgb, vec3(0.0)), vec3(u.misc.z)), c.a); }
 
 // Round 3 lighting (same maths as Sources/Shaders.swift sunShade/filmic): sky-lit faces in daylight blend the fixed
-// face shade toward a cool sky ambient + warm sun diffuse (golden near the horizon), weight w (0...0.75). Per vertex.
+// face shade toward a cool sky ambient + warm sun diffuse (golden near the horizon), weight w (0...0.85). Per vertex.
 vec3 sunShadeN(vec3 n, float base, float w, vec3 sd) {
     if (w <= 0.0) { return vec3(base); }
     vec3 l = normalize(sd);
     float g = clamp(l.y * 2.2, 0.0, 1.0);
     vec3 sunC = mix(vec3(1.22, 0.80, 0.48), vec3(1.04, 1.0, 0.93), g);
-    vec3 d = vec3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * clamp(dot(n, l), 0.0, 1.0));
+    vec3 d = vec3(0.86, 0.93, 1.06) * 0.66 + sunC * (0.46 * clamp(dot(n, l), 0.0, 1.0));
     return mix(vec3(base), d, w);
 }
 vec3 faceNormal(uint f) {

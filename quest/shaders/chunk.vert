@@ -83,7 +83,7 @@ void main() {
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     bool water = tintMode == 3u;
     oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;
-    float sw = (face < 6u && !water) ? 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
+    float sw = (face < 6u && !water) ? 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
     oShade = lit * sunShadeN(faceNormal(face), faceShade[face], sw, u.sunDir.xyz) * (water ? 1.0 : aoCurve[ao]);
     oDist = length(rel);
     oRel = rel;

@@ -239,7 +239,7 @@ static float3 sunShadeN(float3 n, float base, float w, float3 sd) {
     float3 l = normalize(sd);
     float g = saturate(l.y * 2.2);
     float3 sunC = mix(float3(1.22, 0.80, 0.48), float3(1.04, 1.0, 0.93), g);
-    float3 d = float3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * saturate(dot(n, l)));
+    float3 d = float3(0.86, 0.93, 1.06) * 0.66 + sunC * (0.46 * saturate(dot(n, l)));
     return mix(float3(base), d, w);
 }
 static float3 filmic(float3 c) {
@@ -295,7 +295,7 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
-    float sw = face < 6u ? 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w) : 0.0;
+    float sw = face < 6u ? 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w) : 0.0;
     float3 nw = face < 6u ? (d.model * float4(faceN[min(face, 5u)], 0.0)).xyz : float3(0.0, 1.0, 0.0);
     o.shade = lit * sunShadeN(nw, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
     o.dist = length(rel);
