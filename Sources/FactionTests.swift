@@ -120,7 +120,7 @@ enum FactionTests {
         check(worstBase < 1200, "factions: a Capital citadel within 1,200 blocks of spawn on 6 seeds (worst \(worstBase))")
 
         // The structure guard: taken once from the chunk folder, never grows afterwards.
-        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("factions-\(getpid())", isDirectory: true)
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("factions-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         try? fm.removeItem(at: tmp)
         let sm = SaveManager(dir: tmp.appendingPathComponent("w"))
         let b = [BlockID](repeating: STONE, count: CSQ * CH)
