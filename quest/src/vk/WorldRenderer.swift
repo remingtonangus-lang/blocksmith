@@ -85,7 +85,7 @@ final class WorldRenderer {
         u.zenith = V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi))
         u.horizon = V4(sky, skyGlow)
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
-        u.starTint = V4(1, 1, 1, simd_clamp((0.6 - daylight) / 0.35, 0, 1))
+        u.starTint = V4(1, 1, 1, game.starAlpha)                 // faint at sunset, full once the sun is well down
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
