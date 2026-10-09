@@ -49,7 +49,7 @@ static float3 sunShade(uint face, float base, float w, float3 sd) {
     float3 l = normalize(sd);
     float g = saturate(l.y * 2.2);
     float3 sunC = mix(float3(1.22, 0.80, 0.48), float3(1.04, 1.0, 0.93), g);
-    float3 d = float3(0.86, 0.93, 1.06) * 0.72 + sunC * (0.36 * saturate(dot(faceN[face], l)));
+    float3 d = float3(0.86, 0.93, 1.06) * 0.66 + sunC * (0.46 * saturate(dot(faceN[face], l)));
     return mix(float3(base), d, w);
 }
 // Cheap filmic curve for world surfaces (not HUD): soft shoulder above 0.9, a highlight lift above mid-grey (shadows and 0.5 untouched),
@@ -150,7 +150,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float3 lit = max(sky * skyTint, blk * mix(float3(1.06, 0.82, 0.56), float3(1.0, 0.95, 0.86), blk * blk));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(caveFill(lit, length(rel), u, 1.0, skyL), float3(1.0), u.sunDir.w);   // cave fill: unlit walls stay readable nearby
-    float sw = 0.75 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w);
+    float sw = 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * saturate((sky - blk) * 4.0 + 0.5) * (1.0 - u.sunDir.w);
     o.shade = lit * sunShade(face, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
     o.dist = length(rel);
     o.rel = rel;
