@@ -66,9 +66,14 @@ extension BorealStation {
     // The generator machine (BorealStation.build: hazard base and steel body, x 18...21, z 13...19, rows 1...4).
     static func isGenerator(_ dx: Int, _ ly: Int, _ dz: Int) -> Bool { dx >= 18 && dx <= 21 && dz >= 13 && dz <= 19 && ly >= 1 && ly <= 4 }
     static func inControlRoom(_ dx: Int, _ dz: Int) -> Bool { abs(dx) <= 6 && dz >= -24 && dz <= -16 }
-    // Past the fence (the extraction line): a few blocks outside the yard, on or above the surface.
+    // Past the fence (the extraction line): a few blocks outside the yard, at any height (the ground falls away
+    // steeply round some stations; the bunker itself lies well inside the line).
     static func outside(_ op: StationOp, _ p: V3) -> Bool {
-        max(abs(p.x - Float(op.cx)), abs(p.z - Float(op.cz))) > Float(yard + 3) && p.y > Float(op.S - 4)
+        max(abs(p.x - Float(op.cx)), abs(p.z - Float(op.cz))) > Float(yard + 3)
+    }
+    // Close to the line: extraction counts only for players who walked out (not a respawn or a teleport far off).
+    static func atLine(_ op: StationOp, _ p: V3) -> Bool {
+        max(abs(p.x - Float(op.cx)), abs(p.z - Float(op.cz))) < Float(yard + 16)
     }
 }
 
@@ -162,9 +167,12 @@ extension Game {
                 } else { op.fuse = f }
             }
             // Roused soldiers work the bulkhead doors (Mob.opensDoors), so no room keeps them shut in.
-            if alarm {
-                let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
-                for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && BorealStation.insideSite(site, m.pos) { m.stationDoors = true }
+            // Once the alarm stands down they go back to keeping to their rooms.
+            let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
+            for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.stationDoors != alarm {
+                // Rousing: soldiers inside. Standing down: any of them, also those who chased a player out past the fence.
+                if alarm ? (m.health > 0 && BorealStation.insideSite(site, m.pos))
+                         : max(abs(m.pos.x - Float(op.cx)), abs(m.pos.z - Float(op.cz))) < Float(BorealStation.yard + 80) { m.stationDoors = alarm }
             }
             guard op.stage == 1 else { continue }
 
@@ -217,7 +225,8 @@ extension Game {
             }
 
             // Extraction: both jobs done and every player past the fence.
-            if op.codes >= 1 && op.planted && players.allSatisfy({ BorealStation.outside(op, $0) }) {
+            if op.codes >= 1 && op.planted && health > 0 && players.allSatisfy({ BorealStation.outside(op, $0) })
+                && players.contains(where: { BorealStation.atLine(op, $0) }) {
                 op.stage = 2
                 op.silent = !op.loud
                 op.doneClock = clock
@@ -290,11 +299,6 @@ extension Game {
             if op.stage == 2 {
                 guard let d = op.doneClock, clock - d < 12 else { continue }
                 return ((op.silent ?? false) ? "Operation complete - silent" : "Operation complete - loud", 1, V4(0.55, 0.85, 0.45, 1))
-            }
-            // Roused soldiers work the bulkhead doors (Mob.opensDoors), so no room keeps them shut in.
-            if alarm {
-                let site = BorealAlarmState.Site(cx: op.cx, cz: op.cz, S: op.S)
-                for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && BorealStation.insideSite(site, m.pos) { m.stationDoors = true }
             }
             guard op.stage == 1 else { continue }
             let tail = alarm ? " - ALARM" : ""

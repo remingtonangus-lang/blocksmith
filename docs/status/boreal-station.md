@@ -63,12 +63,13 @@ saved in world.json ("stationOps"); a finished station stays finished and pays o
 - Sabotage the generator: use the machine in the generator hall (south-east). A 45 s charge; when it blows it wrecks
   the machine (blast + most of its body torn out) and the station hears it. A generator already wrecked some other way
   counts as sabotaged.
-- Extract: with both done, get past the fence (3 blocks outside the yard, on the surface).
+- Extract: with both done, walk out past the fence (3 blocks outside the yard, any height: the ground falls up to
+  6 below the yard round some stations). A respawn or teleport far away doesn't count; a dead player doesn't extract.
 - Silent (no alarm before extraction): Farsight Rifle, 24 heavy rounds, 2 golden apples, $250, "Cold Run" and the
   "Nobody Was Here" challenge. Loud: 90 rifle rounds, a golden apple, $100, "Cold Run".
 - Alarm consequences: the uplink locks; roused station soldiers open bulkhead doors (Mob.stationDoors: before this they
   walked straight at the noise and stood against the room's wall); squads of three come down the stairwell every 25 s
-  while a player is inside, three squads at most.
+  while a player is inside, three squads at most. Once the alarm stands down they keep to their rooms again.
 - Use works with a gun in hand (it runs before the gun's aim), and only on these objective blocks.
 
 ### Checks (borealtest, every seed)
@@ -83,7 +84,7 @@ Fixed on the way: BaseWatch.of keyed by ObjectIdentifier gave a new Game allocat
 game's watch (alarms and operations leaked between harness games); it now holds a weak owner.
 
 ### Evidence (2026-10-10, cloud thread, lavapipe)
-- `questcheck --boreal-only --boreal-seeds 12345,777,424242,1,2026`: all checks passed (75 operation checks), 54 s.
+- `questcheck --boreal-only --boreal-seeds 12345,777,424242,1,2026,99,2024`: all checks passed (119 operation checks), 112 s.
 - Full `tools/cloud-setup.sh check` (linux-check + questcheck --render --questsim --golden): all checks passed, 6 min.
 
 ### Pre-mortem
@@ -93,4 +94,12 @@ game's watch (alarms and operations leaked between harness games); it now holds 
 3. Garrison shut in rooms makes the alarm toothless: roused soldiers now use the doors (checked under the game AI).
 4. Dying mid-run or reloading: state is saved; a running fuse keeps its seconds (fuse saved).
 5. Creative mode pays the reward too (alarm sightings need survival, so creative is always silent): left as is.
-Open: every console in the control room destroyed would block the copy (40 consoles; not handled).
+Open: co-op pays the reward to the first player only. Every console in the control room destroyed would block the copy (40 consoles; not handled).
+
+### Verifier (Opus, independent) findings
+Fixed: extraction required standing within 4 of the yard level, so leaving over a downhill fence never counted (227 of
+357 cells on one side, seed 12345): now any height, checked on each seed's lowest side; a teleport or respawn far off
+counted as extraction (now only near the line, alive); the HUD bar function also set the soldiers' door flag every
+frame (removed); held jetpack/faction gear took the use before the objectives (objective use now runs first); the door
+flag stayed on after the alarm (cleared on stand-down, checked). Not changed: "explosions never reach the noise bus"
+was wrong (Explosion.explode calls baseNoise); co-op reward to one player (noted above).

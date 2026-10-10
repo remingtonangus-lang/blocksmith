@@ -317,13 +317,26 @@ enum BorealTests {
         let planted = g.stationUse(gen)
         let inv0 = sniperCount(g), money0 = g.money
         secs(3)
-        g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8))
+        // A teleport (or a respawn) far off is not walking out.
+        g.player.pos = at(0, S + 40, Float(BorealStation.yard + 120))
+        secs(1)
+        check(g.stationOps[key]?.stage == 1, "boreal ops: a teleport far from the station doesn't count as extraction (stage \(g.stationOps[key]?.stage ?? -1))")
+        // Out over the fence on the station's lowest side (the ground can fall away well below the yard).
+        var low = (V3(0, 0, 0), Int.max)
+        for (sx, sz) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+            let d = BorealStation.yard + 6
+            let x = cx + sx * d, z = cz + sz * d
+            var y = S + 24
+            while y > S - 60 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+            if y < low.1 { low = (V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5), y) }
+        }
+        g.player.pos = low.0
         secs(1)
         let op = g.stationOps[key]
         let rewarded = sniperCount(g) == inv0 + 1 && g.money == money0 + 25000
         check(planted && op?.stage == 2 && op?.silent == true && rewarded && g.advancements.contains("adventure/station_silent") && g.advancements.contains("adventure/station_op")
               && (g.stationOpBar()?.0 ?? "").hasSuffix("silent"),
-              "boreal ops: charge set, out past the fence: complete and silent, Farsight Rifle and $250, both advancements (stage \(op?.stage ?? -1), bar \"\(g.stationOpBar()?.0 ?? "none")\")")
+              "boreal ops: charge set, out past the fence on the lowest side (ground \(low.1 - S) from the yard): complete and silent, Farsight Rifle and $250, both advancements (stage \(op?.stage ?? -1), bar \"\(g.stationOpBar()?.0 ?? "none")\")")
         var steel0 = 0, steel1 = 0
         func countGen() -> Int {
             var n = 0
@@ -406,8 +419,19 @@ enum BorealTests {
             g2.tick(0.05); g2.player.pos = hall; g2.player.vel = .zero; g2.health = 20; g2.menu = nil; t += 0.05
             out = archive.contains { $0.pos.x > Float(cx - 14) }
         }
+        // The alarm stands down once things are quiet (player gone): the soldiers keep to their rooms again.
+        let doorsDuring = archive.allSatisfy { $0.stationDoors }
+        g2.survival = false                                          // gone: nobody can be seen or fought
+        var quiet: Float = 0
+        while quiet < BorealAlarmState.standDown + 15 && g2.borealAlarm.sites[key]?.on != false {
+            g2.tick(0.05); g2.player.pos = hall + V3(0, 0, Float(BorealStation.yard + 40)); g2.player.vel = .zero; g2.player.flying = true; g2.health = 20; g2.menu = nil
+            quiet += 0.05
+        }
+        g2.basesTick(1.0)
+        check(g2.borealAlarm.sites[key]?.on == false && !g2.mobs.mobs.contains { $0.stationDoors },
+              "boreal ops: after the alarm stands down no soldier works the doors (\(g2.mobs.mobs.filter { $0.stationDoors }.count), alarm \(g2.borealAlarm.sites[key]?.on ?? false), \(g2.borealAlarm.log.suffix(4).joined(separator: "; ")))")
         if !out { for m in archive { print("  archive soldier at \(m.pos.x - Float(cx)) \(m.pos.y - Float(F)) \(m.pos.z - Float(cz)), aggro \(m.aggro), doors \(m.stationDoors), gave up \(m.gaveUp(hall)), lastSeen \(String(describing: m.soldierBrain.lastSeen)), path \(m.path.nodes.count) partial \(m.path.partial) door \(String(describing: m.path.door))") } }
-        check(!archive.isEmpty && shut && out && archive.allSatisfy { $0.stationDoors },
+        check(!archive.isEmpty && shut && out && doorsDuring,
               String(format: "boreal ops: a roused soldier leaves the shut archive through its bulkhead door (%d there, out after %.1f s)", archive.count, t))
         g2.mobs.mobs.removeAll()
     }
