@@ -189,6 +189,14 @@ extension Game {
             }
             op.alarmWas = alarm
 
+            // A generator wrecked some other way (rockets, a blast of the player's own) counts as sabotaged: there
+            // would be nothing left to set the charge on.
+            if !op.planted && stationGeneratorLeft(op) < 56 {
+                op.planted = true; op.blown = true
+                onToast?("The generator is wrecked")
+                st.log.append("\(key) generator wrecked")
+            }
+
             // The copy: progresses while a player stays at the console and the uplink isn't locked.
             if let c = op.copyAt, op.codes < 1 {
                 let at = V3(c[0], c[1], c[2])
@@ -228,6 +236,13 @@ extension Game {
             guard world.block(x, y, z) != AIR, hashf(dx, ly, dz, 0xB0E5) < 0.6 else { continue }
             world.setBlock(x, y, z, ly == 1 && hashf(dx, 0, dz, 0xF1E) < 0.3 ? fire : AIR)
         } } }
+    }
+
+    // Machine blocks still standing (112 when whole).
+    func stationGeneratorLeft(_ op: StationOp) -> Int {
+        var n = 0
+        for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where world.block(op.cx + dx, op.F + ly, op.cz + dz) != AIR { n += 1 } } }
+        return n
     }
 
     // A squad of three down the stairwell: they spawn at its foot and make for the player.
@@ -290,7 +305,7 @@ extension Game {
                 return ((alarm ? "Uplink locked" : "Copying uplink codes \(Int(op.codes * 100))%") + tail, op.codes, col)
             }
             let done = (op.codes >= 1 ? 1 : 0) + (op.planted ? 1 : 0)
-            let next = op.codes < 1 ? "Copy the uplink codes (control room)" : (!op.planted ? "Sabotage the generator" : "Extract: get past the fence")
+            let next = op.codes < 1 ? "Copy the uplink codes" : (!op.planted ? "Sabotage the generator" : "Extract past the fence")
             return ("\(next)\(tail)", Float(done) / 3, col)
         }
         return nil

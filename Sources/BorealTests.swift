@@ -378,10 +378,11 @@ enum BorealTests {
         secs(Int(BorealStation.waveEvery) * 4) { g.baseNoise(at: hall, kind: .gunshot) }
         check(g.stationOps[key]?.waves == BorealStation.maxWaves, "boreal ops: squads stop at \(BorealStation.maxWaves) (\(g.stationOps[key]?.waves ?? 0))")
 
-        // Loud extraction: both jobs, then out; the smaller reward and no silent challenge.
+        // Loud extraction: both jobs, then out; the smaller reward and no silent challenge. The generator is
+        // already wrecked from the silent run (same world): that counts as the sabotage, no charge needed.
         g.stationOps[key]?.codes = 1
-        g.player.pos = at(17, F + 1, 13)
-        _ = g.stationUse(gen)
+        secs(1)
+        check(g.stationOps[key]?.planted == true && g.stationOps[key]?.blown == true, "boreal ops: a generator already wrecked counts as sabotaged (\(g.stationGeneratorLeft(g.stationOps[key]!)) machine blocks left)")
         let money1 = g.money
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8))
         secs(1)
