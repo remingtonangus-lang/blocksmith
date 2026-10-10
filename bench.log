@@ -1,0 +1,83 @@
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+bench: calibration 1.62 ms (min 1.54, max 2.58) [0]
+bench: gen starts
+bench gen: structure starts for the sample (cold) 2.62 ms/chunk
+bench gen slow chunk -80,-25: 5.3 ms (plants 2.9, caves 1.4, ores 0.4; starts 0.0, place 0.2)
+bench gen slow chunk -59,14: 5.1 ms (caves 0.7, ores 0.4, stone 0.3; starts 0.0, place 3.4)
+bench gen slow chunk 53,22: 2.3 ms (caves 1.3, ores 0.3, columns 0.3; starts 0.0, place 0.1)
+bench gen phases (ms/chunk): columns 0.21, stone 0.17, surface 0.02, caves 0.84, ores 0.22, trees 0.04, plants 0.24, starts 0.01, structures 0.18
+bench gen structure starts (ms over 24 chunks): capital_city 52.4, boreal_station 49.5, military_base 31.1, village 12.7, mansion 3.5, temple 3.4, pillager_outpost 2.9, trail_ruins 1.7
+bench gen: stone-fill interpolation vs Lattice.sample: 0 mismatching samples (must be 0)
+bench gen: 2.00 ms/chunk (p95 5.11, max 5.31) single-thread | 892 chunks/s parallel
+bench: gen took 0.7 s (live worlds 0, games 0)
+bench: mesh starts
+bench mesh: 4.37 ms/chunk (24 sections, 81 non-empty), section mean 182 us p95 753 us max 928 us, 4942 quads/chunk
+bench mesh_lod1: 4.36 ms/chunk (24 sections, 81 non-empty), section mean 182 us p95 767 us max 925 us, 2515 quads/chunk
+bench: mesh took 0.7 s (live worlds 0, games 0)
+bench: startup starts
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 638 ms, upload 323 ms)
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 577 ms, upload 227 ms)
+bench startup: world+game init 15 ms, first load (r 4) 165 ms, renderer 1893 ms (textures 592 ms, shaders 0 ms), fill rd 12 2.86 s
+bench: startup took 6.7 s (live worlds 1, games 0)
+bench: frame starts
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 605 ms, upload 247 ms)
+bench frame 800p rd 16: encode p50 0.89 ms, GPU p50 3.68 ms (max 4.43), 258 chunks drawn
+bench frame 1080p rd 16: encode p50 1.01 ms, GPU p50 4.49 ms (max 5.21), 270 chunks drawn
+bench frame 4k rd 16: encode p50 0.87 ms, GPU p50 6.36 ms (max 7.04), 270 chunks drawn
+bench frame: 697 visible sections, 1221 draw calls, 253k quads
+bench: frame took 4.0 s (live worlds 1, games 0)
+bench: edit starts
+bench edit: break mean 0.74 ms max 0.98 ms, place mean 0.73 ms max 0.85 ms (synchronous remesh)
+bench: edit took 0.8 s (live worlds 1, games 0)
+bench: mobs starts
+bench mobs: tick 0.21 ms empty, 0.45 ms with 150 mobs (p95 1.21, max 1.95), 157 alive
+bench: mobs took 0.8 s (live worlds 1, games 0)
+bench: save starts
+bench save: 145 chunks, save 1.42 ms/chunk (main thread 2.9 ms total, unchanged re-save 1.2 ms), load 0.23 ms/chunk (145 ok), 6.2 KB/chunk
+bench: save took 0.9 s (live worlds 1, games 0)
+bench: tnt starts
+bench tnt: blast mean 0.93 ms max 1.57 ms (main thread) | re-mesh done in 0.10 s, tick p95 1.22 max 1.22 ms
+bench: tnt took 0.8 s (live worlds 1, games 0)
+bench: fluids starts
+bench fluids: tick p50 0.29 p95 1.60 max 5.13 ms, 6782 sections re-meshed in 6 s, 1038 cells still pending
+bench: fluids took 6.7 s (live worlds 1, games 0)
+bench: ships starts
+bench ships: edit remesh 2.78 ms, blast 1.87 ms + remesh 5.09 ms (3037 blocks left, 1 pieces split off)
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 584 ms, upload 229 ms)
+bench ships: drawing two vessels at 1080p adds 0.04 ms encode, 0.04 ms GPU (66 draw calls)
+bench ships: docked 3077 blocks in 11.20 ms (world remesh 0.05 s), assembled 3057 in 18.88 ms
+bench ships: frigate 3037 blocks spawn 1.98 ms, mesh 2.36 ms; tick 0.51 ms (p95 1.76), physics 0.22 ms; collide 0.93 us near ships, 0.25 us far; 13 ships
+bench: ships took 2.2 s (live worlds 1, games 0)
+bench: worlds still alive after the scenes: 1
+bench: live world: jobs 0, queue ops 0, gen in flight 0, results 0/0, chunks 593
+bench: wrote 105 metrics to snaps/bench_part_0.json
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+bench: flight8 starts
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 592 ms, upload 236 ms)
+bench flight8: frame p50 2.13 p95 2.68 p99 3.64 max 13.72 ms, 0 hitches >25 ms | tick p95 1.02 (update p95 0.36, max 1.57) encode p95 0.93 GPU p95 2.63 ms
+bench flight8: coverage min 92% mean 99% | gen 24 chunks/s (1.9 ms each on a worker) mesh 992 sections/s (249 us each) | realtime 1.00x
+bench flight8: 328 chunks, chunk data 25 MB, meshes 24 MB (slabs 40 MB), resident peak 190 MB, preload 519 ms
+bench: flight8 took 14.1 s (live worlds 0, games 0)
+bench: worlds still alive after the scenes: 0
+bench: wrote 36 metrics to snaps/bench_part_flight8.json
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+bench: flight16 starts
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 631 ms, upload 242 ms)
+bench flight16: frame p50 3.02 p95 4.56 p99 7.24 max 39.92 ms, 2 hitches >25 ms | tick p95 2.26 (update p95 0.54, max 2.10) encode p95 1.12 GPU p95 3.94 ms
+bench flight16: coverage min 77% mean 91% | gen 44 chunks/s (1.8 ms each on a worker) mesh 3249 sections/s (223 us each) | realtime 1.00x
+bench flight16: 1056 chunks, chunk data 86 MB, meshes 47 MB (slabs 72 MB), resident peak 319 MB, preload 1658 ms
+bench: flight16 took 15.3 s (live worlds 0, games 0)
+bench: worlds still alive after the scenes: 0
+bench: wrote 36 metrics to snaps/bench_part_flight16.json
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+bench: flight24 starts
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 574 ms, upload 244 ms)
+bench flight24: frame p50 4.34 p95 6.21 p99 14.11 max 19.05 ms, 0 hitches >25 ms | tick p95 2.75 (update p95 0.74, max 11.27) encode p95 2.05 GPU p95 5.23 ms
+bench flight24: coverage min 81% mean 89% | gen 42 chunks/s (1.8 ms each on a worker) mesh 3898 sections/s (256 us each) | realtime 1.00x
+bench flight24: 1904 chunks, chunk data 163 MB, meshes 75 MB (slabs 104 MB), resident peak 491 MB, preload 3424 ms
+bench: flight24 took 17.1 s (live worlds 0, games 0)
+bench: worlds still alive after the scenes: 0
+bench: wrote 36 metrics to snaps/bench_part_flight24.json
+bench: merged 207 metrics into snaps/bench.json
+compare: runner speed factor 1.00 (calibration 2.04 -> 1.623 ms)
+compare: 204 metrics, 0 gated regressions (table in snaps/bench.md)

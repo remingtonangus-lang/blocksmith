@@ -1,0 +1,13 @@
+rerun (debug build): fi
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "fi"
+(lldb) run
+2026-10-10 02:12:01.245439+0000 Blocksmith[24286:63416] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-10 02:12:01.356574+0000 Blocksmith[24286:63416] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-10 02:12:01.986845+0000 Blocksmith[24286:62918] [vppu]         vpPlatformUtil.mm:312   Cannot retrieve theDeviceBoardID string...
+2026-10-10 02:12:02.158229+0000 Blocksmith[24286:62918] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x600000d58f20> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-10 02:12:39.378825+0000 Blocksmith[24286:63460] [AMCP] 170243          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 105395 ms, upload 33003 ms)
+2026-10-10 02:14:59.355544+0000 Blocksmith[24286:63460] [AMCP] 170243          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+usb-gip: watching for wired Xbox (GIP) controllers: 045e, 0e6f, 0f0d, 10f5, 1532, 20d6, 24c6, 2dc8
