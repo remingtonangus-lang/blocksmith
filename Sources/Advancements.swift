@@ -94,7 +94,7 @@ enum Advancements {
         // Steelhold fortresses (original content).
         Advancement(id: "adventure/steelhold", tab: 3, title: "Behind White Walls", desc: "Set foot inside a Capital citadel", crit: .event("steelhold")),
         Advancement(id: "adventure/steelhold_gun", tab: 3, title: "Locked and Loaded", desc: "Get your hands on a Steelhold gun",
-                    crit: .anyItem(["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc", "gun_sidearm"])),
+                    crit: .anyItem(["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc", "gun_sidearm", "gun_revolver"])),
         Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Capital 42 cm turret", crit: .event("deck_gun")),
         Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Capital Bulwark",
                     crit: .event("ironclad"), challenge: true),

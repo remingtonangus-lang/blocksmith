@@ -1823,6 +1823,7 @@ final class Game {
         if m.leashed { drops.spawn(ItemStack(Items.id("lead"), 1), at: at) }
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         if m.killedByPlayer { advancementKill(m) }
+        Honour.mobDied(self, m)                                          // honour, bounties, the sheriff's revolver
         captainDied(m)
         soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)

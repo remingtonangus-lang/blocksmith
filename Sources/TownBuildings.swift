@@ -22,9 +22,20 @@ extension Village {
         let saloon = k == .saloon
         let wallH = saloon ? 6 : 5
         house(&w, b, m0, wallH: wallH)
-        // False front: the street wall carried up past the roof ridge (ridge = wallH + (d + 1) / 2, house's gable) and
-        // over the eaves at the sides, capped with a slab line; the eave in front of it is cut away so the facade reads
-        // as one flat face from the street.
+        falseFront(&w, b, m, wallH: wallH, band: blk(bandColor(k) + "_terracotta", m.log))
+        // Awning over the doorway (frontier towns: a covered boardwalk the width of the front), the sign above the door.
+        if l.frontier { boardwalk(&w, b, m, wallH: wallH) }
+        else { for u in max(0, l.w / 2 - 2)...min(l.w - 1, l.w / 2 + 2) { b.set(&w, u, wallH - 1, -1, m.slab) } }
+        sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])
+        shopInside(&w, b, m, k, saloon: saloon)
+    }
+
+    // False front: the street wall carried up past the roof ridge (ridge = wallH + (d + 1) / 2, house's gable) and over
+    // the eaves at the sides, capped with a slab line, with a coloured band; the eave in front of it is cut away so the
+    // facade reads as one flat face from the street. Returns the top row.
+    @discardableResult
+    static func falseFront(_ w: inout StructWriter, _ b: LB, _ m: Mats, wallH: Int, band: BlockID) -> Int {
+        let l = b.l
         let top = wallH + (l.d + 1) / 2 + 1
         for u in -1...l.w {
             for dy in wallH..<top { b.set(&w, u, dy, 0, m.planks) }
@@ -38,11 +49,12 @@ extension Village {
             w.pillarDown(x, l.y + wallH - 1, z, m.log, minY: l.y - 40)
         }
         // A coloured band across the front, the shop's colour.
-        let band = blk(bandColor(k) + "_terracotta", m.log)
         for u in 0..<l.w { b.set(&w, u, top - 2, 0, band) }
-        // Awning over the doorway, the sign above the door.
-        for u in max(0, l.w / 2 - 2)...min(l.w - 1, l.w / 2 + 2) { b.set(&w, u, wallH - 1, -1, m.slab) }
-        sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])
+        return top
+    }
+
+    static func shopInside(_ w: inout StructWriter, _ b: LB, _ m: Mats, _ k: ShopKind, saloon: Bool) {
+        let l = b.l
         // Inside: the counter, the keeper behind it, the bed in the back corner, light.
         let cv = l.d - 4                                   // counter row: the keeper behind it (cv + 1), fittings at the back (d - 2)
         let counter = blk("stripped_\(Blocks.key(m.log).replacingOccurrences(of: "stripped_", with: ""))", m.planks)

@@ -46,7 +46,7 @@ enum Village {
         }
     }
 
-    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut, shop, saloon }
+    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut, shop, saloon, office }
 
     struct Lot {
         let kind: Kind
@@ -56,12 +56,13 @@ enum Village {
         let y: Int                // floor level (internal)
         let seed: UInt64
         let job: String
+        var frontier = false      // frontier town fittings (FrontierTown.swift): boardwalks, the sheriff's office
     }
 
     static func size(_ k: Kind) -> (Int, Int) {
         switch k {
         case .smallHouse, .jobHut: return (5, 5)
-        case .mediumHouse: return (7, 6)
+        case .mediumHouse, .office: return (7, 6)
         case .bigHouse: return (9, 7)
         case .farm: return (9, 7)
         case .pen: return (8, 8)
@@ -86,13 +87,15 @@ enum Village {
                 lo = min(lo, y); hi = max(hi, y)
             }
             guard hi - lo <= 12 else { return nil }
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style)
+            // Frontier fittings only where a save hasn't already generated part of the town (FrontierTown.swift).
+            let frontier = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyFrontier) } ?? true
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier)
         }
     }
 
     // MARK: Layout
 
-    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style) -> StructureStart? {
+    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true) -> StructureStart? {
         var rng = SRng(seed)
         let m = mats(style)
         var occupied = Set<IVec2Key>()
@@ -192,6 +195,7 @@ enum Village {
             }
         }
         guard lots.count >= 6 else { return nil }
+        if frontier { frontierLots(&lots, ox: ox, oz: oz) }
         var pieces: [Piece] = []
         let plaza = cy
         let styleV = style
@@ -499,6 +503,8 @@ enum Village {
             villager(&w, b, u: l.w / 2, v: 2)
         case .shop, .saloon:
             shopLot(&w, b, m, ShopKind(rawValue: l.job) ?? .general)
+        case .office:
+            officeLot(&w, b, m)
         case .temple:
             house(&w, b, m, wallH: 11, roof: false)
             b.fill(&w, 0, 11, 0, l.w - 1, 11, l.d - 1, m.foundation)

@@ -33,6 +33,12 @@ enum TownLaw {
         var placed: [[Int]] = []                    // player-placed blocks in towns (newest last, capped)
         var deposits: [String: [String: Int]]? = nil  // "x,y,z" of a town chest -> item key -> what the player put in
         var sheriffs: [String: String]? = nil       // town -> its one sheriff (person name)
+        // Honour.swift: the player's honour, today's capped gains ("day:source"), bounties (cents) and the day each
+        // town's bounty last grew.
+        var honour: Float? = nil
+        var honourGains: [String: Float]? = nil
+        var bounty: [String: Int]? = nil
+        var bountyDay: [String: Int]? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -52,6 +58,7 @@ enum TownLaw {
 
     static func reset() {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
+        Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0
         offences = 0; lastTick = -1
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
@@ -240,6 +247,7 @@ enum TownLaw {
         let h = heat(town) + add
         state.heat[town] = h
         offences += 1
+        Honour.crime(g, heat: add, assault: victim != nil)
         let law = g.mobs.mobs.filter { isTownsperson($0) && isLaw($0) && simd_length($0.pos - g.player.pos) < 40 }
             .min { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }
         if h >= hostileHeat {
@@ -277,6 +285,7 @@ enum TownLaw {
             }
         }
         if fresh {
+            Honour.townTurned(g, town)
             if witness.villager?.role != "sheriff" { Townsfolk.townLastLine = -100; TownVoice.speak(g, witness, .angry) }
             g.onToast?("\(town) has turned on you!")
         }
@@ -299,8 +308,9 @@ enum TownLaw {
         lastTick = g.clock
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         // Heat cools; hostility runs out.
+        let cool = Honour.coolRate(Honour.value)
         for (t, h) in state.heat where !isHostile(t) {
-            let n = h - dt / 90
+            let n = h - dt * cool / 90
             state.heat[t] = n > 0 ? n : nil
         }
         for (t, s) in state.hostile {
@@ -324,9 +334,10 @@ enum TownLaw {
             if o.villager?.role == "sheriff" { sheriffs[town(of: o, g), default: []].append(o) }
         }
         oneSheriff(g, sheriffs)
-        guard let near = nearest else { inTown = nil; return }
+        guard let near = nearest else { inTown = nil; Honour.tick(g, town: nil); return }
         let here = town(of: near, g)
         inTown = here
+        Honour.tick(g, town: here)
         let day = Int(g.time / DAY_LENGTH)
         if sheriffs[here] != nil { state.appointed[here] = day }
         else if day - (state.appointed[here] ?? -99) >= 3, squareLoaded(g, near) {

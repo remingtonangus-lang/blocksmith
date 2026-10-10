@@ -330,10 +330,18 @@ extension Game {
         guard m.kind == .villager else { return false }
         if m.villager?.person == nil { Townsfolk.setup(m, game: self) }
         guard let v = m.villager else { return false }
+        // The law takes a bounty owed in their town (and your surrender, mid-fight): Honour.swift.
+        if survival && !m.baby && Honour.settle(self, m) { return true }
         if m.town.anger > 0 { TownVoice.speak(self, m, .angry); return true }
         if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }
         if m.lying {
             onToast?("\(v.person ?? "They") is asleep.")
+            return true
+        }
+        // Nobody serves a wanted man: a bounty in this town closes its counters until it's paid.
+        if survival && !m.baby && v.tradeKind != nil && Honour.bounty(TownLaw.town(of: m, self)) > 0 {
+            m.face(player.pos)
+            Townsfolk.say(self, m, "Not while there's a price on your head. Square it with the sheriff.")
             return true
         }
         if !m.baby, let k = v.shopKind {
