@@ -21,6 +21,9 @@ enum MainGunTests {
         pm.simulated = PadSnapshot()                            // rumble requests are logged (rumbleLog)
         defer {
             g.player.pos = home; g.player.vel = .zero; g.player.flying = wasFlying; g.time = wasTime
+            // The shots streamed the world around the frigate, far from the start: load the start again for the
+            // checks that run after this one (they stand mobs on the ground around the player).
+            _ = w.loadSync(center: home, radius: 8)
             pm.simulated = wasSim
             g.shake = 0
         }
