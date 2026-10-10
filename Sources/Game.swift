@@ -268,6 +268,13 @@ final class Game {
             sfx(.gunDistant(k), v, at: p)
             return
         }
+        if riding != nil, let p = pos {      // a ridden horse hears every gunshot and blast (HorseFeel.swift)
+            switch s {
+            case .gun(let k) where WeaponAudio.hasDistant(k): horseHears(at: p, kind: .gunshot, power: 1)   // shots only (not ricochets, alarms, radios)
+            case .explodeSmall, .explodeLarge: horseHears(at: p, kind: .explosion, power: 2)
+            default: break
+            }
+        }
         if audio.record != nil { audio.record![s.name, default: 0] += 1 }
         Feedback.sound(self, s, v, at: pos)        // rumble + the one subtitle system (HudExtras, AudioSettings.subtitles)
         guard let snd = sound else { return }
@@ -825,8 +832,11 @@ final class Game {
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
         let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
         mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0
+        mi.spur = (p.l3 && !q.l3) || (input.control && !HorseFeel.controlWas)
+        HorseFeel.controlWas = input.control
         if push <= 0.3 { player.sprinting = false }
-        if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
+        // (Not on a horse: the horse keeps its gait while the rider draws a bow or eats; HorseFeel.swift.)
+        if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             let chest = inventory.armor[1]
@@ -951,6 +961,9 @@ final class Game {
         if useNow, let r = riding, stickBoost(r) { return }
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
+        // Riding a horse and aiming at it: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift).
+        // Aimed anywhere else, use does what it always does (eat, place, flip a lever, brush a block).
+        if useNow, let r = riding, mobs.raycast(player.eye, player.look, maxDist: 4).map({ $0.0 === r }) ?? false, horseUse(r) { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).

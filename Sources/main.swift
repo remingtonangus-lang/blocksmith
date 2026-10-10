@@ -1064,6 +1064,11 @@ enum Snapshot {
             }
             if townFails > 0 { return 1 }
         }
+        if CommandLine.arguments.contains("--horsetests") {
+            var horseFails = 0
+            HorseTests.run(game: game) { ok, what in print("horsetest \(ok ? "ok  " : "FAIL") \(what)"); if !ok { horseFails += 1 } }
+            if horseFails > 0 { return 1 }
+        }
         if CommandLine.arguments.contains("--posecheck") && !PoseCheck.run(game: game) { return 1 }
         if let secs = Float(arg("--fortresstest") ?? ""), !MobTests.fortressFight(game: game, world: world, seconds: secs) { return 1 }
         if CommandLine.arguments.contains("--flighttest") {

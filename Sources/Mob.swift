@@ -366,6 +366,7 @@ final class Mob {
     var boostTime: Float = 0        // pig / magmastrider stick boost: elapsed and total seconds (0 total = none)
     var boostTotal: Float = 0
     var temper = 0                  // horse taming progress
+    var horse: HorseState?          // ridden-horse gait, stamina and bond (HorseFeel.swift)
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
@@ -481,6 +482,7 @@ final class Mob {
         strafe = 0
         path.climbUp = false
         hurt = max(0, hurt - dt)
+        if let h = horse { h.coolDown(dt) }
         invulnerable = max(0, invulnerable - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
