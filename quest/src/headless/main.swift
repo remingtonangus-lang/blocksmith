@@ -182,7 +182,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             if let s = world.gen.structures?.nearest("capital_city", x: Int(spawn.x), z: Int(spawn.z), maxRegions: 16) {
                 let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
                 let ext = Float(max(s.max.x - s.min.x, s.max.z - s.min.z))
-                shots.append(("capital_city", c + V3(0, ext * 0.35, ext * 0.6), 0.27, 0, -0.5, false))   // forward = -z
+                // Within the questcheck world's 6-chunk view (from 0.6 x the extent out the city was all fog).
+                shots.append(("capital_city", c + V3(0, ext * 0.22, ext * 0.36), 0.27, 0, -0.55, false))   // forward = -z
                 // The Capital market (CapitalTown.swift): the general store's front from the walkway, keeper and
                 // townsfolk spawned. Storefronts face north, the sign over the door.
                 world.pendingMobs.removeAll()
@@ -193,7 +194,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                    let (sp, _) = world.blockEntities.first(where: { $0.1.kind == .sign && $0.1.lines.contains(ShopKind.general.name)
                        && abs(Float($0.0.x) - kp.x) < 8 && abs(Float($0.0.z) - kp.z) < 8 }) {
                     let target = V3(Float(sp.x) + 0.5, Float(sp.y) - 0.5, Float(sp.z) + 0.5)
-                    let eye = target + V3(-4, 1.2, -9)
+                    let eye = target + V3(-3, 0.6, -6)
                     let f = simd_normalize(target - eye)
                     shots.append(("capital_market", eye - V3(0, game.player.eyeHeight, 0), 0.26, atan2f(-f.x, -f.z), asinf(f.y), false))
                 } else { print("golden: no general store in the capital (capital_market skipped)") }

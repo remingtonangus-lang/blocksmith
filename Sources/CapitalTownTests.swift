@@ -66,8 +66,19 @@ extension TownTests {
         var signs = 0, welcome = "", bells = 0, beds = 0
         let r = CapitalCity.N * CapitalCity.lot + 8
         for (q, be) in w.blockEntities where be.kind == .sign && abs(q.x - Int(centre.x)) < r && abs(q.z - Int(centre.z)) < r {
-            if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { signs += 1 }
+            // A sign counts when its block is still a sign (a later fill could have replaced it, leaving the text).
+            if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) && Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_sign") { signs += 1 }
+            else if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { print("  sign entity without a sign block at \(q.x) \(q.y) \(q.z): \(Blocks.key(w.block(q.x, q.y, q.z)))") }
             if be.lines.first == "Welcome to" { welcome = be.lines[1] }
+        }
+        if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil, let (_, kp) = w.pendingMobs.first(where: { $0.0 == "villager:shop_general" }) {
+            // The general store's front, rows from the roof down (v -1 then v 0), u across.
+            let sx = Int(floor(kp.x)) - CapitalTown.storeW / 2, sz = Int(floor(kp.z)) - (CapitalTown.storeD - 3), y0 = Int(floor(kp.y))
+            for v in [-1, 0] { for dy in stride(from: 6, through: 0, by: -1) {
+                print("  front v\(v) dy\(dy): " + (-1...CapitalTown.storeW).map { u in
+                    let k = Blocks.key(w.block(sx + u, y0 + dy, sz + v)); return String((k == "air" ? "." : k).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0)
+                }.joined())
+            } }
         }
         let bell = Blocks.id("bell")
         w.forEachBlock(around: IVec3(Int(centre.x), Int(centre.y), Int(centre.z)), r: r, ry: 24) { b, _, _, _ in
