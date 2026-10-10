@@ -8,11 +8,17 @@ import simd
 //   tools/bench_routes.sh [--quest] [--secs N]      all six, each in its own process -> snaps/routes.{json,md}
 // Routes: plains (spawn), forest, village, cave, capital (Capital city, the Steelhold base's battle ground) and
 // ashvault (through the Ashguard citadel in the Deep, its units spawning and fighting as the chunks load).
+// Playtest routes (Oct 10 voice notes, seed 2943808052895834412 unless --seed is given): flyover (fast creative flight,
+// 60 blocks/s 50 blocks up, over the taiga and peaks where Auto Render Distance stepped 16 -> 13) and taiga (a walk
+// through the taiga village at -280 -1030 where the headset showed 53 fps).
 // --quest: Quest-equivalent load on the Mac: two eye views per tick at 1440x1584 (Quest 2 recommended per-eye
 // size), the Quest default render distance 8, budget 13.9 ms (72 Hz). The Quest renderer is Vulkan and its GPU is
 // slower, so this is a proxy for CPU-side cost and scene load; device numbers come from the app's logcat perf line.
 extension Bench {
-    static func route(_ device: MTLDevice, _ seed: UInt64, _ name: String) {
+    static let playtestSeed: UInt64 = 2943808052895834412
+
+    static func route(_ device: MTLDevice, _ benchSeed: UInt64, _ name: String) {
+        let seed = (name == "flyover" || name == "taiga") && arg("--seed") == nil ? playtestSeed : benchSeed
         let quest = CommandLine.arguments.contains("--quest")
         if quest { World.fluidSeconds = 0.002; World.lodNear = 5 }      // as QuestApp sets them
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }
@@ -52,6 +58,12 @@ extension Bench {
                 }
             } } }
             speed = 4.3; over = nil
+        case "flyover":
+            p = V3(-859, 0, -710); speed = 60; over = 50; heading = atan2(-127, 276)
+        case "taiga":
+            if let s = world.gen.structures?.nearest("village", x: -280, z: -1030, maxRegions: 4) {
+                p = V3(Float(s.min.x - 24), 0, Float(s.min.z + s.max.z) / 2)
+            } else { print("bench route_taiga: no village found near -280 -1030") }
         case "ashvault":
             p = V3(-90, 0, 4); speed = 6; over = 3            // the citadel stands at x 0, z 0
         default: print("bench: unknown route \(name)"); return
@@ -74,6 +86,10 @@ extension Bench {
         var spikes: [String: (Int, Double)] = [:]
         var hitchLines = 0
         var quadSum = 0, drawSum = 0                       // terrain quads / section draws per eye frame
+        // Mean and worst ms per tick stage over the run (TickProf), keyed by the stage name's address (no allocation).
+        var stageSum: [Int: (StaticString, Double, Double)] = [:]
+        var upd: [Double] = []; upd.reserveCapacity(frames)   // World.update (streaming hand-over) ms per tick
+        var missed = 0                                         // frames over 1.5x the budget (the headset's "missed")
         est.reserveCapacity(frames); tick.reserveCapacity(frames); gpu.reserveCapacity(frames)
         let mem0 = residentMB()
         var peak = mem0
@@ -87,6 +103,12 @@ extension Bench {
                 let b = now
                 game.tick(dt)
                 let tk = now - b
+                for j in 0..<TickProf.count {
+                    let nm = TickProf.names[j], key = Int(bitPattern: nm.utf8Start)
+                    let o = stageSum[key] ?? (nm, 0, 0)
+                    stageSum[key] = (nm, o.1 + TickProf.times[j], max(o.2, TickProf.times[j]))
+                }
+                upd.append(world.perf.updateSeconds * 1000)
                 var (e, g) = r.benchFrame(target)
                 quadSum += r.drawnQuads; drawSum += r.drawCalls
                 if quest { let (e2, g2) = r.benchFrame(target); e += e2; g += g2 }   // the second eye
@@ -100,6 +122,7 @@ extension Bench {
                 spikes[n.description] = (old.0 + 1, max(old.1, ms))
             }
             est.append(max(tk + e, g) * 1000)
+            if max(tk + e, g) * 1000 > budget * 1.5 { missed += 1 }
             // A hitch's split (first eight): tick vs CPU encode vs GPU, so a non-tick hitch is named too.
             if max(tk + e, g) * 1000 > 25 && hitchLines < 8 {
                 hitchLines += 1
@@ -128,6 +151,13 @@ extension Bench {
         put("\(k).quads", Double(quadSum / max(1, frames)))
         put("\(k).draws", Double(drawSum / max(1, frames)))
         put("\(k).budget_ms", budget)
+        let fu = dist(upd)
+        put("\(k).update_ms", fu, "mean,p99")
+        put("\(k).missed_pct", Double(missed) / Double(max(1, frames)) * 100)
+        let top = stageSum.values.sorted { $0.1 > $1.1 }.prefix(8)
+        for (nm, sum, _) in top { put("\(k).stage.\(nm.description)", sum * 1000 / Double(max(1, frames))) }
+        print("bench \(k) tick stages, mean ms (worst): " + top.map { "\($0.0) \(f($0.1 * 1000 / Double(max(1, frames)), 3)) (\(f($0.2 * 1000)))" }.joined(separator: ", "))
+        print("bench \(k): world.update mean \(f(fu.mean, 3)) p99 \(f(fu.p99)) ms, missed (> 1.5x budget) \(f(Double(missed) / Double(max(1, frames)) * 100, 1))% of frames, chunks generated \(world.perf.genChunks), sections meshed \(world.perf.meshSections)")
         put("\(k).pass", over99 && perMin <= 1 ? 1 : 0)
         let sp = spikes.sorted { $0.value.0 > $1.value.0 }.prefix(6).map { "\($0.key) x\($0.value.0) (max \(f($0.value.1)) ms)" }
         if !sp.isEmpty { print("bench \(k) tick spikes > 4 ms by stage: " + sp.joined(separator: ", ")) }
