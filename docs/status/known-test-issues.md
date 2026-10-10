@@ -36,3 +36,10 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   a sheriff (none in Dry Springs)" / "sheriff: only one is sent": fail every run on the base.
 - "boreal 12345: corridor at noon hums ..., wildlife: birdCall": flaky on the base (one pass, one fail in two
   `questcheck --boreal-only` runs); the ambience director's random bird call reaches the corridor.
+
+## 2026-10-10 evening: `--towntests` sheriff/HUD after the Frontier towns merge (#19)
+- Fails: "sheriff: shoots an outlaw player (health 20)" and "hud:  shown in town, on screen" (empty town name).
+- Passed (121 ok, 0 fail on the sheriff checks) on the quest-port head before #19 "Frontier towns, honour, bounties
+  and the Sheriff's Revolver"; the sheriff's warn/arrest flow and the HUD's standing line came in with it.
+- Repro: `build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot /tmp/tt.png --seed 12345 --find plains --time 0.3 --rd 4 --towntests | grep FAIL`
+- Owner: the cloud towns project (sheriff/honour are its scope). Not a Mac CI lane; questcheck runs TownTests too.
