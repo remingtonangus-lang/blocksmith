@@ -236,11 +236,12 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     } else { print("golden: no clear view of the general store (town_shop skipped)") }
                 }
                 // The sheriff's office and its boardwalk (FrontierTown.swift), from across the street the sign faces.
-                let signBase = Blocks.has("spruce_sign") ? Int(Blocks.id("spruce_sign")) : Int(Blocks.id("oak_sign"))
                 if let (sp, _) = world.blockEntities.first(where: { $0.1.kind == .sign && $0.1.lines.contains("Sheriff")
                        && abs($0.0.x - s.anchor.x) < 90 && abs($0.0.z - s.anchor.z) < 90 }) {
-                    let face = Int(world.block(sp.x, sp.y, sp.z)) - signBase - 4
-                    let card = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)][max(0, min(3, face))]
+                    // Outward: away from the wall the sign hangs on.
+                    let card = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)].first { c in
+                        Blocks.opaque[Int(world.block(sp.x - Int(c.x), sp.y, sp.z - Int(c.z)))] && !Blocks.opaque[Int(world.block(sp.x + Int(c.x), sp.y, sp.z + Int(c.z)))]
+                    } ?? V3(0, 0, 1)
                     let side = V3(-card.z, 0, card.x)
                     let target = V3(Float(sp.x) + 0.5, Float(sp.y) - 0.5, Float(sp.z) + 0.5)
                     let solid = { (q: V3) -> Bool in Blocks.opaque[Int(world.block(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z))))] }

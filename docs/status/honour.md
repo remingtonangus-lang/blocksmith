@@ -41,3 +41,35 @@ threads. Builds on PR #11 (towns of people) and PR #16 (capital markets, merged 
 4. Revolver drop rate wrong or never seen in tests -> 20,000 rolls land within 4-6%; a forced kill drops it.
 5. Old saves: towns half-generated get a mismatched office or half boardwalks -> structure guard file
    (structure-guard-frontier.txt); HonourTests checks a guarded town builds exactly the old layout.
+
+## Code
+Honour.swift (honour, bounties, the revolver drop, HonourHUD), FrontierTown.swift (office, boardwalks), HonourTests.swift.
+Edits: TownLaw.swift (saved fields, offence / turnHostile / tick hooks, heat cooling), Townsfolk.swift (pay the law,
+keepers refuse while wanted), Shops.swift (ShopPricing honour nudge; gunsmith buys the revolver), Guns.swift +
+CapitalArms.swift (gun_revolver, index 7, icon and model; Guns.isHandgun), Game.swift (mobDied hook), Mob.swift
+(playerHurtAt), Ballistics.swift, Village.swift / TownBuildings.swift (frontier lots, false front helper),
+Structures.swift + World.swift (structure-guard-frontier.txt), HudExtras.swift, Advancements.swift, MilitaryTests.swift.
+
+## Checks (repeatable)
+- `questcheck --towns-only` (host, ~2.5 min): TownTests.run including HonourTests: standings; prices inside the shop
+  bounds at every honour x reputation x Friend of the Town; unseen theft free, witnessed theft/assault/hostility/murder
+  cost; an old hit or a villager killed outside a town is not murder; daily caps on deeds; heat cooling by honour;
+  keepers refuse while wanted; the sheriff refuses partial payment, takes full payment, forgives the grudge and the
+  shop reopens; outlaw challenged on arrival; bounty lapses on day 7 not 6; save round trip; HUD on screen; revolver
+  registered / model / icon / not sold; 5.1% drop over 20,000 rolls, forced drop loaded; 3 towns each with an office,
+  jail cell and WANTED board, 24/24 shop fronts with a boardwalk; a guarded (old-save) town has no office.
+- Full questcheck also runs all of the above (TownTests.run).
+- `questcheck --render R.png --golden DIR`: new shot town_office.png (the office and its boardwalk).
+
+## Verifier pass (independent Opus subagent, 2026-10-10) and what changed
+- Fixed: MilitaryTests (Mac --mobtests) still expected 7 guns.
+- Fixed: after paying, a sheriff with old bad gossip (reputation < -100) turned on you again within 0.5 s; paying now
+  clears the town's negative gossip about you (checked with a -250 grudge).
+- Fixed: killing a villager at your own base (a made-up town name, no law) cost honour and shut its traders for 7
+  days; murder now needs a real town (TownLaw.isTownSpot).
+- Fixed: killedByPlayer is never cleared, so a villager punched long ago (or near a missed rocket) dying to a zombie
+  counted as murder; murder now needs the player's hit within 10 s (Mob.playerHurtAt).
+- Fixed: boardwalk posts could float over a lower street and the clearing could notch a higher street's path; a 5x5
+  office's cell door was reachable only diagonally (the shelf moved out of the way).
+- Known: the boardwalk posts stand on the street's edge column, narrowing a 3-wide street to 2 at each post (by
+  design: the boardwalk is the street's edge). The house turned into the office loses its resident.
