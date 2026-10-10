@@ -15,6 +15,7 @@ extension Bench {
     static func route(_ device: MTLDevice, _ seed: UInt64, _ name: String) {
         let quest = CommandLine.arguments.contains("--quest")
         if quest { World.fluidSeconds = 0.002 }      // as QuestApp sets it
+        if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }
         let rd = Int(arg("--rd") ?? "") ?? 8
         let seconds = Double(arg("--secs") ?? "") ?? 30
         let dim: Dim = name == "ashvault" ? .deep : .overworld
@@ -71,6 +72,7 @@ extension Bench {
         let frames = Int(seconds / dt)
         var est: [Double] = [], tick: [Double] = [], gpu: [Double] = []
         var spikes: [String: (Int, Double)] = [:]
+        var quadSum = 0, drawSum = 0                       // terrain quads / section draws per eye frame
         est.reserveCapacity(frames); tick.reserveCapacity(frames); gpu.reserveCapacity(frames)
         let mem0 = residentMB()
         var peak = mem0
@@ -85,6 +87,7 @@ extension Bench {
                 game.tick(dt)
                 let tk = now - b
                 var (e, g) = r.benchFrame(target)
+                quadSum += r.drawnQuads; drawSum += r.drawCalls
                 if quest { let (e2, g2) = r.benchFrame(target); e += e2; g += g2 }   // the second eye
                 return (tk, e, g)
             }
@@ -116,10 +119,12 @@ extension Bench {
         put("\(k).resident_peak_mb", peak)
         put("\(k).resident_growth_pct", (mem1 - mem0) / max(mem0, 1) * 100)
         put("\(k).mobs", Double(game.mobs.mobs.count))
+        put("\(k).quads", Double(quadSum / max(1, frames)))
+        put("\(k).draws", Double(drawSum / max(1, frames)))
         put("\(k).budget_ms", budget)
         put("\(k).pass", over99 && perMin <= 1 ? 1 : 0)
         let sp = spikes.sorted { $0.value.0 > $1.value.0 }.prefix(6).map { "\($0.key) x\($0.value.0) (max \(f($0.value.1)) ms)" }
         if !sp.isEmpty { print("bench \(k) tick spikes > 4 ms by stage: " + sp.joined(separator: ", ")) }
-        print("bench \(k): frame p50 \(f(fe.p50)) p99 \(f(fe.p99)) max \(f(fe.max)) ms (budget \(f(budget, 1))), \(f(perMin, 1)) hitches >25 ms/min | tick p99 \(f(ft.p99)) GPU p99 \(f(fg.p99)) ms | load \(f(load, 1)) s | resident \(f(mem0, 0)) -> \(f(mem1, 0)) MB (peak \(f(peak, 0))) | \(game.mobs.mobs.count) mobs | \(over99 && perMin <= 1 ? "PASS" : "FAIL")")
+        print("bench \(k): frame p50 \(f(fe.p50)) p99 \(f(fe.p99)) max \(f(fe.max)) ms (budget \(f(budget, 1))), \(f(perMin, 1)) hitches >25 ms/min | tick p99 \(f(ft.p99)) GPU p99 \(f(fg.p99)) ms | load \(f(load, 1)) s | resident \(f(mem0, 0)) -> \(f(mem1, 0)) MB (peak \(f(peak, 0))) | \(game.mobs.mobs.count) mobs, \(quadSum / max(1, frames) / 1000)k quads, \(drawSum / max(1, frames)) draws | \(over99 && perMin <= 1 ? "PASS" : "FAIL")")
     }
 }
