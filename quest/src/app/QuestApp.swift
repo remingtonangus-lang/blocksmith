@@ -48,6 +48,7 @@ final class QuestApp {
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
             return true
         }
+        stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
         startLoading()
     }
 
@@ -373,6 +374,8 @@ final class FrameStats {
     private var lastLowered = 0.0, loggedRD = -1
     // Set by QuestApp: asks the runtime for 72 Hz; true when the rate changed.
     var lowerRate: (() -> Bool)?
+    // Set by QuestApp: the world renderer's record split since the last line (WorldRenderer.takeStages).
+    var recordStages: (() -> String)?
     private(set) var lastLine = ""
     private(set) var fps = 0.0
     private(set) var gpuAvg = 0.0, cpuAvg = 0.0
@@ -402,6 +405,7 @@ final class FrameStats {
                           FrameStats.residentMB())
         // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
+        if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
         // Comfort guard (VR page option): frames missed in this window with the GPU or CPU near the frame budget
         // (not a loading hitch) first drop a refresh rate above 72 Hz to 72 (the store's frame-rate gate: the Oct 9

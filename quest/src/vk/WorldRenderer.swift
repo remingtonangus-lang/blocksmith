@@ -13,6 +13,17 @@ final class WorldRenderer {
     var extraOverlay: ((SceneRenderer.Slot, V3) -> Void)?    // drawn last (panels over everything)
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
     private(set) var frameCPUMs = 0.0
+    // Where the record time goes, summed until the next perf line (QuestApp FrameStats): cull + records, HUD panel,
+    // opaque terrain, ships + landmarks, mobs, entities, the rest (hands, sky, water, overlay).
+    static let stageNames = ["cull", "hud", "terrain", "ships", "mobs", "entities", "rest"]
+    private var stageSums = [Double](repeating: 0, count: 7), stageFrames = 0
+    func takeStages() -> String {
+        let n = Double(max(1, stageFrames))
+        let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
+        for i in stageSums.indices { stageSums[i] = 0 }
+        stageFrames = 0
+        return parts.joined(separator: ", ")
+    }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
     static let debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
@@ -105,6 +116,8 @@ final class WorldRenderer {
     // Records the whole world pass into `t` (the caller submits).
     func record(_ s: SceneRenderer.Slot, _ t: RenderTarget, _ cam: EyeCamera) {
         let t0 = CFAbsoluteTimeGetCurrent()
+        var tm = t0
+        func stage(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); stageSums[i] += n - tm; tm = n }
         updateCave(cam.center)
         let (u, clear) = uniforms(cam)
         scene.setUniforms(s, u)
@@ -113,15 +126,21 @@ final class WorldRenderer {
         let frustum = Frustum(cam.cullViewProj * translationMatrix(-eye))
         scene.cull(game.world, eye: eye, frustum: frustum)
         scene.writeRecords(s, eye: eye)
+        stage(0)
         if !WorldRenderer.debugSkip.contains("prepass") { prePass?(s) }
+        stage(1)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
+        stage(2)
         if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
-        if !skip.contains("mobs") { drawMobs(s, eye) }
+        stage(3)
+        if !skip.contains("mobs") { drawMobs(s, eye, frustum) }
+        stage(4)
         camYaw = cam.yaw; camPitch = cam.pitch
         if !skip.contains("entities") { drawEntities(s, eye) }
+        stage(5)
         if !skip.contains("outline") { drawOutline(s, eye) }
         if !skip.contains("extra") { extraOpaque?(s, eye) }
         if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
@@ -129,6 +148,8 @@ final class WorldRenderer {
         if !skip.contains("trans") { scene.drawTranslucent(s, underwater: game.player.headInWater) }
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
+        stage(6)
+        stageFrames += 1
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
@@ -176,12 +197,15 @@ final class WorldRenderer {
         }
     }
 
-    private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3) {
+    // Off-screen mobs past 64 blocks and mobs beyond the fog are skipped, as on the Mac (Renderer.mobMaxDist): every
+    // loaded mob was rebuilt each frame, ~200 at render distance 14.
+    private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         let tp = game.cameraMode != 0
         guard !game.mobs.mobs.isEmpty || tp else { return }
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
-        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap)
+        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
+                                 cull: frustum, maxDist: Float(game.world.renderDistance * CS + 24))
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         scene.commit(off, n, MobVert.self)
         scene.drawScratch(s, "mob", offset: off, count: n)
