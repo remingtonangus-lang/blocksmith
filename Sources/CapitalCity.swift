@@ -70,7 +70,7 @@ enum CapitalCity {
             for k in 0...5 {
                 let cx = k == 0 ? cx0 : rx * 56 + Int(hashf(rx, rz, 7300 + k, s32) * 35.99)
                 let cz = k == 0 ? cz0 : rz * 56 + Int(hashf(rx, rz, 7400 + k, s32) * 35.99)
-                if let s = CapitalCity.site(gen, seed, cx, cz) { return s }
+                if let s = CapitalCity.site(gen, seed, cx, cz) { return WorldRules.capitalAllowed(gen, cx, cz) ? s : nil }
             }
             return nil
         }

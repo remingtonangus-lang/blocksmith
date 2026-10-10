@@ -157,7 +157,7 @@ enum MilitaryBase {
                     break
                 }
             }
-            guard let y = found else { return nil }
+            guard let y = found, WorldRules.citadelAllowed(gen, cx, cz) else { return nil }   // not on top of spawn
             let x = cx * CS + 8, z = cz * CS + 8
             let y0 = y + 1
             let e = CapitalBase.A + 8               // the site plus the ring where cut trees' leaves are cleared
