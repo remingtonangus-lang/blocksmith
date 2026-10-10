@@ -471,6 +471,7 @@ enum Recipes {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
         r += Guns.recipes()
+        r += deepRecipes()
         r += springRecipes()
         r += Cloudwailer.recipes()
         r += shipRecipes()
@@ -542,7 +543,7 @@ enum Recipes {
                                    "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "quartz_block": "smooth_quartz",
                                    "stone_bricks": "cracked_stone_bricks", "basalt": "smooth_basalt", "clay": "terracotta", "glass": "glass",
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
-                                   "cherry_log": "charcoal", "pale_oak_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
+                                   "cherry_log": "charcoal", "pale_oak_log": "charcoal", "sunderite_flux": "sunderite_ingot", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
         for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
         // Iron, gold and copper tools and armour melt down to nuggets.
         for (mat, nug) in [("iron", "iron_nugget"), ("golden", "gold_nugget"), ("copper", "copper_nugget")] {

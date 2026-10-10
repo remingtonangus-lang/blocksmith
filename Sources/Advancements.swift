@@ -103,6 +103,10 @@ enum Advancements {
         // The Deep and the Ashguard (task 22).
         Advancement(id: "adventure/deep", tab: 3, title: "Bottom of the World", desc: "Dig through the bottom of the world into the Deep",
                     crit: .event("deep_visit")),
+        Advancement(id: "adventure/sunderite", tab: 3, title: "Keyholder", desc: "Take Sunderite from a Brimstone Keep's strongroom",
+                    crit: .event("sunderite")),
+        Advancement(id: "adventure/break_seal", tab: 3, title: "Through the Seal", desc: "Break through the Sealrock under the fire",
+                    crit: .event("break_seal")),
         Advancement(id: "adventure/ash_vault", tab: 3, title: "The Vault Below", desc: "Drop into the Ash Vault", crit: .event("ash_vault")),
         Advancement(id: "adventure/ash_tank", tab: 3, title: "Tank Buster", desc: "Destroy a Cinder Tank", crit: .event("ash_tank")),
         Advancement(id: "adventure/ash_victory", tab: 3, title: "Ashes to Ashes", desc: "Defeat the Ash Marshal and break the Ashguard",

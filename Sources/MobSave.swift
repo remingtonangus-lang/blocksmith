@@ -119,7 +119,7 @@ extension Mob {
         bond = d["bond"] ?? 0
         if let x = d["bxp"] { hs.bondXP = x }
         if let x = d["brushCd"] { hs.brushCool = x }
-        if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup() }
+        if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
     }
 }
 

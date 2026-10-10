@@ -6,6 +6,7 @@ import simd
 // come back up. The Ash Vault's hot updrafts slow long falls into it; below the vault floor is the molten core.
 extension Game {
     func deepTick(_ dt: Float) {
+        if dim.dim == .deep { sunderTick(dt); hellHints() }
         guard alive, world.frame == nil, riding == nil else { return }
         let p = player.pos
         switch dim.dim {

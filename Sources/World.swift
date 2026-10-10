@@ -109,6 +109,9 @@ final class World {
             sc.legacyCapitalTowns = save.structureGuard(file: "structure-guard-capital-towns.txt")
             sc.legacyFrontier = save.structureGuard(file: "structure-guard-frontier.txt")
         }
+        if dim == .deep, let save, let dg = gen as? DeepGen {
+            dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
+        }
         World.registry.add(self)
     }
 

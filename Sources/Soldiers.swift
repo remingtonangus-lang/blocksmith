@@ -177,6 +177,8 @@ extension Mob {
         if kind == .deckGun { return (20, 8) }
         if kind.ash { return ashArmor }
         guard let r = Soldier.rank(kind) else { return (0, 0) }
+        // Ashguard plate: +5 armour, +2 toughness over the Capital rank's (AshUnits.ashSetup).
+        if faction == Faction.ashguard.rawValue { return (Soldier.ranks[r].armor + 5, Soldier.ranks[r].toughness + 2) }
         return (Soldier.ranks[r].armor, Soldier.ranks[r].toughness)
     }
 

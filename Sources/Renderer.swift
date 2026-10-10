@@ -802,11 +802,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Inside lava: a few blocks of glowing orange (a little more with fire resistance).
             fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog
         }
+        let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
+        if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.renderDaylight
         // Night vision lifts every light level toward full brightness.
         let nv = game.nightVision
-        let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
+        let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
         // Warm dawn/dusk glow strength shared by the Fancy sky dome and the fog toward the sun.
         let skyGlow: Float = {
             let sd = game.sunDir
@@ -930,6 +932,23 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: verts.count)
             }
+            if vaultSky {
+                // The Cinder Sun over the Ash Vault (its roof sections are left out below, so the sky shows).
+                let bodyOff = (scratchOff + 255) & ~255
+                let ptr = (scratch.contents() + bodyOff).bindMemory(to: EntityVert.self, capacity: 6)
+                var bw = EntityWriter(out: ptr, capacity: 6)
+                let d = AshSky.sunDir, c = d * 90
+                let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
+                let up = simd_normalize(simd_cross(r, d)) * 12
+                bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
+                scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
+                enc.setRenderPipelineState(crackPipe)
+                enc.setDepthStencilState(depthNone)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: bodyOff, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: bw.n)
+            }
             if !underwater && hasSky {
                 // Sun (reddening at dawn/dusk) and the moon in its current phase: textured, blended, no fog.
                 let bodyOff = (scratchOff + 255) & ~255
@@ -954,7 +973,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
-        // Visible sections, near to far
+        // Visible sections, near to far (under the Ash Vault's sky its roof is left out)
+        let maxSection = game.inVaultSky ? AshSky.cutSection : NSEC
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
         let cullStart = CFAbsoluteTimeGetCurrent()
         bfsVisited = 0
@@ -991,7 +1011,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bfsVisited += 1
                 let sec = c.sections[sy]
                 let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
-                if !sec.empty {
+                if !sec.empty && sy < maxSection {
                     visibleScratch.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
                     if c.drawnMark != gen { c.drawnMark = gen; drawnSet += 1 }
                 }
@@ -1018,7 +1038,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let cmn = V3(Float(c.cx * CS), 0, Float(c.cz * CS))
             if !frustum.visible(min: cmn, max: cmn + V3(16, Float(CH), 16)) { continue }
             var any = false
-            for (sy, sec) in c.sections.enumerated() where !sec.empty {
+            for (sy, sec) in c.sections.enumerated() where !sec.empty && sy < maxSection {
                 let mn = V3(cmn.x, Float(sy * 16), cmn.z)
                 let mx = mn + V3(16, 16, 16)
                 if !frustum.visible(min: mn, max: mx) { continue }

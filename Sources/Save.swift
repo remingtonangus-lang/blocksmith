@@ -46,11 +46,14 @@ final class SaveManager {
     func sub(_ folder: String) -> SaveManager {
         let m = SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true))
         m.overworldFloor = false
+        m.deepSeal = folder == Dim.deep.folder
         return m
     }
     // The surface's chunks lost their bedrock floor (task 22, the Deep below): saved chunks still holding the old
     // floor (bedrock in internal layers 0-4) get emberslate there as they load, like freshly generated ones.
     var overworldFloor = true
+    // The Deep's chunks saved before the Sealrock existed get it stamped in as they load (DeepSeal.stamp).
+    var deepSeal = false
 
     init(dir d: URL) {
         dir = d
@@ -166,6 +169,7 @@ final class SaveManager {
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
         if overworldFloor { SaveManager.stripBedrockFloor(&out) }
+        if deepSeal { DeepSeal.stamp(&out) }
         return out
     }
 

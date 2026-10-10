@@ -26,7 +26,7 @@ extension MobKind {
             return Spec(name: "Ashguard Truck", halfW: 1.2, height: 2.4, health: 40, speed: 0, behavior: .monster,
                         drops: [("iron_ingot", 0, 2), ("bread", 1, 4), ("rifle_rounds", 2, 8)], xp: 8, call: .gun(12))
         default:
-            return Spec(name: "The Ash Marshal", halfW: 0.38, height: 2.1, health: 220, speed: 3.0, behavior: .monster,
+            return Spec(name: "The Ash Marshal", halfW: 0.38, height: 2.1, health: 380, speed: 3.0, behavior: .monster,
                         drops: [("gold_ingot", 4, 9), ("diamond", 2, 5), ("heavy_rounds", 4, 10), ("arc_cell", 2, 4)], xp: 250,
                         call: .gun(11), fireImmune: true)
         }
@@ -47,13 +47,18 @@ extension Mob {
     }
 
     // Joins the Ashguard: faction, names, the Marshal's size. Deep-down soldiers are tougher (power, like the Deep's
-    // monsters).
-    func ashSetup() {
+    // monsters). `loading`: a saved soldier keeps the health it was saved with.
+    func ashSetup(loading: Bool = false) {
         faction = Faction.ashguard.rawValue
         if kind == .ashMarshal { scale = 1.12; return }
         if !kind.ash, let r = Soldier.rank(kind) {
             spec.name = Mob.ashNames[r]
             power = 1.4
+            // The Deep expansion: a harder army than any surface garrison (DeepExpansionTests.army): veterans with 60 %
+            // more health (a loaded soldier keeps the health it was saved with) and heavier plate (steelholdArmor).
+            let old = spec.health
+            spec.health = old * 8 / 5
+            if !loading && health >= old { health = spec.health }
         }
     }
 
@@ -62,14 +67,16 @@ extension Mob {
         var n = Substring(name)
         var heading: Float?
         if let i = n.firstIndex(of: "^") { heading = Float(n[n.index(after: i)...]); n = n[..<i] }
-        var ash = false
+        var ash = false, deep = false
         if n.hasSuffix("@ash") { ash = true; n = n.dropLast(4) }
+        if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }       // a Brimstone Keep's monsters: Deep strength
         var tag = ""
         if let i = n.firstIndex(of: ":") { tag = String(n[n.index(after: i)...]); n = n[..<i] }
         guard let k0 = MobKind.named(String(n)) else { return nil }
         let m = Mob(Soldier.garrison(k0, at: p), at: p)
         m.persistent = true
         if ash { m.ashSetup() }
+        if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }

@@ -4,9 +4,10 @@ import Foundation
 // Internal y, bottom to top:
 //   0...3      the molten core (lava)
 //   4...floor  the Ash Vault's floor rock, an ash plain at ~y 30 with lava rivers
-//   ...ceiling the Ash Vault: a ~100-block-high open cavern, rock pillars, lumenstone hanging from the roof; the
-//              Ashguard army holds it (AshWar.swift), its headquarters at x 0, z 0
-//   ...199     the lower crust: hot rock, sealed lava pockets, deep ores
+//   ...ceiling the Ash Vault: a ~135-block-high open cavern under its own ember-haze sky (AshSky.swift), rock pillars,
+//              lumenstone hanging from the roof; the Ashguard army holds it (AshWar.swift), its headquarters at x 0, z 0
+//   ...191     the lower crust: hot rock, sealed lava pockets, deep ores
+//   192...199  the Sealrock (DeepSeal.swift): only Sunderite breaks it
 //   200...327  the hell band: the Emberdeep's terrain (EmberGen at base 200) with fortresses
 //   328...383  the upper crust, continuous with the surface's emberslate floor above
 final class DeepGen: TerrainGenerator {
@@ -14,7 +15,7 @@ final class DeepGen: TerrainGenerator {
     static let crustTop = hellBase + 128          // first layer of the upper crust
     static let coreTop = 3
     static let floorBase = 30
-    static let ceilingBase = 134
+    static let ceilingBase = 168                   // was 134 before the Deep expansion (a taller vault)
     static func inHell(_ y: Float) -> Bool { y >= Float(hellBase) && y < Float(crustTop) }
     static func inVault(_ y: Float) -> Bool { y < Float(ceilingBase + 16) }
 
@@ -23,6 +24,7 @@ final class DeepGen: TerrainGenerator {
     let ember: EmberGen
     let floorN: Noise, ceilN: Noise, riverN: Noise, pocketN: Noise, matN: Noise
     let structures: StructureCache?
+    let keepGuard = DeepGuard()
 
     init(seed: UInt64) {
         self.seed = seed
@@ -33,7 +35,8 @@ final class DeepGen: TerrainGenerator {
         riverN = Noise(seed: seed &+ 203)
         pocketN = Noise(seed: seed &+ 204)
         matN = Noise(seed: seed &+ 205)
-        structures = StructureCache(seed: seed, types: [Fortress.deepType] + AshWar.types, fixed: AshWar.starts(seed: seed))
+        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types,
+                                    fixed: AshWar.starts(seed: seed))
     }
 
     // MARK: The Ash Vault's shape
@@ -79,6 +82,7 @@ final class DeepGen: TerrainGenerator {
         let rock = EMBERSLATE, lava = LAVA, glow = LAMP
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
         let soulSoil = Blocks.id("soul_soil"), road = Blocks.id("polished_blackstone")
+        let seal = SEALROCK
         let gold = Blocks.id("deepslate_gold_ore"), diamond = Blocks.id("deepslate_diamond_ore"), debris = Blocks.id("ancient_debris")
         var floors = [Int](repeating: 0, count: CSQ), ceils = [Int](repeating: 0, count: CSQ)
         for lz in 0..<CS { for lx in 0..<CS {
@@ -93,6 +97,7 @@ final class DeepGen: TerrainGenerator {
                 let i = Chunk.index(lx, y, lz)
                 if y <= DeepGen.coreTop { b[i] = lava; continue }
                 if y >= DeepGen.hellBase && y < DeepGen.crustTop { continue }          // the hell band (filled below)
+                if DeepSeal.inBand(y) { b[i] = seal; continue }                         // the barrier, unbroken
                 if y > f && y < c && !solidColumn {
                     if river && y == f + 1 { b[i] = lava }
                     continue

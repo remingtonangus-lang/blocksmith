@@ -10,6 +10,7 @@ enum DeepTests {
         seam(game, check)
         sites(check)
         war(game, check)
+        DeepExpansionTests.run(game, check)
     }
 
     // The Ashguard fights: on the citadel road (open, levelled) a tank closes in and shells the player, a half-track

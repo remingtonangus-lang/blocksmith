@@ -8,8 +8,13 @@ enum Bastion {
     static let type = StructureType(name: "bastion", spacing: 27, separation: 4, salt: 30084232, reach: 4) { seed, cx, cz in
         var rng = SRng(seed)
         if rng.int(5) < 2 { return nil }             // the other 2 in 5 are fortresses
+        return start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, y: YOFF + 33)
+    }
+
+    // One of the four layouts at (ox, oz) with its floor level y (the Deep's hell band too: Bastion.deepType). Draws
+    // from the caller's generator exactly as the Emberdeep always has, so its saved bastions keep their layouts.
+    static func start(_ rng: inout SRng, ox: Int, oz: Int, y: Int) -> StructureStart {
         let variant = rng.int(4)
-        let ox = cx * CS + 8, oz = cz * CS + 8, y = YOFF + 33
         let s = rng.next()
         let anchorUp = [1, 13, 1, 11]                 // feet over the floor: courtyard, treasure platform, yard, bridge deck
         let half = variant == 3 ? 42 : 22          // the bridge reaches 14 more west for its stair

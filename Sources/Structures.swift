@@ -415,6 +415,12 @@ enum Loot {
         "capital_city": (3...6, [("bread", 2, 5, 14), ("cookie", 3, 8, 8), ("apple", 2, 5, 10), ("paper", 3, 9, 10), ("book", 1, 3, 8),
                                  ("emerald", 1, 4, 8), ("gold_ingot", 1, 4, 6), ("clock", 1, 1, 3), ("compass", 1, 1, 3),
                                  ("rifle_rounds", 8, 24, 6), ("glass_bottle", 2, 4, 4), ("white_wool", 2, 6, 5)]),
+        // Brimstone Keeps (BrimstoneKeep.swift): the hell band's strongholds and the Sunderite strongroom under each keep.
+        "brimstone_keep": (3...6, [("raw_sunderite", 1, 2, 5), ("gold_ingot", 2, 6, 12), ("netherite_scrap", 1, 2, 4), ("blaze_rod", 2, 6, 10),
+                                   ("rifle_rounds", 12, 32, 10), ("heavy_rounds", 4, 10, 6), ("golden_apple", 1, 1, 4), ("diamond", 1, 3, 6),
+                                   ("tnt", 1, 3, 6)]),
+        "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
+                                         ("enchanted_golden_apple", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_launcher", 1, 1, 5), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
