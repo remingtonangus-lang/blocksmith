@@ -1754,6 +1754,8 @@ if let f = arg("--namecheck") {
     exit(n > 0 && bad == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run()) }   // STORE_QUALITY objective 7
+if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }   // Oct 10 placement rules (WorldRules, WildCamps)
+if CommandLine.arguments.contains("--volcanosites") { exit(WorldGenCheck.volcanoSites()) }
 if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }

@@ -132,6 +132,7 @@ python3 tools/namecheck.py --coined                                             
 "$BIN" --snapshot snaps/swingtest.png --seed 12345 --find plains --time 0.3 --rd 4 --swingtest        # gating: VR melee contact + bow (docs/status/vr-melee.md)
 "$BIN" --snapshot snaps/rdgovernor.png --seed 12345 --find plains --time 0.3 --rd 4 --rdgovernortest        # gating: Auto Render Distance goes down on sustained misses, back up to the choice, saves only the choice (playtest 2026-10-10)
 "$BIN" --snapshot snaps/structscan.png --structscan 8      # gating: every seed has a Capital citadel near spawn; rare-building density per 4096^2
+"$BIN" --worldgencheck 24        # gating: Oct 10 rules (no Capital city near spawn, no ruined gates, wild camps, volcano siting)
 "$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest        # gating: split screen seat checks (green since run 563)
@@ -263,7 +264,10 @@ done
 "$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --frame 1.2 --time 0.25
 "$BIN" --snapshot snaps/outpost_close.png --seed 12345 --structure pillager_outpost --frame 0.5 --time 0.25
 "$BIN" --snapshot snaps/snowslope.png --seed 12345 --find snowy_slopes --yaw 45 --pitch -35 --time 0.25 --up 6
-"$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --land --frame 1 --time 0.25
+# Wild camps (WildCamps.swift; ruined gates retired Oct 10): one shot per variant.
+for k in hunters prospectors traders abandoned outlaws; do
+  "$BIN" --snapshot snaps/camp_$k.png --seed 12345 --structure wild_camp --subkind camp_$k --frame 1.3 --time 0.25 || true
+done
 "$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25 --slice
 # Small structures with no shot before (eyes-on coverage for the "everything similar" rework).
 "$BIN" --snapshot snaps/desert_well.png --seed 12345 --structure desert_well --frame 0.7 --time 0.25 || true

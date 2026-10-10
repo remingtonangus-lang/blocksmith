@@ -2,11 +2,14 @@ import Foundation
 
 // Surface structures on region grids with the reference game's spacing/separation:
 // villages 34/8, temples 32/8 (desert pyramid, jungle temple, swamp hut or igloo by biome),
-// marauder watchtowers 32/8 (20%, away from villages), ruined portals 40/15, shipwrecks 24/4,
+// marauder watchtowers 32/8 (20%, away from villages), (ruined portals retired Oct 10), shipwrecks 24/4,
 // buried treasure (1 in 100 beach chunks), mineshafts (~0.4% of chunks), desert wells.
 enum OverworldStructures {
     static func types(_ gen: WorldGen) -> [StructureType] {
-        [Village.type(gen), temple(gen), outpost(gen), ruinedPortal(gen), shipwreck(gen), buriedTreasure(gen), mineshaft(gen), desertWell(gen)]
+        // No ruined gates any more (Remington, Oct 10 09:25: "not really any point"): ruinedPortal stays for reference and
+        // its key and loot table stay registered; a gate a save already generated stays in its chunk (one chunk wide).
+        // Wild camps (WildCamps.swift) are the small finds of the open country now.
+        [Village.type(gen), temple(gen), outpost(gen), shipwreck(gen), buriedTreasure(gen), mineshaft(gen), desertWell(gen), WildCamps.type(gen)]
     }
 
     static func piece(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ f: @escaping (inout StructWriter) -> Void) -> Piece {

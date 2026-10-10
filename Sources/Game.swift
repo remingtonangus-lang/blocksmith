@@ -348,14 +348,18 @@ final class Game {
         return (ox, oz, rng.int(4))
     }
 
-    func findSpawn(varied: Bool = true) -> V3 {
-        let o = varied ? Game.spawnOrigin(seed: world.seed) : (0, 0, 0)
+    func findSpawn(varied: Bool = true) -> V3 { Game.findSpawn(gen: world.gen, seed: world.seed, varied: varied) }
+
+    // Terrain only (column heights and biomes), so world gen can place things relative to the spawn
+    // (WorldRules.swift) without a Game.
+    static func findSpawn(gen: TerrainGenerator, seed: UInt64, varied: Bool = true) -> V3 {
+        let o = varied ? Game.spawnOrigin(seed: seed) : (0, 0, 0)
         let ox = o.0, oz = o.1
         var skip = o.2
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<4000 {
             let cx = (x + ox) * 16 + 8, cz = (z + oz) * 16 + 8
-            let (h, biome) = world.gen.column(cx, cz)
+            let (h, biome) = gen.column(cx, cz)
             // Not on a mushroom island either: no trees for 100 blocks, so no wood (playthrough seed 12345, store audit).
             if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach && biome != .mushroomFields {
                 if skip > 0 { skip -= 1 } else { return V3(Float(cx) + 0.5, Float(h + 1), Float(cz) + 0.5) }

@@ -2,9 +2,10 @@ import Foundation
 import simd
 
 // Big landmarks (Future ideas #9): rare regional landforms big enough to navigate by.
-// Volcanoes: one chance per 1280-block cell (about one in six cells, on land away from the coast): a cone 150-210
-// blocks in radius rising 110-170 above the surrounding ground, ridged flanks, a crater with a lava lake, and lava
-// channels running down three flanks. They are shaped in the terrain's node lattice (after rivers and lakes), so
+// Volcanoes: one chance per 1280-block cell (17 %, kept only in temperate or warmer country with dry, even land all
+// round the footprint and its foothills): a cone 150-210 blocks in radius rising 110-170 above the surrounding
+// ground out of a lobed apron of wooded foothills, ridged flanks, a crater with a lava lake, and lava channels
+// running down three flanks; never snow-capped (volcanic heat, WorldGen.freeze). They are shaped in the terrain's node lattice (after rivers and lakes), so
 // column heights, the 3D density fill, groundY, the map and the biome all agree. Generation fills the crater lake and
 // sinks the channels into the slope (WorldGen.generate); the lava sources are static until something touches them,
 // so flows stay bounded. Far away, a coarse impostor keeps the cone and its plume on the horizon (LandmarkRender).
@@ -34,24 +35,50 @@ struct Canyon {
 
 extension Terrain {
     static let volcanoCell = 1280
+    static let apron: Float = 1.45
+    static let volcanoMinTemp: Float = -0.1   // surface temperature (with altitude) at the centre and all round the foot: no snow country
+    static let volcanoReach: Float = 320     // foot radius (<= 210) times the foothill apron (1.45), rounded up
     static let canyonCell = 1536
 
     // The volcano of a cell, if any (deterministic, cached).
     func volcano(cell cx: Int, _ cz: Int) -> Volcano {
-        volcanoCache.get(cx, cz) {
+        volcanoCache.get(cx, cz) { volcanoSite(cell: cx, cz).v }
+    }
+
+    // A cell's volcano and, when it has none, why (--worldgencheck tallies the reasons; the first two are the rules
+    // from before Oct 10, the rest are new).
+    func volcanoSite(cell cx: Int, _ cz: Int) -> (v: Volcano, why: String) {
+        do {
             let c = Terrain.volcanoCell
             let h0 = hashf(cx, 911, cz, s32 ^ 0x701CA)
-            guard h0 < 0.17 else { return .none }
-            let m = Float(260)
+            guard h0 < 0.17 else { return (.none, "no roll") }
+            let m = Terrain.volcanoReach
             let x = Float(cx * c) + m + hashf(cx, 912, cz, s32 ^ 0x701CB) * (Float(c) - 2 * m)
             let z = Float(cz * c) + m + hashf(cx, 913, cz, s32 ^ 0x701CC) * (Float(c) - 2 * m)
             let mac = macroLerp(Int(x), Int(z))
             let ground = detail(x, z, mac)
             // On land, away from the coast and the highest ranges (a cone on a 200-block massif would top the world).
-            guard ground > SEA_D + 3, ground < SEA_D + 70, mac.c > 0.04 else { return .none }
+            guard ground > SEA_D + 3, ground < SEA_D + 70, mac.c > 0.04 else { return (.none, "sea, coast or range") }
+            // Not in cold country: a snow-capped cone over snowy taiga read as a stray mountain (Remington, Oct 10
+            // 09:23:06 and 09:23:19 "they don't mesh very well into the environment").
+            guard Terrain.lapse(mac.ts, ground) > Terrain.volcanoMinTemp else { return (.none, "cold") }
+            // The footprint and its foothills on dry land: no cone standing in the sea off a beach or with its foot
+            // in a bay (Oct 10 09:23:06, a cone seen across the water from a beach); not half up a mountain range.
+            let rFoot: Float = 150 + hashf(cx, 914, cz, s32 ^ 0x701CD) * 60
+            for k in 0..<12 {
+                let a = Float(k) * Float.pi / 6
+                for f: Float in [1.0, 1.3] {
+                    let px = x + cosf(a) * rFoot * f, pz = z + sinf(a) * rFoot * f
+                    let pm = macroLerp(Int(px), Int(pz))
+                    let ph = detail(px, pz, pm)
+                    if pm.c < 0.02 || ph < SEA_D + 2 { return (.none, "water round the foot") }
+                    if abs(ph - ground) > 55 { return (.none, "uneven foot") }
+                    if Terrain.lapse(pm.ts, ph) < Terrain.volcanoMinTemp { return (.none, "cold") }
+                }
+            }
             var v = Volcano()
             v.x = x; v.z = z
-            v.r = 150 + hashf(cx, 914, cz, s32 ^ 0x701CD) * 60
+            v.r = rFoot
             v.base = ground
             let room: Float = Float(CH - YOFF - 24) - ground
             v.peak = min(room, 110 + hashf(cx, 915, cz, s32 ^ 0x701CE) * 60)
@@ -60,12 +87,12 @@ extension Terrain {
             let a0 = hashf(cx, 918, cz, s32 ^ 0x701D1) * 2 * Float.pi
             v.arms = SIMD3<Float>(a0, a0 + 2.2 + hashf(cx, 919, cz, s32) * 0.6, a0 + 4.1 + hashf(cx, 920, cz, s32) * 0.5)
             v.exists = true
-            return v
+            return (v, "")
         }
     }
 
     // Volcanoes whose footprint may reach (x, z).
-    func volcanoes(near x: Float, _ z: Float, reach: Float = 260) -> [Volcano] {
+    func volcanoes(near x: Float, _ z: Float, reach: Float = Terrain.volcanoReach) -> [Volcano] {
         let c = Float(Terrain.volcanoCell)
         let cx0 = Int(floorf((x - reach) / c)), cx1 = Int(floorf((x + reach) / c))
         let cz0 = Int(floorf((z - reach) / c)), cz1 = Int(floorf((z + reach) / c))
@@ -80,7 +107,7 @@ extension Terrain {
     // Shapes a lattice node inside a volcano's footprint (called after rivers and lakes are carved).
     func applyVolcanoes(_ n: inout Node, _ fx: Float, _ fz: Float) {
         // The (at most four) cells whose volcano could reach this node; no allocation per node.
-        let c = Float(Terrain.volcanoCell), reach: Float = 260
+        let c = Float(Terrain.volcanoCell), reach: Float = Terrain.volcanoReach
         let cx0 = Int(floorf((fx - reach) / c)), cx1 = Int(floorf((fx + reach) / c))
         let cz0 = Int(floorf((fz - reach) / c)), cz1 = Int(floorf((fz + reach) / c))
         for cz in cz0...cz1 { for cx in cx0...cx1 {
@@ -94,11 +121,13 @@ extension Terrain {
         do {
             let dx = fx - v.x, dz = fz - v.z
             let d = (dx * dx + dz * dz).squareRoot()
-            guard d < v.r else { return }
+            guard d < v.r * Terrain.apron else { return }
             let t = d / v.r, tc = v.crater / v.r
             let ang = atan2f(dz, dx)
-            var cone: Float
-            if d > v.crater {
+            var cone: Float = v.base
+            if d >= v.r {
+                // Outside the foot: only the foothill apron below.
+            } else if d > v.crater {
                 // Concave flanks (steep near the rim, spreading at the foot) with radial ridges and gullies.
                 let u = (1 - t) / (1 - tc)
                 let ridge: Float = (sinf(ang * 11 + 2 * sinf(ang * 3)) * 0.6 + sinf(ang * 23) * 0.4) * 4 * (1 - t) * t * 4
@@ -109,8 +138,16 @@ extension Terrain {
                 cone = v.rim - v.depth * (1 - Terrain.smooth(0.55, 1.0, q)) - 3 * Terrain.smooth(0.85, 1.0, q) + 3
             }
             let w = Terrain.smooth(1.0, 0.72, t)           // blend into the surrounding ground at the foot
-            let raised = max(n.h, cone)
-            n.h = n.h + (raised - n.h) * w
+            // Foothills: a lobed apron of low hills from the foot out to 1.45 radii, so the cone rises out of a
+            // swell of the land instead of standing on flat ground like a placed object (Oct 10 09:23:19). Grassed
+            // and wooded (vol stays 0 out there); river valleys keep their floor.
+            let lobes: Float = 0.65 + 0.35 * sinf(ang * 5 + 1.7 * sinf(ang * 2 + v.x * 0.01))
+            let apronH: Float = v.base + v.peak * 0.13 * lobes * (1 - Terrain.smooth(0.55, Terrain.apron, t))
+            let aw: Float = Terrain.smooth(Terrain.apron, 0.9, t) * Terrain.smooth(1, 6, n.rv)
+            let target = max(cone * w + apronH * (1 - w), apronH)
+            let raised = max(n.h, target)
+            n.h = n.h + (raised - n.h) * max(w, aw)
+            guard d < v.r else { return }
             if w > 0.25 {
                 // No rivers or lakes on the cone (they were routed before it rose).
                 n.wl = SEA_D; n.rv = 99; n.dry = 0; n.delta = 0

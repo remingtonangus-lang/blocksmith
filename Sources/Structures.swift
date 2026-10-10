@@ -172,6 +172,9 @@ final class StructureCache {
     var legacy: Set<Int64> = []
     // The same guard taken again when Boreal Stations arrived (2026-10-09): chunks saved before that.
     var legacyStations: Set<Int64> = []
+    // Chunks saved before the Oct 10 placement rules (WorldRules.swift: no Capital city near spawn, rarer cities, no
+    // ruined gates): a retired placement stays wherever a save had already generated part of it.
+    var explored: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -466,7 +469,7 @@ enum Loot {
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
-        guard let t = tables[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
     }
