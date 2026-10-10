@@ -7,6 +7,14 @@
 > standing and bounty under the wallet. A killed sheriff drops the Sheriff's Revolver (6-shot) 5% of the time. New towns
 > get a sheriff's office with a jail cell and WANTED board, and covered boardwalks along the shops (old-save towns keep
 > their lots). Check: `questcheck --towns-only`. Notes, verifier fixes: docs/status/honour.md.
+> **Oct 10 AM playtest (task 25b4z, quest-port, done 10-10 evening):** all 38 voice notes have a status in
+> docs/playtests/2026-10-10/voice-notes-status.md. Shipped: sharp 128 px Quest textures, new grass + firefly bush,
+> VR melee redesign (blade contact, Reclined melee, physical bow; posture toggle now "Lying Down View"), two-way
+> render-distance governor + leaf perf, towns (every villager a townsperson, wallet HUD, $1 emerald exchange, theft,
+> sheriff, voices), capitals >= 1,200 blocks from spawn, volcano siting/foothills, ruined gates gone, wild camps
+> (docs/status/worldgen-oct10.md). Open (queue 25b4zx): volcano far view still pale, headset perf proof at 128 px,
+> body-box enemy reach, a blade hit flash. Local APK built: versionCode 80 (not installed; no headset on adb).
+
 > **People in the Capital cities (2026-10-10, quest-port PR):** each city has a market of 8 storefronts round the
 > fountain (the town shops, keepers, dollars), flats and offices, and citizens on a city day (office desk, saloon
 > lunch, the square's bell, home to bed); the city is named on the fountain. Fixes for all townsfolk: lying down from
