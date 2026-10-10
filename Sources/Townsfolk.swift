@@ -74,6 +74,7 @@ enum Townsfolk {
     // The town a place belongs to: the nearest village start (its anchor names it), else the region cell.
     static func town(_ g: Game, at p: V3) -> String {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
+        if let c = CapitalTown.city(g, x: x, z: z) { return c }
         if let sc = g.world.gen.structures, let s = sc.nearest("village", x: x, z: z, maxRegions: 1),
            abs(s.anchor.x - x) < 200 && abs(s.anchor.z - z) < 200 {
             return townName(s.anchor.x, s.anchor.z, seed: g.world.seed)
@@ -97,6 +98,13 @@ enum Townsfolk {
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]      // behind the counter
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
+        } else if tag.hasPrefix("citizen") {
+            // A Capital citizen (CapitalTown): "citizen@x,y,z" is the office desk they work at.
+            v.role = "citizen"; v.locked = true; v.profession = "none"
+            if let at = tag.split(separator: "@").dropFirst().first {
+                let c = at.split(separator: ",").compactMap { Int($0) }
+                if c.count == 3 { v.jobSite = c }
+            }
         }
         if v.role == nil {
             if m.baby { v.role = "child" }
@@ -115,7 +123,7 @@ enum Townsfolk {
         case "deputy": return .sword
         case "sheriff": return .revolver
         case "farmer": return .pitchfork
-        case "elder", "child": return .none
+        case "elder", "child", "citizen": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer
@@ -163,6 +171,10 @@ enum Townsfolk {
         case "shopkeeper": lines += ["Come on in, the \(v.shopKind?.name.lowercased() ?? "shop") is open.", "Take a look, I've got good stock."]
         case "elder": lines += ["When I was young this was all prairie.", "Don't let them sell you nothing you don't need."]
         case "child": lines = ["Hi!", "Are you a cowpoke?", "Watch this!"]
+        case "citizen":
+            lines += ["Lovely day for the gardens.", "Have you tried the café by the fountain?", "Busy day at the office.",
+                      "The soldiers keep it quiet here.", "Mind the ramps, they're steeper than they look."]
+            if let t = v.town { lines.append("Welcome to \(t).") }
         default: lines += ["Work never ends.", "You new around here?"]
         }
         return pick(lines, h)
@@ -269,6 +281,21 @@ extension Mob {
         return false
     }
 
+    // Where diners stand: on the customers' side of the bar, two blocks out from the barkeep across the counter (the
+    // keeper's own spot drew a lunch crowd behind the bar that shoved the barkeep up onto it; CapitalTownTests seeds 1
+    // and 777). Without a counter in reach, the keeper's spot itself.
+    static func barFront(_ w: World, _ js: [Int]) -> V3 {
+        func open(_ k: Int, _ dx: Int, _ dz: Int) -> Bool {
+            !Blocks.collide[Int(w.block(js[0] + k * dx, js[1], js[2] + k * dz))] && !Blocks.collide[Int(w.block(js[0] + k * dx, js[1] + 1, js[2] + k * dz))]
+        }
+        // The counter is one block high with the room open beyond it (the shelves behind the keeper have the wall beyond).
+        for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where Blocks.collide[Int(w.block(js[0] + dx, js[1], js[2] + dz))]
+            && open(2, dx, dz) && open(3, dx, dz) {
+            return V3(Float(js[0] + 2 * dx) + 0.5, Float(js[1]), Float(js[2] + 2 * dz) + 0.5)
+        }
+        return V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
+    }
+
     // The midday meal: the nearest saloon's counter within 64 blocks (searched every 60 s), else home.
     func townMealSpot(_ g: Game, _ dt: Float) -> V3? {
         town.mealSearch -= dt
@@ -278,7 +305,7 @@ extension Mob {
         var bd: Float = 64
         for o in g.mobs.mobs where o.kind == .villager && o.villager?.shop == ShopKind.saloon.rawValue {
             let d = simd_length(o.pos - pos)
-            if d < bd, let js = o.villager?.jobSite { bd = d; best = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5) }
+            if d < bd, let js = o.villager?.jobSite { bd = d; best = Mob.barFront(g.world, js) }
         }
         town.mealSpot = best
         return best

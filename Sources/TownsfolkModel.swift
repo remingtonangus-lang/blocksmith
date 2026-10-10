@@ -60,6 +60,18 @@ struct TownLook {
             case .saloon?: l.shirt = V3(0.93, 0.92, 0.88); l.vest = V3(0.5, 0.12, 0.1); l.bowTie = V3(0.08, 0.08, 0.08)
             case nil: break
             }
+        case "citizen":
+            // City clothes: a pale shirt, a dark coat or waistcoat, a bowler or a bonnet; dresses in quiet colours.
+            l.shirt = [V3(0.93, 0.93, 0.9), V3(0.82, 0.86, 0.9), V3(0.9, 0.86, 0.78)][k % 3]
+            if l.skirt == nil {
+                if k % 2 == 0 { l.coat = [V3(0.16, 0.17, 0.2), V3(0.3, 0.28, 0.26), V3(0.22, 0.26, 0.34)][(k / 2) % 3] }
+                else { l.vest = [V3(0.2, 0.2, 0.22), V3(0.38, 0.3, 0.24)][(k / 2) % 2]; l.bowTie = V3(0.12, 0.12, 0.14) }
+                l.legs = trousers[(k / 7) % 2 == 0 ? 2 : 3]
+                l.hat = k % 3 == 0 ? .bowler : .none; l.hatColor = V3(0.1, 0.1, 0.11)
+            } else {
+                l.skirt = [V3(0.3, 0.4, 0.55), V3(0.28, 0.26, 0.3), V3(0.45, 0.3, 0.42), V3(0.62, 0.6, 0.56)][(k / 11) % 4]
+                l.hat = k % 3 == 0 ? .bonnet : .none; l.hatColor = V3(0.9, 0.88, 0.82)
+            }
         case "craftsman":
             l.apron = V3(0.42, 0.3, 0.18); l.hat = k % 2 == 0 ? .flatCap : .none; l.hatColor = V3(0.3, 0.28, 0.26)
         default:

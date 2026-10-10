@@ -138,7 +138,13 @@ extension Mob {
         let late = villager?.shop == ShopKind.saloon.rawValue && Float(f) < ShopKind.saloon.hours.1
         guard f > 0.5 && f < 0.995, !late, let b = villager?.bed else { wake(); return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
-        if simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z)) > 1.2 {
+        // Close enough to lie down: within 1.2 of the pillow, or up to 1.6 (on the foot end, or diagonal to the head,
+        // where the path ends when the head lies against a wall) with nothing in between. At 1.2 only, townsfolk stood
+        // on the foot of the bed all night (CapitalTownTests day sim: 4 of 20 asleep).
+        let flat = simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z))
+        let reach = flat <= 1.2 || (flat <= 1.6 && abs(pos.y - Float(b[1])) < 1
+                                    && g.world.clearShot(pos + V3(0, 1.2, 0), V3(bedPos.x, Float(b[1]) + 1.2, bedPos.z)))
+        if !reach {
             // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
             // here and then let the day schedule re-aim the same tick, so few villagers ever reached their beds).
             if !gaveUp(V3(bedPos.x, Float(b[1]), bedPos.z)) { bedWalk = V3(bedPos.x, Float(b[1]), bedPos.z) }
@@ -171,7 +177,8 @@ extension Mob {
     enum Activity { case idle, work, meet, play, eat, social, patrol }
 
     // Townsfolk days (ticks from sunrise): adults idle / work from 2000 / the midday meal at the saloon 5600-6600 /
-    // work / meet at the bell from 9000 / an evening at the saloon from 11000 / rest from 12000; children idle / play
+    // work / meet at the bell from 9000 / an evening at the saloon from 11000 / rest from 12000 (Capital citizens work
+    // at an office desk); children idle / play
     // from 3000 / idle from 6000 / play from 10000 / rest from 12000. Shopkeepers mind their counter through their
     // shop's hours; deputies patrol the square day and night.
     func activity(_ f: Double) -> Activity {
@@ -181,7 +188,9 @@ extension Mob {
         if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
         let prof = villager?.profession ?? "none"
         if t >= 5600 && t < 6600 { return .eat }
-        if t >= 2000 && t < 9000 { return prof == "none" || prof == "nitwit" ? .idle : .work }
+        // Capital citizens (no trade, a desk) go to the office.
+        let desk = villager?.role == "citizen" && villager?.jobSite != nil
+        if t >= 2000 && t < 9000 { return (prof == "none" || prof == "nitwit") && !desk ? .idle : .work }
         if t >= 9000 && t < 11000 { return .meet }
         if t >= 11000 && t < 12000 { return .social }
         return .idle

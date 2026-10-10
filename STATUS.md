@@ -1,5 +1,10 @@
 # Status
 
+> **People in the Capital cities (2026-10-10, quest-port PR):** each city has a market of 8 storefronts round the
+> fountain (the town shops, keepers, dollars), flats and offices, and citizens on a city day (office desk, saloon
+> lunch, the square's bell, home to bed); the city is named on the fountain. Fixes for all townsfolk: lying down from
+> the foot of a bed, keepers off their counters, path searches to 100 blocks. Check: `questcheck --capitals-only`
+> (also in questcheck / `--towntests`). Notes and pre-mortem: docs/status/capital-towns.md.
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest
