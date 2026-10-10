@@ -24,6 +24,7 @@ final class DeepGen: TerrainGenerator {
     let ember: EmberGen
     let floorN: Noise, ceilN: Noise, riverN: Noise, pocketN: Noise, matN: Noise
     let structures: StructureCache?
+    let keepGuard = DeepGuard()
 
     init(seed: UInt64) {
         self.seed = seed
@@ -34,7 +35,7 @@ final class DeepGen: TerrainGenerator {
         riverN = Noise(seed: seed &+ 203)
         pocketN = Noise(seed: seed &+ 204)
         matN = Noise(seed: seed &+ 205)
-        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed), Bastion.deepType(worldSeed: seed)] + AshWar.types,
+        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types,
                                     fixed: AshWar.starts(seed: seed))
     }
 

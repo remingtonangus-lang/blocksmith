@@ -47,18 +47,18 @@ extension Mob {
     }
 
     // Joins the Ashguard: faction, names, the Marshal's size. Deep-down soldiers are tougher (power, like the Deep's
-    // monsters).
-    func ashSetup() {
+    // monsters). `loading`: a saved soldier keeps the health it was saved with.
+    func ashSetup(loading: Bool = false) {
         faction = Faction.ashguard.rawValue
         if kind == .ashMarshal { scale = 1.12; return }
         if !kind.ash, let r = Soldier.rank(kind) {
             spec.name = Mob.ashNames[r]
             power = 1.4
             // The Deep expansion: a harder army than any surface garrison (DeepExpansionTests.army): veterans with 60 %
-            // more health (a loaded, wounded soldier keeps its wounds) and heavier plate (steelholdArmor).
+            // more health (a loaded soldier keeps the health it was saved with) and heavier plate (steelholdArmor).
             let old = spec.health
             spec.health = old * 8 / 5
-            if health >= old { health = spec.health }
+            if !loading && health >= old { health = spec.health }
         }
     }
 

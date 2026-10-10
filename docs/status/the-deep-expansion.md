@@ -48,5 +48,33 @@ Out of scope (Mac worker owns): mob/tree/surface-sky looks. No new mob models.
 - Vault roof raised for newly generated chunks; chunks a player already modified keep their old roof (seams possible
   only there).
 
+- Sunderite Ore drops exactly 1 Raw Sunderite (no Fortune); about 10 ore a keep, so one keep is a pickaxe and a couple
+  of charges, not a stockpile.
+- Keep causeways run on to 72 blocks with ladders every 8 (down to ground beside the bridge, up out of the rock), so a
+  keep can be walked into from the hell band around it.
+- Saved Deep worlds: new keeps and Deep bastions stay clear of chunks generated before them
+  (structure-guard-deep-keeps.txt); the seal stamp replaces only the band's natural blocks (player builds and chests
+  in those 8 layers stay).
+
 ## Results
-(filled in as the work lands)
+Checks: `questcheck --deep-only` (DeepExpansionTests, part of every full questcheck).
+- Hell band: 128 tall, all five ember biomes within 2,000 blocks; fortresses, bastions and keeps in every sampled
+  region, no overlaps.
+- Seal: every column of sampled chunks sealed in all 8 layers; TNT and a radius-9 main-gun crater leave it; the
+  Sunderite Pickaxe takes 3.75 s a block; a Sunder Charge opens a 3x3 shaft through all 8 layers.
+- Keeps (seeds 12345 / 777 / 424242): 218-304 blocks from the origin, strongroom ore >= 8, 3 chests, garrison of 14
+  monsters + 7-10 Ashguard (strength 1597); walked into on foot from the ground around them.
+- Vault: 133-145 blocks floor to roof; ember haze and the Cinder Sun on Quest (Mac: haze colour and the sun; the
+  gradient dome is Quest only).
+- Army: Ashguard citadel 8695 vs Capital citadel 4127 and Boreal Station 2030; an Ashguard rifleman 58 vs 20.
+
+Independent verifier pass (2026-10-10): no way through the seal found (pickaxes, explosions, fluids, mobs, pistons,
+pearls, spiral fruit, portals, ships). Fixed from its findings: wounded Ashguard healed on reload, keeps unreachable
+on foot on some seeds, `/locate brimstone_keep`, Sunderite less rare than intended, Silk Touch Sealrock, charges
+outside the Deep, the old-save stamp overwriting builds, keeps generating into explored ground.
+
+Known limits:
+- The vault sky switches at feet y 128 (fog, ambient and roof cut change together, no easing).
+- Burning Sunder Charges are not saved (quitting during the 3 s fuse loses the charge).
+- In a pre-expansion save the Marshal loads at his old full health (220 of 380).
+- The Mac renderer's vault edits are not compiled on Linux; the Mac CI build covers them.

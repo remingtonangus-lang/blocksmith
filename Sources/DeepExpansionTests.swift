@@ -96,7 +96,7 @@ enum DeepExpansionTests {
         let ore = Blocks.id("sunderite_ore")
         let titanium = ItemStack(Items.id("diamond_pickaxe"), 1), iron = ItemStack(Items.id("iron_pickaxe"), 1)
         let drop = Mining.drops(ore, titanium)
-        check(drop.count == 1 && Items.key(drop[0].item) == "raw_sunderite" && (1...2).contains(drop[0].count) && Mining.drops(ore, iron).isEmpty,
+        check(drop.count == 1 && Items.key(drop[0].item) == "raw_sunderite" && drop[0].count == 1 && Mining.drops(ore, iron).isEmpty,
               "deep ore: Sunderite Ore drops raw sunderite to a Titanium pickaxe (\(drop.first.map { $0.count } ?? 0)), nothing to iron")
         func craft(_ items: [String]) -> String? {
             var grid = [ItemID](repeating: 0, count: 9)
@@ -238,8 +238,10 @@ enum DeepExpansionTests {
             for cz in floorDiv(s.min.z, CS)...floorDiv(s.max.z, CS) { for cx in floorDiv(s.min.x, CS)...floorDiv(s.max.x, CS) {
                 var blocks = w.gen.generate(cx: cx, cz: cz)
                 let (ents, ms) = sc.place(into: &blocks, cx: cx, cz: cz)
-                chests += ents.filter { $0.1.kind == .chest }.count
-                mobs += ms.map { $0.0 }
+                // Only the keep's own (its causeways reach far enough to touch other sites' chunks).
+                let near = { (x: Float, z: Float) in abs(x - Float(ox)) < Float(BrimstoneKeep.half + 4) && abs(z - Float(oz)) < Float(BrimstoneKeep.half + 4) }
+                chests += ents.filter { $0.1.kind == .chest && near(Float($0.0.x), Float($0.0.z)) }.count
+                mobs += ms.filter { near($0.1.x, $0.1.z) }.map { $0.0 }
                 for lz in 0..<CS { for lx in 0..<CS { for y in (f - 12)...(f + 24) {
                     let v = blocks[Chunk.index(lx, y, lz)]
                     b[v, default: 0] += 1
@@ -249,16 +251,26 @@ enum DeepExpansionTests {
             let monsters = mobs.filter { $0.hasSuffix("@deep") }.count, ash = mobs.filter { $0.contains("@ash") }.count
             check(b[brick, default: 0] > 2500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
                   "deep keeps \(seed): keep \(dist) blocks from the origin: \(b[brick, default: 0]) ember brick, \(strongOre) Sunderite Ore in the strongroom, \(chests) chests, garrison \(monsters) monsters + \(ash) Ashguard")
-            // Walk: from the end of the south causeway into the strongroom.
-            _ = w.loadSync(center: V3(Float(ox), Float(f), Float(oz)), radius: 3)
-            let startCell = IVec3(ox, f + 1, oz + BrimstoneKeep.causeway - 1)
-            let walk = StructCheck.walkOrder(w, seeds: [startCell], lo: IVec3(ox - 40, f - 14, oz - 40), hi: IVec3(ox + 40, f + 30, oz + 40), jump: true).seen
+            // Walk in from the hell band around it: from open ground 70-90 blocks out (a ring of 48 columns, the first
+            // standing cell going down from over the keep's floor), on foot with jumps and ladders, into the strongroom.
+            _ = w.loadSync(center: V3(Float(ox), Float(f), Float(oz)), radius: 6)
+            var starts: [IVec3] = []
+            for i in 0..<48 {
+                let a = Float(i) / 48 * 2 * .pi, rr: Float = i % 2 == 0 ? 72 : 88
+                let x = ox + Int(cosf(a) * rr), z = oz + Int(sinf(a) * rr)
+                for y in stride(from: f + 20, through: DeepGen.hellBase + 30, by: -1) where StructCheck.feet(w, x, y, z) != nil {
+                    starts.append(IVec3(x, y, z)); break
+                }
+            }
+            let walk = StructCheck.walkOrder(w, seeds: starts, lo: IVec3(ox - 95, f - 14, oz - 95),
+                                             hi: IVec3(ox + 95, f + 60, oz + 95), jump: true, limit: 1_500_000).seen
             var inStrong = 0, upstairs = 0
             for dz in -4...4 { for dx in -4...4 {
                 if walk.contains(StructCheck.key(ox + dx, f - 9, oz + dz)) { inStrong += 1 }
                 if walk.contains(StructCheck.key(ox + dx, f + 10, oz + dz)) { upstairs += 1 }
             } }
-            check(inStrong > 20 && upstairs > 20, "deep keeps \(seed): walking in from a causeway reaches \(inStrong) strongroom cells and \(upstairs) on the keep's upper floor")
+            check(inStrong > 20 && upstairs > 20,
+                  "deep keeps \(seed): walking in from the ground around it (\(starts.count) starts 72-88 blocks out) reaches \(inStrong) strongroom cells and \(upstairs) on the keep's upper floor")
         }
     }
 

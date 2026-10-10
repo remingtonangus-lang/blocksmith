@@ -11,8 +11,9 @@ enum BrimstoneKeep {
     static let spacing = 32                        // chunks
     static let floorUp = 36                        // courtyard floor over the hell band's base (lava sea at +31)
     static let half = 21                           // outer wall's outer face
-    static let causeway = 36                       // how far the gate causeways run out from the centre
-    static let oreMin = 10
+    static let causeway = 36                       // the built causeway (trim deck, basalt piers) out from the centre
+    static let reachOut = 72                       // the tunnel / bridge runs on to here, with ladders down and up
+    static let oreMin = 8
 
     // Fortresses of the Deep (Fortress.deepType, a fortress in every slot): the chunk of each start's origin.
     static func fortressChunk(_ worldSeed: UInt64, _ rx: Int, _ rz: Int) -> (Int, Int) {
@@ -40,17 +41,17 @@ enum BrimstoneKeep {
         return nil
     }
 
-    static func type(worldSeed: UInt64) -> StructureType {
-        StructureType(name: "brimstone_keep", spacing: spacing, separation: 8, salt: 0xB81_5703, reach: 3) { seed, cx, cz in
+    static func type(worldSeed: UInt64, guardSet: DeepGuard) -> StructureType {
+        StructureType(name: "brimstone_keep", spacing: spacing, separation: 8, salt: 0xB81_5703, reach: 5) { seed, cx, cz in
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
-            guard let (kx, kz) = spot(worldSeed, rx, rz) else { return nil }
+            guard let (kx, kz) = spot(worldSeed, rx, rz), guardSet.clear(kx, kz, 5) else { return nil }
             return layout(ox: kx * CS + 8, oz: kz * CS + 8, seed: seed)
         }
     }
 
     static func layout(ox: Int, oz: Int, seed: UInt64) -> StructureStart {
         let f = DeepGen.hellBase + floorUp
-        let r = causeway
+        let r = reachOut
         let piece = Piece(min: IVec3(ox - r, f - 40, oz - r), max: IVec3(ox + r, f + 26, oz + r)) { w in
             build(&w, ox: ox, oz: oz, f: f, seed: seed)
         }
@@ -67,7 +68,7 @@ enum BrimstoneKeep {
         let floor = y == f - 10 && abs(dx) <= 5 && abs(dz) <= 5 && dx > -3
         guard (wall && y >= f - 9 && y <= f - 3) || floor else { return false }
         if dx <= -3 && dz >= -6 && dz <= 5 && abs(dx) != 6 { return false }      // keep the stairwell clear
-        return hashf(x, y, z, 0x5D3E) < 0.03
+        return hashf(x, y, z, 0x5D3E) < 0.012
     }
 
     static func build(_ w: inout StructWriter, ox: Int, oz: Int, f: Int, seed: UInt64) {
@@ -109,14 +110,18 @@ enum BrimstoneKeep {
             w.set(tx, f + 21, tz, lamp)
         }
         // Gatehouses: a 3-wide gate through each wall, flanking piers, and a causeway out through the rock (a bridge where
-        // there is only air or lava).
+        // there is only air or lava). It runs on to reachOut; every 8 blocks a ladder goes down from the deck to the
+        // ground below (where there is ground, not lava) and a shaft climbs from the tunnel to the open air above (where
+        // the tunnel is under rock), so the keep can be walked into from the hell band around it.
+        let ladder = Blocks.id("ladder")
+        func solid(_ b: BlockID) -> Bool { Blocks.opaque[Int(b)] && Blocks.collide[Int(b)] }
         for (dx, dz) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
             let px = dz != 0 ? 1 : 0, pz = dx != 0 ? 1 : 0           // across the gate
             for s in [-3, 3] {
                 let x = ox + dx * (h + 1) + px * s, z = oz + dz * (h + 1) + pz * s
                 w.fill(x - pz, f + 1, z - px, x + pz, f + 16, z + px, dark)
             }
-            for d in (h - 2)...causeway {
+            for d in (h - 2)...reachOut {
                 let cx = ox + dx * d, cz = oz + dz * d
                 for s in -2...2 {
                     let x = cx + px * s, z = cz + pz * s
@@ -128,6 +133,26 @@ enum BrimstoneKeep {
                 }
                 if d > h + 1 && d % 4 == 0 {
                     w.pillarDown(cx, f - 1, cz, basalt, minY: DeepGen.hellBase + 1)
+                }
+                guard d > h + 2 && d % 8 == 4 else { continue }
+                // Down: a ladder on the outside of the deck, against a basalt pier.
+                let lx = cx + px * 3, lz = cz + pz * 3
+                w.pillarDown(cx + px * 2, f - 1, cz + pz * 2, basalt, minY: DeepGen.hellBase + 1)
+                if w.inside(lx, f, lz) {
+                    var y = f - 1
+                    while y > DeepGen.hellBase + 1 && !solid(w.get(lx, y, lz)) && !Blocks.isLiquid(w.get(lx, y, lz)) { y -= 1 }
+                    if y < f - 1 && solid(w.get(lx, y, lz)) {
+                        for yy in (y + 1)...f { w.set(lx, yy, lz, ladder + BlockID(px == 1 ? 3 : 1)) }
+                    }
+                }
+                // Up: a shaft from the tunnel's edge to the first open air above the rock.
+                let ux = cx + px * 2, uz = cz + pz * 2
+                if w.inside(ux, f + 6, uz) && solid(w.get(ux, f + 6, uz)) {
+                    var y = f + 6
+                    while y < f + 46 && w.get(ux, y, uz) != AIR && !Blocks.isLiquid(w.get(ux, y, uz)) { y += 1 }
+                    if y < f + 46 && w.get(ux, y, uz) == AIR {
+                        for yy in (f + 1)..<y { w.set(ux, yy, uz, ladder + BlockID(px == 1 ? 2 : 0)) }
+                    }
                 }
             }
         }
@@ -182,16 +207,28 @@ enum BrimstoneKeep {
     }
 }
 
+// Deep chunks a save had generated before the keeps and the Deep's bastions arrived (structure-guard-deep-keeps.txt,
+// set by World.init before any chunk is generated): new keeps and bastions stay clear of them, or they would stand cut
+// off at the edge of explored ground.
+final class DeepGuard {
+    var chunks: Set<Int64> = []
+    func clear(_ cx: Int, _ cz: Int, _ r: Int) -> Bool {
+        if chunks.isEmpty { return true }
+        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where chunks.contains(StructureCache.key(x, z)) { return false } }
+        return true
+    }
+}
+
 extension Bastion {
     // The Deep's hell band gets the Emberdeep's bastions too (their own grid, kept clear of fortresses and keeps).
-    static func deepType(worldSeed: UInt64) -> StructureType {
+    static func deepType(worldSeed: UInt64, guardSet: DeepGuard) -> StructureType {
         let spacing = 30
         return StructureType(name: "bastion", spacing: spacing, separation: 8, salt: 0xBA5_7DEE, reach: 4) { seed, cx, cz in
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
             var rng = SRng(worldSeed ^ 0xBA57_DEE9 &+ UInt64(bitPattern: Int64(rx)) &* 0x2545_F491 &+ UInt64(bitPattern: Int64(rz)) &* 0x9E37_79B9)
             for _ in 0..<12 {
                 let bx = rx * spacing + 4 + rng.int(spacing - 8), bz = rz * spacing + 4 + rng.int(spacing - 8)
-                guard BrimstoneKeep.clearOfFortresses(worldSeed, bx, bz, 9) else { continue }
+                guard BrimstoneKeep.clearOfFortresses(worldSeed, bx, bz, 9), guardSet.clear(bx, bz, 4) else { continue }
                 var nearKeep = false
                 let ks = BrimstoneKeep.spacing
                 for kz in floorDiv(bz - 12, ks)...floorDiv(bz + 12, ks) { for kx in floorDiv(bx - 12, ks)...floorDiv(bx + 12, ks) {

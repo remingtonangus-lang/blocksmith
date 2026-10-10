@@ -22,14 +22,27 @@ enum DeepSeal {
     static let chargeFuse: Float = 3
     static let chargeRadius = 1                        // 3x3 shaft
 
-    // Saved Deep chunks from before the seal: every layer of the band becomes Sealrock, unless the chunk already holds
+    // What the generator ever put in the band's layers (lower crust rock, ores, lava pockets, caves): the only blocks
+    // the seal replaces in a saved chunk and the only ones a charge blows open past the seal. Anything else there was
+    // built by a player (a chest keeps its contents, a wall stays a wall).
+    static let natural: [Bool] = {
+        var t = [Bool](repeating: false, count: Blocks.count)
+        t[Int(AIR)] = true
+        for k in ["air", "lava", "emberslate", "blackstone", "basalt", "magma_block", "deepslate_gold_ore", "deepslate_diamond_ore",
+                  "ancient_debris", "netherrack", "cobbled_emberslate", "gravel", "soul_sand", "soul_soil", "crimson_nylium",
+                  "warped_nylium", "nether_gold_ore", "nether_quartz_ore"] where Blocks.has(k) { t[Int(Blocks.id(k))] = true }
+        for i in 0..<Blocks.count where Blocks.fluidKind[i] == 2 { t[i] = true }
+        return t
+    }()
+
+    // Saved Deep chunks from before the seal: the band's natural blocks become Sealrock, unless the chunk already holds
     // some (it was generated with the seal, and any gap in it was cut by the player with Sunderite).
     static func stamp(_ b: inout [BlockID]) {
         let seal = Blocks.id("sealrock")
         let lo = bottom * CSQ, hi = top * CSQ
         guard b.count >= hi else { return }
         for i in lo..<hi where b[i] == seal { return }
-        for i in lo..<hi { b[i] = seal }
+        for i in lo..<hi where natural[Int(b[i])] { b[i] = seal }
     }
 }
 
@@ -114,7 +127,8 @@ extension Game {
     // A Sunder Charge pressed onto Sealrock: it burns for a few seconds, then blows a 3x3 shaft through the whole seal.
     func useSunderCharge(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
         guard Items.key(held.item) == "sunder_charge" else { return false }
-        guard let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "sealrock" else {
+        guard dim.dim == .deep, let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "sealrock",
+              DeepSeal.inBand(t.hit.y) else {
             onToast?("A Sunder Charge only works pressed against Sealrock")
             return true
         }
@@ -151,7 +165,7 @@ extension Game {
             for y in (DeepSeal.bottom - 1)...DeepSeal.top {
                 let b = world.block(x, y, z)
                 if b == seal { world.setBlock(x, y, z, AIR); removed += 1 }
-                else if (y == DeepSeal.bottom - 1 || y == DeepSeal.top) && b != AIR && Blocks.hardness[Int(b)] >= 0 && !Blocks.isLiquid(b) {
+                else if (y == DeepSeal.bottom - 1 || y == DeepSeal.top) && b != AIR && DeepSeal.natural[Int(b)] && !Blocks.isLiquid(b) {
                     world.setBlock(x, y, z, AIR)
                 }
             }

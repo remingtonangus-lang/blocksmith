@@ -61,7 +61,7 @@ enum Mining {
         return ceilf(1 / perTick) / 20
     }
 
-    static let noSilk: Set<String> = ["wheat", "carrots", "potatoes", "beetroots", "nether_wart", "spawner", "budding_amethyst",
+    static let noSilk: Set<String> = ["sealrock", "wheat", "carrots", "potatoes", "beetroots", "nether_wart", "spawner", "budding_amethyst",
                                       "reinforced_deepslate", "cocoa", "sweet_berry_bush", "torchflower_crop", "pitcher_crop", "melon_stem",
                                       "pumpkin_stem", "redstone_wire", "piston_head", "end_portal", "end_gateway", "cave_vines", "chorus_plant"]
     static let fortuneOres: Set<String> = ["coal_ore", "deepslate_coal_ore", "diamond_ore", "deepslate_diamond_ore", "emerald_ore",
@@ -160,7 +160,7 @@ enum Mining {
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)
         case "glass", "spawner", "glass_pane", "sealrock": return []
-        case "sunderite_ore": return one("raw_sunderite", rnd(1, 2))
+        case "sunderite_ore": return one("raw_sunderite", 1)
         case "fern":
             if shears { return one(key) }
             return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []

@@ -130,6 +130,7 @@ extension Game {
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
         ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire"),
         ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"), ("boreal_station", "Boreal Station"),
+        ("brimstone_keep", "Brimstone Keep"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
         ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage")]
 
