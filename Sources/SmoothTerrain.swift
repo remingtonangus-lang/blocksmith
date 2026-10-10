@@ -39,6 +39,14 @@ enum SmoothTerrain {
         return n.hasSuffix("_terracotta") && !n.contains("glazed")
     }
 
+    // Per block state: a built shape the ground must meet exactly (crafted solids, paths, farmland, fences, logs...).
+    // Surface vertices touching one sit on the block corner instead of rounding, so no notch opens under its edge.
+    static let pins: [Bool] = (0..<Blocks.count).map { i in
+        let n = Blocks.key(BlockID(i))
+        if natural[i] || n == "snow" || n.hasSuffix("_leaves") { return false }
+        return Blocks.opaque[i] || Blocks.collide[i]
+    }
+
     // Turns the mode on/off and remeshes everything loaded.
     static func set(_ on: Bool, world: World?) {
         guard on != enabled else { return }
@@ -71,7 +79,7 @@ extension Mesher {
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8],
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Bool) -> Void) {
         let nat = SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
-        let texT = Blocks.tex, tintT = Blocks.tint
+        let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins
         let skyL = sc.sky, blkL = sc.blk
         func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
 
@@ -123,7 +131,10 @@ extension Mesher {
                     n += 1
                 }
             }
-            let p = sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
+            var pinned = false
+            for c in 0..<8 where pinT[Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])] { pinned = true; break }
+            let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
+                : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
             // Light: mean over the open corners; ao from how many corners occlude.
             var sky = 0, blk = 0, open = 0, occ = 0

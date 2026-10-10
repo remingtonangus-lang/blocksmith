@@ -348,6 +348,13 @@ enum Mesher {
         let offs = [1, -1, RL, -RL, RW, -RW]
 
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { R[x + z * RW + y * RL] }
+        // Smooth terrain: a natural neighbour near the surface rounds away from a cubic block (or liquid), so the
+        // block keeps its face against it (else sky shows through the gap); buried natural cells still hide faces.
+        func smoothOpen(_ j: Int) -> Bool {
+            guard smooth && natT[Int(R[j])] else { return false }
+            for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
+            return false
+        }
         func occ(_ x: Int, _ y: Int, _ z: Int) -> Int { aoT[Int(R[x + z * RW + y * RL])] ? 1 : 0 }
         // Packed sky | blk << 4, or -1 for solid cells (excluded from smoothing).
         func light(_ x: Int, _ y: Int, _ z: Int) -> Int {
@@ -581,7 +588,7 @@ enum Mesher {
                                 if mx[a1] == mn[a1] || mx[a2] == mn[a2] { continue }   // zero-area face (thin planes)
                                 let onBoundary = positive ? mx[axis] == 16 : mn[axis] == 0
                                 let nb = R[i + offs[f]]
-                                if onBoundary && opaqueT[Int(nb)] && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
+                                if onBoundary && opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                                 let l: Int
                                 if onBoundary {
                                     l = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
@@ -607,7 +614,7 @@ enum Mesher {
                     let liquidTop = isLiquid && fkT[Int(at(x, y + 1, z))] != fk
                     for f in 0..<6 {
                         let nb = R[i + offs[f]]
-                        if opaqueT[Int(nb)] && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
+                        if opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were

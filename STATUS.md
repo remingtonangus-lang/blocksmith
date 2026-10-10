@@ -1,5 +1,11 @@
 # Status
 
+> **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
+> (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
+> crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest
+> `quest-settings.txt` `smoothTerrain = on`. Natural one-block steps are walkable. Write-up with shots, bench numbers,
+> what breaks, and the recommendation (change it, then offer it as an option): docs/proposals/smooth-terrain.md.
+> Check: `--smoothtest` (8 checks). Shots: `tools/smooth_shots.sh`. Do not make it the default until Remington decides.
 > **Performance pass (2026-10-10, task 25b2, quest-port):** water-tick queue (set removals cost 2-5 ms a tick),
 > time-sliced mob path searches + chunk-direct village scans, Quest mob drawing culled like the Mac, Quest far detail
 > from 5 chunks, Quest default render distance 16 (saved < 16 raised once). Plain-English cost guide:
