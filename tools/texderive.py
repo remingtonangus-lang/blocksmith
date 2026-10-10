@@ -33,7 +33,7 @@ RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), 
              ('chiseled_polished_blackstone', 'chiseled_stone_bricks'),
              ('cracked_polished_blackstone_bricks', 'cracked_stone_bricks'), ('prismarine_bricks', 'stone_bricks'),
              ('crimson_nylium', 'mycelium_top'), ('warped_nylium', 'mycelium_top'), ('pale_moss_block', 'moss_block'),
-             ('sandstone_bottom', 'sandstone_top'), ('suspicious_sand', 'sand'), ('suspicious_gravel', 'gravel')]
+             ('sandstone_bottom', 'sandstone_top'), ('warped_wart_block', 'nether_wart_block'), ('wet_sponge', 'sponge'), ('suspicious_sand', 'sand'), ('suspicious_gravel', 'gravel')]
 # original Blocksmith blocks: a material swatch (assets/gemini/tiles, sheet s15) in the block's own procedural colour
 TILES = [('capital_stone', 'limestone_blocks'), ('capital_panel', 'white_panel'), ('capital_paving', 'paving'),
          ('capital_plate', 'riveted_plate'), ('capital_trim', 'trim_band'), ('capital_stone_trim', 'trim_band'),

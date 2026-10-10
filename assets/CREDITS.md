@@ -37,5 +37,7 @@ Same style and source (Gemini on gemini.google.com, Remington's Google AI Pro ac
 - assets/gemini/plants/p01_plants.png: 16 plant sprites on magenta (grass, fern, flowers, saplings, cane, kelp,
   seagrass), sliced by tools/iconslice.py with docs/textures/plants.json (bottom-anchored hard cutouts; grass and fern
   greyscale for the biome tint).
+- assets/gemini/sheets/s16_organic.jpg (8 of 16 cells used: honeycomb, sponge, crying obsidian, sculk, wart, shroomlight,
+  sea lantern, barrel side; the rest were objects, not tiles).
 - texderive.py RELATIVES/copper/stained glass: nether and pale woods, copper weathering stages and others carry an
   imported base's detail in the procedural colour. All original Blocksmith art.

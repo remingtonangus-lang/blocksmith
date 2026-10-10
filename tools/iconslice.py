@@ -118,8 +118,10 @@ def main():
                 if plants:
                     icon = as_block_cutout(icon, mode == 'tint')
                 # "=heart": a raw layer name (HUD icons), otherwise item_<name>
-                fn = name[1:] if name.startswith('=') else 'item_' + name
-                icon.save(os.path.join(a.out, fn + '.png'))
+                # "=wheat_stage0|wheat_stage1": one cell saved under several layer names (growth stages)
+                for nm in name.split('|'):
+                    fn = nm.lstrip('=') if name.startswith('=') else 'item_' + nm
+                    icon.save(os.path.join(a.out, fn + '.png'))
                 print(name, 'ok')
     hud_halves(a.out)
 

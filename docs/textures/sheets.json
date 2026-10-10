@@ -481,5 +481,37 @@
     "teak_deck"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s16_organic.jpg",
+  "grid": 4,
+  "crop": 0.06,
+  "stylise": 0.3,
+  "tiles": [
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "honeycomb_block",
+    "sponge",
+    "-",
+    "-"
+   ],
+   [
+    "crying_obsidian",
+    "sculk",
+    "nether_wart_block",
+    "shroomlight"
+   ],
+   [
+    "sea_lantern:single",
+    "barrel_side",
+    "-",
+    "-"
+   ]
+  ]
  }
 ]
