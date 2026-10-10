@@ -568,7 +568,9 @@ enum QuestSim {
             let at = ahead(1.6)
             let z = husk(at)
             let h0 = z.health
-            frames(40) { i in idleHands(); z.pos = at; z.vel = .zero; sim.hands[1].trigger = i % 10 < 5 ? 1 : 0 }
+            // Let the attack charge refill after the swings above, then click slowly (a click every 30 frames).
+            frames(60) { _ in idleHands(); z.pos = at; z.vel = .zero }
+            frames(90) { i in idleHands(); z.pos = at; z.vel = .zero; sim.hands[1].trigger = i % 30 < 6 ? 1 : 0 }
             check(z.health < h0, "VR swing mode holding a torch: the trigger attacks a husk (\(h0) -> \(z.health))")
             remove(z)
             frames(6) { _ in idleHands() }
