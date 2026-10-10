@@ -399,6 +399,7 @@ final class FrameStats {
 
     func add(frame: Double, cpu: Double, tick: Double, record: Double, gpu: Double, target: Double, scene: SceneRenderer, game: Game?, rate: Float) {
         frames += 1
+        if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
         if frame * 1000 > worstFrame {
             worstFrame = frame * 1000

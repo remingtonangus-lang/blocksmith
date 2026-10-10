@@ -143,7 +143,7 @@ extension Game {
         if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
-        if let m = world.ships.macCharge(s) { t += m > 0 ? String(format: "  MAC %.0f s", m.rounded(.up)) : "  MAC ready" }
+        if let (m, _, _) = world.ships.mainGunStatus(s.root) { t += "  \(MainGun.name) " + m }
         return t
     }
 
@@ -295,8 +295,9 @@ extension Game {
         ships.breakCooldown -= dt
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
-            // Attack fires the MAC when a Meridian frigate's is charged, else the cannons, raised to the view pitch.
-            if breakNow && ships.playerMAC(s, pitch: player.pitch, game: self) { swing = 1; return true }
+            // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later), else fires the
+            // cannons, raised to the view pitch.
+            if breakNow && ships.playerMainGun(s, pitch: player.pitch, game: self) { swing = 1; return true }
             if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
             return true
         }

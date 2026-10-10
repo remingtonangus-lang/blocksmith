@@ -341,3 +341,46 @@ enum SoldierVoice {
         return o
     }
 }
+
+// The Tidebreaker, the Meridian frigate's spinal gun (MainGun.swift): its charge, its shot and the ground rumble after.
+extension WeaponAudio {
+    static func mainGun(_ g: inout Synth, _ s: Snd, p: Float) -> [Float] {
+        switch s {
+        case .mainGunCharge:
+            // 2.8 s: a capacitor whine climbing two octaves, a sub hum swelling under it, coil thumps closing in from a
+            // slow beat to a roll, crackle building to the end, and a click at the top as the slug seats.
+            let dur: Float = 2.8
+            var o = Synth.lowpass(Synth.rampIn(g.tone(dur, f0: 180 * p, f1: 1500 * p, wave: .saw, attack: 0.3, release: 0.05, vib: 0.012, vibRate: 9, gain: 0.16), 1.6), 3200)
+            o = Synth.mix(o, Synth.rampIn(g.tone(dur, f0: 42 * p, f1: 70 * p, wave: .sine, attack: 0.4, release: 0.05, gain: 0.9), dur))
+            var t: Float = 0.15
+            var gap: Float = 0.34
+            while t < dur - 0.08 {
+                let k = t / dur
+                let thump = Synth.mix(g.burst(0.12, lp: 500 + 900 * k, hp: 40, attack: 0.001, decay: 0.03, gain: 1.2 + 1.6 * k),
+                                      g.modes(0.14, [(220 * p * (1 + k), 0.3 + 0.3 * k, 0.04), (610 * p * (1 + k), 0.12, 0.02)]))
+                o = Synth.mix(o, thump, at: g.frames(t))
+                gap = max(0.05, gap * 0.86)
+                t += gap
+            }
+            o = Synth.mix(o, Synth.rampIn(g.crackle(dur, density: 380, f: 3800, q: 1.2, gain: 0.7), dur * 0.9))
+            o = Synth.mix(o, Synth.mix(g.modes(0.2, [(1900 * p, 0.5, 0.05), (3100 * p, 0.25, 0.03)]),
+                                       g.burst(0.06, lp: 6000, hp: 1500, attack: 0.0005, decay: 0.01, gain: 1.2)), at: g.frames(dur - 0.05))
+            return o
+        case .mainGunFire:
+            // A supersonic crack on top of a deck-gun boom twice its size, a chest-deep sub drop, and the sky answering.
+            var o = shot(&g, p: p * 0.5, size: 3.4, bright: 1.25, tail: 2.6, mech: 0)
+            o = Synth.mix(o, g.burst(0.08, lp: 11000, hp: 2500, attack: 0.0003, decay: 0.008, gain: 2.4))
+            o = Synth.mix(o, g.tone(0.9, f0: 70 * p, f1: 24 * p, wave: .sine, attack: 0.004, release: 0.6, gain: 1.6), at: g.frames(0.005))
+            o = Synth.mix(o, g.rumble(3.8, f: 34, attack: 0.01, decay: 1.4, gain: 3.2))
+            o = Synth.mix(o, Synth.decayEnv(g.wash(1.2, lp: 7000, hp: 1500, wobble: 0.5, rate: 18, gain: 0.5), 0.35), at: g.frames(0.02))
+            return Synth.echo(o, delay: 0.52, feedback: 0.38, mix: 0.35, tail: 1.6)
+        default:
+            // The impact's long rumble: a deep roll that swells and slowly dies, debris pattering down in the middle of it.
+            var o = g.rumble(7.5, f: 26, attack: 0.25, decay: 2.6, gain: 3.4)
+            o = Synth.mix(o, Synth.decayEnv(g.wash(7.0, lp: 180, hp: 22, wobble: 0.6, rate: 2.5, gain: 0.9), 2.4))
+            o = Synth.mix(o, distant(&g, p: p * 0.7, size: 3.0, roll: 4.5))
+            o = Synth.mix(o, g.grains(40, spread: 2.4, lp: 2400, hp: 200, decay: 0.02, gain: 0.6), at: g.frames(0.9))
+            return Synth.echo(o, delay: 0.7, feedback: 0.4, mix: 0.3, tail: 2.0)
+        }
+    }
+}

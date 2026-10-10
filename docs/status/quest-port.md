@@ -706,3 +706,32 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
   68872156 + 7629ff8a (fluid queue untimed there: no Quest fluid budget on that branch); mac run 38023362948 green.
   No save format change (fluid queue is not saved; only the quest.rd16 settings key). Local `--questbugs` on the
   unoptimized build made no progress in 20 min on the busy Mac (timeboxed; the code commits were checked when made).
+
+## Task 3 (2026-10-09): the Tidebreaker, the Meridian frigate's main gun
+The frigate's spinal gun (was "MAC", a Halo term; renamed everywhere the player sees, docs/status/ip-renames.md).
+Code: Sources/MainGun.swift (charge, shot, impact, shockwave, shake, MainGunPerf), Sources/CapitalFrigate.swift
+(barrel), Explosion.swift (CraterJob), checks in Sources/MainGunTests.swift.
+- Barrel: 63 blocks along the centre line between the bow booms, clear bore, 10 glowing coil rings, a muzzle brake.
+- Charge (2.6 s, from the helm's attack or the AI): rising whine and thumps, a light pulse running breech to muzzle,
+  sparks drawn into the muzzle, camera shake and Touch haptic thumps that get stronger and quicker.
+- Shot: 420 b/s slug with a glowing wake, recoil, a big muzzle flash, steam from the coils. Impact: a crater-sized
+  fireball and a smoke column, a radius-13 crater capped at 9000 blocks carved nearest-first 250 blocks a frame, a
+  shockwave (64 b/s out to 48 blocks: 6-60 damage and a throw, the firing ship's own deck spared), dust along the
+  front, a 7.5 s ground rumble heard to 480 blocks, shake felt to 200 blocks. Reload 22 s (AI 30 s); HUD gauge row.
+- Shake: eye translation only in VR (at most 2.5 cm), cut by Accessibility "Flashes & Shake: Reduced" (was "Screen
+  Flashes").
+- Frame time (host, APK flags -Ounchecked -wmo, frames paced at 72 Hz, 4.1 s after the impact, Game.tick as
+  QuestApp runs it), three runs after rebasing on quest-port: median 0.6 ms, p99 4.3-6.5 ms, worst 4.4-14.4 ms. The
+  gun's own stages stay under 3 ms a frame; the rare 7-14 ms frames are general systems the crater wakes (World.update
+  applying two finished chunk meshes: 8-10 ms; one precipitation tick: 13.8 ms), left to the local lane's perf work.
+  Before this task the impact stalled the frame thread (1.5 s at -Onone, 21.6 ms optimized). Fixes, as
+  classes: the crater is a CraterJob sliced over frames; Game.gravityTick checks at most 1500 cells a tick (the
+  synchronous-remesh half of the stall is covered by quest-port's World.deferRemesh, which landed meanwhile); TickProf
+  names the slow stage. On the headset: logcat line "perf: main gun blast: N frames, median, p99, worst, over budget K" (not
+  measured on the device yet: this cloud session cannot fetch the Android SDK to build the APK).
+- Checks: questcheck `--maingun-only` (also part of the full questcheck): barrel, shockwave, helm charge and haptics,
+  reload, crater, gravity backlog drained, a hit past the streamed world dug once its ground loads; with --render,
+  maingun_frigate/barrel/charge/blast/crater.png.
+- Round 2 (2026-10-10): coil rings glow through the hull as the charge pulse passes and a corona gathers at the
+  muzzle (soft glow puffs that read from a few hundred blocks); a bigger fireball; a hit beyond the loaded world is
+  remembered (16 this session) and its bowl is dug quietly when the player comes near enough to load it.

@@ -134,7 +134,7 @@ final class PauseMenu: Menu {
         "keys": "Choose which keys walk, jump, open the inventory and more.",
         "padmap": "Move actions to other controller buttons. Prompts follow your layout.",
         "pbindreset": "Put every controller button back to the standard layout.",
-        "playout": "Halo: Y switches to your last hotbar slot, hold Y for the inventory. Classic: Y opens the inventory.",
+        "playout": "Shooter: Y switches to your last hotbar slot, hold Y for the inventory. Classic: Y opens the inventory.",
         "bindreset": "Put every key back to the default layout.",
         "volume": "Overall sound volume.",
         "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
@@ -259,7 +259,7 @@ final class PauseMenu: Menu {
                         ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
-                        ("Screen Flashes: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
+                        ("Flashes & Shake: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
@@ -447,7 +447,7 @@ final class PauseMenu: Menu {
         case "playout":
             #if os(macOS)
             PadMap.halo.toggle()
-            g.onToast?(PadMap.halo ? "Halo layout: Y switches weapon, hold Y for inventory" : "Classic layout: Y opens the inventory")
+            g.onToast?(PadMap.halo ? "Shooter layout: Y switches weapon, hold Y for inventory" : "Classic layout: Y opens the inventory")
             #endif
         case _ where id.hasPrefix("bind:"):
             binding = KeyBinds.Action(rawValue: String(id.dropFirst(5)))

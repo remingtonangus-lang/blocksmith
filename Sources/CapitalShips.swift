@@ -49,6 +49,11 @@ final class CapitalState {
     var mainGunMuzzle = V3(0, 0, 0)    // ship space (grid coordinates)
     var mainGunDir = V3(0, 0, -1)
     var mainCharge: Float = 0
+    var mainGunLength: Float = 0       // barrel length back from the muzzle along -mainGunDir (the Tidebreaker's glow)
+    var gunCharge: Float = -1          // the Tidebreaker: seconds charged (>= 0 while charging; MainGun.swift)
+    var gunByPlayer = false            // the charge was started from the helm (fires along the view pitch)
+    var gunPitch: Float = 0            // the helm's view pitch, kept current while it charges
+    var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
     var exhausts: [V3] = []            // drive nozzle mouths (ship space)
@@ -126,6 +131,7 @@ final class HullBuilder {
     var pods: [(V3, V3)] = []
     var exhausts: [V3] = []              // drive nozzle mouths (grid coordinates): glowing exhaust while the engines run
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
+    var mainGunLength: Float = 0         // visible barrel length behind the muzzle (blocks)
     var crew: [V3] = []                  // crew posts, grid coordinates (feet)
     var crewRoles: [CrewRole] = []       // per post (missing entries are troops)
     // A crew post at builder coordinates (x relative to the centreline).
@@ -652,6 +658,7 @@ extension ShipManager {
             st.engines0 = s.engines
             st.mainGunMuzzle = hb.mainGun.0
             st.mainGunDir = hb.mainGun.1
+            st.mainGunLength = hb.mainGunLength
             st.pods = hb.pods
             st.exhausts = hb.exhausts
             st.crew = hb.crew
@@ -890,7 +897,7 @@ extension ShipManager {
                 }
             }
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
-            if s.wrecked { founder(s, st, dt, g); continue }
+            if s.wrecked { st.gunCharge = -1; founder(s, st, dt, g); continue }      // a charge dies with the ship
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
@@ -901,6 +908,7 @@ extension ShipManager {
             }
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
+            if s.role == "capfrigate" { mainGunTick(s, st, dt, g) }
             deployTroops(s, st, dt, g)
         }
     }
@@ -929,7 +937,7 @@ extension ShipManager {
         let c = s.pos
         var best: CapTarget?
         var bd = st.sight
-        // Capital ships spare their own citadels; other factions' (the Meridian's MAC) don't.
+        // Capital ships spare their own citadels; other factions' (the Meridian's Tidebreaker) don't.
         let spare: (V3) -> Bool = { p in s.factionValue == .steelhold && g.bases.inAnyBase(p) }
         // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget); every player in split screen.
         for i in 0..<max(1, g.coop.seatCount) {
@@ -1069,7 +1077,8 @@ extension ShipManager {
         s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
         levelUp(s, dt)
         st.target = nil
-        st.mainGunCD -= dt                                  // the MAC recharges for its new captain (playerMAC)
+        st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
+        if s.role == "capfrigate" { mainGunTick(s, st, dt, g) }
         for t in turrets(of: s) { t.aimAt = nil }
     }
 
@@ -1290,7 +1299,12 @@ extension ShipManager {
         let toT = t.point - mw
         let dist = simd_length(toT)
         let cosA = simd_dot(md, toT / max(1, dist))
-        if st.driverAlive && st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
+        if s.role == "capfrigate" {
+            // The Meridian's Tidebreaker: a long, telegraphed charge (whine, glowing barrel, MainGun.swift), then a slug
+            // that craters whatever it hits. Once charging it commits and fires along the bow, toward the target if it
+            // is still within the cone.
+            if st.driverAlive && st.mainGunCD <= 0 && st.gunCharge < 0 && cosA > 0.9 && dist < 600 && dist > 40 { startMainGunCharge(s, st, g, byPlayer: false) }
+        } else if st.driverAlive && st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
             if st.mainCharge == 0 { g.sfx(.gun(12), 2, at: mw) }
             st.mainCharge += dt
             if Int(st.mainCharge * 20) % 2 == 0 { g.particles.smoke(at: mw, dark: false) }
@@ -1298,14 +1312,6 @@ extension ShipManager {
                 st.mainCharge = 0
                 let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
-                if s.role == "capfrigate" {
-                    // The Meridian's MAC: a slug that craters whatever it hits.
-                    st.mainGunCD = 20
-                    var dir = simd_normalize(t.point + t.vel * (dist / 420) - mw)
-                    if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
-                    fireMAC(s, from: mw, dir: dir, game: g)
-                    return
-                }
                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
