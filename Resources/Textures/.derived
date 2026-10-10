@@ -1,6 +1,7 @@
 acacia_log@r
 ash_concrete
 ash_plating
+bamboo_block@r
 basalt_side@r
 birch_log@r
 black_concrete
@@ -11,6 +12,7 @@ blue_concrete
 blue_concrete_powder
 blue_terracotta
 blue_wool
+bone_block_side@r
 brown_concrete
 brown_concrete_powder
 brown_terracotta
@@ -36,6 +38,7 @@ cyan_concrete_powder
 cyan_terracotta
 cyan_wool
 dark_oak_log@r
+exposed_cut_copper
 farmland
 frigate_hull
 frigate_plate
@@ -77,6 +80,7 @@ orange_concrete
 orange_concrete_powder
 orange_terracotta
 orange_wool
+oxidized_cut_copper
 pale_moss_block
 pale_oak_log
 pale_oak_log_top
@@ -91,10 +95,13 @@ purple_concrete
 purple_concrete_powder
 purple_terracotta
 purple_wool
+purpur_pillar@r
+quartz_pillar@r
 red_concrete
 red_concrete_powder
 red_terracotta
 red_wool
+redstone_lamp
 sandstone_bottom
 ship_metal
 ship_wood
@@ -128,6 +135,7 @@ warped_stem
 warped_wart_block
 warship_hull
 warship_panel
+weathered_cut_copper
 wet_sponge
 white_concrete_powder
 white_terracotta

@@ -513,5 +513,101 @@
     "-"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s17_building3.jpg",
+  "grid": 4,
+  "crop": 0.05,
+  "stylise": 0.3,
+  "tiles": [
+   [
+    "cut_copper:single",
+    "polished_deepslate:single",
+    "polished_tuff:single",
+    "quartz_pillar"
+   ],
+   [
+    "purpur_pillar",
+    "red_nether_bricks",
+    "dark_prismarine",
+    "chiseled_sandstone:single"
+   ],
+   [
+    "red_sandstone_top",
+    "bamboo_block",
+    "mushroom_stem",
+    "red_mushroom_block"
+   ],
+   [
+    "brown_mushroom_block",
+    "bone_block_side",
+    "blue_ice",
+    "melon_side"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s18_workshop.jpg",
+  "grid": 4,
+  "crop": 0.04,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "tnt_side:single",
+    "smithing_table_side:single",
+    "fletching_table_side:single",
+    "cartography_table_side:single"
+   ],
+   [
+    "loom_side:single",
+    "-",
+    "note_block:single",
+    "jukebox_side:single"
+   ],
+   [
+    "piston_side:single",
+    "observer_front:single",
+    "dispenser_front:single",
+    "target_side:single"
+   ],
+   [
+    "beehive_side:single",
+    "bee_nest_side",
+    "redstone_lamp_on:single",
+    "honey_block:single"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s19_tops.jpg",
+  "grid": 4,
+  "crop": 0.04,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "tnt_top:single",
+    "melon_top:single#0.2",
+    "smithing_table_top:single",
+    "fletching_table_top:single"
+   ],
+   [
+    "cartography_table_top:single",
+    "-",
+    "-",
+    "smoker_front:single"
+   ],
+   [
+    "-",
+    "piston_top:single",
+    "observer_side:single",
+    "jukebox_top:single"
+   ],
+   [
+    "-",
+    "beehive_front:single",
+    "white_glazed_terracotta:single",
+    "orange_glazed_terracotta:single"
+   ]
+  ]
  }
 ]

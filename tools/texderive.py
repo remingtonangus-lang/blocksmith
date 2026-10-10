@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COLOURS = ('white orange magenta light_blue yellow lime pink gray light_gray cyan purple blue brown green red '
            'black').split()
 MUTE = 0.7    # keep 70% of the procedural colour saturation: dyes sit with the natural palette
-TONED = [('farmland', 'farmland_moist', 1.45), ('furnace_side', 'furnace_body', 1.0), ('furnace_plate', 'furnace_body', 0.92),
+TONED = [('farmland', 'farmland_moist', 1.45), ('redstone_lamp', 'redstone_lamp_on', 0.45), ('furnace_side', 'furnace_body', 1.0), ('furnace_plate', 'furnace_body', 0.92),
          ('furnace_top', 'furnace_body', 0.92), ('cactus_bottom', 'cactus_top', 0.85)]
 # same material family, other wood/stone: base's surface detail in the target's procedural colour
 RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), ('pale_oak_planks', 'birch_planks'),
