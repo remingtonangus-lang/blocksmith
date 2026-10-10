@@ -661,6 +661,7 @@ final class Game {
         // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
         if m is CraftingBookMenu { menuCursor = CraftCategory.allCases.count }
         audioMenuOpened(m)
+        TownLaw.opened(self, m)
     }
 
     // Before the game ends (quit, another world): every seat's open screen hands its cursor item and grid back to the
@@ -674,6 +675,7 @@ final class Game {
         guard let m = menu, !(m is DeathMenu) else { return }
         sneakHeldFromMenu = true
         audioMenuClosed(m)
+        TownLaw.closed(self, m)
         m.onClose()
         if !carried.isEmpty {
             let rest = inventory.add(carried)
@@ -1399,6 +1401,7 @@ final class Game {
             if key == "wither_skeleton_skull" { trySummonBlight(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { if !trySummonCopperGolem(at) { trySummonGolem(at) } }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
+            TownLaw.placed(self, at)
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
             consumeHeld()
@@ -1446,6 +1449,7 @@ final class Game {
     }
 
     func openBlock(_ p: IVec3) {
+        TownLaw.opening(self, p)
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
         switch k {
@@ -1549,6 +1553,7 @@ final class Game {
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         boarlingsGuard(p, block: b)
+        TownLaw.broke(self, p, b)
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)

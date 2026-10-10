@@ -93,3 +93,15 @@ docs/status/texture-sharpness.md). All original Blocksmith art.
   text. SQUARE 1:1 image." `tools/iconslice.py --spec docs/textures/plants.json --only p03` ("glow" cell: the pink
   halo texels left by the key become warm light). Rejected: one grass top (washed out), two bushes (made of cubes;
   pink glow halos).
+## Townsfolk voice lines (Resources/voices.bin, 2026-10-10)
+- 264 English takes (6,753 characters of script, 482 s of speech) generated 2026-10-10 through OpenRouter's speech
+  endpoint (openrouter.ai/api/v1/audio/speech) with the model elevenlabs/eleven-v4-turbo, using the stock ElevenLabs
+  voices Brian (sheriff), Adam/River (deputies), Eric/Matilda (shopkeepers), Roger/Jessica (saloon and butcher),
+  Chris/Laura (farmers), Bill/Alice (elders), Will/Sarah (other townsfolk), and Jessica sped up x1.22 (children).
+- Script: original Blocksmith lines, all in Sources/TownVoice.swift (`script`). The per-take log (key, voice, model,
+  date, length, context, text) is assets/voices/manifest.tsv.
+- Processing: tools/townvoice_gen.py (silence trim, 16 kHz, loudness matched to -20 dBFS speech RMS, peak cap, 4-bit
+  IMA-ADPCM packing decoded by TownVoice.swift on Mac and Quest). Levels: tools/audiolevels.py, 0 failing; worst
+  decoded peak -2.1 dBFS; LUFS median -20.8.
+- Licence: generated under Remington's OpenRouter account. ElevenLabs output terms for commercial use in a public
+  repo still need Remington's confirmation before release.

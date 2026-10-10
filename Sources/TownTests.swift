@@ -18,6 +18,7 @@ enum TownTests {
         economy(check)
         pricing(check)
         trade(g, check)
+        law(g, makeWorld, check)             // TownLawTests.swift: law, sheriff, wallet, exchange, voices
         shopUI(g, check)
         people(g, check)
         defence(g, check)
@@ -112,9 +113,12 @@ enum TownTests {
                 let g = (Float(p * t.sellN) * Economy.maxSellMult - extra) / Float(t.buyN)
                 if g > outGain { outGain = g; outWhy = "\(t.sellN) \(bName) for \(t.buyN)" }
             }
-            if t.sell == "emerald" && bought.contains(Items.id("emerald")) { bad.append("shops buy emeralds") }
         } } }
-        if sold.contains(Items.id("emerald")) { bad.append("shops sell emeralds") }
+        // The general store's exchange (Wallet.swift): an emerald is bought from you at emeraldSell and sold at
+        // emeraldBuy, so the cheapest emerald from shop goods must cost at least what the store pays for one, and the
+        // best an emerald fetches through an offer must stay under what the store charges for one.
+        if inCost < Float(Economy.emeraldSell) { bad.append(String(format: "shop goods -> emerald %.0f c < the store pays %d c", inCost, Economy.emeraldSell)) }
+        if outGain > Float(Economy.emeraldBuy) { bad.append(String(format: "emerald -> money %.0f c > the store charges %d c", outGain, Economy.emeraldBuy)) }
         print(String(format: "towntests: barter: cheapest emerald from shop goods %.0f c (%@), best emerald back to money %.0f c (%@)", inCost, inWhy, outGain, outWhy))
         if outGain > inCost { bad.append(String(format: "emerald in %.0f c < out %.0f c", inCost, outGain)) }
         check(Set(bad).isEmpty, "economy: no shop -> barter -> shop profit" + (bad.isEmpty ? "" : ": " + Set(bad).sorted().joined(separator: ", ")))

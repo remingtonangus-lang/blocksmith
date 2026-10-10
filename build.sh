@@ -32,6 +32,8 @@ cp Info.plist "$APP/Contents/Info.plist"
 # Imported block textures (tools/teximport.py); each replaces that texture's procedural material.
 rm -rf "$APP/Contents/Resources/Textures"
 if [ -d Resources/Textures ]; then cp -R Resources/Textures "$APP/Contents/Resources/Textures"; fi
+# Townsfolk voice takes (tools/townvoice_gen.py, TownVoice.swift).
+if [ -f Resources/voices.bin ]; then cp Resources/voices.bin "$APP/Contents/Resources/voices.bin"; fi
 # Commit id for Bug Notes entries (BugNotes.build).
 /usr/libexec/PlistBuddy -c "Add :BlocksmithCommit string $(git rev-parse --short HEAD 2>/dev/null || echo unknown)" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true

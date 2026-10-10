@@ -83,7 +83,7 @@ enum Economy {
         "leather": 50, "rabbit_hide": 12, "feather": 5, "bone": 6, "rotten_flesh": 2,
         // Materials, ores and gems
         "stick": 1, "coal": 12, "charcoal": 10, "iron_nugget": 10, "iron_ingot": 100, "raw_iron": 60, "gold_nugget": 25,
-        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 900, "diamond": 1500, "emerald": 600,
+        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 900, "diamond": 1500, "emerald": 100,
         "lapis_lazuli": 40, "quartz": 30, "amethyst_shard": 20, "flint": 4, "string": 8, "gunpowder": 40, "slime_ball": 30,
         "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "spider_eye": 12, "ghast_tear": 300, "rabbit_foot": 150,
         "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 6, "book": 32, "ink_sac": 8,
@@ -132,7 +132,7 @@ enum Economy {
         .general: [("bread", 16), ("apple", 16), ("baked_potato", 12), ("torch", 64), ("lantern", 4), ("bucket", 2),
                    ("glass_bottle", 16), ("map", 2), ("compass", 1), ("clock", 1), ("paper", 32), ("book", 8),
                    ("shears", 2), ("fishing_rod", 2), ("lead", 4), ("flint_and_steel", 2), ("wheat_seeds", 32),
-                   ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1)],
+                   ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12)],
         .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 180),
                     ("shotgun_shells", 60), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
@@ -157,7 +157,7 @@ enum Economy {
     static let buys: [ShopKind: [String]] = [
         .general: ["wheat", "carrot", "potato", "beetroot", "pumpkin", "melon_slice", "sugar_cane", "egg", "honeycomb",
                    "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
-                   "amethyst_shard", "cocoa_beans"],
+                   "amethyst_shard", "cocoa_beans", "emerald"],
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_shotgun",
                     "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
@@ -214,7 +214,7 @@ extension VillagerData {
 
     // Fresh stock once a day (at the first look after midnight of a new day).
     mutating func restockShop(day: Int) {
-        guard let k = shopKind else { return }
+        guard let k = tradeKind else { return }
         let cat = Economy.catalog(k)
         if stockDay != day || (stock?.count ?? -1) != cat.count {
             stock = cat.map { $0.perDay }
@@ -240,7 +240,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     static let quantities = [1, 5, 0]                  // 0 = all / as many as stocked
     static let visible = 6
     static let rowY = 48, rowH = 22, rowX = 8, rowW = 252
-    static let tabBuy = 10, tabSell = 11, qtyButton = 12, scrollUp = 13, scrollDown = 14
+    static let tabBuy = 10, tabSell = 11, qtyButton = 12, scrollUp = 13, scrollDown = 14, barter = 15
     // Name column width (GUI px): TownTests checks every catalogue name fits.
     static var nameWidth: Int { rowW - 24 - 52 }
 
@@ -264,10 +264,19 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         button(8, 26, 62, 16, ShopMenu.tabBuy)
         button(74, 26, 62, 16, ShopMenu.tabSell)
         button(196, 26, 64, 16, ShopMenu.qtyButton)
+        // Craftsfolk keep their emerald trades behind a Barter button (Wallet.swift).
+        if keeper.villager?.shopKind == nil && keeper.villager?.tradeKind != nil { button(140, 26, 52, 16, ShopMenu.barter) }
         button(264, ShopMenu.rowY, 14, 40, ShopMenu.scrollUp)
         button(264, ShopMenu.rowY + ShopMenu.rowH * ShopMenu.visible - 42, 14, 40, ShopMenu.scrollDown)
         refresh()
         status = keeper.villager.map { Townsfolk.shopGreeting($0, game) } ?? ""
+        TownVoice.speakSoon(game, keeper, .greet)
+    }
+
+    var hasBarter: Bool { slots.contains { if case .button(let b) = $0.kind { return b == ShopMenu.barter }; return false } }
+
+    override func onClose() {
+        if let m = mob, m.health > 0 { TownVoice.speakSoon(game, m, .bye) }
     }
 
     var data: VillagerData? { mob?.villager }
@@ -307,7 +316,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case .item(let i):
             let c = Economy.catalog(kind)[i]
             let left = data?.stock?[safe: i] ?? 0
-            let price = p.buy(Economy.value(of: c.item) ?? 0)
+            let price = Economy.buyPrice(c.item, p)
             let st = ItemStack(c.item, 1)
             return (st, st.def.display, left > 0 ? "\(left) in stock" : "Sold out today", Money.format(price), left > 0 && game.money >= price)
         case .service(let s):
@@ -319,7 +328,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case .sell(let it):
             let st = ItemStack(it, 1)
             let n = have(it)
-            return (st, st.def.display, "You have \(n)", Money.format(p.sell(Economy.value(of: it) ?? 0)), n > 0)
+            return (st, st.def.display, "You have \(n)", Money.format(Economy.sellPrice(it, p)), n > 0)
         }
     }
 
@@ -330,6 +339,11 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case ShopMenu.qtyButton: qtyIndex = (qtyIndex + 1) % ShopMenu.quantities.count; game.sfx(.click, 0.4)
         case ShopMenu.scrollUp: scrollBy(-1)
         case ShopMenu.scrollDown: scrollBy(1)
+        case ShopMenu.barter:
+            guard let m = mob else { return }
+            game.sfx(.click, 0.4)
+            game.closeMenu()
+            _ = game.openTrading(m)
         default:
             let rs = rows
             guard i >= 0 && i < ShopMenu.visible, scroll + i < rs.count else { return }
@@ -350,6 +364,11 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         let p = pricing
         if p.refuses { say("\(data?.person ?? "The keeper") won't serve you.", good: false); game.sfx(.villagerNo, 0.7, at: m.pos); return }
         let want = ShopMenu.quantities[qtyIndex]
+        defer {
+            // A word from the keeper: thanks for a sale, regrets when you're short (not every click).
+            if statusGood { TownVoice.speakSoon(game, m, .trade, gap: 10) }
+            else if status.hasPrefix("That's") { TownVoice.speakSoon(game, m, .broke, gap: 6) }
+        }
         switch r {
         case .item(let i):
             let r = Shop.buy(game, m, kind, index: i, count: want == 0 ? 64 : want)
@@ -369,9 +388,9 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     override func tick() {
         guard let m = mob else { return }
         if m.health <= 0 || m.lying || simd_length(m.pos - game.player.pos) > 10 { game.closeMenu(); return }
-        // Closing time ends the visit (the saloon stays open late).
+        // Closing time ends the visit (the saloon stays open late). Craftsfolk keep no hours.
         let f = Float(game.dayFraction)
-        if f < kind.hours.0 || f > kind.hours.1 + 0.005 {
+        if data?.shopKind != nil, f < kind.hours.0 || f > kind.hours.1 + 0.005 {
             Townsfolk.say(game, m, "That's closing time. Come back tomorrow.")
             game.closeMenu()
         }
@@ -411,6 +430,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         button(ShopMenu.tabSell, "Sell", on: selling)
         let q = ShopMenu.quantities[qtyIndex]
         button(ShopMenu.qtyButton, q == 0 ? (selling ? "Qty: All" : "Qty: Max") : "Qty: x\(q)", on: false)
+        if hasBarter { button(ShopMenu.barter, "Barter", on: false) }
         // Rows.
         let rs = rows
         if rs.isEmpty {
@@ -478,7 +498,7 @@ enum Shop {
         let cat = Economy.catalog(k)
         guard i < cat.count, var stock = v.stock, i < stock.count else { return ("", false) }
         let item = cat[i].item
-        let price = ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)).buy(Economy.value(of: item) ?? 0)
+        let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)))
         let name = ItemStack(item, 1).def.display
         guard stock[i] > 0 else { m.villager = v; return ("Sold out of \(name) until tomorrow.", false) }
         let afford = price > 0 ? g.money / price : Int.max
@@ -506,13 +526,13 @@ enum Shop {
     }
 
     static func sell(_ g: Game, _ m: Mob, _ k: ShopKind, item: ItemID, count want: Int) -> (String, Bool) {
-        guard var v = m.villager, Economy.buysItem(k, item), let value = Economy.value(of: item) else { return ("", false) }
+        guard var v = m.villager, Economy.buysItem(k, item), Economy.value(of: item) != nil else { return ("", false) }
         var have = 0
         for j in 0..<36 where g.inventory.main[j].item == item && sellable(g.inventory.main[j]) { have += g.inventory.main[j].count }
         let n = min(want, have)
         let name = ItemStack(item, 1).def.display
         guard n > 0 else { return ("You have no \(name).", false) }
-        let each = ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)).sell(value)
+        let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)))
         guard each > 0 else { return ("\(name) isn't worth anything here.", false) }
         var left = n
         for j in 0..<36 where left > 0 {

@@ -91,6 +91,8 @@ enum Snd: Hashable {
     // Terrain and weather (TerrainAudio.swift): moving water, wind by landform, rain on leaves, snow, far thunder.
     case riverLoop, waterfallLoop, mountainWindLoop, tundraWindLoop, rainLeavesLoop, snowWindLoop, swampInsectsLoop
     case thunderFar, iceCreak, rockfall
+    // A recorded townsfolk line (TownVoice.swift: index into TownVoice.takes; decoded on demand, never cached).
+    case voice(Int)
 
     var category: SoundCategory {
         switch self {
@@ -118,6 +120,7 @@ enum Snd: Hashable {
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop, .stationHumLoop:
             return .ambient
         case .note: return .blocks
+        case .voice: return .friendly
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
         case .rocketFlightLoop, .shellFlightLoop: return .players
@@ -190,6 +193,7 @@ enum Snd: Hashable {
         case .bulletImpact(let m): return "bullet_impact_\(m.name)"
         case .soldier(let r, let b): return "soldier_\(r)_\(b.name)"
         case .soldierStep(let r): return "soldier_step_\(r)"
+        case .voice(let i): return "voice_\(i)"
         default: return String(describing: self)
         }
     }
@@ -206,6 +210,7 @@ enum Snd: Hashable {
         case .bulletImpact, .bulletFlesh, .grenadeBounce, .soldierStep: return 0.03...1.2
         case .bulletWhizz: return 0.1...0.6
         case .soldier: return 0.15...3
+        case .voice: return 0.2...8
         case .breakBlock, .place, .fall: return 0.08...1.3
         case .click, .uiHover, .uiBack, .lever, .buttonWood, .buttonStone, .plateOn, .plateOff, .tripwire, .railClick: return 0.02...0.5
         case .mob(_, .death), .babyMob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.15...8
@@ -320,7 +325,7 @@ final class SoundBank {
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
         case .soldier(_, let b): return b == .idle ? 4 : 3
         case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2
-        case .note: return 1
+        case .note, .voice: return 1
         case _ where s.isLoop: return 1
         case _ where s.expectedSeconds.upperBound >= 5: return 1
         default: return 2
@@ -336,6 +341,7 @@ final class SoundBank {
 
     // Pure: the clip for one take of a sound.
     static func render(_ s: Snd, variant v: Int) -> [Float] {
+        if case .voice(let i) = s { return TownVoice.render(i) }
         var g = Synth(seed: seed(s, variant: v))
         let n = variants(for: s)
         let pitch: Float = n <= 1 ? 1 : 1 + (Float(v) - Float(n - 1) / 2) * 0.07
@@ -359,12 +365,14 @@ final class SoundBank {
     }
 
     func has(_ s: Snd) -> Bool {
+        if case .voice = s { return true }          // decoded on demand in well under a millisecond
         lock.lock(); defer { lock.unlock() }
         return clips[s] != nil
     }
 
     // The cached clip, rendering it synchronously when missing (a few ms for short sounds).
     func clip(_ s: Snd, variant: Int) -> [Float] {
+        if case .voice(let i) = s { return TownVoice.render(i) }
         lock.lock()
         if let vs = clips[s], !vs.isEmpty { lock.unlock(); return vs[variant % vs.count] }
         lock.unlock()
