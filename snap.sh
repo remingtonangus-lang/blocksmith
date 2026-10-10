@@ -129,6 +129,7 @@ done
 python3 tools/namecheck.py --coined                                                                              # gating: no coined reference-game names in player-facing text (docs/status/ip-renames.md)
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
 "$BIN" --snapshot snaps/questbugs.png --seed 12345 --find plains --time 0.3 --rd 4 --questbugs        # gating: Quest playtest checks (VR locomotion ignores the hand, swings, swim-out)
+"$BIN" --snapshot snaps/swingtest.png --seed 12345 --find plains --time 0.3 --rd 4 --swingtest        # gating: VR melee contact + bow (docs/status/vr-melee.md)
 "$BIN" --snapshot snaps/structscan.png --structscan 8      # gating: every seed has a Capital citadel near spawn; rare-building density per 4096^2
 "$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).

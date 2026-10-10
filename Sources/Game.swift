@@ -235,16 +235,20 @@ final class Game {
     // lands at full strength, instead of a weak 0.2-0.8x hit. Quest players click like on a pad, every ~0.3 s: an iron
     // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
     var bufferAttacks = false
-    // Quest Swing Mode: what the swung tool physically touched on the frame swingPower is set (QuestControls.swingContact):
-    // the swing hits exactly that, not what the laser points at. Consumed by interact with swingPower.
-    var swingBlock: (hit: IVec3, normal: IVec3)?
+    // Quest Swing melee (VRMelee.swift): the mob the swung blade physically touched this frame (QuestControls.swingContact),
+    // with swingPower. Consumed by interact; a swing never mines or uses anything else.
     var swingMob: Mob?
+    // Quest Swing melee: only the blade's contact attacks; the trigger mines and fires but never attacks a mob.
+    var meleeContactOnly = false
+    // Quest: the headset's world position (mobs measure their melee reach to the column under it: meleeBody).
+    var vrHead: V3?
+    // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
+    var vrBow: (draw: Float, origin: V3, dir: V3)?
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
-    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
-    private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
+    var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -907,22 +911,21 @@ final class Game {
 
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
-        let swung = swingPower > 0
+        // Quest Swing melee: a blade that physically touched a mob this frame (VRMelee). It only ever hits that mob:
+        // hand movement alone never mines, places, uses or fires anything (Remington, Oct 10 playtest).
+        let touchedMob = swingMob.flatMap { $0 === riding || $0.health <= 0 ? nil : $0 }
+        let swung = swingPower > 0 && touchedMob != nil
         let swingPow = swingPower
-        let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
-        swingPower = 0
-        if swung { swingGrace = 0.7 }
-        // Blocks break and place from 6 blocks away (playtest v78; a Quest swing takes the nearest block on the laser, no
-        // stickiness to an older, farther one). Melee on mobs stays short (3.5, below).
+        swingPower = 0; swingMob = nil
+        // Blocks break and place from 6 blocks away (playtest v78). Melee on mobs stays short (3.5, below).
         let reach: Float = 6
         let ray = world.raycast(player.eye, player.look, maxDist: reach)
-        target = swung && touched ? swingBlock : (swung ? ray : AimAssist.sticky(self, ray, reach: reach))
-        swingBlock = nil; swingMob = nil
+        target = AimAssist.sticky(self, ray, reach: reach)
         breakCooldown -= dt
         placeCooldown -= dt
-        let breakHeld = input.leftDown || p.rt > 0.5 || swung
+        let breakHeld = input.leftDown || p.rt > 0.5
         // Right stick click is a quick melee swing (Halo Infinite default layout); L3 + R3 is the bug-notes chord.
-        let breakNow = swung || input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
+        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
@@ -939,12 +942,12 @@ final class Game {
             takeCommand(s); return
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
-        if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
-        if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
+        if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
+        if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
+        if swung { mobHit = touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
         else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding)
                     ?? (swordHeld ? mobNearAim(reach: 3.5) : nil) {
@@ -959,7 +962,7 @@ final class Game {
                 mobHit = m
             }
         }
-        if breakNow { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
+        if breakNow || swung { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
         // Lunge (spear): the jab carries the player forward (not when digging a block, swimming or gliding).
         if breakNow, Spear.isSpear(held.item), mobHit != nil || target == nil, !player.inWater && !player.gliding {
             let lv = Enchant.level(.lunge, held)
@@ -984,7 +987,9 @@ final class Game {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
             let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
-            var attackNow = breakNow
+            var attackNow = breakNow || swung
+            // Swing melee: the trigger aimed at a mob neither attacks it nor mines past it; only the blade hits.
+            if meleeContactOnly && !swung { attackQueued = 0; return }
             if bufferAttacks && !swung {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
@@ -1057,7 +1062,9 @@ final class Game {
 
         // Mining
         if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
-        if let t = target, breakHeld {
+        // A melee weapon in VR never mines while a creature is near (swinging at a mob dug the ground around it: Oct 10).
+        let weaponGuard = breakHeld && target != nil && vrWeaponHeld && livingMobNear(VRMelee.weaponMobGuard)
+        if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
                 if breakNow || breakCooldown <= 0 {
@@ -1075,7 +1082,6 @@ final class Game {
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
-                    if swung && secs > 0 { mineProgress += max(0, 0.56 * swingPow - fdt) / secs }      // a swing is worth ~0.56 s of digging (Quest: 8x the first cut, which took ~30 swings a block)
                     swing = max(swing, 0.5)
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
@@ -1103,8 +1109,6 @@ final class Game {
                     }
                 }
             }
-        } else if swingGrace > 0 && mining != nil {
-            swingGrace -= fdt                                   // between swings the chipped block keeps its progress
         } else {
             mining = nil
             mineProgress = 0
@@ -1161,11 +1165,14 @@ final class Game {
             if useHeld && hasArrow { bowCharge += fdt; return }
             if !useHeld && bowCharge > 0 {
                 let t = bowCharge * 20
-                let f = min(1, (t * t / 400 + t / 10) / 3)
+                var f = min(1, (t * t / 400 + t / 10) / 3)
+                var from = player.eye, dir = player.look
+                // VR: the physical draw sets the power, and the arrow flies from the bow along its nocked direction.
+                if let vb = vrBow { f = vb.draw; from = vb.origin; dir = vb.dir }
                 bowCharge = 0
                 if f >= 0.1 {
                     let power = Enchant.level(.power, h)
-                    let a = projectiles.shoot(from: player.eye, dir: player.look, speed: f * 60, fromPlayer: true,
+                    let a = projectiles.shoot(from: from, dir: dir, speed: f * 60, fromPlayer: true,
                                               damage: 2 + (power > 0 ? 0.5 * Float(power) + 0.5 : 0))
                     a.punch = Enchant.level(.punch, h)
                     a.flame = Enchant.level(.flame, h) > 0

@@ -159,28 +159,12 @@ enum QuestSim {
             check(before != AIR && after != before, "VR break: right trigger broke \(Blocks.name(before)) at \(t) (now \(Blocks.name(after)))")
         }
 
-        // 5b. Swing Mode (Quest round 4: no physical contact needed): a fast swing of the hand with the laser on a block
-        // within reach breaks it; a slow hand move does nothing.
+        // 5b. Swing melee (Oct 10 redesign, docs/status/vr-melee.md): hand movement alone never breaks or uses anything;
+        // only the sword's blade physically hitting a mob, fast enough and within reach, hurts it.
         QuestSettings.swingMode = true
-        game.inventory.held = .empty
         if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // fill the hole the trigger test left
-        frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
-        if let t = game.target?.hit {
-            let before = game.world.block(t.x, t.y, t.z)
-            frames(20) { i in
-                idleHands(); sim.hands[1].aimRot = down
-                sim.hands[1].aimPos += V3(0.004 * Float(i % 2), 0, 0)          // ~0.3 m/s: not a swing
-            }
-            let slow = game.world.block(t.x, t.y, t.z)
-            frames(8) { i in
-                idleHands(); sim.hands[1].aimRot = down
-                sim.hands[1].aimPos += V3(0.09 * Float(i % 2), 0, 0)           // a 6.5 m/s swing, laser on the block
-            }
-            frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
-            let after = game.world.block(t.x, t.y, t.z)
-            if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }       // the platform stays whole for the next checks
-            check(slow == before && after != before, "VR swing: slow move left \(Blocks.name(slow)), swing with the laser on it broke \(Blocks.name(before)) (now \(Blocks.name(after)))")
-        } else { check(false, "VR swing: no target") }
+        swingMelee(game: game, host: host, controls: controls, py: py, down: down, frames: frames, check: check)
+        if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // the platform stays whole for the next checks
 
         // 6. Place: the left trigger with a block in hand places it against the targeted face.
         game.inventory.held = ItemStack(Items.id("gold_block"), 64)
@@ -477,6 +461,141 @@ enum QuestSim {
         game.hurtFlash = 0
         PadManager.shared.touch = nil
         AllocCount.report("questsim allocations (frame thread)")
+    }
+
+    // Swing melee and the bow through the device path (QuestControls.swingContact / bowUpdate). Creative, on the
+    // stone platform, the head level.
+    static func swingMelee(game: Game, host: SimHost, controls: QuestControls, py: Int, down: simd_quatf,
+                           frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void) {
+        let sim = host.sim, rig = host.rig
+        func idleHands() {
+            for h in 0..<2 {
+                var hd = XRHand()
+                hd.aimValid = true; hd.gripValid = true
+                hd.aimPos = sim.headPos + V3(h == 0 ? -0.2 : 0.2, -0.45, -0.3)
+                hd.gripPos = hd.aimPos
+                hd.aimRot = simd_quatf(); hd.gripRot = simd_quatf()
+                sim.hands[h] = hd
+            }
+        }
+        let keepHeld = game.inventory.held
+        defer { game.inventory.held = keepHeld; QuestSettings.leftHanded = false }
+        func platformWhole() -> Bool {
+            let fx = Int(floorf(game.player.pos.x)), fz = Int(floorf(game.player.pos.z))
+            for dz in -4...4 { for dx in -4...4 where game.world.block(fx + dx, py, fz + dz) != STONE { return false } }
+            return true
+        }
+        func ahead(_ d: Float, side: Float = 0) -> V3 {
+            let f0 = rig.toWorldDir(V3(0, 0, -1)), r0 = rig.toWorldDir(V3(1, 0, 0))
+            let f = simd_normalize(V3(f0.x, 0, f0.z)), r = simd_normalize(V3(r0.x, 0, r0.z))
+            return V3(rig.headWorld.x, game.player.pos.y, rig.headWorld.z) + f * d + r * side
+        }
+        func husk(_ at: V3) -> Mob {
+            let z = Mob(.husk, at: at)
+            z.equip = nil
+            game.mobs.mobs.append(z)
+            return z
+        }
+        func remove(_ z: Mob) { game.mobs.mobs.removeAll { $0 === z } }
+        // The right hand with the blade held level ahead (tilted down 0.75 rad), at x across the body (tracking).
+        let tilt = simd_quatf(angle: -0.75, axis: V3(1, 0, 0))
+        func pose(_ x: Float) {
+            idleHands()
+            sim.hands[1].aimPos = sim.headPos + V3(x, -0.35, -0.3); sim.hands[1].aimRot = tilt
+            sim.hands[1].gripPos = sim.hands[1].aimPos; sim.hands[1].gripRot = tilt
+        }
+        game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
+
+        // (a) Waving the sword fast with the trigger released, the laser on the platform and a husk 2.5 blocks to the
+        // side: nothing breaks, the husk isn't touched.
+        do {
+            let at = ahead(0, side: 2.5)
+            let z = husk(at)
+            let h0 = z.health, c0 = controls.bladeContacts
+            frames(36) { i in
+                idleHands(); z.pos = at; z.vel = .zero
+                sim.hands[1].aimRot = down
+                sim.hands[1].aimPos += V3(i % 2 == 0 ? 0.09 : -0.09, 0, 0)          // 6.5 m/s back and forth
+            }
+            check(platformWhole() && z.health == h0 && controls.bladeContacts == c0,
+                  "VR swing: fast air swings near a husk, trigger released: platform whole \(platformWhole()), husk \(z.health) HP")
+            remove(z)
+        }
+        // (b) Walking with the sword out (hand still relative to the head): nothing breaks.
+        let walkFrom = game.player.pos
+        frames(72) { _ in idleHands(); sim.hands[1].aimRot = down; sim.hands[0].stick = V2(0, 1) }
+        frames(10) { _ in idleHands(); sim.hands[1].aimRot = down }
+        check(platformWhole(), "VR swing: walking with the sword out breaks nothing")
+        game.player.pos = walkFrom; game.player.vel = .zero
+        frames(6) { _ in idleHands() }
+
+        // (c) A fast swing across a husk 1.6 blocks ahead: the blade hits it (once), with a haptic buzz.
+        func swingAcross(_ dist: Float, step: Float) -> (Int, Int, Int) {
+            frames(8) { _ in pose(0.6) }                                         // settle at the start, then the husk
+            let at = ahead(dist)
+            let z = husk(at)
+            let h0 = z.health, c0 = controls.bladeContacts, hp0 = sim.hapticCount
+            let n = Int((1.2 / step).rounded())
+            frames(n + 1) { i in z.pos = at; z.vel = .zero; pose(0.6 - step * Float(i)) }
+            let r = (h0 - z.health, controls.bladeContacts - c0, sim.hapticCount - hp0)
+            remove(z)
+            frames(4) { _ in pose(-0.6) }
+            return r
+        }
+        let fast = swingAcross(1.6, step: 0.3)                                   // ~20 m/s at the hand
+        check(fast.0 > 0 && fast.1 == 1 && fast.2 > 0, "VR swing: a fast blade swing through a husk 1.6 ahead: \(fast.0) damage, \(fast.1) contact (want 1), haptics \(fast.2)")
+        // (d) The same path slowly (0.3 m/s): a touch, no damage.
+        let slow = swingAcross(1.6, step: 0.004)
+        check(slow.0 == 0 && slow.1 == 0, "VR swing: a slow blade touch does no damage (\(slow.0) damage, \(slow.1) contacts)")
+        // (e) Out of reach: a husk 3.8 blocks ahead is not hit by the same fast swing.
+        let far = swingAcross(3.8, step: 0.3)
+        check(far.0 == 0, "VR swing: a husk 3.8 blocks ahead is out of reach (\(far.0) damage)")
+        check(platformWhole(), "VR swing: the platform is whole after all the swings")
+        frames(6) { _ in idleHands() }
+
+        // (f) The bow, both hands: the drawing hand at the string with its trigger nocks; pulling back draws the string
+        // and arrow to the hand with ramping haptics; letting go shoots along the arrow (from the hand through the grip).
+        game.inventory.held = ItemStack(Items.id("bow"), 1)
+        for left in [false, true] {
+            QuestSettings.leftHanded = left
+            let bowH = left ? 0 : 1, drawH = 1 - bowH, sx: Float = left ? -1 : 1
+            let name = left ? "left-handed" : "right-handed"
+            let gripRest = sim.headPos + V3(0.2 * sx, -0.3, -0.45)
+            func hands(_ drawPos: V3, _ trig: Bool) {
+                idleHands()
+                sim.hands[bowH].aimPos = gripRest; sim.hands[bowH].gripPos = gripRest
+                sim.hands[drawH].aimPos = drawPos; sim.hands[drawH].gripPos = drawPos
+                sim.hands[drawH].trigger = trig ? 1 : 0
+            }
+            let grip = gripRest + V3(0, 0.01, -0.03)
+            let atString = VRBow.restNock(grip: grip, handRot: simd_quatf())
+            frames(6) { _ in hands(atString, false) }
+            frames(2) { _ in hands(atString, true) }
+            let nocked = controls.bowNocked
+            let hp0 = sim.hapticCount
+            let back = sim.headPos + V3(0.15 * sx, -0.27, 0.13)
+            frames(30) { i in hands(atString + (back - atString) * Float(i + 1) / 30, true) }
+            let pose = controls.bowPose
+            let ramps = sim.hapticCount - hp0
+            let wantDir = simd_normalize(grip - back)
+            let before = game.projectiles.arrows.count
+            frames(2) { _ in hands(back, false) }
+            let shot = game.projectiles.arrows.count > before ? game.projectiles.arrows.last : nil
+            let wdir = simd_normalize(rig.toWorldDir(wantDir))
+            let v = shot?.vel ?? .zero
+            check(nocked, "VR bow (\(name)): the drawing hand's trigger at the string nocks an arrow")
+            if let p = pose {
+                check(p.draw > 0.7 && simd_length(p.nock - back) < 0.03 && simd_dot(p.dir, wantDir) > 0.995 && ramps >= 4,
+                      String(format: "VR bow (%@): pulled back: draw %.2f, string at the hand %.3f m, arrow dir dot %.3f, %d haptic ticks",
+                             name, p.draw, simd_length(p.nock - back), simd_dot(p.dir, wantDir), ramps))
+            } else { check(false, "VR bow (\(name)): no bow pose while drawn") }
+            check(shot != nil && simd_dot(simd_normalize(v), wdir) > 0.97 && simd_length(v) > 35,
+                  String(format: "VR bow (%@): release shot along the arrow (dot %.3f, %.1f b/s)", name, simd_dot(simd_normalize(v + V3(0, 1e-6, 0)), wdir), simd_length(v)))
+            if let a = shot { game.projectiles.arrows.removeAll { $0 === a } }
+            frames(4) { _ in idleHands() }
+        }
+        QuestSettings.leftHanded = false
+        frames(4) { _ in idleHands() }
     }
 
     static func shipRide(game: Game, host: SimHost, frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void,
