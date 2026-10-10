@@ -242,6 +242,12 @@ if let out = arg("--questsim"), let ctx = vkctx {
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
+// Horses alone (iterating on Sources/HorseTests.swift); the full run does them at the end.
+if CommandLine.arguments.contains("--horse-only") {
+    HorseTests.run(game: game, check: check)
+    print(failures == 0 ? "horsetests: all checks passed" : "horsetests: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
@@ -392,6 +398,9 @@ check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\
 
 // Towns of people and shops (Sources/TownTests.swift).
 TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
+
+// Horses: gaits, stamina, bond, footing, crashes, nerves (Sources/HorseTests.swift, docs/status/horses.md).
+HorseTests.run(game: game, check: check)
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

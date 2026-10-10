@@ -2382,6 +2382,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
         }
 
+        // A ridden horse's stamina (gold; red while it is blown) and bond level, over the right half of the hotbar
+        // (survival: above its hearts). HorseFeel.swift.
+        func horseBar(_ m: Mob, _ y: Float) {
+            let w = total / 2 - 2 * s, x = x0 + total - w
+            let frac = simd_clamp(m.stamina / m.staminaMax, 0, 1)
+            rect(x, y, w, 4 * s, V4(0, 0, 0, 0.7))
+            rect(x + s, y + s, (w - 2 * s) * frac, 2 * s, m.hs.spent ? V4(0.9, 0.25, 0.2, 1) : V4(0.95, 0.78, 0.3, 1))
+            let t = "Bond \(m.bondLevel)"
+            text(t, x - textWidth(t, s) - 3 * s, y - 2 * s, s, V4(0.95, 0.85, 0.6, 1))
+        }
+        if !game.survival, let m = game.riding, m.gaited, m.tamed { horseBar(m, y0 - 8 * s) }
+
         // Survival status: XP bar + level, hearts (left), hunger (right), armor, air bubbles.
         if game.survival {
             let isz = 9 * s, step = 8 * s
@@ -2428,6 +2440,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let h = mount.health - i * 2
                     heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x0 + total - isz - Float(i % 10) * step, yh - Float(i / 10) * rowStep, V4(1, 1, 1, 1))
                 }
+                if mount.gaited && mount.tamed { horseBar(mount, yh - Float((slots - 1) / 10) * rowStep - 6 * s) }
             } else {
                 for i in 0..<10 {
                     let f = game.hunger - i * 2

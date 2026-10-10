@@ -159,8 +159,11 @@ extension Game {
             if golden && m.tamed && !m.baby && m.kind != .mule && m.breedCooldown <= 0 && m.inLove <= 0 {
                 m.inLove = 30
             } else if m.health >= 30 && !m.baby && (m.tamed || t.temper == 0) {
-                return false
+                // Full health: a tamed horse still takes it for its wind (stamina, HorseFeel.swift).
+                guard horseTreat(m, key) else { return false }
+                consumeHeld(); particles.hearts(at: pos); return true
             }
+            _ = horseTreat(m, key)
             m.health = min(30, m.health + t.heal)
             if m.baby { m.age += t.grow }
             if !m.tamed { m.temper = min(100, m.temper + t.temper) }
@@ -183,6 +186,8 @@ extension Game {
             particles.hearts(at: pos)
             return true
         }
+        // A brush grooms a tamed horse (bond, HorseFeel.swift).
+        if key == "brush" && m.gaited && m.tamed && !m.baby { horseBrush(m); return true }
         // Mount.
         if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider || m.kind == .happyGhast || m.kind == .nautilus) && m.saddled) {
             guard !m.baby, riding == nil else { return false }
@@ -295,10 +300,16 @@ extension Mob {
                     else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
-            if tamed && kind != .camel && bond != g.horseBond { g.bondHorse(self) }
-            yaw = g.player.moveYaw ?? g.player.yaw          // VR: steer with the head, not the aiming hand
-            let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
-            speed = saddled || !tamed ? base * max(-0.25, inp.forward) : 0
+            // (bond 0 too: with no horse bonded yet, horseBond is 0 as well, so the first tamed horse never bonded.)
+            if tamed && kind != .camel && (bond == 0 || bond != g.horseBond) { g.bondHorse(self) }
+            if gaited && tamed {
+                gaitStep(dt, g, inp)                        // gaits, momentum, stamina, nerves, footing (HorseFeel.swift)
+                if g.riding !== self { return }             // thrown
+            } else {
+                yaw = g.player.moveYaw ?? g.player.yaw      // VR: steer with the head, not the aiming hand
+                let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
+                speed = saddled || !tamed ? base * max(-0.25, inp.forward) : 0
+            }
             // Hold jump to charge, release to leap (horses); camels dash.
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
             else if jumpCharge > 0.05 && onGround && tamed {
@@ -314,15 +325,20 @@ extension Mob {
                     let cubic: Float = -0.1817962 * s2 * s + 3.689713 * s2
                     let h: Float = max(0.3, cubic + 2.128599 * s - 0.343930)
                     vel.y = sqrtf(2 * 28 * h)
+                    if gaited { stamina -= 5 }
                 }
                 if kind == .camel { vel += forward * 12 * jumpCharge }
                 jumpCharge = 0
             }
         }
-        let target = forward * speed
-        let k = 1 - expf(-(onGround ? 10 : 2) * dt)
-        vel.x += (target.x - vel.x) * k
-        vel.z += (target.z - vel.z) * k
+        let gaitedRide = gaited && tamed
+        if !gaitedRide {
+            let target = forward * speed
+            let k = 1 - expf(-(onGround ? 10 : 2) * dt)
+            vel.x += (target.x - vel.x) * k
+            vel.z += (target.z - vel.z) * k
+        }
+        let start = pos
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         if kind == .strider && Blocks.fluidKind[Int(feet)] == 2 { vel.y = max(vel.y, 2) }
         else if Blocks.isLiquid(feet) { vel.y += 18 * dt; vel.y = min(vel.y, 1.6) }
@@ -333,6 +349,7 @@ extension Mob {
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
+        if gaitedRide { gaitAfterMove(g, moved: pos - start, hitWall: hit.x || hit.z, dt: dt) }
         let hs = simd_length(V2(vel.x, vel.z))
         walkPhase += hs * dt * 3
         walkAmount += (min(1, hs / 2) - walkAmount) * min(1, dt * 8)
@@ -417,7 +434,7 @@ final class MountMenu: Menu {
     static let saddleKinds: Set<MobKind> = [.horse, .donkey, .mule, .camel, .skeletonHorse, .zombieHorse]
     static let armorItems: [Int: String] = [1: "leather_horse_armor", 2: "iron_horse_armor", 3: "golden_horse_armor",
                                             4: "diamond_horse_armor", 6: "copper_horse_armor", 7: "netherite_horse_armor"]
-    static func opens(_ m: Mob) -> Bool { saddleKinds.contains(m.kind) || (m.horseLike && m.chested) }
+    static func opens(_ m: Mob) -> Bool { saddleKinds.contains(m.kind) || (m.horseLike && m.chested) || m.saddlebags }
     static func armorTier(_ key: String) -> Int? { armorItems.first { $0.value == key }?.key }
 
     let mob: Mob
@@ -439,7 +456,7 @@ final class MountMenu: Menu {
             a.limit = 1
             slots.append(a)
         }
-        if m.chested {
+        if m.chested || m.saddlebags {
             let c = game.packContainer(m)
             let rows = c.count >= 3 && c.count % 3 == 0 ? 3 : 1
             let cols = c.count / rows

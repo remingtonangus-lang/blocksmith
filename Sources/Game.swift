@@ -825,6 +825,8 @@ final class Game {
         // VR (head-relative stick, Player.moveYaw): a sprint holds in any direction the stick is pushed (Quest round 4).
         let push = player.moveYaw != nil ? (mi.forward * mi.forward + mi.strafe * mi.strafe).squareRoot() : mi.forward
         mi.sprint = player.sprinting && push > 0.3 && !(survival && hunger <= 6) && eatProgress == 0
+        mi.spur = (p.l3 && !q.l3) || (input.control && !HorseFeel.controlWas)
+        HorseFeel.controlWas = input.control
         if push <= 0.3 { player.sprinting = false }
         if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
@@ -951,6 +953,10 @@ final class Game {
         if useNow, let r = riding, stickBoost(r) { return }
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
+        // Riding a horse: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift); not when aimed at
+        // a door, chest or other usable block, or at a creature.
+        if useNow, let r = riding, !(target.map { isInteractive($0.hit) } ?? false), mobs.raycast(player.eye, player.look, maxDist: 4).map({ $0.0 === r }) ?? true,
+           horseUse(r) { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
@@ -1739,6 +1745,8 @@ final class Game {
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
+        // A pack animal's chest or a horse's saddlebags spill their contents.
+        if m.horseLike, let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
         // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
         // needs a baby, so behind a plain !baby it could never drop.)
         if !m.baby || m.isZombie {

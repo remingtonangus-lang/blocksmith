@@ -43,6 +43,7 @@ final class QuestControls {
     private var sneakLatch = false              // tapped: sneak until the next tap
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
+    private var prevClickSprint = false         // (riding: one spur per click)
     private var sprintHold: Float = 0           // s the left stick has been pushed fully out without sprinting
     private var sprintPulse = 0
     private var sprintCool: Float = 0
@@ -353,12 +354,18 @@ final class QuestControls {
             if sm > 0.7 && !game.player.sprinting && game.world.ships.pilot == nil { sprintHold += dt } else { sprintHold = 0 }
             sprintCool -= dt
             let fed = !(game.survival && game.hunger <= 6)          // too hungry to sprint (reference)
-            if clickSprint && sm > 0.3 && fed && !game.player.sprinting && sprintCool <= 0 && game.world.ships.pilot == nil {
+            // Riding a horse every click is a spur (up a gait: HorseFeel.swift), sprinting or not.
+            let spurring = game.riding.map { $0.gaited && $0.tamed } ?? false
+            if clickSprint && !prevClickSprint && spurring && sm > 0.3 && sprintCool <= 0 {
+                sprintPulse = 3; sprintCool = 0.2
+                app.input.haptic(moveHand, amplitude: 0.7, seconds: 0.06, frequency: 90)
+            } else if clickSprint && sm > 0.3 && fed && !game.player.sprinting && sprintCool <= 0 && game.world.ships.pilot == nil && !spurring {
                 sprintPulse = 3; sprintCool = 0.3
                 sneakLatch = false
                 app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.08, frequency: 120)
                 if !sprintShown { sprintShown = true; game.onToast?("Sprinting: let the stick back to the middle to stop") }
             }
+            prevClickSprint = clickSprint
             // A long full-push walk that never sprinted gets a one-time hint.
             if sprintHold > 4 && !sprintShown && !sprintHinted && fed { sprintHinted = true; game.onToast?("Click the left stick while moving to sprint") }
             hungryToast -= dt
