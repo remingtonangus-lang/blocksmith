@@ -18,3 +18,15 @@ Checks that fail for reasons other than a game bug, and what was done about them
   "deep war: the Marshal marks a barrage and calls his guard". Best guess: random damage variance / Marshal AI timing
   in the test, not the pm9 changes (the same build passes 3 of 4 runs). Repro: `Blocksmith --snapshot /tmp/q.png
   --seed 12345 --find plains --time 0.3 --rd 4 --questbugs --only deep` a few times.
+
+## questcheck full run, 2026-10-10 (honour thread, claude/project-thread-dkuflx)
+- **"sheriff: a town without one gets a sheriff" / "only one is sent"**: failed on claude/quest-port 581dfc8 too, in the
+  full run only (passes in `--towns-only`). The full run's earlier checks leave the player over water, where no
+  sheriff spot is dry ground. Fixed in the test: the sheriff checks start at the spawn.
+- **"every mob kind draws through the Quest renderer (invisible: tadpole (14 px))"**: fails on claude/quest-port
+  581dfc8 as well; not touched (mob looks belong to the Mac worker).
+- **"boreal 12345: corridor at noon hums ... wildlife: birdCall"**: fails on claude/quest-port 581dfc8 and on this
+  branch alike (Boreal audio, not touched).
+-  **"VR swing mode holding a torch:
+  the trigger attacks a husk"** / **"defence: an elder doesn't fight, keeps away"** (this branch, one run each, pass on
+  the other runs): flaky, random AI/audio timing; not touched.

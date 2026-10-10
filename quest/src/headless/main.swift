@@ -246,7 +246,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     let target = V3(Float(sp.x) + 0.5, Float(sp.y) - 0.5, Float(sp.z) + 0.5)
                     let solid = { (q: V3) -> Bool in Blocks.opaque[Int(world.block(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z))))] }
                     var pick: V3?
-                    search: for out in [8, 6, 10, 5] as [Float] { for sd in [4, -4, 0, 7, -7] as [Float] { for up in [2, 4, 1, 6] as [Float] {
+                    // From above the street (eye level got caught under the boardwalk awnings opposite).
+                    search: for out in [9, 11, 7, 13] as [Float] { for sd in [3, -3, 0, 6, -6] as [Float] { for up in [7, 9, 5, 11] as [Float] {
                         let eye = target + card * out + side * sd + V3(0, up, 0)
                         let n = Int(simd_length(target - eye) * 4)
                         if (0..<(n - 2)).allSatisfy({ !solid(eye + (target - eye) * (Float($0) / Float(n))) }) { pick = eye; break search }
