@@ -899,7 +899,7 @@ final class World {
     func unloadAll() {
         chunks.removeAll()
         lastCenter = nil
-        fluidPending.removeAll()
+        fluidPending.removeAll(); lavaPending.removeAll()
     }
 
     func saveAll() {
@@ -1023,8 +1023,8 @@ final class World {
     // Water ticks every 0.2 s; lava every 1.5 s (0.5 s in the Emberdeep) and reaches 3 blocks in the
     // Surface (7 in the Emberdeep). Only cells near a change are simulated.
 
-    private(set) var fluidPending = Set<IVec3>()
-    private(set) var lavaPending = Set<IVec3>()
+    private(set) var fluidPending = FluidQueue()
+    private(set) var lavaPending = FluidQueue()
     static let fluidBudget = 1024
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
@@ -1094,14 +1094,7 @@ final class World {
 
     func fluidTick(lava: Bool = false) {
         if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
-        var batch: [IVec3] = []
-        let src = lava ? lavaPending : fluidPending
-        batch.reserveCapacity(min(src.count, World.fluidBudget))
-        for p in src {
-            batch.append(p)
-            if batch.count >= World.fluidBudget { break }
-        }
-        if lava { for p in batch { lavaPending.remove(p) } } else { for p in batch { fluidPending.remove(p) } }
+        let batch = lava ? lavaPending.take(World.fluidBudget) : fluidPending.take(World.fluidBudget)
         let lvT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let kind: UInt8 = lava ? 2 : 1
         let flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
@@ -1289,4 +1282,34 @@ final class World {
             }
         }
     }
+}
+
+
+
+// Cells waiting for a fluid tick. New cells go into a set (no duplicates); a tick drains them in order from an array
+// filled from the set when it runs dry. Taking each batch out of the set by `remove` cost 2-5 ms per 1024 cells on
+// the M1 (linear-probing clusters from always emptying the table's front), more than the Quest's 2 ms fluid budget:
+// the --quest bench's most frequent tick spike. A cell rescheduled while still queued may run twice (harmless).
+struct FluidQueue {
+    private var incoming = Set<IVec3>()
+    private var queue: [IVec3] = []
+    private var head = 0
+    var count: Int { incoming.count + queue.count - head }
+    var isEmpty: Bool { count == 0 }
+    mutating func insert(_ p: IVec3) { incoming.insert(p) }
+    mutating func removeAll() { incoming.removeAll(); queue.removeAll(); head = 0 }
+    // Up to `limit` cells, oldest round first.
+    mutating func take(_ limit: Int) -> ArraySlice<IVec3> {
+        if head >= queue.count {
+            queue.removeAll(keepingCapacity: true); head = 0
+            queue.append(contentsOf: incoming)
+            // A set that grew to tens of thousands (streamed-in springs) is reallocated small once it empties.
+            if incoming.capacity > 4096 { incoming = Set(minimumCapacity: 256) } else { incoming.removeAll(keepingCapacity: true) }
+        }
+        let end = min(queue.count, head + limit)
+        defer { head = end }
+        return queue[head..<end]
+    }
+    // The last `n` cells taken go back to the front (out of time).
+    mutating func giveBack(_ n: Int) { head -= n }
 }
