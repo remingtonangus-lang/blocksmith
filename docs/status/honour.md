@@ -59,7 +59,7 @@ Structures.swift + World.swift (structure-guard-frontier.txt), HudExtras.swift, 
   registered / model / icon / not sold; 5.1% drop over 20,000 rolls, forced drop loaded; 3 towns each with an office,
   jail cell and WANTED board, 24/24 shop fronts with a boardwalk; a guarded (old-save) town has no office.
 - Full questcheck also runs all of the above (TownTests.run).
-- `questcheck --render R.png --golden DIR`: new shot town_office.png (the office and its boardwalk).
+- `questcheck --render R.png --golden DIR`: town_shop.png now shows the general store's covered boardwalk.
 
 ## Verifier pass (independent Opus subagent, 2026-10-10) and what changed
 - Fixed: MilitaryTests (Mac --mobtests) still expected 7 guns.
