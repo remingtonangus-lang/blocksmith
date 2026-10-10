@@ -40,6 +40,8 @@ stairwell (panels + test), world-audit overlap box too tall, catwalk stair witho
 weak checks (snow layer, lamp count, head cell, landings).
 Polish after review (2026-10-10): the radar dish is now one sampled shell with a steel rim and feed arm (was lumpy),
 the catwalk uses station floor plate (the ship grating read purple from below).
-Left as is: drifts skip walls that sit in a neighbouring chunk (the writer cannot read across chunks); the catwalk
+Snow drifts now come from the plan (BorealStation.surfaceWall), so a wall in the next chunk still gets its drift;
+borealtest checks every planned drift is there (the old code missed the cross-chunk ones).
+Left as is: the catwalk
 sides still read lavender under the hall's light (shading, not texture; renderer is the local lane's area); stations
 are 360-2281 blocks from spawn.

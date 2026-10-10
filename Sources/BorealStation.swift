@@ -328,6 +328,23 @@ enum BorealStation {
         ]
     }
 
+    // Solid ground-level walls of the surface buildings (blockhouse, gatehouse, shed, fuel tanks, watchtower, fence
+    // posts), from the same numbers build() uses. Snow drifts bank against these; a pure function so a column in one
+    // chunk sees a wall standing in the next.
+    static func surfaceWall(_ dx: Int, _ dz: Int) -> Bool {
+        let Y = yard
+        if dx >= -8 && dx <= 7 && dz >= 14 && dz <= 23 { return dx == -8 || dx == 7 || dz == 14 || dz == 23 }
+        if dx >= -1 && dx <= 3 && dz >= Y - 4 && dz <= Y - 1 { return dx == -1 || dx == 3 || dz == Y - 4 || dz == Y - 1 }
+        if dx >= 14 && dx <= 24 && dz >= 4 && dz <= 14 { return dx == 24 || dz == 4 || dz == 14 }
+        for (fx, fz) in [(-22, -14), (-22, -4)] where (dx - fx) * (dx - fx) + (dz - fz) * (dz - fz) <= 8 { return true }
+        if (dx == -21 && dz == 21) || ([-23, -19].contains(dx) && [19, 23].contains(dz)) { return true }
+        if [17, 19].contains(dx) && [-19, -17].contains(dz) { return true }                  // radar mast legs
+        if max(abs(dx), abs(dz)) == Y && !(dz == Y && dx >= -8 && dx <= -3) {
+            return (dx + dz) % 5 == 0 || (abs(dx) == Y && abs(dz) == Y)
+        }
+        return false
+    }
+
     // MARK: Build
 
     static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64) {
@@ -677,8 +694,8 @@ enum BorealStation {
             if y == S && top == con && hashf(dx, dz, 41, 0xB0E) < 0.7 { return }
             if y == S && top == snowB {
                 // A drift against a wall to the north or west (prevailing wind from the south-east).
-                let north = w.inside(x, S + 1, z - 1) && Blocks.fullCollide[Int(w.get(x, S + 1, z - 1))] && w.get(x, S + 1, z - 1) != snowB
-                let west = w.inside(x - 1, S + 1, z) && Blocks.fullCollide[Int(w.get(x - 1, S + 1, z))] && w.get(x - 1, S + 1, z) != snowB
+                // From the plan, not the writer: a wall in the next chunk can't be read from this one.
+                let north = surfaceWall(dx, dz - 1), west = surfaceWall(dx - 1, dz)
                 if (north || west) && hashf(dx, dz, 43, 0xB0E) < 0.6 { w.set(x, S + 1, z, snowB); y = S + 1 }
             }
             if y + 1 < CH { w.set(x, y + 1, z, snowL) }

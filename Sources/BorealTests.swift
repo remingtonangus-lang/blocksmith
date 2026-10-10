@@ -157,6 +157,22 @@ enum BorealTests {
                 if y > S + 1 { roofs += 1; if top == "snow" { roofSnow += 1 } }
                 else { yardTops += 1; if top == "snow" { yardSnow += 1 } }       // a layer on top, not just snow ground
             } }
+            // Drifts bank against walls on the north/west even when the wall stands in the next chunk (the
+            // writer can't read across chunks; the build asks BorealStation.surfaceWall instead).
+            var driftWant = 0, drifts = 0, edgeWant = 0, edgeDrifts = 0
+            for dz in -30...30 { for dx in -30...30 where !BorealStation.surfaceWall(dx, dz) {
+                let wn = BorealStation.surfaceWall(dx, dz - 1), ww = BorealStation.surfaceWall(dx - 1, dz)
+                guard wn || ww, world.block(cx + dx, S, cz + dz) == SNOW, hashf(dx, dz, 43, 0xB0E) < 0.6 else { continue }
+                var top = S + 30                                              // open to the sky (not under a platform)
+                while top > S + 1 && world.block(cx + dx, top, cz + dz) == AIR { top -= 1 }
+                if top > S + 2 || (top == S + 2 && Blocks.key(world.block(cx + dx, top, cz + dz)) != "snow") { continue }
+                let across = (wn && mod(cz + dz, CS) == 0) || (ww && mod(cx + dx, CS) == 0)
+                let d = world.block(cx + dx, S + 1, cz + dz) == SNOW
+                driftWant += 1; if d { drifts += 1 }
+                if across { edgeWant += 1; if d { edgeDrifts += 1 } }
+            } }
+            check(driftWant > 0 && drifts >= driftWant - 2 && edgeDrifts == edgeWant,
+                  "boreal \(seed): \(drifts)/\(driftWant) planned wall-side drifts, \(edgeDrifts)/\(edgeWant) against a wall in the next chunk")
             check(surfDoors == 3, "boreal \(seed): \(surfDoors) bulkhead doors on the surface (blockhouse pair + gatehouse)")
             check(roofs > 0 && Float(roofSnow) / Float(max(1, roofs)) > 0.5 && Float(yardSnow) / Float(max(1, yardTops)) > 0.75,
                   "boreal \(seed): snow on \(roofSnow)/\(roofs) roof and mast tops, \(yardSnow)/\(yardTops) yard cells")
