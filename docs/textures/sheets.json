@@ -407,8 +407,8 @@
     "deepslate_iron_ore@deepslate"
    ],
    [
-    "coal_ore@stone",
-    "deepslate_coal_ore@deepslate",
+    "-",
+    "-",
     "lapis_ore@stone"
    ]
   ],
@@ -607,6 +607,42 @@
     "beehive_front:single",
     "white_glazed_terracotta:single",
     "orange_glazed_terracotta:single"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s20_ores4.jpg",
+  "grid": 4,
+  "crop": 0.04,
+  "stylise": 0.3,
+  "ore": [
+   22.0,
+   50.0
+  ],
+  "tiles": [
+   [
+    "coal_ore@stone",
+    "-",
+    "emerald_ore@stone",
+    "-"
+   ],
+   [
+    "-",
+    "deepslate_lapis_ore@deepslate",
+    "deepslate_emerald_ore@deepslate",
+    "deepslate_coal_ore@deepslate"
+   ],
+   [
+    "oak_planks",
+    "birch_planks",
+    "spruce_planks",
+    "dark_oak_planks"
+   ],
+   [
+    "jungle_planks",
+    "acacia_planks",
+    "cherry_planks",
+    "mangrove_planks"
    ]
   ]
  }

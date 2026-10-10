@@ -41,3 +41,18 @@ Same style and source (Gemini on gemini.google.com, Remington's Google AI Pro ac
   sea lantern, barrel side; the rest were objects, not tiles).
 - texderive.py RELATIVES/copper/stained glass: nether and pale woods, copper weathering stages and others carry an
   imported base's detail in the procedural colour. All original Blocksmith art.
+
+## Block textures, batch 4 (2026-10-10)
+Same style, source and prompt pattern (Gemini Pro on gemini.google.com, Remington's Google AI Pro account; ask for a
+"SQUARE 1:1 image" or Gemini Pro returns a 16:9 sheet with merged cells).
+- assets/gemini/sheets/s17_building3.jpg: cut copper, polished deepslate/tuff, quartz and purpur pillars, red nether
+  bricks, dark prismarine, chiseled sandstone, red sandstone top, bamboo, mushroom stem/caps, bone, blue ice, melon.
+- assets/gemini/sheets/s18_workshop.jpg: TNT, smithing/fletching/cartography table and loom sides, note block, jukebox,
+  piston, observer face, dispenser, target, beehive, bee nest, lamp (unlit lamp derived darker), honey.
+- assets/gemini/sheets/s19_tops.jpg: the matching tops/fronts and two glazed terracotta patterns.
+  Cell maps in docs/textures/sheets.json; sliced by tools/sheetslice.py. All original Blocksmith art.
+- assets/gemini/plants/p02_plants.jpg: tulips, blue orchid, acacia/cherry/dark oak/jungle saplings, mushrooms, ladder
+  (tools/iconslice.py with docs/textures/plants.json).
+- assets/gemini/sheets/s20_ores4.jpg (re-roll after the independent style review): natural coal, emerald and deepslate
+  lapis/emerald/coal grains composited onto the shared stone, and all eight plank woods. The first s20 attempt came back
+  as pixel art and was discarded. Emberslate muted toward dark stone with faint ember cracks.
