@@ -277,6 +277,38 @@ if CommandLine.arguments.contains("--horse-only") {
     print(failures == 0 ? "horsetests: all checks passed" : "horsetests: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 
+// The Deep (Sources/DeepTests.swift + DeepExpansionTests.swift): layers, seam, the Ashguard war, the Sealrock, Sunderite,
+// Brimstone Keeps, the vault's sky and the army's strength.
+if !CommandLine.arguments.contains("--no-deep") { DeepTests.run(game, check) }
+// With --render: the Ash Vault under its own sky and a Brimstone Keep, through the Quest renderer (next to the PNG).
+if let path = renderPath, !path.isEmpty, let ctx = vkctx {
+    let dir = (path as NSString).deletingLastPathComponent
+    let home = game.player.pos
+    func shot(_ name: String, at p: V3, yaw: Float, pitch: Float) {
+        game.changeDimension(to: .deep, at: p)
+        game.player.pos = p; game.player.vel = .zero; game.player.flying = true
+        _ = game.world.loadSync(center: p, radius: 6)
+        do {
+            try RenderTest.render(game: game, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", yaw: yaw, pitch: pitch)
+            print("render: \(dir)/\(name).png")
+        } catch { check(false, "deep render \(name): \(error)") }
+    }
+    do {
+        let dg = DeepGen(seed: seed)
+        let fy = Float(dg.floorY(0, 90) + 3)
+        shot("deep_vault", at: V3(0.5, fy, 90.5), yaw: 0, pitch: 0.12)
+        shot("deep_vault_sky", at: V3(0.5, fy, 90.5), yaw: 0.6, pitch: 0.75)
+        if let k = dg.structures?.nearest("brimstone_keep", x: 0, z: 0) {
+            let ox = (k.min.x + k.max.x) / 2, oz = (k.min.z + k.max.z) / 2
+            shot("deep_keep", at: V3(Float(ox) + 0.5, Float(DeepGen.hellBase + BrimstoneKeep.floorUp + 9), Float(oz + BrimstoneKeep.causeway) + 0.5), yaw: 0, pitch: -0.12)
+        }
+    }
+    game.changeDimension(to: .overworld, at: home)
+    game.player.pos = home; game.player.vel = .zero; game.player.flying = false
+    _ = game.world.loadSync(center: home, radius: 4)
+}
+if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deeptest: all checks passed" : "deeptest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }

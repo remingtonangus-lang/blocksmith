@@ -342,6 +342,11 @@ extension AshWar {
             flag(-5, 16, h: 16); flag(5, 16, h: 16)
             unit("ash_marshal", 0, -4, heading: 180)
             soldier("officer", -6, 2); soldier("officer", 6, 2); soldier("ironclad", -4, 8); soldier("ironclad", 4, 8)
+            // The Marshal's Guard (the Deep expansion: an army harder than any surface garrison): a heavy company drawn
+            // up north of the bunker, two tanks holding the north gate road, troopers at the gates.
+            for u in stride(from: -14, through: 14, by: 4) { soldier("ironclad", Float(u), -16) }
+            unit("ash_tank", -6, -32, heading: 0); unit("ash_tank", 6, -32, heading: 0)
+            for (u, v) in [(-3, -38), (3, -38), (-38, 3), (38, -3)] { soldier("trooper", Float(u), Float(v)) }
             // Barracks (north-west, north-east), motor yard (south-east), gun pits and fuel (south-west).
             building(-36, -34, -12, -22, h: 6, wall: k.plating, roof: k.concrete)
             building(12, -34, 36, -22, h: 6, wall: k.plating, roof: k.concrete)

@@ -115,6 +115,10 @@ final class Game {
     // The Deep (task 22): been there (saved), the updraft hint shown this session, the Ashguard war (AshWar.swift).
     var deepVisited = false
     var deepUpdraftHinted = false
+    var sunderCharges: [(at: IVec3, t: Float)] = []    // Sunder Charges burning on Sealrock (DeepSeal.swift)
+    var sealHintAt: Double = -100
+    var hellHinted = false
+    var keepCompass: (key: Int64, keep: StructureStart?)?
     var ashVictory = false
     var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
     var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
@@ -555,6 +559,7 @@ final class Game {
 
     var skyColor: V3 {
         if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
+        if inVaultSky { return AshSky.haze }
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.64, 0.77, 0.92), night = V3(0.015, 0.02, 0.06)   // AV polish: a paler hazy horizon
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
@@ -570,6 +575,7 @@ final class Game {
 
     // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
     var skyZenith: V3 {
+        if inVaultSky { return AshSky.zenith }
         let c = skyColor
         return simd_mix(c * V3(0.36, 0.55, 0.86), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
@@ -1115,6 +1121,7 @@ final class Game {
                                                mul: miningSpeedMul)
                 if secs.isInfinite {
                     mineProgress = 0
+                    if b == SEALROCK { sealHint() }
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
@@ -1135,6 +1142,7 @@ final class Game {
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
+                        if b == SEALROCK { achieve("break_seal") } else if Blocks.key(b) == "sunderite_ore" { achieve("sunderite") }
                         // Only tools wear, and only on blocks with some hardness (shears on anything they cut): a bow or a
                         // rod in hand, or a pickaxe through grass and torches, lost durability before (reference).
                         let tl = held.isEmpty ? ToolType.none : held.def.tool
@@ -1157,6 +1165,7 @@ final class Game {
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5, except: riding)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && useSpawnEgg(on: target) { swing = 1; return }
+        if useNow && useSunderCharge(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -1993,6 +2002,7 @@ final class Game {
             var y = min(CH - 3, Int(floor(p.y)) + 8)
             while y > max(1, Int(floor(p.y)) - 8) && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
             let t = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            if dim.dim == .deep && DeepSeal.crosses(p.y, t.y) { continue }     // never through the Sealrock
             if Blocks.collide[Int(world.block(x, y - 1, z))] && !player.collides(at: t, world) && !Blocks.isLiquid(world.block(x, y, z)) {
                 player.pos = t
                 player.vel = .zero

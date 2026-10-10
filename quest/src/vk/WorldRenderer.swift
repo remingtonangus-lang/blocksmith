@@ -77,13 +77,15 @@ final class WorldRenderer {
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
         var fogColor = underwater ? game.underwaterFog : sky
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
+        let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
+        if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.renderDaylight
         let nv = game.nightVision
-        let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
-        let sd = game.sunDir
-        let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
-        let skyGlow = (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
+        let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
+        let sd = vaultSky ? AshSky.sunDir : game.sunDir
+        let dusk = vaultSky ? 0 : max(0, 1 - abs(sd.y - 0.02) / 0.22)
+        let skyGlow = vaultSky ? AshSky.glow : (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
         let fogGlow: Float = (!underwater && hasSky && game.blindFog == nil) ? min(0.99, skyGlow) : 0
         var u = FrameUniforms()
         u.viewProj = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
@@ -97,7 +99,7 @@ final class WorldRenderer {
         u.horizon = V4(sky, skyGlow)
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, game.starAlpha)                 // faint at sunset, full once the sun is well down
-        let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky ? 1 : (game.dim.dim == .end ? 2 : 0))
+        let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
         let ek = simd_clamp((caveK - 0.3) / 0.6, 0, 1)
@@ -120,6 +122,7 @@ final class WorldRenderer {
         func stage(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); stageSums[i] += n - tm; tm = n }
         updateCave(cam.center)
         let (u, clear) = uniforms(cam)
+        scene.maxSection = game.inVaultSky ? AshSky.cutSection : NSEC         // the vault's roof is left to the sky
         scene.setUniforms(s, u)
         scene.resetScratch()
         let eye = cam.center
@@ -192,6 +195,17 @@ final class WorldRenderer {
             }
             body(sd, 7, Int(Tex.id("sun")), V4(1, 1 - 0.3 * dusk, 1 - 0.55 * dusk, 1))
             body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
+            scene.commit(off, bw.n, EntityVert.self)
+            scene.drawScratch(s, "body", offset: off, count: bw.n)
+        } else if !underwater && game.inVaultSky {
+            // The Cinder Sun over the Ash Vault: big, dull and red through the haze.
+            let (ptr, off, cap) = scene.reserve(s, EntityVert.self, max: 6)
+            guard cap >= 6 else { return }
+            var bw = EntityWriter(out: ptr, capacity: 6)
+            let d = AshSky.sunDir, c = d * 90
+            let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
+            let up = simd_normalize(simd_cross(r, d)) * 12
+            bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
             scene.commit(off, bw.n, EntityVert.self)
             scene.drawScratch(s, "body", offset: off, count: bw.n)
         }

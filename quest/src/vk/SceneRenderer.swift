@@ -101,6 +101,7 @@ final class SceneRenderer {
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
+    var maxSection = NSEC          // sections from here up are left out (the Ash Vault's sky, AshSky.swift)
     // The swapchain is sRGB: shaders compute display (gamma) values like the Mac, so they write them back to linear.
     var linearOutput = false
     static func isSRGB(_ f: VkFormat) -> Bool { f == VK_FORMAT_R8G8B8A8_SRGB || f == VK_FORMAT_B8G8R8A8_SRGB }
@@ -820,7 +821,7 @@ final class SceneRenderer {
                 let (c, dx, dz, sy, entry, dirMask) = bfs[head]; head += 1
                 let sec = c.sections[sy]
                 let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
-                if !sec.empty { visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye))) }
+                if !sec.empty && sy < maxSection { visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye))) }
                 let vis = sec.meshedVersion == -1 ? ~UInt64(0) : sec.vis
                 for f in 0..<6 {
                     if dirMask & (1 << (f ^ 1)) != 0 { continue }
@@ -843,7 +844,7 @@ final class SceneRenderer {
                 if !world.inMeshRadius(dx, dz) { continue }
                 let cmn = V3(Float(c.cx * CS), 0, Float(c.cz * CS))
                 if !frustum.visible(min: cmn, max: cmn + V3(16, Float(CH), 16)) { continue }
-                for (sy, sec) in c.sections.enumerated() where !sec.empty {
+                for (sy, sec) in c.sections.enumerated() where !sec.empty && sy < maxSection {
                     let mn = V3(cmn.x, Float(sy * 16), cmn.z)
                     if !frustum.visible(min: mn, max: mn + V3(16, 16, 16)) { continue }
                     visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))

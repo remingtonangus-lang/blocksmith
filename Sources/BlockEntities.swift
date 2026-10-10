@@ -154,7 +154,7 @@ final class BlockEntity: Codable {
 
 extension BlockEntity {
     static func allowed(_ out: ItemID, _ input: ItemID, in kind: String) -> Bool {
-        if Items.key(input) == "steel_blend" { return kind == "blast_furnace" }
+        if Items.key(input) == "steel_blend" || Items.key(input) == "sunderite_flux" { return kind == "blast_furnace" }
         switch kind {
         case "smoker": return Items.def(out).food != nil
         case "blast_furnace":

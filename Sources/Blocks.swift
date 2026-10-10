@@ -687,6 +687,7 @@ final class BlockRegistry {
         registerCapitalCityBlocks()
         registerAshguardBlocks()
         registerBorealBlocks()
+        registerDeepExpansionBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods
@@ -874,6 +875,7 @@ let DIRT = Blocks.id("dirt")
 let COBBLE = Blocks.id("cobblestone")
 let PLANKS = Blocks.id("oak_planks")
 let BEDROCK = Blocks.id("bedrock")
+let SEALROCK = Blocks.id("sealrock")
 let SAND = Blocks.id("sand")
 let GRAVEL = Blocks.id("gravel")
 let LOG = Blocks.id("oak_log")

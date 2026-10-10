@@ -27,8 +27,12 @@ enum Mining {
     // `mul`: Haste / Mining Fatigue, applied to the speed before the instant-break test (reference order: Haste II
     // with an efficiency pickaxe insta-mines stone; dividing the finished time missed that).
     static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool, mul: Float = 1) -> Float {
-        let h = Blocks.hardness[Int(b)]
-        if h < 0 { return .infinity }
+        var h = Blocks.hardness[Int(b)]
+        if h < 0 {
+            // Sealrock (DeepSeal.swift) gives way to a Sunderite Pickaxe and nothing else.
+            guard !tool.isEmpty, Items.key(tool.item) == DeepSeal.pickaxe, Blocks.key(b) == "sealrock" else { return .infinity }
+            h = DeepSeal.pickHardness
+        }
         if h == 0 { return 0 }
         var speed: Float = 1
         let key = Blocks.key(b)
@@ -155,7 +159,8 @@ enum Mining {
         case "glowstone": return one("glowstone_dust", rnd(2, 4))
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)
-        case "glass", "spawner", "glass_pane": return []
+        case "glass", "spawner", "glass_pane", "sealrock": return []
+        case "sunderite_ore": return one("raw_sunderite", rnd(1, 2))
         case "fern":
             if shears { return one(key) }
             return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
