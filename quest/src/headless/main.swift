@@ -56,6 +56,11 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// --towns-only: just the towns of people, law, honour and frontier town checks (Sources/TownTests.swift, HonourTests.swift).
+if CommandLine.arguments.contains("--towns-only") {
+    TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
+    print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
 if CommandLine.arguments.contains("--capitals-only") {
     TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check)

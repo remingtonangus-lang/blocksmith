@@ -71,7 +71,7 @@ extension MobTests {
         // Items.
         let guns = Guns.all.filter { Items.has($0.key) && Items.def(Items.id($0.key)).maxStack == 1 }
         let ammo = Guns.ammo.filter { Items.has($0.0) }
-        check(guns.count == 7 && ammo.count == 5, "guns and ammo registered", "\(guns.count) guns, \(ammo.count) ammo")
+        check(guns.count == Guns.all.count && guns.count >= 8 && ammo.count == 5, "guns and ammo registered", "\(guns.count) guns, \(ammo.count) ammo")
         check(Guns.index(Items.id("gun_sniper")) == Guns.sniper, "gun lookup by item")
 
         // Arena: a long open strip with a stone floor.

@@ -54,8 +54,16 @@ enum Guns {
         GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
+        // The Sheriff's Revolver: a six-shot frontier revolver only a town sheriff carries; a killed sheriff drops it
+        // 5% of the time (Honour.sheriffDrops). Never sold, so it's a trophy. Slow, heavy single shots.
+        GunSpec(key: "gun_revolver", name: "Sheriff's Revolver", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
+                spread: 0.026, aimSpread: 0.006, speed: 150, recoil: 0.065, reload: 2.4, range: 70, durability: 700, zoom: 0.86,
+                shot: .bullet, sound: 13, accent: V3(0.36, 0.2, 0.1)),
     ]
-    static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6
+    static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
+    static let revolverKey = "gun_revolver"
+    // Held in one hand on the march, two when aimed (soldier rig, pose checks).
+    static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver }
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
                                            ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell")]
     static let rocketPower: Float = 2.5
@@ -225,6 +233,9 @@ enum Guns {
         "gun_sidearm": ["................", "................", "................", "................", "................",
                         "...11111111111..", "...1dddddddddd1.", "...1aaaaaaaaaa1.", "...1aaa1m1111...", "...1aaa1.m1.....",
                         "..1aaa11.1......", "..1aaa1.........", "..1aaa1.........", "..11111.........", "................", "................"],
+        "gun_revolver": ["................", "................", "................", "................", "....1...........",
+                         "..111111111111..", "..1mmmmmmmmmm1..", "..111111ddd111..", "........dddd1...", ".......1aa1.1...",
+                         "......1aaa11....", ".....1aaa1......", ".....1aaa1......", "......111.......", "................", "................"],
         "arc_cell": ["................", "................", "......1111......", ".....1mmmm1.....", "....1111111.....",
                      "....1gggggg1....", "....1gddddg1....", "....1gggggg1....", "....1gddddg1....", "....1gggggg1....",
                      "....1gddddg1....", "....1gggggg1....", "....11111111....", "................", "................", "................"],

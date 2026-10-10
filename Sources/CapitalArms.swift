@@ -29,7 +29,7 @@ enum CapitalArms {
         Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
     }
 
-    static let models: [GunModel] = (0..<7).map { i in
+    static let models: [GunModel] = (0..<Guns.all.count).map { i in
         var g = model(i)
         g.parts += details(i)                    // appended after the magazine parts: their indices stay put
         return g
@@ -57,6 +57,9 @@ enum CapitalArms {
             p.append(b(-0.7, 3.8, 4, 1.4, 0.9, 0.3, graphite, pMetal))                                    // rear sight
         case Guns.arc:
             p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
+        case Guns.revolver:
+            for k in 0..<3 { p.append(b(-0.9, -0.2 + Float(k) * 0.5, -2.2, 0.06, 0.25, 1.6, blued * 0.6, pMetal)) }   // cylinder flutes
+            p.append(b(-0.06, -0.2, -8.2, 0.12, 0.2, 5.4, silver, pMetal))                                // barrel seam
         default:
             for k in 0..<3 {                                                                              // slide serrations
                 p.append(b(0.7, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
@@ -71,8 +74,28 @@ enum CapitalArms {
         [b(x, top - 2, -0.6, w, 2, 1.8, c, pEnamel), b(x, top - 3.9, -0.1, w, 1.9, 1.8, c, pEnamel)]
     }
 
+    static let blued = V3(0.17, 0.19, 0.25), walnut = V3(0.38, 0.21, 0.1), brass = V3(0.74, 0.57, 0.26)
+
     static func model(_ i: Int) -> GunModel {
         switch i {
+        case Guns.revolver:
+            // The Sheriff's Revolver: a long blued barrel over its ejector rod, a fluted cylinder, a brass trigger guard
+            // and a walnut grip with a rounded butt (original design).
+            let p: [Part] = [
+                b(-0.45, 0.3, -8.5, 0.9, 0.9, 6, blued, pMetal),                  // barrel
+                b(-0.3, -0.25, -7, 0.6, 0.5, 4.5, blued, pMetal),                 // ejector rod housing
+                b(-0.85, -0.5, -2.5, 1.7, 1.7, 2.2, V3(0.3, 0.32, 0.36), pMetal),  // cylinder
+                b(-0.6, -0.7, -0.3, 1.2, 1.9, 1.6, blued, pMetal),               // frame
+                b(-0.2, 1.0, 0.9, 0.4, 0.6, 0.7, blued, pMetal),                  // hammer
+                b(-0.1, 1.2, -8.3, 0.2, 0.3, 0.4, silver, pMetal),                // front sight
+                b(-0.2, 0.55, -8.62, 0.4, 0.4, 0.12, V3(0.02, 0.02, 0.02), 0),    // bore
+                b(-0.25, -1.4, -1.6, 0.5, 0.3, 1.6, brass, pMetal),               // trigger guard
+                b(-0.55, -2.4, 0.4, 1.1, 1.8, 1.4, walnut, 10),                   // grip
+                b(-0.55, -3.7, 0.9, 1.1, 1.4, 1.4, walnut, 10),                   // butt
+                b(-0.6, -3.9, 1.0, 1.2, 0.25, 1.3, brass, pMetal),                // butt cap
+            ]
+            return GunModel(parts: p, mag: [], grip: V3(0, -1.6, 0.9), fore: V3(-0.4, -2.6, 1.2), butt: V3(0, -1.6, 0.9),
+                            muzzle: V3(0, 0.75, -8.7), magAt: V3(0, -0.4, -1.4), bolt: V3(0, 1.3, 1.2), scale: 0.68, shouldered: false)
         case Guns.rifle:
             // Capital Service Rifle: long enamel receiver with a grey band, top rail and a short optic.
             var p: [Part] = [

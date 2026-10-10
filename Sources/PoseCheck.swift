@@ -142,7 +142,7 @@ enum PoseCheck {
                 // Every weapon for the aim stances; the rank's own weapons for the rest.
                 let own = (0..<12).map { _ in Soldier.pickGun(k) }.contains(gi)
                 for s in stances where own || s.name.hasPrefix("aim") || s.name == "firing" || s.name == "low ready" {
-                    if s.name == "aim seated" && gi == Guns.pistol { continue }
+                    if s.name == "aim seated" && Guns.isHandgun(gi) { continue }
                     let m = make(k, gun: gi)
                     s.set(m, m.soldierBrain)
                     let rig = SoldierRig.build(m)
@@ -158,7 +158,7 @@ enum PoseCheck {
                         if gi != Guns.launcher { check(rig.handR.z < chest - 0.5, "\(tag) right hand ahead of the chest", String(format: "z %.1f, chest %.1f", rig.handR.z, chest)) }   // launchers: gripped at the shoulder
                         check(rig.muzzle.z < rig.handR.z - 2, "\(tag) muzzle ahead of the hands", String(format: "muzzle %.1f hand %.1f", rig.muzzle.z, rig.handR.z))
                         check(simd_length(rig.handR - rig.gripR) < 1.0, "\(tag) right hand on the grip", String(format: "%.1f px off", simd_length(rig.handR - rig.gripR)))
-                        let oneHand = r == 4 && gi == Guns.pistol
+                        let oneHand = r == 4 && Guns.isHandgun(gi)
                         if !oneHand {
                             check(rig.handL.z < chest - 1, "\(tag) left hand ahead of the chest", String(format: "z %.1f", rig.handL.z))
                             check(simd_length(rig.handL - rig.foreL) < 1.0, "\(tag) left hand on the fore grip", String(format: "%.1f px off", simd_length(rig.handL - rig.foreL)))

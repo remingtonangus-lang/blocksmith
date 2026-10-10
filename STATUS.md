@@ -1,10 +1,22 @@
 # Status
 
+> **Frontier towns, honour and the Sheriff's Revolver (2026-10-10, quest-port PR):** a per-world honour score
+> (Outlaw to Honourable) moved by witnessed crimes, murder, protecting towns and killing outlaws (daily caps); it nudges
+> prices, heat cooling and the law. Bounties: a town that turns on you, or whose people you kill, puts a price on your
+> head; keepers won't serve until you pay the sheriff or a deputy (also a surrender mid-fight); lapse after 7 days. HUD:
+> standing and bounty under the wallet. A killed sheriff drops the Sheriff's Revolver (6-shot) 5% of the time. New towns
+> get a sheriff's office with a jail cell and WANTED board, and covered boardwalks along the shops (old-save towns keep
+> their lots). Check: `questcheck --towns-only`. Notes, verifier fixes: docs/status/honour.md.
 > **People in the Capital cities (2026-10-10, quest-port PR):** each city has a market of 8 storefronts round the
 > fountain (the town shops, keepers, dollars), flats and offices, and citizens on a city day (office desk, saloon
 > lunch, the square's bell, home to bed); the city is named on the fountain. Fixes for all townsfolk: lying down from
 > the foot of a bed, keepers off their counters, path searches to 100 blocks. Check: `questcheck --capitals-only`
 > (also in questcheck / `--towntests`). Notes and pre-mortem: docs/status/capital-towns.md.
+> **Boreal Station infiltration (2026-10-10, PR into quest-port):** each station is an operation: copy the uplink
+> codes at a control-room console, set a 45 s charge on the generator, get past the fence. No alarm = silent rating
+> (Farsight Rifle, $250, "Nobody Was Here"); loud pays less. The alarm locks the uplink, sends squads down the
+> stairwell and roused soldiers now open bulkhead doors. HUD bar shows the next job. Checks: borealtest (15 per seed).
+> Details: docs/status/boreal-station.md.
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest

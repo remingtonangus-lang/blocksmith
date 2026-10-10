@@ -330,7 +330,9 @@ extension TownTests {
         check(n == 12 && men == 12, "sheriff: \(men)/\(n) structure sheriffs carry a revolver, have a man's name and the sheriff's voice")
         let parts = Mob.structureMob("villager:sheriff", at: g.player.pos).map { townsfolkParts($0, swing: 0).filter { $0.mn.x.isFinite && $0.mx.y.isFinite }.count } ?? 0
         check(parts >= 30, "sheriff: the model builds (\(parts) parts, star and hat)")
-        // Townsfolk no longer summon golems.
+        // Townsfolk no longer summon golems. On dry ground at the spawn (earlier checks in the full questcheck left the
+        // player over water, where no sheriff can be placed: "a town without one gets a sheriff" failed there only).
+        g.player.pos = g.findSpawn()
         let base = groundSpot(g)
         var group: [Mob] = []
         for i in 0..<6 {

@@ -104,7 +104,7 @@ enum Economy {
         "chainmail_helmet": 420, "chainmail_chestplate": 720, "chainmail_leggings": 620, "chainmail_boots": 360,
         "shield": 230, "iron_bars": 22, "anvil": 3600,
         // Gunsmith
-        "gun_sidearm": 4500, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000,
+        "gun_sidearm": 4500, "gun_revolver": 9000, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000,
         "rifle_rounds": 4, "shotgun_shells": 10, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
         // Stable
         "saddle": 600, "leather_horse_armor": 320, "iron_horse_armor": 900, "golden_horse_armor": 1500,
@@ -158,7 +158,7 @@ enum Economy {
         .general: ["wheat", "carrot", "potato", "beetroot", "pumpkin", "melon_slice", "sugar_cane", "egg", "honeycomb",
                    "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
                    "amethyst_shard", "cocoa_beans", "emerald"],
-        .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_shotgun",
+        .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
                     "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
                    "bone", "rotten_flesh", "egg"],
@@ -196,11 +196,13 @@ struct ShopPricing {
 
     // Reputation 100 or more: 10% off and 10% more for what you sell; down to -100: 25% dearer and 25% less paid;
     // below -100 the shop won't serve you. Friend of the Town (heroOfTheVillage) takes another 5% off (never past minBuyMult).
-    init(reputation rep: Int, hero: Int) {
+    // Honour (Honour.swift) nudges both a little more, inside the same bounds.
+    init(reputation rep: Int, hero: Int, honour: Float = 0) {
         let r = Float(max(-100, min(100, rep))) / 100
         var b: Float = r >= 0 ? 1 - 0.1 * r : 1 - 0.25 * r
         var s: Float = r >= 0 ? 0.5 * (1 + 0.1 * r) : 0.5 * (1 + 0.25 * r)
         if hero > 0 { b -= 0.05 }
+        b += Honour.buyNudge(honour); s *= 1 + Honour.sellNudge(honour)
         b = max(Economy.minBuyMult, min(Economy.maxBuyMult, b))
         s = max(Economy.minSellMult, min(Economy.maxSellMult, s))
         buyMult = b; sellMult = s; refuses = rep < -100
@@ -281,7 +283,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
 
     var data: VillagerData? { mob?.villager }
     var pricing: ShopPricing {
-        ShopPricing(reputation: data?.reputation ?? 0, hero: game.effects.level(.heroOfTheVillage))
+        ShopPricing(reputation: data?.reputation ?? 0, hero: game.effects.level(.heroOfTheVillage), honour: Honour.value)
     }
 
     func refresh() {
@@ -498,7 +500,7 @@ enum Shop {
         let cat = Economy.catalog(k)
         guard i < cat.count, var stock = v.stock, i < stock.count else { return ("", false) }
         let item = cat[i].item
-        let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)))
+        let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value))
         let name = ItemStack(item, 1).def.display
         guard stock[i] > 0 else { m.villager = v; return ("Sold out of \(name) until tomorrow.", false) }
         let afford = price > 0 ? g.money / price : Int.max
@@ -532,7 +534,7 @@ enum Shop {
         let n = min(want, have)
         let name = ItemStack(item, 1).def.display
         guard n > 0 else { return ("You have no \(name).", false) }
-        let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage)))
+        let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value))
         guard each > 0 else { return ("\(name) isn't worth anything here.", false) }
         var left = n
         for j in 0..<36 where left > 0 {

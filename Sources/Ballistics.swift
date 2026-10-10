@@ -271,7 +271,7 @@ final class Armory {
 
     func detonate(_ s: Slug, at: V3, _ g: Game) {
         if s.fromPlayer {
-            for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true }
+            for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true; m.playerHurtAt = g.clock }
         }
         let shooter = s.shooter.flatMap { id in g.mobs.mobs.first { ObjectIdentifier($0) == id } }
         // The Capital's own shells and grenades don't alarm its citadels (CapitalBases.swift).

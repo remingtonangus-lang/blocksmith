@@ -21,6 +21,7 @@ enum TownTests {
         pricing(check)
         trade(g, check)
         law(g, makeWorld, check)             // TownLawTests.swift: law, sheriff, wallet, exchange, voices
+        honour(g, makeWorld, check)          // HonourTests.swift: honour, bounties, the sheriff's revolver, frontier towns
         shopUI(g, check)
         people(g, check)
         defence(g, check)
