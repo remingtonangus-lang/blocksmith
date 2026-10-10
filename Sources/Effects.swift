@@ -407,6 +407,7 @@ extension Game {
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
         d["money"] = "\(money)"
+        TownLaw.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
         if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
@@ -428,6 +429,7 @@ extension Game {
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         money = d["money"].flatMap { Int($0) } ?? Money.start
+        TownLaw.load(d, seed: world.seed)
         deepVisited = d["deepVisited"] == "1"
         ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)

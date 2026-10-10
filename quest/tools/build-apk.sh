@@ -49,6 +49,8 @@ if [ -d Resources/Textures ] && python3 -c "import PIL" 2>/dev/null; then python
 else echo "texpack: using the committed Resources/texpack.bin"; fi
 mkdir -p "$STAGE/assets"
 [ -f Resources/texpack.bin ] && cp Resources/texpack.bin "$STAGE/assets/"
+# Townsfolk voice takes (tools/townvoice_gen.py; TownVoice.load reads them at launch).
+[ -f Resources/voices.bin ] && cp Resources/voices.bin "$STAGE/assets/"
 
 echo "== package"
 for m in simd os Metal; do mkdir -p "$PKG/Sources/$m"; cp quest/shims/$m/*.swift "$PKG/Sources/$m/"; done

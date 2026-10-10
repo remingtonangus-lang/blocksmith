@@ -62,3 +62,16 @@ No new sheets: tools/texderive.py carries the imported detail to 41 more layers 
 blocks from sponge, froglights from shroomlight, nether stem and stripped log ends, resin and chiseled tuff bricks,
 reinforced deepslate, slime, bamboo planks/mosaic, dropper fronts, smoker/blast furnace/target tops, sideways stripped
 stems). What stays procedural is listed in docs/status/art-style-remaining.md.
+
+## Townsfolk voice lines (Resources/voices.bin, 2026-10-10)
+- 264 English takes (6,753 characters of script, 482 s of speech) generated 2026-10-10 through OpenRouter's speech
+  endpoint (openrouter.ai/api/v1/audio/speech) with the model elevenlabs/eleven-v4-turbo, using the stock ElevenLabs
+  voices Brian (sheriff), Adam/River (deputies), Eric/Matilda (shopkeepers), Roger/Jessica (saloon and butcher),
+  Chris/Laura (farmers), Bill/Alice (elders), Will/Sarah (other townsfolk), and Jessica sped up x1.22 (children).
+- Script: original Blocksmith lines, all in Sources/TownVoice.swift (`script`). The per-take log (key, voice, model,
+  date, length, context, text) is assets/voices/manifest.tsv.
+- Processing: tools/townvoice_gen.py (silence trim, 16 kHz, loudness matched to -20 dBFS speech RMS, peak cap, 4-bit
+  IMA-ADPCM packing decoded by TownVoice.swift on Mac and Quest). Levels: tools/audiolevels.py, 0 failing; worst
+  decoded peak -2.1 dBFS; LUFS median -20.8.
+- Licence: generated under Remington's OpenRouter account. ElevenLabs output terms for commercial use in a public
+  repo still need Remington's confirmation before release.

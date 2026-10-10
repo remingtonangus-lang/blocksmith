@@ -1953,6 +1953,7 @@ final class MobManager {
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
         if !second { hiveTick(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {
+            if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
             m.update(dt, game: game)
             m.easeStep(fromY: before.y, wasGround: wasGround, dt)

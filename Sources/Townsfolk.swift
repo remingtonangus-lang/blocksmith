@@ -14,12 +14,12 @@ import simd
 // their counter through their shop's hours; deputies never take a bed.
 
 enum TownWeapon: Int, CaseIterable {
-    case none, sword, pitchfork, hammer, cleaver, axe, shovel, hoe
+    case none, sword, pitchfork, hammer, cleaver, axe, shovel, hoe, revolver     // revolver: the sheriff (TownLaw.shoot)
 
-    var damage: Int { [0, 6, 5, 5, 5, 6, 3, 3][rawValue] }
-    var reach: Float { self == .pitchfork ? 2.9 : 2.2 }
-    var cooldown: Float { self == .pitchfork ? 1.3 : 1.1 }
-    var name: String { ["bare hands", "sword", "pitchfork", "hammer", "cleaver", "axe", "shovel", "hoe"][rawValue] }
+    var damage: Int { [0, 6, 5, 5, 5, 6, 3, 3, 5][rawValue] }
+    var reach: Float { self == .pitchfork ? 2.9 : (self == .revolver ? 12 : 2.2) }
+    var cooldown: Float { self == .pitchfork ? 1.3 : (self == .revolver ? 1.6 : 1.1) }
+    var name: String { ["bare hands", "sword", "pitchfork", "hammer", "cleaver", "axe", "shovel", "hoe", "revolver"][rawValue] }
 }
 
 // Per-mob townsperson state that isn't saved (anger, reactions, animation timers).
@@ -90,6 +90,7 @@ enum Townsfolk {
             v.look = Int(h & 0xFFFF)
             v.person = "\(pick(firstNames, h >> 16)) \(pick(surnames, h >> 32))"
         }
+        if tag == "sheriff" { TownLaw.deputize(&v) }                                // the town's sheriff (TownLaw.swift)
         if tag.hasPrefix("shop_"), let k = ShopKind(rawValue: String(tag.dropFirst(5))) {
             v.shop = k.rawValue; v.role = "shopkeeper"; v.locked = true; v.profession = "none"
             let p = m.pos
@@ -112,6 +113,7 @@ enum Townsfolk {
         let look = v.look ?? 0
         switch v.role ?? "worker" {
         case "deputy": return .sword
+        case "sheriff": return .revolver
         case "farmer": return .pitchfork
         case "elder", "child": return .none
         case "shopkeeper":
@@ -140,7 +142,8 @@ enum Townsfolk {
 
     static func say(_ g: Game, _ m: Mob, _ line: String) {
         guard let v = m.villager else { return }
-        g.onToast?("\(v.person ?? "Townsperson"): \(line)")
+        // Spoken (TownVoice): with subtitles on, the caption at the speaker replaces the toast.
+        if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?("\(v.person ?? "Townsperson"): \(line)") }
         townLastLine = g.clock
     }
     static var townLastLine: Double = -100
@@ -220,9 +223,10 @@ extension Mob {
         let dist = simd_length(V2(at.x - pos.x, at.z - pos.z))
         face(at)
         moving = dist > w.reach * 0.8
-        if attackCooldown <= 0 && dist < w.reach + (town.foe?.halfW ?? 0.3) && abs(at.y - pos.y) < 2.5 {
+        if attackCooldown <= 0 && dist < w.reach + (town.foe?.halfW ?? 0.3) && abs(at.y - pos.y) < (w == .revolver ? 8 : 2.5) {
             attackCooldown = w.cooldown
             town.swing = 0.45
+            if w == .revolver { TownLaw.shoot(self, g); return moving ? spec.speed * 1.35 : 0 }
             g.sfx(.attack, 0.7, at: at)
             if let f = town.foe {
                 f.hit(from: pos, damage: w.damage, knockback: 0.7)
@@ -259,7 +263,7 @@ extension Mob {
         if d < 4 && town.greetCooldown <= 0 && !lying && g.clock - Townsfolk.townLastLine > 6 {
             town.greetCooldown = 45
             face(g.player.pos)
-            Townsfolk.say(g, self, Townsfolk.greeting(v, g))
+            g.townGreet(self, v)
             return false
         }
         return false
@@ -286,9 +290,8 @@ extension Game {
     // player for 30 s, the rest run.
     func townAlarm(_ victim: Mob) {
         guard victim.kind == .villager else { return }
-        if Townsfolk.townLastLine < clock - 1.5 {
-            Townsfolk.say(self, victim, ["Help! Somebody help!", "What's wrong with you?!", "Deputy!"][Rand.int(in: 0...2)])
-        }
+        if Townsfolk.townLastLine < clock - 1.5 { TownVoice.speak(self, victim, .hurt) }
+        TownLaw.assault(self, victim)
         for o in mobs.mobs where o.kind == .villager && o.health > 0 && simd_length(o.pos - victim.pos) < 24 {
             guard o === victim || simd_length(o.pos - victim.pos) < 8 || world.canSee(o.eye, victim.eye) else { continue }
             if o.townWeapon != .none { o.town.anger = max(o.town.anger, 30) } else { o.panic = max(o.panic, 8) }
@@ -301,6 +304,7 @@ extension Game {
         if m.villager?.person == nil { Townsfolk.setup(m, game: self) }
         guard let v = m.villager else { return false }
         if m.town.anger > 0 { Townsfolk.say(self, m, "Stay back!"); return true }
+        if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }
         if m.lying {
             onToast?("\(v.person ?? "They") is asleep.")
             return true
@@ -315,9 +319,13 @@ extension Game {
             openMenu(ShopMenu(game: self, keeper: m, kind: k))
             return true
         }
-        if !m.baby && v.profession != "none" && v.profession != "nitwit" { return openTrading(m) }
+        if !m.baby && v.profession != "none" && v.profession != "nitwit" {
+            // Craftsfolk sell for cash at their trade's counter too; their emerald barter is behind its Barter button.
+            if let k = v.tradeKind { openMenu(ShopMenu(game: self, keeper: m, kind: k)); return true }
+            return openTrading(m)
+        }
         m.face(player.pos)
-        Townsfolk.say(self, m, Townsfolk.greeting(v, self))
+        townGreet(m, v)
         return true
     }
 }

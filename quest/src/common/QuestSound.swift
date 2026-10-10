@@ -170,8 +170,10 @@ final class SoundEngine {
             let data = bank.clip(s, variant: k)
             if !data.isEmpty { list.append(QuestClip(data)) }
         }
-        clips[s] = list
-        bank.evict(s)
+        if case .voice = s {} else {              // voice takes stay uncached (TownVoice: hundreds, each heard now and then)
+            clips[s] = list
+            bank.evict(s)
+        }
         return list.isEmpty ? nil : list[v % list.count]
     }
 
