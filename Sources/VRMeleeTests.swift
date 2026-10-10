@@ -278,8 +278,15 @@ enum VRMeleeTests {
                 game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
                 return broke
             }
+            let keep = game.inventory.held
+            game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
             let cowFar = mines(.cow, V3(0, 0, -4)), cowNear = mines(.cow, V3(0, 0, -2)), zombieFar = mines(.husk, V3(0, 0, -5))
             check(cowFar && !cowNear && !zombieFar, "sword mining guard: cow 4 away mines \(cowFar), cow 2 away \(cowNear), husk 5 away \(zombieFar)")
+            // An axe is a tool: a cow beside it doesn't stop it chopping, a hostile still does.
+            game.inventory.held = ItemStack(Items.id("iron_axe"), 1)
+            let axeCow = mines(.cow, V3(0, 0, -2)), axeHusk = mines(.husk, V3(0, 0, -5))
+            check(axeCow && !axeHusk, "axe mining guard: cow 2 away mines \(axeCow), husk 5 away \(axeHusk)")
+            game.inventory.held = keep
         }
 
         // 6. Mob melee reaches the real head: leaning back out of reach dodges, leaning in gets hit, and without a

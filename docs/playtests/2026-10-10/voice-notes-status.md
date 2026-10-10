@@ -286,7 +286,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:06 - The volcano just looks weird when it's in the background. That shouldn
 
 - **Transcript:** The volcano just looks weird when it's in the background. That shouldn't be there
-- **Status:** fixed: volcanoes only in snow-free, dry, even country with wooded foothills and a ragged edge - c9730ff0; docs/status/worldgen-oct10.md
+- **Status:** partial: volcanoes only in snow-free, dry, even country with wooded foothills and a ragged edge - c9730ff0; docs/status/worldgen-oct10.md. Still open: the far cone reads pale through the haze (continuation task 25b4zx)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -332,7 +332,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:19 - The frame comes back together. Volcanoes, they don't mesh very well in
 
 - **Transcript:** The frame comes back together. Volcanoes, they don't mesh very well into the, uh
-- **Status:** fixed: volcano blending (c9730ff0) + render distance recovery (0c7cb107)
+- **Status:** partial: volcano blending (c9730ff0; far view still pale, 25b4zx) + render distance recovery (0c7cb107)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -358,7 +358,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:26 - into the environment
 
 - **Transcript:** into the environment
-- **Status:** fixed: volcano blending - c9730ff0
+- **Status:** partial: volcano blending at the foot - c9730ff0 (far view: 25b4zx)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -546,7 +546,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:24:20 - Yeah. Not good enough. Also make it so the villagers get real angry wh
 
 - **Transcript:** Yeah. Not good enough. Also make it so the villagers get real angry when you start stealing from them. Make it so that maybe they might have a sheriff or something that would replace the iron golem
-- **Status:** fixed: every villager a townsperson (old saves too), wallet HUD, $1 emerald exchange, theft anger, sheriff replaces the golem, voiced townsfolk - ce883fa1, c3fef65e; docs/status/towns.md, docs/status/economy.md
+- **Status:** fixed: every villager a townsperson (old saves too), wallet HUD, $1 emerald exchange, theft anger, sheriff replaces the golem, voiced townsfolk - ce883fa1, c3fef65e (golems already in old towns stay, by design: saves never lose mobs); docs/status/towns.md, docs/status/economy.md
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -788,7 +788,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:26:03 - I don't know if you actually made a permanent efficiency improvement i
 
 - **Transcript:** I don't know if you actually made a permanent efficiency improvement in that regard
-- **Status:** fixed: two-way Auto Render Distance (steps back up with headroom, toasts) + Quest leaf/canopy/streaming perf - 0c7cb107, 62a811d3, 9c1130a1; docs/status/performance.md (Oct 10 section) (before/after numbers and perf gate budgets)
+- **Status:** fixed: two-way Auto Render Distance (steps back up with headroom, toasts) + Quest leaf/canopy/streaming perf - 0c7cb107, 62a811d3, 9c1130a1; docs/status/performance.md (Oct 10 section) (before/after numbers and perf gate budgets). Needs a headset perf log at 128 px textures to prove it on device (25b4zx)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface

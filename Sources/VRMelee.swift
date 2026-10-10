@@ -19,10 +19,10 @@ enum VRMelee {
     static let weaponMobGuard: Float = 3     // ... or any other creature this close (a cow 4 blocks off is fine)
 
     // The Quest options page's text (QuestOptions), here so the Mac `--swingtest` can check it fits the pause menu.
-    static let optionHelp = "Swing: hit mobs by swinging your weapon into them. Reclined: no swinging, the R trigger attacks."
-    static let reclinedPostureHelp = "Lying down: Recenter View levels the view to your gaze. Turning it on picks Reclined melee."
-    static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: R trigger attacks",
-                            "R trigger: mine / fire (both modes)", "Bow: L trigger at the string, pull back"]
+    static let optionHelp = "Swing: hit mobs by swinging your weapon into them. Reclined: no swinging, the trigger attacks."
+    static let reclinedPostureHelp = "Lying Down View: Recenter View levels the view to your gaze. Turning it on picks Reclined melee."
+    static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: trigger attacks",
+                            "Main trigger: mine / fire (both modes)", "Bow: off-hand trigger at string, pull"]
 
     // Damage scale from the tip speed: 0.7 at the minimum, 1 at 4 m/s, at most 1.1 (on top of the normal attack
     // charge, so swinging deals about what Reclined's trigger does).
@@ -152,10 +152,12 @@ extension Game {
     }
 
     // The weapon mining guard: a hostile within weaponHostileGuard, or any other creature within weaponMobGuard.
+    // Axes are tools too: only a hostile stops them, so a tree still chops with a cow beside it.
     func creatureNearForWeapon() -> Bool {
         let p = player.pos
+        let axe = Items.key(held.item).hasSuffix("_axe")
         return mobs.mobs.contains { m in
-            guard isCreature(m) else { return false }
+            guard isCreature(m), !axe || m.kind.hostile else { return false }
             let r = m.kind.hostile ? VRMelee.weaponHostileGuard : VRMelee.weaponMobGuard
             return simd_length_squared(m.pos - p) < r * r
         }

@@ -66,7 +66,7 @@ enum QuestOptions {
                 ("Comfort Vignette: \(vignetteName(S.vignette))", "q_vig"),
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
-                ("Reclined Mode: \(on(S.reclined))", "q_reclined"),
+                ("Lying Down View: \(on(S.reclined))", "q_reclined"),
                 ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
                 ("Recenter View", "q_recenter"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
