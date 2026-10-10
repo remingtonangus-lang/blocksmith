@@ -615,7 +615,10 @@ final class WorldGen: TerrainGenerator {
             }
         }
         // Volcano cones (Landmarks.swift): basalt and tuff flanks streaked with blackstone, scoria near the crater.
-        if k.vol > 0.35 && !underwater {
+        // The rock edge is ragged (surface noise), so the dark cone frays into the grass of its foothills instead of
+        // ending on a contour line (Oct 10 09:23:19 "they don't mesh very well into the environment").
+        let volEdge: Float = 0.42 + 0.22 * n
+        if k.vol > volEdge && !underwater {
             let hot = k.lava > 0 || k.flow > 0.3
             // Old flows run down the fall line: dark streaks radiating from the crater, wobbling with the surface noise
             // (plain noise patches read as camouflage blotches on the cone: blind critic, volcano_far).
@@ -628,8 +631,8 @@ final class WorldGen: TerrainGenerator {
             }
             topBlock = hot ? (n > 0.1 ? g("magma_block") : g("blackstone")) : (streak > 0.6 ? g("blackstone") : (streak < -0.62 ? g("tuff") : g("basalt")))
             filler = n > 0 ? g("tuff") : g("basalt"); depth = 4; under = nil
-        } else if k.vol > 0.1 && !underwater && n > 0.15 {
-            topBlock = g("tuff")                                       // ash scattered over the foot
+        } else if k.vol > 0.08 && !underwater && n > 0.1 + (1 - k.vol) * 0.4 {
+            topBlock = k.vol > 0.3 && n > 0.5 ? g("tuff") : g("coarse_dirt")   // ash and scoria thinning out over the foot
         }
         // Badlands: terracotta bands under the surface layer.
         let isBad = biome.isBadlands
@@ -684,7 +687,7 @@ final class WorldGen: TerrainGenerator {
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
             let kc = cols[lx + lz * CS]
-            if kc.lava > 0 || kc.flow > 0.3 { continue }                // volcano heat: no snow on the crater or channels
+            if kc.lava > 0 || kc.flow > 0.3 || kc.vol > 0.3 { continue }  // volcano heat: no snow on the cone (Oct 10 09:23)
             // Steep rock faces shed their snow.
             let xa = max(0, lx - 1) + lz * CS, xb = min(CS - 1, lx + 1) + lz * CS
             let za = lx + max(0, lz - 1) * CS, zb = lx + min(CS - 1, lz + 1) * CS
