@@ -1,0 +1,166 @@
+playthrough: seed 12345
+---- spawn (0.0 s wall, 0 s game)
+PASS spawn: standing on solid ground (grass_block at y 64)
+PASS spawn: not in water or lava
+PASS spawn: alive and healthy
+---- gather + craft (0.3 s wall, 3 s game)
+INFO log dark_oak_log at 4699 65 1743 gave no log item
+PASS gather: logs mined by hand (2)
+INFO bulk: +4 dark_oak_log (more trees)
+PASS craft: 24 dark_oak_planks
+PASS craft: crafting table + wooden pickaxe
+---- stone age (0.6 s wall, 28 s game)
+PASS hold wooden pickaxe
+PASS mine: 2 cobblestone with a wooden pickaxe (3 mined; bare hand would take 7.5 s and drop nothing)
+INFO bulk: +9 cobblestone (more stone)
+PASS craft: stone pickaxe + furnace
+---- iron age (0.8 s wall, 55 s game)
+PASS worldgen: iron ore within 64 blocks of spawn
+PASS rules: wooden pickaxe can't harvest iron ore
+PASS mine: raw iron with a stone pickaxe (1)
+INFO coal from ore: 1
+INFO bulk: +5 raw_iron (more iron ore)
+PASS place: furnace placed with a right click (furnace[south])
+PASS smelt: 6 iron ingots after 137 s
+INFO bulk: +1 flint (gravel)
+PASS craft: iron pickaxe + flint and steel
+---- diamonds (2.1 s wall, 137 s game)
+PASS worldgen: diamond ore within 80 blocks of spawn
+PASS rules: stone pickaxe can't harvest diamond ore
+INFO titanium attempt 1 at 4696 -63 1754: mined yes, now lava, 0 drops near
+PASS mine: raw titanium with an iron pickaxe at y -63 (1, 2 ores)
+INFO bulk: +5 diamond (more diamonds)
+INFO bulk: +3 string (spiders)
+INFO bulk: +4 flint (gravel)
+INFO bulk: +4 feather (chickens)
+PASS craft: diamond pickaxe, sword, bow, 16 arrows
+INFO bulk: +19 diamond (more diamonds)
+INFO bulk: +5 gold_ingot (gold ore)
+PASS armour: 19 armour points worn
+---- obsidian + portal (2.7 s wall, 139 s game)
+INFO fell into deep while mining; back to the surface
+PASS fluids: water on a lava source makes obsidian (got obsidian)
+PASS rules: iron pickaxe can't harvest obsidian
+PASS rules: obsidian takes 9.4 s with a diamond pickaxe (9.4)
+PASS mine: obsidian with a diamond pickaxe (1)
+INFO bulk: +9 obsidian (more obsidian)
+PASS portal: flint and steel lights the frame (nether_portal)
+PASS portal: standing in the portal for 4 s goes to the Emberdeep
+---- emberdeep (3.4 s wall, 166 s game)
+PASS emberdeep: arrived inside a portal
+PASS emberdeep: arrival portal is safe
+PASS emberdeep: nearest fortress 337 blocks from the portal
+PASS fortress: 2 cinderwisp spawner(s)
+PASS fortress: the spawner makes cinderwisps
+PASS fortress: 8 cinder rods from 12 cinderwisps in 133 s
+INFO cinder rod rate 0.67 per kill (reference 0.5 without looting)
+PASS fortress: cinder rod rate 0.67 per kill is plausible (reference 0.5)
+---- void pearls (4.7 s wall, 301 s game)
+PASS voidwalkers: 12 void pearls from 18 kills
+---- back to the surface (6.5 s wall, 481 s game)
+PASS portal: back to the Surface through the arrival portal
+PASS portal: returned to the portal we built (0 blocks off)
+---- seeker eyes (6.9 s wall, 486 s game)
+PASS craft: 12 seeker eyes
+PASS worldgen: nearest stronghold 1727 blocks from the origin (first ring 1280-2816)
+PASS seeker eye: thrown with a right click
+PASS seeker eye: flew 11.6 blocks toward the stronghold
+PASS seeker eye: drops or shatters after its flight
+---- stronghold (7.1 s wall, 499 s game)
+PASS stronghold: portal room with 12 hollow gate frames
+INFO stronghold: 0 frames already hold an eye
+PASS hollow gate: 12/12 frames filled with right clicks
+PASS hollow gate: the 3x3 gate opens (9/9)
+---- the hollow (7.4 s wall, 501 s game)
+PASS hollow gate: stepping in goes to the Hollow
+PASS hollow: arrived on the obsidian platform at 100 49 0
+PASS hollow: standing safely on the platform
+PASS hollow: exactly one Hollow Wyrm (1)
+PASS hollow: 10 hollow crystals on the spikes (10)
+PASS wyrm: 200 health (200)
+INFO fountain at y 58, spikes [76, 79, 82, 85, 88, 91, 94, 97, 100, 103]
+---- crystals (7.6 s wall, 512 s game)
+PASS crystals: all destroyed (10 by arrow, 0 up close, 0 left)
+INFO crystal explosions cost 20 health so far (topped up)
+---- hollow wyrm fight (7.8 s wall, 534 s game)
+PASS wyrm: defeated in 69 s (3 perches, 20 sword hits, 15 arrows for 55 damage, health left 1)
+INFO wyrm fight: player took 41 damage (half-hearts, healed by the test)
+PASS wyrm: death sequence finishes
+PASS wyrm: 12000 XP (12000 points, level 12 -> 68)
+PASS wyrm: gone after dying
+PASS exit portal: active (24 gate blocks)
+PASS egg: the wyrm egg sits on the exit portal (4)
+PASS rift: a hollow rift gateway opened on the ring
+---- egg (8.4 s wall, 616 s game)
+PASS egg: hitting the egg makes it teleport (2 hops)
+PASS egg: collected by dropping it onto a torch (1)
+---- rift (8.6 s wall, 636 s game)
+INFO bulk: +2 ender_pearl (spare pearls)
+PASS rift: teleports to the far islands (1040 blocks out)
+PASS rift: landed on solid ground (end_stone)
+PASS rift: a return rift near the landing spot
+---- hollow spire (8.7 s wall, 640 s game)
+PASS spire: nearest hollow spire 1371 blocks from the landing spot (with ship)
+INFO spire: 6 shellsentries
+PASS spire: the ship's hold has glider wings
+PASS wings: open with space while falling
+PASS wings: glided 106 blocks while dropping 27
+PASS rift: the return rift leads back to the central island (90 blocks out)
+---- save + reload (8.8 s wall, 648 s game)
+PASS reload: back in the Hollow (end)
+PASS reload: wyrm stays defeated (true, 1 rifts)
+PASS reload: the egg is still in the inventory
+PASS reload: exit portal still open (24)
+PASS reload: no new wyrm appears
+---- credits (8.9 s wall, 648 s game)
+PASS exit portal: the credits roll
+PASS credits: back on the Surface after the credits
+PASS credits: at the spawn point
+PASS credits: alive at home
+---- blight (9.1 s wall, 704 s game)
+INFO bulk: +4 soul_sand (emberdeep soul sand valley)
+INFO bulk: +3 wither_skeleton_skull (blight skeletons (2.5% each))
+PASS blight: soul sand T + three skulls summons the Blight
+PASS blight: charging after the summon
+PASS blight: 11 s charge ends at full health (300/300) with a blast
+---- blight fight (11.6 s wall, 717 s game)
+INFO bulk: Smite V on the sword, Power V on the bow
+INFO bulk: +1 golden_helmet (armour)
+INFO bulk: +1 diamond_chestplate (armour)
+INFO bulk: +1 diamond_leggings (armour)
+INFO bulk: +1 diamond_boots (armour)
+PASS armour: 19 armour points worn
+INFO bulk: +1 golden_helmet (armour)
+INFO bulk: +1 diamond_chestplate (armour)
+INFO bulk: +1 diamond_leggings (armour)
+INFO bulk: +1 diamond_boots (armour)
+PASS armour: 19 armour points worn
+INFO bulk: +1 golden_helmet (armour)
+INFO bulk: +1 diamond_chestplate (armour)
+INFO bulk: +1 diamond_leggings (armour)
+INFO bulk: +1 diamond_boots (armour)
+PASS armour: 19 armour points worn
+FAIL blight: defeated in 601 s (388 arrows for 37 damage, 0 sword hits)
+INFO blight sight: player sees it true, player SIMD3<Float>(4722.5, 127.0, 1784.8337), blight SIMD3<Float>(4722.5, 131.98885, 1783.6143), phase 0, arena floor y 127
+PASS blight: arrows bounce off its armour below half health (0 damage from 0)
+INFO blight fight: player took 2120 damage (healed by the test); 0 of 0 sword hits landed for 0
+FAIL blight: the Blight Star drops and is picked up (0)
+INFO star lost: Blight health 300 at 4696 134 1775, still listed yes, stars on the ground []
+INFO star lost: player at 4698.9 128.4 1773.4, alive yes, 12 free slots
+INFO bulk: +1 nether_star (star lost)
+INFO bulk: +5 glass (sand + furnace)
+INFO bulk: +3 obsidian (obsidian)
+PASS craft: beacon from the Blight Star
+---- advancements (18.8 s wall, 1352 s game)
+PASS advancement nether/obtain_blaze_rod
+PASS advancement end/root
+PASS advancement end/kill_dragon
+PASS advancement end/dragon_egg
+PASS advancement end/enter_end_gateway
+PASS advancement nether/summon_wither
+INFO 24 advancements earned: adventure/ash_vault, adventure/deep, adventure/kill_a_mob, adventure/root, adventure/shoot_arrow, end/dragon_egg, end/elytra, end/enter_end_gateway, end/kill_dragon, end/root, enter_the_end, enter_the_nether, follow_ender_eye, form_obsidian, iron_tools, mine_stone, nether/find_fortress, nether/obtain_blaze_rod, nether/root, nether/summon_wither, root, shiny_gear, smelt_iron, upgrade_tools
+---- summary (18.8 s wall, 1353 s game)
+INFO deaths: 0, damage healed by the test: 2292 half-hearts
+playthrough: 2 failed checks, 1353 s of game time in 18.8 s wall
+  failed: blight: defeated in 601 s (388 arrows for 37 damage, 0 sword hits)
+  failed: blight: the Blight Star drops and is picked up (0)

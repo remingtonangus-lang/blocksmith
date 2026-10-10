@@ -1,0 +1,138 @@
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 726 ms, upload 310 ms)
+smoke rd 8 Fancy: 10 s, frame 5.1 ms, resident 250 MB, Metal 195 MB, mobs 13, coverage 100%
+smoke rd 8 mob drawing: mobs 13 (3 within 32), 3312 vertices written, 3312 drawn via Fancy buffer, 5 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 333, loaded 333; stashed mobs 0; map cells 1472; block entities 29; gravity queue 0; fluid pending 1404; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 Fancy: 20 s, frame 7.1 ms, resident 250 MB, Metal 195 MB, mobs 17, coverage 100%
+smoke rd 8 mob drawing: mobs 17 (3 within 32), 1404 vertices written, 1404 drawn via Fancy buffer, 8 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 334, loaded 334; stashed mobs 0; map cells 1891; block entities 38; gravity queue 0; fluid pending 690; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8: menu tour starts with PauseMenu, paused true
+smoke rd 8: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 8 Fancy: 30 s, frame 4.8 ms, resident 252 MB, Metal 195 MB, mobs 12, coverage 100%
+smoke rd 8 mob drawing: mobs 12 (0 within 32), 468 vertices written, 468 drawn via Fancy buffer, 8 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 335, loaded 335; stashed mobs 6; map cells 2240; block entities 39; gravity queue 0; fluid pending 175; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 Fancy: 40 s, frame 11.2 ms, resident 282 MB, Metal 219 MB, mobs 7, coverage 95%
+smoke rd 8 mob drawing: mobs 7 (0 within 32), 2304 vertices written, 2304 drawn via Fancy buffer, 3 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 320, loaded 320; stashed mobs 40; map cells 13309; block entities 131; gravity queue 0; fluid pending 0; jobs 12; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 Fancy: 50 s, frame 10.8 ms, resident 296 MB, Metal 227 MB, mobs 20, coverage 90%
+smoke rd 8 mob drawing: mobs 20 (0 within 32), 7236 vertices written, 7236 drawn via Fancy buffer, 10 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 331, loaded 331; stashed mobs 133; map cells 24564; block entities 289; gravity queue 0; fluid pending 0; jobs 10; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 Fancy: 60 s, frame 6.0 ms, resident 300 MB, Metal 231 MB, mobs 0, coverage 93%
+smoke rd 8 mob drawing: mobs 0 (0 within 32), 0 vertices written, 0 drawn via none, 0 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 319, loaded 319; stashed mobs 199; map cells 35814; block entities 426; gravity queue 0; fluid pending 0; jobs 15; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8: worst frame 528 ms at 0.0 s (frame 0): Game.tick 13 ms, render + GPU 515 ms; frames over 100 ms: 1
+smoke rd 8: 3600 frames in 60.0 s wall, frame p50 6.92 p95 15.00 p99 27.17 max 527.94 ms, coverage min 70%, mobs max 43, travelled 3218 blocks, resident peak 302 MB, menu closed
+smoke rd 8: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0000 white=0.0124 std=43.1 hash=375f3f6f31df167c
+smoke rd 8: PASS
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 1082 ms, upload 314 ms)
+smoke rd 16 Fancy: 10 s, frame 6.5 ms, resident 284 MB, Metal 207 MB, mobs 12, coverage 55%
+smoke rd 16 mob drawing: mobs 12 (2 within 32), 3600 vertices written, 3600 drawn via Fancy buffer, 3 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 584, loaded 584; stashed mobs 0; map cells 1472; block entities 42; gravity queue 0; fluid pending 2228; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16 Fancy: 20 s, frame 11.3 ms, resident 345 MB, Metal 219 MB, mobs 13, coverage 97%
+smoke rd 16 mob drawing: mobs 13 (0 within 32), 1764 vertices written, 1764 drawn via Fancy buffer, 9 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 999, loaded 999; stashed mobs 0; map cells 1891; block entities 87; gravity queue 0; fluid pending 2224; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16: menu tour starts with PauseMenu, paused true
+smoke rd 16: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 16 Fancy: 30 s, frame 5.7 ms, resident 355 MB, Metal 223 MB, mobs 15, coverage 95%
+smoke rd 16 mob drawing: mobs 15 (0 within 32), 828 vertices written, 828 drawn via Fancy buffer, 12 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 1008, loaded 1008; stashed mobs 0; map cells 2240; block entities 93; gravity queue 0; fluid pending 2205; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16 Fancy: 40 s, frame 10.5 ms, resident 376 MB, Metal 263 MB, mobs 10, coverage 45%
+smoke rd 16 mob drawing: mobs 10 (0 within 32), 0 vertices written, 0 drawn via Fancy buffer, 10 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 510, loaded 510; stashed mobs 27; map cells 13309; block entities 178; gravity queue 0; fluid pending 0; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16 Fancy: 50 s, frame 8.1 ms, resident 378 MB, Metal 267 MB, mobs 41, coverage 46%
+smoke rd 16 mob drawing: mobs 41 (0 within 32), 5076 vertices written, 5076 drawn via Fancy buffer, 35 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 553, loaded 553; stashed mobs 104; map cells 24564; block entities 341; gravity queue 0; fluid pending 25; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16 Fancy: 60 s, frame 5.9 ms, resident 379 MB, Metal 271 MB, mobs 0, coverage 51%
+smoke rd 16 mob drawing: mobs 0 (0 within 32), 0 vertices written, 0 drawn via none, 0 culled, 0 dropped (buffer full)
+smoke rd 16 memory: chunks alive 574, loaded 574; stashed mobs 186; map cells 35814; block entities 480; gravity queue 0; fluid pending 58; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 16: worst frame 583 ms at 0.0 s (frame 0): Game.tick 42 ms, render + GPU 540 ms; frames over 100 ms: 1
+smoke rd 16: 3600 frames in 60.0 s wall, frame p50 7.75 p95 12.74 p99 23.07 max 582.56 ms, coverage min 30%, mobs max 47, travelled 3218 blocks, resident peak 384 MB, menu closed
+smoke rd 16: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd16.png magenta=0.00000 black=0.0000 white=0.0161 std=44.5 hash=dcfd72ed80971e6c
+smoke rd 16: PASS
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 591 ms, upload 233 ms)
+smoke rd 24 Fancy: 10 s, frame 7.3 ms, resident 294 MB, Metal 211 MB, mobs 12, coverage 28%
+smoke rd 24 mob drawing: mobs 12 (2 within 32), 2376 vertices written, 2376 drawn via Fancy buffer, 5 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 655, loaded 655; stashed mobs 0; map cells 1472; block entities 61; gravity queue 0; fluid pending 2530; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fancy: 20 s, frame 12.7 ms, resident 335 MB, Metal 219 MB, mobs 21, coverage 42%
+smoke rd 24 mob drawing: mobs 21 (9 within 32), 3492 vertices written, 3492 drawn via Fancy buffer, 8 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 938, loaded 938; stashed mobs 0; map cells 1891; block entities 83; gravity queue 0; fluid pending 1823; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fancy: 30 s, frame 7.4 ms, resident 377 MB, Metal 227 MB, mobs 26, coverage 58%
+smoke rd 24 mob drawing: mobs 26 (1 within 32), 4248 vertices written, 4248 drawn via Fancy buffer, 10 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 1253, loaded 1253; stashed mobs 0; map cells 2240; block entities 110; gravity queue 0; fluid pending 2467; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fancy: 40 s, frame 10.7 ms, resident 436 MB, Metal 287 MB, mobs 9, coverage 25%
+smoke rd 24 mob drawing: mobs 9 (0 within 32), 1548 vertices written, 1548 drawn via Fancy buffer, 4 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 616, loaded 616; stashed mobs 21; map cells 13309; block entities 177; gravity queue 0; fluid pending 243; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fancy: 50 s, frame 9.2 ms, resident 424 MB, Metal 291 MB, mobs 55, coverage 29%
+smoke rd 24 mob drawing: mobs 55 (0 within 32), 3636 vertices written, 3636 drawn via Fancy buffer, 53 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 724, loaded 724; stashed mobs 98; map cells 24564; block entities 341; gravity queue 0; fluid pending 31; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fancy: 60 s, frame 5.3 ms, resident 428 MB, Metal 299 MB, mobs 12, coverage 32%
+smoke rd 24 mob drawing: mobs 12 (0 within 32), 0 vertices written, 0 drawn via Fancy buffer, 9 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 758, loaded 758; stashed mobs 184; map cells 35814; block entities 485; gravity queue 0; fluid pending 40; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24: worst frame 485 ms at 0.0 s (frame 0): Game.tick 9 ms, render + GPU 475 ms; frames over 100 ms: 1
+smoke rd 24: 3600 frames in 60.0 s wall, frame p50 7.87 p95 13.36 p99 25.02 max 484.52 ms, coverage min 13%, mobs max 71, travelled 3218 blocks, resident peak 440 MB, menu closed
+smoke rd 24: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.0194 std=47.4 hash=b0456fc218d7cf9d
+smoke rd 24: PASS
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 680 ms, upload 247 ms)
+smoke rd 24 Fast: 10 s, frame 3.7 ms, resident 217 MB, Metal 182 MB, mobs 12, coverage 24%
+smoke rd 24 mob drawing: mobs 12 (1 within 32), 3168 vertices written, 3168 drawn via Fast buffer, 4 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 567, loaded 567; stashed mobs 0; map cells 1472; block entities 42; gravity queue 0; fluid pending 2144; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fast: 20 s, frame 5.7 ms, resident 257 MB, Metal 190 MB, mobs 13, coverage 38%
+smoke rd 24 mob drawing: mobs 13 (0 within 32), 684 vertices written, 684 drawn via Fast buffer, 11 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 850, loaded 850; stashed mobs 0; map cells 1891; block entities 68; gravity queue 0; fluid pending 1851; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fast: 30 s, frame 4.8 ms, resident 292 MB, Metal 198 MB, mobs 23, coverage 49%
+smoke rd 24 mob drawing: mobs 23 (0 within 32), 2988 vertices written, 2988 drawn via Fast buffer, 11 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 1065, loaded 1065; stashed mobs 0; map cells 2240; block entities 95; gravity queue 0; fluid pending 2177; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fast: 40 s, frame 3.6 ms, resident 327 MB, Metal 242 MB, mobs 14, coverage 18%
+smoke rd 24 mob drawing: mobs 14 (0 within 32), 0 vertices written, 0 drawn via Fast buffer, 14 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 476, loaded 476; stashed mobs 31; map cells 13309; block entities 147; gravity queue 0; fluid pending 157; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fast: 50 s, frame 3.5 ms, resident 326 MB, Metal 250 MB, mobs 47, coverage 26%
+smoke rd 24 mob drawing: mobs 47 (0 within 32), 4752 vertices written, 4752 drawn via Fast buffer, 38 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 649, loaded 649; stashed mobs 114; map cells 24564; block entities 293; gravity queue 0; fluid pending 24; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24 Fast: 60 s, frame 3.7 ms, resident 331 MB, Metal 254 MB, mobs 14, coverage 31%
+smoke rd 24 mob drawing: mobs 14 (0 within 32), 0 vertices written, 0 drawn via Fast buffer, 12 culled, 0 dropped (buffer full)
+smoke rd 24 memory: chunks alive 746, loaded 746; stashed mobs 202; map cells 35814; block entities 432; gravity queue 0; fluid pending 42; jobs 16; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 24: worst frame 312 ms at 0.0 s (frame 0): Game.tick 9 ms, render + GPU 303 ms; frames over 100 ms: 1
+smoke rd 24: 3600 frames in 60.0 s wall, frame p50 3.78 p95 8.50 p99 12.97 max 311.82 ms, coverage min 12%, mobs max 65, travelled 3218 blocks, resident peak 332 MB, menu closed
+smoke rd 24: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.0010 std=39.9 hash=96f97c184a902aed
+smoke rd 24 Fast: PASS
+textures: 1721 layers at 128 px, BC3, 35.9 MB with mips (build 589 ms, upload 243 ms)
+smoke rd 8 split: t 0 s player 2 at 4699.5 128.0 1751.5 ground no water no menu none
+smoke rd 8 Fancy: 10 s, frame 9.3 ms, resident 273 MB, Metal 213 MB, mobs 11, coverage 100%
+smoke rd 8 mob drawing: mobs 11 (3 within 32), 8064 vertices written, 8064 drawn via Fancy buffer, 4 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 335, loaded 335; stashed mobs 0; map cells 1472; block entities 29; gravity queue 0; fluid pending 1370; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 split: t 10 s player 2 at 4704.6 127.7 1724.6 ground no water yes menu none
+smoke rd 8 Fancy: 20 s, frame 10.7 ms, resident 277 MB, Metal 217 MB, mobs 12, coverage 100%
+smoke rd 8 mob drawing: mobs 12 (0 within 32), 5400 vertices written, 5400 drawn via Fancy buffer, 12 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 389, loaded 389; stashed mobs 0; map cells 2012; block entities 38; gravity queue 0; fluid pending 722; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 split: t 20 s player 2 at 4711.5 126.1 1689.6 ground no water yes menu none
+smoke rd 8: menu tour starts with PauseMenu, paused true
+smoke rd 8: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 8 Fancy: 30 s, frame 11.3 ms, resident 283 MB, Metal 221 MB, mobs 16, coverage 100%
+smoke rd 8 mob drawing: mobs 16 (0 within 32), 3672 vertices written, 3672 drawn via Fancy buffer, 21 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 439, loaded 439; stashed mobs 1; map cells 2511; block entities 39; gravity queue 0; fluid pending 154; jobs 0; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 split: t 30 s player 2 at 4724.1 122.0 1673.8 ground yes water yes menu none
+smoke rd 8 Fancy: 40 s, frame 15.3 ms, resident 366 MB, Metal 269 MB, mobs 17, coverage 96%
+smoke rd 8 mob drawing: mobs 17 (0 within 32), 2952 vertices written, 2952 drawn via Fancy buffer, 9 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 662, loaded 662; stashed mobs 20; map cells 13738; block entities 132; gravity queue 0; fluid pending 386; jobs 15; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 split: t 40 s player 2 at 4737.6 119.6 1657.2 ground no water yes menu none
+smoke rd 8 Fancy: 50 s, frame 15.6 ms, resident 381 MB, Metal 277 MB, mobs 36, coverage 89%
+smoke rd 8 mob drawing: mobs 36 (0 within 32), 8352 vertices written, 8352 drawn via Fancy buffer, 23 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 668, loaded 668; stashed mobs 121; map cells 25162; block entities 294; gravity queue 0; fluid pending 408; jobs 9; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8 split: t 50 s player 2 at 4750.9 118.0 1640.7 ground yes water yes menu none
+smoke rd 8 Fancy: 60 s, frame 12.3 ms, resident 377 MB, Metal 281 MB, mobs 12, coverage 93%
+smoke rd 8 mob drawing: mobs 12 (0 within 32), 2232 vertices written, 2232 drawn via Fancy buffer, 7 culled, 0 dropped (buffer full)
+smoke rd 8 memory: chunks alive 663, loaded 663; stashed mobs 202; map cells 36617; block entities 435; gravity queue 0; fluid pending 65; jobs 15; NaN quarantined: player 0, mobs 0, ships 0
+smoke rd 8: worst frame 468 ms at 0.0 s (frame 0): Game.tick 4 ms, render + GPU 464 ms; frames over 100 ms: 1
+smoke rd 8: 3600 frames in 60.0 s wall, frame p50 11.84 p95 20.37 p99 39.83 max 468.12 ms, coverage min 64%, mobs max 60, travelled 3218 blocks, resident peak 395 MB, menu closed
+smoke rd 8: mobs dropped for a full mob buffer: at most 0 in a frame (the farthest first)
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0037 white=0.0213 std=59.2 hash=5252dde8fcbf5b76
+smoke rd 8 split screen: player 2 moved 143 blocks
+smoke rd 8 split screen: PASS
+smoke: PASS at render distance 8 16 24 24f 8c

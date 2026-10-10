@@ -1,0 +1,10 @@
+imagecheck audiotest.png magenta=0.00000 black=0.0000 white=0.0024 std=30.6 hash=fc56adb674668baf
+imagecheck audiotest.png magenta=0.00000 black=0.0000 white=0.0024 std=30.6 hash=fc56adb674668baf
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0010 std=31.4 hash=3819385f887e410d
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0010 std=31.4 hash=3819385f887e410d
+imagecheck issue_2.png magenta=0.00000 black=0.0000 white=0.0022 std=40.0 hash=0786a64155e1b2a2
+imagecheck issue_2.png magenta=0.00000 black=0.0000 white=0.0022 std=40.0 hash=0786a64155e1b2a2
+imagecheck gencheck_leak_1.png magenta=0.00000 black=0.0000 white=0.0008 std=32.1 hash=0fe1d1a4772e3922
+imagecheck gencheck_leak_1.png magenta=0.00000 black=0.0000 white=0.0008 std=32.1 hash=0fe1d1a4772e3922
+imagecheck gencheck_leak_2.png magenta=0.00000 black=0.0000 white=0.0008 std=32.1 hash=0fe1d1a4772e3922
+imagecheck gencheck_leak_2.png magenta=0.00000 black=0.0000 white=0.0008 std=32.1 hash=0fe1d1a4772e3922
