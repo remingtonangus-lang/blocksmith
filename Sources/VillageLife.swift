@@ -5,6 +5,9 @@ import simd
 // 12 food points, bread 4, carrot/potato/beetroot 1, plus a free bed), farmers harvesting and
 // replanting ripe crops, iron golems appearing when villagers gather, and zombie sieges at midnight.
 enum VillageLife {
+    // Per block state: a bed's head half (string suffix tests ran per cell of the bed searches).
+    static let bedHead: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_bed_head") }
+    @inline(__always) static func isBedHead(_ b: BlockID) -> Bool { Int(b) < bedHead.count && bedHead[Int(b)] }
     static let foodPoints: [String: Int] = ["bread": 4, "carrot": 1, "potato": 1, "beetroot": 1]
     static let crops: [String: (Int, String)] = ["wheat": (7, "wheat"), "carrots": (7, "carrot"), "potatoes": (7, "potato"), "beetroots": (3, "beetroot")]
     // Village Hero gifts by profession (reference hero_of_the_village loot tables).
@@ -41,11 +44,17 @@ extension Mob {
         }
         if v.bed == nil && !baby {
             let claimed = Set(g.mobs.mobs.compactMap { $0.villager?.bed }.map { IVec3($0[0], $0[1], $0[2]) })
-            search: for r in 1...12 { for dy in -3...3 { for dz in -r...r { for dx in -r...r where abs(dx) == r || abs(dz) == r {
-                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
-                let k = Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))])
-                if k.hasSuffix("_bed_head") && !claimed.contains(q) { v.bed = [q.x, q.y, q.z]; break search }
-            } } } }
+            // The first in ring order (ring 1...12, then dy, dz, dx), as the ring-by-ring scan this replaced.
+            var bk = (Int.max, 0, 0, 0)
+            var found: IVec3?
+            w.forEachBlock(around: c, r: 12, ry: 3) { b, x, y, z in
+                guard VillageLife.isBedHead(b) else { return }
+                let dx = x - c.x, dy = y - c.y, dz = z - c.z
+                let k = (max(abs(dx), abs(dz)), dy, dz, dx)
+                guard k.0 >= 1, k < bk, !claimed.contains(IVec3(x, y, z)) else { return }
+                bk = k; found = IVec3(x, y, z)
+            }
+            if let q = found { v.bed = [q.x, q.y, q.z] }
         }
         // Food lying nearby is picked up.
         for e in g.drops.items where e.pickupDelay <= 0 && simd_length(e.pos - pos) < 1.5 {
@@ -81,12 +90,13 @@ extension Mob {
             // bed let a village breed to 64.
             let claimed = Set(g.mobs.mobs.compactMap { $0.villager?.bed }.map { IVec3($0[0], $0[1], $0[2]) })
             var freeBed: IVec3?
-            for dz in -16...16 where freeBed == nil { for dx in -16...16 where freeBed == nil { for dy in -3...3 {
-                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
-                if Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_bed_head") && !claimed.contains(q) {
-                    freeBed = q; break
-                }
-            } } }
+            var bk = (Int.max, 0, 0)                   // the first in (dz, dx, dy) order, as the scan this replaced
+            w.forEachBlock(around: c, r: 16, ry: 3) { b, x, y, z in
+                guard VillageLife.isBedHead(b) else { return }
+                let k = (z - c.z, x - c.x, y - c.y)
+                guard k < bk, !claimed.contains(IVec3(x, y, z)) else { return }
+                bk = k; freeBed = IVec3(x, y, z)
+            }
             if let bed = freeBed {
                 v.food = (v.food ?? 0) - 12
                 if var mv = mate.villager { mv.food = (mv.food ?? 0) - 12; mate.villager = mv }
@@ -136,7 +146,7 @@ extension Mob {
         // Asleep in bed: lying on the mattress from the foot end, head on the pillow (it stood beside the bed, so
         // villagers never looked asleep: Quest v63). Facing = direction from the foot to the head.
         let hb = g.world.block(b[0], b[1], b[2])
-        guard Blocks.key(Blocks.groupBase[Int(hb)]).hasSuffix("_bed_head") else { wake(); return false }
+        guard VillageLife.isBedHead(hb) else { wake(); return false }
         let dirs = [V2(0, 1), V2(0, -1), V2(1, 0), V2(-1, 0)]
         let d = dirs[Int(hb - Blocks.groupBase[Int(hb)]) & 3]
         sitting = true
@@ -235,12 +245,13 @@ extension Mob {
         let bell = Blocks.id("bell")
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
         var best: IVec3?
-        var bd = Int.max
-        for dy in -8...8 { for dz in -32...32 { for dx in -32...32 {
-            guard g.world.block(c.x + dx, c.y + dy, c.z + dz) == bell else { continue }
-            let d = dx * dx + dz * dz + dy * dy
-            if d < bd { bd = d; best = IVec3(c.x + dx, c.y + dy, c.z + dz) }
-        } } }
+        var bk = (Int.max, 0, 0, 0)            // (distance, dy, dz, dx): the nearest, ties in the old scan order
+        g.world.forEachBlock(around: c, r: 32, ry: 8) { b, x, y, z in
+            guard b == bell else { return }
+            let dx = x - c.x, dy = y - c.y, dz = z - c.z
+            let k = (dx * dx + dz * dz + dy * dy, dy, dz, dx)
+            if k < bk { bk = k; best = IVec3(x, y, z) }
+        }
         meetPoint = best
         return best
     }

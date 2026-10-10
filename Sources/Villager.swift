@@ -45,6 +45,8 @@ struct VillagerData: Codable {
 }
 
 enum Villagers {
+    // Per block state: the profession whose job site it is (dictionary lookups on the block key ran per scanned cell).
+    static let jobSiteOf: [String?] = (0..<Blocks.count).map { $0 == Int(AIR) ? nil : jobSites[Blocks.key(Blocks.groupBase[$0])] }
     static let jobSites: [String: String] = [
         "blast_furnace": "armorer", "smoker": "butcher", "cartography_table": "cartographer", "brewing_stand": "cleric",
         "composter": "farmer", "barrel": "fisherman", "fletching_table": "fletcher", "cauldron": "leatherworker",
@@ -269,14 +271,15 @@ extension Mob {
         var claimed = Set<IVec3>()
         for o in g.mobs.mobs where o !== self && o.kind == .villager { if let j = o.villager?.jobSite { claimed.insert(IVec3(j[0], j[1], j[2])) } }
         var best: (IVec3, String)?
-        var bd = Int.max
-        for dy in -3...3 { for dz in -16...16 { for dx in -16...16 {
-            let p = IVec3(c.x + dx, c.y + dy, c.z + dz)
-            let b = g.world.block(p.x, p.y, p.z)
-            guard b != AIR, let prof = Villagers.jobSites[Blocks.key(Blocks.groupBase[Int(b)])], !claimed.contains(p) else { continue }
-            let d = dx * dx + dy * dy + dz * dz
-            if d < bd { bd = d; best = (p, prof) }
-        } } }
+        var bk = (Int.max, 0, 0, 0)              // (distance, dy, dz, dx): the nearest, ties in the old scan order
+        let table = Villagers.jobSiteOf
+        g.world.forEachBlock(around: c, r: 16, ry: 3) { b, x, y, z in
+            guard Int(b) < table.count, let prof = table[Int(b)] else { return }
+            let dx = x - c.x, dy = y - c.y, dz = z - c.z
+            let k = (dx * dx + dy * dy + dz * dz, dy, dz, dx)
+            guard k < bk, !claimed.contains(IVec3(x, y, z)) else { return }
+            bk = k; best = (IVec3(x, y, z), prof)
+        }
         guard let (p, prof) = best else { return }
         v.profession = prof
         v.jobSite = [p.x, p.y, p.z]
