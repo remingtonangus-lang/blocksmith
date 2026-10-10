@@ -20,17 +20,29 @@ def key_cell(cell, bg):
     ap = a.load()
     out = Image.new('RGBA', (w, h))
     op = out.load()
+    mb = max(1, min(bg[0], bg[2]) - bg[1])
+    # Texels within EDGE px of background (the outline and the gaps between needles/leaves) can be a mix of item and
+    # magenta (anti-aliasing, JPEG blur): they lose all their magenta (min(r, b) brought down to g). The old half
+    # de-spill left a 30-50 % mix fully opaque, so thin stems and leaf rims came out pink (defects-oct10.md). Texels
+    # further in keep their colour (allium's purple flower and the pink tulip are magenta-ish but far from the key).
+    EDGE = 3
+    clear = Image.new('L', (w, h))
+    cp = clear.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b = px[x, y]
+            cp[x, y] = 255 if (min(r, b) - g) / mb > 0.6 else 0
+    near = clear.filter(ImageFilter.MaxFilter(2 * EDGE + 1)).load()
     for y in range(h):
         for x in range(w):
             r, g, b = px[x, y]
             # magenta-ness: red and blue high, green low
             m = min(r, b) - g
-            mb = min(bg[0], bg[2]) - bg[1]
-            t = m / max(1, mb)                 # 1 = background, 0 = item
+            t = m / mb                         # 1 = background, 0 = item
             al = max(0.0, min(1.0, (0.85 - t) / 0.35))
             ap[x, y] = int(al * 255)
             if al > 0 and m > 0:              # de-spill the magenta fringe
-                k = min(m, int(m * (1 - al) + m * 0.5))
+                k = m if near[x, y] else min(m, int(m * (1 - al) + m * 0.5))
                 r, b = r - k, b - k
             op[x, y] = (max(0, r), g, max(0, b), 0)
     a = a.filter(ImageFilter.MinFilter(3))     # eat the JPEG halo by one pixel
