@@ -82,4 +82,5 @@ slab ledges, hurdles), Townsfolk.swift (barFront). Offices have a row of desks (
   miss a spawn spot that freeSpawn rescued); the golden shots leave their spawned mobs in the shot world (the saved
   mob list is restored after the shots, so nothing leaks into the run).
 - Full questcheck failures also red on claude/quest-port itself (not this PR): tadpole invisible in the Quest renderer,
-  "sheriff: a town without one gets a sheriff" and "only one is sent".
+  "sheriff: a town without one gets a sheriff" and "only one is sent", "boreal 12345: corridor at noon hums" (a bird
+  call in the corridor; fails with `--boreal-only` on quest-port too).
