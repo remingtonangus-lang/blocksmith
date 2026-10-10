@@ -18,3 +18,10 @@ Checks that fail for reasons other than a game bug, and what was done about them
   "deep war: the Marshal marks a barrage and calls his guard". Best guess: random damage variance / Marshal AI timing
   in the test, not the pm9 changes (the same build passes 3 of 4 runs). Repro: `Blocksmith --snapshot /tmp/q.png
   --seed 12345 --find plains --time 0.3 --rd 4 --questbugs --only deep` a few times.
+
+## questcheck fails on claude/quest-port @ 581dfc8 itself (seen 2026-10-10, horses thread)
+Built and run unchanged in a worktree of 581dfc8, the same as with the horse changes on top; not touched there.
+- "every mob kind draws through the Quest renderer (invisible: tadpole (14 px))" and "sheriff: a town without one gets
+  a sheriff (none in Dry Springs)" / "sheriff: only one is sent": fail every run on the base.
+- "boreal 12345: corridor at noon hums ..., wildlife: birdCall": flaky on the base (one pass, one fail in two
+  `questcheck --boreal-only` runs); the ambience director's random bird call reaches the corridor.

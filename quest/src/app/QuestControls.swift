@@ -369,7 +369,7 @@ final class QuestControls {
             // A long full-push walk that never sprinted gets a one-time hint.
             if sprintHold > 4 && !sprintShown && !sprintHinted && fed { sprintHinted = true; game.onToast?("Click the left stick while moving to sprint") }
             hungryToast -= dt
-            if clickSprint && sm > 0.3 && !fed && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
+            if clickSprint && sm > 0.3 && !fed && !spurring && hungryToast <= 0 { hungryToast = 15; game.onToast?("Too hungry to sprint: eat something") }
             p.l3 = sprintPulse > 0
             if sprintPulse > 0 { sprintPulse -= 1 }
         }

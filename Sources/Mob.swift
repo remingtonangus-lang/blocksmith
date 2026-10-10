@@ -482,6 +482,7 @@ final class Mob {
         strafe = 0
         path.climbUp = false
         hurt = max(0, hurt - dt)
+        if let h = horse { h.coolDown(dt) }
         invulnerable = max(0, invulnerable - dt)
         panic = max(0, panic - dt)
         callTimer -= dt

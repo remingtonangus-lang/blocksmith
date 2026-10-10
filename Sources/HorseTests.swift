@@ -266,6 +266,11 @@ enum HorseTests {
             let monster = h.hs.rear > 0
             g.mobs.mobs.removeAll { $0 === z }
             ride(h, 1.5, push: 0)
+            h.hs.spookCool = 0
+            g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))               // anyone's gun (the sheriff's, a soldier's) via its sound
+            let heard = h.hs.rear > 0
+            ride(h, 1.5, push: 0)
+            check(heard, "horse nerves: a gunshot 4 blocks off (through its sound) makes it rear")
             check(!own && blast && cannon && monster, "horse nerves: rears at a blast \(blast), a cannon \(cannon), a monster beside it \(monster); not at the rider's own gunshot (\(own ? "reared" : "steady"))")
             // Throw odds by level: 40 frights each.
             func throwsOf(_ xp: Float, pat: Bool) -> Int {
@@ -283,6 +288,41 @@ enum HorseTests {
             let l1 = throwsOf(0, pat: false), l4 = throwsOf(700, pat: false), calmed = throwsOf(0, pat: true)
             check(l1 >= 6 && l1 <= 32 && l4 == 0 && calmed == 0,
                   "horse frights: level 1 throws \(l1)/40 (45 %), level 4 \(l4)/40, patted while rearing \(calmed)/40")
+        }
+
+        // Verifier regressions (2026-10-10): a fright near a cliff; backing toward one; care cooldowns off the saddle;
+        // a dead pack animal's cargo drops once.
+        do {
+            var fellAt: [Int] = []
+            for d in stride(from: 5, through: 15, by: 2) {
+                let h = horse(xp: 700); mount(h)
+                h.pos = V3(lane0.x, lane0.y, Float(z1) + 60)
+                var spooked = false, fell = false
+                ride(h, 9, push: 1, spurAt: [2, 12], loop: false) { _ in
+                    if !spooked && h.pos.z - Float(z1) < Float(d) { h.spook(g); spooked = true }
+                    if h.pos.y < Float(Y + 1) - 0.2 { fell = true }
+                    return fell
+                }
+                if fell { fellAt.append(d) }
+                g.riding = nil
+            }
+            check(fellAt.isEmpty, "horse: a fright 5-15 blocks from a cliff at a gallop never carries it over (fell at \(fellAt))")
+            let h = horse(); mount(h)
+            h.pos = V3(lane0.x, lane0.y, Float(z1) + 1.5); h.yaw = .pi; g.player.yaw = .pi       // facing away from the edge
+            var fell = false
+            ride(h, 4, push: -1) { _ in fell = h.pos.y < Float(Y + 1) - 0.2; return fell }
+            check(!fell, String(format: "horse: backing up stops at a cliff (%.2f blocks short)", h.pos.z - h.halfW - Float(z1)))
+            g.riding = nil
+            h.hs.brushCool = 120
+            for _ in 0..<(121 * 10) { h.update(0.1, game: g) }
+            check(h.hs.brushCool == 0, "horse: the grooming cooldown runs out off the saddle too")
+            let d = Mob(.donkey, at: lane0); d.owner = true; d.chested = true
+            g.packContainer(d)[0] = ItemStack(Items.id("apple"), 5)
+            let before = g.drops.items.count
+            g.mobDied(d)
+            let dropped = g.drops.items.count - before
+            check(d.cargo.map { $0.slots.allSatisfy { $0.isEmpty } } ?? true && dropped >= 1,
+                  "a dead donkey's pack drops once (\(dropped) stacks dropped, pack emptied)")
         }
 
         // Others: a camel's pace is unchanged.
@@ -316,6 +356,27 @@ enum HorseTests {
             if wasMenu == nil && g.menu != nil { g.closeMenu() }
             g.mobs.mobs.removeAll { $0 === h }
             check(gaits == [.canter, .gallop], "horse spurs through Game.tick (pad stick click): \(gaits.map(\.name))")
+            // Use with a treat: aimed ahead it is the rider's own use (eat/place), aimed down at the horse it feeds it.
+            let held = g.inventory.held
+            g.inventory.held = ItemStack(Items.id("apple"), 4)
+            g.mobs.mobs.append(h); g.paused = false
+            defer { g.mobs.mobs.removeAll { $0 === h }; g.paused = wasPaused }
+            func press(_ pitch: Float) -> Float {
+                for i in 0..<60 {
+                    var p = PadSnapshot()
+                    if i == 50 || i == 51 { p.lt = 1 }
+                    pm.touch = p
+                    g.player.pitch = pitch
+                    if i == 49 { h.stamina = 20 }
+                    g.tick(Double(dt))
+                }
+                pm.touch = nil
+                return h.stamina
+            }
+            let ahead = press(0), down = press(-1.5)
+            g.inventory.held = held
+            g.eatProgress = 0
+            check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down))
             g.riding = nil
         }
         // Tidy: the strip goes.

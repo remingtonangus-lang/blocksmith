@@ -29,6 +29,10 @@ final class HorseState {
     var refused: Float = 0           // s since the horse last refused a drop (toast once per refusal)
     var spurCount = 0                // spurs taken (HorseTests)
     var stumbles = 0
+    func coolDown(_ dt: Float) {
+        spookCool = max(0, spookCool - dt)
+        patCool = max(0, patCool - dt); brushCool = max(0, brushCool - dt); feedCool = max(0, feedCool - dt)
+    }
     var thrown = 0
 }
 
@@ -65,7 +69,8 @@ extension Mob {
         set { hs.stamina = simd_clamp(newValue, 0, staminaMax) }
     }
     // Saddlebags: a tamed horse at bond level 2 carries 9 slots (MountMenu, Boats.packContainer).
-    var saddlebags: Bool { gaited && tamed && !chested && bondLevel >= 2 }
+    // (Still open while they hold anything, should the bond fall back below 2.)
+    var saddlebags: Bool { gaited && tamed && !chested && (bondLevel >= 2 || (cargo.map { $0.slots.contains { !$0.isEmpty } } ?? false)) }
 
     func gaitSpeed(_ g: Gait) -> Float {
         let top = topSpeed
@@ -94,8 +99,6 @@ extension Mob {
     func gaitStep(_ dt: Float, _ g: Game, _ inp: MoveInput) {
         let h = hs
         let lvl = bondLevel
-        h.spookCool = max(0, h.spookCool - dt)
-        h.patCool = max(0, h.patCool - dt); h.brushCool = max(0, h.brushCool - dt); h.feedCool = max(0, h.feedCool - dt)
         h.refused += dt
         let top = topSpeed
         let flat = V2(vel.x, vel.z)
@@ -158,14 +161,20 @@ extension Mob {
             h.rear -= dt
             if h.rear <= 0 { h.rear = 0; if h.rearThrow { throwRider(g) } }
         }
-        // Sure footing: brake in time for a drop or lava ahead (not in the air, not swimming, not backing up).
-        if onGround && target > 0 {
-            let look = halfW + 1.2 + h.speed * h.speed / (2 * HorseFeel.brake)
-            if let dh = hazardAhead(g.world, maxDist: look) {
+        // Sure footing: brake in time for a drop or lava ahead, or behind when backing up (not in the air or swimming;
+        // also while it rears or slows, so nothing carries it over).
+        if onGround && (target != 0 || abs(h.speed) > 0.05) {
+            let backing = target < 0 || h.speed < 0
+            let sp = abs(h.speed)
+            let look = halfW + 1.2 + sp * sp / (2 * HorseFeel.brake)
+            if let dh = hazardAhead(g.world, maxDist: look, dir: backing ? -forward : forward) {
                 let room = max(0, dh - halfW - 0.35)
                 let vmax = sqrtf(2 * HorseFeel.brake * room)
-                if vmax < target {
-                    target = room < 0.15 ? 0 : vmax
+                if backing {
+                    if -target > vmax { target = room < 0.15 ? 0 : -vmax }
+                    if -h.speed > vmax { h.speed = -vmax }
+                } else if vmax < target || h.speed > vmax {
+                    target = min(target, room < 0.15 ? 0 : vmax)
                     if h.speed > vmax { h.speed = vmax }
                     if h.refused > 3 && h.speed < 1.5 && push > 0.3 { g.onToast?("Your horse won't take that drop") }
                     h.refused = 0
@@ -176,7 +185,7 @@ extension Mob {
         if onGround || inWaterNow(g.world) {
             let accel = HorseFeel.accelBase + HorseFeel.accelPerTop * top
             let k: Float = target > h.speed ? accel : (target > 0.1 ? HorseFeel.ease : HorseFeel.brake)
-            if h.rear > 0 { h.speed = max(0, h.speed - 14 * dt) }
+            if h.rear > 0 { h.speed = h.speed > 0 ? max(0, h.speed - 14 * dt) : min(0, h.speed + 14 * dt) }
             else { h.speed += simd_clamp(target - h.speed, -k * dt, k * dt) }
             if inWaterNow(g.world) { h.speed = min(h.speed, max(2, top * 0.35)) }
             vel.x = forward.x * h.speed
@@ -203,10 +212,10 @@ extension Mob {
 
     // The first spot ahead (distance from the horse's centre) where the ground drops `refuseDrop`+ blocks below the
     // ground before it, or is lava / fire. Walls end the search (collision handles them). Water is ground.
-    func hazardAhead(_ w: World, maxDist: Float) -> Float? {
+    func hazardAhead(_ w: World, maxDist: Float, dir: V3? = nil) -> Float? {
         var ground = Int(floor(pos.y + 0.01)) - 1
         var s: Float = halfW + 0.3
-        let f = forward
+        let f = dir ?? forward
         while s <= maxDist {
             let x = Int(floor(pos.x + f.x * s)), z = Int(floor(pos.z + f.z * s))
             var found: Int?
@@ -231,7 +240,10 @@ extension Mob {
         h.rear = 1.1
         h.gait = .stand
         h.rearThrow = canThrow && Rand.float(in: 0..<1) < HorseFeel.throwChance[bondLevel - 1]
-        if onGround { vel.y = 3.2 }
+        // It plants its hind legs: the run-up is checked hard (no hop that would sail it on at a gallop).
+        h.speed *= 0.35
+        vel.x = forward.x * h.speed; vel.z = forward.z * h.speed
+        if onGround && abs(h.speed) < 3 { vel.y = 2.4 }
         g.sfx(.mob(kind, .hurt), 0.9, at: pos)
     }
 
