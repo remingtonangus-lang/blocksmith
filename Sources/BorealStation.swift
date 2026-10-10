@@ -324,6 +324,7 @@ enum BorealStation {
             ("boreal_corridor", V3(cx - 12, Float(F + 1), cz + 10), 0, 0, 0.3),
             ("boreal_hall", V3(cx, Float(F + 1), cz + 6.5), 0, 0.12, 0.3),
             ("boreal_stairs", V3(cx - 6, Float(F + 1), cz + 16), -.pi / 2, 0.3, 0.3),
+            ("boreal_radar", V3(cx + 10, Float(S + 12), cz - 4), -0.52, 0.42, 0.3),
         ]
     }
 
@@ -457,7 +458,7 @@ enum BorealStation {
         // Catwalk with a rail, and its stair up the west wall.
         for dz in -7...7 { for dx in -7...7 {
             if catwalk(dx, dz) {
-                put(dx, F + 5, dz, grate)
+                put(dx, F + 5, dz, tile)                        // station floor plate (the ship grating reads purple from below)
                 var edge = false
                 for (ox, oz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                     let nx = dx + ox, nz = dz + oz
@@ -608,21 +609,31 @@ enum BorealStation {
             if max(abs(ox), abs(oz)) == 2 { put(mx + ox, S + 16, mz + oz, bars) }
         } }
         for y in (S + 16)...(S + 19) { put(mx, y, mz, steel) }
-        // Dish: a shallow bowl of radius 5 tilted to look south and up.
+        // Dish: a bowl of radius 5 tilted to look south and up. The surface is sampled on a fine (u, v) grid over the
+        // disc and each sample fills its block, so the bowl is one clean shell with no holes or doubled lumps; the
+        // outer ring is steel (the rim), a steel feed arm runs out along the axis.
         do {
             let n = simd_normalize(V3(0, 0.75, 0.66))
+            let e1 = V3(1, 0, 0), e2 = simd_normalize(simd_cross(n, e1))
             let white = g("white_concrete", con)
-            for oy in -6...6 { for oz in -6...6 { for ox in -6...6 {
-                let v = V3(Float(ox), Float(oy), Float(oz))
-                let along: Float = simd_dot(v, n)
-                let side: V3 = v - along * n
-                let r2: Float = simd_length_squared(side)
-                guard r2 <= 27 else { continue }
-                let bowl: Float = r2 / 24
-                if abs(along - bowl) <= 0.55 { put(mx + ox, S + 22 + oy, mz + oz, white) }
-            } } }
+            let c = V3(Float(mx) + 0.5, Float(S + 22) + 0.5, Float(mz) + 0.5)
+            var u: Float = -5
+            while u <= 5 {
+                var v: Float = -5
+                while v <= 5 {
+                    let r2 = u * u + v * v
+                    if r2 <= 25 {
+                        let q: V3 = c + u * e1 + v * e2 + (r2 / 30) * n
+                        put(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z)), r2 >= 20 ? steel : white)
+                    }
+                    v += 0.25
+                }
+                u += 0.25
+            }
             put(mx, S + 20, mz, steel); put(mx, S + 21, mz, steel)
-            put(mx, S + 25, mz + 3, panel)
+            for t in 2...4 { let q = c + Float(t) * n; put(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z)), steel) }
+            let h = c + 5 * n
+            put(Int(floorf(h.x)), Int(floorf(h.y)), Int(floorf(h.z)), panel)
         }
 
         // MARK: Watchtower (south-west corner of the yard)

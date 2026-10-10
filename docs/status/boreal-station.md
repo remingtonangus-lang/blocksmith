@@ -25,7 +25,7 @@ cold and clean, buried under snow. The layout is original.
   hall and all 8 rooms, no dim floor cells (block light >= 8) in the bunker, stairwell and blockhouse, stair landings
   clear, >= 80% concrete faces, >= 250 lamps, 12 + 3 doors, no snow inside, snow layer on roofs and yard, garrison
   not inside blocks, generation cost close to plain terrain.
-- Golden shots: boreal_station, boreal_gate, boreal_corridor, boreal_hall, boreal_stairs (`questcheck --golden DIR`).
+- Golden shots: boreal_station, boreal_gate, boreal_corridor, boreal_hall, boreal_stairs, boreal_radar (`questcheck --golden DIR`).
 
 ## Evidence (2026-10-09, cloud thread, lavapipe)
 - Full `questcheck --render --questsim --golden`: all checks passed, 3 m 05 s.
@@ -38,5 +38,8 @@ cold and clean, buried under snow. The layout is original.
 Fixed: a light panel at head height on a stair landing, rusty-looking rails (new Steel Railing block), dim untested
 stairwell (panels + test), world-audit overlap box too tall, catwalk stair without a rail, 1-high blockhouse rails,
 weak checks (snow layer, lamp count, head cell, landings).
-Left as is (cosmetic): radar dish reads lumpy, drifts skip walls in a neighbouring chunk, catwalk grating underside
-looks purple, stations are 360-2281 blocks from spawn.
+Polish after review (2026-10-10): the radar dish is now one sampled shell with a steel rim and feed arm (was lumpy),
+the catwalk uses station floor plate (the ship grating read purple from below).
+Left as is: drifts skip walls that sit in a neighbouring chunk (the writer cannot read across chunks); the catwalk
+sides still read lavender under the hall's light (shading, not texture; renderer is the local lane's area); stations
+are 360-2281 blocks from spawn.
