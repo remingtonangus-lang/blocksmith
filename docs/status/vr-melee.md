@@ -12,15 +12,20 @@ fires, or touches ship blocks).
 
 ## Two melee modes (VR Comfort & Controls > Melee)
 
-- **Swing**: hit mobs by swinging your weapon (or fist) into them. The right trigger mines and fires but never attacks
-  (`Game.meleeContactOnly`): aimed at a mob, the trigger does nothing (no attack, no mining past it).
+- **Swing**: hit mobs by swinging a melee weapon (sword, axe, mace, trident, spear) into them. With a weapon in hand the
+  right trigger mines and fires but never attacks a creature (`Game.meleeContactOnly`): aimed at one, the trigger does
+  nothing (no attack, no mining past it); armor stands, boats and minecarts still take the trigger. Holding anything
+  else (fist, blocks, torches, food, a bow) the trigger attacks as in Reclined.
+- Friendly fire: a casual swing only hits hostiles (not tamed; neutral ones only once provoked). Villagers, townsfolk,
+  golems, animals and pets take a blade hit only with the trigger held during the swing.
 - **Reclined**: no swinging; the right trigger attacks what the laser picks (with the sword's aim assist) and mines, as
-  before. Made for playing seated or lying back. Turning on the Reclined Mode posture also picks Reclined melee.
+  before. Made for playing seated or lying back. Turning on the Reclined Mode posture also picks Reclined melee;
+  turning it off restores the melee style from before (`QuestSettings.swingBeforeReclined`).
 - Both: mining is automatic on the trigger with any tool; nothing needs to be hit physically.
 - Saved setting: the old `quest.swingMode` key (on = Swing, off = Reclined), so old settings and `swingMode = off`
   overrides carry over.
-- A melee weapon (sword, mace, trident, spear) never mines while a living mob (not your mount, a boat or a vehicle) is
-  within 6 blocks, in either mode (`Game.vrWeaponHeld`, `livingMobNear`).
+- A melee weapon never mines while a hostile is within 6 blocks or any other creature within 3, in either mode
+  (`Game.vrWeaponHeld`, `creatureNearForWeapon`): a cow 4 blocks off doesn't stop you digging.
 
 ## Blade contact (Sources/VRMelee.swift)
 
@@ -31,7 +36,7 @@ fires, or touches ship blocks).
 | Min tip speed | 2.0 m/s relative to the head (walking, turning or a mob walking into a still blade is no hit); slower contact gives a light tick |
 | Reach | contact point within 3.0 blocks of the eyes, in plain sight (`World.canSee`) |
 | Once per swing | each mob once until the tip slows below 1.2 m/s |
-| Damage | full charge x `VRMelee.power` = tip speed / 4 m/s, 0.6 ... 1.3 |
+| Damage | the normal attack charge (cooldown) x `VRMelee.power` = tip speed / 4 m/s, 0.7 ... 1.1: a charged swing deals what a trigger hit does |
 | Feedback | haptic buzz 0.55 + 0.35 x power, crit sparks at the contact point, the mob's hurt flash; hurt yourself: a thump in both hands |
 
 ## Mob melee against the real body
@@ -46,7 +51,8 @@ leaning in gets hit by one 1.85 away.
 The bow is held in the aiming hand and drawn as solid geometry: upright limbs across the arrow, grip foremost, tips
 bending back to the string (1.2 m bow, 0.15 m brace). The other hand's trigger at the string (within 0.3 m of the
 resting nock) nocks an arrow; pulling back moves the string and arrow with the hand up to a full draw at 0.68 m from the
-grip, with a haptic tick at every tenth of the draw (stronger and deeper as it bends) and a hum at full draw; the laser
+grip (only the hand's depth behind the grip counts, within 60 degrees of the rear axis: a hand ahead of the grip or out
+to the side is no draw and no shot), with a haptic tick at every tenth of the draw (stronger and deeper as it bends) and a hum at full draw; the laser
 runs along the arrow. Letting go of the trigger shoots from the bow along the arrow (from the drawing hand through the
 grip) at draw x 60 b/s (`Game.vrBow`; a full draw crits). Dominant Hand: Left swaps the hands. A trigger pressed away
 from the string shows a one-time hint.

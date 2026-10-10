@@ -15,7 +15,8 @@ enum VRMelee {
     static let bladeScale: Float = 1.3       // hit capsule length vs the drawn blade
     static let bladeRadius: Float = 0.25
     static let fistLength: Float = 0.15, fistRadius: Float = 0.15
-    static let weaponMobGuard: Float = 6     // a melee weapon never mines with a living mob this close (blocks)
+    static let weaponHostileGuard: Float = 6 // a melee weapon never mines with a hostile this close (blocks)
+    static let weaponMobGuard: Float = 3     // ... or any other creature this close (a cow 4 blocks off is fine)
 
     // The Quest options page's text (QuestOptions), here so the Mac `--swingtest` can check it fits the pause menu.
     static let optionHelp = "Swing: hit mobs by swinging your weapon into them. Reclined: no swinging, the R trigger attacks."
@@ -23,8 +24,15 @@ enum VRMelee {
     static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: R trigger attacks",
                             "R trigger: mine / fire (both modes)", "Bow: L trigger at the string, pull back"]
 
-    // Damage scale from the tip speed: 0.6 at the minimum, 1 at 4 m/s, at most 1.3.
-    static func power(_ tipSpeed: Float) -> Float { max(0.6, min(1.3, tipSpeed / 4)) }
+    // Damage scale from the tip speed: 0.7 at the minimum, 1 at 4 m/s, at most 1.1 (on top of the normal attack
+    // charge, so swinging deals about what Reclined's trigger does).
+    static func power(_ tipSpeed: Float) -> Float { max(0.7, min(1.1, tipSpeed / 4)) }
+
+    // Real melee weapons, the only items that hit by blade contact in Swing melee (anything else, the fist included,
+    // attacks with the trigger as in Reclined).
+    static func isSwingWeapon(_ key: String) -> Bool {
+        key.hasSuffix("_sword") || key.hasSuffix("_axe") || key == "mace" || key == "trident" || key.hasSuffix("_spear")
+    }
 
     // The hit capsule (base, tip, radius) for a hand pose. `size` is the drawn icon half size and `tool` whether it is
     // held by the handle (QuestControls.heldSize); the blade runs along the icon's diagonal like drawHeld draws it.
@@ -98,13 +106,19 @@ enum VRBow {
     // grip: the bow hand's grip point; handRot: its aim rotation (-Z forward, +Y up); drawHand: the drawing hand while an
     // arrow is nocked (nil at rest). Any space (tracking or world) as long as all three share it.
     static func pose(grip: V3, handRot: simd_quatf, drawHand: V3?) -> Pose {
-        var dir = handRot.act(V3(0, 0, -1))
+        let fwd = handRot.act(V3(0, 0, -1))
+        var dir = fwd
         var len = brace
+        // Only a pull back behind the grip draws: the hand's depth along the bow's rear axis, within 60 degrees of it.
+        // A hand ahead of the grip (or out to the side) leaves the string at rest: no draw, no shot.
         if let h = drawHand {
             let d = grip - h
             let l = simd_length(d)
-            if l > 0.05 { dir = d / l }
-            len = max(brace, min(fullDraw, l))
+            let back = simd_dot(d, fwd)
+            if l > 0.05 && back > brace * 0.5 && back >= l * 0.5 {
+                dir = d / l
+                len = max(brace, min(fullDraw, back))
+            }
         }
         var draw = (len - brace) / (fullDraw - brace)
         if draw > 0.97 { draw = 1 }
@@ -122,18 +136,28 @@ enum VRBow {
 }
 
 extension Game {
-    // A melee weapon in VR (the trigger attacks with it): it never mines with a living mob near (Game.interact).
-    var vrWeaponHeld: Bool {
-        guard bufferAttacks, !held.isEmpty else { return false }
-        let k = Items.key(held.item)
-        return k.hasSuffix("_sword") || k == "mace" || k == "trident" || k.hasSuffix("_spear")
+    // A melee weapon in VR: Swing melee hits with its blade; it never mines with a creature near (Game.interact).
+    var vrWeaponHeld: Bool { bufferAttacks && !held.isEmpty && VRMelee.isSwingWeapon(Items.key(held.item)) }
+    // Swing melee with a weapon in hand: only its blade's contact attacks creatures; the trigger mines, fires and
+    // still hits non-living things (armor stands, boats, minecarts). Anything else held attacks with the trigger.
+    var meleeContactOnly: Bool { swingMelee && vrWeaponHeld }
+
+    // A creature (not the mount, a boat, a minecart, an armor stand or another vehicle).
+    func isCreature(_ m: Mob) -> Bool { m.health > 0 && m !== riding && m.kind != .boat && m.kind.spec.behavior != .vehicle }
+    // A creature the blade may hit from a casual swing: hostile, not tamed, a neutral one only once provoked.
+    // Villagers, townsfolk, golems, animals and pets need the trigger held during the swing.
+    func bladeFree(_ m: Mob) -> Bool {
+        let b = m.kind.spec.behavior
+        return m.kind.hostile && !m.tamed && ((b != .neutral && b != .enderman && b != .piglin) || m.aggro)
     }
 
-    // A living creature (not the mount, a boat or a vehicle) within r blocks of the player.
-    func livingMobNear(_ r: Float) -> Bool {
-        let r2 = r * r, p = player.pos
+    // The weapon mining guard: a hostile within weaponHostileGuard, or any other creature within weaponMobGuard.
+    func creatureNearForWeapon() -> Bool {
+        let p = player.pos
         return mobs.mobs.contains { m in
-            m.health > 0 && m !== riding && m.kind != .boat && m.kind.spec.behavior != .vehicle && simd_length_squared(m.pos - p) < r2
+            guard isCreature(m) else { return false }
+            let r = m.kind.hostile ? VRMelee.weaponHostileGuard : VRMelee.weaponMobGuard
+            return simd_length_squared(m.pos - p) < r * r
         }
     }
 
@@ -150,12 +174,12 @@ extension Game {
     }
 
     // The first living mob the swept blade touches, within VRMelee.reach of `eye` and in sight of it (world space).
-    // `except`: mobs already hit by this swing.
-    func bladeContact(a0: V3, b0: V3, a1: V3, b1: V3, radius: Float, eye: V3, except: [ObjectIdentifier]) -> (Mob, V3)? {
+    // `except`: mobs already hit by this swing; `deliberate`: the trigger is held (friendly creatures may be hit too).
+    func bladeContact(a0: V3, b0: V3, a1: V3, b1: V3, radius: Float, eye: V3, except: [ObjectIdentifier], deliberate: Bool = false) -> (Mob, V3)? {
         let lo = simd_min(simd_min(a0, b0), simd_min(a1, b1)) - V3(repeating: radius)
         let hi = simd_max(simd_max(a0, b0), simd_max(a1, b1)) + V3(repeating: radius)
         var best: (Mob, V3, Float)?
-        for m in mobs.mobs where m.health > 0 && m !== riding && m.kind != .boat && m.kind.spec.behavior != .vehicle {
+        for m in mobs.mobs where isCreature(m) && (deliberate || bladeFree(m)) {
             let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW)
             let mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
             guard mx.x >= lo.x && mn.x <= hi.x && mx.y >= lo.y && mn.y <= hi.y && mx.z >= lo.z && mn.z <= hi.z else { continue }

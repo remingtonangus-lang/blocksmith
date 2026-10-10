@@ -238,8 +238,9 @@ final class Game {
     // Quest Swing melee (VRMelee.swift): the mob the swung blade physically touched this frame (QuestControls.swingContact),
     // with swingPower. Consumed by interact; a swing never mines or uses anything else.
     var swingMob: Mob?
-    // Quest Swing melee: only the blade's contact attacks; the trigger mines and fires but never attacks a mob.
-    var meleeContactOnly = false
+    // Quest Swing melee chosen (QuestSettings.swingMode): with a melee weapon only its blade's contact attacks
+    // creatures (meleeContactOnly, VRMelee.swift); the trigger mines, fires and hits non-living things.
+    var swingMelee = false
     // Quest: the headset's world position (mobs measure their melee reach to the column under it: meleeBody).
     var vrHead: V3?
     // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
@@ -990,8 +991,9 @@ final class Game {
             if useNow && useItemOnMob(m) { swing = 1; return }
             let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
             var attackNow = breakNow || swung
-            // Swing melee: the trigger aimed at a mob neither attacks it nor mines past it; only the blade hits.
-            if meleeContactOnly && !swung { attackQueued = 0; return }
+            // Swing melee with a weapon: the trigger aimed at a creature neither attacks it nor mines past it; only the
+            // blade hits. Armor stands, boats and minecarts still take the trigger.
+            if meleeContactOnly && !swung && isCreature(m) { attackQueued = 0; return }
             if bufferAttacks && !swung {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
@@ -999,7 +1001,7 @@ final class Game {
             if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
-                let charge = swung ? 1 : min(1, attackTimer * spd)
+                let charge = min(1, attackTimer * spd)       // swings too: swinging deals about what the trigger does
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
@@ -1065,7 +1067,7 @@ final class Game {
         // Mining
         if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         // A melee weapon in VR never mines while a creature is near (swinging at a mob dug the ground around it: Oct 10).
-        let weaponGuard = breakHeld && target != nil && vrWeaponHeld && livingMobNear(VRMelee.weaponMobGuard)
+        let weaponGuard = breakHeld && target != nil && vrWeaponHeld && creatureNearForWeapon()
         if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {

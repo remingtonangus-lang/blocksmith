@@ -205,12 +205,12 @@ final class QuestControls {
         // does anything. Swing: a weapon, tool or fist hurts a mob only by physically hitting it (swingContact), and the
         // trigger never attacks. Reclined: no swinging, the trigger attacks what the laser picks.
         let held = game.held
-        game.meleeContactOnly = QuestSettings.swingMode
+        game.swingMelee = QuestSettings.swingMode
         game.vrHead = rig.headWorld
         p.rt = R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)
-        let swingItem = held.isEmpty || held.def.tool != .none || held.def.attack > 1.5
-        if !inMenu && game.alive && QuestSettings.swingMode && swingItem && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false }
+        // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
+        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false }
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
         if !inMenu && game.alive && !held.isEmpty && Items.key(held.item) == "bow" { p.lt = bowUpdate(R, L, dt: dt) } else { bowReset() }
         // Getting hurt: a thump in both hands.
@@ -761,7 +761,9 @@ final class QuestControls {
         guard simd_length(a1 - a0) < 1.5 else { return }
         let speed = simd_length(tipRel - prevRel) / dt
         if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true) }
-        guard let (m, point) = game.bladeContact(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, eye: rig.headWorld, except: bladeHits) else { return }
+        // Hostiles take a casual swing; villagers, townsfolk, golems, animals and pets only with the trigger held.
+        guard let (m, point) = game.bladeContact(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, eye: rig.headWorld, except: bladeHits,
+                                                 deliberate: R.trigger > 0.5) else { return }
         if speed >= VRMelee.minTipSpeed {
             let pow = VRMelee.power(speed)
             game.swingPower = pow

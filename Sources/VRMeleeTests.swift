@@ -39,8 +39,8 @@ enum VRMeleeTests {
         let len = simd_length(st), flen = simd_length(ft - fb)
         check(len > 1.4 && len < 1.8 && sr >= 0.2 && simd_length(sb) < 0.3 && flen < 0.25,
               String(format: "blade capsule: sword tip %.2f m from the hand (r %.2f), fist %.2f m", len, sr, flen))
-        check(VRMelee.power(VRMelee.minTipSpeed) >= 0.6 && abs(VRMelee.power(4) - 1) < 0.01 && VRMelee.power(20) <= 1.3,
-              "swing power: 0.6 at the minimum tip speed, 1 at 4 m/s, at most 1.3")
+        check(VRMelee.power(VRMelee.minTipSpeed) >= 0.7 && abs(VRMelee.power(4) - 1) < 0.01 && VRMelee.power(20) <= 1.1,
+              "swing power: 0.7 at the minimum tip speed, 1 at 4 m/s, at most 1.1")
     }
 
     // The bow for both hands: the arrow points from the drawing hand through the grip, the nock follows the hand
@@ -68,6 +68,11 @@ enum VRMeleeTests {
                          name, simd_length(grip - hand), drawn.draw, simd_length(drawn.nock - hand)))
             check(far.draw == 1 && abs(simd_length(far.grip - far.nock) - VRBow.fullDraw) < 1e-3,
                   "bow (\(name)): pulled past a full draw the string stops at \(VRBow.fullDraw) m")
+            // The drawing hand ahead of the grip (it fired backwards at full power) or out to the side: no draw.
+            let ahead = VRBow.pose(grip: grip, handRot: rot, drawHand: grip + V3(0.05 * sx, 0, -0.6))
+            let side = VRBow.pose(grip: grip, handRot: rot, drawHand: grip + V3(0.6 * sx, 0, 0.1))
+            check(ahead.draw == 0 && side.draw == 0 && simd_dot(ahead.dir, V3(0, 0, -1)) > 0.99,
+                  String(format: "bow (%@): a hand ahead of the grip draws %.2f, out to the side %.2f (want 0, arrow forward)", name, ahead.draw, side.draw))
             check(notInverted, "bow (\(name)): limbs upright, bending back toward the archer from a foremost grip")
             let bend = simd_dot(drawn.grip - drawn.tipTop, drawn.dir) - simd_dot(rest.grip - rest.tipTop, rest.dir)
             check(bend > 0.03, String(format: "bow (%@): the tips bend back %.3f m more at the draw", name, bend))
@@ -90,7 +95,7 @@ enum VRMeleeTests {
         let save = (game.inventory.held, p.yaw, p.pitch, game.paused, p.pos, p.flying, game.survival, game.health, game.bufferAttacks)
         defer {
             (game.inventory.held, p.yaw, p.pitch, game.paused, p.pos, p.flying, game.survival, game.health, game.bufferAttacks) = save
-            game.meleeContactOnly = false; game.vrHead = nil; game.vrBow = nil; game.swingMob = nil; game.swingPower = 0
+            game.swingMelee = false; game.vrHead = nil; game.vrBow = nil; game.swingMob = nil; game.swingPower = 0
             game.input.leftDown = false; game.input.rightDown = false
         }
         // An open-air stone platform 60 blocks up, a dirt block under the feet.
@@ -119,7 +124,7 @@ enum VRMeleeTests {
 
         // 1. A swing without contact (power, no mob) looking down at the dirt: nothing breaks.
         game.inventory.held = sword
-        game.meleeContactOnly = true
+        game.swingMelee = true
         p.yaw = 0; p.pitch = -1.55
         ticks(10) { game.swingPower = 1.2; game.swingMob = nil }
         check(game.world.block(dirt.x, dirt.y, dirt.z) == Blocks.id("dirt"), "a swing that touched nothing breaks nothing (creative)")
@@ -135,7 +140,7 @@ enum VRMeleeTests {
 
         // 3. Swing melee: the trigger aimed at a zombie never attacks it; Reclined: it does.
         for contact in [true, false] {
-            game.meleeContactOnly = contact
+            game.swingMelee = contact
             let z = zombie(P + V3(0, 0, -2))
             let hz = z.health
             p.pitch = -0.35
@@ -166,7 +171,7 @@ enum VRMeleeTests {
 
         // 5. A melee weapon never mines with a mob near; a pickaxe does; the sword mines once it is gone.
         do {
-            game.meleeContactOnly = true
+            game.swingMelee = true
             p.pitch = -1.55
             let z = zombie(P + V3(2.5, 0, -2.5))
             ticks(20) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true }
@@ -185,11 +190,97 @@ enum VRMeleeTests {
             check(guarded && pick && alone, "trigger mining: sword with a zombie near breaks nothing \(guarded), pickaxe mines \(pick), sword alone mines \(alone)")
         }
 
+        // 5b. Verifier round (Oct 10). Swing melee holding a non-weapon (torch, bread, the bare hand): the trigger
+        // attacks, as in Reclined (it couldn't hurt a mob at all).
+        game.swingMelee = true
+        p.pitch = -0.35
+        for key in ["torch", "bread", ""] {
+            game.inventory.held = key.isEmpty ? .empty : ItemStack(Items.id(key), 1)
+            let z = zombie(P + V3(0, 0, -2))
+            let hz = z.health
+            ticks(40) { z.pos = P + V3(0, 0, -2); z.vel = .zero; game.input.leftClicked = true }
+            check(z.health < hz, "Swing melee holding \(key.isEmpty ? "nothing" : key): the trigger attacks (\(hz) -> \(z.health))")
+            remove(z)
+        }
+        // Armor stands, minecarts and boats still take the trigger with a weapon in Swing melee.
+        game.inventory.held = sword
+        for kind in [MobKind.armorStand, .minecart] {
+            p.pitch = kind == .minecart ? -0.6 : -0.35                         // the laser on the low cart
+            let st = Mob(kind, at: P + V3(0, 0, -2))
+            game.mobs.mobs.append(st)
+            let hs = st.health
+            ticks(60) { if game.mobs.mobs.contains(where: { $0 === st }) { st.pos = P + V3(0, 0, -2); st.vel = .zero }; game.input.leftClicked = true }
+            let gone = !game.mobs.mobs.contains { $0 === st } || st.health < hs
+            check(gone, "Swing melee with a sword: the trigger hits a \(kind.spec.name) (\(hs) -> \(st.health))")
+            remove(st)
+        }
+        p.pitch = -0.35
+        // Swings use the normal attack charge: a charged axe swing at power 1 equals a Reclined trigger hit; a second
+        // swing right after it is weak (it used to be full strength every time: twice Reclined's damage per second).
+        do {
+            game.inventory.held = ItemStack(Items.id("iron_axe"), 1)
+            func dealt(_ body: (Mob) -> Void, wait: Int) -> Int {
+                let z = zombie(P + V3(0, 0, -2))
+                defer { remove(z) }
+                ticks(wait) { z.pos = P + V3(0, 0, -2); z.vel = .zero }
+                let h = z.health
+                ticks(1) { z.pos = P + V3(0, 0, -2); z.vel = .zero; body(z) }
+                ticks(30) { z.pos = P + V3(0, 0, -2); z.vel = .zero }
+                return h - z.health
+            }
+            game.swingMelee = true
+            let swingFull = dealt({ z in game.swingPower = 1; game.swingMob = z }, wait: 90)
+            let swingAgain = dealt({ z in game.swingPower = 1; game.swingMob = z }, wait: 0)
+            game.swingMelee = false
+            let trigger = dealt({ _ in game.input.leftClicked = true }, wait: 90)
+            check(swingFull > 0 && swingFull == trigger && swingAgain * 2 < swingFull,
+                  "swing damage follows the attack charge: charged swing \(swingFull) = trigger \(trigger), immediate re-swing \(swingAgain)")
+            game.swingMelee = true
+            game.inventory.held = sword
+        }
+        // Friendly fire: a casual blade sweep hits a zombie but not a villager or a tamed wolf; with the trigger held
+        // (deliberate) it does.
+        do {
+            let eye = P + V3(0, 1.62, 0)
+            let v = Mob(.villager, at: P + V3(0, 0, -2))
+            let w = Mob(.wolf, at: P + V3(0, 0, -2))
+            w.owner = true
+            for m in [v, w] {
+                game.mobs.mobs.append(m)
+                m.pos = P + V3(0, 0, -2)
+                let hnd = P + V3(0, m.height * 0.5, -0.5)                      // the blade at the mob's middle height
+                let a = hnd, b0 = hnd + V3(-1.2, 0, -1.4), b1 = hnd + V3(1.2, 0, -1.4)
+                let casual = game.bladeContact(a0: a, b0: b0, a1: a, b1: b1, radius: VRMelee.bladeRadius, eye: eye, except: [])
+                let meant = game.bladeContact(a0: a, b0: b0, a1: a, b1: b1, radius: VRMelee.bladeRadius, eye: eye, except: [], deliberate: true)
+                check(casual == nil && meant?.0 === m, "friendly fire: a casual swing spares a \(m.kind.spec.name), one with the trigger held hits it")
+                remove(m)
+            }
+        }
+        // The weapon mining guard: a cow 4 blocks away doesn't stop the sword mining dirt; a cow 2 blocks or a zombie
+        // 5 blocks away does.
+        do {
+            p.pitch = -1.55
+            func mines(_ kind: MobKind, _ off: V3) -> Bool {
+                let m = Mob(kind, at: P + off)
+                game.mobs.mobs.append(m)
+                defer { remove(m) }
+                game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
+                ticks(20) { m.pos = P + off; m.vel = .zero; game.input.leftDown = true }
+                game.input.leftDown = false
+                ticks(2) { m.pos = P + off; m.vel = .zero }
+                let broke = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
+                game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
+                return broke
+            }
+            let cowFar = mines(.cow, V3(0, 0, -4)), cowNear = mines(.cow, V3(0, 0, -2)), zombieFar = mines(.husk, V3(0, 0, -5))
+            check(cowFar && !cowNear && !zombieFar, "sword mining guard: cow 4 away mines \(cowFar), cow 2 away \(cowNear), husk 5 away \(zombieFar)")
+        }
+
         // 6. Mob melee reaches the real head: leaning back out of reach dodges, leaning in gets hit, and without a
         // headset (or standing over the feet) the reach is unchanged.
         do {
             game.survival = true
-            game.meleeContactOnly = false
+            game.swingMelee = false
             let keepDiff = game.difficulty
             game.difficulty = 2
             defer { game.difficulty = keepDiff }

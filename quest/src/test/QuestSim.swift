@@ -530,13 +530,15 @@ enum QuestSim {
         frames(6) { _ in idleHands() }
 
         // (c) A fast swing across a husk 1.6 blocks ahead: the blade hits it (once), with a haptic buzz.
-        func swingAcross(_ dist: Float, step: Float) -> (Int, Int, Int) {
-            frames(8) { _ in pose(0.6) }                                         // settle at the start, then the husk
+        func swingAcross(_ dist: Float, step: Float, kind: MobKind = .husk, trigger: Bool = false) -> (Int, Int, Int) {
+            frames(8) { _ in pose(0.6) }                                         // settle at the start, then the mob
             let at = ahead(dist)
-            let z = husk(at)
+            let z = Mob(kind, at: at)
+            z.equip = nil
+            game.mobs.mobs.append(z)
             let h0 = z.health, c0 = controls.bladeContacts, hp0 = sim.hapticCount
             let n = Int((1.2 / step).rounded())
-            frames(n + 1) { i in z.pos = at; z.vel = .zero; pose(0.6 - step * Float(i)) }
+            frames(n + 1) { i in z.pos = at; z.vel = .zero; pose(0.6 - step * Float(i)); sim.hands[1].trigger = trigger ? 1 : 0 }
             let r = (h0 - z.health, controls.bladeContacts - c0, sim.hapticCount - hp0)
             remove(z)
             frames(4) { _ in pose(-0.6) }
@@ -550,8 +552,32 @@ enum QuestSim {
         // (e) Out of reach: a husk 3.8 blocks ahead is not hit by the same fast swing.
         let far = swingAcross(3.8, step: 0.3)
         check(far.0 == 0, "VR swing: a husk 3.8 blocks ahead is out of reach (\(far.0) damage)")
+        // (e2) Friendly fire: a casual swing through a villager does nothing; with the trigger held it hits.
+        let casual = swingAcross(1.6, step: 0.3, kind: .villager)
+        let meant = swingAcross(1.6, step: 0.3, kind: .villager, trigger: true)
+        check(casual.0 == 0 && meant.0 > 0, "VR swing: a casual swing spares a villager (\(casual.0) damage), the trigger held hits it (\(meant.0))")
         check(platformWhole(), "VR swing: the platform is whole after all the swings")
         frames(6) { _ in idleHands() }
+        // (e3) Swing melee holding a torch: the trigger attacks a husk on the laser (only weapons swing).
+        do {
+            game.inventory.held = ItemStack(Items.id("torch"), 64)
+            let at = ahead(1.6)
+            let z = husk(at)
+            let h0 = z.health
+            frames(40) { i in idleHands(); z.pos = at; z.vel = .zero; sim.hands[1].trigger = i % 10 < 5 ? 1 : 0 }
+            check(z.health < h0, "VR swing mode holding a torch: the trigger attacks a husk (\(h0) -> \(z.health))")
+            remove(z)
+            frames(6) { _ in idleHands() }
+        }
+        // (e4) The Reclined posture picks Reclined melee and turning it off restores Swing.
+        do {
+            QuestSettings.swingMode = true
+            QuestOptions.reclinedPosture(true)
+            let during = QuestSettings.swingMode
+            QuestOptions.reclinedPosture(false)
+            check(!during && QuestSettings.swingMode && !QuestSettings.reclined,
+                  "Reclined posture: melee Reclined while on (\(!during)), Swing restored after (\(QuestSettings.swingMode))")
+        }
 
         // (f) The bow, both hands: the drawing hand at the string with its trigger nocks; pulling back draws the string
         // and arrow to the hand with ramping haptics; letting go shoots along the arrow (from the hand through the grip).
@@ -592,6 +618,17 @@ enum QuestSim {
             check(shot != nil && simd_dot(simd_normalize(v), wdir) > 0.97 && simd_length(v) > 35,
                   String(format: "VR bow (%@): release shot along the arrow (dot %.3f, %.1f b/s)", name, simd_dot(simd_normalize(v + V3(0, 1e-6, 0)), wdir), simd_length(v)))
             if let a = shot { game.projectiles.arrows.removeAll { $0 === a } }
+            frames(4) { _ in idleHands() }
+            // Nocked, then the drawing hand pushed ahead of the grip and let go: no draw, no shot (it fired backwards).
+            frames(6) { _ in hands(atString, false) }
+            frames(2) { _ in hands(atString, true) }
+            let fwdPos = grip + V3(0.03 * sx, 0, -0.4)
+            frames(20) { i in hands(atString + (fwdPos - atString) * Float(i + 1) / 20, true) }
+            let aheadDraw = controls.bowPose?.draw ?? -1
+            let before2 = game.projectiles.arrows.count
+            frames(2) { _ in hands(fwdPos, false) }
+            check(aheadDraw == 0 && game.projectiles.arrows.count == before2,
+                  "VR bow (\(name)): the hand ahead of the grip draws \(aheadDraw) and shoots nothing")
             frames(4) { _ in idleHands() }
         }
         QuestSettings.leftHanded = false

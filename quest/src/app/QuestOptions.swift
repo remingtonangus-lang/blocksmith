@@ -101,6 +101,19 @@ enum QuestOptions {
         "Menu: pause; hold: recenter view",
     ]
 
+    // The Reclined posture picks Reclined melee; turning it off again restores the melee style from before.
+    static func reclinedPosture(_ on: Bool) {
+        let S = QuestSettings.self
+        if on && !S.reclined {
+            S.swingBeforeReclined = S.swingMode ? 1 : 0
+            S.swingMode = false
+        } else if !on && S.reclined {
+            if S.swingBeforeReclined >= 0 { S.swingMode = S.swingBeforeReclined == 1 }
+            S.swingBeforeReclined = -1
+        }
+        S.reclined = on
+    }
+
     static func angle(_ a: Float) -> String { a == a.rounded() ? "\(Int(a))" : String(format: "%.1f", a) }
 
     static func step<T: Equatable>(_ opts: [T], _ cur: T, _ back: Bool) -> T {
@@ -118,7 +131,7 @@ enum QuestOptions {
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_seated": S.seated.toggle(); hooks.recenter()
-        case "q_reclined": S.reclined.toggle(); if S.reclined { S.swingMode = false }; hooks.recenter()
+        case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()
         case "q_recenter": hooks.recenter()
         case "q_hand": S.leftHanded.toggle()

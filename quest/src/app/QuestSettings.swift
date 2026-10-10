@@ -78,6 +78,8 @@ enum QuestSettings {
     // swinging: the right trigger attacks). The right trigger mines in both. The key is the old Swing Mode on/off, so
     // saved settings and `swingMode = off` overrides carry over (off = Reclined).
     static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
+    // The melee style before the Reclined posture switched it to Reclined (-1 none): turning the posture off restores it.
+    static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }
