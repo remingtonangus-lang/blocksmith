@@ -1,5 +1,11 @@
 # Status
 
+> **The Deep expansion (2026-10-10, quest-port PR):** Sealrock (8 unbroken layers under the Deep's hell band; only a
+> Sunderite Pickaxe or a Sunder Charge breaks it), Sunderite (only in Brimstone Keep strongrooms; flux -> blast
+> furnace -> ingot -> pickaxe / charge), Brimstone Keeps (guarded hell strongholds; compass points there in the hell
+> band), the Emberdeep's bastions in the hell band, a taller Ash Vault with its own sky (ember haze, the Cinder Sun;
+> roof sections left out under it), a harder Ashguard (2.1x the strongest surface garrison). Check:
+> `questcheck --deep-only` (also in full questcheck). Notes: docs/status/the-deep-expansion.md.
 > **Frontier towns, honour and the Sheriff's Revolver (2026-10-10, quest-port PR):** a per-world honour score
 > (Outlaw to Honourable) moved by witnessed crimes, murder, protecting towns and killing outlaws (daily caps); it nudges
 > prices, heat cooling and the law. Bounties: a town that turns on you, or whose people you kill, puts a price on your
