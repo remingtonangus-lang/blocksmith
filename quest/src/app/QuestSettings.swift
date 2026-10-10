@@ -84,7 +84,18 @@ enum QuestSettings {
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
-    static var textureRes: Int { get { int("quest.textureRes", 128) } set { store(newValue, "quest.textureRes") } }
+    // Texture pixels per face: 64 by default (imported art is packed at 64 by tools/texpack.py; a quarter of the
+    // memory of 128). A saved 128 from before is moved to 64 once; picking High again afterwards sticks.
+    static var textureRes: Int {
+        get {
+            if !d.bool(forKey: "quest.tex64") {
+                d.set(true, forKey: "quest.tex64")
+                if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") > 64 { store(64, "quest.textureRes") }
+            }
+            return int("quest.textureRes", 64)
+        }
+        set { store(newValue, "quest.textureRes") }
+    }
 }
 
 extension QuestSettings {
@@ -103,6 +114,7 @@ extension QuestSettings {
             else if let i = Int(v) { d.set(i, forKey: key) }
             else if let f = Float(v) { d.set(f, forKey: key) }
             else { d.set(v, forKey: key) }
+            if key == "quest.textureRes" { d.set(true, forKey: "quest.tex64") }   // an explicit pick skips the 64 migration
             applied.append("\(kv[0])=\(v)")
         }
         clearCache()

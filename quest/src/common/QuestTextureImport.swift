@@ -1,7 +1,18 @@
 import Foundation
 
-// Imported PNG textures (Sources/TextureImport.swift decodes them with AppKit). The Quest build uses the procedural
-// materials only for now; Resources/Textures is empty on the main line.
+// Imported textures on the Quest. The Mac decodes Resources/Textures/<name>.png with AppKit (Sources/TextureImport.swift);
+// Android has no ImageIO, so tools/texpack.py packs the same PNGs into Resources/texpack.bin, which the APK carries as
+// assets/texpack.bin. AndroidMain reads it through the AAssetManager into `pack` before the textures are painted;
+// without a pack (or an empty one) every layer stays procedural, as before.
 enum TextureImport {
-    static func image(_ name: String, size n: Int) -> [V4]? { nil }
+    static var pack: TexPack?
+
+    static func load(_ d: Data?) {
+        guard let d else { print("textures: no texpack.bin, procedural only"); return }
+        guard let p = TexPack(d) else { print("textures: texpack.bin (\(d.count) bytes) is invalid, ignored"); return }
+        pack = p
+        print("textures: texpack.bin \(p.entries.count) imported at \(p.tile) px (hash \(p.hash))")
+    }
+
+    static func image(_ name: String, size n: Int) -> [V4]? { pack?.image(name, size: n) }
 }

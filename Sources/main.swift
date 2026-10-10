@@ -1743,6 +1743,10 @@ if CommandLine.arguments.contains("--structcheck") {
     exit(StructCheck.run(device: device))
 }
 
+if CommandLine.arguments.contains("--texpacktest") {
+    // The Quest's imported-texture pack (tools/texpack.py) parses and names only registered layers.
+    exit(TexPack.selfTest(path: arg("--texpacktest") ?? "Resources/texpack.bin"))
+}
 if let out = arg("--hdatlas") { exit(dumpHDAtlas(out)) }
 if let out = arg("--atlas") {
     exit(dumpAtlas(out))

@@ -42,6 +42,14 @@ echo "== generated sources"
 python3 quest/tools/extract_hud.py "$GEN/HudGenerated.swift"
 python3 quest/tools/shaders.py "$GEN/QuestSPIRV.swift"
 
+echo "== texture pack"
+# Imported PNG textures (Resources/Textures) as assets/texpack.bin (tools/texpack.py; Android has no ImageIO).
+# Regenerated when PIL is available (deterministic: unchanged PNGs give the same bytes), else the committed pack.
+if [ -d Resources/Textures ] && python3 -c "import PIL" 2>/dev/null; then python3 tools/texpack.py
+else echo "texpack: using the committed Resources/texpack.bin"; fi
+mkdir -p "$STAGE/assets"
+[ -f Resources/texpack.bin ] && cp Resources/texpack.bin "$STAGE/assets/"
+
 echo "== package"
 for m in simd os Metal; do mkdir -p "$PKG/Sources/$m"; cp quest/shims/$m/*.swift "$PKG/Sources/$m/"; done
 mkdir -p "$PKG/Sources/Blocksmith"
@@ -157,7 +165,8 @@ BT=$(ls -d "$AHOME"/build-tools/* | sort -V | tail -1)
 JAR=$(ls -d "$AHOME"/platforms/android-*/android.jar | sort -V | tail -1)
 sed "s/@VERSION_CODE@/$VERSION_CODE/; s/@VERSION_NAME@/0.$VERSION_CODE ($COMMIT)/" quest/android/AndroidManifest.xml > "$STAGE/AndroidManifest.xml"
 [ "$STORE" = 1 ] && sedi '/RECORD_AUDIO/d' "$STAGE/AndroidManifest.xml"
-"$BT/aapt2" link -o "$STAGE/base.apk" -I "$JAR" --manifest "$STAGE/AndroidManifest.xml" --min-sdk-version 29 --target-sdk-version 32
+"$BT/aapt2" link -o "$STAGE/base.apk" -I "$JAR" --manifest "$STAGE/AndroidManifest.xml" --min-sdk-version 29 --target-sdk-version 32 \
+  -A "$STAGE/assets" -0 bin
 (cd "$STAGE" && zip -q -r base.apk lib)
 "$BT/zipalign" -f -P 16 4 "$STAGE/base.apk" "$STAGE/aligned.apk"
 "$BT/apksigner" sign --ks quest/android/debug.keystore --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey \

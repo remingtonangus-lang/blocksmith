@@ -145,6 +145,8 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     QuestPaths.setDataRoot(dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
+    // Imported textures (assets/texpack.bin, tools/texpack.py); read before the loading thread paints the layers.
+    if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
     if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
@@ -197,4 +199,13 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     // Vulkan device just destroyed: every launch starts in a fresh process instead (the manifest's configChanges keep
     // the activity from being recreated mid-session, so this only runs when the app really ends).
     exit(0)
+}
+
+// A file from the APK's assets/ folder, or nil.
+private func readAsset(_ mgr: OpaquePointer?, _ name: String) -> Data? {
+    guard let mgr, let a = AAssetManager_open(mgr, name, Int32(AASSET_MODE_BUFFER)) else { return nil }
+    defer { AAsset_close(a) }
+    let len = Int(AAsset_getLength64(a))
+    guard len > 0, let buf = AAsset_getBuffer(a) else { return nil }
+    return Data(bytes: buf, count: len)
 }

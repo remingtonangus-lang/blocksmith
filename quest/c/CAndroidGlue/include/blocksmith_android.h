@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <android/native_activity.h>
 #include <android/looper.h>
+#include <android/asset_manager.h>
 #include <aaudio/AAudio.h>
 #include <unistd.h>
 #include <sys/syscall.h>

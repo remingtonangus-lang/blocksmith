@@ -1,13 +1,15 @@
 import Foundation
 
 // The painted block textures (TextureGen.mipChain: every layer, every mip level) cached on the headset's storage, so
-// only the first launch of a build pays for painting them. Keyed by build commit, texture size and layer count; a
+// only the first launch of a build pays for painting them. Keyed by build commit, texture size, layer count and texpack hash; a
 // cache from another build is deleted when the new one is written.
 enum TextureCache {
     private static let magic: UInt32 = 0x42_53_54_43           // "BSTC"
 
     static func url(dir: String, size: Int = TextureGen.size, layers: Int = Tex.count) -> URL {
-        URL(fileURLWithPath: dir).appendingPathComponent("textures-\(QuestBuild.commit)-\(size)px-\(layers).bin")
+        // + the imported texture pack's content hash, so new art invalidates the cache (no pack: the old key).
+        let pack = TextureImport.pack.map { "-p" + $0.hash } ?? ""
+        return URL(fileURLWithPath: dir).appendingPathComponent("textures-\(QuestBuild.commit)-\(size)px-\(layers)\(pack).bin")
     }
 
     static func load(_ url: URL) -> [[UInt8]]? {
