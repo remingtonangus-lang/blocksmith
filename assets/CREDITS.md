@@ -3,7 +3,7 @@
 ## Block textures (Resources/Textures)
 Art direction: "stylised realism" (docs/art/style-options/3-stylised-realism.png, picked by Remington 2026-10-09).
 
-- Source sheets: assets/gemini/sheets/s01-s12, generated 2026-10-09/10 with Google Gemini (gemini.google.com, image
+- Source sheets: assets/gemini/sheets/s01-s13 (s13: ores, 2026-10-10), generated 2026-10-09/10 with Google Gemini (gemini.google.com, image
   generation, Remington's Google AI Pro account). Prompt pattern: "a texture sheet for a voxel survival game in a
   STYLISED REALISM style (real-world materials, simplified, subtle surface detail, natural muted colours, soft
   hand-painted look, NOT pixel art, NOT cartoon); NxN grid of square seamless tiles with thin dark gaps, flat

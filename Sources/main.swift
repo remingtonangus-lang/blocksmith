@@ -234,6 +234,10 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "creative_tools", "creative_food", "creative_misc":   // icon checks for one creative tab
+                let cm = CreativeMenu(game: game)
+                game.openMenu(cm)
+                cm.setTab(which == "creative_tools" ? .tools : which == "creative_food" ? .food : .misc)
             case "create":
                 let pm = PauseMenu(game: game)
                 game.openMenu(pm)

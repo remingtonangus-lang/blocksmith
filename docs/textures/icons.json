@@ -1,0 +1,275 @@
+[
+ {
+  "sheet": "assets/gemini/icons/i01_tools.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "wooden_pickaxe",
+    "stone_pickaxe",
+    "iron_pickaxe",
+    "diamond_pickaxe"
+   ],
+   [
+    "wooden_sword",
+    "stone_sword",
+    "iron_sword",
+    "diamond_sword"
+   ],
+   [
+    "iron_axe",
+    "iron_shovel",
+    "iron_hoe",
+    "bow"
+   ],
+   [
+    "stick",
+    "coal",
+    "iron_ingot",
+    "gold_ingot"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i02_materials.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "raw_iron",
+    "raw_gold",
+    "raw_copper",
+    "copper_ingot"
+   ],
+   [
+    "iron_nugget:0.6",
+    "gold_nugget:0.6",
+    "diamond",
+    "netherite_ingot"
+   ],
+   [
+    "emerald:0.8",
+    "lapis_lazuli:0.8",
+    "redstone:0.85",
+    "flint:0.8"
+   ],
+   [
+    "gunpowder:0.8",
+    "string:0.85",
+    "feather",
+    "bone"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i03_tools2.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "-",
+    "wooden_shovel",
+    "-",
+    "stone_axe"
+   ],
+   [
+    "stone_shovel",
+    "stone_hoe",
+    "diamond_axe",
+    "diamond_shovel"
+   ],
+   [
+    "diamond_hoe",
+    "golden_pickaxe",
+    "golden_sword",
+    "golden_axe"
+   ],
+   [
+    "golden_shovel",
+    "golden_hoe",
+    "shield",
+    "arrow"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i04_tools3.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "netherite_pickaxe",
+    "netherite_sword",
+    "netherite_axe",
+    "netherite_shovel"
+   ],
+   [
+    "-",
+    "copper_pickaxe",
+    "copper_sword",
+    "copper_axe"
+   ],
+   [
+    "copper_shovel",
+    "copper_hoe",
+    "shears:0.85",
+    "flint_and_steel"
+   ],
+   [
+    "fishing_rod",
+    "compass:0.8",
+    "clock:0.8",
+    "bucket:0.85"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i05_food.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "apple:0.8",
+    "bread",
+    "beef",
+    "cooked_beef"
+   ],
+   [
+    "porkchop",
+    "cooked_porkchop",
+    "chicken",
+    "cooked_chicken"
+   ],
+   [
+    "carrot",
+    "potato:0.8",
+    "baked_potato:0.8",
+    "cookie:0.75"
+   ],
+   [
+    "melon_slice:0.85",
+    "wheat",
+    "wheat_seeds:0.7",
+    "golden_apple:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i06_misc.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "water_bucket:0.85",
+    "lava_bucket:0.85",
+    "milk_bucket:0.85",
+    "bowl:0.8"
+   ],
+   [
+    "paper:0.85",
+    "book:0.85",
+    "glass_bottle:0.85",
+    "brick:0.8"
+   ],
+   [
+    "clay_ball:0.75",
+    "leather:0.85",
+    "slime_ball:0.7",
+    "ender_pearl:0.7"
+   ],
+   [
+    "blaze_rod",
+    "saddle",
+    "lead:0.85",
+    "bone_meal:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i07_armor.jpg",
+  "grid": 4,
+  "fill": 0.88,
+  "tiles": [
+   [
+    "iron_helmet:0.8",
+    "iron_chestplate",
+    "iron_leggings",
+    "iron_boots"
+   ],
+   [
+    "leather_helmet:0.75",
+    "leather_chestplate",
+    "leather_leggings",
+    "leather_boots"
+   ],
+   [
+    "diamond_helmet:0.8",
+    "diamond_chestplate",
+    "diamond_leggings",
+    "diamond_boots"
+   ],
+   [
+    "golden_helmet:0.8",
+    "golden_chestplate",
+    "golden_leggings",
+    "golden_boots"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i08_armor2.jpg",
+  "grid": 4,
+  "fill": 0.88,
+  "tiles": [
+   [
+    "netherite_helmet:0.8",
+    "netherite_chestplate",
+    "netherite_leggings",
+    "netherite_boots"
+   ],
+   [
+    "copper_helmet:0.8",
+    "copper_chestplate",
+    "copper_leggings",
+    "copper_boots"
+   ],
+   [
+    "-",
+    "steel_chestplate",
+    "steel_leggings",
+    "steel_boots"
+   ],
+   [
+    "wooden_axe",
+    "-",
+    "netherite_hoe",
+    "charcoal:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i09_hud.jpg",
+  "grid": 4,
+  "fill": 0.92,
+  "tiles": [
+   [
+    "=heart",
+    "=heart_gold",
+    "=heart_poison",
+    "=heart_wither"
+   ],
+   [
+    "=food",
+    "=armor",
+    "=bubble",
+    "=rain_drop:0.8"
+   ],
+   [
+    "=snow_flake",
+    "egg:0.75",
+    "sugar:0.8",
+    "glowstone_dust:0.8"
+   ],
+   [
+    "sweet_berries:0.7",
+    "cocoa_beans:0.75",
+    "pumpkin_pie:0.85",
+    "dried_kelp:0.85"
+   ]
+  ]
+ }
+]
