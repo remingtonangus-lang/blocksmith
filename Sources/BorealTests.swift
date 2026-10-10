@@ -40,7 +40,8 @@ enum BorealTests {
 
             // Where the station's parts are: the surface level S is the blockhouse floor row.
             let S = BorealStation.levels(world, s)?.S ?? -1
-            check(S > 0, "boreal \(seed): blockhouse floor found (S = \(S - YOFF))")
+            let tileKey = Blocks.key(world.block(cx - 6, S, cz + 22))
+            check(S > 0 && tileKey == "bunker_floor", "boreal \(seed): blockhouse floor where the plan puts it (S = \(S - YOFF), \(tileKey))")
             guard S > 0 else { continue }
             let F = S - BorealStation.depth
 
@@ -233,6 +234,11 @@ enum BorealTests {
                 let roused = gar.filter { $0.aggro }.count
                 check(site?.on == true && blares >= 2 && gar.count >= 10 && roused == gar.count,
                       "boreal \(seed): a shot in the hall sets the alarm off (\(blares) klaxon blares in 10 s, \(roused)/\(gar.count) soldiers roused)")
+                // Once soldiers have searched the spot (lastSeen cleared), a running alarm doesn't send them back.
+                for m in gar { m.soldierBrain.lastSeen = nil }
+                for _ in 0..<3 { g.basesTick(1.0) }
+                let resent = gar.filter { $0.soldierBrain.lastSeen != nil && !$0.soldierBrain.sees }.count
+                check(resent == 0, "boreal \(seed): soldiers who searched the spot stay free while the alarm runs (\(resent) sent back)")
                 g.audio.record = nil
                 g.player.pos = hall + V3(400, 40, 400)                          // away: nobody can see anyone
                 for _ in 0..<Int(BorealAlarmState.standDown) + 5 { g.basesTick(1.0) }

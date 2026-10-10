@@ -47,8 +47,10 @@ extension Game {
                 if mobs.mobs.contains(where: { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && $0.aggro
                                                && ($0.brain?.sees ?? false) && BorealStation.insideSite(site, $0.pos) }) { trigger = p }
             }
+            var fresh = false
             if let t = trigger {
                 site.quiet = 0
+                fresh = simd_length(t - site.src) > 4 || !site.on        // a new spot to send the garrison to
                 site.src = t
                 if !site.on {
                     site.on = true
@@ -68,12 +70,13 @@ extension Game {
                 }
             }
             if site.on {
-                // The garrison turns on the source.
+                // The garrison stands to. Only a new noise or sighting points them at a spot (once, like a citadel's
+                // alert), so they don't keep marching on and grenading an empty place for the whole alarm.
                 for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && BorealStation.insideSite(site, m.pos) {
                     let br = m.soldierBrain
                     br.ready = true
                     if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
-                    if !br.sees { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
+                    if fresh && !br.sees { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
                     m.lockTime = max(m.lockTime, 20)
                 }
                 // The klaxon from the speaker nearest the player: hall, blockhouse or yard.
@@ -84,10 +87,9 @@ extension Game {
                     let speakers = [V3(Float(site.cx) + 0.5, Float(F + 7), Float(site.cz) + 0.5),
                                     V3(Float(site.cx) + 0.5, Float(site.S + 4), Float(site.cz + 18) + 0.5),
                                     V3(Float(site.cx) + 0.5, Float(site.S + 4), Float(site.cz) + 0.5)]
-                    let p = player.pos
-                    if let sp = speakers.min(by: { simd_length($0 - p) < simd_length($1 - p) }), simd_length(sp - p) < 96 {
-                        sfx(.gun(10), 1.2, at: sp)
-                    }
+                    // Nearest any player (split screen: the seat in the bunker hears the hall).
+                    func dist(_ q: V3) -> Float { players.map { simd_length($0 - q) }.min() ?? .infinity }
+                    if let sp = speakers.min(by: { dist($0) < dist($1) }), dist(sp) < 96 { sfx(.gun(10), 1.2, at: sp) }
                 }
             }
             st.sites[key] = site

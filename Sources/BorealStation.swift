@@ -308,11 +308,11 @@ enum BorealStation {
         ("soldier_marksman", -21, 10, 20), ("soldier_recruit", 18, 1, -10),
     ]
 
-    // The surface row S (blockhouse floor) and the bunker floor row F of a generated station; nil until its chunks exist.
+    // The surface row S (blockhouse floor) and the bunker floor row F of a station, from its plan (the piece starts at
+    // S - depth - 4), so no world scan and nothing a player mines can lose it.
     static func levels(_ world: World, _ s: StructureStart) -> (S: Int, F: Int)? {
-        let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
-        for y in stride(from: CH - 2, to: 1, by: -1) where Blocks.key(world.block(cx - 6, y, cz + 22)) == "bunker_floor" { return (y, y - depth) }
-        return nil
+        let S = s.min.y + depth + 4
+        return (S, S - depth)
     }
     // Camera spots for pictures (golden shots, QuestSim): name, feet position, yaw (forward = (-sin, -cos)), pitch, day time.
     static func views(_ world: World, _ s: StructureStart) -> [(String, V3, Float, Float, Double)] {
@@ -329,7 +329,7 @@ enum BorealStation {
     }
 
     // Solid ground-level walls of the surface buildings (blockhouse, gatehouse, shed, fuel tanks, watchtower, fence
-    // posts), from the same numbers build() uses. Snow drifts bank against these; a pure function so a column in one
+    // posts; not the gate pillars, so the gate stays clear), from the same numbers build() uses. Snow drifts bank against these; a pure function so a column in one
     // chunk sees a wall standing in the next.
     static func surfaceWall(_ dx: Int, _ dz: Int) -> Bool {
         let Y = yard
