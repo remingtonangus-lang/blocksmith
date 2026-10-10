@@ -1277,6 +1277,12 @@ enum Snapshot {
             for l in samples { print("verifyworld:   \(l)") }
         }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if let t = game.target {
+            // The crosshair target's outline is in every shot: a plant right in front of the camera draws as long thin
+            // dark lines that looked like texture seams (defects-oct10.md), so name it.
+            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            print("target: \(Blocks.key(b)) at \(t.hit.x) \(t.hit.y) \(t.hit.z), boxes \(world.selectionBoxes(b)), feet \(game.player.pos)")
+        }
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
             let e = game.player.eye

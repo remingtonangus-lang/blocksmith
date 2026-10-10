@@ -32,7 +32,13 @@ vec2 sharpUV(vec2 uv) {
     vec2 t = uv * sz;
     vec2 seam = floor(t + 0.5);
     vec2 d = clamp(fwidth(t), vec2(1e-4), vec2(1.0));
-    return (seam + clamp((t - seam) / d, -0.5, 0.5)) / sz;
+    vec2 o = seam + clamp((t - seam) / d, -0.5, 0.5);
+    // A seam on a tile boundary is a block face's edge: the REPEAT blend there mixed in the art's opposite edge (a
+    // dark line of dirt along the top of every grass side, the frame of a chest front wrapping round), so magnified
+    // texels at the face edge sample their own texel (defects-oct10.md). Minified (d = 1) uv stays untouched.
+    bvec2 tile = bvec2(mod(seam.x, sz.x) == 0.0 && d.x < 1.0, mod(seam.y, sz.y) == 0.0 && d.y < 1.0);
+    o = mix(o, floor(t) + 0.5, vec2(tile));
+    return o / sz;
 }
 vec4 texSharp(vec2 uv, float layer) { return texture(tex, vec3(sharpUV(uv), layer)); }
 #endif
