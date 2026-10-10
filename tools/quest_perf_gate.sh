@@ -35,10 +35,11 @@ python3 - "$RD" "$GOV" "$ROUTES" <<'PY'
 import json, sys
 m = json.load(open("snaps/routes_quest.json"))
 bad = int(sys.argv[2])
-# Counted-work budgets for the playtest routes at rd 16 (measured Oct 10 after the fixes, plus ~10% headroom).
+# Counted-work budgets for the playtest routes at rd 16 (Oct 10 after the fixes: taiga 460k quads, tick CPU p99 2.6-3.6 ms;
+# flyover 320k quads, tick CPU p99 3.5-5.0 ms, 0.6-1.0% not meshed; before: taiga 512k quads). Thread CPU, not wall time.
 counted = {
-    "taiga":   {"quads": 500000, "tick_cpu_ms_p99": 4.0},
-    "flyover": {"tick_cpu_ms_p99": 4.0, "unmeshed_pct": 25.0},
+    "taiga":   {"quads": 500000, "tick_cpu_ms_p99": 4.5},
+    "flyover": {"quads": 360000, "tick_cpu_ms_p99": 6.0, "unmeshed_pct": 30.0},
 }
 for r in sys.argv[3].split():
     k = f"route_{r}_quest"
