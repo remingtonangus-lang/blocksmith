@@ -147,6 +147,8 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     // Imported textures (assets/texpack.bin, tools/texpack.py); read before the loading thread paints the layers.
     if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
+    // Townsfolk voice takes (assets/voices.bin, tools/townvoice_gen.py).
+    if TownVoice.loaded == 0 { TownVoice.load(readAsset(activity.pointee.assetManager, "voices.bin")) }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
     if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }

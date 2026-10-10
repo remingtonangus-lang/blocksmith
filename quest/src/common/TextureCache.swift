@@ -8,7 +8,7 @@ enum TextureCache {
 
     static func url(dir: String, size: Int = TextureGen.size, layers: Int = Tex.count) -> URL {
         // + the imported texture pack's content hash, so new art invalidates the cache (no pack: the old key).
-        let pack = TextureImport.pack.map { "-p" + $0.hash } ?? ""
+        let pack = TextureImport.hash.map { "-p" + $0 } ?? ""
         return URL(fileURLWithPath: dir).appendingPathComponent("textures-\(QuestBuild.commit)-\(size)px-\(layers)\(pack).bin")
     }
 
@@ -46,8 +46,9 @@ enum TextureCache {
         do { try d.write(to: url, options: .atomic) } catch { print("textures: cache not written: \(error)") }
     }
 
-    // Cached levels, or freshly painted ones (then cached).
+    // Cached levels, or freshly painted ones (then cached). The imported pack's pixels are released afterwards.
     static func mipChain(dir: String) -> [[UInt8]] {
+        defer { TextureImport.release() }
         let u = url(dir: dir)
         let t0 = CFAbsoluteTimeGetCurrent()
         if let l = load(u) {

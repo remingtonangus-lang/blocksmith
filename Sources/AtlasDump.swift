@@ -74,6 +74,9 @@ func dumpHDAtlas(_ path: String) -> Int32 {
                            "nether_wart_stage2", "pitcher_crop3"]
     let all: [String] = HDTex.table.keys.sorted() + extra
     var want: [String] = arg("--names").map { $0.split(separator: ",").map(String.init) } ?? all
+    want = want.flatMap { w -> [String] in   // "item_*" = every layer with that prefix (tools/iconderive.py)
+        w.hasSuffix("*") ? names.filter { $0.hasPrefix(String(w.dropLast())) } : [w]
+    }
     want = want.filter { names.contains($0) }
     let cols = 8, gap = 4
     let rows = (want.count + cols - 1) / cols

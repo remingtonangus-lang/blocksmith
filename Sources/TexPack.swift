@@ -1,9 +1,15 @@
 import Foundation
 import simd
+#if canImport(Compression)
+import Compression
+#else
+import CZlib
+#endif
 
 // Resources/texpack.bin (tools/texpack.py): the imported PNG textures pre-decoded for the Quest build, which has no
-// ImageIO. Format (little endian): "BSTP", u32 version 1, u32 tile size, u32 count, then per entry u16 name length,
-// UTF-8 name, tile*tile*4 RGBA8 (straight alpha, rows top to bottom). Foundation only, so the Quest build and the Mac
+// ImageIO. Format (little endian): "BSTP", u32 version, u32 tile size, u32 count; version 2 then has u32 body length
+// and the body as one zlib stream, version 1 the body stored. Body: per entry u16 name length, UTF-8 name,
+// tile*tile*4 RGBA8 (straight alpha, rows top to bottom). Foundation + zlib only, so the Quest build and the Mac
 // harness (`--texpacktest`) share it. The Mac game itself keeps reading the PNGs (TextureImport.swift).
 struct TexPack {
     let tile: Int
@@ -12,12 +18,20 @@ struct TexPack {
     let hash: String                         // short content hash (FNV-1a 64), keys the Quest texture cache
 
     init?(_ d: Data) {
-        let b = [UInt8](d)
-        guard b.count >= 16, b[0] == 0x42, b[1] == 0x53, b[2] == 0x54, b[3] == 0x50 else { return nil }
-        func u32(_ o: Int) -> Int { Int(b[o]) | Int(b[o + 1]) << 8 | Int(b[o + 2]) << 16 | Int(b[o + 3]) << 24 }
-        let version = u32(4), n = u32(8), count = u32(12)
-        guard version == 1, n > 0, n <= 1024 else { return nil }
-        var off = 16, map: [String: Range<Int>] = [:]
+        let raw = [UInt8](d)
+        guard raw.count >= 16, raw[0] == 0x42, raw[1] == 0x53, raw[2] == 0x54, raw[3] == 0x50 else { return nil }
+        func u32(_ b: [UInt8], _ o: Int) -> Int { Int(b[o]) | Int(b[o + 1]) << 8 | Int(b[o + 2]) << 16 | Int(b[o + 3]) << 24 }
+        let version = u32(raw, 4), n = u32(raw, 8), count = u32(raw, 12)
+        guard version == 1 || version == 2, n > 0, n <= 1024 else { return nil }
+        let b: [UInt8]
+        var off: Int
+        if version == 2 {
+            guard raw.count >= 20, let body = TexPack.unzip(Array(raw[20...]), size: u32(raw, 16)) else { return nil }
+            b = body; off = 0
+        } else {
+            b = raw; off = 16
+        }
+        var map: [String: Range<Int>] = [:]
         for _ in 0..<count {
             guard off + 2 <= b.count else { return nil }
             let len = Int(b[off]) | Int(b[off + 1]) << 8
@@ -30,8 +44,26 @@ struct TexPack {
         }
         guard off == b.count else { return nil }
         var h: UInt64 = 0xcbf29ce484222325
-        for x in b { h = (h ^ UInt64(x)) &* 0x100000001b3 }
-        tile = n; entries = map; data = d; self.hash = String(h, radix: 16)
+        for x in raw { h = (h ^ UInt64(x)) &* 0x100000001b3 }
+        tile = n; entries = map; data = Data(b); self.hash = String(h, radix: 16)
+    }
+
+    // A zlib stream (RFC 1950) of known unpacked size; nil if it doesn't unpack to exactly that.
+    static func unzip(_ src: [UInt8], size: Int) -> [UInt8]? {
+        guard size >= 0, size < 1 << 30, src.count > 2 else { return nil }
+        var out = [UInt8](repeating: 0, count: max(1, size))
+        #if canImport(Compression)
+        // Apple's COMPRESSION_ZLIB is raw DEFLATE: skip the 2-byte zlib header (the Adler-32 trailer is ignored).
+        let got = src.withUnsafeBufferPointer { s in out.withUnsafeMutableBufferPointer { o in
+            compression_decode_buffer(o.baseAddress!, o.count, s.baseAddress! + 2, s.count - 2, nil, COMPRESSION_ZLIB) } }
+        guard got == size else { return nil }
+        #else
+        var len = uLong(out.count)
+        let rc: Int32 = src.withUnsafeBufferPointer { s in out.withUnsafeMutableBufferPointer { o in
+            uncompress(o.baseAddress!, &len, s.baseAddress!, uLong(s.count)) } }
+        guard rc == Z_OK, Int(len) == size else { return nil }
+        #endif
+        return size == 0 ? [] : out
     }
 
     // The layer `name` at size x size (RGBA 0...1, straight alpha), or nil. Box-filtered (alpha-weighted) when the

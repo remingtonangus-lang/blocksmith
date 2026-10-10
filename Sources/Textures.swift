@@ -1138,17 +1138,22 @@ enum TextureGen {
     // linear and anisotropic filtering at the cutout edge doesn't blend in black (distant crowns turned into black
     // speckles), and (b) alpha coverage preserved per level: the share of texels passing the shaders' 0.5 cutoff
     // stays what it is at full size, instead of thinning out with distance (Castano's coverage-preserving mips).
+    // Fully opaque layers (most blocks) downsample with a separable Lanczos-2 kernel instead of the 2x2 box: the box
+    // softens every level a little more, so a wall or the ground a few metres away read blurrier than the art
+    // (tools/texsharp.py, docs/status/texture-sharpness.md).
     static func mipChain(size n: Int = TextureGen.size, layers range: Range<Int>? = nil) -> [[UInt8]] {
         var levels = [base(size: n, layers: range)]
         let count = (range ?? 0..<Tex.count).count
         var cutout = [Bool](repeating: false, count: count)
+        var opaque = [Bool](repeating: false, count: count)
         var coverage = [Float](repeating: 0, count: count)
         levels[0].withUnsafeMutableBufferPointer { buf in
             let px = buf.baseAddress!
             var flags = [Bool](repeating: false, count: count)
+            var solid = [Bool](repeating: false, count: count)
             var covs = [Float](repeating: 0, count: count)
-            flags.withUnsafeMutableBufferPointer { fb in covs.withUnsafeMutableBufferPointer { cb in
-                let fp = fb.baseAddress!, cp = cb.baseAddress!
+            flags.withUnsafeMutableBufferPointer { fb in covs.withUnsafeMutableBufferPointer { cb in solid.withUnsafeMutableBufferPointer { sb in
+                let fp = fb.baseAddress!, cp = cb.baseAddress!, sp = sb.baseAddress!
                 DispatchQueue.concurrentPerform(iterations: count) { l in
                     let o = l * n * n * 4
                     var zero = 0, full = 0, pass = 0
@@ -1163,11 +1168,13 @@ enum TextureGen {
                     let binary = n >= 128 ? n * n * 9 / 10 : n * n * 3 / 4
                     let isCut = zero > 0 && pass > 0 && zero + full >= binary
                     fp[l] = isCut
+                    sp[l] = full == n * n
                     cp[l] = Float(pass) / Float(n * n)
                     if isCut { bleed(px + o, n) }
                 }
-            } }
+            } } }
             cutout = flags
+            opaque = solid
             coverage = covs
         }
         var size = n
@@ -1182,6 +1189,10 @@ enum TextureGen {
                 prev.withUnsafeBufferPointer { pb in
                     let src = pb.baseAddress!
                     DispatchQueue.concurrentPerform(iterations: count) { l in
+                        if opaque[l] && sz >= 8 {
+                            lanczosHalf(src + l * sz * sz * 4, out + l * ns * ns * 4, sz)
+                            return
+                        }
                         for y in 0..<ns {
                             for x in 0..<ns {
                                 var acc = V3(repeating: 0), plain = V3(repeating: 0)
@@ -1251,6 +1262,42 @@ enum TextureGen {
     }
 
     // Scales one mip level's alpha so the share of texels at or above the 0.5 cutoff matches `target`.
+    // One opaque layer, n x n -> n/2 x n/2: separable Lanczos-2 (8 taps at +-0.5 ... +-3.5 source texels), wrapping
+    // since tiles repeat; alpha stays 255. Same kernel as tools/texsharp.py.
+    static let lanczos2: [Float] = [-0.0089, -0.0483, 0.1209, 0.4363, 0.4363, 0.1209, -0.0483, -0.0089]
+    static func lanczosHalf(_ src: UnsafePointer<UInt8>, _ dst: UnsafeMutablePointer<UInt8>, _ n: Int) {
+        let ns = n / 2
+        let w = lanczos2
+        var tmp = [Float](repeating: 0, count: n * ns * 3)          // rows filtered horizontally: n rows x ns
+        for y in 0..<n {
+            for x in 0..<ns {
+                var r: Float = 0, g: Float = 0, b: Float = 0
+                for k in 0..<8 {
+                    let sx = (2 * x + k - 3 + n) % n
+                    let i = (y * n + sx) * 4
+                    r += w[k] * Float(src[i]); g += w[k] * Float(src[i + 1]); b += w[k] * Float(src[i + 2])
+                }
+                let o = (y * ns + x) * 3
+                tmp[o] = r; tmp[o + 1] = g; tmp[o + 2] = b
+            }
+        }
+        for y in 0..<ns {
+            for x in 0..<ns {
+                var r: Float = 0, g: Float = 0, b: Float = 0
+                for k in 0..<8 {
+                    let sy = (2 * y + k - 3 + n) % n
+                    let i = (sy * ns + x) * 3
+                    r += w[k] * tmp[i]; g += w[k] * tmp[i + 1]; b += w[k] * tmp[i + 2]
+                }
+                let o = (y * ns + x) * 4
+                dst[o] = UInt8(max(0, min(255, r + 0.5)))
+                dst[o + 1] = UInt8(max(0, min(255, g + 0.5)))
+                dst[o + 2] = UInt8(max(0, min(255, b + 0.5)))
+                dst[o + 3] = 255
+            }
+        }
+    }
+
     static func keepCoverage(_ px: UnsafeMutablePointer<UInt8>, _ n: Int, _ target: Float) {
         let total = Float(n * n)
         func cov(_ k: Float) -> Float {

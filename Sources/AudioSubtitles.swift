@@ -69,6 +69,7 @@ extension Snd {
             }
         case .step: return positional ? "Footsteps" : nil
         case .hit: return nil
+        case .voice(let i): return TownVoice.caption(i)
         case .breakBlock: return "Block broken"
         case .place: return "Block placed"
         case .fall: return "Something fell"

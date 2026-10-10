@@ -74,8 +74,12 @@ enum QuestSettings {
     static var seated: Bool { get { bool("quest.seated", false) } set { store(newValue, "quest.seated") } }
     // Reclined (lying down): recentring also levels the view to the current gaze pitch; implies seated.
     static var reclined: Bool { get { bool("quest.reclined", false) } set { store(newValue, "quest.reclined") } }
-    // Swing Mode: a full-arm swing breaks / attacks (on); off: the right trigger does.
+    // Melee style (docs/status/vr-melee.md): true Swing (the blade must physically hit a mob), false Reclined (no
+    // swinging: the right trigger attacks). The right trigger mines in both. The key is the old Swing Mode on/off, so
+    // saved settings and `swingMode = off` overrides carry over (off = Reclined).
     static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
+    // The melee style before the Reclined posture switched it to Reclined (-1 none): turning the posture off restores it.
+    static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }
@@ -84,15 +88,17 @@ enum QuestSettings {
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
-    // Texture pixels per face: 64 by default (imported art is packed at 64 by tools/texpack.py; a quarter of the
-    // memory of 128). A saved 128 from before is moved to 64 once; picking High again afterwards sticks.
+    // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
+    // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
+    // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
+    // (quest.tex128); picking Medium again afterwards sticks.
     static var textureRes: Int {
         get {
-            if !d.bool(forKey: "quest.tex64") {
-                d.set(true, forKey: "quest.tex64")
-                if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") > 64 { store(64, "quest.textureRes") }
+            if !d.bool(forKey: "quest.tex128") {
+                d.set(true, forKey: "quest.tex128"); d.set(true, forKey: "quest.tex64")
+                if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") < 128 { store(128, "quest.textureRes") }
             }
-            return int("quest.textureRes", 64)
+            return int("quest.textureRes", 128)
         }
         set { store(newValue, "quest.textureRes") }
     }
@@ -114,7 +120,7 @@ extension QuestSettings {
             else if let i = Int(v) { d.set(i, forKey: key) }
             else if let f = Float(v) { d.set(f, forKey: key) }
             else { d.set(v, forKey: key) }
-            if key == "quest.textureRes" { d.set(true, forKey: "quest.tex64") }   // an explicit pick skips the 64 migration
+            if key == "quest.textureRes" { d.set(true, forKey: "quest.tex64"); d.set(true, forKey: "quest.tex128") }   // an explicit pick skips the migration
             applied.append("\(kv[0])=\(v)")
         }
         clearCache()

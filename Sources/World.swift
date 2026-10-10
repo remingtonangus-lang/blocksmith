@@ -131,11 +131,30 @@ final class World {
 
     // Chunks farther than 8 chunks are meshed at LOD 1.
     static var lodNear = 8                      // harness --nolod raises it (far detail off)
-    @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { max(abs(dx), abs(dz)) > World.lodNear ? 1 : 0 }
-    // With one chunk of hysteresis: walking back and forth across the boundary doesn't re-mesh the ring each time.
+    // Chunks farther than leafNear (and within lodNear) are meshed at full detail but with "fast" leaves (Mesher lod 2:
+    // no faces between leaf blocks). Quest sets 2: the Oct 10 taiga village drew ~500k quads at rd 16, about half of
+    // them leaves, and inner canopy faces 3-5 chunks away are hard to tell apart through the leaf holes.
+    static var leafNear = 99
+    @inline(__always) static func level(_ d: Int, slack: Int) -> Int {
+        d > lodNear + slack ? 1 : (d > leafNear + slack ? 2 : 0)
+    }
+    @inline(__always) static func rank(_ lod: Int) -> Int { lod == 0 ? 0 : (lod == 2 ? 1 : 2) }      // near to far
+    @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { World.level(max(abs(dx), abs(dz)), slack: 0) }
+    // With one chunk of hysteresis outwards: walking back and forth across a boundary doesn't re-mesh the ring each time.
     @inline(__always) func lodFor(_ dx: Int, _ dz: Int, current: Int) -> Int {
         let d = max(abs(dx), abs(dz))
-        return current == 0 ? (d > World.lodNear + 1 ? 1 : 0) : (d > World.lodNear ? 1 : 0)
+        let exact = World.level(d, slack: 0)
+        guard World.rank(exact) > World.rank(current) else { return exact }
+        let out = World.level(d, slack: 1)
+        return World.rank(out) > World.rank(current) ? out : current
+    }
+
+    // A chunk crossing a detail boundary: its meshed sections are redone at the new level. Between full detail (0) and
+    // mid (2) only sections with faces between leaves mesh differently, so only those are redone.
+    private func setLod(_ c: Chunk, _ want: Int) {
+        let leavesOnly = c.lod != 1 && want != 1
+        c.lod = want
+        for s in c.sections where s.meshedVersion != -1 && (!leavesOnly || s.leafy) { s.version += 1 }
     }
 
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
@@ -568,6 +587,7 @@ final class World {
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
         s.vis = m.vis
+        s.leafy = m.leafy
         if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
@@ -585,6 +605,11 @@ final class World {
     // Agent runs / replays: wait for last frame's jobs and apply every result in chunk order, so streaming (and
     // the light that meshing computes) never depends on timing.
     static var deterministic = false
+    // Frame-thread time for installing generated chunks and meshes (the rest wait a frame). 4 ms on the Mac (60 Hz);
+    // QuestApp sets 1.5 ms: fast flight at rd 16 handed over results every frame, ~1 ms mean and 4-5 ms spikes on the
+    // headset's slower cores, on top of a 9-10 ms CPU frame (Oct 10 playtest: frames missed while flying). 1.5 ms a
+    // frame at 72 Hz is still ~108 ms a second, several times what the fastest flight produces.
+    static var handoverSeconds = 0.004
 
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
@@ -608,7 +633,7 @@ final class World {
         }
 
         // Results are applied within a per-frame budget; the rest wait for the next frame.
-        let budget = 0.004
+        let budget = World.handoverSeconds
         var gi = 0, mi = 0
         while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, p) = gr[gi]; gi += 1
@@ -631,6 +656,7 @@ final class World {
             meshResults.insert(contentsOf: mr[mi...], at: 0)
             lock.unlock()
         }
+        TickProf.mark("world.results")              // the rest of update() is charged to "world.update" (Game.tick)
 
         let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
         // Offset of a chunk from the nearer centre (Chebyshev), for LOD.
@@ -655,11 +681,9 @@ final class World {
             for (k, c) in chunks {
                 let (ox, oz) = nearOff(k)
                 let want = lodFor(ox, oz, current: c.lod)
-                if want != c.lod {
-                    c.lod = want
-                    for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
-                }
+                if want != c.lod { setLod(c, want) }
             }
+            TickProf.mark("world.unload+lod")
         }
 
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
@@ -711,10 +735,7 @@ final class World {
                 if c.meshedOnce && ci == 0 { meshed += 1 }
                 let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
                 let wantLod = lodFor(ox, oz, current: c.lod)
-                if wantLod != c.lod && !c.meshInFlight {
-                    c.lod = wantLod
-                    for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
-                }
+                if wantLod != c.lod && !c.meshInFlight { setLod(c, wantLod) }
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
                     c.dirty = false

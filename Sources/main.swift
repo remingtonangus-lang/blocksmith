@@ -61,6 +61,7 @@ enum Snapshot {
         let snapDim = Dim(rawValue: arg("--dim") ?? "") ?? .overworld
         if CommandLine.arguments.contains("--nolod") { World.lodNear = 99 }      // every chunk at full detail
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }   // far-detail boundary (chunks)
+        if let v = arg("--leafnear").flatMap({ Int($0) }) { World.leafNear = v }   // "fast" leaves boundary (chunks; Quest 2)
         let world = World(seed: seed, device: device, save: nil, dim: snapDim)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)
@@ -234,6 +235,10 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "creative_tools", "creative_food", "creative_misc":   // icon checks for one creative tab
+                let cm = CreativeMenu(game: game)
+                game.openMenu(cm)
+                cm.setTab(which == "creative_tools" ? .tools : which == "creative_food" ? .food : .misc)
             case "create":
                 let pm = PauseMenu(game: game)
                 game.openMenu(pm)
@@ -575,6 +580,13 @@ enum Snapshot {
             } } }
             game.player.pos = pos
             print(String(format: "cavey: standing at %.0f %.0f %.0f", pos.x, pos.y - Float(YOFF), pos.z))
+            // Which blocks the shot shows (texture reviews): census of the 17^3 box around the camera.
+            var census: [String: Int] = [:]
+            for dy in -8...8 { for dz in -8...8 { for dx in -8...8 {
+                let b = world.block(Int(floor(pos.x)) + dx, Int(floor(pos.y)) + dy, Int(floor(pos.z)) + dz)
+                if b != AIR { census[Blocks.def(b).name, default: 0] += 1 }
+            } } }
+            print("cavey blocks: " + census.sorted { $0.value > $1.value }.prefix(10).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
         }
         // Structure mobs (crystals, boarlings...) that generation queued.
         for (name, mp) in world.pendingMobs {
@@ -1118,6 +1130,11 @@ enum Snapshot {
         if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
         if CommandLine.arguments.contains("--smoothtest") { return SmoothTests.run(game) > 0 ? 1 : 0 }   // smooth terrain prototype
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
+        if CommandLine.arguments.contains("--swingtest") { return VRMeleeTests.run(game) > 0 ? 1 : 0 }   // VR melee + bow (VRMelee.swift)
+        // Auto Render Distance (RenderDistanceGovernor.swift): synthetic frame-time traces + the save keeping the choice.
+        if CommandLine.arguments.contains("--rdgovernortest") {
+            return RenderDistanceGovernorTest.run() + RenderDistanceGovernorTest.gameChecks(game) > 0 ? 1 : 0
+        }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false
@@ -1265,6 +1282,12 @@ enum Snapshot {
             for l in samples { print("verifyworld:   \(l)") }
         }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if let t = game.target {
+            // The crosshair target's outline is in every shot: a plant right in front of the camera draws as long thin
+            // dark lines that looked like texture seams (defects-oct10.md), so name it.
+            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            print("target: \(Blocks.key(b)) at \(t.hit.x) \(t.hit.y) \(t.hit.z), boxes \(world.selectionBoxes(b)), feet \(game.player.pos)")
+        }
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
             let e = game.player.eye
@@ -1570,6 +1593,11 @@ if let dir = arg("--sounds") {
     var total = 0, failures = 0
     var list = SoundBank.allSounds
     for inst in 0..<16 { list.append(.note(inst, 12)) }
+    // Townsfolk voices (Resources/voices.bin): the first take of every voice in every context.
+    TownVoice.ensure()
+    for (_, ctxs) in TownVoice.index.sorted(by: { $0.key < $1.key }) {
+        for c in TownVoice.Ctx.allCases { if let id = ctxs[c]?.first { list.append(.voice(id)) } }
+    }
     if let only = ProcessInfo.processInfo.environment["SOUNDS_ONLY"] {   // e.g. SOUNDS_ONLY=step_,gun_ (prefixes)
         let pre = only.split(separator: ",").map(String.init)
         list = list.filter { s in pre.contains { s.name.hasPrefix($0) } }
@@ -1726,6 +1754,8 @@ if let f = arg("--namecheck") {
     exit(n > 0 && bad == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run()) }   // STORE_QUALITY objective 7
+if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }   // Oct 10 placement rules (WorldRules, WildCamps)
+if CommandLine.arguments.contains("--volcanosites") { exit(WorldGenCheck.volcanoSites()) }
 if CommandLine.arguments.contains("--fidelitycheck") { exit(FidelityCheck.run()) }      // reference numbers (FidelityCheck.swift)
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }

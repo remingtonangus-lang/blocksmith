@@ -125,7 +125,7 @@ extension Game {
     static let structureNames: [(String, String)] = [
         ("village", "Village"), ("stronghold", "Stronghold"), ("monument", "Sea Temple"), ("mansion", "Forest Manor"),
         ("ancient_city", "Buried Citadel"), ("trial_chambers", "Proving Halls"), ("temple", "Temple"),
-        ("pillager_outpost", "Marauder Watchtower"), ("ruined_portal", "Ruined Gate"), ("shipwreck", "Shipwreck"),
+        ("pillager_outpost", "Marauder Watchtower"), ("wild_camp", "Wild Camp"), ("shipwreck", "Shipwreck"),
         ("buried_treasure", "Buried Treasure"), ("mineshaft", "Mineshaft"), ("ocean_ruin", "Ocean Ruin"),
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
         ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire"),

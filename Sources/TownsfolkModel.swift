@@ -12,7 +12,7 @@ struct TownLook {
     var vest: V3? = nil, apron: V3? = nil, coat: V3? = nil, overalls: V3? = nil, skirt: V3? = nil
     var hat: Hat = .none, hatColor = V3(0.3, 0.22, 0.15)
     var beard = false, longHair = false, bald = false, rolledSleeves = false, badge = false, bowTie: V3? = nil
-    var glasses = false, tape = false, gunBelt = false
+    var glasses = false, tape = false, gunBelt = false, star = false
 
     enum Hat { case none, wideBrim, flatCap, bowler, bonnet, cap, straw }
 
@@ -35,6 +35,10 @@ struct TownLook {
         case "deputy":
             l.shirt = V3(0.72, 0.62, 0.46); l.vest = V3(0.26, 0.18, 0.12); l.badge = true; l.gunBelt = true
             l.hat = .wideBrim; l.hatColor = V3(0.32, 0.24, 0.16); l.skirt = nil; l.legs = trousers[(k / 7) % 2 == 0 ? 0 : 3]
+        case "sheriff":
+            // The sheriff: black hat and waistcoat, a red neckerchief, a big gold star, a gun belt and a moustache.
+            l.shirt = V3(0.84, 0.8, 0.72); l.vest = V3(0.11, 0.1, 0.1); l.star = true; l.gunBelt = true; l.bowTie = V3(0.62, 0.13, 0.1)
+            l.hat = .wideBrim; l.hatColor = V3(0.09, 0.08, 0.08); l.skirt = nil; l.longHair = false; l.beard = true; l.legs = trousers[3]
         case "farmer":
             l.overalls = l.skirt == nil ? V3(0.25, 0.32, 0.46) : nil; l.hat = .straw; l.hatColor = V3(0.86, 0.74, 0.44)
             l.shirt = [V3(0.62, 0.24, 0.2), V3(0.36, 0.44, 0.6), V3(0.86, 0.82, 0.72)][k % 3]
@@ -118,6 +122,11 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
         if m.villager?.shopKind == .butcher { b(-1.5, 14, -2.6, 0.2, 15.5, -2.5, V3(0.62, 0.16, 0.14)); b(1, 10, -2.6, 2, 11, -2.5, V3(0.6, 0.18, 0.15)) }
     }
     if l.badge { b(-3.4, 19.5, -2.5, -1.8, 21.1, -2.36, V3(0.95, 0.8, 0.35), Pat.metal) }
+    if l.star {                                                                                    // a six-point star, read as a cross with a hub
+        let gold = V3(1, 0.82, 0.3)
+        b(-3.9, 19.9, -2.62, -1.3, 20.9, -2.4, gold, Pat.metal); b(-3.1, 19.0, -2.62, -2.1, 21.8, -2.4, gold, Pat.metal)
+        b(-3.5, 19.4, -2.66, -1.7, 21.4, -2.44, gold * 0.9, Pat.metal)
+    }
     if let t = l.bowTie { b(-1.4, 22.4, -2.5, 1.4, 23.3, -2.3, t) }
     if l.tape { b(-2.4, 21, -2.45, -1.6, 23.5, -2.3, V3(0.92, 0.82, 0.3)); b(1.6, 21, -2.45, 2.4, 23.5, -2.3, V3(0.92, 0.82, 0.3)) }
     // Arms: walk swing, the weapon raised / striking, or hands up.
@@ -219,6 +228,10 @@ func townWeaponParts(_ w: TownWeapon, combat: Bool, pivot: V3, rotX: Float, rotZ
         case .hoe:
             a(hx0, hy - 0.3, -12, hx1, hy + 0.4, 2, wood)
             a(5.3, hy - 2.8, -12.6, 5.9, hy + 0.4, -11.8, iron, Pat.metal)
+        case .revolver:
+            a(hx0, hy - 1.8, -0.4, hx1, hy + 0.3, 0.8, V3(0.36, 0.22, 0.12), Pat.leather)        // grip
+            a(5.1, hy + 0.1, -1.6, 6.1, hy + 1.3, 0.6, iron, Pat.metal)                         // cylinder
+            a(5.35, hy + 0.5, -5.6, 5.85, hy + 1.1, -1.6, iron, Pat.metal)                      // barrel
         }
         return p
     }
@@ -247,6 +260,7 @@ func townWeaponParts(_ w: TownWeapon, combat: Bool, pivot: V3, rotX: Float, rotZ
     case .hoe:
         a(hx0, 3.4, -0.35, hx1, hy + 1.2, 0.35, wood)
         a(5.3, 3, -2.8, 5.9, 3.8, -0.35, iron, Pat.metal)
+    case .revolver: break                                                     // holstered on the gun belt
     }
     return p
 }

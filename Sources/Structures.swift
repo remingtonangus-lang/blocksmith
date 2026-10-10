@@ -470,7 +470,7 @@ enum Loot {
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
-        guard let t = tables[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
     }

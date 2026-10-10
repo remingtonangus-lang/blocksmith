@@ -44,9 +44,13 @@ final class QuestApp {
         }
         xr.onRecenter = { [weak self] in self?.rig.needsRecenter = true }
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
+        World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
         // Far detail (merged faces, no grass/flowers, fast leaves) from 5 chunks out instead of 8: rd 16 Quest-proxy
         // bench 17-23% fewer terrain quads, screenshots at 80+ blocks differ in 0.01% of pixels.
         World.lodNear = 5
+        // "Fast" leaves (no faces between leaf blocks) from 3 chunks out: the Oct 10 taiga village drew ~500k quads at
+        // rd 16, about half of them leaves (docs/status/performance.md).
+        World.leafNear = 2
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
             return true
@@ -100,10 +104,13 @@ final class QuestApp {
             if let d = req.difficulty { game.difficulty = d }
         }
         // The headset's own setting, not the save's (Game.apply restores the world's saved distance, which held the
-        // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5).
-        world.renderDistance = QuestSettings.renderDistance
+        // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5). On
+        // game.world: a save made in another dimension reopens there, and `world` is the overworld. Auto Render
+        // Distance steps the world below this choice for the session; the save and the options keep the choice.
+        game.rdGovernor = RenderDistanceGovernor(chosen: QuestSettings.renderDistance)
+        game.world.renderDistance = QuestSettings.renderDistance
         status("Generating terrain", 0.55)
-        _ = world.loadSync(center: game.player.pos, radius: min(3, world.renderDistance))
+        _ = game.world.loadSync(center: game.player.pos, radius: min(3, game.world.renderDistance))
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
         // world frame (HorizonRing samples synchronously when it has no ring yet).
         HorizonRing.shared.request(game, eye: game.player.eye)
@@ -374,12 +381,19 @@ final class FrameStats {
     private var worstCPU = 0.0, worstTick = 0.0, worstWorld = 0.0, worstRecord = 0.0, worstGPU = 0.0
     private var tickStage: StaticString = "-", tickStageMs = 0.0, worstTickAny = 0.0
     private var since = CFAbsoluteTimeGetCurrent()
-    private var lastLowered = 0.0, loggedRD = -1
+    private var loggedRD = -1
+    // Auto Render Distance inputs besides the timings: a menu or pause in the window, a save, a dimension change,
+    // and the chunks generated (a loading burst: fast flight, a raise's new ring).
+    private var busyFrames = 0, lastSaves = -1, lastGen = -1
+    private weak var lastWorld: World?
     // Set by QuestApp: asks the runtime for 72 Hz; true when the rate changed.
     var lowerRate: (() -> Bool)?
     // Set by QuestApp: the world renderer's record split since the last line (WorldRenderer.takeStages).
     var recordStages: (() -> String)?
     private(set) var lastLine = ""
+    // Chunks generated a second above which a window is a loading burst (walking at rd 16 generates ~12 a second,
+    // normal flight ~22, fast flight 150+).
+    static let loadingChunksPerSecond = 40.0
     private(set) var fps = 0.0
     private(set) var gpuAvg = 0.0, cpuAvg = 0.0
 
@@ -394,6 +408,7 @@ final class FrameStats {
         // The slowest tick of the window and its slowest stage (TickProf), whether or not it made the worst frame.
         if tick > worstTickAny { worstTickAny = tick; (tickStage, tickStageMs) = TickProf.top() }
         if target > 0 && frame > target * 1.5 { missed += 1 }
+        if let g = game, g.menu != nil || g.paused { busyFrames += 1 }
         let now = CFAbsoluteTimeGetCurrent()
         guard now - since >= 5 else { return }
         let n = Double(max(1, frames))
@@ -410,22 +425,42 @@ final class FrameStats {
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
-        // Comfort guard (VR page option): frames missed in this window with the GPU or CPU near the frame budget
-        // (not a loading hitch) first drop a refresh rate above 72 Hz to 72 (the store's frame-rate gate: the Oct 9
-        // playtest at 90 Hz ran ~10 ms CPU frames against 11.1 ms and the guard cut render distance 16 -> 5), then
-        // lower the render distance one step, not below 4, for this session.
-        let budget = target * 1000
-        if QuestSettings.autoRenderDistance, let g = game, budget > 0, Double(missed) > n * 0.05,
-           sumGPU / n > budget * 0.8 || sumCPU / n > budget * 0.8, now - lastLowered > 15 {
-            if rate > 72.5, let lower = lowerRate, lower() {
-                lastLowered = now
-                print("perf: missed frames at the frame budget: refresh rate lowered to 72 Hz for this session")
-                g.onToast?("72 Hz to keep the frame rate (VR Comfort & Controls)")
-            } else if g.world.renderDistance > 4 {
-                g.world.renderDistance -= 1
-                lastLowered = now
-                print("perf: missed frames at the frame budget: render distance lowered to \(g.world.renderDistance) for this session")
-                g.onToast?("Render distance \(g.world.renderDistance) to keep the frame rate (VR Comfort & Controls)")
+        // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): two windows in a row missing frames
+        // with the CPU or GPU near the budget first drop a refresh rate above 72 Hz to 72 (the Oct 9 playtest at 90 Hz
+        // ran ~10 ms CPU frames against 11.1 ms), then the render distance one step (not below 4); sustained headroom
+        // brings it back a step at a time to the player's choice. Loading bursts, menus and saves count neither way
+        // (Oct 10 playtest: fast flight stepped 16 -> 13 and it never came back).
+        if let g = game {
+            let gen = g.world.perf.genChunks, saves = g.saveCount
+            let newWorld = lastWorld !== g.world
+            let genRate = newWorld || lastGen < 0 ? 0 : Double(gen - lastGen) / max(0.001, now - since)
+            let excused = busyFrames > 0 || newWorld || (lastSaves >= 0 && saves != lastSaves)
+            lastGen = gen; lastSaves = saves; lastWorld = g.world
+            if QuestSettings.autoRenderDistance, var gov = g.rdGovernor, target > 0 {
+                let w = RenderDistanceGovernor.Window(seconds: now - since, frames: frames, missed: missed, cpuMs: sumCPU / n,
+                                                      gpuMs: sumGPU / n, budgetMs: target * 1000,
+                                                      loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused)
+                var act = gov.observe(w, canLowerRate: rate > 72.5 && lowerRate != nil)
+                if act == .lowerRate {
+                    if let lower = lowerRate, lower() {
+                        print("perf: missed frames at the frame budget: refresh rate lowered to 72 Hz for this session")
+                        g.onToast?("72 Hz to keep the frame rate (VR Comfort & Controls)")
+                    } else { act = gov.rateUnavailable() }
+                }
+                switch act {
+                case .lower(let rd):
+                    g.world.renderDistance = rd
+                    print("perf: missed frames at the frame budget: render distance \(rd) for now (chosen \(gov.chosen))")
+                    g.onToast?("Render distance \(rd) for now, to keep the frame rate")
+                case .raise(let rd):
+                    g.world.renderDistance = rd
+                    print("perf: frame headroom: render distance back up to \(rd) (chosen \(gov.chosen))")
+                    g.onToast?(rd == gov.chosen ? "Render distance back to \(rd)" : "Render distance back up to \(rd)")
+                default: break
+                }
+                g.rdGovernor = gov
+            } else if let gov = g.rdGovernor, gov.lowered {
+                g.setRenderDistance(gov.chosen)          // the option was turned off: back to the player's choice
             }
         }
         // Render distance changes (pause menu, the guard) are logged so a device log can be split by distance.
@@ -433,7 +468,7 @@ final class FrameStats {
             loggedRD = g.world.renderDistance
             print("perf: render distance \(loggedRD)")
         }
-        frames = 0; missed = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0; worstTickAny = 0
+        frames = 0; missed = 0; busyFrames = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0; worstTickAny = 0
         since = now
     }
 }

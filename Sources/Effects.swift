@@ -147,7 +147,7 @@ final class EffectSet {
         any = true
         return true
     }
-    func remove(_ e: Effect) { slots[e.rawValue] = nil }
+    func remove(_ e: Effect) { slots[e.rawValue] = nil; any = slots.contains { $0 != nil } }
     func clear() { for i in slots.indices { slots[i] = nil }; any = false }
 
     var active: [(Effect, ActiveEffect)] {
@@ -407,6 +407,7 @@ extension Game {
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
         d["money"] = "\(money)"
+        TownLaw.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
         if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
@@ -415,6 +416,7 @@ extension Game {
         if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
         if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
         if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
+        if !stationOps.isEmpty, let e = try? JSONEncoder().encode(Array(stationOps.values)), let str = String(data: e, encoding: .utf8) { d["stationOps"] = str }
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
@@ -428,6 +430,7 @@ extension Game {
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         money = d["money"].flatMap { Int($0) } ?? Money.start
+        TownLaw.load(d, seed: world.seed)
         deepVisited = d["deepVisited"] == "1"
         ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)
@@ -444,6 +447,9 @@ extension Game {
         if let l = d["lastDeath"] {
             let v = l.split(separator: ",").compactMap { Float($0) }
             if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }
+        }
+        if let str = d["stationOps"], let data = str.data(using: .utf8), let ops = try? JSONDecoder().decode([StationOp].self, from: data) {
+            for o in ops { stationOps[o.key] = o }
         }
         if let str = d["bases"], let data = str.data(using: .utf8), let recs = try? JSONDecoder().decode([BaseRecord].self, from: data) {
             for var r in recs { r.lastTick = clock; bases.records[r.key] = r }     // time away is caught up from the save's clock on

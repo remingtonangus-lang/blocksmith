@@ -374,6 +374,7 @@ final class Mob {
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
+    var stationDoors = false        // a roused Boreal Station soldier works the bulkhead doors (BorealOps.swift)
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)
@@ -550,7 +551,7 @@ final class Mob {
         if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
 
-        let player = g.player.pos
+        let player = g.meleeBody          // VR: where the headset really is (Game.meleeBody); the Mac: the feet
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.
@@ -1973,6 +1974,7 @@ final class MobManager {
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
         if !second { hiveTick(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {
+            if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
             m.update(dt, game: game)
             m.easeStep(fromY: before.y, wasGround: wasGround, dt)

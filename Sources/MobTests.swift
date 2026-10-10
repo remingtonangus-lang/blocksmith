@@ -457,13 +457,21 @@ enum MobTests {
         for m in [a, b] { var vd = m.villager!; vd.gossip = [0, 100, 0, 0, 0]; m.villager = vd }
         check(game.villagersHatePlayer(near: a.pos), "golems hostile at reputation -100")
 
-        // Golem summoning: five villagers that slept recently and gossip call one; four don't.
+        // Golem summoning: five villagers that slept recently and gossip call one; four don't. Towns have a sheriff
+        // instead now (TownLaw.swift: TownTests "sheriff"), so by default five sleepers summon nothing; the old rule
+        // stays covered with it switched back on.
         mm.mobs.removeAll()
         let four = (0..<4).map { villager($0 - 2, 3) }
         for m in four { m.sleptAt = game.time; m.gossipCooldown = 0 }
+        let fifth = villager(2, 3); fifth.sleptAt = game.time
+        four[0].spawnGolemIfNeeded(game, needed: 5)
+        check(!mm.mobs.contains { $0.kind == .ironGolem }, "townsfolk summon no golem (the sheriff replaces it)")
+        TownLaw.golemsAllowed = true
+        defer { TownLaw.golemsAllowed = false }
+        mm.mobs.removeAll { $0 === fifth }
         four[0].spawnGolemIfNeeded(game, needed: 5)
         check(!mm.mobs.contains { $0.kind == .ironGolem }, "golem not summoned by four")
-        let fifth = villager(2, 3); fifth.sleptAt = game.time
+        mm.mobs.append(fifth)
         four[0].spawnGolemIfNeeded(game, needed: 5)
         check(mm.mobs.contains { $0.kind == .ironGolem }, "golem summoned by five sleepers")
         let before = mm.mobs.filter { $0.kind == .ironGolem }.count

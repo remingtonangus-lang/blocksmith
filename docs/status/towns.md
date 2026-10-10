@@ -29,7 +29,7 @@ Edits: Villager.swift (VillagerData fields, all optional/Codable), Mob.swift (AI
   bounds; pricing refusal; buy/sell/service round trips; every shop message and name fits its line; nothing drawn
   outside the panel for 8 shops x 2 tabs x every scroll; 60 named townsfolk; a keeper minds the counter in shop hours;
   every role has a full model; no shop -> emerald barter -> shop profit (cheapest emerald from shop goods vs the best
-  emerald offer sold back, at the best multipliers; shops neither buy nor sell emeralds); an armed townsperson fights a zombie; hurting one angers the deputy and the child runs;
+  emerald offer sold back, at the best multipliers, bounded by the general store's emerald exchange: docs/status/economy.md); an armed townsperson fights a zombie; hurting one angers the deputy and the child runs;
   3 generated towns hold all 8 shop kinds, deputies and a sign per shop; every townsperson and keeper spawns on a
   floor with head room; hitting a townsperson already fighting you costs no more standing.
 - `questcheck --questsim OUT.png`: talking to a storekeeper opens the shop on the VR panel, B closes it; OUT_shop.png.
@@ -48,7 +48,8 @@ Edits: Villager.swift (VillagerData fields, all optional/Codable), Mob.swift (AI
 
 ## Verifier pass (independent Opus subagent, 2026-10-09) and what changed
 - Fixed: emerald barter money loop (9 glass bottles bought for $0.45 bartered for an emerald the general store bought
-  at $3.00). Shops no longer trade emeralds; bottles, paper and books repriced; the barter check above guards it.
+  at $3.00). Bottles, paper and books repriced; the barter check above guards it. (2026-10-10: the general store trades
+  emeralds again at $1.00 buy / $1.20 sell, see economy.md.)
 - Fixed: keepers spawned on the back shelves (gunsmith inside iron bars) and the shop bed went through the back wall.
   Counter moved a row forward; keeper row and fittings row are separate; spawn floor/head-room check added.
 - Fixed: self-defence against an angry townsperson kept costing standing until the whole town turned hostile; a

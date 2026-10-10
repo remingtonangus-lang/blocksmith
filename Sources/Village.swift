@@ -531,7 +531,7 @@ enum Village {
         } }
         w.set(ox + 3, y + 1, oz - 3, Blocks.id("bell"))
         w.mob("villager:deputy", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) + 3.5))
-        w.mob("iron_golem", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) - 3.5))
+        w.mob("villager:sheriff", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) - 3.5))       // the sheriff, not a golem (TownLaw.swift)
         // Village animals (reference): a stray cat on the plaza; desert villages keep a camel.
         w.mob("cat", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) + 3.5))
         if style == .desert { w.mob("camel", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) - 1.5)) }

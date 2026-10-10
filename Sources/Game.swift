@@ -235,16 +235,21 @@ final class Game {
     // lands at full strength, instead of a weak 0.2-0.8x hit. Quest players click like on a pad, every ~0.3 s: an iron
     // sword took ~8 hits on a zombie (v63). Now each trigger attack is the reference value (iron 6: a zombie in 4).
     var bufferAttacks = false
-    // Quest Swing Mode: what the swung tool physically touched on the frame swingPower is set (QuestControls.swingContact):
-    // the swing hits exactly that, not what the laser points at. Consumed by interact with swingPower.
-    var swingBlock: (hit: IVec3, normal: IVec3)?
+    // Quest Swing melee (VRMelee.swift): the mob the swung blade physically touched this frame (QuestControls.swingContact),
+    // with swingPower. Consumed by interact; a swing never mines or uses anything else.
     var swingMob: Mob?
+    // Quest Swing melee chosen (QuestSettings.swingMode): with a melee weapon only its blade's contact attacks
+    // creatures (meleeContactOnly, VRMelee.swift); the trigger mines, fires and hits non-living things.
+    var swingMelee = false
+    // Quest: the headset's world position (mobs measure their melee reach to the column under it: meleeBody).
+    var vrHead: V3?
+    // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
+    var vrBow: (draw: Float, origin: V3, dir: V3)?
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
-    var swingPower: Float = 0          // Quest Swing Mode: a real arm swing landed this frame (0.75 slow ... 1 average ... 1.25 fast); consumed by interact
-    private var swingGrace: Float = 0   // after a swing, chipped-block progress is kept this long (seconds)
+    var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0
     var eatProgress: Float = 0        // seconds held while eating
@@ -274,6 +279,18 @@ final class Game {
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
+    // Auto Render Distance (Quest, RenderDistanceGovernor.swift): when set, world.renderDistance may sit below the
+    // player's choice for the session. Only the choice is ever saved (the meta below, the options): a stepped-down
+    // distance written to a save came back on the next launch and ratcheted the distance down session after session.
+    var rdGovernor: RenderDistanceGovernor?
+    var chosenRenderDistance: Int { rdGovernor?.chosen ?? world.renderDistance }
+    // The player picked a distance (menus, keys): the world and the governor's ceiling both take it.
+    func setRenderDistance(_ rd: Int) {
+        world.renderDistance = rd
+        rdGovernor?.setChosen(rd)
+        onRenderDistanceChanged?(rd)
+    }
+    private(set) var saveCount = 0                   // saves so far (the governor ignores frame windows with a save)
 
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
@@ -331,14 +348,18 @@ final class Game {
         return (ox, oz, rng.int(4))
     }
 
-    func findSpawn(varied: Bool = true) -> V3 {
-        let o = varied ? Game.spawnOrigin(seed: world.seed) : (0, 0, 0)
+    func findSpawn(varied: Bool = true) -> V3 { Game.findSpawn(gen: world.gen, seed: world.seed, varied: varied) }
+
+    // Terrain only (column heights and biomes), so world gen can place things relative to the spawn
+    // (WorldRules.swift) without a Game.
+    static func findSpawn(gen: TerrainGenerator, seed: UInt64, varied: Bool = true) -> V3 {
+        let o = varied ? Game.spawnOrigin(seed: seed) : (0, 0, 0)
         let ox = o.0, oz = o.1
         var skip = o.2
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<4000 {
             let cx = (x + ox) * 16 + 8, cz = (z + oz) * 16 + 8
-            let (h, biome) = world.gen.column(cx, cz)
+            let (h, biome) = gen.column(cx, cz)
             // Not on a mushroom island either: no trees for 100 blocks, so no wood (playthrough seed 12345, store audit).
             if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach && biome != .mushroomFields {
                 if skip > 0 { skip -= 1 } else { return V3(Float(cx) + 0.5, Float(h + 1), Float(cz) + 0.5) }
@@ -420,7 +441,7 @@ final class Game {
         WorldMeta(seed: world.seed, x: player.pos.x, y: player.pos.y, z: player.pos.z,
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
                   hotbar: nil, inventory: inventory.saved, dimension: dim.dim, spawn: [spawnPoint.x, spawnPoint.y, spawnPoint.z],
-                  xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: world.renderDistance,
+                  xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: chosenRenderDistance,
                   survival: survival, health: health, hunger: hunger, saturation: saturation,
                   dragonKilled: dragonKilled, gateways: gateways, seenCredits: seenCredits,
                   effects: effects.saved, absorption: absorption, enchantSeed: enchantSeed, extra: saveExtra())
@@ -430,6 +451,7 @@ final class Game {
     // snapshots taken here; quit, pause and world copies save synchronously (and SaveIO.flush).
     func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
+        saveCount += 1
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
@@ -643,9 +665,8 @@ final class Game {
 
     func cycleRenderDistance() {
         let opts = [4, 6, 8, 10, 12, 16]
-        let i = opts.firstIndex(of: world.renderDistance) ?? 2
-        world.renderDistance = opts[(i + 1) % opts.count]
-        onRenderDistanceChanged?(world.renderDistance)
+        let i = opts.firstIndex(of: chosenRenderDistance) ?? 2
+        setRenderDistance(opts[(i + 1) % opts.count])
     }
 
     // MARK: Menus
@@ -657,6 +678,7 @@ final class Game {
         // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
         if m is CraftingBookMenu { menuCursor = CraftCategory.allCases.count }
         audioMenuOpened(m)
+        TownLaw.opened(self, m)
     }
 
     // Before the game ends (quit, another world): every seat's open screen hands its cursor item and grid back to the
@@ -670,6 +692,7 @@ final class Game {
         guard let m = menu, !(m is DeathMenu) else { return }
         sneakHeldFromMenu = true
         audioMenuClosed(m)
+        TownLaw.closed(self, m)
         m.onClose()
         if !carried.isEmpty {
             let rest = inventory.add(carried)
@@ -907,25 +930,26 @@ final class Game {
 
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
-        let swung = swingPower > 0
+        // Quest Swing melee: a blade that physically touched a mob this frame (VRMelee). It only ever hits that mob:
+        // hand movement alone never mines, places, uses or fires anything (Remington, Oct 10 playtest).
+        let touchedMob = swingMob.flatMap { $0 === riding || $0.health <= 0 ? nil : $0 }
+        let swung = swingPower > 0 && touchedMob != nil
         let swingPow = swingPower
-        let touched = swingBlock != nil || swingMob != nil, touchedMob = swingMob
-        swingPower = 0
-        if swung { swingGrace = 0.7 }
-        // Blocks break and place from 6 blocks away (playtest v78; a Quest swing takes the nearest block on the laser, no
-        // stickiness to an older, farther one). Melee on mobs stays short (3.5, below).
+        swingPower = 0; swingMob = nil
+        // Blocks break and place from 6 blocks away (playtest v78). Melee on mobs stays short (3.5, below).
         let reach: Float = 6
         let ray = world.raycast(player.eye, player.look, maxDist: reach)
-        target = swung && touched ? swingBlock : (swung ? ray : AimAssist.sticky(self, ray, reach: reach))
-        swingBlock = nil; swingMob = nil
+        target = AimAssist.sticky(self, ray, reach: reach)
         breakCooldown -= dt
         placeCooldown -= dt
-        let breakHeld = input.leftDown || p.rt > 0.5 || swung
+        let breakHeld = input.leftDown || p.rt > 0.5
         // Right stick click is a quick melee swing (Halo Infinite default layout); L3 + R3 is the bug-notes chord.
-        let breakNow = swung || input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
+        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
+        // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
+        if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
@@ -939,12 +963,12 @@ final class Game {
             takeCommand(s); return
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
-        if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
-        if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
+        if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
+        if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if swung && touched { mobHit = touchedMob === riding ? nil : touchedMob }
+        if swung { mobHit = touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
         else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding)
                     ?? (swordHeld ? mobNearAim(reach: 3.5) : nil) {
@@ -959,7 +983,7 @@ final class Game {
                 mobHit = m
             }
         }
-        if breakNow { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
+        if breakNow || swung { swing = 1; if mobHit == nil && target == nil { attackTimer = 0 } }     // a swing at air resets the cooldown too
         // Lunge (spear): the jab carries the player forward (not when digging a block, swimming or gliding).
         if breakNow, Spear.isSpear(held.item), mobHit != nil || target == nil, !player.inWater && !player.gliding {
             let lv = Enchant.level(.lunge, held)
@@ -984,7 +1008,10 @@ final class Game {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
             let ready = attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed) >= 1
-            var attackNow = breakNow
+            var attackNow = breakNow || swung
+            // Swing melee with a weapon: the trigger aimed at a creature neither attacks it nor mines past it; only the
+            // blade hits. Armor stands, boats and minecarts still take the trigger.
+            if meleeContactOnly && !swung && isCreature(m) { attackQueued = 0; return }
             if bufferAttacks && !swung {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
@@ -992,7 +1019,7 @@ final class Game {
             if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
-                let charge = swung ? 1 : min(1, attackTimer * spd)
+                let charge = min(1, attackTimer * spd)       // swings too: swinging deals about what the trigger does
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
@@ -1057,7 +1084,9 @@ final class Game {
 
         // Mining
         if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
-        if let t = target, breakHeld {
+        // A melee weapon in VR never mines while a creature is near (swinging at a mob dug the ground around it: Oct 10).
+        let weaponGuard = breakHeld && target != nil && vrWeaponHeld && creatureNearForWeapon()
+        if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
                 if breakNow || breakCooldown <= 0 {
@@ -1075,7 +1104,6 @@ final class Game {
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
-                    if swung && secs > 0 { mineProgress += max(0, 0.56 * swingPow - fdt) / secs }      // a swing is worth ~0.56 s of digging (Quest: 8x the first cut, which took ~30 swings a block)
                     swing = max(swing, 0.5)
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
@@ -1103,8 +1131,6 @@ final class Game {
                     }
                 }
             }
-        } else if swingGrace > 0 && mining != nil {
-            swingGrace -= fdt                                   // between swings the chipped block keeps its progress
         } else {
             mining = nil
             mineProgress = 0
@@ -1161,11 +1187,14 @@ final class Game {
             if useHeld && hasArrow { bowCharge += fdt; return }
             if !useHeld && bowCharge > 0 {
                 let t = bowCharge * 20
-                let f = min(1, (t * t / 400 + t / 10) / 3)
+                var f = min(1, (t * t / 400 + t / 10) / 3)
+                var from = player.eye, dir = player.look
+                // VR: the physical draw sets the power, and the arrow flies from the bow along its nocked direction.
+                if let vb = vrBow { f = vb.draw; from = vb.origin; dir = vb.dir }
                 bowCharge = 0
                 if f >= 0.1 {
                     let power = Enchant.level(.power, h)
-                    let a = projectiles.shoot(from: player.eye, dir: player.look, speed: f * 60, fromPlayer: true,
+                    let a = projectiles.shoot(from: from, dir: dir, speed: f * 60, fromPlayer: true,
                                               damage: 2 + (power > 0 ? 0.5 * Float(power) + 0.5 : 0))
                     a.punch = Enchant.level(.punch, h)
                     a.flame = Enchant.level(.flame, h) > 0
@@ -1392,6 +1421,7 @@ final class Game {
             if key == "wither_skeleton_skull" { trySummonBlight(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { if !trySummonCopperGolem(at) { trySummonGolem(at) } }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
+            TownLaw.placed(self, at)
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
             consumeHeld()
@@ -1439,6 +1469,7 @@ final class Game {
     }
 
     func openBlock(_ p: IVec3) {
+        TownLaw.opening(self, p)
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
         switch k {
@@ -1542,6 +1573,7 @@ final class Game {
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         boarlingsGuard(p, block: b)
+        TownLaw.broke(self, p, b)
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)

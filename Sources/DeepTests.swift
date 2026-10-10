@@ -254,7 +254,9 @@ enum DeepTests {
         z.power = p1
         let h0 = z.health
         z.hit(from: game.player.pos, damage: 8, knockback: 0)
-        check(p0 == 1 && p1 > 1.5 && h0 - z.health == 5, String(format: "deep: depth power 1 at y 10, %.2f at y -60; an 8 hit does %d", p1, h0 - z.health))
+        // 8 / 1.55 rounds to 5; the zombie's 2 natural armour points make that 4.6, rounded stochastically to 4 or 5
+        // (armorReduced). Without depth power it would be 7 or 8.
+        check(p0 == 1 && p1 > 1.5 && (4...5).contains(h0 - z.health), String(format: "deep: depth power 1 at y 10, %.2f at y -60; an 8 hit does %d", p1, h0 - z.health))
     }
 
     // Saved surface chunks lose the old bedrock floor as they load (other dimensions keep theirs); Remington's real worlds

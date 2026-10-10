@@ -111,6 +111,14 @@ enum WorldAudit {
         for (k, v) in overlapPairs.sorted(by: { $0.value > $1.value }) { md += "  - \(k): \(v)\n" }
         md += "- Distance from spawn to the nearest (blocks):\n"
         for (k, v) in far.sorted(by: { $0.key < $1.key }) { md += "  - \(k): \(stats(v)); over 2000: \(v.filter { $0 > 2000 }.count)\n" }
+        // Oct 10 rules (WorldRules.swift, WildCamps.swift).
+        let nearCities = (far["capital_city"] ?? []).filter { $0 < Int(WorldRules.capitalMinSpawn) }.count
+        let nearCitadels = (far["military_base"] ?? []).filter { $0 < Int(WorldRules.citadelMinSpawn) }.count
+        md += "- Capital city within \(Int(WorldRules.capitalMinSpawn)) blocks of the spawn: \(nearCities)/\(n) seeds; Capital citadel within \(Int(WorldRules.citadelMinSpawn)): \(nearCitadels)/\(n)\n"
+        md += "- Ruined gates (retired): \(counts["ruined_portal", default: 0]) starts\n"
+        let campCounts = counts.filter { $0.key.hasPrefix("camp_") }
+        md += "- Wild camps per 2048^2 square (mean): " + String(format: "%.1f", Double(campCounts.values.reduce(0, +)) / Double(n)) + " ("
+            + campCounts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ") + ")\n"
         md += "- Structure starts per 2048^2 square (mean): " + counts.sorted { $0.key < $1.key }.map { String(format: "%@ %.1f", $0.key, Double($0.value) / Double(n)) }.joined(separator: ", ") + "\n"
         md += "\n## Spawn density (mobs alive after \(Int(secs)) s, per seed)\n\n| time + group | per-seed counts |\n|---|---|\n"
         for (k, v) in density.sorted(by: { $0.key < $1.key }) { md += "| \(k) | \(stats(v)); zero on \(v.filter { $0 == 0 }.count) seeds |\n" }

@@ -13,7 +13,7 @@ float shipFogF(float d) {
     return smoothstep(s, e, d);
 }
 void main() {
-    vec4 c = texture(tex, vec3(oUV, oLayer));
+    vec4 c = texSharp(oUV, oLayer);
     vec3 rgb = c.rgb * oTint * max(oShade, vec3(0.05));
     float f = shipFogF(oDist);
     outColor = worldColor(vec4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8)));

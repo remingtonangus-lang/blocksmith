@@ -15,7 +15,8 @@ tmp = tempfile.mkdtemp()
 for name in sorted(os.listdir(src)):
     if not (name.endswith('.vert') or name.endswith('.frag')):
         continue
-    text = open(os.path.join(src, name)).read().replace('#include "common.glsl"', common)
+    # BS_FRAG: fragment-only helpers in common.glsl (texSharp uses fwidth, which vertex shaders can't).
+    text = open(os.path.join(src, name)).read().replace('#include "common.glsl"', ('#define BS_FRAG 1\n' if name.endswith('.frag') else '') + common)
     stage = 'vert' if name.endswith('.vert') else 'frag'
     path = os.path.join(tmp, name)
     open(path, 'w').write(text)

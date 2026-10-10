@@ -119,3 +119,6 @@ See docs/status/store-readiness.md (audit round 1). Not re-measured here.
   plus the unmeasured soak/save/comfort/balance rows.
 - 2026-10-09 (task 4, Boreal Station): new snowbound bunker structure with BorealTests in questcheck (walk route, light,
   snow, doors, garrison) and 5 golden shots; verifier pass, findings fixed (docs/status/boreal-station.md).
+- 2026-10-10 (Boreal Station infiltration): an operation per station (copy the uplink codes, sabotage the generator,
+  extract; silent vs loud rewards; alarm locks the uplink, squads down the stairwell, roused soldiers open bulkhead
+  doors). 15 checks per seed in borealtest, 5 seeds pass; full questcheck passes (docs/status/boreal-station.md).

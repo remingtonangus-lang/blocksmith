@@ -211,8 +211,10 @@ final class SoundEngine {
             data.withUnsafeBufferPointer { src in ch[0].update(from: src.baseAddress!, count: data.count) }
             list.append(b)
         }
-        buffers[s] = list
-        bank.evict(s)
+        if case .voice = s {} else {              // voice takes stay uncached (hundreds of them, each heard now and then)
+            buffers[s] = list
+            bank.evict(s)
+        }
         return list.isEmpty ? nil : list[v % list.count]
     }
 

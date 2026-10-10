@@ -38,12 +38,12 @@ enum QuestOptions {
             "q_vig": "Darkens the edges of the view while moving, turning and riding ships. Higher is more comfortable.",
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
-            "q_reclined": "Lying down: Recenter View also levels the world, horizon, HUD and menus to where you look now, pitch included.",
-            "q_swing": "On: break blocks and hit mobs by really swinging your arm at them (small wrist flicks don't count). Off: the right trigger breaks and attacks.",
+            "q_reclined": VRMelee.reclinedPostureHelp,
+            "q_swing": VRMelee.optionHelp,
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
-            "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
+            "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
@@ -67,7 +67,7 @@ enum QuestOptions {
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Reclined Mode: \(on(S.reclined))", "q_reclined"),
-                ("Swing Mode: \(on(S.swingMode))", "q_swing"),
+                ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
                 ("Recenter View", "q_recenter"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
@@ -86,8 +86,7 @@ enum QuestOptions {
     // The Touch layout (right-handed; Dominant Hand swaps the hands).
     static let touchRows = [
         "Right laser: aim at blocks, menus",
-        "Swing Mode: swing your arm to break / attack",
-        "R trigger: break / attack / fire (Swing Mode off)",
+    ] + VRMelee.touchRows + [
         "L trigger: use / place (hold to repeat)",
         "L grip: previous hotbar slot  R grip: next",
         "L stick: move, head-relative (teleport: aim)",
@@ -101,6 +100,19 @@ enum QuestOptions {
         "Hold R stick click: weapon wheel",
         "Menu: pause; hold: recenter view",
     ]
+
+    // The Reclined posture picks Reclined melee; turning it off again restores the melee style from before.
+    static func reclinedPosture(_ on: Bool) {
+        let S = QuestSettings.self
+        if on && !S.reclined {
+            S.swingBeforeReclined = S.swingMode ? 1 : 0
+            S.swingMode = false
+        } else if !on && S.reclined {
+            if S.swingBeforeReclined >= 0 { S.swingMode = S.swingBeforeReclined == 1 }
+            S.swingBeforeReclined = -1
+        }
+        S.reclined = on
+    }
 
     static func angle(_ a: Float) -> String { a == a.rounded() ? "\(Int(a))" : String(format: "%.1f", a) }
 
@@ -119,7 +131,7 @@ enum QuestOptions {
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_seated": S.seated.toggle(); hooks.recenter()
-        case "q_reclined": S.reclined.toggle(); hooks.recenter()
+        case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()
         case "q_recenter": hooks.recenter()
         case "q_hand": S.leftHanded.toggle()

@@ -42,7 +42,7 @@ extension Mob {
             let k = Blocks.key(Blocks.groupBase[Int(w.block(b[0], b[1], b[2]))])
             if !k.hasSuffix("_bed_head") && !k.hasSuffix("_bed") { v.bed = nil }
         }
-        if v.bed == nil && !baby && v.role != "deputy" {
+        if v.bed == nil && !baby && v.role != "deputy" && v.role != "sheriff" {
             let claimed = Set(g.mobs.mobs.compactMap { $0.villager?.bed }.map { IVec3($0[0], $0[1], $0[2]) })
             // The first in ring order (ring 1...12, then dy, dz, dx), as the ring-by-ring scan this replaced.
             var bk = (Int.max, 0, 0, 0)
@@ -185,7 +185,7 @@ extension Mob {
         let t = f * 24000
         if baby { return t < 3000 ? .idle : (t < 6000 ? .play : (t < 10000 ? .idle : .play)) }
         if let k = villager?.shopKind { return Float(f) >= k.hours.0 && Float(f) <= k.hours.1 ? .work : .idle }
-        if villager?.role == "deputy" { return .patrol }
+        if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
         let prof = villager?.profession ?? "none"
         if t >= 5600 && t < 6600 { return .eat }
         // Capital citizens (no trade, a desk) go to the office.
@@ -295,7 +295,7 @@ extension Mob {
 
     // Reference spawnGolemIfNeeded: enough villagers within 10 blocks wanting a golem summon one nearby.
     func spawnGolemIfNeeded(_ g: Game, needed: Int) {
-        guard wantsGolem(g) else { return }
+        guard TownLaw.golemsAllowed, wantsGolem(g) else { return }          // towns have a sheriff now (TownLaw.swift)
         let group = g.mobs.mobs.filter { $0.kind == .villager && simd_length($0.pos - pos) < 10 && $0.wantsGolem(g) }
         guard group.count >= needed else { return }
         let w = g.world

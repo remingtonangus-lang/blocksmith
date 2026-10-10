@@ -122,12 +122,15 @@ final class BaseWatch {
     let boreal = BorealAlarmState()                   // Boreal Station alarms (BorealAlarm.swift)
 
     // One watch per Game (the harness and the app each make one game).
-    private static var current: (ObjectIdentifier, BaseWatch)?
+    // Held by a weak reference, not an ObjectIdentifier: a new game allocated where a freed one lived got the old
+    // game's watch (stale station operations and alarms in the harness).
+    private weak var owner: Game?
+    private static var current: BaseWatch?
     static func of(_ g: Game) -> BaseWatch {
-        let id = ObjectIdentifier(g)
-        if let c = current, c.0 == id { return c.1 }
+        if let c = current, c.owner === g { return c }
         let w = BaseWatch()
-        current = (id, w)
+        w.owner = g
+        current = w
         return w
     }
 
@@ -177,6 +180,7 @@ extension Game {
         }
         guard world.dim == .overworld, let sc = world.gen.structures else { return }
         borealAlarmTick(b, step)
+        stationOpsTick(b, step)
         // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.
         for i in 0..<max(1, coop.seatCount) {
             let pp = coop.seatPlayer(i, self).pos
