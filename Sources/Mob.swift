@@ -550,7 +550,7 @@ final class Mob {
         if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
 
-        let player = g.player.pos
+        let player = g.meleeBody          // VR: where the headset really is (Game.meleeBody); the Mac: the feet
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.

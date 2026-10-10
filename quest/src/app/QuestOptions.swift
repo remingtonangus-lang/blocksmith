@@ -38,8 +38,8 @@ enum QuestOptions {
             "q_vig": "Darkens the edges of the view while moving, turning and riding ships. Higher is more comfortable.",
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
-            "q_reclined": "Lying down: Recenter View also levels the world, horizon, HUD and menus to where you look now, pitch included.",
-            "q_swing": "On: break blocks and hit mobs by really swinging your arm at them (small wrist flicks don't count). Off: the right trigger breaks and attacks.",
+            "q_reclined": VRMelee.reclinedPostureHelp,
+            "q_swing": VRMelee.optionHelp,
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
@@ -67,7 +67,7 @@ enum QuestOptions {
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Reclined Mode: \(on(S.reclined))", "q_reclined"),
-                ("Swing Mode: \(on(S.swingMode))", "q_swing"),
+                ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
                 ("Recenter View", "q_recenter"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
@@ -86,8 +86,7 @@ enum QuestOptions {
     // The Touch layout (right-handed; Dominant Hand swaps the hands).
     static let touchRows = [
         "Right laser: aim at blocks, menus",
-        "Swing Mode: swing your arm to break / attack",
-        "R trigger: break / attack / fire (Swing Mode off)",
+    ] + VRMelee.touchRows + [
         "L trigger: use / place (hold to repeat)",
         "L grip: previous hotbar slot  R grip: next",
         "L stick: move, head-relative (teleport: aim)",
@@ -119,7 +118,7 @@ enum QuestOptions {
         case "q_vig": S.vignette = step(vignettes, vignettes.min { abs($0 - S.vignette) < abs($1 - S.vignette) } ?? 0.6, back)
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_seated": S.seated.toggle(); hooks.recenter()
-        case "q_reclined": S.reclined.toggle(); hooks.recenter()
+        case "q_reclined": S.reclined.toggle(); if S.reclined { S.swingMode = false }; hooks.recenter()
         case "q_swing": S.swingMode.toggle()
         case "q_recenter": hooks.recenter()
         case "q_hand": S.leftHanded.toggle()
