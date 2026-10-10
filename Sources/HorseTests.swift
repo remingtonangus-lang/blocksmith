@@ -356,12 +356,12 @@ enum HorseTests {
                 var p = PadSnapshot()
                 p.ly = 1
                 if (i >= 10 && i < 12) || (i >= 40 && i < 42) { p.l3 = true }
-                pm.touch = p
+                pm.simulated = p
                 g.tick(Double(dt))
                 if i == 30 || i == 110 { gaits.append(h.hs.gait) }
                 if h.pos.z < Float(z1) + 30 { h.pos.z += 90 }
             }
-            pm.touch = nil
+            pm.simulated = nil
             g.paused = wasPaused
             if wasMenu == nil && g.menu != nil { g.closeMenu() }
             g.mobs.mobs.removeAll { $0 === h }
@@ -375,12 +375,12 @@ enum HorseTests {
                 for i in 0..<60 {
                     var p = PadSnapshot()
                     if i == 50 || i == 51 { p.lt = 1 }
-                    pm.touch = p
+                    pm.simulated = p
                     g.player.pitch = pitch
                     if i == 49 { h.stamina = 20 }
                     g.tick(Double(dt))
                 }
-                pm.touch = nil
+                pm.simulated = nil
                 return h.stamina
             }
             let ahead = press(0), down = press(-1.5)
