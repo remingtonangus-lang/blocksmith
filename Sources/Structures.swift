@@ -173,6 +173,9 @@ final class StructureCache {
     var legacy: Set<Int64> = []
     // The same guard taken again when Boreal Stations arrived (2026-10-09): chunks saved before that.
     var legacyStations: Set<Int64> = []
+    // Chunks saved before the Oct 10 placement rules (WorldRules.swift: no Capital city near spawn, rarer cities, no
+    // ruined gates): a retired placement stays wherever a save had already generated part of it.
+    var explored: Set<Int64> = []
     // And when Capital cities got their market, flats and citizens (2026-10-10): a city with ground saved before that
     // keeps its old lot uses, or the new storefronts would be built against offices already saved in the next chunk.
     var legacyCapitalTowns: Set<Int64> = []

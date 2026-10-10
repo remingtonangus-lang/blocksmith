@@ -104,6 +104,7 @@ final class World {
         if dim == .overworld, let save, let sc = (gen as? WorldGen)?.structures {
             sc.legacy = save.structureGuard()
             sc.legacyStations = save.structureGuard(file: "structure-guard-stations.txt")
+            sc.explored = save.structureGuard(file: "structure-guard-oct10.txt")      // WorldRules.swift
             sc.legacyCapitalTowns = save.structureGuard(file: "structure-guard-capital-towns.txt")
         }
         World.registry.add(self)
