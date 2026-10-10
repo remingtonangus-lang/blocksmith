@@ -251,7 +251,7 @@ extension Mob {
             let aim = simd_dot(simd_normalize(-to), g.player.look)
             if aim > 0.9975 && g.world.canSee(g.player.eye, eye) {
                 if town.handsUp <= 0 {
-                    if g.clock - Townsfolk.townLastLine > 2 { Townsfolk.say(g, self, ["Easy! Easy now!", "Don't shoot!", "Put that away, mister."][Int(Rand.int(in: 0...2))]) }
+                    if g.clock - Townsfolk.townLastLine > 2 { TownVoice.speak(g, self, .handsup) }
                     if town.aimMemory <= 0 { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
                     town.aimMemory = 60
                 }
@@ -259,9 +259,9 @@ extension Mob {
             }
         }
         if town.handsUp > 0 { face(g.player.pos); return true }
-        // A greeting when you come close (each person every 45 s, one voice at a time).
-        if d < 4 && town.greetCooldown <= 0 && !lying && g.clock - Townsfolk.townLastLine > 6 {
-            town.greetCooldown = 45
+        // A greeting when you come close (each person every few minutes, within the town's unprompted-line budget).
+        if d < 4 && town.greetCooldown <= 0 && !lying && TownLaw.ambientOK(g) {
+            town.greetCooldown = TownLaw.greetGap
             face(g.player.pos)
             g.townGreet(self, v)
             return false
@@ -303,7 +303,7 @@ extension Game {
         guard m.kind == .villager else { return false }
         if m.villager?.person == nil { Townsfolk.setup(m, game: self) }
         guard let v = m.villager else { return false }
-        if m.town.anger > 0 { Townsfolk.say(self, m, "Stay back!"); return true }
+        if m.town.anger > 0 { TownVoice.speak(self, m, .angry); return true }
         if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }
         if m.lying {
             onToast?("\(v.person ?? "They") is asleep.")
@@ -313,7 +313,7 @@ extension Game {
             let f = Float(dayFraction)
             let (a, b) = k.hours
             if f < a || f > b {
-                Townsfolk.say(self, m, "We're closed. Come back \(f > 0.5 ? "in the morning" : "a little later").")
+                TownVoice.speak(self, m, .closed)
                 return true
             }
             openMenu(ShopMenu(game: self, keeper: m, kind: k))

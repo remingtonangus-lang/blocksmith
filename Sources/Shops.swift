@@ -391,7 +391,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         // Closing time ends the visit (the saloon stays open late). Craftsfolk keep no hours.
         let f = Float(game.dayFraction)
         if data?.shopKind != nil, f < kind.hours.0 || f > kind.hours.1 + 0.005 {
-            Townsfolk.say(game, m, "That's closing time. Come back tomorrow.")
+            TownVoice.speak(game, m, .closed)
             game.closeMenu()
         }
     }

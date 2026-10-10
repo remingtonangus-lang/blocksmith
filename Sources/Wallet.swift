@@ -33,14 +33,65 @@ extension Economy {
     ]
 }
 
+// Barter discounts (reputation, a cure, Friend of the Town) can't open a money loop: an offer whose payment can be
+// bought with money and whose goods can be sold for money (an emerald: the exchange) is never discounted below the
+// point where the payment is worth less, at the best shop prices, than what the goods sell for. Where the list price
+// already sits under that point the discounts simply don't apply to that offer; everything else keeps them.
+extension Economy {
+    // The least money that gets you one of an item (nil: money can't buy it): the best shop price, an emerald at the
+    // exchange's floor, or a barter for it at the deepest discount (one of the payment item, plus the second item).
+    static let cashIn: [ItemID: Float] = {
+        var v: [ItemID: Float] = [:]
+        for k in ShopKind.allCases { for c in catalog(k) {
+            guard let p = value(of: c.item) else { continue }
+            v[c.item] = min(v[c.item] ?? .infinity, Float(p) * minBuyMult - 0.5)
+        } }
+        let em = Items.id("emerald")
+        v[em] = Float(emeraldSell)
+        for _ in 0..<4 {
+            for (_, levels) in Villagers.trades { for level in levels { for t in level {
+                guard !t.sell.contains("@ench"), !t.sell.contains("@book"), Villagers.has(t.sell), Items.has(t.buy),
+                      let a = v[Items.id(t.buy)], t.sellN > 0 else { continue }
+                var cost = a
+                if let b = t.buyB { guard Items.has(b), let pb = v[Items.id(b)] else { continue }; cost += pb * Float(t.buyBN) }
+                let s = Items.id(String(t.sell.split(separator: "@")[0]))
+                v[s] = min(v[s] ?? .infinity, cost / Float(t.sellN))
+            } } }
+        }
+        return v
+    }()
+    // The most money one plain stack of an item fetches: the best shop price, or the exchange for an emerald.
+    static func cashOut(_ s: ItemStack) -> Float {
+        if isEmerald(s.item) { return Float(emeraldSell) }
+        guard Shop.sellable(s), let p = value(of: s.item), ShopKind.allCases.contains(where: { buysItem($0, s.item) }) else { return 0 }
+        return Float(p) * maxSellMult
+    }
+    // The fewest of the first payment item discounts may bring this offer to (0: no limit).
+    static func barterFloor(_ o: TradeOffer) -> Int {
+        let out = cashOut(o.sell) * Float(o.sell.count)
+        guard out > 0, let a = cashIn[o.buyA.item], a > 0 else { return 0 }
+        var other: Float = 0
+        if !o.buyB.isEmpty { guard let b = cashIn[o.buyB.item] else { return 0 }; other = b * Float(o.buyB.count) }
+        return max(0, Int(((out - other) / a).rounded(.up)))
+    }
+    // The discounted first payment, held at barterFloor (never above the undiscounted price).
+    static func barterCost(_ o: TradeOffer, discount: Int) -> ItemStack {
+        var full = o; full.special = 0
+        var d = o; d.special += discount
+        var c = d.costA
+        c.count = max(c.count, min(full.costA.count, barterFloor(o)))
+        return c
+    }
+}
+
 extension VillagerData {
     // The counter this person keeps: their shop, else their trade's.
     var tradeKind: ShopKind? { shopKind ?? (profession == "none" || profession == "nitwit" ? nil : Economy.professionShop[profession]) }
 }
 
 enum Wallet {
-    private static var shown = Int.min
-    private static var changedAt: Double = -100
+    static var shown = Int.min                      // (tests set these to start from a quiet wallet)
+    static var changedAt: Double = -100
     private static var delta = 0
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {

@@ -6,14 +6,15 @@ import simd
 // the sheriff's challenge). The text is the source of truth here; tools/townvoice_gen.py reads this table, has each
 // line spoken by the voice's speech model (ElevenLabs through OpenRouter, logged in assets/CREDITS.md) and packs the
 // takes as 16 kHz IMA-ADPCM in Resources/voices.bin (keyed by an FNV-1a hash of "voice|text", so the order here can
-// change freely). A line without a take still shows as text with a short murmur.
+// change freely). Every line the game speaks comes from this table (TownTests checks each voice has a take for every
+// context its role uses); a line without a take would show as text with a short murmur.
 //
 // Playback: Snd.voice(id) is decoded on demand (never cached: a few hundred takes would hold ~80 MB as floats) and
 // played at the speaker's mouth through the normal 3D path on both engines; the caption is "Name: line". One voice
-// at a time town-wide (Townsfolk.townLastLine) and ambient chatter at most every ~20 s near the player.
+// at a time town-wide (Townsfolk.townLastLine); unprompted lines (chatter, hellos) at most every 20 s (TownLaw.ambientGap).
 
 enum TownVoice {
-    enum Ctx: String, CaseIterable { case greet, chatter, night, bye, trade, broke, theft, angry, hurt, challenge }
+    enum Ctx: String, CaseIterable { case greet, chatter, night, bye, trade, broke, theft, angry, hurt, challenge, handsup, closed, raid }
 
     // Voice key -> (speech model voice, playback-rate change applied when packing: the child is a pitched-up take).
     static let voices: [String: (String, Double)] = [
@@ -40,6 +41,8 @@ enum TownVoice {
         ("folk", "theft", ["Hey! That's not yours.", "Put that back, friend.", "I saw that."]),
         ("folk", "angry", ["Thief! Somebody fetch the sheriff!", "Get out of our town!", "You'll pay for that!"]),
         ("folk", "hurt", ["Ow! What was that for?", "Stop it! Help!"]),
+        ("folk", "handsup", ["Easy! Easy now!", "Don't shoot!", "Put that away, mister."]),
+        ("folk", "raid", ["Get inside! They're coming!", "Grab whatever you can swing!"]),
 
         ("keeper", "greet", ["Welcome in! Have a look around.", "Fresh stock today.", "Step right up."]),
         ("keeper", "chatter", ["Business is steady, thank goodness.", "Prices are fair. Ask anyone.", "Folks always need rope and lamp oil."]),
@@ -50,6 +53,10 @@ enum TownVoice {
         ("keeper", "theft", ["Hands off the merchandise!", "That needs paying for.", "I'm watching you."]),
         ("keeper", "angry", ["Thief! Get out of my shop!", "You're not welcome here anymore."]),
         ("keeper", "hurt", ["Ow! Have you lost your mind?", "Help! Sheriff!"]),
+        ("keeper", "handsup", ["Whoa! Take whatever you want!", "Don't shoot! Please!"]),
+        ("keeper", "closed", ["Sorry, we're closed. Come back in the morning.", "Shop's shut for now. Come back a little later.",
+                              "That's closing time. Come back tomorrow."]),
+        ("keeper", "raid", ["Lock the doors! Raiders!", "Everybody inside, quick!"]),
 
         ("chef", "greet", ["Smells good, doesn't it?", "Pull up a stool.", "Hungry? You came to the right place."]),
         ("chef", "chatter", ["The secret's in the pepper. Don't tell.", "Stew's been simmering since dawn.", "Best cuts in town, right here."]),
@@ -60,6 +67,9 @@ enum TownVoice {
         ("chef", "theft", ["Hey, that's somebody's supper!", "Put that down. It isn't yours."]),
         ("chef", "angry", ["Out of my kitchen, you thief!", "You'll get nothing from me now."]),
         ("chef", "hurt", ["Watch the knives! Ow!", "Have you gone mad?"]),
+        ("chef", "handsup", ["Easy with that thing!", "Whoa, whoa! Put it down!"]),
+        ("chef", "closed", ["Kitchen's closed, friend.", "We're shut. Come back when we open.", "Ovens are cold. Come back tomorrow."]),
+        ("chef", "raid", ["Raiders! Get behind the counter!", "Bar the doors!"]),
 
         ("farmer", "greet", ["Howdy. Mind the furrows.", "Fine day for growing."]),
         ("farmer", "chatter", ["Crops are coming in nice this year.", "A good rain would do the fields some good.",
@@ -71,6 +81,8 @@ enum TownVoice {
         ("farmer", "theft", ["Hey! Those are my crops!", "Leave my field alone!", "That harvest feeds the whole town."]),
         ("farmer", "angry", ["Get off my land!", "Crop thief! Sheriff!"]),
         ("farmer", "hurt", ["Ow! Are you crazy?", "Help! Somebody!"]),
+        ("farmer", "handsup", ["Don't shoot! I'm just a farmer!", "Easy, friend. Easy."]),
+        ("farmer", "raid", ["They're coming over the fields!", "Get the animals in!"]),
 
         ("elder", "greet", ["Ah, a new face.", "Sit a spell, if you like."]),
         ("elder", "chatter", ["When I was young this was all prairie.", "Don't let them sell you what you don't need.",
@@ -80,6 +92,10 @@ enum TownVoice {
         ("elder", "theft", ["Shame on you. Put that back.", "I may be old, but I'm not blind."]),
         ("elder", "angry", ["In all my years! Get out!", "Shameful! Sheriff!"]),
         ("elder", "hurt", ["Oh! My poor back!", "Leave an old soul be!"]),
+        ("elder", "trade", ["There you are. Use it well."]),
+        ("elder", "broke", ["Not enough, I'm afraid."]),
+        ("elder", "handsup", ["Point that somewhere else, youngster.", "I'm too old for this."]),
+        ("elder", "raid", ["Raiders! Hide, everyone!", "Just like the bad old days."]),
 
         ("child", "greet", ["Hi!", "Are you a real adventurer?", "Watch this!"]),
         ("child", "chatter", ["I can run faster than anybody!", "I'm not supposed to go past the fence.", "I found a shiny rock today!"]),
@@ -88,6 +104,8 @@ enum TownVoice {
         ("child", "theft", ["I'm telling!", "That's stealing!"]),
         ("child", "angry", ["You're mean! Go away!"]),
         ("child", "hurt", ["Ow! Help!", "Stop it!"]),
+        ("child", "handsup", ["Don't hurt me!", "I'm scared!"]),
+        ("child", "raid", ["Hide! Hide!", "Monsters!"]),
 
         ("deputy", "greet", ["Keep the peace and we'll get along.", "Everything all right?"]),
         ("deputy", "chatter", ["Quiet day. I like it quiet.", "The sheriff's got eyes everywhere."]),
@@ -97,6 +115,8 @@ enum TownVoice {
         ("deputy", "angry", ["Stop right there, thief!", "You're under arrest!"]),
         ("deputy", "hurt", ["Assaulting a deputy? Big mistake."]),
         ("deputy", "challenge", ["Hold it right there!", "Don't make me draw."]),
+        ("deputy", "handsup", ["Lower that weapon. Now.", "Point that somewhere else."]),
+        ("deputy", "raid", ["Raiders! Hold the line!", "Everyone get indoors!"]),
 
         ("sheriff", "greet", ["I'm the sheriff here. Keep your nose clean.", "Peaceful town. Let's keep it that way.", "Howdy. Mind the rules and we're friends."]),
         ("sheriff", "chatter", ["Every drifter thinks this town is easy pickings.", "Coffee's terrible, but it's hot.", "Quiet streets make for a happy sheriff."]),
@@ -107,6 +127,8 @@ enum TownVoice {
         ("sheriff", "hurt", ["You just made a real big mistake.", "That's assaulting the law!"]),
         ("sheriff", "challenge", ["Hold it right there, stranger!", "Drop what you took and raise your hands.",
                                   "This is your one warning.", "Draw, if you think you're fast enough."]),
+        ("sheriff", "handsup", ["You point that at me, you'd better use it.", "Lower it. Slowly."]),
+        ("sheriff", "raid", ["Raiders! Everybody take cover!", "Nobody rides into my town like that."]),
     ]
 
     // Every (voice, context, text) take, in a fixed order: Snd.voice(id) indexes this.
@@ -150,12 +172,12 @@ enum TownVoice {
         }
     }
 
-    // A line for this person in this context (never the same twice running for one voice). Nil: the voice has none.
+    // A line for this person in this context (never the same twice running for one voice). Nil: the voice has none
+    // (always in the speaker's own voice: no borrowed lines that would have no take).
     private static var lastTake: [String: Int] = [:]
     static func line(_ ctx: Ctx, _ m: Mob) -> (String, Int)? {
         let vk = voice(m)
-        // Deputies and the sheriff fall back to the townsfolk lines for contexts they don't have (they never trade).
-        guard let ids = index[vk]?[ctx] ?? index[vk.hasSuffix("_f") ? "folk_f" : "folk_m"]?[ctx], !ids.isEmpty else { return nil }
+        guard let ids = index[vk]?[ctx], !ids.isEmpty else { return nil }
         var pick = ids[Rand.int(in: 0...(ids.count - 1))]
         if ids.count > 1 && pick == lastTake[vk] { pick = ids[(ids.firstIndex(of: pick)! + 1) % ids.count] }
         lastTake[vk] = pick
@@ -240,7 +262,7 @@ enum TownVoice {
         entries = e
     }
 
-    private static func ensure() {
+    static func ensure() {
         lock.lock()
         let done = tried
         lock.unlock()
