@@ -730,4 +730,8 @@ Code: Sources/MainGun.swift (charge, shot, impact, shockwave, shake, MainGunPerf
   names the slow stage. On the headset: logcat line "perf: main gun blast: N frames, median, p99, worst, over budget K" (not
   measured on the device yet: this cloud session cannot fetch the Android SDK to build the APK).
 - Checks: questcheck `--maingun-only` (also part of the full questcheck): barrel, shockwave, helm charge and haptics,
-  reload, crater, gravity backlog drained; with --render, maingun_frigate/barrel/charge/blast/crater.png.
+  reload, crater, gravity backlog drained, a hit past the streamed world dug once its ground loads; with --render,
+  maingun_frigate/barrel/charge/blast/crater.png.
+- Round 2 (2026-10-10): coil rings glow through the hull as the charge pulse passes and a corona gathers at the
+  muzzle (soft glow puffs that read from a few hundred blocks); a bigger fireball; a hit beyond the loaded world is
+  remembered (16 this session) and its bowl is dug quietly when the player comes near enough to load it.

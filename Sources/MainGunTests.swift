@@ -225,5 +225,27 @@ enum MainGunTests {
             let to = c - g.player.eye
             render("maingun_crater", atan2f(-to.x, -to.z), atan2f(to.y, simd_length(V2(to.x, to.z))))
         }
+
+        // 4. A hit past the streamed world (a long shot from the helm): the bowl waits and is dug, quietly, once its
+        // ground loads.
+        do {
+            w.ships.shockwaves.removeAll()
+            let fx = Int(home.x) + 2400, fz = Int(home.z) - 2400
+            let p = V3(Float(fx) + 0.5, Float(w.gen.column(fx, fz).height) + 1, Float(fz) + 0.5)
+            let pending0 = w.ships.pendingCraters.count
+            w.ships.mainGunImpact(at: p, owner: s.id, game: g)
+            MainGunPerf.finish(budget: 1000.0 / 72)
+            let waited = w.ships.pendingCraters.count == pending0 + 1 && MainGun.lastCrater == 0
+            g.player.pos = p + V3(0, 20, 0)
+            _ = w.loadSync(center: p, radius: 3)
+            var frames = 0
+            while frames < 600 && (w.ships.pendingCraters.count > pending0 || !w.ships.shockwaves.isEmpty) {
+                w.ships.updateShockwaves(1.0 / 72, game: g)
+                frames += 1
+            }
+            check(waited && MainGun.lastCrater > 1000 && w.ships.shockwaves.isEmpty,
+                  "maingun: a hit on ground not loaded yet waits, then the bowl is dug when it loads (\(MainGun.lastCrater) blocks after \(frames) frames)")
+            w.ships.pendingCraters.removeAll()
+        }
     }
 }

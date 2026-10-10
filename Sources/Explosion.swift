@@ -167,9 +167,11 @@ final class CraterJob {
     private(set) var done = false
     static let blocksPerFrame = 250
 
-    init(at c: V3, radius r: Float, cap: Int, game g: Game) {
+    // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
+    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false) {
         center = c; self.r = r; self.cap = cap
         offsets = Explosion.craterOffsets(Int(ceilf(r)))
+        if quiet { return }
         g.world.ships.blast(at: c, power: 14, game: g)
         Explosion.explode(at: c, power: 8, game: g, breakBlocks: false)
         g.particles.explosion(at: c + V3(0, 2, 0), power: 8)

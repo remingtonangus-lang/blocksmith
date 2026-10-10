@@ -25,7 +25,8 @@ enum MainGun {
     static let shockRadius: Float = 48      // mobs inside are struck as the front passes
     static let shockFelt: Float = 200       // players feel the front (shake, haptics) out to here
     static let shockSpeed: Float = 64
-    static let shockHeight: Float = 20      // the front runs along the ground: a frigate's deck 40 up is spared
+    static let shockHeight: Float = 20
+    static let pendingCap = 16                          // off-world hits remembered (this session) to dig on arrival      // the front runs along the ground: a frigate's deck 40 up is spared
     // The last impact (tests, perf notes).
     private(set) static var impacts = 0
     private(set) static var lastImpact = V3(0, 0, 0)
@@ -91,8 +92,22 @@ extension ShipManager {
             let at = mw - md * (len * (1 - (run - floorf(run))))
             g.addFlash(at: at, color: V3(0.5, 1.0, 2.6) * (1 + 3 * k), radius: 7 + 9 * k, life: 0.07)
             g.addFlash(at: mw + md, color: V3(0.9, 1.6, 3.6) * (0.4 + 4 * k * k), radius: 6 + 18 * k, life: 0.07)
-            // Sparks drawn in toward the muzzle along the barrel.
             let layer = Int(Tex.id("smoke"))
+            // The coil rings glow through the hull, each flaring as the pulse passes it, and a corona gathers at the
+            // muzzle: big soft glow puffs that read from a few hundred blocks (the lights alone don't, beyond ~40).
+            let head = len * (run - floorf(run))                 // the pulse's distance back from the breech
+            for c in stride(from: 9, through: Int(len), by: 6) {
+                let back = Float(c)                              // coil ring c blocks behind the muzzle
+                let hit = max(0, 1 - abs((len - back) - head) / 8)
+                let glow = 0.15 + 0.35 * k + 0.6 * hit
+                g.particles.add(Particle(pos: s.toWorld(st.mainGunMuzzle + V3(0, 0, back)), vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5,
+                                         layer: layer, uv0: V2(0, 0), uvSize: 1, size: 3.2 + 1.6 * hit, gravity: 0,
+                                         color: V3(0.35, 0.75, 1.0) * glow, collide: false, glow: true))
+            }
+            g.particles.add(Particle(pos: mw + md * 1.5, vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                     uvSize: 1, size: 1.5 + 6 * k * k, gravity: 0, color: V3(0.6, 0.9, 1.0) * (0.4 + 0.6 * k),
+                                     collide: false, glow: true))
+            // Sparks drawn in toward the muzzle along the barrel.
             let side = simd_normalize(simd_cross(md, V3(0, 1, 0)) + V3(0, 0, 1e-4))
             let up = simd_cross(side, md)
             var n = dt * (40 + 260 * k)
@@ -184,7 +199,11 @@ extension ShipManager {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
         let wave = Shockwave(center: p, owner: owner)
-        wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)
+        if craterGroundLoaded(p) {
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)
+        } else if pendingCraters.count < MainGun.pendingCap {
+            pendingCraters.append(p)                         // dug when the player comes near enough to load it
+        }
         shockwaves.append(wave)
         g.sfx(.mainGunRumble, 1, at: p)
         for k in 1...3 { g.particles.explosion(at: p + V3(0, Float(k) * 4, 0), power: Float(8 - k)) }
@@ -200,12 +219,19 @@ extension ShipManager {
     func mainGunFireball(at p: V3, game g: Game) {
         let smoke = Int(Tex.id("smoke"))
         let R = MainGun.craterRadius
-        for _ in 0..<70 {
+        // The fireball rolling out over the bowl, hottest at its heart.
+        for _ in 0..<16 {
+            let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (R * 0.25)
+            g.particles.add(Particle(pos: p + o + V3(0, 3, 0), vel: o * 0.8, life: Rand.float(in: 0.25...0.5), maxLife: 0.5, layer: smoke,
+                                     uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 6...10), gravity: -2, color: V3(1, 0.95, 0.7),
+                                     collide: false, glow: true))
+        }
+        for _ in 0..<120 {
             let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)))
             let heat = Rand.float(in: 0.35...0.85)
-            g.particles.add(Particle(pos: p + d * Rand.float(in: 0...(R * 0.4)), vel: d * Rand.float(in: 6...16) + V3(0, 4, 0),
-                                     life: Rand.float(in: 0.5...1.3), maxLife: 1.3, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                                     size: Rand.float(in: 2.5...6), gravity: -3, color: V3(1, heat, heat * 0.3),
+            g.particles.add(Particle(pos: p + d * Rand.float(in: 0...(R * 0.5)), vel: d * Rand.float(in: 8...20) + V3(0, 5, 0),
+                                     life: Rand.float(in: 0.6...1.8), maxLife: 1.8, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                                     size: Rand.float(in: 3.5...9), gravity: -3, color: V3(1, heat, heat * 0.3),
                                      collide: false, glow: true))
         }
         for i in 0..<40 {
@@ -220,7 +246,34 @@ extension ShipManager {
 
     // Moves the shockwaves out: mobs struck as the front passes, players shaken, dust along the front, smoke rising
     // from the bowl. Called once per frame (updateShells).
+    // Every chunk the bowl reaches is loaded (a slug past the streamed world lands on the generator's ground).
+    func craterGroundLoaded(_ p: V3) -> Bool {
+        let r = Int(ceilf(MainGun.craterRadius)) + 1
+        for z in stride(from: Int(floor(p.z)) - r, through: Int(floor(p.z)) + r, by: CS) {
+            for x in stride(from: Int(floor(p.x)) - r, through: Int(floor(p.x)) + r, by: CS) where world.chunkAt(x, z) == nil { return false }
+        }
+        return world.chunkAt(Int(floor(p.x)) + r, Int(floor(p.z)) + r) != nil
+    }
+
+    // Twice a second: a pending crater whose ground has loaded is dug quietly, a slice a frame like any other.
+    func updatePendingCraters(_ dt: Float, game g: Game) {
+        guard !pendingCraters.isEmpty else { return }
+        pendingCraterTimer -= dt
+        guard pendingCraterTimer <= 0 else { return }
+        pendingCraterTimer = 0.5
+        if let i = pendingCraters.firstIndex(where: { craterGroundLoaded($0) }) {
+            let p = pendingCraters.remove(at: i)
+            let wave = Shockwave(center: p, owner: -1)
+            wave.r = MainGun.shockFelt                       // no front, no mobs struck, no shake, no smoke: just the bowl
+            wave.age = 5
+            wave.felt = ~0
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true)
+            shockwaves.append(wave)
+        }
+    }
+
     func updateShockwaves(_ dt: Float, game g: Game) {
+        updatePendingCraters(dt, game: g)
         if shockwaves.isEmpty { return }
         let layer = Int(Tex.id("smoke"))
         for w in shockwaves {
@@ -291,7 +344,7 @@ extension ShipManager {
                 }
             }
         }
-        shockwaves.removeAll { $0.r >= MainGun.shockFelt && $0.age >= 5 }
+        shockwaves.removeAll { $0.r >= MainGun.shockFelt && $0.age >= 5 && ($0.crater?.done ?? true) }
     }
 
     // The player at a commandeered Meridian frigate's helm: attack starts the Tidebreaker's charge when it is
