@@ -93,6 +93,8 @@ extension Mob {
         if cureTimer > 0 { d["cure"] = cureTimer }
         if playerBuilt { d["built"] = 1 }
         if bond != 0 { d["bond"] = bond }
+        if let h = horse, h.bondXP > 0 { d["bxp"] = h.bondXP }
+        if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
         if faction == Faction.ashguard.rawValue { d["fac"] = Float(faction) }
     }
@@ -115,6 +117,8 @@ extension Mob {
         cureTimer = d["cure"] ?? 0
         playerBuilt = (d["built"] ?? 0) > 0
         bond = d["bond"] ?? 0
+        if let x = d["bxp"] { hs.bondXP = x }
+        if let x = d["brushCd"] { hs.brushCool = x }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup() }
     }
 }

@@ -57,9 +57,14 @@ enum VRMeleeTests {
             let drawn = VRBow.pose(grip: grip, handRot: rot, drawHand: hand)
             let far = VRBow.pose(grip: grip, handRot: rot, drawHand: V3(0.1 * sx, 1.35, 0.6))
             let wantDir = simd_normalize(grip - hand)
-            let notInverted = [rest, drawn].allSatisfy { p in
-                simd_dot(p.grip - p.limb(1), p.dir) > 0.1 && simd_dot(p.grip - p.limb(-1), p.dir) > 0.1
-                    && simd_dot(p.tipTop - p.grip, V3(0, 1, 0)) > 0.4 && simd_dot(p.tipBottom - p.grip, V3(0, 1, 0)) < -0.4
+            // Split into typed lets: as one expression the Mac CI compiler timed out type-checking it.
+            let notInverted = [rest, drawn].allSatisfy { p -> Bool in
+                let up = V3(0, 1, 0)
+                let upper: Float = simd_dot(p.grip - p.limb(1), p.dir)
+                let lower: Float = simd_dot(p.grip - p.limb(-1), p.dir)
+                let top: Float = simd_dot(p.tipTop - p.grip, up)
+                let bottom: Float = simd_dot(p.tipBottom - p.grip, up)
+                return upper > 0.1 && lower > 0.1 && top > 0.4 && bottom < -0.4
             }
             check(rest.draw == 0 && nocked.draw < 0.05 && simd_length(rest.nock - atString) < 1e-4,
                   "bow (\(name)): at rest the string sits \(VRBow.brace) m behind the grip, no draw")

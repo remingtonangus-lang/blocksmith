@@ -92,7 +92,7 @@ extension Game {
 
     // A chested mount's cargo, sized for its kind (llamas 3-15 slots by strength).
     func packContainer(_ m: Mob) -> ItemContainer {
-        let slots = m.kind == .llama || m.kind == .traderLlama ? 3 * max(1, min(5, (m.variant >> 4) & 7)) : 15
+        let slots = m.kind == .llama || m.kind == .traderLlama ? 3 * max(1, min(5, (m.variant >> 4) & 7)) : (m.saddlebags ? 9 : 15)
         if m.cargo == nil || m.cargo!.count != slots {
             let c = ItemContainer(slots)
             if let old = m.cargo { for i in 0..<min(old.count, slots) { c[i] = old[i] } }

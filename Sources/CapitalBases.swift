@@ -160,6 +160,7 @@ extension Game {
 
     // The noise bus: guns, cannon, turrets and explosions report here; citadels within hearing react.
     func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true) {
+        horseHears(at: p, kind: kind, power: power)        // a ridden horse spooks (HorseFeel.swift)
         let b = bases
         if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet)) }
     }

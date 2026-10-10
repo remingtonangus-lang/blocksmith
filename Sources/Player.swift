@@ -7,6 +7,7 @@ struct MoveInput {
     var jump = false
     var sneak = false
     var sprint = false
+    var spur = false         // a fresh sprint press (riding: spurs a horse up a gait, HorseFeel.swift)
 }
 
 final class Player {

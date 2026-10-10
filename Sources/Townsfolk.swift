@@ -288,9 +288,10 @@ extension Mob {
         func open(_ k: Int, _ dx: Int, _ dz: Int) -> Bool {
             !Blocks.collide[Int(w.block(js[0] + k * dx, js[1], js[2] + k * dz))] && !Blocks.collide[Int(w.block(js[0] + k * dx, js[1] + 1, js[2] + k * dz))]
         }
-        // The counter is one block high with the room open beyond it (the shelves behind the keeper have the wall beyond).
+        // The counter is one block high with the floor open beyond it (the shelves behind the keeper have the wall beyond; a
+        // stool may stand a block further out, so only the cell two out is asked for).
         for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where Blocks.collide[Int(w.block(js[0] + dx, js[1], js[2] + dz))]
-            && open(2, dx, dz) && open(3, dx, dz) {
+            && open(2, dx, dz) {
             return V3(Float(js[0] + 2 * dx) + 0.5, Float(js[1]), Float(js[2] + 2 * dz) + 0.5)
         }
         return V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
