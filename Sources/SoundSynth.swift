@@ -771,6 +771,8 @@ struct Synth {
         case .waterLoop: out = waterLoop(3.0, pitch: p)
         case .portalLoop: out = portalLoop(4.0)
         case .beaconLoop: out = droneLoop(4.0, f: 220, partials: 4, detune: 0.004, noiseLP: 2500, noiseGain: 0.05, gain: 0.3)
+        // Boreal Station bunker: mains hum (a low fundamental with its odd buzz) under a thin fluorescent hiss.
+        case .stationHumLoop: out = droneLoop(4.0, f: 60, partials: 6, detune: 0.002, noiseLP: 5000, noiseGain: 0.03, gain: 0.22)
         case .minecartLoop: out = Synth.loopify(Synth.mix(wash(2.5, lp: 900, hp: 80, wobble: 0.4, rate: 6, gain: 0.8), crackle(2.5, density: 40, f: 1800, q: 3, gain: 0.6)), fade: 0.3)
         case .elytraLoop: out = windLoop(3.0, lp: 1500, gain: 0.9)
         case .underwaterLoop: out = underwaterLoop(4.0)

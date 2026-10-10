@@ -17,6 +17,8 @@ cold and clean, buried under snow. The layout is original.
 - New blocks: Station Concrete (+ stairs/slab, dark band, floor), Steel Railing, Corner Lamp (light 12, blue),
   Data Cabinet, Bulkhead Door. Procedural painters in TextureGen.borealPainters; cool blue-grey so the amber block
   light reads cold.
+- Sound: a low mains hum (Snd.stationHumLoop, "Machinery hums") from corner lamps and data cabinets, through the
+  ambience director's emitters; no birds or wind in the bunker.
 - Reachable with /locate boreal_station, the pause-menu Shortcuts list, and the world map ("N" marker).
 
 ## Checks
@@ -24,7 +26,8 @@ cold and clean, buried under snow. The layout is original.
   Mac: `Blocksmith --borealtest`. Per seed: station near spawn, structcheck clean, walk route from the gate reaches the
   hall and all 8 rooms, no dim floor cells (block light >= 8) in the bunker, stairwell and blockhouse, stair landings
   clear, >= 80% concrete faces, >= 250 lamps, 12 + 3 doors, no snow inside, snow layer on roofs and yard, garrison
-  not inside blocks, generation cost close to plain terrain.
+  not inside blocks, generation cost close to plain terrain, every planned snow drift present, the hall and a
+  corridor hum at noon with no wildlife, and the hum renders clean (seamless loop, quieter than a beacon).
 - Golden shots: boreal_station, boreal_gate, boreal_corridor, boreal_hall, boreal_stairs, boreal_radar (`questcheck --golden DIR`).
 
 ## Evidence (2026-10-09, cloud thread, lavapipe)

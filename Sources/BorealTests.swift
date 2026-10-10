@@ -192,6 +192,34 @@ enum BorealTests {
             }
             check(mobs >= 20 && stuck == 0, "boreal \(seed): \(mobs) garrison mobs, \(stuck) inside blocks")
 
+            // Sound: the ambience director, standing in the hall and in a corridor, plays the station hum (lamps and
+            // data cabinets are its emitters) and no wildlife. First seed only (a Game of its own).
+            if seed == seeds.first {
+                // The hum itself: rendered like `Blocksmith --sounds` checks it (non-silent, unclipped, seamless loop),
+                // and quieter than a beacon's drone (a bed under everything, not a feature).
+                let hum = SoundBank.render(.stationHumLoop, variant: 0), hc = SoundBank.check(.stationHumLoop, hum)
+                let beacon = SoundBank.check(.beaconLoop, SoundBank.render(.beaconLoop, variant: 0))
+                check(hc.ok && hc.rms < beacon.rms, String(format: "boreal: station hum %.1f s, rms %.3f (beacon %.3f), peak %.2f %@",
+                                                           hc.seconds, hc.rms, beacon.rms, hc.peak, hc.problems.joined(separator: ", ")))
+            }
+            if seed == seeds.first {
+                let g = Game(world: world, save: nil, persistent: false)
+                g.paused = false
+                g.weather.raining = false; g.weather.rain = 0
+                for (label, dx, dz) in [("hall", 0, 5), ("corridor", -12, 10)] {
+                    g.player.pos = V3(Float(cx + dx) + 0.5, Float(F + 1), Float(cz + dz) + 0.5); g.player.vel = .zero
+                    g.time = 0.25 * DAY_LENGTH
+                    g.audio.record = [:]
+                    var t: Float = 0
+                    while t < 12 { g.audioAmbientTick(0.05); t += 0.05 }
+                    let rec = g.audio.record ?? [:]
+                    g.audio.record = nil
+                    let wild = rec.keys.filter { k in ["birdCall", "owlHoot", "loop:crickets", "loop:jungle", "loop:wind"].contains { k.hasPrefix($0) } }
+                    check((rec["loop:stationhum"] ?? 0) > 0 && wild.isEmpty,
+                          "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " "))")
+                }
+            }
+
             // Cost: the station chunks against ordinary chunks of the same world.
             let tc = CFAbsoluteTimeGetCurrent()
             for k in 0..<4 { _ = world.gen.generate(cx: floorDiv(cx, CS) + (k % 2), cz: floorDiv(cz, CS) + (k / 2)) }
