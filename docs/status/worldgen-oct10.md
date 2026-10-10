@@ -37,7 +37,10 @@ spawn search (Game.findSpawn, now static), cached per seed.
 | nearest Capital citadel from spawn | min 65, median 467, max 1458 | min 335, median 587, max 1458 |
 | citadels per 2048^2 square | 4.0 | 3.8 |
 
-Remington's seed: nearest Capital city now 2,015 blocks from spawn (25 seeds incl. his: min 1,248, median 1,631).
+Remington's seed: the seed's spawn is at 5432,1928 and its nearest Capital city is now 2,076 blocks from it (25
+seeds incl. his: min 1,248, median 1,631). The city he met (09:22:48, at -1155,-26) is about 6,700 blocks from that
+spawn, so his Quest world's play area is near an older or a respawn origin, not the seed spawn; it is explored, so
+it stays in that save either way. New worlds get the rule.
 
 ## 2. Volcanoes
 
