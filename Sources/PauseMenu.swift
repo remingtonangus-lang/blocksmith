@@ -60,7 +60,7 @@ final class PauseMenu: Menu {
         b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
     }
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
-                                        "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
+                                        "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "smooth", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
 
@@ -111,6 +111,7 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
+        "smooth": "Prototype. On: natural ground (stone, dirt, sand, ores) is smooth instead of cubic; built blocks stay cubic.",
         "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
         "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
@@ -231,7 +232,8 @@ final class PauseMenu: Menu {
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
                         ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
-                        ("Block Chipping: \(on(st.chipping))", "chipping")]
+                        ("Block Chipping: \(on(st.chipping))", "chipping"),
+                        ("Smooth Terrain (Prototype): \(on(st.smoothTerrain))", "smooth")]
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
                 rows = audioRows().filter { $0.1 != "audio_back" }
@@ -553,6 +555,7 @@ final class PauseMenu: Menu {
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()
         case "chipping": st.chipping.toggle()
+        case "smooth": st.smoothTerrain.toggle(); SmoothTerrain.set(st.smoothTerrain, world: g.world)
         case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "display":
             let list = VideoState.displays

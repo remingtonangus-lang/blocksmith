@@ -98,7 +98,7 @@ extension QuestSettings {
             let line = raw.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
             let kv = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
             guard kv.count == 2, !kv[0].isEmpty else { continue }
-            let key = kv[0] == "renderDistance" ? "renderDistance" : "quest." + kv[0], v = kv[1]
+            let key = kv[0] == "renderDistance" || kv[0] == "smoothTerrain" ? kv[0] : "quest." + kv[0], v = kv[1]
             if let b = ["true": true, "false": false, "on": true, "off": false][v.lowercased()] { d.set(b, forKey: key) }
             else if let i = Int(v) { d.set(i, forKey: key) }
             else if let f = Float(v) { d.set(f, forKey: key) }

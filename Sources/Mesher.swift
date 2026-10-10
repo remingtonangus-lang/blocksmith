@@ -247,7 +247,9 @@ enum Mesher {
         if base >= centre.count { return SectionMesh(opaque: [], trans: [], light: nil) }
         var anyBlock = false
         for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
-        if !anyBlock { return SectionMesh(opaque: [], trans: [], light: nil) }
+        // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
+        let smooth = SmoothTerrain.enabled, natT = SmoothTerrain.natural
+        if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
         // All scratch memory is per worker thread and reused (allocating and zeroing three 110K-cell arrays
@@ -282,7 +284,7 @@ enum Mesher {
             for z in (C0 - 1)...(C0 + 16) {
                 for x in (C0 - 1)...(C0 + 16) {
                     let edges = (ry == C0 - 1 || ry == C0 + 16 ? 1 : 0) + (z == C0 - 1 || z == C0 + 16 ? 1 : 0) + (x == C0 - 1 || x == C0 + 16 ? 1 : 0)
-                    if edges >= 2 { continue }
+                    if edges >= 2 && !smooth { continue }
                     if !opaqueT[Int(R[x + z * RW + ry * RL])] { buried = false; break outer }
                 }
             }
@@ -403,6 +405,7 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
+                    if smooth && natT[bi] && !(anyDmg && dmg[i] != nil) { continue }
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -707,6 +710,12 @@ enum Mesher {
                 }
             }
         }
+        if smooth {
+            smoothQuads(R, sc, dmg: dmg) { x16, y16, z16, f, tint, layer, ao, l, overlay in
+                curCut = false
+                vert(false, x16, y16, z16, f, tint, 31, 31, layer, ao, l, overlay)
+            }
+        }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
         for f in 0..<6 {
             let axis = f / 2
@@ -844,10 +853,16 @@ final class MeshScratch {
     let stack = UnsafeMutablePointer<Int32>.allocate(capacity: 4096)
     let queue = GrowBuf<Int32>(1 << 16)
     let opq = GrowBuf<UInt32>(1 << 14), cut = GrowBuf<UInt32>(1 << 12), trn = GrowBuf<UInt32>(1 << 12)
+    // Smooth terrain (SmoothTerrain.swift): solid flags 20^3, density 18^3, dual vertices 17^3 (xyz, light | ao << 8).
+    let smS = UnsafeMutablePointer<UInt8>.allocate(capacity: 20 * 20 * 20)
+    let smD = UnsafeMutablePointer<Float>.allocate(capacity: 18 * 18 * 18)
+    let smV = UnsafeMutablePointer<Float>.allocate(capacity: 17 * 17 * 17 * 3)
+    let smL = UnsafeMutablePointer<Int32>.allocate(capacity: 17 * 17 * 17)
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate()
     }
 
     static var current: MeshScratch {

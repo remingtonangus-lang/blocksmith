@@ -224,9 +224,10 @@ final class World {
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
         var sync: [(Chunk, Int)] = []
-        for dz in -1...1 {
-            for dx in -1...1 {
-                for dy in -1...1 {
+        let r = SmoothTerrain.enabled ? 2 : 1       // smooth vertices move with blocks up to 2 away
+        for dz in -r...r {
+            for dx in -r...r {
+                for dy in -r...r {
                     let yy = y + dy
                     guard yy >= 0 && yy < CH, let n = chunkAt(x + dx, z + dz) else { continue }
                     let sy = yy >> 4
@@ -392,6 +393,21 @@ final class World {
         return dd
     }
 
+    // The cells a body would push into at foot level are all natural ground (SmoothTerrain), with room above.
+    func naturalStep(_ b: (V3, V3)) -> Bool {
+        let y = Int(floor(b.0.y + 0.5))
+        var hit = false
+        for x in Int(floor(b.0.x))...Int(floor(b.1.x - 1e-4)) {
+            for z in Int(floor(b.0.z))...Int(floor(b.1.z - 1e-4)) {
+                let id = block(x, y, z)
+                if !Blocks.collide[Int(id)] { continue }
+                if !SmoothTerrain.natural[Int(id)] { return false }
+                hit = true
+            }
+        }
+        return hit
+    }
+
     // Moves a body (feet-centred AABB) by delta with collision and optional step-up.
     // Returns which axes were blocked.
     func moveBody(_ pos: inout V3, halfW: Float, height: Float, _ delta: V3, step: Float, onGround: Bool) -> (x: Bool, y: Bool, z: Bool) {
@@ -415,16 +431,21 @@ final class World {
             var (p, hx, hy, hz) = attempt(pos, sd)
             if step > 0 && (hx || hz) && (onGround || (hy && sd.y < 0)) {
                 // Try stepping up (slabs, stairs): lift, move horizontally, drop back down.
-                let up = sweep(box(pos).0, box(pos).1, axis: 1, step)
-                var lifted = pos
-                lifted.y += up
-                let (p2, hx2, _, hz2) = attempt(lifted, V3(sd.x, 0, sd.z))
-                let (mn2, mx2) = box(p2)
-                let down = sweep(mn2, mx2, axis: 1, -up - max(0, -sd.y))
-                var p3 = p2
-                p3.y += down
-                let gain = simd_length(V2(p3.x - pos.x, p3.z - pos.z)) - simd_length(V2(p.x - pos.x, p.z - pos.z))
-                if gain > 1e-4 { p = p3; hx = hx2; hz = hz2; hy = true }
+                func tryStep(_ step: Float) -> Bool {
+                    let up = sweep(box(pos).0, box(pos).1, axis: 1, step)
+                    var lifted = pos
+                    lifted.y += up
+                    let (p2, hx2, _, hz2) = attempt(lifted, V3(sd.x, 0, sd.z))
+                    let (mn2, mx2) = box(p2)
+                    let down = sweep(mn2, mx2, axis: 1, -up - max(0, -sd.y))
+                    var p3 = p2
+                    p3.y += down
+                    let gain = simd_length(V2(p3.x - pos.x, p3.z - pos.z)) - simd_length(V2(p.x - pos.x, p.z - pos.z))
+                    if gain > 1e-4 { p = p3; hx = hx2; hz = hz2; hy = true; return true }
+                    return false
+                }
+                // Smooth terrain: a one-block step of natural ground is a slope, walked up without a jump.
+                if !tryStep(step) && step < 1 && SmoothTerrain.enabled && naturalStep(box(pos + V3(sd.x, 0, sd.z))) { _ = tryStep(1.01) }
             }
             pos = p
             bx = bx || hx; by = by || hy; bz = bz || hz
@@ -434,7 +455,7 @@ final class World {
 
     // MARK: Meshing
 
-    private func neighbourhood(_ c: Chunk) -> ([BlockStore], [[Int16]])? {
+    func neighbourhood(_ c: Chunk) -> ([BlockStore], [[Int16]])? {
         var n9: [BlockStore] = []
         var h9: [[Int16]] = []
         n9.reserveCapacity(9)
@@ -469,6 +490,11 @@ final class World {
             let q = m.opaque.count / 8
             return (m.solidQuads, q - m.solidQuads)
         }
+    }
+
+    // Every loaded section meshes again (in the background), e.g. after the smooth terrain toggle.
+    func remeshAll() {
+        for c in chunks.values { for s in c.sections where s.meshedVersion != -1 { s.version += 1 } }
     }
 
     private func remeshSync(_ c: Chunk, _ sy: Int) {

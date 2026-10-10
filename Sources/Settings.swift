@@ -65,6 +65,7 @@ final class Settings {
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
+    @Pref("smoothTerrain") var smoothTerrain = false   // prototype: natural ground meshes smooth (SmoothTerrain.swift)
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
     @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom

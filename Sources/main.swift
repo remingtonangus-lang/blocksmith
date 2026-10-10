@@ -1116,6 +1116,7 @@ enum Snapshot {
             return Int32(StructScan.near(seed: UInt64(a[i + 1]) ?? 0, x: Int(a[i + 2]) ?? 0, z: Int(a[i + 3]) ?? 0))
         }
         if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
+        if CommandLine.arguments.contains("--smoothtest") { return SmoothTests.run(game) > 0 ? 1 : 0 }   // smooth terrain prototype
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
