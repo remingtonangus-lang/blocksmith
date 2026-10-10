@@ -131,6 +131,7 @@ final class StructureStart {
     let min: IVec3
     let max: IVec3
     let anchor: IVec3                     // a representative walkable spot (start piece floor)
+    var plan: AnyObject?                  // the layout a kind keeps for later queries (CapitalCity.Plan)
     init(kind: String, pieces: [Piece], anchor: IVec3) {
         self.kind = kind
         self.anchor = anchor
@@ -175,6 +176,9 @@ final class StructureCache {
     // Chunks saved before the Oct 10 placement rules (WorldRules.swift: no Capital city near spawn, rarer cities, no
     // ruined gates): a retired placement stays wherever a save had already generated part of it.
     var explored: Set<Int64> = []
+    // And when Capital cities got their market, flats and citizens (2026-10-10): a city with ground saved before that
+    // keeps its old lot uses, or the new storefronts would be built against offices already saved in the next chunk.
+    var legacyCapitalTowns: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }

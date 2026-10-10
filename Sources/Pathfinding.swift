@@ -46,6 +46,8 @@ struct PathProfile {
     var waterCost: Float = 8
     var doors = false
     var climbs = true
+    var range = 48                            // farthest goal searched for (x + z blocks); farther ones aren't tried
+    var hurdleCost: Float = 0                  // extra cost to step up onto a one-block ridge (counters, low walls)
 }
 
 enum PathFinder {
@@ -243,7 +245,7 @@ enum PathFinder {
         s.expanded = 0
         s.finished = false
         let start = s.start, goal = s.goal
-        if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { s.finished = true; return s }
+        if abs(goal.x - start.x) + abs(goal.z - start.z) > pr.range { s.finished = true; return s }
         let dx = Float(start.x - goal.x), dy = Float(start.y - goal.y), dz = Float(start.z - goal.z)
         let h0: Float = (dx * dx + dy * dy + dz * dz).squareRoot()
         s.pts.append(start); s.gCost.append(0); s.parent.append(-1); s.closed.append(false)
@@ -342,6 +344,10 @@ enum PathFinder {
                     let dy = di2 == 0 ? 0 : (di2 == 1 ? 1 : 1 - di2)
                     let q = IVec3(qx, p.y + dy, qz)
                     if dy == 1 && !open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1, span: pr.span) { continue }      // headroom to jump
+                    // A jump rises 1 block plus the difference in floor heights: from a bottom slab onto a full block is
+                    // 1.5, more than a mob can jump (citizens jumped at a terrace edge off a half-step walkway all night:
+                    // CapitalTownTests seed 55555). Floors are the cells' collision tops under the feet.
+                    if dy == 1 && 1 + solidTop(w, qx, p.y, qz) - solidTop(w, p.x, p.y - 1, p.z) > 1.25 { continue }
                     if dy < 0 && !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue }             // clear drop column
                     guard let c = standCost(w, qx, q.y, qz, pr) else {
                         // A solid cell at this level ends the search downwards (can't drop through it).
@@ -349,7 +355,10 @@ enum PathFinder {
                         continue
                     }
                     if dy == 0 { flat |= 1 << di }
-                    add(i, q, c + (dy > 0 ? 0.5 : 0) + (dy < 0 ? Float(-dy) * 0.4 : 0))
+                    // Over a one-block ridge (up onto it, the floor beyond back at this level) costs extra where the profile
+                    // says so: a barkeep coming back routed over the bar rather than round its end (seeds 1, 777).
+                    let hurdle = dy == 1 && pr.hurdleCost > 0 && standCost(w, qx + dx, p.y, qz + dz, pr) != nil ? pr.hurdleCost : 0
+                    add(i, q, c + (dy > 0 ? 0.5 : 0) + (dy < 0 ? Float(-dy) * 0.4 : 0) + hurdle)
                     break
                 }
             }
@@ -400,6 +409,10 @@ extension Mob {
             pr.maxDrop = 3 + max(0, lost)
         }
         if kind == .chicken || spec.fireImmune && kind == .magmaCube { pr.maxDrop = 16 }   // flutters down / bounces
+        // Townsfolk walk across a town (a Capital citizen's flat to an office two lots away, ~70 blocks): beyond 48 the
+        // search wasn't tried at all and they walked straight at the walls in between (CapitalTownTests day sim). Their
+        // searches stay capped at 1500 nodes, so a far goal costs no more than a near one behind a house.
+        if kind == .villager { pr.range = 160; pr.hurdleCost = 8 }
         return pr
     }
 

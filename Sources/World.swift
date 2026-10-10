@@ -106,6 +106,7 @@ final class World {
             sc.legacy = save.structureGuard()
             sc.legacyStations = save.structureGuard(file: "structure-guard-stations.txt")
             sc.explored = save.structureGuard(file: "structure-guard-oct10.txt")      // WorldRules.swift
+            sc.legacyCapitalTowns = save.structureGuard(file: "structure-guard-capital-towns.txt")
         }
         World.registry.add(self)
     }
