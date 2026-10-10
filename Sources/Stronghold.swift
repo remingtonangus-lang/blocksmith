@@ -82,7 +82,7 @@ enum Stronghold {
             let cx = ox + k.x * cell, cz = oz + k.z * cell
             if n.kind == .portal { portalAt = IVec3(cx, y, cz) }
             let pseed = seed &+ UInt64(bitPattern: Int64(k.x &* 92821 &+ k.z &* 68917))
-            pieces.append(Piece(min: IVec3(cx - 6, y - 1, cz - 6), max: IVec3(cx + 6, y + 40, cz + 6)) { w in
+            pieces.append(Piece(min: IVec3(cx - 6, y - 11, cz - 6), max: IVec3(cx + 6, y + 40, cz + 6)) { w in      // y range only for checks: writes below it (foundations) still land
                 build(&w, n, cx: cx, cz: cz, y: y, seed: pseed)
             })
         }
@@ -94,6 +94,8 @@ enum Stronghold {
         for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where w.inside(x, y, z) {
             let wall = x == x0 || x == x1 || z == z0 || z == z1 || y == y0 || y == y1
             w.set(x, y, z, wall ? mat(x, y, z) : AIR)
+            // Foundations down through cave air under the floor (structcheck floating: up to 242 columns hung over caves).
+            if y == y0 { w.pillarDown(x, y0 - 1, z, mat(x, y0 - 1, z), minY: y0 - 40) }      // 10 left 28-223 columns over deeper caves (run 357)
         } } }
     }
 
@@ -110,6 +112,11 @@ enum Stronghold {
                 let a = dz > 0 ? cz : cz - half, b = dz > 0 ? cz + half : cz
                 shell(&w, cx - 2, y, a, cx + 2, y + 4, b)
             }
+            // Open the corridor's end at the cell edge: both neighbours' corridor shells put an end wall on the same
+            // plane, which sealed every room off from the next (structcheck: all 80 stronghold POIs unreachable).
+            let ex = cx + dx * half, ez = cz + dz * half
+            let ox: Int = dz != 0 ? 1 : 0, oz: Int = dx != 0 ? 1 : 0
+            w.fill(ex - ox, y + 1, ez - oz, ex + ox, y + 3, ez + oz, AIR)
         }
         func openings(_ r: Int, _ top: Int) {
             for d in 0..<4 where n.links[d] {
@@ -122,12 +129,16 @@ enum Stronghold {
         case .corridor:
             shell(&w, cx - 2, y, cz - 2, cx + 2, y + 4, cz + 2)
             openings(2, 3)
-            if rng.chance(0.3) { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch")) }
+            // Torches hang on a wall (they stood in mid-air): the east wall unless a doorway opens it, else the south.
+            if rng.chance(0.3) {
+                if !n.links[0] { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch") + 3) }
+                else if !n.links[2] { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch") + 1) }
+            }
         case .chest:
             shell(&w, cx - 3, y, cz - 3, cx + 3, y + 5, cz + 3)
             openings(3, 3)
             w.chest(cx + 2, y + 1, cz + 2, loot: "stronghold_corridor", seed: rng.next(), facing: 2)
-            w.set(cx - 2, y + 3, cz - 2, Blocks.id("torch"))
+            w.set(cx - 2, y + 3, cz - 2, Blocks.id("torch") + 4)                // on the west wall
         case .start, .crossing:
             shell(&w, cx - 5, y, cz - 5, cx + 5, y + 8, cz + 5)
             openings(5, 3)
@@ -146,7 +157,8 @@ enum Stronghold {
                 // Crossing: a pillar in the middle with torches, sometimes a fountain.
                 if rng.chance(0.5) {
                     w.fill(cx - 1, y + 1, cz - 1, cx + 1, y + 7, cz + 1, Blocks.id("stone_bricks"))
-                    for (tx, tz) in [(-2, 0), (2, 0), (0, -2), (0, 2)] { w.set(cx + tx, y + 4, cz + tz, Blocks.id("torch")) }
+                    // On the pillar's four faces (wall torch state = 1 + the way it faces).
+                    for (tx, tz, st) in [(-2, 0, 3), (2, 0, 4), (0, -2, 1), (0, 2, 2)] { w.set(cx + tx, y + 4, cz + tz, Blocks.id("torch") + BlockID(st)) }
                 } else {
                     w.fill(cx - 2, y + 1, cz - 2, cx + 2, y + 1, cz + 2, Blocks.id("stone_brick_slab"))
                     w.fill(cx - 1, y + 1, cz - 1, cx + 1, y + 1, cz + 1, WATER)
@@ -170,7 +182,10 @@ enum Stronghold {
             let shelf = Blocks.id("bookshelf"), web = Blocks.id("cobweb")
             for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) {
                 let wallRow = abs(x - cx) == 4 || abs(z - cz) == 4
-                let shelfRow = (z - cz) % 3 == 0 && abs(x - cx) <= 2
+                // An aisle at cx + 1 through every shelf row (cx keeps its shelf for the ladder): a room linked only north
+                // or south was a dead-end pocket between the doorway and the first row (structcheck: library chests
+                // unreachable in 4 of 9 strongholds).
+                let shelfRow = (z - cz) % 3 == 0 && abs(x - cx) <= 2 && x != cx + 1
                 if (wallRow && !(abs(x - cx) <= 1 || abs(z - cz) <= 1)) || shelfRow {
                     w.fill(x, y + 1, z, x, y + (wallRow ? 7 : 3), z, shelf)
                 }
@@ -178,15 +193,22 @@ enum Stronghold {
             } }
             // Balcony walkway with the library chest.
             w.fill(cx - 4, y + 5, cz - 4, cx + 4, y + 5, cz - 3, Blocks.id("oak_planks"))
+            // A ladder up to it against the shelf row underneath (the balcony chest had no way up).
+            for yy in (y + 1)...(y + 5) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 2) }
             w.chest(cx + 3, y + 6, cz - 4, loot: "stronghold_library", seed: rng.next(), facing: 1)
             w.chest(cx - 3, y + 1, cz + 3, loot: "stronghold_library", seed: rng.next(), facing: 0)
         case .portal:
             shell(&w, cx - 5, y, cz - 6, cx + 5, y + 9, cz + 6)
+            // The room is 13 long in z: its z walls sit at +-6, so cut there too (a portal room linked along z stayed
+            // sealed: structcheck, 2 of 9 strongholds reached only the portal room).
             openings(5, 3)
+            openings(6, 3)
             let frame = Blocks.id("end_portal_frame")
             let pz = cz + 2
-            // Raised platform, lava pool under the portal, stairs up from the entrance side.
-            w.fill(cx - 3, y + 1, pz - 3, cx + 3, y + 3, pz + 3, Blocks.id("stone_bricks"))
+            // Raised platform, lava pool under the portal, stairs up from the entrance side. It ends a row short of
+            // the +z wall: reaching it, it walled off a doorway on that side (a room linked south was sealed: 1 of 9
+            // strongholds reached only the portal room, 93 cells).
+            w.fill(cx - 3, y + 1, pz - 3, cx + 3, y + 3, pz + 2, Blocks.id("stone_bricks"))
             w.fill(cx - 1, y + 3, pz - 1, cx + 1, y + 3, pz + 1, LAVA)
             for i in -1...1 {
                 w.set(cx + i, y + 4, pz - 2, frame + (rng.chance(0.1) ? 1 : 0))
@@ -197,7 +219,7 @@ enum Stronghold {
             let st = Blocks.id("stone_brick_stairs")
             for (i, yy) in [(0, 1), (1, 2), (2, 3)] { w.fill(cx - 1, y + yy, pz - 6 + i, cx + 1, y + yy, pz - 6 + i, st + 1) }
             w.spawner(cx, y + 4, pz - 3, mob: "silverfish")
-            for (tx, tz) in [(-4, -5), (4, -5), (-4, 5), (4, 5)] { w.set(cx + tx, y + 3, cz + tz, Blocks.id("torch")) }
+            for (tx, tz) in [(-4, -5), (4, -5), (-4, 5), (4, 5)] { w.set(cx + tx, y + 3, cz + tz, Blocks.id("torch") + BlockID(tx < 0 ? 4 : 3)) }
             // Iron-bar windows along the sides.
             for z in stride(from: cz - 4, through: cz + 4, by: 2) {
                 w.fill(cx - 5, y + 5, z, cx - 5, y + 6, z, Blocks.id("iron_bars"))

@@ -19,11 +19,16 @@ extension MobKind {
         case .wolf: return a("Wolf", 0.3, 0.85, 8, 3.2, xp: 2, call: .mobWolf, attack: 4)
         case .cat: return a("Cat", 0.3, 0.7, 10, 3, drops: [("string", 0, 2)], xp: 2, call: .mobCat, attack: 3)
         case .ocelot: return a("Ocelot", 0.3, 0.7, 10, 3.4, xp: 2, call: .mobCat, attack: 3)
-        case .horse: return a("Horse", 0.7, 1.6, 22, 3, drops: [("leather", 0, 2)], xp: 2, call: .mobHorse)
-        case .donkey: return a("Donkey", 0.7, 1.5, 22, 3, drops: [("leather", 0, 2)], xp: 2, call: .mobHorse)
-        case .mule: return a("Mule", 0.7, 1.6, 22, 3, drops: [("leather", 0, 2)], xp: 2, call: .mobHorse)
-        case .llama, .traderLlama: return a(self == .llama ? "Llama" : "Trader Llama", 0.45, 1.87, 22, 2.5, drops: [("leather", 0, 2)], xp: 2, call: .mobLlama)
+        case .horse: return a("Horse", 0.7, 1.6, 22, 3, drops: [("leather", 1, 3)], xp: 2, call: .mobHorse)
+        case .donkey: return a("Donkey", 0.7, 1.5, 22, 3, drops: [("leather", 1, 3)], xp: 2, call: .mobHorse)
+        case .mule: return a("Mule", 0.7, 1.6, 22, 3, drops: [("leather", 1, 3)], xp: 2, call: .mobHorse)
+        case .llama, .traderLlama: return a(self == .llama ? "Llama" : "Trader Llama", 0.45, 1.87, 22, 2.5, drops: [("leather", 1, 3)], xp: 2, call: .mobLlama)
         case .camel: return a("Camel", 0.85, 2.375, 32, 2.2, xp: 2, call: .mobHorse)
+        case .camelHusk: return a("Dust Camel", 0.85, 2.375, 32, 2.2, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
+        case .parched: return a("Sunscorched Skeleton", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged)
+        case .nautilus: return a("Nautilus", 0.45, 0.9, 15, 3, drops: [("nautilus_shell", 0, 1)], xp: 2, call: .splash, aquatic: true)
+        case .zombieNautilus: return a("Sunken Nautilus", 0.45, 0.9, 15, 3, drops: [("rotten_flesh", 0, 1)], xp: 5, call: .mobZombie, aquatic: true)
+        case .copperGolem: return a("Copper Golem", 0.3, 1.0, 12, 2.6, drops: [("copper_ingot", 1, 3)], xp: 0, call: .step(.metal))
         case .goat: return a("Goat", 0.45, 1.3, 10, 2.5, xp: 2, call: .mobSheep, attack: 2)
         case .panda: return a("Panda", 0.65, 1.25, 20, 1.8, drops: [("bamboo", 0, 1)], xp: 2, call: .mobPig, attack: 6)
         case .polarBear: return a("Polar Bear", 0.7, 1.4, 30, 3, drops: [("cod", 0, 2), ("salmon", 0, 2)], xp: 2, call: .mobRavager, attack: 6)
@@ -32,7 +37,7 @@ extension MobKind {
         case .tadpole: return a("Tadpole", 0.2, 0.3, 6, 2, xp: 0, call: .mobSlime, aquatic: true)
         case .armadillo: return a("Armadillo", 0.35, 0.65, 12, 2.5, xp: 2, call: .mobPig)
         case .sniffer: return a("Snuffler", 0.95, 1.75, 14, 1.8, xp: 2, call: .mobCow)
-        case .mooshroom: return a("Mushroom Cow", 0.45, 1.4, 10, 1, drops: [("beef", 1, 3), ("leather", 0, 2)], xp: 2, call: .mobCow)
+        case .mooshroom: return a("Mushroom Cow", 0.45, 1.4, 10, 1, drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
         case .bee: return a("Bee", 0.35, 0.6, 10, 3, xp: 2, call: .mobBee, attack: 2, flying: true)
         case .parrot: return a("Parrot", 0.25, 0.9, 6, 3, drops: [("feather", 1, 2)], xp: 2, call: .mobChicken, flying: true)
         case .bat: return a("Bat", 0.25, 0.9, 6, 3, xp: 0, call: .mobVex, flying: true)
@@ -41,12 +46,15 @@ extension MobKind {
         case .squid: return a("Squid", 0.4, 0.8, 10, 2, drops: [("ink_sac", 1, 3)], xp: 2, call: .splash, aquatic: true)
         case .glowSquid: return a("Glow Squid", 0.4, 0.8, 10, 2, drops: [("glow_ink_sac", 1, 3)], xp: 2, call: .splash, aquatic: true)
         case .dolphin: return a("Dolphin", 0.45, 0.6, 10, 8, drops: [("cod", 0, 1)], xp: 2, call: .splash, attack: 3, aquatic: true)
-        case .cod: return a("Cod", 0.25, 0.3, 3, 3, drops: [("cod", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
-        case .salmon: return a("Salmon", 0.35, 0.4, 3, 3, drops: [("salmon", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
-        case .tropicalFish: return a("Tropical Fish", 0.25, 0.4, 3, 3, drops: [("tropical_fish", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
-        case .pufferfish: return a("Pufferfish", 0.35, 0.7, 3, 2, drops: [("pufferfish", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
+        case .cod: return a("Cod", 0.25, 0.3, 3, 3, drops: [("cod", 1, 1)], xp: 1, call: .splash, aquatic: true)
+        case .salmon: return a("Salmon", 0.35, 0.4, 3, 3, drops: [("salmon", 1, 1)], xp: 1, call: .splash, aquatic: true)
+        case .tropicalFish: return a("Tropical Fish", 0.25, 0.4, 3, 3, drops: [("tropical_fish", 1, 1)], xp: 1, call: .splash, aquatic: true)
+        case .pufferfish: return a("Pufferfish", 0.35, 0.7, 3, 2, drops: [("pufferfish", 1, 1)], xp: 1, call: .splash, aquatic: true)
         case .wanderingTrader: return a("Wandering Trader", 0.3, 1.95, 20, 2.2, xp: 0, call: .mobVillager)
         case .skeletonHorse: return a("Skeleton Horse", 0.7, 1.6, 15, 3, drops: [("bone", 0, 2)], xp: 2, call: .mobSkeleton)
+        case .happyGhast: return a("Cloudwailer", 2, 4, 20, 1.5, xp: 1, call: .mobWailer, flying: true)
+        case .zombieHorse: return a("Zombie Horse", 0.7, 1.6, 15, 3, drops: [("rotten_flesh", 0, 2)], xp: 2, call: .mobZombie)
+        case .illusioner: return a("Mirage Caster", 0.3, 1.95, 32, 2.5, drops: [], xp: 5, call: .mobVillager, beh: .ranged)
         case .phantom: return a("Nightwing", 0.45, 0.5, 20, 8, drops: [("phantom_membrane", 0, 1)], xp: 5, call: .mobVex, attack: 6, flying: true, beh: .monster, sun: true)
         case .guardian: return a("Spikefish", 0.43, 0.85, 30, 2.5, drops: [("prismarine_shard", 0, 2), ("cod", 0, 1)], xp: 10, call: .mobSlime, attack: 6, aquatic: true, beh: .monster)
         case .elderGuardian: return a("Elder Spikefish", 1, 2, 80, 1.5, drops: [("prismarine_shard", 0, 2), ("wet_sponge", 1, 1)], xp: 10, call: .mobRavager, attack: 8, aquatic: true, beh: .monster)
@@ -72,7 +80,7 @@ extension MobKind {
 
 extension Mob {
     var tamed: Bool { owner == true }
-    var horseLike: Bool { kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .llama || kind == .traderLlama || kind == .camel }
+    var horseLike: Bool { kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse || kind == .llama || kind == .traderLlama || kind == .camel }
 
     // Common land-animal AI: follow food, breed, flee/panic, plus per-species behaviour.
     func animalAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, inWater: Bool) -> Float {
@@ -80,6 +88,7 @@ extension Mob {
         let player = g.player.pos
         // Being ridden: the rider steers (horses, camels, llamas with a carpet do not; pigs need the stick).
         if g.riding === self { return 0 }
+        if kind == .copperGolem { return copperGolemAI(dt, g) }          // sorts chests (CopperGolem.swift)
         // Tamed pets follow the owner, sit on command, and fight what hurt the owner.
         if tamed && (kind == .wolf || kind == .cat || kind == .parrot) {
             if sitting { moving = false; return 0 }
@@ -92,9 +101,31 @@ extension Mob {
                 return spec.speed * 1.2
             }
             target = nil
-            if dist > 12 { pos = player + V3(Float.random(in: -1...1), 0, Float.random(in: -1...1)); vel = .zero; return 0 }
+            if dist > 12 { pos = player + V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)); vel = .zero; return 0 }
             if dist > 3 { face(player); return spec.speed }
             wander(); return moving ? spec.speed * 0.3 : 0
+        }
+        if kind == .panda, let sp = pandaAI(dt, g) { return sp }
+        // Foxes sleep through the day unless disturbed (a player close by and not sneaking, danger, a hit).
+        if kind == .fox {
+            let day = g.dayFraction > 0.02 && g.dayFraction < 0.45 && !g.isRainingAt(pos)
+            let disturbed = (g.alive && simd_length(player - pos) < 4 && !g.player.sneaking) || panic > 0 || aggro
+            if day && !disturbed && onGround { sitting = true; return 0 }
+            sitting = false
+        }
+        // Polar bear mothers attack players who come within 8 blocks of their cub.
+        if kind == .polarBear && !baby && canTarget && dist < 8 && g.mobs.of(.polarBear).contains(where: { $0.baby && simd_length($0.pos - pos) < 16 }) {
+            aggro = true
+        }
+        // Llamas spit (1 damage) at players who hurt them, every 2 s within 10 blocks.
+        if (kind == .llama || kind == .traderLlama) && aggro && canTarget && dist < 10 && !tamed {
+            face(player)
+            if attackCooldown <= 0 && g.world.canSee(eye, g.player.eye) {
+                attackCooldown = 2
+                g.hurtPlayer(1, from: pos, cause: "was spat on by a Llama", knockback: 0.2, type: .projectile, attacker: self)
+                g.sfx(.splash, 0.4, at: pos)
+            }
+            return 0
         }
         // Wolves: wild ones hunt sheep, rabbits, foxes, skeletons; angry at players who hit them.
         if kind == .wolf || kind == .polarBear || kind == .panda || kind == .goat || kind == .bee || kind == .fox || kind == .ocelot || kind == .cat {
@@ -104,7 +135,9 @@ extension Mob {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .bee {
-                        g.applyEffect(.poison, amp: 0, seconds: 10)
+                        let poison: [Float] = [0, 0, 10, 18]                 // none on easy, 18 s on hard (reference)
+                        let s = poison[max(0, min(3, g.difficulty))]
+                        if s > 0 { g.applyEffect(.poison, amp: 0, seconds: s) }
                         health = 0                                   // bees die after stinging
                     }
                     if kind == .goat { g.player.vel += simd_normalize(V3(player.x - pos.x, 0.3, player.z - pos.z)) * 10; aggro = false }
@@ -112,15 +145,25 @@ extension Mob {
                 return spec.speed * 1.3
             }
             if kind == .wolf || kind == .fox || kind == .ocelot || kind == .cat {
+                // A committed chase: now and then (about every 10 s with prey in range) pick one and run it down for
+                // up to 15 s. A coin flip every tick between chasing and strolling swapped the walk goal and path each
+                // tick (behaviour sim: wolves spinning 1100 degrees in 10 s, speed flickering between walk and run).
                 let prey: Set<MobKind> = kind == .wolf ? [.sheep, .rabbit, .fox, .skeleton, .stray] : (kind == .fox ? [.chicken, .rabbit, .cod, .salmon] : [.chicken])
-                if let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }), Float.random(in: 0..<1) < 0.5 {
+                if let t = target, (t.health <= 0 || huntTime <= 0 || simd_length(t.pos - pos) > 20) { target = nil }
+                if target == nil && Rand.float(in: 0..<1) < dt * 0.1,
+                   let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }) {
+                    target = p; huntTime = 15
+                }
+                if let p = target {
+                    huntTime -= dt
                     face(p.pos)
+                    moving = true
                     if simd_length(p.pos - pos) < halfW + p.halfW + 0.8 && attackCooldown <= 0 { attackCooldown = 1; p.hit(from: pos, damage: max(2, spec.attack), knockback: 0.4) }
                     return spec.speed * 1.2
                 }
             }
             // Goats ram at a random time.
-            if kind == .goat && canTarget && dist < 10 && Float.random(in: 0..<1) < dt / 30 { aggro = true }
+            if kind == .goat && canTarget && dist < 10 && Rand.float(in: 0..<1) < dt / 30 { aggro = true }
         }
         // Follow a player holding the right food; fall in love when fed (handled in useItemOnMob).
         if let food = MobKind.animalFood[kind], dist < 8, food.contains(Items.key(g.held.item)), !baby {
@@ -131,6 +174,8 @@ extension Mob {
             face(mate.pos)
             return simd_length(mate.pos - pos) > halfW + 1 ? spec.speed : 0
         }
+        if home == nil && kind == .turtle { home = pos }            // home beach: where it first appeared
+        if layEgg(g) { return spec.speed * 0.8 }
         // Rabbits hop; frogs hop and eat small slimes; armadillos roll up near danger.
         switch kind {
         case .rabbit:
@@ -144,13 +189,13 @@ extension Mob {
                     if Items.has(light) { g.drops.spawn(ItemStack(Items.id(light), 1), at: s.pos) }
                 }
             }
-            if onGround && moving && Float.random(in: 0..<1) < dt * 1.5 { vel.y = 6 }
+            if onGround && moving && Rand.float(in: 0..<1) < dt * 1.5 { vel.y = 6 }
         case .armadillo:
             let danger = g.mobs.mobs.contains { $0.kind.hostile && simd_length($0.pos - pos) < 7 } || (g.player.sprinting && dist < 7) || panic > 0
             sitting = danger              // rolled up
             if danger { return 0 }
             scuteTimer -= dt
-            if scuteTimer <= 0 { scuteTimer = Float.random(in: 300...600); if Items.has("armadillo_scute") { g.drops.spawn(ItemStack(Items.id("armadillo_scute"), 1), at: pos) } }
+            if scuteTimer <= 0 { scuteTimer = Rand.float(in: 300...600); if Items.has("armadillo_scute") { g.drops.spawn(ItemStack(Items.id("armadillo_scute"), 1), at: pos) } }
         case .turtle:
             // Babies drop a scute when they grow up (handled in growUp); adults head home to lay eggs.
             break
@@ -158,45 +203,60 @@ extension Mob {
             // Digs up ancient seeds on grass / dirt / moss.
             scuteTimer -= dt
             if scuteTimer <= 0 && onGround {
-                scuteTimer = Float.random(in: 120...240)
+                scuteTimer = Rand.float(in: 120...240)
                 let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.5)), Int(floor(pos.z))))
                 if ["grass_block", "dirt", "podzol", "coarse_dirt", "rooted_dirt", "moss_block", "mud", "muddy_mangrove_roots"].contains(under) {
-                    let seed = Bool.random() ? "torchflower_seeds" : "pitcher_pod"
+                    let seed = Rand.bool() ? "torchflower_seeds" : "pitcher_pod"
                     if Items.has(seed) { g.drops.spawn(ItemStack(Items.id(seed), 1), at: pos + forward * 1.2) }
                 }
             }
         case .bat:
             // Erratic flight; hangs from ceilings by day.
-            if aiTimer <= 0 || flyTarget == nil { aiTimer = Float.random(in: 0.5...2); flyTarget = pos + V3(Float.random(in: -5...5), Float.random(in: -2...3), Float.random(in: -5...5)) }
+            if aiTimer <= 0 || flyTarget == nil { aiTimer = Rand.float(in: 0.5...2); flyTarget = pos + V3(Rand.float(in: -5...5), Rand.float(in: -2...3), Rand.float(in: -5...5)) }
             if let f = flyTarget { let d = f - pos; vel += (d * 0.8 - vel) * min(1, dt * 3) }
             return 0
+        case .parrot where g.jukeboxes.contains(where: { simd_length(V3(Float($0.pos.x) + 0.5, Float($0.pos.y), Float($0.pos.z) + 0.5) - pos) < 3.5 }):
+            sitting = true                                   // dancing to the music
+            vel *= expf(-3 * dt)
+            walkPhase += dt * 8
+            return 0
         case .parrot:
+            sitting = false
+            // Now and then a parrot imitates a monster within 20 blocks (reference: 1 in ~1000 per tick).
+            if Rand.float(in: 0..<1) < dt / 50, let o = g.mobs.mobs.first(where: { $0.kind.hostile && simd_length($0.pos - pos) < 20 }) {
+                g.sfx(o.kind.call, 0.7, at: pos)
+            }
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 2...5)
+                aiTimer = Rand.float(in: 2...5)
                 let base = tamed ? player : pos
-                flyTarget = base + V3(Float.random(in: -4...4), Float.random(in: 0...3), Float.random(in: -4...4))
+                flyTarget = base + V3(Rand.float(in: -4...4), Rand.float(in: 0...3), Rand.float(in: -4...4))
             }
             if let f = flyTarget { let d = f - pos; vel += (d * 0.6 - vel) * min(1, dt * 2); vel.y -= 2 * dt }
             return 0
         case .bee:
-            // Wander between flowers (pollinating) and the hive.
-            if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 3...8)
-                flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -1...2), Float.random(in: -6...6))
-            }
-            if let f = flyTarget { let d = f - pos; vel += (d * 0.5 - vel) * min(1, dt * 2) }
+            return beeAI(dt, g)
+        case .allay where g.jukeboxes.contains(where: { simd_length(V3(Float($0.pos.x) + 0.5, Float($0.pos.y), Float($0.pos.z) + 0.5) - pos) < 10 }):
+            // Dancing to a jukebox within 10 blocks (an amethyst shard now duplicates it).
+            sitting = true
+            vel *= expf(-3 * dt)
+            walkPhase += dt * 6
             return 0
         case .allay:
+            sitting = false
             // Follows the player who gave it an item and collects matching drops.
             if tamed {
                 let want = heldItem
                 if let it = g.drops.items.first(where: { !$0.stack.isEmpty && $0.stack.item == want && simd_length($0.pos - pos) < 32 }) {
-                    let d = it.pos - pos
-                    vel += (d / max(0.1, simd_length(d)) * 5 - vel) * min(1, dt * 2)
+                    let d: V3 = it.pos - pos
+                    let want: V3 = d * (5 / max(0.1, simd_length(d)))
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
                     if simd_length(d) < 1 { carried += it.stack.count; it.stack = .empty }
                 } else if carried > 0 && dist > 2 {
-                    let d = g.player.eye - pos
-                    vel += (d / max(0.1, simd_length(d)) * 5 - vel) * min(1, dt * 2)
+                    let d: V3 = g.player.eye - pos
+                    let want: V3 = d * (5 / max(0.1, simd_length(d)))
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
                 } else if carried > 0 {
                     g.drops.spawn(ItemStack(want, carried), at: pos)
                     carried = 0
@@ -205,16 +265,37 @@ extension Mob {
                     vel += (d * 0.5 - vel) * min(1, dt * 2)
                 }
             } else {
-                if aiTimer <= 0 || flyTarget == nil { aiTimer = 3; flyTarget = pos + V3(Float.random(in: -4...4), Float.random(in: -1...2), Float.random(in: -4...4)) }
+                if aiTimer <= 0 || flyTarget == nil { aiTimer = 3; flyTarget = pos + V3(Rand.float(in: -4...4), Rand.float(in: -1...2), Rand.float(in: -4...4)) }
                 if let f = flyTarget { let d = f - pos; vel += (d * 0.4 - vel) * min(1, dt * 2) }
             }
             return 0
+        case .happyGhast:
+            return cloudwailerAI(dt, g)
+        case .llama where !leashed && g.riding !== self:
+            // Caravans (reference): a llama joins the tail of a led llama's line within 8 blocks, up to 10 long.
+            if let t = target, t.health > 0, t.kind == .llama {
+                if simd_length(t.pos - pos) > 2.5 { face(t.pos); moving = true; return spec.speed }
+                return 0
+            }
+            target = nil
+            if aiTimer <= 0, let head = g.mobs.of(.llama).first(where: { $0.leashed && simd_length($0.pos - pos) < 8 }) {
+                var tail = head, n = 1
+                while n < 10, let next = g.mobs.of(.llama).first(where: { $0.target === tail }) { tail = next; n += 1 }
+                if n < 10 && tail !== self { target = tail }
+            }
+        case .traderLlama:
+            // Follows its wandering trader and leaves with it.
+            if let t = target {
+                if t.health <= 0 { health = -2000; return 0 }
+                if simd_length(t.pos - pos) > 4 { face(t.pos); moving = true; return spec.speed }
+            }
         case .wanderingTrader:
             // Leaves after 40-60 minutes (despawn timer); drinks invisibility at night.
             age += dt
             if age > 2400 { health = -2000 }
         default: break
         }
+        if panic <= 0 && followParent(g) { return spec.speed * 0.8 }
         wander()
         let base = spec.speed * (panic > 0 ? 1.8 : 0.6)
         return moving ? base : 0
@@ -234,17 +315,17 @@ extension Mob {
             airTime += dt
             if airTime > (kind == .dolphin ? 120 : 15) { fireTick += dt; if fireTick > 1 { fireTick = 0; health -= 1; hurt = 0.2 } }
             vel.y -= 28 * dt
-            if onGround && Float.random(in: 0..<1) < dt * 3 { vel = V3(Float.random(in: -2...2), 5, Float.random(in: -2...2)) }
+            if onGround && Rand.float(in: 0..<1) < dt * 3 { vel = V3(Rand.float(in: -2...2), 5, Rand.float(in: -2...2)) }
         } else {
             airTime = 0
             // Swim target inside water.
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 1...4)
-                var t = pos + V3(Float.random(in: -6...6), Float.random(in: -2...2), Float.random(in: -6...6))
+                aiTimer = Rand.float(in: 1...4)
+                var t = pos + V3(Rand.float(in: -6...6), Rand.float(in: -2...2), Rand.float(in: -6...6))
                 // Schooling fish follow a nearby member of their kind.
                 if kind == .cod || kind == .salmon || kind == .tropicalFish,
                    let leader = g.mobs.mobs.first(where: { $0 !== self && $0.kind == kind && simd_length($0.pos - pos) < 8 }) {
-                    t = leader.pos + V3(Float.random(in: -1.5...1.5), Float.random(in: -1...1), Float.random(in: -1.5...1.5))
+                    t = leader.pos + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -1...1), Rand.float(in: -1.5...1.5))
                 }
                 if Blocks.fluidKind[Int(w.block(Int(floor(t.x)), Int(floor(t.y)), Int(floor(t.z))))] == 1 { flyTarget = t }
             }
@@ -260,25 +341,54 @@ extension Mob {
                 }
                 flyTarget = pos
             } else { beam = 0 }
-            if kind == .elderGuardian && dist < 50 && g.survival && Float.random(in: 0..<1) < dt / 60 {
+            if kind == .elderGuardian && dist < 50 && g.survival && Rand.float(in: 0..<1) < dt / 60 {
                 g.applyEffect(.miningFatigue, amp: 2, seconds: 300)
-                g.sfx(.mobRavager, 0.8)
+                g.sfx(.elderCurse, 1)
             }
             // Dolphins circle players and give Dolphin's Grace; pufferfish puff up and poison.
-            if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Float.random(in: -2...2), 0, Float.random(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
+            // Leading the way to treasure: swim ahead toward it, staying below the surface.
+            if kind == .dolphin && phaseTime > 0, let h = home {
+                phaseTime -= dt
+                var t = h - pos
+                t.y = min(0, max(-2, t.y))
+                if simd_length(t) > 1 { flyTarget = pos + simd_normalize(t) * 6 }
+            } else if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Rand.float(in: -2...2), 0, Rand.float(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
             if kind == .pufferfish {
                 sitting = dist < 3
                 if sitting && dist < 1.2 && attackCooldown <= 0 && g.survival { attackCooldown = 1; g.hurtPlayer(2, from: pos, cause: "was stung to death", knockback: 0.2); g.applyEffect(.poison, amp: 0, seconds: 6) }
             }
+            // Axolotls play dead for 10 s when hurt (1 in 3), regenerating; nothing hunts them meanwhile.
+            if kind == .axolotl && wasHit && health > 0 && Rand.int(in: 0..<3) == 0 {
+                sitting = true; phaseTime = 10
+                applyEffect(.regeneration, amp: 0, seconds: 10, game: g)
+            }
+            if kind == .axolotl && sitting {
+                phaseTime -= dt
+                if phaseTime <= 0 { sitting = false }
+                vel *= expf(-3 * dt)
+                attackCooldown -= dt
+                aiTimer -= dt
+                wasHit = false
+                let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0, onGround: onGround)
+                if hit.y { vel.y = 0 }
+                return
+            }
+            if kind == .axolotl { wasHit = false }
             if kind == .axolotl, let prey = g.mobs.mobs.first(where: { [.cod, .salmon, .tropicalFish, .pufferfish, .squid, .glowSquid, .drowned, .guardian].contains($0.kind) && simd_length($0.pos - pos) < 8 }) {
                 flyTarget = prey.pos
                 if simd_length(prey.pos - pos) < 1.2 && attackCooldown <= 0 { attackCooldown = 1; prey.hit(from: pos, damage: 2, knockback: 0.3) }
             }
-            if panic > 0, flyTarget == nil || aiTimer > 0.5 { flyTarget = pos + simd_normalize(pos - player + V3(0.01, 0, 0)) * 6 }
+            if panic > 0, flyTarget == nil || aiTimer > 0.5 { let away: V3 = simd_normalize(pos - player + V3(0.01, 0, 0)); flyTarget = pos + away * 6 }
             if let t = flyTarget {
                 let d = t - pos
                 let l = simd_length(d)
-                if l > 0.3 { vel += (d / l * spec.speed * (panic > 0 ? 1.8 : 1) - vel) * min(1, dt * 2); face(t) } else { vel *= expf(-2 * dt) }
+                if l > 0.3 {
+                    let sp: Float = spec.speed * (panic > 0 ? 1.8 : 1) / l
+                    let want: V3 = d * sp
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
+                    face(t)
+                } else { vel *= expf(-2 * dt) }
             }
             // Squid squirt ink when hurt.
             if (kind == .squid || kind == .glowSquid) && hurt > 0.35 { for _ in 0..<6 { g.particles.smoke(at: pos + V3(0, 0.4, 0)) } }
@@ -307,7 +417,7 @@ extension Mob {
                 if phase == 0 {
                     let c = player + V3(cosf(circleAngle) * 10, 14 + sinf(circleAngle * 2) * 2, sinf(circleAngle) * 10)
                     vel += (simd_normalize(c - pos) * spec.speed - vel) * min(1, dt * 2)
-                    if Float.random(in: 0..<1) < dt / 6 { phase = 1 }
+                    if Rand.float(in: 0..<1) < dt / 6 { phase = 1 }
                 } else {
                     let d = g.player.eye - pos
                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
@@ -335,11 +445,19 @@ extension Mob {
             age += dt
             if age > 120 { health = -2000 }
             wander(); return moving ? spec.speed * 0.5 : 0
+        case .warden where emergeTime > 0:
+            emergeTime -= dt                                  // still digging out of the ground
+            if Rand.float(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.6...0.6), 0.1, Rand.float(in: -0.6...0.6))) }
+            return 0
         case .warden:
             // Blind: tracks the player by vibrations (moving, not sneaking) and anger; melee 30, sonic boom 10 at range.
             let noisy = g.survival && g.alive && dist < 16 && (!g.player.sneaking && simd_length(g.player.vel) > 0.5)
             if noisy { anger = min(150, anger + dt * 35) } else { anger = max(0, anger - dt * 2) }
-            if dist < 20 && g.survival && Float.random(in: 0..<1) < dt / 6 { g.applyEffect(.darkness, amp: 0, seconds: 12) }
+            // Heartbeat speeds up with anger; sniffing while it listens.
+            let beatRate: Float = 0.5 + anger / 80
+            if dist < 32 && Rand.float(in: 0..<1) < dt * beatRate { g.sfx(.wardenHeartbeat, 1.2, at: pos + V3(0, 2, 0)) }
+            if dist < 24 && anger > 10 && anger < 80 && Rand.float(in: 0..<1) < dt / 7 { g.sfx(.wardenSniff, 1, at: pos + V3(0, 2.5, 0)) }
+            if dist < 20 && g.survival && Rand.float(in: 0..<1) < dt / 6 { g.applyEffect(.darkness, amp: 0, seconds: 12) }
             if anger >= 80 && canTarget {
                 face(player)
                 attackCooldown -= 0
@@ -349,7 +467,7 @@ extension Mob {
                 } else if dist < 15 && dist > 4 && spellTimer <= 0 {
                     spellTimer = 5
                     g.hurtPlayer(10, from: pos, cause: "was obliterated by a sonically-charged shriek", knockback: 2.5, type: .void)
-                    g.sfx(.mobWarden, 1.4, at: pos)
+                    g.sfx(.wardenSonicBoom, 2, at: pos)
                 }
                 spellTimer -= dt
                 return spec.speed * 1.2
@@ -361,19 +479,29 @@ extension Mob {
             // Hops around and fires wind charges (1 damage + big knockback).
             if canTarget && dist < 16 {
                 face(player)
-                if onGround && Float.random(in: 0..<1) < dt * 0.8 { vel = simd_normalize(V3(Float.random(in: -1...1), 0, Float.random(in: -1...1))) * 4 + V3(0, 9, 0) }
+                if onGround && Rand.float(in: 0..<1) < dt * 0.8 { vel = simd_normalize(V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1))) * 4 + V3(0, 9, 0) }
                 attackCooldown -= 0
                 if attackCooldown <= 0 {
                     attackCooldown = 2.5
                     if dist < 16 && g.world.canSee(eye, g.player.eye) {
                         g.hurtPlayer(1, from: pos, cause: "was blown away by a Gustling", knockback: 0, type: .projectile)
                         g.player.vel += simd_normalize(g.player.pos - pos + V3(0, 1, 0)) * 12
-                        g.sfx(.fireball, 0.5, at: pos)
+                        g.sfx(.breezeShoot, 1, at: pos)
                     }
                 }
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
+        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck:
+            return ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
+        case .ashMarshal:
+            return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
+            if faction == Faction.ashguard.rawValue { return ashSoldierAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) }
+            let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
+            // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.
+            if !g.world.ships.isEmpty, g.world.ships.standing(on: pos) != nil { strafe = 0; return 0 }
+            return sp
         default:
             wander(); return moving ? spec.speed * 0.5 : 0
         }
@@ -381,6 +509,124 @@ extension Mob {
 }
 
 // MARK: Models
+
+// The horse family (horse, donkey, mule, skeleton and zombie horses): barrel, chest and rump, an arched neck with a mane,
+// a long head with a muzzle, jointed legs (upper leg, cannon, hoof) and a hanging tail. Walk: diagonal pairs with knee /
+// hock bend; gallop at speed (pairs close up, bigger swing, the body rocks); idle: the tail swishes and the head drops to
+// graze now and then. Units 1/16 block, model faces -Z; the body top stays at y 22 (horse) so saddle and rider line up.
+func horseParts(_ m: Mob) -> [Part] {
+    let small = m.kind == .donkey || m.kind == .mule
+    let c: V3
+    switch m.kind {
+    case .zombieHorse: c = V3(0.33, 0.5, 0.3)
+    case .skeletonHorse: c = V3(0.85, 0.85, 0.82)
+    case .donkey: c = V3(0.5, 0.45, 0.4)
+    case .mule: c = V3(0.35, 0.25, 0.18)
+    default:
+        let coats: [V3] = [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)]
+        c = coats[m.variant % 5]
+    }
+    let bony = m.kind == .skeletonHorse
+    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : c * 0.42)
+    let hoof: V3 = bony ? c * 0.68 : V3(0.17, 0.14, 0.12)
+    let sock: V3 = c * 0.82
+    let muzzle: V3 = c * 0.72 + V3(0.07, 0.07, 0.07)
+    let dark = V3(0.05, 0.05, 0.05)
+    let pat: Float = bony ? 5 : 4
+
+    // Gait state from data already on the mob.
+    let amt = m.walkAmount
+    let hs = simd_length(V2(m.vel.x, m.vel.z))
+    let gal = max(0, min(1, (hs - 4.5) / 3.5)) * amt
+    let ph = m.walkPhase
+    let amp: Float = (0.5 + 0.35 * gal) * amt
+    let bob: Float = abs(sinf(ph)) * (0.3 + 0.9 * gal) * amt
+    let clock = m.callTimer                                   // counts down steadily between calls
+    let idle = max(0, 1 - amt * 2)
+    let gw: Float = min(clock - 1.5, 6 - clock) * 1.5
+    let calm: Float = m.saddled || m.panic > 0 ? 0 : 1
+    let graze: Float = max(0, min(1, gw)) * idle * calm
+
+    let lu: Float = small ? 6.5 : 8, ll: Float = small ? 5 : 5.5, lh: Float = 1.5
+    let hipY: Float = lu + ll + lh                            // 15 horse, 13 donkey
+    let top: Float = hipY + 7 + bob                           // body top (22 horse)
+    let bot: Float = hipY - 2 + bob
+    var p: [Part] = []
+    p.reserveCapacity(40)
+    // Body: barrel, deeper chest in front, rounded rump behind.
+    p.append(Part(mn: V3(-4.2, bot, -8), mx: V3(4.2, top - 0.5, 8), color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.5, bot - 0.5, -11), mx: V3(4.5, top, -4), color: c, pattern: pat))
+    p.append(Part(mn: V3(-4.6, bot + 0.5, 4), mx: V3(4.6, top + 0.3, 11), color: c, pattern: pat))
+
+    // Legs: (x, z, phase offset, front?). Walk: diagonal pairs; gallop: front pair and hind pair close up.
+    let fo: Float = 0.5 * gal
+    let legs: [(Float, Float, Float, Bool)] = [(-2.6, -8.3, 0, true), (2.6, -8.3, .pi + fo, true),
+                                               (-2.7, 8.2, .pi, false), (2.7, 8.2, fo, false)]
+    for (x, z, off, front) in legs {
+        let lp: Float = ph + off + (front ? 0 : .pi * gal)
+        let a: Float = sinf(lp) * amp + (front ? 0 : -0.08)
+        let flex: Float = max(0, cosf(lp)) * (0.6 + 0.5 * gal) * amt
+        let la: Float = front ? a - flex : a + flex * 0.8 + 0.12
+        let hip = V3(x, hipY + bob, z)
+        // Where the upper leg's rotation (Part.rotX about the hip) carries its lower end: (0, -lu) turns to
+        // (-lu cos a, -lu sin a). The knee had +lu sin a (mirrored), so at every stride the cannon and hoof swung off
+        // the upper leg, the gap widest at the gallop and in a knockback (Quest playtest 2026-10-09 pm item 2).
+        let knee: V3 = hip + V3(0, -lu * cosf(a), -lu * sinf(a))
+        let uw: Float = front ? 3 : 3.4
+        p.append(Part(mn: V3(x - uw / 2, hip.y - lu - 0.4, z - 1.7), mx: V3(x + uw / 2, hip.y + 2, z + 1.7), pivot: hip, rotX: a, color: c, pattern: pat))
+        p.append(Part(mn: V3(x - 1, knee.y - ll, knee.z - 1), mx: V3(x + 1, knee.y + 0.4, knee.z + 1), pivot: knee, rotX: la, color: sock, pattern: pat))
+        p.append(Part(mn: V3(x - 1.3, knee.y - ll - lh, knee.z - 1.4), mx: V3(x + 1.3, knee.y - ll, knee.z + 1.2), pivot: knee, rotX: la, color: hoof))
+    }
+
+    // Neck: rises forward ~40 deg from the top of the chest, nodding with the stride; lowered to graze.
+    let nodS: Float = sinf(ph * 2) * (0.06 + 0.1 * gal) * amt
+    let nA: Float = -0.7 - nodS - graze * 1.25 + gal * 0.12
+    let nL: Float = small ? 10 : 12
+    let nP = V3(0, top - 4, -8.5)
+    p.append(Part(mn: V3(-2.1, nP.y - 1, nP.z - 3.2), mx: V3(2.1, nP.y + nL, nP.z + 2.6), pivot: nP, rotX: nA, color: c, pattern: pat))
+    p.append(Part(mn: V3(-0.8, nP.y + 1, nP.z + 2.4), mx: V3(0.8, nP.y + nL + 1.2, nP.z + 3.6), pivot: nP, rotX: nA, color: mane))
+    // Head: hangs from the poll at the neck's top, angled down; long skull, narrower muzzle, eyes, ears, forelock.
+    let poll: V3 = nP + V3(0, nL * cosf(nA), nL * sinf(nA))
+    let hA: Float = -0.95 + nodS * 0.5 - graze * 0.3
+    func hb(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ col: V3, _ pt: Float = 0) -> Part {
+        Part(mn: poll + V3(x0, y0, z0), mx: poll + V3(x1, y1, z1), pivot: poll, rotX: hA, color: col, pattern: pt)
+    }
+    p.append(hb(-2.3, -2.6, -5.5, 2.3, 2.2, 1.2, c, pat))                 // skull and cheeks
+    p.append(hb(-1.8, -2.4, -11.5, 1.8, 0.8, -5.5, muzzle, pat))          // long face to the muzzle
+    p.append(hb(-1.9, -2.6, -11.7, 1.9, -0.9, -9.8, muzzle * 0.8))        // nose and lips
+    p.append(hb(-1.0, -1.3, -11.8, -0.4, -0.7, -11.5, dark)); p.append(hb(0.4, -1.3, -11.8, 1.0, -0.7, -11.5, dark))   // nostrils
+    p.append(hb(-2.45, 0, -4.2, -2.25, 1.1, -2.9, dark)); p.append(hb(2.25, 0, -4.2, 2.45, 1.1, -2.9, dark))             // eyes
+    let earL: Float = small ? 5.5 : 3
+    let earC: V3 = small ? c * 0.85 : c
+    p.append(hb(-2.1, 2.0, -0.6, -0.9, 2 + earL, 0.6, earC)); p.append(hb(0.9, 2.0, -0.6, 2.1, 2 + earL, 0.6, earC))
+    if !small { p.append(hb(-0.7, 1.4, -2.2, 0.7, 2.5, 0.8, mane)) }   // forelock between the ears
+
+    // Tail: hangs from the top of the rump, a thin dock and a fuller lower part; swishes, lifts at the gallop.
+    let swish: Float = sinf(clock * 2.3) * 0.14 * (1 - amt) + sinf(ph) * 0.1 * amt
+    let tP = V3(0, top - 1, 11)
+    let tA: Float = -0.3 - 0.55 * gal - 0.15 * amt
+    p.append(Part(mn: V3(-1, tP.y - 6, tP.z), mx: V3(1, tP.y + 0.5, tP.z + 2), pivot: tP, rotX: tA, rotZ: swish, color: mane))
+    p.append(Part(mn: V3(-1.6, tP.y - 15, tP.z + 0.2), mx: V3(1.6, tP.y - 5.5, tP.z + 2.8), pivot: tP, rotX: tA, rotZ: swish * 1.3, color: mane))
+
+    if m.saddled {
+        let leather = V3(0.35, 0.2, 0.1)
+        p.append(box(-4.8, top - 0.2, -5, 9.6, 1.4, 9, leather))
+        p.append(box(-1.4, top + 1.2, -5, 2.8, 1.2, 1.4, leather))        // pommel
+        p.append(box(-4.7, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8)); p.append(box(4.3, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8))
+    }
+    if m.chested { p.append(box(-7, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(4.6, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))) }
+    if m.armorTier > 0 {
+        // leather, iron, gold, diamond, (5 is wolf armour), copper, duskium
+        let colors: [V3] = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84), V3(0.62, 0.42, 0.36),
+                            V3(0.78, 0.48, 0.33), V3(0.3, 0.27, 0.28)]
+        let ac = colors[min(colors.count - 1, m.armorTier - 1)]
+        p.append(box(-4.9, bot + 2, -11.4, 9.8, top - bot - 2.4, 9, ac, 8))           // chest plate and flanks
+        p.append(box(-4.9, bot + 3, 4.2, 9.8, top - bot - 3.4, 7.2, ac, 8))
+        p.append(Part(mn: V3(-2.5, nP.y - 0.5, nP.z - 3.6), mx: V3(2.5, nP.y + nL - 1, nP.z + 2.2), pivot: nP, rotX: nA, color: ac, pattern: 8))
+        p.append(hb(-2.5, 0.2, -6, 2.5, 2.4, 1.3, ac, 8))                                  // headpiece
+    }
+    return p
+}
 
 func animalParts(_ m: Mob, swing: Float) -> [Part] {
     func leg(_ x: Float, _ z: Float, _ w: Float, _ h: Float, _ ph: Float, _ c: V3, _ pat: Float = 4) -> Part {
@@ -401,8 +647,11 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
     }
     switch m.kind {
     case .rabbit:
-        let c = [V3(0.55, 0.42, 0.3), V3(0.9, 0.9, 0.88), V3(0.2, 0.18, 0.16), V3(0.8, 0.7, 0.5)][m.variant % 4]
-        return [box(-2.5, 1, -3, 5, 5, 7, c, 4), box(-2, 4, -6, 4, 4, 4, c, 4), box(-1.5, 8, -4.5, 1, 4, 1, c), box(0.5, 8, -4.5, 1, 4, 1, c),
+        let coats = [V3(0.55, 0.42, 0.3), V3(0.9, 0.9, 0.88), V3(0.2, 0.18, 0.16), V3(0.8, 0.7, 0.5), V3(0.45, 0.41, 0.37), V3(0.88, 0.88, 0.86)]
+        let coat = (m.variant & 15) % coats.count
+        let c = coats[coat]
+        let head = coat == 5 ? V3(0.2, 0.18, 0.16) : c                       // black and white: a dark head and ears
+        return [box(-2.5, 1, -3, 5, 5, 7, c, 4), box(-2, 4, -6, 4, 4, 4, head, 4), box(-1.5, 8, -4.5, 1, 4, 1, head), box(0.5, 8, -4.5, 1, 4, 1, head),
                 leg(-1.5, 3, 1.5, 2, 1, c), leg(1.5, 3, 1.5, 2, -1, c), box(-0.5, 3, 3.5, 1, 1, 1, V3(0.95, 0.95, 0.95))] + eyes(6, -6, 0.8, 0.8)
     case .fox:
         let c = m.variant == 1 ? V3(0.95, 0.95, 0.95) : V3(0.9, 0.5, 0.2)
@@ -412,7 +661,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(Part(mn: V3(-2, 7, 5), mx: V3(2, 11, 14), pivot: V3(0, 9, 5), rotX: -0.3, color: c, pattern: 4))
         return p
     case .wolf:
-        let c = m.aggro ? V3(0.55, 0.52, 0.5) : V3(0.78, 0.76, 0.72)
+        let base = Mob.wolfColors[m.variant % Mob.wolfColors.count]
+        let c = m.aggro && !m.tamed ? base * 0.72 : base
         var p = quadruped(.zero, V3(6, 6, 10), legH: 8, head: V3(0, 9, -5), headSize: V3(6, 6, 4), c)
         p.append(box(-1.5, 9.5, -12, 3, 3, 3, c * 0.9))
         p.append(box(-3, 15, -7, 2, 2, 1, c)); p.append(box(1, 15, -7, 2, 2, 1, c))
@@ -427,34 +677,32 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-2, 11, -9, 1.5, 1.5, 1, c)); p.append(box(0.5, 11, -9, 1.5, 1.5, 1, c))
         p.append(Part(mn: V3(-0.5, 8, 6), mx: V3(0.5, 9, 14), pivot: V3(0, 8.5, 6), rotX: -0.5, color: c))
         return p
-    case .horse, .donkey, .mule, .skeletonHorse:
-        let c = m.kind == .skeletonHorse ? V3(0.85, 0.85, 0.82) : (m.kind == .donkey ? V3(0.5, 0.45, 0.4) : (m.kind == .mule ? V3(0.35, 0.25, 0.18)
-                : [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)][m.variant % 5]))
-        var p = quadruped(.zero, V3(10, 10, 22), legH: 12, head: V3(0, 20, -11), headSize: V3(5, 5, 11), c, legW: 4)
-        p.append(Part(mn: V3(-3, 14, -13), mx: V3(3, 24, -7), pivot: V3(0, 16, -9), rotX: 0.5, color: c, pattern: 4))      // neck
-        if m.kind == .donkey || m.kind == .mule { p.append(box(-3, 25, -9, 1.5, 5, 1, c)); p.append(box(1.5, 25, -9, 1.5, 5, 1, c)) }
-        p.append(Part(mn: V3(-1.5, 16, 11), mx: V3(1.5, 20, 19), pivot: V3(0, 20, 11), rotX: 0.8, color: c * 0.7))              // tail
-        if m.saddled { p.append(box(-5.2, 21.8, -4, 10.4, 1.5, 9, V3(0.35, 0.2, 0.1))) }
-        if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
-        if m.armorTier > 0 {
-            let ac = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84)][min(3, m.armorTier - 1)]
-            p.append(box(-5.4, 11.6, -10, 10.8, 10.2, 16, ac))
-            p.append(Part(mn: V3(-3.4, 14, -13.4), mx: V3(3.4, 24.4, -6.6), pivot: V3(0, 16, -9), rotX: 0.5, color: ac))
-        }
-        return p
+    case .horse, .donkey, .mule, .skeletonHorse, .zombieHorse:
+        return horseParts(m)
     case .llama, .traderLlama:
         let c = m.kind == .traderLlama ? V3(0.85, 0.8, 0.7) : [V3(0.85, 0.8, 0.7), V3(0.95, 0.95, 0.93), V3(0.5, 0.35, 0.25), V3(0.55, 0.52, 0.5)][m.variant % 4]
         var p = quadruped(.zero, V3(10, 10, 16), legH: 13, head: V3(0, 26, -9), headSize: V3(6, 5, 7), c, legW: 4)
         p.append(box(-2.5, 17, -10, 5, 10, 4, c, 4))
-        p.append(box(-2.5, 31, -6, 1.5, 3, 1, c)); p.append(box(1, 31, -6, 1.5, 3, 1, c))
+        p.append(box(-2.5, 31, -10.5, 1.5, 3, 1, c)); p.append(box(1, 31, -10.5, 1.5, 3, 1, c))      // ears on the head (floated behind it)
         if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
         if m.kind == .traderLlama { p.append(box(-5.2, 23, -8, 10.4, 1, 16, V3(0.2, 0.3, 0.7))) }
         return p
-    case .camel:
-        let c = V3(0.85, 0.68, 0.42)
+    case .nautilus, .zombieNautilus:
+        let shell = m.kind == .nautilus ? V3(0.92, 0.85, 0.72) : V3(0.45, 0.6, 0.5)
+        let stripe = m.kind == .nautilus ? V3(0.72, 0.36, 0.22) : V3(0.3, 0.42, 0.34)
+        var p = [box(-4, 2, -2, 8, 10, 10, shell, 4), box(-4.2, 4, 1, 8.4, 2, 6, stripe), box(-4.2, 8, 0, 8.4, 2, 7, stripe),
+                 box(-3, 3, -5, 6, 5, 3, shell * 0.9, 4)]
+        for i in 0..<6 {
+            let x = Float(i % 3) * 2 - 2, y = Float(i / 3) * 2 + 3
+            p.append(Part(mn: V3(x - 0.5, y, -9), mx: V3(x + 0.5, y + 1, -5), pivot: V3(x, y, -5),
+                          rotX: sinf(m.walkPhase * 2 + Float(i)) * 0.3, color: m.kind == .nautilus ? V3(0.85, 0.6, 0.5) : V3(0.35, 0.5, 0.4)))
+        }
+        return p
+    case .camel, .camelHusk:
+        let c = m.kind == .camelHusk ? V3(0.6, 0.55, 0.42) : V3(0.85, 0.68, 0.42)
         var p = quadruped(.zero, V3(14, 12, 26), legH: 20, head: V3(0, 34, -17), headSize: V3(6, 6, 10), c, legW: 4)
         p.append(box(-4, 32, -4, 8, 7, 10, c, 4))                          // hump
-        p.append(box(-3, 24, -16, 6, 12, 5, c, 4))                          // neck
+        p.append(box(-3, 24, -17.5, 6, 12, 6.5, c, 4))                      // neck (reaches the head: a 1 px gap floated it)
         if m.saddled { p.append(box(-6, 38.5, -3, 12, 1.5, 10, V3(0.35, 0.2, 0.1))) }
         return p
     case .goat:
@@ -464,7 +712,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-1, 14, -13.5, 2, 3, 1, c))                           // beard
         return p
     case .panda:
-        let w = V3(0.95, 0.95, 0.93), b = V3(0.12, 0.12, 0.12)
+        let brown = m.pandaPersonality == 4
+        let w = brown ? V3(0.72, 0.58, 0.45) : V3(0.95, 0.95, 0.93), b = brown ? V3(0.35, 0.22, 0.14) : V3(0.12, 0.12, 0.12)
         var p = quadruped(.zero, V3(13, 12, 20), legH: 8, head: V3(0, 12, -10), headSize: V3(12, 10, 8), w, legW: 5)
         for i in 0..<4 { p[2 + i].color = b }
         p.append(box(-5, 16, -18.3, 3, 3, 0.3, b)); p.append(box(2, 16, -18.3, 3, 3, 0.3, b))
@@ -591,7 +840,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         return [box(-2, 0, -3, 4, 3, 2, c), box(-1.5, 0, -1, 3, 3, 3, c), box(-1, 0, 2, 2, 2, 2, c), box(-0.5, 0, 4, 1, 1, 2, c)]
     case .warden:
         let c = V3(0.05, 0.22, 0.26), glow = V3(0.3, 0.95, 0.95)
-        return [
+        let sink: Float = m.emergeTime > 0 ? -48 * m.emergeTime / 6.7 : 0     // rising out of the ground
+        let parts: [Part] = [
             Part(mn: V3(-6, 0, -3), mx: V3(-1, 13, 3), pivot: V3(-3.5, 13, 0), rotX: swing, color: c, pattern: 4),
             Part(mn: V3(1, 0, -3), mx: V3(6, 13, 3), pivot: V3(3.5, 13, 0), rotX: -swing, color: c, pattern: 4),
             box(-9, 13, -5, 18, 21, 11, c, 4), box(-5.5, 34, -6, 11, 12, 11, c, 4),
@@ -599,14 +849,17 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
             Part(mn: V3(9, 14, -4), mx: V3(13, 34, 4), pivot: V3(11, 33, 0), rotX: swing * 0.6, color: c, pattern: 4),
             box(-4, 22, -5.3, 8, 6, 0.3, glow), box(-9, 42, -2, 3, 6, 1, glow * 0.8), box(6, 42, -2, 3, 6, 1, glow * 0.8),
         ]
+        return sink == 0 ? parts : parts.map { var q = $0; q.mn.y += sink; q.mx.y += sink; q.pivot.y += sink; return q }
     case .breeze:
         let c = V3(0.75, 0.8, 0.95)
         let spin = Float(m.walkPhase)
-        return [box(-4, 14, -4, 8, 8, 8, c, 4), box(-1, 3, -1, 2, 11, 2, c * 0.9),
+        return [box(-4, 14, -4, 8, 8, 8, c, 4), box(-1, 1, -1, 2, 13, 2, c * 0.9),          // rod down through both rings
                 Part(mn: V3(-5, 6, -5), mx: V3(5, 8, 5), pivot: V3(0, 7, 0), rotX: 0, rotZ: sinf(spin) * 0.2, color: c * 0.85),
                 Part(mn: V3(-4, 0, -4), mx: V3(4, 2, 4), pivot: V3(0, 1, 0), rotX: cosf(spin) * 0.2, color: c * 0.85)] + eyes(18, -4, 1.2, 1.2, V3(0.2, 0.3, 0.6))
     case .creaking:
         return barkwraithParts(m, swing: swing)
+    case .happyGhast:
+        return cloudwailerParts(m)
     case .bogged, .zoglin:
         if m.kind == .zoglin {
             let c = V3(0.8, 0.55, 0.55)
@@ -618,10 +871,10 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         return [
             Part(mn: V3(-2, 0, -1), mx: V3(0, 12, 1), pivot: V3(-1, 12, 0), rotX: swing, color: bone, pattern: 5),
             Part(mn: V3(0, 0, -1), mx: V3(2, 12, 1), pivot: V3(1, 12, 0), rotX: -swing, color: bone, pattern: 5),
-            box(-4, 12, -2, 8, 12, 4, bone, 5), box(-4, 24, -4, 8, 8, 8, bone, 5), box(-4.3, 30, -4.3, 8.6, 2, 8.6, moss, 4),
-            Part(mn: V3(-6, 12, -1), mx: V3(-4, 24, 1), pivot: V3(-5, 23, 0), rotX: -1.4, color: bone, pattern: 5),
-            Part(mn: V3(4, 12, -1), mx: V3(6, 24, 1), pivot: V3(5, 23, 0), rotX: -1.4, color: bone, pattern: 5),
-        ] + eyes(27, -4, 1, 1.5)
+            box(-4, 12, -2, 8, 12, 4, bone, 5), box(-4, 24, -4, 8, 8, 8, bone, 5), box(-4.3, 30, -4.3, 8.6, m.variant == 1 ? 0.2 : 2, 8.6, moss, 4),
+            Part(mn: V3(-6, 12, -1), mx: V3(-4, 24, 1), pivot: V3(-5, 23, 0), rotX: 1.4, color: bone, pattern: 5),
+            Part(mn: V3(4, 12, -1), mx: V3(6, 24, 1), pivot: V3(5, 23, 0), rotX: 1.4, color: bone, pattern: 5),
+        ] + eyes(27, -4, 1, 1.5) + bowParts(x: 5, pivot: V3(5, 23, 0), handY: 12, rotX: 1.4)
     default:
         return [box(-4, 0, -4, 8, 8, 8, V3(1, 0, 1))]
     }

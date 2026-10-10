@@ -6,19 +6,22 @@ final class EmberGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
     let d1: Noise, d2: Noise, bT: Noise, bH: Noise, deco: Noise
-    static let base = YOFF          // internal y of displayed y 0
     static let lavaLevel = 31
+    let base: Int                   // internal y of the band's floor: YOFF (displayed y 0) in the Emberdeep
+    let cap: BlockID                // floor and roof: bedrock in the Emberdeep, emberslate as the Deep's hell band
     let structures: StructureCache?
 
-    init(seed: UInt64) {
+    init(seed: UInt64, base: Int = YOFF, cap: BlockID = BEDROCK, structures: Bool = true) {
         self.seed = seed
+        self.base = base
+        self.cap = cap
         s32 = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0x4E7E4
         d1 = Noise(seed: seed &+ 101)
         d2 = Noise(seed: seed &+ 102)
         bT = Noise(seed: seed &+ 103)
         bH = Noise(seed: seed &+ 104)
         deco = Noise(seed: seed &+ 105)
-        structures = StructureCache(seed: seed, types: [Fortress.type, Bastion.type])
+        self.structures = structures ? StructureCache(seed: seed, types: [Fortress.type, Bastion.type]) : nil
     }
 
     func biome(_ x: Int, _ z: Int) -> Biome {
@@ -35,7 +38,7 @@ final class EmberGen: TerrainGenerator {
         return best
     }
 
-    func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (EmberGen.base + 32, biome(x, z)) }
+    func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (base + 32, biome(x, z)) }
 
     func tints(cx: Int, cz: Int) -> [UInt32] {
         [UInt32](repeating: 0xFF3A7ABF, count: 768)
@@ -54,15 +57,20 @@ final class EmberGen: TerrainGenerator {
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
+        fill(&b, cx: cx, cz: cz)
+        return b
+    }
+
+    // Writes the 128-tall band (base ... base + 127) into a chunk array.
+    func fill(_ b: inout [BlockID], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        let base = EmberGen.base
         // Density on a 4 x 8 x 4 lattice, trilinearly interpolated (fast and smooth).
         let lx = 5, ly = 17, lz = 5
         var lat = [Float](repeating: 0, count: lx * ly * lz)
         for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
             lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
         } } }
-        let netherrack = NETHERRACK, lava = LAVA, bedrock = BEDROCK
+        let netherrack = NETHERRACK, lava = LAVA, bedrock = cap
         for z in 0..<CS {
             for x in 0..<CS {
                 let i0 = x / 4, k0 = z / 4
@@ -88,12 +96,10 @@ final class EmberGen: TerrainGenerator {
             }
         }
         decorate(&b, cx, cz)
-        return b
     }
 
     private func decorate(_ b: inout [BlockID], _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        let base = EmberGen.base
         let netherrack = NETHERRACK
         let soulSand = Blocks.id("soul_sand"), soulSoil = Blocks.id("soul_soil"), basalt = Blocks.id("basalt")
         let blackstone = Blocks.id("blackstone"), magma = Blocks.id("magma_block"), gravel = GRAVEL
@@ -346,6 +352,9 @@ final class HollowGen: TerrainGenerator {
             for y in (fy + 1)...(fy + 4) where r2 > 0 { set(x, y, z, AIR) }
         } }
         for y in (fy + 1)...(fy + 3) { set(0, y, 0, BEDROCK) }
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { set(dx, fy + 2, dz, Blocks.id("torch")) }
+        // Wall torches on the column, pointing away from it (standing torches there hung over the portal: structcheck
+        // torch_unsupported). Wall torch state = 1 + facing (0 -Z, 1 +Z, 2 -X, 3 +X).
+        let sides: [(Int, Int, Int)] = [(1, 0, 3), (-1, 0, 2), (0, 1, 1), (0, -1, 0)]
+        for (dx, dz, f) in sides { set(dx, fy + 2, dz, Blocks.id("torch") + BlockID(1 + f)) }
     }
 }

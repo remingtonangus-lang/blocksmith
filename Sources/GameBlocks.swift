@@ -17,10 +17,10 @@ extension Game {
         case "campfire", "soul_campfire":
             let lit = st == 0
             if !lit && (key == "flint_and_steel" || key == "fire_charge") { world.setBlock(p.x, p.y, p.z, base); if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }; return true }
-            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fizz, 0.6, at: c); damageHeld(1); return true }
+            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fireExtinguish, 0.7, at: c); damageHeld(1); return true }
             // Put raw food on it (up to four items, 30 s each).
             if lit, Recipes.smelt(held.item) != nil, held.def.food != nil {
-                let be = world.blockEntities[p] ?? BlockEntity(.campfire)
+                let be = world.entity(p, .campfire)
                 world.blockEntities[p] = be
                 if let i = (0..<4).first(where: { be.container[$0].isEmpty }) {
                     be.container[i] = ItemStack(held.item, 1)
@@ -45,7 +45,11 @@ extension Game {
                 return true
             }
         case "respawn_anchor":
-            if key == "glowstone" && st < 4 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.enchant, 0.5, at: c); return true }
+            if key == "glowstone" && st < 4 {
+                world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.respawnAnchorCharge, 0.8, at: c)
+                if st + 1 == 4 { achieve("anchor_full") }
+                return true
+            }
             if st > 0 {
                 if dim.dim == .nether {
                     anchorSpawn = p
@@ -61,22 +65,20 @@ extension Game {
             if key == "sea_pickle" && st < 3 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); return true }
         case "turtle_egg":
             if key == "turtle_egg" && st < 3 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); return true }
-        case "cocoa":
-            if key == "bone_meal" && st < 2 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); particles.hearts(at: c); return true }
         case "jukebox":
             return useJukebox(p)
         case "vault":
             // A proving key opens a vault once.
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
-            guard key == "trial_key" && !be.used else { sfx(.click, 0.4, at: c); return true }
+            guard key == "trial_key" && !be.used else { sfx(.vaultReject, 0.6, at: c); return true }
             be.used = true
             consumeHeld()
             let tmp = ItemContainer(9)
-            var rng = SRng(UInt64.random(in: 1...UInt64.max))
+            var rng = SRng(Rand.u64(in: 1...UInt64.max))
             Loot.fill(tmp, table: "trial_vault", rng: &rng)
             for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.7, 0), vel: V3(0, 3, 0)) }
-            sfx(.levelUp, 0.5, at: c)
+            sfx(.vaultOpen, 0.8, at: c)
             return true
         case "lodestone":
             if key == "compass" { onToast?("Lodestone compass linked"); return true }
@@ -86,7 +88,7 @@ extension Game {
     }
 
     func angerBees(near c: V3) {
-        for m in mobs.mobs where m.kind == .bee && simd_length(m.pos - c) < 16 { m.aggro = true }
+        beeHiveDisturbed(c)
     }
 
     // 20 Hz: campfires cook and hurt, frost walker freezes, conduits power players in water.
@@ -111,16 +113,6 @@ extension Game {
         let fk = Blocks.key(fb)
         if (fk == "campfire" || fk == "soul_campfire") && survival && !player.sneaking {
             damage(fk == "soul_campfire" ? 2 : 1, "went up in flames", type: .fire)
-        }
-        // Frost walker: freeze still water around the player's feet.
-        let fw = Enchant.level(.frostWalker, inventory.armor[3])
-        if fw > 0 && player.onGround, Blocks.has("frosted_ice") {
-            let r = 2 + fw
-            let fi = Blocks.id("frosted_ice")
-            for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
-                let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
-                if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR { world.setBlockAsync(q.x, q.y, q.z, fi) }
-            } }
         }
         // Conduits: a tidestone frame (16+ blocks within 2) in water gives Conduit Power (16 blocks per 7 frame blocks).
         let conduit = Blocks.has("conduit") ? Blocks.id("conduit") : AIR
@@ -153,19 +145,20 @@ extension Game {
                 if found {
                     shriekCooldown = 10
                     warningLevel += 1
-                    sfx(.mobWarden, 0.6)
+                    sfx(.sculkShriek, 1.2, at: V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
                     applyEffect(.darkness, amp: 0, seconds: 12)
                     if warningLevel >= 4 {
                         warningLevel = 0
                         if !mobs.mobs.contains(where: { $0.kind == .warden }) {
-                            let a = Float.random(in: 0..<(2 * .pi))
+                            let a = Rand.float(in: 0..<(2 * .pi))
                             let x = Int(floor(pp.x + cosf(a) * 6)), z = Int(floor(pp.z + sinf(a) * 6))
                             var y = c.y + 3
                             while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
+                            w.emergeTime = 6.7
                             mobs.mobs.append(w)
-                            sfx(.mobWarden, 1.5, at: w.pos)
+                            sfx(.wardenEmerge, 2, at: w.pos)
                         }
                     }
                 }
@@ -185,11 +178,79 @@ extension Game {
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)
         for _ in 0..<60 where n > 0 {
-            let q = IVec3(c.x + Int.random(in: -3...3), c.y - 1 + Int.random(in: -1...0), c.z + Int.random(in: -3...3))
+            let q = IVec3(c.x + Rand.int(in: -3...3), c.y - 1 + Rand.int(in: -1...0), c.z + Rand.int(in: -3...3))
             let b = world.block(q.x, q.y, q.z)
             if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.block(q.x, q.y + 1, q.z) == AIR {
                 world.setBlockAsync(q.x, q.y, q.z, sculk); n -= 1
             }
+        }
+    }
+
+    static let frostedIceID: BlockID = Blocks.has("frosted_ice") ? Blocks.id("frosted_ice") : AIR
+
+    // Frost Walker freezes still water round the feet every frame the wearer stands on ground, radius 2 + level
+    // (reference: every tick; once a second let a walker sink between freezes).
+    func frostWalkerTick() {
+        let fw = Enchant.level(.frostWalker, inventory.armor[3])
+        guard fw > 0, player.onGround, !player.flying, Game.frostedIceID != AIR else { return }
+        let pp = player.pos
+        let feet = IVec3(Int(floor(pp.x)), Int(floor(pp.y - 0.1)), Int(floor(pp.z)))
+        let r = min(16, 2 + fw)
+        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
+            let q = IVec3(feet.x + dx, feet.y, feet.z + dz)
+            if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR {
+                world.setBlockAsync(q.x, q.y, q.z, Game.frostedIceID)
+                frostTimers[q] = Rand.float(in: 3...6)            // first melt try 60-120 ticks on
+            }
+        } }
+    }
+
+    // 20 times a second (the reference tick), counting down in place and melting the due ones after the pass.
+    func frostedIceTick(_ dt: Float) {
+        guard !frostTimers.isEmpty else { frostAcc = 0; return }
+        frostAcc += dt
+        guard frostAcc >= 0.05 else { return }
+        let step = frostAcc
+        frostAcc = 0
+        var due: [IVec3] = []
+        var i = frostTimers.values.startIndex          // values mutated in place: no copy of the table
+        while i != frostTimers.values.endIndex {
+            frostTimers.values[i] -= step
+            if frostTimers.values[i] <= 0 { due.append(frostTimers.keys[i]) }
+            frostTimers.values.formIndex(after: &i)
+        }
+        for q in due { frostTimers[q] = nil; meltFrosted(q) }
+    }
+
+    // One reference frosted-ice tick: lit above 11 - age, it ages a step with 1/3 chance (always with fewer than 4
+    // frosted neighbours) and turns to water after age 3, its neighbours ticking next; otherwise it tries again in
+    // 1-2 s. A Frost Walker path melts in about 10-20 s by day and stays at night. (It aged only on random ticks,
+    // about 4.5 minutes.)
+    func meltFrosted(_ q: IVec3) {
+        let fi = Game.frostedIceID
+        let b = world.block(q.x, q.y, q.z)
+        guard fi != AIR, b != AIR, Blocks.groupBase[Int(b)] == fi else { return }
+        let age = Int(b) - Int(fi)
+        let dirs = World.allDirs
+        var n = 0
+        for d in dirs where Blocks.groupBase[Int(world.block(q.x + d.x, q.y + d.y, q.z + d.z))] == fi { n += 1 }
+        let l = world.lightAt(q.x, q.y, q.z)
+        let dayPart: Float = (daylight - 0.12) / 0.88
+        let darken = max(0, min(11, Int(((1 - dayPart) * 11).rounded())))
+        let lit = max(l.block, l.sky - darken)
+        if lit > 11 - age && (Rand.int(in: 0..<3) == 0 || n < 4) {
+            if age < 3 {
+                world.setBlockAsync(q.x, q.y, q.z, b + 1)
+                frostTimers[q] = Rand.float(in: 1...2)
+            } else {
+                world.setBlockAsync(q.x, q.y, q.z, WATER)
+                for d in dirs {
+                    let o = IVec3(q.x + d.x, q.y + d.y, q.z + d.z)
+                    if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == fi { frostTimers[o] = min(frostTimers[o] ?? 0.05, 0.05) }
+                }
+            }
+        } else {
+            frostTimers[q] = Rand.float(in: 1...2)
         }
     }
 
@@ -199,12 +260,12 @@ extension Game {
         let st = Int(b - base)
         switch key {
         case "frosted_ice":
-            if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, WATER) }
+            meltFrosted(p)
         case "cocoa":
-            if st < 2 && Int.random(in: 0..<5) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
+            if st < 2 && Rand.int(in: 0..<5) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
         case "turtle_egg":
             // Hatch at night after a few cracks.
-            if daylight < 0.4 && Int.random(in: 0..<3) == 0 {
+            if daylight < 0.4 && Rand.int(in: 0..<3) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, st > 0 ? b - 1 : AIR)
                 let t = Mob(.turtle, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
                 t.baby = true; t.scale = 0.3
@@ -212,20 +273,36 @@ extension Game {
                 mobs.mobs.append(t)
             }
         case "frogspawn":
-            if Int.random(in: 0..<4) == 0 {
+            if Rand.int(in: 0..<4) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)
-                for _ in 0..<Int.random(in: 2...5) { mobs.mobs.append(Mob(.tadpole, at: V3(Float(p.x) + 0.5, Float(p.y) - 0.5, Float(p.z) + 0.5))) }
+                for _ in 0..<Rand.int(in: 2...5) { mobs.mobs.append(Mob(.tadpole, at: V3(Float(p.x) + 0.5, Float(p.y) - 0.5, Float(p.z) + 0.5))) }
+            }
+        case "dried_ghast":
+            // Next to water it soaks up a stage every few random ticks (about 20 minutes to hatch); dry, it shrivels back.
+            var wet = false
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] where !wet {
+                wet = Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
+            }
+            if wet && Rand.int(in: 0..<4) == 0 {
+                if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
+                else {
+                    world.setBlockAsync(p.x, p.y, p.z, AIR)
+                    let w = Mob(.happyGhast, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
+                    w.baby = true; w.scale = 0.25; w.persistent = true
+                    mobs.mobs.append(w)
+                    sfx(.mob(.happyGhast, .ambient), 0.8, at: w.pos)
+                }
+            } else if !wet && st > 0 && Rand.int(in: 0..<6) == 0 {
+                world.setBlockAsync(p.x, p.y, p.z, b - 1)
             }
         case "sniffer_egg":
-            if Int.random(in: 0..<20) == 0 {
+            if Rand.int(in: 0..<20) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)
                 let s = Mob(.sniffer, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)); s.baby = true; s.scale = 0.5
                 mobs.mobs.append(s)
             }
         case "bee_nest", "beehive":
-            if st < 5 && mobs.mobs.contains(where: { $0.kind == .bee && simd_length($0.pos - V3(Float(p.x), Float(p.y), Float(p.z))) < 22 }) && Int.random(in: 0..<3) == 0 {
-                world.setBlockAsync(p.x, p.y, p.z, b + 1)
-            }
+            break                                           // honey comes from bees returning with nectar (Bees.swift)
         case "torchflower_crop":
             if st < 1 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, Blocks.id("torchflower")) }
         case "pitcher_crop":

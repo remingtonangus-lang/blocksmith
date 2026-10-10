@@ -12,17 +12,23 @@ extension Game {
 
     // Burst: knocks back everything within 2.5 blocks (the thrower included, which launches them).
     func windBurst(at c: V3) {
-        sfx(.fireball, 0.8, at: c)
+        sfx(.windCharge, 1, at: c)
         particles.explosion(at: c, power: 0.4)
         for m in mobs.mobs where m.health > 0 {
             let d = m.pos + V3(0, m.height / 2, 0) - c
             let l = simd_length(d)
-            if l < 2.5 { m.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 6 + V3(0, 4, 0) }
+            if l < 2.5 {
+                let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+                let s: Float = (2.5 - l) * 6
+                m.vel += dir * s + V3(0, 4, 0)
+            }
         }
         let d = player.pos + V3(0, 0.9, 0) - c
         let l = simd_length(d)
         if l < 2.5 {
-            player.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 7 + V3(0, 6, 0)
+            let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+            let s: Float = (2.5 - l) * 7
+            player.vel += dir * s + V3(0, 6, 0)
             player.airPeak = player.pos.y                   // no fall damage from the launch height
         }
         // Flips doors, trapdoors, gates, levers and buttons it touches.
@@ -49,7 +55,7 @@ extension Game {
                 let wet = Blocks.fluidKind[Int(b)] == 1
                 let k = Blocks.key(Blocks.groupBase[Int(b)])
                 if wet || k == "kelp" || k == "kelp_plant" || k == "seagrass" || k == "tall_seagrass" {
-                    world.setBlockAsync(n.x, n.y, n.z, AIR)
+                    world.setBlockAsync(n.x, n.y, n.z, Blocks.isWaterlogged(b) ? Blocks.dry[Int(b)] : AIR)     // drains a waterlogged block
                     soaked += 1
                     queue.append((n, dist + 1))
                 }
@@ -57,7 +63,7 @@ extension Game {
         }
         if soaked > 0 {
             world.setBlock(p.x, p.y, p.z, Blocks.id("wet_sponge"))
-            sfx(.splash, 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+            sfx(.bucketFill, 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
         }
     }
 
@@ -75,7 +81,7 @@ extension Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if k == "sponge" { spongeAbsorb(p) }
         if k.hasSuffix("_concrete_powder") { hardenConcrete(p) }
-        if k == "wet_sponge" && dim.dim == .nether {
+        if k == "wet_sponge" && dim.dim.ultrawarm {
             world.setBlock(p.x, p.y, p.z, Blocks.id("sponge"))
             sfx(.fizz, 0.8)
         }
@@ -98,13 +104,15 @@ extension Game {
         if inside {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }
-            if !boots || world.block(feet.x, feet.y + 1, feet.z) == snow { freeze = min(7, freeze + dt) }
+            // Any piece of leather armour keeps the cold out (reference; only the boots counted).
+            let leather = inventory.armor.slots.contains { Items.key($0.item).hasPrefix("leather_") }
+            if !leather { freeze = min(7, freeze + dt) }
         } else {
             freeze = max(0, freeze - 2 * dt)
         }
         if freeze >= 7 && survival {
             freezeTick += dt
-            if freezeTick >= 2 { freezeTick = 0; damage(1, "froze to death", bypassArmor: false, type: .generic) }
+            if freezeTick >= 2 { freezeTick = 0; damage(1, "froze to death", bypassArmor: true, type: .generic) }
         } else { freezeTick = 0 }
     }
 }

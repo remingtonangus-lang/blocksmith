@@ -26,7 +26,7 @@ enum Advancements {
     static let tabs = ["Story", "Emberdeep", "The Hollow", "Adventure", "Husbandry"]
     static let all: [Advancement] = [
         // Story
-        Advancement(id: "root", tab: 0, title: "First Steps", desc: "The heart and story of the game", crit: .item("crafting_table")),
+        Advancement(id: "root", tab: 0, title: "First Steps", desc: "Every world starts at a workbench", crit: .item("crafting_table")),
         Advancement(id: "mine_stone", tab: 0, title: "Rock Bottom", desc: "Mine stone with your new pickaxe", crit: .item("cobblestone")),
         Advancement(id: "upgrade_tools", tab: 0, title: "Better Tools", desc: "Construct a better pickaxe", crit: .item("stone_pickaxe")),
         Advancement(id: "smelt_iron", tab: 0, title: "Metalworks", desc: "Smelt an iron ingot", crit: .item("iron_ingot")),
@@ -36,9 +36,9 @@ enum Advancements {
         Advancement(id: "iron_tools", tab: 0, title: "Iron Grip", desc: "Upgrade your pickaxe", crit: .item("iron_pickaxe")),
         Advancement(id: "deflect_arrow", tab: 0, title: "Not Today", desc: "Block a projectile with a shield", crit: .event("deflect")),
         Advancement(id: "form_obsidian", tab: 0, title: "Cold Glass", desc: "Obtain a block of obsidian", crit: .item("obsidian")),
-        Advancement(id: "mine_diamond", tab: 0, title: "Shiny!", desc: "Acquire diamonds", crit: .item("diamond")),
+        Advancement(id: "mine_diamond", tab: 0, title: "Shiny!", desc: "Acquire titanium", crit: .item("diamond")),
         Advancement(id: "enter_the_nether", tab: 0, title: "Down Below", desc: "Build, light and enter an Ember Gate", crit: .dim(.nether)),
-        Advancement(id: "shiny_gear", tab: 0, title: "Glittering Guard", desc: "Diamond armor saves lives",
+        Advancement(id: "shiny_gear", tab: 0, title: "Glittering Guard", desc: "Titanium armor saves lives",
                     crit: .anyItem(["diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"])),
         Advancement(id: "enchant_item", tab: 0, title: "Spellbound", desc: "Enchant an item at an Enchanting Table", crit: .event("enchant")),
         Advancement(id: "cure_zombie_villager", tab: 0, title: "Second Opinion", desc: "Weaken and then cure a Zombie Villager", crit: .event("cure"), challenge: false),
@@ -91,6 +91,26 @@ enum Advancements {
         Advancement(id: "adventure/sniper_duel", tab: 3, title: "Long Shot", desc: "Kill a Skeleton from at least 50 blocks away", crit: .event("sniper")),
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
         Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
+        // Steelhold fortresses (original content).
+        Advancement(id: "adventure/steelhold", tab: 3, title: "Behind White Walls", desc: "Set foot inside a Capital citadel", crit: .event("steelhold")),
+        Advancement(id: "adventure/steelhold_gun", tab: 3, title: "Locked and Loaded", desc: "Get your hands on a Steelhold gun",
+                    crit: .anyItem(["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc", "gun_sidearm"])),
+        Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Capital 42 cm turret", crit: .event("deck_gun")),
+        Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Capital Bulwark",
+                    crit: .event("ironclad"), challenge: true),
+        // The Deep and the Ashguard (task 22).
+        Advancement(id: "adventure/deep", tab: 3, title: "Bottom of the World", desc: "Dig through the bottom of the world into the Deep",
+                    crit: .event("deep_visit")),
+        Advancement(id: "adventure/ash_vault", tab: 3, title: "The Vault Below", desc: "Drop into the Ash Vault", crit: .event("ash_vault")),
+        Advancement(id: "adventure/ash_tank", tab: 3, title: "Tank Buster", desc: "Destroy a Cinder Tank", crit: .event("ash_tank")),
+        Advancement(id: "adventure/ash_victory", tab: 3, title: "Ashes to Ashes", desc: "Defeat the Ash Marshal and break the Ashguard",
+                    crit: .event("ash_victory"), challenge: true),
+        // Ships (Blocksmith's own: moving block structures).
+        Advancement(id: "adventure/set_sail", tab: 3, title: "Anchors Aweigh", desc: "Steer a ship from its helm", crit: .event("pilot_ship")),
+        Advancement(id: "adventure/prize_crew", tab: 3, title: "Prize Crew", desc: "Take the helm of a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("capture_vessel"), challenge: true),
+        Advancement(id: "adventure/brought_low", tab: 3, title: "Brought Low", desc: "Wreck a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("wreck_vessel"), challenge: true),
         // Husbandry
         Advancement(id: "husbandry/root", tab: 4, title: "Homestead", desc: "The world is full of friends and food", crit: .event("eat")),
         Advancement(id: "husbandry/plant_seed", tab: 4, title: "Sown", desc: "Plant a seed and watch it grow", crit: .event("plant")),
@@ -133,6 +153,11 @@ extension Game {
     func advancementTick() {
         guard clock - lastAdvCheck >= 1 else { return }
         lastAdvCheck = clock
+        // What every player holds, wears, rides and stands in counts (split screen: player 2's progress was ignored).
+        coop.eachSeat(self) { self.advancementCheck() }
+    }
+
+    private func advancementCheck() {
         var have = Set<String>()
         for s in inventory.main.slots + inventory.armor.slots + inventory.offhand.slots where !s.isEmpty { have.insert(Items.key(s.item)) }
         for a in Advancements.all where !advancements.contains(a.id) {
@@ -179,6 +204,8 @@ extension Game {
         if m.kind == .enderDragon { achieve("kill_ender_dragon") }
         if m.captain { achieve("kill_captain") }
         if m.kind == .skeleton && simd_length(m.pos - player.pos) >= 50 { achieve("sniper") }
+        if m.kind == .deckGun { achieve("deck_gun") }
+        if m.kind == .soldierIronclad { achieve("ironclad") }
     }
 
     func saveAdvancements(_ d: inout [String: String]) {

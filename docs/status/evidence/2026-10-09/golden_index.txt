@@ -1,0 +1,17 @@
+spawn ok 1s  --seed 12345 --yaw 30 --pitch -12 --time 0.2
+forest ok 2s  --seed 12345 --find forest --yaw 30 --pitch -8 --time 0.24 --up 12 --rd 10
+village ok 2s  --seed 12345 --structure village --frame --time 0.27 --rd 10
+cave_torch ok 1s  --seed 12345 --find plains --cavey 10 --yaw 40 --pitch -10 --time 0.75 --torches --rd 6
+ore_closeup ok 1s  --seed 12345 --find plains --cavey -40 --yaw 90 --pitch -20 --time 0.3 --rd 4 --torches
+horse ok 1s  --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn horse --saddled --stage
+capital_city ok 3s  --seed 12345 --structure capital_city --frame --time 0.27 --rd 16
+base_battle ok 2s  --seed 12345 --find plains --time 0.3 --rd 10 --ship battle
+frigate ok 1s  --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:side
+the_deep ok 2s  --seed 12345 --dim deep --hell --x 60 --z 60 --yaw 30 --pitch -10 --up 8 --rd 8
+ash_vault ok 1s  --seed 12345 --dim deep --x -80 --z 0 --yaw 270 --pitch 0 --up 14 --rd 8
+inventory ok 1s  --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3
+crafting ok 1s  --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting
+options ok 1s  --seed 12345 --menu options
+dusk ok 2s  --seed 12345 --find plains --yaw 270 --pitch -4 --time 0.49 --up 2 --rd 12
+night ok 2s  --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.75 --up 2 --rd 12
+rain ok 1s  --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain

@@ -1,0 +1,100 @@
+# Coined terms from the reference block game that must not appear in anything the player reads (the repo is public;
+# docs/status/ip-renames.md lists every rename and the words we decided to keep). Internal save keys are exempt.
+# Read by tools/namecheck.py --coined (source string literals + the runtime name dump) and by
+# `Blocksmith --questbugs --only pm9d` (every registered display name at runtime).
+# Format: one term per line. A plain term matches case-sensitively at a word start ("Blaze" but not "blaze of light");
+# a term starting with "*" matches case-insensitively (coined words with no ordinary-English meaning).
+#
+# Coined words (no ordinary meaning)
+*Minecraft
+*Mojang
+*Sculk
+*Netherite
+*Netherrack
+*Nether
+*Ender
+*Endermite
+*Shulker
+*Elytra
+*Creeper
+*Ghast
+*Piglin
+*Hoglin
+*Zoglin
+*Redstone
+*Glowstone
+*Purpur
+*Prismarine
+*Deepslate
+*Blackstone
+*Mooshroom
+*Nylium
+*Shroomlight
+*Evoker
+*Vindicator
+*Pillager
+*Illager
+*Illusioner
+*Overworld
+*Eyeblossom
+*Multishot
+*Glistering
+*Dripleaf
+*Torchflower
+# Coined compound names (enchantments, effects, items, places)
+*Silk Touch
+*Bane of Arthropods
+*Swift Sneak
+*Soul Speed
+*Frost Walker
+*Aqua Affinity
+*Depth Strider
+*Feather Falling
+*Fire Aspect
+*Sweeping Edge
+*Luck of the Sea
+*Totem of Undying
+*Dolphin's Grace
+*Conduit Power
+*Hero of the Village
+*Awkward Potion
+*Mundane Potion
+*Thick Potion
+*End Stone
+*End Crystal
+*End Rod
+*End Portal
+*End Gateway
+*End City
+*Chorus Fruit
+*Chorus Plant
+*Chorus Flower
+*Crying Obsidian
+*Respawn Anchor
+*Ancient Debris
+*Soul Sand
+*Soul Soil
+*Warped Fungus
+*Crimson Fungus
+*Heart of the Sea
+*Ominous Bottle
+*Trial Spawner
+*Heavy Core
+*Echo Shard
+*The heart and story of the game
+# Ordinary words used as the reference game's mob / boss / feature names (capitalized form only)
+Blaze
+Wither
+Warden
+Strider
+Guardian
+Vex
+Ravager
+Allay
+Sniffer
+Bogged
+Creaking
+Riptide
+Warped
+Crimson
+Undying

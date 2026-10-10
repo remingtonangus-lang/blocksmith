@@ -15,15 +15,25 @@ final class Player {
     var yaw: Float = 0
     var pitch: Float = 0
     var flying = false
+    var fastFlight = true           // sprint while flying goes ~8x normal flight speed (V toggles it)
     var onGround = false
-    var inWater = false
+    var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
+    var viewLastY: Float?, viewLastGround = false
+    var inWater = false             // water only (lava is inLava; QA: lava used to count as water)
+    var inLava = false
+    var headInLava = false
     var headInWater = false
     var sneaking = false
     var sprinting = false
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
+    var lastUpdatePos = V3(0, 0, 0)  // where the last update left the body (a jump of 6+ blocks is a teleport)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
     var gliding = false            // glider wings flight
+    var jetThrust = false          // jetpack thrusting this frame (set by Game.jetpackTick before update)
+    var jetHold: Float = 0         // seconds jump has been held (jetpack takes over after 0.15 s)
+    var jetBurn: Float = 0         // fractional fuel ticks burnt
+    var jetEmptyWarned = false
     var boost: Float = 0           // firework rocket boost left (s)
     var levitate: Float = 0        // sentry bolt levitation left (s)
     var levitateAmp = 0
@@ -49,6 +59,12 @@ final class Player {
 
     var eye: V3 { pos + V3(0, prone ? 0.4 : ((sneaking && !flying) ? eyeHeight - 0.35 : eyeHeight), 0) }
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
+    /// Direction sprint-swimming and ladder pushing follow when it isn't the look (VR: the head, not the aiming hand).
+    var moveLook: V3? = nil
+    /// Yaw the walking/flying stick input is relative to when it isn't the aim yaw (VR: the head, never the hand).
+    /// Set each tick by the VR controls, so nothing that turns `yaw` later in the tick (aim assist, pad look) can steer.
+    var moveYaw: Float? = nil
+    var wetGrace: Float = 0         // s since leaving water that the bank climb / step-up still apply (getting out over the edge)
 
     func collides(at p: V3, _ w: World) -> Bool {
         w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
@@ -65,12 +81,49 @@ final class Player {
         collides(at: p - V3(0, 0.06, 0), w)
     }
 
+    static var quarantined = 0
+    static let vrSprintSpeed: Float = 4.317 * 1.6
+    static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
+    static let cobwebID: BlockID = Blocks.has("cobweb") ? Blocks.id("cobweb") : AIR
+    static let soulSandID: BlockID = Blocks.has("soul_sand") ? Blocks.id("soul_sand") : AIR
+    static let honeyID: BlockID = Blocks.has("honey_block") ? Blocks.id("honey_block") : AIR
+    static let powderSnowID: BlockID = Blocks.has("powder_snow") ? Blocks.id("powder_snow") : AIR
+    static let berryBase: BlockID = Blocks.has("sweet_berry_bush") ? Blocks.groupBase[Int(Blocks.id("sweet_berry_bush"))] : AIR
+    // Held in a block (reference makeStuckInBlock, each tick's motion scaled and then cleared): the share of walking
+    // speed left, the fall and the climb speeds in b/s (cobweb 0.25 / 0.05, berry bush 0.8 / 0.75, powder snow 0.9 with
+    // its sinking left to Physics). Nil when free.
+    static func stuck(_ b: BlockID) -> (h: Float, down: Float, up: Float)? {
+        if b == AIR { return nil }
+        if b == cobwebID { return (0.116, 0.08, 0.42) }
+        if berryBase != AIR && Blocks.groupBase[Int(b)] == berryBase { return (0.37, 1.2, 6.3) }
+        if b == powderSnowID { return (0.415, 60, 60) }
+        return nil
+    }
+    private var lastGoodPos: V3?
     func update(dt: Float, input: MoveInput, world w: World) {
+        // NaN quarantine: a body left non-finite (a degenerate push or knockback, here or before this step) goes back to
+        // its last finite position instead of reaching Int(floor()) in every block lookup (undefined in the release
+        // build). Every repair is counted: the agents' non_finite oracle and the smoke line report it.
+        func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
+        if !finite(pos) || !finite(vel) {
+            if !finite(pos) { pos = lastGoodPos ?? V3(0, Float(YOFF + 100), 0) }
+            vel = .zero
+            Player.quarantined += 1
+        }
+        let pos0 = pos
+        defer {
+            if !finite(pos) || !finite(vel) {
+                pos = pos0; vel = .zero
+                Player.quarantined += 1
+            } else {
+                lastGoodPos = pos
+            }
+        }
         // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
         // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
-        let wet = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))
+        let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
@@ -78,85 +131,128 @@ final class Player {
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
 
-        // Unstuck: if spawned or placed inside a block, pop upward.
+        // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
+        // sideways: on a moving vehicle the ship-frame round trip leaves the body ~1e-4 inside the wall it walks
+        // along, and popping up a block at a time carried it through an engine stack onto the crawler's roof
+        // (ridecheck board/troops, z 71 face of the troop-bay engines). Feet a hair into the floor (placed at a dropped
+        // item's resting height) rise by that hair, not by whole blocks up through the rock (playthrough "mine" run).
         var tries = 0
+        if collides(at: pos, w) {
+            let nudges: [V3] = [V3(0, 0.002, 0), V3(0.002, 0, 0), V3(-0.002, 0, 0), V3(0, 0, 0.002), V3(0, 0, -0.002),
+                                V3(0, 0.02, 0), V3(0.01, 0, 0), V3(-0.01, 0, 0), V3(0, 0, 0.01), V3(0, 0, -0.01), V3(0, 0.1, 0)]
+            if let n = nudges.first(where: { !collides(at: pos + $0, w) }) { pos += n }
+        }
         while collides(at: pos, w) && tries < 64 { pos.y += 1; tries += 1 }
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
         let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
-        inWater = Blocks.isLiquid(feet) || Blocks.isLiquid(body)
+        inWater = Blocks.fluidKind[Int(feet)] == 1 || Blocks.fluidKind[Int(body)] == 1
+        inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
         let e = eye
-        headInWater = Blocks.isLiquid(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
+        let headKind = Blocks.fluidKind[Int(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
+        headInWater = headKind == 1
+        headInLava = headKind == 2
+        // Movement treats both fluids alike (lava is slower and heavier below); views, air and swimming are water only.
+        let inFluid = inWater || inLava
 
-        if flying || inWater { airPeak = pos.y }
+        if flying || inFluid { airPeak = pos.y }
+        // Moved 6+ blocks since the last update: a teleport (portal, command, harness), not a fall. Terminal speed is
+        // under 4 blocks a tick. (The playthrough died of "fall" damage after being placed at the Emberdeep portal
+        // below where it had last stood: run 375.)
+        if simd_length(pos - lastUpdatePos) > 6 { airPeak = pos.y }
         jumped = false
-        if gliding && (onGround || inWater || flying) { gliding = false }
+        if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
 
         sneaking = (input.sneak || forcedCrouch) && !flying && !prone
         sprinting = (input.sprint && input.forward > 0 && !sneaking) || swimming
 
-        let f = V3(-sinf(yaw), 0, -cosf(yaw))
-        let r = V3(cosf(yaw), 0, -sinf(yaw))
+        let my = moveYaw ?? yaw
+        let f = V3(-sinf(my), 0, -cosf(my))
+        let r = V3(cosf(my), 0, -sinf(my))
         var wish = f * input.forward + r * input.strafe
+        let swimLook = moveLook ?? look
+        var fh = f
+        if let m = moveLook, m.x * m.x + m.z * m.z > 1e-6 { fh = simd_normalize(V3(m.x, 0, m.z)) }
         let len = simd_length(wish)
         if len > 1 { wish /= len }
 
         var speed: Float
-        if flying { speed = sprinting ? 21.6 : 10.9 }
-        else if inWater {
-            speed = sprinting ? 3.0 : 2.2
+        if flying { speed = sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9 }
+        else if inFluid {
+            speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
             if dolphinsGrace { speed *= 2.2 }
         }
         else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
-        else { speed = sprinting ? 5.612 : 4.317 }
+        // VR sprints at 1.6x a walk (the reference's 1.3x is near invisible in a headset: playtest v78, fourth report).
+        else { speed = sprinting ? (moveYaw != nil ? Player.vrSprintSpeed : 5.612) : 4.317 }
         if !flying { speed *= speedMul }
         if soulSpeed > 0 && onGround {
             let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
             if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }
         }
+        // Soul sand and honey slow walking to ~58 % (reference speed factor 0.4 against ground friction; Soul Speed
+        // cancels the sand's), honey halves the jump (below).
+        let underID = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z)))
+        if !flying && onGround && ((underID == Player.soulSandID && soulSpeed == 0) || underID == Player.honeyID) { speed *= 0.58 }
+        let held = flying ? nil : (Player.stuck(feet) ?? Player.stuck(body))
+        if let s = held { speed *= s.h }
 
+        if jetThrust { speed *= 1.3 }
         let target = wish * speed
-        let accel: Float = flying ? 10 : (onGround ? 20 : (inWater ? 8 : 5))
+        let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : (jetThrust ? 8 : 5)))
         let k = 1 - expf(-accel * dt)
         vel.x += (target.x - vel.x) * k
         vel.z += (target.z - vel.z) * k
+        if held != nil { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
 
         if flying {
             var vy: Float = 0
             if input.jump { vy += 1 }
             if input.sneak { vy -= 1 }
-            let ty = vy * (sprinting ? 12 : 8)
+            let ty = vy * (sprinting ? (fastFlight ? 48 : 12) : 8)
             vel.y += (ty - vel.y) * (1 - expf(-10 * dt))
         } else if swimming {
             // Sprint-swimming goes where you look (dive and surface with the view), about sprint speed.
             var sp: Float = 5.6 * speedMul
             if depthStrider > 0 { sp *= 1 + 0.1 * Float(min(3, depthStrider)) }
             if dolphinsGrace { sp *= 1.8 }
-            let t = look * sp
+            let t = swimLook * sp
             let ks = 1 - expf(-5 * dt)
             vel += (t - vel) * ks
-        } else if inWater {
+        } else if inFluid {
+            let lava = inLava && !inWater
             vel.y -= 9 * dt
-            vel.y *= expf(-2.5 * dt)
-            if input.jump { vel.y = min(vel.y + 22 * dt, 3.2) }
-            vel.y = max(vel.y, -4)
+            vel.y *= expf((lava ? -5 : -2.5) * dt)
+            if input.jump { vel.y = min(vel.y + (lava ? 16 : 22) * dt, lava ? 2.0 : 3.2) }
+            vel.y = max(vel.y, lava ? -2 : -4)
         } else if levitate > 0 {
             levitate -= dt
             vel.y += (0.9 * Float(levitateAmp + 1) - vel.y) * (1 - expf(-4 * dt))
+            airPeak = pos.y
+        } else if jetThrust {
+            // Jetpack: ease the climb toward ~6 blocks/s; the fall restarts from wherever the thrust stops.
+            vel.y += (6 - vel.y) * (1 - expf(-4 * dt))
             airPeak = pos.y
         } else {
             vel.y -= (slowFalling && vel.y < 0 ? 2.8 : 28) * dt
             vel.y = max(vel.y, slowFalling ? -1.2 : -60)
             if slowFalling { airPeak = pos.y }
-            if input.jump && onGround { vel.y = 8.6 + 2 * Float(jumpBoost); jumped = true }
+            if input.jump && onGround {
+                vel.y = (8.6 + 2 * Float(jumpBoost)) * (underID == Player.honeyID ? 0.5 : 1)
+                jumped = true
+            }
+        }
+        if let s = held {
+            vel.y = max(-s.down, min(s.up, vel.y))
+            airPeak = pos.y                       // being held resets the fall (reference)
         }
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.
         if !flying && (Player.climbable(feet) || Player.climbable(body)) {
-            if input.jump || (input.forward > 0.1 && (collides(at: pos + f * 0.35, w))) { vel.y = 2.35 }
+            if input.jump || (input.forward > 0.1 && (collides(at: pos + fh * 0.35, w))) { vel.y = 2.35 }
             else if input.sneak { vel.y = max(vel.y, 0) }
             else { vel.y = max(vel.y, -3) }
             airPeak = pos.y
@@ -170,18 +266,34 @@ final class Player {
                 if !groundBelow(p, w) { vel[a] = 0 }
             }
         }
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround)
+        // Step-up also works while swimming and just after (feet within 0.6 of a bank top walk straight out, as in the
+        // reference, whose water check is the whole body box: it keeps pushing until the feet clear the surface).
+        wetGrace = inWater ? 0.15 : max(0, wetGrace - dt)
+        let wetish = inFluid || wetGrace > 0
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
         var landed = false
+        var bounce: Float = 0
         if hit.y {
-            if vel.y < 0 { landed = true }
+            if vel.y < 0 {
+                landed = true
+                // Slime blocks bounce you back up unless you sneak (reference; the fall does no damage: Game).
+                let under = w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z)))
+                if under == Player.slimeID && !sneaking && vel.y < -2 { bounce = -vel.y * 0.85 }
+            }
             vel.y = 0
         }
+        if bounce > 0 { vel.y = bounce }
         if autoJump && onGround && !flying && !sneaking && !prone && (hit.x || hit.z) && simd_length(wish) > 0.3 {
             // Auto-jump: a one-block step ahead with room above it.
             let d = simd_normalize(wish) * 0.35
             if collides(at: pos + d, w) && !collides(at: pos + d + V3(0, 1.05, 0), w) && !collides(at: pos + V3(0, 1.05, 0), w) {
                 vel.y = 8.6 + 2 * Float(jumpBoost)
             }
+        }
+        // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
+        // while there's room 0.6 higher), so a one-block bank is easy to get onto.
+        if wetish && !flying && (hit.x || hit.z) && simd_length(wish) > 0.3 && !collides(at: pos + V3(0, 0.6, 0), w) {
+            vel.y = max(vel.y, 5.0)
         }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
@@ -194,6 +306,7 @@ final class Player {
             airPeak = max(airPeak, pos.y)
         }
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
+        lastUpdatePos = pos
     }
 
     // Glider Wings flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
@@ -228,7 +341,8 @@ final class Player {
             }
             if boost > 0 {
                 boost -= 0.05
-                v += l * 0.1 + (l * 1.5 - v) * 0.5
+                let push: V3 = l * 0.1
+                v += push + (l * 1.5 - v) * 0.5
             }
             v *= V3(0.99, 0.98, 0.99)
         }

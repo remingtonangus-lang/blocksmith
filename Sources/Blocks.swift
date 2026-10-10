@@ -79,6 +79,7 @@ let Tex = TextureRegistry()
 final class BlockRegistry {
     private(set) var defs: [BlockDef] = []
     private var byName: [String: BlockID] = [:]
+    var untextured: [String] = []   // visible blocks registered without textures (drawn with "missing")
     // Per-state tables
     var render: [UInt8] = []
     var layer: [UInt8] = []
@@ -90,6 +91,7 @@ final class BlockRegistry {
     var collide: [Bool] = []        // has any collision
     var fullCollide: [Bool] = []    // collision is the full cube
     var cullSame: [Bool] = []
+    var crossSize: [UInt8] = []     // cross plants: drawn size in 1/16 (short grass and flowers are smaller, playtest v78)
     var tint: [UInt8] = []
     var replaceable: [Bool] = []
     var fluidLevel: [Int8] = []
@@ -100,28 +102,103 @@ final class BlockRegistry {
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
+    // Flammable in the reference though neither wooden-sounding, leaves nor a plant (World.fireOdds gives their odds).
+    static let extraFlammable: Set<String> = ["hay_block", "dried_kelp_block", "scaffolding", "target", "coal_block", "composter", "beehive", "bee_nest"]
+    // Blast resistance where it differs from hardness (the reference keeps them apart: stone 1.5 hard but 6 against
+    // blasts, planks 2 / 3, end stone 3 / 9). Before this every block used its hardness, so a creeper cratered
+    // stone, brick and deepslate builds about four times deeper than it should.
+    static func refResistance(_ d: BlockDef) -> Float? {
+        let n = d.name
+        if n.contains("infested") { return nil }
+        if n.hasSuffix("_ore") { return 3 }
+        if n.contains("end_stone") { return 9 }
+        if n == "reinforced_deepslate" || n == "netherite_block" || n == "ancient_debris" || n.contains("anvil")
+            || n == "enchanting_table" || n == "respawn_anchor" { return 1200 }
+        if n == "ender_chest" { return 600 }
+        if n == "obsidian" { return 1200 }
+        if n.hasSuffix("_block") && ["coal", "iron", "gold", "diamond", "emerald", "redstone"].contains(where: { n.hasPrefix($0) }) { return 6 }
+        if n.contains("copper") && d.hardness >= 3 { return 6 }
+        if n == "iron_bars" || n == "jukebox" { return 6 }
+        if n.contains("mud_brick") { return 3 }
+        if n.contains("basalt") || (n.contains("terracotta") && !n.contains("glazed")) { return 4.2 }
+        if d.tool == .axe && ["planks", "_stairs", "_slab", "_fence", "_fence_gate"].contains(where: { n.hasSuffix($0) }) { return 3 }
+        if d.tool == .pickaxe && !n.contains("sandstone") && !n.contains("glowstone") && !n.contains("redstone")
+            && !n.hasSuffix("_button") && !n.hasSuffix("pressure_plate") && !n.contains("dripstone") && !n.contains("stonecutter")
+            && ["stone", "cobble", "brick", "andesite", "diorite", "granite", "deepslate", "purpur", "prismarine", "tuff"].contains(where: { n.contains($0) }) {
+            return max(6, d.hardness)              // never weaker than a hardened original block
+        }
+        return nil
+    }
     var flammable: [Bool] = []
     var randomTicks: [Bool] = []
     var tool: [UInt8] = []
     var harvestLevel: [UInt8] = []
     var requiresTool: [Bool] = []
     var groupBase: [BlockID] = []   // first state of this state's group
+    // Waterlogging (reference block-state property): a waterloggable state has a twin holding a water source. The
+    // twin keeps the dry state's name (key(), so every key and shape test treats it alike) and the same state order
+    // in a group of its own (so `b - groupBase[b]` arithmetic holds); it registers and saves as "<name>~wl".
+    var dry: [BlockID] = []         // the dry state of a twin (itself otherwise)
+    var wet: [BlockID] = []         // the twin of a waterloggable dry state (AIR when none)
+    var wetInvalid: [Bool] = []     // a twin of a full-cube state (double slab): stored dry
+    private(set) var saveNames: [String] = []
     var tex: [UInt16] = []          // state*6 + face
     var boxes: [[Box]] = []
+    var collBoxes: [[Box]] = []      // collision shape per state (render boxes unless collisionShape overrides)
 
     var count: Int { defs.count }
 
+    // Reference collision shapes where the model's decorative parts would otherwise form a staircase the 0.6
+    // step-up climbs (collisiontest walk_through: dragon egg layers, brewing stand bottles, lantern chains, the
+    // bell's rim, the stonecutter blade).
+    static func collisionShape(_ d: BlockDef) -> [Box]? {
+        if d.shape == "lantern" && d.name.hasSuffix("[hanging]") { return Array(d.boxes.prefix(2)) }
+        let g = d.group ?? String(d.name.split(separator: "[").first ?? "")
+        // Statues and ship fittings: one box around the whole model.
+        if (g.hasSuffix("copper_golem_statue") || g == "ship_helm" || g == "ship_cannon"), let f = d.boxes.first {
+            var b = Box(Int(f.x0), Int(f.y0), Int(f.z0), Int(f.x1), Int(f.y1), Int(f.z1))
+            for x in d.boxes {
+                b.x0 = min(b.x0, x.x0); b.y0 = min(b.y0, x.y0); b.z0 = min(b.z0, x.z0)
+                b.x1 = max(b.x1, x.x1); b.y1 = max(b.y1, x.y1); b.z1 = max(b.z1, x.z1)
+            }
+            return [b]
+        }
+        // Beds: one 9/16 slab (reference). The remodelled bed's stacked frame, mattress and pillow boxes let a walker
+        // sink into the head end (collisiontest walk_through: white_bed_head, store audit).
+        if g.hasSuffix("_bed") || g.hasSuffix("_bed_head") { return [Box(0, 0, 0, 16, 9, 16)] }
+        switch g {
+        case "sculk_sensor", "calibrated_sculk_sensor": return [Box(0, 0, 0, 16, 8, 16)]
+        case "campfire", "soul_campfire": return [Box(0, 0, 0, 16, 7, 16)]
+        case "dragon_egg": return [Box(1, 0, 1, 15, 16, 15)]
+        case "brewing_stand": return [Box(1, 0, 1, 15, 2, 15), Box(7, 0, 7, 9, 14, 9)]
+        case "stonecutter": return [Box(0, 0, 0, 16, 9, 16)]
+        case "bell": return [Box(4, 3, 4, 12, 13, 12), Box(7, 13, 7, 9, 16, 9)]
+        // Solid for walking: the hollow tub trapped anything that stepped in (village bot, seed 424242; farmers work at
+        // composters) and path finding already treated it as a full block.
+        case "composter": return [Box(0, 0, 0, 16, 16, 16)]
+        default: return nil
+        }
+    }
+
     @discardableResult
-    func add(_ d0: BlockDef) -> BlockID {
-        if byName[d0.name] != nil { print("warning: duplicate block \(d0.name)") }
+    func add(_ d0: BlockDef, as regName: String? = nil, groupKey: String? = nil) -> BlockID {
+        let rn = regName ?? d0.name
+        if byName[rn] != nil { print("warning: duplicate block \(rn)") }
         var d = d0
         let id = BlockID(defs.count)
-        precondition(byName[d.name] == nil, "duplicate block \(d.name)")
-        byName[d.name] = id
-        let g = d.group ?? d.name
+        precondition(byName[rn] == nil, "duplicate block \(rn)")
+        byName[rn] = id
+        saveNames.append(rn)
+        dry.append(id)
+        wet.append(AIR)
+        wetInvalid.append(false)
+        let g = groupKey ?? d.group ?? d.name
         if let first = byName["#group:" + g] { groupBase.append(first) } else { byName["#group:" + g] = id; groupBase.append(id) }
         if d.tex.count == 1 { d.tex = Array(repeating: d.tex[0], count: 6) }
-        if d.tex.isEmpty { d.tex = Array(repeating: "missing", count: 6) }
+        if d.tex.isEmpty {
+            d.tex = Array(repeating: "missing", count: 6)
+            if d.render != .none { untextured.append(d.name) }
+        }
         defs.append(d)
         render.append(d.render.rawValue)
         layer.append(d.layer.rawValue)
@@ -134,6 +211,7 @@ final class BlockRegistry {
         collide.append(d.collide)
         fullCollide.append(d.collide && (d.render == .cube || (d.render != .model && d.render != .connect && d.boxes.isEmpty)))
         cullSame.append(d.cullSame)
+        crossSize.append(d.render != .cross ? 16 : (BlockRegistry.smallCross[g] ?? BlockRegistry.smallCross[d.name] ?? 16))
         tint.append(d.tint)
         replaceable.append(d.replaceable)
         fluidLevel.append(d.fluid)
@@ -143,11 +221,11 @@ final class BlockRegistry {
         shape.append(d.shape)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
-        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
+        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
-        flammable.append(d.flammable || naturallyFlammable)
+        flammable.append(d.flammable || naturallyFlammable || BlockRegistry.extraFlammable.contains(d.group ?? n))
         randomTicks.append(d.randomTicks)
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))
@@ -156,6 +234,7 @@ final class BlockRegistry {
         var bx = d.boxes
         for i in 0..<bx.count where bx[i].tex.isEmpty { bx[i].tex = (0..<6).map { tex[Int(id) * 6 + $0] } }
         boxes.append(bx)
+        collBoxes.append(BlockRegistry.collisionShape(d) ?? d.boxes)
         return id
     }
 
@@ -174,7 +253,7 @@ final class BlockRegistry {
     // Registers 4 horizontal-facing states (north, south, west, east = front on -Z, +Z, -X, +X).
     // `d.tex` gives side textures; `front` replaces the facing face. Returns the first state.
     @discardableResult
-    func addFacing(_ d: BlockDef, front: String, boxes: [Box] = []) -> BlockID {
+    func addFacing(_ d: BlockDef, front: String, boxes: [Box] = [], boxesFor: ((Int) -> [Box])? = nil) -> BlockID {
         var first: BlockID = 0
         let faceFor = [5, 4, 1, 0]
         for (k, dir) in ["north", "south", "west", "east"].enumerated() {
@@ -184,7 +263,7 @@ final class BlockRegistry {
             if s.tex.count == 1 { s.tex = Array(repeating: s.tex[0], count: 6) }
             s.tex[faceFor[k]] = front
             s.hidden = d.hidden || k != 0
-            s.boxes = boxes.map { var b = $0; b.tex = []; return b }
+            s.boxes = boxesFor?(k) ?? boxes.map { var b = $0; b.tex = []; return b }
             let id = add(s)
             if k == 0 { first = id }
         }
@@ -232,7 +311,7 @@ final class BlockRegistry {
         }
         func column(_ n: String, _ disp: String, side: String, top: String, bottom: String? = nil, h: Float = 2,
                     tool: ToolType = .axe, snd: SoundMat = .wood) {
-            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd)
+            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd, req: tool == .pickaxe)   // stone pillars need a pickaxe
         }
         func leaves(_ n: String, _ disp: String, _ t: String, tint: UInt8) {
             var d = BlockDef(n, disp)
@@ -252,7 +331,7 @@ final class BlockRegistry {
         cube("stone", "Stone", "stone", h: 1.5, req: true)
         var grass = BlockDef("grass_block", "Grass Block")
         grass.tex = ["grass_block_side", "grass_block_side", "grass_block_top", "dirt", "grass_block_side", "grass_block_side"]
-        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3
+        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3; grass.randomTicks = true
         add(grass)
         cube("dirt", "Dirt", "dirt", h: 0.5, tool: .shovel, snd: .dirt)
         cube("cobblestone", "Cobblestone", "cobblestone", h: 2, req: true)
@@ -277,7 +356,7 @@ final class BlockRegistry {
         cube("coal_ore", "Coal Ore", "coal_ore", h: 3, req: true)
         cube("iron_ore", "Iron Ore", "iron_ore", h: 3, lvl: 1, req: true)
         cube("gold_ore", "Gold Ore", "gold_ore", h: 3, lvl: 2, req: true)
-        cube("diamond_ore", "Diamond Ore", "diamond_ore", h: 3, lvl: 2, req: true)
+        cube("diamond_ore", "Titanium Ore", "diamond_ore", h: 3, lvl: 2, req: true)
         cube("bricks", "Bricks", "bricks", h: 2, req: true)
         var snowy = BlockDef("snowy_grass_block", "Snowy Grass Block")
         snowy.tex = ["grass_block_snow", "grass_block_snow", "snow", "dirt", "grass_block_snow", "grass_block_snow"]
@@ -286,7 +365,7 @@ final class BlockRegistry {
         var cactus = BlockDef("cactus", "Cactus")
         cactus.tex = ["cactus_side", "cactus_side", "cactus_top", "cactus_bottom", "cactus_side", "cactus_side"]
         cactus.render = .model; cactus.opaque = false; cactus.layer = .cutout; cactus.hardness = 0.4; cactus.sound = .plant
-        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]
+        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]; cactus.randomTicks = true
         add(cactus)
         cube("snow_block", "Snow Block", "snow", h: 0.2, tool: .shovel, snd: .snow)
         cube("stone_bricks", "Stone Bricks", "stone_bricks", h: 1.5, req: true)
@@ -303,17 +382,19 @@ final class BlockRegistry {
         plant("dandelion", "Dandelion", "dandelion")
         plant("cornflower", "Cornflower", "cornflower")
         // Torches: standing (0) and on walls (1+f, f = the side the torch faces), soul torches the same.
-        for soul in [false, true] {
-            let n = soul ? "soul_torch" : "torch"
+        for kind in 0..<3 {
+            let soul = kind == 1, copper = kind == 2                          // torch, ghost torch, copper torch (green flame)
+            let n = ["torch", "soul_torch", "copper_torch"][kind]
             for st in 0..<5 {
-                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Ghost Torch" : "Torch")
+                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", ["Torch", "Ghost Torch", "Copper Torch"][kind])
                 torch.group = n; torch.hidden = st != 0; torch.shape = "torch"
                 torch.tex = [n]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
                 torch.emit = soul ? 10 : 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
                 if st == 0 {
-                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
+                    let topTex = Tex.id(copper ? "copper_torch_top" : "torch_top")
+                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), topTex, Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
                 } else {
-                    let w = Tex.id(n + "_wall"), top = Tex.id(soul ? "soul_torch_top_full" : "torch_top_full"), bot = Tex.id("torch_bottom")
+                    let w = Tex.id(n + "_wall"), top = Tex.id(n + "_top_full"), bot = Tex.id("torch_bottom")
                     // Leaning against the wall: the foot sits against it, the head steps out 1 px per third
                     // (boxes are whole 1/16 units, so the tilt is stepped).
                     let base = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
@@ -340,6 +421,8 @@ final class BlockRegistry {
             add(sap)
         }
         cube("deepslate", "Deeprock", "deepslate", h: 3, req: true)
+        // Hot rock of the world's depths: below displayed y -24 it creeps into the deeprock; the Deep is made of it.
+        cube("emberslate", "Emberslate", "emberslate", h: 3.5, req: true)
         // Lava: 9 states like water; opaque, bright, hurts.
         for k in 0...8 {
             var l = BlockDef(k == 0 ? "lava" : (k == 8 ? "lava_falling" : "lava_\(k)"), "Lava")
@@ -476,11 +559,12 @@ final class BlockRegistry {
         rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
         rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false
         add(rod)
-        for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
-                            ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
-                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Sparkstone", 0),
-                            ("copper_block", "Block of Copper", 1)] {
-            cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
+        // Hardness per the reference (gold, lapis and copper are softer: 3); blast resistance from refResistance.
+        for (n, d, lvl, h) in [("coal_block", "Block of Coal", 0, 5), ("iron_block", "Block of Iron", 1, 5), ("gold_block", "Block of Gold", 2, 3),
+                               ("diamond_block", "Block of Titanium", 2, 5), ("emerald_block", "Block of Emerald", 2, 5),
+                               ("lapis_block", "Block of Lapis Lazuli", 1, 3), ("redstone_block", "Copper Battery", 0, 5),
+                               ("copper_block", "Block of Copper", 1, 3)] as [(String, String, Int, Float)] {
+            cube(n, d, n, h: h, lvl: lvl, req: true, snd: .stone)
         }
         // Farming
         var farm = BlockDef("farmland", "Farmland")
@@ -523,7 +607,25 @@ final class BlockRegistry {
                 b.tex = ["\(n)_bed_side", "\(n)_bed_side", part == "foot" ? "\(n)_bed_top_foot" : "\(n)_bed_top_head", "oak_planks", "\(n)_bed_side", "\(n)_bed_side"]
                 b.render = .model; b.opaque = false; b.hardness = 0.2; b.sound = .wood; b.skyStop = true
                 b.hidden = part == "head"
-                addFacing(b, front: "\(n)_bed_side", boxes: [Box(0, 3, 0, 16, 9, 16), Box(0, 0, 0, 3, 3, 3), Box(13, 0, 0, 16, 3, 3), Box(0, 0, 13, 3, 3, 16), Box(13, 0, 13, 16, 3, 16)])
+                // Model (Remington, v61: beds looked flat): a wooden frame with a tall headboard and a low footboard,
+                // a quilted mattress in the bed's colour and a white pillow. Drawn for facing 0 (head toward +Z) and
+                // turned for the others, each box with its own textures.
+                let wood = Tex.id("spruce_planks"), wool = Tex.id("\(n)_wool"), quilt = Tex.id("\(n)_bed_top_foot"), white = Tex.id("white_wool")
+                let W = [UInt16](repeating: wood, count: 6), P = [UInt16](repeating: white, count: 6)
+                let M: [UInt16] = [wool, wool, quilt, wood, wool, wool]
+                let base: [Box] = part == "head"
+                    ? [Box(0, 0, 14, 16, 13, 16, tex: W), Box(0, 3, 0, 16, 6, 14, tex: W), Box(1, 6, 0, 15, 9, 14, tex: M),
+                       Box(2, 9, 8, 14, 11, 13, tex: P)]
+                    : [Box(0, 0, 0, 16, 8, 2, tex: W), Box(0, 3, 2, 16, 6, 16, tex: W), Box(1, 6, 2, 15, 9, 16, tex: M)]
+                addFacing(b, front: "\(n)_bed_side", boxesFor: { k in
+                    base.map { bx in
+                        func turn(_ x: Int, _ z: Int) -> (Int, Int) {
+                            switch k { case 1: return (16 - x, 16 - z); case 2: return (z, 16 - x); case 3: return (16 - z, x); default: return (x, z) }
+                        }
+                        let a = turn(Int(bx.x0), Int(bx.z0)), c = turn(Int(bx.x1), Int(bx.z1))
+                        return Box(min(a.0, c.0), Int(bx.y0), min(a.1, c.1), max(a.0, c.0), Int(bx.y1), max(a.1, c.1), tex: bx.tex)
+                    }
+                })
             }
         }
         var ct = BlockDef("crafting_table", "Crafting Table")
@@ -531,7 +633,7 @@ final class BlockRegistry {
         ct.hardness = 2.5; ct.tool = .axe; ct.sound = .wood
         add(ct)
         var fur = BlockDef("furnace", "Furnace")
-        fur.tex = ["furnace_side", "furnace_side", "furnace_top", "furnace_top", "furnace_side", "furnace_side"]
+        fur.tex = ["furnace_body", "furnace_body", "furnace_plate", "furnace_plate", "furnace_body", "furnace_body"]
         fur.hardness = 3.5; fur.tool = .pickaxe; fur.requiresTool = true
         addFacing(fur, front: "furnace_front")
         var furLit = fur
@@ -552,15 +654,13 @@ final class BlockRegistry {
         cube("red_sand", "Red Sand", "red_sand", h: 0.5, tool: .shovel, snd: .sand)
         cube("terracotta", "Terracotta", "terracotta", h: 1.25, req: true)
         cube("lapis_ore", "Lapis Lazuli Ore", "lapis_ore", h: 3, lvl: 1, req: true)
-        cube("redstone_ore", "Sparkstone Ore", "redstone_ore", h: 3, lvl: 2, req: true)
         cube("emerald_ore", "Emerald Ore", "emerald_ore", h: 3, lvl: 2, req: true)
         cube("copper_ore", "Copper Ore", "copper_ore", h: 3, lvl: 1, req: true)
         cube("deepslate_coal_ore", "Deeprock Coal Ore", "deepslate_coal_ore", h: 4.5, req: true)
         cube("deepslate_iron_ore", "Deeprock Iron Ore", "deepslate_iron_ore", h: 4.5, lvl: 1, req: true)
         cube("deepslate_gold_ore", "Deeprock Gold Ore", "deepslate_gold_ore", h: 4.5, lvl: 2, req: true)
-        cube("deepslate_diamond_ore", "Deeprock Diamond Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_diamond_ore", "Deeprock Titanium Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
         cube("deepslate_lapis_ore", "Deeprock Lapis Lazuli Ore", "deepslate_lapis_ore", h: 4.5, lvl: 1, req: true)
-        cube("deepslate_redstone_ore", "Deeprock Sparkstone Ore", "deepslate_redstone_ore", h: 4.5, lvl: 2, req: true)
         cube("deepslate_copper_ore", "Deeprock Copper Ore", "deepslate_copper_ore", h: 4.5, lvl: 1, req: true)
         cube("mossy_cobblestone", "Mossy Cobblestone", "mossy_cobblestone", h: 2, req: true)
         cube("smooth_stone", "Smooth Stone", "smooth_stone", h: 2, req: true)
@@ -580,6 +680,12 @@ final class BlockRegistry {
         registerShelf()
         registerAshenGrove()
         registerSpringBlocks()
+        registerShipBlocks()
+        registerMilitaryBlocks()
+        registerCapitalBlocks()
+        registerCapitalArchitecture()
+        registerCapitalCityBlocks()
+        registerAshguardBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods
@@ -617,15 +723,51 @@ final class BlockRegistry {
         spawner.tex = ["spawner"]; spawner.opaque = false; spawner.layer = .cutout; spawner.hardness = 5; spawner.tool = .pickaxe
         spawner.requiresTool = true; spawner.aoOcc = false; spawner.skyStop = true
         add(spawner)
+        registerWaterlogged()
     }
+
+    // Twins for every state of the waterloggable groups: stairs, slabs, fences, walls, panes, bars, ladders, lanterns.
+    // Registered last, after every other block, group by group in the dry order.
+    private func registerWaterlogged() {
+        let n = defs.count
+        var i = 1
+        while i < n {
+            let base = Int(groupBase[i])
+            var end = i + 1
+            while end < n && Int(groupBase[end]) == base { end += 1 }
+            let d0 = defs[i]
+            let shp = d0.shape
+            let ok = i == base && fluidLevel[i] < 0 && (shp == "stairs" || shp == "slab" || shp == "ladder" || shp == "lantern"
+                || d0.render == .connect)
+            if ok {
+                let gk = (d0.group ?? d0.name) + "~wl"
+                for s in i..<end {
+                    var t = defs[s]
+                    t.fluid = 0; t.fluidKind = 1; t.hidden = true; t.skyStop = true
+                    let tid = add(t, as: saveNames[s] + "~wl", groupKey: gk)
+                    dry[Int(tid)] = BlockID(s)
+                    wet[s] = tid
+                    wetInvalid[Int(tid)] = defs[s].name.hasSuffix("[double]")
+                }
+            }
+            i = end
+        }
+    }
+
+    @inline(__always) func isWaterlogged(_ id: BlockID) -> Bool { dry[Int(id)] != id }
+    func saveKey(_ id: BlockID) -> String { Int(id) < saveNames.count ? saveNames[Int(id)] : "?" }
 
     // Stairs (8 states: 4 facings x bottom/top), slabs (bottom/top/double), fence, wall for one material.
     func family(_ tex: String, _ n: String, _ disp: String, h: Float, tool: ToolType, req: Bool, snd: SoundMat,
                 stairs: Bool, slab: Bool, fence: Bool, wall: Bool) {
         let t = (tex == "sandstone") ? ["sandstone", "sandstone", "sandstone_top", "sandstone_bottom", "sandstone", "sandstone"] : [tex]
-        func base(_ name: String, _ display: String) -> BlockDef {
+        // Reference hardness: stairs, walls and fences take the full block's; slabs are 2 or the block's if harder
+        // (deeprock 3.5, hollow stone brick 3). Every stone family used 2.
+        let full: Float = has(tex) ? def(id(tex)).hardness : h
+        let slabH: Float = max(h, full)
+        func base(_ name: String, _ display: String, _ hh: Float) -> BlockDef {
             var d = BlockDef(name, display)
-            d.tex = t; d.render = .model; d.opaque = false; d.hardness = h; d.tool = tool; d.requiresTool = req; d.sound = snd
+            d.tex = t; d.render = .model; d.opaque = false; d.hardness = hh; d.tool = tool; d.requiresTool = req; d.sound = snd
             d.skyStop = true
             return d
         }
@@ -634,7 +776,7 @@ final class BlockRegistry {
             for top in [false, true] {
                 for (k, dir) in ["north", "south", "west", "east"].enumerated() {
                     let name = !top && k == 0 ? "\(n)_stairs" : "\(n)_stairs[\(dir)\(top ? ",top" : "")]"
-                    var d = base(name, "\(disp) Stairs")
+                    var d = base(name, "\(disp) Stairs", full)
                     d.group = "\(n)_stairs"; d.hidden = top || k != 0; d.shape = "stairs"
                     var st = steps[k]
                     if top { st.y0 = 0; st.y1 = 8 }
@@ -645,7 +787,7 @@ final class BlockRegistry {
         }
         if slab {
             for (k, part) in ["bottom", "top", "double"].enumerated() {
-                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab")
+                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab", slabH)
                 d.group = "\(n)_slab"; d.hidden = k != 0; d.shape = "slab"
                 d.boxes = [k == 0 ? Box(0, 0, 0, 16, 8, 16) : (k == 1 ? Box(0, 8, 0, 16, 16, 16) : Box(0, 0, 0, 16, 16, 16))]
                 add(d)
@@ -653,13 +795,13 @@ final class BlockRegistry {
         }
         if fence {
             var d = BlockDef(n == "nether_brick" ? "nether_brick_fence" : "\(n)_fence", "\(disp) Fence")
-            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = false
             add(d)
         }
         if wall {
             var d = BlockDef("\(n)_wall", "\(disp) Wall")
-            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = full; d.tool = tool; d.sound = snd
             d.requiresTool = req; d.skyStop = true
             add(d)
         }
@@ -712,6 +854,17 @@ final class BlockRegistry {
 
 let Blocks = BlockRegistry()
 
+extension BlockRegistry {
+    // Ground plants drawn smaller than a full block (in 1/16): a field read as a noisy carpet (playtest v78).
+    static let smallCross: [String: UInt8] = {
+        var m: [String: UInt8] = ["short_grass": 9, "short_dry_grass": 9, "fern": 11]
+        for f in ["allium", "azure_bluet", "blue_orchid", "dandelion", "cornflower", "lily_of_the_valley", "oxeye_daisy",
+                  "poppy", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "torchflower", "open_eyeblossom",
+                  "closed_eyeblossom"] { m[f] = 12 }
+        return m
+    }()
+}
+
 // Frequently used states (resolved once, lazily, by name).
 let AIR: BlockID = 0
 let STONE = Blocks.id("stone")
@@ -735,6 +888,7 @@ let DIAMOND_ORE = Blocks.id("diamond_ore")
 let BRICKS = Blocks.id("bricks")
 let SNOWY_GRASS = Blocks.id("snowy_grass_block")
 let CACTUS = Blocks.id("cactus")
+let MYCELIUM = Blocks.id("mycelium")
 let SNOW = Blocks.id("snow_block")
 let STONE_BRICKS = Blocks.id("stone_bricks")
 let SANDSTONE = Blocks.id("sandstone")
@@ -749,6 +903,7 @@ let BLUE_FLOWER = Blocks.id("cornflower")
 let TORCH = Blocks.id("torch")
 let LAMP = Blocks.id("glowstone")
 let DEEPSLATE = Blocks.id("deepslate")
+let EMBERSLATE = Blocks.id("emberslate")
 let LAVA = Blocks.id("lava")
 let LAVA_FLOW: [BlockID] = [LAVA] + (1...7).map { Blocks.id("lava_\($0)") }
 let LAVA_FALL = Blocks.id("lava_falling")

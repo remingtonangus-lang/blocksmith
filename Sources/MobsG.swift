@@ -67,6 +67,12 @@ extension Game {
 
     // MARK: Thrown items
 
+    func throwEgg() {
+        let egg = held.item
+        throwItem(.egg)
+        projectiles.fireballs.last?.egg = egg
+    }
+
     func throwItem(_ kind: Thrown) {
         var d = player.look
         d.y += 0.05
@@ -87,33 +93,42 @@ extension Game {
         case .egg:
             if let m = mob { m.hit(from: f.pos, damage: 0, knockback: 0.3) }
             // 1/8 chance of a chick, and 1/32 of those four.
-            if Int.random(in: 0..<8) == 0 {
-                let n = Int.random(in: 0..<32) == 0 ? 4 : 1
+            if Rand.int(in: 0..<8) == 0 {
+                let n = Rand.int(in: 0..<32) == 0 ? 4 : 1
                 for _ in 0..<n {
                     let c = Mob(.chicken, at: at + V3(0, 0.1, 0))
                     c.baby = true; c.scale = 0.5
+                    c.variant = FarmVariant.forEgg(f.egg)
                     mobs.mobs.append(c)
                 }
             }
         case .pearl:
             // Teleport to the landing point; 5 damage (fall), 5% voidmite.
-            if f.byPlayer {
+            if f.byPlayer, let b = block, Blocks.key(world.block(b.hit.x, b.hit.y, b.hit.z)) == "end_gateway" {
+                // A pearl thrown into a hollow rift carries the player through it.
+                player.pos = V3(Float(b.hit.x) + 0.5, Float(b.hit.y), Float(b.hit.z) + 0.5)
+                portalCooldown = 3
+                gatewayTeleport()
+                damage(5, "fell from a high place", bypassArmor: true, type: .fall)
+            } else if f.byPlayer {
                 var t = at
                 if let b = block { t = V3(Float(b.hit.x + b.normal.x), Float(b.hit.y + b.normal.y), Float(b.hit.z + b.normal.z)) + V3(0.5, 0, 0.5) }
                 player.pos = t
                 player.vel = .zero
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
-                sfx(.mobVoidwalker, 0.6)
+                sfx(.teleport, 0.8)
+                if Rand.int(in: 0..<20) == 0 { mobs.mobs.append(Mob(.endermite, at: t)) }
             }
         case .witherSkull, .blueSkull:
             if hitP {
                 hurtPlayer(8, from: f.pos, cause: "was shot by a Blight Skull", knockback: 0.3, type: .projectile)
-                applyEffect(.wither, amp: 1, seconds: 10)
+                // Blight II: none on Easy, 10 s on Normal, 40 s on Hard (reference).
+                if difficulty >= 2 { applyEffect(.wither, amp: 1, seconds: difficulty >= 3 ? 40 : 10) }
             } else if let m = mob, m.kind != .wither {
                 m.hit(from: f.pos, damage: 8, knockback: 0.3)
                 m.applyEffect(.wither, amp: 1, seconds: 10, game: self)
-                if m.health <= 0, let w = f.shooter, w.kind == .wither { w.health = min(w.spec.health, w.health + 5) }
+                if m.health <= 0, let w = f.shooter, w.kind == .wither, w.health > 0 { w.health = min(w.spec.health, w.health + 5) }
             }
             Explosion.explode(at: at, power: 1, game: self, except: f.shooter)
         case .fire:
@@ -136,8 +151,11 @@ extension Game {
                 fangs[i].bit = true
                 let c = fangs[i].pos
                 sfx(.fangs, 0.6, at: c)
-                if simd_length(V2(player.pos.x - c.x, player.pos.z - c.z)) < 0.9 && abs(player.pos.y - c.y) < 1.5 {
-                    hurtPlayer(6, from: c, cause: "was slain by Conjurer", knockback: 0.2, type: .magic)
+                coop.eachSeat(self) {
+                    let pp = self.player.pos
+                    if simd_length(V2(pp.x - c.x, pp.z - c.z)) < 0.9 && abs(pp.y - c.y) < 1.5 {
+                        self.hurtPlayer(6, from: c, cause: "was slain by Conjurer", knockback: 0.2, type: .magic)
+                    }
                 }
                 for m in mobs.mobs where m !== fangs[i].owner && !m.raider && m.kind != .evoker && m.kind != .vex
                     && simd_length(V2(m.pos.x - c.x, m.pos.z - c.z)) < 0.5 + m.halfW && abs(m.pos.y - c.y) < 1.5 {
@@ -184,7 +202,7 @@ extension Mob {
         }
         // Regenerates 1 HP a second.
         fireTick += dt
-        if fireTick >= 1 { fireTick = 0; health = min(300, health + 1) }
+        if fireTick >= 1 { fireTick = 0; if health > 0 { health = min(300, health + 1) } }
         // Target: the player, else any living non-undead mob.
         var target: V3?
         let player = g.player.pos
@@ -199,17 +217,27 @@ extension Mob {
             // Hover above the target (lower when armored).
             let hdir = V2(t.x - pos.x, t.z - pos.z)
             let hd = simd_length(hdir)
-            let want: Float = armored ? 1 : 5
+            // Reference movement: 5 blocks above the target (level with it once armoured), closing to within 3.
+            let want: Float = armored ? -1.2 : 3.8          // t is ~1.2 above the target's feet
             goal = V3(pos.x, t.y + want, pos.z)
-            if hd > 9 { goal.x += hdir.x / hd * 3; goal.z += hdir.y / hd * 3 }
-            // Heads: the middle one fires at the target every 2 s; the side heads at random targets.
+            if hd > 3 { goal.x += hdir.x / hd * min(3, hd - 3); goal.z += hdir.y / hd * min(3, hd - 3) }
+            // Heads: the middle one fires at the target every 2 s (range 20); each side head picks the nearest
+            // living target within 20 blocks (the player included) and fires every 2-3 s.
             attackCooldown -= dt
-            if attackCooldown <= 0 {
-                attackCooldown = armored ? 1.2 : 2
-                shootSkull(at: t, g, blue: Float.random(in: 0..<1) < 0.001)
-                if Float.random(in: 0..<1) < 0.5, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && simd_length($0.pos - pos) < 20 }).randomElement() {
-                    shootSkull(at: other.pos + V3(0, other.height / 2, 0), g, blue: false, side: true)
+            if attackCooldown <= 0 && simd_length(t - pos) < 20 {
+                attackCooldown = 2
+                shootSkull(at: t, g, blue: Rand.float(in: 0..<1) < 0.001)
+            }
+            for i in 0..<2 {
+                sideHeads[i] -= dt
+                guard sideHeads[i] <= 0 else { continue }
+                sideHeads[i] = Rand.float(in: 2...3)
+                var aimAt: V3?
+                if g.survival && g.alive && simd_length(g.player.pos - pos) < 20 { aimAt = g.player.eye - V3(0, 0.4, 0) }
+                if i == 1 || aimAt == nil, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && $0.health > 0 && $0.kind.spec.behavior != .vehicle && simd_length($0.pos - pos) < 20 }).pick() {
+                    aimAt = other.pos + V3(0, other.height / 2, 0)
                 }
+                if let a = aimAt { shootSkull(at: a, g, blue: false, side: true, left: i == 0) }
             }
         } else {
             circleAngle += dt * 0.3
@@ -217,7 +245,11 @@ extension Mob {
         }
         let d = goal - pos
         let l = simd_length(d)
-        if l > 0.2 { vel += (d / l * min(spec.speed, l * 2) - vel) * min(1, dt * 1.5) } else { vel *= expf(-3 * dt) }
+        if l > 0.2 {
+            let want: V3 = d * (min(spec.speed, l * 2) / l)
+            let k: Float = min(1, dt * 1.5)
+            vel += (want - vel) * k
+        } else { vel *= expf(-3 * dt) }
         // Breaks blocks it touches after being hurt (the reference "block break counter").
         if breakTimer > 0 {
             breakTimer -= dt
@@ -239,11 +271,11 @@ extension Mob {
         if hit.z { vel.z = 0; breakTimer = max(breakTimer, 0.01) }
         if hit.y { vel.y = 0 }
         walkPhase += dt * 2
-        if Float.random(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Float.random(in: -0.6...0.6), Float.random(in: 1...3.5), Float.random(in: -0.6...0.6))) }
+        if Rand.float(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.6...0.6), Rand.float(in: 1...3.5), Rand.float(in: -0.6...0.6))) }
     }
 
-    func shootSkull(at t: V3, _ g: Game, blue: Bool, side: Bool = false) {
-        let from = pos + V3(0, 3.1, 0) + (side ? V3(cosf(yaw), 0, -sinf(yaw)) * (Bool.random() ? 1.3 : -1.3) : .zero)
+    func shootSkull(at t: V3, _ g: Game, blue: Bool, side: Bool = false, left: Bool = false) {
+        let from = pos + V3(0, 3.1, 0) + (side ? V3(cosf(yaw), 0, -sinf(yaw)) * (left ? 1.3 : -1.3) : .zero)
         let f = Fireball(from, simd_normalize(t - from) * (blue ? 8 : 16), big: false, byPlayer: false)
         f.kind = blue ? .blueSkull : .witherSkull
         f.shooter = self
@@ -273,9 +305,11 @@ extension Mob {
                 if simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01 { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Hexling", attacker: self) }
                 else if let v = g.mobs.mobs.first(where: { simd_length($0.pos + V3(0, $0.height * 0.5, 0) - t) < 0.01 }) { v.hit(from: pos, damage: spec.attack) }
             }
-            vel += (d / max(l, 0.01) * spec.speed - vel) * min(1, dt * 3)
+            let want: V3 = d * (spec.speed / max(l, 0.01))
+            let k: Float = min(1, dt * 3)
+            vel += (want - vel) * k
         } else {
-            if aiTimer <= 0 { aiTimer = 2; flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -2...3), Float.random(in: -6...6)) }
+            if aiTimer <= 0 { aiTimer = 2; flyTarget = pos + V3(Rand.float(in: -6...6), Rand.float(in: -2...3), Rand.float(in: -6...6)) }
             aiTimer -= dt
             if let f = flyTarget { let d = f - pos; vel += (d * 0.5 - vel) * min(1, dt * 2) }
         }
@@ -289,6 +323,12 @@ extension Mob {
     func aiEvoker(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         spellTimer -= dt
         guard let t = raidTarget(g) ?? (canTarget && dist < 16 ? g.player.pos : nil) else {
+            // Idle conjurers turn blue sheep within 16 blocks red (reference).
+            if spellTimer <= 0, let sh = g.mobs.of(.sheep).first(where: { $0.woolColor == "blue" && simd_length($0.pos - pos) < 16 }) {
+                spellTimer = 5
+                sh.woolColor = "red"
+                g.sfx(.evokerCast, 0.8, at: pos)
+            }
             wander(); return moving ? spec.speed * 0.5 : 0
         }
         face(t)
@@ -299,8 +339,8 @@ extension Mob {
                 vexCooldown = 17
                 spellTimer = 5
                 for _ in 0..<3 {
-                    let v = Mob(.vex, at: pos + V3(Float.random(in: -1...1), 1, Float.random(in: -1...1)))
-                    v.lifeSpan = Float.random(in: 30...119)
+                    let v = Mob(.vex, at: pos + V3(Rand.float(in: -1...1), 1, Rand.float(in: -1...1)))
+                    v.lifeSpan = Rand.float(in: 30...119)
                     v.owner = true
                     v.raider = raider
                     g.mobs.mobs.append(v)
@@ -320,7 +360,7 @@ extension Mob {
                         g.fangs.append(Fang(pos: pos + V3(cosf(a) * 2.5, 0, sinf(a) * 2.5), delay: 0.15, owner: self))
                     }
                 } else {
-                    let dir = simd_normalize(V3(t.x - pos.x, 0, t.z - pos.z))
+                    let dir = simd_normalize(V3(t.x - pos.x + 1e-4, 0, t.z - pos.z))     // target straight above: not NaN
                     for i in 0..<16 {
                         let q = pos + dir * Float(i + 1) * 1.25
                         g.fangs.append(Fang(pos: V3(q.x, ground, q.z), delay: Float(i) * 0.05, owner: self))
@@ -349,7 +389,8 @@ extension Mob {
             stun -= dt
             if stun <= 0 {
                 // Roar: knock everything back and hurt it.
-                g.sfx(.mobRavager, 1.5, at: pos)
+                g.sfx(.mob(.ravager, .hurt), 1.5, at: pos)
+                g.sfx(.goatRam, 1, at: pos)
                 if simd_length(g.player.pos - pos) < 4 { g.hurtPlayer(6, from: pos, cause: "was slain by Siegebeast", knockback: 2) }
                 for m in g.mobs.mobs where m !== self && !m.raider && simd_length(m.pos - pos) < 4 { m.hit(from: pos, damage: 6, knockback: 2) }
             }
@@ -377,7 +418,7 @@ extension Mob {
         let w = g.world
         let b = w.gen.column(Int(floor(pos.x)), Int(floor(pos.z))).biome
         // Melts in warm biomes, water and rain-free deserts; leaves a snow trail in cold ones.
-        if inWater || b == .desert || b.isBadlands || w.dim == .nether || b == .savanna || b == .jungle {
+        if inWater || b == .desert || b.isBadlands || w.dim.ultrawarm || b == .savanna || b == .jungle {
             fireTick += dt
             if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.2 }
         } else if onGround {
@@ -439,7 +480,7 @@ func extraParts(_ m: Mob, swing: Float) -> [Part] {
         return [
             box(-6, 0, -6, 12, 12, 12, snow, 2),
             box(-5, 11, -5, 10, 10, 10, snow, 2),
-            box(-4, 21, -4, 8, 8, 8, V3(0.9, 0.55, 0.12), 4),
+            box(-4, 21, -4, 8, 8, 8, m.variant == 1 ? snow : V3(0.9, 0.55, 0.12), m.variant == 1 ? 2 : 4),
             box(-2.5, 24.5, -4.2, 1.5, 1.5, 0.3, V3(0.2, 0.12, 0.05)), box(1, 24.5, -4.2, 1.5, 1.5, 0.3, V3(0.2, 0.12, 0.05)),
             box(-2, 22.5, -4.2, 4, 1, 0.3, V3(0.2, 0.12, 0.05)),
             Part(mn: V3(-13, 17, -0.5), mx: V3(-5, 18, 0.5), pivot: V3(-5, 17.5, 0), rotZ: -0.4 + arm, color: stick),
@@ -449,7 +490,7 @@ func extraParts(_ m: Mob, swing: Float) -> [Part] {
         let ev = m.kind == .evoker
         let robe = ev ? V3(0.16, 0.16, 0.2) : V3(0.35, 0.3, 0.22), skin = ev ? V3(0.55, 0.57, 0.58) : V3(0.36, 0.55, 0.3)
         let casting = ev && m.spellTimer > 4
-        let armA: Float = casting ? -2.6 : (ev ? 0 : -1.45)
+        let armA: Float = casting ? 2.6 : (ev ? 0 : 1.45)
         var p = [
             Part(mn: V3(-4, 0, -3), mx: V3(-0.01, 12, 3), pivot: V3(-2, 12, 0), rotX: swing, color: robe, pattern: 4),
             Part(mn: V3(0.01, 0, -3), mx: V3(4, 12, 3), pivot: V3(2, 12, 0), rotX: -swing, color: robe, pattern: 4),

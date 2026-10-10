@@ -15,6 +15,8 @@ enum Ench: Int, CaseIterable {
     case multishot, quickCharge, piercing
     case mending, vanishingCurse
     case density, breach, windBurst
+    case lunge
+    case extendedMag, quickReload, stability, penetration, incendiary     // guns (Steelhold)
 }
 
 // What an item is, for enchantment purposes.
@@ -25,6 +27,8 @@ struct ECat: OptionSet {
     static let bow = ECat(rawValue: 128), crossbow = ECat(rawValue: 256), trident = ECat(rawValue: 512), rod = ECat(rawValue: 1024)
     static let mace = ECat(rawValue: 2048), durable = ECat(rawValue: 4096), wearable = ECat(rawValue: 8192)
     static let vanishable = ECat(rawValue: 16384), shears = ECat(rawValue: 32768)
+    static let spear = ECat(rawValue: 65536)
+    static let gun = ECat(rawValue: 131072)
     static let armor: ECat = [.head, .chest, .legs, .feet]
     static let mining: ECat = [.digger, .axe]
 }
@@ -55,39 +59,39 @@ enum Enchant {
         return [
             d("protection", "Protection", 4, 10, .armor, nil, (1, 11), (12, 11), anvil: 1, group: 1),
             d("fire_protection", "Fire Protection", 4, 5, .armor, nil, (10, 8), (18, 8), anvil: 2, group: 1),
-            d("feather_falling", "Feather Falling", 4, 5, .feet, nil, (5, 6), (11, 6), anvil: 2),
+            d("feather_falling", "Soft Landing", 4, 5, .feet, nil, (5, 6), (11, 6), anvil: 2),
             d("blast_protection", "Blast Protection", 4, 2, .armor, nil, (5, 8), (13, 8), anvil: 4, group: 1),
             d("projectile_protection", "Projectile Protection", 4, 5, .armor, nil, (3, 6), (9, 6), anvil: 2, group: 1),
             d("respiration", "Respiration", 3, 2, .head, nil, (10, 10), (40, 10), anvil: 4),
-            d("aqua_affinity", "Aqua Affinity", 1, 2, .head, nil, (1, 0), (41, 0), anvil: 4),
+            d("aqua_affinity", "Tidehand", 1, 2, .head, nil, (1, 0), (41, 0), anvil: 4),
             d("thorns", "Thorns", 3, 1, .chest, .armor, (10, 20), (60, 20), anvil: 8),
             d("depth_strider", "Deep Stride", 3, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, group: 5),
-            d("frost_walker", "Frost Walker", 2, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, treasure: true, group: 5),
+            d("frost_walker", "Rimewalker", 2, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, treasure: true, group: 5),
             d("binding_curse", "Curse of Binding", 1, 1, .wearable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
             d("soul_speed", "Ghost Stride", 3, 1, .feet, nil, (10, 10), (25, 10), anvil: 8, treasure: true),
-            d("swift_sneak", "Swift Sneak", 3, 1, .legs, nil, (25, 25), (75, 25), anvil: 8, treasure: true),
-            d("sharpness", "Sharpness", 5, 10, .sword, [.sword, .axe], (1, 11), (21, 11), anvil: 1, group: 2),
-            d("smite", "Smite", 5, 5, .sword, [.sword, .axe, .mace], (5, 8), (25, 8), anvil: 2, group: 2),
-            d("bane_of_arthropods", "Bane of Arthropods", 5, 5, .sword, [.sword, .axe, .mace], (5, 8), (25, 8), anvil: 2, group: 2),
-            d("knockback", "Knockback", 2, 5, .sword, nil, (5, 20), (55, 20), anvil: 2),
-            d("fire_aspect", "Fire Aspect", 2, 2, .sword, [.sword, .mace], (10, 20), (60, 20), anvil: 4),
-            d("looting", "Looting", 3, 2, .sword, nil, (15, 9), (65, 9), anvil: 4),
-            d("sweeping_edge", "Sweeping Edge", 3, 2, .sword, nil, (5, 9), (20, 9), anvil: 4),
+            d("swift_sneak", "Quiet Step", 3, 1, .legs, nil, (25, 25), (75, 25), anvil: 8, treasure: true),
+            d("sharpness", "Sharpness", 5, 10, [.sword, .spear], [.sword, .axe, .spear], (1, 11), (21, 11), anvil: 1, group: 2),
+            d("smite", "Smite", 5, 5, [.sword, .spear], [.sword, .axe, .mace, .spear], (5, 8), (25, 8), anvil: 2, group: 2),
+            d("bane_of_arthropods", "Bugbane", 5, 5, [.sword, .spear], [.sword, .axe, .mace, .spear], (5, 8), (25, 8), anvil: 2, group: 2),
+            d("knockback", "Knockback", 2, 5, [.sword, .spear], nil, (5, 20), (55, 20), anvil: 2),
+            d("fire_aspect", "Searing Edge", 2, 2, [.sword, .spear], [.sword, .mace, .spear], (10, 20), (60, 20), anvil: 4),
+            d("looting", "Looting", 3, 2, [.sword, .spear], nil, (15, 9), (65, 9), anvil: 4),
+            d("sweeping_edge", "Wide Arc", 3, 2, .sword, nil, (5, 9), (20, 9), anvil: 4),
             d("efficiency", "Efficiency", 5, 10, .mining, [.digger, .axe, .shears], (1, 10), (51, 10), anvil: 1),
-            d("silk_touch", "Silk Touch", 1, 1, .mining, nil, (15, 0), (65, 0), anvil: 8, group: 3),
+            d("silk_touch", "Gentle Touch", 1, 1, .mining, nil, (15, 0), (65, 0), anvil: 8, group: 3),
             d("unbreaking", "Unbreaking", 3, 5, .durable, nil, (5, 8), (55, 8), anvil: 2),
             d("fortune", "Fortune", 3, 2, .mining, nil, (15, 9), (65, 9), anvil: 4, group: 3),
             d("power", "Power", 5, 10, .bow, nil, (1, 10), (16, 10), anvil: 1),
             d("punch", "Punch", 2, 2, .bow, nil, (12, 20), (37, 20), anvil: 4),
             d("flame", "Flame", 1, 2, .bow, nil, (20, 0), (50, 0), anvil: 4),
             d("infinity", "Infinity", 1, 1, .bow, nil, (20, 0), (50, 0), anvil: 8, group: 4),
-            d("luck_of_the_sea", "Luck of the Sea", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
+            d("luck_of_the_sea", "Angler's Luck", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
             d("lure", "Lure", 3, 2, .rod, nil, (15, 9), (65, 9), anvil: 4),
             d("loyalty", "Loyalty", 3, 5, .trident, nil, (12, 7), (50, 0), anvil: 1),
             d("impaling", "Impaling", 5, 2, .trident, nil, (1, 8), (21, 8), anvil: 4),
-            d("riptide", "Riptide", 3, 2, .trident, nil, (17, 7), (50, 0), anvil: 4),
+            d("riptide", "Surge", 3, 2, .trident, nil, (17, 7), (50, 0), anvil: 4),
             d("channeling", "Channeling", 1, 1, .trident, nil, (25, 0), (50, 0), anvil: 8),
-            d("multishot", "Multishot", 1, 2, .crossbow, nil, (20, 0), (50, 0), anvil: 4, group: 7),
+            d("multishot", "Spread Shot", 1, 2, .crossbow, nil, (20, 0), (50, 0), anvil: 4, group: 7),
             d("quick_charge", "Quick Charge", 3, 5, .crossbow, nil, (12, 20), (50, 0), anvil: 2),
             d("piercing", "Piercing", 4, 10, .crossbow, nil, (1, 10), (50, 0), anvil: 1, group: 7),
             d("mending", "Mending", 1, 2, .durable, nil, (25, 25), (75, 25), anvil: 4, treasure: true, group: 4),
@@ -95,6 +99,13 @@ enum Enchant {
             d("density", "Density", 5, 5, .mace, nil, (5, 8), (25, 8), anvil: 2, group: 2),
             d("breach", "Breach", 4, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, group: 2),
             d("wind_burst", "Wind Burst", 3, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, treasure: true),
+            d("lunge", "Lunge", 3, 5, .spear, nil, (5, 8), (25, 8), anvil: 2),          // spears: the jab carries the player forward
+            // Guns (Steelhold): costs and weights in the bow's league.
+            d("extended_mag", "Extended Magazine", 3, 5, .gun, nil, (5, 10), (35, 10), anvil: 2),
+            d("quick_reload", "Quick Reload", 3, 5, .gun, nil, (8, 10), (38, 10), anvil: 2),
+            d("stability", "Stability", 3, 10, .gun, nil, (1, 10), (21, 10), anvil: 1),
+            d("penetration", "Penetration", 4, 2, .gun, nil, (12, 10), (42, 10), anvil: 4),
+            d("incendiary", "Incendiary", 1, 2, .gun, nil, (20, 0), (50, 0), anvil: 4),
         ]
     }()
     static func def(_ e: Ench) -> EnchDef { defs[e.rawValue] }
@@ -167,7 +178,7 @@ enum Enchant {
         case .shears: c.insert(.shears)
         default: break
         }
-        if let a = d.armorSlot, k != "elytra" {
+        if let a = d.armorSlot, k != "elytra", k != "jetpack" {      // jetpack: fuel, not wear
             c.insert([ECat.head, .chest, .legs, .feet][a.rawValue])
         }
         if k == "bow" { c.insert(.bow) }
@@ -175,6 +186,9 @@ enum Enchant {
         if k == "trident" { c.insert(.trident) }
         if k == "fishing_rod" { c.insert(.rod) }
         if k == "mace" { c.insert(.mace) }
+        if k.hasSuffix("_spear") { c.insert(.spear) }
+        if Guns.index(item) != nil { c.insert(.gun) }                     // spears: the melee enchantments (no sweep) + Lunge
+        if k == "jetpack" { return c }                                  // fuel tank, not wear: no Mending/Unbreaking
         if d.durability > 0 { c.insert(.durable); c.insert(.vanishable) }
         if d.armorSlot != nil || k == "carved_pumpkin" || k.hasSuffix("_skull") || k.hasSuffix("_head") { c.insert(.wearable); c.insert(.vanishable) }
         if k == "compass" || k == "recovery_compass" { c.insert(.vanishable) }
@@ -182,13 +196,14 @@ enum Enchant {
     }
 
     static func assignEnchantability(_ reg: ItemRegistry) {
-        let tools: [(String, Int)] = [("wooden", 15), ("stone", 5), ("iron", 14), ("golden", 22), ("diamond", 10), ("netherite", 15)]
-        for (m, v) in tools { for t in ["sword", "shovel", "pickaxe", "axe", "hoe"] { reg.setEnchantability("\(m)_\(t)", v) } }
-        let armor: [(String, Int)] = [("leather", 15), ("chainmail", 12), ("iron", 9), ("golden", 25), ("diamond", 10), ("netherite", 15)]
+        let tools: [(String, Int)] = [("wooden", 15), ("stone", 5), ("iron", 14), ("golden", 22), ("diamond", 10), ("netherite", 15), ("copper", 13)]
+        for (m, v) in tools { for t in ["sword", "shovel", "pickaxe", "axe", "hoe", "spear"] { reg.setEnchantability("\(m)_\(t)", v) } }
+        let armor: [(String, Int)] = [("leather", 15), ("chainmail", 12), ("iron", 9), ("golden", 25), ("diamond", 10), ("netherite", 15), ("copper", 8), ("steel", 10)]
         for (m, v) in armor { for p in ["helmet", "chestplate", "leggings", "boots"] { reg.setEnchantability("\(m)_\(p)", v) } }
         reg.setEnchantability("turtle_helmet", 9)
         for n in ["book", "bow", "crossbow", "trident", "fishing_rod"] { reg.setEnchantability(n, 1) }
         reg.setEnchantability("mace", 15)
+        for g in Guns.all { reg.setEnchantability(g.key, 12) }
     }
 
     // Can `e` go on this item at the table (primary) or anvil (supported)?
@@ -259,12 +274,37 @@ enum Enchant {
         return out
     }
 
+    // splitmix64: the table's per-slot streams. SRng(seed &+ slot) gave three nearly identical xorshift streams, so the
+    // three offers rolled alike (Oct 9 playtest: "only Efficiency and Unbreaking on the pickaxe").
+    static func mix(_ seed: UInt64, _ salt: UInt64) -> UInt64 {
+        var z = seed &+ (salt &+ 1) &* 0x9E3779B97F4A7C15
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
+    }
+
+    // One enchanting-table offer (reference getEnchantmentList): the player's seed + the slot pick the list; a book keeps
+    // one random entry fewer when it would get several; `clue` is the one entry the slot shows ("Fortune II +?").
+    static func tableOffer(item: ItemID, cost: Int, seed: UInt64, slot: Int) -> (ench: [(Ench, Int)], clue: (Ench, Int)?) {
+        var r = SRng(mix(seed, UInt64(slot)))
+        var l = select(item: item, level: cost, rng: &r)
+        if Items.key(item) == "book" && l.count > 1 { l.remove(at: r.int(l.count)) }
+        let clue = l.isEmpty ? nil : l[r.int(l.count)]
+        return (l, clue)
+    }
+
+    // The three slot costs for a player seed (reference: same seed, so the offers only change after an enchant).
+    static func tableCosts(bookshelves: Int, seed: UInt64) -> [Int] {
+        var rng = SRng(mix(seed, 99))
+        return tableCosts(bookshelves: bookshelves, rng: &rng)
+    }
+
     // Bookshelves around a table: 2 blocks out, same level or one up, with air between.
     static func countBookshelves(_ w: World, _ p: IVec3) -> Int {
         var n = 0
         for dz in -2...2 { for dx in -2...2 where max(abs(dx), abs(dz)) == 2 {
             for dy in 0...1 {
-                let mid = w.block(p.x + dx / 2, p.y, p.z + dz / 2)       // truncating halves, like the reference
+                let mid = w.block(p.x + dx / 2, p.y + dy, p.z + dz / 2)  // truncating halves, at the shelf's own height (reference)
                 guard mid == AIR || Blocks.replaceable[Int(mid)] else { continue }
                 if Blocks.key(w.block(p.x + dx, p.y + dy, p.z + dz)) == "bookshelf" { n += 1 }
             }
@@ -275,13 +315,13 @@ enum Enchant {
     // Random enchantment for loot ("enchant_randomly": any applicable level, treasure included).
     static func randomly(_ item: ItemID, treasure: Bool = true) -> [(Ench, Int)] {
         let opts = Ench.allCases.filter { (treasure || !def($0).treasure) && applies($0, item, table: false) }
-        guard let e = opts.randomElement() else { return [] }
-        return [(e, Int.random(in: 1...def(e).max))]
+        guard let e = opts.pick() else { return [] }
+        return [(e, Rand.int(in: 1...def(e).max))]
     }
 
     // "enchant_with_levels" for loot tables and mob gear.
     static func withLevels(_ item: ItemID, _ levels: Int, treasure: Bool = false) -> ItemStack {
-        var rng = SRng(UInt64.random(in: 0...UInt64.max))
+        var rng = SRng(Rand.u64(in: 0...UInt64.max))
         let isBook = Items.key(item) == "book"
         let l = select(item: isBook ? Items.id("book") : item, level: levels, rng: &rng, treasure: treasure)
         var s = ItemStack(isBook && !l.isEmpty ? Items.id("enchanted_book") : item, 1)
@@ -296,7 +336,8 @@ enum Enchant {
     static func combine(_ left: ItemStack, _ right: ItemStack, rename: String?, creative: Bool) -> AnvilResult? {
         guard !left.isEmpty else { return nil }
         var out = left
-        out.count = 1
+        // A rename alone takes the whole stack (64 renamed diamonds); combining works on one item.
+        out.count = right.isEmpty ? left.count : 1
         var cost = 0
         var rightUsed = 0
         let ld = left.def
@@ -360,12 +401,13 @@ enum Enchant {
     static func repairMaterial(_ item: ItemID) -> String? {
         let k = Items.key(item)
         for (pre, mat) in [("wooden_", "oak_planks"), ("stone_", "cobblestone"), ("iron_", "iron_ingot"), ("golden_", "gold_ingot"),
-                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot")] where k.hasPrefix(pre) {
+                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot"), ("copper_", "copper_ingot"), ("steel_", "steel_ingot")] where k.hasPrefix(pre) {
             return mat
         }
         if k == "turtle_helmet" { return "turtle_scute" }
         if k == "elytra" { return "phantom_membrane" }
         if k == "mace" { return "breeze_rod" }
+        if k.hasPrefix("gun_") { return k == "gun_arc" ? "copper_ingot" : "iron_ingot" }     // Steelhold guns
         return nil
     }
 
@@ -379,7 +421,14 @@ enum Enchant {
         if sh > 0 { b += 0.5 * Float(sh) + 0.5 }
         if m.undead { b += 2.5 * Float(level(.smite, s)) }
         if m.arthropod { b += 2.5 * Float(level(.baneOfArthropods, s)) }
+        if Enchant.aquatic(m) { b += 2.5 * Float(level(.impaling, s)) }        // a trident in hand impales too
         return b
+    }
+
+    // Impaling targets (Java list: water animals and guardians; drowned are undead, not aquatic).
+    static func aquatic(_ m: Mob) -> Bool {
+        ["guardian", "elder_guardian", "squid", "glow_squid", "dolphin", "turtle", "axolotl", "cod", "salmon", "pufferfish",
+         "tropical_fish"].contains(m.kind.key)
     }
 
     // Protection points (EPF) from all worn armor for a damage type (capped at 20, 4% each).
@@ -399,11 +448,11 @@ enum Enchant {
     }
 
     // Unbreaking: chance that a use doesn't cost durability.
-    static func wearSkipped(_ s: ItemStack) -> Bool {
+    static func wearSkipped(_ s: ItemStack, asTool: Bool = false) -> Bool {
         let u = level(.unbreaking, s)
         guard u > 0 else { return false }
-        if s.def.armorSlot != nil { return Float.random(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
-        return Int.random(in: 0...u) > 0
+        if s.def.armorSlot != nil && !asTool { return Rand.float(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
+        return Rand.int(in: 0...u) > 0
     }
 }
 

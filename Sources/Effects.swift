@@ -39,8 +39,8 @@ enum Effect: Int, CaseIterable {
         case .luck: return "Luck"
         case .badLuck: return "Bad Luck"
         case .slowFalling: return "Slow Falling"
-        case .conduitPower: return "Conduit Power"
-        case .dolphinsGrace: return "Dolphin's Grace"
+        case .conduitPower: return "Tide Blessing"
+        case .dolphinsGrace: return "Swimmer's Grace"
         case .badOmen: return "Ill Omen"
         case .heroOfTheVillage: return "Village Hero"
         case .darkness: return "Darkness"
@@ -191,8 +191,12 @@ extension Game {
         case .instantDamage:
             damage(6 << min(amp, 6), "was killed by magic", bypassArmor: true)
         case .saturation:
-            hunger = min(20, hunger + amp + 1)
-            saturation = min(Float(hunger), saturation + Float(2 * (amp + 1)))
+            // Once per tick of its duration (reference): a 0.35 s stew is 7 helpings, not 1.
+            let ticks = max(1, Int((seconds * 20).rounded()))
+            for _ in 0..<ticks {
+                hunger = min(20, hunger + amp + 1)
+                saturation = min(Float(hunger), saturation + Float(2 * (amp + 1)))
+            }
         default:
             if !survival && !e.beneficial && e != .badOmen && e != .raidOmen && e != .trialOmen { return }
             let hadAbsorption = effects.level(.absorption)
@@ -210,6 +214,11 @@ extension Game {
 
     // One step of every active effect on the player (runs every frame).
     func effectTick(_ dt: Float) {
+        // Levitation carrying the player 50 blocks up ("Lifted").
+        if player.levitate > 0 {
+            if levitateFromY == nil { levitateFromY = player.pos.y }
+            if let y0 = levitateFromY, player.pos.y - y0 >= 50 { achieve("levitate50") }
+        } else { levitateFromY = nil }
         guard effects.any else { applyMovementEffects(); return }
         var anyLeft = false
         for i in effects.slots.indices {
@@ -269,7 +278,8 @@ extension Game {
         let h = max(effects.level(.haste), effects.level(.conduitPower))
         if h > 0 { m *= 1 + 0.2 * Float(h) }
         let f = effects.level(.miningFatigue)
-        if f > 0 { m *= powf(0.3, Float(min(f, 4))) }
+        let fatigue: [Float] = [0.3, 0.09, 0.0027, 0.00081]             // reference: III and IV are far steeper than 0.3^n
+        if f > 0 { m *= fatigue[min(f, 4) - 1] }
         return m
     }
 
@@ -298,14 +308,14 @@ extension Game {
             applyEffect(.absorption, amp: 3, seconds: 120)
             applyEffect(.resistance, amp: 0, seconds: 300)
             applyEffect(.fireResistance, amp: 0, seconds: 300)
-        case "rotten_flesh": if Float.random(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
-        case "chicken": if Float.random(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "rotten_flesh": if Rand.float(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "chicken": if Rand.float(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
         case "spider_eye": applyEffect(.poison, amp: 0, seconds: 5)
         case "pufferfish":
             applyEffect(.hunger, amp: 2, seconds: 15)
             applyEffect(.nausea, amp: 0, seconds: 15)
             applyEffect(.poison, amp: 1, seconds: 60)
-        case "poisonous_potato": if Float.random(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
+        case "poisonous_potato": if Rand.float(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
         case "honey_bottle": effects.remove(.poison)
         case "milk_bucket":
             effects.clear(); absorption = 0; health = min(health, maxHealth)
@@ -342,6 +352,8 @@ extension Mob {
 
     // Applies an effect to a mob (undead swap instant health and damage and ignore poison/regeneration).
     func applyEffect(_ e: Effect, amp: Int, seconds: Float, game g: Game) {
+        // The wyrm (and its crystals) ignore every effect; the Blight ignores blight.
+        if kind == .enderDragon || kind == .endCrystal || (kind == .wither && e == .wither) { return }
         var e = e
         if undead && e == .instantHealth { e = .instantDamage } else if undead && e == .instantDamage { e = .instantHealth }
         switch e {
@@ -394,20 +406,45 @@ extension Game {
         d["patrol"] = "\(patrolTimer)"
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
+        if deepVisited { d["deepVisited"] = "1" }
+        if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
+        if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
+        if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
+        if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
+        // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
+        if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
+        if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
+        if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
         return d
     }
     func loadExtra(_ d: [String: String]) {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
+        horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
+        deepVisited = d["deepVisited"] == "1"
+        ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {
             for (i, st) in slots.prefix(27).enumerated() { enderChest[i] = st }
+        }
+        if let str = d["raid"], let data = str.data(using: .utf8), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) { raid = Raid(rec) }
+        if let str = d["coop2"], let data = str.data(using: .utf8), let c = try? JSONDecoder().decode(Coop.Saved.self, from: data) { coop.restoreSecond(c) }
+        if let a = d["anchor"] {
+            let v = a.split(separator: ",").compactMap { Int($0) }
+            if v.count == 3 { anchorSpawn = IVec3(v[0], v[1], v[2]) }
+        }
+        if let l = d["lastDeath"] {
+            let v = l.split(separator: ",").compactMap { Float($0) }
+            if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }
+        }
+        if let str = d["bases"], let data = str.data(using: .utf8), let recs = try? JSONDecoder().decode([BaseRecord].self, from: data) {
+            for var r in recs { r.lastTick = clock; bases.records[r.key] = r }     // time away is caught up from the save's clock on
         }
     }
 }

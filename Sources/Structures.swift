@@ -21,6 +21,12 @@ struct StructWriter {
     var blocks: UnsafeMutablePointer<BlockID>
     var entities: [(IVec3, BlockEntity)] = []
     var mobs: [(String, V3)] = []
+    // Lowest solid block written per column of this chunk (for filling under a structure: StructureCache.place).
+    final class Low { var y = [Int](repeating: Int.max, count: CS * CS) }
+    let low = Low()
+    @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        if Blocks.collide[Int(b)] { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
+    }
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         x >= bx && x < bx + CS && z >= bz && z < bz + CS && y >= 0 && y < CH
@@ -29,7 +35,22 @@ struct StructWriter {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
     func set(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b }
+        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b); unplant(x, y, z, b) }
+    }
+
+    // Grass, flowers and saplings need soil: a structure block written under one (paths, foundations, wells)
+    // removes it (gencheck plant_soil: grass and bushes standing on village cobblestone).
+    static let soilPlant: [Bool] = (0..<Blocks.count).map { i in
+        GenCheck.soils(Blocks.key(Blocks.groupBase[i])) == GenCheck.dirtLike
+    }
+    static let soil: [Bool] = (0..<Blocks.count).map { i in GenCheck.dirtLike.contains(Blocks.key(Blocks.groupBase[i])) }
+    @inline(__always) func unplant(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        guard b != AIR, !StructWriter.soil[Int(b)], Blocks.collide[Int(b)] else { return }
+        var yy = y + 1
+        while yy < CH, StructWriter.soilPlant[Int(blocks[Chunk.index(x - bx, yy, z - bz)])] {
+            blocks[Chunk.index(x - bx, yy, z - bz)] = AIR
+            yy += 1
+        }
     }
     func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
         let xa = max(x0, bx), xb = min(x1, bx + CS - 1)
@@ -37,14 +58,41 @@ struct StructWriter {
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
+        for z in za...zb { for x in xa...xb { note(x, ya, z, b); unplant(x, yb, z, b) } }
     }
+
+    // Fills open air / cave water under the lowest block each column of the structure wrote, down to the ground
+    // (at most `depth`), so it doesn't hang over caves or slopes (structcheck "floating"; reference terrain
+    // adaptation "beard"). Resets the per-column record for the next structure.
+    func fillUnder(depth: Int, surface: BlockID, intoWater: Bool = true) {
+        for k in 0..<(CS * CS) {
+            let y0 = low.y[k]
+            low.y[k] = Int.max
+            guard y0 != Int.max && y0 > 1 else { continue }
+            let x = bx + k % CS, z = bz + k / CS
+            var y = y0 - 1
+            while y > max(0, y0 - depth) {
+                let i = Chunk.index(x - bx, y, z - bz)
+                let cur = blocks[i]
+                // Through grass and flowers too (a Steelhold fill stopped on tall grass, leaving its base over air:
+                // structcheck floating, run 364).
+                let plant: Bool = Blocks.replaceable[Int(cur)] && Blocks.fluidKind[Int(cur)] == 0
+                guard cur == AIR || plant || (intoWater && cur == WATER) else { break }
+                blocks[i] = y < YOFF ? DEEPSLATE : (y < SEA - 12 ? STONE : surface)
+                y -= 1
+            }
+        }
+    }
+
     // Pillar from y down until a solid block (inside this chunk only).
     func pillarDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
         guard inside(x, y, z) else { return }
         var yy = y
         while yy >= minY {
             let cur = blocks[Chunk.index(x - bx, yy, z - bz)]
-            if Blocks.opaque[Int(cur)] && cur != b { break }
+            // Ground that holds you stops the pillar; powder snow (opaque, but you sink) doesn't: an igloo's entrance
+            // tunnel stood on it with no floor, so its room was unreachable (structcheck igloo, run 509).
+            if Blocks.opaque[Int(cur)] && Blocks.collide[Int(cur)] && cur != b { break }
             blocks[Chunk.index(x - bx, yy, z - bz)] = b
             yy -= 1
         }
@@ -110,30 +158,54 @@ struct StructureType {
 }
 
 final class StructureCache {
-    private var cache: [String: StructureStart?] = [:]
+    private struct StartKey: Hashable { let name: String; let rx: Int; let rz: Int }
+    private var cache: [StartKey: StructureStart?] = [:]
+    // Bench gen: time spent computing structure starts, per kind (ms).
+    static var startMs: [String: Double] = [:]
     private let lock = NSLock()
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
+    // Chunks a saved world had already generated before structures were added or moved (task 23: Capital cities,
+    // denser citadels). New placements must keep clear of them, or they would appear cut off at the edge of explored
+    // ground. Set once by World.init from SaveManager.structureGuard() before any chunk is generated.
+    var legacy: Set<Int64> = []
+    @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
+    // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
+    func clear(cx: Int, cz: Int, reach r: Int) -> Bool {
+        if legacy.isEmpty { return true }
+        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where legacy.contains(StructureCache.key(x, z)) { return false } }
+        return true
+    }
     init(seed: UInt64, types: [StructureType], fixed: [StructureStart] = []) {
         self.seed = seed; self.types = types; self.fixed = fixed
     }
 
     // The structure start in the region containing chunk (rx, rz) for a type, if any.
     func start(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> StructureStart? {
-        let key = "\(t.name):\(rx):\(rz)"
+        let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
         if let c = cache[key] { lock.unlock(); return c }
         lock.unlock()
-        var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
-        let span = t.spacing - t.separation
-        let cx = rx * t.spacing + rng.int(span), cz = rz * t.spacing + rng.int(span)
+        let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
+        let (cx, cz) = candidate(t, rx, rz)
         let s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
         lock.lock()
         cache[key] = s
         if cache.count > 4096 { cache.removeAll() }
+        if WorldGen.timing {
+            let ms: Double = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            WorldGen.timingLock.lock(); StructureCache.startMs[t.name, default: 0] += ms; WorldGen.timingLock.unlock()
+        }
         lock.unlock()
         return s
+    }
+
+    // The region's first candidate chunk (where a start always stood before task 23's alternates).
+    func candidate(_ t: StructureType, _ rx: Int, _ rz: Int) -> (Int, Int) {
+        var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
+        let span = t.spacing - t.separation
+        return (rx * t.spacing + rng.int(span), rz * t.spacing + rng.int(span))
     }
 
     func startsNear(cx: Int, cz: Int, _ t: StructureType) -> [StructureStart] {
@@ -145,6 +217,12 @@ final class StructureCache {
         return out
     }
 
+    // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
+    static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
+                                           "military_base": 24, "trail_ruins": 4]     // Steelhold: hillside bases hung 8+ over slopes
+    // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
+    // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
+
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
         var ents: [(IVec3, BlockEntity)] = []
@@ -154,6 +232,9 @@ final class StructureCache {
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
+                    // Village houses on slopes get foundations; their paths and bridges never dam rivers.
+                    if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE, intoWater: s.kind != "village") }
+                    else { for k in 0..<(CS * CS) { w.low.y[k] = Int.max } }
                 }
             }
             let bx = cx * CS, bz = cz * CS
@@ -167,8 +248,8 @@ final class StructureCache {
     }
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
-    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6) -> StructureStart? {
-        let fx = fixed.filter { $0.kind == kind }
+    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
+        let fx = fixed.filter { $0.kind == kind && accept($0) }
         if !fx.isEmpty {
             return fx.min { a, b in
                 let da = (a.anchor.x - x) * (a.anchor.x - x) + (a.anchor.z - z) * (a.anchor.z - z)
@@ -181,7 +262,7 @@ final class StructureCache {
         var best: StructureStart?, bd = Int.max
         for r in 0...maxRegions {
             for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz), accept(s) else { continue }
                 let cx = (s.min.x + s.max.x) / 2 - x, cz = (s.min.z + s.max.z) / 2 - z
                 if cx * cx + cz * cz < bd { bd = cx * cx + cz * cz; best = s }
             } }
@@ -208,11 +289,10 @@ enum Loot {
         "fortress": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
                              ("saddle", 1, 1, 10), ("obsidian", 2, 4, 2), ("rib_armor_trim_smithing_template", 1, 1, 1)]),
-        "dungeon": (1...3, [("saddle", 1, 1, 20), ("golden_apple", 1, 1, 15), ("iron_ingot", 1, 4, 10), ("gold_ingot", 1, 4, 5),
-                            ("bread", 1, 1, 20), ("wheat", 1, 4, 20), ("gunpowder", 1, 4, 10), ("string", 1, 4, 10),
-                            ("bucket", 1, 1, 10), ("redstone", 1, 4, 15), ("coal", 1, 4, 15), ("bone", 1, 8, 10),
-                            ("rotten_flesh", 1, 8, 10), ("name_tag", 1, 1, 20), ("music_disc_13", 1, 1, 15),
-                            ("enchanted_book", 1, 1, 10), ("enchanted_golden_apple", 1, 1, 2)]),
+        "dungeon": (1...3, [("saddle", 1, 1, 20), ("golden_apple", 1, 1, 15), ("enchanted_golden_apple", 1, 1, 2),
+                            ("music_disc_otherside", 1, 1, 2), ("music_disc_13", 1, 1, 15), ("music_disc_cat", 1, 1, 15),
+                            ("name_tag", 1, 1, 20), ("golden_horse_armor", 1, 1, 10), ("iron_horse_armor", 1, 1, 15),
+                            ("diamond_horse_armor", 1, 1, 5), ("enchanted_book", 1, 1, 10)]),
         "stronghold_corridor": (2...3, [("ender_pearl", 1, 1, 10), ("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5),
                                         ("redstone", 4, 9, 5), ("bread", 1, 3, 15), ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5),
                                         ("iron_sword", 1, 1, 5), ("iron_chestplate", 1, 1, 5), ("iron_helmet", 1, 1, 5),
@@ -230,7 +310,7 @@ enum Loot {
                                   ("bone", 4, 6, 20), ("rotten_flesh", 3, 7, 16), ("saddle", 1, 1, 3), ("bamboo", 1, 3, 15),
                                   ("enchanted_book@30", 1, 1, 1), ("wild_armor_trim_smithing_template", 1, 1, 7)]),
         "igloo_chest": (2...8, [("apple", 1, 3, 15), ("coal", 1, 4, 15), ("gold_nugget", 1, 3, 10), ("stone_axe", 1, 1, 2),
-                                ("rotten_flesh", 1, 1, 10), ("emerald", 1, 1, 1), ("wheat", 2, 3, 10), ("golden_apple", 1, 1, 1)]),
+                                ("rotten_flesh", 1, 1, 10), ("emerald", 1, 1, 1), ("wheat", 2, 3, 10)]),
         "pillager_outpost": (2...3, [("wheat", 3, 5, 7), ("potato", 2, 5, 5), ("carrot", 3, 5, 5), ("dark_oak_log", 2, 3, 10),
                                      ("experience_bottle", 0, 1, 7), ("string", 1, 6, 4), ("arrow", 2, 7, 4), ("tripwire_hook", 1, 3, 3),
                                      ("iron_ingot", 1, 3, 3), ("enchanted_book", 1, 1, 1), ("sentry_armor_trim_smithing_template", 1, 1, 2)]),
@@ -244,12 +324,10 @@ enum Loot {
                                       ("rotten_flesh", 5, 24, 5), ("gunpowder", 1, 5, 3), ("leather_helmet", 1, 1, 3), ("leather_chestplate", 1, 1, 3),
                                       ("bamboo", 1, 3, 2), ("pumpkin", 1, 3, 2), ("tnt", 1, 2, 1)]),
         "shipwreck_treasure": (3...6, [("iron_ingot", 1, 5, 90), ("gold_ingot", 1, 5, 10), ("emerald", 1, 5, 40), ("diamond", 1, 1, 5),
-                                       ("experience_bottle", 1, 1, 5), ("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)]),
+                                       ("experience_bottle", 1, 1, 5)]),
         "shipwreck_map": (1...3, [("paper", 1, 10, 20), ("feather", 1, 5, 10), ("book", 1, 5, 5), ("clock", 1, 1, 1), ("compass", 1, 1, 1),
                                   ("map", 1, 1, 1)]),
-        "buried_treasure": (5...8, [("heart_of_the_sea", 1, 1, 1000), ("iron_ingot", 1, 4, 20), ("gold_ingot", 1, 4, 10), ("tnt", 1, 2, 5),
-                                    ("emerald", 4, 8, 5), ("diamond", 1, 2, 5), ("prismarine_crystals", 1, 5, 5), ("cooked_cod", 2, 4, 10),
-                                    ("cooked_salmon", 2, 4, 10), ("iron_sword", 1, 1, 5), ("leather_chestplate", 1, 1, 5)]),
+        "buried_treasure": (1...1, [("heart_of_the_sea", 1, 1, 1)]),
         "village_house": (3...8, [("gold_nugget", 1, 3, 1), ("dandelion", 1, 1, 2), ("poppy", 1, 1, 1), ("potato", 1, 7, 10),
                                   ("bread", 1, 4, 10), ("apple", 1, 5, 10), ("book", 1, 1, 1), ("feather", 1, 1, 1), ("emerald", 1, 4, 2),
                                   ("oak_sapling", 1, 2, 5), ("wheat", 1, 7, 5), ("carrot", 1, 5, 5)]),
@@ -258,12 +336,11 @@ enum Loot {
                             ("oak_sapling", 3, 7, 5), ("iron_helmet", 1, 1, 5)]),
         "desert_pyramid": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 15), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 15),
                                    ("bone", 4, 6, 25), ("spider_eye", 1, 3, 25), ("rotten_flesh", 3, 7, 25), ("saddle", 1, 1, 20),
-                                   ("golden_apple", 1, 1, 20), ("gunpowder", 1, 8, 10), ("enchanted_book", 1, 1, 20),
-                                   ("enchanted_golden_apple", 1, 1, 2), ("dune_armor_trim_smithing_template", 1, 1, 4)]),
-        "mineshaft": (3...5, [("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5), ("redstone", 4, 9, 5), ("lapis_lazuli", 4, 9, 5),
-                              ("diamond", 1, 2, 3), ("coal", 3, 8, 10), ("bread", 1, 3, 15), ("melon_seeds", 2, 4, 10),
-                              ("pumpkin_seeds", 2, 4, 10), ("beetroot_seeds", 2, 4, 10), ("rail", 4, 8, 1), ("torch", 1, 16, 15),
-                              ("enchanted_book", 1, 1, 10), ("enchanted_golden_apple", 1, 1, 1), ("golden_apple", 1, 1, 20)]),
+                                   ("iron_horse_armor", 1, 1, 15), ("golden_horse_armor", 1, 1, 10), ("diamond_horse_armor", 1, 1, 5),
+                                   ("golden_apple", 1, 1, 20), ("enchanted_book", 1, 1, 20), ("enchanted_golden_apple", 1, 1, 2),
+                                   ("empty", 0, 0, 15), ("dune_armor_trim_smithing_template", 1, 1, 4)]),
+        "mineshaft": (1...1, [("golden_apple", 1, 1, 20), ("enchanted_golden_apple", 1, 1, 1), ("name_tag", 1, 1, 30),
+                              ("enchanted_book", 1, 1, 10), ("iron_pickaxe", 1, 1, 5), ("empty", 0, 0, 5)]),
         "mansion": (1...3, [("lead", 1, 1, 20), ("golden_apple", 1, 1, 15), ("enchanted_golden_apple", 1, 1, 2), ("music_disc_13", 1, 1, 15),
                              ("name_tag", 1, 1, 20), ("chainmail_chestplate", 1, 1, 10), ("diamond_hoe", 1, 1, 15), ("diamond_chestplate", 1, 1, 5),
                              ("enchanted_book", 1, 1, 10), ("iron_ingot", 1, 4, 10), ("redstone", 1, 4, 15), ("bread", 1, 1, 20),
@@ -303,6 +380,44 @@ enum Loot {
                             ("diamond_sword@20-39", 1, 1, 3), ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3),
                             ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2),
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
+        // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
+        "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
+                                     ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
+                                     ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3),
+                                     ("firing_mechanism", 1, 2, 7)]),
+        "steelhold_supply": (4...8, [("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
+                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
+                                     ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),
+        "steelhold_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
+                                      ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
+                                      ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
+                                      ("experience_bottle", 3, 8, 6), ("firing_mechanism", 1, 2, 6), ("targeting_optic", 1, 1, 5),
+                                      ("radar_module", 1, 1, 4), ("intercepted_orders", 1, 2, 7)]),
+        // The Meridian frigate's hold and bridge locker (CapitalFrigate.swift): post-game spoils.
+        "meridian_hold": (4...7, [("diamond", 3, 8, 10), ("gun_launcher", 1, 1, 6), ("gun_arc", 1, 1, 6), ("gun_sniper", 1, 1, 5),
+                                  ("rocket_ammo", 4, 10, 8), ("heavy_rounds", 8, 16, 8), ("arc_cell", 6, 14, 6),
+                                  ("firing_mechanism", 1, 3, 8), ("targeting_optic", 1, 2, 6), ("radar_module", 1, 1, 4),
+                                  ("netherite_scrap", 1, 3, 4), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
+        // Capital cities (CapitalCity.swift): offices and homes; the odd base component or patrol orders.
+        "capital_city": (3...6, [("bread", 2, 5, 14), ("cookie", 3, 8, 8), ("apple", 2, 5, 10), ("paper", 3, 9, 10), ("book", 1, 3, 8),
+                                 ("emerald", 1, 4, 8), ("gold_ingot", 1, 4, 6), ("clock", 1, 1, 3), ("compass", 1, 1, 3),
+                                 ("rifle_rounds", 8, 24, 6), ("glass_bottle", 2, 4, 4), ("white_wool", 2, 6, 5)]),
+        // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
+        "ash_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_launcher", 1, 1, 5), ("rifle_rounds", 16, 48, 20),
+                               ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
+                               ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("golden_apple", 1, 1, 3)]),
+        "ash_supply": (4...8, [("bread", 3, 8, 15), ("cooked_beef", 2, 6, 12), ("baked_potato", 3, 8, 10), ("iron_ingot", 3, 8, 10),
+                               ("gold_ingot", 2, 6, 8), ("gunpowder", 3, 9, 10), ("rifle_rounds", 12, 40, 12), ("rocket_ammo", 1, 4, 8),
+                               ("coal", 4, 12, 8), ("golden_apple", 1, 1, 3), ("potion_healing", 1, 2, 4)]),
+        "ash_fuel": (3...6, [("coal_block", 1, 4, 12), ("blaze_powder", 2, 6, 8), ("gunpowder", 4, 12, 12), ("tnt", 2, 6, 8),
+                             ("fire_charge", 2, 6, 8), ("rocket_ammo", 2, 4, 6), ("iron_ingot", 2, 6, 8)]),
+        "ash_command": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 6), ("gun_launcher", 1, 1, 8),
+                                ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 10, 10), ("arc_cell", 6, 14, 6), ("netherite_scrap", 1, 3, 4),
+                                ("diamond_chestplate@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
+        "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
+                                    ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
+                                    ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("targeting_optic", 1, 2, 6),
+                                    ("radar_module", 1, 1, 5), ("intercepted_orders", 1, 2, 6)]),
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);
@@ -326,23 +441,66 @@ enum Loot {
         return st
     }
 
+    // Further pools rolled after a table's own (the reference tables have several; one merged weighted pool made a
+    // buried treasure chest five Hearts of the Sea and left dungeons with 1-3 items). "empty" entries roll nothing.
+    static let extraPools: [String: [(rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])]] = [
+        "dungeon": [(1...4, [("iron_ingot", 1, 4, 10), ("gold_ingot", 1, 4, 5), ("bread", 1, 1, 20), ("wheat", 1, 4, 20), ("bucket", 1, 1, 10),
+                              ("redstone", 1, 4, 15), ("coal", 1, 4, 15), ("melon_seeds", 2, 4, 10), ("pumpkin_seeds", 2, 4, 10),
+                              ("beetroot_seeds", 2, 4, 10)]),
+                    (3...3, [("bone", 1, 8, 10), ("gunpowder", 1, 8, 10), ("rotten_flesh", 1, 8, 10), ("string", 1, 8, 10)])],
+        "buried_treasure": [(5...8, [("iron_ingot", 1, 4, 20), ("gold_ingot", 1, 4, 10), ("tnt", 1, 2, 5)]),
+                            (1...3, [("emerald", 4, 8, 5), ("diamond", 1, 2, 5), ("prismarine_crystals", 1, 5, 5)]),
+                            (0...1, [("leather_chestplate", 1, 1, 1), ("iron_sword", 1, 1, 1)]),
+                            (2...2, [("cooked_cod", 2, 4, 1), ("cooked_salmon", 2, 4, 1)])],
+        "desert_pyramid": [(4...4, [("bone", 1, 8, 10), ("gunpowder", 1, 8, 10), ("rotten_flesh", 1, 8, 10), ("string", 1, 8, 10), ("sand", 1, 8, 10)])],
+        "mineshaft": [(2...4, [("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5), ("redstone", 4, 9, 5), ("lapis_lazuli", 4, 9, 5),
+                               ("diamond", 1, 2, 3), ("coal", 3, 8, 10), ("bread", 1, 3, 15), ("glow_berries", 3, 6, 15),
+                               ("melon_seeds", 2, 4, 10), ("pumpkin_seeds", 2, 4, 10), ("beetroot_seeds", 2, 4, 10)]),
+                      (3...3, [("rail", 4, 8, 20), ("powered_rail", 1, 4, 5), ("detector_rail", 1, 4, 5), ("activator_rail", 1, 4, 5),
+                               ("torch", 1, 16, 15)])],
+        "igloo_chest": [(1...1, [("golden_apple", 1, 1, 1)])],
+        "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],
+    ]
+
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         guard let t = tables[table] else { return }
-        let entries = t.entries.filter { Items.has(String($0.0.split(separator: "@")[0])) }
+        roll(c, t.rolls, t.entries, rng: &rng)
+        for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
+    }
+
+    private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {
+        let entries = all.filter { $0.0 == "empty" || Items.has(String($0.0.split(separator: "@")[0])) }
         let total = entries.reduce(0) { $0 + $1.3 }
-        guard total > 0 else { return }
-        let rolls = rng.range(t.rolls.lowerBound, t.rolls.upperBound)
-        for _ in 0..<rolls {
+        guard total > 0, c.count > 0 else { return }
+        let n = rng.range(rolls.lowerBound, rolls.upperBound)
+        for _ in 0..<n {
             var r = rng.int(total)
             for e in entries {
                 r -= e.3
                 if r < 0 {
+                    if e.0 == "empty" { break }
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
+                    if !c[slot].isEmpty { return }                       // chest full
                     c[slot] = stack(e.0, rng.range(e.1, e.2), rng: &rng)
                     break
                 }
             }
         }
+    }
+}
+
+// A value computed on first use and kept, thread-safe (structure layouts share parts their pieces need only when built).
+final class LazyValue<T> {
+    private var v: T?
+    private let make: () -> T
+    private let lock = NSLock()
+    init(_ make: @escaping () -> T) { self.make = make }
+    var value: T {
+        lock.lock(); defer { lock.unlock() }
+        if let v = v { return v }
+        let x = make()
+        v = x
+        return x
     }
 }

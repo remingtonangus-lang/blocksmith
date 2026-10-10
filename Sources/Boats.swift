@@ -77,21 +77,28 @@ extension Game {
         if riding != nil { return false }
         riding = m
         player.pos = m.pos + V3(0, 0.1, 0)
-        sfx(.place(.wood), 0.4, at: m.pos)
+        sfx(.boatPaddle, 0.5, at: m.pos)
         return true
     }
 
     // Chested donkeys, mules and llamas: sneak-right-click opens their packs.
     func openPack(_ m: Mob) -> Bool {
+        // A tamed mount's gear and pack (MountMenu): sneak-use it, or use it while riding.
+        if MountMenu.opens(m), m.tamed, !m.baby, input.shift || riding === m { openMenu(MountMenu(game: self, mob: m)); return true }
         guard m.chested, [MobKind.donkey, .mule, .llama, .traderLlama].contains(m.kind), input.shift || riding === m else { return false }
+        openMenu(PackMenu(game: self, container: packContainer(m), title: m.customName ?? m.kind.name))
+        return true
+    }
+
+    // A chested mount's cargo, sized for its kind (llamas 3-15 slots by strength).
+    func packContainer(_ m: Mob) -> ItemContainer {
         let slots = m.kind == .llama || m.kind == .traderLlama ? 3 * max(1, min(5, (m.variant >> 4) & 7)) : 15
         if m.cargo == nil || m.cargo!.count != slots {
             let c = ItemContainer(slots)
             if let old = m.cargo { for i in 0..<min(old.count, slots) { c[i] = old[i] } }
             m.cargo = c
         }
-        openMenu(PackMenu(game: self, container: m.cargo!, title: m.customName ?? m.kind.name))
-        return true
+        return m.cargo!
     }
 }
 
@@ -99,8 +106,12 @@ extension Game {
 final class PackMenu: Menu {
     init(game: Game, container: ItemContainer, title: String) {
         super.init(title, game: game)
-        let cols = max(1, container.count / 3)
-        for r in 0..<3 { for c in 0..<cols { slots.append(MenuSlot(80 + c * 18, 18 + r * 18, container, c + r * cols)) } }
+        // Three rows when the slots divide by three (llamas, chest boats), else one row: a hopper minecart's 5 slots
+        // came out as one column of 3 and the last two could not be reached.
+        // (An empty container gets no slots: 0 % 3 == 0 made three rows of one slot over nothing.)
+        let rows = container.count >= 3 && container.count % 3 == 0 ? 3 : 1
+        let cols = container.count / rows
+        for r in 0..<rows { for c in 0..<cols { slots.append(MenuSlot(80 + c * 18, 18 + r * 18, container, c + r * cols)) } }
         addPlayerInventory()
     }
 }
@@ -129,8 +140,23 @@ extension Mob {
         if inLava { health = 0; return }
         // Friction per tick from what is under the boat (reference: water 0.9, land = block slipperiness).
         var friction: Float = 0.05
+        // Open sea: the hull rides the swell (where it is drawn) and wears out, slowly in calm water, fast in storms
+        // (Remington, v61): about 100 min of sailing per point in calm, 3 min in rain, half a minute in a thunderstorm.
+        let ocean = surface.map { abs($0 - Float(SEA) - 0.9) < 1.6 } ?? false
+        let sea: Float = ocean ? g.weather.sea : 0
+        if ridden && surface != nil {
+            boatWear += dt * (1 / 1500 + 0.03 * sea * sea)
+            if boatWear >= 1 {
+                boatWear -= 1; health -= 1
+                g.sfx(.place(.wood), 0.8, at: pos)
+                if health == 2 { g.onToast?(sea > 0.3 ? "The storm is battering your boat" : "Your boat is wearing out") }
+                if health == 1 { g.onToast?("Your boat is about to break up!") }
+            }
+        }
         if let s = surface {
-            let target = s - 0.35
+            let swell: Float = ocean && Game.oceanSwellDrawn
+                ? OceanSwell.height(pos.x, pos.z, Float(g.time.truncatingRemainder(dividingBy: 1000))) * g.weather.swell : 0
+            let target = s - 0.35 + swell
             let under = target - pos.y
             if under > 0.6 {
                 // Deep under water: bob up (reference: boats pop up; a submerged ridden boat ejects the rider).
@@ -142,7 +168,7 @@ extension Mob {
             friction = 0.9
         } else {
             vel.y -= 28 * dt
-            if onGround { friction = Boats.slipperiness(below) * 0.9 }
+            if onGround { friction = Boats.slipperiness(below) }      // reference: the block's slipperiness (ice ~40 b/s)
         }
         // Paddling: reference acceleration 0.04 b/tick forward, 0.005 backward, turn 1 deg/tick with 0.9 decay.
         if ridden {
@@ -165,7 +191,7 @@ extension Mob {
         var landed = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
         // Ramming a wall at speed breaks the boat (reference: falls > 3 blocks onto land also break it).
-        if (hit.x || hit.z) && simd_length(V2(vel.x, vel.z)) > 12 && surface == nil { health = 0 }
+        if (hit.x || hit.z) && simd_length(V2(vel.x, vel.z)) > 12 && surface == nil && Boats.slipperiness(below) < 0.9 { health = 0 }      // ice runs reach 40-70 b/s
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
