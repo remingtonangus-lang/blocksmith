@@ -36,6 +36,7 @@ final class Section {
     weak var owner: Chunk?      // marked dirty with each bump (World.update re-checks only dirty chunks)
     var meshedVersion = -1 { didSet { owner?.noteStale(was: oldValue != version, now: meshedVersion != version) } }
     var vis: UInt64 = ~0         // face connectivity (cave culling)
+    var leafy = true             // its mesh has faces between leaf blocks (SectionMesh.leafy)
     var needsMesh: Bool { meshedVersion != version }
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
 }
@@ -142,7 +143,7 @@ final class Chunk {
     var dirty = false {            // a section's version changed since World.update last looked at this chunk
         didSet { if dirty && !oldValue { world?.dirtyChunks.append(self) } }
     }
-    var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
+    var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
     weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s

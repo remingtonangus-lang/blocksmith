@@ -18,9 +18,9 @@ import glob, json, sys
 suf = sys.argv[1]; routes = sys.argv[2].split(); m = {}
 for p in sorted(glob.glob("snaps/route_part_*.json")): m.update({k: v for k, v in json.load(open(p)).items() if k.startswith("route_")})
 json.dump(m, open(f"snaps/routes{suf}.json", "w"), indent=2, sort_keys=True)
-rows = ["| route | p50 ms | p99 ms | max ms | budget | hitches/min | missed % | tick p99 | update p99 | load ms | resident peak MB | growth % | mobs | pass |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+rows = ["| route | p50 ms | p99 ms | max ms | budget | hitches/min | missed % | tick p99 | tick CPU p99 | update p99 | load ms | resident peak MB | growth % | mobs | pass |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
 for r in routes:
     k = f"route_{r}{suf}"; g = lambda n: m.get(f"{k}.{n}", float("nan"))
-    rows.append(f"| {r} | {g('frame_ms_p50'):.1f} | {g('frame_ms_p99'):.1f} | {g('frame_ms_max'):.1f} | {g('budget_ms'):.1f} | {g('hitches_per_min'):.1f} | {g('missed_pct'):.1f} | {g('tick_ms_p99'):.1f} | {g('update_ms_p99'):.1f} | {g('load_ms'):.0f} | {g('resident_peak_mb'):.0f} | {g('resident_growth_pct'):.1f} | {g('mobs'):.0f} | {'PASS' if g('pass') == 1 else 'FAIL'} |")
+    rows.append(f"| {r} | {g('frame_ms_p50'):.1f} | {g('frame_ms_p99'):.1f} | {g('frame_ms_max'):.1f} | {g('budget_ms'):.1f} | {g('hitches_per_min'):.1f} | {g('missed_pct'):.1f} | {g('tick_ms_p99'):.1f} | {g('tick_cpu_ms_p99'):.1f} | {g('update_ms_p99'):.1f} | {g('load_ms'):.0f} | {g('resident_peak_mb'):.0f} | {g('resident_growth_pct'):.1f} | {g('mobs'):.0f} | {'PASS' if g('pass') == 1 else 'FAIL'} |")
 open(f"snaps/routes{suf}.md", "w").write("\n".join(rows) + "\n"); print("\n".join(rows))
 PY

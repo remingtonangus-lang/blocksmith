@@ -61,6 +61,7 @@ enum Snapshot {
         let snapDim = Dim(rawValue: arg("--dim") ?? "") ?? .overworld
         if CommandLine.arguments.contains("--nolod") { World.lodNear = 99 }      // every chunk at full detail
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }   // far-detail boundary (chunks)
+        if let v = arg("--leafnear").flatMap({ Int($0) }) { World.leafNear = v }   // "fast" leaves boundary (chunks; Quest 2)
         let world = World(seed: seed, device: device, save: nil, dim: snapDim)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)

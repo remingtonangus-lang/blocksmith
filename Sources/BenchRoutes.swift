@@ -20,8 +20,10 @@ extension Bench {
     static func route(_ device: MTLDevice, _ benchSeed: UInt64, _ name: String) {
         let seed = (name == "flyover" || name == "taiga") && arg("--seed") == nil ? playtestSeed : benchSeed
         let quest = CommandLine.arguments.contains("--quest")
-        if quest { World.fluidSeconds = 0.002; World.lodNear = 5 }      // as QuestApp sets them
+        if quest { World.fluidSeconds = 0.002; World.lodNear = 5; World.leafNear = 2; World.handoverSeconds = 0.0015 }   // as QuestApp
+        if let v = arg("--handover").flatMap({ Double($0) }) { World.handoverSeconds = v / 1000 }   // ms (before/after runs)
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }
+        if let v = arg("--leafnear").flatMap({ Int($0) }) { World.leafNear = v }
         let rd = Int(arg("--rd") ?? "") ?? 8
         let seconds = Double(arg("--secs") ?? "") ?? 30
         let dim: Dim = name == "ashvault" ? .deep : .overworld
@@ -90,6 +92,9 @@ extension Bench {
         var stageSum: [Int: (StaticString, Double, Double)] = [:]
         var upd: [Double] = []; upd.reserveCapacity(frames)   // World.update (streaming hand-over) ms per tick
         var missed = 0                                         // frames over 1.5x the budget (the headset's "missed")
+        var lagSum = 0.0, lagN = 0
+        // The tick's own CPU time (thread clock): unlike wall time, other processes on a shared Mac don't inflate it.
+        var tickCPU: [Double] = []; tickCPU.reserveCapacity(frames)
         est.reserveCapacity(frames); tick.reserveCapacity(frames); gpu.reserveCapacity(frames)
         let mem0 = residentMB()
         var peak = mem0
@@ -100,9 +105,10 @@ extension Bench {
             game.player.pos = p
             game.player.vel = .zero
             let (tk, e, g): (Double, Double, Double) = autoreleasepool {
-                let b = now
+                let b = now, bc = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
                 game.tick(dt)
                 let tk = now - b
+                tickCPU.append(Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - bc) / 1e6)
                 for j in 0..<TickProf.count {
                     let nm = TickProf.names[j], key = Int(bitPattern: nm.utf8Start)
                     let o = stageSum[key] ?? (nm, 0, 0)
@@ -129,6 +135,16 @@ extension Bench {
                 print("bench \(name) hitch at \(f(Double(i) * dt, 1)) s: tick \(f(tk * 1000)) (\(TickProf.top().0)) encode \(f(e * 1000)) gpu \(f(g * 1000)) ms, jobs \(world.pendingJobs)")
             }
             if i % 30 == 0 { peak = max(peak, residentMB()) }
+            // Streaming lag: chunks inside the drawn disc not meshed yet (holes and pop-in), sampled once a second.
+            if i % Int(1 / dt) == 0 {
+                let cx = Int(floor(p.x / 16)), cz = Int(floor(p.z / 16)), r = rd
+                var n = 0, m = 0
+                for dz in -r...r { for dx in -r...r where world.inMeshRadius(dx, dz) {
+                    n += 1
+                    if !(world.chunks[ChunkKey(x: cx + dx, z: cz + dz)]?.meshedOnce ?? false) { m += 1 }
+                } }
+                lagSum += Double(m) / Double(max(1, n)) * 100; lagN += 1
+            }
             let slack = start + Double(i + 1) * dt - now
             if slack > 0 { usleep(useconds_t(slack * 1e6)) }
         }
@@ -142,6 +158,8 @@ extension Bench {
         put("\(k).load_ms", load * 1000)
         put("\(k).frame_ms", fe, "p50,p99,max")
         put("\(k).tick_ms", ft, "p50,p99")
+        let fc = dist(tickCPU)
+        put("\(k).tick_cpu_ms", fc, "mean,p50,p99")
         put("\(k).gpu_ms", fg, "p50,p99")
         put("\(k).hitches_per_min", perMin)
         put("\(k).resident_start_mb", mem0)
@@ -151,13 +169,34 @@ extension Bench {
         put("\(k).quads", Double(quadSum / max(1, frames)))
         put("\(k).draws", Double(drawSum / max(1, frames)))
         put("\(k).budget_ms", budget)
+        // Loaded terrain by detail level: solid / cut-out (leaves, plants) / translucent quads (what the GPU draws at most).
+        var q = [[Int]](repeating: [0, 0, 0, 0], count: 2)
+        for c in world.chunks.values { for sec in c.sections where sec.meshedVersion >= 0 {
+            let l = c.lod == 1 ? 1 : 0
+            q[l][0] += sec.solidQuads; q[l][1] += sec.opaqueQuads - sec.solidQuads; q[l][2] += sec.transQuads; q[l][3] += 1
+        } }
+        // Far cut-out quads by face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) and merged (larger than one block).
+        var byFace = [Int](repeating: 0, count: 8), merged = 0
+        for c in world.chunks.values where c.lod == 1 { for sec in c.sections where sec.meshedVersion >= 0 && sec.opaqueQuads > sec.solidQuads {
+            guard let b = sec.opaqueBuf else { continue }
+            let p = (b.buffer.contents() + b.offset).bindMemory(to: UInt32.self, capacity: sec.opaqueQuads * 8)
+            for qi in sec.solidQuads..<sec.opaqueQuads {
+                byFace[Int((p[qi * 8] >> 27) & 7)] += 1
+                let w1 = p[qi * 8 + 1]
+                if w1 & 31 == 31 && (w1 >> 5) & 31 == 31 { merged += 1 }
+            }
+        } }
+        print("bench \(k) far cut quads by face: \(byFace.prefix(6).map { "\($0 / 1000)k" }.joined(separator: " ")), greedy-path \(merged / 1000)k")
+        print("bench \(k) loaded quads: near solid \(q[0][0] / 1000)k cut \(q[0][1] / 1000)k trans \(q[0][2] / 1000)k (\(q[0][3]) sections) | far solid \(q[1][0] / 1000)k cut \(q[1][1] / 1000)k trans \(q[1][2] / 1000)k (\(q[1][3]) sections)")
         let fu = dist(upd)
         put("\(k).update_ms", fu, "mean,p99")
         put("\(k).missed_pct", Double(missed) / Double(max(1, frames)) * 100)
+        put("\(k).unmeshed_pct", lagSum / Double(max(1, lagN)))
         let top = stageSum.values.sorted { $0.1 > $1.1 }.prefix(8)
         for (nm, sum, _) in top { put("\(k).stage.\(nm.description)", sum * 1000 / Double(max(1, frames))) }
         print("bench \(k) tick stages, mean ms (worst): " + top.map { "\($0.0) \(f($0.1 * 1000 / Double(max(1, frames)), 3)) (\(f($0.2 * 1000)))" }.joined(separator: ", "))
-        print("bench \(k): world.update mean \(f(fu.mean, 3)) p99 \(f(fu.p99)) ms, missed (> 1.5x budget) \(f(Double(missed) / Double(max(1, frames)) * 100, 1))% of frames, chunks generated \(world.perf.genChunks), sections meshed \(world.perf.meshSections)")
+        print("bench \(k): tick thread CPU mean \(f(fc.mean, 3)) p50 \(f(fc.p50)) p99 \(f(fc.p99)) ms")
+        print("bench \(k): world.update mean \(f(fu.mean, 3)) p99 \(f(fu.p99)) ms, missed (> 1.5x budget) \(f(Double(missed) / Double(max(1, frames)) * 100, 1))% of frames, chunks generated \(world.perf.genChunks), sections meshed \(world.perf.meshSections), drawn disc not meshed yet \(f(lagSum / Double(max(1, lagN)), 1))% (mean)")
         put("\(k).pass", over99 && perMin <= 1 ? 1 : 0)
         let sp = spikes.sorted { $0.value.0 > $1.value.0 }.prefix(6).map { "\($0.key) x\($0.value.0) (max \(f($0.value.1)) ms)" }
         if !sp.isEmpty { print("bench \(k) tick spikes > 4 ms by stage: " + sp.joined(separator: ", ")) }

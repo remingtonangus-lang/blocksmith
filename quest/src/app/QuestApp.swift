@@ -48,6 +48,9 @@ final class QuestApp {
         // Far detail (merged faces, no grass/flowers, fast leaves) from 5 chunks out instead of 8: rd 16 Quest-proxy
         // bench 17-23% fewer terrain quads, screenshots at 80+ blocks differ in 0.01% of pixels.
         World.lodNear = 5
+        // "Fast" leaves (no faces between leaf blocks) from 3 chunks out: the Oct 10 taiga village drew ~500k quads at
+        // rd 16, about half of them leaves (docs/status/performance.md).
+        World.leafNear = 2
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
             return true
