@@ -173,6 +173,9 @@ final class StructureCache {
     var legacy: Set<Int64> = []
     // The same guard taken again when Boreal Stations arrived (2026-10-09): chunks saved before that.
     var legacyStations: Set<Int64> = []
+    // And when Capital cities got their market, flats and citizens (2026-10-10): a city with ground saved before that
+    // keeps its old lot uses, or the new storefronts would be built against offices already saved in the next chunk.
+    var legacyCapitalTowns: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }

@@ -169,7 +169,9 @@ enum CapitalCity {
             } }
             guard lots >= 16 else { return nil }
             plan.seed = seed
-            CapitalTown.assignShops(plan)               // the market lots round the civic centre (CapitalTown.swift)
+            // The market lots round the civic centre, flats and offices (CapitalTown.swift); not for a city whose ground
+            // was partly saved before they existed (StructureCache.legacyCapitalTowns).
+            if sc.clear(cx: cx, cz: cz, reach: 9, guardSet: sc.legacyCapitalTowns) { CapitalTown.assignShops(plan) }
             return plan
     }
 
@@ -400,6 +402,7 @@ enum CapitalCity {
             w.set(ex - 3, L + 1, bz0 + 3, white); w.set(ex - 2, L + 1, bz0 + 3, white); w.set(ex - 1, L + 1, bz0 + 3, white)
             w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
             bench(&w, bx0 + 2, L, bz1 - 2, alongX: true, dir: "south")
+            CapitalTown.desks(&w, fp, L)
         }
         if storeys == 2 {
             // Upper storey set back two from the south and east sides; the lower roof around it is a terrace with

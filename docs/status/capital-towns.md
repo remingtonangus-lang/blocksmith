@@ -23,17 +23,22 @@
   villager who did lie down was 1.45 from the pillow and woke the next tick). Now up to 1.6 with a clear line
   (World.clearShot, so never through a wall).
 - Counters: a keeper strolling round the counter (radius 2.5) picked goals a block up, i.e. the counter top, and
-  stood on it. Strolls in a tight area (radius 3 or less) keep to the anchor's floor (Mob.strollGoal).
+  stood on it. Strolls in a tight area (radius 3 or less) keep to the anchor's floor and need a clear line from the
+  anchor (Mob.strollGoal), so a goal behind the counter can't be reached by climbing it.
+- Slab ledges: a walker on a half slab (y+0.5) jumped onto a terrace a full block above the slab's block, a 1.5 rise
+  it can't make, and stayed there pushing. The pathfinder now refuses an up-step whose real rise is over 1.25
+  (Pathfinding step, solidTop of both floors).
 - Range: path searches gave up on any goal more than 48 blocks away (x + z) without searching, so a citizen whose
-  bed was 52 away walked straight at the office wall all night. Villagers search up to 100 (PathProfile.range), still
-  capped at 1500 nodes and time-sliced as before.
+  bed was 52 away walked straight at the office wall all night. Villagers search up to 160 (PathProfile.range; seed 2024 had
+  beds over 100 away in x + z), still capped at 1500 nodes and time-sliced as before.
 
 ## Code
 CapitalTown.swift (market and storefronts, flats and residents, desks, squares' bells and the name sign, city names),
 CapitalCity.swift (Plan.shops/flat/seed, planFor split out of site, building footprint shared with CapitalTown, flats
 in building()), StructureStart.plan (the city plan kept for name lookups and the checks), Townsfolk.swift (citizen
 tag "citizen@x,y,z", city greetings, Townsfolk.town knows capitals), TownsfolkModel.swift (city clothes),
-VillageLife.swift (citizens work at their desk; bed reach), Mob.swift (tight strolls), Pathfinding.swift (range).
+VillageLife.swift (citizens work at their desk; bed reach), Mob.swift (tight strolls), Pathfinding.swift (range,
+slab ledges). Offices have a row of desks (one per worker) and citizens go to the nearest office by distance and climb.
 
 ## Checks (repeatable)
 - `questcheck` (every Quest host check) and Mac `--towntests` run CapitalTownTests via TownTests.run;

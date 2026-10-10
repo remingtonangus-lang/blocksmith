@@ -84,6 +84,18 @@ enum CapitalTown {
         return IVec3(fp.bx0 + 2 + (n * 3) % max(1, fp.bw - 4), plan.lv(oi, oj)! + 1, fp.bz0 + 5)
     }
 
+    // The office desks themselves (CapitalCity.building, offices): a desk the clerk faces across the row south of
+    // each spot desk() hands out, with a lamp on some.
+    static func desks(_ w: inout StructWriter, _ fp: CapitalCity.Footprint, _ L: Int) {
+        let desk = Blocks.has("capital_stone_trim") ? Blocks.id("capital_stone_trim") : STONE
+        var x = fp.bx0 + 2
+        while x <= fp.bx0 + 2 + max(0, fp.bw - 5) {
+            if w.inside(x, L + 1, fp.bz0 + 6) && w.get(x, L + 1, fp.bz0 + 6) == AIR { w.set(x, L + 1, fp.bz0 + 6, desk) } else { x += 3; continue }   // not on the bench
+            if (x - fp.bx0) % 2 == 0, Blocks.has("lantern") { w.set(x, L + 2, fp.bz0 + 6, Blocks.id("lantern")) }
+            x += 3
+        }
+    }
+
     // Flats: up to three beds along the back wall (head to the wall), a resident standing in front of each.
     static func residents(_ w: inout StructWriter, _ plan: CapitalCity.Plan, _ i: Int, _ j: Int, _ fp: CapitalCity.Footprint, _ L: Int) {
         let bz1 = fp.bz0 + fp.bd - 1, bx1 = fp.bx0 + fp.bw - 1
@@ -111,7 +123,8 @@ enum CapitalTown {
         }
         for u in [9, 13, 25] where rng.chance(0.8) { CapitalCity.seating(&w, x0 + u, L, z0 + 24, &rng) }
         for u in [8, 29] { CapitalCity.planterTree(&w, x0 + u, L - 1, z0 + 29, &rng) }
-        if rng.chance(0.6) { w.mob(CapitalCity.watch[rng.int(CapitalCity.watch.count)], V3(Float(x0 + 19) + 0.5, Float(L + 1), Float(z0 + st + 1) + 0.5)) }
+        // A soldier between the storefronts, past the entrance ramp (v 6-11).
+        if rng.chance(0.6) { w.mob(CapitalCity.watch[rng.int(CapitalCity.watch.count)], V3(Float(x0 + 19) + 0.5, Float(L + 1), Float(z0 + st + 6) + 0.5)) }
     }
 
     // One shop: walls 6 high, the front glazed at street level with a 3-wide opening, the sign over it, an awning,

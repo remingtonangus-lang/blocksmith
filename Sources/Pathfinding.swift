@@ -343,6 +343,10 @@ enum PathFinder {
                     let dy = di2 == 0 ? 0 : (di2 == 1 ? 1 : 1 - di2)
                     let q = IVec3(qx, p.y + dy, qz)
                     if dy == 1 && !open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1, span: pr.span) { continue }      // headroom to jump
+                    // A jump rises 1 block plus the difference in floor heights: from a bottom slab onto a full block is
+                    // 1.5, more than a mob can jump (citizens jumped at a terrace edge off a half-step walkway all night:
+                    // CapitalTownTests seed 55555). Floors are the cells' collision tops under the feet.
+                    if dy == 1 && 1 + solidTop(w, qx, p.y, qz) - solidTop(w, p.x, p.y - 1, p.z) > 1.25 { continue }
                     if dy < 0 && !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue }             // clear drop column
                     guard let c = standCost(w, qx, q.y, qz, pr) else {
                         // A solid cell at this level ends the search downwards (can't drop through it).
@@ -404,7 +408,7 @@ extension Mob {
         // Townsfolk walk across a town (a Capital citizen's flat to an office two lots away, ~70 blocks): beyond 48 the
         // search wasn't tried at all and they walked straight at the walls in between (CapitalTownTests day sim). Their
         // searches stay capped at 1500 nodes, so a far goal costs no more than a near one behind a house.
-        if kind == .villager { pr.range = 100 }
+        if kind == .villager { pr.range = 160 }
         return pr
     }
 

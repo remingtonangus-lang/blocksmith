@@ -123,20 +123,37 @@ extension TownTests {
         g.time = (2050.0 / 24000) * DAY_LENGTH
         let workers = people.filter { $0.villager?.role == "citizen" && $0.villager?.jobSite != nil }
         var bestDesk = [Float](repeating: .infinity, count: workers.count)
+        // Keepers in shop hours: how often one stands higher than their spot behind the counter (on the counter).
+        let keepers = people.filter { $0.villager?.role == "shopkeeper" }
+        var keeperSamples = 0, onCounter = 0
         run(180) {
             for (i, m) in workers.enumerated() {
                 guard let j = m.villager?.jobSite else { continue }
-                let d = simd_length(V2(Float(j[0]) + 0.5 - m.pos.x, Float(j[2]) + 0.5 - m.pos.z))
-                if abs(Float(j[1]) - m.pos.y) < 2 { bestDesk[i] = min(bestDesk[i], d) }
+                // At the desk: close, on its floor, and in the same room (a clear line, not through the office wall).
+                let spot = V3(Float(j[0]) + 0.5, Float(j[1]), Float(j[2]) + 0.5)
+                let d = simd_length(V2(spot.x - m.pos.x, spot.z - m.pos.z))
+                if abs(spot.y - m.pos.y) < 0.6 && d < 3 && w.clearShot(m.pos + V3(0, 1.5, 0), spot + V3(0, 1.5, 0)) { bestDesk[i] = min(bestDesk[i], d) }
+            }
+            for m in keepers where m.villager?.shopKind != nil {
+                guard let j = m.villager?.jobSite else { continue }
+                keeperSamples += 1
+                if m.pos.y > Float(j[1]) + 0.7 {
+                    onCounter += 1
+                    if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil && onCounter % 7 == 1 {
+                        print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround)")
+                    }
+                }
             }
         }
+        check(keeperSamples > 0 && onCounter * 50 <= keeperSamples,
+              "capitals: keepers stay off their counters in shop hours (\(onCounter) of \(keeperSamples) samples up on something)")
         if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil {
-            for (i, m) in workers.enumerated() where bestDesk[i] >= 3.5 {
+            for (i, m) in workers.enumerated() where bestDesk[i] >= 3 {
                 print("  late \(m.villager?.person ?? "?") at \(m.pos) home \(m.home ?? .zero) desk \(m.villager?.jobSite ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) goal \(m.path.goal) gaveUp \(m.unreachableTimer) act \(m.activity(g.dayFraction))")
             }
         }
-        let atWork = bestDesk.filter { $0 < 3.5 }.count
-        let late = zip(workers, bestDesk).filter { $0.1 >= 3.5 }.prefix(4).map { m, d in
+        let atWork = bestDesk.filter { $0 < 3 }.count
+        let late = zip(workers, bestDesk).filter { $0.1 >= 3 }.prefix(4).map { m, d in
             "\(m.villager?.person ?? "?") \(d.isFinite ? String(format: "%.0f", d) : "never level") from desk"
         }
         check(!workers.isEmpty && atWork * 10 >= workers.count * 9,
@@ -153,6 +170,14 @@ extension TownTests {
         }
         if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil {
             for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
+                let cx = Int(floor(m.pos.x)), cy = Int(floor(m.pos.y)), cz = Int(floor(m.pos.z))
+                for dy in -1...2 {
+                    print("    y\(cy + dy) (rows z \(cz - 2)...\(cz + 2), x \(cx - 3)...\(cx + 3)): " + (-2...2).map { dz in (-3...3).map { dx -> String in
+                        let k = Blocks.key(w.block(cx + dx, cy + dy, cz + dz))
+                        return k == "air" ? "." : (k.contains("slab") ? "s" : (k.contains("stairs") ? "t" : (k.contains("fence") ? "f" : String(k.prefix(1)))))
+                    }.joined() }.joined(separator: " | "))
+                }
+                print("    next " + m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: " "))
                 print("  awake \(m.villager?.person ?? "?") \(m.villager?.role ?? "") \(m.villager?.shop ?? "") at \(m.pos) bed \(m.villager?.bed ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) gaveUp \(m.unreachableTimer)")
             }
         }

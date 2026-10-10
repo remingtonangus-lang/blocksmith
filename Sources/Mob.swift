@@ -1222,6 +1222,10 @@ final class Mob {
             // anchor: a goal a block up was the counter top, and keepers stood on their counters (CapitalTownTests).
             let tight = area.map { $0.1 <= 3 } ?? false
             let base = tight ? Int(floor(area!.0.y + 0.01)) : y0
+            // It must also be in plain sight of the anchor at knee height: the floor across the counter is level with the
+            // keeper's, and keepers walked round to it and stood on the counter on the way (verifier probe: 60-135 of 200
+            // samples on the counter).
+            if tight, let a = area, !w.clearShot(V3(a.0.x, Float(base) + 0.3, a.0.z), V3(Float(x) + off, Float(base) + 0.3, Float(z) + off)) { continue }
             for dy in tight ? [0] : [0, 1, -1, 2, -2] {
                 let g = V3(Float(x) + off, Float(base + dy), Float(z) + off)
                 if let c = PathFinder.standCost(w, x, base + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, base + dy, z)) { return g }
