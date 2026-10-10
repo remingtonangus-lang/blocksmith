@@ -9,6 +9,7 @@ import simd
 final class QuestRig {
     var bodyYaw: Float = 0
     var anchor = V3.zero
+    var shake = V3.zero                         // eye jolt (Game.shakeVR: the Tidebreaker), set each frame by the app
     var needsRecenter = true
     private(set) var recenters = 0              // counts recentres (panels re-place themselves after one)
     private(set) var heightOffset: Float = 1.62
@@ -79,6 +80,7 @@ final class QuestRig {
         feet = game.player.pos + V3(0, stepOffset, 0)
         headWorld = toWorld(trackingHead)
         (headYaw, headPitch) = XRMath.yawPitch(toWorldRot(headRot))
+        shake = game.shakeVR
     }
 
     /// Per frame with the frame's dt: smooths the level head yaw (tracking space) the stick is relative to.
@@ -127,13 +129,14 @@ final class QuestRig {
     func camera(xr: XRInput, far: Float) -> EyeCamera {
         var vps: [float4x4] = []
         let center = headWorld
+        let jolt = shake
         var minL: Float = 0, maxR: Float = 0, maxU: Float = 0, minD: Float = 0
         for i in 0..<2 {
             let (p, q) = xr.eyePose(i)
             let (l, r, u, d) = xr.fovTangents(i)
             minL = min(minL, l); maxR = max(maxR, r); maxU = max(maxU, u); minD = min(minD, d)
             let proj = XRMath.projection(tanLeft: l, tanRight: r, tanUp: u, tanDown: d, near: 0.05, far: far)
-            let rel = toWorld(p) - center
+            let rel = toWorld(p) - center + jolt
             vps.append(proj * XRMath.inversePose(toWorldRot(q), rel))
         }
         // Culling frustum: the union of both eyes' fields of view from 10 cm behind the centre.

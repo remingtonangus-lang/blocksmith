@@ -69,7 +69,7 @@
 > docs/status/quest-port.md "Task 24 audio + visual polish".
 
 > **Factions (2026-10-09, task 23, quest-port + playtest):** the frigate is now the Meridian Navy (its own faction, new
-> hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; MAC gun craters citadels). Capital
+> hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; its Tidebreaker main gun craters citadels). Capital
 > cities (white low-rise garden cities with covered walkways). Citadels are denser on new ground (saved worlds keep
 > theirs). Post-game warships are rare; base loot gives gun/radar components; a radar and intercepted orders find
 > sites. All factions fight each other. Details: docs/status/quest-port.md "Task 23 factions".

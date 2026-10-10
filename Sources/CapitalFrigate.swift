@@ -3,11 +3,12 @@ import simd
 
 // The Meridian frigate (role "capfrigate", the internal key of the frigate encounter; task 23: the frigate is its own
 // faction, the Meridian Navy, no longer the Capital's). An original design in the spirit Remington asked for (a
-// rugged deep-space navy frigate): a long dark-grey hull, twin lower booms reaching forward at the bow with rows of
-// lit portholes and the MAC gun's muzzle between them, a raised bridge with a sensor dome on the spine, a bulky engine
-// block aft with four great glowing thrusters; point-defence guns and missile hatches along the spine. 160 blocks
-// long, 27 wide. The MAC (magnetic accelerator cannon) fires a slug that blasts a crater (Explosion.crater) able to
-// gut a citadel. Fast: 12-22 b/s under its own crew, 42 b/s commandeered. Bow toward -Z at z 0, keel at y 0.
+// rugged deep-space navy frigate) built around its spinal gun, the Tidebreaker: a long dark-grey hull, twin lower booms
+// reaching forward at the bow with rows of lit portholes and the gun's 63-block barrel (glowing coil rings, a muzzle
+// brake at the bow) running between them, a raised bridge with a sensor dome on the spine, a bulky engine block aft
+// with four great glowing thrusters; point-defence guns and missile hatches along the spine. 160 blocks long, 27 wide.
+// The Tidebreaker (a spinal coilgun, MainGun.swift) charges, then fires a slug that blasts a crater and a shockwave
+// able to gut a citadel. Fast: 12-22 b/s under its own crew, 42 b/s commandeered. Bow toward -Z at z 0, keel at y 0.
 // The Capital's ship palette (capital_plate & co.) below is still used by its dropships and citadels.
 
 extension BlockRegistry {
@@ -149,7 +150,7 @@ extension Capital {
         return true
     }
     // The spine: |x| <= 9, y 6-24, z to 128, chamfered top and bottom edges; its prow rakes back above the booms,
-    // and between the booms it starts at z 64 (the MAC muzzle).
+    // and between the booms it starts at z 64 (the Tidebreaker's breech).
     static func mfSpine(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard z <= 128 && y >= 6 && y <= 24 else { return false }
         let ax = abs(x)
@@ -225,13 +226,24 @@ extension Capital {
             let xe = 9
             if mfSpine(xe, y, z) { hb.set(xe, y, z, port); hb.set(-xe, y, z, port) }
         } }
-        // The MAC muzzle between the booms: a dark bore in a trim ring at the spine's lower front.
+        // The Tidebreaker's breech in the spine's lower front (a dark bore in a trim ring) and its barrel running forward
+        // between the booms to the bow: a dark tube round a bore, glowing coil rings every 6 blocks touching the booms'
+        // inner faces, and a muzzle brake at z 1-3 (playtest ask: a gun you can see from the frigate's own deck).
         for y in 6...13 { for x in -3...3 {
             let r = max(abs(x), abs(y - 9))
             hb.set(x, y, 64, r <= 1 ? AIR : (r <= 2 ? trim : hull))
             if r <= 1 { for z in 65...66 { hb.set(x, y, z, AIR) }; hb.set(x, y, 67, trim) }
         } }
-        hb.mainGun = (V3(Float(W) + 0.5, 9.5, 63), V3(0, 0, -1))
+        for z in 1...63 { for y in 6...12 { for x in -3...3 {
+            let d2 = x * x + (y - 9) * (y - 9)
+            let coil = z % 6 == 3 && z > 6, brake = z <= 3
+            if d2 <= 1 { hb.set(x, y, z, AIR) }                                                  // the bore
+            else if d2 <= 6 { hb.set(x, y, z, coil ? thr : (brake ? hull : trim)) }               // the tube
+            else if d2 <= 10 && (coil || brake) { hb.set(x, y, z, coil ? thr : hull) }            // coil rings, brake
+        } } }
+        for y in [8, 10] { for sx in [-3, 3] { hb.set(sx, y, 2, AIR) } }                        // brake ports
+        hb.mainGun = (V3(Float(W) + 0.5, 9.5, 0.5), V3(0, 0, -1))
+        hb.mainGunLength = 63
         // Decks: the hangar deck (y 8) through the spine, the bridge deck (y 24) under the bridge.
         for z in 65..<128 { for x in -8...8 where mfSpine(x, 8, z) && mfSpine(x + 1, 8, z) && mfSpine(x - 1, 8, z) { hb.set(x, 8, z, trim) } }
         for z in 71...91 { for x in -6...6 where mfBridge(x, 25, z) { hb.set(x, 24, z, plate) } }
@@ -284,42 +296,5 @@ extension Capital {
         for (x, y, z) in [(2, 25, 96), (2, 29, 126), (-7, 14, 33), (7, 14, 33)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-4, 9, 104), (4, 9, 108), (-2, 9, 116), (3, 9, 92), (-5, 9, 76), (0, 25, 82)] { hb.post(x, y, z, .troop) }
         return hb
-    }
-}
-
-// MARK: The MAC gun
-
-extension ShipManager {
-    // Fires the Meridian frigate's MAC: a fast, nearly flat slug that craters what it hits (ShipCombat kind 3).
-    func fireMAC(_ s: Ship, from mw: V3, dir: V3, game g: Game) {
-        let sh = Shell(pos: mw + dir * 3, vel: dir * 420 + s.vel, owner: s.id, power: 12)
-        sh.gravity = 0.4
-        sh.kind = 3
-        sh.life = 3
-        shells.append(sh)
-        g.sfx(.gun(9), 2.5, at: mw)
-        g.sfx(.explodeLarge, 1, at: mw)
-        g.particles.explosion(at: mw, power: 3)
-        g.addFlash(at: mw, color: V3(2.4, 3.2, 6), radius: 16, life: 0.3)
-    }
-
-    // The player at a commandeered Meridian frigate's helm: attack fires the MAC along the bow (raised or lowered
-    // with the view, within 30 degrees down and 15 up) when it is charged; 6 s to recharge. False while charging
-    // (attack then fires the point-defence guns).
-    func playerMAC(_ s: Ship, pitch: Float, game g: Game) -> Bool {
-        guard s.role == "capfrigate", let st = capState[s.id], st.mainGunCD <= 0 else { return false }
-        st.mainGunCD = 6
-        let p = max(-0.52, min(0.26, pitch))
-        let fw = s.dirToWorld(V3(0, 0, -1))
-        let h = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        let dir = simd_normalize(V3(h.x * cosf(p), sinf(p), h.y * cosf(p)))
-        fireMAC(s, from: s.toWorld(st.mainGunMuzzle), dir: dir, game: g)
-        return true
-    }
-
-    // Seconds until the MAC can fire again (nil: not a MAC ship).
-    func macCharge(_ s: Ship) -> Float? {
-        guard s.role == "capfrigate", let st = capState[s.id] else { return nil }
-        return max(0, st.mainGunCD)
     }
 }
