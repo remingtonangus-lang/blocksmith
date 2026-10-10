@@ -176,7 +176,10 @@ enum Village {
                     // clearing cuts the rest of the footprint to that level.
                     let ys = [gen.groundY(ax, az), gen.groundY(fx, fz), gen.groundY(ax + ux * (w - 1), az + uz * (w - 1)), gen.groundY(ax + nx * (d - 1), az + nz * (d - 1))]
                     guard let lo = ys.min(), let hi = ys.max(), hi - lo <= 4, lo >= SEA else { continue }
-                    let street = gen.groundY(px + nx, pz + nz)
+                    // The road's own height in front of the lot (its three columns share the centre's ground height):
+                    // the edge column's ground could differ by a block, leaving the door a jump above or below the
+                    // road (structcheck door_needs_jump, Oct 10 sweep).
+                    let street = gen.groundY(px, pz)
                     guard abs(street - hi) <= 4 && abs(street - lo) <= 4 else { continue }
                     // Two blocks spare on each side along the street too: neighbours stood wall to wall and their roof
                     // eaves ran into each other (blind critic, run 364 cherry-grove village).
@@ -205,13 +208,41 @@ enum Village {
             cur.append(c)
             if cur.count >= 24 || k == pathCols.count - 1 { colsByRoad.append(cur); cur = [] }
         }
+        // A road climbing a block from one step to the next gets a half step (a slab on the lower column), so a walker
+        // never has to jump along a street (villagers path poorly over jumps: structcheck door_needs_jump). Runs of
+        // rises on consecutive columns keep the climb (a slab can't halve two in a row).
+        var halfSteps = Set<IVec2Key>()
+        do {
+            var k = 0
+            while k + 3 < pathCols.count {
+                // pathCols holds 3 width columns per road step; consecutive steps of one road share a road direction.
+                let a = pathCols[k + 1], b = pathCols[k + 4 < pathCols.count ? k + 4 : k + 1]
+                if abs(a.0 - b.0) + abs(a.1 - b.1) == 1 && abs(a.2 - b.2) == 1 {
+                    let low = a.2 < b.2 ? k : k + 3
+                    if !halfSteps.contains(IVec2Key(pathCols[low + 1].0, pathCols[low + 1].1)) {
+                        for j in 0..<3 { halfSteps.insert(IVec2Key(pathCols[low + j].0, pathCols[low + j].1)) }
+                    }
+                }
+                k += 3
+            }
+            // Two rises on consecutive columns: drop the half steps of that run (they would make a 1-block step).
+            for k in stride(from: 0, to: pathCols.count - 3, by: 3) {
+                let a = pathCols[k + 1], b = pathCols[k + 4]
+                guard abs(a.0 - b.0) + abs(a.1 - b.1) == 1 else { continue }
+                if halfSteps.contains(IVec2Key(a.0, a.1)) && halfSteps.contains(IVec2Key(b.0, b.1)) && a.2 != b.2 {
+                    for j in 0..<3 { halfSteps.remove(IVec2Key(pathCols[k + j].0, pathCols[k + j].1)); halfSteps.remove(IVec2Key(pathCols[k + 3 + j].0, pathCols[k + 3 + j].1)) }
+                }
+            }
+        }
         for cols in colsByRoad {
             let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }, yv = cols.map { $0.2 }
+            let half = halfSteps
             pieces.append(Piece(min: IVec3(xs.min()!, yv.min()! - 3, zs.min()!), max: IVec3(xs.max()!, yv.max()! + 4, zs.max()!)) { w in
                 for (x, z, y) in cols where w.inside(x, y, z) {
                     let cur = w.get(x, y, z)
                     if Blocks.isLiquid(cur) || cur == AIR { w.set(x, y, z, m.planks) } else { w.set(x, y, z, m.path) }
                     for k in 1...3 where Blocks.replaceable[Int(w.get(x, y + k, z))] && !Blocks.isLiquid(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) }
+                    if half.contains(IVec2Key(x, z)) { w.set(x, y + 1, z, m.slab); continue }
                     // Lamp posts now and then along the edge.
                     if hash3(x, y, z, 0x1A4F) % 97 == 0 {
                         w.set(x, y + 1, z, m.fence); w.set(x, y + 2, z, m.fence); w.set(x, y + 3, z, Blocks.id("lantern"))

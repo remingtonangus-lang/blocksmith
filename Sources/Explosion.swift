@@ -213,12 +213,82 @@ final class CraterJob {
             budget -= 1
             if d2 > (edge - 1.5) * (edge - 1.5) { rim.append(b) }
         }
-        if next >= offsets.count || removed >= cap {
-            done = true
+        if (next >= offsets.count || removed >= cap) && !carved {
+            carved = true
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
         }
+        if carved && budget > 0 { scorch(g, columns: max(1, budget / 2)) }
         return done
+    }
+
+    // After the carving: the bowl's floor burnt to blackstone and basalt with a few glowing magma blocks, a ring of
+    // scorched earth round the rim fading out to 1.5 radii (grass and podzol to coarse dirt, plants and snow burnt
+    // off, a few fires), so the crater reads as a blast and not a dig. Columns in a ring order, nearest first.
+    private var carved = false
+    private var scorchNext = 0
+    private(set) var scorched = 0
+    private static var scorchCache: [Int: [SIMD2<Int16>]] = [:]     // columns within 1.5 radii, nearest first
+    private func scorch(_ g: Game, columns: Int) {
+        let w = g.world
+        let R = r * 1.5
+        let ri = Int(ceilf(R))
+        let cols: [SIMD2<Int16>]
+        if let c = CraterJob.scorchCache[ri] { cols = c } else {
+            var all: [(Float, SIMD2<Int16>)] = []
+            for dz in -ri...ri { for dx in -ri...ri { all.append((Float(dx * dx + dz * dz), SIMD2(Int16(dx), Int16(dz)))) } }
+            cols = all.sorted { $0.0 < $1.0 }.map { $0.1 }
+            CraterJob.scorchCache[ri] = cols
+        }
+        let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
+        let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
+        let coarse = Blocks.id("coarse_dirt"), fire = Blocks.id("fire")
+        let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
+        var n = columns
+        while n > 0 && scorchNext < cols.count {
+            let o = cols[scorchNext]
+            scorchNext += 1
+            n -= 1
+            let dx = Int(o.x), dz = Int(o.y)
+            let h = Float(dx * dx + dz * dz).squareRoot()
+            if h > R { continue }
+            let x = cx + dx, z = cz + dz
+            guard w.chunkAt(x, z) != nil else { continue }
+            // The exposed surface: the first solid block down from above the rim (plants and snow on it burnt off).
+            var y = min(CH - 2, cy + Int(r) + 2)
+            let floorY = max(1, cy - Int(r))
+            var top: BlockID = AIR
+            while y > floorY {
+                let id = w.block(x, y, z)
+                if id != AIR {
+                    if Blocks.isLiquid(id) { top = AIR; break }
+                    if !Blocks.collide[Int(id)] || Blocks.isPlant(id) {
+                        if Blocks.hardness[Int(id)] >= 0 && Blocks.hardness[Int(id)] < 0.5 { w.setBlockAsync(x, y, z, AIR); scorched += 1 }
+                        y -= 1; continue
+                    }
+                    if !Blocks.opaque[Int(id)] { top = AIR; break }          // leaves, glass, fences: left standing
+                    top = id
+                    break
+                }
+                y -= 1
+            }
+            guard top != AIR, Blocks.hardness[Int(top)] >= 0, w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+            let roll = hashf(x, y, z, 913)
+            let fade = 1 - max(0, h - r * 0.85) / (R - r * 0.85)       // 1 in the bowl, falling to 0 at 1.5 radii
+            var to: BlockID = AIR
+            if h < r * 0.85 {
+                to = roll < 0.06 ? magma : roll < 0.5 ? blackstone : roll < 0.68 ? basalt : AIR
+            } else if roll < 0.95 * fade, top == grass || top == podzol || top == dirt {
+                to = coarse
+            } else if roll < 0.35 * fade {
+                to = blackstone
+            }
+            if to != AIR && to != top { w.setBlockAsync(x, y, z, to); scorched += 1 }
+            if h > r * 0.7 && hashf(x, y, z, 917) < 0.05 * fade && w.block(x, y + 1, z) == AIR && to != magma {
+                w.setBlockAsync(x, y + 1, z, fire)
+            }
+        }
+        if scorchNext >= cols.count { done = true }
     }
 }
 

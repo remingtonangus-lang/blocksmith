@@ -143,7 +143,13 @@ extension Game {
         if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
-        if let (m, _, _) = world.ships.mainGunStatus(s.root) { t += "  \(MainGun.name) " + m }
+        if let (m, _, _) = world.ships.mainGunStatus(s.root) {
+            t += "  \(MainGun.name) " + m
+            // Range to the helm's aim marker (MainGun.swift mainGunAimTick), or that the shot would land nowhere.
+            if let st = world.ships.capState[s.root.id] {
+                t += st.aimPoint.map { String(format: " %.0f m", simd_length($0 - player.eye)) } ?? " no ground"
+            }
+        }
         return t
     }
 
