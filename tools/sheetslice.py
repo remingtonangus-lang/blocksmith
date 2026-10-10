@@ -99,15 +99,19 @@ def despill(path):
     rgb.save(path)
 
 
-def ore_composite(tile, base_path, size):
+def ore_composite(tile, base_path, size, lo=38.0, hi=80.0):
     """Mineral pixels of `tile` over the finished base texture."""
     tile = tile.convert('RGB').resize((size, size), Image.LANCZOS)
     base = Image.open(base_path).convert('RGB').resize((size, size), Image.LANCZOS)
     px = list(tile.getdata())
     # median rock colour per channel
     med = [sorted(p[i] for p in px)[len(px) // 2] for i in range(3)]
-    dist = [((p[0] - med[0]) ** 2 + (p[1] - med[1]) ** 2 + (p[2] - med[2]) ** 2) ** 0.5 for p in px]
-    lo, hi = 38.0, 80.0
+    # colour counts double: soft verdigris / rust stains differ from the rock in hue more than in brightness
+    def dist_of(p):
+        d = [p[i] - med[i] for i in range(3)]
+        m = sum(d) / 3
+        return (m * m * 3 + 2 * sum((x - m) ** 2 for x in d)) ** 0.5
+    dist = [dist_of(p) for p in px]
     mask = Image.new('L', (size, size))
     mask.putdata([int(255 * min(1.0, max(0.0, (d - lo) / (hi - lo)))) for d in dist])
     mask = mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
@@ -149,7 +153,7 @@ def main():
             mode = mode or 'plain'
             src = os.path.join(tiles_dir, name + '.png')
             if base:
-                ores.append((tile, name, base, mode))
+                ores.append((tile, name, base, mode, s.get('ore', [38.0, 80.0])))
                 continue
             tile = stylise(tile, s.get('stylise', 0.0))
             tile.save(src)
@@ -169,12 +173,12 @@ def main():
             if s.get('maxsat', 0.55) < 1 and os.path.exists(os.path.join(a.out, name + '.png')):
                 cap_saturation(os.path.join(a.out, name + '.png'), s.get('maxsat', 0.55))
             print(name, mode, 'ok' if res.returncode == 0 else ('seam-warn' if os.path.exists(os.path.join(a.out, name + '.png')) else 'FAIL ' + res.stderr[-300:]))
-    for tile, name, base, mode in ores:
+    for tile, name, base, mode, (lo, hi) in ores:
         bp = os.path.join(a.out, base + '.png')
         if not os.path.exists(bp):
             print(name, 'FAIL base missing', base)
             continue
-        ore_composite(tile, bp, a.size).save(os.path.join(a.out, name + '.png'))
+        ore_composite(tile, bp, a.size, lo, hi).save(os.path.join(a.out, name + '.png'))
         print(name, 'ore on', base)
 
 

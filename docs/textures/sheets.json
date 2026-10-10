@@ -343,58 +343,27 @@
   "crop": 0.06,
   "tiles": [
    [
-    "coal_ore@stone",
-    "iron_ore@stone",
-    "copper_ore@stone",
+    "-",
+    "-",
+    "-",
     "-"
    ],
    [
     "-",
-    "lapis_ore@stone",
+    "-",
     "-",
     "emerald_ore@stone"
    ],
    [
-    "deepslate_coal_ore@deepslate",
-    "deepslate_iron_ore@deepslate",
-    "deepslate_copper_ore@deepslate",
+    "-",
+    "-",
+    "-",
     "-"
    ],
    [
     "-",
     "deepslate_lapis_ore@deepslate",
     "-",
-    "-"
-   ]
-  ]
- },
- {
-  "sheet": "assets/gemini/sheets/s09_fix1.png",
-  "grid": 4,
-  "crop": 0.06,
-  "tiles": [
-   [
-    "-",
-    "-",
-    "-",
-    "-"
-   ],
-   [
-    "-",
-    "-",
-    "-",
-    "-"
-   ],
-   [
-    "-",
-    "-",
-    "-",
-    "-"
-   ],
-   [
-    "gold_ore@stone",
-    "-",
-    "deepslate_gold_ore@deepslate",
     "-"
    ]
   ]
@@ -420,6 +389,32 @@
     "obsidian",
     "netherrack"
    ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s13_ores3.jpg",
+  "grid": 3,
+  "crop": 0.04,
+  "tiles": [
+   [
+    "gold_ore@stone",
+    "copper_ore@stone",
+    "iron_ore@stone"
+   ],
+   [
+    "deepslate_gold_ore@deepslate",
+    "deepslate_copper_ore@deepslate",
+    "deepslate_iron_ore@deepslate"
+   ],
+   [
+    "coal_ore@stone",
+    "deepslate_coal_ore@deepslate",
+    "lapis_ore@stone"
+   ]
+  ],
+  "ore": [
+   22.0,
+   50.0
   ]
  }
 ]

@@ -19,7 +19,7 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COLOURS = ('white orange magenta light_blue yellow lime pink gray light_gray cyan purple blue brown green red '
            'black').split()
-MUTE = 0.85
+MUTE = 0.7    # keep 70% of the procedural colour saturation: dyes sit with the natural palette
 TONED = [('farmland', 'farmland_moist', 1.45), ('furnace_side', 'furnace_body', 1.0), ('furnace_plate', 'furnace_body', 0.92),
          ('furnace_top', 'furnace_body', 0.92), ('cactus_bottom', 'cactus_top', 0.85)]
 UNLIT = [('furnace_front', 'furnace_front_on')]   # the lit face with its fire painted out   # keep 85% of the procedural colour's saturation
