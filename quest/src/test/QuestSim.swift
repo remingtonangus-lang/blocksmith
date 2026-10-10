@@ -47,6 +47,10 @@ enum QuestSim {
         rig.needsRecenter = true
         rig.bodyYaw = 0
         game.player.yaw = 0
+        // Auto Render Distance: the controller on synthetic frame-time traces (down on sustained misses, back up to the
+        // player's choice, no see-saw), and the game only ever saving the choice (Oct 10 playtest: 16 -> 13 for good).
+        check(RenderDistanceGovernorTest.run() == 0, "rdgovernor: synthetic traces (down, back up to the choice, no oscillation)")
+        check(RenderDistanceGovernorTest.gameChecks(game) == 0, "rdgovernor: the save and the menu keep the player's choice")
         let dt: Float = 1.0 / 72
         ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72       // as QuestApp: one ship step per frame
         func idleHands() {

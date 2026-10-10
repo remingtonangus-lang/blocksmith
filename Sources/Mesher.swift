@@ -6,6 +6,7 @@ struct SectionMesh {
     var light: [UInt8]?     // 4096 values (sky << 4 | block) for the section, nil if not computed
     var vis: UInt64 = ~0    // face-to-face connectivity through open cells (bit a*6+b), for cave culling
     var solidQuads = 0      // opaque = solid quads first (no alpha test: keeps the GPU's hidden-surface removal), then cutout
+    var leafy = true        // has faces between leaf blocks (false: lod 0 and 2 mesh the same, no remesh across that ring)
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -226,6 +227,9 @@ enum Mesher {
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
+        // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
+        // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
+        let far = lod == 1
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let crossT = Blocks.crossSize
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
@@ -302,7 +306,7 @@ enum Mesher {
         // Far (LOD 1) sections drop faces whose light is 0. Skylight can't reach the section's shell when every
         // column in the region has its surface more than 15 blocks above it (light falls 1 per block, water
         // included); without an emitter in the region the whole section is dark and would mesh to nothing.
-        if lod > 0 {
+        if far {
             var minH = Int.max
             for i in 0..<RL where heights[i] < minH { minH = heights[i] }
             if minH > y0 + C0 + 16 + 15 {
@@ -343,8 +347,9 @@ enum Mesher {
         let opq = sc.opq, cut = sc.cut, trn = sc.trn     // cut: alpha-tested faces (leaves, plants, models), after the solid ones
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
+        var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
         let solidLayer = RenderLayer.opaque.rawValue
-        let leafT = Mesher.leafT
+        let leafT = Mesher.leafT, farLeaf = Mesher.farLeaves
         let offs = [1, -1, RL, -RL, RW, -RW]
 
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { R[x + z * RW + y * RL] }
@@ -474,7 +479,7 @@ enum Mesher {
                             }
                         }
                     }
-                    if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
+                    if far && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
@@ -626,7 +631,8 @@ enum Mesher {
                         } else if cullSameT[bi] && nb == b {
                             continue
                         } else if leafT[bi] && leafT[Int(nb)] {
-                            if lod > 0 { continue }            // far: "fast" leaves, no faces inside the canopy
+                            leafy = true                       // meshes differently at lod 0 and 2
+                            if lod != 0 { continue }           // far and mid: "fast" leaves, no faces inside the canopy
                             // Near: skip faces into a leaf cell that is itself closed in on all sides.
                             let j = i + offs[f]
                             var enclosed = true
@@ -635,14 +641,22 @@ enum Mesher {
                                 if !(opaqueT[Int(q)] || leafT[Int(q)]) { enclosed = false; break }
                             }
                             if enclosed { continue }
+                        } else if farLeaf && far && leafT[Int(nb)] && opaqueT[bi] && rt == rCube {
+                            continue                           // far: trunks and ground inside the "fast" canopy
                         }
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
-                        let flat = max(0, light(ax, ay, az))
+                        var flat = max(0, light(ax, ay, az))
                         // Far: pitch-dark cave walls can't be seen. Faces under water stay: a deep seabed gets no light,
                         // and without it far oceans showed the sky through the water.
-                        if lod > 0 && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
-                        if isLiquid || rt != rCube || lod > 0 {
+                        if far && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
+                        // Far leaves: light in steps of 4 (sky 3/7/11/15), so a canopy's faces share keys and the greedy
+                        // merge below joins them (Oct 10 taiga: leaves were two thirds of the far quads).
+                        if farLeaf && far && leafT[bi] {
+                            let sky = flat & 15, blk = flat >> 4
+                            flat = (sky | 3) | ((blk == 0 ? 0 : blk | 3) << 4)
+                        }
+                        if isLiquid || rt != rCube || far {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
                             if Mesher.waterDepthAO && fk == 1 && f != 3 && liquidTop {
                                 // Quest: the water's depth at each corner of a surface cell in the AO bits (water never
@@ -767,7 +781,7 @@ enum Mesher {
         opaqueOut.reserveCapacity(opq.count + cut.count)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: opq.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
-        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid)
+        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -779,6 +793,9 @@ enum Mesher {
     }
 
     static let lilyPad: BlockID = Blocks.has("lily_pad") ? Blocks.id("lily_pad") : BlockID.max
+    // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
+    // (environment BS_FARLEAF=0 turns it off, for before/after measurements).
+    static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).

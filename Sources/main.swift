@@ -61,6 +61,7 @@ enum Snapshot {
         let snapDim = Dim(rawValue: arg("--dim") ?? "") ?? .overworld
         if CommandLine.arguments.contains("--nolod") { World.lodNear = 99 }      // every chunk at full detail
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }   // far-detail boundary (chunks)
+        if let v = arg("--leafnear").flatMap({ Int($0) }) { World.leafNear = v }   // "fast" leaves boundary (chunks; Quest 2)
         let world = World(seed: seed, device: device, save: nil, dim: snapDim)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)
@@ -1130,6 +1131,10 @@ enum Snapshot {
         if CommandLine.arguments.contains("--smoothtest") { return SmoothTests.run(game) > 0 ? 1 : 0 }   // smooth terrain prototype
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
         if CommandLine.arguments.contains("--swingtest") { return VRMeleeTests.run(game) > 0 ? 1 : 0 }   // VR melee + bow (VRMelee.swift)
+        // Auto Render Distance (RenderDistanceGovernor.swift): synthetic frame-time traces + the save keeping the choice.
+        if CommandLine.arguments.contains("--rdgovernortest") {
+            return RenderDistanceGovernorTest.run() + RenderDistanceGovernorTest.gameChecks(game) > 0 ? 1 : 0
+        }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false

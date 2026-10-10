@@ -279,6 +279,18 @@ final class Game {
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
+    // Auto Render Distance (Quest, RenderDistanceGovernor.swift): when set, world.renderDistance may sit below the
+    // player's choice for the session. Only the choice is ever saved (the meta below, the options): a stepped-down
+    // distance written to a save came back on the next launch and ratcheted the distance down session after session.
+    var rdGovernor: RenderDistanceGovernor?
+    var chosenRenderDistance: Int { rdGovernor?.chosen ?? world.renderDistance }
+    // The player picked a distance (menus, keys): the world and the governor's ceiling both take it.
+    func setRenderDistance(_ rd: Int) {
+        world.renderDistance = rd
+        rdGovernor?.setChosen(rd)
+        onRenderDistanceChanged?(rd)
+    }
+    private(set) var saveCount = 0                   // saves so far (the governor ignores frame windows with a save)
 
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
@@ -425,7 +437,7 @@ final class Game {
         WorldMeta(seed: world.seed, x: player.pos.x, y: player.pos.y, z: player.pos.z,
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
                   hotbar: nil, inventory: inventory.saved, dimension: dim.dim, spawn: [spawnPoint.x, spawnPoint.y, spawnPoint.z],
-                  xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: world.renderDistance,
+                  xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: chosenRenderDistance,
                   survival: survival, health: health, hunger: hunger, saturation: saturation,
                   dragonKilled: dragonKilled, gateways: gateways, seenCredits: seenCredits,
                   effects: effects.saved, absorption: absorption, enchantSeed: enchantSeed, extra: saveExtra())
@@ -435,6 +447,7 @@ final class Game {
     // snapshots taken here; quit, pause and world copies save synchronously (and SaveIO.flush).
     func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
+        saveCount += 1
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow(background: background) }; return }
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
@@ -648,9 +661,8 @@ final class Game {
 
     func cycleRenderDistance() {
         let opts = [4, 6, 8, 10, 12, 16]
-        let i = opts.firstIndex(of: world.renderDistance) ?? 2
-        world.renderDistance = opts[(i + 1) % opts.count]
-        onRenderDistanceChanged?(world.renderDistance)
+        let i = opts.firstIndex(of: chosenRenderDistance) ?? 2
+        setRenderDistance(opts[(i + 1) % opts.count])
     }
 
     // MARK: Menus
