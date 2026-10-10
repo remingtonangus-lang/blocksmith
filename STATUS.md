@@ -1,5 +1,10 @@
 # Status
 
+> **Performance pass (2026-10-10, task 25b2, quest-port):** water-tick queue (set removals cost 2-5 ms a tick),
+> time-sliced mob path searches + chunk-direct village scans, Quest mob drawing culled like the Mac, Quest far detail
+> from 5 chunks, Quest default render distance 16 (saved < 16 raised once). Plain-English cost guide:
+> docs/status/performance.md. Proxy gate rd 16: p99 8.4-12.8 ms on all six routes. Device re-measure at rd 16 needed
+> (perf line now splits record time). Open: citadel tick spike (~19 ms once, military-base project's area).
 > **Local Quest build loop (2026-10-09, task 25b1zzzz):** `tools/quest-local.sh` builds the Quest APK on this Mac
 > (same build-apk.sh, package and debug key as CI, so it installs over quest-dist and keeps saves), `adb install -r`,
 > launches and tails `adb logcat -s Blocksmith` (`--log N` for N seconds, `--no-run` build only, `--install` reuse

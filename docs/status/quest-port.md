@@ -691,3 +691,13 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
   remesh off the frame thread, background autosave (a synchronous save flushes it first), fluid budget 2 ms.
 - Checks: `--questbugs --only pm9a|pm9b|pm9d`, `--coppertest`, `tools/namecheck.py --coined` (snap.sh),
   `tools/quest_perf_gate.sh` (~7 min, quiet Mac). APK versionCode 89 (11d0272), quest run 38005325891 green. Also fixed: town shop facades from PR #11 floated (structcheck village floating 9 -> 0).
+
+## Task 25b2 (2026-10-10): performance pass
+- Water: FluidQueue replaces the pending sets (taking a 1024-cell batch out of the set cost 2-5 ms per water tick on the
+  M1); rd 16 proxy water spikes plains 97 -> 0, cave 104 -> 1.
+- Mobs: path searches pause at the 1.5 ms tick budget and resume; villager bell/bed/job-site scans read chunk-direct
+  (World.forEachBlock); tables warmed at dimension load. Mobs-stage spikes village 12 -> 0, capital 4 -> 0.
+- Quest renderer: drawMobs culls with the frustum and fog distance (as the Mac). Far detail (World.lodNear) 5 chunks:
+  17-23% fewer quads at rd 16, shots differ in <= 0.01% of pixels. Default render distance 16 (quest.rd16 migration).
+- perf line: `| record ms: cull, hud, terrain, ships, mobs, entities, rest` (the device's 5-6 ms record split).
+- Explainer: docs/status/performance.md. Device check: a 72 Hz session at rd 16, perf lines `missed` near 0.
