@@ -42,6 +42,7 @@ enum MainGun {
 
     static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0 }
     static func noteCrater(_ n: Int) { lastCrater = n }
+    static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
 
     // Controller rumble (Touch controllers on the Quest, the pad on the Mac).
     static func feel(_ strength: Float, _ seconds: Float, sharpness: Float) {
@@ -73,6 +74,14 @@ extension ShipManager {
         let mid = s.toWorld(st.mainGunMuzzle) - md * (st.mainGunLength * 0.5)
         // On board, the whine follows the listener (the hull carries it); from outside it sounds from the barrel.
         g.sfx(.mainGunCharge, 1, at: MainGun.presence(s, g) >= 1 ? nil : mid)
+        // Aimed at a player: a warning in words and in the hands, so the 2.6 s charge is a chance to get clear.
+        if !byPlayer, let t = st.target, t.player {
+            g.coop.withSeat(t.seat, g) {
+                g.onToast?("The frigate is charging its main gun at you: get clear!")
+                MainGun.feel(0.5, 0.25, sharpness: 0.3)
+            }
+            MainGun.warnings += 1
+        }
     }
 
     // Per frame for every Meridian frigate: the charge's light, sparks, shake and haptics; the shot when it is full.

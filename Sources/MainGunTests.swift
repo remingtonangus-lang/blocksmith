@@ -250,5 +250,20 @@ enum MainGunTests {
                   "maingun: a hit on ground not loaded yet waits, then the bowl is dug when it loads (\(MainGun.lastCrater) blocks after \(frames) frames)")
             w.ships.pendingCraters.removeAll()
         }
+
+        // 5. An AI frigate charging at the player warns them (a toast and a buzz) while there is time to get clear.
+        do {
+            var said: String?
+            let wasToast = g.onToast
+            g.onToast = { said = $0 }
+            defer { g.onToast = wasToast }
+            let w0 = MainGun.warnings
+            st.target = CapTarget(point: g.player.eye, vel: .zero, ship: nil, mob: nil, player: true, seat: 0)
+            w.ships.startMainGunCharge(s, st, g, byPlayer: false)
+            st.gunCharge = -1
+            st.target = nil
+            check(MainGun.warnings == w0 + 1 && (said ?? "").contains("main gun"),
+                  "maingun: an AI frigate charging at the player warns them (\"\(said ?? "nothing")\")")
+        }
     }
 }
