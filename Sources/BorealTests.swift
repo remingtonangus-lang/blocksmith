@@ -218,6 +218,26 @@ enum BorealTests {
                     check((rec["loop:stationhum"] ?? 0) > 0 && wild.isEmpty,
                           "boreal \(seed): \(label) at noon hums (\(rec["loop:stationhum"] ?? 0) ticks), wildlife: \(wild.isEmpty ? "none" : wild.sorted().joined(separator: " "))")
                 }
+                // The alarm: a gunshot in the hall sets it off, the klaxon blares, the garrison turns on the
+                // source, and it stands down once things have been quiet for a while.
+                for (name, p) in world.pendingMobs { if let m = Mob.structureMob(name, at: p) { g.mobs.mobs.append(m) } }
+                g.mobs.rebuildIndex()
+                let hall = V3(Float(cx) + 0.5, Float(F + 1), Float(cz + 5) + 0.5)
+                g.player.pos = hall
+                g.audio.record = [:]
+                g.baseNoise(at: hall, kind: .gunshot)
+                for _ in 0..<10 { g.basesTick(1.0) }
+                let site = g.borealAlarm.sites.values.first { abs($0.cx - cx) < 2 && abs($0.cz - cz) < 2 }
+                let blares = g.audio.record?[Snd.gun(10).name] ?? 0
+                let gar = g.mobs.mobs.filter { m in m.kind.steelhold && m.kind != .deckGun && (site.map { BorealStation.insideSite($0, m.pos) } ?? false) }
+                let roused = gar.filter { $0.aggro }.count
+                check(site?.on == true && blares >= 2 && gar.count >= 10 && roused == gar.count,
+                      "boreal \(seed): a shot in the hall sets the alarm off (\(blares) klaxon blares in 10 s, \(roused)/\(gar.count) soldiers roused)")
+                g.audio.record = nil
+                g.player.pos = hall + V3(400, 40, 400)                          // away: nobody can see anyone
+                for _ in 0..<Int(BorealAlarmState.standDown) + 5 { g.basesTick(1.0) }
+                let after = g.borealAlarm.sites.values.first { abs($0.cx - cx) < 2 && abs($0.cz - cz) < 2 }
+                check(after?.on == false, "boreal \(seed): the alarm stands down after \(Int(BorealAlarmState.standDown)) s of quiet (\(g.borealAlarm.log.joined(separator: "; ")))")
             }
 
             // Cost: the station chunks against ordinary chunks of the same world.

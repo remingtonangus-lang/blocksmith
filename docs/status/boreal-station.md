@@ -19,6 +19,9 @@ cold and clean, buried under snow. The layout is original.
   light reads cold.
 - Sound: a low mains hum (Snd.stationHumLoop, "Machinery hums") from corner lamps and data cabinets, through the
   ambience director's emitters; no birds or wind in the bunker.
+- Alarm (BorealAlarm.swift, from basesTick): a hostile gunshot or blast inside the fence or bunker, or a soldier
+  seeing the player inside, sets off a klaxon every 4 s from the speaker nearest the player (hall, blockhouse, yard)
+  and rouses the whole garrison toward the source; it stops 45 s after the last noise or fight. Not saved.
 - Reachable with /locate boreal_station, the pause-menu Shortcuts list, and the world map ("N" marker).
 
 ## Checks
@@ -27,7 +30,8 @@ cold and clean, buried under snow. The layout is original.
   hall and all 8 rooms, no dim floor cells (block light >= 8) in the bunker, stairwell and blockhouse, stair landings
   clear, >= 80% concrete faces, >= 250 lamps, 12 + 3 doors, no snow inside, snow layer on roofs and yard, garrison
   not inside blocks, generation cost close to plain terrain, every planned snow drift present, the hall and a
-  corridor hum at noon with no wildlife, and the hum renders clean (seamless loop, quieter than a beacon).
+  corridor hum at noon with no wildlife, the hum renders clean (seamless loop, quieter than a beacon), and a shot
+  in the hall sets off the alarm (klaxon, every garrison soldier roused) which stands down after the quiet period.
 - Golden shots: boreal_station, boreal_gate, boreal_corridor, boreal_hall, boreal_stairs, boreal_radar (`questcheck --golden DIR`).
 
 ## Evidence (2026-10-09, cloud thread, lavapipe)
