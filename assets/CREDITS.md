@@ -94,7 +94,8 @@ docs/status/texture-sharpness.md). All original Blocksmith art.
   halo texels left by the key become warm light). Rejected: one grass top (washed out), two bushes (made of cubes;
   pink glow halos).
 ## Townsfolk voice lines (Resources/voices.bin, 2026-10-10)
-- 264 English takes (6,753 characters of script, 482 s of speech) generated 2026-10-10 through OpenRouter's speech
+- 338 English takes (8,665 characters of script, 620 s of speech, 4.97 MB; 76 added after the verifier pass: hands-up,
+  closing-time and raid lines, elder trade lines) generated 2026-10-10 through OpenRouter's speech
   endpoint (openrouter.ai/api/v1/audio/speech) with the model elevenlabs/eleven-v4-turbo, using the stock ElevenLabs
   voices Brian (sheriff), Adam/River (deputies), Eric/Matilda (shopkeepers), Roger/Jessica (saloon and butcher),
   Chris/Laura (farmers), Bill/Alice (elders), Will/Sarah (other townsfolk), and Jessica sped up x1.22 (children).

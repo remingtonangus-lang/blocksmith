@@ -11,12 +11,16 @@ import simd
 //   economy: the emerald exchange ($1.00 / $1.20, any reputation; TownTests.barter checks the offers against it).
 //   law:     witnessed theft from a town chest warns and costs standing; unseen or from your own chest doesn't count;
 //            breaking town crops does; repeated offences turn the town (the armed fight, the rest run, the sheriff
-//            draws after his challenge, keepers won't serve); it calms down again.
+//            draws after his challenge, keepers won't serve); it calms down again. Verifier cases: taking back your own
+//            deposit, a witness behind a wall, creative, blocks outside the village's pieces (your house near a
+//            town, a dungeon chest under it) and breaking a full town chest (costs as much as emptying it).
 //   sheriff: new towns put a sheriff on the square and no golem; townsfolk don't summon golems; a town without one
-//            gets one; he carries a revolver, has a man's name and voice, and shoots an outlaw player.
+//            gets one; he carries a revolver, has a man's name and voice, and shoots an outlaw player; a second
+//            sheriff in the same town (a cured one, the square's own after one was sent) serves as a deputy.
 //   wallet:  the HUD shows the cash in town and when it changes (with the change), inside the screen.
 //   voices:  every take is packed, decodes, peaks <= -1 dBFS, 0.3-6 s, starts and ends at zero; every voice has
-//            every context it needs; lines don't repeat back to back; chatter is throttled.
+//            every context it needs; lines don't repeat back to back; chatter is throttled (a busy town: 2-3 lines
+//            a minute, a hello per person every few minutes, every line a recorded take).
 extension TownTests {
     static func law(_ g: Game, _ makeWorld: () -> World, _ check: (Bool, String) -> Void) {
         let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedSurvival = g.survival, savedMoney = g.money, savedHealth = g.health
@@ -31,6 +35,7 @@ extension TownTests {
         everyone(g, check)
         exchange(g, check)
         theft(g, check)
+        theftRules(g, check)
         sheriff(g, makeWorld, check)
         wallet(g, check)
         voices(g, check)
@@ -92,7 +97,56 @@ extension TownTests {
         _ = Shop.buy(g, m, .general, index: idx, count: 2)
         check(sold == 500 && g.money == 500 - 2 * Economy.emeraldBuy && count(g, "emerald") == 2,
               "economy: 5 emeralds sell for \(Money.format(sold)) at the general store, 2 buy back for \(Money.format(500 - g.money))")
-        // Barter vs shops at that rate: TownTests.barter (economy).
+        // List prices: TownTests.barter. Here the real trade screen's prices at the deepest discounts: a cured
+        // villager everyone adores (max gossip) and Friend of the Town V.
+        discounted(g, check)
+    }
+
+    static func discounted(_ g: Game, _ check: (Bool, String) -> Void) {
+        let m = Mob(.villager, at: g.player.pos + V3(2, 0, 0))
+        var v = VillagerData(); v.profession = "farmer"; v.cured = true
+        for t in Gossip.allCases where t != .majorNeg && t != .minorNeg { v.addGossip(t, 1000) }
+        m.villager = v
+        g.applyEffect(.heroOfTheVillage, amp: 4, seconds: 600)
+        defer { g.effects.remove(.heroOfTheVillage) }
+        let menu = MerchantMenu(game: g, villager: m)
+        func shopIn(_ i: ItemID) -> Float? {   // cheapest shop price (best multiplier), no barter
+            guard ShopKind.allCases.contains(where: { k in Economy.catalog(k).contains { $0.item == i } }), let p = Economy.value(of: i) else { return nil }
+            return Float(p) * Economy.minBuyMult - 0.5
+        }
+        var offers: [TradeOffer] = []
+        for (_, levels) in Villagers.trades { for level in levels { for t in level { if let o = Villagers.make(t) { offers.append(o) } } } }
+        var inCost = Float.infinity, inWhy = "-", outGain: Float = 0, outWhy = "-", loop: Float = 0, loopWhy = "-"
+        var discountedOffers = 0
+        let em = Items.id("emerald")
+        for o in offers {
+            let a = menu.price(o)
+            if a.count < o.costA.count { discountedOffers += 1 }
+            let bCost: Float? = o.buyB.isEmpty ? 0 : (Economy.isEmerald(o.buyB.item) ? Float(Economy.emeraldBuy) : shopIn(o.buyB.item)).map { $0 * Float(o.buyB.count) }
+            if Economy.isEmerald(o.sell.item), !Economy.isEmerald(a.item), let pa = shopIn(a.item), let b = bCost {
+                let c = (pa * Float(a.count) + b) / Float(o.sell.count)
+                if c < inCost { inCost = c; inWhy = "\(a.count) \(Items.key(a.item))" }
+            }
+            if Economy.isEmerald(a.item), !Economy.isEmerald(o.sell.item), let b = bCost {
+                let gain = (Economy.cashOut(o.sell) * Float(o.sell.count) - b) / Float(a.count)
+                if gain > outGain { outGain = gain; outWhy = "\(o.sell.count) \(Items.key(o.sell.item)) for \(a.count)" }
+                // Emerald -> goods -> back to emeralds at another counter.
+                for o2 in offers where o2.sell.item == em && o2.buyA.item == o.sell.item && o2.buyB.isEmpty {
+                    let back = Float(o.sell.count) / Float(menu.price(o2).count) / Float(a.count)
+                    if back > loop { loop = back; loopWhy = "\(Items.key(o.sell.item))" }
+                }
+            }
+        }
+        print(String(format: "towntests: discounted barter (%d of %d offers cheaper): emerald from shop goods %.0f c (%@), emerald back to money %.0f c (%@), emerald round trip x%.2f (%@)",
+                     discountedOffers, offers.count, inCost, inWhy, outGain, outWhy, loop, loopWhy))
+        check(discountedOffers > 20, "economy: discounts still apply to most barter (\(discountedOffers) of \(offers.count) offers cheaper at max standing)")
+        check(inCost >= Float(Economy.emeraldSell) && outGain <= Float(Economy.emeraldSell) && outGain <= inCost && loop <= 1,
+              String(format: "economy: no money loop at the deepest discounts (emerald from goods %.0f c >= $1.00 >= emerald to money %.0f c, round trip x%.2f)", inCost, outGain, loop))
+        // The verifier's cases: bottles -> emerald -> $, emerald -> golden carrots -> stable.
+        let bottles = offers.first { Items.key($0.buyA.item) == "glass_bottle" && $0.sell.item == em }
+        let carrots = offers.first { Items.key($0.sell.item) == "golden_carrot" && $0.buyA.item == em }
+        check(bottles.map { menu.price($0).count == $0.costA.count } ?? true && carrots.map { menu.price($0).count == $0.costA.count } ?? true,
+              "economy: bottles -> emerald and emerald -> golden carrots keep their list price (\(bottles.map { menu.price($0).count } ?? 0) bottles, \(carrots.map { menu.price($0).count } ?? 0) emeralds)")
     }
 
     // MARK: Theft
@@ -179,6 +233,90 @@ extension TownTests {
         TownLaw.forceTown = nil
     }
 
+    static func theftRules(_ g: Game, _ check: (Bool, String) -> Void) {
+        TownLaw.reset()
+        TownLaw.forceTown = true
+        g.survival = true
+        let base = groundSpot(g)
+        g.player.pos = base
+        let chestAt = IVec3(Int(floor(base.x)) + 1, Int(floor(base.y)), Int(floor(base.z)) + 1)
+        let w = Mob(.villager, at: base + V3(3, 0, 0)); w.home = w.pos
+        Townsfolk.setup(w, game: g)
+        g.mobs.mobs = [w]
+        let town = TownLaw.town(of: w, g)
+        let c = ItemContainer(27)
+        c[0] = ItemStack(Items.id("bread"), 20)
+        func visit(_ change: () -> Void) {
+            TownLaw.opening(g, chestAt)
+            g.openMenu(ChestMenu(game: g, container: c, title: "Chest"))
+            change()
+            g.closeMenu()
+        }
+        // Your own deposit back out: not theft. The town's bread for your cobblestone: theft.
+        visit { c[1] = ItemStack(Items.id("diamond"), 10) }
+        visit { c[1] = .empty }
+        let afterDeposit = TownLaw.heat(town)
+        visit { c[1] = ItemStack(Items.id("cobblestone"), 20) }
+        visit { var b = c[0]; b.count -= 10; c[0] = b }
+        check(afterDeposit == 0 && TownLaw.heat(town) > 0,
+              String(format: "law: taking back what you put in a town chest isn't theft (heat %.1f); swapping it for the town's bread is (%.1f)", afterDeposit, TownLaw.heat(town)))
+        // Creative: no theft, no warnings.
+        TownLaw.reset()
+        g.survival = false
+        visit { var b = c[0]; b.count -= 5; c[0] = b }
+        check(TownLaw.offences == 0, "law: nothing counts in creative")
+        g.survival = true
+        // A witness behind a wall doesn't see it.
+        c[0] = ItemStack(Items.id("bread"), 20)
+        let wx = Int(floor(base.x)) + 2, by = Int(floor(base.y)), bz = Int(floor(base.z))
+        var undo: [(IVec3, BlockID)] = []
+        for y in (by - 1)...(by + 3) { for z in (bz - 3)...(bz + 3) {
+            undo.append((IVec3(wx, y, z), g.world.block(wx, y, z)))
+            g.world.setBlock(wx, y, z, STONE)
+        } }
+        TownLaw.reset()
+        visit { var b = c[0]; b.count -= 5; c[0] = b }
+        let walled = TownLaw.offences
+        for (q, b) in undo { g.world.setBlock(q.x, q.y, q.z, b) }
+        visit { var b = c[0]; b.count -= 1; c[0] = b }
+        check(walled == 0 && TownLaw.offences == 1, "law: a townsperson behind a wall doesn't see you (\(walled) offences), the same one in the open does")
+        // Breaking a full town chest costs at least as much as emptying it.
+        TownLaw.reset()
+        let be = BlockEntity(.chest)
+        be.items[0] = ItemStack(Items.id("bread"), 40)
+        g.world.blockEntities[chestAt] = be
+        TownLaw.broke(g, chestAt, Blocks.id("chest"))
+        g.world.blockEntities[chestAt] = nil
+        check(TownLaw.heat(town) >= TownLaw.takingHeat(40) && TownLaw.takingHeat(40) > 1,
+              String(format: "law: breaking a town chest with 40 bread costs heat %.1f (taking them: %.1f)", TownLaw.heat(town), TownLaw.takingHeat(40)))
+        // The remembered blocks forget the oldest first.
+        TownLaw.reset()
+        let first = IVec3(0, 300, 0)
+        TownLaw.placed(g, first)
+        for i in 1...6000 { TownLaw.placed(g, IVec3(i, 300, 0)) }
+        check(!TownLaw.placedSet.contains(first) && TownLaw.placedSet.contains(IVec3(6000, 300, 0)) && TownLaw.placedSet.count <= 4096,
+              "law: past the cap your oldest placed blocks are forgotten, the newest kept (\(TownLaw.placedSet.count) kept)")
+        // Only what the town owns: its generated pieces, not anything near it.
+        TownLaw.reset()
+        TownLaw.forceTown = nil
+        if let sc = g.world.gen.structures, let st = sc.nearest("village", x: Int(base.x), z: Int(base.z), maxRegions: 12), let lot = st.pieces.last {
+            let floorY = lot.max.y - 14
+            let inside = IVec3((lot.min.x + lot.max.x) / 2, floorY, (lot.min.z + lot.max.z) / 2)
+            let deep = IVec3(inside.x, floorY - 10, inside.z)
+            var outside: IVec3?
+            search: for dz in stride(from: -68, through: 68, by: 4) { for dx in stride(from: -68, through: 68, by: 4) {
+                let q = IVec3(st.anchor.x + dx, floorY, st.anchor.z + dz)
+                if !st.pieces.contains(where: { q.x >= $0.min.x - 2 && q.x <= $0.max.x + 2 && q.z >= $0.min.z - 2 && q.z <= $0.max.z + 2 }) { outside = q; break search }
+            } }
+            let o = outside ?? inside
+            check(TownLaw.isTownOwned(g, inside) && !TownLaw.isTownOwned(g, deep) && outside != nil && TownLaw.isTownSpot(g, o) && !TownLaw.isTownOwned(g, o),
+                  "law: a house lot is the town's; a chest 10 blocks under it and your own build beside the town (\(o.x - st.anchor.x), \(o.z - st.anchor.z) from the square) aren't")
+        } else {
+            check(false, "law: a village to check ownership in")
+        }
+        TownLaw.reset()
+    }
+
     // MARK: The sheriff
 
     static func sheriff(_ g: Game, _ makeWorld: () -> World, _ check: (Bool, String) -> Void) {
@@ -218,6 +356,18 @@ extension TownTests {
         TownLaw.lastTick = g.clock - 2
         TownLaw.tick(g)
         check(g.mobs.mobs.filter { $0.villager?.role == "sheriff" }.count == 1, "sheriff: only one is sent")
+        // A second sheriff in the same town (a cured zombie sheriff, or the square's own turning up after one was sent)
+        // serves as a deputy: one sheriff per town.
+        if let s = sent.first, let twin = Mob.structureMob("villager:sheriff", at: base + V3(3, 0, 3)) {
+            if var v = twin.villager { v.town = s.villager?.town; twin.villager = v }
+            g.mobs.mobs.append(twin)
+            TownLaw.lastTick = g.clock - 2
+            TownLaw.tick(g)
+            let now = g.mobs.mobs.filter { $0.villager?.role == "sheriff" }
+            check(now.count == 1 && now.first === s && twin.villager?.role == "deputy",
+                  "sheriff: one per town (a second one in \(s.villager?.town ?? "?") serves as \(twin.villager?.role ?? "?"))")
+            g.mobs.mobs.removeAll { $0 === twin }
+        }
         TownLaw.forceTown = nil
         // He shoots an outlaw.
         if let s = sent.first {
@@ -253,7 +403,7 @@ extension TownTests {
         defer { HudExtras.enabled = hud; g.menu = menu }
         g.money = 1250
         TownLaw.inTown = nil
-        _ = Wallet.lines(g, L)
+        Wallet.shown = g.money; Wallet.changedAt = -100              // a quiet wallet (no change in the last 6 s)
         let away = Wallet.lines(g, L)
         TownLaw.inTown = "Test Town"
         let town = Wallet.lines(g, L)
@@ -285,8 +435,9 @@ extension TownTests {
         // Coverage: every voice has what its people need.
         var gaps: [String] = []
         for v in TownVoice.voices.keys {
-            var need: [TownVoice.Ctx] = [.greet, .chatter, .night, .bye, .theft, .angry, .hurt]
-            if v.hasPrefix("keeper") || v.hasPrefix("chef") || v.hasPrefix("folk") || v.hasPrefix("farmer") { need += [.trade, .broke] }
+            var need: [TownVoice.Ctx] = [.greet, .chatter, .night, .bye, .theft, .angry, .hurt, .handsup, .raid]
+            if v.hasPrefix("keeper") || v.hasPrefix("chef") || v.hasPrefix("folk") || v.hasPrefix("farmer") || v.hasPrefix("elder") { need += [.trade, .broke] }
+            if v.hasPrefix("keeper") || v.hasPrefix("chef") { need.append(.closed) }
             if v.hasPrefix("sheriff") || v.hasPrefix("deputy") { need.append(.challenge) }
             for c in need where (TownVoice.index[v]?[c] ?? []).isEmpty { gaps.append("\(v) \(c.rawValue)") }
         }
@@ -315,5 +466,45 @@ extension TownTests {
         let before = TownVoice.played + TownVoice.murmured
         for _ in 0..<50 { TownLaw.lastAmbient = -100; TownLaw.ambientChatter(g) }
         check(TownVoice.played + TownVoice.murmured == before, "voices: no chatter within 20 s of the last line")
+        busyTown(g, check)
+    }
+
+    // Ten minutes in a busy town: 20 townsfolk round the player (time passes by moving the throttles' clocks back).
+    static func busyTown(_ g: Game, _ check: (Bool, String) -> Void) {
+        let base = groundSpot(g)
+        g.player.pos = base
+        let held = g.inventory.held
+        g.inventory.held = .empty
+        defer { g.inventory.held = held }
+        var folk: [Mob] = []
+        for i in 0..<20 {
+            let a = Float(i) * 0.314, r: Float = i % 2 == 0 ? 3.4 : 3.8
+            let m = Mob(.villager, at: base + V3(cosf(a) * r, 0, sinf(a) * r)); m.home = m.pos
+            if i == 3 { m.baby = true }
+            Townsfolk.setup(m, tag: ["", "shop_general", "shop_saloon", "", "sheriff"][i % 5], game: g)
+            folk.append(m)
+        }
+        g.mobs.mobs = folk
+        TownLaw.reset()
+        Townsfolk.townLastLine = -100; TownLaw.lastAmbient = -100
+        let p0 = TownVoice.played, m0 = TownVoice.murmured
+        var lines = 0, greets = [Int](repeating: 0, count: folk.count)
+        let menu = g.menu; g.menu = nil
+        for _ in 0..<600 {
+            let mark = Townsfolk.townLastLine
+            for (i, m) in folk.enumerated() {
+                _ = m.townReact(1, g)
+                if m.town.greetCooldown >= TownLaw.greetGap - 0.01 { greets[i] += 1 }
+            }
+            TownLaw.ambientChatter(g)
+            if Townsfolk.townLastLine != mark { lines += 1 }
+            Townsfolk.townLastLine -= 1; TownLaw.lastAmbient -= 1
+        }
+        g.menu = menu
+        let perMin = Double(lines) / 10
+        let maxGreets = greets.max() ?? 0
+        check(perMin >= 1.5 && perMin <= 3.05 && maxGreets <= 3 && TownVoice.murmured == m0 && TownVoice.played - p0 == lines,
+              String(format: "voices: a busy town says %.1f lines a minute (20 townsfolk, 10 min), each greets at most %d times, all %d recorded takes (%d murmured)",
+                     perMin, maxGreets, TownVoice.played - p0, TownVoice.murmured - m0))
     }
 }

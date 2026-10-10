@@ -147,7 +147,7 @@ final class EffectSet {
         any = true
         return true
     }
-    func remove(_ e: Effect) { slots[e.rawValue] = nil }
+    func remove(_ e: Effect) { slots[e.rawValue] = nil; any = slots.contains { $0 != nil } }
     func clear() { for i in slots.indices { slots[i] = nil }; any = false }
 
     var active: [(Effect, ActiveEffect)] {

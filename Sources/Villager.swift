@@ -374,11 +374,10 @@ final class MerchantMenu: Menu {
     var offers: [TradeOffer] { mob?.villager?.offers ?? [] }
 
     func price(_ o: TradeOffer) -> ItemStack {
-        var o2 = o
-        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount.
+        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount, held at
+        // Economy.barterFloor so no discount turns shop money into more money (Wallet.swift).
         let rep = mob?.villager?.reputation ?? 0
-        o2.special += game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult))
-        return o2.costA
+        return Economy.barterCost(o, discount: game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult)))
     }
 
     override func buttonPressed(_ i: Int) {

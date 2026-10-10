@@ -3,10 +3,13 @@ import simd
 
 // Town law: stealing, vandalism and assault in a town, the town's anger, and the sheriff.
 //
-// Offences only count when a townsperson notices (within 6 blocks, or within 20 with a clear line of sight) and the
-// spot belongs to a town (within 72 blocks of a village's anchor) and wasn't built by the player (blocks the player
-// places in towns are remembered). Each offence adds heat to that town (taking from a town chest or barrel 1-3 by how
-// much, breaking town property 1, hurting a townsperson 2); heat cools by 1 every 90 s.
+// Offences only count in survival, when a townsperson sees it (within 20 blocks, a clear line of sight from their
+// eyes) and the thing belongs to the town: inside one of the village's generated pieces (its houses, farms, square
+// and roads, down to 4 blocks under the floor, so dungeon and mineshaft chests below don't count), not placed by the
+// player (blocks the player places in towns are remembered, oldest forgotten first), and for a container, not what
+// the player put in it (deposits are counted per chest). Each offence adds heat to that town (taking from a town
+// chest or barrel 1-3 by how much, breaking town property 1, or a town container as much as taking what's in it,
+// hurting a townsperson 2); heat cools by 1 every 90 s.
 //   heat < 2: the witness warns you ("Hey! That's not yours."), the witnesses think a little less of you.
 //   heat 2-4: the law warns you (the sheriff or a deputy calls out and comes over), more lost standing.
 //   heat >= 4: the town turns on you for 150 s: big loss of standing with everyone near (prices up to +25%, keepers
@@ -18,7 +21,7 @@ import simd
 // a 70% hit chance at range), and can be fought and killed. Townsfolk no longer summon golems; golems already in old
 // towns stay (removing mobs from a save would be destructive) and keep defending as before.
 enum TownLaw {
-    static let golemsAllowed = false
+    static var golemsAllowed = false                 // the old golem summoning (MobTests turns it on to keep its rule covered)
     static let hostileHeat: Float = 4
     static let hostileSeconds: Float = 150
 
@@ -28,9 +31,12 @@ enum TownLaw {
         var hostile: [String: Float] = [:]          // seconds of open hostility left
         var appointed: [String: Int] = [:]          // town -> the day its sheriff was last seen or sent
         var placed: [[Int]] = []                    // player-placed blocks in towns (newest last, capped)
+        var deposits: [String: [String: Int]]? = nil  // "x,y,z" of a town chest -> item key -> what the player put in
+        var sheriffs: [String: String]? = nil       // town -> its one sheriff (person name)
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
+    static var placedOrder: [IVec3] = []            // oldest first (may hold stale entries until compacted)
 
     // Live (not saved).
     static var inTown: String?                      // the town the player is in (townsfolk within 48), every second
@@ -38,16 +44,29 @@ enum TownLaw {
     static var lastTick: Double = -1
     static var lastAmbient: Double = -100
     static var openPos: IVec3?
-    static var openCount = 0
+    static var openKey = ""                         // the chest's deposit key (both halves of a double chest share one)
+    static var openItems: [ItemID: Int]?            // what the open town container held at the last check (nil: not a town container)
     static var openStart: Double = 0
     static var pending: [(Mob, Double)] = []        // sheriffs about to draw (after their challenge)
     static var offences = 0                         // counted (TownTests)
 
     static func reset() {
-        state = Saved(); placedSet = []; inTown = nil; pending = []; openPos = nil; offences = 0; lastTick = -1
+        state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
+        offences = 0; lastTick = -1
+    }
+    // Keeps the newest `n` remembered blocks that are still the player's.
+    static func compactPlaced(_ n: Int) {
+        var seen = Set<IVec3>(), out: [IVec3] = []
+        for p in placedOrder.reversed() where placedSet.contains(p) && seen.insert(p).inserted {
+            out.append(p)
+            if out.count >= n { break }
+        }
+        placedOrder = out.reversed()
+        placedSet = seen
     }
     static func save(_ d: inout [String: String]) {
-        state.placed = placedSet.suffix(4096).map { [$0.x, $0.y, $0.z] }
+        compactPlaced(4096)
+        state.placed = placedOrder.map { [$0.x, $0.y, $0.z] }
         if let e = try? JSONEncoder().encode(state), let s = String(data: e, encoding: .utf8) { d["townLaw"] = s }
     }
     static var worldSeed: UInt64?                  // the world this state belongs to (a new world starts clean)
@@ -56,7 +75,8 @@ enum TownLaw {
         worldSeed = seed
         if let s = d["townLaw"], let data = s.data(using: .utf8), let st = try? JSONDecoder().decode(Saved.self, from: data) {
             state = st
-            placedSet = Set(st.placed.compactMap { $0.count == 3 ? IVec3($0[0], $0[1], $0[2]) : nil })
+            placedOrder = st.placed.compactMap { $0.count == 3 ? IVec3($0[0], $0[1], $0[2]) : nil }
+            placedSet = Set(placedOrder)
         }
     }
 
@@ -69,15 +89,28 @@ enum TownLaw {
         return abs(s.anchor.x - p.x) < 72 && abs(s.anchor.z - p.z) < 72
     }
 
+    // The town owns this block: it lies in one of the nearest village's generated pieces (houses and their lots,
+    // farms, the square, roads), no deeper than 4 blocks under a lot's floor.
+    static func isTownOwned(_ g: Game, _ p: IVec3) -> Bool {
+        if let f = forceTown { return f }
+        guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
+              let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1),
+              abs(s.anchor.x - p.x) < 200 && abs(s.anchor.z - p.z) < 200 else { return false }
+        return s.pieces.contains { pc in
+            p.x >= pc.min.x && p.x <= pc.max.x && p.z >= pc.min.z && p.z <= pc.max.z
+                && p.y <= pc.max.y && p.y >= max(pc.min.y, pc.max.y - 18)
+        }
+    }
+
     static func isTownsperson(_ m: Mob) -> Bool { m.kind == .villager && m.health > 0 && m.villager?.person != nil }
     static func isLaw(_ m: Mob) -> Bool { m.villager?.role == "sheriff" || m.villager?.role == "deputy" }
 
-    // Townsfolk who notice something the player does at p.
+    // Townsfolk who see the player do something: awake, within 20 blocks, a clear line of sight from their eyes to the
+    // player's (walls hide you; windows don't).
     static func witnesses(_ g: Game, at p: V3) -> [Mob] {
         var out: [Mob] = []
         for o in g.mobs.mobs where isTownsperson(o) && !o.lying {
-            let d = simd_length(o.eye - g.player.eye)
-            if d < 6 || (d < 20 && g.world.canSee(o.eye, g.player.eye)) || simd_length(o.eye - p) < 4 { out.append(o) }
+            if simd_length(o.eye - g.player.eye) < 20 && g.world.canSee(o.eye, g.player.eye) { out.append(o) }
         }
         return out.sorted { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }
     }
@@ -93,7 +126,8 @@ enum TownLaw {
     static func placed(_ g: Game, _ p: IVec3) {
         guard isTownSpot(g, p) else { return }
         placedSet.insert(p)
-        if placedSet.count > 6000 { placedSet = Set(placedSet.prefix(4096)) }
+        placedOrder.append(p)
+        if placedOrder.count > 6000 { compactPlaced(4096) }
     }
 
     // What counts as town property (crops, buildings, fittings, containers), per block state.
@@ -108,42 +142,84 @@ enum TownLaw {
     }
 
     // Game.breakBlock (the player broke b at p).
+    // A town container costs what taking its contents would (less what the player put in), at least 1.
     static func broke(_ g: Game, _ p: IVec3, _ b: BlockID) {
         guard Int(b) < property.count, property[Int(b)] else { return }
         if placedSet.remove(p) != nil { return }
-        guard isTownSpot(g, p) else { return }
-        offence(g, heat: 1, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        guard g.survival, isTownOwned(g, p) else { return }
+        var heat: Float = 1
+        if let be = g.world.blockEntities[p], !be.items.isEmpty {
+            var have: [ItemID: Int] = [:]
+            for s in be.items where !s.isEmpty { have[s.item, default: 0] += s.count }
+            let key = chestKey(g, p)
+            heat = takingHeat(settle(key, from: have, to: [:]))
+            state.deposits?[key] = nil
+        }
+        offence(g, heat: heat, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+    }
+    static func takingHeat(_ n: Int) -> Float { n > 0 ? 1 + min(2, Float(n) / 16) : 1 }
+
+    // One key per chest; a double chest's halves share the smaller position's.
+    static func chestKey(_ g: Game, _ p: IVec3) -> String {
+        let b = g.world.block(p.x, p.y, p.z)
+        var k = p
+        if Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") {
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                let q = p + d
+                if Blocks.groupBase[Int(g.world.block(q.x, q.y, q.z))] == Blocks.groupBase[Int(b)], (q.x, q.z) < (k.x, k.z) { k = q }
+            }
+        }
+        return "\(k.x),\(k.y),\(k.z)"
+    }
+    // A container's contents went from `a` to `b`: additions are the player's deposits, removals come out of the
+    // deposits first. Returns how many of the town's own items were taken.
+    static func settle(_ key: String, from a: [ItemID: Int], to b: [ItemID: Int]) -> Int {
+        var dep = state.deposits?[key] ?? [:]
+        var taken = 0
+        for id in Set(a.keys).union(b.keys) {
+            let d = (b[id] ?? 0) - (a[id] ?? 0)
+            let k = Items.key(id)
+            if d > 0 { dep[k, default: 0] += d }
+            else if d < 0 {
+                let own = min(-d, dep[k] ?? 0)
+                let left = (dep[k] ?? 0) - own
+                dep[k] = left > 0 ? left : nil
+                taken += -d - own
+            }
+        }
+        if state.deposits == nil { state.deposits = [:] }
+        state.deposits?[key] = dep.isEmpty ? nil : dep
+        return taken
     }
 
     // Game.openBlock: remember which block's menu is about to open (chests, barrels).
     static func opening(_ g: Game, _ p: IVec3) {
-        openPos = p; openStart = g.clock; openCount = -1
+        openPos = p; openStart = g.clock; openItems = nil
     }
     // Game.openMenu: a container menu from a town chest or barrel: count what's inside.
     static func opened(_ g: Game, _ m: Menu) {
         guard let p = openPos, g.clock - openStart < 0.5, m is ChestMenu || m is DoubleChestMenu,
-              !placedSet.contains(p), isTownSpot(g, p) else { openPos = nil; return }
-        openCount = containerItems(g, m)
+              !placedSet.contains(p), isTownOwned(g, p) else { openPos = nil; return }
+        openKey = chestKey(g, p)
+        openItems = containerItems(g, m)
     }
     // Per second while the menu is open, and when it closes: items gone from the container are theft.
     static func checkTaking(_ g: Game, _ m: Menu) {
-        guard let p = openPos, openCount >= 0 else { return }
+        guard let p = openPos, let before = openItems else { return }
         let now = containerItems(g, m)
-        if now < openCount {
-            let n = openCount - now
-            offence(g, heat: 1 + min(2, Float(n) / 16), at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
-        }
-        openCount = now
+        let n = settle(openKey, from: before, to: now)
+        openItems = now
+        if n > 0 && g.survival { offence(g, heat: takingHeat(n), at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
     }
     static func closed(_ g: Game, _ m: Menu) {
         if openPos != nil { checkTaking(g, m) }
         openPos = nil
     }
-    static func containerItems(_ g: Game, _ m: Menu) -> Int {
-        var n = 0
+    static func containerItems(_ g: Game, _ m: Menu) -> [ItemID: Int] {
+        var n: [ItemID: Int] = [:]
         for s in m.slots where !s.isPlayerInv && !s.isHotbar {
-            guard let c = s.container, s.index < c.count, c !== g.inventory.main else { continue }
-            n += c[s.index].count
+            guard let c = s.container, s.index < c.count, c !== g.inventory.main, !c[s.index].isEmpty else { continue }
+            n[c[s.index].item, default: 0] += c[s.index].count
         }
         return n
     }
@@ -156,7 +232,7 @@ enum TownLaw {
     // MARK: Escalation
 
     static func offence(_ g: Game, heat add: Float, at p: V3, victim: Mob? = nil, speak: Bool = true) {
-        guard g.dim.dim == .overworld else { return }
+        guard g.dim.dim == .overworld, g.survival else { return }      // creative: no theft, no warnings
         var ws = witnesses(g, at: p)
         if let v = victim, !ws.contains(where: { $0 === v }) { ws.insert(v, at: 0) }
         guard let first = ws.first else { return }
@@ -241,18 +317,19 @@ enum TownLaw {
         guard g.dim.dim == .overworld, g.alive else { inTown = nil; return }
         var nearest: Mob?
         var nd: Float = 48
-        var sheriffHere: Mob?
+        var sheriffs: [String: [Mob]] = [:]
         for o in g.mobs.mobs where isTownsperson(o) {
             let d = simd_length(o.pos - g.player.pos)
             if d < nd && !o.baby { nd = d; nearest = o }
-            if o.villager?.role == "sheriff" && d < 160 { sheriffHere = o }
+            if o.villager?.role == "sheriff" { sheriffs[town(of: o, g), default: []].append(o) }
         }
+        oneSheriff(g, sheriffs)
         guard let near = nearest else { inTown = nil; return }
         let here = town(of: near, g)
         inTown = here
         let day = Int(g.time / DAY_LENGTH)
-        if let s = sheriffHere, town(of: s, g) == here { state.appointed[here] = day }
-        else if day - (state.appointed[here] ?? -99) >= 3, isTownSpot(g, IVec3(Int(floor(near.pos.x)), Int(floor(near.pos.y)), Int(floor(near.pos.z)))) {
+        if sheriffs[here] != nil { state.appointed[here] = day }
+        else if day - (state.appointed[here] ?? -99) >= 3, squareLoaded(g, near) {
             appointSheriff(g, here, near: near)
         }
         // A hostile town keeps its armed folk on you while you're about.
@@ -262,6 +339,27 @@ enum TownLaw {
             }
         }
         ambientChatter(g)
+    }
+
+    // One sheriff per town (Saved.sheriffs names him): another one loaded in the same town (a cured zombie sheriff,
+    // or the square's own sheriff turning up after one was sent) serves as a deputy.
+    static func oneSheriff(_ g: Game, _ byTown: [String: [Mob]]) {
+        for (t, list) in byTown {
+            let named = state.sheriffs?[t]
+            let keep = list.first { $0.villager?.person == named } ?? list[0]
+            if state.sheriffs == nil { state.sheriffs = [:] }
+            state.sheriffs?[t] = keep.villager?.person
+            for o in list where o !== keep {
+                if var v = o.villager { v.role = "deputy"; o.villager = v }
+            }
+        }
+    }
+    // Only a real town whose square has loaded gets a sheriff sent (its own may be standing there).
+    static func squareLoaded(_ g: Game, _ near: Mob) -> Bool {
+        if let f = forceTown { return f }
+        let c = IVec3(Int(floor(near.pos.x)), Int(floor(near.pos.y)), Int(floor(near.pos.z)))
+        guard isTownSpot(g, c), let sc = g.world.gen.structures, let s = sc.nearest("village", x: c.x, z: c.z, maxRegions: 1) else { return false }
+        return g.world.isLoaded(s.anchor.x, s.anchor.z)
     }
 
     // A sheriff for a town that has none (older towns, or three days after the last one fell): next to the deputy
@@ -285,13 +383,21 @@ enum TownLaw {
             if var v = m.villager { v.town = town; m.villager = v }
             g.mobs.mobs.append(m)
             state.appointed[town] = Int(g.time / DAY_LENGTH)
+            if state.sheriffs == nil { state.sheriffs = [:] }
+            state.sheriffs?[town] = m.villager?.person
             return
         }
     }
 
-    // Now and then a townsperson near the player says something (one voice at a time, ~20 s apart).
+    // Unprompted lines (chatter and the hello as you pass) share one budget: at most one every `ambientGap` seconds
+    // town-wide, ~2-3 a minute in a busy town; each person greets you at most every `greetGap` seconds.
+    static let ambientGap: Double = 20
+    static let greetGap: Float = 240
+    static func ambientOK(_ g: Game) -> Bool { g.clock - Townsfolk.townLastLine > ambientGap }
+
+    // Now and then a townsperson near the player says something.
     static func ambientChatter(_ g: Game) {
-        guard g.menu == nil, g.clock - Townsfolk.townLastLine > 20, g.clock - lastAmbient > 20, Rand.float(in: 0..<1) < 0.12 else { return }
+        guard g.menu == nil, ambientOK(g), g.clock - lastAmbient > 30, Rand.float(in: 0..<1) < 0.06 else { return }
         let cands = g.mobs.mobs.filter {
             isTownsperson($0) && !$0.lying && $0.town.anger <= 0 && $0.panic <= 0 && simd_length($0.pos - g.player.pos) < 14
                 && simd_length($0.pos - g.player.pos) > 3 && g.world.canSee($0.eye, g.player.eye)
@@ -351,14 +457,11 @@ extension Mob {
 }
 
 extension Game {
-    // Spoken greeting (TownVoice) for the proximity hello and a tap: recorded lines most of the time, the older
-    // text lines (the hour, the town's mood, raids) otherwise.
+    // Spoken greeting (TownVoice) for the proximity hello and a tap: always a recorded line (the older text greeting
+    // only for a voice without one).
     func townGreet(_ m: Mob, _ v: VillagerData) {
-        if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return }
-        if v.reputation > -60 && raid == nil && Rand.float(in: 0..<1) < 0.7 {
-            let ctx: TownVoice.Ctx = dayFraction > 0.5 ? .night : (Rand.float(in: 0..<1) < 0.55 ? .greet : .chatter)
-            if TownVoice.speak(self, m, ctx) != nil { return }
-        }
-        Townsfolk.say(self, m, Townsfolk.greeting(v, self))
+        if TownLaw.isHostile(self, m) || v.reputation <= -60 { TownVoice.speak(self, m, .angry); return }
+        let ctx: TownVoice.Ctx = raid != nil ? .raid : dayFraction > 0.5 ? .night : (Rand.float(in: 0..<1) < 0.55 ? .greet : .chatter)
+        if TownVoice.speak(self, m, ctx) == nil { Townsfolk.say(self, m, Townsfolk.greeting(v, self)) }
     }
 }

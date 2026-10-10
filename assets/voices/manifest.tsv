@@ -20,6 +20,13 @@ fd3ed909e92f0612	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.52	theft
 e43bf61f33c14863	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.01	angry	You'll get nothing from me now.
 d27e35a690955ad8	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.16	hurt	Watch the knives! Ow!
 adfc89a835d4e38f	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.41	hurt	Have you gone mad?
+d217bd38d9f9f8da	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.42	handsup	Easy with that thing!
+1a95b98c09087c20	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.35	handsup	Whoa, whoa! Put it down!
+bde60640560c7c88	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.47	closed	Kitchen's closed, friend.
+a75cf5f736cfe365	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.29	closed	We're shut. Come back when we open.
+567ceb42fecb9771	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.36	closed	Ovens are cold. Come back tomorrow.
+7b0ea1971af87af5	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	2.01	raid	Raiders! Get behind the counter!
+397f9408c96b394a	chef_f	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.36	raid	Bar the doors!
 230bb984c864fde4	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.66	greet	Smells good, doesn't it?
 abded7e715d041c5	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	0.93	greet	Pull up a stool.
 0cd064282ab0ae75	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	2.40	greet	Hungry? You came to the right place.
@@ -41,6 +48,13 @@ e2aed3561db40efe	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.69	broke	T
 d432d748f09c548a	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.89	angry	You'll get nothing from me now.
 7c97aea8b2862795	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.94	hurt	Watch the knives! Ow!
 03200fddf044dc00	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.34	hurt	Have you gone mad?
+a7473cd75bf3d957	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.42	handsup	Easy with that thing!
+a3247fbb7aff8c77	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	2.15	handsup	Whoa, whoa! Put it down!
+ea8a6db600e64509	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.68	closed	Kitchen's closed, friend.
+42c2c571f6592428	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	2.32	closed	We're shut. Come back when we open.
+814144dfe5195884	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	2.42	closed	Ovens are cold. Come back tomorrow.
+fdca546750fc1646	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.96	raid	Raiders! Get behind the counter!
+80ac29fd38d33a31	chef_m	Roger	elevenlabs/eleven-v4-turbo	2026-10-10	1.20	raid	Bar the doors!
 175e71a8c3830cdb	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	0.52	greet	Hi!
 7963b473242e85da	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.54	greet	Are you a real adventurer?
 ccc83ee9d9f8f7ed	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	0.88	greet	Watch this!
@@ -55,6 +69,10 @@ bde68dbfb7256820	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.07	theft	
 5d41bbbe53f460e5	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.75	angry	You're mean! Go away!
 f3ea4d44128c9ede	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.23	hurt	Ow! Help!
 89745f1a2548a69f	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	0.93	hurt	Stop it!
+27b3c67549d90d31	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.11	handsup	Don't hurt me!
+6d1956deb7d07865	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.01	handsup	I'm scared!
+03e91abfcd8f1839	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	1.20	raid	Hide! Hide!
+b8b2a8d0e020206b	child	Jessica	elevenlabs/eleven-v4-turbo	2026-10-10	0.91	raid	Monsters!
 225cb11e325dee8e	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	2.24	greet	Keep the peace and we'll get along.
 b4a4c9431f4abfda	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.01	greet	Everything all right?
 b38801b568f265d8	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	2.42	chatter	Quiet day. I like it quiet.
@@ -68,6 +86,10 @@ c06776f752a7796e	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.59	angry
 e8aef3c94df640a9	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	2.72	hurt	Assaulting a deputy? Big mistake.
 64589ed0cf85ae78	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.33	challenge	Hold it right there!
 42996f04cfe74065	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.40	challenge	Don't make me draw.
+1eb14fef57ca648d	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	2.04	handsup	Lower that weapon. Now.
+ccb677ef31f96ad8	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.55	handsup	Point that somewhere else.
+0daf2a458b46c729	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.94	raid	Raiders! Hold the line!
+3187055ceffdd0e3	deputy_f	River	elevenlabs/eleven-v4-turbo	2026-10-10	1.58	raid	Everyone get indoors!
 92a2376e0cb18b77	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	2.21	greet	Keep the peace and we'll get along.
 f9c267381021f9ab	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	0.96	greet	Everything all right?
 24af3f335af8e2d9	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	2.53	chatter	Quiet day. I like it quiet.
@@ -81,6 +103,10 @@ bf0b2f66f6760135	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.41	angry	
 f02463c296158e80	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	2.81	hurt	Assaulting a deputy? Big mistake.
 0f06d715eb2772b3	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.37	challenge	Hold it right there!
 5be56da54d0b49f4	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.37	challenge	Don't make me draw.
+00c4728d768e353c	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	2.20	handsup	Lower that weapon. Now.
+d407db76271bfe33	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.63	handsup	Point that somewhere else.
+d615fd2d08d409f4	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.93	raid	Raiders! Hold the line!
+32d65bc2cb3daed6	deputy_m	Adam	elevenlabs/eleven-v4-turbo	2026-10-10	1.67	raid	Everyone get indoors!
 2a2172a32742a84d	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	1.73	greet	Ah, a new face.
 b051317c5ec8a5a4	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	1.70	greet	Sit a spell, if you like.
 f9127c1b1ff0ff0c	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.80	chatter	When I was young this was all prairie.
@@ -96,6 +122,12 @@ cc0c329c46529776	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.22	chatte
 658bef09a99cde9e	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.17	angry	Shameful! Sheriff!
 e9019db5096b378c	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.05	hurt	Oh! My poor back!
 559c77434300e6b8	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.05	hurt	Leave an old soul be!
+3effe82ebaaaaad1	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	1.95	trade	There you are. Use it well.
+dacc6fe83bffca27	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	1.86	broke	Not enough, I'm afraid.
+942c3e593b5414f9	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.02	handsup	Point that somewhere else, youngster.
+9f07593d1840865f	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	1.84	handsup	I'm too old for this.
+ddfe1c8d61e095ed	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.18	raid	Raiders! Hide, everyone!
+62194ca96a78ff89	elder_f	Alice	elevenlabs/eleven-v4-turbo	2026-10-10	2.04	raid	Just like the bad old days.
 cc1d31b7712ca07c	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.78	greet	Ah, a new face.
 dd68254a36745551	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.66	greet	Sit a spell, if you like.
 6212e65e944e4cef	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.85	chatter	When I was young this was all prairie.
@@ -111,6 +143,12 @@ e192aab63fef1fd5	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.95	angry	I
 1ea27da2ae8f50b9	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.12	angry	Shameful! Sheriff!
 ecd268608696a3cd	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.29	hurt	Oh! My poor back!
 330035b221cc7a89	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.17	hurt	Leave an old soul be!
+18cba3c1a38ff6b0	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.16	trade	There you are. Use it well.
+236173597b78f742	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.87	broke	Not enough, I'm afraid.
+97e8c8ff3cc85184	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.98	handsup	Point that somewhere else, youngster.
+04663cf7a09cd652	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.76	handsup	I'm too old for this.
+96e06e92cec0d566	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	2.07	raid	Raiders! Hide, everyone!
+5288ebab17da1d28	elder_m	Bill	elevenlabs/eleven-v4-turbo	2026-10-10	1.91	raid	Just like the bad old days.
 0412c081b798b997	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.95	greet	Howdy. Mind the furrows.
 07d5f3406ab15ed5	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.48	greet	Fine day for growing.
 f4c973f4839cb4b6	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.97	chatter	Crops are coming in nice this year.
@@ -131,6 +169,10 @@ b15cf97d38319008	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.84	theft
 fc4c09da67cf8228	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.85	angry	Crop thief! Sheriff!
 5943457125cb0c7b	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.88	hurt	Ow! Are you crazy?
 2a5d71af3d2f8caa	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.73	hurt	Help! Somebody!
+63625d3f67afc4d1	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	2.34	handsup	Don't shoot! I'm just a farmer!
+24094e8ff3196997	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	2.03	handsup	Easy, friend. Easy.
+8dd7fd2a8a0f9535	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.64	raid	They're coming over the fields!
+d93794431bedd3df	farmer_f	Laura	elevenlabs/eleven-v4-turbo	2026-10-10	1.45	raid	Get the animals in!
 b0c6d7caef9c7bf4	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.88	greet	Howdy. Mind the furrows.
 9d42c6d51c2be5f8	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.40	greet	Fine day for growing.
 91bae3247ea6784f	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.85	chatter	Crops are coming in nice this year.
@@ -151,6 +193,10 @@ d964d7e05bb6df2f	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.27	angry
 c516b232360ef8b3	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.60	angry	Crop thief! Sheriff!
 1e44c67d1f25c568	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.80	hurt	Ow! Are you crazy?
 fb4fea4ac38b0bc7	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.63	hurt	Help! Somebody!
+d6febcb722fd2748	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	2.03	handsup	Don't shoot! I'm just a farmer!
+a3666f4f92062606	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.92	handsup	Easy, friend. Easy.
+4c6db240ae2b0f10	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.53	raid	They're coming over the fields!
+e0452fcff34744ba	farmer_m	Chris	elevenlabs/eleven-v4-turbo	2026-10-10	1.17	raid	Get the animals in!
 08b665b5629838cd	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.20	greet	Howdy, stranger.
 e221fe82a87ef055	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.16	greet	Good day to you.
 7cef1e618c7a617c	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.90	greet	Well, look who it is.
@@ -176,6 +222,11 @@ da309c1e09597492	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.75	angry	G
 77cb9ade3ee15d8f	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.44	angry	You'll pay for that!
 ef65d6c9c5d84f8d	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	2.09	hurt	Ow! What was that for?
 d7a4d9d6bd097520	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.80	hurt	Stop it! Help!
+33d7f6ab8c288e62	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.98	handsup	Easy! Easy now!
+85363eb8e115a5d6	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	0.96	handsup	Don't shoot!
+082c557bf7373136	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.54	handsup	Put that away, mister.
+382c5a272822b4a5	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	2.03	raid	Get inside! They're coming!
+cbe5453b947288ac	folk_f	Sarah	elevenlabs/eleven-v4-turbo	2026-10-10	1.70	raid	Grab whatever you can swing!
 c00e12b9e6134222	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.15	greet	Howdy, stranger.
 75b244ded4e132ba	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.07	greet	Good day to you.
 24c5e72f76513659	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.94	greet	Well, look who it is.
@@ -201,6 +252,11 @@ b9613a2d29927b55	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	2.46	angry	Th
 8c5b4490baf3ac84	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.29	angry	You'll pay for that!
 93b72bffbf98e91a	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	2.01	hurt	Ow! What was that for?
 36ee6f8f5acffc2b	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.66	hurt	Stop it! Help!
+e21d87b1d231e26f	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.76	handsup	Easy! Easy now!
+ecadef6ac1beacc9	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	0.82	handsup	Don't shoot!
+2d08a9ebf18915c5	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.46	handsup	Put that away, mister.
+3eb4f59caa166d04	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.85	raid	Get inside! They're coming!
+e64d13d23440edb7	folk_m	Will	elevenlabs/eleven-v4-turbo	2026-10-10	1.60	raid	Grab whatever you can swing!
 20e38e505dce63d9	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.08	greet	Welcome in! Have a look around.
 a2c367161e05e921	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.24	greet	Fresh stock today.
 cc288660a2aafbc7	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.25	greet	Step right up.
@@ -223,6 +279,13 @@ a120483271a9b5cd	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.21	the
 0e0163bd00ce34db	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.85	angry	You're not welcome here anymore.
 8bf4830045061324	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.53	hurt	Ow! Have you lost your mind?
 9cdd03c0e7bdccaa	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.52	hurt	Help! Sheriff!
+97dbfb0181c44091	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.25	handsup	Whoa! Take whatever you want!
+75cdf2d72b740b83	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.86	handsup	Don't shoot! Please!
+56c69f62d0a13876	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.96	closed	Sorry, we're closed. Come back in the morning.
+7df0e2a77e2348d5	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.72	closed	Shop's shut for now. Come back a little later.
+d008a118d15845c7	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.39	closed	That's closing time. Come back tomorrow.
+b4eae7e0042e42dd	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	2.11	raid	Lock the doors! Raiders!
+99f416a569d8c901	keeper_f	Matilda	elevenlabs/eleven-v4-turbo	2026-10-10	1.89	raid	Everybody inside, quick!
 2f41a989bbd82928	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.88	greet	Welcome in! Have a look around.
 a926a4f1e1049046	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.19	greet	Fresh stock today.
 ebb92cd0a46f4a20	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.11	greet	Step right up.
@@ -245,6 +308,13 @@ dd849b170b4a2bc0	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.11	theft	
 8405c70db699fb14	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.72	angry	You're not welcome here anymore.
 54b4bc763249aed7	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	2.20	hurt	Ow! Have you lost your mind?
 fb9eb28d9734d651	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.51	hurt	Help! Sheriff!
+2e07dd7b9f768050	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	2.13	handsup	Whoa! Take whatever you want!
+dd477d71a4720420	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.62	handsup	Don't shoot! Please!
+9a81fd0d35a91f69	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	2.68	closed	Sorry, we're closed. Come back in the morning.
+830a0bc397cbc18e	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	2.57	closed	Shop's shut for now. Come back a little later.
+a21763ba24edea84	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	2.15	closed	That's closing time. Come back tomorrow.
+f4ccf625bf4ade9a	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.85	raid	Lock the doors! Raiders!
+848896a95e788506	keeper_m	Eric	elevenlabs/eleven-v4-turbo	2026-10-10	1.68	raid	Everybody inside, quick!
 1c54e3f3e36688f7	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.56	greet	I'm the sheriff here. Keep your nose clean.
 0a7a2490a3099096	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.47	greet	Peaceful town. Let's keep it that way.
 8264ae631c96c95f	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.79	greet	Howdy. Mind the rules and we're friends.
@@ -263,3 +333,7 @@ a09a1e99d035d91b	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	1.74	challe
 a202e38f6727193d	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.33	challenge	Drop what you took and raise your hands.
 b8f74128b5f9371b	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	1.74	challenge	This is your one warning.
 33e67dd74154118d	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.20	challenge	Draw, if you think you're fast enough.
+aad145a85ce15383	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.45	handsup	You point that at me, you'd better use it.
+6148ad63ed3c9284	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	1.80	handsup	Lower it. Slowly.
+bf8d51d90bff003f	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.17	raid	Raiders! Everybody take cover!
+9a4d9b7360cda7f2	sheriff	Brian	elevenlabs/eleven-v4-turbo	2026-10-10	2.18	raid	Nobody rides into my town like that.

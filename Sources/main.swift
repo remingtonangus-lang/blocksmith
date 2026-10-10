@@ -1593,6 +1593,11 @@ if let dir = arg("--sounds") {
     var total = 0, failures = 0
     var list = SoundBank.allSounds
     for inst in 0..<16 { list.append(.note(inst, 12)) }
+    // Townsfolk voices (Resources/voices.bin): the first take of every voice in every context.
+    TownVoice.ensure()
+    for (_, ctxs) in TownVoice.index.sorted(by: { $0.key < $1.key }) {
+        for c in TownVoice.Ctx.allCases { if let id = ctxs[c]?.first { list.append(.voice(id)) } }
+    }
     if let only = ProcessInfo.processInfo.environment["SOUNDS_ONLY"] {   // e.g. SOUNDS_ONLY=step_,gun_ (prefixes)
         let pre = only.split(separator: ",").map(String.init)
         list = list.filter { s in pre.contains { s.name.hasPrefix($0) } }
