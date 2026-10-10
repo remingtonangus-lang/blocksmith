@@ -701,3 +701,8 @@ quest/src/vk/QuestScreenshot.swift (screenshot per note), tools/quest-bugnotes.p
   17-23% fewer quads at rd 16, shots differ in <= 0.01% of pixels. Default render distance 16 (quest.rd16 migration).
 - perf line: `| record ms: cull, hud, terrain, ships, mobs, entities, rest` (the device's 5-6 ms record split).
 - Explainer: docs/status/performance.md. Device check: a 72 Hz session at rd 16, perf lines `missed` near 0.
+- Shipped: quest run 38021666455 green, APK on quest-dist (de1b2d2, for 9b80c67); Quest not on adb, so not installed.
+  Shared gameplay (fluid queue, time-sliced paths, village scans) cherry-picked to claude/blocksmith-playtest as
+  68872156 + 7629ff8a (fluid queue untimed there: no Quest fluid budget on that branch); mac run 38023362948 green.
+  No save format change (fluid queue is not saved; only the quest.rd16 settings key). Local `--questbugs` on the
+  unoptimized build made no progress in 20 min on the busy Mac (timeboxed; the code commits were checked when made).
