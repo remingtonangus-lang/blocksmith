@@ -152,13 +152,15 @@ enum MobRenderCheck {
                 }
                 return best
             }
+            // Tiny mobs (a 0.3-block tadpole under water) cover fewer pixels; anything over 10 px is drawing.
+            let need = m.height < 0.5 ? 10 : 30
             let n = shown(m)
-            if n < 30 { invisible.append("\(m.kind) (\(n) px)") } else { drawn += 1 }
+            if n < need { invisible.append("\(m.kind) (\(n) px)") } else { drawn += 1 }
             // The same mob through a save and a load (Remington plays saved worlds; a fresh harness world has none).
             if let data = try? JSONEncoder().encode(m.record), let rec = try? JSONDecoder().decode(MobRecord.self, from: data),
                let back = Mob.from(rec) {
                 let nb = shown(back)
-                if nb < 30 { invisible.append("\(m.kind) after save and load (\(nb) px)") }
+                if nb < need { invisible.append("\(m.kind) after save and load (\(nb) px)") }
             } else { broken.append("\(m.kind) does not survive a save and load") }
         }
         g.effects.remove(.nightVision)

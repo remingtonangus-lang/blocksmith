@@ -379,15 +379,22 @@ enum TownLaw {
         let anchor = g.mobs.mobs.first { isTownsperson($0) && $0.villager?.role == "deputy" && TownLaw.town(of: $0, g) == town } ?? near
         let c = anchor.home ?? anchor.pos
         let w = g.world
-        for k in 0..<16 {
-            let a = Float(k) * 2.4
-            let r: Float = 2 + Float(k % 4)
-            let x = Int(floor(c.x + cosf(a) * r)), z = Int(floor(c.z + sinf(a) * r))
-            var y = Int(floor(c.y)) + 3
-            while y > Int(floor(c.y)) - 4 && !(Blocks.collide[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]) { y -= 1 }
-            guard y > Int(floor(c.y)) - 4, !Blocks.isLiquid(w.block(x, y, z)) else { continue }
-            let m = Mob(.villager, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
-            if m.collides(m.pos, w) { continue }
+        // Open ground round the anchor; failing that (a square crowded with trees, or ground not meshed yet), where the
+        // anchor itself stands, so a town is never left without its sheriff.
+        for k in 0..<33 {
+            let m: Mob
+            if k < 32 {
+                let a = Float(k) * 2.4
+                let r: Float = 2 + Float(k % 7)
+                let x = Int(floor(c.x + cosf(a) * r)), z = Int(floor(c.z + sinf(a) * r))
+                var y = Int(floor(c.y)) + 3
+                while y > Int(floor(c.y)) - 4 && !(Blocks.collide[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]) { y -= 1 }
+                guard y > Int(floor(c.y)) - 4, !Blocks.isLiquid(w.block(x, y, z)) else { continue }
+                m = Mob(.villager, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
+                if m.collides(m.pos, w) { continue }
+            } else {
+                m = Mob(.villager, at: anchor.pos)
+            }
             m.home = anchor.home ?? m.pos
             m.persistent = true
             Townsfolk.setup(m, tag: "sheriff", game: g)
