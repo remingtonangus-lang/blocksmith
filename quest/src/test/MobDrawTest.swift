@@ -62,7 +62,9 @@ enum MobDrawTest {
         for k in MobKind.allCases {
             let m = Mob(k, at: p.pos)
             let size: Float = max(m.height, 0.4)                          // small ones (tadpoles) closer
-            m.pos = p.eye + fwd * (1.5 + size * 2.5) - V3(0, m.height * 0.5, 0)
+            // Tiny ones (a 0.3-block brown tadpole) at 1.2 blocks: further off their count hangs on what's behind them.
+            let dist: Float = m.height < 0.5 ? 1.2 : 1.5 + size * 2.5
+            m.pos = p.eye + fwd * dist - V3(0, m.height * 0.5, 0)
             m.yaw = p.yaw + .pi * 0.75                                   // three-quarter view
             if mobModelParts(m).isEmpty { noParts.append("\(k)"); continue }
             game.mobs.mobs = [m]
