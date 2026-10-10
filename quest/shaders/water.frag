@@ -34,7 +34,7 @@ vec3 skyAlong(vec3 d) {
 void main() {
     float t = u.params.z;
     vec2 uv = oUV + vec2(t * 0.03, t * 0.017);
-    vec4 c = texture(tex, vec3(uv, oLayer));
+    vec4 c = texSharp(uv, oLayer);
     vec3 rgb = c.rgb * oTint * max(oShade, vec3(0.05));
     float f = smoothstep(u.fogColor.w, u.params.x, oDist);
     if (oWDepth < 0.0) {

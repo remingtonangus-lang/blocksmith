@@ -20,6 +20,23 @@ layout(set = 0, binding = 0, std140) uniform Frame {
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;
 
+// Sharp-bilinear texel magnification (Quest playtest Oct 10: "everything's blurry"; docs/status/texture-sharpness.md).
+// The sampler magnifies LINEAR; this moves uv so a texel's interior samples flat and only its edge blends, over about
+// one screen pixel: crisp texels without nearest's stair-step crawl under head motion. Once a texel is a pixel or
+// smaller (fwidth >= 1) uv is unchanged, so distant surfaces keep trilinear + anisotropic filtering, and the
+// derivatives of the moved uv never exceed a texel per pixel, so the hardware LOD stays at the top mip up close.
+// tools/texsharp.py models it. Every texture-array lookup goes through here (HUD: hud.frag has its own copy).
+#ifdef BS_FRAG
+vec2 sharpUV(vec2 uv) {
+    vec2 sz = vec2(textureSize(tex, 0).xy);
+    vec2 t = uv * sz;
+    vec2 seam = floor(t + 0.5);
+    vec2 d = clamp(fwidth(t), vec2(1e-4), vec2(1.0));
+    return (seam + clamp((t - seam) / d, -0.5, 0.5)) / sz;
+}
+vec4 texSharp(vec2 uv, float layer) { return texture(tex, vec3(sharpUV(uv), layer)); }
+#endif
+
 // Ocean swell (chunk.vert moves sea-level water surfaces by it, water.frag tilts the surface normal by its slope):
 // three sines (~11, 7 and 4.5 m long, 14 cm at the crest), times the weather's swell scale (u.waves.x; Sources/Weather.swift OceanSwell
 // mirrors it for boats). xyz = height, d/dx, d/dz at world xz.

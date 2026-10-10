@@ -84,15 +84,17 @@ enum QuestSettings {
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
-    // Texture pixels per face: 64 by default (imported art is packed at 64 by tools/texpack.py; a quarter of the
-    // memory of 128). A saved 128 from before is moved to 64 once; picking High again afterwards sticks.
+    // Texture pixels per face: 128 by default, the imported art's own resolution (tools/texpack.py packs it at 128).
+    // 64 was the default for a day and halved the art's detail: "everything's blurry, too compressed" (playtest
+    // Oct 10, docs/status/texture-sharpness.md). The 64 that default left in saved settings moves to 128 once
+    // (quest.tex128); picking Medium again afterwards sticks.
     static var textureRes: Int {
         get {
-            if !d.bool(forKey: "quest.tex64") {
-                d.set(true, forKey: "quest.tex64")
-                if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") > 64 { store(64, "quest.textureRes") }
+            if !d.bool(forKey: "quest.tex128") {
+                d.set(true, forKey: "quest.tex128"); d.set(true, forKey: "quest.tex64")
+                if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") < 128 { store(128, "quest.textureRes") }
             }
-            return int("quest.textureRes", 64)
+            return int("quest.textureRes", 128)
         }
         set { store(newValue, "quest.textureRes") }
     }
@@ -114,7 +116,7 @@ extension QuestSettings {
             else if let i = Int(v) { d.set(i, forKey: key) }
             else if let f = Float(v) { d.set(f, forKey: key) }
             else { d.set(v, forKey: key) }
-            if key == "quest.textureRes" { d.set(true, forKey: "quest.tex64") }   // an explicit pick skips the 64 migration
+            if key == "quest.textureRes" { d.set(true, forKey: "quest.tex64"); d.set(true, forKey: "quest.tex128") }   // an explicit pick skips the migration
             applied.append("\(kv[0])=\(v)")
         }
         clearCache()

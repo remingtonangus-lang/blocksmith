@@ -486,14 +486,17 @@ final class SceneRenderer {
         _ = stars.withUnsafeBytes { memcpy(starBuf.mapped!, $0.baseAddress!, $0.count) }
         var si = VkSamplerCreateInfo()
         si.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
-        si.magFilter = VK_FILTER_NEAREST
+        // LINEAR magnification for the shaders' sharp-bilinear texSharp (common.glsl): crisp texels with anti-aliased
+        // edges; nearest made 6-12 px stair-steps at arm's length that crawl with head motion. Anisotropy 8 (was 4)
+        // for the ground at a slant (tools/texsharp.py: far-ground PSNR 34.7 -> 39.6 dB with the Lanczos mips).
+        si.magFilter = VK_FILTER_LINEAR
         si.minFilter = VK_FILTER_LINEAR
         si.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR
         si.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT
         si.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT
         si.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT
         si.maxLod = 16
-        if ctx.features.samplerAnisotropy != 0 { si.anisotropyEnable = 1; si.maxAnisotropy = min(4, ctx.props.limits.maxSamplerAnisotropy) }
+        if ctx.features.samplerAnisotropy != 0 { si.anisotropyEnable = 1; si.maxAnisotropy = min(8, ctx.props.limits.maxSamplerAnisotropy) }
         var s: VkSampler?
         try vkCheck(vkCreateSampler(ctx.device, &si, nil, &s), "vkCreateSampler")
         sampler = s!
