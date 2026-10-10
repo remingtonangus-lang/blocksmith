@@ -147,7 +147,7 @@ extension Game {
             t += "  \(MainGun.name) " + m
             // Range to the helm's aim marker (MainGun.swift mainGunAimTick), or that the shot would land nowhere.
             if let st = world.ships.capState[s.root.id] {
-                t += st.aimPoint.map { String(format: " %.0f m", simd_length($0 - player.eye)) } ?? " no ground"
+                t += st.aimPoint.map { String(format: " %.0f m", simd_length($0 - player.eye)) } ?? " out of sight"
             }
         }
         return t

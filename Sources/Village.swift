@@ -209,28 +209,31 @@ enum Village {
             if cur.count >= 24 || k == pathCols.count - 1 { colsByRoad.append(cur); cur = [] }
         }
         // A road climbing a block from one step to the next gets a half step (a slab on the lower column), so a walker
-        // never has to jump along a street (villagers path poorly over jumps: structcheck door_needs_jump). Runs of
-        // rises on consecutive columns keep the climb (a slab can't halve two in a row).
+        // never has to jump along a street (villagers path poorly over jumps: structcheck door_needs_jump). Only an
+        // isolated rise: the lower step sits on level road behind it and the road doesn't climb again past the higher
+        // one (a slab inside a run of rises would leave a 1.5-block step).
         var halfSteps = Set<IVec2Key>()
         do {
-            var k = 0
-            while k + 3 < pathCols.count {
-                // pathCols holds 3 width columns per road step; consecutive steps of one road share a road direction.
-                let a = pathCols[k + 1], b = pathCols[k + 4 < pathCols.count ? k + 4 : k + 1]
-                if abs(a.0 - b.0) + abs(a.1 - b.1) == 1 && abs(a.2 - b.2) == 1 {
-                    let low = a.2 < b.2 ? k : k + 3
-                    if !halfSteps.contains(IVec2Key(pathCols[low + 1].0, pathCols[low + 1].1)) {
-                        for j in 0..<3 { halfSteps.insert(IVec2Key(pathCols[low + j].0, pathCols[low + j].1)) }
-                    }
+            // Road steps in order (3 width columns each; the centre is k + 1), split where the next step isn't adjacent.
+            var runs: [[Int]] = []
+            var cur: [Int] = []
+            for k in stride(from: 0, to: pathCols.count, by: 3) {
+                if let last = cur.last {
+                    let a = pathCols[last + 1], b = pathCols[k + 1]
+                    if abs(a.0 - b.0) + abs(a.1 - b.1) != 1 { runs.append(cur); cur = [] }
                 }
-                k += 3
+                cur.append(k)
             }
-            // Two rises on consecutive columns: drop the half steps of that run (they would make a 1-block step).
-            for k in stride(from: 0, to: pathCols.count - 3, by: 3) {
-                let a = pathCols[k + 1], b = pathCols[k + 4]
-                guard abs(a.0 - b.0) + abs(a.1 - b.1) == 1 else { continue }
-                if halfSteps.contains(IVec2Key(a.0, a.1)) && halfSteps.contains(IVec2Key(b.0, b.1)) && a.2 != b.2 {
-                    for j in 0..<3 { halfSteps.remove(IVec2Key(pathCols[k + j].0, pathCols[k + j].1)); halfSteps.remove(IVec2Key(pathCols[k + 3 + j].0, pathCols[k + 3 + j].1)) }
+            if !cur.isEmpty { runs.append(cur) }
+            for run in runs where run.count >= 2 {
+                func h(_ i: Int) -> Int? { i >= 0 && i < run.count ? pathCols[run[i] + 1].2 : nil }
+                for i in 0..<(run.count - 1) {
+                    guard let y0 = h(i), let y1 = h(i + 1), abs(y0 - y1) == 1 else { continue }
+                    let (lo, hi, back, ahead) = y0 < y1 ? (i, i + 1, i - 1, i + 2) : (i + 1, i, i + 2, i - 1)
+                    let ylo = min(y0, y1), yhi = max(y0, y1)
+                    guard (h(back) ?? ylo) == ylo, (h(ahead) ?? yhi) <= yhi else { continue }
+                    for j in 0..<3 { halfSteps.insert(IVec2Key(pathCols[run[lo] + j].0, pathCols[run[lo] + j].1)) }
+                    _ = hi
                 }
             }
         }

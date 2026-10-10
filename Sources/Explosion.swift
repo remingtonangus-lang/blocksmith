@@ -218,7 +218,7 @@ final class CraterJob {
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
         }
-        if carved && budget > 0 { scorch(g, columns: max(1, budget / 2)) }
+        if carved && budget > 0 { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
         return done
     }
 
@@ -228,6 +228,11 @@ final class CraterJob {
     private var carved = false
     private var scorchNext = 0
     private(set) var scorched = 0
+    // Ground the scorch may burn: terrain, never anything built.
+    static let natural: Set<BlockID> = Set(["grass_block", "dirt", "podzol", "mycelium", "coarse_dirt", "rooted_dirt", "mud", "clay",
+                                            "stone", "granite", "diorite", "andesite", "tuff", "deepslate", "sand", "red_sand", "gravel",
+                                            "sandstone", "red_sandstone", "snow_block", "terracotta", "calcite", "blackstone", "basalt"]
+                                            .filter { Blocks.has($0) }.map { Blocks.id($0) })
     private static var scorchCache: [Int: [SIMD2<Int16>]] = [:]     // columns within 1.5 radii, nearest first
     private func scorch(_ g: Game, columns: Int) {
         let w = g.world
@@ -242,7 +247,7 @@ final class CraterJob {
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
-        let coarse = Blocks.id("coarse_dirt"), fire = Blocks.id("fire")
+        let coarse = Blocks.id("coarse_dirt"), fire = Blocks.id("fire"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
         let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
         var n = columns
         while n > 0 && scorchNext < cols.count {
@@ -262,8 +267,9 @@ final class CraterJob {
                 let id = w.block(x, y, z)
                 if id != AIR {
                     if Blocks.isLiquid(id) { top = AIR; break }
-                    if !Blocks.collide[Int(id)] || Blocks.isPlant(id) {
-                        if Blocks.hardness[Int(id)] >= 0 && Blocks.hardness[Int(id)] < 0.5 { w.setBlockAsync(x, y, z, AIR); scorched += 1 }
+                    if !Blocks.collide[Int(id)] {
+                        // Plants and snow cover burn off; torches, wire, rails and the like are left (no drops here).
+                        if Blocks.isPlant(id) || Blocks.groupBase[Int(id)] == snowLayer { w.setBlockAsync(x, y, z, AIR); scorched += 1 }
                         y -= 1; continue
                     }
                     if !Blocks.opaque[Int(id)] { top = AIR; break }          // leaves, glass, fences: left standing
@@ -272,7 +278,8 @@ final class CraterJob {
                 }
                 y -= 1
             }
-            guard top != AIR, Blocks.hardness[Int(top)] >= 0, w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+            // Natural ground only: a trunk, wall or roof met first (trees and houses round the rim) is left alone.
+            guard top != AIR, CraterJob.natural.contains(Blocks.groupBase[Int(top)]), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
             let roll = hashf(x, y, z, 913)
             let fade = 1 - max(0, h - r * 0.85) / (R - r * 0.85)       // 1 in the bowl, falling to 0 at 1.5 radii
             var to: BlockID = AIR

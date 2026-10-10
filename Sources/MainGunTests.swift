@@ -152,7 +152,11 @@ enum MainGunTests {
         // The helm's aim marker: where the shot will land, predicted before it is fired, drawn as a ring.
         let ta = CFAbsoluteTimeGetCurrent()
         let predicted = w.ships.mainGunAimPoint(s, st, pitch: pitch)
-        let aimMs = (CFAbsoluteTimeGetCurrent() - ta) * 1000
+        var aimMs = (CFAbsoluteTimeGetCurrent() - ta) * 1000
+        // The longest trace: raised all the way, the slug's whole 3.5 s flight over unstreamed country.
+        let tl = CFAbsoluteTimeGetCurrent()
+        _ = w.ships.mainGunAimPoint(s, st, pitch: 0.26)
+        aimMs = max(aimMs, (CFAbsoluteTimeGetCurrent() - tl) * 1000)
         g.particles.list.removeAll()                           // (the earlier checks filled the particle cap)
         let parts0 = g.particles.list.count, aims0 = MainGun.aimUpdates
         st.aimTimer = 0

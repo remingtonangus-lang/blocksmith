@@ -377,8 +377,8 @@ extension ShipManager {
     }
 
     // Where a shot from the helm would land now: the slug's flight (ShipCombat.updateShells: 420 b/s plus the
-    // hull's drift, gravity 0.4, 3.5 s) traced in 1-block steps through the world, past the streamed world onto the
-    // generator's ground, stopping at another ship's hull. Nil when it lands nowhere (sky, or out of its range).
+    // hull's drift, gravity 0.4, 3.5 s) traced in 1-block steps through the streamed world, stopping at another ship's
+    // hull. Nil when it lands nowhere in sight (the sky, or past the streamed world).
     func mainGunAimPoint(_ s: Ship, _ st: CapitalState, pitch: Float) -> V3? {
         let md = s.dirToWorld(st.mainGunDir)
         let dir = MainGun.helmDir(md, pitch: pitch)
@@ -397,7 +397,7 @@ extension ShipManager {
                 let bx = Int(floor(p.x)), bz = Int(floor(p.z))
                 if reader.loaded(bx, bz) {
                     if Blocks.collide[Int(reader.get(bx, Int(floor(p.y)), bz))] { return p }
-                } else if p.y <= Float(world.gen.column(bx, bz).height) + 1 { return p }
+                } else { return nil }   // past the streamed world: out of sight (the generator's columns cost noise: 18 ms a trace)
                 if shipBlock(at: p, except: s.root.id) { return p }
             }
             pos = end
