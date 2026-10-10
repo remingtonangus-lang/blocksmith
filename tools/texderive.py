@@ -25,8 +25,7 @@ TONED = [('farmland', 'farmland_moist', 1.45), ('furnace_side', 'furnace_body', 
 # same material family, other wood/stone: base's surface detail in the target's procedural colour
 RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), ('pale_oak_planks', 'birch_planks'),
              ('crimson_stem', 'oak_log'), ('warped_stem', 'oak_log'), ('pale_oak_log', 'birch_log'),
-             ('pale_oak_log_top', 'birch_log_top'), ('crimson_stem_top', 'oak_log_top'),
-             ('warped_stem_top', 'oak_log_top'), ('stripped_crimson_log', 'stripped_oak_log'),
+             ('pale_oak_log_top', 'birch_log_top'), ('stripped_crimson_log', 'stripped_oak_log'),
              ('stripped_warped_log', 'stripped_oak_log'), ('stripped_pale_oak_log', 'stripped_birch_log'),
              ('polished_blackstone', 'smooth_basalt'),
              ('cut_red_sandstone', 'cut_sandstone'), ('chiseled_tuff', 'chiseled_stone_bricks'),
@@ -43,6 +42,9 @@ TILES = [('capital_stone', 'limestone_blocks'), ('capital_panel', 'white_panel')
          ('steel_grating', 'grating'), ('ship_metal', 'aged_iron'), ('ship_wood', 'teak_deck'),
          ('ship_wood_dark', 'teak_deck')]
 KEEP_COLOUR = {'hazard_plating'}
+TILE_TONE = {'capital_stone': 0.85, 'capital_plate': 0.85, 'capital_panel': 0.85, 'capital_trim': 0.87,
+             'capital_stone_trim': 0.87, 'capital_paving': 0.9}   # near-white procedural colours: keep the detail
+GRADE = {'prismarine_bricks': 0.55}   # derived layers: keep this much of their saturation
 UNLIT = [('furnace_front', 'furnace_front_on')]   # the lit face with its fire painted out   # keep 85% of the procedural colour's saturation
 
 
@@ -55,9 +57,8 @@ def families(names, have):
             out.append((f'{c}_{fam}', base))
     out += RELATIVES
     for st in ('exposed', 'weathered', 'oxidized'):   # weathering stages carry the fresh copper's metal detail
-        for form in ('copper', 'cut_copper', 'chiseled_copper', 'copper_grate'):
-            base = 'copper_block' if form == 'copper' else form
-            out.append((f'{st}_{form}', base))
+        for form in ('cut_copper', 'chiseled_copper', 'copper_grate'):   # not copper_block: its bevelled 2x2 look
+            out.append((f'{st}_{form}', form))
     for c in COLOURS:
         out.append((f'{c}_stained_glass', 'glass'))
     for n in names:
@@ -129,13 +130,17 @@ def main():
             means[t] = px.reshape(-1, 3).mean(0)
     for t, b in pairs:
         if t in means:
-            recolour(os.path.join(a.out, b + '.png'), means[t]).save(os.path.join(a.out, t + '.png'))
+            m = means[t]
+            if t in GRADE:
+                g = lum(m)
+                m = g + (m - g) * GRADE[t]
+            recolour(os.path.join(a.out, b + '.png'), m).save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     tiles = [(t, os.path.join(ROOT, 'assets/gemini/tiles', b + '.png')) for t, b in TILES if t in names and t not in have]
     tmeans = procedural_means(a.bin, [t for t, _ in tiles if t not in KEEP_COLOUR])
     for t, src in tiles:
         if os.path.exists(src) and (t in tmeans or t in KEEP_COLOUR):
-            im = Image.open(src).convert('RGBA') if t in KEEP_COLOUR else recolour(src, tmeans[t])
+            im = Image.open(src).convert('RGBA') if t in KEEP_COLOUR else recolour(src, tmeans[t] * TILE_TONE.get(t, 1.0))
             im.save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     for t, b, k in TONED:   # same material, lighter or darker (dry farmland from the moist one)
