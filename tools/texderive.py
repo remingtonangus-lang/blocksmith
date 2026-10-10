@@ -21,7 +21,8 @@ COLOURS = ('white orange magenta light_blue yellow lime pink gray light_gray cya
            'black').split()
 MUTE = 0.7    # keep 70% of the procedural colour saturation: dyes sit with the natural palette
 TONED = [('farmland', 'farmland_moist', 1.45), ('redstone_lamp', 'redstone_lamp_on', 0.45), ('furnace_side', 'furnace_body', 1.0), ('furnace_plate', 'furnace_body', 0.92),
-         ('furnace_top', 'furnace_body', 0.92), ('cactus_bottom', 'cactus_top', 0.85)]
+         ('furnace_top', 'furnace_body', 0.92), ('cactus_bottom', 'cactus_top', 0.85),
+         ('target_top', 'target_side', 1.0), ('smoker_top', 'furnace_top', 0.9), ('blast_furnace_top', 'furnace_top', 0.8)]
 # same material family, other wood/stone: base's surface detail in the target's procedural colour
 RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), ('pale_oak_planks', 'birch_planks'),
              ('crimson_stem', 'oak_log'), ('warped_stem', 'oak_log'), ('pale_oak_log', 'birch_log'),
@@ -32,7 +33,22 @@ RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), 
              ('chiseled_polished_blackstone', 'chiseled_stone_bricks'),
              ('cracked_polished_blackstone_bricks', 'cracked_stone_bricks'), ('prismarine_bricks', 'stone_bricks'),
              ('crimson_nylium', 'mycelium_top'), ('warped_nylium', 'mycelium_top'), ('pale_moss_block', 'moss_block'),
-             ('sandstone_bottom', 'sandstone_top'), ('warped_wart_block', 'nether_wart_block'), ('wet_sponge', 'sponge'), ('suspicious_sand', 'sand'), ('suspicious_gravel', 'gravel')]
+             ('sandstone_bottom', 'sandstone_top'),
+             # final fill (2026-10-10): remaining same-material blocks from the imported set
+             ('weathered_copper', 'copper_block'), ('oxidized_copper', 'copper_block'), ('mushroom_block_inside', 'mushroom_stem'),
+             ('resin_bricks', 'stone_bricks'),
+             ('chiseled_resin_bricks', 'chiseled_stone_bricks'), ('chiseled_tuff_bricks', 'chiseled_stone_bricks'),
+             ('reinforced_deepslate', 'polished_deepslate'), ('slime_block', 'honey_block'), ('resin_block', 'honey_block'),
+             ('piston_top_sticky', 'piston_top'), ('stripped_bamboo_block', 'bamboo_block'),
+             ('bamboo_planks', 'oak_planks'), ('bamboo_mosaic', 'oak_planks'), ('crimson_stem_top', 'oak_log_top'),
+             ('warped_stem_top', 'oak_log_top'), ('stripped_crimson_log_top', 'oak_log_top'),
+             ('stripped_warped_log_top', 'oak_log_top'), ('stripped_pale_oak_log_top', 'birch_log_top'),
+             ('dispenser_front_vertical', 'dispenser_front'), ('dropper_front', 'dispenser_front'),
+             ('dropper_front_vertical', 'dispenser_front'), ('tube_coral_block', 'sponge'), ('brain_coral_block', 'sponge'),
+             ('bubble_coral_block', 'sponge'), ('horn_coral_block', 'sponge'), ('ochre_froglight_side', 'shroomlight'),
+             ('ochre_froglight_top', 'shroomlight'), ('verdant_froglight_side', 'shroomlight'),
+             ('verdant_froglight_top', 'shroomlight'), ('pearlescent_froglight_side', 'shroomlight'),
+             ('pearlescent_froglight_top', 'shroomlight'), ('warped_wart_block', 'nether_wart_block'), ('wet_sponge', 'sponge'), ('suspicious_sand', 'sand'), ('suspicious_gravel', 'gravel')]
 # original Blocksmith blocks: a material swatch (assets/gemini/tiles, sheet s15) in the block's own procedural colour
 TILES = [('capital_stone', 'limestone_blocks'), ('capital_panel', 'white_panel'), ('capital_paving', 'paving'),
          ('capital_plate', 'riveted_plate'), ('capital_trim', 'trim_band'), ('capital_stone_trim', 'trim_band'),
@@ -144,7 +160,7 @@ def main():
             im.save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     for t, b, k in TONED:   # same material, lighter or darker (dry farmland from the moist one)
-        if t in names and t not in have and b in have:
+        if t in names and t not in have and (b in have or b in derived):
             im = np.asarray(Image.open(os.path.join(a.out, b + '.png')).convert('RGBA'), dtype=np.float32) / 255
             im[..., :3] = np.clip(im[..., :3] * k, 0, 1)
             Image.fromarray((im * 255 + 0.5).astype(np.uint8)).save(os.path.join(a.out, t + '.png'))
@@ -158,6 +174,11 @@ def main():
             im[..., :3] = im[..., :3] * (1 - fire[..., None]) + dark * fire[..., None]
             Image.fromarray((im * 255 + 0.5).astype(np.uint8)).save(os.path.join(a.out, t + '.png'))
             derived.add(t)
+    have |= derived
+    for n in sorted(names):   # sideways copies of layers derived above (stripped nether stems, bamboo)
+        if n.endswith('@r') and n not in have and n[:-2] in have:
+            Image.open(os.path.join(a.out, n[:-2] + '.png')).rotate(-90).save(os.path.join(a.out, n + '.png'))
+            derived.add(n)
     open(log, "w").write('\n'.join(sorted(derived)) + '\n')
     print(f'texderive: {len(derived)} layers derived ({sum(1 for d in derived if d.endswith("@r"))} rotated)')
 

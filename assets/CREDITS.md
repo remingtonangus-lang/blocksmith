@@ -56,3 +56,9 @@ Same style, source and prompt pattern (Gemini Pro on gemini.google.com, Remingto
 - assets/gemini/sheets/s20_ores4.jpg (re-roll after the independent style review): natural coal, emerald and deepslate
   lapis/emerald/coal grains composited onto the shared stone, and all eight plank woods. The first s20 attempt came back
   as pixel art and was discarded. Emberslate muted toward dark stone with faint ember cracks.
+
+## Block textures, final fill (2026-10-10)
+No new sheets: tools/texderive.py carries the imported detail to 41 more layers (weathered/oxidized copper, coral
+blocks from sponge, froglights from shroomlight, nether stem and stripped log ends, resin and chiseled tuff bricks,
+reinforced deepslate, slime, bamboo planks/mosaic, dropper fronts, smoker/blast furnace/target tops, sideways stripped
+stems). What stays procedural is listed in docs/status/art-style-remaining.md.

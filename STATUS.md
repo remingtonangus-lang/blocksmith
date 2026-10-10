@@ -36,6 +36,12 @@
 > Checks: TownTests in questcheck and `--towntests`; questsim `_shop.png`; `--golden` town shots. Details and
 > pre-mortem: docs/status/towns.md; renames: docs/status/ip-renames.md.
 
+> **Art style 3 "stylised realism" applied (2026-10-10, task 25b4, quest-port):** 865 of 1712 texture layers (all
+> common terrain, ores incl. natural copper/iron/titanium/gold, woods, plants, workshop blocks, original Blocksmith
+> blocks, all but 12 item icons) from 41 Gemini sheets + tools/texderive.py / iconderive.py families; Quest pack
+> Resources/texpack.bin (64 px). Still procedural (UI glyphs, banners, paintings, crops, doors/trapdoors, rails, mob
+> heads, some rare blocks): docs/status/art-style-remaining.md. Sources: assets/CREDITS.md.
+
 > **Quality infrastructure (2026-10-09, task 25b1zx, quest-port + playtest):** work is now judged by
 > docs/STORE_QUALITY.md and measured in docs/status/scorecard.md (every objective RED/AMBER/GREEN with evidence in
 > docs/status/evidence/2026-10-09). Tools (local, no new CI jobs): `tools/bench_routes.sh` (6 routes, p50/p99/hitches/
