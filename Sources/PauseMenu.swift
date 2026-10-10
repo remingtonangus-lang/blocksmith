@@ -56,6 +56,11 @@ final class PauseMenu: Menu {
 
     var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
 
+    // The player's choice; while Auto Render Distance holds the world below it, the current distance too.
+    static func rdLabel(_ g: Game) -> String {
+        let c = g.chosenRenderDistance, w = g.world.renderDistance
+        return w < c ? "Render Distance: \(c) (auto \(w) now)" : "Render Distance: \(c)"
+    }
     static func brightnessName(_ b: Float) -> String {
         b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
     }
@@ -184,7 +189,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -224,7 +229,7 @@ final class PauseMenu: Menu {
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
-                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
+                rows = [(PauseMenu.rdLabel(g), "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
                         ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
@@ -541,16 +546,12 @@ final class PauseMenu: Menu {
         case "glyphs": st.glyphStyle = step([0, 1, 2], st.glyphStyle)
         case "rd":
             let opts = [2, 4, 6, 8, 10, 12, 16, 20, 24]
-            let cur = g.world.renderDistance
-            // A distance the comfort guard stepped down to (not an option) moves to the next option up or down from
-            // it, not round to the first one (playtest Oct 9: 9 -> 4).
-            if !opts.contains(cur) {
-                g.world.renderDistance = back ? (opts.last { $0 < cur } ?? opts[opts.count - 1]) : (opts.first { $0 > cur } ?? opts[0])
-            } else {
-                g.world.renderDistance = step(opts, cur)
-            }
-            g.onRenderDistanceChanged?(g.world.renderDistance)
-            UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
+            // Steps from the player's choice (Auto Render Distance may have the world below it for now). A distance
+            // that is not an option (an old save) moves to the next option up or down from it (playtest Oct 9: 9 -> 4).
+            let cur = g.chosenRenderDistance
+            let rd = opts.contains(cur) ? step(opts, cur) : (back ? (opts.last { $0 < cur } ?? opts[opts.count - 1]) : (opts.first { $0 > cur } ?? opts[0]))
+            g.setRenderDistance(rd)
+            UserDefaults.standard.set(rd, forKey: "renderDistance")
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()

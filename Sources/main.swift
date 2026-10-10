@@ -1129,6 +1129,10 @@ enum Snapshot {
         if CommandLine.arguments.contains("--structscan") { return Int32(StructScan.run(seeds: Int(arg("--structscan") ?? "") ?? 24)) }
         if CommandLine.arguments.contains("--smoothtest") { return SmoothTests.run(game) > 0 ? 1 : 0 }   // smooth terrain prototype
         if CommandLine.arguments.contains("--questbugs") { return QuestBugTests.run(game) > 0 ? 1 : 0 }   // task 20 checks
+        // Auto Render Distance (RenderDistanceGovernor.swift): synthetic frame-time traces + the save keeping the choice.
+        if CommandLine.arguments.contains("--rdgovernortest") {
+            return RenderDistanceGovernorTest.run() + RenderDistanceGovernorTest.gameChecks(game) > 0 ? 1 : 0
+        }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false

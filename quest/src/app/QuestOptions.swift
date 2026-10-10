@@ -43,7 +43,7 @@ enum QuestOptions {
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
-            "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
+            "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
