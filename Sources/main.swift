@@ -1738,6 +1738,13 @@ if CommandLine.arguments.contains("--gencheck") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
     exit(GenCheck.run(device: device))
 }
+if CommandLine.arguments.contains("--borealtest") {
+    guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
+    var failed = 0
+    BorealTests.run(device: device) { ok, what in print((ok ? "ok   " : "FAIL ") + what); if !ok { failed += 1 } }
+    print(failed == 0 ? "borealtest: all checks passed" : "borealtest: \(failed) FAILED")
+    exit(failed == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--structcheck") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
     exit(StructCheck.run(device: device))

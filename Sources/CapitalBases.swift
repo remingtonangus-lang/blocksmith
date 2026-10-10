@@ -119,6 +119,7 @@ final class BaseWatch {
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
     func inAnyBase(_ p: V3) -> Bool { records.values.contains { $0.inside(p) } }
     static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
+    let boreal = BorealAlarmState()                   // Boreal Station alarms (BorealAlarm.swift)
 
     // One watch per Game (the harness and the app each make one game).
     private static var current: (ObjectIdentifier, BaseWatch)?
@@ -175,6 +176,7 @@ extension Game {
             b.noises.removeAll(keepingCapacity: true)
         }
         guard world.dim == .overworld, let sc = world.gen.structures else { return }
+        borealAlarmTick(b, step)
         // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.
         for i in 0..<max(1, coop.seatCount) {
             let pp = coop.seatPlayer(i, self).pos

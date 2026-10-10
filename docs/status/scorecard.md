@@ -117,3 +117,5 @@ See docs/status/store-readiness.md (audit round 1). Not re-measured here.
 - 2026-10-09 (task 25b1z): tools built, everything measured once. Reddest: performance hitches (Quest proxy ashvault
   12/min), style (all shots), music loudness and SFX peaks, structure overlaps near military bases, UI hint overflow,
   plus the unmeasured soak/save/comfort/balance rows.
+- 2026-10-09 (task 4, Boreal Station): new snowbound bunker structure with BorealTests in questcheck (walk route, light,
+  snow, doors, garrison) and 5 golden shots; verifier pass, findings fixed (docs/status/boreal-station.md).

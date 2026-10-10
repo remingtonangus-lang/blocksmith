@@ -18,7 +18,7 @@ let SoundMats: [SoundMat] = {
         var m = Blocks.def(id).sound
         if k.hasSuffix("_wool") || k.hasSuffix("_carpet") || k == "honeycomb_block" || k.hasSuffix("_bed") { m = .wool }
         else if k == "gravel" || k == "suspicious_gravel" { m = .gravel }
-        else if (k.contains("copper") && !k.hasSuffix("_ore")) || metalKeys.contains(k) || k.hasSuffix("anvil") || k.hasSuffix("lantern") || k.hasSuffix("lightning_rod") || k.hasSuffix("_rail") || k.hasPrefix("raw_") { m = .metal }
+        else if (k.contains("copper") && !k.hasSuffix("_ore")) || metalKeys.contains(k) || k.hasSuffix("anvil") || k.hasSuffix("lantern") || k.hasSuffix("lightning_rod") || k.hasSuffix("_rail") || k.hasPrefix("raw_") || k.hasPrefix("bulkhead") { m = .metal }
         else if k == "bone_block" { m = .bone }
         else if k.contains("amethyst") { m = .amethyst }
         else if k == "slime_block" || k == "honey_block" { m = .slime }
@@ -40,7 +40,7 @@ func soundMat(_ id: BlockID) -> SoundMat { Int(id) < SoundMats.count ? SoundMats
 extension Game {
     // Doors, trapdoors and fence gates (player use or a circuit).
     func audioOpenable(shape: String, base: BlockID, opening: Bool, at p: IVec3) {
-        audioOpenable(shape: shape, iron: Blocks.key(base).hasPrefix("iron"), opening: opening, at: p)
+        audioOpenable(shape: shape, iron: Blocks.key(base).hasPrefix("iron") || Blocks.key(base).hasPrefix("bulkhead"), opening: opening, at: p)
     }
     func audioOpenable(shape: String, iron: Bool, opening: Bool, at p: IVec3) {
         let s: Snd

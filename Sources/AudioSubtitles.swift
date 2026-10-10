@@ -193,6 +193,7 @@ extension Snd {
         case .waterLoop: return "Water flows"
         case .portalLoop: return "Portal whooshes"
         case .beaconLoop: return "Beacon hums"
+        case .stationHumLoop: return "Machinery hums"
         case .minecartLoop: return "Minecart rolls"
         case .elytraLoop: return "Wind rushes"
         case .underwaterLoop: return nil
