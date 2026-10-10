@@ -58,7 +58,7 @@ enum TownLaw {
 
     static func reset() {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
-        Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0
+        Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         offences = 0; lastTick = -1
     }
     // Keeps the newest `n` remembered blocks that are still the player's.

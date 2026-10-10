@@ -235,6 +235,26 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                         shots.append(("town_shop", eye - V3(0, game.player.eyeHeight, 0), 0.26, atan2f(-f.x, -f.z), asinf(f.y), false))
                     } else { print("golden: no clear view of the general store (town_shop skipped)") }
                 }
+                // The sheriff's office and its boardwalk (FrontierTown.swift), from across the street the sign faces.
+                let signBase = Blocks.has("spruce_sign") ? Int(Blocks.id("spruce_sign")) : Int(Blocks.id("oak_sign"))
+                if let (sp, _) = world.blockEntities.first(where: { $0.1.kind == .sign && $0.1.lines.contains("Sheriff")
+                       && abs($0.0.x - s.anchor.x) < 90 && abs($0.0.z - s.anchor.z) < 90 }) {
+                    let face = Int(world.block(sp.x, sp.y, sp.z)) - signBase - 4
+                    let card = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)][max(0, min(3, face))]
+                    let side = V3(-card.z, 0, card.x)
+                    let target = V3(Float(sp.x) + 0.5, Float(sp.y) - 0.5, Float(sp.z) + 0.5)
+                    let solid = { (q: V3) -> Bool in Blocks.opaque[Int(world.block(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z))))] }
+                    var pick: V3?
+                    search: for out in [8, 6, 10, 5] as [Float] { for sd in [4, -4, 0, 7, -7] as [Float] { for up in [2, 4, 1, 6] as [Float] {
+                        let eye = target + card * out + side * sd + V3(0, up, 0)
+                        let n = Int(simd_length(target - eye) * 4)
+                        if (0..<(n - 2)).allSatisfy({ !solid(eye + (target - eye) * (Float($0) / Float(n))) }) { pick = eye; break search }
+                    } } }
+                    if let eye = pick {
+                        let f = simd_normalize(target - eye)
+                        shots.append(("town_office", eye - V3(0, game.player.eyeHeight, 0), 0.26, atan2f(-f.x, -f.z), asinf(f.y), false))
+                    } else { print("golden: no clear view of the sheriff's office (town_office skipped)") }
+                } else { print("golden: no sheriff's office in the town (town_office skipped)") }
                 world.pendingMobs.removeAll()
             }
             // Boreal Station: the nearest one (BorealStation.views: yard from the air, the gate, a corridor, the hall, the stairs).

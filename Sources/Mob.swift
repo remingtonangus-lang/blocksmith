@@ -406,6 +406,7 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var playerHurtAt: Double = -1e9 // game clock the player last hurt it (Honour: a murder needs a hit within 10 s)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -431,6 +432,7 @@ final class Mob {
     // Anger this mob and every undead boarling nearby at the player.
     func provoke(_ g: Game) {
         aggro = true
+        playerHurtAt = g.clock
         g.petsAttack(self)
         // Hitting a townsperson who is already fighting you (self-defence) doesn't cost more standing or raise a new alarm.
         if kind == .villager, town.anger <= 0, var v = villager { v.addGossip(.minorNeg, 25); villager = v; g.townAlarm(self) }

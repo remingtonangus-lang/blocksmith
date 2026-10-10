@@ -110,8 +110,14 @@ enum Honour {
         TownLaw.state.hostile[town] = nil
         TownLaw.state.heat[town] = nil
         TownLaw.pending.removeAll { TownLaw.town(of: $0.0, g) == town }
+        // Paid in full: the town lets the old grudges go (their bad gossip would set the armed back on you, and keep
+        // the counters shut below -100, the moment you stood near them).
         for o in g.mobs.mobs where TownLaw.isTownsperson(o) && TownLaw.town(of: o, g) == town {
             o.town.anger = 0; o.panic = 0
+            if var v = o.villager, var gs = v.gossip {
+                gs[Gossip.majorNeg.rawValue] = 0; gs[Gossip.minorNeg.rawValue] = 0
+                v.gossip = gs; o.villager = v
+            }
         }
         challengedVisit = town
         Townsfolk.townLastLine = -100
@@ -137,6 +143,11 @@ enum Honour {
     static func mobDied(_ g: Game, _ m: Mob) {
         guard m.killedByPlayer, g.survival, g.dim.dim == .overworld else { return }
         if m.kind == .villager, m.villager?.person != nil {
+            // Only a killing the player did (hurt within 10 s: killedByPlayer is never cleared, so a punch long ago
+            // or a rocket that missed doesn't make a later death to a zombie murder) and only in a real town (a
+            // villager at your own base has a made-up town with no law to pay).
+            guard g.clock - m.playerHurtAt < 10,
+                  TownLaw.isTownSpot(g, IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))) else { return }
             let role = m.villager?.role ?? ""
             let town = TownLaw.town(of: m, g)
             let (loss, cents) = role == "sheriff" ? (Float(25), 2500) : role == "deputy" ? (20, 2000) : (m.baby ? 25 : 15, 1500)

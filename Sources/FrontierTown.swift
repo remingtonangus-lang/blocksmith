@@ -32,8 +32,18 @@ extension Village {
         for u in -1...l.w {
             let (x, z) = world(l, u, -1)
             // Only on ground (a lower street beside a sloping lot keeps its path; no plank hangs over it).
-            if w.inside(x, l.y - 1, z), Blocks.collide[Int(w.get(x, l.y - 2, z))] { w.set(x, l.y - 1, z, m.planks) }
-            for dy in 0..<(wallH - 1) { b.set(&w, u, dy, -1, u == -1 || u == l.w ? m.fence : AIR) }
+            guard w.inside(x, l.y - 1, z) else { continue }
+            let ground = Blocks.collide[Int(w.get(x, l.y - 2, z))]
+            if ground { w.set(x, l.y - 1, z, m.planks) }
+            // Clear lamp posts and plants under the awning, never a higher street's own path (no notch in it).
+            for dy in 0..<(wallH - 1) {
+                let cur = w.get(x, l.y + dy, z), k = Blocks.key(Blocks.groupBase[Int(cur)])
+                if !Blocks.collide[Int(cur)] || k.contains("fence") || k.contains("lantern") { w.set(x, l.y + dy, z, AIR) }
+            }
+            // The awning's two posts stand only on ground (no post hangs over a lower street).
+            if (u == -1 || u == l.w) && ground && !Blocks.collide[Int(w.get(x, l.y, z))] {
+                for dy in 0..<(wallH - 1) { w.set(x, l.y + dy, z, m.fence) }
+            }
             b.set(&w, u, wallH - 1, -1, m.slab)
         }
     }
@@ -59,7 +69,7 @@ extension Village {
         b.set(&w, 1, 1, 1, blk("lantern", AIR))
         let cellV = l.d - 3
         if cellV > 2 { b.set(&w, 1, 0, 2, b.stair(m.stairs, high: 0)) }
-        b.set(&w, l.w - 2, 0, 1, blk("bookshelf", m.planks))
+        if du > 2 { b.set(&w, l.w - 2, 0, 1, blk("bookshelf", m.planks)) }   // (a small office keeps the way to its cell clear)
         // The jail cell across the back: iron bars with the cell door left open, a hay bunk, a bucket.
         let bars = blk("iron_bars", m.fence)
         for u in 1...(l.w - 2) where u != l.w - 2 { for dy in 0...2 { b.set(&w, u, dy, cellV, bars) } }

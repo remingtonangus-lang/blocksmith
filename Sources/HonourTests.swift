@@ -83,10 +83,21 @@ extension TownTests {
         let h0 = Honour.value, b0 = Honour.bounty(town)
         let victim = townPerson(g, base + V3(2, 0, 2))
         if var v = victim.villager { v.town = town; victim.villager = v }
-        victim.killedByPlayer = true
+        victim.killedByPlayer = true; victim.playerHurtAt = g.clock
         g.mobDied(victim)
         check(Honour.value == max(-100, h0 - 15) && Honour.bounty(town) == b0 + 1500,
               "honour: murder costs 15 and adds $15 (honour \(Honour.value), bounty \(Money.format(Honour.bounty(town))))")
+        // A villager the player hurt a minute ago, dying now to something else, isn't murder; nor is a villager
+        // killed away from any town (at the player's base: no law there to pay).
+        let h1 = Honour.value, b1 = Honour.bounty(town)
+        let stale = townPerson(g, base + V3(2, 0, -2)); stale.killedByPlayer = true; stale.playerHurtAt = g.clock - 60
+        g.mobDied(stale)
+        TownLaw.forceTown = false
+        let away = townPerson(g, base + V3(-2, 0, 2)); away.killedByPlayer = true; away.playerHurtAt = g.clock
+        g.mobDied(away)
+        TownLaw.forceTown = true
+        check(Honour.value == h1 && Honour.bounty(town) == b1 && Honour.bounty(TownLaw.town(of: away, g)) == (TownLaw.town(of: away, g) == town ? b1 : 0),
+              "honour: an old hit or a villager killed outside any town isn't murder")
         // Creative: nothing changes.
         g.survival = false
         let hc = Honour.value
@@ -146,6 +157,8 @@ extension TownTests {
         let town = TownLaw.town(of: keeper, g)
         if var v = sheriff.villager { v.town = town; sheriff.villager = v }
         g.mobs.mobs = [keeper, sheriff]
+        // Grudges: the sheriff saw a murder (reputation -250, which alone sets him on you within 10 blocks).
+        if var v = sheriff.villager { v.addGossip(.majorNeg, 50); sheriff.villager = v }
         Honour.addBounty(g, town, 2000)
         TownLaw.state.hostile[town] = 60
         _ = g.talkToTownsperson(keeper)
@@ -159,6 +172,10 @@ extension TownTests {
         _ = g.talkToTownsperson(sheriff)
         check(Honour.bounty(town) == 0 && g.money == 600 && !TownLaw.isHostile(town) && Honour.value == h0 + 3 && sheriff.town.anger <= 0,
               "bounty: paying the sheriff $20.00 clears it, ends the hostility and earns 3 honour (wallet \(Money.format(g.money)))")
+        sheriff.town.think = 0
+        _ = sheriff.townDefend(0.6, g)
+        check(sheriff.town.anger <= 0 && (sheriff.villager?.reputation ?? -1) >= 0,
+              "bounty: once paid, the sheriff lets the old grudge go (reputation \(sheriff.villager?.reputation ?? 0), anger \(sheriff.town.anger))")
         if g.menu != nil { g.closeMenu() }
         g.time = 2.4 * DAY_LENGTH                    // shop hours
         _ = g.talkToTownsperson(keeper)
@@ -219,9 +236,9 @@ extension TownTests {
         for _ in 0..<n where Honour.rollRevolver(Rand.float(in: 0..<1)) { hits += 1 }
         let rate = Float(hits) / Float(n)
         check(abs(Honour.revolverChance - 0.05) < 1e-6 && rate > 0.04 && rate < 0.06, String(format: "revolver: a killed sheriff drops it %.2f%% of the time (20,000 rolls)", rate * 100))
-        TownLaw.reset(); g.survival = true
+        TownLaw.reset(); TownLaw.forceTown = true; g.survival = true
         let s = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff")
-        s.killedByPlayer = true
+        s.killedByPlayer = true; s.playerHurtAt = g.clock
         g.drops.items = []
         Honour.revolverChance = 1
         g.mobDied(s)
@@ -230,7 +247,7 @@ extension TownTests {
         check(gun?.stack.tag == 6 && (ammo?.stack.count ?? 0) >= 3, "revolver: a forced drop comes loaded (\(gun?.stack.tag ?? -1)) with \(ammo?.stack.count ?? 0) cartridges")
         Honour.revolverChance = 0
         g.drops.items = []
-        let s2 = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff"); s2.killedByPlayer = true
+        let s2 = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff"); s2.killedByPlayer = true; s2.playerHurtAt = g.clock
         g.mobDied(s2)
         check(!g.drops.items.contains { $0.stack.item == id } && g.drops.items.contains { Items.key($0.stack.item) == "rifle_rounds" },
               "revolver: otherwise just cartridges")
@@ -264,7 +281,7 @@ extension TownTests {
                 }
             }
         }
-        check(visited >= 2 && offices >= visited - 1 && cells == offices && wanted == offices,
+        check(visited >= 2 && offices == visited && cells == offices && wanted == offices,
               "frontier: \(visited) towns, \(offices) sheriff's offices, \(cells) with a jail cell, \(wanted) WANTED boards")
         check(fronts > 0 && Float(walks) >= Float(fronts) * 0.75, "frontier: \(walks)/\(fronts) shop fronts have a plank boardwalk")
         // A town on ground a save already generated keeps its old lots.
