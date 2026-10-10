@@ -62,3 +62,34 @@ No new sheets: tools/texderive.py carries the imported detail to 41 more layers 
 blocks from sponge, froglights from shroomlight, nether stem and stripped log ends, resin and chiseled tuff bricks,
 reinforced deepslate, slime, bamboo planks/mosaic, dropper fronts, smoker/blast furnace/target tops, sideways stripped
 stems). What stays procedural is listed in docs/status/art-style-remaining.md.
+
+## Grass block and firefly bush (2026-10-10, Quest playtest: "grass sucks", "the little bushes ... not detailed enough")
+Generated with Google Gemini 3 Pro Image (`google/gemini-3-pro-image-preview`) through OpenRouter (Remington's account,
+about $0.14 per image, 7 images, 3 kept), 2026-10-10. Checked by eye against style 3 and in the game (Mac snapshots,
+docs/status/texture-sharpness.md). All original Blocksmith art.
+- assets/gemini/sheets/s21_grass_top.jpg -> grass_block_top: "A seamless tileable square texture of grass-covered
+  ground seen from directly above, for a voxel survival game in a STYLISED REALISM style (real-world materials,
+  simplified, subtle surface detail, natural muted colours, soft hand-painted look, NOT pixel art, NOT cartoon). Dense
+  short lawn grass: very many thin fine blades evenly spread over the whole tile, pointing in all directions as seen
+  from above, small gentle light and dark variation between tiny clumps, a few slightly yellower blade tips. No large
+  tufts, no flowers, no stones, no bare soil, no cast shadows, flat even light, uniform density everywhere so the tile
+  repeats without any visible feature. SQUARE 1:1 image, the texture fills the entire image edge to edge, no border,
+  no frame, no text." `tools/teximport.py assets/gemini/sheets/s21_grass_top.jpg grass_block_top --mode tint
+  --flatten 0.95 --tintmean 0.6` (the image repeats 2x2 inside itself: one quadrant used). Replaces the s12 grass
+  with big tufts that formed a grid block after block.
+- assets/gemini/sheets/s22_grass_side.jpg -> grass_block_side: "A seamless horizontally tileable square texture of
+  the SIDE of a grass-topped soil block, [same style text]. The top fifth is a fringe of short dense green grass
+  blades hanging slightly over the edge with an irregular jagged lower edge of blade tips; below it rich brown soil
+  with small pebbles and roots, matte. Flat orthographic, even light, no cast shadows. SQUARE 1:1 image filling edge
+  to edge, no border, no text." `tools/teximport.py assets/gemini/sheets/s22_grass_side.jpg grass_block_side --mode
+  side --flatten 0 --soil Resources/Textures/dirt.png`: only the fringe is kept (tinted overlay); the soil is the
+  dirt block's own, shaded under the fringe. Fixes the old side's stray grass patches mid-face.
+- assets/gemini/plants/p03_firefly_bush.jpg -> firefly_bush (128 px): "A game sprite of a single small low round
+  leafy shrub, painted in a stylised realism style (natural muted colours, soft hand-painted look, organic shapes, NOT
+  pixel art, NOT cartoon, NOT made of cubes or blocks): dense small dark-green leaves with visible leaf shapes and a
+  few thin brown twigs at the base, and about eight tiny glowing warm-yellow fireflies (small bright dots with a soft
+  glow) hovering among and just above the top leaves. Side view, centred, the shrub filling about 80% of the width,
+  its base touching the bottom edge. On a perfectly flat solid magenta background (#FF00FF), no ground, no shadow, no
+  text. SQUARE 1:1 image." `tools/iconslice.py --spec docs/textures/plants.json --only p03` ("glow" cell: the pink
+  halo texels left by the key become warm light). Rejected: one grass top (washed out), two bushes (made of cubes;
+  pink glow halos).

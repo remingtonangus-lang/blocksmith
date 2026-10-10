@@ -17,6 +17,10 @@ Steps (each logged in the report):
      edges are cross-faded with a half-offset copy and re-checked;
   7. mode: tint = greyscale for biome tinting (grass top, leaves), mean grey 0.72 like the procedural set;
      overlay = grass side, green texels become grey with alpha 0.9 (the tinted overlay) and the rest stays;
+     side = a grass-block side painted whole (fringe on top, soil below; use --flatten 0): tiles horizontally only
+     (no 2x2 crop, horizontal seam cross-fade), and the green fringe in the top 45% becomes the tinted overlay;
+     --soil PNG puts that texture (the dirt block) under the fringe, shaded for 4 texels below it, so the side's soil
+     is exactly the dirt block's;
      cutout = a magenta (#ff00ff) background becomes transparent (leaves, plants).
 The result goes to OUT/NAME.png; build.sh bundles Resources/Textures into the app, and a file there replaces the
 procedural material for that texture (Sources/TextureImport.swift). Trials go to another --out and are compared in
@@ -80,29 +84,32 @@ def flatten(img, strength):
     return out
 
 
-def resize_wrap(img, size):
-    s = img.shape[0]
-    t = np.tile(img, (3, 3, 1))
+def resize_wrap(img, size, wrap_y=True):
+    t = np.tile(img, (3 if wrap_y else 1, 3, 1))
     im = Image.fromarray((np.clip(t, 0, 1) * 255).astype(np.uint8), 'RGBA')
-    im = im.resize((size * 3, size * 3), Image.LANCZOS, reducing_gap=3.0)
+    im = im.resize((size * 3, size * 3 if wrap_y else size), Image.LANCZOS, reducing_gap=3.0)
     a = np.asarray(im).astype(np.float32) / 255
-    return a[size:size * 2, size:size * 2]
+    return a[size:size * 2, size:size * 2] if wrap_y else a[:, size:size * 2]
 
 
-def seam_ratio(img):
+def seam_ratio(img, wrap_y=True):
     """Jump across the wrap edges / typical jump between neighbouring columns and rows."""
     L = lum(img[..., :3])
+    if not wrap_y:
+        return float(np.mean(np.abs(L[:, 0] - L[:, -1])) / (np.mean(np.abs(np.diff(L, axis=1))) + 1e-6))
     inner = (np.mean(np.abs(np.diff(L, axis=1))) + np.mean(np.abs(np.diff(L, axis=0)))) / 2 + 1e-6
     edge = (np.mean(np.abs(L[:, 0] - L[:, -1])) + np.mean(np.abs(L[0, :] - L[-1, :]))) / 2
     return float(edge / inner)
 
 
-def fix_seams(img):
+def fix_seams(img, wrap_y=True):
     """Cross-fade with a half-offset copy near the edges (the offset copy is seamless at the original edges)."""
     n = img.shape[0]
-    off = np.roll(np.roll(img, n // 2, 0), n // 2, 1)
     d = np.minimum(np.arange(n), n - 1 - np.arange(n)) / (n * 0.18)
     w1 = np.clip(d, 0, 1)
+    if not wrap_y:                                   # left/right edges only (block sides)
+        return img * w1[None, :, None] + np.roll(img, n // 2, 1) * (1 - w1[None, :, None])
+    off = np.roll(np.roll(img, n // 2, 0), n // 2, 1)
     w = np.minimum(w1[:, None], w1[None, :])[..., None]
     return img * w + off * (1 - w)
 
@@ -112,11 +119,12 @@ def hexrgb(h):
     return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], np.float32) / 255
 
 
-def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, quiet=False, tintmean=0.72):
+def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, quiet=False, tintmean=0.72, soil=None):
     notes = []
     img = load(src)
     notes.append(f'source {img.shape[0]} px')
-    r, rd = repeat_check(img)
+    side = mode == 'side'
+    r, rd = repeat_check(img) if not side else (1.0, 1.0)
     if r < 0.35:
         img = img[:img.shape[0] // 2, :img.shape[0] // 2]
         notes.append(f'internal 2x2 repeat (self-difference at half shift {r:.2f} of normal): cropped one quadrant')
@@ -133,14 +141,14 @@ def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, qu
         m = img[..., :3][img[..., 3] > 0.5].mean(0)
         img[..., :3] = np.clip(img[..., :3] * (hexrgb(mean) / np.maximum(m, 1e-3)), 0, 1)
         notes.append(f'colour locked to mean {mean}')
-    img = resize_wrap(img, size)
+    img = resize_wrap(img, size, wrap_y=not side)
     if mode in ('cutout', 'cutout_tint'):
         img[..., 3] = (img[..., 3] > 0.5).astype(np.float32)
-    sr = seam_ratio(img)
+    sr = seam_ratio(img, wrap_y=not side)
     notes.append(f'seam ratio {sr:.2f}')
     if sr > 1.6:
-        img = fix_seams(img)
-        sr2 = seam_ratio(img)
+        img = fix_seams(img, wrap_y=not side)
+        sr2 = seam_ratio(img, wrap_y=not side)
         notes.append(f'seams cross-faded: ratio {sr2:.2f}')
         sr = sr2
     if mode == 'tint' or mode == 'cutout_tint':
@@ -148,13 +156,25 @@ def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, qu
         L = L * (tintmean / max(L[img[..., 3] > 0.5].mean(), 1e-3))
         img[..., :3] = np.clip(L, 0, 1)[..., None]
         notes.append(f'greyscale for biome tint (mean {tintmean})')
-    if mode == 'overlay':
+    if mode in ('overlay', 'side'):
         rgb = img[..., :3]
-        green = (rgb[..., 1] > rgb[..., 0] * 1.08) & (rgb[..., 1] > rgb[..., 2] * 1.08)
+        green = (rgb[..., 1] > rgb[..., 0] * (1.02 if side else 1.08)) & (rgb[..., 1] > rgb[..., 2] * 1.08)
+        if side:
+            green &= (np.arange(img.shape[0]) < img.shape[0] * 0.45)[:, None]
         L = lum(rgb)
         g = np.clip(L * (0.72 / max(L[green].mean() if green.any() else 0.72, 1e-3)), 0, 1)
         img[..., :3] = np.where(green[..., None], g[..., None], rgb)
         img[..., 3] = np.where(green, 0.9, 1.0)
+        if side and soil:
+            n = img.shape[0]
+            d = np.asarray(Image.open(soil).convert('RGBA').resize((n, n), Image.LANCZOS)).astype(np.float32) / 255
+            edge = np.where(green.any(0), n - 1 - np.argmax(green[::-1], 0), -1)     # lowest fringe row per column
+            below = np.arange(n)[:, None] - edge[None, :]
+            shade = np.where((below >= 1) & (below <= 4), 0.7 + 0.075 * (below - 1), 1.0)
+            d[..., :3] *= shade[..., None]
+            d[..., 3] = 1.0
+            img = np.where(green[..., None], img, d)
+            notes.append(f'soil from {os.path.basename(soil)} under the fringe')
         notes.append(f'grass overlay: {green.mean() * 100:.0f}% of texels tinted (alpha 0.9)')
     os.makedirs(out, exist_ok=True)
     dst = os.path.join(out, name + '.png')
@@ -170,12 +190,13 @@ def main():
     ap.add_argument('--out', default='Resources/Textures')
     ap.add_argument('--size', type=int, default=128)
     ap.add_argument('--tintmean', type=float, default=0.72, help='grey level of tint/cutout_tint layers')
-    ap.add_argument('--mode', default='plain', choices=['plain', 'tint', 'overlay', 'cutout', 'cutout_tint'])
+    ap.add_argument('--mode', default='plain', choices=['plain', 'tint', 'overlay', 'side', 'cutout', 'cutout_tint'])
     ap.add_argument('--flatten', type=float, default=0.85)
     ap.add_argument('--mean')
     ap.add_argument('--report')
+    ap.add_argument('--soil', help="side mode: texture under the grass fringe (e.g. Resources/Textures/dirt.png)")
     a = ap.parse_args()
-    dst, notes, sr = process(a.src, a.name, a.out, a.size, a.mode, a.flatten, a.mean, tintmean=a.tintmean)
+    dst, notes, sr = process(a.src, a.name, a.out, a.size, a.mode, a.flatten, a.mean, tintmean=a.tintmean, soil=a.soil)
     if a.report:
         with open(a.report, 'a') as f:
             f.write(f'- **{a.name}** from `{os.path.basename(a.src)}`: ' + '; '.join(notes) + '\n')

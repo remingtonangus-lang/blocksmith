@@ -1,9 +1,9 @@
 # Art style: what is still procedural (2026-10-10)
 
-Style 3 "stylised realism" (docs/art/style-options/3-stylised-realism.png) is applied to 865 of 1712 texture layers:
+Style 3 "stylised realism" (docs/art/style-options/3-stylised-realism.png) is applied to 866 of 1712 texture layers:
 every common terrain/ore/stone/wood/plant block, the workshop blocks, the original Blocksmith blocks (capital,
 frigate, warship, Ash, Steelhold) and all item icons except the 12 below. Sources: 20 Gemini block sheets, 19 icon
-sheets, 2 plant sheets (assets/CREDITS.md); families derived by tools/texderive.py and tools/iconderive.py.
+sheets, 3 plant sheets (assets/CREDITS.md); families derived by tools/texderive.py and tools/iconderive.py.
 Recount: `Blocksmith --hdatlas /tmp/a.png --names '*'` lists every layer; compare with Resources/Textures.
 
 ## Kept procedural on purpose
@@ -47,7 +47,7 @@ Recount: `Blocksmith --hdatlas /tmp/a.png --names '*'` lists every layer; compar
   ender_chest_top exposed_chiseled_copper exposed_copper exposed_copper_bars exposed_copper_bulb 
   exposed_copper_bulb_lit exposed_copper_chain exposed_copper_chest_front exposed_copper_chest_side 
   exposed_copper_chest_top exposed_copper_door_bottom exposed_copper_door_top exposed_copper_grate 
-  exposed_copper_lantern exposed_copper_trapdoor fire fire_coral fire_coral_block firefly_bush flower_pot frigate_mark 
+  exposed_copper_lantern exposed_copper_trapdoor fire fire_coral fire_coral_block flower_pot frigate_mark 
   frigate_porthole frigate_thruster frogspawn frosted_ice_0 frosted_ice_1 frosted_ice_2 frosted_ice_3 gilded_blackstone 
   glass glow_item_frame glow_lichen grass_block_snow gray_bed_side gray_bed_top_foot gray_bed_top_head gray_candle 
   gray_glazed_terracotta gray_shulker_box_side gray_shulker_box_top gray_stained_glass green_bed_side 

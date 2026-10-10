@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Slice Gemini item-icon sheets (NxN grid, items on flat magenta) into item_<name>.png sprites.
 
-Spec: docs/textures/icons.json, one entry per sheet:
+Spec: docs/textures/icons.json, one entry per sheet ("size": N overrides --size for that sheet):
   {"sheet": "assets/gemini/icons/i01_tools.jpg", "grid": 4, "tiles": [["wooden_pickaxe", ...], ...]}
 "-" skips a cell. Output: Resources/Textures/item_<name>.png at --size (default 64), straight alpha.
 The magenta key is tolerant (JPEG sheets): distance to the sampled background colour, soft edge, de-spilled.
@@ -111,12 +111,22 @@ def main():
                 cw, ch = W / g, H / g
                 box = (int(x0 + cw * inset), int(y0 + ch * inset), int(x0 + cw * (1 - inset)), int(y0 + ch * (1 - inset)))
                 plants = s.get('plants', False)       # cross/cutout block sprites: standing on the block's bottom
-                icon = fit(key_cell(sheet.crop(box), bg), a.size, float(f) if f else s.get('fill', 0.9), bottom=plants)
+                icon = fit(key_cell(sheet.crop(box), bg), s.get('size', a.size), float(f) if f else s.get('fill', 0.9), bottom=plants)
                 if icon is None:
                     print(name, 'EMPTY')
                     continue
                 if plants:
                     icon = as_block_cutout(icon, mode == 'tint')
+                    if mode == 'glow':
+                        # "=firefly_bush:0.9:glow": the glow halos were painted over the magenta, so the texels that
+                        # survive the key come out pink; they become the warm light they were meant to be.
+                        px = icon.load()
+                        for y in range(icon.size[1]):
+                            for x in range(icon.size[0]):
+                                r, g, b, al = px[x, y]
+                                if al and r > g + 20 and b > g:
+                                    v = max(r, g, b)
+                                    px[x, y] = (v, int(v * 0.9), int(v * 0.5), al)
                 # "=heart": a raw layer name (HUD icons), otherwise item_<name>
                 # "=wheat_stage0|wheat_stage1": one cell saved under several layer names (growth stages)
                 for nm in name.split('|'):

@@ -64,5 +64,18 @@
     "=ladder:1.0"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/plants/p03_firefly_bush.jpg",
+  "grid": 1,
+  "inset": 0.02,
+  "plants": true,
+  "fill": 0.9,
+  "size": 128,
+  "tiles": [
+   [
+    "=firefly_bush:0.9:glow"
+   ]
+  ]
  }
 ]
