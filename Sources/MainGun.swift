@@ -256,7 +256,8 @@ extension ShipManager {
         // Soot rolling out round the fireball's skirt: dark, unlit puffs that break up its outline.
         for _ in 0..<14 {
             let a = Rand.float(in: 0..<(2 * .pi))
-            let o = V3(cosf(a), Rand.float(in: 0...0.2), sinf(a)) * (R * Rand.float(in: 0.6...0.9))
+            let lift: Float = Rand.float(in: 0...0.2), out: Float = R * Rand.float(in: 0.6...0.9)
+            let o = V3(cosf(a), lift, sinf(a)) * out
             let gy = Rand.float(in: 0.22...0.32)
             g.particles.add(Particle(pos: p + o + V3(0, 1, 0), vel: o * 0.6 + V3(0, Rand.float(in: 2...5), 0),
                                      life: Rand.float(in: 1.4...2.6), maxLife: 2.6, layer: smoke, uv0: V2(0, 0), uvSize: 1,
