@@ -54,6 +54,8 @@ final class CapitalState {
     var gunByPlayer = false            // the charge was started from the helm (fires along the view pitch)
     var gunPitch: Float = 0            // the helm's view pitch, kept current while it charges
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
+    var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
+    var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
     var exhausts: [V3] = []            // drive nozzle mouths (ship space)
@@ -1078,7 +1080,7 @@ extension ShipManager {
         levelUp(s, dt)
         st.target = nil
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
-        if s.role == "capfrigate" { mainGunTick(s, st, dt, g) }
+        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
     }
 

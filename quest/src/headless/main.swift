@@ -41,6 +41,9 @@ if renderPath != nil {
     sharedSystemDevice = QuestDevice(vkctx!)
 }
 let device = sharedSystemDevice
+// --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
+// (Sources/StructCheck.swift) on the Linux host, as the Mac's `--structcheck` runs it.
+if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device: device)) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)

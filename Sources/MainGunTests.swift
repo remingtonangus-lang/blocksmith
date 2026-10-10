@@ -149,6 +149,25 @@ enum MainGunTests {
         _ = w.loadSync(center: g.player.pos, radius: 3)
         _ = w.loadSync(center: land, radius: 4)
         print(String(format: "maingun: aiming %.0f blocks ahead of the muzzle, %.0f from the player", simd_length(land - mw0), simd_length(land - g.player.pos)))
+        // The helm's aim marker: where the shot will land, predicted before it is fired, drawn as a ring.
+        let ta = CFAbsoluteTimeGetCurrent()
+        let predicted = w.ships.mainGunAimPoint(s, st, pitch: pitch)
+        var aimMs = (CFAbsoluteTimeGetCurrent() - ta) * 1000
+        // The longest trace: raised all the way, the slug's whole 3.5 s flight over unstreamed country.
+        let tl = CFAbsoluteTimeGetCurrent()
+        _ = w.ships.mainGunAimPoint(s, st, pitch: 0.26)
+        aimMs = max(aimMs, (CFAbsoluteTimeGetCurrent() - tl) * 1000)
+        g.particles.list.removeAll()                           // (the earlier checks filled the particle cap)
+        let parts0 = g.particles.list.count, aims0 = MainGun.aimUpdates
+        st.aimTimer = 0
+        let wasPitch = g.player.pitch
+        g.player.pitch = pitch                                  // (the marker follows the helm's view)
+        w.ships.mainGunAimTick(s, st, 1.0 / 72, g)
+        g.player.pitch = wasPitch
+        let puff = Int(Tex.id("puff"))
+        let ring = g.particles.list.dropFirst(parts0).filter { $0.layer == puff && $0.glow }.count
+        check(predicted != nil && MainGun.aimUpdates == aims0 + 1 && ring >= 21 && aimMs < 4,
+              "maingun: the helm shows where the shot will land (a \(ring)-puff ring \(String(format: "%.0f", predicted.map { simd_length($0 - mw0) } ?? -1)) blocks out, predicted in \(String(format: "%.2f", aimMs)) ms)")
         pm.rumbleLog.removeAll()
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
         let started = w.ships.playerMainGun(s, pitch: pitch, game: g)
@@ -209,6 +228,30 @@ enum MainGunTests {
               "maingun: the crater's support checks drain within the window (\(w.gravityQueue.count) cells left; \(Game.gravityChecksPerTick) a tick)")
         check(impactFrame >= 0 && MainGun.lastCrater > 2000 && MainGun.lastCrater <= MainGun.craterCap,
               "maingun: the slug lands \(String(format: "%.0f", simd_length(MainGun.lastImpact - mw0))) blocks out and blasts a \(MainGun.lastCrater)-block crater (cap \(MainGun.craterCap))")
+        let miss = predicted.map { simd_length($0 - MainGun.lastImpact) } ?? 999
+        check(impactFrame >= 0 && miss < 6, String(format: "maingun: the slug lands where the helm's marker showed (%.1f blocks off)", miss))
+        // The bowl burnt black (blackstone, basalt, glowing magma) and a ring of scorched earth round it.
+        do {
+            var frames = 0
+            while !w.ships.shockwaves.isEmpty && frames < 1500 { w.ships.updateShockwaves(1.0 / 72, game: g); frames += 1 }
+            let c = MainGun.lastImpact
+            let black: Set<BlockID> = [Blocks.id("blackstone"), Blocks.id("basalt"), Blocks.id("magma_block")]
+            var burnt = 0, scorchedRim = 0
+            var bowlTops: [String: Int] = [:]
+            let R = Int(MainGun.craterRadius * 1.5)
+            for dz in -R...R { for dx in -R...R {
+                let x = Int(c.x) + dx, z = Int(c.z) + dz
+                let top = w.topY(x, z)
+                guard top > 0 else { continue }
+                let b = w.block(x, top, z)
+                if black.contains(b) { burnt += 1 }
+                if dx * dx + dz * dz < 100 { bowlTops[Blocks.name(b), default: 0] += 1 }
+                if b == Blocks.id("coarse_dirt") && dx * dx + dz * dz > Int(MainGun.craterRadius * MainGun.craterRadius * 0.7) { scorchedRim += 1 }
+            } }
+            let solid = bowlTops.filter { $0.key != "Water" && !$0.key.contains("Leaves") }.values.reduce(0, +)
+            check(MainGun.lastScorched > 200 && burnt * 2 > solid && burnt > 40 && scorchedRim > 30,
+                  "maingun: the crater is scorched (\(MainGun.lastScorched) blocks burnt: \(burnt) of \(solid) solid tops in the bowl black, \(scorchedRim) scorched earth round the rim; bowl tops \(bowlTops.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")))")
+        }
         if !tickMs.isEmpty {
             let srt = tickMs.sorted()
             print(String(format: "maingun: frame thread for %.1f s after the impact (host): median %.2f ms, p99 %.2f ms, worst %.2f ms; first frame %.2f ms",
@@ -249,6 +292,25 @@ enum MainGunTests {
             check(waited && MainGun.lastCrater > 1000 && w.ships.shockwaves.isEmpty,
                   "maingun: a hit on ground not loaded yet waits, then the bowl is dug when it loads (\(MainGun.lastCrater) blocks after \(frames) frames)")
             w.ships.pendingCraters.removeAll()
+        }
+
+        // 6. A slug into another Capital vessel's hull tears it open and knocks out its drive: it goes down.
+        do {
+            let n1 = w.ships.list.count
+            let tp = s.toWorld(st.mainGunMuzzle) + s.dirToWorld(st.mainGunDir) * 160
+            w.ships.spawnCapital("frigate", home: IVec3(Int(tp.x), 0, Int(tp.z)), yaw: 0, region: nil, sync: true)
+            if let e = w.ships.list.dropFirst(n1).first(where: { $0.role == "frigate" }) {
+                defer { w.ships.remove(e); w.ships.capState.removeValue(forKey: e.id); w.ships.shockwaves.removeAll() }
+                func hull() -> Int { w.ships.list.filter { $0.root === e.root }.reduce(0) { $0 + $1.blockCount } }
+                let blocks0 = hull(), engines0 = e.engines, hits0 = MainGun.shipHits
+                let mw = s.toWorld(st.mainGunMuzzle)
+                let aim = (e.worldMin + e.worldMax) * 0.5
+                w.ships.fireMainGun(s, st, dir: simd_normalize(aim - mw), game: g)
+                var frames = 0
+                while MainGun.shipHits == hits0 && frames < 300 { w.ships.updateShells(1.0 / 72, game: g); frames += 1 }
+                check(MainGun.shipHits == hits0 + 1 && e.engines == 0 && engines0 > 0 && MainGun.lastTorn > 40 && hull() <= blocks0 - MainGun.lastTorn,
+                      "maingun: a slug into a Stormwarden frigate's hull knocks out its drive (\(engines0) -> \(e.engines) engines) and tears a hole in it (\(MainGun.lastTorn) blocks: \(blocks0) -> \(hull()))")
+            } else { check(false, "maingun: the target frigate spawns") }
         }
 
         // 5. An AI frigate charging at the player warns them (a toast and a buzz) while there is time to get clear.

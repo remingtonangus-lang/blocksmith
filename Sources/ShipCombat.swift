@@ -141,7 +141,7 @@ extension ShipManager {
             }
             // The Tidebreaker's slug leaves a glowing wake that hangs in the air for a moment.
             if sh.kind == 3, let g = game {
-                let layer = Int(Tex.id("smoke"))
+                let layer = Int(Tex.id("puff"))
                 for k in 0..<3 {
                     let at = start + sh.vel * (dt * Float(k) / 3)
                     g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.5), Rand.float(in: -0.3...0.3)),
@@ -181,7 +181,20 @@ extension ShipManager {
         }
         shells = keep
         for (p, power, owner, onHull, kind) in blasts {
-            if kind == 3, let g = game { mainGunImpact(at: p, owner: owner, game: g); continue }
+            if kind == 3, let g = game {
+                let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
+                mainGunImpact(at: p, owner: owner, game: g)
+                // Into a hull: a 7-block hole torn through whatever plate it hit (tear), and the drive knocked out as
+                // a 42 cm shell does (heavyHit; after the tear, whose rebuild recounts engines): a Capital vessel goes
+                // down.
+                if let hit {
+                    MainGun.lastTorn = tear(at: p, radius: 7, except: owner, game: g)
+                    let r = hit.root
+                    if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }
+                    MainGun.shipHits += 1
+                }
+                continue
+            }
             if let g = game {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
                 let from = list.first { $0.id == owner }
@@ -217,6 +230,13 @@ extension ShipManager {
         let r = s.root
         blast(at: p, power: 6, game: game)
         if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
+    }
+
+    // Whether a world point is inside a solid block of ship s.
+    func shipBlock(in s: Ship, at p: V3) -> Bool {
+        guard p.x > s.worldMin.x && p.x < s.worldMax.x && p.y > s.worldMin.y && p.y < s.worldMax.y && p.z > s.worldMin.z && p.z < s.worldMax.z else { return false }
+        let l = s.toLocal(p)
+        return Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))]
     }
 
     // Whether a world point is inside a solid block of a ship other than the root `except`.
@@ -279,46 +299,75 @@ extension ShipManager {
                 if !chipped.isEmpty { s.mesh.rebuildAround(s, chipped, device: world.device, queue: meshQueue) }
                 continue
             }
-            let kinds = ShipParts.kinds
-            for cell in destroyed {
-                let b = g.get(cell.x, cell.y, cell.z)
-                // Capital hulls keep their counts up to date here (no full-grid rebuild per blast).
-                if s.kinematic {
-                    if kinds[Int(b)] == .engine { s.engines -= 1 }
-                    if s.helm == cell { s.helm = nil }
-                }
-                let at = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
-                if let game {
-                    if Rand.float(in: 0..<1) < 1 / max(1, power) {
-                        for st in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { game.drops.spawn(st, at: at) }
-                    }
-                    if let be = s.blockEntities[cell] { for st in be.container.slots where !st.isEmpty { game.drops.spawn(st, at: at) } }
-                }
-                s.blockEntities.removeValue(forKey: cell)
-                s.damage.removeValue(forKey: cell)
-                g.set(cell.x, cell.y, cell.z, AIR)
-            }
-            if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
-            if s.kinematic {
-                // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
-                s.blockCount -= destroyed.count
-                s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
-                detachLoose(s, around: Array(destroyed))
-                continue
-            }
-            // Push: an impulse away from the blast, applied at the blast point.
-            let away = s.pos - c
-            let dist = max(1, simd_length(away))
-            let j = simd_normalize(away + V3(0, 0.2, 0)) * (power * 6 / dist)
-            if s.parent == nil {
-                s.vel += j / s.mass
-                s.angVel += s.invInertiaWorld * simd_cross(c - s.pos, j) * 0.3
-            }
-            s.rebuild()
-            if s.blockCount == 0 { remove(s, turrets: false); continue }
-            s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
-            splitIfNeeded(s)
+            removeCells(s, destroyed, chipped: chipped, center: c, power: power, game: game)
         }
+    }
+
+    // Removes a blast's destroyed cells from ship s (drops, counts, remesh; a free ship is pushed, rebuilt and split).
+    func removeCells(_ s: Ship, _ destroyed: Set<IVec3>, chipped: [IVec3], center c: V3, power: Float, game: Game?) {
+        let g = s.grid
+        let kinds = ShipParts.kinds
+        for cell in destroyed {
+            let b = g.get(cell.x, cell.y, cell.z)
+            // Capital hulls keep their counts up to date here (no full-grid rebuild per blast).
+            if s.kinematic {
+                if kinds[Int(b)] == .engine { s.engines -= 1 }
+                if s.helm == cell { s.helm = nil }
+            }
+            let at = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
+            if let game {
+                if Rand.float(in: 0..<1) < 1 / max(1, power) {
+                    for st in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { game.drops.spawn(st, at: at) }
+                }
+                if let be = s.blockEntities[cell] { for st in be.container.slots where !st.isEmpty { game.drops.spawn(st, at: at) } }
+            }
+            s.blockEntities.removeValue(forKey: cell)
+            s.damage.removeValue(forKey: cell)
+            g.set(cell.x, cell.y, cell.z, AIR)
+        }
+        if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
+        if s.kinematic {
+            // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
+            s.blockCount -= destroyed.count
+            s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
+            detachLoose(s, around: Array(destroyed))
+            return
+        }
+        // Push: an impulse away from the blast, applied at the blast point.
+        let away = s.pos - c
+        let dist = max(1, simd_length(away))
+        let j = simd_normalize(away + V3(0, 0.2, 0)) * (power * 6 / dist)
+        if s.parent == nil {
+            s.vel += j / s.mass
+            s.angVel += s.invInertiaWorld * simd_cross(c - s.pos, j) * 0.3
+        }
+        s.rebuild()
+        if s.blockCount == 0 { remove(s, turrets: false); return }
+        s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
+        splitIfNeeded(s)
+    }
+
+    // The Tidebreaker's slug through a hull: every breakable cell within `radius` of c is torn out, whatever its
+    // resistance (capital plate and light panels shrug off ordinary blasts), so a hit leaves a hole you can see.
+    func tear(at c: V3, radius: Float, except: Int, game: Game?) -> Int {
+        var total = 0
+        for s in list where s.root.id != except && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
+            && c.y < s.worldMax.y + radius && c.z > s.worldMin.z - radius && c.z < s.worldMax.z + radius {
+            let lc = s.toLocal(c)
+            let ri = Int(ceilf(radius))
+            var destroyed = Set<IVec3>()
+            for dz in -ri...ri { for dy in -ri...ri { for dx in -ri...ri {
+                let o = V3(Float(dx), Float(dy), Float(dz))
+                guard simd_length(o) <= radius * (0.8 + 0.2 * hashf(dx, dy, dz, 977)) else { continue }
+                let cell = IVec3(Int(floor(lc.x)) + dx, Int(floor(lc.y)) + dy, Int(floor(lc.z)) + dz)
+                let b = s.grid.get(cell.x, cell.y, cell.z)
+                if b != AIR && Blocks.hardness[Int(b)] >= 0 { destroyed.insert(cell) }
+            } } }
+            if destroyed.isEmpty { continue }
+            total += destroyed.count
+            removeCells(s, destroyed, chipped: [], center: c, power: 14, game: game)
+        }
+        return total
     }
 }
 

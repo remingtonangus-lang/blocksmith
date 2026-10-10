@@ -358,7 +358,25 @@ enum StructCheck {
                     if rw.contains(kc) { reachWalk = true }
                 }
                 if !reachAny { add("door_unreachable", p, "no walking route from \(surface ? "outside" : "the start piece")") }
-                else if !reachWalk && kind == "village" { add("door_needs_jump", p, "reachable only with 1-block jumps") }
+                else if !reachWalk && kind == "village" {
+                    // The ground round the door's outer side: feet heights (relative to the doorway) in a 7x7 square, so
+                    // the step that needs the jump shows in the report.
+                    var grid: [String] = []
+                    if let o = sides.first {
+                        for dz in -3...3 {
+                            var row = ""
+                            for dx in -3...3 {
+                                if let (_, f) = standNear(w, o.x + dx, y, o.z + dz, up: 2, down: 3) {
+                                    let r = f - fd
+                                    row += r == 0 ? " 0" : String(format: "%+.1f", r).replacingOccurrences(of: ".0", with: "")
+                                } else { row += " #" }
+                                row += " "
+                            }
+                            grid.append(row)
+                        }
+                    }
+                    add("door_needs_jump", p, "reachable only with 1-block jumps; ground round the outer side (rows z-3...z+3): " + grid.joined(separator: " | "))
+                }
             } } }
             // Points of interest and beds.
             for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {

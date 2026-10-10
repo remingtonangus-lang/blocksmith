@@ -31,6 +31,7 @@ enum MainGun {
     private(set) static var impacts = 0
     private(set) static var lastImpact = V3(0, 0, 0)
     private(set) static var lastCrater = 0
+    private(set) static var lastScorched = 0            // blocks burnt round the last crater (CraterJob.scorch)
 
     // How much a player feels this ship's gun: fully at its helm or aboard, fading out to 160 blocks away.
     static func presence(_ s: Ship, _ g: Game) -> Float {
@@ -40,8 +41,18 @@ enum MainGun {
         return max(0, 1 - d / 160) * 0.6
     }
 
-    static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0 }
-    static func noteCrater(_ n: Int) { lastCrater = n }
+    // The shot's direction from the helm: along the bow, raised or lowered with the view, 30 degrees down to 15 up.
+    static func helmDir(_ md: V3, pitch: Float) -> V3 {
+        let p = max(-0.52, min(0.26, pitch))
+        let h = simd_normalize(V2(md.x, md.z) + V2(1e-5, 0))
+        return simd_normalize(V3(h.x * cosf(p), sinf(p), h.y * cosf(p)))
+    }
+
+    static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0 }
+    static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
+    static var lastTorn = 0                             // hull blocks the last ship hit tore out
+    static var shipHits = 0                             // slugs that struck another ship's hull (ShipCombat)
+    static var aimUpdates = 0                           // helm aim predictions made (MainGunTests)
     static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
 
     // Controller rumble (Touch controllers on the Quest, the pad on the Mac).
@@ -101,7 +112,7 @@ extension ShipManager {
             let at = mw - md * (len * (1 - (run - floorf(run))))
             g.addFlash(at: at, color: V3(0.5, 1.0, 2.6) * (1 + 3 * k), radius: 7 + 9 * k, life: 0.07)
             g.addFlash(at: mw + md, color: V3(0.9, 1.6, 3.6) * (0.4 + 4 * k * k), radius: 6 + 18 * k, life: 0.07)
-            let layer = Int(Tex.id("smoke"))
+            let layer = Int(Tex.id("puff"))
             // The coil rings glow through the hull, each flaring as the pulse passes it, and a corona gathers at the
             // muzzle: big soft glow puffs that read from a few hundred blocks (the lights alone don't, beyond ~40).
             let head = len * (run - floorf(run))                 // the pulse's distance back from the breech
@@ -141,10 +152,7 @@ extension ShipManager {
         st.gunCharge = -1
         var dir = md
         if st.gunByPlayer {
-            // Raised or lowered with the helm's view, 30 degrees down to 15 up.
-            let p = max(-0.52, min(0.26, st.gunPitch))
-            let h = simd_normalize(V2(md.x, md.z) + V2(1e-5, 0))
-            dir = simd_normalize(V3(h.x * cosf(p), sinf(p), h.y * cosf(p)))
+            dir = MainGun.helmDir(md, pitch: st.gunPitch)
         } else if let t = st.target {
             let dist = simd_length(t.point - mw)
             dir = simd_normalize(t.point + t.vel * (dist / MainGun.slugSpeed) - mw + V3(1e-5, 0, 0))
@@ -167,7 +175,7 @@ extension ShipManager {
         g.sfx(.mainGunFire, 1, at: near >= 1 ? nil : mw)
         g.baseNoise(at: mw, kind: .cannon, hostile: true)
         g.addFlash(at: mw + dir * 6, color: V3(4, 6, 10), radius: 56, life: 0.55)
-        let layer = Int(Tex.id("smoke"))
+        let layer = Int(Tex.id("puff"))
         // Muzzle blast: a cone of white-hot glow, then a ring of smoke round the bow.
         for _ in 0..<70 {
             let spread = V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * 0.25
@@ -226,7 +234,7 @@ extension ShipManager {
     // A fireball the size of the crater and a column of dark smoke climbing out of it, in puffs big enough to read
     // from the helm a hundred blocks and more away (an ordinary explosion's puffs are under a block wide).
     func mainGunFireball(at p: V3, game g: Game) {
-        let smoke = Int(Tex.id("smoke"))
+        let smoke = Int(Tex.id("puff"))
         let R = MainGun.craterRadius
         // The fireball rolling out over the bowl, hottest at its heart.
         for _ in 0..<16 {
@@ -235,21 +243,33 @@ extension ShipManager {
                                      uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 6...10), gravity: -2, color: V3(1, 0.95, 0.7),
                                      collide: false, glow: true))
         }
-        for _ in 0..<120 {
+        // Hottest (white-yellow) at the heart, deep orange-red at the edge, so the billow has depth.
+        for _ in 0..<110 {
             let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)))
-            let heat = Rand.float(in: 0.35...0.85)
-            g.particles.add(Particle(pos: p + d * Rand.float(in: 0...(R * 0.5)), vel: d * Rand.float(in: 8...20) + V3(0, 5, 0),
+            let out = Rand.float(in: 0...1)
+            let hot = 1 - out
+            g.particles.add(Particle(pos: p + d * (out * R * 0.5), vel: d * Rand.float(in: 8...20) + V3(0, 5, 0),
                                      life: Rand.float(in: 0.6...1.8), maxLife: 1.8, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                                     size: Rand.float(in: 3.5...9), gravity: -3, color: V3(1, heat, heat * 0.3),
-                                     collide: false, glow: true))
+                                     size: Rand.float(in: 3.5...9) * (0.7 + 0.5 * out), gravity: -3,
+                                     color: V3(1, 0.28 + 0.62 * hot, 0.08 + 0.5 * hot * hot), collide: false, glow: true))
         }
-        for i in 0..<40 {
-            let up = Float(i) / 40
+        // Soot rolling out round the fireball's skirt: dark, unlit puffs that break up its outline.
+        for _ in 0..<14 {
+            let a = Rand.float(in: 0..<(2 * .pi))
+            let o = V3(cosf(a), Rand.float(in: 0...0.2), sinf(a)) * (R * Rand.float(in: 0.6...0.9))
+            let gy = Rand.float(in: 0.22...0.32)
+            g.particles.add(Particle(pos: p + o + V3(0, 1, 0), vel: o * 0.6 + V3(0, Rand.float(in: 2...5), 0),
+                                     life: Rand.float(in: 1.4...2.6), maxLife: 2.6, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                                     size: Rand.float(in: 3...6), gravity: -1, color: V3(gy * 1.1, gy, gy * 0.9), collide: false))
+        }
+        // (Above the fireball's top, so the column climbs out of it rather than hiding it.)
+        for i in 0..<32 {
+            let up = Float(i) / 32
             let o = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * (R * 0.3)
-            let gy = Rand.float(in: 0.12...0.24)
-            g.particles.add(Particle(pos: p + o + V3(0, up * 6, 0), vel: V3(o.x * 0.1, Rand.float(in: 4...12), o.z * 0.1),
+            let gy = Rand.float(in: 0.16...0.28)
+            g.particles.add(Particle(pos: p + o + V3(0, 9 + up * 10, 0), vel: V3(o.x * 0.1, Rand.float(in: 4...12), o.z * 0.1),
                                      life: Rand.float(in: 5...8), maxLife: 8, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                                     size: Rand.float(in: 3.5...7), gravity: 0.8, color: V3(gy, gy, gy), collide: false))
+                                     size: Rand.float(in: 2.5...5.5), gravity: 0.8, color: V3(gy, gy, gy), collide: false))
         }
     }
 
@@ -284,10 +304,10 @@ extension ShipManager {
     func updateShockwaves(_ dt: Float, game g: Game) {
         updatePendingCraters(dt, game: g)
         if shockwaves.isEmpty { return }
-        let layer = Int(Tex.id("smoke"))
+        let layer = Int(Tex.id("puff"))
         for w in shockwaves {
             if let j = w.crater, !j.done, w.age > 0 {                // from the frame after the impact
-                if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed) }
+                if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
             }
             let r0 = w.r
             w.age += dt
@@ -354,6 +374,66 @@ extension ShipManager {
             }
         }
         shockwaves.removeAll { $0.r >= MainGun.shockFelt && $0.age >= 5 && ($0.crater?.done ?? true) }
+    }
+
+    // Where a shot from the helm would land now: the slug's flight (ShipCombat.updateShells: 420 b/s plus the
+    // hull's drift, gravity 0.4, 3.5 s) traced in 1-block steps through the streamed world, stopping at another ship's
+    // hull. Nil when it lands nowhere in sight (the sky, or past the streamed world).
+    func mainGunAimPoint(_ s: Ship, _ st: CapitalState, pitch: Float) -> V3? {
+        let md = s.dirToWorld(st.mainGunDir)
+        let dir = MainGun.helmDir(md, pitch: pitch)
+        var pos = s.toWorld(st.mainGunMuzzle) + dir * 3
+        var vel = dir * MainGun.slugSpeed + s.vel
+        let dt: Float = 1.0 / 72
+        var reader = ShipBlockReader(world)
+        var t: Float = 0
+        while t < 3.5 {
+            vel.y -= 0.4 * dt
+            let end = pos + vel * dt
+            let n = max(1, Int(ceil(simd_length(end - pos))))
+            for i in 1...n {
+                let p = pos + (end - pos) * (Float(i) / Float(n))
+                if p.y < 1 { return p }
+                let bx = Int(floor(p.x)), bz = Int(floor(p.z))
+                if reader.loaded(bx, bz) {
+                    if Blocks.collide[Int(reader.get(bx, Int(floor(p.y)), bz))] { return p }
+                } else { return nil }   // past the streamed world: out of sight (the generator's columns cost noise: 18 ms a trace)
+                if shipBlock(at: p, except: s.root.id) { return p }
+            }
+            pos = end
+            t += dt
+        }
+        return nil
+    }
+
+    // The helm's aim marker: a ring the size of the crater on the ground where the shot would land, pale blue when
+    // the gun is loaded or charging, dim amber while it reloads; drawn bigger with distance so it reads from the
+    // helm at a few hundred blocks. The prediction runs 10 times a second.
+    func mainGunAimTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.aimTimer -= dt
+        if st.aimTimer <= 0 {
+            st.aimTimer = 0.1
+            st.aimPoint = mainGunAimPoint(s, st, pitch: st.gunCharge >= 0 ? st.gunPitch : g.player.pitch)
+            if st.aimPoint != nil { MainGun.aimUpdates += 1 }
+        }
+        guard let c = st.aimPoint else { return }
+        let ready = st.gunCharge >= 0 || st.mainGunCD <= 0
+        let dist = simd_length(c - g.player.eye)
+        let size = max(0.9, dist * 0.007)
+        let pulse = 0.75 + 0.25 * sinf(Float(g.clock.truncatingRemainder(dividingBy: 100)) * (st.gunCharge >= 0 ? 14 : 5))
+        let col = (ready ? V3(0.45, 0.85, 1.0) : V3(0.9, 0.55, 0.2) * 0.6) * pulse
+        let layer = Int(Tex.id("puff"))
+        let R = MainGun.craterRadius
+        for i in 0..<20 {
+            let a = Float(i) / 20 * 2 * .pi
+            let x = c.x + cosf(a) * R, z = c.z + sinf(a) * R
+            let bx = Int(floor(x)), bz = Int(floor(z))
+            let top: Float = world.isLoaded(bx, bz) ? Float(world.topY(bx, bz)) + 1.3 : c.y + 1
+            g.particles.add(Particle(pos: V3(x, abs(top - c.y) < 12 ? top : c.y + 1, z), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5,
+                                     layer: layer, uv0: V2(0, 0), uvSize: 1, size: size * 0.6, gravity: 0, color: col, collide: false, glow: true))
+        }
+        g.particles.add(Particle(pos: c + V3(0, 1.5, 0), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                 uvSize: 1, size: size * 1.4, gravity: 0, color: col, collide: false, glow: true))
     }
 
     // The player at a commandeered Meridian frigate's helm: attack starts the Tidebreaker's charge when it is

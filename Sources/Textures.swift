@@ -21,7 +21,7 @@ enum TextureGen {
                            "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun", "shadow",
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "puff", "sun", "shadow",
                            "moon_0", "moon_1", "moon_2", "moon_3", "moon_4", "moon_5", "moon_6", "moon_7"]
 
     // Makes sure every texture that may be referenced exists in the registry.
@@ -965,6 +965,20 @@ enum TextureGen {
             let d = (dx * dx + dy * dy).squareRoot()
             if d > 7 || r(x / 2, y / 2, 160) < 0.25 { return clear }
             return V4(0.8, 0.8, 0.8, 1)
+        }
+        // A big billow (fireballs, smoke columns, glows): a solid round puff with a lumpy rim and soft shading, lit
+        // from the upper left. "smoke"'s holes read as eyes on a 6-10 block puff (the Tidebreaker's fireball).
+        p["puff"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot() / 7.5
+            let a = atan2f(dy, dx)
+            let rim = 0.86 + 0.07 * sinf(a * 5 + 0.7) + 0.05 * sinf(a * 9 + 2.1)
+            if d > rim { return clear }
+            let k = d / rim
+            let lit = max(0, (-dx - dy) / 10.6) * 0.18
+            let lumps = 0.06 * (r(x / 3, y / 3, 162) - 0.5)
+            let v = min(1, 0.62 + 0.38 * (1 - k * k) + lit + lumps)
+            return V4(v, v, v, 1)
         }
         // Block-breaking cracks: one-pixel crack lines that branch out from the centre, each stage
         // reaching further (a stage's cracks are a superset of the previous stage's).
