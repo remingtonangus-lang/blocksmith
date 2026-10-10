@@ -948,6 +948,8 @@ final class Game {
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
+        // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
+        if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).

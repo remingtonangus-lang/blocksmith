@@ -1,5 +1,10 @@
 # Status
 
+> **Boreal Station infiltration (2026-10-10, PR into quest-port):** each station is an operation: copy the uplink
+> codes at a control-room console, set a 45 s charge on the generator, get past the fence. No alarm = silent rating
+> (Farsight Rifle, $250, "Nobody Was Here"); loud pays less. The alarm locks the uplink, sends squads down the
+> stairwell and roused soldiers now open bulkhead doors. HUD bar shows the next job. Checks: borealtest (15 per seed).
+> Details: docs/status/boreal-station.md.
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest
