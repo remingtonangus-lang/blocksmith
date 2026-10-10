@@ -38,16 +38,18 @@ enum QuestSettings {
     // 90 Hz by default (comfort: smoother motion; device v13 used ~2.9 ms CPU and ~2.9 ms GPU of the 11.1 ms budget).
     static var refreshRate: Float { get { float("quest.refreshRate", 90) } set { store(newValue, "quest.refreshRate") } }
     // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
-    // 12 by default (store gate: 1.5x the old 8 at 72 fps; Oct 9 device log at 9-12: CPU p50 9-10 ms, GPU p50 6-8 ms
-    // of 72 Hz's 13.9). A saved distance under 12 from before this default (the comfort guard's step-downs leaked into
-    // it through the world save: the Oct 9 playtest reopened at 5) is raised once.
+    // 16 by default (Oct 10 performance pass: water-tick, mob path and mob drawing costs cut, far detail from 5 chunks;
+    // the rd 16 Quest-proxy bench holds frame p99 <= 13.9 ms on all six routes; docs/status/performance.md). Saved
+    // distances under 16 are raised once (12 was the default; the comfort guard's step-downs also leaked into saves);
+    // the comfort guard still steps down for the session if the headset misses frames.
     static var renderDistance: Int {
         get {
-            if !d.bool(forKey: "quest.rd12") {
+            if !d.bool(forKey: "quest.rd16") {
+                d.set(true, forKey: "quest.rd16")
                 d.set(true, forKey: "quest.rd12")
-                if d.object(forKey: "renderDistance") != nil && d.integer(forKey: "renderDistance") < 12 { d.set(12, forKey: "renderDistance") }
+                if d.object(forKey: "renderDistance") != nil && d.integer(forKey: "renderDistance") < 16 { d.set(16, forKey: "renderDistance") }
             }
-            return d.object(forKey: "renderDistance") == nil ? 12 : d.integer(forKey: "renderDistance")
+            return d.object(forKey: "renderDistance") == nil ? 16 : d.integer(forKey: "renderDistance")
         }
         set { d.set(newValue, forKey: "renderDistance") }
     }

@@ -14,7 +14,7 @@ import simd
 extension Bench {
     static func route(_ device: MTLDevice, _ seed: UInt64, _ name: String) {
         let quest = CommandLine.arguments.contains("--quest")
-        if quest { World.fluidSeconds = 0.002 }      // as QuestApp sets it
+        if quest { World.fluidSeconds = 0.002; World.lodNear = 5 }      // as QuestApp sets them
         if let v = arg("--lodnear").flatMap({ Int($0) }) { World.lodNear = v }
         let rd = Int(arg("--rd") ?? "") ?? 8
         let seconds = Double(arg("--secs") ?? "") ?? 30
@@ -72,6 +72,7 @@ extension Bench {
         let frames = Int(seconds / dt)
         var est: [Double] = [], tick: [Double] = [], gpu: [Double] = []
         var spikes: [String: (Int, Double)] = [:]
+        var hitchLines = 0
         var quadSum = 0, drawSum = 0                       // terrain quads / section draws per eye frame
         est.reserveCapacity(frames); tick.reserveCapacity(frames); gpu.reserveCapacity(frames)
         let mem0 = residentMB()
@@ -99,6 +100,11 @@ extension Bench {
                 spikes[n.description] = (old.0 + 1, max(old.1, ms))
             }
             est.append(max(tk + e, g) * 1000)
+            // A hitch's split (first eight): tick vs CPU encode vs GPU, so a non-tick hitch is named too.
+            if max(tk + e, g) * 1000 > 25 && hitchLines < 8 {
+                hitchLines += 1
+                print("bench \(name) hitch at \(f(Double(i) * dt, 1)) s: tick \(f(tk * 1000)) (\(TickProf.top().0)) encode \(f(e * 1000)) gpu \(f(g * 1000)) ms, jobs \(world.pendingJobs)")
+            }
             if i % 30 == 0 { peak = max(peak, residentMB()) }
             let slack = start + Double(i + 1) * dt - now
             if slack > 0 { usleep(useconds_t(slack * 1e6)) }
