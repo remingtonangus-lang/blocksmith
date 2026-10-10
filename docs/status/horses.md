@@ -44,3 +44,25 @@ work is handling, stamina, bond, care and safety only.
 
 ## Checks
 `questcheck` runs HorseTests (Sources/HorseTests.swift); Mac: `Blocksmith --horsetests`.
+
+## Results (questcheck --horse-only, 2026-10-10)
+Gaits 1.7 / 8.0 / 16.0 b/s (walk / trot / gallop, top-16 horse); standstill to gallop 1.6 s; gallop to stop 1.5 s;
+worst ground acceleration 12.0 b/s^2; turning 3.9 rad/s at a walk, 1.5 at a gallop; a level-1 gallop lasts 15.6 s;
+refuses the cliff and lava 0.3 blocks short; staircase + 3-block step ridden at >= 10 b/s; frights throw 14-17 of 40
+at level 1, 0 at level 4, 0 when patted.
+
+Also fixed: the first tamed horse a player ever rode never bonded (the game's bonded-horse id and the horse's bond were
+both 0, so `bond != horseBond` was false and the call/whistle never worked until a second horse).
+
+## Verifier pass 1 (independent Opus subagent) and what changed
+FAIL with 2 blockers and 4 should-fix, all fixed with a HorseTests check each: a fright's hop carried a galloping
+horse over the cliff it was braking for (rearing now checks speed, footing runs while rearing/slowing); treats and an
+empty hand while riding took over eating, placing and levers (care now needs the aim on the horse itself); backing up
+walked off cliffs (footing checks behind); a dead pack animal's cargo could be taken twice (duplicate drop removed);
+drawing a bow stalled a gallop (no item-use slow-down on a horse); most guns (sheriff, soldiers, ships) never reached
+the horse (every gun / blast sound now does); care cooldowns only ran while ridden and weren't saved.
+
+## Not covered / for others
+- Device feel (Quest) not tested here: the Mac worker owns device testing.
+- Gait sounds (hoof rhythm per gait) and a rearing pose are looks/audio work for the Mac lane.
+- Town stables selling horses: towns thread.

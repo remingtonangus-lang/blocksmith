@@ -270,7 +270,7 @@ final class Game {
         }
         if riding != nil, let p = pos {      // a ridden horse hears every gunshot and blast (HorseFeel.swift)
             switch s {
-            case .gun: horseHears(at: p, kind: .gunshot, power: 1)
+            case .gun(let k) where WeaponAudio.hasDistant(k): horseHears(at: p, kind: .gunshot, power: 1)   // shots only (not ricochets, alarms, radios)
             case .explodeSmall, .explodeLarge: horseHears(at: p, kind: .explosion, power: 2)
             default: break
             }

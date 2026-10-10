@@ -185,7 +185,7 @@ extension Mob {
         if onGround || inWaterNow(g.world) {
             let accel = HorseFeel.accelBase + HorseFeel.accelPerTop * top
             let k: Float = target > h.speed ? accel : (target > 0.1 ? HorseFeel.ease : HorseFeel.brake)
-            if h.rear > 0 { h.speed = h.speed > 0 ? max(0, h.speed - 14 * dt) : min(0, h.speed + 14 * dt) }
+            if h.rear > 0 { h.speed = h.speed > 0 ? max(0, h.speed - HorseFeel.brake * dt) : min(0, h.speed + HorseFeel.brake * dt) }
             else { h.speed += simd_clamp(target - h.speed, -k * dt, k * dt) }
             if inWaterNow(g.world) { h.speed = min(h.speed, max(2, top * 0.35)) }
             vel.x = forward.x * h.speed
@@ -240,9 +240,8 @@ extension Mob {
         h.rear = 1.1
         h.gait = .stand
         h.rearThrow = canThrow && Rand.float(in: 0..<1) < HorseFeel.throwChance[bondLevel - 1]
-        // It plants its hind legs: the run-up is checked hard (no hop that would sail it on at a gallop).
-        h.speed *= 0.35
-        vel.x = forward.x * h.speed; vel.z = forward.z * h.speed
+        // It plants its hind legs and brakes (gaitStep, footing still watching); it only rises off the ground once
+        // nearly stopped, so no hop sails a galloping horse on.
         if onGround && abs(h.speed) < 3 { vel.y = 2.4 }
         g.sfx(.mob(kind, .hurt), 0.9, at: pos)
     }

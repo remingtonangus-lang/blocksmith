@@ -270,6 +270,9 @@ enum HorseTests {
             g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))               // anyone's gun (the sheriff's, a soldier's) via its sound
             let heard = h.hs.rear > 0
             ride(h, 1.5, push: 0)
+            h.hs.spookCool = 0
+            for k in [6, 8, 10, 11, 12] { g.sfx(.gun(k), 0.5, at: h.pos + V3(5, 1, 0)) }   // ricochet, alarm, radio, charge-up
+            check(h.hs.rear == 0, "horse nerves: ricochets (the rider's own rounds), alarms, radios and charge-ups don't spook it")
             check(heard, "horse nerves: a gunshot 4 blocks off (through its sound) makes it rear")
             check(!own && blast && cannon && monster, "horse nerves: rears at a blast \(blast), a cannon \(cannon), a monster beside it \(monster); not at the rider's own gunshot (\(own ? "reared" : "steady"))")
             // Throw odds by level: 40 frights each.
@@ -306,6 +309,13 @@ enum HorseTests {
                 if fell { fellAt.append(d) }
                 g.riding = nil
             }
+            // How hard a fright stops a gallop: within the comfort limit.
+            let hb = horse(xp: 700); mount(hb)
+            ride(hb, 3, push: 1, spurAt: [2, 12], loop: true)
+            hb.spook(g)
+            let lurch = ride(hb, 0.5, push: 1, loop: true)
+            g.riding = nil
+            check(lurch <= 12.5, String(format: "horse: a fright brakes a gallop at %.1f b/s^2 (comfort limit 12.5)", lurch))
             check(fellAt.isEmpty, "horse: a fright 5-15 blocks from a cliff at a gallop never carries it over (fell at \(fellAt))")
             let h = horse(); mount(h)
             h.pos = V3(lane0.x, lane0.y, Float(z1) + 1.5); h.yaw = .pi; g.player.yaw = .pi       // facing away from the edge

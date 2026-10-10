@@ -42,6 +42,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Reach | blocks 6, melee ~3 | block reach constant 6 (Game.swift:902); melee not measured | AMBER | code only |
 | Input conflicts | no press does two things | Mac pad: 0 conflicts over 16 buttons x tap/hold x 4 contexts (foot, horse, car, inventory); keyboard: 0 duplicate defaults. Verifier: the diff only sees menu/pause/hotbar/camera/mount/helm/flight/sneak/drop/jump, not attack/use/place/aim/fire/throttle, so 0 is an undercount. Quest Touch bindings not covered; contexts missing: swimming, flying, ship deck, gun held, deck gun | AMBER (verified, weak measure) | input_matrix.md |
 | Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | step-ups now eased for every mount and on foot, Mac + Quest camera: max 0.05-0.11 block/frame at 72 Hz (fastest horse 0.133, its true climb rate) vs 1.0 snapped before (verified). Rest of the checklist not audited | AMBER | `--questbugs --only pm9a` |
+| Horse handling (western feel) | gaits, momentum, stamina, bond, nerves, sure footing (docs/status/horses.md) | 29 HorseTests checks pass: gaits 1.7/8/16 b/s, 0 to gallop 1.6 s, stop 1.5 s, worst 12 b/s^2; level-1 gallop 15.6 s; refuses cliffs/lava (also rearing and backing), rides stairs; frights by level; spur via Game.tick pad click. Verifier pass 1 found 2 blockers + 4 more (all fixed with checks). Device feel not tested | AMBER (pending verifier pass 2 / device) | `questcheck --horse-only` |
 | Response within one frame | input-latency test | not measured | RED (UNMEASURED) | - |
 
 On claude/blocksmith-playtest the same matrix finds 1 conflict: on foot, LB hold = hotbar + drop item.
@@ -107,6 +108,7 @@ IP names: 28 display strings renamed (docs/status/ip-renames.md), `python3 tools
 See docs/status/store-readiness.md (audit round 1). Not re-measured here.
 
 ## Log
+- 2026-10-10 (horses): HorseFeel.swift gaits/stamina/bond/care/nerves/footing + HorseTests in questcheck; first tamed horse now bonds (horseBond 0 == bond 0 bug).
 - 2026-10-09 PM (task 25b1zzz, playtest notes items 1-11): pm9a/pm9b/pm9d checks, --coppertest, namecheck --coined, quest_perf_gate.sh added; verifier found a save-ordering race in the new background autosave (quit during an autosave could land older files last), fixed (sync saveNow flushes the queue first).
 - 2026-10-09 (towns of people): new content checked by TownTests (economy no-arbitrage over every recipe, shop UI fit
   and overflow, townsfolk schedule/models/defence, 3 generated towns with all 8 shops); VR shop panel rendered in
