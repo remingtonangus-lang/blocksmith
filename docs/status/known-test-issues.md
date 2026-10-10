@@ -27,6 +27,6 @@ Checks that fail for reasons other than a game bug, and what was done about them
   581dfc8 as well; not touched (mob looks belong to the Mac worker).
 - **"boreal 12345: corridor at noon hums ... wildlife: birdCall"**: fails on claude/quest-port 581dfc8 and on this
   branch alike (Boreal audio, not touched).
--  **"VR swing mode holding a torch:
+- **"VR swing mode holding a torch:
   the trigger attacks a husk"** / **"defence: an elder doesn't fight, keeps away"** (this branch, one run each, pass on
   the other runs): flaky, random AI/audio timing; not touched.
