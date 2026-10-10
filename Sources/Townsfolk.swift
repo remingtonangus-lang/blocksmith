@@ -74,6 +74,7 @@ enum Townsfolk {
     // The town a place belongs to: the nearest village start (its anchor names it), else the region cell.
     static func town(_ g: Game, at p: V3) -> String {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
+        if let c = CapitalTown.city(g, x: x, z: z) { return c }
         if let sc = g.world.gen.structures, let s = sc.nearest("village", x: x, z: z, maxRegions: 1),
            abs(s.anchor.x - x) < 200 && abs(s.anchor.z - z) < 200 {
             return townName(s.anchor.x, s.anchor.z, seed: g.world.seed)
@@ -96,6 +97,13 @@ enum Townsfolk {
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]      // behind the counter
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
+        } else if tag.hasPrefix("citizen") {
+            // A Capital citizen (CapitalTown): "citizen@x,y,z" is the office desk they work at.
+            v.role = "citizen"; v.locked = true; v.profession = "none"
+            if let at = tag.split(separator: "@").dropFirst().first {
+                let c = at.split(separator: ",").compactMap { Int($0) }
+                if c.count == 3 { v.jobSite = c }
+            }
         }
         if v.role == nil {
             if m.baby { v.role = "child" }
@@ -113,7 +121,7 @@ enum Townsfolk {
         switch v.role ?? "worker" {
         case "deputy": return .sword
         case "farmer": return .pitchfork
-        case "elder", "child": return .none
+        case "elder", "child", "citizen": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer
@@ -160,6 +168,10 @@ enum Townsfolk {
         case "shopkeeper": lines += ["Come on in, the \(v.shopKind?.name.lowercased() ?? "shop") is open.", "Take a look, I've got good stock."]
         case "elder": lines += ["When I was young this was all prairie.", "Don't let them sell you nothing you don't need."]
         case "child": lines = ["Hi!", "Are you a cowpoke?", "Watch this!"]
+        case "citizen":
+            lines += ["Lovely day for the gardens.", "Have you tried the café by the fountain?", "Busy day at the office.",
+                      "The soldiers keep it quiet here.", "Mind the ramps, they're steeper than they look."]
+            if let t = v.town { lines.append("Welcome to \(t).") }
         default: lines += ["Work never ends.", "You new around here?"]
         }
         return pick(lines, h)

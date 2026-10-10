@@ -131,6 +131,7 @@ final class StructureStart {
     let min: IVec3
     let max: IVec3
     let anchor: IVec3                     // a representative walkable spot (start piece floor)
+    var plan: AnyObject?                  // the layout a kind keeps for later queries (CapitalCity.Plan)
     init(kind: String, pieces: [Piece], anchor: IVec3) {
         self.kind = kind
         self.anchor = anchor

@@ -1218,9 +1218,13 @@ final class Mob {
             // cell-centre goal sat 0.71 from where it could ever stand, outside the 0.7 arrival radius; it circled
             // the goal (behaviour sim: golems spinning 15 and 8 windows, every one on a stroll).
             let off: Float = pr.span == 2 ? 1 : 0.5
-            for dy in [0, 1, -1, 2, -2] {
-                let g = V3(Float(x) + off, Float(y0 + dy), Float(z) + off)
-                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, y0 + dy, z)) { return g }
+            // A tight area (a keeper behind the counter, a clerk at a desk: radius 3 or less) keeps to the floor of its
+            // anchor: a goal a block up was the counter top, and keepers stood on their counters (CapitalTownTests).
+            let tight = area.map { $0.1 <= 3 } ?? false
+            let base = tight ? Int(floor(area!.0.y + 0.01)) : y0
+            for dy in tight ? [0] : [0, 1, -1, 2, -2] {
+                let g = V3(Float(x) + off, Float(base + dy), Float(z) + off)
+                if let c = PathFinder.standCost(w, x, base + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, base + dy, z)) { return g }
             }
         }
         return nil

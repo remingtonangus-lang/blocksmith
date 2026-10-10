@@ -46,6 +46,7 @@ struct PathProfile {
     var waterCost: Float = 8
     var doors = false
     var climbs = true
+    var range = 48                            // farthest goal searched for (x + z blocks); farther ones aren't tried
 }
 
 enum PathFinder {
@@ -243,7 +244,7 @@ enum PathFinder {
         s.expanded = 0
         s.finished = false
         let start = s.start, goal = s.goal
-        if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { s.finished = true; return s }
+        if abs(goal.x - start.x) + abs(goal.z - start.z) > pr.range { s.finished = true; return s }
         let dx = Float(start.x - goal.x), dy = Float(start.y - goal.y), dz = Float(start.z - goal.z)
         let h0: Float = (dx * dx + dy * dy + dz * dz).squareRoot()
         s.pts.append(start); s.gCost.append(0); s.parent.append(-1); s.closed.append(false)
@@ -400,6 +401,10 @@ extension Mob {
             pr.maxDrop = 3 + max(0, lost)
         }
         if kind == .chicken || spec.fireImmune && kind == .magmaCube { pr.maxDrop = 16 }   // flutters down / bounces
+        // Townsfolk walk across a town (a Capital citizen's flat to an office two lots away, ~70 blocks): beyond 48 the
+        // search wasn't tried at all and they walked straight at the walls in between (CapitalTownTests day sim). Their
+        // searches stay capped at 1500 nodes, so a far goal costs no more than a near one behind a house.
+        if kind == .villager { pr.range = 100 }
         return pr
     }
 

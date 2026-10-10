@@ -12,6 +12,8 @@ import simd
 //   defence:  an armed townsperson kills a zombie next to it; the unarmed don't fight; hurting one turns the armed on
 //             you; a pointed gun puts hands up.
 //   towns:    generated towns hold the eight shops with keepers, signs and a deputy.
+//   capitals: the Capital's cities hold the eight shops, flats, offices and citizens who keep a city day
+//             (CapitalTownTests.swift).
 enum TownTests {
     static func run(game g: Game, makeWorld: () -> World, check: (Bool, String) -> Void) {
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -22,6 +24,7 @@ enum TownTests {
         people(g, check)
         defence(g, check)
         towns(makeWorld, check)
+        capitals(makeWorld, check)
         print(String(format: "towntests: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
 
@@ -287,6 +290,9 @@ enum TownTests {
         check(day(farmer) == [.idle, .eat, .work, .meet, .social, .idle], "people: a farmer's day \(day(farmer))")
         check(day(shop) == [.work, .work, .work, .work, .idle, .idle], "people: a shopkeeper minds the counter in shop hours \(day(shop))")
         check(day(dep).allSatisfy { $0 == .patrol } && dep.villager?.locked == true, "people: deputies patrol day and night")
+        let cit = Mob(.villager, at: g.player.pos); cit.home = cit.pos; Townsfolk.setup(cit, tag: "citizen@10,70,-4", game: g)
+        check(day(cit) == [.idle, .eat, .work, .meet, .social, .idle] && cit.villager?.jobSite == [10, 70, -4] && cit.townWeapon == .none,
+              "people: a Capital citizen works at the desk they were given, carries nothing \(day(cit))")
         // Weapons by role.
         let kid = Mob(.villager, at: g.player.pos); kid.baby = true; Townsfolk.setup(kid, game: g)
         var elder = VillagerData(); elder.role = "elder"
@@ -295,7 +301,7 @@ enum TownTests {
               "people: farmers carry pitchforks, deputies swords, butchers cleavers, smiths hammers; children and elders nothing")
         // Models: every role and shop builds a body with a head, a weapon where armed, nothing NaN.
         var badModel: [String] = []
-        let roles = ["deputy", "farmer", "elder", "child", "craftsman", "worker"]
+        let roles = ["deputy", "farmer", "elder", "child", "craftsman", "worker", "citizen"]
         for (i, r) in roles.enumerated() {
             let m = Mob(.villager, at: g.player.pos); var v = VillagerData(); v.role = r; v.look = i * 37; v.person = i % 2 == 0 ? "Clara Hale" : "Amos Hale"
             m.villager = v; m.baby = r == "child"

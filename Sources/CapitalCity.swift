@@ -43,6 +43,9 @@ enum CapitalCity {
         var level = [Int](repeating: Int.min, count: 4 * N * N)   // terrace floor y per lot (Int.min: no lot)
         var kind = [UInt8](repeating: 0, count: 4 * N * N)        // 0 building, 1 plaza, 2 garden, 3 civic centre
         var covered = [Bool](repeating: false, count: 8 * N * N)  // walkway strips with a canopy: [lot * 2 + (0 west, 1 north)]
+        var shops = [[ShopKind]](repeating: [], count: 4 * N * N) // market lots (kind 4): the two storefronts, west then east
+        var flat = [Bool](repeating: false, count: 4 * N * N)     // building lots (kind 0) that are flats, not offices
+        var seed: UInt64 = 0                                      // the world seed (lot seeds, CapitalTown)
         init(ox: Int, oz: Int) { self.ox = ox; self.oz = oz }
         @inline(__always) func idx(_ i: Int, _ j: Int) -> Int { (j + N) * 2 * N + (i + N) }
         func has(_ i: Int, _ j: Int) -> Bool { i >= -N && i < N && j >= -N && j < N && level[idx(i, j)] != Int.min }
@@ -77,7 +80,27 @@ enum CapitalCity {
     }
 
     static func site(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {
-            guard let sc = gen.structures, sc.clear(cx: cx, cz: cz, reach: 9) else { return nil }
+            guard let sc = gen.structures, sc.clear(cx: cx, cz: cz, reach: 9), let plan = planFor(gen, seed, cx, cz) else { return nil }
+            var pieces: [Piece] = []
+            for j in -N..<N { for i in -N..<N where plan.has(i, j) {
+                let x0 = plan.ox + (i + N) * lot, z0 = plan.oz + (j + N) * lot
+                let L = plan.lv(i, j)!
+                let ex = plan.has(i + 1, j) ? 0 : street, ez = plan.has(i, j + 1) ? 0 : street
+                let m = 6                                    // margin for clearing leaves of trees cut at the edge
+                let pseed = lotSeed(seed, i, j)
+                pieces.append(Piece(min: IVec3(x0 - m, L - 40, z0 - m), max: IVec3(x0 + lot - 1 + ex + m, L + 48, z0 + lot - 1 + ez + m),
+                                    build: { w in CapitalCity.buildLot(&w, plan, i, j, pseed) }))
+            } }
+            let L0 = plan.lv(0, 0)!
+            let start = StructureStart(kind: "capital_city", pieces: pieces, anchor: IVec3(plan.ox + N * lot + street + 3, L0 + 1, plan.oz + N * lot + street + 3))
+            start.plan = plan
+            return start
+    }
+
+    // The city plan for a centre chunk corner (nil: the ground or the neighbours won't have a city there); kept on the
+    // structure start (StructureStart.plan) for CapitalTown and its checks.
+    static func planFor(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> Plan? {
+            guard let sc = gen.structures else { return nil }
             let x = cx * CS, z = cz * CS                 // the city centre (a chunk corner: lots line up with chunks)
             let c = gen.column(x, z)
             guard CapitalCity.biomes.contains(c.biome), c.height > SEA + 2 else { return nil }
@@ -145,18 +168,13 @@ enum CapitalCity {
                 plan.covered[k * 2 + 1] = j == 0 || rng.chance(0.35)
             } }
             guard lots >= 16 else { return nil }
-            var pieces: [Piece] = []
-            for j in -N..<N { for i in -N..<N where plan.has(i, j) {
-                let x0 = plan.ox + (i + N) * lot, z0 = plan.oz + (j + N) * lot
-                let L = plan.lv(i, j)!
-                let ex = plan.has(i + 1, j) ? 0 : street, ez = plan.has(i, j + 1) ? 0 : street
-                let m = 6                                    // margin for clearing leaves of trees cut at the edge
-                let pseed = seed &+ UInt64(bitPattern: Int64((i + 7) * 31 + j + 7)) &* 0x9E3779B97F4A7C15
-                pieces.append(Piece(min: IVec3(x0 - m, L - 40, z0 - m), max: IVec3(x0 + lot - 1 + ex + m, L + 48, z0 + lot - 1 + ez + m),
-                                    build: { w in CapitalCity.buildLot(&w, plan, i, j, pseed) }))
-            } }
-            let L0 = plan.lv(0, 0)!
-            return StructureStart(kind: "capital_city", pieces: pieces, anchor: IVec3(plan.ox + N * lot + street + 3, L0 + 1, plan.oz + N * lot + street + 3))
+            plan.seed = seed
+            CapitalTown.assignShops(plan)               // the market lots round the civic centre (CapitalTown.swift)
+            return plan
+    }
+
+    static func lotSeed(_ seed: UInt64, _ i: Int, _ j: Int) -> UInt64 {
+        seed &+ UInt64(bitPattern: Int64((i + 7) * 31 + j + 7)) &* 0x9E3779B97F4A7C15
     }
 
     // Soldier kinds that keep watch in the streets (mob keys unchanged, Soldiers.swift).
@@ -265,9 +283,10 @@ enum CapitalCity {
         } } }
 
         switch plan.kind[k] {
-        case 0: building(&w, x0, z0, L, &rng)
-        case 1: plaza(&w, x0, z0, L, &rng, fountain: false)
-        case 3: plaza(&w, x0, z0, L, &rng, fountain: true)
+        case 0: building(&w, x0, z0, L, &rng, home: CapitalTown.isResidence(plan, i, j) ? (plan, i, j) : nil)
+        case 1: plaza(&w, x0, z0, L, &rng, fountain: false, plan: plan)
+        case 3: plaza(&w, x0, z0, L, &rng, fountain: true, plan: plan)
+        case 4: CapitalTown.market(&w, plan, i, j, x0, z0, L, &rng)
         default: gardenLot(&w, x0, z0, L, &rng)
         }
     }
@@ -323,15 +342,25 @@ enum CapitalCity {
     // A long, low white building: one or two storeys (the upper one set back, a terrace on the lower roof), window
     // bands between white piers, a deep flat roof with an overhang and a grey fascia, an entrance on the walkway
     // side, lights, a chest, a ladder to the upper floor; a café terrace in front.
-    static func building(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng) {
+    // A building's footprint: the first draws of its lot's generator, so another lot can find it (CapitalTown sends
+    // residents to work in the offices).
+    struct Footprint { let bx0: Int, bz0: Int, bw: Int, bd: Int, storeys: Int }
+    static func footprint(_ x0: Int, _ z0: Int, _ rng: inout SRng) -> Footprint {
+        let bw = rng.range(16, 22), bd = rng.range(9, 13)
+        let storeys = rng.chance(0.55) ? 2 : 1
+        let bx0 = x0 + street + 3 + rng.int(23 - bw), bz0 = z0 + street + 9 + rng.int(max(1, 15 - bd))
+        return Footprint(bx0: bx0, bz0: bz0, bw: bw, bd: bd, storeys: storeys)
+    }
+
+    // `home`: a block of flats (beds along the back wall, residents) instead of offices.
+    static func building(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, home: (Plan, Int, Int)? = nil) {
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
         let window = g("capital_window", GLASS), light = g("light_panel", g("glowstone")), pave = g("capital_paving", grey)
         let roofSlab = g("capital_stone_slab", white), ladder = g("ladder")
-        let bw = rng.range(16, 22), bd = rng.range(9, 13)
-        let storeys = rng.chance(0.55) ? 2 : 1
-        let bx0 = x0 + street + 3 + rng.int(23 - bw), bz0 = z0 + street + 9 + rng.int(max(1, 15 - bd))
-        let bx1 = bx0 + bw - 1, bz1 = bz0 + bd - 1
+        let fp = footprint(x0, z0, &rng)
+        let bw = fp.bw, storeys = fp.storeys, bx0 = fp.bx0, bz0 = fp.bz0
+        let bx1 = bx0 + bw - 1, bz1 = bz0 + fp.bd - 1
         func box(_ ax: Int, _ az: Int, _ bx: Int, _ bz: Int, _ y0: Int) {
             let H = 5
             for z in az...bz { for x in ax...bx {
@@ -362,10 +391,16 @@ enum CapitalCity {
         // Entrance: a 3-wide opening in the north (walkway) face, glass panels round it.
         let ex = (bx0 + bx1) / 2
         for x in (ex - 1)...(ex + 1) { for y in (L + 1)...(L + 3) { w.set(x, y, bz0, AIR) } }
-        // Interior: a reception desk, benches, the chest.
-        w.set(ex - 3, L + 1, bz0 + 3, white); w.set(ex - 2, L + 1, bz0 + 3, white); w.set(ex - 1, L + 1, bz0 + 3, white)
-        w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
-        bench(&w, bx0 + 2, L, bz1 - 2, alongX: true, dir: "south")
+        if let (plan, i, j) = home {
+            // Flats: beds along the back wall, a resident for each, the chest in the corner.
+            w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
+            CapitalTown.residents(&w, plan, i, j, fp, L)
+        } else {
+            // Interior: a reception desk, benches, the chest.
+            w.set(ex - 3, L + 1, bz0 + 3, white); w.set(ex - 2, L + 1, bz0 + 3, white); w.set(ex - 1, L + 1, bz0 + 3, white)
+            w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
+            bench(&w, bx0 + 2, L, bz1 - 2, alongX: true, dir: "south")
+        }
         if storeys == 2 {
             // Upper storey set back two from the south and east sides; the lower roof around it is a terrace with
             // a low parapet; a ladder inside the north-west corner.
@@ -387,7 +422,7 @@ enum CapitalCity {
 
     // A paved square: four trees in planters with benches, seating, light posts; the civic centre has a fountain
     // pool in the middle and two guards.
-    static func plaza(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, fountain: Bool) {
+    static func plaza(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ L: Int, _ rng: inout SRng, fountain: Bool, plan: Plan? = nil) {
         let white = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
         let light = Blocks.has("light_panel") ? Blocks.id("light_panel") : STONE
         let cx = x0 + street + 13, cz = z0 + street + 13
@@ -410,6 +445,7 @@ enum CapitalCity {
             for t in 0..<3 where rng.chance(0.8) { seating(&w, cx - 6 + t * 6, L, cz + 5, &rng) }
             if rng.chance(0.7) { w.mob(watch[rng.int(watch.count)], V3(Float(cx) + 0.5, Float(L + 1), Float(cz + 3) + 0.5)) }
         }
+        if let plan { CapitalTown.square(&w, plan, cx, cz, L, civic: fountain) }   // the bell townsfolk meet at, the city's name
         for (dx, dz) in [(-11, -11), (11, -11), (-11, 11), (11, 11)] {      // light posts in the corners (off the ramps)
             for y in (L + 1)...(L + 3) { w.set(cx + dx, y, cz + dz, white) }
             w.set(cx + dx, L + 4, cz + dz, light)
