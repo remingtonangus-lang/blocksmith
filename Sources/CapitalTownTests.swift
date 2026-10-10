@@ -140,7 +140,9 @@ extension TownTests {
                 if m.pos.y > Float(j[1]) + 0.7 {
                     onCounter += 1
                     if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil && onCounter % 7 == 1 {
-                        print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround)")
+                        print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround) t \(Int(g.dayFraction * 24000)) goal \(m.path.goal) nodes \(m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }) partial \(m.path.partial) near \(g.mobs.mobs.filter { $0 !== m && simd_length($0.pos - m.pos) < 1.5 }.map { "\($0.villager?.role ?? "?")@\($0.pos)" })")
+                        for y in j[1] - 1...j[1] + 1 { for z in j[2] - 3...j[2] + 3 {
+                            print("   y\(y) z\(z): " + (j[0] - 3...j[0] + 3).map { String(Blocks.key(w.block($0, y, z)).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined()) } }
                     }
                 }
             }

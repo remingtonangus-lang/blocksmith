@@ -1225,7 +1225,19 @@ final class Mob {
             // It must also be in plain sight of the anchor at knee height: the floor across the counter is level with the
             // keeper's, and keepers walked round to it and stood on the counter on the way (verifier probe: 60-135 of 200
             // samples on the counter).
-            if tight, let a = area, !w.clearShot(V3(a.0.x, Float(base) + 0.3, a.0.z), V3(Float(x) + off, Float(base) + 0.3, Float(z) + off)) { continue }
+            // Both right-angle routes too (x then z, z then x): a goal just past the counter's end is in sight, but the walk
+            // there cuts the counter's corner and the keeper hopped up onto it (seed 1: 35-48 of 1440 samples).
+            // At head height as well: the saloon's bottles hang at head height on the shelf row, and a barkeep brushing
+            // them on the way to a goal between two hopped and came down on the bar (seed 777).
+            if tight, let a = area {
+                var blocked = false
+                for h in [Float(base) + 0.3, Float(base) + 1.5] where !blocked {
+                    let s0 = V3(a.0.x, h, a.0.z), g0 = V3(Float(x) + off, h, Float(z) + off)
+                    let c1 = V3(g0.x, h, s0.z), c2 = V3(s0.x, h, g0.z)
+                    blocked = !w.clearShot(s0, g0) || !w.clearShot(s0, c1) || !w.clearShot(c1, g0) || !w.clearShot(s0, c2) || !w.clearShot(c2, g0)
+                }
+                if blocked { continue }
+            }
             for dy in tight ? [0] : [0, 1, -1, 2, -2] {
                 let g = V3(Float(x) + off, Float(base + dy), Float(z) + off)
                 if let c = PathFinder.standCost(w, x, base + dy, z, pr), c < 5, !gaveUp(g), !(caveShy && Mob.underground(w, x, base + dy, z)) { return g }

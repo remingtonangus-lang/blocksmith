@@ -47,6 +47,7 @@ struct PathProfile {
     var doors = false
     var climbs = true
     var range = 48                            // farthest goal searched for (x + z blocks); farther ones aren't tried
+    var hurdleCost: Float = 0                  // extra cost to step up onto a one-block ridge (counters, low walls)
 }
 
 enum PathFinder {
@@ -354,7 +355,10 @@ enum PathFinder {
                         continue
                     }
                     if dy == 0 { flat |= 1 << di }
-                    add(i, q, c + (dy > 0 ? 0.5 : 0) + (dy < 0 ? Float(-dy) * 0.4 : 0))
+                    // Over a one-block ridge (up onto it, the floor beyond back at this level) costs extra where the profile
+                    // says so: a barkeep coming back routed over the bar rather than round its end (seeds 1, 777).
+                    let hurdle = dy == 1 && pr.hurdleCost > 0 && standCost(w, qx + dx, p.y, qz + dz, pr) != nil ? pr.hurdleCost : 0
+                    add(i, q, c + (dy > 0 ? 0.5 : 0) + (dy < 0 ? Float(-dy) * 0.4 : 0) + hurdle)
                     break
                 }
             }
@@ -408,7 +412,7 @@ extension Mob {
         // Townsfolk walk across a town (a Capital citizen's flat to an office two lots away, ~70 blocks): beyond 48 the
         // search wasn't tried at all and they walked straight at the walls in between (CapitalTownTests day sim). Their
         // searches stay capped at 1500 nodes, so a far goal costs no more than a near one behind a house.
-        if kind == .villager { pr.range = 160 }
+        if kind == .villager { pr.range = 160; pr.hurdleCost = 8 }
         return pr
     }
 

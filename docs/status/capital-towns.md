@@ -24,7 +24,11 @@
   (World.clearShot, so never through a wall).
 - Counters: a keeper strolling round the counter (radius 2.5) picked goals a block up, i.e. the counter top, and
   stood on it. Strolls in a tight area (radius 3 or less) keep to the anchor's floor and need a clear line from the
-  anchor (Mob.strollGoal), so a goal behind the counter can't be reached by climbing it.
+  anchor along the straight line and both right-angle routes, at knee and head height (Mob.strollGoal), so a goal
+  past the counter's end or between the saloon's hanging bottles isn't one.
+- Bars: a barkeep coming back in routed up over the bar instead of round its end, and stood on it. Villager paths
+  pay 8 extra to step up onto a one-block ridge (PathProfile.hurdleCost). Diners at the saloon stand on the
+  customers' side of the bar, not round the barkeep's spot (Mob.barFront).
 - Slab ledges: a walker on a half slab (y+0.5) jumped onto a terrace a full block above the slab's block, a 1.5 rise
   it can't make, and stayed there pushing. The pathfinder now refuses an up-step whose real rise is over 1.25
   (Pathfinding step, solidTop of both floors).
@@ -38,7 +42,7 @@ CapitalCity.swift (Plan.shops/flat/seed, planFor split out of site, building foo
 in building()), StructureStart.plan (the city plan kept for name lookups and the checks), Townsfolk.swift (citizen
 tag "citizen@x,y,z", city greetings, Townsfolk.town knows capitals), TownsfolkModel.swift (city clothes),
 VillageLife.swift (citizens work at their desk; bed reach), Mob.swift (tight strolls), Pathfinding.swift (range,
-slab ledges). Offices have a row of desks (one per worker) and citizens go to the nearest office by distance and climb.
+slab ledges, hurdles), Townsfolk.swift (barFront). Offices have a row of desks (one per worker) and citizens go to the nearest office by distance and climb.
 
 ## Checks (repeatable)
 - `questcheck` (every Quest host check) and Mac `--towntests` run CapitalTownTests via TownTests.run;
@@ -49,8 +53,9 @@ slab ledges). Offices have a row of desks (one per worker) and citizens go to th
     every keeper and citizen, everyone and every desk on a floor with head room;
   - day: through Game.tick, 90% of citizens reach their desk in 180 s of work hours and 90% of citizens and keepers
     are asleep in bed within 150 s of night.
-- Results (2026-10-10): seeds 12345 / 777 / 424242 / 9001: desks 12/12, 24/24, 9/9, 30/30; asleep 20/20, 32/32,
-  17/17, 38/38.
+- Results (2026-10-10, after the verifier fixes): 8 seeds (12345, 777, 424242, 9001, 1, 55555,
+  31337, 2024): desks 100% on every seed (9-30 citizens), asleep 100% (17-38 people), keepers up on something in
+  1-7 of 1440 samples (was up to 48 on seed 1). The full questcheck passes.
 - `questcheck --render R.png --golden DIR`: capital_market.png (the general store's front from the walkway).
 
 ## Pre-mortem (5 ways a player could break or dislike it, and the test for each)

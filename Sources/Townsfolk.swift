@@ -277,6 +277,21 @@ extension Mob {
         return false
     }
 
+    // Where diners stand: on the customers' side of the bar, two blocks out from the barkeep across the counter (the
+    // keeper's own spot drew a lunch crowd behind the bar that shoved the barkeep up onto it; CapitalTownTests seeds 1
+    // and 777). Without a counter in reach, the keeper's spot itself.
+    static func barFront(_ w: World, _ js: [Int]) -> V3 {
+        func open(_ k: Int, _ dx: Int, _ dz: Int) -> Bool {
+            !Blocks.collide[Int(w.block(js[0] + k * dx, js[1], js[2] + k * dz))] && !Blocks.collide[Int(w.block(js[0] + k * dx, js[1] + 1, js[2] + k * dz))]
+        }
+        // The counter is one block high with the room open beyond it (the shelves behind the keeper have the wall beyond).
+        for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where Blocks.collide[Int(w.block(js[0] + dx, js[1], js[2] + dz))]
+            && open(2, dx, dz) && open(3, dx, dz) {
+            return V3(Float(js[0] + 2 * dx) + 0.5, Float(js[1]), Float(js[2] + 2 * dz) + 0.5)
+        }
+        return V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
+    }
+
     // The midday meal: the nearest saloon's counter within 64 blocks (searched every 60 s), else home.
     func townMealSpot(_ g: Game, _ dt: Float) -> V3? {
         town.mealSearch -= dt
@@ -286,7 +301,7 @@ extension Mob {
         var bd: Float = 64
         for o in g.mobs.mobs where o.kind == .villager && o.villager?.shop == ShopKind.saloon.rawValue {
             let d = simd_length(o.pos - pos)
-            if d < bd, let js = o.villager?.jobSite { bd = d; best = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5) }
+            if d < bd, let js = o.villager?.jobSite { bd = d; best = Mob.barFront(g.world, js) }
         }
         town.mealSpot = best
         return best
