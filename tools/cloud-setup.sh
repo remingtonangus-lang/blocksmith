@@ -67,7 +67,7 @@ fetch() {  # fetch URL OUT: a clear message (naming the host) when the session's
 SUDO=""; [ "$(id -u)" = 0 ] || SUDO=sudo
 
 install_apt() {
-  local pkgs="libvulkan-dev mesa-vulkan-drivers zlib1g-dev libopenxr-dev glslang-tools unzip zip python3 curl"
+  local pkgs="libvulkan-dev mesa-vulkan-drivers zlib1g-dev libopenxr-dev glslang-tools unzip zip python3 curl rsync"
   local missing=""
   for p in $pkgs; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
   [ -z "$missing" ] && { echo "apt packages present"; return; }
