@@ -301,5 +301,259 @@
     "bundle:0.8"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i11_food2.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "beetroot:0.85",
+    "beetroot_soup:0.85",
+    "cod",
+    "cooked_cod:0.85"
+   ],
+   [
+    "salmon",
+    "cooked_salmon:0.85",
+    "mutton:0.85",
+    "cooked_mutton:0.85"
+   ],
+   [
+    "rabbit:0.85",
+    "cooked_rabbit:0.85",
+    "rabbit_stew:0.85",
+    "mushroom_stew:0.85"
+   ],
+   [
+    "golden_carrot",
+    "rotten_flesh:0.8",
+    "spider_eye:0.7",
+    "tropical_fish:0.85"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i12_food3.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "pufferfish:0.85",
+    "glow_berries:0.85",
+    "chorus_fruit:0.8",
+    "popped_chorus_fruit:0.8"
+   ],
+   [
+    "enchanted_golden_apple:0.85",
+    "honey_bottle:0.85",
+    "poisonous_potato:0.8",
+    "honeycomb:0.8"
+   ],
+   [
+    "ink_sac:0.8",
+    "glow_ink_sac:0.8",
+    "snowball:0.75",
+    "quartz:0.8"
+   ],
+   [
+    "nether_brick:0.8",
+    "nether_wart:0.8",
+    "blaze_powder:0.8",
+    "magma_cream:0.75"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i13_materials3.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "beetroot_seeds:0.75",
+    "melon_seeds:0.75",
+    "pumpkin_seeds:0.75",
+    "torchflower_seeds:0.75"
+   ],
+   [
+    "pitcher_pod:0.8",
+    "ghast_tear:0.7",
+    "ender_eye:0.8",
+    "nether_star:0.85"
+   ],
+   [
+    "netherite_scrap:0.8",
+    "prismarine_shard:0.8",
+    "prismarine_crystals:0.8",
+    "shulker_shell:0.8"
+   ],
+   [
+    "rabbit_foot:0.8",
+    "rabbit_hide:0.8",
+    "phantom_membrane:0.85",
+    "amethyst_shard:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i14_materials4.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "echo_shard:0.8",
+    "heart_of_the_sea:0.85",
+    "totem_of_undying:0.85",
+    "end_crystal:0.85"
+   ],
+   [
+    "dragon_breath:0.85",
+    "fermented_spider_eye:0.75",
+    "glistering_melon_slice:0.8",
+    "fire_charge:0.75"
+   ],
+   [
+    "wind_charge:0.75",
+    "breeze_rod",
+    "goat_horn:0.85",
+    "armadillo_scute:0.8"
+   ],
+   [
+    "copper_nugget:0.6",
+    "resin_clump:0.75",
+    "resin_brick:0.8",
+    "raw_titanium:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i15_misc3.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "white_dye:0.8",
+    "music_disc_13:0.85",
+    "netherite_upgrade_smithing_template:0.85",
+    "flower_banner_pattern:0.85"
+   ],
+   [
+    "iron_horse_armor:0.85",
+    "iron_spear",
+    "oak_chest_boat",
+    "armor_stand"
+   ],
+   [
+    "name_tag:0.85",
+    "recovery_compass:0.85",
+    "written_book:0.85",
+    "firework_rocket"
+   ],
+   [
+    "firework_star:0.7",
+    "experience_bottle:0.8",
+    "ominous_bottle:0.8",
+    "powder_snow_bucket:0.85"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i16_armor3.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "chainmail_helmet:0.8",
+    "chainmail_chestplate:0.85",
+    "chainmail_leggings:0.85",
+    "chainmail_boots:0.8"
+   ],
+   [
+    "-",
+    "elytra:0.9",
+    "jetpack:0.85",
+    "mace"
+   ],
+   [
+    "carrot_on_a_stick",
+    "warped_fungus_on_a_stick",
+    "wolf_armor:0.85",
+    "trial_key"
+   ],
+   [
+    "ominous_trial_key",
+    "chest_minecart:0.85",
+    "hopper_minecart:0.85",
+    "furnace_minecart:0.85"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i17_guns.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "tnt_minecart:0.85",
+    "gun_arc",
+    "gun_launcher",
+    "gun_rifle"
+   ],
+   [
+    "gun_shotgun",
+    "gun_sidearm:0.8",
+    "gun_smg:0.9",
+    "gun_sniper"
+   ],
+   [
+    "rifle_rounds:0.8",
+    "shotgun_shells:0.8",
+    "heavy_rounds:0.8",
+    "rocket_ammo:0.85"
+   ],
+   [
+    "arc_cell:0.75",
+    "steel_ingot:0.8",
+    "steel_blend:0.8",
+    "firing_mechanism:0.8"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i18_misc4.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "white_banner:0.9",
+    "bamboo_raft",
+    "bamboo_chest_raft",
+    "brown_egg:0.7"
+   ],
+   [
+    "blue_egg:0.7",
+    "cod_bucket:0.85",
+    "salmon_bucket:0.85",
+    "tropical_fish_bucket:0.85"
+   ],
+   [
+    "pufferfish_bucket:0.85",
+    "axolotl_bucket:0.85",
+    "tadpole_bucket:0.85",
+    "disc_fragment_5:0.75"
+   ],
+   [
+    "map:0.85",
+    "angler_pottery_sherd:0.8",
+    "turtle_helmet:0.8",
+    "targeting_optic"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i19_steelhold.jpg",
+  "grid": 2,
+  "tiles": [
+   [
+    "radar_module:0.85",
+    "radar_set:0.85"
+   ],
+   [
+    "intercepted_orders:0.85",
+    "-"
+   ]
+  ]
  }
 ]
