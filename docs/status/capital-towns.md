@@ -66,5 +66,5 @@ slab ledges, hurdles), Townsfolk.swift (barFront). Offices have a row of desks (
 3. A dead city (a few people, or none) -> at least 8 buildings, 8+ citizens checked; seeds give 9-30 citizens.
 4. Frame rate in the capital (more mobs) -> at most 3 residents per flat (9-30 citizens + 8 keepers), path searches
    stay inside the existing per-tick budget (1.5 ms, 4 searches); bench route_capital to be re-measured on device.
-5. Old worlds -> chunks already generated keep their buildings; a city half generated before this change gets the
-   new lots only in chunks generated after it (lot kinds changed for the market and the extra buildings).
+5. Old worlds -> a capital already started in a save keeps its old plan: the save's structure-guard-capital-towns.txt
+   lists those cities (StructureCache.legacyCapitalTowns), so a half-generated city never gets new lots cut through it.

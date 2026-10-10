@@ -147,6 +147,20 @@ extension TownTests {
                 }
             }
         }
+        // Lunch at the saloon (5600-6600): the diners stand on the customers' side, not round the barkeep (verifier: a
+        // stool in front of the bar sent them behind it), and the barkeep stays off the bar.
+        g.time = (5650.0 / 24000) * DAY_LENGTH
+        let barkeep = keepers.first { $0.villager?.shop == ShopKind.saloon.rawValue }
+        var behindBar = 0, lunchSamples = 0
+        run(45) {
+            guard let b = barkeep, let j = b.villager?.jobSite else { return }
+            let spot = V3(Float(j[0]) + 0.5, Float(j[1]), Float(j[2]) + 0.5)
+            for m in workers { lunchSamples += 1; if simd_length(m.pos - spot) < 1.6 { behindBar += 1 } }
+            keeperSamples += 1
+            if b.pos.y > Float(j[1]) + 0.7 { onCounter += 1 }
+        }
+        check(lunchSamples > 0 && behindBar * 50 <= lunchSamples,
+              "capitals: lunch guests stay out from behind the bar (\(behindBar) of \(lunchSamples) samples beside the barkeep)")
         check(keeperSamples > 0 && onCounter * 50 <= keeperSamples,
               "capitals: keepers stay off their counters in shop hours (\(onCounter) of \(keeperSamples) samples up on something)")
         if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil {
