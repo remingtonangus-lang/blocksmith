@@ -65,9 +65,22 @@ final class CombatHUD {
         out += g.radarLines(L)
         // Vehicle gauges while piloting (or riding aboard).
         if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil {
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 64 * s
+            // A Meridian frigate's panel has one more row: the Tidebreaker's gauge.
+            let gun = g.world.ships.mainGunStatus(ship.root)
+            let extra: Float = gun == nil ? 0 : 11
+            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (64 + extra) * s
             let w = 104 * s
-            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 58 * s)))
+            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (58 + extra) * s)))
+            if let (state, fill, ready) = gun {
+                let gy = y0 + 54 * s
+                let c = ready ? V4(0.55, 0.85, 1, 1) : V4(0.95, 0.75, 0.2, 1)
+                out.append(HudLine(text: MainGun.name, x: x, y: gy, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+                let sw = Float(Font.width(state)) * s
+                out.append(HudLine(text: state, x: x + w - sw, y: gy, scale: s, color: c))
+                let bx = x + Float(Font.width(MainGun.name)) * s + 4 * s, bw = max(0, w - sw - 4 * s - (bx - x))
+                out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+                out.append(HudLine(text: "", x: bx, y: gy + s, scale: s, bg: c, box: V2(bw * fill, 5 * s)))
+            }
             let kind = VehicleControls.kind(ship)
             let speed = simd_length(ship.vel) * 3.6
             out.append(HudLine(text: "\(ship.name) - \(VehicleControls.name(kind))", x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
@@ -94,10 +107,7 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(w - 26 * s, 5 * s)))
             let ic = integ < 0.35 ? Settings.shared.badColor : (integ < 0.7 ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor)
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
-            if let m = g.world.ships.macCharge(ship) {
-                let t = m > 0 ? String(format: "MAC %.0f s", m.rounded(.up)) : "MAC ready"
-                out.append(HudLine(text: t, x: x, y: y0 + 43 * s, scale: s, color: m > 0 ? V4(0.95, 0.75, 0.2, 1) : V4(0.55, 0.85, 1, 1)))
-            } else if kind == .airship {
+            if kind == .airship {
                 out.append(HudLine(text: String(format: "Lift %d%%", Int(ship.liftLevel * 100)), x: x, y: y0 + 43 * s, scale: s, color: V4(0.8, 0.9, 1, 1)))
             }
             if VehicleControls.armed(g, ship) {

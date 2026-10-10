@@ -466,7 +466,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             eye = p.viewEye + dir * dist
         }
-        return (eye, camYaw, camPitch)
+        // Screen shake (the Tidebreaker, MainGun.swift).
+        let (sy, sp, so) = game.shakeView
+        return (eye + so, camYaw + sy, camPitch + sp)
     }
 
     // One frame into `final` (the drawable or an offscreen target). Fast: a single pass. Fancy: shadow
@@ -1539,6 +1541,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            if let o = game.stationOpBar() { bars.append(o) }
             if let a = game.ashBossBar() { bars.append((a.0, a.1, V4(0.8, 0.1, 0.08, 1))) }
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             for (i, b) in bars.enumerated() {

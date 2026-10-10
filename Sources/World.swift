@@ -17,6 +17,7 @@ final class World {
     var pendingMobs: [(String, V3)] = []
     var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires
     var gravityQueue: [IVec3] = []                  // cells to check for sand/gravel/anvils that should fall
+    var gravityScratch: [IVec3] = []                // Game.gravityTick's reused batch buffer
     static let fallingIDs: [Bool] = {
         var t = [Bool](repeating: false, count: Blocks.count)
         for i in 0..<Blocks.count {

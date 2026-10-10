@@ -10,6 +10,7 @@ final class BorealAlarmState {
     struct Site { var cx: Int, cz: Int, S: Int; var on = false; var quiet: Float = 0; var blare: Float = 0; var src = V3(0, 0, 0) }
     var sites: [String: Site] = [:]
     var log: [String] = []                       // harness: what happened, in order
+    var ops: [String: StationOp] = [:]           // infiltration operations (BorealOps.swift), saved
     static let blareEvery: Float = 4
     static let standDown: Float = 45
 }

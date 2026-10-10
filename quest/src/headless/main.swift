@@ -376,6 +376,21 @@ check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position
 check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
 check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))")
 
+// The Meridian frigate's Tidebreaker (Sources/MainGunTests.swift): barrel, shockwave, a shot through Game.tick with the
+// frame time after the impact; with --render, stereo frames of the barrel, the charge, the blast and the crater
+// (next to the --render PNG).
+do {
+    let shotDir = renderPath.flatMap { $0.isEmpty ? nil : ($0 as NSString).deletingLastPathComponent }
+    let render: ((String, Float, Float) -> Void)? = shotDir.flatMap { dir in vkctx.map { ctx in { name, yaw, pitch in
+        do {
+            try RenderTest.render(game: game, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", yaw: yaw, pitch: pitch)
+            print("render: \(dir)/\(name).png")
+        } catch { check(false, "maingun render \(name): \(error)") }
+    } } }
+    MainGunTests.run(game, check, render: render)
+    if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+}
+
 // Mixer: a few sounds through the software mixer.
 if let snd = SoundEngine() {
     snd.setListener(eye: V3(0, 70, 0), yaw: 0, pitch: 0, cave: 0, underwater: false)

@@ -12,6 +12,11 @@
 > lunch, the square's bell, home to bed); the city is named on the fountain. Fixes for all townsfolk: lying down from
 > the foot of a bed, keepers off their counters, path searches to 100 blocks. Check: `questcheck --capitals-only`
 > (also in questcheck / `--towntests`). Notes and pre-mortem: docs/status/capital-towns.md.
+> **Boreal Station infiltration (2026-10-10, PR into quest-port):** each station is an operation: copy the uplink
+> codes at a control-room console, set a 45 s charge on the generator, get past the fence. No alarm = silent rating
+> (Farsight Rifle, $250, "Nobody Was Here"); loud pays less. The alarm locks the uplink, sends squads down the
+> stairwell and roused soldiers now open bulkhead doors. HUD bar shows the next job. Checks: borealtest (15 per seed).
+> Details: docs/status/boreal-station.md.
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest
@@ -76,7 +81,7 @@
 > docs/status/quest-port.md "Task 24 audio + visual polish".
 
 > **Factions (2026-10-09, task 23, quest-port + playtest):** the frigate is now the Meridian Navy (its own faction, new
-> hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; MAC gun craters citadels). Capital
+> hull with twin bow booms, bridge dome, glowing engine block; drivable, 42 b/s; its Tidebreaker main gun craters citadels). Capital
 > cities (white low-rise garden cities with covered walkways). Citadels are denser on new ground (saved worlds keep
 > theirs). Post-game warships are rare; base loot gives gun/radar components; a radar and intercepted orders find
 > sites. All factions fight each other. Details: docs/status/quest-port.md "Task 23 factions".

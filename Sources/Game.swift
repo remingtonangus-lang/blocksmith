@@ -141,6 +141,7 @@ final class Game {
     var lastPearl: Double = -10
     var rideInput = MoveInput()
     var falling: [FallingBlock] = []
+    var shake: Float = 0                   // screen-shake trauma 0...1 (MainGun.swift: addShake, shakeView, shakeVR)
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
@@ -948,6 +949,8 @@ final class Game {
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if useNow, let r = riding, stickBoost(r) { return }
+        // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
+        if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
@@ -2304,6 +2307,7 @@ final class Game {
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
+        shake = max(0, shake - Float(dt) * 1.3)
         TickProf.mark("particles")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {

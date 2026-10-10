@@ -73,6 +73,8 @@ enum Advancements {
         // Adventure
         Advancement(id: "adventure/root", tab: 3, title: "Out There", desc: "Adventure, exploration and combat", crit: .event("kill_any")),
         Advancement(id: "adventure/kill_a_mob", tab: 3, title: "Hunter", desc: "Kill any hostile monster", crit: .event("kill_hostile")),
+        Advancement(id: "adventure/station_op", tab: 3, title: "Cold Run", desc: "Copy the codes, wreck the generator and get out of a Boreal Station", crit: .event("station_op")),
+        Advancement(id: "adventure/station_silent", tab: 3, title: "Nobody Was Here", desc: "Finish a Boreal Station operation without setting off the alarm", crit: .event("station_silent"), challenge: true),
         Advancement(id: "adventure/trade", tab: 3, title: "Fair Deal", desc: "Successfully trade with a Townsperson", crit: .event("trade")),
         Advancement(id: "adventure/sleep_in_bed", tab: 3, title: "Good Night", desc: "Sleep in a bed to change your respawn point", crit: .event("sleep")),
         Advancement(id: "adventure/shoot_arrow", tab: 3, title: "Take Aim", desc: "Shoot something with an arrow", crit: .event("arrow_hit")),

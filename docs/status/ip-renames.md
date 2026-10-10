@@ -91,3 +91,11 @@ Names chosen for new content (checked against RDR2's cast, gangs and towns: no m
 surnames are common 19th-century American names (Townsfolk.swift); town names are generated from original parts
 ("Dry Springs", "Juniper Crossing"); shop names are generic trades (General Store, Gunsmith, Butcher, Doctor, Stable,
 Tailor, Blacksmith, Saloon). Currency is plain dollars and cents.
+
+## Halo terms (2026-10-09, task 3: frigate main gun)
+Standing rule (Remington): borrow the feel of Red Dead Redemption 2, GoldenEye and Halo, never their names. Display text only.
+| Where | Internal key | Old display | New display |
+|---|---|---|---|
+| Frigate spinal gun: helm HUD gauge (CombatHUD), ship status line (ShipPlay), subtitles | `mainGun*`, `Snd.mainGun*` | MAC | Tidebreaker ("Main gun charging / fires" in subtitles) |
+| Mac gamepad layout preset: Pause > Controls row, help text, toast (PadMap, PauseMenu) | `padLayout = "halo"`, `PadMap.halo` | Halo | Shooter |
+| (none found) | | UNSC | (grep of Sources/, quest/, docs/ on 2026-10-09: no occurrence) |

@@ -16,8 +16,19 @@ final class FallingBlock {
 extension Game {
     func gravityTick() {
         guard !world.gravityQueue.isEmpty else { return }
-        let q = world.gravityQueue
-        world.gravityQueue.removeAll(keepingCapacity: true)
+        // At most `gravityChecksPerTick` cells a tick, oldest first; a mass edit (a crater's rim: 8000+ cells queued
+        // in one tick) spreads over a few ticks instead of one long frame.
+        // (The cells taken go to a reused buffer, swapped or moved without a new array each tick.)
+        var q: [IVec3] = []
+        swap(&q, &world.gravityScratch)
+        q.removeAll(keepingCapacity: true)
+        if world.gravityQueue.count <= Game.gravityChecksPerTick {
+            swap(&q, &world.gravityQueue)
+        } else {
+            q.append(contentsOf: world.gravityQueue[..<Game.gravityChecksPerTick])
+            world.gravityQueue.removeFirst(Game.gravityChecksPerTick)
+        }
+        defer { world.gravityScratch = q }
         for p in q {
             if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
             let b = world.block(p.x, p.y, p.z)
@@ -34,6 +45,8 @@ extension Game {
             falling.append(FallingBlock(V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5), b))
         }
     }
+
+    static let gravityChecksPerTick = 1500
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
     // for every cell the gravity queue holds, thousands a tick while water flows (bench fluids: worst tick 31 ms).
