@@ -162,7 +162,7 @@
    [
     "paper:0.85",
     "book:0.85",
-    "glass_bottle:0.85",
+    "-",
     "brick:0.8"
    ],
    [
@@ -269,6 +269,36 @@
     "cocoa_beans:0.75",
     "pumpkin_pie:0.85",
     "dried_kelp:0.85"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i10_misc2.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "wooden_hoe",
+    "steel_helmet:0.8",
+    "glass_bottle:0.85",
+    "spyglass"
+   ],
+   [
+    "brush:0.85",
+    "filled_map:0.85",
+    "writable_book:0.85",
+    "enchanted_book:0.85"
+   ],
+   [
+    "turtle_scute:0.8",
+    "nautilus_shell:0.8",
+    "trident",
+    "crossbow"
+   ],
+   [
+    "minecart:0.85",
+    "oak_boat",
+    "-",
+    "bundle:0.8"
    ]
   ]
  }
