@@ -1747,6 +1747,12 @@ if CommandLine.arguments.contains("--texpacktest") {
     // The Quest's imported-texture pack (tools/texpack.py) parses and names only registered layers.
     exit(TexPack.selfTest(path: arg("--texpacktest") ?? "Resources/texpack.bin"))
 }
+if let out = arg("--texnames") {
+    // Every registered texture layer name, one per line (which layers an imported art set still lacks).
+    TextureGen.registerAll()
+    try? Tex.names.joined(separator: "\n").write(toFile: out, atomically: true, encoding: .utf8)
+    exit(0)
+}
 if let out = arg("--hdatlas") { exit(dumpHDAtlas(out)) }
 if let out = arg("--atlas") {
     exit(dumpAtlas(out))

@@ -112,7 +112,7 @@ def hexrgb(h):
     return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], np.float32) / 255
 
 
-def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, quiet=False):
+def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, quiet=False, tintmean=0.72):
     notes = []
     img = load(src)
     notes.append(f'source {img.shape[0]} px')
@@ -122,7 +122,7 @@ def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, qu
         notes.append(f'internal 2x2 repeat (self-difference at half shift {r:.2f} of normal): cropped one quadrant')
     elif rd < 0.35:
         notes.append(f'diagonal internal repeat ({rd:.2f}): kept whole (no quadrant tiles); prefer another source')
-    if mode == 'cutout':
+    if mode in ('cutout', 'cutout_tint'):
         key = (img[..., 0] > 0.75) & (img[..., 2] > 0.75) & (img[..., 1] < 0.35)
         img[..., 3] = np.where(key, 0, img[..., 3])
         img[..., :3] = np.where(key[..., None], 0, img[..., :3])
@@ -134,7 +134,7 @@ def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, qu
         img[..., :3] = np.clip(img[..., :3] * (hexrgb(mean) / np.maximum(m, 1e-3)), 0, 1)
         notes.append(f'colour locked to mean {mean}')
     img = resize_wrap(img, size)
-    if mode == 'cutout':
+    if mode in ('cutout', 'cutout_tint'):
         img[..., 3] = (img[..., 3] > 0.5).astype(np.float32)
     sr = seam_ratio(img)
     notes.append(f'seam ratio {sr:.2f}')
@@ -145,9 +145,9 @@ def process(src, name, out, size=128, mode='plain', strength=0.85, mean=None, qu
         sr = sr2
     if mode == 'tint' or mode == 'cutout_tint':
         L = lum(img[..., :3])
-        L = L * (0.72 / max(L[img[..., 3] > 0.5].mean(), 1e-3))
+        L = L * (tintmean / max(L[img[..., 3] > 0.5].mean(), 1e-3))
         img[..., :3] = np.clip(L, 0, 1)[..., None]
-        notes.append('greyscale for biome tint (mean 0.72)')
+        notes.append(f'greyscale for biome tint (mean {tintmean})')
     if mode == 'overlay':
         rgb = img[..., :3]
         green = (rgb[..., 1] > rgb[..., 0] * 1.08) & (rgb[..., 1] > rgb[..., 2] * 1.08)
@@ -169,12 +169,13 @@ def main():
     ap.add_argument('src'); ap.add_argument('name')
     ap.add_argument('--out', default='Resources/Textures')
     ap.add_argument('--size', type=int, default=128)
+    ap.add_argument('--tintmean', type=float, default=0.72, help='grey level of tint/cutout_tint layers')
     ap.add_argument('--mode', default='plain', choices=['plain', 'tint', 'overlay', 'cutout', 'cutout_tint'])
     ap.add_argument('--flatten', type=float, default=0.85)
     ap.add_argument('--mean')
     ap.add_argument('--report')
     a = ap.parse_args()
-    dst, notes, sr = process(a.src, a.name, a.out, a.size, a.mode, a.flatten, a.mean)
+    dst, notes, sr = process(a.src, a.name, a.out, a.size, a.mode, a.flatten, a.mean, tintmean=a.tintmean)
     if a.report:
         with open(a.report, 'a') as f:
             f.write(f'- **{a.name}** from `{os.path.basename(a.src)}`: ' + '; '.join(notes) + '\n')

@@ -1,0 +1,425 @@
+[
+ {
+  "sheet": "assets/gemini/sheets/s12_work.jpg",
+  "grid": 4,
+  "crop": 0.03,
+  "stylise": 0.15,
+  "args": [
+   "--flatten",
+   "0.95",
+   "--tintmean",
+   "0.6"
+  ],
+  "tiles": [
+   [
+    "grass_block_top:tint%26",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s12_work.jpg",
+  "grid": 4,
+  "crop": 0.03,
+  "stylise": 0.15,
+  "args": [
+   "--flatten",
+   "0.35",
+   "--tintmean",
+   "0.6"
+  ],
+  "tiles": [
+   [
+    "-",
+    "diamond_block:single",
+    "hay_block_side",
+    "hay_block_top"
+   ],
+   [
+    "crafting_table_side:single",
+    "crafting_table_front:single",
+    "-",
+    "furnace_front_on:single"
+   ],
+   [
+    "furnace_body",
+    "chest_front:single",
+    "chest_side:single",
+    "chest_top:single"
+   ],
+   [
+    "pumpkin_side",
+    "pumpkin_top:single",
+    "cactus_side",
+    "cactus_top:single#0.17"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s01_terrain.png",
+  "grid": 4,
+  "crop": 0.05,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "-",
+    "-",
+    "-",
+    "cobblestone"
+   ],
+   [
+    "gravel",
+    "sand",
+    "sandstone",
+    "clay"
+   ],
+   [
+    "coarse_dirt",
+    "deepslate",
+    "granite",
+    "diorite"
+   ],
+   [
+    "andesite",
+    "snow",
+    "mossy_cobblestone",
+    "mud"
+   ]
+  ],
+  "args": [
+   "--flatten",
+   "0.35"
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s09_fix1.png",
+  "grid": 2,
+  "crop": 0.02,
+  "stylise": 0.1,
+  "tiles": [
+   [
+    "dirt",
+    "grass_block_side:overlay"
+   ],
+   [
+    "-",
+    "-"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s06_building.png",
+  "grid": 4,
+  "crop": 0.06,
+  "stylise": 0.15,
+  "tiles": [
+   [
+    "stone#0.1",
+    "stone_bricks",
+    "bricks",
+    "smooth_stone:single"
+   ],
+   [
+    "mossy_stone_bricks",
+    "cobbled_deepslate",
+    "deepslate_bricks",
+    "deepslate_tiles"
+   ],
+   [
+    "-",
+    "calcite",
+    "dripstone_block",
+    "polished_granite"
+   ],
+   [
+    "sandstone_top#0.1",
+    "red_sand",
+    "red_sandstone",
+    "terracotta#0.1"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s03_wood.png",
+  "grid": 4,
+  "crop": 0.03,
+  "stylise": 0.5,
+  "tiles": [
+   [
+    "oak_log",
+    "oak_log_top:single#0.16",
+    "oak_planks",
+    "stripped_oak_log"
+   ],
+   [
+    "birch_log",
+    "birch_log_top:single#0.12",
+    "birch_planks",
+    "stripped_birch_log"
+   ],
+   [
+    "spruce_log",
+    "spruce_log_top:single#0.12",
+    "spruce_planks",
+    "stripped_spruce_log"
+   ],
+   [
+    "dark_oak_log",
+    "dark_oak_log_top:single#0.12",
+    "dark_oak_planks",
+    "stripped_dark_oak_log"
+   ]
+  ],
+  "maxsat": 0.5
+ },
+ {
+  "sheet": "assets/gemini/sheets/s04_wood2.png",
+  "grid": 4,
+  "crop": 0.03,
+  "stylise": 0.3,
+  "tiles": [
+   [
+    "jungle_log",
+    "jungle_log_top:single#0.04",
+    "jungle_planks",
+    "stripped_jungle_log"
+   ],
+   [
+    "acacia_log",
+    "acacia_log_top:single#0.04",
+    "acacia_planks",
+    "stripped_acacia_log"
+   ],
+   [
+    "mangrove_log",
+    "mangrove_log_top:single#0.04",
+    "mangrove_planks",
+    "stripped_mangrove_log"
+   ],
+   [
+    "cherry_log",
+    "cherry_log_top:single#0.04",
+    "cherry_planks",
+    "stripped_cherry_log"
+   ]
+  ],
+  "maxsat": 0.5
+ },
+ {
+  "sheet": "assets/gemini/sheets/s05_leaves.png",
+  "grid": 3,
+  "crop": 0.02,
+  "stylise": 0.0,
+  "tiles": [
+   [
+    "oak_leaves:cutout_tint",
+    "birch_leaves:cutout",
+    "spruce_leaves:cutout"
+   ],
+   [
+    "dark_oak_leaves:cutout",
+    "jungle_leaves:cutout",
+    "acacia_leaves:cutout"
+   ],
+   [
+    "mangrove_leaves:cutout",
+    "cherry_leaves:cutout",
+    "pale_oak_leaves:cutout"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s07_nether_end.png",
+  "grid": 4,
+  "crop": 0.04,
+  "stylise": 0.3,
+  "tiles": [
+   [
+    "-",
+    "-",
+    "-",
+    "basalt_side"
+   ],
+   [
+    "basalt_top:single",
+    "blackstone",
+    "polished_blackstone_bricks",
+    "nether_bricks"
+   ],
+   [
+    "magma",
+    "-",
+    "end_stone",
+    "end_stone_bricks"
+   ],
+   [
+    "-",
+    "purpur_block",
+    "-",
+    "-"
+   ]
+  ],
+  "maxsat": 1
+ },
+ {
+  "sheet": "assets/gemini/sheets/s08_metal.png",
+  "grid": 4,
+  "crop": 0.02,
+  "stylise": 0.1,
+  "tiles": [
+   [
+    "iron_block:single",
+    "gold_block:single",
+    "copper_block:single",
+    "coal_block"
+   ],
+   [
+    "diamond_block:single",
+    "emerald_block:single",
+    "lapis_block",
+    "redstone_block:single"
+   ],
+   [
+    "netherite_block:single",
+    "steel_plating:single",
+    "amethyst_block",
+    "prismarine:single"
+   ],
+   [
+    "white_wool",
+    "white_concrete",
+    "crafting_table_top:single",
+    "bookshelf:single"
+   ]
+  ],
+  "maxsat": 1
+ },
+ {
+  "sheet": "assets/gemini/sheets/s10_world.jpg",
+  "grid": 3,
+  "crop": 0.03,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "-",
+    "-",
+    "tuff"
+   ],
+   [
+    "-",
+    "soul_sand",
+    "soul_soil"
+   ],
+   [
+    "glowstone",
+    "farmland_moist",
+    "dirt_path_top"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s02_ores.png",
+  "grid": 4,
+  "crop": 0.06,
+  "tiles": [
+   [
+    "coal_ore@stone",
+    "iron_ore@stone",
+    "copper_ore@stone",
+    "-"
+   ],
+   [
+    "-",
+    "lapis_ore@stone",
+    "-",
+    "emerald_ore@stone"
+   ],
+   [
+    "deepslate_coal_ore@deepslate",
+    "deepslate_iron_ore@deepslate",
+    "deepslate_copper_ore@deepslate",
+    "-"
+   ],
+   [
+    "-",
+    "deepslate_lapis_ore@deepslate",
+    "-",
+    "-"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s09_fix1.png",
+  "grid": 4,
+  "crop": 0.06,
+  "tiles": [
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ],
+   [
+    "gold_ore@stone",
+    "-",
+    "deepslate_gold_ore@deepslate",
+    "-"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s11_ores2.jpg",
+  "grid": 3,
+  "crop": 0.03,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "diamond_ore@stone",
+    "deepslate_diamond_ore@deepslate",
+    "deepslate_emerald_ore@deepslate"
+   ],
+   [
+    "nether_quartz_ore@netherrack",
+    "nether_gold_ore@netherrack",
+    "ancient_debris_side"
+   ],
+   [
+    "bedrock",
+    "obsidian",
+    "netherrack"
+   ]
+  ]
+ }
+]
