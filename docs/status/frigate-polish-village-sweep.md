@@ -29,7 +29,7 @@ thread / Mac lane and are not touched here.
 
 ## Results
 - PR #12 (the Tidebreaker) rebased on quest-port (one docs conflict in quest-port.md, both sections kept) and merged.
-  Its full questcheck had 4 failures, all identical on the base branch (16c360b): see known-test-issues.md.
+  Its full questcheck had 4 failures, all identical on the base branch (16c360b): also seen by the horses thread, logged in known-test-issues.md.
 - Main gun slice (`questcheck --render OUT --no-boreal --maingun-only`): all main gun checks pass. Aim marker: a
   21-puff ring 111 blocks out, predicted in 0.5 ms (-Onone host), the slug landed 0.2 blocks from it. Crater: 253
   blocks burnt (63 of 93 solid bowl tops black, the rest under water from the sea next to it; 105 scorched-earth rim
