@@ -29,6 +29,13 @@ a file on the headset for the whole session (the previous launch's is kept too),
 `adb pull /sdcard/Android/data/com.blocksmith.quest/files/blocksmith.log` (and `blocksmith.prev.log`).
 Stop: `adb shell am force-stop com.blocksmith.quest`
 
+## Local build (no CI round trip)
+
+`tools/quest-local.sh` builds, installs and launches on the plugged-in headset from this Mac: same
+quest/tools/build-apk.sh, package and debug key as CI, reusing the installed versionCode so CI builds still install
+over it. `--fast` gives ~20 s edit-to-APK (per-file -Ounchecked; judge frame times on a default ~210 s build);
+`--log 60` follows the log for 60 s; `--no-run` builds only. Toolchain: ~/ClaudeTools/quest-sdk (`--setup`).
+
 ## Controls (Touch controllers; right-handed default)
 
 | Touch | Game (Mac pad equivalent) |

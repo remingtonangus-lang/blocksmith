@@ -1,5 +1,15 @@
 # Status
 
+> **Local Quest build loop (2026-10-09, task 25b1zzzz):** `tools/quest-local.sh` builds the Quest APK on this Mac
+> (same build-apk.sh, package and debug key as CI, so it installs over quest-dist and keeps saves), `adb install -r`,
+> launches and tails `adb logcat -s Blocksmith` (`--log N` for N seconds, `--no-run` build only, `--install` reuse
+> the last APK, `--fast` per-file incremental, `--store`). Toolchain in ~/ClaudeTools/quest-sdk (9.3 GB: swift.org
+> 6.4.0, Android SDK bundle, NDK r30 + glslc, build-tools 36.1, JRE 21; `--setup` reinstalls). Measured on the M1:
+> default (whole-module -Ounchecked, as CI): clean 261 s, after any edit ~210 s (one single-threaded optimizer pass;
+> -num-threads and the native build system don't help), no change 8 s. `--fast` (debug config + -Ounchecked, per-file,
+> -j8): clean ~105 s, edit to APK 19 s. Edit-to-headset not measured yet (no headset on adb tonight): add ~5 s install
+> + app start. `--check`: questcheck can't build on macOS (shim modules simd/os/Metal collide with the SDK); CI's
+> quest host job stays its backstop, and CI stays for quest-dist publishing.
 > **Playtest Oct 9 PM (task 25b1zzz, quest-port):** smooth step-ups for every mount and on foot (Mac + Quest camera),
 > horse knee and 13 other models no longer come apart, grass ~1/8 and cactus ~1/3, surface monsters halved (caves kept),
 > bone meal on 64 plants incl. sugar cane, leather 1-3, enchanting offers vary (Fortune/Gentle Touch, multi-enchants),

@@ -12,5 +12,5 @@ TMP=build/openxr_loader.aar.part
 trap 'rm -f "$TMP"' EXIT
 curl -fsSL --retry 2 --retry-delay 3 -o "$TMP" "https://repo1.maven.org/maven2/$P" ||
   curl -fsSL --retry 3 --retry-delay 3 -o "$TMP" "https://maven-central.storage-download.googleapis.com/maven2/$P"
-if [ "$V" = 1.1.63 ]; then echo "$SHA  $TMP" | sha256sum -c -; fi
+if [ "$V" = 1.1.63 ]; then echo "$SHA  $TMP" | shasum -a 256 -c -; fi
 mv "$TMP" build/openxr_loader.aar

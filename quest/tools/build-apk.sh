@@ -6,6 +6,9 @@
 # Khronos OpenXR loader AAR (OPENXR_AAR, quest/tools/fetch-openxr.sh). Optional: VERSION_CODE, MILESTONE.
 # The Swift package is generated under build/quest-pkg: shared Sources/ (minus quest/mac-only.txt), quest/src
 # (common, vk, xr, app, android), the generated HUD builder and SPIR-V, the shim modules and the C glue.
+# Incremental: the package is generated into build/quest-pkg.new and synced into build/quest-pkg by content, so an
+# unchanged file keeps its timestamp and SwiftPM's .build cache stays valid (tools/quest-local.sh relies on this).
+# Runs on Linux (CI) and macOS (tools/quest-local.sh; SWIFT_SDKS_PATH points at its SDK directory).
 set -euo pipefail
 trap 'echo "build-apk.sh: failed at line $LINENO: $BASH_COMMAND"' ERR
 cd "$(dirname "$0")/../.."
@@ -23,7 +26,10 @@ VERSION_CODE="${VERSION_CODE:-1}"
 STORE="${STORE:-0}"
 MILESTONE="${MILESTONE:-$(cat quest/MILESTONE 2>/dev/null || echo dev)}"
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
-PKG=build/quest-pkg
+PKG=build/quest-pkg.new
+BPKG=build/quest-pkg; [ "${QUEST_FAST:-0}" = 1 ] && BPKG=build/quest-pkg-fast   # own .build cache per mode
+sedi() { sed "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"; }   # in-place sed on GNU and BSD
+SDKS_ARGS=(); [ -n "${SWIFT_SDKS_PATH:-}" ] && SDKS_ARGS=(--swift-sdks-path "$SWIFT_SDKS_PATH")
 GEN=build/quest-gen
 STAGE=build/quest-apk
 rm -rf "$PKG" "$STAGE"; mkdir -p "$PKG/Sources" "$GEN" "$STAGE/lib/arm64-v8a" "$PKG/libs"
@@ -58,7 +64,7 @@ cp quest/c/CVulkan/* "$PKG/Sources/CVulkan/"
 cp quest/c/COpenXR/* "$PKG/Sources/COpenXR/"
 XRTMP=build/openxr-aar; rm -rf "$XRTMP"; mkdir -p "$XRTMP"; (cd "$XRTMP" && unzip -q "$ROOT/$AAR" 2>/dev/null || unzip -q "$AAR")
 cp -R "$XRTMP"/prefab/modules/headers/include/openxr "$PKG/Sources/COpenXR/"
-sed -i 's|#include <openxr/openxr.h>|#include "openxr/openxr.h"|; s|#include <openxr/openxr_platform.h>|#include "openxr/openxr_platform.h"|' "$PKG/Sources/COpenXR/shim.h"
+sedi 's|#include <openxr/openxr.h>|#include "openxr/openxr.h"|; s|#include <openxr/openxr_platform.h>|#include "openxr/openxr_platform.h"|' "$PKG/Sources/COpenXR/shim.h"
 cp "$XRTMP"/prefab/modules/openxr_loader/libs/android.arm64-v8a/libopenxr_loader.so "$PKG/libs/"
 # NativeActivity glue (C, from the NDK) + the Android headers module.
 mkdir -p "$PKG/Sources/CAndroidGlue/include"
@@ -90,32 +96,45 @@ let package = Package(
         .target(name: "Blocksmith",
                 dependencies: ["simd", "os", "Metal", "CZlib", "CVulkan", "COpenXR", "CAndroidGlue"],
                 path: "Sources/Blocksmith",
-                swiftSettings: [.define("QUEST")@VOICE_DEFINE@, .unsafeFlags(["-Ounchecked", "-wmo", "-enforce-exclusivity=unchecked"])],
+                swiftSettings: [.define("QUEST")@VOICE_DEFINE@, .unsafeFlags(["-Ounchecked"@WMO@, "-enforce-exclusivity=unchecked"])],
                 linkerSettings: [.unsafeFlags(["-L@PKGLIBS@", "-Xlinker", "-u", "-Xlinker", "ANativeActivity_onCreate",
                                                "-Xlinker", "--no-undefined", "-Xlinker", "-z", "-Xlinker", "max-page-size=16384"])]),
     ]
 )
 EOF
-sed -i "s|@PKGLIBS@|$ROOT/$PKG/libs|" "$PKG/Package.swift"
-if [ "$STORE" = 1 ]; then sed -i 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@||' "$PKG/Package.swift"
-else sed -i 's|@VOICE_LIBS@|, .linkedLibrary("mediandk")|; s|@VOICE_DEFINE@|, .define("VOICE_NOTES")|' "$PKG/Package.swift"; fi
+sedi "s|@PKGLIBS@|$ROOT/$BPKG/libs|" "$PKG/Package.swift"
+# QUEST_FAST=1 (tools/quest-local.sh --fast): per-file incremental -Ounchecked compile instead of one whole-module
+# compile (an edit rebuilds in seconds, not minutes); less cross-file inlining, so judge frame times on a default build.
+if [ "${QUEST_FAST:-0}" = 1 ]; then sedi 's|@WMO@||' "$PKG/Package.swift"; else sedi 's|@WMO@|, "-wmo"|' "$PKG/Package.swift"; fi
+if [ "$STORE" = 1 ]; then sedi 's|@VOICE_LIBS@||; s|@VOICE_DEFINE@||' "$PKG/Package.swift"
+else sedi 's|@VOICE_LIBS@|, .linkedLibrary("mediandk")|; s|@VOICE_DEFINE@|, .define("VOICE_NOTES")|' "$PKG/Package.swift"; fi
+mkdir -p "$BPKG"; rsync -rc --delete --exclude .build "$PKG"/ "$BPKG"/
 
 echo "== swift build ($SDK, $TRIPLE)"
 # The full log goes to a file (a `head` on the pipe would SIGPIPE the build under pipefail); errors are shown below.
-(cd "$PKG" && swift build -c release --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith \
+# QUEST_FAST: the debug configuration (the only incremental one; the target's -Ounchecked overrides its -Onone) on the
+# native build system, which needs the SDK's static Foundation libraries on the link line.
+FAST_ARGS=(); CONF=release
+if [ "${QUEST_FAST:-0}" = 1 ]; then
+  CONF=debug
+  STATIC=$(find ${SWIFT_SDKS_PATH:+"$SWIFT_SDKS_PATH"} "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -type d \
+    -path "*${SDK}*/swift_static-aarch64/android" -print -quit 2>/dev/null || true)
+  FAST_ARGS=(--build-system native -Xlinker -L"$STATIC")
+fi
+(cd "$BPKG" && swift build -c $CONF ${SDKS_ARGS[@]+"${SDKS_ARGS[@]}"} ${FAST_ARGS[@]+"${FAST_ARGS[@]}"} --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith \
   > "$ROOT/build/quest-swift-build.log" 2>&1) || { tail -15 build/quest-swift-build.log; echo "== compiler errors"
        sed 's/\x1b\[[0-9;]*m//g' build/quest-swift-build.log | grep -E "error:" -A3 | grep -v "Command line:\|^ *$" | head -120; exit 1; }
 grep -E "Compiling|Linking|Build complete" build/quest-swift-build.log | tail -5
 # (find -print -quit, not `| head -1`: head closing the pipe fails the assignment under pipefail and exits silently)
-SO=$(find "$PKG/.build" -name libblocksmith.so -ipath "*release*" -print -quit || true)
+SO=$(find "$BPKG/.build" -name libblocksmith.so -ipath "*$CONF*" -print -quit || true)
 echo "library: $SO"
 [ -n "$SO" ] || { echo "libblocksmith.so not built"; tail -60 build/quest-swift-build.log; exit 1; }
 cp "$SO" "$STAGE/lib/arm64-v8a/"
-cp "$PKG/libs/libopenxr_loader.so" "$STAGE/lib/arm64-v8a/"
+cp "$BPKG/libs/libopenxr_loader.so" "$STAGE/lib/arm64-v8a/"
 cp "$SYSROOT/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE/lib/arm64-v8a/"
 READELF="$PREBUILT/bin/llvm-readelf"
 # Any non-system library libblocksmith still needs (if the Swift runtime was not linked statically) comes from the SDK.
-SDKDIR=$(find "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" -print -quit 2>/dev/null || true)
+SDKDIR=$(find ${SWIFT_SDKS_PATH:+"$SWIFT_SDKS_PATH"} "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" -print -quit 2>/dev/null || true)
 SDKDIR="${SDKDIR:-$HOME/.swiftpm/swift-sdks}"
 SYSLIBS=" libc.so libm.so libdl.so liblog.so libandroid.so libvulkan.so libaaudio.so libz.so libc++_shared.so libopenxr_loader.so libEGL.so libGLESv3.so libmediandk.so "
 for pass in 1 2 3; do
@@ -137,7 +156,7 @@ echo "== apk"
 BT=$(ls -d "$AHOME"/build-tools/* | sort -V | tail -1)
 JAR=$(ls -d "$AHOME"/platforms/android-*/android.jar | sort -V | tail -1)
 sed "s/@VERSION_CODE@/$VERSION_CODE/; s/@VERSION_NAME@/0.$VERSION_CODE ($COMMIT)/" quest/android/AndroidManifest.xml > "$STAGE/AndroidManifest.xml"
-[ "$STORE" = 1 ] && sed -i '/RECORD_AUDIO/d' "$STAGE/AndroidManifest.xml"
+[ "$STORE" = 1 ] && sedi '/RECORD_AUDIO/d' "$STAGE/AndroidManifest.xml"
 "$BT/aapt2" link -o "$STAGE/base.apk" -I "$JAR" --manifest "$STAGE/AndroidManifest.xml" --min-sdk-version 29 --target-sdk-version 32
 (cd "$STAGE" && zip -q -r base.apk lib)
 "$BT/zipalign" -f -P 16 4 "$STAGE/base.apk" "$STAGE/aligned.apk"
@@ -150,7 +169,7 @@ export AAPT2="$BT/aapt2" READELF
 if [ "$STORE" = 1 ]; then quest/tools/storecheck.sh "$OUT_APK"
 else
   quest/tools/storecheck.sh --expect-voice "$OUT_APK"
-  if git log -1 --format=%B 2>/dev/null | grep -q '\[store\]'; then
+  if [ -z "${QUEST_LOCAL:-}" ] && git log -1 --format=%B 2>/dev/null | grep -q '\[store\]'; then
     STORE_APK="$(dirname "$OUT_APK")/blocksmith-quest-store.apk"
     STORE=1 "$0" "$STORE_APK"
   fi
