@@ -374,6 +374,7 @@ final class Mob {
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
+    var stationDoors = false        // a roused Boreal Station soldier works the bulkhead doors (BorealOps.swift)
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)

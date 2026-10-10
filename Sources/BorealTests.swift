@@ -246,6 +246,8 @@ enum BorealTests {
                 check(after?.on == false, "boreal \(seed): the alarm stands down after \(Int(BorealAlarmState.standDown)) s of quiet (\(g.borealAlarm.log.joined(separator: "; ")))")
             }
 
+            opsCheck(world, cx: cx, cz: cz, S: S, check: check)
+
             // Cost: the station chunks against ordinary chunks of the same world.
             let tc = CFAbsoluteTimeGetCurrent()
             for k in 0..<4 { _ = world.gen.generate(cx: floorDiv(cx, CS) + (k % 2), cz: floorDiv(cz, CS) + (k / 2)) }
@@ -258,5 +260,154 @@ enum BorealTests {
             world.pendingMobs.removeAll()
         }
         print(String(format: "borealtest: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
+    }
+
+    // The infiltration operation (BorealOps.swift), through the game's own entry points: a silent run (enter, copy
+    // with an interruption, charge, extract before it blows, reward, the blast), then a loud one (the alarm locks the
+    // uplink, the rating and reward drop, squads come down the stairwell, roused soldiers leave a shut room by its
+    // bulkhead door), and the saved state round trip.
+    static func sniperCount(_ g: Game) -> Int {
+        let id = Items.id("gun_sniper")
+        return g.inventory.main.countOf(id)
+    }
+    static func opsCheck(_ world: World, cx: Int, cz: Int, S: Int, check: (Bool, String) -> Void) {
+        let F = S - BorealStation.depth
+        let key = "boreal:\(cx),\(cz)"
+        func at(_ dx: Float, _ y: Int, _ dz: Float) -> V3 { V3(Float(cx) + dx + 0.5, Float(y), Float(cz) + dz + 0.5) }
+        let console = IVec3(cx, F + 2, cz - 24), gen = IVec3(cx + 19, F + 2, cz + 13)
+        let ck = Blocks.key(Blocks.groupBase[Int(world.block(console.x, console.y, console.z))])
+        let gk = Blocks.key(Blocks.groupBase[Int(world.block(gen.x, gen.y, gen.z))])
+        check(ck == "command_console" && gk == "steel_plating", "boreal ops: control-room console (\(ck)) and generator (\(gk)) where the plan puts them")
+
+        // Silent run: nobody in the station to see or hear.
+        var g = Game(world: world, save: nil, persistent: false)
+        g.paused = false; g.survival = true
+        g.weather.raining = false; g.weather.rain = 0
+        var toasts: [String] = []
+        g.onToast = { toasts.append($0) }
+        func secs(_ n: Int, _ body: () -> Void = {}) { for _ in 0..<n { body(); g.basesTick(1.0) } }
+        g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8)); g.player.vel = .zero
+        secs(2)
+        check(g.stationOps[key]?.stage == 0 && g.stationOpBar() == nil, "boreal ops: outside the fence the operation waits (stage \(g.stationOps[key]?.stage ?? -1))")
+        g.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6))
+        secs(1)
+        let bar0 = g.stationOpBar()?.0 ?? "none"
+        check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Copy the uplink codes") && toasts.contains { $0.hasPrefix("Station operation") },
+              "boreal ops: stepping inside starts the operation (bar \"\(bar0)\")")
+        // Copy: two seconds, walk off (interrupted, progress kept), come back, finish.
+        g.player.pos = at(0, F + 1, -21)
+        let used = g.stationUse(console)
+        secs(2)
+        let part = g.stationOps[key]?.codes ?? 0
+        let copyBar = g.stationOpBar()?.0 ?? "none"
+        g.player.pos = at(0, F + 1, -12)
+        secs(1)
+        let kept = g.stationOps[key]?.codes ?? 0
+        let stopped = g.stationOps[key]?.copyAt == nil
+        g.player.pos = at(0, F + 1, -21)
+        _ = g.stationUse(console)
+        secs(Int(BorealStation.copySeconds) + 1)
+        let codes = g.stationOps[key]?.codes ?? 0
+        check(used && part > 0.2 && part < 0.3 && copyBar.hasPrefix("Copying uplink codes") && stopped && kept == part && codes >= 1,
+              String(format: "boreal ops: the console copies (%.0f%% after 2 s, bar \"%@\"), walking off pauses it (%.0f%% kept), back at it the codes finish", part * 100, copyBar, kept * 100))
+        // A desk console elsewhere in the station (the hall's screen wall) is not the uplink.
+        check(!g.stationUse(IVec3(cx + 3, F + 3, cz - 8)), "boreal ops: the hall's screen wall is not an objective")
+        // Charge, then out past the fence before it blows.
+        g.player.pos = at(17, F + 1, 13)
+        let planted = g.stationUse(gen)
+        let inv0 = sniperCount(g), money0 = g.money
+        secs(3)
+        g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8))
+        secs(1)
+        let op = g.stationOps[key]
+        let rewarded = sniperCount(g) == inv0 + 1 && g.money == money0 + 25000
+        check(planted && op?.stage == 2 && op?.silent == true && rewarded && g.advancements.contains("adventure/station_silent") && g.advancements.contains("adventure/station_op")
+              && (g.stationOpBar()?.0 ?? "").hasSuffix("silent"),
+              "boreal ops: charge set, out past the fence: complete and silent, Farsight Rifle and $250, both advancements (stage \(op?.stage ?? -1), bar \"\(g.stationOpBar()?.0 ?? "none")\")")
+        var steel0 = 0, steel1 = 0
+        func countGen() -> Int {
+            var n = 0
+            for dz in 13...19 { for dx in 18...21 { for ly in 1...4 where world.block(cx + dx, F + ly, cz + dz) != AIR { n += 1 } } }
+            return n
+        }
+        steel0 = countGen()
+        secs(Int(BorealStation.fuseSeconds))
+        steel1 = countGen()
+        check(g.stationOps[key]?.blown == true && steel1 < steel0 && g.stationOps[key]?.fuse == nil,
+              "boreal ops: the charge blows the generator after \(Int(BorealStation.fuseSeconds)) s (\(steel0) -> \(steel1) machine blocks)")
+        // Saved and loaded: a finished station stays finished.
+        let saved = g.saveExtra()
+        g = Game(world: world, save: nil, persistent: false)
+        g.loadExtra(saved)
+        check(g.stationOps[key]?.stage == 2 && g.stationOps[key]?.silent == true, "boreal ops: the finished operation survives a save and load (\(saved["stationOps"]?.count ?? 0) bytes)")
+        g.onToast = { toasts.append($0) }
+        g.player.pos = at(0, F + 1, -21)
+        check(g.stationUse(console) && sniperCount(g) == 0, "boreal ops: a finished station pays only once")
+
+        // Loud run: a fresh operation with the garrison in place.
+        g = Game(world: world, save: nil, persistent: false)
+        g.paused = false; g.survival = false                       // the soldiers can't target the observer
+        g.weather.raining = false; g.weather.rain = 0
+        g.onToast = { toasts.append($0) }
+        for (name, p) in world.pendingMobs { if let m = Mob.structureMob(name, at: p) { g.mobs.mobs.append(m) } }
+        g.mobs.rebuildIndex()
+        let hall = at(0, F + 1, 5)
+        g.player.pos = hall
+        secs(1)
+        g.player.pos = at(0, F + 1, -21)
+        _ = g.stationUse(console)
+        secs(2)
+        let before = g.stationOps[key]?.codes ?? 0
+        g.baseNoise(at: hall, kind: .gunshot)
+        secs(2)
+        let lockedA = g.stationOps[key]?.codes ?? 0
+        g.stationOps[key]?.copyAt = nil
+        toasts.removeAll()
+        _ = g.stationUse(console)
+        secs(1)
+        let lockedBar = g.stationOpBar()?.0 ?? "none"
+        check(g.borealAlarm.sites[key]?.on == true && g.stationOps[key]?.loud == true && lockedA == before && g.stationOps[key]?.copyAt == nil
+              && toasts.contains { $0.hasPrefix("Uplink locked") } && lockedBar.hasSuffix("ALARM"),
+              String(format: "boreal ops: the alarm locks the uplink (copy held at %.0f%%, bar \"%@\")", before * 100, lockedBar))
+        // Squads come down the stairwell while the player is inside (three at most).
+        let n0 = g.mobs.mobs.count
+        secs(Int(BorealStation.waveEvery) + 1) { g.baseNoise(at: hall, kind: .gunshot) }
+        let squad = g.mobs.mobs.suffix(from: n0).filter { $0.kind.steelhold && simd_length($0.pos - g.stationOps[key]!.stairFoot) < 4 }
+        check(g.stationOps[key]?.waves == 1 && squad.count == 3 && squad.allSatisfy { $0.stationDoors && $0.aggro },
+              "boreal ops: a squad of \(squad.count) comes down the stairwell \(Int(BorealStation.waveEvery)) s into the alarm (\(g.stationOps[key]?.waves ?? 0) waves)")
+        secs(Int(BorealStation.waveEvery) * 4) { g.baseNoise(at: hall, kind: .gunshot) }
+        check(g.stationOps[key]?.waves == BorealStation.maxWaves, "boreal ops: squads stop at \(BorealStation.maxWaves) (\(g.stationOps[key]?.waves ?? 0))")
+
+        // Loud extraction: both jobs, then out; the smaller reward and no silent challenge.
+        g.stationOps[key]?.codes = 1
+        g.player.pos = at(17, F + 1, 13)
+        _ = g.stationUse(gen)
+        let money1 = g.money
+        g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8))
+        secs(1)
+        check(g.stationOps[key]?.stage == 2 && g.stationOps[key]?.silent == false && g.money == money1 + 10000
+              && g.advancements.contains("adventure/station_op") && !g.advancements.contains("adventure/station_silent"),
+              "boreal ops: a loud extraction pays $100 and no silent challenge (\(g.borealAlarm.log.filter { $0.hasPrefix(key) }.suffix(6).joined(separator: "; ")))")
+        g.mobs.mobs.removeAll()
+
+        // A roused soldier shut in the archive gets out through its bulkhead door (the game's own AI, 40 s).
+        let g2 = Game(world: world, save: nil, persistent: false)
+        g2.paused = false; g2.survival = true                        // soldiers only hunt a player they can hurt
+        for (name, p) in world.pendingMobs { if let m = Mob.structureMob(name, at: p) { g2.mobs.mobs.append(m) } }
+        g2.mobs.rebuildIndex()
+        let archive = g2.mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && $0.pos.x < Float(cx - 16) && abs($0.pos.z - Float(cz)) < 7 }
+        let door = IVec3(cx - 15, F + 1, cz)
+        let shut = Int(world.block(door.x, door.y, door.z) - Blocks.groupBase[Int(world.block(door.x, door.y, door.z))]) & 4 == 0
+        var out = false, t: Float = 0
+        g2.player.pos = hall
+        g2.baseNoise(at: hall, kind: .gunshot)
+        while t < 40 && !out {
+            g2.tick(0.05); g2.player.pos = hall; g2.player.vel = .zero; g2.health = 20; g2.menu = nil; t += 0.05
+            out = archive.contains { $0.pos.x > Float(cx - 14) }
+        }
+        if !out { for m in archive { print("  archive soldier at \(m.pos.x - Float(cx)) \(m.pos.y - Float(F)) \(m.pos.z - Float(cz)), aggro \(m.aggro), doors \(m.stationDoors), gave up \(m.gaveUp(hall)), lastSeen \(String(describing: m.soldierBrain.lastSeen)), path \(m.path.nodes.count) partial \(m.path.partial) door \(String(describing: m.path.door))") } }
+        check(!archive.isEmpty && shut && out && archive.allSatisfy { $0.stationDoors },
+              String(format: "boreal ops: a roused soldier leaves the shut archive through its bulkhead door (%d there, out after %.1f s)", archive.count, t))
+        g2.mobs.mobs.removeAll()
     }
 }
