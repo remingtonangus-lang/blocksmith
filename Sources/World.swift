@@ -159,6 +159,30 @@ final class World {
 
     func isLoaded(_ x: Int, _ z: Int) -> Bool { frame != nil || chunkAt(x, z) != nil }
 
+    // Every block in the box c +- (r, ry, r) as body(id, x, y, z), chunk by chunk: one dictionary lookup per chunk
+    // instead of per cell (a villager's 65x17x65 bell search through block() cost 7-14 ms: Quest bench, village).
+    // Unloaded chunks and cells outside 0..<CH are skipped; through a ship frame every cell goes through block().
+    func forEachBlock(around c: IVec3, r: Int, ry: Int, _ body: (BlockID, Int, Int, Int) -> Void) {
+        let y0 = max(0, c.y - ry), y1 = min(CH - 1, c.y + ry)
+        guard y0 <= y1 else { return }
+        if frame != nil {
+            for y in y0...y1 { for z in (c.z - r)...(c.z + r) { for x in (c.x - r)...(c.x + r) { body(block(x, y, z), x, y, z) } } }
+            return
+        }
+        for cz in floorDiv(c.z - r, CS)...floorDiv(c.z + r, CS) {
+            for cx in floorDiv(c.x - r, CS)...floorDiv(c.x + r, CS) {
+                guard let ch = chunks[ChunkKey(x: cx, z: cz)] else { continue }
+                let bx = cx * CS, bz = cz * CS
+                let xa = max(c.x - r, bx), xb = min(c.x + r, bx + CS - 1)
+                let za = max(c.z - r, bz), zb = min(c.z + r, bz + CS - 1)
+                let blocks = ch.blocks
+                for y in y0...y1 { for z in za...zb { for x in xa...xb {
+                    body(blocks[Chunk.index(x - bx, y, z - bz)], x, y, z)
+                } } }
+            }
+        }
+    }
+
     // Light at a block: (sky 0-15, block 0-15). Uses the mesher's stored light when available,
     // otherwise approximates from the heightmap.
     func lightAt(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {

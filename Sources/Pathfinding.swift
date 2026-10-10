@@ -20,6 +20,21 @@ struct PathState {
     var partial = false                       // the last search ended short of the goal (unreachable)
     var stallPos = V3(0, -9999, 0)            // watchdog: where the mob was when it last made progress
     var stallTime: Float = 0
+    var search: PathSearch?                   // a search spread over several ticks (the per-tick time budget ran out)
+}
+
+// One A* search, resumable: PathFinder.run expands nodes until the goal, the node limit or a deadline, so a long
+// villager search (1500 cells, 4-7 ms on the M1) is spread over ticks instead of spiking one (Quest bench, village).
+final class PathSearch {
+    var start = IVec3(0, 0, 0), goal = IVec3(0, 0, 0)
+    var pr = PathProfile()
+    var maxNodes = 400
+    var pts: [IVec3] = [], gCost: [Float] = [], parent: [Int] = [], closed: [Bool] = []
+    var index: [Int: Int] = [:], heap: [(Float, Int)] = []
+    var best = 0, bestH: Float = 0, expanded = 0
+    var blocked = false
+    var finished = false
+    var result: [IVec3]?
 }
 
 // How one mob moves: body height and footprint in cells, how far it may drop, what water costs it,
@@ -35,7 +50,8 @@ struct PathProfile {
 
 enum PathFinder {
     static var budget = 0                    // searches left this tick (reset by MobManager.update)
-    static var spent: Double = 0             // seconds spent searching this tick (capped at 1.5 ms)
+    static var spent: Double = 0             // seconds spent searching this tick (capped at `slice`)
+    static let slice: Double = 0.0015        // search time per tick across all mobs (long searches resume next tick)
     static var boxes: [(V3, V3)] = []        // scratch for collision boxes (main thread only)
     static var doors = false                 // the current search may walk through wooden doors
     static var lastExpanded = 0              // nodes expanded by the last search (harness)
@@ -46,8 +62,6 @@ enum PathFinder {
     private static var cursorOn = false
     private static var cKey = ChunkKey(x: Int.min, z: Int.min)
     private static var cChunk: Chunk?
-    private static var sPts: [IVec3] = [], sG: [Float] = [], sParent: [Int] = [], sClosed: [Bool] = []
-    private static var sIndex: [Int: Int] = [:], sHeap: [(Float, Int)] = []
     static let dirs4 = [(1, 0), (-1, 0), (0, 1), (0, -1)]
     static let diags4 = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     @inline(__always) static func blk(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> BlockID {
@@ -190,29 +204,80 @@ enum PathFinder {
     // start, heading to the goal or, if it can't be reached within the node limit, to the reachable cell
     // closest to it.
     static func find(_ w: World, from: V3, to: V3, profile pr: PathProfile, maxNodes: Int = 400) -> [IVec3]? {
-        let start = anchor(from, span: pr.span)
-        let goal = anchor(to, span: pr.span)
-        if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { return nil }
+        let s = begin(w, from: from, to: to, profile: pr, maxNodes: maxNodes)
+        _ = run(s, w, deadline: .infinity)
+        let r = s.result
+        recycle(s)
+        return r
+    }
+
+    // Searches handed back after use keep their node tables (a search allocates little more than its result:
+    // questcheck's allocation trace, ~40 allocations a search, plus one per expanded node before).
+    private static var pool: [PathSearch] = []
+    static func recycle(_ s: PathSearch) {
+        guard pool.count < 8 else { return }
+        s.result = nil
+        pool.append(s)
+    }
+
+    @inline(__always) private static func withCursor<T>(_ doorsOn: Bool, _ body: () -> T) -> T {
         let saveDoors = doors
-        doors = pr.doors
+        doors = doorsOn
         let saveCursor = cursorOn
         cursorOn = true
         cKey = ChunkKey(x: Int.min, z: Int.min); cChunk = nil
         defer { doors = saveDoors; cursorOn = saveCursor; cChunk = nil; cKey = ChunkKey(x: Int.min, z: Int.min) }
+        return body()
+    }
+
+    // A new search (finished at once, with no result, when the goal is out of range).
+    static func begin(_ w: World, from: V3, to: V3, profile pr: PathProfile, maxNodes: Int = 400) -> PathSearch {
+        let s = pool.popLast() ?? PathSearch()
+        s.start = anchor(from, span: pr.span)
+        s.goal = anchor(to, span: pr.span)
+        s.pr = pr
+        s.maxNodes = maxNodes
+        s.result = nil
+        s.pts.removeAll(keepingCapacity: true); s.gCost.removeAll(keepingCapacity: true); s.parent.removeAll(keepingCapacity: true)
+        s.closed.removeAll(keepingCapacity: true); s.index.removeAll(keepingCapacity: true); s.heap.removeAll(keepingCapacity: true)
+        s.expanded = 0
+        s.finished = false
+        let start = s.start, goal = s.goal
+        if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { s.finished = true; return s }
+        let dx = Float(start.x - goal.x), dy = Float(start.y - goal.y), dz = Float(start.z - goal.z)
+        let h0: Float = (dx * dx + dy * dy + dz * dz).squareRoot()
+        s.pts.append(start); s.gCost.append(0); s.parent.append(-1); s.closed.append(false)
+        s.index[key(start)] = 0
+        s.heap.append((h0, 0))
+        s.best = 0; s.bestH = h0
+        // A goal one can't stand in (a job site, a bed, a bell): arrive beside it, never on top (behaviour-sim trace,
+        // run 361: a fletcher's path ended standing on its fletching table, so it climbed onto it every morning).
+        s.blocked = withCursor(pr.doors) {
+            pr.span == 1 && standCost(w, goal.x, goal.y, goal.z, pr) == nil && !open(w, goal.x, goal.z, goal.y, goal.y + 1, span: 1)
+        }
+        return s
+    }
+
+    // Expands nodes until the search ends (true: s.result is set) or the clock passes `deadline` (false: call again).
+    static func run(_ s: PathSearch, _ w: World, deadline: Double) -> Bool {
+        if s.finished { return true }
+        return withCursor(s.pr.doors) { step(s, w, deadline) }
+    }
+
+    private static func step(_ s: PathSearch, _ w: World, _ deadline: Double) -> Bool {
+        let pr = s.pr, goal = s.goal, maxNodes = s.maxNodes, blocked = s.blocked
         func h(_ p: IVec3) -> Float {
             let dx = Float(p.x - goal.x), dy = Float(p.y - goal.y), dz = Float(p.z - goal.z)
             return (dx * dx + dy * dy + dz * dz).squareRoot()
         }
-        // Node tables reused from the last search (taken and handed back), so a search allocates little more than its
-        // result (questcheck's allocation trace: ~40 allocations a search, plus one per expanded node before).
-        var pts = sPts, gCost = sG, parent = sParent, closed = sClosed, index = sIndex, heap = sHeap
-        sPts = []; sG = []; sParent = []; sClosed = []; sIndex = [:]; sHeap = []
-        pts.removeAll(keepingCapacity: true); gCost.removeAll(keepingCapacity: true); parent.removeAll(keepingCapacity: true)
-        closed.removeAll(keepingCapacity: true); index.removeAll(keepingCapacity: true); heap.removeAll(keepingCapacity: true)
-        defer { sPts = pts; sG = gCost; sParent = parent; sClosed = closed; sIndex = index; sHeap = heap }
-        pts.append(start); gCost.append(0); parent.append(-1); closed.append(false)
-        index[key(start)] = 0
-        heap.append((h(start), 0))
+        // The tables are taken out of the search for the loop (locals, no class property access per node).
+        var pts = s.pts, gCost = s.gCost, parent = s.parent, closed = s.closed, index = s.index, heap = s.heap
+        s.pts = []; s.gCost = []; s.parent = []; s.closed = []; s.index = [:]; s.heap = []
+        var best = s.best, bestH = s.bestH, expanded = s.expanded
+        defer {
+            s.pts = pts; s.gCost = gCost; s.parent = parent; s.closed = closed; s.index = index; s.heap = heap
+            s.best = best; s.bestH = bestH; s.expanded = expanded
+        }
         func push(_ e: (Float, Int)) {
             heap.append(e)
             var i = heap.count - 1
@@ -249,19 +314,17 @@ enum PathFinder {
                 push((ng + h(q), j))
             }
         }
-        var best = 0, bestH = h(start)
-        var expanded = 0
-        // A goal one can't stand in (a job site, a bed, a bell): arrive beside it, never on top (behaviour-sim trace,
-        // run 361: a fletcher's path ended standing on its fletching table, so it climbed onto it every morning).
-        let blocked = pr.span == 1 && standCost(w, goal.x, goal.y, goal.z, pr) == nil
-            && !open(w, goal.x, goal.z, goal.y, goal.y + 1, span: 1)
         func arrived(_ p: IVec3) -> Bool {
             if blocked { return abs(p.x - goal.x) + abs(p.z - goal.z) == 1 && abs(p.y - goal.y) <= 1 }
             return p.x == goal.x && p.z == goal.z && abs(p.y - goal.y) <= 1
         }
         let dirs = PathFinder.dirs4, diags = PathFinder.diags4
         let dropSteps = 2 + max(1, pr.maxDrop)                   // dy 0, 1, then -1 ... -maxDrop
-        while let e = pop() {
+        var iter = 0
+        while true {
+            iter += 1
+            if iter & 15 == 0 && deadline < .infinity && CFAbsoluteTimeGetCurrent() > deadline { return false }
+            guard let e = pop() else { break }
             let i = e.1
             if closed[i] { continue }
             closed[i] = true
@@ -310,11 +373,13 @@ enum PathFinder {
             }
         }
         lastExpanded = expanded
-        guard best != 0 else { return nil }
+        s.finished = true
+        guard best != 0 else { s.result = nil; return true }
         var out: [IVec3] = []
         var j = best
         while j > 0 { out.append(pts[j]); j = parent[j] }
-        return out.reversed()
+        s.result = out.reversed()
+        return true
     }
 }
 
@@ -338,6 +403,24 @@ extension Mob {
         return pr
     }
 
+    // A finished search becomes the path. Partial: the closest reachable cell isn't next to the goal (beds and job
+    // sites themselves aren't standable, so a neighbouring cell counts as arriving).
+    func takePath(_ s: PathSearch) {
+        path.nodes = s.result ?? []
+        path.index = 0
+        let ga = s.goal
+        if let last = path.nodes.last {
+            path.partial = max(abs(last.x - ga.x), abs(last.z - ga.z)) > 1 || abs(last.y - ga.y) > 1
+        } else {
+            let here = PathFinder.anchor(pos, span: s.pr.span)
+            path.partial = max(abs(here.x - ga.x), abs(here.z - ga.z)) > 1 || abs(here.y - ga.y) > 1
+        }
+    }
+
+    func dropSearch() {
+        if let s = path.search { path.search = nil; PathFinder.recycle(s) }
+    }
+
     // Called after the AI picked a walk target (via face) and a positive speed: turn towards the next
     // waypoint of a path to it instead of the target itself.
     func steerAlongPath(_ target: V3, _ dt: Float, _ g: Game, repath: Bool) {
@@ -351,33 +434,38 @@ extension Mob {
         let progress: Float = simd_length(V2(pos.x - path.stallPos.x, pos.z - path.stallPos.z))
         if progress > 0.75 || path.breakTime > 0 { path.stallPos = pos; path.stallTime = 0 } else {
             path.stallTime += dt
-            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; giveUp(target); return }
+            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return }
         }
-        if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); return }
+        if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); dropSearch(); return }
+        // A search still running from an earlier tick: its share of this tick's budget (dropped if the goal has moved
+        // far since; the usual repath below starts a new one).
+        if let s = path.search {
+            if simd_length(target - path.goal) > 4 { dropSearch() }
+            else if PathFinder.spent < PathFinder.slice {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                let done = PathFinder.run(s, w, deadline: t0 + PathFinder.slice - PathFinder.spent)
+                PathFinder.spent += CFAbsoluteTimeGetCurrent() - t0
+                if done { path.search = nil; takePath(s); PathFinder.recycle(s) }
+            }
+        }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
         let climbing = PathFinder.climbable(w.block(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
-        if (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && (Rand.deterministic || PathFinder.spent < 0.0015) {
+        if path.search == nil && (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && (Rand.deterministic || PathFinder.spent < PathFinder.slice) {
             PathFinder.budget -= 1
-            let t0 = Date.timeIntervalSinceReferenceDate
-            defer { PathFinder.spent += Date.timeIntervalSinceReferenceDate - t0 }
+            let t0 = CFAbsoluteTimeGetCurrent()
             path.timer = Rand.float(in: 0.7...1.3)
             path.goal = target
             let pr = pathProfile(g)
             path.span = pr.span
             // Villagers route around houses and through doors to job sites, beds and the bell 20+ blocks away: 400
             // expanded cells ran out there (they gave up on job sites inside houses over and over).
-            path.nodes = PathFinder.find(w, from: pos, to: target, profile: pr, maxNodes: kind == .villager ? 1500 : 400) ?? []
-            path.index = 0
-            // Partial: the closest reachable cell isn't next to the goal (beds and job sites themselves aren't
-            // standable, so a neighbouring cell counts as arriving).
-            let ga = PathFinder.anchor(target, span: pr.span)
-            if let last = path.nodes.last {
-                path.partial = max(abs(last.x - ga.x), abs(last.z - ga.z)) > 1 || abs(last.y - ga.y) > 1
-            } else {
-                let here = PathFinder.anchor(pos, span: pr.span)
-                path.partial = max(abs(here.x - ga.x), abs(here.z - ga.z)) > 1 || abs(here.y - ga.y) > 1
-            }
+            let s = PathFinder.begin(w, from: pos, to: target, profile: pr, maxNodes: kind == .villager ? 1500 : 400)
+            // This tick's share of the 1.5 ms (all of it in the deterministic harness runs); unfinished, it carries on
+            // next tick while the mob keeps its old path / heads straight for the target.
+            let deadline: Double = Rand.deterministic ? .infinity : t0 + PathFinder.slice - PathFinder.spent
+            if PathFinder.run(s, w, deadline: deadline) { takePath(s); PathFinder.recycle(s) } else { path.search = s }
+            PathFinder.spent += CFAbsoluteTimeGetCurrent() - t0
         }
         let off: Float = path.span == 2 ? 1 : 0.5
         while path.index < path.nodes.count {

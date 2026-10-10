@@ -1935,6 +1935,13 @@ final class MobManager {
         .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
     ]
 
+    // Per-block-state tables the mob AI builds lazily (string tests over every state, 3-5 ms each): built at load,
+    // not by the first villager that looks for a bed in the middle of play (Quest bench, village and forest routes).
+    static func warmTables() {
+        _ = PathFinder.doorTable.count; _ = PathFinder.woodDoorTable.count; _ = PathFinder.climbIds.count
+        _ = Mob.earth.count; _ = VillageLife.bedHead.count; _ = Villagers.jobSiteOf.count
+    }
+
     func update(_ dt: Float, game: Game) {
         Mob.world = game.world
         PathFinder.budget = 4
