@@ -1,0 +1,17 @@
+rerun (debug build): fi
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "fi"
+(lldb) run
+2026-10-10 23:06:55.240310+0000 Blocksmith[13555:40135] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-10 23:06:55.345178+0000 Blocksmith[13555:40135] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-10 23:06:57.178077+0000 Blocksmith[13555:40088] [vppu]         vpPlatformUtil.mm:312   Cannot retrieve theDeviceBoardID string...
+2026-10-10 23:06:57.504741+0000 Blocksmith[13555:40088] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x60000135aa80> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-10 23:07:28.973708+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-10 23:07:29.063558+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-10 23:07:29.174205+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-10 23:09:10.749223+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-10 23:09:10.792801+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+textures: 1730 layers at 128 px, BC3, 36.1 MB with mips (build 77926 ms, upload 30301 ms)
+2026-10-10 23:09:18.919203+0000 Blocksmith[13555:40664] [AMCP] 169475          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+usb-gip: watching for wired Xbox (GIP) controllers: 045e, 0e6f, 0f0d, 10f5, 1532, 20d6, 24c6, 2dc8
