@@ -152,8 +152,6 @@ jobs:
           OPENXR_AAR: build/openxr_loader.aar
         run: |
           export VERSION_CODE=${{ github.run_number }}
-          # PIL lets build-apk.sh regenerate Resources/texpack.bin from Resources/Textures (else the committed pack).
-          python3 -c "import PIL" 2>/dev/null || pip3 install --quiet --break-system-packages pillow || true
           mkdir -p build/quest-out
           quest/tools/build-apk.sh build/quest-out/blocksmith-quest.apk
 
