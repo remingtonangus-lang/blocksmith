@@ -68,3 +68,18 @@ slab ledges, hurdles), Townsfolk.swift (barFront). Offices have a row of desks (
    stay inside the existing per-tick budget (1.5 ms, 4 searches); bench route_capital to be re-measured on device.
 5. Old worlds -> a capital already started in a save keeps its old plan: the save's structure-guard-capital-towns.txt
    lists those cities (StructureCache.legacyCapitalTowns), so a half-generated city never gets new lots cut through it.
+
+## Independent verifier passes (findings and what was done)
+- First pass: keepers on counters, a desk check too loose (any point within 3 blocks, even through a wall), slab-ledge
+  jumps, no guard for old saves, a soldier on the market ramp, one desk spot for a whole office. All fixed: tight
+  strolls need clear routes at knee and head height, villager paths pay `hurdleCost` to step onto a one-block ridge,
+  up-steps over 1.25 real rise are refused, structure-guard-capital-towns.txt keeps saved cities' old plans, desk rows
+  in offices, and the desk check needs the citizen within 3 blocks, on the desk's floor, with a clear line to it.
+- Second pass (after merging quest-port): all of the above hold; seeds 4242 and 8080 pass. It found saloon diners
+  still sent behind the bar where a stool stands three out from the counter (Mob.barFront asked for two free cells).
+  Now only the cell two out is needed, and the day sim samples lunch (guests beside the barkeep, barkeep on the bar).
+- Not fixed, noted: the floor/head-room check reads positions after World.freeSpawn has already nudged them (it can
+  miss a spawn spot that freeSpawn rescued); the golden shots leave their spawned mobs in the shot world (the saved
+  mob list is restored after the shots, so nothing leaks into the run).
+- Full questcheck failures also red on claude/quest-port itself (not this PR): tadpole invisible in the Quest renderer,
+  "sheriff: a town without one gets a sheriff" and "only one is sent".
