@@ -25,3 +25,17 @@ Same art direction (style 3, stylised realism) and source: Google Gemini image g
   one painted member: dyes, bundles, banners, discs, templates, banner patterns by the item's own colour; boats by
   plank colour and spears by material block colour; suspicious stews and pottery sherds share one icon). All original
   Blocksmith art; guns and gear are generic original designs.
+
+## Block textures, batch 2 (2026-10-10)
+Same style and source (Gemini on gemini.google.com, Remington's Google AI Pro account).
+- assets/gemini/sheets/s14_world2.png: 4x4 tileable swatches (emberslate, moss, podzol, mycelium, rooted dirt, packed
+  mud, mud bricks, ice, packed ice, snow, chiseled/cracked stone bricks, cut sandstone, basalt, tuff bricks), sliced by
+  tools/sheetslice.py.
+- assets/gemini/sheets/s15_metal.jpg: limestone, panels, paving, riveted/bolted plate, hull plating, vents, charred
+  plate, concrete, hazard stripes, grating, aged iron, teak deck. Sliced to assets/gemini/tiles and recoloured by
+  tools/texderive.py (TILES) into the original Blocksmith blocks' own colours (capital/frigate/warship/Ash/ship blocks).
+- assets/gemini/plants/p01_plants.png: 16 plant sprites on magenta (grass, fern, flowers, saplings, cane, kelp,
+  seagrass), sliced by tools/iconslice.py with docs/textures/plants.json (bottom-anchored hard cutouts; grass and fern
+  greyscale for the biome tint).
+- texderive.py RELATIVES/copper/stained glass: nether and pale woods, copper weathering stages and others carry an
+  imported base's detail in the procedural colour. All original Blocksmith art.

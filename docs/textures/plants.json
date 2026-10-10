@@ -1,0 +1,35 @@
+[
+ {
+  "sheet": "assets/gemini/plants/p01_plants.png",
+  "grid": 4,
+  "inset": 0.05,
+  "plants": true,
+  "fill": 0.85,
+  "tiles": [
+   [
+    "=short_grass:0.6:tint",
+    "=fern:0.85:tint",
+    "=dandelion:0.7",
+    "=poppy:0.75"
+   ],
+   [
+    "=allium:0.85",
+    "=azure_bluet:0.6",
+    "=cornflower:0.75",
+    "=oxeye_daisy:0.75"
+   ],
+   [
+    "=lily_of_the_valley:0.7",
+    "=dead_bush:0.75",
+    "=oak_sapling:0.85",
+    "=birch_sapling:0.85"
+   ],
+   [
+    "=spruce_sapling:0.85",
+    "=sugar_cane:1.0",
+    "=kelp:1.0",
+    "=seagrass:0.9"
+   ]
+  ]
+ }
+]

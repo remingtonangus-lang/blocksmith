@@ -22,6 +22,27 @@ COLOURS = ('white orange magenta light_blue yellow lime pink gray light_gray cya
 MUTE = 0.7    # keep 70% of the procedural colour saturation: dyes sit with the natural palette
 TONED = [('farmland', 'farmland_moist', 1.45), ('furnace_side', 'furnace_body', 1.0), ('furnace_plate', 'furnace_body', 0.92),
          ('furnace_top', 'furnace_body', 0.92), ('cactus_bottom', 'cactus_top', 0.85)]
+# same material family, other wood/stone: base's surface detail in the target's procedural colour
+RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), ('pale_oak_planks', 'birch_planks'),
+             ('crimson_stem', 'oak_log'), ('warped_stem', 'oak_log'), ('pale_oak_log', 'birch_log'),
+             ('pale_oak_log_top', 'birch_log_top'), ('crimson_stem_top', 'oak_log_top'),
+             ('warped_stem_top', 'oak_log_top'), ('stripped_crimson_log', 'stripped_oak_log'),
+             ('stripped_warped_log', 'stripped_oak_log'), ('stripped_pale_oak_log', 'stripped_birch_log'),
+             ('polished_blackstone', 'smooth_basalt'),
+             ('cut_red_sandstone', 'cut_sandstone'), ('chiseled_tuff', 'chiseled_stone_bricks'),
+             ('chiseled_polished_blackstone', 'chiseled_stone_bricks'),
+             ('cracked_polished_blackstone_bricks', 'cracked_stone_bricks'), ('prismarine_bricks', 'stone_bricks'),
+             ('crimson_nylium', 'mycelium_top'), ('warped_nylium', 'mycelium_top'), ('pale_moss_block', 'moss_block'),
+             ('sandstone_bottom', 'sandstone_top'), ('suspicious_sand', 'sand'), ('suspicious_gravel', 'gravel')]
+# original Blocksmith blocks: a material swatch (assets/gemini/tiles, sheet s15) in the block's own procedural colour
+TILES = [('capital_stone', 'limestone_blocks'), ('capital_panel', 'white_panel'), ('capital_paving', 'paving'),
+         ('capital_plate', 'riveted_plate'), ('capital_trim', 'trim_band'), ('capital_stone_trim', 'trim_band'),
+         ('capital_graphite', 'graphite'), ('frigate_hull', 'painted_hull'), ('frigate_plate', 'bolted_plate'),
+         ('frigate_trim', 'trim_band'), ('warship_hull', 'gunmetal_hull'), ('warship_panel', 'vent_panel'),
+         ('ash_plating', 'charred_plating'), ('ash_concrete', 'pitted_concrete'), ('hazard_plating', 'hazard'),
+         ('steel_grating', 'grating'), ('ship_metal', 'aged_iron'), ('ship_wood', 'teak_deck'),
+         ('ship_wood_dark', 'teak_deck')]
+KEEP_COLOUR = {'hazard_plating'}
 UNLIT = [('furnace_front', 'furnace_front_on')]   # the lit face with its fire painted out   # keep 85% of the procedural colour's saturation
 
 
@@ -32,6 +53,13 @@ def families(names, have):
         for fam, base in (('wool', 'white_wool'), ('concrete', 'white_concrete'), ('terracotta', 'terracotta'),
                           ('concrete_powder', 'sand')):
             out.append((f'{c}_{fam}', base))
+    out += RELATIVES
+    for st in ('exposed', 'weathered', 'oxidized'):   # weathering stages carry the fresh copper's metal detail
+        for form in ('copper', 'cut_copper', 'chiseled_copper', 'copper_grate'):
+            base = 'copper_block' if form == 'copper' else form
+            out.append((f'{st}_{form}', base))
+    for c in COLOURS:
+        out.append((f'{c}_stained_glass', 'glass'))
     for n in names:
         m = re.match(r'stripped_(\w+)_log_top$', n)
         if m:
@@ -102,6 +130,13 @@ def main():
     for t, b in pairs:
         if t in means:
             recolour(os.path.join(a.out, b + '.png'), means[t]).save(os.path.join(a.out, t + '.png'))
+            derived.add(t)
+    tiles = [(t, os.path.join(ROOT, 'assets/gemini/tiles', b + '.png')) for t, b in TILES if t in names and t not in have]
+    tmeans = procedural_means(a.bin, [t for t, _ in tiles if t not in KEEP_COLOUR])
+    for t, src in tiles:
+        if os.path.exists(src) and (t in tmeans or t in KEEP_COLOUR):
+            im = Image.open(src).convert('RGBA') if t in KEEP_COLOUR else recolour(src, tmeans[t])
+            im.save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     for t, b, k in TONED:   # same material, lighter or darker (dry farmland from the moist one)
         if t in names and t not in have and b in have:

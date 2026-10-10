@@ -416,5 +416,70 @@
    22.0,
    50.0
   ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s14_world2.png",
+  "grid": 4,
+  "crop": 0.06,
+  "stylise": 0.3,
+  "tiles": [
+   [
+    "emberslate",
+    "moss_block",
+    "podzol_top",
+    "mycelium_top"
+   ],
+   [
+    "rooted_dirt",
+    "packed_mud",
+    "mud_bricks",
+    "ice"
+   ],
+   [
+    "packed_ice",
+    "snow_block",
+    "chiseled_stone_bricks",
+    "cracked_stone_bricks"
+   ],
+   [
+    "cut_sandstone",
+    "smooth_basalt",
+    "-",
+    "tuff_bricks"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s15_metal.jpg",
+  "grid": 4,
+  "crop": 0.07,
+  "stylise": 0.3,
+  "out": "assets/gemini/tiles",
+  "tiles": [
+   [
+    "limestone_blocks",
+    "white_panel",
+    "paving",
+    "riveted_plate"
+   ],
+   [
+    "trim_band",
+    "graphite",
+    "painted_hull",
+    "bolted_plate"
+   ],
+   [
+    "gunmetal_hull",
+    "vent_panel",
+    "charred_plating",
+    "pitted_concrete"
+   ],
+   [
+    "hazard",
+    "grating",
+    "aged_iron",
+    "teak_deck"
+   ]
+  ]
  }
 ]

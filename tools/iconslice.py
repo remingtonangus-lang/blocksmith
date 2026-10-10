@@ -38,7 +38,7 @@ def key_cell(cell, bg):
     return out
 
 
-def fit(img, size, fill=0.9):
+def fit(img, size, fill=0.9, bottom=False):
     bbox = img.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
     if not bbox:
         return None
@@ -59,8 +59,31 @@ def fit(img, size, fill=0.9):
             data.append((min(255, int(cr * f)), min(255, int(cg * f)), min(255, int(cb * f)), ca))
     pm.putdata(data)
     canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    canvas.paste(pm, ((size - nw) // 2, (size - nh) // 2))
+    canvas.paste(pm, ((size - nw) // 2, size - nh if bottom else (size - nh) // 2))
     return canvas
+
+
+def as_block_cutout(icon, tint):
+    """Plant sheets ("plants": true): hard 0/255 alpha like the procedural cutouts; "=name:...:tint" cells become
+    greyscale at mean 0.72 so the biome tint colours them (grass, ferns), like teximport's cutout_tint."""
+    px = icon.load()
+    w, h = icon.size
+    lum = []
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            px[x, y] = (r, g, b, 255 if a >= 128 else 0)
+            if a >= 128:
+                lum.append(0.299 * r + 0.587 * g + 0.114 * b)
+    if tint and lum:
+        k = 0.72 * 255 / max(sum(lum) / len(lum), 1)
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a:
+                    v = min(255, int((0.299 * r + 0.587 * g + 0.114 * b) * k))
+                    px[x, y] = (v, v, v, 255)
+    return icon
 
 
 def main():
@@ -83,13 +106,17 @@ def main():
                 if name == '-':
                     continue
                 name, _, f = name.partition(':')     # "iron_nugget:0.55": smaller than the cell fill
+                f, _, mode = f.partition(':')         # "=fern:0.9:tint": plant cell, greyscale for the biome tint
                 x0, y0 = W * col / g, H * row / g
                 cw, ch = W / g, H / g
                 box = (int(x0 + cw * inset), int(y0 + ch * inset), int(x0 + cw * (1 - inset)), int(y0 + ch * (1 - inset)))
-                icon = fit(key_cell(sheet.crop(box), bg), a.size, float(f) if f else s.get('fill', 0.9))
+                plants = s.get('plants', False)       # cross/cutout block sprites: standing on the block's bottom
+                icon = fit(key_cell(sheet.crop(box), bg), a.size, float(f) if f else s.get('fill', 0.9), bottom=plants)
                 if icon is None:
                     print(name, 'EMPTY')
                     continue
+                if plants:
+                    icon = as_block_cutout(icon, mode == 'tint')
                 # "=heart": a raw layer name (HUD icons), otherwise item_<name>
                 fn = name[1:] if name.startswith('=') else 'item_' + name
                 icon.save(os.path.join(a.out, fn + '.png'))

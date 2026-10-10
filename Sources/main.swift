@@ -579,6 +579,13 @@ enum Snapshot {
             } } }
             game.player.pos = pos
             print(String(format: "cavey: standing at %.0f %.0f %.0f", pos.x, pos.y - Float(YOFF), pos.z))
+            // Which blocks the shot shows (texture reviews): census of the 17^3 box around the camera.
+            var census: [String: Int] = [:]
+            for dy in -8...8 { for dz in -8...8 { for dx in -8...8 {
+                let b = world.block(Int(floor(pos.x)) + dx, Int(floor(pos.y)) + dy, Int(floor(pos.z)) + dz)
+                if b != AIR { census[Blocks.def(b).name, default: 0] += 1 }
+            } } }
+            print("cavey blocks: " + census.sorted { $0.value > $1.value }.prefix(10).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
         }
         // Structure mobs (crystals, boarlings...) that generation queued.
         for (name, mp) in world.pendingMobs {
