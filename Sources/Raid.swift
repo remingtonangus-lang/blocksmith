@@ -23,20 +23,22 @@ final class Raid {
     var idle: Float = 0           // seconds active (a raid times out after 40 min)
     var log: [String] = []        // what each wave spawned (harness)
     var rejoin: Float = 0         // after loading: seconds to wait for saved raiders to come back
-    init(center: V3, level: Int, difficulty: Int = 2) {
+    var night = false             // a town's night raid (TownRaids.swift): fewer waves, no omen, honour for the defence
+    init(center: V3, level: Int, difficulty: Int = 2, waves: Int? = nil) {
         self.center = center
         self.level = max(1, min(5, level))
         self.difficulty = difficulty
-        groups = RaidTable.groupCount(difficulty)
+        groups = waves ?? RaidTable.groupCount(difficulty)
     }
 
     // Saved with the world; the raiders themselves are saved as mobs (raider flag) and rejoin on load.
     var record: RaidRecord {
         RaidRecord(c: [center.x, center.y, center.z], level: level, wave: wave, difficulty: difficulty, state: state, timer: timer,
-                   waveHealth: waveHealth, idle: idle)
+                   waveHealth: waveHealth, idle: idle, night: night ? true : nil, groups: night ? groups : nil)
     }
     convenience init(_ r: RaidRecord) {
-        self.init(center: r.c.count == 3 ? V3(r.c[0], r.c[1], r.c[2]) : .zero, level: r.level, difficulty: r.difficulty)
+        self.init(center: r.c.count == 3 ? V3(r.c[0], r.c[1], r.c[2]) : .zero, level: r.level, difficulty: r.difficulty, waves: r.groups)
+        night = r.night ?? false
         wave = r.wave; state = r.state; timer = r.timer; waveHealth = r.waveHealth; idle = r.idle
         rejoin = 15
         // A wave in progress picks its raiders back up as their chunks load (see raidTick).
@@ -52,6 +54,8 @@ struct RaidRecord: Codable {
     var timer: Float
     var waveHealth: Float
     var idle: Float
+    var night: Bool? = nil
+    var groups: Int? = nil
 }
 
 enum RaidTable {
@@ -202,6 +206,7 @@ extension Game {
                         self.applyEffect(.heroOfTheVillage, amp: r.level - 1, seconds: 2400)
                         self.achieve("raid_win")
                     }
+                    if r.night { TownRaids.won(self, r) }
                     sfx(.villagerCelebrate, 1.2)
                     for v in mobs.mobs where v.kind == .villager && simd_length(v.pos - r.center) < 64 { particles.hearts(at: v.pos + V3(0, 2.2, 0)) }
                 } else {

@@ -242,7 +242,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     static let quantities = [1, 5, 0]                  // 0 = all / as many as stocked
     static let visible = 6
     static let rowY = 48, rowH = 22, rowX = 8, rowW = 252
-    static let tabBuy = 10, tabSell = 11, qtyButton = 12, scrollUp = 13, scrollDown = 14, barter = 15
+    static let tabBuy = 10, tabSell = 11, qtyButton = 12, scrollUp = 13, scrollDown = 14, barter = 15, extra = 16
     // Name column width (GUI px): TownTests checks every catalogue name fits.
     static var nameWidth: Int { rowW - 24 - 52 }
 
@@ -268,6 +268,8 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         button(196, 26, 64, 16, ShopMenu.qtyButton)
         // Craftsfolk keep their emerald trades behind a Barter button (Wallet.swift).
         if keeper.villager?.shopKind == nil && keeper.villager?.tradeKind != nil { button(140, 26, 52, 16, ShopMenu.barter) }
+        // The gunsmith's Upgrade and the saloon's Dice (TownServices.swift).
+        if extraTitle != nil { button(140, 26, 52, 16, ShopMenu.extra) }
         button(264, ShopMenu.rowY, 14, 40, ShopMenu.scrollUp)
         button(264, ShopMenu.rowY + ShopMenu.rowH * ShopMenu.visible - 42, 14, 40, ShopMenu.scrollDown)
         refresh()
@@ -275,6 +277,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         TownVoice.speakSoon(game, keeper, .greet)
     }
 
+    var extraTitle: String? { kind == .gunsmith && mob?.villager?.shopKind == .gunsmith ? "Upgrade" : (kind == .saloon && mob?.villager?.shopKind == .saloon ? "Dice" : nil) }
     var hasBarter: Bool { slots.contains { if case .button(let b) = $0.kind { return b == ShopMenu.barter }; return false } }
 
     override func onClose() {
@@ -341,6 +344,10 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case ShopMenu.qtyButton: qtyIndex = (qtyIndex + 1) % ShopMenu.quantities.count; game.sfx(.click, 0.4)
         case ShopMenu.scrollUp: scrollBy(-1)
         case ShopMenu.scrollDown: scrollBy(1)
+        case ShopMenu.extra:
+            game.sfx(.click, 0.4)
+            if kind == .gunsmith, let m = mob { game.switchMenu(to: GunUpgradeMenu(game: game, keeper: m)) }
+            else if kind == .saloon { game.switchMenu(to: DiceMenu(game: game)) }
         case ShopMenu.barter:
             guard let m = mob else { return }
             game.sfx(.click, 0.4)
@@ -433,6 +440,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         let q = ShopMenu.quantities[qtyIndex]
         button(ShopMenu.qtyButton, q == 0 ? (selling ? "Qty: All" : "Qty: Max") : "Qty: x\(q)", on: false)
         if hasBarter { button(ShopMenu.barter, "Barter", on: false) }
+        if let t = extraTitle { button(ShopMenu.extra, t, on: false) }
         // Rows.
         let rs = rows
         if rs.isEmpty {

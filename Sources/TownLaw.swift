@@ -47,6 +47,11 @@ enum TownLaw {
         var huntersDay: Int? = nil
         var gifts: [String]? = nil
         var playerName: String? = nil
+        // Town services (TownServices.swift): the bank balance (cents) and the day interest was last paid; the day of
+        // each town's last night raid (TownRaids.swift).
+        var bank: Int? = nil
+        var bankDay: Int? = nil
+        var raidDay: [String: Int]? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -337,6 +342,7 @@ enum TownLaw {
         guard g.dim.dim == .overworld, g.alive else { inTown = nil; return }
         TownBoard.tick(g)
         BountyHunters.tick(g)
+        TownRaids.tick(g)                                  // night raids (TownRaids.swift)
         var nearest: Mob?
         var nd: Float = 48
         var sheriffs: [String: [Mob]] = [:]

@@ -46,7 +46,7 @@ enum Village {
         }
     }
 
-    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut, shop, saloon, office }
+    enum Kind: CaseIterable { case smallHouse, mediumHouse, bigHouse, farm, pen, smithy, library, temple, jobHut, shop, saloon, office, bank }
 
     struct Lot {
         let kind: Kind
@@ -62,7 +62,7 @@ enum Village {
     static func size(_ k: Kind) -> (Int, Int) {
         switch k {
         case .smallHouse, .jobHut: return (5, 5)
-        case .mediumHouse, .office: return (7, 6)
+        case .mediumHouse, .office, .bank: return (7, 6)
         case .bigHouse: return (9, 7)
         case .farm: return (9, 7)
         case .pen: return (8, 8)
@@ -95,6 +95,17 @@ enum Village {
 
     // MARK: Layout
 
+    // The street plan of a frontier town at (ox, oz) (0 crossroads, 1 main street, 2 grid) and its main axis.
+    static func plan(_ ox: Int, _ oz: Int, _ seed: UInt64) -> Int {
+        Int(hash3(ox, 911, oz, UInt32(truncatingIfNeeded: seed ^ (seed >> 32))) % 3)
+    }
+    static func planAxis(_ ox: Int, _ oz: Int, _ seed: UInt64) -> (Int, Int) {
+        hash3(oz, 913, ox, UInt32(truncatingIfNeeded: seed)) % 2 == 0 ? (1, 0) : (0, 1)
+    }
+    static let planNames = ["crossroads", "main street", "grid"]
+    // Tests: every town laid out reports (anchor x, z, style, plan, lots).
+    static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
+
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true) -> StructureStart? {
         var rng = SRng(seed)
         let m = mats(style)
@@ -106,19 +117,40 @@ enum Village {
         func claim(_ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int) {
             for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { occupied.insert(IVec2Key(x, z)) } }
         }
-        // Streets: arms from the plaza, with side branches.
-        struct Road { let x: Int; let z: Int; let dx: Int; let dz: Int; let len: Int }
+        // Streets: arms from the plaza, with side branches. Frontier towns (new ground) pick one of three plans by
+        // their position (Village.plan; a town on ground a save already generated keeps the crossroads):
+        //   0 crossroads: up to four streets out of the square with side branches (the original plan)
+        //   1 main street: one long street through the square both ways, lanes off it
+        //   2 grid: a main street through the square, two cross streets and two back streets parallel to the main one
+        struct Road { let x: Int; let z: Int; let dx: Int; let dz: Int; let len: Int; var main = false; var own = false }
         var roads: [Road] = []
         claim(ox - 4, oz - 4, ox + 4, oz + 4)
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where rng.chance(0.85) {
-            let len = rng.range(18, 40)
-            roads.append(Road(x: ox + dx * 5, z: oz + dz * 5, dx: dx, dz: dz, len: len))
+        let plan = frontier ? Village.plan(ox, oz, seed) : 0
+        let (ax, az) = Village.planAxis(ox, oz, seed)               // the main street's axis (plans 1 and 2)
+        switch plan {
+        case 1:
+            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: rng.range(34, 48), main: true)) }
+        case 2:
+            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: rng.range(26, 36), main: true)) }
+            for sgn in [1, -1] {
+                let (px, pz) = (az * sgn, ax * sgn)                   // across the main street
+                roads.append(Road(x: ox + px * 5, z: oz + pz * 5, dx: px, dz: pz, len: 13, main: true))
+                for dir in [1, -1] {
+                    roads.append(Road(x: ox + px * 16, z: oz + pz * 16, dx: ax * dir, dz: az * dir, len: rng.range(18, 28), own: true))
+                }
+            }
+        default:
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where rng.chance(0.85) {
+                let len = rng.range(18, 40)
+                roads.append(Road(x: ox + dx * 5, z: oz + dz * 5, dx: dx, dz: dz, len: len, main: true))
+            }
         }
+        let branch: Float = plan == 1 ? 0.85 : (plan == 2 ? 0.2 : 0.55)
         var i = 0
-        while i < roads.count && roads.count < 12 {
+        while i < roads.count && roads.count < (plan == 1 ? 14 : 12) {
             let r = roads[i]
             if r.len > 14 {
-                for at in stride(from: 8, to: r.len - 4, by: 12) where rng.chance(0.55) {
+                for at in stride(from: 8, to: r.len - 4, by: plan == 1 ? 10 : 12) where rng.chance(branch) {
                     let side = rng.chance(0.5) ? 1 : -1
                     let (bdx, bdz) = (r.dz * side, r.dx * side)
                     roads.append(Road(x: r.x + r.dx * at + bdx * 2, z: r.z + r.dz * at + bdz * 2, dx: bdx, dz: bdz, len: rng.range(10, 22)))
@@ -129,9 +161,11 @@ enum Village {
         // Road columns with their ground heights (dropping roads that run into steep ground or water).
         var pathCols: [(Int, Int, Int)] = []
         var goodRoads: [Road] = []
+        var lamps = Set<IVec2Key>()                                  // frontier street lamps (edge columns)
+        var ends: [(Int, Int, Int, Int, Int)] = []                   // frontier: the outer end of each main street (x, z, y, dx, dz)
         for r in roads {
             var cols: [(Int, Int, Int)] = []
-            var lastY = cy
+            var lastY = r.own ? gen.groundY(r.x, r.z) : cy
             var ok = true
             for s in 0..<r.len {
                 let x = r.x + r.dx * s, z = r.z + r.dz * s
@@ -142,7 +176,12 @@ enum Village {
             }
             guard ok, cols.count >= 15 else { continue }
             pathCols += cols
-            goodRoads.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: cols.count / 3))
+            goodRoads.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: cols.count / 3, main: r.main, own: r.own))
+            if frontier {
+                // A street lamp every 8 steps, on alternate sides (lots clear the one in front of a door).
+                for st in stride(from: 4, to: cols.count / 3, by: 8) { lamps.insert(IVec2Key(cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].0, cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].1)) }
+                if r.main && cols.count >= 3 * 12 { let c = cols[cols.count - 2]; ends.append((c.0, c.1, c.2, r.dx, r.dz)) }
+            }
             for c in cols { occupied.insert(IVec2Key(c.0, c.1)) }
         }
         guard !goodRoads.isEmpty else { return nil }
@@ -199,6 +238,7 @@ enum Village {
         }
         guard lots.count >= 6 else { return nil }
         if frontier { frontierLots(&lots, ox: ox, oz: oz) }
+        planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
         let styleV = style
@@ -243,19 +283,42 @@ enum Village {
         }
         for cols in colsByRoad {
             let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }, yv = cols.map { $0.2 }
-            let half = halfSteps
+            let half = halfSteps, lampSet = lamps
             pieces.append(Piece(min: IVec3(xs.min()!, yv.min()! - 3, zs.min()!), max: IVec3(xs.max()!, yv.max()! + 4, zs.max()!)) { w in
                 for (x, z, y) in cols where w.inside(x, y, z) {
                     let cur = w.get(x, y, z)
                     if Blocks.isLiquid(cur) || cur == AIR { w.set(x, y, z, m.planks) } else { w.set(x, y, z, m.path) }
                     for k in 1...3 where Blocks.replaceable[Int(w.get(x, y + k, z))] && !Blocks.isLiquid(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) }
                     if half.contains(IVec2Key(x, z)) { w.set(x, y + 1, z, m.slab); continue }
-                    // Lamp posts now and then along the edge.
-                    if hash3(x, y, z, 0x1A4F) % 97 == 0 {
+                    // Lamp posts now and then along the edge (frontier towns: street lamps at a steady spacing).
+                    if lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0 {
                         w.set(x, y + 1, z, m.fence); w.set(x, y + 2, z, m.fence); w.set(x, y + 3, z, Blocks.id("lantern"))
                     }
                 }
             })
+        }
+        // Frontier towns: a "Welcome to" sign post beside the outer end of each main street, facing the way in.
+        if frontier {
+            let name = Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)
+            for (x, z, y, dx, dz) in ends {
+                let sx = x + dz * 2, sz = z + dx * 2                 // two to the side of the centre: just off the street
+                let gy = gen.groundY(sx, sz)
+                guard abs(gy - y) <= 1, !occupied.contains(IVec2Key(sx, sz)) else { continue }
+                pieces.append(Piece(min: IVec3(sx, gy, sz), max: IVec3(sx, gy + 3, sz)) { w in
+                    guard w.inside(sx, gy + 1, sz) else { return }
+                    if !Blocks.collide[Int(w.get(sx, gy, sz))] { w.set(sx, gy, sz, m.foundation) }
+                    w.set(sx, gy + 1, sz, m.fence)
+                    let sign = blk("spruce_sign", blk("oak_sign", AIR))
+                    guard sign != AIR else { return }
+                    // A standing sign (state 0-3 = facing north, south, west, east) read by someone walking in.
+                    let f = dz < 0 ? 0 : (dz > 0 ? 1 : (dx < 0 ? 2 : 3))
+                    w.set(sx, gy + 2, sz, sign + BlockID(f))
+                    w.set(sx, gy + 3, sz, AIR)
+                    let be = BlockEntity(.sign)
+                    be.lines = ["Welcome to", ShopMenu.fit(name, 88), "", ""]
+                    w.entities.append((IVec3(sx, gy + 2, sz), be))
+                })
+            }
         }
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
@@ -539,6 +602,8 @@ enum Village {
             shopLot(&w, b, m, ShopKind(rawValue: l.job) ?? .general)
         case .office:
             officeLot(&w, b, m)
+        case .bank:
+            bankLot(&w, b, m)
         case .temple:
             house(&w, b, m, wallH: 11, roof: false)
             b.fill(&w, 0, 11, 0, l.w - 1, 11, l.d - 1, m.foundation)

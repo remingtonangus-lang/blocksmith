@@ -26,6 +26,7 @@ enum TownTests {
         people(g, check)
         defence(g, check)
         towns(makeWorld, check)
+        townGap(g, makeWorld, check)         // TownGapTests.swift: plans, bank, upgrades, dice, night raids, the map
         capitals(makeWorld, check)
         print(String(format: "towntests: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
