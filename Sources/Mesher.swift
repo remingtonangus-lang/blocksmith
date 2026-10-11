@@ -496,11 +496,23 @@ enum Mesher {
                         let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                         let sway = swayOn && swayT[bi]
                         let aoC = sway ? (x &* 5 &+ z &* 3 &+ y) & 3 : 3      // swaying: the AO bits hold its phase (crosses draw unshaded)
+                        // Pointed driprock: the texture hangs (point down); one growing up from a floor is drawn flipped
+                        // so its point is on top (Oct 11 Quest playtest P3: "the drip stone's still upside down").
+                        var flipV = false
+                        if b == Mesher.pointedDrip {
+                            var j = i, hangs = false
+                            for _ in 0..<4 {
+                                let up = R[j + RL]
+                                if up == b { j += RL; continue }
+                                hangs = opaqueT[Int(up)]; break
+                            }
+                            flipV = !hangs
+                        }
                         for q in 0..<4 {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
                                 vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
-                                     6, tintV, cornerU[k], cornerV[k], layer, aoC, l, sway)
+                                     6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway)
                             }
                         }
                         continue
@@ -655,6 +667,9 @@ enum Mesher {
                             // Never the top face: a lily pad (or carpet, slab, trapdoor) resting on the surface left a
                             // hole in the water under it, showing the seabed through every pad (Quest playtest, v61).
                             if NT[f * 3 + 1] != 1 && collideT[Int(nb)] && layerT[Int(nb)] != translucent && fkT[Int(nb)] == 0 { continue }
+                            // Ice in water is frozen water: no water face against it, or the flowing sides showed through
+                            // the clear ice (Oct 11 Quest playtest P1).
+                            if Mesher.iceT[Int(nb)] { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
                         } else if leafT[bi] && leafT[Int(nb)] {
@@ -676,7 +691,9 @@ enum Mesher {
                         var flat = max(0, light(ax, ay, az))
                         // Far: pitch-dark cave walls can't be seen. Faces under water stay: a deep seabed gets no light,
                         // and without it far oceans showed the sky through the water.
-                        if far && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
+                        // From a cave these missing faces let the surface's trees show through (Oct 11 Quest playtest P4):
+                        // a dark eye's sight ends before the far ring (World.caveSight).
+                        if Mesher.farDarkCull && far && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
                         // Far leaves: light in steps of 4 (sky 3/7/11/15), so a canopy's faces share keys and the greedy
                         // merge below joins them (Oct 10 taiga: leaves were two thirds of the far quads).
                         if farLeaf && far && leafT[bi] {
@@ -824,6 +841,9 @@ enum Mesher {
     // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
     // (environment BS_FARLEAF=0 turns it off, for before/after measurements).
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
+    static var farDarkCull = true
+    static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
+    static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).

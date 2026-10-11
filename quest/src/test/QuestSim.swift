@@ -188,9 +188,10 @@ enum QuestSim {
 
         let standPos = game.player.pos
         // 7. Inventory: holding Y (left upper button) opens it (a tap toggles flying); the panel sits in front; the laser drives the mouse.
-        frames(36) { _ in idleHands(); sim.hands[0].button2 = true }
+        // A quarter-second hold is enough (Oct 11 Quest playtest P9: 0.35 s felt slow).
+        frames(18) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(3) { _ in idleHands() }
-        check(game.menu != nil, "VR inventory: Y hold opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
+        check(game.menu != nil, "VR inventory: a 0.25 s Y hold opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
         // Point the right ray at the panel centre (1.15 m ahead, 0.1 m down of the head when it opened).
         let haptics0 = sim.hapticCount
         var hitTarget = V3.zero

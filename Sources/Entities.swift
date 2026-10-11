@@ -103,6 +103,9 @@ final class ItemEntity {
 }
 
 final class ItemEntityManager {
+    // How many copies a dropped stack draws (the reference's piles: 1, 2-16, 17-32, 33-48, 49+). It was 1/2/3 with the
+    // copies 0.06 apart, so a stack read as a single item (Oct 11 Quest playtest P5).
+    static func copies(_ count: Int) -> Int { count <= 1 ? 1 : (count <= 16 ? 2 : (count <= 32 ? 3 : (count <= 48 ? 4 : 5))) }
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
 
@@ -216,14 +219,19 @@ final class ItemEntityManager {
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-            let copies = e.stack.count > 32 ? 3 : (e.stack.count > 1 ? 2 : 1)
+            let copies = ItemEntityManager.copies(e.stack.count)
             for k in 0..<copies {
-                let off = V3(Float(k) * 0.06, Float(k) * 0.05, Float(k) * -0.05)
                 if let b = e.stack.def.block, !Blocks.flatIcon(b) {
+                    // A small pile turning with the stack: the copies sit round its centre, the later ones higher.
+                    let a = e.age * 1.5 + e.spin + Float(k) * 2.4
+                    let off = k == 0 ? V3(0, 0, 0) : V3(cosf(a) * 0.13, Float(k) * 0.07, sinf(a) * 0.13)
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
                     wr.cube(center: c + off, half: 0.125, yaw: e.age * 1.5 + e.spin, block: b, light: light, tint: tint)
                 } else {
+                    // Flat icons fan out across the view (offsets along the camera's own axes stay visible) and
+                    // step back a little so they overlap like a held hand of cards.
+                    let off = right * (Float(k) * 0.08) - up * (Float(k) * 0.06) + simd_normalize(c) * (Float(k) * 0.02)
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
                     wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
                 }

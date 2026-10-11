@@ -92,6 +92,11 @@ if CommandLine.arguments.contains("--factions-structures-only") {
     FactionTests.structures(check)
     print(failures == 0 ? "factions structures: all checks passed" : "factions structures: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --p11-only: the Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift, backlog P1-P38).
+if CommandLine.arguments.contains("--p11-only") {
+    PlaytestOct11Tests.run(game, check)
+    print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
     check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
@@ -314,6 +319,24 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 try RenderTest.render(game: vg, ctx: ctx, path: vp, yaw: atan2f(d.x, d.y), pitch: 0.02)
                 check(RenderTest.landmarkVerts > 0, "seed 135623 far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
             } else { check(false, "seed 135623: a volcano within 2600 blocks of x 1334 z 2060") }
+        }
+        // P8 (Oct 11 AM playtest, 08:47:53 "the volcano in the distance doesn't look great", build 0.129 from before the
+        // far-view fixes): his view on the Quest renderer with the terrain loaded, toward the nearest volcano.
+        do {
+            let vw = World(seed: 3931512493184456980, device: device, save: nil)
+            vw.renderDistance = World.lodNear
+            let vg = Game(world: vw, save: nil, persistent: false)
+            vg.time = 0.29 * DAY_LENGTH
+            let x: Float = 5800.9, z: Float = -5520.1
+            vg.player.pos = V3(x, Float(vw.gen.column(Int(x), Int(z)).height + 40), z)
+            vg.player.flying = true
+            _ = vw.loadSync(center: vg.player.pos, radius: World.lodNear)
+            if let wg = vw.gen as? WorldGen, let v = wg.terrain.volcanoes(near: x, z, reach: 2600)
+                .min(by: { simd_length(V2($0.x - x, $0.z - z)) < simd_length(V2($1.x - x, $1.z - z)) }) {
+                let d = simd_normalize(V2(x - v.x, z - v.z))
+                try RenderTest.render(game: vg, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_volcanoP8.png"), yaw: atan2f(d.x, d.y), pitch: -0.05)
+                check(RenderTest.landmarkVerts > 0, "P8 playtest far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
+            } else { check(false, "P8: a volcano within 2600 blocks of the playtest note") }
         }
         // Polygon terrain test (docs/status/polygon-test.md): the same seed 12345 views in Blocks and Smooth on the Quest
         // renderer, each from a fresh world loaded in that mode (the world option a new world is created with).
@@ -801,6 +824,9 @@ let texURL = TextureCache.url(dir: tmp.path + "/cache", size: 16, layers: 12)
 TextureCache.store(texLevels, texURL)
 let texBack = TextureCache.load(texURL)
 check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\(texLevels.count) levels, \(texLevels.map(\.count).reduce(0, +)) bytes)")
+
+// The Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift).
+PlaytestOct11Tests.run(game, check)
 
 // Towns of people and shops (Sources/TownTests.swift).
 TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)

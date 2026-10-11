@@ -242,10 +242,11 @@ enum PadTest {
             frame(g)
             check(g.menuHover === cb.slots[CraftCategory.allCases.count], "the crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05)")
             let k = cb.list.firstIndex { Recipes.all[$0].result.item == planks } ?? -1
-            check(k >= 0 && k < CraftingBookMenu.cols, "planks are among the craftable recipes (tile \(k))")
+            check(k >= 0 && k < CraftingBookMenu.perPage, "planks are among the craftable recipes (tile \(k))")
             g.menuCursor = CraftCategory.allCases.count                      // first tile
             frame(g)
-            if k > 0 { tap(g, "right*\(k)") }
+            if k >= CraftingBookMenu.cols { tap(g, "down*\(k / CraftingBookMenu.cols)") }
+            if k % CraftingBookMenu.cols > 0 { tap(g, "right*\(k % CraftingBookMenu.cols)") }
             check(cb.selected.map { Recipes.all[$0].result.item } == planks, "the D-pad moves to the planks tile and the detail panel shows it")
             tap(g, "a")
             check(count(planks) == 4 && count(logs) == 39, "A crafts one (\(count(planks)) planks, \(count(logs)) logs)")

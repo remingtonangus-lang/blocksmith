@@ -129,6 +129,13 @@ extension Game {
         return true
     }
 
+    // The text width a sign board holds, in font pixels (standing boards at 1/90 block a pixel, hanging at 1/115):
+    // 0.93 and 0.82 of a block (the boards are 1 and 0.875 wide).
+    static let signBoardPx: (standing: Float, hanging: Float) = (84, 94)
+    // The shrink a line of `wpx` font pixels gets so it fits its board.
+    static func signLineFit(_ wpx: Float, hanging: Bool) -> Float {
+        min(1, (hanging ? signBoardPx.hanging : signBoardPx.standing) / max(1, wpx))
+    }
     // Sign text colour: black by default, the dye's colour once dyed; glowing text is bright and unlit.
     static func signTextColor(_ be: BlockEntity, light: Float) -> V4 {
         let names = Array(BlockRegistry.colorHex.keys).sorted()
@@ -213,9 +220,12 @@ extension Game {
                     faces.append((ctr, side * -1, Float(1.0 / 90)))
                 }
                 let textColor = Game.signTextColor(be, light: light)
-                for (center, right, s) in faces {
+                // Lines wider than the board shrink to fit it (generated town and shop signs ran off the board: Oct 11
+                // Quest playtest P6).
+                for (center, right, s0) in faces {
                 for (li, line) in be.lines.enumerated() where !line.isEmpty {
                     let wpx = Float(Font.width(line))
+                    let s = s0 * Game.signLineFit(wpx, hanging: hanging)
                     var x = -wpx / 2
                     let y = Float(1 - li) * 10 + 2
                     for u in line.unicodeScalars {
@@ -224,7 +234,7 @@ extension Game {
                         if code > 32 && code < 127 {
                             let gw = Float(Font.glyphs[code - 32][0])
                             let rows = Float(Font.rows(code))         // 8: a descender below the baseline
-                            let o = center - eye + right * (x * s) + V3(0, (y - rows) * s, 0)
+                            let o = center - eye + right * (x * s) + V3(0, y * s0 - rows * s, 0)
                             let a = o, bb = o + right * (gw * s), cc = bb + V3(0, rows * s, 0), d = a + V3(0, rows * s, 0)
                             let vb: Float = rows / 16
                             wr.quad([a, bb, cc, d], [V2(0, vb), V2(gw / 16, vb), V2(gw / 16, 0), V2(0, 0)], Font.layerBase + code - 32,

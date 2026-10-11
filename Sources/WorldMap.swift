@@ -348,6 +348,12 @@ enum MapDraw {
 // MARK: Minimap
 
 enum Minimap {
+    // "X 5218  Y -16  Z -6037": Y is the block height the F3 screen shows (sea level 62 on the surface).
+    static func coordsLine(_ g: Game) -> String {
+        let p = g.player.pos
+        let y = Int(floor(p.y - Float(YOFF + g.dim.dim.yShift)))
+        return "X \(Int(floor(p.x)))  Y \(y)  Z \(Int(floor(p.z)))"
+    }
     // The terrain rows only change when the player crosses a block or new cells arrive: rebuilt then, reused otherwise
     // (rebuilding read 1024 cells through the cache lock every frame: ~11% of the frame's CPU encode in the profile).
     // One entry per split-screen seat.
@@ -383,7 +389,8 @@ enum Minimap {
         out.append(contentsOf: terrainRows[seat])
         MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
         out.append(HudLine(text: "N", x: x0 + size / 2 - 2 * s, y: y0 + s, scale: s, color: V4(1, 1, 1, 0.9)))
-        let coords = "\(Int(floor(g.player.pos.x))) \(Int(floor(g.player.pos.z)))"
+        // X, height and Z (Oct 11 Quest playtest P11: "I should be able to see how far up and down I am").
+        let coords = Minimap.coordsLine(g)
         out.append(HudLine(text: coords, x: x0 + size - Float(Font.width(coords)) * s, y: y0 + size + 4 * s, scale: s, color: V4(0.9, 0.9, 0.9, 0.9),
                            bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
         // The country you're in, in its flag colour, under the coordinates (Countries.swift).

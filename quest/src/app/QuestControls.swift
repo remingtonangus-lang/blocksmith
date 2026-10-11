@@ -76,6 +76,9 @@ final class QuestControls {
     private var bowHinted = false
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
+    // Holding Y this long opens the inventory (a tap calls the horse or toggles flying): 0.35 s felt slow on the headset
+    // (Oct 11 Quest playtest P9); 0.2 s still tells a tap from a hold.
+    static let inventoryHold: Float = 0.2
     private var menuHold: Float = 0, menuLong = false, menuPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var prevSelTrig = false
@@ -314,7 +317,7 @@ final class QuestControls {
                 if yHold > 0 && !yLong { flyPulse = 3 }
                 yHold = 0; yLong = false
             }
-            if yHold > 0.35 && !yLong { yLong = true; yBlock = true; yPulse = 3 }
+            if yHold > QuestControls.inventoryHold && !yLong { yLong = true; yBlock = true; yPulse = 3 }
             p.up = flyPulse > 0
             if flyPulse > 0 { flyPulse -= 1 }
             p.y = yPulse > 0

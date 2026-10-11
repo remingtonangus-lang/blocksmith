@@ -2340,9 +2340,9 @@ final class Game {
         if player.pos.y < -60 { die("fell out of the world"); return }
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
-        // Swimming 0.01 a metre, sprinting on the ground 0.1 (sprint-swimming counted as sprinting: 10x the hunger).
-        exhaustion += moved * (player.inWater ? 0.01 : (player.sprinting && player.onGround ? 0.1 : 0))
-        if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
+        // Swimming 0.01 a metre, sprinting on the ground HungerRates.sprint, walking nothing (HungerRates).
+        exhaustion += moved * (player.inWater ? HungerRates.swim : (player.sprinting && player.onGround ? HungerRates.sprint : 0))
+        if player.jumped { exhaustion += player.sprinting ? HungerRates.sprintJump : HungerRates.jump }
         while exhaustion >= 4 {
             exhaustion -= 4
             if saturation > 0 { saturation = max(0, saturation - 1) } else { hunger = max(0, hunger - 1) }
@@ -2357,12 +2357,12 @@ final class Game {
                 regenTimer = 0
                 let h: Float = min(saturation, 6) / 6
                 regenFrac += h
-                exhaustion += h * 6
+                exhaustion += h * HungerRates.heal
                 if regenFrac >= 1 { regenFrac -= 1; health += 1 }
             }
         } else if hunger >= 18 && health < maxHealth {
             regenTimer += dt
-            if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += 6 }
+            if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += HungerRates.heal }
         } else {
             regenTimer = 0
         }
@@ -2605,4 +2605,18 @@ final class Game {
             }
         }
     }
+}
+
+// What costs food (exhaustion; 4 is one hunger point or one saturation point). The Oct 11 Quest playtest (P12, P38:
+// "hunger is still going down too fast", "fucking sprinting") wanted it to come mainly from sprinting, fighting and
+// jumping, very little from walking, and slower than the reference's rates (sprint 0.1 a block, sprint jump 0.2,
+// jump 0.05, 6 per half-heart healed): a VR player sprints with the stick far more than a desktop one.
+//   walking 0 | swimming 0.01 a block | sprinting 0.04 a block (1,000 blocks: 10 points) | jump 0.03, sprint jump 0.1
+//   attack 0.1 | hit taken 0.1 | healing half a heart 4
+enum HungerRates {
+    static let swim: Float = 0.01
+    static let sprint: Float = 0.04
+    static let jump: Float = 0.03
+    static let sprintJump: Float = 0.1
+    static let heal: Float = 4
 }

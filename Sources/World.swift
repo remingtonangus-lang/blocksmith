@@ -141,6 +141,12 @@ final class World {
 
     // Chunks farther than 8 chunks are meshed at LOD 1.
     static var lodNear = 8                      // harness --nolod raises it (far detail off)
+    // Deep in a dark cave (smoothed eye skylight `caveK` under 0.12) the fog closes before the far-detail ring: far
+    // sections drop unlit cave walls (Mesher.farDarkCull), so from a cave the surface's trees showed through them
+    // (Oct 11 Quest playtest P4). Nil: no limit.
+    static func caveSight(caveK: Float) -> Float? {
+        caveK >= 0 && caveK < 0.12 && lodNear < 40 ? Float(lodNear * 16 - 6) : nil
+    }
     // Chunks farther than leafNear (and within lodNear) are meshed at full detail but with "fast" leaves (Mesher lod 2:
     // no faces between leaf blocks). Quest sets 2: the Oct 10 taiga village drew ~500k quads at rd 16, about half of
     // them leaves, and inner canopy faces 3-5 chunks away are hard to tell apart through the leaf holes.

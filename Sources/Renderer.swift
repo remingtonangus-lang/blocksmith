@@ -807,6 +807,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
+        if !underwater, game.dim.dim.hasSky, let cap = World.caveSight(caveK: caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         let daylight = game.renderDaylight
         // Night vision lifts every light level toward full brightness.
         let nv = game.nightVision

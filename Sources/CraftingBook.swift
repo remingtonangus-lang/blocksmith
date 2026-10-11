@@ -146,7 +146,9 @@ enum ItemSearch {
 }
 
 final class CraftingBookMenu: Menu, CustomDrawnMenu {
-    static let cols = 8, rows = 5, perPage = cols * rows
+    // Big tiles a controller or VR pointer can't miss (Oct 11 Quest playtest P10: 20 px tiles in an 8 x 5 grid caused
+    // misclicks): 5 x 3 tiles of 33 px.
+    static let cols = 5, rows = 3, perPage = cols * rows, tile = 33, pitch = 35
     static let tabBase = 600, tileBase = 700
     static let prevPage = 690, nextPage = 691, filterBtn = 692, searchBtn = 693
     static let craft1 = 800, craftStack = 801, craftMax = 802, amountDown = 803, amountUp = 804, craftAmount = 805, gridBtn = 806
@@ -199,8 +201,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             slots.append(b)
         }
         for k in 0..<CraftingBookMenu.perPage {
-            let b = MenuSlot(8 + (k % CraftingBookMenu.cols) * 22, 52 + (k / CraftingBookMenu.cols) * 22, nil, 0, .button(CraftingBookMenu.tileBase + k))
-            b.w = 20; b.h = 20
+            let p = CraftingBookMenu.pitch
+            let b = MenuSlot(8 + (k % CraftingBookMenu.cols) * p, 54 + (k / CraftingBookMenu.cols) * p, nil, 0, .button(CraftingBookMenu.tileBase + k))
+            b.w = CraftingBookMenu.tile; b.h = CraftingBookMenu.tile
             slots.append(b)
         }
         let sb = MenuSlot(112, 38, nil, 0, .button(CraftingBookMenu.searchBtn)); sb.w = 72; sb.h = 12
@@ -399,7 +402,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let hot = hover === sl
             box(sl.x - 1, sl.y - 1, sl.w + 2, sl.h + 2, hot ? focus : (ok ? good : V4(0.42, 0.42, 0.44, 1)))
             box(sl.x, sl.y, sl.w, sl.h, ok ? V4(0.86, 0.9, 0.86, 1) : V4(0.6, 0.6, 0.62, 1))
-            icon(r.result, sl.x + 2, sl.y + 2)
+            icon(r.result, sl.x + 3, sl.y + 3, sl.w - 6)
             if !ok { box(sl.x, sl.y, sl.w, sl.h, V4(0.35, 0.35, 0.38, 0.55)) }
             let since = Float(game.clock - CraftBook.flashAt)
             if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }

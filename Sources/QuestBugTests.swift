@@ -292,6 +292,7 @@ enum QuestBugTests {
         PlaytestV78Tests.run(game, check)
         PlaytestPM9BTests.run(game, check)
         AuditGapTests.run(game, check)
+        PlaytestOct11Tests.run(game, check)
         print("questbugs: \(fails) failures")
         return fails
     }
