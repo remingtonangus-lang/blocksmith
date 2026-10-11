@@ -684,6 +684,8 @@ do {
         } catch { check(false, "maingun render \(name): \(error)") }
     } } }
     MainGunTests.run(game, check, render: render)
+    // A slug from the helm, through Game.tick, craters a citadel (FactionTests.frigate; done audit 25b6, G1).
+    FactionTests.frigate(game, check)
     if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 

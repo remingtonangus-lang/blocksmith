@@ -50,6 +50,9 @@ enum MainGun {
 
     static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0 }
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
+    static var craterStepMs: Double = 0                 // the crater's slice this frame, ms (MainGunTests)
+    static var impactMs: Double = 0                     // the impact frame's own work, ms
+    static var impactCost = ""                          // the impact frame's own work in ms by part (MainGunTests prints it)
     static var lastTorn = 0                             // hull blocks the last ship hit tore out
     static var shipHits = 0                             // slugs that struck another ship's hull (ShipCombat)
     static var aimUpdates = 0                           // helm aim predictions made (MainGunTests)
@@ -89,6 +92,16 @@ extension ShipManager {
         let mid = s.toWorld(st.mainGunMuzzle) - md * (st.mainGunLength * 0.5)
         // On board, the whine follows the listener (the hull carries it); from outside it sounds from the barrel.
         g.sfx(.mainGunCharge, 1, at: MainGun.presence(s, g) >= 1 ? nil : mid)
+        // What the slug will land on (a citadel, a Capital city, Boreal Station) is looked up at the impact; a first look
+        // at a structure region plans it (76 ms on the host, the impact frame's whole hitch). Plan the regions round the
+        // likely landing on a worker during the charge, so the impact finds them cached.
+        if world.dim == .overworld, let sc = world.gen.structures {
+            let warm = (byPlayer ? mainGunAimPoint(s, st, pitch: st.gunPitch) : st.target?.point) ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
+            DispatchQueue.global(qos: .utility).async {
+                MainGunStrikes.prewarm(sc, at: warm)
+                _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)))   // (sorted once: the bowl's cells)
+            }
+        }
         // Aimed at a player: a warning in words and in the hands, so the 2.6 s charge is a chance to get clear.
         if !byPlayer, let t = st.target, t.player {
             g.coop.withSeat(t.seat, g) {
@@ -219,20 +232,31 @@ extension ShipManager {
     func mainGunImpact(at p: V3, owner: Int, game g: Game) {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var t = t0, cost: [String] = []
+        func lap(_ what: String) { let n = CFAbsoluteTimeGetCurrent(); cost.append(String(format: "%@ %.1f", what, (n - t) * 1000)); t = n }
         let wave = Shockwave(center: p, owner: owner)
         wave.site = MainGunStrikes.site(g, at: p)
+        lap("site")
         wave.byPlayer = capState[owner]?.gunByPlayer == true || aboard?.root.id == owner || pilot?.root.id == owner
         g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
+        lap("noise")
         if craterGroundLoaded(p) {
             wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
         }
+        lap("crater")
+        if wave.crater != nil { cost.append("(" + CraterJob.initCost + ")") }
         shockwaves.append(wave)
         g.sfx(.mainGunRumble, 1, at: p)
+        lap("sfx")
         for k in 1...3 { g.particles.explosion(at: p + V3(0, Float(k) * 4, 0), power: Float(8 - k)) }
         mainGunFireball(at: p, game: g)
         g.addFlash(at: p + V3(0, 6, 0), color: V3(6, 6.5, 8), radius: 90, life: 1.1)
+        lap("fx")
+        MainGun.impactCost = cost.joined(separator: ", ")
+        MainGun.impactMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         // The flash and the first jolt arrive at once; the ground shake comes with the wave (updateShockwaves).
         let d = simd_length(p - g.player.eye)
         if d < MainGun.shockFelt { g.addShake(0.5 * (1 - d / MainGun.shockFelt)) }
@@ -315,7 +339,9 @@ extension ShipManager {
         let layer = Int(Tex.id("puff"))
         for w in shockwaves {
             if let j = w.crater, !j.done, w.age > 0 {                // from the frame after the impact
+                let a = CFAbsoluteTimeGetCurrent()
                 if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
+                MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             }
             let r0 = w.r
             w.age += dt

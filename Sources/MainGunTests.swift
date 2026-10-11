@@ -15,12 +15,12 @@ enum MainGunTests {
         guard g.dim.dim == .overworld else { check(false, "maingun: needs the overworld"); return }
         let w = g.world
         let home = g.player.pos
-        let wasFlying = g.player.flying, wasTime = g.time
+        let wasFlying = g.player.flying, wasTime = g.time, wasPaused = g.paused
         let pm = PadManager.shared
         let wasSim = pm.simulated
         pm.simulated = PadSnapshot()                            // rumble requests are logged (rumbleLog)
         defer {
-            g.player.pos = home; g.player.vel = .zero; g.player.flying = wasFlying; g.time = wasTime
+            g.player.pos = home; g.player.vel = .zero; g.player.flying = wasFlying; g.time = wasTime; g.paused = wasPaused
             // The shots streamed the world around the frigate, far from the start: load the start again for the
             // checks that run after this one (they stand mobs on the ground around the player).
             _ = w.loadSync(center: home, radius: 8)
@@ -29,20 +29,31 @@ enum MainGunTests {
         }
         g.player.flying = true
         g.time = 0.3 * DAY_LENGTH
+        // The shot runs through Game.tick, which does nothing while paused, and a fresh Game starts paused (the Mac
+        // harness never unpaused it: the live shot "charged for 5.56 s" and never fired; done audit 25b6, G1).
+        g.paused = false
 
         // The frigate, about 300 blocks east of the start, heading north (-z), placed where the ground the helm shot
         // lands on (100 to 180 blocks ahead, within the streamed world around the player) is dry land near the
         // highest ground under the hull, which sets the frigate's cruise height (spawnCapital), so the crater is dug
         // in earth rather than under the sea and the shot lands about 130 blocks out.
+        let open: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .savanna, .snowyPlains]
         func dry(_ x: Int, _ z: Int) -> Bool {
             var top = SEA
             for k in -4...4 { for j in -1...1 { top = max(top, w.gen.column(x + k * 60, z + j * 40).height) } }
+            // The landing strip and the crater's reach either side: open country well above the sea (no swamp pools,
+            // rivers or jungle crowns for the slug to burst in).
             return stride(from: 100, through: 180, by: 20).allSatisfy { d in
-                let h = w.gen.column(x, z - d).height
-                return h > SEA + 1 && h >= top - 10
+                [(0, 0), (-16, 0), (16, 0), (0, -16), (0, 16)].allSatisfy { o in
+                    let c = w.gen.column(x + o.0, z - d + o.1)
+                    return c.height > SEA + 3 && c.height >= top - 10 && open.contains(c.biome)
+                }
             }
         }
-        var fx = Int(home.x) + 300, fz = Int(home.z)
+        // (From the world spawn, not wherever earlier checks left the player: the full questcheck and the slice then
+        // test the same site; the walk check ahead of it ends a different distance out from build to build.)
+        let origin = (w.gen as? WorldGen).map { WorldRules.spawnCentre($0) } ?? V2(home.x, home.z)
+        var fx = Int(origin.x) + 300, fz = Int(origin.y)
         search: for r in 0..<20 {
             for k in -r...r {
                 for (dx, dz) in [(k, -r), (k, r), (-r, k), (r, k)] where dry(fx + dx * 96, fz + dz * 96) {
@@ -52,6 +63,7 @@ enum MainGunTests {
             }
         }
         let n0 = w.ships.list.count
+        print("maingun: the frigate at \(fx),\(fz) (spawn \(Int(origin.x)),\(Int(origin.y)); the player was at \(Int(home.x)),\(Int(home.z)))")
         w.ships.spawnCapital("capfrigate", home: IVec3(fx, 0, fz), yaw: 0, region: nil, sync: true)
         guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
             check(false, "maingun: the Meridian frigate spawns"); return
@@ -132,8 +144,50 @@ enum MainGunTests {
         st.mainGunCD = 0                                        // (a new frigate's first shot waits 8 s)
         let mw0 = s.toWorld(st.mainGunMuzzle)
         let md = s.dirToWorld(st.mainGunDir)
-        let pitch: Float = -0.52
+        // The frigate holds still for the shot (the commandeered helm with nobody steering holds station): where the
+        // slug lands no longer follows its drift while chunks stream in (known-test-issues: a busy machine moved the
+        // landing onto shallow water, a 1425-block crater).
+        s.vel = .zero
+        s.angVel = .zero
         let h = simd_normalize(V2(md.x, md.z))
+        // The steepest pitch whose landing (the helm's own prediction over the loaded world) is dry ground: a crater dug in
+        // a pond or a swamp is mostly water and says nothing about the gun.
+        g.player.pos = mw0 + V3(-50, 0, -10)
+        g.player.vel = .zero
+        _ = w.loadSync(center: g.player.pos, radius: 3)
+        func wetTops(_ c: V3) -> Int {
+            var wet = 0
+            for dz in stride(from: -14, through: 14, by: 2) { for dx in stride(from: -14, through: 14, by: 2) where dx * dx + dz * dz <= 196 {
+                let x = Int(floor(c.x)) + dx, z = Int(floor(c.z)) + dz
+                var y = CH - 1
+                while y > 0 && w.block(x, y, z) == AIR { y -= 1 }
+                if Blocks.isLiquid(w.block(x, y, z)) { wet += 1 }
+            } }
+            return wet
+        }
+        var pitch: Float = .nan
+        for k in 0..<10 {
+            let pk = -0.52 + Float(k) * 0.03
+            let ray = V3(h.x * cosf(pk), sinf(pk), h.y * cosf(pk))
+            var t: Float = 0, guess = mw0
+            while t < 600 {
+                t += 2
+                let p = mw0 + ray * t
+                if p.y <= Float(w.gen.column(Int(floor(p.x)), Int(floor(p.z))).height) + 1 { guess = p; break }
+            }
+            _ = w.loadSync(center: guess, radius: 2)
+            guard let at = w.ships.mainGunAimPoint(s, st, pitch: pk) else { continue }
+            _ = w.loadSync(center: at, radius: 2)                   // (the bowl and its rim, round the predicted landing)
+            // On the ground itself, not in a tree's crown (a slug that bursts in a jungle canopy digs half a bowl of air).
+            let ground = Float(w.gen.column(Int(floor(at.x)), Int(floor(at.z))).height) + 1
+            if wetTops(at) == 0 && at.y < ground + 3 { pitch = pk; break }
+        }
+        // No dry landing at any pitch: say so (firing into water anyway made a small, drowned crater that read as a
+        // weak gun; done audit 25b6 verifier).
+        guard !pitch.isNaN else {
+            check(false, String(format: "maingun: a dry landing ahead of the frigate at %.0f,%.0f (every pitch lands in water or past the world)", mw0.x, mw0.z))
+            return
+        }
         let dir = V3(h.x * cosf(pitch), sinf(pitch), h.y * cosf(pitch))
         // Where the slug will land (the generator's heights along its path), loaded beforehand.
         var land = mw0
@@ -143,10 +197,15 @@ enum MainGunTests {
             let p = mw0 + dir * t
             if p.y <= Float(w.gen.column(Int(floor(p.x)), Int(floor(p.z))).height) + 1 { land = p; break }
         }
-        // The player watches from 50 blocks off the frigate's bow, near enough to feel the charge and see the impact.
+        // The player watches the charge from 50 blocks off the frigate's bow (near enough to feel it), then from beside
+        // the landing once the slug is away (a landing past the streamed world waits as a pending crater, dug only when
+        // its ground loads, and the shot can land 160 blocks out).
         g.player.pos = mw0 + V3(-50, 0, -10)
         g.player.vel = .zero
         _ = w.loadSync(center: g.player.pos, radius: 3)
+        let side = simd_normalize(V3(-h.y, 0, h.x))
+        var watch = land - V3(h.x, 0, h.y) * 40 + side * 45      // (outside the 48-block strike radius)
+        watch.y = Float(w.gen.column(Int(watch.x), Int(watch.z)).height) + 12
         _ = w.loadSync(center: land, radius: 4)
         print(String(format: "maingun: aiming %.0f blocks ahead of the muzzle, %.0f from the player", simd_length(land - mw0), simd_length(land - g.player.pos)))
         // The helm's aim marker: where the shot will land, predicted before it is fired, drawn as a ring.
@@ -191,8 +250,11 @@ enum MainGunTests {
         }
         var seqCharge = Set<Int>()
         while st.gunCharge >= 0 && frames < 400 {
+            let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
             frames += 1
+            let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            if ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) }   // paced like the headset (workers run alongside)
             maxShake = max(maxShake, g.shake)
             flashes = max(flashes, g.flashes.count)
             for (k, f) in [(0, Float(0.1)), (1, 0.55), (2, 0.95)] where !seqCharge.contains(k) && st.gunCharge > MainGun.chargeTime * f {
@@ -226,12 +288,15 @@ enum MainGunTests {
             let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
             if impactFrame < 0 && MainGun.impacts > blasts0 { impactFrame = i }
             if i == 1 { seqFrame("fired", look: s.toWorld(st.mainGunMuzzle) + md * 40) }
+            if i == 1 { g.player.pos = watch; g.player.vel = .zero; _ = w.loadSync(center: land, radius: 2) }   // (the landing streamed back in)
             if impactFrame < 0, i == 12, let pr = predicted { seqFrame("in-flight", look: pr + V3(0, 4, 0), from: pr + V3(-36, 14, 34)) }
             if impactFrame >= 0, [1, 5, 12, 24, 48, 96, 180].contains(i - impactFrame) {
                 seqFrame(String(format: "impact+%.2fs", Float(i - impactFrame) / 72), look: MainGun.lastImpact + V3(0, 6, 0), from: MainGun.lastImpact + V3(-36, 14, 34))
             }
-            if impactFrame >= 0 { detail.append(String(format: "tick %.1f [%@] (gravity queue %d, fluid %d, falling %d, particles %d)",
-                                                        ms, TickProf.summary(), gq, fl, falls, g.particles.list.count)) }
+            if impactFrame >= 0 { detail.append(String(format: "tick %.1f [%@] (crater slice %.1f ms, gravity queue %d, fluid %d, falling %d, particles %d)",
+                                                        ms, TickProf.summary(), MainGun.craterStepMs, gq, fl, falls, g.particles.list.count)) }
+            MainGun.craterStepMs = 0
+            if impactFrame < 0 && ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) }   // the slug's flight, paced too
             if impactFrame >= 0 {
                 if ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) }   // paced like the headset: worker meshing runs between frames
                 tickMs.append(ms)
@@ -284,6 +349,10 @@ enum MainGunTests {
             print("maingun: slowest frames after the impact: " + slowest.map { String(format: "#%d %.1f ms", $0, tickMs[$0]) }.joined(separator: ", "))
             for k in slowest where k < detail.count { print("maingun:   #\(k): " + detail[k]) }
             print("maingun: " + MainGunPerf.lastReport)
+            print("maingun: the impact's own work (ms): " + MainGun.impactCost)
+            // The impact frame (the crater's first slice comes the frame after): the structure lookup that planned
+            // a region here was a 76-125 ms hitch on the host at the gun's biggest moment.
+            check(MainGun.impactMs < 12, String(format: "maingun: the impact itself is cheap on the frame thread (%.1f ms: %@)", MainGun.impactMs, MainGun.impactCost))
         }
         if let render, impactFrame >= 0 {
             // The crater once the world has remeshed it and the smoke has cleared, from above its rim.

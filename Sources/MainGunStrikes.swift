@@ -19,6 +19,12 @@ enum MainGunStrikes {
 
     // What a slug landing at p struck: the nearest citadel if p is inside its walls or within the shockwave of them
     // (its record is made if no player was near enough for it to be watched yet), a Capital city, Boreal Station.
+    // Plans the structure regions `site` looks at round `p` (a worker, during the charge; the cache is locked).
+    static func prewarm(_ sc: StructureCache, at p: V3) {
+        let x = Int(floor(p.x)), z = Int(floor(p.z))
+        for kind in ["military_base", "capital_city", BorealStation.kind] { _ = sc.nearest(kind, x: x, z: z, maxRegions: 1) }
+    }
+
     static func site(_ g: Game, at p: V3) -> Site? {
         guard g.world.dim == .overworld, let sc = g.world.gen.structures else { return nil }
         let x = Int(floor(p.x)), z = Int(floor(p.z))

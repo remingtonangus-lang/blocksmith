@@ -56,49 +56,79 @@ enum FactionTests {
         let px = Int(g.player.pos.x), pz = Int(g.player.pos.z)
         guard let base = sc.nearest("military_base", x: px, z: pz, maxRegions: 6) else { check(false, "factions: no citadel for the Tidebreaker check"); return }
         let home = g.player.pos
-        defer { g.player.pos = home; g.player.vel = .zero }
+        defer {
+            g.player.pos = home; g.player.vel = .zero
+            // The shot streamed the world round the citadel, far from the start: load the start again for the checks
+            // that run after this one (questcheck's town checks stand townsfolk on the ground round the player).
+            _ = w.loadSync(center: home, radius: 8)
+        }
         let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
         g.player.pos = V3(Float(cx) + 0.5, 200, Float(cz) + 0.5)
         _ = w.loadSync(center: g.player.pos, radius: 4)
-        // The crater: a dense bowl wherever it lands, walls and all.
-        var tops: [Int] = []                                    // the median surface (not a flagpole or tower top)
+        // The frigate, 180 blocks south of the citadel with its bow on it (yaw 0 heads north), commandeered so it
+        // holds station (no AI of its own), and the Tidebreaker fired from its helm through Game.tick: the live path a
+        // player takes (charge, slug, impact, crater carved a slice a frame), not Explosion.crater called directly
+        // (done audit 25b6, G1: the live helm shot never fired while the direct calls passed).
+        let wasPaused = g.paused, wasFlying = g.player.flying
+        g.paused = false                                        // (the Mac harness starts paused: tick would do nothing)
+        g.player.flying = true
+        defer { g.paused = wasPaused; g.player.flying = wasFlying }
+        let n0 = w.ships.list.count
+        w.ships.spawnCapital("capfrigate", home: IVec3(cx, 0, cz + 180), yaw: 0, region: nil, sync: true)
+        guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
+            check(false, "factions: the Meridian frigate spawns"); return
+        }
+        defer { w.ships.remove(s); w.ships.capState.removeValue(forKey: s.id); w.ships.shockwaves.removeAll(); w.ships.shells.removeAll { $0.kind == 3 } }
+        check(s.factionValue == .meridian && Faction.meridian != .steelhold, "factions: the frigate flies for the Meridian Navy")
+        let foe = w.ships.nearestFoe(of: .steelhold, near: s.pos, range: 300, game: g)
+        check(foe?.ship.map { $0.root === s } == true, "factions: Capital forces count the frigate as a foe")
+        s.captured = true
+        st.mainGunCD = 0
+        // The citadel's median surface (not a flagpole or tower top) under its centre: the helm's aim.
+        var tops: [Int] = []
         for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
             var y = CH - 1
             while y > 0 && (w.block(cx + dx, y, cz + dz) == 0 || Blocks.isLiquid(w.block(cx + dx, y, cz + dz))) { y -= 1 }
             tops.append(y)
         } }
         let top = tops.sorted()[tops.count / 2]
+        let aim = V3(Float(cx) + 0.5, Float(top) + 0.5, Float(cz) + 0.5)
+        let mw = s.toWorld(st.mainGunMuzzle)
+        let pitch = atan2f(aim.y - mw.y, simd_length(V2(aim.x - mw.x, aim.z - mw.z)))
+        let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
+        let blasts0 = MainGun.impacts
+        let fired = w.ships.playerMainGun(s, pitch: pitch, game: g)
+        let again = w.ships.playerMainGun(s, pitch: pitch, game: g)
+        var frames = 0, slugs = 0
+        while st.gunCharge >= 0 && frames < 400 { g.tick(1.0 / 72); frames += 1 }
+        slugs = w.ships.shells.filter { $0.kind == 3 }.count - shells0
+        check(fired && !again && slugs == 1 && abs(Float(frames) / 72 - MainGun.chargeTime) < 0.1 && (w.ships.mainGunCooldown(s) ?? 0) > 5,
+              String(format: "factions: the Tidebreaker charges from the helm through the game loop (%.2f s), fires one slug, then reloads", Float(frames) / 72))
+        // The slug's flight and the bowl, then a census of what is left round where it landed.
+        frames = 0
+        while MainGun.impacts == blasts0 && frames < 72 * 4 { g.tick(1.0 / 72); frames += 1 }
+        let hit = MainGun.impacts > blasts0 ? MainGun.lastImpact : nil
+        let ix = Int(floor(hit?.x ?? aim.x)), iy = Int(floor(hit?.y ?? aim.y)), iz = Int(floor(hit?.z ?? aim.z))
         func solid() -> Int {
             var n = 0
-            for y in (top - 10)...(top + 10) { for z in (cz - 10)...(cz + 10) { for x in (cx - 10)...(cx + 10) where w.block(x, y, z) != 0 { n += 1 } } }
+            for y in (iy - 14)...(iy + 14) { for z in (iz - 14)...(iz + 14) { for x in (ix - 14)...(ix + 14) where w.block(x, y, z) != 0 { n += 1 } } }
             return n
         }
+        // (The crater is carved from the frame after the impact, so the census before it is still the citadel whole.)
         let before = solid()
-        Explosion.crater(at: V3(Float(cx) + 0.5, Float(top) + 0.5, Float(cz) + 0.5), radius: 9, game: g)
+        frames = 0
+        while (w.ships.shockwaves.contains { $0.crater.map { !$0.done } ?? false }) && frames < 72 * 20 { g.tick(1.0 / 72); frames += 1 }
         let removed = before - solid()
         var left = 0                                            // anything breakable still inside the inner bowl
-        for y in (top - 4)...(top + 6) { for z in (cz - 6)...(cz + 6) { for x in (cx - 6)...(cx + 6) {
-            let d = V3(Float(x - cx), Float(y - top) * (y < top ? 1.5 : 1), Float(z - cz))
+        for y in (iy - 4)...(iy + 6) { for z in (iz - 6)...(iz + 6) { for x in (ix - 6)...(ix + 6) {
+            let d = V3(Float(x - ix), Float(y - iy) * (y < iy ? 1.5 : 1), Float(z - iz))
             let id = w.block(x, y, z)
             if simd_length(d) < 6, id != 0, !Blocks.isLiquid(id), Blocks.hardness[Int(id)] >= 0 { left += 1 }
         } } }
-        check(removed > 300 && left == 0, "factions: a Tidebreaker hit craters the citadel (\(removed) of \(before) blocks gone, \(left) left in the bowl, at \(cx),\(top),\(cz))")
-        // The frigate itself.
-        let n0 = w.ships.list.count
-        w.ships.spawnCapital("capfrigate", home: IVec3(cx + 120, 0, cz), yaw: 0.4, region: nil, sync: true)
-        guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }) else { check(false, "factions: the Meridian frigate spawns"); return }
-        defer { w.ships.remove(s) }
-        check(s.factionValue == .meridian && Faction.meridian != .steelhold, "factions: the frigate flies for the Meridian Navy")
-        let foe = w.ships.nearestFoe(of: .steelhold, near: s.pos, range: 300, game: g)
-        check(foe?.ship.map { $0.root === s } == true, "factions: Capital forces count the frigate as a foe")
-        w.ships.capState[s.id]?.mainGunCD = 0
-        let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
-        let fired = w.ships.playerMainGun(s, pitch: -0.3, game: g)
-        let again = w.ships.playerMainGun(s, pitch: -0.3, game: g)
-        if let st = w.ships.capState[s.id] { for _ in 0..<Int(MainGun.chargeTime * 60) + 2 { w.ships.mainGunTick(s, st, 1.0 / 60, g) } }
-        check(fired && !again && w.ships.shells.filter { $0.kind == 3 }.count == shells0 + 1 && (w.ships.mainGunCooldown(s) ?? 0) > 5,
-              "factions: the Tidebreaker charges and fires from the helm, then reloads")
-        w.ships.shells.removeAll { $0.kind == 3 }
+        let off = hit.map { simd_length(V2($0.x - aim.x, $0.z - aim.z)) } ?? -1
+        check(hit != nil && off < 12 && removed > 300 && MainGun.lastCrater >= removed && left == 0,
+              String(format: "factions: a Tidebreaker slug from the helm craters the citadel (landed %.0f blocks from its centre; %d of %d blocks gone, %d left in the bowl, at %d,%d,%d)",
+                     off, removed, before, left, ix, iy, iz))
     }
 
     static func structures(_ check: (Bool, String) -> Void) {
