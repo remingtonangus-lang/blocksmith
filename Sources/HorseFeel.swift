@@ -51,7 +51,7 @@ enum HorseFeel {
     static let patBond: Float = 2, patCool: Float = 60             // (was 4 every 15 s)
     static let brushBond: Float = 10, brushCool: Float = 300       // (was 15 every 120 s)
     static let treatBond: Float = 2, treatCool: Float = 60         // (was 3 every 10 s)
-    static let staminaMax: [Float] = [100, 115, 130, 150]
+    static let staminaMax: [Float] = [150, 170, 195, 225]          // P49 (Oct 11 evening): half as long again (100-150)
     static let drain: [Float] = [1, 0.9, 0.8, 0.7]
     static let regen: [Float] = [1, 1.15, 1.3, 1.5]
     static let throwChance: [Float] = [0.45, 0.2, 0.05, 0]
@@ -169,7 +169,7 @@ extension Mob {
         if h.monsterScan <= 0 {
             h.monsterScan = 0.5
             // (and predators within 6 blocks until bond level 3: HorseLife.predatorNear)
-            if predatorNear(g) { spook(g) }
+            if predatorNear(g) { shy(g) }
         }
         if h.rear > 0 {
             h.rear -= dt
@@ -270,6 +270,18 @@ extension Mob {
         h.spookCool = 4
         rearUp(g, canThrow: true)
         g.onToast?(h.rearThrow ? "Your horse rears: \(Prompt.g(.use)) with an empty hand to calm it!" : "Your horse rears!")
+    }
+
+    // P49 (Oct 11 evening playtest: "a mob hit makes the horse rear and locks the player", "a creeper killed his horse",
+    // "zombie hits stun the rider too much"): a monster beside the horse makes it shy, not rear in place: a short start
+    // (under half a second, never a throw) at most every 12 s, and none at a gallop, so the rider can always ride clear.
+    func shy(_ g: Game) {
+        let h = hs
+        guard h.spookCool <= 0, h.rear <= 0, h.gait != .gallop else { return }
+        h.spookCool = 12
+        rearUp(g, canThrow: false)
+        h.rear = 0.45
+        g.onToast?("Your horse shies: ride clear")
     }
 
     func throwRider(_ g: Game) {

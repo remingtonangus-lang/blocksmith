@@ -6,7 +6,7 @@ import simd
 // own update (Mob.update -> updateRidden -> gaitStep), plus one pass through Game.tick with the Touch-pad snapshot.
 //   gaits      walk / trot / canter / gallop speeds; time to a gallop; stopping time; no lurch above 12.5 b/s^2
 //   turning    a walk turns at least twice as fast as a gallop
-//   stamina    a level-1 gallop lasts 10-25 s; a blown horse drops to a trot and rears when spurred; it refills at a walk
+//   stamina    a level-1 gallop lasts 15-35 s; a blown horse drops to a trot and rears when spurred; it refills at a walk
 //   bond       points from riding, pats, brushing and treats; levels; saddlebags at level 2; saved with the horse
 //   footing    stops at the strip's end (a sheer drop) and before lava; rides down a staircase and off a 3-block step
 //   crash      a flat-out gallop into a wall stumbles; level 1 throws the rider, level 2 doesn't
@@ -124,7 +124,7 @@ enum HorseTests {
                 if tSpent < 0 && h.hs.spent { tSpent = Float(i) * dt }
                 return tSpent >= 0
             }
-            check(tSpent >= 10 && tSpent <= 25, String(format: "horse stamina: a level-1 gallop lasts %.1f s (10-25)", tSpent))
+            check(tSpent >= 15 && tSpent <= 35, String(format: "horse stamina: a level-1 gallop lasts %.1f s (15-35; P49 half as long again)", tSpent))
             ride(h, 2, push: 1, loop: true)
             let blown = speed(h)
             let spurs = h.hs.spurCount

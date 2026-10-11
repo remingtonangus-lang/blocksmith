@@ -1560,7 +1560,7 @@ final class Game {
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
-        return k == "crafting_table" || k == "command_console" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
+        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
@@ -1637,6 +1637,7 @@ final class Game {
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(UpgradeBenchMenu(game: self))           // the Upgrade Bench (Upgrades.swift)
         case "smithing_table": openMenu(SmithingMenu(game: self))
+        case VehicleWorks.key: VehicleWorks.use(self, p)                            // P54 (VehicleWorks.swift)
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))

@@ -231,6 +231,7 @@ extension Recipes {
         r.append(shaped([" P ", "PIP", " P "], ["P": "#planks", "I": "iron_ingot"], "ship_wheel", 2))
         r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
         r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))
+        r.append(shaped(["BBB", "ECE", "BBB"], ["B": "iron_block", "E": "ship_engine", "C": "crafting_table"], VehicleWorks.key))   // P54
         return r
     }
 }

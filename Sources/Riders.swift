@@ -14,6 +14,7 @@ enum Riders {
     static let robBounty = 2500                     // $25 on your head in the nearest town
     static let murderBounty = 6000
     static var forceRoad: (Roads.Seg, Float)?       // the host check's road and spot
+    static var along: ClosedRange<Float> = 50...80  // how far along the road from the player a rider turns up
 
     static func isRider(_ m: Mob) -> Bool { m.posse == riding || m.posse == robbed }
 
@@ -46,7 +47,7 @@ enum Riders {
         let (s, t0) = road
         let len = max(1, simd_length(s.b - s.a))
         let ahead = Rand.bool()
-        let t = max(0, min(1, t0 + (ahead ? 1 : -1) * Rand.float(in: 50...80) / len))
+        let t = max(0, min(1, t0 + (ahead ? 1 : -1) * Rand.float(in: along) / len))
         let at2 = Roads.point(s, t)
         let x = Int(floor(at2.x)), z = Int(floor(at2.y))
         guard g.world.isLoaded(x, z) else { return nil }

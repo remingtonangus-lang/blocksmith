@@ -44,22 +44,22 @@ unless another suite is named.
 | P36 radar blocks | fixed | a citadel console shows its patrols and garrison on the radar for 30 s | P36 console radar |
 | P37 sheriff office | see G14 | | |
 | P38 hunger | fixed with P12 | | P12 hunger |
-| P39 lava | fixed | cave-floor lava pools kept; single lava sources added along cave floors | P39 lava |
+| P39 lava | fixed | cave-floor lava pools kept; single lava sources sunk into cave floors (one floor cell in 100) | P39 lava |
 | P40 capital ammo | fixed | Capital guns load Capital Rounds (never sold, looted from soldiers and citadels); rifle rounds $0.30, shells $0.40; Capital guns sold only in Capital cities | P40 ammo |
 | P41 Elk Gulch stairs | open | the note's spot is solid rock in the current generator (the town moved), so the stairs could not be found; structcheck walkability is clean; needs the voice shot | |
 | P42 potions | part | an original set of frontier tonics ("Quickstep Tonic", "Mending Tonic", "Black Draught"; docs/status/ip-renames.md); the doctor's rarer tonics turn up in only some shops; bottle art unchanged (he called the shop look "not bad") | P42 tonics |
 | P43 gun accuracy | fixed | every gun but the shotgun hits exactly where the sights point | P32/P43 VR gun aim |
 | P44 rarity | part | coal and iron rarer; Capital cities and citadels about one per 4,000 x 4,000 blocks on new ground; surface water unchanged (the lakes graph would seam saved worlds) | P44 rarity |
 | P45 guns too easy in titanium | fixed | armour caps at 12 of 25 against a round | P30 armour vs guns |
-| P46 endgame hordes | open | feature | |
+| P46 endgame hordes | fixed | the Reckoning: back on the surface after the Ashguard falls, five waves (Marauder clans, the Capital, the Stormwarden Fleet with dropships, the dead, then every banner) close in from out of sight; a death sends the wave home to come again; winning pays $250 and ends Marauder patrols | P46 the Reckoning |
 | P47 gunpowder upside down | fixed | dropped item icons drew upside down on both renderers | view --drop gunpowder |
-| P48 base towns | open | feature | |
-| P49 horses | part | mounting with a gun in hand works; the rest is in the horse items list | P49 |
+| P48 base towns | fixed (new ground) | a row of shops (general store, saloon, gunsmith, doctor) and two houses below each citadel's south gate; the garrison leaves you alone there with empty hands, warns after a second with a weapon out and opens fire after four | P48 garrison row |
+| P49 horses | part | mounting with a gun in hand; stamina half as long again; a monster beside the horse makes it shy briefly (no throw, none at a gallop) instead of rearing to a stop (the creeper and zombie notes); a swimming horse can jump and steps up onto a bank level with the water; ridden horses are narrower (squeeze between trunks); leaves at the rider's head stop the horse (no black screen); a dead horse already drops its saddle. Hoof sound on Capital stone not changed | P49 horses, horse stamina |
 | P50 earned knowledge | fixed | a country's riches are told by a townsperson to a respected player (honour 20+), then shown on the map and at the border; before that only the name | honour gap P50 |
-| P51 roads and riders | open | feature | |
+| P51 roads and riders | fixed (new ground) | dirt roads join neighbouring towns; riders on horseback travel them; a gun held on one for a second gets their satchel (cash and goods), which is a crime: honour, a bounty and a posse with six-irons from the nearest town; killing one is murder; the first bounty hunter carries a six-iron; dying with hunters or a posse on you pays every bounty off with all your cash | P51 roads and riders |
 | P52 polygon world | done | on the Quest: Create New World > Terrain: Smooth (Test); an open world: Options > Video > Smooth Terrain (docs/status/polygon-test.md) | questcheck create path |
 | P53 HUD | fixed | the Quest HUD rests at 45% and comes up solid for 4 s on a grip press or when hurt (VR Comfort > HUD Fade); in-game button prompts retire after 3 hours of play (Button Hints brings them back) | |
-| P54 vehicles | open | design prototype | |
+| P54 vehicles | prototype | the Vehicle Works block builds a preset Field Tank from a bill of parts (96 iron and the ship parts); the free build at a Helm stays; trade-off in docs/design/vehicles-p54.md | P54 vehicle works |
 | P55 mob variety | fixed | each monster rolls its own speed (x0.8-1.25), hit (x0.7-1.4), toughness (x0.75-1.35) and archer aim | P55 mob variety |
 | P56 VR reload | fixed | off hand at the hip takes a magazine, slotting it at the gun hand loads it; X still reloads | P56 VR reload |
 | P57 bodies | fixed | bodies stay where they fell until the player is 48+ blocks away | mob anim P57 |

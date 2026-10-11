@@ -38,6 +38,8 @@ enum PlaytestOct11Tests {
         reckoning(game, check)
         garrisonRow(game, check)
         roadsAndRiders(game, check)
+        horseItems(game, check)
+        vehicleWorks(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -830,11 +832,12 @@ enum PlaytestOct11Tests {
         let survival0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
         defer {
             g.mobs.mobs = mobs0; g.money = money0; g.inventory.held = held0; Honour.value = honour0; TownLaw.state = law0
-            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil
+            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80
         }
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
         let p = g.player.pos
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
+        Riders.along = 10...16                 // (inside the host check's loaded ground)
         var rider: Mob?
         for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
         var robbedOK = false, posse = 0, gunmen = true, mounted = false
@@ -863,5 +866,58 @@ enum PlaytestOct11Tests {
         let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && $0.townWeapon == .revolver }
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
               "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
+    }
+
+    // P49 horse items: half as much stamina again; a monster beside the horse makes it shy briefly (no throw, never at
+    // a gallop) instead of rearing the rider to a stop.
+    static func horseItems(_ g: Game, _ check: (Bool, String) -> Void) {
+        let h = Mob(.horse, at: g.player.pos + V3(3, 0, 0))
+        h.owner = true; h.saddled = true
+        h.shy(g)
+        let short = h.hs.rear > 0 && h.hs.rear <= 0.5 && !h.hs.rearThrow
+        h.hs.rear = 0; h.hs.spookCool = 0; h.hs.gait = .gallop
+        h.shy(g)
+        let gallop = h.hs.rear == 0
+        check(HorseFeel.staminaMax[0] >= 150 && short && gallop,
+              "P49 horses: stamina \(Int(HorseFeel.staminaMax[0]))-\(Int(HorseFeel.staminaMax[3])) (was 100-150); a monster beside it: a short shy, no throw (\(short)); none at a gallop (\(gallop))")
+    }
+
+    // P54 prototype: the Vehicle Works names what a Field Tank still needs, and with the parts (here: creative) rolls one
+    // out on clear ground beside it, wheels on the ground.
+    static func vehicleWorks(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard Blocks.has(VehicleWorks.key) else { check(false, "P54 vehicle works: block missing"); return }
+        let survival0 = g.survival, inv = g.inventory.main.slots, pos0 = g.player.pos
+        var toast = ""
+        let toast0 = g.onToast
+        defer { g.survival = survival0; g.inventory.main.slots = inv; g.player.pos = pos0; g.onToast = toast0 }
+        g.onToast = { toast = $0 }
+        g.survival = true
+        for i in 0..<36 { g.inventory.main[i] = .empty }
+        let w = g.world
+        // A works on a flat platform in the air beside the player (clear yard all round).
+        let base = IVec3(Int(floor(pos0.x)) + 4, min(CH - 20, Int(floor(pos0.y)) + 30), Int(floor(pos0.z)))
+        for z in (base.z - 10)...(base.z + 10) { for x in (base.x - 12)...(base.x + 12) {
+            w.setBlockAsync(x, base.y - 1, z, STONE)
+            for y in base.y...(base.y + 8) where w.block(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
+        } }
+        w.setBlock(base.x, base.y, base.z, Blocks.id(VehicleWorks.key))
+        g.player.pos = V3(Float(base.x) - 2.5, Float(base.y), Float(base.z) + 0.5)
+        let ships0 = w.ships.list.count
+        VehicleWorks.use(g, base)
+        let asked = toast.contains("needs") && w.ships.list.count == ships0
+        g.survival = false
+        VehicleWorks.use(g, base)
+        let made = w.ships.list.filter { $0.name == "Field Tank" }
+        var rolled = false, wheelsDown = false
+        if let t = made.last {
+            rolled = t.pos.x > Float(base.x) + 3
+            wheelsDown = abs(t.toWorld(V3(0, t.localMin.y, 0)).y - (Float(base.y) + 0.6)) < 0.7
+            w.ships.remove(t)
+        }
+        for z in (base.z - 10)...(base.z + 10) { for x in (base.x - 12)...(base.x + 12) {
+            for y in (base.y - 1)...(base.y + 8) where w.block(x, y, z) != AIR { w.setBlockAsync(x, y, z, AIR) }
+        } }
+        check(asked && made.count == 1 && rolled && wheelsDown,
+              "P54 vehicle works: short of parts it says so (\(asked)); with them a Field Tank rolls out beside it (\(made.count), on the far side: \(rolled)), wheels on the ground (\(wheelsDown))")
     }
 }
