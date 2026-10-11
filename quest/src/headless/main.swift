@@ -288,6 +288,24 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 }
                 world.pendingMobs.removeAll()
             }
+            // Biomes (look upgrade, docs/status/look-upgrade.md): the middle of a forest, a desert, snowy plains and a
+            // taiga near spawn, at noon from a little above the ground, so the sky air, the trees and the ground of
+            // each read build to build. Spiral out in 64-block steps; the centre and four points 32 out must all match.
+            for (biome, yaw) in [("forest", Float(0.6)), ("desert", Float(2.2)), ("snowy_plains", Float(-0.9)), ("taiga", Float(3.6))] {
+                var x = 0, z = 0, dx = 0, dz = -1, found: V3?
+                for _ in 0..<6000 {
+                    let wx = Int(spawn.x) + x * 64, wz = Int(spawn.z) + z * 64
+                    if [(0, 0), (32, 0), (-32, 0), (0, 32), (0, -32)].allSatisfy({ world.gen.column(wx + $0.0, wz + $0.1).biome.name == biome }) {
+                        found = V3(Float(wx) + 0.5, 0, Float(wz) + 0.5); break
+                    }
+                    if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+                    x += dx; z += dz
+                }
+                guard var p = found else { print("golden: no \(biome) near spawn (biome_\(biome) skipped)"); continue }
+                _ = world.loadSync(center: p, radius: 2)
+                p.y = Float(world.topY(Int(floorf(p.x)), Int(floorf(p.z))) + 1) + 3
+                shots.append(("biome_\(biome)", p, 0.24, yaw, -0.12, false))
+            }
             // Boreal Station: the nearest one (BorealStation.views: yard from the air, the gate, a corridor, the hall, the stairs).
             if let s = world.gen.structures?.nearest(BorealStation.kind, x: Int(spawn.x), z: Int(spawn.z), maxRegions: 6) {
                 _ = world.loadSync(center: V3(Float(s.anchor.x), Float(s.anchor.y), Float(s.anchor.z - 32)), radius: 4)
