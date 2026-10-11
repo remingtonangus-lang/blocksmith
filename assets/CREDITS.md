@@ -114,3 +114,16 @@ docs/status/texture-sharpness.md). All original Blocksmith art.
   commercial use of generated images (store-readiness item), and record the result here.
 - The independent style review that triggered the s20 ore re-roll left no written score; future art passes record
   the reviewer's verdict in this file next to the sheet it judged.
+
+## Icons batch 3: trophies, guns, effects (2026-10-11)
+Same style, prompt pattern and source as the item icons above (Gemini on gemini.google.com, Remington's Google AI Pro
+account). Cell maps in docs/textures/icons.json.
+- assets/gemini/icons/i21_trophies.jpg, i22_guns_sunderite.jpg: hunting trophies, journals, fish, potion/splash bottles,
+  the Steelhold guns and revolver, Sunderite items.
+- assets/gemini/icons/i23_effects_a.jpg, i24_effects_b.jpg, i25_effects_c_tinted.jpg: the 39 status-effect icons
+  ("a sheet of 16 status-effect icons ... bold readable silhouettes and strong saturated colours so each reads at small
+  size", one symbol per cell, e.g. winged boot = speed, snail on an iron ball = slowness, glowing cat eye = night
+  vision). i25 also holds the two-layer items painted with the runtime-tinted part in "PURE GREEN" (lingering bottle
+  liquid, tipped arrowhead, spawn egg spots, harness band); tools/iconsplit.py splits them into base + greyscale
+  overlay. Absorption/glowing halos de-pinked after slicing. The XP bar fill (Resources/Textures/xp_bar.png) is painted
+  to match. All original Blocksmith art.

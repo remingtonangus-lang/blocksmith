@@ -647,5 +647,101 @@
   ],
   "cellbg": true,
   "inset": 0.1
+ },
+ {
+  "sheet": "assets/gemini/icons/i23_effects_a.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_speed",
+    "=effect_slowness",
+    "=effect_haste",
+    "=effect_mining_fatigue"
+   ],
+   [
+    "=effect_strength",
+    "=effect_instant_health",
+    "=effect_instant_damage",
+    "=effect_jump_boost"
+   ],
+   [
+    "=effect_nausea",
+    "=effect_regeneration",
+    "=effect_resistance",
+    "=effect_fire_resistance"
+   ],
+   [
+    "=effect_water_breathing",
+    "=effect_invisibility",
+    "=effect_blindness",
+    "=effect_night_vision"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i24_effects_b.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_hunger",
+    "=effect_weakness",
+    "=effect_poison",
+    "=effect_health_boost"
+   ],
+   [
+    "=effect_absorption",
+    "=effect_saturation",
+    "=effect_glowing",
+    "=effect_levitation"
+   ],
+   [
+    "=effect_luck",
+    "=effect_bad_luck",
+    "=effect_slow_falling",
+    "=effect_tide_blessing"
+   ],
+   [
+    "=effect_swimmers_grace",
+    "=effect_darkness",
+    "=effect_ill_omen",
+    "=effect_siege_omen"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i25_effects_c_tinted.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_proving_omen",
+    "=effect_blight",
+    "=effect_friend_of_the_town",
+    "=effect_infested"
+   ],
+   [
+    "=effect_oozing",
+    "=effect_weaving",
+    "=effect_wind_charged",
+    "lingering_bottle"
+   ],
+   [
+    "tipped_arrow",
+    "spawn_egg",
+    "harness",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ]
+  ]
  }
 ]
