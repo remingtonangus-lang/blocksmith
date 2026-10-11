@@ -113,3 +113,22 @@ world).
   through the floor and leaves the bottom layer shut.
 - Old worlds: unvisited bases get charges in their command chests. Command chests that were already generated keep
   what they rolled.
+
+## Verifier pass (2026-10-11) and fixes
+- The playthrough's surface portal now checks that flint and steel leaves the frame cold, then wakes it with an Ember
+  Charge through the same right click.
+- Guard turn rate: close in, a knight turns at 2.0-2.6 rad/s, so circling it gets round the shield.
+- Taps vs blows: only a melee hit charged to at least 60 % (x the VR swing power) parries or wears the guard. A tap
+  clangs off. Spear thrusts count as blades.
+- The old-save stamp now turns everything in the floor layers into Wardstone, except blocks with contents (chests,
+  spawners, signs, beds...). A shaft or ladder dug before the floor gets sealed too.
+- The slag is visible: a big glowing blob every frame with sparks, and a hiss every 0.3 s.
+- Persistence: only the Commander of a muster is persistent. Slag and burning charges are dropped on a dimension
+  change.
+- Searwings probe the headroom over the player about once a second and circle under the roof.
+- A shield's face darkens as its guard wears down.
+- A blast centred on a knight is never blocked.
+- Hot paths use static tables, not literals.
+- The test arena is built away from spawn and taken down after the lineup.
+- Not done: the boss bar shows on the Mac HUD only. The Quest HUD draws no boss bars for any boss yet (the Warden and
+  the Ash Marshal included); that's a shared Quest HUD gap, not this item's.

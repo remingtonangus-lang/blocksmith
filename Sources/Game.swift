@@ -527,6 +527,7 @@ final class Game {
     func changeDimension(to d: Dim, at p: V3) {
         let old = world
         let oldMobs = mobs
+        hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
         if persistent { old.saveAll() }
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
@@ -1097,6 +1098,7 @@ final class Game {
                 let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
                 let hp0 = m.health
                 Mob.playerMelee = true
+                Mob.playerMeleePower = charge * (swung ? swingPow : 1)
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
                 Mob.playerMelee = false
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an

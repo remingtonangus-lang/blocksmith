@@ -26,6 +26,7 @@ final class HellState {
     var swings = 0
     var side: Float = 1
     var sideT: Float = 0
+    var hover: Float = 8                          // a Searwing's circling height over the player (headroom probed)
     var called = false                            // the Commander's horn
     var raged = false
     var fx: FX = .none
@@ -48,9 +49,34 @@ enum HellStats {
 }
 
 extension MobKind {
-    var hellOwn: Bool { rawValue >= MobKind.brandSquire.rawValue && rawValue <= MobKind.slagthrower.rawValue }
-    var brandOrder: Bool { rawValue >= MobKind.brandSquire.rawValue && rawValue <= MobKind.brandCommander.rawValue }
-    var orderRank: Int { max(0, rawValue - MobKind.brandSquire.rawValue) }
+    var hellOwn: Bool {
+        switch self {
+        case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower: return true
+        default: return false
+        }
+    }
+    var brandOrder: Bool { orderRank >= 0 }
+    var orderRank: Int {
+        switch self {
+        case .brandSquire: return 0
+        case .brandKnight: return 1
+        case .brandChampion: return 2
+        case .brandCommander: return 3
+        default: return -1
+        }
+    }
+    // Index 0...6 among hell's own (caps and counts as plain arrays).
+    var hellIndex: Int {
+        switch self {
+        case .brandSquire: return 0
+        case .brandKnight: return 1
+        case .brandChampion: return 2
+        case .brandCommander: return 3
+        case .searwing: return 4
+        case .scorchling: return 5
+        default: return 6
+        }
+    }
 
     var hellSpec: Spec {
         switch self {
@@ -82,6 +108,7 @@ extension MobKind {
 
 extension Mob {
     static var playerMelee = false            // set by Game.interact around a melee hit (a parry needs a blade)
+    static var playerMeleePower: Float = 1    // that hit's charge (x the swing's power): a tap neither parries nor wears a guard
 
     var hellState: HellState {
         if let h = hell { return h }
@@ -95,7 +122,7 @@ extension Mob {
 
     var orderGuardMax: Int {
         if kind == .brandCommander { return hell?.raged == true ? 14 : 10 }
-        return [3, 5, 6, 10][min(3, kind.orderRank)]
+        return HellMobs.guardMax[max(0, min(3, kind.orderRank))]
     }
 
     func hellSetup() {
@@ -107,8 +134,9 @@ extension Mob {
     func orderGuard(from src: V3, damage: inout Int, knockback: inout Float) -> Bool {
         let h = hellState
         let melee = Mob.playerMelee
+        let firm = melee && Mob.playerMeleePower >= 0.6         // a charged blow, not a tap
         switch h.s {
-        case .windup where melee:
+        case .windup where firm:
             h.s = .stagger; h.t = 1.7; h.fx = .parry
             damage = damage * 3 / 2
             HellStats.parries += 1
@@ -122,8 +150,9 @@ extension Mob {
         }
         let d = V2(src.x - pos.x, src.z - pos.z)
         let l = simd_length(d)
-        let front: Float = l > 0.01 ? simd_dot(d / l, V2(forward.x, forward.z)) : 1
+        let front: Float = l > 0.01 ? simd_dot(d / l, V2(forward.x, forward.z)) : -1    // a blast at its feet: no side to block
         guard front > 0.3 else { return false }
+        if melee && !firm { h.fx = .clang; HellStats.blocked += 1; return true }           // a tap clangs off, no wear
         if melee {
             h.guardLeft -= 1
             HellStats.blocked += 1
@@ -184,11 +213,10 @@ extension Mob {
         let player = g.player.pos
         let gap = g.meleeGap(self)
         let reach: Float = halfW + 1.2 + (rank >= 2 ? 0.3 : 0)
-        let windups: [Float] = [0.75, 0.62, 0.5, 0.55]
-        let windup: Float = h.raged ? 0.42 : windups[min(3, rank)]
+        let windup: Float = h.raged ? 0.42 : HellMobs.windups[min(3, rank)]
         switch h.s {
         case .windup:
-            face(player)
+            guardTurn(player, dt)
             if h.t <= 0 {
                 g.sfx(.attackSweep, 1, at: pos)
                 if gap < reach + 0.4 {
@@ -200,7 +228,7 @@ extension Mob {
             }
             return 0
         case .recover:
-            face(player)
+            guardTurn(player, dt)
             if h.t <= 0 { h.s = .idle }
             return gap < reach ? -spec.speed * 0.4 : 0
         case .aim:
@@ -208,7 +236,8 @@ extension Mob {
             if Rand.float(in: 0..<1) < dt * 12 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.3...0.3), 0.1, Rand.float(in: -0.3...0.3))) }
             if h.t <= 0 {
                 h.s = .charge; h.t = 1.3; h.chargeYaw = yaw; h.chargeHit = false
-                g.sfx(.mob(kind, .hurt), 1.3, at: pos)
+                g.sfx(.mob(kind, .ambient), 1.6, at: pos)                 // the war cry
+                g.sfx(.attackKnockback, 0.8, at: pos)
             }
             return 0
         case .charge:
@@ -218,7 +247,7 @@ extension Mob {
             if gap < 0.6 && !h.chargeHit {
                 h.chargeHit = true
                 HellStats.chargeHits += 1
-                let dmg = [0, 8, 10, 13][min(3, rank)]
+                let dmg = HellMobs.chargeDamage[min(3, rank)]
                 g.hurtPlayer(dmg, from: pos - forward, cause: "was run through by a \(spec.name)", knockback: 2.4, attacker: self)
                 h.s = .recover; h.t = 1.0
                 return 0
@@ -235,9 +264,11 @@ extension Mob {
                 return 0
             }
             if Rand.float(in: 0..<1) < dt * 20 { g.particles.smoke(at: pos + V3(0, 0.1, 0)) }
-            return [0, 10, 11, 12][min(3, rank)]
+            return HellMobs.chargeSpeed[min(3, rank)]
         default:
-            face(player)
+            // Close in, the knight turns at a walking pace (circle it to get round the shield); further off it
+            // paths straight at you.
+            if gap < reach + 1 { guardTurn(player, dt) } else { face(player) }
             h.sideT -= dt
             if h.sideT <= 0 { h.sideT = Rand.float(in: 1.5...3); h.side = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
             if rank >= 1 && h.cool <= 0 && dist > 5.5 && dist < 16 && onGround && abs(player.y - pos.y) < 2.5
@@ -257,6 +288,16 @@ extension Mob {
             if gap < reach { strafe = h.side * spec.speed * 0.35; return 0 }
             return spec.speed
         }
+    }
+
+    // Turns toward `p` no faster than the rank's guard turn (HellMobs.turnRate): rad/s.
+    private func guardTurn(_ p: V3, _ dt: Float) {
+        let want = atan2f(-(p.x - pos.x), -(p.z - pos.z))
+        var d = want - yaw
+        while d > .pi { d -= 2 * .pi }
+        while d < -.pi { d += 2 * .pi }
+        let r = HellMobs.turnRate[max(0, min(3, kind.orderRank))] * dt
+        yaw += max(-r, min(r, d))
     }
 
     // Half health: the horn, a knight and two squires, and he goes berserk.
@@ -314,8 +355,17 @@ extension Mob {
             vel += (up - vel) * min(1, dt * 3)
             if h.t <= 0 { h.s = .idle; h.cool = Rand.float(in: 3.5...6) }
         default:
+            // About once a second: how much open air is over the player (low halls: circle under the roof).
+            h.sideT -= dt
+            if h.sideT <= 0 {
+                h.sideT = 1
+                let x = Int(floor(g.player.pos.x)), z = Int(floor(g.player.pos.z)), y0 = Int(floor(g.player.pos.y))
+                var open = 2
+                while open < 11 && !Blocks.collide[Int(g.world.block(x, y0 + open, z))] { open += 1 }
+                h.hover = max(2.5, Float(open) - 2.5)
+            }
             let r: Float = 9
-            let c = g.player.pos + V3(cosf(circleAngle) * r, 8 + sinf(circleAngle * 2) * 1.5, sinf(circleAngle) * r)
+            let c = g.player.pos + V3(cosf(circleAngle) * r, h.hover + sinf(circleAngle * 2) * 1.2, sinf(circleAngle) * r)
             let d = c - pos
             let l = max(0.01, simd_length(d))
             vel += (d * (spec.speed / l) - vel) * min(1, dt * 2)
@@ -399,7 +449,12 @@ extension Mob {
 
 enum HellMobs {
     static let slagGravity: Float = 20
-    static let caps: [MobKind: Int] = [.brandSquire: 6, .brandKnight: 4, .brandChampion: 2, .searwing: 4, .scorchling: 14, .slagthrower: 3]
+    static let caps: [Int] = [6, 4, 2, 1, 4, 14, 3]             // by MobKind.hellIndex (the Commander comes with musters)
+    static let guardMax: [Int] = [3, 5, 6, 10]                   // by order rank
+    static let windups: [Float] = [0.75, 0.62, 0.5, 0.55]
+    static let chargeDamage: [Int] = [0, 8, 10, 13]
+    static let chargeSpeed: [Float] = [0, 10, 11, 12]
+    static let turnRate: [Float] = [2.6, 2.3, 2.6, 2.0]          // a player circling at 2 blocks at a walk is ~2 rad/s
 }
 
 extension MobManager {
@@ -421,13 +476,21 @@ extension MobManager {
     func hellOwnSpawn(_ g: Game, at p: V3) -> Bool {
         guard Rand.float(in: 0..<1) < 0.3 else { return false }
         let w = g.world
-        var count: [MobKind: Int] = [:]
-        for m in mobs where m.kind.hellOwn { count[m.kind, default: 0] += 1 }
-        func room(_ k: MobKind) -> Bool { (count[k] ?? 0) < (HellMobs.caps[k] ?? 4) }
+        var count = (0, 0, 0, 0, 0, 0, 0)                           // by hellIndex (a tuple: no allocation)
+        func get(_ i: Int) -> Int {
+            switch i { case 0: return count.0; case 1: return count.1; case 2: return count.2; case 3: return count.3
+                       case 4: return count.4; case 5: return count.5; default: return count.6 }
+        }
+        func bump(_ k: MobKind) {
+            switch k.hellIndex { case 0: count.0 += 1; case 1: count.1 += 1; case 2: count.2 += 1; case 3: count.3 += 1
+                                 case 4: count.4 += 1; case 5: count.5 += 1; default: count.6 += 1 }
+        }
+        for m in mobs where m.kind.hellOwn { bump(m.kind) }
+        func room(_ k: MobKind) -> Bool { get(k.hellIndex) < HellMobs.caps[k.hellIndex] }
         func put(_ k: MobKind, _ q: V3) {
             guard let s = MobManager.groundSpot(w, near: q) else { return }
             mobs.append(Mob(k, at: s))
-            count[k, default: 0] += 1
+            bump(k)
         }
         func around(_ i: Int) -> V3 { p + V3(Float(i % 3) - 1, 0, Float(i / 3) - 1) * 1.6 }
         let r = Rand.int(in: 0..<100)
@@ -448,7 +511,7 @@ extension MobManager {
             for dy in 1...6 where Blocks.collide[Int(w.block(x, y + dy, z))] { return false }      // needs open air
             for _ in 0..<Rand.int(in: 1...2) where room(.searwing) {
                 mobs.append(Mob(.searwing, at: p + V3(Rand.float(in: -1...1), 4, Rand.float(in: -1...1))))
-                count[.searwing, default: 0] += 1
+                bump(.searwing)
             }
         }
         return true
@@ -490,8 +553,7 @@ extension Game {
             let q = i == 0 ? c : (MobManager.groundSpot(world, near: c + V3(cosf(a) * 2.5, 0, sinf(a) * 2.5)) ?? c)
             let m = Mob(k, at: q)
             m.aggro = true; m.lockTime = 30; m.power = pw
-            m.persistent = true
-            mobs.mobs.append(m)
+            mobs.mobs.append(m)                                   // only the Commander is persistent (hellSetup)
         }
         HellStats.musters += 1
         sfx(.goatHorn, 1.4, at: c)
@@ -529,7 +591,11 @@ extension Game {
             s.age += dt
             s.vel.y -= HellMobs.slagGravity * dt
             let np = s.pos + s.vel * dt
-            if Rand.float(in: 0..<1) < 0.7 { particles.flame(at: s.pos) }
+            // The lump itself: a big glowing blob drawn every frame, sparks behind it, a hiss as it flies.
+            particles.add(Particle(pos: s.pos, vel: .zero, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                   size: 0.32, gravity: 0, color: V3(2.8, 1.1, 0.25), collide: false, glow: true))
+            if Rand.float(in: 0..<1) < 0.6 { particles.flame(at: s.pos) }
+            if Int(s.age / 0.3) != Int((s.age - dt) / 0.3) { sfx(.fizz, 0.7, at: s.pos) }
             let b = world.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z)))
             if s.age > 6 || simd_length(np - centre) < 0.9 || Blocks.collide[Int(b)] || Blocks.isLiquid(b) {
                 hell.slag.remove(at: i)
@@ -631,19 +697,22 @@ private func orderParts(_ m: Mob, swing: Float) -> [Part] {
                   color: glint, pattern: s == .windup ? 9 : 8))
     // Shield arm (left): raised in front in guard, aim and charge; swung aside in the wind-up; hanging otherwise.
     let up = s == .idle || s == .aim || s == .charge
+    // The shield darkens and loses its trim's shine as the guard wears down (each blocked blow shows).
+    let wear: Float = m.hell.map { Float(max(0, $0.guardLeft)) / Float(max(1, m.orderGuardMax)) } ?? 1
+    let face = plate * (0.45 + 0.45 * wear)
     let shieldW: Float = [4.5, 5, 5.5, 6.5][min(3, rank)]
     let lp = V3(-6, 22, 0)
     if up {
         let armL: Float = 1.3
         p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, color: plate, pattern: 8))
-        p.append(Part(mn: V3(-6 - shieldW, 9.6, -shieldW * 1.2), mx: V3(-6 + shieldW, 10.8, shieldW * 1.2), pivot: lp, rotX: armL, color: plate * 0.9, pattern: 7))
+        p.append(Part(mn: V3(-6 - shieldW, 9.6, -shieldW * 1.2), mx: V3(-6 + shieldW, 10.8, shieldW * 1.2), pivot: lp, rotX: armL, color: face, pattern: 7))
         p.append(Part(mn: V3(-6.8, 9.3, -shieldW * 1.1), mx: V3(-5.2, 9.7, shieldW * 1.1), pivot: lp, rotX: armL, color: trim))      // boss stripe
         p.append(Part(mn: V3(-6 - shieldW * 0.9, 9.3, -0.8), mx: V3(-6 + shieldW * 0.9, 9.7, 0.8), pivot: lp, rotX: armL, color: trim))
     } else {
         let armL: Float = s == .windup ? 0.6 : 0.1
         p.append(Part(mn: V3(-8, 11, -2), mx: V3(-4, 23, 2), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0, color: plate, pattern: 8))
         p.append(Part(mn: V3(-9.6, 22 - shieldW * 2.2, -shieldW), mx: V3(-8.4, 22, shieldW), pivot: lp, rotX: armL, rotZ: s == .windup ? -0.5 : 0,
-                      color: plate * 0.9, pattern: 7))
+                      color: face, pattern: 7))
     }
     return p
 }

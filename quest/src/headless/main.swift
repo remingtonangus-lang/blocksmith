@@ -133,6 +133,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx, let c = HellMobsTests.
     game.mobs.mobs.removeAll { m in shown.contains { $0 === m } }
     game.player.pos = home; game.player.flying = wasFly
 }
+HellMobsTests.cleanup(game)
 if CommandLine.arguments.contains("--hell-only") {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }

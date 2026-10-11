@@ -5,6 +5,22 @@ import simd
 // `questcheck --hell-only` runs just these.
 enum HellMobsTests {
     static var arena: V3?                         // the stone arena the checks fought on (the questcheck lineup shot)
+    static var arenaBox: (x: Int, z: Int, y: Int)?
+
+    static func remesh(_ w: World, _ x: Int, _ z: Int, _ y: Int) {
+        w.remeshArea(x0: x - 17, z0: z - 17, x1: x + 17, z1: z + 17, y0: y - 1, y1: y + 15)
+    }
+
+    // Takes the arena away (after the lineup shot).
+    static func cleanup(_ g: Game) {
+        guard let a = arenaBox else { return }
+        let w = g.world
+        w.deferRemesh = true
+        for z in (a.z - 16)...(a.z + 16) { for x in (a.x - 16)...(a.x + 16) { for y in a.y...(a.y + 14) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) } } }
+        w.deferRemesh = false
+        remesh(w, a.x, a.z, a.y)
+        arenaBox = nil; arena = nil
+    }
 
     // Every hell mob side by side on the arena, facing the camera, the knights in their telling poses.
     static func lineup(_ g: Game) -> [Mob] {
@@ -62,9 +78,10 @@ enum HellMobsTests {
         check(hellKinds.count == 7 && bad.isEmpty,
               "hell: \(hellKinds.map { $0.spec.name }.joined(separator: ", ")): registered, drawn in every pose, voiced, saved\(bad.isEmpty ? "" : " -- \(bad.prefix(4))")")
 
-        // An arena high over the spawn: stone, 33 x 33, open sky.
-        let sx = Int(floor(g.player.pos.x)), sz = Int(floor(g.player.pos.z))
-        _ = w.loadSync(center: V3(Float(sx), 200, Float(sz)), radius: 4)
+        // An arena well away from the spawn (it mustn't shade the later checks' views), high up: stone, 33 x 33, open sky.
+        // HellMobsTests.cleanup takes it away again.
+        let sx = Int(floor(g.player.pos.x)) + 176, sz = Int(floor(g.player.pos.z))
+        _ = w.loadSync(center: V3(Float(sx), 200, Float(sz)), radius: 3)
         let Y = min(CH - 30, w.topY(sx, sz) + 50)
         let stone = Blocks.id("stone")
         w.deferRemesh = true
@@ -73,6 +90,8 @@ enum HellMobsTests {
             for y in (Y + 1)...(Y + 14) where w.block(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
         } }
         w.deferRemesh = false
+        remesh(w, sx, sz, Y)
+        arenaBox = (sx, sz, Y)
         let floorY = Float(Y + 1)
         let centre = V3(Float(sx) + 0.5, floorY, Float(sz) + 0.5)
         arena = centre
@@ -125,11 +144,15 @@ enum HellMobsTests {
             clear()
             let s = spawn(.brandSquire, V3(0, 0, -2)); facing(s)
             Mob.playerMelee = true
+            Mob.playerMeleePower = 0.2
+            for _ in 0..<5 { s.hit(from: g.player.pos, damage: 4) }        // taps: they clang off and don't wear it
+            let tapped = s.hellState.guardLeft == 3 && s.health == s.spec.health
+            Mob.playerMeleePower = 1
             for _ in 0..<3 { s.hit(from: g.player.pos, damage: 4) }
             let broke = s.hellState.s == .stagger, hp = s.health
             s.hit(from: g.player.pos, damage: 4)
             Mob.playerMelee = false
-            check(broke && hp == s.spec.health && s.health == hp - 6, "hell: a squire's guard breaks after 3 blocked hits; the next hit lands for \(hp - s.health) of 4")
+            check(tapped && broke && hp == s.spec.health && s.health == hp - 6, "hell: taps clang off a squire's guard; it breaks after 3 full blows; the next hit lands for \(hp - s.health) of 4")
         }
 
         // The parry: a knight winds up in reach (the blade high, shield aside); a blade then staggers it for half again.
@@ -204,8 +227,8 @@ enum HellMobsTests {
         // The Searwing circles high, winds up, dives at the head and climbs away slowly.
         do {
             clear(); heal()
-            let s = spawn(.searwing, V3(4, 8, 0))
-            s.hellState.cool = 0.5
+            let s = spawn(.searwing, V3(4, 2, 0))
+            s.hellState.cool = 3                                // circles a while first
             let d0 = HellStats.dives, hits = HellStats.diveHits
             var sawClimb = false, maxY: Float = 0
             tick(s, 10) {
@@ -213,7 +236,7 @@ enum HellMobsTests {
                 maxY = max(maxY, s.pos.y - floorY)
                 return sawClimb && HellStats.diveHits > hits
             }
-            check(HellStats.dives > d0 && HellStats.diveHits > hits && sawClimb && maxY > 5,
+            check(HellStats.dives > d0 && HellStats.diveHits > hits && sawClimb && maxY > 6,
                   String(format: "hell: the Searwing circles (up to %.0f blocks), dives at the head and climbs away", maxY))
         }
 
@@ -231,7 +254,7 @@ enum HellMobsTests {
                 if g.mobs.mobs.filter({ $0.kind.hellOwn }).count > 24 { clear() }
             }
             var over: [String] = []
-            for (k, cap) in HellMobs.caps where g.mobs.mobs.filter({ $0.kind == k }).count > cap { over.append(k.key) }
+            for k in hellKinds where g.mobs.mobs.filter({ $0.kind == k }).count > HellMobs.caps[k.hellIndex] { over.append(k.key) }
             check(groups.count == 4 && packMax >= 5 && over.isEmpty,
                   "hell: hell spawns order patrols (\(groups[.brandKnight] ?? 0)), Scorchling packs (\(groups[.scorchling] ?? 0), up to \(packMax)), Slagthrowers (\(groups[.slagthrower] ?? 0)) and Searwings (\(groups[.searwing] ?? 0)) within caps")
             clear()
@@ -345,11 +368,11 @@ enum HellMobsTests {
         // Saved surface chunks from before the floor get it; a chunk already floored keeps its blasted shafts.
         do {
             var old = [BlockID](repeating: EMBERSLATE, count: CSQ * CH)
-            old[5] = AIR; old[CSQ + 7] = LAVA
+            old[5] = AIR; old[CSQ + 7] = LAVA; old[9] = Blocks.id("amethyst_block"); old[CSQ + 1] = Blocks.id("ladder")
             let chest = Blocks.id("chest")
             old[CSQ * 2 + 3] = chest
             HellGate.stamp(&old)
-            let stamped = old[5] == WARDSTONE && old[CSQ + 7] == WARDSTONE && old[CSQ * 2 + 3] == chest && old[CSQ * 3] == EMBERSLATE
+            let stamped = old[5] == WARDSTONE && old[CSQ + 7] == WARDSTONE && old[9] == WARDSTONE && old[CSQ + 1] == WARDSTONE && old[CSQ * 2 + 3] == chest && old[CSQ * 3] == EMBERSLATE
             var cut = [BlockID](repeating: WARDSTONE, count: CSQ * CH)
             cut[0] = AIR
             HellGate.stamp(&cut)

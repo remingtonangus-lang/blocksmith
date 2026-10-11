@@ -22,27 +22,28 @@ enum HellGate {
         for i in 0..<(CSQ * floorTop) { b[i] = w }
     }
 
-    // What the generator ever put in the floor's layers (rock, ores, lava, water, air in a cave), the only blocks the
-    // stamp replaces: a chest or a wall a player built down there stays.
-    static let natural: [Bool] = {
+    // What the stamp leaves alone in a saved chunk's floor layers: blocks that carry contents (a chest, a spawner, a
+    // sign, a bed...). Everything else there becomes Wardstone, a shaft or ladder a player dug before the floor included,
+    // so an old save has no way down without a charge either.
+    static let keep: [Bool] = {
         var t = [Bool](repeating: false, count: Blocks.count)
-        t[Int(AIR)] = true
-        for k in ["emberslate", "deepslate", "cobbled_deepslate", "stone", "tuff", "magma_block", "bedrock", "gravel", "basalt", "smooth_basalt",
-                  "calcite", "obsidian", "sculk", "sculk_vein", "cave_air", "granite", "diorite", "andesite"] where Blocks.has(k) {
-            t[Int(Blocks.id(k))] = true
+        let words = ["chest", "barrel", "furnace", "smoker", "spawner", "hopper", "dispenser", "dropper", "shulker", "sign", "banner",
+                     "lectern", "shelf", "pot", "crafter", "brewing", "beacon", "campfire", "bed", "vault", "jukebox", "frame"]
+        for i in 0..<Blocks.count {
+            let k = Blocks.key(BlockID(i))
+            if words.contains(where: { k.contains($0) }) { t[i] = true }
         }
-        for i in 0..<Blocks.count where Blocks.isLiquid(BlockID(i)) || Blocks.key(BlockID(i)).hasSuffix("_ore") { t[i] = true }
         return t
     }()
 
-    // Saved surface chunks from before the floor: its natural blocks become Wardstone, unless the chunk already holds
+    // Saved surface chunks from before the floor: the floor layers become Wardstone, unless the chunk already holds
     // some (it was generated with the floor, and any gap in it was blasted by a player).
     static func stamp(_ b: inout [BlockID]) {
         let ward = WARDSTONE
         let n = CSQ * floorTop
         guard b.count >= n else { return }
         for i in 0..<n where b[i] == ward { return }
-        for i in 0..<n where natural[Int(b[i])] { b[i] = ward }
+        for i in 0..<n where !keep[Int(b[i])] { b[i] = ward }
     }
 }
 
