@@ -257,6 +257,7 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
     let kind: MobKind
@@ -684,7 +685,7 @@ final class Mob {
                 speed = spec.speed * 1.2
                 if g.meleeStrike(self, reach: halfW + 1.3) {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    g.hurtPlayer(vary.hit(spec.attack), from: pos, cause: "was slain by \(spec.name)", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ghast:
@@ -744,7 +745,7 @@ final class Mob {
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .animal: speed = bondedHorseAI(dt, g, dist: dist) ?? animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
             if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
-        case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater) * Difficulty.row.speed
+        case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater) * Difficulty.row.speed * vary.speed
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
             // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
@@ -919,7 +920,10 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
+                    // P55: each archer's own aim: a steady hand lands nearly every arrow, a shaky one sprays them.
+                    let a = vary.aim
+                    let dir = simd_normalize(simd_normalize(d) + V3(Rand.float(in: -a...a), Rand.float(in: -a...a) * 0.6, Rand.float(in: -a...a)))
+                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: dir, speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }

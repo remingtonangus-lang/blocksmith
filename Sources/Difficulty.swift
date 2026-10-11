@@ -17,9 +17,31 @@ enum Difficulty {
     // A monster's share of a hit at this level: an Easy monster drops in three quarters of the blows, a Hard one takes
     // 1.4 times as many. Fractions round at random so the average holds; every landed hit does at least 1.
     static func scaleHit(_ damage: Int, _ m: Mob) -> Int {
-        let t = row.toughness
-        guard damage > 0, t != 1, m.kind.hostile, m.kind.category == .monster else { return damage }
+        guard damage > 0, m.kind.hostile, m.kind.category == .monster else { return damage }
+        let t = row.toughness * m.vary.tough
+        guard t != 1 else { return damage }
         let d = Float(damage) / t, whole = floorf(d)
+        return max(1, Int(whole) + (Rand.float(in: 0..<1) < d - whole ? 1 : 0))
+    }
+}
+
+// P55 (Oct 11 evening playtest): monsters differ one from the next: each rolls its own speed, hit strength, toughness
+// and (archers) aim when it first acts, so one zombie lumbers while the next runs you down, and one skeleton's arrows
+// spray while another's land. Spreads are wide but every roll stays inside the reference feel.
+struct MobVary {
+    var speed: Float = 1, damage: Float = 1, tough: Float = 1, aim: Float = 0
+    static let plain = MobVary()
+    // Off in the headless checks (their fixtures count exact blows and steps); the P55 check turns it on.
+    static var on = true
+    static func roll(_ m: Mob) -> MobVary {
+        guard on, m.kind.hostile, m.kind.category == .monster else { return .plain }
+        return MobVary(speed: Rand.float(in: 0.8...1.25), damage: Rand.float(in: 0.7...1.4), tough: Rand.float(in: 0.75...1.35),
+                       aim: Rand.float(in: 0...0.12))
+    }
+    // A damage value scaled by this mob's strength, rounding at random so the average holds (at least 1).
+    func hit(_ base: Int) -> Int {
+        guard base > 0, damage != 1 else { return base }
+        let d = Float(base) * damage, whole = floorf(d)
         return max(1, Int(whole) + (Rand.float(in: 0..<1) < d - whole ? 1 : 0))
     }
 }

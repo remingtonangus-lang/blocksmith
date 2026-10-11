@@ -15,6 +15,7 @@ setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
 WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.

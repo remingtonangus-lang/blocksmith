@@ -28,6 +28,7 @@ enum PlaytestOct11Tests {
         capitalAmmo(check)
         rarity(check)
         nightManners(game, check)
+        mobVariety(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -565,5 +566,22 @@ enum PlaytestOct11Tests {
         let d = Honour.value
         check(real && chefLate.isEmpty && windows && b < a && c == b && d == c,
               "P58/P59 night manners: evening-only lines are real takes (\(real)), the chef has none late (\(chefLate.count)), late window ok (\(windows)); a town bed costs \(b - a) honour once a night (again: \(c - b)), your own bed \(d - c)")
+    }
+
+    // P55: monsters vary one from the next (speed, hit, toughness, archers' aim); animals and townsfolk don't.
+    static func mobVariety(_ game: Game, _ check: (Bool, String) -> Void) {
+        let was = MobVary.on
+        MobVary.on = true
+        defer { MobVary.on = was }
+        let zs = (0..<60).map { _ in Mob(.zombie, at: game.player.pos) }
+        let sp = zs.map { $0.vary.speed }, dm = zs.map { $0.vary.damage }, tg = zs.map { $0.vary.tough }
+        let sk = (0..<60).map { _ in Mob(.skeleton, at: game.player.pos).vary.aim }
+        let cow = Mob(.cow, at: game.player.pos).vary
+        func range(_ a: [Float]) -> Float { (a.max() ?? 0) - (a.min() ?? 0) }
+        let hits = zs.map { $0.vary.hit(4) }
+        check(range(sp) > 0.3 && range(dm) > 0.5 && range(tg) > 0.4 && range(sk) > 0.08 && cow.speed == 1 && cow.tough == 1
+              && Set(hits).count >= 3,
+              String(format: "P55 mob variety: zombie speed x%.2f-%.2f, hit x%.2f-%.2f (a 4 lands as %@), toughness x%.2f-%.2f; skeleton aim spread %.2f-%.2f; a cow stays plain",
+                     sp.min()!, sp.max()!, dm.min()!, dm.max()!, Set(hits).sorted().map(String.init).joined(separator: "/"), tg.min()!, tg.max()!, sk.min()!, sk.max()!))
     }
 }
