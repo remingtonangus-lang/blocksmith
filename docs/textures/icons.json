@@ -585,5 +585,67 @@
     "wolf_fang"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i21_trophies.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "ashen_fang",
+    "ashguard_journal",
+    "brand_greatsword",
+    "catfish"
+   ],
+   [
+    "cooked_fish",
+    "crag_horn",
+    "ember_charge",
+    "ember_tail"
+   ],
+   [
+    "explorer_mark",
+    "frame",
+    "frostjaw_claw",
+    "gate_shard"
+   ],
+   [
+    "keepers_journal",
+    "marshal_cap",
+    "perch",
+    "pike"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i22_guns_sunderite.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "gun_ashsaw",
+    "gun_hagel",
+    "gun_kessel",
+    "gun_revolver"
+   ],
+   [
+    "gun_sturmwind",
+    "raw_sunderite",
+    "saddle_salve",
+    "sealrock_shard"
+   ],
+   [
+    "sunder_charge",
+    "sunderite_flux",
+    "sunderite_ingot",
+    "sunderite_pickaxe"
+   ],
+   [
+    "trout",
+    "warden_brand",
+    "potion_bottle",
+    "splash_bottle"
+   ]
+  ],
+  "cellbg": true,
+  "inset": 0.1
  }
 ]
