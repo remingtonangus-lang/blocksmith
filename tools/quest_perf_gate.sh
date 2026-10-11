@@ -12,11 +12,12 @@
 #   [--routes "village taiga"]. Run it on a quiet Mac: other builds on the machine show up as hitches. Device numbers
 #   come from the `perf:` lines (tools/quest_perf_log.py on adb logcat output).
 # Regression gate (tools/perf_baseline.json, section "local" or "ci"): every route fails when its terrain quads pass the
-#   pinned count + 5% or (local runs) its frame p99 passes the pinned p99 x 1.25; CI pins quads only. After an intended
+#   pinned count + 5% or its frame p99 passes the pinned p99 x 1.25 (local runs) / the local pin x 2 (CI, which pins
+#   quads only). After an intended
 #   change, re-pin with --rebaseline (writes this run's quads and p99 into the section) and commit the json.
 # CI (snap.sh checks shard, heavy lane: --secs 20 --routes "taiga flyover"): PERF_GATE_CI=1 gates on the controller
-# test and the quads / unmeshed budgets only; frame times and tick CPU are printed for the record (a shared CI VM is not
-# a Quest and its timings swing run to run). The CI routes are 20 s, the budgets come from 60 s local runs.
+# test, the quads / unmeshed budgets and a frame p99 under twice the local pin; tick CPU is printed for the record (a
+# shared CI VM is not a Quest and its timings swing run to run). The CI routes are 20 s, the budgets come from 60 s local runs.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 BIN=${BIN:-build/Blocksmith.app/Contents/MacOS/Blocksmith}
@@ -48,6 +49,7 @@ BASE = "tools/perf_baseline.json"
 base = json.load(open(BASE)) if os.path.exists(BASE) else {}
 sect = base.setdefault("ci" if ci else "local", {})
 P99_TOL = 1.25
+CI_P99_TOL = 2.0
 if sys.argv[4] == "1":
     for r in sys.argv[3].split():
         k = f"route_{r}_quest"
@@ -63,6 +65,11 @@ def regress(r, k):
     q, p = m.get(f"{k}.quads", 0), m.get(f"{k}.frame_ms_p99", 1e9)
     if b.get("quads") and q > b["quads"] * 1.05: out.append(f"quads {q / 1000:.0f}k > pinned {b['quads'] / 1000:.0f}k + 5%")
     if b.get("frame_ms_p99") and p > b["frame_ms_p99"] * P99_TOL: out.append(f"frame p99 {p:.1f} > pinned {b['frame_ms_p99']:.1f} x {P99_TOL}")
+    # CI: no frame-time pins of its own (a VM swings run to run); a frame p99 over twice the local pin is still a
+    # regression nobody should ship (catches a doubled frame, not a few percent).
+    lb = base.get("local", {}).get(r, {})
+    if ci and lb.get("frame_ms_p99") and p > lb["frame_ms_p99"] * CI_P99_TOL:
+        out.append(f"frame p99 {p:.1f} > local pin {lb['frame_ms_p99']:.1f} x {CI_P99_TOL}")
     return out
 # Counted-work budgets for the playtest routes at rd 16 (Oct 10 after the fixes: taiga 460k quads, tick CPU p99 2.6-3.6 ms;
 # flyover 320k quads, tick CPU p99 3.5-5.0 ms, 0.6-1.0% not meshed; before: taiga 512k quads). Thread CPU, not wall time.
@@ -83,7 +90,7 @@ for r in sys.argv[3].split():
         fails += regress(r, k)
         bad += 1 if fails else 0
         print(f"  {r:9s} quads {m.get(f'{k}.quads', 0) / 1000:.0f}k, tick CPU p99 {m.get(f'{k}.tick_cpu_ms_p99', 0):.1f}, hand-over p99 {m.get(f'{k}.update_ms_p99', 0):.1f} ms, "
-              f"not meshed {m.get(f'{k}.unmeshed_pct', 0):.1f}% (frame p99 {p99:.1f} ms, info)  {'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
+              f"not meshed {m.get(f'{k}.unmeshed_pct', 0):.1f}% (frame p99 {p99:.1f} ms)  {'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
         continue
     ok = p99 <= 13.9 and hpm <= 1
     reg = regress(r, k)

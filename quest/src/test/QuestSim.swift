@@ -656,7 +656,10 @@ enum QuestSim {
                 let full = grip + simd_normalize(back - grip) * (VRBow.fullDraw + 0.02)
                 frames(6) { i in hands(back + (full - back) * Float(i + 1) / 6, true) }
                 let keepHead = sim.headRot
-                sim.headRot = simd_quatf(angle: 0.55 * sx, axis: V3(0, 1, 0)) * simd_quatf(angle: -0.6, axis: V3(1, 0, 0))
+                // Look at the bow: 70% of the way from the drawing hand to the grip (the limbs, string and arrow in view).
+                let look = simd_normalize(grip + (full - grip) * 0.3 - sim.headPos)
+                let yaw = atan2(-look.x, -look.z), pitch = atan2(look.y, simd_length(V2(look.x, look.z)))
+                sim.headRot = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
                 frames(2) { _ in hands(full, true) }
                 let d = controls.bowPose?.draw ?? 0
                 check(d > 0.98, String(format: "VR bow (%@): fully drawn for the render (draw %.2f)", name, d))

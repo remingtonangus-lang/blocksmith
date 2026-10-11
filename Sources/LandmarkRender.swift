@@ -69,7 +69,8 @@ extension Renderer {
             let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
             // Sun-side shading: the overhead sun alone lit every flank alike (a flat grey cut-out far away, Oct 10
             // playtest); a low key light from the sun's bearing models the cone, warm on the lit side, cool in shadow.
-            func shade(_ base: V3, _ n: V3) -> V3 {
+            func shade(_ base: V3, _ n: V3) -> V3 { shade(base, n, haze: haze) }
+            func shade(_ base: V3, _ n: V3, haze: Float) -> V3 {
                 let key: Float = max(0, simd_dot(n, keyDir))
                 let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
                 let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
@@ -94,7 +95,10 @@ extension Renderer {
             }
             // Vertex colour: cone rock up high, the ring ground's own colour and haze at the apron's edge.
             func vcol(_ t: Float, _ w: V3, _ up: V3) -> V4 {
-                let rk: V3 = shade(t > 0.9 ? foot : rock * (t < 0.3 ? 0.85 : 1), up)
+                // Ground mist: the lower flanks thicken from the landmark haze to the ring ground's, so the foot melts into
+                // the haze band instead of standing on it with a hard dark edge (still a pale band at 650 blocks, Oct 11).
+                let mist: Float = Terrain.smooth(0.4, 1.05, t)
+                let rk: V3 = shade(t > 0.9 ? foot : rock * (t < 0.3 ? 0.85 : 1), up, haze: haze + (groundHaze - haze) * mist)
                 let f = Terrain.smooth(0.7, 1.3, t)
                 guard f > 0 else { return V4(rk, 1) }
                 // Ground sampled past the volcano's own ring cells (those are dark rock, sunk under the cone): the

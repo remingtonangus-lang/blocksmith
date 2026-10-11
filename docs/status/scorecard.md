@@ -33,7 +33,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
 | Crashes | 0 in a 4-hour bot soak + 100 save/load cycles | CI smoke is 60 s x 3 render distances; no 4 h soak or 100-cycle save test exists | RED (UNMEASURED) | .github/workflows/mac.yml smoke |
-| Save safety | old saves load, backup before migration | no migration test on real old saves | RED (UNMEASURED) | - |
+| Save safety | old saves load, backup before migration | Oct 11 (audit gap 3): a format-3 world with 30 animals is backed up (Backups/<name>-before-f4-*, mobs.json copied), then crowds over the per-chunk cap are thinned once (12 wild -> 4; penned, owned, named kept); a failed backup skips the thinning. Synthetic save only, no real old player saves tested | AMBER | `--questbugs --only gaps` |
 
 ## 3. Controls, feel and VR comfort
 | Metric | Target | Current | Status | Evidence |
@@ -41,7 +41,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 | Movement (sprint >= 1.5x every direction) | QuestSim tests | covered by QuestBugTests (`--questbugs`), not re-measured this round | AMBER | Sources/QuestBugTests.swift |
 | Reach | blocks 6, melee ~3 | block reach constant 6 (Game.swift:902); melee not measured | AMBER | code only |
 | Input conflicts | no press does two things | Mac pad: 0 conflicts over 16 buttons x tap/hold x 4 contexts (foot, horse, car, inventory); keyboard: 0 duplicate defaults. Verifier: the diff only sees menu/pause/hotbar/camera/mount/helm/flight/sneak/drop/jump, not attack/use/place/aim/fire/throttle, so 0 is an undercount. Quest Touch bindings not covered; contexts missing: swimming, flying, ship deck, gun held, deck gun | AMBER (verified, weak measure) | input_matrix.md |
-| Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | step-ups now eased for every mount and on foot, Mac + Quest camera: max 0.05-0.11 block/frame at 72 Hz (fastest horse 0.133, its true climb rate) vs 1.0 snapped before (verified). Rest of the checklist not audited | AMBER | `--questbugs --only pm9a` |
+| Comfort checklist | snap/smooth turn, vignette, recenter, seated, height, pause on headset removal | step-ups now eased for every mount and on foot, Mac + Quest camera: max 0.05-0.11 block/frame at 72 Hz (fastest horse 0.133, its true climb rate) vs 1.0 snapped before (verified). Oct 11 (audit gap 5): helm speed vignette while piloting fast ships, scaled by the comfort vignette setting. Rest of the checklist not audited | AMBER | `--questbugs --only pm9a` |
 | Horse handling (western feel) | gaits, momentum, stamina, bond, nerves, sure footing (docs/status/horses.md) | 29 HorseTests checks pass: gaits 1.7/8/16 b/s, 0 to gallop 1.6 s, stop 1.5 s, worst 12 b/s^2; level-1 gallop 15.6 s; refuses cliffs/lava (also rearing and backing), rides stairs; frights by level; spur via Game.tick pad click. Verifier pass 1 found 2 blockers + 4 more (all fixed with checks). Device feel not tested | AMBER (pending verifier pass 2 / device) | `questcheck --horse-only` |
 | Response within one frame | input-latency test | not measured | RED (UNMEASURED) | - |
 

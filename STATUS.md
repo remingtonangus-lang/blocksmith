@@ -1,5 +1,11 @@
 # Status
 
+> **Audit gaps 1-10 (25b4zzza..., 2026-10-11):** pads take the water's shore factor (Mesher, Mac + Quest chunk.vert);
+> swamps get open ponds with pad rafts; old worlds back up, then thin wild animal crowds once (format 4); VR "Held Item
+> Size" 0.8-1.5x (sword + guns) with a hip-clearance QuestSim check; helm speed vignette; Quest water views use a pinned
+> seed-12345 beach (skip = FAIL, confirmed on Quest CI 38147389994); volcano apron into the horizon ring; drawn-bow and
+> lily-pond Quest renders; perf gate fails on quads > pin + 5% or p99 > pin x 1.25; wool/sculk steps dry, every SFX
+> <= -1 dBFS. Checks: `--questbugs --only gaps`, questcheck. Evidence: ~/ClaudeTools/projects/blocksmith-qa/runs/2026-10-11/audit-gaps.
 > **Oct 10 AM gaps, round 2 (25b4zxxxx, 2026-10-11):** `--mobtests` back to 149 ok (Pathfinding's capital-city
 > step-height rule now skips ladder rungs and water); aniso 8 vs 4 A/B on the Mac Quest proxy shows no GPU difference
 > (stays 8); the flyover's +20% drawn quads bisected to the Oct 10 worldgen merge bad1cbfb (the route crosses other land

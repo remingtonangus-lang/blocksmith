@@ -343,3 +343,24 @@ snaps/audit-25b4z-{camp,camp2,volcano-far,town,texclose}.png.
 Gaps: device perf proof (Remington: plug in the Quest; device-checklist.md section 1); towntests 5 FAIL + add to the
 checks shard (cloud: towns, backlog A10); townsfolk melee (cloud, T1); volcano base blend, drawn-bow render,
 perf-gate p99 gating -> queued 25b4zzza-blocksmith-audit-gaps.
+
+## Audit gaps follow-up (task 25b4zzza..., 2026-10-11)
+
+The gap rows above (task 21 rows 1, 3b, 5, E2, E3, E5; ships E3; volcano 4; bow 10a; swamps in 9) were worked in
+commits bf7b9a2a, 092703b4, 66d617c4 and the "verifier fixes" / "volcano ground mist" commits. Checks:
+`--questbugs --only gaps` (0 failures) and questcheck. Evidence (not in git):
+~/ClaudeTools/projects/blocksmith-qa/runs/2026-10-11/audit-gaps (Mac/Quest water pair mac_water.jpg + stereo_water.jpg,
+lily pond, volcano before/after, both drawn bows, Quest CI artifacts in ci/ and ci144/).
+
+| Gap | Now | Proof |
+|---|---|---|
+| Pads part from the water in storms | MET | pad corners take the water's shore factor (648/648 match); lily_pond shots in snap.sh + questcheck |
+| Quest water view skipped | MET | pinned seed-12345 beach, a skip is a FAIL; Quest CI 38147389994 wrote stereo_water*.png |
+| Old saves keep animal crowds | MET | backup, then one-time thinning (format 4); questbugs migration test |
+| Held item size option | MET | VR "Held Item Size" 0.8-1.5x, saved, sword + guns; QuestSim hip clearance 0.27 m eyes / 0.34 m floor at 1.5x |
+| Capital-ship flight vignette | MET | QuestControls: ShipComfort.vignette while piloting, scaled by the comfort setting (pure-function check only) |
+| Volcano far blend | MET (Mac), Quest render in CI | apron + sunk ring cells; ground mist thickens the haze down the flanks so the foot melts into the band |
+| Drawn-bow render | MET | questcheck draws both bows at draw 1.00, the head turned to the bow |
+| Perf gate p99 | MET | local: p99 > pin x 1.25 fails; CI: p99 > local pin x 2 fails; quads pinned at + 5% |
+| Wool/sculk steps, firefight peak | MET | audiolevels.py gate in the checks shard |
+| Swamps without open water | MET | 35% / 26% open water on 12345 / 777, pads on 14-15% of it |
