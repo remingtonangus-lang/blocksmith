@@ -51,3 +51,24 @@ thread / Mac lane and are not touched here.
     7x7 ground grid shows +0.9 farmland steps); 3 floating capital-city walls (seed 31337: 134 columns of trim 3
     blocks over a dip) are for the capital cities PR (#16 rewrites CapitalCity.swift).
   - door_needs_jump now prints a 7x7 grid of feet heights round the door, so the step that needs the jump shows.
+
+## Gap pass (2026-10-11, cloud gap pass area F; docs/status/cloud-gap-pass.md)
+
+Expanded objectives (rows EF2, EF4, EF5 of the gap table), written before building:
+- EF2, targets worth hitting: the slug's impact is a power-16 explosion on the citadels' noise bus, so a Capital citadel
+  inside the blast goes to lockdown (alarm, turret crews, dropships, the Kestrel), one nearby sends patrols and the
+  crawler, and Boreal Station's alarm goes off. Once the shockwave has passed, a strike report names what was hit (the
+  citadel, a Capital city, Boreal Station) and how many of the garrison fell. A citadel hit three times, or that has
+  lost 16 of its garrison to the gun, is broken: no more dropships and its craters are never rebuilt. Breaking one
+  earns "Siege Breaker". The state is saved with the citadel's record. Code: MainGunStrikes.swift.
+- EF4, VR comfort: Blast Shake on the VR Comfort & Controls page (on by default). Off keeps the headset's view still
+  through the charge and the blast; the controllers still rumble (Game.vrShake, QuestSettings.blastShake).
+- EF5, the shot as a sequence: `BLOCKSMITH_SHOT_SEQUENCE=1 questcheck --render <dir>/x.png --maingun-only` renders
+  twelve stereo frames from the charge to the smoke clearing (maingun_seq_NN_<when>.png).
+  `tools/shot_sheet.py <dir> docs/qa/tidebreaker_sequence.jpg` lays them out as one sheet. The sheet from this pass
+  is docs/qa/tidebreaker_sequence.jpg: charge at 10/55/95%, fired, in flight, then impact +0.01, +0.07, +0.17,
+  +0.33, +0.67, +1.33 and +2.5 s.
+
+Checks: MainGunGapTests.swift, run at the end of MainGunTests in every questcheck. It covers Blast Shake on and off, a
+citadel struck three times (lockdown, a report with the dead, the break, Siege Breaker, no rebuilding, a save round
+trip) and an old citadel record loading.

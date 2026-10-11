@@ -53,3 +53,10 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   change only affects attack checks), so the likely cause is terrain/blocks at the test site after the merge.
 - Repro: `build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot /tmp/m.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck | grep FAIL`
 - Not bisected (test-infrastructure timebox); next session on mobs: build 91da13ce vs fb5cef8b and compare.
+
+## maingun crater size under load (2026-10-11, cloud gap pass, frigate)
+- "maingun: the slug lands N blocks out and blasts a ...-block crater" wants > 2000 blocks; where the slug lands (102-112
+  blocks out over four runs) follows the frigate's drift while chunks stream in, so a busy machine (two builds and a
+  check running at once) moved it onto shallow water: 1425 blocks twice with the same binary, 2435 / 3226 on quieter runs.
+  "the helm shows where the shot will land ... predicted in 4.68 ms" (wants a fast prediction) failed in the same loaded run.
+  The checks run before the gap-pass code (MainGunGapTests runs last), so they are load-sensitive, not a regression.

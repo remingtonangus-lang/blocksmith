@@ -209,6 +209,7 @@ final class QuestControls {
         let held = game.held
         game.swingMelee = QuestSettings.swingMode
         game.steadySaddle = QuestSettings.steadySaddle
+        game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
         p.rt = R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)

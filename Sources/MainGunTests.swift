@@ -175,11 +175,30 @@ enum MainGunTests {
         let again = w.ships.playerMainGun(s, pitch: pitch, game: g)
         var maxShake: Float = 0, flashes = 0, frames = 0
         var shotRendered = false
+        // The shot as a sequence of frames (EF5, "the shot recorded as a video-like screenshot sequence"): with
+        // --render and BLOCKSMITH_SHOT_SEQUENCE set, twelve stereo frames maingun_seq_NN_<when>.png from the charge to the
+        // smoke clearing; tools/shot_sheet.py lays them out as one sheet (docs/qa/tidebreaker_sequence.jpg).
+        let seq = ProcessInfo.processInfo.environment["BLOCKSMITH_SHOT_SEQUENCE"] != nil ? render : nil
+        var seqN = 0
+        func seqFrame(_ when: String, look: V3, from: V3? = nil) {
+            guard let seq else { return }
+            seqN += 1
+            let at = g.player.pos
+            if let f = from { g.player.pos = f }
+            let to = look - g.player.eye
+            seq(String(format: "maingun_seq_%02d_%@", seqN, when), atan2f(-to.x, -to.z), atan2f(to.y, simd_length(V2(to.x, to.z))))
+            g.player.pos = at
+        }
+        var seqCharge = Set<Int>()
         while st.gunCharge >= 0 && frames < 400 {
             g.tick(1.0 / 72)
             frames += 1
             maxShake = max(maxShake, g.shake)
             flashes = max(flashes, g.flashes.count)
+            for (k, f) in [(0, Float(0.1)), (1, 0.55), (2, 0.95)] where !seqCharge.contains(k) && st.gunCharge > MainGun.chargeTime * f {
+                seqCharge.insert(k)
+                seqFrame("charge-\(Int(f * 100))pct", look: s.toWorld(st.mainGunMuzzle) - md * 30)
+            }
             if let render, !shotRendered && st.gunCharge > MainGun.chargeTime * 0.8 {
                 shotRendered = true
                 let to = s.toWorld(st.mainGunMuzzle) - md * 30 - g.player.eye
@@ -206,6 +225,11 @@ enum MainGunTests {
             g.tick(1.0 / 72)
             let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
             if impactFrame < 0 && MainGun.impacts > blasts0 { impactFrame = i }
+            if i == 1 { seqFrame("fired", look: s.toWorld(st.mainGunMuzzle) + md * 40) }
+            if impactFrame < 0, i == 12, let pr = predicted { seqFrame("in-flight", look: pr + V3(0, 4, 0), from: pr + V3(-36, 14, 34)) }
+            if impactFrame >= 0, [1, 5, 12, 24, 48, 96, 180].contains(i - impactFrame) {
+                seqFrame(String(format: "impact+%.2fs", Float(i - impactFrame) / 72), look: MainGun.lastImpact + V3(0, 6, 0), from: MainGun.lastImpact + V3(-36, 14, 34))
+            }
             if impactFrame >= 0 { detail.append(String(format: "tick %.1f [%@] (gravity queue %d, fluid %d, falling %d, particles %d)",
                                                         ms, TickProf.summary(), gq, fl, falls, g.particles.list.count)) }
             if impactFrame >= 0 {
@@ -327,5 +351,8 @@ enum MainGunTests {
             check(MainGun.warnings == w0 + 1 && (said ?? "").contains("main gun"),
                   "maingun: an AI frigate charging at the player warns them (\"\(said ?? "nothing")\")")
         }
+
+        // 6. The gap pass (MainGunGapTests.swift): Blast Shake, a citadel struck and broken.
+        gap(g, check)
     }
 }

@@ -66,9 +66,11 @@ enum QuestSettings {
     static var smoothTurnSpeed: Float { get { float("quest.smoothTurnSpeed", 90) } set { store(newValue, "quest.smoothTurnSpeed") } }
     // Comfort vignette strength 0 (off) ... 1.
     static var vignette: Float { get { float("quest.vignette", 0.6) } set { store(newValue, "quest.vignette") } }
-    // Movement: false smooth (left stick walks), true teleport (push the stick forward to aim an arc, release to jump there).
     // Steady Saddle: while riding, the view eases over the horse's jumps and bucks (Game.steadySaddle).
     static var steadySaddle: Bool { get { bool("quest.steadySaddle", true) } set { store(newValue, "quest.steadySaddle") } }
+    // Blast Shake: the Tidebreaker's and explosions' eye jolt in the headset (Game.vrShake); haptics stay.
+    static var blastShake: Bool { get { bool("quest.blastShake", true) } set { store(newValue, "quest.blastShake") } }
+    // Movement: false smooth (left stick walks), true teleport (push the stick forward to aim an arc, release to jump there).
     static var teleport: Bool { get { bool("quest.teleport", false) } set { store(newValue, "quest.teleport") } }
     // Movement follows the head (true) or the left controller (false).
     static var headLocomotion: Bool { get { bool("quest.headLocomotion", false) } set { store(newValue, "quest.headLocomotion") } }

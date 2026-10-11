@@ -61,6 +61,9 @@ struct BaseRecord: Codable {
     var airT: Float? = nil
     var airShip: Int? = nil
     var airCD: Float? = nil
+    var strikes: Int? = nil                 // Tidebreaker hits on the citadel (MainGunStrikes.swift)
+    var lost: Int? = nil                    // garrison killed by them
+    var broken: Bool? = nil                 // broken by the Tidebreaker: no reinforcements, its walls stay down
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
@@ -97,6 +100,9 @@ extension BaseRecord {
         airT = (try? c.decodeIfPresent(Float.self, forKey: .airT))
         airShip = (try? c.decodeIfPresent(Int.self, forKey: .airShip))
         airCD = (try? c.decodeIfPresent(Float.self, forKey: .airCD))
+        strikes = (try? c.decodeIfPresent(Int.self, forKey: .strikes))
+        lost = (try? c.decodeIfPresent(Int.self, forKey: .lost))
+        broken = (try? c.decodeIfPresent(Bool.self, forKey: .broken))
     }
 }
 
@@ -333,7 +339,7 @@ extension Game {
         }
         b.crews[r.key] = crew
         // Reinforcements: up to two Capital dropships, the first a few seconds after the alarm.
-        if r.dropshipCD <= 0 && r.dropships < 2 {
+        if r.dropshipCD <= 0 && r.dropships < 2 && r.broken != true {
             r.dropshipCD = 75
             let dir = simd_normalize(V3(r.centre.x - src.x, 0, r.centre.z - src.z) + V3(0.3, 0, 0.7))
             let from = r.centre + dir * 170 + V3(0, 60, 0)

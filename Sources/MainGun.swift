@@ -72,6 +72,10 @@ final class Shockwave {
     var struck = Set<ObjectIdentifier>()
     var felt = 0                            // bitmask of split-screen seats the front has reached
     var crater: CraterJob?                  // the bowl, carved a slice a frame
+    var hit: [Mob] = []                     // mobs the front struck (the strike report counts the fallen: MainGunStrikes)
+    var site: MainGunStrikes.Site?          // what the slug landed on (a citadel, a Capital city, Boreal Station)
+    var reported = false
+    var byPlayer = false                    // fired from the player's helm or ship (only those earn the strike credit)
     init(center: V3, owner: Int) { self.center = center; self.owner = owner }
 }
 
@@ -216,6 +220,9 @@ extension ShipManager {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
         let wave = Shockwave(center: p, owner: owner)
+        wave.site = MainGunStrikes.site(g, at: p)
+        wave.byPlayer = capState[owner]?.gunByPlayer == true || aboard?.root.id == owner || pilot?.root.id == owner
+        g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
         if craterGroundLoaded(p) {
             wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)
         } else if pendingCraters.count < MainGun.pendingCap {
@@ -320,6 +327,7 @@ extension ShipManager {
                     let d = (dx * dx + dz * dz).squareRoot()
                     guard d <= w.r && d <= MainGun.shockRadius && abs(m.pos.y - c.y) < MainGun.shockHeight else { continue }
                     w.struck.insert(ObjectIdentifier(m))
+                    w.hit.append(m)
                     let f = 1 - d / MainGun.shockRadius
                     m.hit(from: c, damage: Int((6 + 54 * f * f).rounded()), knockback: 0)
                     let out = d > 0.1 ? V3(dx / d, 0, dz / d) : V3(1, 0, 0)
@@ -338,6 +346,9 @@ extension ShipManager {
                                              size: Rand.float(in: 1.0...2.2), gravity: -0.2, color: V3(tone, tone * 0.93, tone * 0.8), collide: false))
                 }
             }
+            // Once the front has passed the strike radius: the strike report (MainGunStrikes: garrison losses, a citadel
+            // broken after enough hits).
+            if !w.reported && w.r >= MainGun.shockRadius + 4 { w.reported = true; MainGunStrikes.report(g, w) }
             // Players: the ground shake and a long rumble in the hands when the front reaches them; inside the
             // strike radius, a blow (survival) and a shove.
             for i in 0..<max(1, g.coop.seatCount) where w.felt & (1 << i) == 0 {
@@ -471,7 +482,8 @@ extension ShipManager {
 
 // Screen shake (trauma 0...1, felt as its square): explosions near the player, the Tidebreaker's charge and blast.
 // The Mac camera turns and moves with it; in VR only the eyes move, by at most 2.5 cm and not at all with Screen
-// Effects off (VR comfort: no rotation is ever added to the headset's view).
+// Effects off or Blast Shake off on the VR comfort page (Game.vrShake; VR comfort: no rotation is ever added to the
+// headset's view).
 extension Game {
     func addShake(_ amount: Float) { shake = min(1, max(shake, amount)) }
 
@@ -492,7 +504,7 @@ extension Game {
     // VR: an eye offset only (metres = blocks).
     var shakeVR: V3 {
         let s = shake * shake
-        guard s > 0.0005, Settings.shared.screenEffects else { return .zero }
+        guard s > 0.0005, Settings.shared.screenEffects, vrShake else { return .zero }
         return V3(shakeWobble(3, rate: 17), shakeWobble(4, rate: 19), shakeWobble(5, rate: 15)) * 0.025 * s
     }
 }
