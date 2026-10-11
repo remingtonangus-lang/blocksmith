@@ -10,6 +10,10 @@ enum QuestBugTests {
             print("questbugs: \(ok ? "ok  " : "FAIL") \(msg)")
             if !ok { fails += 1 }
         }
+        // A fresh Game starts paused, and a paused Game.tick does nothing: checks that drive the game loop (the main
+        // gun's helm shot, voice-note events) silently tested nothing on the Mac harness. questcheck unpauses the same
+        // way (quest/src/headless/main.swift).
+        game.paused = false
         // `--only r3`: just the round 3 checks (save migration and the round 3 features), for quick local runs.
         if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "r3" {
             round3(game, check)

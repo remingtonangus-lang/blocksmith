@@ -12,7 +12,7 @@ Play by the rules until you have iron, ideally diamond. Then you can take a vill
 
 FROM THE OCT 11 AM PLAYTEST (Remington on the Quest, build 0.129; check each against current claude/quest-port first):
 G12. [capitals] Capitals are far too common (two within 500 blocks) and one sat at the player's spawn with a crawler; make capitals rare, never near spawn, and procedurally varied in size (a pool of capital buildings where only some spawn per city).
-G13. [frigate, with G1] The naval/main gun does far too little damage: against a crawler it should tear off a huge chunk or destroy it outright. Ships should not carry Capital soldiers: the frigates are their own navy faction (A3).
+G13. [frigate, with G1] [CLAIMED: Lane A thread, 2026-10-11] The naval/main gun does far too little damage: against a crawler it should tear off a huge chunk or destroy it outright. Ships should not carry Capital soldiers: the frigates are their own navy faction (A3).
 G14. [towns] The jail is broken (find what is wrong in a town jail and fix it). Emerald-to-cash is undiscoverable: make the bank exchange obvious (signs, a tip, a notice board line) and make emeralds findable in survival (where they come from, documented in the recipe book or a tip).
 G15. [towns] Stealing a gun from a townsperson must be very hard before iron armour (the six-iron rule); verify the sheriff/deputies respond and the gun is guarded.
 G16. [mobs] The Powderwight is too hard to kill before it detonates, even with an iron sword; tune its health, fuse or telegraph so a prepared player can win.
@@ -166,7 +166,7 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
 
 ## FROM THE DONE AUDIT (task 25b6, 2026-10-11; items G1-G11, renamed from A1-A11 so they are not confused with Lane A; full tables in docs/status/done-audit.md). Whichever cloud thread is free takes these FIRST, before new lane items.
 Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.
-G1. [frigate gun, FIRST] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
+G1. [frigate gun, FIRST] [DONE: Lane A thread, 2026-10-11, PR #48; docs/status/tidebreaker-gaps.md] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
     ("charges for 5.56 s", 0-block crater, 0 coil thumps, 0 shake). Tests that call mainGunTick directly pass; the
     g.tick path doesn't finish the charge. Also make FactionTests.swift:77 fire a real slug instead of Explosion.crater.
 G2. [the Deep] D2 vault pass never merged (garrison towns, rail, airfield + AA, mortar pits, foot patrols, saved
@@ -177,17 +177,17 @@ G4. [the Deep] Playthrough.swift has no Deep stage (keep -> Sunderite -> charge 
 G5. [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
     DE10); marksmen get a first-shot glint (an unarmoured arrival died 92 blocks out in 4 s); blend the vault sky over
     y 120-136 instead of the switch at 128; fog end 130 -> ~220 so the 138-tall vault reads as huge (check proxy p99).
-G6. [base / village] First citadel findability: radar and intercepted orders are base loot, so the first base means
+G6. [base / village] [CLAIMED: Lane A thread, 2026-10-11] First citadel findability: radar and intercepted orders are base loot, so the first base means
     wandering ~1,200 blocks. Add a cartographer explorer map to military_base or orders in wild camps.
 G7. [towns] Rename the Capital city "Meridian" (CapitalTown.swift:17): it clashes with the Meridian Navy. Add a
     capital_city structure shot and a street-level shot to snap.sh.
-G8. [frigate] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
+G8. [frigate] [CLAIMED: Lane A thread, 2026-10-11] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
 G9. [horses] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
     neck/mane, add a Quest horse render to questcheck.
 G10. [towns] `--towntests` has 5 FAIL on fa79ef5e: wallet/honour HUD lines empty (HonourTests.swift:218,
     HonourGapTests.swift:263), "sheriff shoots an outlaw player", "3 bread for $0.90". Fix, then add --towntests to
     snap.sh's checks shard so they gate CI.
-G11. [frigate] No designed way to board the Meridian frigate 45 blocks up outside `/vessel frigate`: a boarding route
+G11. [frigate] [CLAIMED: Lane A thread, 2026-10-11] No designed way to board the Meridian frigate 45 blocks up outside `/vessel frigate`: a boarding route
     (drop ladder, or hail-and-board when it flies low) plus a ride-check bot that reaches the helm from the ground.
 
 ## SMALLER IDEAS (take when a lane is empty)

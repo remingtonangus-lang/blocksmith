@@ -82,6 +82,7 @@ extension ShipManager {
         }
         if encounters, let game { encounterTick(dt, game: game) }
         if let game { capitalTick(dt, game: game) }
+        TickProf.mark("ships.capital")
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
@@ -169,7 +170,9 @@ extension ShipManager {
             steps += 1
         }
         if steps == 4 { accum = 0 }
+        TickProf.mark("ships.physics")
         updateShells(dt, game: game)
+        TickProf.mark("ships.shells")
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             m.pos = s.toWorld(s.prevToLocal(m.pos))

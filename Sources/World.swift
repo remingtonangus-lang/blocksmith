@@ -250,7 +250,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
-        if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
+        if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
@@ -302,6 +302,10 @@ final class World {
         }
     }
 
+    // Set by a bulk edit (a Tidebreaker crater) that checked no circuit part is within reach of its cells: each removed
+    // conductor otherwise marks ~40 neighbours for the circuit pass (7 ms per 250 blocks on the host).
+    var circuitQuiet = false
+
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
@@ -311,7 +315,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
-        if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
+        if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
