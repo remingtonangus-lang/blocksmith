@@ -19,7 +19,7 @@ final class MapCache {
     private var epoch = 0                     // bumped by use(): a batch sampled with the old generator is dropped
     private(set) var version = 0              // bumped whenever sampled cells arrive or the cache restarts (minimap redraw)
 
-    struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int }
+    struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int; var name: String? = nil }   // name: a town's
     private(set) var marks: [Mark] = []
     private var marksWorld = ""
     private var scanTimer: Double = 0
@@ -139,9 +139,11 @@ final class MapCache {
 
     func discover(_ g: Game, kind: String, x: Int, z: Int) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
-        marks.append(Mark(kind: kind, x: x, z: z))
+        // A town goes on the map under its name (the gap pass: "a name on a sign and the map").
+        let name = kind == "village" ? Townsfolk.town(g, at: V3(Float(x), 64, Float(z))) : nil
+        marks.append(Mark(kind: kind, x: x, z: z, name: name))
         saveMarks(g)
-        g.onToast?("\(MapCache.style(kind).name) marked on the map")
+        g.onToast?("\(name ?? MapCache.style(kind).name) marked on the map")
     }
 
     private func saveMarks(_ g: Game) {
@@ -198,6 +200,11 @@ final class MapCache {
         use(g.world.gen)
         guard g.clock - scanTimer > 1, g.dim.dim == .overworld, let sc = g.world.gen.structures else { return }
         scanTimer = g.clock
+        // Towns marked before they had names on the map: one a second gets its name.
+        if let i = marks.firstIndex(where: { $0.kind == "village" && $0.name == nil }) {
+            marks[i].name = Townsfolk.town(g, at: V3(Float(marks[i].x), 64, Float(marks[i].z)))
+            saveMarks(g)
+        }
         // Round every player (split screen: player 2 passing a citadel or village alone discovered nothing).
         for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos) }
     }
@@ -289,7 +296,7 @@ enum MapDraw {
         return V2(x0 + cx * px, y0 + cz * px)
     }
 
-    static func markers(_ out: inout [HudLine], _ g: Game, x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float) {
+    static func markers(_ out: inout [HudLine], _ g: Game, x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float, labels: Bool = false) {
         func at(_ x: Float, _ z: Float) -> V2? { project(x, z, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc) }
         if g.dim.dim == .overworld {
             if let p = at(g.spawnPoint.x, g.spawnPoint.z) {
@@ -301,6 +308,13 @@ enum MapDraw {
                 out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(0, 0, 0, 0.8), box: V2(8 * s, 8 * s)))
                 out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: st.color, box: V2(6 * s, 6 * s)))
                 out.append(HudLine(text: st.letter, x: p.x - 2 * s, y: p.y - 3 * s, scale: s * 0.85, color: V4(1, 1, 1, 1)))
+                // The big map names its towns beside their markers (kept inside the map).
+                if labels, let n = m.name {
+                    let w = Float(Font.width(n)) * s * 0.85
+                    let right = x0 + Float(cols) * px
+                    let lx = p.x + 6 * s + w < right ? p.x + 6 * s : p.x - 6 * s - w
+                    out.append(HudLine(text: n, x: lx, y: p.y - 3 * s, scale: s * 0.85, color: V4(1, 0.93, 0.7, 1), bg: V4(0, 0, 0, 0.6)))
+                }
             }
         }
         // Vehicles loaded nearby: hostile vessels as red diamonds, the rest (yours) blue; the one you steer is the player dot.
@@ -444,7 +458,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         let x0 = o.x + 8 * s, y0 = o.y + 18 * s
         let cols = 152, rows = 82
         MapDraw.terrain(&out, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
-        MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
+        MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s, labels: true)
         // Centre cross and what is under it.
         let mx = x0 + Float(cols) * px / 2, my = y0 + Float(rows) * px / 2
         out.append(HudLine(text: "", x: mx - 4 * s, y: my - s / 2, scale: s, bg: V4(1, 1, 1, 0.8), box: V2(8 * s, s)))

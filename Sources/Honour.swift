@@ -21,7 +21,7 @@ import simd
 enum Honour {
     static let outlaw: Float = -60, disreputable: Float = -20, respected: Float = 20, honourable: Float = 60
     static let lapseDays = 7
-    static let dailyCap: [String: Float] = ["monster": 8, "outlaw": 9, "trade": 3, "job": 15, "donation": 6, "theft": 10]
+    static let dailyCap: [String: Float] = ["monster": 8, "outlaw": 9, "trade": 3, "job": 15, "donation": 6, "theft": 10, "defence": 10]
     static let outlawFine = 1000                    // cents: what surrendering as an outlaw costs (on top of bounties)
 
     // HUD (HonourHUD.lines) and the toast throttle.

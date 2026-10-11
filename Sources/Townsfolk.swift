@@ -96,6 +96,10 @@ enum Townsfolk {
             v.shop = k.rawValue; v.role = "shopkeeper"; v.locked = true; v.profession = "none"
             let p = m.pos
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]      // behind the counter
+        } else if tag == "banker" {
+            v.role = "banker"; v.locked = true; v.profession = "none"
+            let p = m.pos
+            v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]      // behind the teller's counter
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
         } else if tag.hasPrefix("citizen") {
@@ -123,7 +127,7 @@ enum Townsfolk {
         case "deputy": return .sword
         case "sheriff": return v.revolver == true ? .revolver : .sword      // ~5% carry the gun (Honour.carriesRevolver)
         case "farmer": return .pitchfork
-        case "elder", "child", "citizen": return .none     // citizens: the Capital's soldiers keep the streets
+        case "elder", "child", "citizen", "banker": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer
@@ -352,6 +356,11 @@ extension Game {
             m.face(player.pos)
             Townsfolk.say(self, m, Honour.isOutlaw ? "I don't serve outlaws. Give yourself up to the law first."
                                                    : "Not while there's a price on your head. Square it with the sheriff.")
+            return true
+        }
+        if !m.baby && v.role == "banker" {
+            if !BankMenu.open(dayFraction) { TownVoice.speak(self, m, .closed); return true }
+            openMenu(BankMenu(game: self, banker: m))
             return true
         }
         if !m.baby, let k = v.shopKind {

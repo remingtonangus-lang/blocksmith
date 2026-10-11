@@ -186,6 +186,7 @@ extension Mob {
         if baby { return t < 3000 ? .idle : (t < 6000 ? .play : (t < 10000 ? .idle : .play)) }
         if let k = villager?.shopKind { return Float(f) >= k.hours.0 && Float(f) <= k.hours.1 ? .work : .idle }
         if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
+        if villager?.role == "banker" { return BankMenu.open(f) ? .work : .idle }       // behind the teller's counter
         let prof = villager?.profession ?? "none"
         if t >= 5600 && t < 6600 { return .eat }
         // Capital citizens (no trade, a desk) go to the office.

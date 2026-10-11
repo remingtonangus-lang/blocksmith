@@ -9,7 +9,7 @@ import Foundation
 // save like the other structure guards), so no house is finished half as an office across a chunk border.
 extension Village {
     // Called by layout once the lots are placed (no random numbers drawn, so a town's streets and lots stay the same).
-    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int) {
+    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true) {
         for i in lots.indices { lots[i].frontier = true }
         func d2(_ l: Lot) -> Int {
             let (x0, z0, x1, z1) = bounds(l)
@@ -24,6 +24,16 @@ extension Village {
         var office = Lot(kind: .office, ax: l.ax, az: l.az, face: l.face, w: l.w, d: l.d, y: l.y, seed: l.seed, job: "sheriff")
         office.frontier = true
         lots[i] = office
+        // The bank: the next house nearest the square, at least 5 wide (TownServices.swift: emerald exchange, savings).
+        guard bank else { return }
+        // (a town whose only house became the office gives up a job hut: every frontier town has its bank).
+        let bankRank = rank.merging([.jobHut: 3]) { a, _ in a }
+        guard let j = lots.indices.filter({ bankRank[lots[$0].kind] != nil && lots[$0].w >= 5 && $0 != i })
+                .min(by: { (bankRank[lots[$0].kind]!, d2(lots[$0])) < (bankRank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
+        let h = lots[j]
+        var bankLot = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
+        bankLot.frontier = true
+        lots[j] = bankLot
     }
 
     // A plank boardwalk in front of a false front, flush with the street, under a slab awning on two posts.
@@ -46,6 +56,37 @@ extension Village {
             }
             b.set(&w, u, wallH - 1, -1, m.slab)
         }
+    }
+
+    // The bank: a stone front like the office, a teller's counter with iron bars and the banker behind it, the vault at
+    // the back (a gold and iron strongroom behind bars) and a lamp. The banker opens the bank (TownServices.swift).
+    static func bankLot(_ w: inout StructWriter, _ b: LB, _ m0: Mats) {
+        let l = b.l
+        let m = varied(m0, l)
+        let wallH = 5
+        house(&w, b, m0, wallH: wallH)
+        let stone = blk("stone_bricks", COBBLE)
+        let du = l.w / 2
+        for u in 1...(l.w - 2) where u != du { for dy in 1..<wallH where !(dy == 1 && u % 2 == 0) { b.set(&w, u, dy, 0, stone) } }
+        falseFront(&w, b, m, wallH: wallH, band: blk("yellow_terracotta", stone))
+        boardwalk(&w, b, m, wallH: wallH)
+        sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "BANK", "Savings and", "Exchange"])
+        // The teller's counter across the room, bars over it, always a clear row in from the door (a small bank puts the
+        // counter one row nearer the strongroom), a gap at the door's line to reach the teller and one at the wall side to
+        // walk behind it; the lamp stands on its end, never in the way in.
+        let cv = l.d >= 6 ? l.d - 4 : l.d - 3
+        let counter = blk("polished_andesite", m.planks)
+        let bars = blk("iron_bars", m.fence)
+        for u in 1...(l.w - 3) {
+            b.set(&w, u, 0, cv, counter)
+            b.set(&w, u, 1, cv, u == 1 ? blk("lantern", AIR) : (u == du ? AIR : bars))
+        }
+        // The strongroom: the back row, gold and iron behind bars.
+        for u in 1...(l.w - 2) where u % 2 == 1 && !(u == du && cv + 1 == l.d - 2) { b.set(&w, u, 0, l.d - 2, blk(u % 4 == 1 ? "gold_block" : "iron_block", stone)) }
+        b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
+        b.set(&w, l.w - 2, 2, 1, b.wallTorch(facing: 3))
+        let (x, z) = world(l, du, cv + 1)
+        w.mob("villager:banker", V3(Float(x) + 0.5, Float(l.y), Float(z) + 0.5))
     }
 
     static func officeLot(_ w: inout StructWriter, _ b: LB, _ m0: Mats) {

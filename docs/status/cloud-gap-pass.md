@@ -28,7 +28,7 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | A1h | Weighty gaits, smooth on slopes | MET | HorseTests gaits / staircase | - | MET |
 | A2 | Towns of named people with routines, armed, defend, react | MET | Townsfolk.swift, VillageLife, TownTests (#11) | - | MET |
 | A3 | 8 shop types, currency, VR-readable shop UI, prices vs progression | MET | Shops.swift, TownTests no-arbitrage + overflow (#11) | - | MET |
-| A4 | Other RDR-feel features, listed with reasons | PARTIAL | bounties/honour (#19), camps exist; no single list of what was added and why | T | |
+| A4 | Other RDR-feel features, listed with reasons | PARTIAL | bounties/honour (#19), camps exist; no single list of what was added and why | T | MET: docs/status/frontier-feel.md lists what was added and why, and what was left out |
 | B | Military base look (Siberia feel) | MET | Boreal Station (#13, #15), BorealTests, golden shots | - | MET |
 | C | Main gun: barrel, charge-up (sound, glow, shake, haptics), devastating shot, crater, shockwave, rumble, slow reload, blast frame time on Quest | MET | MainGun.swift, MainGunTests, MainGunPerf line | - | MET |
 | D | Rename UNSC / MAC in player-visible text, ip-renames.md | MET | coined-terms.txt has both; namecheck 0 hits | - | MET |
@@ -62,17 +62,17 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | ER9 | VR comfort while riding: vignette, smooth vs snap turn, horizon-locked option | PARTIAL | vignette + turn modes exist globally; no horizon lock; vignette not driven by the horse | R | |
 | ER10 | Hooves sound per surface | MISSING | generic step sound | R | |
 | ER11 | Horse waits, grazes and wanders a little when left | PARTIAL | bonded horse follows within 10 blocks; no "stay", no grazing | R | |
-| ET1 | Every town has a name on a sign and on the map | PARTIAL | name in greetings; no sign at the edge, not on the map | T | |
+| ET1 | Every town has a name on a sign and on the map | PARTIAL | name in greetings; no sign at the edge, not on the map | T | MET: "Welcome to <name>" sign at each main-street end; named on the map when found; TownGapTests |
 | ET2 | Notice board with bounties and jobs | MISSING | none | T | MET: TownBoard (deliveries, monster hunts, outlaws with a spawned boss); HonourGapTests |
 | ET3 | Doctor heals and sells tonics | MET | Shops .doctor treatment + potions | - | MET |
-| ET4 | Bank for the emerald exchange | PARTIAL | the general store buys/sells emeralds; no bank | T | |
-| ET5 | Gunsmith upgrades | MISSING | gunsmith sells/buys only | T | |
-| ET6 | Saloon with one simple game (cards or dice) | MISSING | none | T | |
-| ET7 | Street lamps at night | PARTIAL | old village lamp posts only along some roads; no lamps on frontier streets that light at night | T | |
-| ET8 | Town defence events (raids at night), townsfolk fight beside you | PARTIAL | omen raids exist (player-triggered); no night raid events; townsfolk defend vs monsters | T | |
+| ET4 | Bank for the emerald exchange | PARTIAL | the general store buys/sells emeralds; no bank | T | MET: a bank in every frontier town (banker, counter, strongroom): emerald exchange + savings with interest; TownGapTests |
+| ET5 | Gunsmith upgrades | MISSING | gunsmith sells/buys only | T | MET: gunsmith "Upgrade": magazine, reload, stability, penetration, incendiary, priced per level; TownGapTests |
+| ET6 | Saloon with one simple game (cards or dice) | MISSING | none | T | MET: saloon "Dice": high dice for $1/$5/$10, house wins ties (44%); TownGapTests |
+| ET7 | Street lamps at night | PARTIAL | old village lamp posts only along some roads; no lamps on frontier streets that light at night | T | MET: lamp posts every 8 blocks on frontier streets, lit at night; TownGapTests |
+| ET8 | Town defence events (raids at night), townsfolk fight beside you | PARTIAL | omen raids exist (player-triggered); no night raid events; townsfolk defend vs monsters | T | MET: night raids (2 waves, at most every 3 days) with armed townsfolk fighting; purse + honour on a win; TownGapTests |
 | ET9 | People remember you (greet by name at high honour) | PARTIAL | they say *their* name; never yours | T | MET: respected and honourable are greeted by the name you pick on the board; HonourGapTests |
 | ET10 | Shopkeepers restock over days | MET | restockShop(day:) | - | MET |
-| ET11 | At least 3 town layouts per biome style | MISSING | one radial-plaza generator | T | |
+| ET11 | At least 3 town layouts per biome style | MISSING | one radial-plaza generator | T | MET: three street plans (crossroads, main street, grid) chosen per town in every style; TownGapTests |
 | EF1 | Gunner seat/console: aiming reticle, charge meter, cooldown display | MET | helm aim ring + mainGunStatus gauge (CombatHUD) | - | MET |
 | EF2 | Targets worth hitting: enemy ships, the Capital, military bases | PARTIAL | ships yes; bases/Capital take the crater but nothing reacts (no garrison loss, no objective) | F | |
 | EF3 | Damage interacts with structures sensibly | MET | crater carving, hull hit tears plate | - | MET |
