@@ -16,7 +16,9 @@ import simd
 // MARK: The bank
 
 enum Bank {
-    static let buyEmerald = 120, sellEmerald = 100      // cents, the exchange (Economy: an emerald is worth $1)
+    // Cents, the exchange (Economy: an emerald is worth $1). The bank buys back below the lowest price any general store
+    // sells one at (minBuyMult, with every discount), so buying at a store and selling to the bank never pays.
+    static let buyEmerald = 120, sellEmerald = Int((100 * Economy.minBuyMult).rounded(.down)) - 5
     static let rate: Float = 0.01, dailyCap = 200, maxDays = 7
 
     static var balance: Int {
@@ -190,6 +192,10 @@ final class GunUpgradeMenu: ListMenu {
                        value: Money.format(o.cost), enabled: game.money >= o.cost)
         }
     }
+    override func tick() {
+        super.tick()
+        if TownServices.keeperGone(game, keeper) { game.closeMenu() }
+    }
     override func pressed(_ i: Int) {
         let os = GunUpgrades.offers(game)
         guard i < os.count else { return }
@@ -230,7 +236,9 @@ enum Dice {
 
 final class DiceMenu: ListMenu {
     var last = ""
-    init(game g: Game) {
+    weak var keeper: Mob?
+    init(game g: Game, keeper m: Mob? = nil) {
+        keeper = m
         super.init("High Dice", game: g)
         subtitle = "Beat the house's two dice. Ties go to the house."
         say("Place your bet.", good: true)
@@ -245,5 +253,17 @@ final class DiceMenu: ListMenu {
         guard i < Dice.bets.count, let (you, house, won) = Dice.play(game, bet: Dice.bets[i]) else { return }
         last = "You \(you), house \(house)"
         say(won ? "You rolled \(you) to \(house). You win \(Money.format(Dice.bets[i]))!" : "You rolled \(you) to \(house). The house wins.", good: won)
+    }
+    override func tick() {
+        super.tick()
+        if TownServices.keeperGone(game, keeper) { game.closeMenu() }
+    }
+}
+
+enum TownServices {
+    // A service menu opened from a shop closes when its keeper is gone or the player walks off (the shop menu's rule).
+    static func keeperGone(_ g: Game, _ m: Mob?) -> Bool {
+        guard let m else { return false }
+        return m.health <= 0 || simd_length(m.pos - g.player.pos) > 8
     }
 }

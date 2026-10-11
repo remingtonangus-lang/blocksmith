@@ -347,7 +347,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case ShopMenu.extra:
             game.sfx(.click, 0.4)
             if kind == .gunsmith, let m = mob { game.switchMenu(to: GunUpgradeMenu(game: game, keeper: m)) }
-            else if kind == .saloon { game.switchMenu(to: DiceMenu(game: game)) }
+            else if kind == .saloon { game.switchMenu(to: DiceMenu(game: game, keeper: mob)) }
         case ShopMenu.barter:
             guard let m = mob else { return }
             game.sfx(.click, 0.4)

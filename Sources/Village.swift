@@ -89,7 +89,9 @@ enum Village {
             guard hi - lo <= 12 else { return nil }
             // Frontier fittings only where a save hasn't already generated part of the town (FrontierTown.swift).
             let frontier = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyFrontier) } ?? true
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier)
+            // The towns gap pass (plans, the bank, lamps, welcome signs) likewise only on ground no save had generated.
+            let gap = frontier && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyTownsGap) } ?? true)
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap)
         }
     }
 
@@ -106,7 +108,8 @@ enum Village {
     // Tests: every town laid out reports (anchor x, z, style, plan, lots).
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
-    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true) -> StructureStart? {
+    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil) -> StructureStart? {
+        let gap = townsGap ?? frontier
         var rng = SRng(seed)
         let m = mats(style)
         var occupied = Set<IVec2Key>()
@@ -125,7 +128,7 @@ enum Village {
         struct Road { let x: Int; let z: Int; let dx: Int; let dz: Int; let len: Int; var main = false; var own = false }
         var roads: [Road] = []
         claim(ox - 4, oz - 4, ox + 4, oz + 4)
-        let plan = frontier ? Village.plan(ox, oz, seed) : 0
+        let plan = gap ? Village.plan(ox, oz, seed) : 0
         let (ax, az) = Village.planAxis(ox, oz, seed)               // the main street's axis (plans 1 and 2)
         switch plan {
         case 1:
@@ -162,7 +165,7 @@ enum Village {
         var pathCols: [(Int, Int, Int)] = []
         var goodRoads: [Road] = []
         var lamps = Set<IVec2Key>()                                  // frontier street lamps (edge columns)
-        var ends: [(Int, Int, Int, Int, Int)] = []                   // frontier: the outer end of each main street (x, z, y, dx, dz)
+        var ends: [(Int, Int, Int, Int, Int, Bool)] = []             // frontier: the outer end of each street (x, z, y, dx, dz, main)
         for r in roads {
             var cols: [(Int, Int, Int)] = []
             var lastY = r.own ? gen.groundY(r.x, r.z) : cy
@@ -177,10 +180,10 @@ enum Village {
             guard ok, cols.count >= 15 else { continue }
             pathCols += cols
             goodRoads.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: cols.count / 3, main: r.main, own: r.own))
-            if frontier {
+            if gap {
                 // A street lamp every 8 steps, on alternate sides (lots clear the one in front of a door).
                 for st in stride(from: 4, to: cols.count / 3, by: 8) { lamps.insert(IVec2Key(cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].0, cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].1)) }
-                if r.main && cols.count >= 3 * 12 { let c = cols[cols.count - 2]; ends.append((c.0, c.1, c.2, r.dx, r.dz)) }
+                do { let c = cols[cols.count - 2]; ends.append((c.0, c.1, c.2, r.dx, r.dz, r.main)) }
             }
             for c in cols { occupied.insert(IVec2Key(c.0, c.1)) }
         }
@@ -237,7 +240,7 @@ enum Village {
             }
         }
         guard lots.count >= 6 else { return nil }
-        if frontier { frontierLots(&lots, ox: ox, oz: oz) }
+        if frontier { frontierLots(&lots, ox: ox, oz: oz, bank: gap) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
@@ -297,27 +300,38 @@ enum Village {
                 }
             })
         }
-        // Frontier towns: a "Welcome to" sign post beside the outer end of each main street, facing the way in.
-        if frontier {
+        // Frontier towns: a "Welcome to" sign post beside the outer end of each main street, facing the way in; a town
+        // whose main streets have no room for one puts it at the end of another street, so every town has its sign.
+        if gap {
             let name = Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)
-            for (x, z, y, dx, dz) in ends {
-                let sx = x + dz * 2, sz = z + dx * 2                 // two to the side of the centre: just off the street
-                let gy = gen.groundY(sx, sz)
-                guard abs(gy - y) <= 1, !occupied.contains(IVec2Key(sx, sz)) else { continue }
-                pieces.append(Piece(min: IVec3(sx, gy, sz), max: IVec3(sx, gy + 3, sz)) { w in
-                    guard w.inside(sx, gy + 1, sz) else { return }
-                    if !Blocks.collide[Int(w.get(sx, gy, sz))] { w.set(sx, gy, sz, m.foundation) }
-                    w.set(sx, gy + 1, sz, m.fence)
-                    let sign = blk("spruce_sign", blk("oak_sign", AIR))
-                    guard sign != AIR else { return }
-                    // A standing sign (state 0-3 = facing north, south, west, east) read by someone walking in.
-                    let f = dz < 0 ? 0 : (dz > 0 ? 1 : (dx < 0 ? 2 : 3))
-                    w.set(sx, gy + 2, sz, sign + BlockID(f))
-                    w.set(sx, gy + 3, sz, AIR)
-                    let be = BlockEntity(.sign)
-                    be.lines = ["Welcome to", ShopMenu.fit(name, 88), "", ""]
-                    w.entities.append((IVec3(sx, gy + 2, sz), be))
-                })
+            var signs = 0
+            for mainPass in [true, false] where mainPass || signs == 0 {
+                for (x, z, y, dx, dz, main) in ends where main == mainPass && (mainPass || signs == 0) {
+                    // Just off the street to either side, up to three steps back toward the square, on level ground.
+                    var found: (Int, Int, Int)? = nil
+                    search: for back in 0...3 { for side in [2, -2, 3, -3] {
+                        let sx = x - dx * back + dz * side, sz = z - dz * back + dx * side
+                        let gy = gen.groundY(sx, sz)
+                        if abs(gy - y) <= 1 && gy >= SEA && !occupied.contains(IVec2Key(sx, sz)) { found = (sx, sz, gy); break search }
+                    } }
+                    guard let (sx, sz, gy) = found else { continue }
+                    occupied.insert(IVec2Key(sx, sz))
+                    signs += 1
+                    pieces.append(Piece(min: IVec3(sx, gy, sz), max: IVec3(sx, gy + 3, sz)) { w in
+                        guard w.inside(sx, gy + 1, sz) else { return }
+                        if !Blocks.collide[Int(w.get(sx, gy, sz))] { w.set(sx, gy, sz, m.foundation) }
+                        w.set(sx, gy + 1, sz, m.fence)
+                        let sign = blk("spruce_sign", blk("oak_sign", AIR))
+                        guard sign != AIR else { return }
+                        // A standing sign (state 0-3 = facing north, south, west, east) read by someone walking in.
+                        let f = dz < 0 ? 0 : (dz > 0 ? 1 : (dx < 0 ? 2 : 3))
+                        w.set(sx, gy + 2, sz, sign + BlockID(f))
+                        w.set(sx, gy + 3, sz, AIR)
+                        let be = BlockEntity(.sign)
+                        be.lines = ["Welcome to", ShopMenu.fit(name, 88), "", ""]
+                        w.entities.append((IVec3(sx, gy + 2, sz), be))
+                    })
+                }
             }
         }
         for lot in lots {

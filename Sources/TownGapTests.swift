@@ -44,6 +44,17 @@ extension TownTests {
                     if Village.layout(gen, seed: UInt64(i) &* 0x9E3779B97F4A7C15, ox: ox, oz: oz, cy: cy, style: st, frontier: true) != nil { k += 1 }
                 }
             }
+            // Ground a save had generated before the gap pass (StructureCache.legacyTownsGap): the old crossroads, no bank.
+            var oldPlans = Set<Int>(), oldTowns = 0
+            Village.planLog = { _, _, _, plan, _ in oldPlans.insert(plan) }
+            for i in 0..<120 where oldTowns < 8 {
+                let ox = (i % 20) * 544 + 8 - 5000, oz = (i / 20) * 544 + 8 - 5000
+                let cy = gen.groundY(ox, oz)
+                guard cy >= SEA, Village.layout(gen, seed: UInt64(i) &* 0x9E3779B97F4A7C15, ox: ox, oz: oz, cy: cy, style: .plains,
+                                                frontier: true, townsGap: false) != nil else { continue }
+                oldTowns += 1
+            }
+            check(oldTowns > 0 && oldPlans == [0], "town gap: a town on ground saved before the gap pass keeps the crossroads plan (\(oldTowns) towns, plans \(oldPlans.sorted()))")
             Village.planLog = nil
             let missing = styles.filter { seen["\($0)"] != [0, 1, 2] }
             check(missing.isEmpty, "town gap: every biome style lays out all three street plans (" +
@@ -55,6 +66,7 @@ extension TownTests {
         w.renderDistance = 3
         if let sc = w.gen.structures {
             var bankers = 0, bankSigns = 0, welcome: [String] = [], lamps = 0, towns = 0
+            var perTown: [String] = [], townsOK = 0
             var seenA: [IVec3] = []
             let lantern = Blocks.id("lantern")
             for _ in 0..<3 {
@@ -63,19 +75,29 @@ extension TownTests {
                 w.pendingMobs.removeAll()
                 _ = w.loadSync(center: V3(Float(s.anchor.x), 140, Float(s.anchor.z)), radius: 4)
                 towns += 1
-                bankers += w.pendingMobs.filter { $0.0 == "villager:banker" }.count
+                let b = w.pendingMobs.filter { $0.0 == "villager:banker" }.count
+                bankers += b
+                // The name the map and the townsfolk use (Townsfolk.town: the nearest town's anchor).
+                let name = Townsfolk.townName(s.anchor.x, s.anchor.z, seed: w.seed)
+                var signsHere = 0, bankSignHere = 0
                 for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 90 && abs(p.z - s.anchor.z) < 90 {
-                    if be.lines.contains("BANK") { bankSigns += 1 }
-                    if be.lines.first == "Welcome to" { welcome.append(be.lines.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)) }
+                    if be.lines.contains("BANK") { bankSigns += 1; bankSignHere += 1 }
+                    if be.lines.first == "Welcome to" {
+                        let n = be.lines.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                        welcome.append(n)
+                        if n == ShopMenu.fit(name, 88) { signsHere += 1 }
+                    }
                 }
+                perTown.append("\(name): bank \(b), signs \(signsHere)")
+                if b >= 1 && bankSignHere >= 1 && signsHere >= 1 { townsOK += 1 }
                 for dz in -60...60 { for dx in -60...60 {
                     let x = s.anchor.x + dx, z = s.anchor.z + dz
                     for y in (s.anchor.y - 4)...(s.anchor.y + 12) where w.block(x, y, z) == lantern && Blocks.key(w.block(x, y - 1, z)).contains("fence") { lamps += 1 }
                 } }
             }
-            check(towns >= 2 && bankers >= towns - 1 && bankSigns >= bankers && bankers > 0,
-                  "town gap: \(towns) towns have \(bankers) banks with a banker behind the counter and a BANK sign (\(bankSigns))")
-            check(welcome.count >= towns && !welcome.contains { $0.isEmpty }, "town gap: towns have welcome signs at their main streets (\(welcome.prefix(3).joined(separator: ", ")))")
+            check(towns >= 3 && bankSigns >= bankers && townsOK == towns,
+                  "town gap: every town has a bank (banker and BANK sign) and a \"Welcome to\" sign with the name the map uses (\(perTown.joined(separator: "; ")))")
+            check(!welcome.contains { $0.isEmpty }, "town gap: welcome signs carry a name (\(welcome.prefix(4).joined(separator: ", ")))")
             check(lamps >= towns * 3, "town gap: street lamps line the frontier streets (\(lamps) in \(towns) towns)")
         } else { check(false, "town gap: structures") }
 
@@ -100,6 +122,8 @@ extension TownTests {
             b.pressed(2)
             check(g.inventory.main.countOf(Items.id("emerald")) == 1 && g.money == 1000 - 2 * Bank.buyEmerald + Bank.sellEmerald,
                   "town gap: and buys them at \(Money.format(Bank.sellEmerald))")
+            let cheapest = ShopPricing(reputation: 1000, hero: 1, honour: 100).buy(Economy.value(of: Items.id("emerald")) ?? 100)
+            check(Bank.sellEmerald < cheapest, "town gap: the bank buys an emerald back for less than the cheapest store sells one (\(Money.format(Bank.sellEmerald)) < \(Money.format(cheapest)))")
             let m0 = g.money
             b.pressed(5)                                   // deposit all
             check(g.money == 0 && Bank.balance == m0, "town gap: deposit all puts \(Money.format(m0)) in the bank")
@@ -214,9 +238,32 @@ extension TownTests {
         if let rr = g.raid {
             let m0 = g.money, h0 = Honour.value
             TownRaids.won(g, rr)
+            check(g.money == m0 && Honour.value == h0, "town gap: no purse for a player who didn't fight")
+            rr.playerKills = 1
+            TownRaids.won(g, rr)
             check(g.money == m0 + 500 * TownRaids.waves && Honour.value == h0 + 5, "town gap: a won defence pays the town purse and 5 honour")
+            // The victory itself (Raid.raidTick): a night raid gives no Friend of the Town, no omen-raid achievement.
+            g.effects.remove(.heroOfTheVillage)
+            rr.wave = rr.totalWaves; rr.state = 1; rr.raiders = []; rr.rejoin = 0
+            g.raidTick(0.05)
+            check(rr.state == 2 && g.effects[.heroOfTheVillage] == nil, "town gap: a night raid's victory gives no Friend of the Town discount")
         }
         g.raid = nil
+        // The townsfolk fight raiders beside you: an armed townsperson (the farmer's pitchfork) hits a raider in town.
+        do {
+            let foe = groundSpot(g) + V3(3, 0, 0)
+            let farmer = townPerson(g, base + V3(0, 0, 0))
+            var fv = farmer.villager ?? VillagerData(); fv.profession = "farmer"; fv.role = "farmer"; farmer.villager = fv
+            let raider = Mob(.vindicator, at: V3(foe.x, Float(g.world.topY(Int(floor(foe.x)), Int(floor(foe.z))) + 1), foe.z))
+            raider.raider = true
+            g.mobs.mobs = [farmer, raider]
+            g.player.pos = base + V3(0, 0, 30)
+            let hp0 = raider.health
+            for _ in 0..<240 where raider.health > 0 { farmer.update(0.05, game: g) }
+            check(farmer.townWeapon != .none && raider.health < hp0, "town gap: an armed townsperson fights a raider (\(farmer.townWeapon), raider \(raider.health)/\(hp0))")
+            g.player.pos = base
+            g.mobs.mobs.removeAll()
+        }
         TownRaids.chancePerSecond = 1.0 / 600
         TownLaw.inTown = nil
 

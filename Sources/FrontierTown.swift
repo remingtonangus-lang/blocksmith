@@ -9,7 +9,7 @@ import Foundation
 // save like the other structure guards), so no house is finished half as an office across a chunk border.
 extension Village {
     // Called by layout once the lots are placed (no random numbers drawn, so a town's streets and lots stay the same).
-    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int) {
+    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true) {
         for i in lots.indices { lots[i].frontier = true }
         func d2(_ l: Lot) -> Int {
             let (x0, z0, x1, z1) = bounds(l)
@@ -25,12 +25,15 @@ extension Village {
         office.frontier = true
         lots[i] = office
         // The bank: the next house nearest the square, at least 5 wide (TownServices.swift: emerald exchange, savings).
-        guard let j = lots.indices.filter({ rank[lots[$0].kind] != nil && lots[$0].w >= 5 && $0 != i })
-                .min(by: { (rank[lots[$0].kind]!, d2(lots[$0])) < (rank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
+        guard bank else { return }
+        // (a town whose only house became the office gives up a job hut: every frontier town has its bank).
+        let bankRank = rank.merging([.jobHut: 3]) { a, _ in a }
+        guard let j = lots.indices.filter({ bankRank[lots[$0].kind] != nil && lots[$0].w >= 5 && $0 != i })
+                .min(by: { (bankRank[lots[$0].kind]!, d2(lots[$0])) < (bankRank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
         let h = lots[j]
-        var bank = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
-        bank.frontier = true
-        lots[j] = bank
+        var bankLot = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
+        bankLot.frontier = true
+        lots[j] = bankLot
     }
 
     // A plank boardwalk in front of a false front, flush with the street, under a slab awning on two posts.

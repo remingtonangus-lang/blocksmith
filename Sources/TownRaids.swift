@@ -43,8 +43,12 @@ enum TownRaids {
     }
 
     // Raid.swift, on a night raid's victory.
+    // Only for a player who stood with the town: near it at the end and killed at least one raider.
     static func won(_ g: Game, _ r: Raid) {
-        guard simd_length(g.player.pos - r.center) < 96 else { return }
+        guard simd_length(g.player.pos - r.center) < 96, r.playerKills > 0 else {
+            g.onToast?("The raiders are beaten off")
+            return
+        }
         let town = Townsfolk.town(g, at: r.center)
         let purse = 500 * r.totalWaves
         g.money += purse
