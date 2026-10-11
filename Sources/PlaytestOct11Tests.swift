@@ -32,6 +32,7 @@ enum PlaytestOct11Tests {
         noOverlap(game, check)
         shotsDrawFolk(game, check)
         tonics(check)
+        townSpacing(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -643,5 +644,28 @@ enum PlaytestOct11Tests {
         let heal = (0..<400).allSatisfy { Economy.carries("potion_healing", keeper: $0 * 7919) }
         check(original && heal && regen > 100 && regen < 180,
               "P42 tonics: \(names.prefix(4).joined(separator: ", ")), ...; Second Wind in \(regen) of 400 doctors' shops, Mending in all (\(heal))")
+    }
+
+    // P62: wide towns (new ground) space their buildings out: fewer lots along the same streets, and nearly every site
+    // that makes a town still does.
+    static func townSpacing(_ game: Game, _ check: (Bool, String) -> Void) {
+        guard let gen = game.world.gen as? WorldGen else { return }
+        var n = [0, 0], lots = [0, 0]
+        var cur = 0
+        Village.planLog = { _, _, _, _, k in lots[cur] += k }
+        defer { Village.planLog = nil }
+        for i in 0..<80 {
+            let ox = (i % 20) * 544 + 8 - 5000, oz = (i / 20) * 544 + 8 - 5000
+            let cy = gen.groundY(ox, oz)
+            guard cy >= SEA else { continue }
+            for w in 0..<2 {
+                cur = w
+                if Village.layout(gen, seed: UInt64(i) &* 0x9E3779B97F4A7C15, ox: ox, oz: oz, cy: cy, style: .plains, frontier: true,
+                                  townsGap: true, wide: w == 1) != nil { n[w] += 1 }
+            }
+        }
+        let per = (0..<2).map { n[$0] > 0 ? Float(lots[$0]) / Float(n[$0]) : 0 }
+        check(n[0] > 5 && Float(n[1]) >= Float(n[0]) * 0.7 && per[1] < per[0] * 0.9,
+              String(format: "P62 town spacing: %d of %d sites still make a town; %.1f lots a town, was %.1f (more room between buildings)", n[1], n[0], per[1], per[0]))
     }
 }

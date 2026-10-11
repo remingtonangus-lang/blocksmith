@@ -91,7 +91,9 @@ enum Village {
             let frontier = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyFrontier) } ?? true
             // The towns gap pass (plans, the bank, lamps, welcome signs) likewise only on ground no save had generated.
             let gap = frontier && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyTownsGap) } ?? true)
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap)
+            // P62 (Oct 11 evening playtest: buildings packed too tightly): roomier lots, on ground saved after P44 only.
+            let wide = gap && WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz, reach: 7)
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide)
         }
     }
 
@@ -108,7 +110,8 @@ enum Village {
     // Tests: every town laid out reports (anchor x, z, style, plan, lots).
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
-    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil) -> StructureStart? {
+    static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
+                       wide: Bool = false) -> StructureStart? {
         let gap = townsGap ?? frontier
         var rng = SRng(seed)
         let m = mats(style)
@@ -228,7 +231,9 @@ enum Village {
                     guard abs(street - hi) <= 4 && abs(street - lo) <= 4 else { continue }
                     // Two blocks spare on each side along the street too: neighbours stood wall to wall and their roof
                     // eaves ran into each other (blind critic, run 364 cherry-grove village).
-                    claim(ax - nx - 2 * ux, az - nz - 2 * uz, fx + nx + 2 * ux, fz + nz + 2 * uz)
+                    // (P62 wide towns: four blocks, and a deeper yard behind.)
+                    let spare = wide ? 4 : 2, back = wide ? 3 : 1
+                    claim(ax - nx - spare * ux, az - nz - spare * uz, fx + nx * back + spare * ux, fz + nz * back + spare * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
                     let job = shopHere ? shopQueue.removeFirst().rawValue : jobs[rng.int(jobs.count)]
                     // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
@@ -236,7 +241,7 @@ enum Village {
                     let floorY = kind == .smithy ? street : street + 1
                     lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job))
                 }
-                s += rng.range(7, 10)
+                s += wide ? rng.range(9, 13) : rng.range(7, 10)
             }
         }
         guard lots.count >= 6 else { return nil }
