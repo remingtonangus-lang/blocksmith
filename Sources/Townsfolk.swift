@@ -42,6 +42,12 @@ struct TownState {
     var warned = false
     var drawn: Float = 0            // > 0: the gun is out (his challenge, before the fight starts)
     var lastDuel: Double = -1000    // when he last duelled the player (a long calm brings the warning shot back)
+    // TownStats (the person's toughness, speed, strength and attack rate), cached with the role it was rolled for.
+    var stats: TownStats?
+    var statsRole = ""
+    var statsProf = ""
+    var statsShop = ""
+    var statsBaby = false
 }
 
 enum Townsfolk {
@@ -250,15 +256,17 @@ extension Mob {
         let dist = simd_length(V2(at.x - pos.x, at.z - pos.z))
         face(at)
         moving = dist > w.reach * 0.8
+        let st = townStats
         if attackCooldown <= 0 && dist < w.reach + (town.foe?.halfW ?? 0.3) && abs(at.y - pos.y) < (w == .revolver ? 8 : 2.5) {
-            attackCooldown = w.cooldown
+            attackCooldown = w == .revolver ? w.cooldown : w.cooldown / st.rate        // TownStats: how fast they swing
             town.swing = 0.45
             if w == .revolver { TownLaw.shoot(self, g); return moving ? spec.speed * 1.35 : 0 }
             g.sfx(.attack, 0.7, at: at)
+            let dmg = max(1, Int((Float(w.damage) * st.strength).rounded()))           // and how hard
             if let f = town.foe {
-                f.hit(from: pos, damage: w.damage, knockback: 0.7)
+                f.hit(from: pos, damage: dmg, knockback: 0.7 * min(1.4, st.strength))
             } else {
-                g.hurtPlayer(w.damage, from: pos, cause: "was struck down by \(villager?.person ?? "a townsperson")", knockback: 0.8, attacker: self)
+                g.hurtPlayer(dmg, from: pos, cause: "was struck down by \(villager?.person ?? "a townsperson")", knockback: 0.8 * min(1.4, st.strength), attacker: self)
             }
         }
         return moving ? spec.speed * 1.35 : 0

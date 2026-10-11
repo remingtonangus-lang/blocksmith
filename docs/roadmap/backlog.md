@@ -47,10 +47,10 @@ B1. Sheriff's six-iron and the iron rule. [DONE: Lane B thread, 2026-10-11, PR #
 - Damage tuned per armour tier and documented: leather or none = death in one shot, iron = several shots, diamond and up = chip damage.
 - Taking a village: defeat the sheriff and deputies; the town surrenders, becomes yours (trade discounts, tribute, a bed and storage), honour consequences, and nearby towns react.
 
-B2. Townsfolk variety. [CLAIMED: Lane B thread, 2026-10-11] Intent: villager attack rates, health and speed vary.
+B2. Townsfolk variety. [DONE: Lane B thread, 2026-10-11, PR #32; docs/status/townsfolk-variety.md] Intent: villager attack rates, health and speed vary.
 - Per-person stats rolled from role and age: farmers weak and slow, blacksmiths strong, deputies fast and armed. Visible cues (build, tools) so players can read them.
 
-B3. Hunting like RDR2. Intent: hunting with pelts and the rest.
+B3. Hunting like RDR2. [CLAIMED: Lane B thread, 2026-10-11] Intent: hunting with pelts and the rest.
 - Animal quality (poor, good, perfect) shown when studying an animal; clean kills with the right weapon keep perfect pelts; skinning animation; pelts, meat, hides and trophies.
 - A trapper or butcher in towns buys pelts by quality; crafted outfits, saddles and satchels from pelts (bigger inventory).
 - Legendary animals with map clues and unique pelts. Fishing with species, sizes and a fishing minigame that works in VR.
