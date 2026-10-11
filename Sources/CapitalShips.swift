@@ -102,6 +102,9 @@ final class CapitalState {
     var launchDir = V3(1, 0, 0)
     var phaseT: Float = 0
     var troopsLeft = 0
+    var fuel: Float = CapitalState.dropFuel            // a commandeered drop craft: seconds of thrust left (P66)
+    static let dropFuel: Float = 240
+    var fuelTold = 0
 }
 
 // Who stands at a capital vehicle's crew post. The vehicle is a machine: it drives while its driver lives and the
@@ -520,6 +523,11 @@ enum Capital {
         hb.fill(-1, 1, 1, 2, 1, 3, hull)                         // nose
         hb.fill(-1, 1, 3, 4, 1, 3, glass)                        // cockpit glazing
         hb.set(0, 3, 0, glass)
+        // P66 (Oct 11 evening playtest: "the pilot can hardly see"): the bulkhead between the helm and the glazing was
+        // solid hull at eye height. Open it into a cockpit, with side windows beside the helm.
+        hb.fill(-1, 1, 2, 3, 3, 5, AIR)
+        hb.fill(-1, 1, 3, 4, 2, 3, glass)
+        for sx in [-2, 2] { hb.set(sx, 3, 4, glass); hb.set(sx, 3, 5, glass); hb.set(sx, 3, 6, glass) }
         for sx in [-1, 1] {
             hb.fill(min(sx * 3, sx * 4), max(sx * 3, sx * 4), 3, 3, 9, 13, panel)     // stub wings
             hb.fill(sx * 5, sx * 5, 2, 3, 8, 14, hull)           // engine pods
@@ -1073,6 +1081,7 @@ extension ShipManager {
         let speed: Float = drop ? 24 : (meridian ? 42 : 16)
         var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * speed : 0)
         want.y = steered ? s.climb * (drop ? 8 : (meridian ? 10 : 5)) : 0
+        if drop && steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
         // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
         let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
@@ -1087,6 +1096,32 @@ extension ShipManager {
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // P66: a commandeered drop craft burns fuel while it thrusts (four minutes on full tanks). Running dry, it takes
+    // coal, charcoal or blaze rods from the pilot's pack (a lump is 40 s, a rod 80 s); with none, it sinks gently
+    // to the ground. Returns false when there is no fuel.
+    static let fuelItems: [(String, Float)] = [("blaze_rod", 80), ("coal", 40), ("charcoal", 40), ("coal_block", 360)]
+    func dropFuel(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) -> Bool {
+        if abs(s.throttle) > 0.05 || abs(s.climb) > 0.05 { st.fuel -= dt }
+        if st.fuel <= 0 {
+            for (k, secs) in ShipManager.fuelItems where Items.has(k) {
+                let id = Items.id(k)
+                if g.inventory.main.remove(id, 1) == 1 {
+                    st.fuel += secs
+                    g.onToast?("Refuelled the \(s.name) with \(Items.def(id).display)")
+                    break
+                }
+            }
+        }
+        if st.fuel > 30 { st.fuelTold = 0 }
+        if st.fuel <= 30 && st.fuel > 0 && st.fuelTold == 0 { st.fuelTold = 1; g.onToast?("\(s.name): fuel low. Carry coal or blaze rods") }
+        if st.fuel <= 0 {
+            st.fuel = 0
+            if st.fuelTold < 2 { st.fuelTold = 2; g.onToast?("\(s.name): out of fuel. It settles to the ground") }
+            return false
+        }
+        return true
     }
 
     // The drive's glow (done audit 25b6, G8: "thrusters read as two small points at night"): a soft blue-white sprite
