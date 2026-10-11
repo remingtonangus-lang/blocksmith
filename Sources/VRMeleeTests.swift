@@ -203,7 +203,9 @@ enum VRMeleeTests {
             game.inventory.held = key.isEmpty ? .empty : ItemStack(Items.id(key), 1)
             let z = zombie(P + V3(0, 0, -2))
             let hz = z.health
-            ticks(40) { z.pos = P + V3(0, 0, -2); z.vel = .zero; game.input.leftClicked = true }
+            // Let the attack charge, then click every 10 ticks (clicking every tick failed 20 -> 20 on CI, as in QuestSim 3884a415).
+            var t = 0
+            ticks(60) { z.pos = P + V3(0, 0, -2); z.vel = .zero; t += 1; game.input.leftClicked = t >= 30 && t % 10 == 0 }
             check(z.health < hz, "Swing melee holding \(key.isEmpty ? "nothing" : key): the trigger attacks (\(hz) -> \(z.health))")
             remove(z)
         }

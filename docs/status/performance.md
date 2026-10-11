@@ -137,6 +137,9 @@ the next lever is drawing far leaves as opaque blocks (no alpha test, which tile
 it fails on the render-distance governor test and the counted-work budgets (quads, tick CPU, unmeshed share); the
 frame-time p99/hitch lines are printed for the record only (a shared CI VM's GPU is not a Quest). Locally (quiet Mac)
 the frame-time limits gate too.
+First CI run (run 38100602991, 20 s routes): governor PASS; taiga 456k quads, tick CPU p99 2.1 ms, frame p99 15.7 ms
+(info); flyover 362k quads (budget was 360k; 320k on Oct 10 before the Deep/honour merges), 2.2% not meshed, frame
+p99 18.6 ms (info). Flyover budget now 380k; the +13% quads since the merges is open (task 25b4zxxx).
 
 ## Still to measure on the headset
 
