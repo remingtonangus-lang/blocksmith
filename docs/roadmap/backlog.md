@@ -26,6 +26,33 @@ P14. Footsteps still sound like walking through mud; one unidentified sound play
 P15. Frame rate dropped to about 22 fps in a survival world at high render distance; find the scene from the notes state lines and fix the cause.
 Praised, keep: performance at 24 chunks, removing the big water buckets, cave mob density, jungle, hell blocks, the Powderwight look, raw titanium.
 
+## PLAYTEST Oct 11 midday (P16-P38): same priority as P1-P15
+He played build 3222ab3d (12:40-13:31); notes 12:40 onward in docs/playtests/2026-10-11/voice-notes.md (with repro lines). Several repeat P items because no P fix had shipped yet; check against claude/quest-port first.
+P16. VR melee (extends P13): swings at targets below the player never hit; only one hit registers per few hundred ms when swinging fast (allow several hits per second); damage should scale with swing speed; leave a visible hit mark (red streak) on what you hit.
+P17. The held sword is see-through edge-on and looks like five pieces stitched together: give held tools real thickness and a clean single mesh.
+P18. Lava next to him did not spill/flow toward him (12:42); water falling one block looks wrong from the side (with P1).
+P19. Minecraft lookalike content: a deep-dark-style cave with a warden-like mob appeared, which he never asked for (12:45-12:48). Audit for content copied from Minecraft (warden, deep dark, end city and similar) and replace it with original designs or remove it (IP rule).
+P20. Teleported through a wall of blocks once (12:48, collision/rubber-band bug).
+P21. Unclear objects: something at 12:52 he could not identify (make its purpose obvious) and an eye-like item/creature at 13:03 that looks poor; find them from the repro lines.
+P22. Coral underwater looks low effort; rework coral and reef looks.
+P23. Capital base soldiers must not respawn once killed, so a base or city can be cleared for good.
+P24. Villages need things to steal: chests in houses, and a register/strongbox chest behind the general store counter; chest placement in buildings must make sense, and buildings should have a readable purpose instead of filler.
+P25. Input bug: the left grip / a stuck trigger auto-placed blocks (a crafting table) repeatedly (12:56-12:57).
+P26. Horses: taming is undiscoverable (no pat prompt; hand-only patting unexplained); bonding levels rise far too fast (aim for RDR2-like riding time); verify speed tiers (his horse felt very slow); a way to call your horse (e.g. hold A to whistle); a spare horse walks into him (follow to near, not onto, the player); a horse he attacked would not die and froze in place; some hits on a horse do no damage; the running animation looks wrong. Keep: the horse rearing/falling backwards.
+P27. Hostile mobs should not be out in daylight; follow the day/night cycle.
+P28. Crafting shows only that you can make an item; show how many (e.g. 6 chests).
+P29. General store: an empty map for 6 dollars must be a treasure map or cost much less; check prices (titanium ingot 5 dollars felt cheap); the pistol sold by the sheriff looks wrong.
+P30. Titanium armour vs guns: he lost no health at all under gunfire; armour should take heavy durability damage from bullets (that part is good) but some damage must still get through; swords should do little to it. A shock weapon held by enemies looks far more powerful in the inventory than it is; match its look to its strength.
+P31. Hostages tell him to put his weapon away while held hostage by the soldiers he is fighting; fix that dialogue (hands-up is good).
+P32. Guns: the reload button still does not work; guns are not accurate enough; rounds land higher than the sights; the Farsight rifle cannot aim down its scope.
+P33. Capital assault: entering a capital base should trigger an alarm and send reinforcements from the capital tower; it should be genuinely hard. Tower interiors: denser, narrow corridors, less open space (inspired by the N64 Siberia facility feel, all original).
+P34. Capital special food: more technologically advanced rations unique to the capital.
+P35. Some building pillars float above the ground (foundations must reach the terrain).
+P36. The radar blocks in capital bases should do something (e.g. reveal patrols or other bases when used).
+P37. A sheriff office/jail rework (with G14): the current one looks poor.
+P38. Hunger still drains too fast when sprinting (same as P12).
+Praised, keep: wind sounds (perfect), terrain generation improved, titanium ingot look, helicopters, armour shattering under fire, hostages raising hands, guns badly damaging titanium armour.
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
