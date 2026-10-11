@@ -73,26 +73,80 @@ B7. The Reich below hell. Intent: below hell is Nazi Germany: tiger tanks, black
 ## LANE M (the Mac worker; needs the device or the Mac)
 
 M1. Polygon terrain test. Intent: a test of the polygon idea to see how it turns out. Build on the smooth-terrain prototype (task 25b3) and make it playable as an option on Quest so Remington can walk around in it; screenshots and fps compared with blocks.
-M2. Redstone works well. Full logic parity with the genre reference: dust, repeaters, comparators, pistons, observers, hoppers; a test world with standard circuits that all pass.
+M2. (moved to lane C as L2)
 M3. Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
 
-## OVERSEER'S FEATURES (Claude's own list, equal weight to Remington's; lane in brackets)
-C1. [B] Railways and train robberies: craftable track, steam locomotives and carriages; scheduled passenger and cargo trains between towns and countries; RDR-style hold-ups (stop the train, crack the strongbox, escape the posse) with honour and bounty fallout; armoured trains in the Ash Vault.
-C2. [B] Heists: bank and payroll heists in towns with scouting, a plan (loud or quiet), a VR safe-crack and lock-pick minigame, getaway on horseback, wanted level by witnesses.
-C3. [A] Stealth and disguises (GoldenEye and Metal Gear feel): light and noise meters, guard sight cones and suspicion states, silent VR takedowns, wearing a troop's uniform to walk through lower base tiers until a higher rank looks closely, cameras and alarm panels.
-C4. [A] Siege warfare: siege engines (ram, trebuchet, the existing siege carriage, mortars) to crack castle bases and walled towns; walls with damage states; defenders on ramparts; you can also be besieged.
-C5. [A] The living war map: the Capital, the military, the navy, the countries and the Reich hold territory and push front lines over in-game weeks; battles happen without you; your actions tip them; a war table in captured bases shows it.
-C6. [B] Your own nation: villages and bases you take become provinces; settlers arrive, build and farm; you set taxes and laws; they need defending; your flag flies on the map; a capital you design.
-C7. [B] Your gang camp (RDR2 camp): recruitable members with names and skills, a camp ledger, upgrades (bigger tents, a cook, an armoury), members who go on jobs and bring loot or trouble, camp morale.
-C8. [M] Physical VR crafting: hammering blades on the anvil, sharpening, fitting gun parts, physical reloads (drop the mag, seat a new one, rack the slide), holstering on the body; always with a seated or Reclined shortcut.
-C9. [A] Field radio and support: once you hold a base, call in artillery, supply drops or a frigate bombardment on a map grid, with cooldowns and cost; enemies can jam it.
-C10. [A] Airships and a sky layer: the Capital's armoured airships as mobile fortresses patrolling high above; board one with a flyer or a grapple; a small cloud-island layer mirroring the Deep below, with its own loot.
-C11. [A] Submarines, wrecks and mines: build or capture a submarine; sunken warships and treasure wrecks to dive; naval mines and torpedoes; the navy hunts you with sonar.
-C12. [B] Seasons: spring, summer, autumn, winter over in-game weeks; lakes freeze, snow on trees, crops by season, animals migrate, hunting seasons, festivals in towns.
-C13. [B] Legendary weapons and armour: named one-off items from bosses, legendary animals and command fortresses, each with a story, a look and a unique perk; a gallery in your base.
-C14. [B] Jobs and contracts: notice boards in towns, bases and countries offering procedural jobs (escort, delivery, bounty, clear a camp, defend a town) that pay money and reputation and pull you around the world.
-C15. [A] Mining expeditions: dynamite, mine carts and rail inside mines, supports and cave-ins, gas pockets and lamps; deep ore veins worth an expedition.
-C16. [A+B, last] Co-op for two players on Quest: a friend joins your world (host-authoritative), shares horses, vehicles and heists. The biggest sales driver on Quest, and the biggest job, so it goes last, after the single-player game is store-ready.
+## LANE C (optional third cloud thread): looks, redstone, polish
+Moved from the Mac queue on Oct 10 21:52 (Quest is the product; judge on QuestSim, Mac renderer only where shared code forces it).
+
+L1. Look upgrade.
+LOOK UPGRADE (not texture style - that waits for Remington's pick): 1) a realistic sky with real-looking clouds (cheap: a few layers/billboards or a 2D cloud texture scrolled, no expensive volumetrics on Quest). 2) Redesign mob and animal models so they stop looking fake/cheap: better proportions, silhouettes, animation; 3) replace the creeper with an original mob that fills its role (keep save compatibility). 4) Tree shapes: more natural, varied silhouettes. Keep compute flat or lower. Blocksmith rules: branch claude/quest-port (shared gameplay also to claude/blocksmith-playtest); read docs/status/quest-port.md first; his saved world must keep loading (backup + migration test). Commit after each item. Verify with ./build.sh fast and --questbugs/QuestSim checks (judge downscaled screenshots yourself). Ship: push, ONE blocking wait per Quest CI run, confirm the APK on quest-dist, install if adb shows the Quest, add notes to quest-port.md. Bar: store quality. Remington gives you wide leeway: if you see anything else that would make the game better without costing more compute, do it.
+
+EXPANDED OBJECTIVES (overseer, 10-10 14:45; meet these as well as the items above):
+SKY: day gradient that shifts with sun height; real sunrise/sunset colours; moon with phases and stars at night; 2-3 cloud layers at different speeds following one wind direction; overcast and rain skies darken the world and the clouds; storms with distant lightning flashes; the sky matches each biome (hazier in desert, cold blue in snow); cheap on Quest (measure).
+MOBS AND ANIMALS: every mob gets walk, run, idle, attack, hurt and death animations (no sideways flip deaths); heads track the player; hurt flash and knockback that read clearly; sounds matched to the new looks; size/colour variants and babies for animals; hostile silhouettes readable at night at 20 blocks; a before/after screenshot sheet for every mob.
+CREEPER REPLACEMENT: a design note (name, look, behaviour, counterplay, drops, advancement); a clear telegraph (sound and visual) before it detonates or attacks; it fills the same gameplay role (punishes inattention, damages builds) but is original; old saves convert existing creepers.
+TREES: at least 4 shapes per species with branches and root flare; leaf colour varies with biome; occasional fallen logs, stumps and dead trees; big rare old trees; far-LOD silhouettes match the new shapes; no floating leaves after generation changes.
+GENERAL: golden screenshot set before and after (day, night, rain, 3 biomes); fps measured on the Quest build before and after with no regression; list anything else you improved under the 'wide leeway' rule.
+
+NOTE (10-10 21:26): Quest renderer first. Do the sky, mobs, creeper replacement and trees in shared code + the Quest renderer; touch the Mac Metal renderer only where shared code forces it.
+
+L2. Redstone.
+REDSTONE: Build a redstone test world with standard circuits (clocks, T flip-flops, piston doors, item sorters, observers, comparator subtraction) and make every one behave like the genre reference; automate the check.
+
+L3. Oct 10 AM playtest flesh-out list (skip towns items; lane B owns them).
+FLESH-OUT of the Oct 10 AM playtest task (Remington, 10-10 14:45). That task got his literal list; these are the extra objectives (written by the overseer) it must also meet. Read what 25b4z already shipped (git log, docs/playtests/2026-10-10/voice-notes-status.md), skip what is truly MET, build the rest. Grade everything at the end with the DONE GATE reviewer.
+TEXTURES/GROUND
+- Before/after captures from the Quest build at 1, 4 and 16 blocks for stone, chest, grass, ores, planks; put them in the status doc.
+- No shimmering or moire at distance (tune mip bias per material), no blur up close; consistent texel density across all blocks.
+- Ores readable at 10+ blocks; every ore distinct by colour and shape, not just tint.
+- Grass: 3-4 top variants with random rotation so tiling never shows, biome tint, a proper side overhang; grass side reads at a glance.
+- Flower bushes: 2-3 variants, cheap wind sway, rustle sound when walked through.
+RENDER DISTANCE / PERF
+- Hysteresis: auto-drop only after sustained low fps, auto-recover after sustained headroom; never ratchet down forever.
+- An optional perf overlay (fps, frame ms, render distance, chunk jobs) in settings.
+- A 20-minute soak in the busiest town and the taiga on the Quest build with logged min/avg fps; list the top 3 frame-time costs and what was done about each.
+WORLD GEN
+- Capitals: a minimum distance from spawn and from each other, checked over 50 seeds with the numbers in the doc; spawn always gets a natural start area.
+- Volcanoes: foothills that blend (gradient of tuff/ash/basalt into the biome), a cheap smoke plume visible far away, lava glow at night, a correct far-LOD silhouette, rare small eruptions with particles and rumble.
+- Ruined portals: rare, each one with loot worth the detour and a reason to exist.
+TOWNS
+- Townsfolk have names shown when looked at, greet by time of day, have work and sleep hours; shops close at night with a sign.
+- Wallet: animated gain/loss with a coin sound; prices and the emerald exchange rate shown in every shop UI.
+- Theft uses line of sight: unseen theft found later costs less; witnesses run to the sheriff; a bounty that fades over time or can be paid.
+- Sheriff: patrol routes, warns first, can fine or arrest instead of always fighting; despawns/respawns sensibly; never kills the player over a tiny theft.
+- Voice lines: at least 8 per role per situation (greet, trade, warn, angry, flee, goodbye), never the same line twice in a row, spatial audio with falloff, optional subtitles.
+- Old-save migration test: a pre-towns save loads with every villager converted.
+CAMPS
+- At least 5 camp types (hunter, trader, bandit, deserter, surveyor), each with a campfire (light, smoke, cooking), a tent or lean-to, loot that fits, and an owner; some friendly (trade, rest), some hostile.
+- Rarity tuned so you find one every 10-15 minutes of travel; respawn rules documented.
+SWING MODE / RECLINED MODE
+- First-use tutorial prompt for each mode; mode switch reachable in VR without taking the headset off.
+- Blade trail, a tiny hit-stop on contact, damage scaled by swing speed, distinct haptics for flesh, armour and stone.
+- Friendly-fire guard: swinging near villagers, pets or your horse never hurts them unless you deliberately attack.
+- Enemy wind-ups are telegraphed (pose plus sound) so physical dodging and blocking are fair; sword-on-weapon contact can parry.
+- Reclined mode: a soft aim-assist cone, seated height calibration, comfort defaults (snap turn, vignette).
+BOW
+- Nock animation, draw creak, string vibration and sound on release, draw strength sets speed and damage, arrows can be picked up; works left- and right-handed; crossbow uses the same hand logic.
+Finish: update voice-notes-status.md with evidence per note, ship one Quest build (tools/quest-local.sh, install if adb sees the Quest), DONE GATE.
+
+NOTE (10-10 21:20): TOWNS items in this list now belong to the cloud lane (it shipped towns/honour/sheriff in PRs #19-#20); skip them here.
+
+## OVERSEER'S FEATURES (Claude's list, trimmed by Remington Oct 10 21:52; lane in brackets)
+C1. [B] Railways (procedural, rare): rail lines generated with the world, linking several villages and towns, so finding one is a big find: it is fast travel to many places. Generation must be robust: lines follow terrain with cuttings, bridges and tunnels, stations only at real villages, never through structures, never floating; a worldgen check over 50 seeds proves it. Steam trains run the lines on a timetable; you can ride, and RDR-style train robberies (stop the train, crack the strongbox, outrun the posse) carry honour and bounty fallout. Armoured trains in the Ash Vault.
+C2. [A] The living war map, procedural only: factions hold generated territory and front lines shift over in-game weeks from simulation, not hand-placed events; battles happen without you; your actions tip them; a war table in captured bases shows it. If it can't be made fully procedural and stable, drop it and say so.
+C3. [B] Your own nation: villages and bases you take become provinces; settlers arrive, build and farm; you set taxes and laws; they need defending; your flag on the map; a capital you design.
+C4. [B] On-device AI villagers (placeholder): define a clean interface (VillagerMind) that a small language model can drive for dialogue, opinions and daily choices, running on the device's neural engine or NPU when available (Apple Foundation Models on Mac, the Quest's NPU later), with today's scripted behaviour as the fallback. Ship only the interface, the scripted implementation and a stub; no model yet.
+C5. [M] Physical VR crafting and guns: hammering blades on the anvil, sharpening, fitting gun parts, physical reloads (drop the mag, seat a new one, rack the slide), holstering on the body; always with a seated or Reclined shortcut.
+C6. [A] Radio spoofing: at a military base's radio room (or a Capital comms post), pose as the garrison and request help. Other bases of the same faction actually send it: supply drops or a truck convoy (military), a frigate strike on a map grid (Capital or navy). It only works for a while: a suspicion meter rises with each request and with odd requests; when they find out, the faction goes on alert, sends a hunter squad and stops answering that radio.
+C7. [A] Airships and a sky layer: the Capital's armoured airships patrol high above; board one with a flyer or a grapple; a small cloud-island layer mirroring the Deep below, with its own loot.
+C8. [A] Submarines, wrecks and mines: build or capture a submarine; sunken warships and treasure wrecks to dive; naval mines and torpedoes; the navy hunts you with sonar.
+C9. [B] Seasons: spring to winter over in-game weeks; lakes freeze, snow on trees, crops by season, animals migrate, hunting seasons, town festivals.
+C10. [B] Legendary weapons and armour: named one-off items from bosses, legendary animals and command fortresses, each with a story, a look and a unique perk; a gallery in your base.
+C11. [B] Jobs and contracts: notice boards in towns, bases and countries with procedural jobs (escort, delivery, bounty, clear a camp, defend a town) paying money and reputation.
+C12. [B] Mining expeditions replace genre-style abandoned mineshafts: real working mines attached to big villages (mining towns), with dynamite, mine carts and rail, supports and cave-ins, gas pockets and lamps, miners, and deep veins worth an expedition.
+C13. [B] Village size variety: village sizes span hamlet, village, town, large town and city, with rarity scaling exponentially (each size roughly 3 to 4 times rarer than the one below). Bigger places get more shops, a mine, a rail station if a line passes, more law. Check the size histogram over 50 seeds.
+C14. [A+B, last] Two-player co-op on Quest: a friend joins your world (host-authoritative), shares horses, vehicles and robberies. The biggest sales driver on Quest and the biggest job, so it goes last, after the single-player game is store-ready.
 
 ## SMALLER IDEAS (take when a lane is empty)
 O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
