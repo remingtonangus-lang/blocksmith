@@ -82,3 +82,14 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   the clock is put back; D2's battle checks tick it too, so the check now asks the stablehand at noon); "powderwight: strikes its fuse" (the Powderwight's first look is a random 0-0.5 s off: the
   check zeroes it); "deep war ... Marshal" (a barrage shell downed the test player and calmed every mob: the war sim
   puts the Ashguard back on the player). The boreal birdCall check stays known red.
+
+## 2026-10-11: quest-port's own full-run failures, and the citadel battle budget (B7 thread, PR #46)
+- Full questcheck on quest-port @ a9c5347 itself (cloud, 4 cores) fails 16: boreal birdCall; maingun ring/crater/scorch
+  (load-sensitive, see above); law x5, honour x2, bounty, honour gap (heat stays 0.0: they pass under `--towns-only`, so
+  they depend on what earlier checks leave in the game); six-iron telegraph; countries ore; and "ash vault perf: the
+  biggest battle" at 10.07-10.80 ms avg against its 10 ms debug budget. Owner: the towns/honour and Deep lanes.
+- B7 (the last war) adds the Last Line round the citadel: its eight MG bunkers (one gunner each) and four dug-in gate
+  tanks join that battle (136 units). Measured on one machine: 10.83 ms without them, ~12.5-13.7 ms with (debug build,
+  about +0.5 ms optimized). The Last Line's garrison was cut from ~44 to 12 to get there; the vehicles also got distance
+  detail levels so "ash vault draw" stays inside its mob vertex budget (3.5 of 4.0 MB). The perf check stays red until
+  the battle's per-unit AI cost comes down (the tanks are the dearest).

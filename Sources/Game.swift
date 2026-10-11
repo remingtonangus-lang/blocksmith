@@ -132,6 +132,9 @@ final class Game {
     var deepLifts: [IVec3] = []     // Deep Lifts the player set down (the way-up marker), saved
     var sealShafts: [IVec3] = []    // shafts the player blew through the seal (the way-up marker in the vault), saved
     var ashVictory = false
+    var ashStage = 0                // the last war (AshFinal.swift): 0 the war, 1 the last battle, 2 the bunker open, 3 won (saved)
+    var ashWave = 0                 // the last battle's wave (saved)
+    let lastWar = LastWar()
     var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
     var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
     var ashSpot: V3?                // where an Ashguard unit last saw the player (the field guns fire on it)
@@ -2470,6 +2473,7 @@ final class Game {
         TickProf.mark("ashen")
         deepTick(Float(dt))
         hellTick(Float(dt))
+        lastWarTick(Float(dt))
         TickProf.mark("deep")
         advancementTick()
         TickProf.mark("advancements")

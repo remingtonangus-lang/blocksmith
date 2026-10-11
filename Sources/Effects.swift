@@ -413,6 +413,7 @@ extension Game {
         if deepVisited { d["deepVisited"] = "1" }
         if smoothTerrain { d["terrain"] = "smooth" }
         if ashVictory { d["ashVictory"] = "1" }
+        if ashStage > 0 { d["ashStage"] = "\(ashStage)"; d["ashWave"] = "\(ashWave)" }
         if ashOfficerHint { d["ashOfficerHint"] = "1" }
         if !wokenGates.isEmpty { d["gates"] = wokenGates.joined(separator: ";") }
         if let r = deepReturn { d["deepReturn"] = "\(r.x),\(r.y),\(r.z)" }
@@ -448,6 +449,9 @@ extension Game {
         smoothTerrain = d["terrain"] == "smooth"
         SmoothTerrain.use(world: smoothTerrain, world: world)
         ashVictory = d["ashVictory"] == "1"
+        ashStage = ashVictory ? 3 : max(0, min(3, d["ashStage"].flatMap { Int($0) } ?? 0))
+        ashWave = max(0, min(AshFinal.waves.count - 1, d["ashWave"].flatMap { Int($0) } ?? 0))
+        lastWar.spawned = false; lastWar.wave.removeAll(); lastWar.vanished = 0; lastWar.breather = 6; lastWar.inBunker = 0
         wokenGates = (d["gates"] ?? "").split(separator: ";").map(String.init)
         func v3(_ s: String?) -> V3? {
             guard let p = s?.split(separator: ",").compactMap({ Float(String($0)) }), p.count == 3 else { return nil }

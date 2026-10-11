@@ -508,6 +508,10 @@ extension Game {
                         && simd_length(V2(player.vel.x, player.vel.z)) > 0.06 && !player.flying {
                 dmg = 1; cause = "was poked to death by a sweet berry bush"      // a grown bush hurts anyone moving through it
             }
+            else if Player.wireID != AIR && (feet == Player.wireID || body == Player.wireID)
+                        && simd_length(V2(player.vel.x, player.vel.z)) > 0.06 && !player.flying {
+                dmg = 1; cause = "was caught on the wire"                          // barbed wire scratches anyone pushing through
+            }
             else {
                 // Cactus: touching any side.
                 let mn = V3(p.x - 0.31, p.y, p.z - 0.31), mx = V3(p.x + 0.31, p.y + 1.8, p.z + 0.31)

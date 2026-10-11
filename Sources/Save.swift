@@ -169,7 +169,7 @@ final class SaveManager {
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
         if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
-        if deepSeal { DeepSeal.stamp(&out) }
+        if deepSeal { DeepSeal.stamp(&out); AshFinal.stamp(&out, cx: k.x, cz: k.z) }
         return out
     }
 

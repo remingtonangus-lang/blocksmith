@@ -7,8 +7,8 @@ import simd
 // "kind[:fuel][@ash][^heading]".
 
 extension MobKind {
-    var ash: Bool { rawValue >= MobKind.ashTank.rawValue && rawValue <= MobKind.ashMarshal.rawValue }
-    var ashVehicle: Bool { self == .ashTank || self == .ashHalftrack || self == .ashArtillery || self == .ashTruck }
+    var ash: Bool { (rawValue >= MobKind.ashTank.rawValue && rawValue <= MobKind.ashMarshal.rawValue) || self == .ashBehemoth || self == .ashChancellor }
+    var ashVehicle: Bool { self == .ashTank || self == .ashHalftrack || self == .ashArtillery || self == .ashTruck || self == .ashBehemoth }
     var ashArmoured: Bool { ashVehicle }
 
     var ashSpec: Spec {
@@ -25,6 +25,14 @@ extension MobKind {
         case .ashTruck:
             return Spec(name: "Ashguard Truck", halfW: 1.2, height: 2.4, health: 40, speed: 0, behavior: .monster,
                         drops: [("iron_ingot", 0, 2), ("bread", 1, 4), ("rifle_rounds", 2, 8)], xp: 8, call: .gun(12))
+        case .ashBehemoth:
+            return Spec(name: "Ashguard Behemoth", halfW: 2.4, height: 3.5, health: 700, speed: 1.4, behavior: .monster,
+                        drops: [("iron_ingot", 8, 16), ("netherite_scrap", 1, 3), ("heavy_rounds", 6, 14), ("gunpowder", 4, 10)], xp: 220,
+                        call: .gun(12), fireImmune: true)
+        case .ashChancellor:
+            return Spec(name: "The Ash Chancellor", halfW: 0.36, height: 2.0, health: 420, speed: 2.8, behavior: .monster,
+                        drops: [("diamond", 4, 9), ("gold_ingot", 8, 16), ("netherite_scrap", 2, 4), ("gun_hagel", 1, 1)], xp: 500,
+                        call: .gun(11), fireImmune: true)
         default:
             return Spec(name: "The Ash Marshal", halfW: 0.38, height: 2.1, health: 380, speed: 3.0, behavior: .monster,
                         drops: [("gold_ingot", 4, 9), ("diamond", 2, 5), ("heavy_rounds", 4, 10), ("arc_cell", 2, 4), ("marshal_cap", 1, 1)], xp: 250,
@@ -42,6 +50,7 @@ extension Mob {
         case .ashHalftrack: return (8, 2)
         case .ashArtillery: return (6, 0)
         case .ashTruck: return (4, 0)
+        case .ashBehemoth: return (16, 6)
         default: return (8, 2)
         }
     }
@@ -50,7 +59,13 @@ extension Mob {
     // monsters). `loading`: a saved soldier keeps the health it was saved with.
     func ashSetup(loading: Bool = false) {
         faction = Faction.ashguard.rawValue
+        // The army carries its own period-style arms (AshArms.swift); a soldier saved with a Capital gun swaps it on load.
+        if Soldier.rank(kind) != nil && !Guns.isAshArm(variant) {
+            variant = Soldier.ashGun(kind, roll: Rand.float(in: 0..<1))
+            if let b = brain { b.gun = variant; b.mag = Guns.all[variant].mag }
+        }
         if kind == .ashMarshal { scale = 1.12; return }
+        if kind == .ashChancellor || kind == .ashBehemoth { persistent = true; return }
         if !kind.ash, let r = Soldier.rank(kind) {
             spec.name = Mob.ashNames[r]
             power = 1.4
@@ -88,6 +103,7 @@ extension Mob {
     var ashTurretY: Float {
         switch kind {
         case .ashTank: return 33.5 / 16
+        case .ashBehemoth: return 46 / 16
         case .ashHalftrack: return 30 / 16
         default: return 14 / 16
         }
@@ -176,14 +192,7 @@ extension Mob {
         b.ashTimer -= dt
         if b.sees && b.ashTimer <= 0 && dist > 5 {
             b.ashTimer = g.difficulty >= 3 ? 9 : 12
-            let p = g.player.pos
-            let lead = V3(g.player.vel.x, 0, g.player.vel.z) * 1.2
-            for k in 0..<3 {
-                let off = k == 0 ? V3.zero : V3(Rand.float(in: -4...4), 0, Rand.float(in: -4...4))
-                g.ashStrikes.append(AshStrike(at: p + lead + off, t: 2 + Float(k) * 0.45, power: 1.5, from: ObjectIdentifier(self), by: spec.name))
-            }
-            g.sfx(.gun(10), 1.2, at: p)
-            g.onToast?("The Ash Marshal marks your position: move!")
+            g.ashMarkBarrage("The Ash Marshal marks your position: move!", from: self, by: spec.name)
         }
         return sp
     }
@@ -213,7 +222,7 @@ extension Mob {
             g.mobs.mobs.append(m)
         }
         g.sfx(.gun(10), 1.6, at: pos)
-        g.onToast?("The Ash Marshal calls his guard")
+        g.onToast?("\(spec.name) calls his guard")
     }
 
     // MARK: Vehicles
@@ -238,7 +247,7 @@ extension Mob {
             return 0                                              // a quiet unit far off costs nothing
         }
         let pivot = pos + V3(0, ashTurretY, 0)
-        let sight: Float = kind == .ashArtillery ? 48 : (kind == .ashTank ? 72 : 56)
+        let sight: Float = kind == .ashArtillery ? 48 : (kind == .ashTank || kind == .ashBehemoth ? 72 : 56)
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.35 + Rand.float(in: 0..<0.1)
@@ -274,7 +283,7 @@ extension Mob {
     // Turret / gun laying toward a world yaw and pitch at the unit's traverse rates.
     private func ashSlew(_ dt: Float, toYaw want: Float, pitch: Float) {
         let b = soldierBrain
-        let rate: Float = kind == .ashHalftrack ? 2.6 : (kind == .ashArtillery ? 0.6 : 0.9)
+        let rate: Float = kind == .ashHalftrack ? 2.6 : (kind == .ashArtillery ? 0.6 : (kind == .ashBehemoth ? 0.5 : 0.9))
         var d = want - b.turret
         while d > .pi { d -= 2 * .pi }
         while d < -.pi { d += 2 * .pi }
@@ -323,7 +332,7 @@ extension Mob {
         g.arms.spawn(s)
         for _ in 0..<4 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
         g.addFlash(at: muzzle + fwd * 0.4, color: V3(6, 3.5, 1.6), radius: 7, life: 0.08)
-        g.sfx(.gun(9), kind == .ashTank ? 1.3 : 1.1, at: muzzle)
+        g.sfx(.gun(9), kind == .ashBehemoth ? 1.5 : (kind == .ashTank ? 1.3 : 1.1), at: muzzle)
         soldierBrain.kick = 1
     }
 
@@ -334,7 +343,8 @@ extension Mob {
         let toT = t - pivot
         let flat = simd_length(V2(toT.x, toT.z))
         let wantYaw = atan2f(-toT.x, -toT.z)
-        let v: Float = 70, gr: Float = 9
+        let big = kind == .ashBehemoth
+        let v: Float = big ? 76 : 70, gr: Float = 9
         let pitch = max(-0.14, min(0.35, ashPitch(pivot, t, v: v, gr: gr, high: false) ?? 0.1))
         ashSlew(dt, toYaw: wantYaw, pitch: pitch)
         let off = ashTurretOff(wantYaw)
@@ -342,16 +352,21 @@ extension Mob {
         if b.sees && off < 0.05 && abs(pitch - b.pitch) < 0.04 && b.reload <= 0 && flat > 5 {
             if b.charge == 0 { g.sfx(.gun(12), 1, at: pivot) }
             b.charge += dt
-            if b.charge >= 0.6 {
+            if b.charge >= (big ? 0.9 : 0.6) {
                 b.charge = 0
-                b.reload = [10, 9, 7.5, 5.5][max(0, min(3, g.difficulty))]
-                ashCannon(g, power: 1.3, speed: v, gravity: gr, len: 5.2, spread: 0.02)
+                b.reload = (big ? [13, 12, 10, 8] : [10, 9, 7.5, 5.5])[max(0, min(3, g.difficulty))]
+                ashCannon(g, power: big ? 1.9 : 1.3, speed: v, gravity: gr, len: big ? 7.6 : 6.1, spread: 0.02)
+                if big { b.ashTimer = 1.6 }                     // the coaxial gun follows
             }
         } else if b.charge > 0 && (!b.sees || off > 0.2) {
             b.charge = 0
         }
-        ashMG(dt, g, t, dist: flat, off: off, len: 3.4, range: 44)
-        return ashDrive(dt, g, wantYaw: wantYaw, flat: flat, near: 12, far: 26, circle: false)
+        if big && b.ashTimer > 0 {
+            b.ashTimer -= dt
+            if b.ashTimer <= 0 && b.sees { ashCannon(g, power: 1.0, speed: v, gravity: gr, len: 4.6, spread: 0.03) }
+        }
+        ashMG(dt, g, t, dist: flat, off: off, len: big ? 4.4 : 3.4, range: 44)
+        return ashDrive(dt, g, wantYaw: wantYaw, flat: flat, near: big ? 14 : 12, far: big ? 30 : 26, circle: false)
     }
 
     // Half-track: fast, circles at 12-24 blocks, a pintle MG that swings all round.
@@ -394,7 +409,7 @@ extension Mob {
         var d = goal - yaw
         while d > .pi { d -= 2 * .pi }
         while d < -.pi { d += 2 * .pi }
-        let turn: Float = kind == .ashHalftrack ? 1.4 : 0.7
+        let turn: Float = kind == .ashHalftrack ? 1.4 : (kind == .ashBehemoth ? 0.35 : 0.7)
         yaw += max(-turn * dt, min(turn * dt, d))
         if abs(d) > 0.6 { speed *= 0.3 }
         if speed != 0 {
@@ -458,6 +473,10 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
     let pitch = b?.pitch ?? 0
     let kick = (b?.kick ?? 0) * 5
     var p: [Part] = []
+    // Level of detail while the mob pass draws (SoldierRig.eye, the soldiers' mid distance): past 34 blocks the small
+    // parts (wheels, links, grilles, dischargers) go; the hull, turret, gun and markings stay. The citadel battle's
+    // vehicles stay inside the mob vertex budget (questcheck's "ash vault draw").
+    let fine: Bool = { guard SoldierRig.drawing, let e = SoldierRig.eye else { return true }; return simd_length_squared(m.pos - e) < 34 * 34 }()
     func turned(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, pivot: V3, gun: Bool = false, pat: Float = 7) {
         var q = box(x, y, z, w, h, d, c, pat)
         q.pivot = pivot
@@ -465,71 +484,150 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         if gun { q.rotX = pitch }
         p.append(q)
     }
+    let white = V3(0.82, 0.81, 0.78)
+    // The ember mark on a flank: a white disc (a square at this size) with the black bar.
+    func mark(_ x: Float, _ y: Float, _ z: Float, side: Float, size: Float) {
+        p.append(box(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, white))
+        p.append(box(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark))
+    }
+    func turnedMark(_ x: Float, _ y: Float, _ z: Float, side: Float, size: Float, pivot: V3) {
+        turned(x - (side < 0 ? 0.4 : 0), y, z, 0.4, size, size, white, pivot: pivot, pat: 0)
+        turned(x - (side < 0 ? 0.8 : -0.4), y + size * 0.15, z + size * 0.38, 0.4, size * 0.7, size * 0.24, dark, pivot: pivot, pat: 0)
+    }
     switch m.kind {
     case .ashTank:
-        // Tracks with road wheels and fenders, a low hull with a sloped glacis, a cast turret with a long gun.
+        // A heavy tank in the period's style: a slab hull with a near-vertical front plate, big interleaved road wheels,
+        // a flat-sided superstructure over the tracks, a boxy turret with a long gun and a double-baffle muzzle brake.
         for s: Float in [-1, 1] {
-            let x0: Float = s < 0 ? -27 : 17
-            p.append(box(x0, 0, -44, 10, 16, 88, dark, 4))
-            for k in 0..<5 { p.append(box(s < 0 ? -27.6 : 26.6, 3, Float(k) * 16 - 37, 1, 10, 10, steel, 8)) }
-            p.append(box(s < 0 ? -28 : 16, 16, -46, 12, 2, 92, black, 7))
-            p.append(box(s < 0 ? -20.5 : 17.5, 20, 42, 3, 2, 0.6, glow, 9))          // tail lights
+            let xo: Float = s < 0 ? -27 : 17
+            p.append(box(xo, 0, -42, 10, 13, 84, dark, 4))                                    // track
+            for k in 0..<8 where fine {                                                        // interleaved road wheels
+                let outer = k % 2 == 0
+                let x: Float = s < 0 ? (outer ? -28.0 : -27.5) : (outer ? 27.0 : 26.9)
+                p.append(box(x, 1.5, Float(k) * 9.5 - 40, outer ? 1.0 : 0.6, 11, 11, steel * (outer ? 1 : 0.8), 8))
+                if outer { p.append(box(s < 0 ? -28.4 : 27.9, 6, Float(k) * 9.5 - 35.6, 0.5, 2.2, 2.2, dark)) }
+            }
+            p.append(box(s < 0 ? -28 : 18, 4, -46, 10, 10, 6, steel, 8))                      // drive sprocket
+            p.append(box(s < 0 ? -21 : 18, 20, 40.6, 3, 2, 0.6, glow, 9))                     // tail lights
+            mark(s < 0 ? -28.4 : 28.4, 19.5, 6, side: s, size: 8)
         }
-        p.append(box(-17, 6, -42, 34, 14, 84, black, 7))
-        p.append(box(-24, 18, -36, 48, 8, 76, plate, 7))
-        p.append(box(-22, 12, -46, 44, 8, 10, plate, 7))                               // glacis
-        p.append(box(-24.4, 21, -8, 48.8, 2, 22, red))                                 // ember band on both flanks
-        p.append(box(-6, 15, -46.6, 12, 4, 0.8, red))                                  // front plate marking
-        for x: Float in [-16, -6, 4] { p.append(box(x, 26, 24, 8, 1, 12, dark)) }     // engine grilles
-        p.append(box(-15, 20, 40, 4, 7, 4, steel, 8)); p.append(box(11, 20, 40, 4, 7, 4, steel, 8))
+        p.append(box(-17, 6, -42, 34, 12, 84, black, 7))                                       // lower hull
+        p.append(box(-28, 18, -36, 56, 10, 74, plate, 7))                                      // superstructure over the tracks
+        p.append(box(-28, 10, -44, 56, 18, 8, plate, 7))                                       // near-vertical front plate
+        if fine {
+            p.append(box(-24, 12, -44.8, 48, 5, 0.8, dark, 4))                                 // spare track links
+            for k in 0..<8 { p.append(box(-23 + Float(k) * 6, 12, -45.2, 0.6, 5, 0.4, steel)) }
+            p.append(box(-21, 22, -44.6, 9, 2, 0.6, V3(0.03, 0.03, 0.03)))                     // driver's visor
+            p.append(box(8, 20.5, -44.8, 5, 5, 1, steel, 8))                                   // hull MG ball
+            p.append(box(9.8, 22.3, -48.6, 1.4, 1.4, 4, dark, 8))
+            for x: Float in [-16, -6, 4] { p.append(box(x, 28, 22, 8, 0.6, 12, dark)) }       // engine deck grilles
+        }
+        p.append(box(-28.4, 25, -30, 56.8, 2, 20, red))                                        // red band on both flanks
+        for x: Float in [-15, 11] {                                                            // exhaust stacks with guards
+            p.append(box(x, 14, 38, 4, 13, 4, steel, 8))
+            if fine { p.append(box(x + 0.5, 27, 38.5, 3, 0.6, 3, V3(0.02, 0.02, 0.02))) }
+        }
         let pv = V3(0, 33.5, -2)
-        turned(-15, 26, -18, 30, 14, 32, black, pivot: pv)
-        turned(-13, 28, 14, 26, 10, 8, plate, pivot: pv)                               // bustle
-        turned(-15.4, 35, -12, 30.8, 2, 22, red, pivot: pv, pat: 0)                    // turret band
-        turned(-11, 40, 2, 9, 5, 9, plate, pivot: pv)                                  // cupola
-        turned(-10, 45, 3, 7, 1, 7, dark, pivot: pv)
-        turned(9, 40, 10, 0.6, 24, 0.6, steel, pivot: pv)                              // antenna
-        turned(-7, 29, -23, 14, 9, 6, plate, pivot: pv, gun: true)                     // mantlet
-        turned(-1.6, 31.9, -80 + kick, 3.2, 3.2, 58, steel, pivot: pv, gun: true, pat: 8)
-        turned(-2.6, 30.9, -86 + kick, 5.2, 5.2, 7, dark, pivot: pv, gun: true, pat: 8)  // muzzle brake
-        turned(4, 30, -26, 1.5, 1.5, 4, dark, pivot: pv, gun: true)                    // coaxial MG
-        if let c = b?.charge, c > 0 { turned(-1.2, 32.3, -86.6, 2.4, 2.4, 0.5, V3(1.5 + c * 3, 0.5, 0.15), pivot: pv, gun: true, pat: 9) }
+        turned(-19, 28, -20, 38, 14, 34, black, pivot: pv)                                     // boxy turret
+        turned(-18, 42, -18, 36, 0.8, 30, plate, pivot: pv)                                    // roof
+        turned(-15, 30, 14, 30, 9, 8, plate, pivot: pv)                                        // stowage bin
+        turned(-19.4, 37, -14, 38.8, 2, 20, red, pivot: pv, pat: 0)                            // turret band
+        turned(-14, 42.8, 2, 9, 4, 9, plate, pivot: pv)                                        // commander's cupola
+        if fine {
+            turnedMark(-19.4, 30, -6, side: -1, size: 6, pivot: pv); turnedMark(19.4, 30, -6, side: 1, size: 6, pivot: pv)
+            turned(-13, 46.8, 3, 7, 0.8, 7, dark, pivot: pv)
+            for s: Float in [-1, 1] { turned(s < 0 ? -21 : 19, 36, -16, 2, 2, 2.5, steel, pivot: pv, pat: 8) }   // smoke dischargers
+            turned(12, 42, 10, 0.6, 22, 0.6, steel, pivot: pv)                                 // antenna
+        }
+        turned(-10, 29, -25, 20, 11, 5, plate, pivot: pv, gun: true)                           // mantlet
+        turned(-1.6, 32.9, -96 + kick, 3.2, 3.2, 72, steel, pivot: pv, gun: true, pat: 8)      // long gun
+        turned(-3, 31.5, -100.4 + kick, 6, 6, 2.0, dark, pivot: pv, gun: true, pat: 8)         // double-baffle muzzle brake
+        if fine {
+            turned(-3, 31.5, -97.2 + kick, 6, 6, 1.4, dark, pivot: pv, gun: true, pat: 8)
+            turned(5, 31, -28, 1.5, 1.5, 4, dark, pivot: pv, gun: true)                        // coaxial MG
+        }
+        if let c = b?.charge, c > 0 { turned(-1.2, 33.3, -100.8, 2.4, 2.4, 0.5, V3(1.5 + c * 3, 0.5, 0.15), pivot: pv, gun: true, pat: 9) }
+    case .ashBehemoth:
+        // The Behemoth: a super-heavy tank twice the Cinder's mass, skirted tracks, a huge rounded turret with a main gun
+        // and a shorter coaxial gun.
+        for s: Float in [-1, 1] {
+            p.append(box(s < 0 ? -38 : 26, 0, -58, 12, 16, 116, dark, 4))                    // tracks
+            p.append(box(s < 0 ? -39.5 : 37.5, 4, -56, 2, 13, 112, plate, 7))                  // side skirts
+            for k in 0..<9 { p.append(box(s < 0 ? -40 : 39.5, 6, Float(k) * 12.5 - 52, 0.5, 6, 0.8, steel)) }
+            p.append(box(s < 0 ? -40 : 39.5, 18, -40, 0.5, 2.5, 80, red))
+            mark(s < 0 ? -40 : 40, 7, 10, side: s, size: 9)
+            p.append(box(s < 0 ? -30 : 26, 26, 56.6, 4, 2.5, 0.6, glow, 9))
+        }
+        p.append(box(-26, 10, -56, 52, 20, 112, black, 7))                                     // hull
+        p.append(box(-38, 16, -62, 76, 12, 8, plate, 7))                                       // stepped front
+        p.append(box(-38, 28, -58, 76, 6, 6, plate, 7))
+        p.append(box(-38, 29, -52, 76, 8, 104, plate, 7))                                      // superstructure
+        p.append(box(-14, 30, -62.6, 10, 2.5, 0.6, V3(0.03, 0.03, 0.03)))                      // driver's visor
+        for x: Float in [-24, -12, 0, 12] { p.append(box(x, 37, 26, 10, 0.6, 18, dark)) }      // engine deck
+        for x: Float in [-20, 16] { p.append(box(x, 30, 50, 5, 14, 5, steel, 8)) }
+        let pv = V3(0, 46, 0)
+        turned(-24, 37, -30, 48, 18, 50, black, pivot: pv)                                     // turret
+        turned(-22, 55, -26, 44, 1, 42, plate, pivot: pv)
+        turned(-24.4, 48, -20, 48.8, 2.5, 30, red, pivot: pv, pat: 0)
+        turnedMark(-24.4, 39, -2, side: -1, size: 8, pivot: pv); turnedMark(24.4, 39, -2, side: 1, size: 8, pivot: pv)
+        turned(-16, 55, 4, 10, 5, 10, plate, pivot: pv)                                        // cupola
+        turned(14, 55, 14, 0.7, 26, 0.7, steel, pivot: pv)
+        turned(-13, 39, -36, 26, 15, 6, plate, pivot: pv, gun: true)                           // mantlet
+        turned(-2.4, 44, -122 + kick, 4.8, 4.8, 86, steel, pivot: pv, gun: true, pat: 8)       // main gun
+        turned(-3.4, 43, -124 + kick, 6.8, 6.8, 3, dark, pivot: pv, gun: true, pat: 8)         // muzzle ring
+        turned(6, 41.5, -74 + kick * 0.5, 2.6, 2.6, 38, steel, pivot: pv, gun: true, pat: 8)   // coaxial gun
+        if let c = b?.charge, c > 0 { turned(-1.6, 44.8, -124.6, 3.2, 3.2, 0.5, V3(1.5 + c * 3, 0.5, 0.15), pivot: pv, gun: true, pat: 9) }
     case .ashHalftrack:
+        // An armoured half-track: wheels at the front, tracks behind, an angular hull with stepped plates, an open top
+        // and a shielded machine gun.
         for s: Float in [-1, 1] {
-            p.append(box(s < 0 ? -20 : 14, 0, -38, 6, 12, 12, dark, 4))                 // front wheels
-            p.append(box(s < 0 ? -20.5 : 19.5, 3, -35, 1, 6, 6, steel, 8))
-            p.append(box(s < 0 ? -20 : 12, 0, -6, 8, 11, 40, dark, 4))                  // rear tracks
-            p.append(box(s < 0 ? -21 : 14, 12, -40, 7, 2, 16, black, 7))                // fenders
+            p.append(box(s < 0 ? -20 : 14, 0, -40, 6, 12, 12, dark, 4))                       // front wheels
+            if fine { p.append(box(s < 0 ? -20.5 : 19.5, 3, -37, 1, 6, 6, steel, 8)) }
+            p.append(box(s < 0 ? -20 : 12, 0, -8, 8, 10, 42, dark, 4))                         // rear tracks
+            for k in 0..<4 where fine { p.append(box(s < 0 ? -20.6 : 19.6, 1.5, Float(k) * 9.5 - 6, 1, 7, 7, steel * (k % 2 == 0 ? 1 : 0.8), 8)) }
+            p.append(box(s < 0 ? -21 : 15, 12, -42, 6, 1.5, 16, black, 7))                    // fenders
+            // Stepped side plates: lower, then a narrower upper course leaning in.
+            p.append(box(s < 0 ? -17 : 13, 10, -26, 4, 7, 62, black, 7))
+            p.append(box(s < 0 ? -16 : 13, 17, -26, 3, 8, 62, plate, 7))
+            p.append(box(s < 0 ? -16.4 : 16, 21, -20, 0.4, 2, 40, red))
+            mark(s < 0 ? -16.4 : 16.4, 18, 14, side: s, size: 5)
         }
-        p.append(box(-12, 10, -46, 24, 12, 20, black, 7))                              // engine hood
-        p.append(box(-9, 11, -46.8, 18, 9, 1, dark))                                   // radiator
-        p.append(box(-16, 10, -26, 32, 9, 16, black, 7))                               // cab
-        p.append(box(-16, 19, -26, 32, 5, 2, plate, 7))
-        p.append(box(-13, 19.5, -26.6, 26, 4, 1, V3(0.08, 0.09, 0.1), 11))             // vision slits
-        p.append(box(-16, 10, -10, 32, 4, 46, plate, 7))                               // troop bed
-        p.append(box(-16, 14, -10, 2, 12, 46, black, 7)); p.append(box(14, 14, -10, 2, 12, 46, black, 7))
-        p.append(box(-16, 14, 34, 32, 12, 2, black, 7))
-        p.append(box(-16.5, 22, -4, 33, 2, 30, red))
-        p.append(box(-19, 14, 35, 3, 2, 0.6, glow, 9)); p.append(box(16, 14, 35, 3, 2, 0.6, glow, 9))
-        let pv = V3(0, 30, 8)
-        turned(-1, 24, 7, 2, 6, 2, steel, pivot: pv, pat: 8)                           // pintle post
-        turned(-6, 27, 4, 12, 8, 1, plate, pivot: pv)                                  // gun shield
-        turned(-1, 29, -10, 2, 2.4, 20, steel, pivot: pv, gun: true, pat: 8)
+        p.append(box(-12, 8, -46, 24, 6, 20, black, 7))                                       // engine nose, stepped
+        p.append(box(-11, 14, -44, 22, 3, 18, plate, 7))
+        p.append(box(-10, 17, -38, 20, 3, 12, plate, 7))
+        if fine { p.append(box(-9, 9, -46.8, 18, 5, 1, dark)) }                                // radiator louvres
+        p.append(box(-14, 17, -27, 28, 9, 2, plate, 7))                                        // cab front plate
+        p.append(box(-11, 22, -27.6, 7, 1.2, 0.6, V3(0.03, 0.03, 0.03))); p.append(box(4, 22, -27.6, 7, 1.2, 0.6, V3(0.03, 0.03, 0.03)))
+        p.append(box(-13, 10, -25, 26, 5, 60, dark))                                           // troop compartment floor
+        if fine { p.append(box(-13, 15, -16, 3, 4, 46, plate)); p.append(box(10, 15, -16, 3, 4, 46, plate)) }   // bench seats
+        p.append(box(-13, 10, 35, 26, 15, 2, plate, 7))                                        // rear doors
+        if fine { p.append(box(-0.3, 12, 36.8, 0.6, 10, 0.6, dark)) }
+        p.append(box(-12, 16, 37, 3, 2, 0.6, glow, 9)); p.append(box(9, 16, 37, 3, 2, 0.6, glow, 9))
+        let pv = V3(0, 30, -12)
+        turned(-1, 25, -13, 2, 6, 2, steel, pivot: pv, pat: 8)                                 // pintle
+        turned(-7, 26, -15, 14, 9, 1, plate, pivot: pv)                                        // gun shield
+        turned(-1.1, 28.6, -30, 2.2, 2.4, 16, dark, pivot: pv, gun: true, pat: 8)              // perforated jacket
+        for z: Float in [-28.0, -24.5, -21.0] where fine { turned(-1.15, 29.2, z, 2.3, 0.6, 1.6, V3(0.02, 0.02, 0.02), pivot: pv, gun: true) }
+        turned(-0.7, 28.8, -32, 1.4, 1.8, 2.2, steel, pivot: pv, gun: true, pat: 8)
+        turned(-1.8, 26, -12, 3.6, 3, 2, steel, pivot: pv, gun: true, pat: 8)                  // receiver
     case .ashArtillery:
-        for s: Float in [-1, 1] {
-            p.append(box(s < 0 ? -18 : 14, 0, -9, 4, 18, 18, dark, 4))                 // wheels
-            p.append(box(s < 0 ? -18.6 : 17.6, 6, -3, 1, 6, 6, steel, 8))
-        }
-        p.append(box(-14, 7, -2, 28, 3, 4, steel, 8))                                  // axle
-        p.append(box(-9, 2, -1, 3, 6, 41, black, 7)); p.append(box(6, 2, -1, 3, 6, 41, black, 7))   // split trails, hinged on the axle
-        p.append(box(-11, 0, 38, 22, 4, 3, dark))                                      // spade
-        p.append(box(-16, 8, -9, 32, 20, 2, black, 7))                                 // shield
-        p.append(box(-16, 23, -9.6, 32, 2, 0.6, red))
-        p.append(box(8, 0, 18, 8, 6, 6, plate, 7))                                     // ready rounds
+        // A heavy flak gun on a cross-shaped platform: four outriggers with levelling pads, a tall pedestal, a shield
+        // and a long barrel with a muzzle brake and recoil cylinders.
+        p.append(box(-28, 0, -2, 56, 3, 4, black, 7)); p.append(box(-2, 0, -28, 4, 3, 56, black, 7))
+        for (x, z) in [(-30, -3), (26, -3), (-3, -30), (-3, 26)] as [(Float, Float)] { p.append(box(x, 0, z, 4, 1.2, 6, steel, 8)) }
+        p.append(box(-6, 3, -6, 12, 6, 12, plate, 7))                                          // pedestal
+        p.append(box(-9, 9, -7, 18, 5, 14, black, 7))                                          // upper carriage
+        p.append(box(-9, 9, -7, 2, 10, 14, black, 7)); p.append(box(7, 9, -7, 2, 10, 14, black, 7))   // trunnion cheeks
+        p.append(box(-17, 10, -13, 13, 15, 1.5, black, 7)); p.append(box(4, 10, -13, 13, 15, 1.5, black, 7))   // split shield
+        p.append(box(-17, 22, -13.6, 34, 2, 0.6, red))
+        p.append(box(-17.4, 13, -12, 0.4, 6, 6, white)); p.append(box(-17.8, 14, -9.7, 0.4, 4, 1.4, dark))
+        p.append(box(9, 3, 8, 8, 5, 6, plate, 7))                                              // ready rounds
+        p.append(box(-14, 6, 6, 4, 1, 4, dark)); p.append(box(10, 6, -10, 4, 1, 4, dark))     // layers' seats
         let pv = V3(0, 14, -2)
-        var q = box(-4, 10, -12, 8, 8, 22, plate, 7); q.pivot = pv; q.rotX = pitch; p.append(q)          // cradle
-        q = box(-1.6, 12.4, -60 + kick, 3.2, 3.2, 50, steel, 8); q.pivot = pv; q.rotX = pitch; p.append(q)
-        q = box(-2.5, 11.5, -64 + kick, 5, 5, 5, dark, 8); q.pivot = pv; q.rotX = pitch; p.append(q)
+        var q = box(-3, 11, -14, 6, 6, 26, plate, 7); q.pivot = pv; q.rotX = pitch; p.append(q)          // cradle
+        q = box(-1.2, 15.8, -30, 2.4, 2, 20, steel, 8); q.pivot = pv; q.rotX = pitch; p.append(q)       // recoil cylinders
+        q = box(-1.4, 12.6, -64 + kick, 2.8, 2.8, 52, steel, 8); q.pivot = pv; q.rotX = pitch; p.append(q)
+        q = box(-2.3, 11.7, -67 + kick, 4.6, 4.6, 3, dark, 8); q.pivot = pv; q.rotX = pitch; p.append(q)  // muzzle brake
     default:
         // Supply truck (canvas tilt) or fuel truck (tank with red bands).
         for z: Float in [-36, 10, 24] {

@@ -112,10 +112,17 @@ enum DeepTests {
         marshal.killedByPlayer = true
         marshal.hit(from: stand, damage: marshal.health + 400)
         sim(1)
-        check(g.ashVictory && g.advancements.contains("adventure/ash_victory") && g.creditsAsh && g.credits != nil,
-              "deep war: the Marshal's fall is the victory (advancement, epilogue)")
-        g.credits = nil; g.creditsAsh = false
+        check(!g.ashVictory && g.ashStage == 1, "deep war: the Marshal's fall starts the last battle (stage \(g.ashStage))")
+        // The victory is the Chancellor's (LastWarTests plays the battle and the bunker).
         g.mobs.mobs.removeAll()
+        let chancellor = unit("ash_chancellor^180", dz: 8)
+        chancellor.killedByPlayer = true
+        chancellor.hit(from: stand, damage: chancellor.health + 400)
+        sim(1)
+        check(g.ashVictory && g.ashStage == 3 && g.advancements.contains("adventure/ash_victory") && g.creditsAsh && g.credits != nil,
+              "deep war: the Ash Chancellor's fall is the victory (advancement, ending)")
+        g.credits = nil; g.creditsAsh = false
+        g.mobs.mobs.removeAll(); g.arms.slugs.removeAll()        // (the Chancellor's last rounds still in the air)
         hurt = 0
         _ = unit("ash_tank^180", dz: 24)
         sim(10)
@@ -136,6 +143,7 @@ enum DeepTests {
         g.ashTick()
         check(g.dim.dim == .overworld, "deep war: the lift in the bunker carries the player home after the victory")
         g.ashVictory = false
+        g.ashStage = 0; g.ashWave = 0; g.lastWar.wave.removeAll(); g.lastWar.spawned = false
         g.mobs.mobs = wasMobs
         g.survival = wasSurvival
         if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }

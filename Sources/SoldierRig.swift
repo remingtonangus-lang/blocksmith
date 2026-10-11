@@ -65,7 +65,12 @@ struct Livery {
             l.cloth = V3(0.075, 0.075, 0.085); l.legs = V3(0.06, 0.06, 0.07); l.plate = V3(0.14, 0.14, 0.15)
             l.trim = V3(0.62, 0.07, 0.05); l.accent = V3(0.75, 0.1, 0.06); l.metal = V3(0.24, 0.24, 0.26)
             l.glow = V3(2.4, 0.35, 0.2); l.glove = V3(0.05, 0.05, 0.05); l.boots = V3(0.03, 0.03, 0.03)
-            if m.kind == .ashMarshal { l.cloth = V3(0.1, 0.095, 0.1); l.trim = V3(0.85, 0.1, 0.06) }
+            if m.kind == .ashMarshal { l.cloth = V3(0.1, 0.095, 0.1); l.trim = V3(0.85, 0.1, 0.06); l.metal = V3(0.78, 0.8, 0.84) }
+            if m.kind == .ashChancellor {
+                // The Ash Chancellor: a long black leather coat, silver cords, pale and clean-shaven (a fictional figure).
+                l.cloth = V3(0.045, 0.045, 0.05); l.legs = V3(0.05, 0.05, 0.055); l.trim = V3(0.8, 0.08, 0.05)
+                l.metal = V3(0.8, 0.82, 0.86); l.skin = Livery.skins[4]; l.hair = Livery.hairs[3]
+            }
         } else if m.faction == Faction.meridian.rawValue {
             // The Meridian Navy: olive fatigues, gunmetal plate, amber visors (original livery, no insignia).
             l.cloth = V3(0.29, 0.31, 0.2); l.legs = V3(0.25, 0.27, 0.18); l.plate = V3(0.34, 0.36, 0.38)
@@ -588,6 +593,9 @@ enum SoldierRig {
     static func body(_ o: inout SoldierRigOut, _ m: Mob, _ p: SoldierPose, _ lv: Livery, rank r: Int, lod: Int) {
         let hc = V3(0, p.hipY, 0)
         let full = lod == 0, mid = lod <= 1
+        // The Ashguard wear the period's field dress in black (AshLook below): steel helmets, peaked caps, greatcoats,
+        // Y-straps and armbands, none of the Capital's plate.
+        let ash = m.faction == Faction.ashguard.rawValue
         // Torso-group box (standing coordinates), optionally tilted further about its own top joint.
         func tb(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float) {
             let mn = V3(x, y, z), mx = V3(x + w, y + h, z + d)
@@ -644,6 +652,14 @@ enum SoldierRig {
                 thigh(V3(side * 1.92 - 0.12, -thighLen, -0.5), V3(side * 1.92 + 0.12, 0.4, 0.5), lv.trim, Pat.cloth)   // stripe
                 if r != 5 { shin(V3(side * 1.86 - 0.11, bootTop, -0.5), V3(side * 1.86 + 0.11, 0.3, 0.5), lv.trim, Pat.cloth) }
             }
+            if ash {
+                if r == 4 {
+                    // Breeches flare at the thigh; the greatcoat's skirt falls to the knee over them.
+                    thigh(V3(-2.35, -4.4, -2.2), V3(2.35, -0.8, 2.2), lv.legs, Pat.cloth)
+                    thigh(V3(-2.5, -thighLen + 0.2, -2.5), V3(2.5, 0.9, 2.5), lv.cloth, m.kind == .ashChancellor ? Pat.leather : Pat.cloth)
+                }
+                continue
+            }
             switch r {
             case 1:
                 shin(V3(-1.7, -2.0, -2.35), V3(1.7, 0.9, -1.8), lv.plate, Pat.enamel)          // knee guard
@@ -668,11 +684,15 @@ enum SoldierRig {
         let beltC = r == 5 ? lv.dark : lv.plate
         tb(-4.2, 12.4, -2.2, 8.4, 1.6, 4.4, beltC, r == 5 ? Pat.leather : Pat.enamel)
         tb(-0.9, 12.55, -2.34, 1.8, 1.3, 0.16, lv.metal, Pat.metal)
-        if r != 3 { tb(-2.6, 23.4, -2.25, 5.2, 1.5, 4.5, r == 5 ? lv.plate : lv.trim, Pat.cloth) }
-        if mid && r != 3 && r != 5 {
-            tb(-0.35, 14, -2.1, 0.7, 9.4, 0.12, lv.trim, Pat.cloth)                              // placket
-            tb(-4.1, 10.4, -2.15, 8.2, 0.45, 4.3, lv.trim, Pat.cloth)                            // hem piping
+        let piping = ash ? lv.cloth * 1.35 : lv.trim
+        if r != 3 || ash { tb(-2.6, 23.4, -2.25, 5.2, 1.5, 4.5, r == 5 && !ash ? lv.plate : piping, Pat.cloth) }
+        if mid && ((r != 3 && r != 5) || ash) {
+            tb(-0.35, 14, -2.1, 0.7, 9.4, 0.12, piping, Pat.cloth)                               // placket
+            tb(-4.1, 10.4, -2.15, 8.2, 0.45, 4.3, piping, Pat.cloth)                             // hem piping
         }
+        if ash {
+            AshLook.torso(m, lv, rank: r, full: full, mid: mid, tb: tb, strap: strap)
+        } else {
         switch r {
         case 0:
             // Grey crossbelts over the white tunic, cartridge pouches, a small enamel pack.
@@ -763,7 +783,8 @@ enum SoldierRig {
             }
             if p.holster == 2 { tb(-3.4, 16.2, -2.9, 2.6, 4.0, 0.7, lv.dark, Pat.leather) }
         }
-        if p.holster == 1 && r != 4 { hang(V3(4.9, 12.9, -0.6), tilt: 0.1, V3(-0.8, -4.6, -1.2), V3(0.8, -0.2, 1.2), lv.dark, Pat.leather) }
+        }
+        if p.holster == 1 && (r != 4 || ash) { hang(V3(4.9, 12.9, -0.6), tilt: 0.1, V3(-0.8, -4.6, -1.2), V3(0.8, -0.2, 1.2), lv.dark, Pat.leather) }
 
         // Arms: upper arm, forearm, cuff, glove; rank shoulder pieces.
         for side in [-1, 1] as [Float] {
@@ -786,9 +807,12 @@ enum SoldierRig {
             o.parts.append(limb(s, e, w: aw, d: aw, top: 1.9, extra: 0.6, lv.cloth, Pat.cloth))
             let fl = simd_length(h - e)
             o.parts.append(on(e, fa, V3(-aw / 2 + 0.1, -fl + 1.2, -aw / 2 + 0.1), V3(aw / 2 - 0.1, 0.5, aw / 2 - 0.1), lv.cloth, Pat.cloth))
-            let gloveC = r == 3 ? lv.trim : lv.glove
-            o.parts.append(on(e, fa, V3(-1.45, -fl - 1.35, -1.45), V3(1.45, -fl + 1.25, 1.45), gloveC, r == 3 ? Pat.enamel : (r == 5 ? Pat.leather : Pat.cloth)))
-            if mid && r != 3 { o.parts.append(on(e, fa, V3(-1.85, -fl + 1.2, -1.85), V3(1.85, -fl + 2.0, 1.85), lv.trim, Pat.cloth)) }   // cuff
+            let gloveC = r == 3 && !ash ? lv.trim : lv.glove
+            o.parts.append(on(e, fa, V3(-1.45, -fl - 1.35, -1.45), V3(1.45, -fl + 1.25, 1.45), gloveC, r == 3 && !ash ? Pat.enamel : (r == 5 || ash ? Pat.leather : Pat.cloth)))
+            if mid && (r != 3 || ash) { o.parts.append(on(e, fa, V3(-1.85, -fl + 1.2, -1.85), V3(1.85, -fl + 2.0, 1.85), ash ? lv.cloth * 1.4 : lv.trim, Pat.cloth)) }   // cuff
+            if ash {
+                o.parts += AshLook.arm(s, ua, side: side, lv, rank: r, full: full, mid: mid)
+            } else {
             switch r {
             case 0, 2:
                 o.parts.append(on(s, ua, V3(-1.95, 1.3, -1.95), V3(1.95, 2.05, 1.95), lv.trim, Pat.cloth))            // shoulder board
@@ -821,6 +845,7 @@ enum SoldierRig {
                     o.parts.append(on(s, ua, V3(side * 1.72 - 0.08, -4.3, -1.2), V3(side * 1.72 + 0.08, -3.8, 1.2), lv.trim, Pat.cloth))
                 }
             }
+            }
             if !left && p.grenadeR {
                 o.parts.append(on(e, fa, V3(-1.0, -fl - 1.9, -1.0), V3(1.0, -fl + 0.1, 1.0), lv.dark, Pat.metal))
                 if full { o.parts.append(on(e, fa, V3(-0.3, -fl - 2.3, -0.3), V3(0.3, -fl - 1.9, 0.3), lv.glow, Pat.glow)) }
@@ -828,7 +853,7 @@ enum SoldierRig {
         }
 
         // Head: face, then the rank's headgear.
-        let faceOpen = !(r == 1 || r == 3 || (r == 5 && p.visorDown))
+        let faceOpen = ash ? r != 3 : !(r == 1 || r == 3 || (r == 5 && p.visorDown))
         hb(-4, 24, -4, 8, 8, 8, lv.skin, Pat.skin)
         if full && faceOpen {
             let white = V3(0.92, 0.91, 0.88), iris = V3(0.16, 0.2, 0.26)
@@ -841,7 +866,11 @@ enum SoldierRig {
         } else if mid && faceOpen {
             hb(-2.6, 27.3, -4.1, 1.4, 1.1, 0.12, V3(0.12, 0.13, 0.16), 0); hb(1.2, 27.3, -4.1, 1.4, 1.1, 0.12, V3(0.12, 0.13, 0.16), 0)
         }
-        if faceOpen && r != 5 { hb(-4.12, 24.8, 1.2, 8.24, 4.8, 2.92, lv.hair, Pat.cloth) }        // hair at the back
+        if faceOpen && (r != 5 || ash) { hb(-4.12, 24.8, 1.2, 8.24, 4.8, 2.92, lv.hair, Pat.cloth) }        // hair at the back
+        if ash {
+            AshLook.head(m, lv, rank: r, full: full, mid: mid, hb: hb)
+            return
+        }
         switch r {
         case 0:
             // Crested enamel helmet: dome, grey brow band, crest ridge, ear guards, chin strap, silver badge.
