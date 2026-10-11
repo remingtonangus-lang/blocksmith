@@ -285,7 +285,22 @@ final class QuestControls {
                 break
             }
         }
-        if !inMenu && !bagGrip && game.world.ships.pilot == nil {
+        // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip
+        // doesn't step the hotbar.
+        var magGrip = false
+        if !inMenu && !bagGrip && game.heldGun != nil && L.gripValid && R.gripValid {
+            let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
+                                   grip: lGrip, gripWas: prevGripL)
+            switch ev {
+            case .grabbed: app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
+            case .inserted:
+                app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+                app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+            default: break
+            }
+            magGrip = ev != .none || game.arms.magInHand || (lGrip && VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos)))
+        } else if game.heldGun == nil { game.arms.magInHand = false }
+        if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
@@ -1050,9 +1065,11 @@ final class QuestControls {
             let pos = rig.toWorld(hd.gripPos) - eye
             let rot = rig.toWorldRot(hd.gripRot)
             let base = h == aimHand ? V3(0.25, 0.27, 0.32) : V3(0.3, 0.3, 0.34)
-            for pi in 0..<3 {
-                let (c, half) = QuestControls.controllerParts[pi]
-                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : V3(0.12, 0.12, 0.14))
+            // A magazine in the off hand (VRReload): a dark steel box under the grip.
+            let parts = h == moveHand && game.arms.magInHand ? 4 : 3
+            for pi in 0..<parts {
+                let (c, half) = pi < 3 ? QuestControls.controllerParts[pi] : (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
+                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : (pi == 2 ? V3(0.12, 0.12, 0.14) : V3(0.2, 0.2, 0.22)))
                 for f in 0..<6 {
                     for k in QuestControls.quadOrder {
                         let ci = (f * 4 + k) * 3

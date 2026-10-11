@@ -33,6 +33,7 @@ enum PlaytestOct11Tests {
         shotsDrawFolk(game, check)
         tonics(check)
         townSpacing(game, check)
+        vrReload(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -667,5 +668,25 @@ enum PlaytestOct11Tests {
         let per = (0..<2).map { n[$0] > 0 ? Float(lots[$0]) / Float(n[$0]) : 0 }
         check(n[0] > 5 && Float(n[1]) >= Float(n[0]) * 0.7 && per[1] < per[0] * 0.9,
               String(format: "P62 town spacing: %d of %d sites still make a town; %.1f lots a town, was %.1f (more room between buildings)", n[1], n[0], per[1], per[0]))
+    }
+
+    // P56: VR manual reload: the off hand at the hip takes a magazine, the gun hand's grip takes it in and the gun is full.
+    static func vrReload(_ game: Game, _ check: (Bool, String) -> Void) {
+        let held0 = game.inventory.held, inv = game.inventory.main.slots, surv = game.survival
+        defer { game.inventory.main.slots = inv; game.inventory.held = held0; game.survival = surv; game.arms.magInHand = false }
+        game.survival = true
+        var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = 0
+        game.inventory.held = gun
+        let slot = (0..<36).first { $0 != game.selected && game.inventory.main[$0].isEmpty } ?? 20
+        game.inventory.main[slot] = ItemStack(Items.id("capital_rounds"), 40)
+        let head = game.player.eye, gunHand = head + V3(0.2, -0.35, -0.35)
+        let hip = head + V3(-0.25, -0.8, 0.05), mid = head + V3(0, -0.5, -0.3)
+        let away = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: false)
+        let grab = VRReload.tick(game, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false)
+        _ = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: true)
+        let ins = VRReload.tick(game, offHand: gunHand + V3(0, -0.08, 0.02), gunHand: gunHand, head: head, grip: true, gripWas: true)
+        let full = game.held.tag == Guns.magSize(game.held)
+        check(away == .none && grab == .grabbed && ins == .inserted && full,
+              "P56 VR reload: a grip away from the hip takes nothing (\(away)); at the hip a magazine (\(grab)); at the gun it slots in (\(ins)): \(game.held.tag) / \(Guns.magSize(game.held))")
     }
 }

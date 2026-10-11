@@ -52,6 +52,7 @@ final class Armory {
     var heldSlot = -1
     var placeCheck: Float = 0
     var lastNoise: Double = -10
+    var magInHand = false          // VR: a magazine taken from the hip, held in the off hand (VRReload)
     var shotsFired = 0             // harness counters
     var hits = 0
 
@@ -403,6 +404,19 @@ extension Game {
         }
     }
 
+    // Fills the held gun's magazine from the pack (a finished timed reload, or a VR magazine slotted in by hand).
+    func loadMagazine(_ gi: Int) {
+        let gs = Guns.all[gi]
+        var h = held
+        let mag = Guns.magSize(h)
+        let n = min(mag - h.tag, ammoCount(gs.ammo))
+        takeAmmo(gs.ammo, n)
+        h.tag += n
+        inventory.held = h
+        arms.cooldown = 0.15
+        if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(mag)") }
+    }
+
     @discardableResult
     func startReload(_ gi: Int) -> Bool {
         let gs = Guns.all[gi]
@@ -432,16 +446,7 @@ extension Game {
         a.aim += ((aiming ? 1 : 0) - a.aim) * min(1, dt * 12)
         if a.reload > 0 {
             a.reload -= dt
-            if a.reload <= 0 {
-                var h = held
-                let mag = Guns.magSize(h)
-                let n = min(mag - h.tag, ammoCount(gs.ammo))
-                takeAmmo(gs.ammo, n)
-                h.tag += n
-                inventory.held = h
-                a.cooldown = 0.15
-                if n > 0 { sfx(.gun(14), 0.9); onToast?("Loaded: \(h.tag) / \(mag)") }
-            }
+            if a.reload <= 0 { loadMagazine(gi) }
             return true
         }
         if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) {                                   // R (rebindable) or pad X
