@@ -335,6 +335,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         fpsFrames += 1
         fpsTime += dt
+        PerfOverlay.shared.add(frameMs: dt * 1000)
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
         adjustResolution(view)
@@ -2638,6 +2639,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             for line in debugLines() {
                 rect(L.insetX + 2 * s, y - s, textWidth(line, s) + 4 * s, 9 * s, V4(0, 0, 0, 0.35))
                 text(line, L.insetX + 4 * s, y, s, V4(0.9, 0.9, 0.9, 1), shadow: false)
+                y += 10 * s
+            }
+        } else if Settings.shared.perfOverlay {
+            // Performance overlay (PerfOverlay.swift): two lines in the top-right corner.
+            var y = L.insetY + 4 * s
+            for line in PerfOverlay.lines(fps: fps, gpuMs: gpuFrameMs, game: game) {
+                let tw = textWidth(line, s)
+                let x = W - L.insetX - tw - 4 * s
+                rect(x - 2 * s, y - s, tw + 4 * s, 9 * s, V4(0, 0, 0, 0.45))
+                text(line, x, y, s, V4(0.92, 0.95, 0.85, 1), shadow: false)
                 y += 10 * s
             }
         }

@@ -123,17 +123,40 @@ extension Renderer {
             // Smoke plume: crossed quads rising from the crater, widening, drifting downwind, fading.
             let t = Float(game.time.truncatingRemainder(dividingBy: 600))
             let windA: Float = 0.6
+            // Erupting (Eruptions.swift): the plume swells, darkens and boils up faster, its foot lit by the fountain,
+            // and glowing bombs arc out of the crater.
+            let er: Float = game.eruption.map { $0.v.x == v.x && $0.v.z == v.z ? $0.strength(game.clock) : 0 } ?? 0
+            if er > 0 {
+                let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
+                let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
+                let bs: Float = max(4, dist * 0.008)
+                for k in 0..<18 {
+                    let fk = Float(k)
+                    let ph = (ct * 0.32 + fk * 0.618).truncatingRemainder(dividingBy: 1)
+                    let a = fk * 2.399
+                    let ofs = V3(cosf(a), 0, sinf(a)) * (v.crater * 0.25 + ph * v.crater * 1.1)
+                    let hgt = v.rim + 4 + 110 * er * ph * (1 - ph) * 4 * (0.6 + 0.4 * sinf(fk * 1.7))
+                    let c = V3(v.x, Float(YOFF) + hgt, v.z) + ofs
+                    // A diamond in each of two crossed planes (a glowing lump from any side).
+                    let top = p(c + V3(0, bs, 0)), bot = p(c - V3(0, bs, 0))
+                    for side in [V3(bs * 0.7, 0, 0), V3(0, 0, bs * 0.7)] {
+                        let l = p(c - side), r = p(c + side)
+                        tri(l, r, top, bomb, &out); tri(r, l, bot, bomb, &out)
+                    }
+                }
+            }
             for j in 0..<7 {
                 let fj = Float(j)
-                let rise = fj * 26 + (t * 1.5).truncatingRemainder(dividingBy: 26)
-                let size = v.crater * (0.5 + fj * 0.28)
+                let rise = fj * (26 + 10 * er) + (t * 1.5 * (1 + 2 * er)).truncatingRemainder(dividingBy: 26 + 10 * er)
+                let size = v.crater * (0.5 + fj * 0.28) * (1 + 0.5 * er)
                 let drift = V3(cosf(windA), 0, sinf(windA)) * rise * 0.45
                 let ctrS = V3(v.x, Float(YOFF) + v.rim + 6 + rise, v.z) + drift
-                let alpha: Float = 0.42 * (1 - fj / 7)
-                // By night the plume is dark, its lower puffs lit orange by the lava under them.
-                let lavaLit: Float = (1 - day) * max(0, 1 - fj / 3) * 0.55
-                let grey = (V3(0.42, 0.41, 0.42) * (0.18 + 0.82 * day) + V3(1.0, 0.38, 0.1) * lavaLit) * hdrK
-                let sc = V4(grey * (1 - haze) + fog * haze, alpha)
+                let alpha: Float = min(0.85, 0.42 * (1 - fj / 7) * (1 + 0.7 * er))
+                // By night the plume is dark, its lower puffs lit orange by the lava under them (by day too, erupting).
+                let lavaLit: Float = ((1 - day) * 0.55 + er * 0.5) * max(0, 1 - fj / 3)
+                let grey = (V3(0.42, 0.41, 0.42) * (0.18 + 0.82 * day) * (1 - 0.6 * er) + V3(1.0, 0.38, 0.1) * lavaLit) * hdrK
+                let hz = haze * (1 - 0.5 * er)                // an eruption's ash column stands out of the haze
+                let sc = V4(grey * (1 - hz) + fog * hz, alpha)
                 for (ux, uz) in [(Float(1), Float(0)), (Float(0), Float(1))] {
                     let side = V3(ux, 0, uz) * size
                     let q0 = ctrS - side - V3(0, size * 0.6, 0), q1 = ctrS + side - V3(0, size * 0.6, 0)

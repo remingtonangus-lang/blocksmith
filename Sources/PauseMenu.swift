@@ -156,6 +156,7 @@ final class PauseMenu: Menu {
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Position, biome, frame rate and chunk details (F3).",
+        "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Blocksmith.",
         "totitle": "Save the world and return to the title screen.",
         "create": "Choose a name, seed, game mode and difficulty.",
@@ -253,6 +254,7 @@ final class PauseMenu: Menu {
                         ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
+                        ("Performance Overlay: \(on(st.perfOverlay))", "perf"),
                         ("Reset Options...", "resetask")]
                 if BugNotes.available {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
@@ -608,6 +610,7 @@ final class PauseMenu: Menu {
         case "crosshair": st.crosshair = step([0, 1, 2], st.crosshair)
         case "hidehud": g.hideHUD.toggle()
         case "debug": g.showDebug.toggle()
+        case "perf": st.perfOverlay.toggle(); PerfOverlay.shared.reset()
         case "subtitles": st.subtitles.toggle()
         case "colorblind": st.colorblind.toggle()
         case "tutorial": st.tutorialHints.toggle()

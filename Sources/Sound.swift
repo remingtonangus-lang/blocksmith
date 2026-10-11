@@ -93,6 +93,7 @@ enum Snd: Hashable {
     // Terrain and weather (TerrainAudio.swift): moving water, wind by landform, rain on leaves, snow, far thunder.
     case riverLoop, waterfallLoop, mountainWindLoop, tundraWindLoop, rainLeavesLoop, snowWindLoop, swampInsectsLoop
     case thunderFar, iceCreak, rockfall
+    case volcanoRumble                 // a volcano's eruption boom (Eruptions.swift)
     // A recorded townsfolk line (TownVoice.swift: index into TownVoice.takes; decoded on demand, never cached).
     case voice(Int)
 
@@ -132,7 +133,7 @@ enum Snd: Hashable {
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
              .mainGunCharge, .mainGunFire, .mainGunRumble: return .blocks
-        case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall: return .ambient
+        case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall, .volcanoRumble: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
         default: return .blocks
         }
@@ -159,6 +160,7 @@ enum Snd: Hashable {
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
         case .thunder: return 160
         case .thunderFar: return 400
+        case .volcanoRumble: return 1200
         case .rockfall: return 48
         case .bell, .fireworkBlast, .fireworkLaunch, .wardenRoar, .wardenEmerge, .sculkShriek, .mob(.ghast, _), .mobWailer, .beaconActivate: return 32
         default: return 16
@@ -213,6 +215,7 @@ enum Snd: Hashable {
         case .gunReload: return 0.4...2.5
         case .gunDistant: return 0.5...6
         case .thunderFar: return 2...9
+        case .volcanoRumble: return 3...10
         case .explodeLarge: return 1.5...8
         case .mainGunCharge: return 2.4...3.4
         case .mainGunFire: return 2...8
@@ -292,7 +295,7 @@ final class SoundBank {
               .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
               .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .mainGunCharge, .mainGunFire, .mainGunRumble]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-              .thunderFar, .iceCreak, .rockfall]
+              .thunderFar, .iceCreak, .rockfall, .volcanoRumble]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
         return s

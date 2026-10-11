@@ -296,6 +296,7 @@ extension Snd {
         case .thunderFar: return "Distant thunder"
         case .iceCreak: return "Ice creaks"
         case .rockfall: return "Rocks tumble"
+        case .volcanoRumble: return "Volcano rumbles"
         case .engineIdleLoop, .engineFullLoop: return "Engine runs"
         case .propSlowLoop, .propFastLoop: return "Propeller whirs"
         case .airshipWindLoop: return "Wind in the rigging"

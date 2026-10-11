@@ -155,6 +155,7 @@ final class WorldRenderer {
         if !skip.contains("extra") { extraOpaque?(s, eye) }
         if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
         if !skip.contains("sky") { drawSkyLayer(s, eye) }
+        if !skip.contains("landmarks") { drawLandmarkSmoke(s) }
         if !skip.contains("trans") { scene.drawTranslucent(s, underwater: game.player.headInWater) }
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
@@ -163,10 +164,13 @@ final class WorldRenderer {
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
-    // Opaque cones / spires (depth-writing, so the sky goes behind them), then their blended smoke (Renderer.encode).
+    // Opaque cones / spires (depth-writing, so the sky goes behind them) here; their blended smoke after the sky
+    // (drawLandmarkSmoke: it writes no depth, so the sky drawn after it covered every volcano plume on the Quest).
+    private var landmarkSmoke: (offset: Int, count: Int)?
     private func drawLandmarks(_ s: SceneRenderer.Slot, _ eye: V3, far: Float, fogColor: V3) {
         guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater else { return }
         var smokeStart = 0
+        landmarkSmoke = nil
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { landmarkMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
@@ -174,12 +178,16 @@ final class WorldRenderer {
         if let off = scene.push(s, landmarkVerts) {
             let stride = MemoryLayout<SimpleVert>.stride
             if smokeStart > 0 { scene.drawScratch(s, "simpleSolid", offset: off, count: smokeStart) }
-            if landmarkVerts.count > smokeStart {
-                scene.drawScratch(s, "simple", offset: off + smokeStart * stride, count: landmarkVerts.count - smokeStart)
-            }
+            if landmarkVerts.count > smokeStart { landmarkSmoke = (off + smokeStart * stride, landmarkVerts.count - smokeStart) }
         }
         landmarkCount = landmarkVerts.count
         landmarkVerts.removeAll(keepingCapacity: true)
+    }
+
+    private func drawLandmarkSmoke(_ s: SceneRenderer.Slot) {
+        guard let sm = landmarkSmoke else { return }
+        landmarkSmoke = nil
+        scene.drawScratch(s, "simple", offset: sm.offset, count: sm.count)
     }
 
     private func drawSkyLayer(_ s: SceneRenderer.Slot, _ eye: V3) {
