@@ -22,6 +22,7 @@ final class MapCache {
     struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int; var name: String? = nil }   // name: a town's
     private(set) var marks: [Mark] = []
     private var marksWorld = ""
+    func replaceMarks(_ m: [Mark]) { marks = m }       // (checks set marks aside and put them back)
     private var scanTimer: Double = 0
 
     var cellCount: Int { lock.lock(); defer { lock.unlock() }; return cells.count }     // smoke memory line

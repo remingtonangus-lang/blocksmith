@@ -32,10 +32,10 @@ enum FindabilityTests {
         check(camp.count == 6 && nearer >= 5, "findability: a camp holding orders (outlaw, abandoned or traders') is nearer spawn than a citadel on \(nearer) of 6 seeds: camps \(camp), citadels \(base)")
         // Reading the first orders marks a citadel (while none is on the map yet).
         guard g.dim.dim == .overworld else { return }
-        if MapCache.shared.marks.contains(where: { $0.kind == "military_base" }) {
-            print("findability: a citadel is already on this map; the first-orders check is skipped")
-            return
-        }
+        // (Earlier checks may have marked a citadel already: set them aside for this check.)
+        let marks0 = MapCache.shared.marks
+        defer { MapCache.shared.replaceMarks(marks0) }
+        MapCache.shared.replaceMarks(marks0.filter { $0.kind != "military_base" })
         let slot = g.inventory.selected
         let held = g.inventory.main[slot]
         defer { g.inventory.main[slot] = held }
