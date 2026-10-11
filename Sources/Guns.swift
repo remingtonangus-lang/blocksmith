@@ -59,8 +59,24 @@ enum Guns {
         GunSpec(key: "gun_revolver", name: "Six-Iron", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
                 spread: 0.026, aimSpread: 0.006, speed: 150, recoil: 0.065, reload: 2.4, range: 70, durability: 700, zoom: 0.86,
                 shot: .bullet, sound: 13, accent: V3(0.36, 0.2, 0.1)),
+        // The Ashguard's period-style arms (backlog B7, AshArms.swift): walnut and blued steel, carried by the army in
+        // the Ash Vault and dropped by its soldiers; never crafted. Each has its own sound slot (WeaponAudio 16-19).
+        GunSpec(key: "gun_kessel", name: "Kessel Bolt Rifle", ammo: "heavy_rounds", mag: 5, interval: 1.15, auto: false, damage: 16, pellets: 1,
+                spread: 0.03, aimSpread: 0.0012, speed: 280, recoil: 0.08, reload: 2.6, range: 220, durability: 900, zoom: 0.55,
+                shot: .bullet, sound: 16, accent: V3(0.4, 0.22, 0.11)),
+        GunSpec(key: "gun_hagel", name: "Hagel Machine Pistol", ammo: "rifle_rounds", mag: 32, interval: 0.11, auto: true, damage: 3, pellets: 1,
+                spread: 0.05, aimSpread: 0.028, speed: 120, recoil: 0.008, reload: 1.9, range: 60, durability: 1100, zoom: 0.9,
+                shot: .bullet, sound: 17, accent: V3(0.2, 0.2, 0.22)),
+        GunSpec(key: "gun_sturmwind", name: "Sturmwind Carbine", ammo: "rifle_rounds", mag: 30, interval: 0.13, auto: true, damage: 4.5, pellets: 1,
+                spread: 0.032, aimSpread: 0.008, speed: 150, recoil: 0.014, reload: 2.2, range: 100, durability: 1100, zoom: 0.8,
+                shot: .bullet, sound: 18, accent: V3(0.4, 0.22, 0.11)),
+        GunSpec(key: "gun_ashsaw", name: "Ashsaw Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
+                spread: 0.075, aimSpread: 0.016, speed: 150, recoil: 0.011, reload: 4.2, range: 110, durability: 1600, zoom: 0.85,
+                shot: .bullet, sound: 19, accent: V3(0.2, 0.2, 0.22)),
     ]
     static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
+    static let kessel = 8, hagel = 9, sturmwind = 10, ashsaw = 11
+    static func isAshArm(_ gi: Int) -> Bool { gi >= kessel && gi <= ashsaw }
     static let revolverKey = "gun_revolver"
     // Held in one hand on the march, two when aimed (soldier rig, pose checks).
     static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver }
@@ -257,7 +273,7 @@ enum Guns {
     ]
 
     static func painters(_ p: inout [String: TextureGen.Painter]) {
-        for (k, rows) in icons {
+        for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }) {
             let accent = all.first { $0.key == k }?.accent ?? V3(0.35, 0.4, 0.25)
             let grid = rows.map { Array($0) }
             p["item_" + k] = { x, y in
@@ -278,7 +294,7 @@ enum Guns {
         }
     }
 
-    static let soundCount = 16      // 14 loaded (bolt home), 15 last round (bolt locks open)
+    static let soundCount = 20      // 14 loaded (bolt home), 15 last round (bolt locks open), 16-19 the Ashguard's arms
     static var sounds: [Snd] { (0..<soundCount).map { Snd.gun($0) } }
 }
 

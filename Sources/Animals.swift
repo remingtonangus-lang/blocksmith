@@ -492,8 +492,10 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
-        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck:
+        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth:
             return ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
+        case .ashChancellor:
+            return ashChancellorAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .ashMarshal:
             return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:

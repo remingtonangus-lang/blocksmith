@@ -267,12 +267,14 @@ enum DeepGapTests {
         let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty
         let wasTime = g.time               // ~20 minutes of duels: put the clock back (later checks open shops by the hour)
         let wasVictory = g.ashVictory      // the Marshal's duel kills him: the army's standing down is put back after
+        let wasStage = g.ashStage, wasWave = g.ashWave   // (and his fall starts the last battle: put back too)
         g.ashVictory = false
         let armourSlots = g.inventory.armor.slots, mainSlots = g.inventory.main.slots, held = g.inventory.held
         defer {
             g.inventory.armor.slots = armourSlots; g.inventory.main.slots = mainSlots; g.inventory.held = held
             g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20; g.time = wasTime
             g.ashVictory = wasVictory; g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashSquadsSent = 0
+            g.ashStage = wasStage; g.ashWave = wasWave; g.lastWar.wave.removeAll(); g.lastWar.spawned = false; g.ashStrikes.removeAll()
             if g.dim.dim != homeDim { g.changeDimension(to: homeDim, at: home) }
             g.player.pos = home; g.player.vel = .zero
             _ = g.world.loadSync(center: home, radius: 4)

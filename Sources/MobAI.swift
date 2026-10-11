@@ -30,7 +30,8 @@ extension MobKind {
         case .ashHalftrack: return 56
         case .ashArtillery: return 160
         case .ashTruck: return 16
-        case .ashMarshal: return 48
+        case .ashMarshal, .ashChancellor: return 48
+        case .ashBehemoth: return 80
         case .brandSquire, .brandKnight, .brandChampion, .slagthrower: return 32
         case .brandCommander, .searwing: return 48
         case .scorchling: return 24

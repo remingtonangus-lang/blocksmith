@@ -72,10 +72,49 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
+if CommandLine.arguments.contains("--posecheck-only") {
+    check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+    exit(failures == 0 ? 0 : 1)
+}
 // Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
 HellMobsTests.run(game, check: check)
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
+if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
+// With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
+// renderer, next to the PNG).
+if let path = renderPath, !path.isEmpty, let ctx = vkctx, !CommandLine.arguments.contains("--hell-only") {
+    let dir = (path as NSString).deletingLastPathComponent
+    let home = game.player.pos, wasMobs = game.mobs.mobs
+    func shot(_ name: String, at p: V3, yaw: Float, pitch: Float, mobs: [Mob] = []) {
+        game.changeDimension(to: .deep, at: p)
+        game.player.pos = p; game.player.vel = .zero; game.player.flying = true
+        _ = game.world.loadSync(center: p, radius: 5)
+        game.world.pendingMobs.removeAll()
+        game.mobs.mobs = mobs
+        do {
+            try RenderTest.render(game: game, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", yaw: yaw, pitch: pitch)
+            print("render: \(dir)/\(name).png")
+        } catch { check(false, "lastwar render \(name): \(error)") }
+        game.mobs.mobs = []
+    }
+    let fy = Float(DeepGen.floorBase + 1)
+    shot("lastwar_gate", at: V3(0.5, fy + 3, 80.5), yaw: 0, pitch: 0.06)
+    shot("lastwar_army", at: V3(0.5, fy + 2.2, 58.5), yaw: 0, pitch: -0.08, mobs: LastWarTests.lineup(at: V3(0.5, fy, 47.5)))
+    shot("lastwar_command", at: V3(0.5, fy + 3, -26.5), yaw: .pi, pitch: 0.02)
+    let a: Float = 37.5 * .pi / 180
+    shot("lastwar_line", at: V3(sinf(a) * 444, fy + 4, -cosf(a) * 444), yaw: -a + .pi, pitch: -0.12)
+    shot("lastwar_study", at: V3(8.5, Float(AshFinal.y0) + 2.6, 33.5), yaw: .pi, pitch: -0.05)
+    game.mobs.mobs = wasMobs
+    game.changeDimension(to: .overworld, at: home)
+    game.player.pos = home; game.player.vel = .zero; game.player.flying = false
+    _ = game.world.loadSync(center: home, radius: 4)
+}
+if CommandLine.arguments.contains("--lastwar-only") {
+    print(failures == 0 ? "lastwar: all checks passed" : "lastwar: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
@@ -740,6 +779,10 @@ TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: n
 
 // Horses: gaits, stamina, bond, footing, crashes, nerves (Sources/HorseTests.swift, docs/status/horses.md).
 HorseTests.run(game: game, check: check)
+
+// The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
+// every stance.
+check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

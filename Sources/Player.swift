@@ -91,6 +91,7 @@ final class Player {
     static let soulSandID: BlockID = Blocks.has("soul_sand") ? Blocks.id("soul_sand") : AIR
     static let honeyID: BlockID = Blocks.has("honey_block") ? Blocks.id("honey_block") : AIR
     static let powderSnowID: BlockID = Blocks.has("powder_snow") ? Blocks.id("powder_snow") : AIR
+    static let wireID: BlockID = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR      // barbed wire (AshLines.swift)
     static let berryBase: BlockID = Blocks.has("sweet_berry_bush") ? Blocks.groupBase[Int(Blocks.id("sweet_berry_bush"))] : AIR
     // Held in a block (reference makeStuckInBlock, each tick's motion scaled and then cleared): the share of walking
     // speed left, the fall and the climb speeds in b/s (cobweb 0.25 / 0.05, berry bush 0.8 / 0.75, powder snow 0.9 with
@@ -100,6 +101,7 @@ final class Player {
         if b == cobwebID { return (0.116, 0.08, 0.42) }
         if berryBase != AIR && Blocks.groupBase[Int(b)] == berryBase { return (0.37, 1.2, 6.3) }
         if b == powderSnowID { return (0.415, 60, 60) }
+        if b == wireID { return (0.3, 1.2, 3.0) }
         return nil
     }
     private var lastGoodPos: V3?

@@ -114,3 +114,9 @@ slung on its back (look, telegraph and counterplay in docs/status/look-upgrade.m
 | Hisser Charge (banner; the genre's face picture) | Powder Keg Charge (a keg with a lit fuse) | Banners.swift | `creeper`, `creeper_banner_pattern` |
 | Hisser-shaped firework (the genre's face) | Keg-shaped | Fireworks.swift | shape 3 |
 | Green spawn egg | Brown spawn egg | SpawnEggs.swift | `creeper` |
+
+## The last war's real names kept out (2026-10-11, B7, Lane B)
+The Ashguard is styled on a period army, but every name is invented (Kessel, Hagel, Sturmwind, Ashsaw, Behemoth, the Ash
+Chancellor) and the emblem is fictional (a diamond split by a bar on a white disc; LastWarTests checks it is
+mirror-symmetric). The period's real names (parties, units, people, arms, vehicles) were added to tools/coined-terms.txt
+so the namecheck in every build keeps them out of anything the player reads.

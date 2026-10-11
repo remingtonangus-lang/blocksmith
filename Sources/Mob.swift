@@ -30,6 +30,7 @@ enum MobKind: Int, CaseIterable {
     case soldierOfficer, soldierCrew       // the Capital's officers and pilots / vehicle crews (SoldierRig.swift)
     case ashTank, ashHalftrack, ashArtillery, ashTruck, ashMarshal     // the Ashguard in the Ash Vault (AshUnits.swift)
     case brandSquire, brandKnight, brandChampion, brandCommander, searwing, scorchling, slagthrower   // hell's own (HellMobs.swift)
+    case ashBehemoth, ashChancellor    // the last war (AshFinal.swift): the super-heavy tank and the Ash Chancellor
 
     struct Spec {
         var name: String
@@ -138,7 +139,7 @@ enum MobKind: Int, CaseIterable {
             return animalSpec
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun, .soldierOfficer, .soldierCrew:
             return militarySpec
-        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal:
+        case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal, .ashBehemoth, .ashChancellor:
             return ashSpec
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
             return hellSpec
@@ -246,6 +247,7 @@ enum MobKind: Int, CaseIterable {
         .copperGolem: "copper_golem",
         .soldierOfficer: "soldier_officer", .soldierCrew: "soldier_crew",
         .ashTank: "ash_tank", .ashHalftrack: "ash_halftrack", .ashArtillery: "ash_artillery", .ashTruck: "ash_truck", .ashMarshal: "ash_marshal",
+        .ashBehemoth: "ash_behemoth", .ashChancellor: "ash_chancellor",
         .brandSquire: "brand_squire", .brandKnight: "brand_knight", .brandChampion: "brand_champion", .brandCommander: "brand_commander",
         .searwing: "searwing", .scorchling: "scorchling", .slagthrower: "slagthrower",
     ]
@@ -423,6 +425,7 @@ final class Mob {
     var canPickUp = false           // zombie / skeleton that picks up gear (55% x regional difficulty)
     var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
     var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
+    var waveUnit = false            // the last battle's units (AshFinal): never despawn, never saved
     weak var patrolLeader: Mob?
     var patrolGoal: V3?
     var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
@@ -1573,9 +1576,9 @@ private func parts(_ m: Mob) -> [Part] {
         return soldierParts(m, swing: swing)
     case .deckGun:
         return deckGunParts(m)
-    case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck:
+    case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth:
         return ashVehicleParts(m)
-    case .ashMarshal:
+    case .ashMarshal, .ashChancellor:
         return soldierParts(m, swing: swing)
     case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
         return hellParts(m, swing: swing)
