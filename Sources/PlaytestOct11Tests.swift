@@ -680,7 +680,7 @@ enum PlaytestOct11Tests {
         let slot = (0..<36).first { $0 != game.selected && game.inventory.main[$0].isEmpty } ?? 20
         game.inventory.main[slot] = ItemStack(Items.id("capital_rounds"), 40)
         let head = game.player.eye, gunHand = head + V3(0.2, -0.35, -0.35)
-        let hip = head + V3(-0.25, -0.8, 0.05), mid = head + V3(0, -0.5, -0.3)
+        let hip = head + V3(-0.25, -0.8, 0.05), mid = head + V3(0.1, -0.1, -0.5)
         let away = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: false)
         let grab = VRReload.tick(game, offHand: hip, gunHand: gunHand, head: head, grip: true, gripWas: false)
         _ = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: true)
