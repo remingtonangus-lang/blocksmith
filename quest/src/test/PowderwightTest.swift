@@ -8,7 +8,9 @@ enum PowderwightTest {
     static func run(game: Game, check: (Bool, String) -> Void) {
         let p = game.player
         let saved = (p.pos, p.flying, game.weather, game.survival, game.health, game.mobs.mobs, p.sneaking, game.inventory.armor[0], game.alive)
+        let savedAdv = (game.advancements, game.advToasts)
         defer {
+            (game.advancements, game.advToasts) = savedAdv
             (p.pos, p.flying, game.weather, game.survival, game.health, game.mobs.mobs, p.sneaking, game.inventory.armor[0], game.alive) = saved
             game.mobs.rebuildIndex()
         }

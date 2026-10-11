@@ -291,7 +291,7 @@ final class Mob {
     var stepAcc: Float = 0          // distance walked since the last footstep sound
     var callTimer: Float
     var attackCooldown: Float = 0
-    var fuse: Float = 0             // hisser
+    var fuse: Float = 0             // powderwight: seconds of fuse burnt
     var flinch: Float = 0           // powderwight: a hit stops the fuse this long (internal key creeper)
     var soaked: Float = 0           // powderwight: seconds until a doused fuse can be struck again
     var fire: Float = 0             // seconds left burning
@@ -1630,7 +1630,9 @@ private func parts(_ m: Mob) -> [Part] {
         let warm = V3(1.0, 0.82, 0.62)
         func t(_ c: V3) -> V3 { blink ? simd_mix(c, warm, V3(repeating: 0.6)) : c }
         let skin = t(V3(0.58, 0.57, 0.53)), coat = t(V3(0.29, 0.25, 0.19)), pants = t(V3(0.2, 0.19, 0.17))
-        let boot = V3(0.13, 0.11, 0.09), wood = t(V3(0.52, 0.34, 0.16)), hoop = lit ? V3(1.0, 0.45, 0.15) * (0.7 + 0.5 * flick) : V3(0.22, 0.22, 0.24), cap = t(V3(0.26, 0.22, 0.17))
+        let hoopGlow: Float = 0.7 + 0.5 * flick
+        let hoop: V3 = lit ? V3(1.0, 0.45, 0.15) * hoopGlow : V3(0.22, 0.22, 0.24)
+        let boot = V3(0.13, 0.11, 0.09), wood = t(V3(0.52, 0.34, 0.16)), cap = t(V3(0.26, 0.22, 0.17))
         let eyeK: Float = lit ? 1.25 : 0.9
         let amber = V3(0.95, 0.62, 0.22) * eyeK
         let hunch: Float = lit ? -0.55 : -0.4                     // leans in over its target once lit
