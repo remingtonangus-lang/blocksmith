@@ -278,7 +278,7 @@ enum TreePlacer {
             let tall = kind == .tallBirch
             switch rng.int(4) {
             case 0:
-                let h = tall ? rng.range(10, 14) : rng.range(5, 7)
+                let h = tall ? rng.range(10, 14) : rng.range(6, 8)
                 trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
             case 1:
                 let h = tall ? rng.range(12, 15) : rng.range(7, 9)
@@ -517,7 +517,7 @@ enum TreePlacer {
             let wood = g("oak_wood")
             w.log(x, y, z, LOG)
             let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
-            let len = rng.range(3, 5)
+            let len = rng.range(4, 6)
             for i in 2..<(2 + len) {
                 let fx = x + dx * i, fz = z + dz * i
                 guard w.inside(fx, y, fz) else { continue }

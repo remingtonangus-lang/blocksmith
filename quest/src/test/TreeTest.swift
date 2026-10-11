@@ -112,7 +112,8 @@ enum TreeTest {
     }
 }
 
-// The screenshot sheet: each group grown in a row on a floating grass pad high over the spawn, at noon.
+// The screenshot sheet: each tree grown alone on a floating grass pad high over the spawn and seen three-quarter at
+// noon from a distance that fits it; one sheet per group (left eye, tiles side by side): trees_<group>.png.
 enum TreeShots {
     static func run(game: Game, ctx: VkContext, dir: String) throws {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -122,6 +123,7 @@ enum TreeShots {
         p.flying = true
         game.mobs.mobs = []; game.mobs.rebuildIndex()
         game.weather = Weather(); game.weather.rain = 0
+        game.time = 0.22 * DAY_LENGTH
         let w = game.world
         let sp = game.findSpawn()
         let groups: [(String, [(TreeKind, UInt64)])] = [
@@ -131,31 +133,39 @@ enum TreeShots {
             ("woodland", [(.deadOak, 3), (.deadSpruce, 4), (.stumpOak, 5), (.fallenOak, 6), (.stumpBirch, 7), (.fallenOak, 9)]),
             ("ancient", [(.oak, 5), (.ancientOak, 3), (.ancientOak, 8), (.fancyOak, 4)]),
         ]
-        for (gi, (name, trees)) in groups.enumerated() {
-            // Rows far apart (each its own chunks), 64 blocks over the spawn.
-            let ox = Int(floor(sp.x)) + gi * 160, oz = Int(floor(sp.z)), oy = Int(floor(sp.y)) + 64
-            _ = w.loadSync(center: V3(Float(ox + 30), Float(oy), Float(oz)), radius: 4)
-            var edits: [(IVec3, BlockID)] = []
+        let ts = 240
+        let ox = Int(floor(sp.x)) + 64, oz = Int(floor(sp.z)), oy = Int(floor(sp.y)) + 48
+        _ = w.loadSync(center: V3(Float(ox), Float(oy), Float(oz)), radius: 3)
+        for (name, trees) in groups {
+            var sheet = [UInt8](repeating: 0, count: ts * trees.count * ts * 4)
             for (i, (kind, seed)) in trees.enumerated() {
                 let b = TreeTest.grow(kind, seed: seed)
-                let tx = ox + i * 11
-                for y in (TreeTest.groundY - 1)..<min(CH, TreeTest.groundY + 30) { for z in 0..<CS { for x in 0..<CS {
+                var edits: [IVec3] = [], top = 0
+                for y in (TreeTest.groundY - 1)..<CH { for z in 0..<CS { for x in 0..<CS {
                     let id = b[Chunk.index(x, y, z)]
-                    if id != AIR { edits.append((IVec3(tx + x - 8, oy + y - TreeTest.groundY, oz + z - 8), id)) }
+                    guard id != AIR else { continue }
+                    let q = IVec3(ox + x - 8, oy + y - TreeTest.groundY, oz + z - 8)
+                    w.setBlockAsync(q.x, q.y, q.z, id); edits.append(q)
+                    if y > TreeTest.groundY { top = max(top, y - TreeTest.groundY) }
                 } } }
+                w.remeshArea(x0: ox - 9, z0: oz - 9, x1: ox + 9, z1: oz + 9, y0: oy - 2, y1: oy + 32)
+                let target = V3(Float(ox) + 0.5, Float(oy) + 1 + Float(top) * 0.45, Float(oz) + 0.5)
+                let dist = max(7, Float(top) * 1.9)
+                let eye = target + simd_normalize(V3(0.55, 0.22, -1)) * dist
+                p.pos = eye - V3(0, p.eyeHeight, 0)
+                let f = simd_normalize(target - eye)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/tree_tile.png", width: ts, height: ts,
+                                      yaw: atan2f(-f.x, -f.z), pitch: asinf(f.y), fovDeg: 55)
+                let img = RenderTest.lastRGBA
+                for y in 0..<ts { for x in 0..<ts { for c in 0..<4 {
+                    sheet[(y * ts * trees.count + i * ts + x) * 4 + c] = img[(y * ts * 2 + x) * 4 + c]
+                } } }
+                for q in edits { w.setBlockAsync(q.x, q.y, q.z, AIR) }
             }
-            for (q, id) in edits { w.setBlockAsync(q.x, q.y, q.z, id) }
-            let x1 = ox + trees.count * 11
-            w.remeshArea(x0: ox - 10, z0: oz - 10, x1: x1 + 10, z1: oz + 10, y0: oy - 4, y1: oy + 30)
-            game.time = 0.22 * DAY_LENGTH
-            let target = V3(Float(ox + x1) / 2, Float(oy) + 6, Float(oz))
-            let eye = target + V3(0, 4, -Float(trees.count) * 7)
-            p.pos = eye - V3(0, p.eyeHeight, 0)
-            let f = simd_normalize(target - eye)
-            try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/trees_\(name).png", width: 640, height: 360,
-                                  yaw: atan2f(-f.x, -f.z), pitch: asinf(f.y), fovDeg: 75)
-            for (q, _) in edits { w.setBlockAsync(q.x, q.y, q.z, AIR) }
+            try PNG.encode(rgba: sheet, width: ts * trees.count, height: ts).write(to: URL(fileURLWithPath: "\(dir)/trees_\(name).png"))
+            print("treeshots: wrote \(dir)/trees_\(name).png")
         }
+        w.remeshArea(x0: ox - 9, z0: oz - 9, x1: ox + 9, z1: oz + 9, y0: oy - 2, y1: oy + 32)
     }
 }
 
