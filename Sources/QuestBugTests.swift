@@ -32,6 +32,8 @@ enum QuestBugTests {
         }
         if let i = CommandLine.arguments.firstIndex(of: "--only"), i + 1 < CommandLine.arguments.count, CommandLine.arguments[i + 1] == "maingun" {
             MainGunTests.run(game, check)
+            BoardingTests.run(game, check)
+            FindabilityTests.run(game, check)
             print("questbugs: \(fails) failures")
             return fails
         }
@@ -68,6 +70,8 @@ enum QuestBugTests {
         DeepTests.run(game, check)
         FactionTests.run(game, check)
         MainGunTests.run(game, check)
+        BoardingTests.run(game, check)
+        FindabilityTests.run(game, check)
         VoiceNoteTests.run(game, check)
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)

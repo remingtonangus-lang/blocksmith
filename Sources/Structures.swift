@@ -188,11 +188,19 @@ final class StructureCache {
     // And when L3 kept Capital cities apart and gave camps an alternate spot and a clear spawn (2026-10-11,
     // WorldRules.capitalApart, WildCamps): ground saved before that keeps its cities and camps as they were.
     var legacyL3: Set<Int64> = []
+    // And when G12 made citadels and Capital cities rarer, kept citadels apart and gave each city its own size and
+    // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
+    var legacyG12: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
     func clear(cx: Int, cz: Int, reach r: Int, guardSet: Set<Int64>) -> Bool {
         if guardSet.isEmpty { return true }
+        let side = 2 * r + 1
+        if guardSet.count < side * side {                // (a small guard set and a wide reach: walk the set)
+            for k in guardSet where abs(Int(k >> 32) - cx) <= r && abs(Int(Int32(truncatingIfNeeded: k)) - cz) <= r { return false }
+            return true
+        }
         for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where guardSet.contains(StructureCache.key(x, z)) { return false } }
         return true
     }
@@ -487,6 +495,11 @@ enum Loot {
                                ("torch", 1, 16, 15)])],
         "igloo_chest": [(1...1, [("golden_apple", 1, 1, 1)])],
         // The way into hell is base loot (HellGate.swift): every command chest holds an Ember Charge, a vault one or two.
+        // Outlaws rob Capital couriers, a dead courier's pack lies in an abandoned camp and traders sell what they find:
+        // these camps always hold intercepted orders (the first citadel's map, G6).
+        "camp_outlaws": [(1...1, [("intercepted_orders", 1, 2, 1)])],
+        "camp_abandoned": [(1...1, [("intercepted_orders", 1, 1, 1)])],
+        "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
         "steelhold_vault": [(1...1, [("ember_charge", 1, 2, 1)])],
         "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],

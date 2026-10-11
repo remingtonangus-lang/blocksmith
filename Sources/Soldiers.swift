@@ -781,3 +781,19 @@ func deckGunParts(_ m: Mob) -> [Part] {
     }
     return p
 }
+
+// The navies' and the Legion's own crews (Oct 11 playtest, G13: "ships should not carry Capital soldiers"): a soldier
+// crewing a vessel of another faction goes by that faction's ranks (and wears its livery, SoldierRig.Livery), by rank
+// (Soldier.rank: recruit, trooper, marksman, ironclad, officer, crew). The Ashguard renames its own (AshUnits.swift).
+extension Mob {
+    static let crewNames: [Faction: [String]] = [
+        .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Meridian Heavy Marine", "Meridian Lieutenant", "Meridian Helmsman"],
+        .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
+        .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],
+    ]
+
+    func crewSetup() {
+        guard !kind.ash, faction != Faction.ashguard.rawValue, let r = Soldier.rank(kind) else { return }
+        if let names = Mob.crewNames[factionValue] { spec.name = names[r] } else { spec.name = kind.spec.name }
+    }
+}

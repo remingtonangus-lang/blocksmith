@@ -13,7 +13,9 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 # Full run: a failing shot or test is recorded and the rest still run; the script fails at the end.
 set +e
 FAILED=()
-trap 'rc=$?; FAILED+=("$LINENO"); echo "snap.sh: line $LINENO: failed (exit $rc)"' ERR
+# $LINENO inside an if-block is the block's closing line on macOS bash 3.2 (CI's debug rerun then re-ran "fi" until it
+# timed out): name the failing command's own line by finding its text.
+trap 'rc=$?; L=$(grep -nF -- "$BASH_COMMAND" "$0" 2>/dev/null | head -1 | cut -d: -f1); L=${L:-$LINENO}; FAILED+=("$L"); echo "snap.sh: line $L: failed (exit $rc): $BASH_COMMAND"' ERR
 # Shards (CI heavy lane runs them as parallel jobs): SNAP_SHARD=checks | tours | shots; unset runs all three.
 SHARD="${SNAP_SHARD:-all}"
 on() { [ "$SHARD" = all ] || [ "$SHARD" = "$1" ]; }
@@ -258,6 +260,8 @@ done
 "$BIN" --snapshot snaps/citadel_turret.png --seed 12345 --structure military_base --offset -48,16,2 --yaw -39 --pitch -15 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_plaza.png --seed 12345 --structure military_base --offset 3,6,-12 --yaw 10 --pitch 10 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/village.png --seed 12345 --structure village --yaw 45 --pitch -28 --up 14 --time 0.25
+"$BIN" --snapshot snaps/capital_city.png --seed 12345 --structure capital_city --frame 1.1 --time 0.3 --rd 12          # G7
+"$BIN" --snapshot snaps/capital_street.png --seed 12345 --structure capital_city --offset 0,1,-20 --yaw 0 --pitch 4 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/village_top.png --seed 12345 --structure village --yaw 0 --pitch -89 --up 70 --time 0.25
 "$BIN" --snapshot snaps/village2.png --seed 12345 --structure village --x 1500 --z -900 --yaw 45 --pitch -30 --up 16 --time 0.25
 "$BIN" --snapshot snaps/village3.png --seed 12345 --structure village --x -1200 --z 600 --yaw 45 --pitch -30 --up 16 --time 0.25

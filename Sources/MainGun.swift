@@ -26,6 +26,10 @@ enum MainGun {
     static let shockFelt: Float = 200       // players feel the front (shake, haptics) out to here
     static let shockSpeed: Float = 64
     static let shockHeight: Float = 20
+    static let hullTear: Float = 12         // a direct hit's hole through a hull (radius, blocks)
+    static let nearMiss: Float = 9          // a ground hit this close to a vessel's bounds still tears its side
+    static let disableMiss: Float = 5       // ... and this close wrecks it
+    static var disabled = 0                 // vessels the Tidebreaker knocked out (tests)
     static let pendingCap = 16                          // off-world hits remembered (this session) to dig on arrival      // the front runs along the ground: a frigate's deck 40 up is spared
     // The last impact (tests, perf notes).
     private(set) static var impacts = 0

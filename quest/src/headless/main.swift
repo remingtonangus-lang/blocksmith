@@ -72,6 +72,26 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --basetest-only [phase]: the Mac snap shard's citadel scenes (Sources/BaseTests.swift) at the citadel nearest spawn,
+// as `--structure military_base --basetest patrol` frames it (cloud threads can see which citadel G12's rules leave).
+if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
+    let phase = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "patrol"
+    let from = game.findSpawn(varied: false)               // the Mac snapshot's origin (reference shots keep it)
+    if let s = world.gen.structures?.nearest("military_base", x: Int(from.x), z: Int(from.z), maxRegions: 6) {
+        print("basetest: citadel at \(s.anchor.x) \(s.anchor.z)")
+        game.player.pos = V3(Float(s.anchor.x), Float(s.anchor.y + 1), Float(s.anchor.z))
+        _ = world.loadSync(center: game.player.pos, radius: 6)
+        let ok = BaseTests.run(game: game, world: world, phase: phase)
+        print(ok ? "basetest: all checks passed" : "basetest: FAILED"); exit(ok ? 0 : 1)
+    }
+    print("basetest: no citadel within 6 regions"); exit(1)
+}
+// --factions-structures-only: the Mac --questbugs checks on where Capital cities and citadels stand from the spawn
+// (FactionTests.structures: findable, never at the spawn, the structure guard).
+if CommandLine.arguments.contains("--factions-structures-only") {
+    FactionTests.structures(check)
+    print(failures == 0 ? "factions structures: all checks passed" : "factions structures: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
     check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
@@ -124,6 +144,7 @@ PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count
 EruptionTests.run(game, check: check)
 // L3 placement rules keep old saves (Sources/L3GuardTests.swift).
 L3GuardTests.run(game, check: check)
+L3GuardTests.g12(game, check: check)       // (G12 and old saves)
 // L3 VR combat feel (Sources/VRCombatFeelTests.swift): wind-ups, parry, hit-stop and feel, trail, bow, assist.
 VRCombatFeelTests.run(game, check: check)
 if CommandLine.arguments.contains("--workshop-only") {
@@ -728,6 +749,10 @@ do {
     MainGunTests.run(game, check, render: render)
     // A slug from the helm, through Game.tick, craters a citadel (FactionTests.frigate; done audit 25b6, G1).
     FactionTests.frigate(game, check)
+    // Aboard the Meridian frigate from the ground: the winch, the ladder, the helm (G11).
+    BoardingTests.run(game, check)
+    // The first citadel can be found: orders in outlaw camps (G6).
+    FindabilityTests.run(game, check)
     if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 

@@ -76,7 +76,20 @@ enum BaseTests {
 
         // 1. Gunshot outside: patrol out, search, back.
         if want("patrol") {
-            let shotX = gate.x + 6, shotZ = gate.z + 40
+            // A spot 40 blocks out the patrol can walk to: the first heading from the gate the path finder can walk
+            // (G12 moved the test citadel to one with no way on 40 blocks south of its gate).
+            func walkable(_ dx: Float, _ dz: Float) -> Bool {
+                let to = V3(gate.x + dx, g.standY(gate.x + dx, gate.z + dz, from: gate.y + 10), gate.z + dz)
+                if Blocks.isLiquid(g.world.block(Int(floor(to.x)), Int(to.y), Int(floor(to.z)))) { return false }
+                return PathFinder.find(g.world, from: gate, to: to, tall: 2, maxNodes: 8000) != nil
+            }
+            var shotDX: Float = 6, shotDZ: Float = 40
+            for a in stride(from: Float(0), to: 360, by: 22.5) {
+                let r = a * .pi / 180, dx = 40 * sinf(r), dz = 40 * cosf(r)
+                if walkable(dx, dz) { shotDX = dx; shotDZ = dz; break }
+            }
+            let shotX = gate.x + shotDX, shotZ = gate.z + shotDZ
+            print(String(format: "basetest log: gunshot spot %.0f,%.0f off the gate", shotDX, shotDZ))
             let shot = V3(shotX, g.standY(shotX, shotZ, from: gate.y + 10), shotZ)
             g.baseNoise(at: shot, kind: .gunshot)
             let formed = sim(4) { rec().patrol != nil && b.patrols[key] != nil }

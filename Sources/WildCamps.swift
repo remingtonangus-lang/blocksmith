@@ -27,6 +27,7 @@ enum WildCamps {
     static let outlawLand: Set<Biome> = [.forest, .darkForest, .taiga, .oldGrowthSpruceTaiga, .savanna, .windsweptSavanna,
                                          .badlands, .woodedBadlands, .plains, .birchForest]
     static let outlawMinSpawn: Float = 400
+    static let campKeepG12: Float = 0.75
     // How far off a camp is noticed (its campfire smoke and tent over the land): sets the rarity check's sweep.
     static let sightRange = 96
 
@@ -42,10 +43,11 @@ enum WildCamps {
                                  ("white_wool", 1, 4, 8), ("red_dye", 1, 3, 6), ("blue_dye", 1, 3, 6), ("apple", 2, 5, 10), ("map", 1, 1, 3),
                                  ("compass", 1, 1, 2), ("name_tag", 1, 1, 2)]),
         "camp_abandoned": (1...3, [("bone", 1, 4, 20), ("rotten_flesh", 1, 4, 20), ("string", 1, 3, 15), ("stick", 2, 5, 15),
-                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15)]),
+                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15),
+                                   ("intercepted_orders", 1, 1, 7)]),           // (a courier's satchel: the way to a citadel, G6)
         "camp_outlaws": (4...7, [("gold_nugget", 3, 12, 16), ("emerald", 1, 5, 12), ("iron_ingot", 1, 4, 12), ("gold_ingot", 1, 2, 6),
                                  ("arrow", 4, 12, 12), ("gunpowder", 1, 4, 10), ("crossbow", 1, 1, 4), ("saddle", 1, 1, 4),
-                                 ("golden_apple", 1, 1, 2), ("compass", 1, 1, 3), ("experience_bottle", 1, 2, 4)]),
+                                 ("golden_apple", 1, 1, 2), ("compass", 1, 1, 3), ("experience_bottle", 1, 2, 4)]),          // (+ a courier's orders, always: Loot.extraPools, G6)
     ]
 
     static func b(_ name: String, _ fallback: String = "oak_planks") -> BlockID { Blocks.has(name) ? Blocks.id(name) : Blocks.id(fallback) }
@@ -56,6 +58,7 @@ enum WildCamps {
         StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
             var roll = SRng(seed)
             guard roll.chance(chance) else { return nil }
+            if thinnedG12(gen, seed, cx0, cz0) { return nil }
             if let s = site(gen, seed, cx0, cz0) { return s }
             // L3 rarity (a camp every 10-15 minutes of walking; docs/status/l3-part3.md): when the region's spot
             // won't take a camp, one more spot in its placement square, unless ground there was saved before this rule
@@ -70,6 +73,23 @@ enum WildCamps {
             }
             return nil
         }
+    }
+
+    // G12: rarer citadels and cities freed ground the camps had given way to (7.6 -> 10.5 per 2048^2); a share of
+    // regions keeps no camp so L3's 10-15 minutes holds. Ground saved before G12 at either of the region's spots (since
+    // L3 a camp may stand at its alternate spot) keeps its camp.
+    static func thinnedG12(_ gen: WorldGen, _ seed: UInt64, _ cx0: Int, _ cz0: Int) -> Bool {
+        let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
+        let ax = rx0 * spacing + Int(hashf(rx0, rz0, 7501, s32) * Float(spacing - separation - 1))
+        let az = rz0 * spacing + Int(hashf(rx0, rz0, 7601, s32) * Float(spacing - separation - 1))
+        if WorldRules.savedBeforeG12(gen, cx0, cz0, reach: 2) || WorldRules.savedBeforeG12(gen, ax, az, reach: 2) { return false }
+        return hashf(rx0, 7611, rz0, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA3) >= campKeepG12
+    }
+    // The alternate spot of the region holding chunk (cx0, cz0) (for checks).
+    static func alternateSpot(_ seed: UInt64, _ cx0: Int, _ cz0: Int) -> (Int, Int) {
+        let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
+        return (rx0 * spacing + Int(hashf(rx0, rz0, 7501, s32) * Float(spacing - separation - 1)),
+                rz0 * spacing + Int(hashf(rx0, rz0, 7601, s32) * Float(spacing - separation - 1)))
     }
 
     // A camp at chunk (cx, cz), or nil where the ground or the neighbours won't have one.

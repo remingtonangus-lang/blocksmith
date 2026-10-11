@@ -27,3 +27,87 @@ Results:
   test firing into a swamp in the full questcheck (the site is now chosen from the world spawn, in open country, and
   the test fails loudly when no dry landing exists). Full questcheck: every maingun and factions check passes; the
   12 failures left are the base's (town law/honour/bounty/six-iron/countries, the Marshal's barrage).
+
+## G13: the gun did far too little to vessels; frigates carried Capital soldiers (Oct 11 AM playtest)
+Objectives (backlog + Lane A's own):
+1. A direct hit on a crawler wrecks it and tears out hundreds of blocks; a near miss beside it still hurts it.
+2. The same rule for every Capital vessel (frigates, crawlers, dropships), one code path (mainGunHullDamage).
+3. Frigate crews belong to their own navy: their own rank names (and the livery they already had), kept through a save.
+
+Results:
+- ShipManager.mainGunHullDamage: a direct hit tears a 12-block-radius hole (was 7) and knocks out the drive (a crawler
+  is wrecked on its next tick, a flier goes down); a ground hit within 9 blocks of a vessel's bounds tears its nearest
+  side (radius 12 - 0.6 x distance) and within 5 blocks wrecks it.
+- Crews: Mob.faction's didSet gives a navy's soldiers that navy's ranks (Meridian Rating / Marine / Gunner / Heavy
+  Marine / Lieutenant / Helmsman; Stormwarden and Ironback sets too). The faction is now saved for every faction, not
+  only the Ashguard, so a crew no longer reloads as Capital soldiers.
+- Checks: MainGunTests 7 (direct hit and near miss on an Ironback Crawler) and 8 (crew names).
+
+## G11: no designed way to board the Meridian frigate from the ground (done audit 25b6)
+Objectives (backlog + Lane A's own):
+1. A visible, discoverable boarding route from the ground to the frigate 30-45 blocks up, without commands or a flyer.
+2. It works while the frigate cruises (it heaves to for a boarder) and does no fall damage.
+3. From where it sets you down, a walkable route reaches the helm, and an automated bot proves it through Game.tick.
+
+Results:
+- FrigateBoarding.swift: a cargo winch line from the port hangar door to the ground (a dark cable with a lit hook at the
+  foot, drawn within 140 blocks; a toast the first time you come within 60). Stand at the foot (2.2 blocks) and it
+  hauls you up at 9 b/s and sets you on the hangar deck. While a player is within 34 blocks of the foot the frigate
+  heaves to (0.6 b/s, holding its heading) so the line can be caught.
+- BoardingTests (questcheck, and the Mac `--questbugs`): a bot under a cruising frigate is hauled aboard, walks to the
+  ladder at z 89, climbs to the bridge deck and walks to the helm with the left stick only (in survival, from a
+living player: the full questcheck reached it with the player dead on the death screen).
+
+## G8: the frigate's thrusters read as two small points at night (done audit 25b6)
+Objectives: the stern reads as engines from a few hundred blocks at night; cheap (a handful of particles, one light).
+Results: the glowing cores fill each nozzle (a block wider all round: radius 4 on the four great ones, was 3; new
+frigates). ShipManager.driveGlow: a blue-white glow sprite over each nozzle (7.5 blocks across, 3.5 for the centre one),
+growing with distance up to 3x past 150 blocks so it never shrinks to a dot, brighter at night, flickering slightly;
+one shared light on the stern within 160 blocks (the flash list is shared with gunfire). Works on AI and commandeered
+frigates. Check: MainGunTests 1b (four or more nozzle sprites over 2.5 degrees across from 300 blocks astern at night);
+render maingun_stern_night with --render.
+
+## G6: the first citadel was hard to find (done audit 25b6)
+Objectives: a walking player gets a lead to a citadel well before stumbling on one; the lead is loot the player meets
+early (wild camps), and the first one read points to a citadel, not a city.
+Results: outlaw camps always hold 1-2 Intercepted Orders and abandoned and traders' camps always hold one (Loot extra
+pools); the first orders read while no citadel is on the map mark the nearest citadel. FindabilityTests (questcheck):
+50 of 50 outlaw chests hold orders, a camp holding orders is nearer spawn than a citadel on at least 5 of 6 seeds,
+first orders mark a citadel.
+
+## G12: capitals too common and one at the spawn (Oct 11 AM playtest)
+Objectives (backlog + Lane A's own):
+1. Capital citadels (the "capital with a crawler") never stand near the spawn and never two close together.
+2. Citadels and Capital cities are rarer, but each still exists within a findable distance (the G6 orders point there).
+3. Cities vary: a size per city (16, 24 or 32 lots) and its own mix of offices, squares and gardens.
+4. Nothing already generated in a save is cut in half (a new guard file, structure-guard-g12.txt).
+
+Results:
+- Citadels: at least 640 blocks from the spawn (was 320), 60 % of 40-chunk regions keep theirs (was all), and none
+  within 800 blocks of another (WorldRules.citadelApart, by region priority as L3 keeps cities apart).
+- Capital cities: half the regions keep theirs (was 70 %); still 1,200+ from the spawn and from each other.
+- City size and mix: CapitalCity.planFor draws small, medium or large (40/35/25 %), the building share (40-70 %),
+  squares against gardens and the canopy share per city. Small cities keep at least six buildings.
+- Ground saved before G12 (StructureCache.legacyG12) keeps the old rules and the old plan.
+- Old saves (verifier pass): a citadel or city that G12 would now drop keeps the old rules whenever ground within
+  its reach on other placements was saved before G12 (28 chunks round a citadel, 46 round a city region's placement
+  square: cities keep 240 from citadels, camps 170 and 240), so nothing that gave way to it appears on saved ground;
+  a city region with saved ground anywhere it reaches uses the old keep share and the old large plan for every spot;
+  the camp thinning skips a region with saved ground at either of its spots. Check: L3GuardTests.g12 (questcheck).
+- Check: `--worldgencheck` (questcheck binary or Mac) fails on two citadels within 800, a citadel within 640 of the
+  spawn or none within 2,000 (was 1,600; the camps' orders now lead there), and prints the citadel count and the city sizes.
+
+## G7: a Capital city could be named "Meridian", the navy's name (done audit 25b6)
+Results: the first city name is Brightmoor now (CapitalTown.cityNames); MainGunTests 8 checks no city carries the
+navy's name. snap.sh renders capital_city (from above) and capital_street (street level). A saved city's fountain
+sign keeps the text it was built with.
+
+## Verifier pass on the batch (independent)
+It confirmed G13 (one hull damage path, crews saved), G11, G8, G6, G7 and the G12 world-gen numbers (25 seeds: nearest
+citadel 713-1753, none within 800 of another, cities 1,247+ from spawn, camps every 11 minutes). Fixed from its
+findings: the boarding check started with a dead player in the full questcheck and its survival and helm checks
+could not fail; G12 could cut saved structures in half (camps at their alternate spot; neighbours of a dropped citadel
+or city); the drive glow looked up its texture by name every frame; G8 lacked the bigger glowing faces. Not changed:
+the frigate heaves to for any player under its winch, hostile or not (a hostile frigate holding still over you is
+a fair fight); a pre-G12 save's city that drew "Meridian" keeps that name on its sign while new lookups say
+Brightmoor. The town checks (G10) still fail on the base in the full questcheck; G10 stays open.

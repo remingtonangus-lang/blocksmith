@@ -33,6 +33,8 @@ final class CapitalState {
     func hasRole(_ role: CrewRole) -> Bool { crewRoles.contains(role) }
     var driverAlive: Bool { crewless || !hasRole(.driver) || crewAlive(.driver) > 0 }
     var crewless = false               // harness (--ridecheck): an empty vehicle that still drives as if crewed
+    var heaveTo = false                // a player is at the boarding winch's foot: the frigate slows to a crawl (FrigateBoarding)
+    var winchTold = false
     // Turret i is manned while its gunner (posts shared round-robin over the turrets) lives.
     func turretManned(_ i: Int) -> Bool {
         let posts = crewRoles.indices.filter { crewRoles[$0] == .gunner }
@@ -852,6 +854,7 @@ extension ShipManager {
                     }
                 }
             }
+            driveGlow(s, st, pd, dt, g)
             if st.crewDone.count < st.crew.count && pd < 96 {
                 // The crew aboard: soldiers of the ship's faction at their posts (they ride the hull and fight as
                 // soldiers). Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull
@@ -910,7 +913,7 @@ extension ShipManager {
             }
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
-            if s.role == "capfrigate" { mainGunTick(s, st, dt, g) }
+            if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g) }
             deployTroops(s, st, dt, g)
         }
     }
@@ -1027,6 +1030,7 @@ extension ShipManager {
             want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
             speed = st.testSpeed ?? 10
         }
+        if st.heaveTo { speed = min(speed, 0.6) }       // a player at the boarding winch's foot (FrigateBoarding)
         // Altitude: the keel 30 above the highest ground under and ahead of the hull, below the world's ceiling.
         st.groundTimer -= dt
         if st.groundTimer <= 0 {
@@ -1043,7 +1047,7 @@ extension ShipManager {
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
         let wantY = min(maxY, st.groundMax + Capital.cruiseClearance(s.role ?? "") + keel)
         s.hoverY = wantY
-        let yawRate = turnToward(s, want, maxRate: s.role == "capfrigate" ? 0.13 : 0.07)
+        let yawRate = st.heaveTo ? 0 : turnToward(s, want, maxRate: s.role == "capfrigate" ? 0.13 : 0.07)   // (holds its heading: the line's foot stays put)
         let vy = max(-4, min(4, (wantY - s.pos.y) * 0.4))
         let target = V3(fw.x, 0, fw.z) * speed + V3(0, vy, 0)
         s.vel += (target - s.vel) * min(1, dt * 0.6)
@@ -1079,9 +1083,37 @@ extension ShipManager {
         s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
         levelUp(s, dt)
         st.target = nil
+        driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
-        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
+        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // The drive's glow (done audit 25b6, G8: "thrusters read as two small points at night"): a soft blue-white sprite
+    // over each nozzle as wide as the nozzle, growing with distance so the stern still reads as engines a few hundred
+    // blocks off (a fixed-size face shrinks to a dot), and the nozzles' light on the hull near by. One particle per
+    // nozzle per frame (five on the Meridian frigate).
+    func driveGlow(_ s: Ship, _ st: CapitalState, _ pd: Float, _ dt: Float, _ g: Game) {
+        guard !st.exhausts.isEmpty, st.engines0 > 0, !s.wrecked, pd < 700 else { return }
+        let k = Float(s.engines) / Float(st.engines0)
+        guard k > 0.4 else { return }
+        let aft = s.dirToWorld(V3(0, 0, 1))
+        let layer = FrigateBoarding.puffLayer
+        let far = min(3, max(1, pd / 150))
+        let night = 1 + 0.8 * (1 - g.daylight)
+        for (i, n) in st.exhausts.enumerated() {
+            let small = s.role == "capfrigate" && i == st.exhausts.count - 1      // the centre nozzle (radius 2)
+            let at = s.toWorld(n) + aft * 0.8
+            let flicker = 0.9 + 0.1 * sinf(Float(g.clock) * 37 + Float(i) * 1.7)
+            g.particles.add(Particle(pos: at, vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0), uvSize: 1,
+                                     size: (small ? 3.5 : 7.5) * far * flicker, gravity: 0, color: V3(0.45, 0.75, 1.3) * k * night,
+                                     collide: false, glow: true))
+        }
+        // One light for the whole stern (the flash list is shared with gunfire: 32 at most).
+        if pd < 160 {
+            let c = st.exhausts.reduce(V3(0, 0, 0), +) / Float(st.exhausts.count)
+            g.addFlash(at: s.toWorld(c) + aft * 3, color: V3(0.5, 0.8, 1.6) * (1.5 * k), radius: 22, life: dt * 1.5)
+        }
     }
 
     private func levelUp(_ s: Ship, _ dt: Float) {
