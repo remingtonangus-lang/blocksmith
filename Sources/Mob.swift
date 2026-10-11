@@ -264,6 +264,15 @@ final class Mob {
     var scale: Float = 1            // babies 0.5
     var walkPhase: Float = 0
     var walkAmount: Float = 0
+    // Animation layers over every model (MobAnim.swift): the head turned toward what it watches, a lunge on each
+    // attack, breathing at rest, the fall when it dies.
+    var headYaw: Float = 0, headPitch: Float = 0
+    var animT: Float = 0
+    var strikeT: Float = 0
+    var lastCooldown: Float = 0
+    var deathT: Float = -1               // seconds since it died (-1 alive): drawn tipping over, then a puff
+    var lookTimer: Float = 0
+    var lookAt: V3?
     var moving = false
     var wanderGoal: V3?             // current stroll target (wander)
     var strollArea: (V3, Float)?    // keep stroll targets within this circle (villager schedules), set per update
@@ -503,6 +512,7 @@ final class Mob {
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white
         if health <= 0 && kind != .enderDragon { return }
+        animTick(dt, g)
         if downed > 0 { downedTick(dt, g); return }                 // an injured horse lies still (HorseLife.swift)
         if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
         faceGoal = nil
@@ -1934,7 +1944,7 @@ enum MobOrder { static var list: [Mob] = [] }
 
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil,
-                      maxDist: Float = .greatestFiniteMagnitude) -> Int {
+                      maxDist: Float = .greatestFiniteMagnitude, corpses: [Mob] = []) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
@@ -1957,6 +1967,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let d2 = dx * dx + dz * dz
             if d2 > lo && d2 <= hi { list.append(m) }
         }
+        if ring == 0 { for m in corpses where simd_length_squared(m.pos - eye) <= min(maxD2, 64 * 64) { list.append(m) } }
     }
     // Bodies waiting to be skinned (Hunting.swift) are drawn with the mobs, nearest-ring order aside.
     for m in Hunting.bodyMobs {
@@ -1993,6 +2004,8 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
         let lie = m.lying
         let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
+        let pose = MobAnim.pose(m)
+        let still = pose.still
         // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
         // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
         let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
@@ -2003,12 +2016,17 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let size = p.mx - p.mn
             if far && max(size.x, max(size.y, size.z)) < tiny { continue }
             let rot = p.rotation
+            let isHead = pose.joint?.holds(p) ?? false
             let pc: V3 = simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
             for f in 0..<6 {
                 for k in order {
                     let ci = (f * 4 + k) * 3
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     var q = p.place(lp, rot)
+                    if !still {
+                        if isHead { q = pose.ha * q + pose.hb }
+                        q = pose.a * q + pose.b
+                    }
                     if lie { q = V3(q.x, 4 - q.z, q.y) }          // on its back: model up runs toward the pillow
                     else if side > 0 { q = V3(sideX - q.y, q.x + side, q.z) }   // a body on its side (Hunting.swift)
                     // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
@@ -2032,6 +2050,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
 
 final class MobManager {
     var mobs: [Mob] = []
+    var corpses: [Mob] = []                       // dead mobs playing their fall (MobAnim.swift); drawn, never updated
     var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
     private var restoreTimer: Float = 0
     static let passiveCap = 10
@@ -2179,8 +2198,9 @@ final class MobManager {
             if m.health > -1000 { game.mobDied(m) }
         }
         let limit = Float((w.renderDistance + 1) * CS)
+        corpseTick(dt, game)
         mobs.removeAll { m in
-            if m.health <= 0 { return true }
+            if m.health <= 0 { addCorpse(m, game); return true }
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }

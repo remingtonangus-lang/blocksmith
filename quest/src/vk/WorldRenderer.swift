@@ -229,7 +229,7 @@ final class WorldRenderer {
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
-                                 cull: frustum, maxDist: Float(game.world.renderDistance * CS + 24))
+                                 cull: frustum, maxDist: Float(game.world.renderDistance * CS + 24), corpses: game.mobs.corpses)
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         scene.commit(off, n, MobVert.self)
         scene.drawScratch(s, "mob", offset: off, count: n)

@@ -87,6 +87,14 @@ final class ParticleManager {
         }
     }
 
+    // The puff a dead mob goes out in (MobAnim): soft pale smoke rising and spreading.
+    func deathPuff(at c: V3) {
+        let g = Rand.float(in: 0.78...0.95)
+        add(Particle(pos: c, vel: V3(Rand.float(in: -0.6...0.6), Rand.float(in: 0.4...1.1), Rand.float(in: -0.6...0.6)),
+                     life: Rand.float(in: 0.5...0.9), maxLife: 0.9, layer: Int(Tex.id("puff")), uv0: V2(0, 0), uvSize: 1,
+                     size: Rand.float(in: 0.18...0.32), gravity: -0.4, color: V3(g, g, g), collide: false))
+    }
+
     func smoke(at c: V3, dark: Bool = true) {
         let g: Float = dark ? Rand.float(in: 0.15...0.3) : Rand.float(in: 0.6...0.8)
         add(Particle(pos: c, vel: V3(Rand.float(in: -0.2...0.2), Rand.float(in: 0.5...1.2), Rand.float(in: -0.2...0.2)),

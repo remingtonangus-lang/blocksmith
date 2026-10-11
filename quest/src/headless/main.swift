@@ -312,6 +312,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         PowderwightTest.run(game: game, check: check)
         TreeTest.run(check: check)
         if let shots = arg("--tree-shots") { try TreeShots.run(game: game, ctx: ctx, dir: shots) }
+        MobAnimTest.run(game: game, check: check)
         if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)

@@ -662,7 +662,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
         let droppedBefore = MobDrawStats.dropped
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
-                                 cull: cull, maxDist: mobMaxDist)
+                                 cull: cull, maxDist: mobMaxDist, corpses: game.mobs.corpses)
         if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
         n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
         MobDrawStats.written += n
