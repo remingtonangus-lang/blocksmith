@@ -7,6 +7,8 @@ import CVulkan
 // a PNG. Exercises the Quest renderer end to end (multiview, pipelines, textures, culling) without a headset.
 enum RenderTest {
     static var landmarkVerts = 0          // impostor vertices in the last rendered frame
+    static var drawnQuads = 0             // world quads drawn in the last rendered frame
+    static var recordMs = 0.0             // CPU time recording the last frame's world
     static var lastRGBA: [UInt8] = []     // the last frame, both eyes side by side (width * 2 x height)
     static var lastFrameMs: Double = 0    // its lavapipe frame time
     static func render(game: Game, ctx: VkContext, path: String, width: Int = 640, height: Int = 640,
@@ -59,6 +61,7 @@ enum RenderTest {
         print(String(format: "rendertest: %d sections visible, %d draws, %d quads; cull %.2f ms, CPU record %.2f ms, frame (lavapipe) %.0f ms",
                      scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs, wr.frameCPUMs, ms.last!))
         landmarkVerts = wr.landmarkCount
+        drawnQuads = scene.drawnQuads; recordMs = wr.frameCPUMs
         if wr.landmarkCount > 0 { print(String(format: "rendertest: landmark impostors %d vertices, %.2f ms", wr.landmarkCount, wr.landmarkMs)) }
         // Side by side, left eye first.
         let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)

@@ -17,12 +17,18 @@ import simd
 // A section owns the dual cells 0...16 of its own corner (vertices 0.5...17.5 blocks, never negative in the
 // unsigned 1/16 position bits), so it meshes quads that touch its +x/+y/+z neighbours' first block row.
 enum SmoothTerrain {
-    // Settings (Video: Smooth Terrain), or `--smooth` / `--cubic` on the command line (harness, bench, smoke).
-    static var enabled: Bool = {
+    // A world option (Create New World > Terrain, saved as the world's extra "terrain" = "smooth"; Video > Smooth
+    // Terrain switches the open world), or `--smooth` / `--cubic` on the command line, which win over the world's
+    // choice (harness, bench, smoke).
+    static let forced: Bool? = {
         let a = CommandLine.arguments
         if a.contains("--cubic") { return false }
-        return a.contains("--smooth") || Settings.shared.smoothTerrain
+        return a.contains("--smooth") ? true : nil
     }()
+    static var enabled: Bool = forced ?? false
+
+    // The world's own choice (Game.smoothTerrain), unless the command line forces a mode.
+    static func use(world on: Bool, world w: World?) { set(forced ?? on, world: w) }
 
     static let naturalNames: Set<String> = [
         "stone", "dirt", "grass_block", "snowy_grass_block", "coarse_dirt", "rooted_dirt", "podzol", "mycelium", "mud",

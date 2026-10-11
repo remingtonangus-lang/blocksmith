@@ -156,6 +156,33 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 check(RenderTest.landmarkVerts > 0, "seed 135623 far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
             } else { check(false, "seed 135623: a volcano within 2600 blocks of x 1334 z 2060") }
         }
+        // Polygon terrain test (docs/status/polygon-test.md): the same seed 12345 views in Blocks and Smooth on the Quest
+        // renderer, each from a fresh world loaded in that mode (the world option a new world is created with).
+        do {
+            let was = SmoothTerrain.enabled
+            let views: [(String, Float, Float, Float, Float, Float)] = [   // name, x, z, height above ground, yaw, pitch
+                ("spawn", 0.5, 0.5, 2, 0.5, -0.2), ("hills", 296.5, -423.5, 6, 1.05, -0.26),
+                ("slopes", 632.5, 200.5, 4, 3.5, -0.18), ("beach", 8.5, 104.5, 3, 1.57, -0.3)]
+            for (name, x, z, up, yaw, pitch) in views {
+                var quads: [Int] = [], rec: [Double] = []
+                for smooth in [false, true] {
+                    SmoothTerrain.enabled = smooth
+                    let pw = World(seed: 12345, device: device, save: nil)
+                    pw.renderDistance = 6
+                    let pg = Game(world: pw, save: nil, persistent: false)
+                    pg.time = 0.22 * DAY_LENGTH
+                    pg.player.flying = true
+                    pg.player.pos = V3(x, Float(pw.gen.column(Int(x), Int(z)).height) + up, z)
+                    _ = pw.loadSync(center: pg.player.pos, radius: 6)
+                    let pp = path.replacingOccurrences(of: ".png", with: "_polygon_\(name)_\(smooth ? "smooth" : "blocks").png")
+                    try RenderTest.render(game: pg, ctx: ctx, path: pp, yaw: yaw, pitch: pitch)
+                    quads.append(RenderTest.drawnQuads); rec.append(RenderTest.recordMs)
+                }
+                print("polygon \(name): quads drawn blocks \(quads[0]) smooth \(quads[1]), " + String(format: "CPU record %.2f -> %.2f ms", rec[0], rec[1]))
+                check(quads[0] > 0 && quads[1] > 0, "polygon terrain \(name): blocks and smooth both drawn on the Quest renderer")
+            }
+            SmoothTerrain.enabled = was
+        }
         // The water look (water.frag: Fresnel sky, glint, swell, depth, shore foam): from a beach toward the sea, at
         // noon; compared with the Mac's Fancy water by eye (Quest v63: the water had never been ported).
         do {

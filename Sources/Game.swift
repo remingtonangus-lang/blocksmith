@@ -114,6 +114,7 @@ final class Game {
     var seenCredits = false
     // The Deep (task 22): been there (saved), the updraft hint shown this session, the Ashguard war (AshWar.swift).
     var deepVisited = false
+    var smoothTerrain = false     // world option: natural ground meshes smooth (SmoothTerrain.swift), saved as extra "terrain"
     var deepUpdraftHinted = false
     var sunderCharges: [(at: IVec3, t: Float)] = []    // Sunder Charges burning on Sealrock (DeepSeal.swift)
     var sealHintAt: Double = -100

@@ -410,6 +410,7 @@ extension Game {
         TownLaw.save(&d)
         Hunting.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
+        if smoothTerrain { d["terrain"] = "smooth" }
         if ashVictory { d["ashVictory"] = "1" }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
@@ -434,6 +435,8 @@ extension Game {
         TownLaw.load(d, seed: world.seed)
         Hunting.load(d)
         deepVisited = d["deepVisited"] == "1"
+        smoothTerrain = d["terrain"] == "smooth"
+        SmoothTerrain.use(world: smoothTerrain, world: world)
         ashVictory = d["ashVictory"] == "1"
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))

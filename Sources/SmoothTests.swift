@@ -76,6 +76,28 @@ enum SmoothTests {
         let mc = Mesher.buildSection(nb.0, nb.1, sy: sy)
         check(mc.opaque.count / 8 == 6, "cubic mode back to a cube", "\(mc.opaque.count / 8) quads")
         w.setBlock(bx, by, bz, AIR)
+
+        // The world option: saved with the world, applied on load; a save without it (every older world) is blocks.
+        let wasOpt = g.smoothTerrain
+        g.smoothTerrain = true
+        var ex = g.saveExtra()
+        check(ex["terrain"] == "smooth", "world option saved", "extra terrain = \(ex["terrain"] ?? "nil")")
+        g.smoothTerrain = false; SmoothTerrain.enabled = false
+        g.loadExtra(ex)
+        check(g.smoothTerrain && SmoothTerrain.enabled == (SmoothTerrain.forced ?? true), "world option loads smooth", "option \(g.smoothTerrain), mesher \(SmoothTerrain.enabled)")
+        ex["terrain"] = nil
+        g.loadExtra(ex)
+        check(!g.smoothTerrain && SmoothTerrain.enabled == (SmoothTerrain.forced ?? false), "older save loads as blocks", "option \(g.smoothTerrain), mesher \(SmoothTerrain.enabled)")
+        let pm = PauseMenu(game: g)
+        pm.newSmooth = true
+        var sent = ""
+        let act = g.appAction
+        g.appAction = { sent = $0 }
+        pm.act("new_create", back: false)
+        g.appAction = act
+        let parts = sent.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false)
+        check(parts.count == 6 && parts[3] == "1", "create page sends the terrain choice", sent)
+        g.smoothTerrain = wasOpt
         SmoothTerrain.enabled = was
         print("smoothtest: \(fail == 0 ? "PASS" : "FAIL (\(fail))")")
         return fail

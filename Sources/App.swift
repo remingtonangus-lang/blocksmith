@@ -113,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // Creates (or loads) a world and its Game.
-    func makeGame(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+    func makeGame(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?, smooth: Bool? = nil) {
         save = SaveManager(name: name)
         UserDefaults.standard.set(name, forKey: "lastWorld")
         let meta = save.loadMeta()
@@ -126,21 +126,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.difficulty = d }
+            game.smoothTerrain = smooth ?? false
         }
+        SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         game.sound = soundEngine
         game.sound?.volume = game.volumeSetting
         _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
     }
 
     // Switches to another world in place (saving the current one).
-    func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+    func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?, smooth: Bool? = nil) {
         // One synchronous frame of the loading screen before the (blocking) save + load.
         HudExtras.loading = "Loading \(name)..."
         view.draw()
         defer { HudExtras.loading = nil }
         game.closeMenusForExit()
         game.saveNow()
-        makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty)
+        makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty, smooth: smooth)
         view.input = game.input
         do { renderer = try Renderer(device: device, game: game, colorFormat: view.colorPixelFormat) } catch { fatalError("Renderer init failed: \(error)") }
         view.delegate = renderer
@@ -277,12 +279,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
-            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
+            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: self.game.smoothTerrain)
             case _ where id.hasPrefix("create:"):
-                // create:<survival 0/1>:<difficulty>:<name>:<seed text>
-                let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
-                guard parts.count == 5 else { return }
-                self.switchWorld(name: parts[3], seed: AppDelegate.seedValue(parts[4]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2)
+                // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
+                let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)
+                guard parts.count == 6 else { return }
+                self.switchWorld(name: parts[4], seed: AppDelegate.seedValue(parts[5]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2,
+                                 smooth: parts[3] == "1")
             default: break
             }
         }

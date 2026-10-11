@@ -66,7 +66,7 @@ final class QuestApp {
         print("load: \(s) (\(String(format: "%.1f", CFAbsoluteTimeGetCurrent() - loadStart)) s)")
     }
 
-    struct WorldRequest { var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int? }
+    struct WorldRequest { var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int?; var smooth: Bool? = nil }
 
     private func startLoading(_ req: WorldRequest = WorldRequest()) {
         loadStart = CFAbsoluteTimeGetCurrent()
@@ -102,7 +102,10 @@ final class QuestApp {
             game.player.pos = game.spawnPoint
             if let sv = req.survival { game.survival = sv }
             if let d = req.difficulty { game.difficulty = d }
+            game.smoothTerrain = req.smooth ?? false
         }
+        // The world's terrain option (loadExtra applies a saved world's; a new world's here), before the first meshes.
+        SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         // The headset's own setting, not the save's (Game.apply restores the world's saved distance, which held the
         // comfort guard's session-only step-downs: the Oct 9 playtest reopened its world at render distance 5). On
         // game.world: a save made in another dimension reopens there, and `world` is the overworld. Auto Render
@@ -196,11 +199,13 @@ final class QuestApp {
         case _ where id.hasPrefix("play:"):
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
-            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty))
+            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: game?.smoothTerrain))
         case _ where id.hasPrefix("create:"):
-            let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
-            guard parts.count == 5 else { return }
-            switchWorld(WorldRequest(name: parts[3], seed: QuestApp.seedValue(parts[4]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2))
+            // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
+            let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)
+            guard parts.count == 6 else { return }
+            switchWorld(WorldRequest(name: parts[4], seed: QuestApp.seedValue(parts[5]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2,
+                                     smooth: parts[3] == "1"))
         default: break
         }
     }

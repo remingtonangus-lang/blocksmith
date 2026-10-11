@@ -13,6 +13,7 @@ enum WorldStore {
         let survival: Bool?
         let seed: UInt64?
         let dimension: String?
+        var smooth = false        // Terrain: Smooth (test)
     }
 
     static func url(_ name: String) -> URL { base.appendingPathComponent(name, isDirectory: true) }
@@ -28,13 +29,14 @@ enum WorldStore {
             let meta = url(n).appendingPathComponent("world.json")
             let date = ((try? fm.attributesOfItem(atPath: meta.path))?[.modificationDate] as? Date)
                 ?? ((try? fm.attributesOfItem(atPath: url(n).path))?[.modificationDate] as? Date) ?? .distantPast
-            var survival: Bool?, seed: UInt64?, dim: String?
+            var survival: Bool?, seed: UInt64?, dim: String?, smooth = false
             if let d = try? Data(contentsOf: meta), let m = try? JSONDecoder().decode(WorldMeta.self, from: d) {
                 survival = m.survival ?? false
                 seed = m.seed
                 dim = m.dimension.map { "\($0)" }
+                smooth = m.extra?["terrain"] == "smooth"
             }
-            out.append(Info(name: n, lastPlayed: date, survival: survival, seed: seed, dimension: dim))
+            out.append(Info(name: n, lastPlayed: date, survival: survival, seed: seed, dimension: dim, smooth: smooth))
         }
         return out.sorted { $0.lastPlayed != $1.lastPlayed ? $0.lastPlayed > $1.lastPlayed : $0.name < $1.name }
     }
@@ -90,7 +92,7 @@ enum WorldStore {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd HH:mm"
-        let mode = i.survival.map { $0 ? "Survival" : "Creative" } ?? "New"
+        let mode = (i.survival.map { $0 ? "Survival" : "Creative" } ?? "New") + (i.smooth ? ", smooth terrain" : "")
         let when = i.lastPlayed == .distantPast ? "never played" : f.string(from: i.lastPlayed)
         return "\(mode) - last played \(when)"
     }
