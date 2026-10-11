@@ -275,10 +275,13 @@ final class Game {
     // Quest Swing melee chosen (QuestSettings.swingMode): with a melee weapon only its blade's contact attacks
     // creatures (meleeContactOnly, VRMelee.swift); the trigger mines, fires and hits non-living things.
     var swingMelee = false
+    var dodges = 0, parries = 0        // VR wind-ups dodged and parried (checks; VRCombatFeel.swift)
     // Quest: the headset's world position (mobs walk toward the column under it, meleeBody; reach: meleeGap).
     var vrHead: V3?
     // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
     var vrBow: (draw: Float, origin: V3, dir: V3)?
+    // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
+    var vrAim: (origin: V3, dir: V3)?
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
@@ -1031,7 +1034,7 @@ final class Game {
         if swung { mobHit = touchedMob }
         // Never the mount you sit on (the ray starts inside its box when looking down: Quest round 3).
         else if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5, except: riding)
-                    ?? (swordHeld ? mobNearAim(reach: 3.5) : nil) {
+                    ?? (vrHead != nil && !swingMelee ? reclinedAssist(reach: 3.5) : (swordHeld ? mobNearAim(reach: 3.5) : nil)) {
             let (m, dist) = hit
             // A sword means to hit the creature: it wins over a block in front of it (grass, a leaf, a fence).
             if swordHeld {
@@ -1116,6 +1119,7 @@ final class Game {
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
                 // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
                 if m.health < hp0 {
+                    if swung { m.hitStop = VRMelee.hitStop }        // the blade bites: the mob freezes a beat (VRCombatFeel.swift)
                     bladeFlash(m, at: swung ? swingAt : nil, along: swung ? swingAlong : nil, power: swung ? swingPow : charge,
                                sparks: !held.isEmpty && VRMelee.isSwingWeapon(Items.key(held.item)))
                 }

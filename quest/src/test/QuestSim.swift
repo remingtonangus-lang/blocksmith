@@ -573,7 +573,7 @@ enum QuestSim {
         frames(6) { _ in idleHands() }
 
         // (c) A fast swing across a husk 1.6 blocks ahead: the blade hits it (once), with a haptic buzz.
-        func swingAcross(_ dist: Float, step: Float, kind: MobKind = .husk, trigger: Bool = false) -> (Int, Int, Int) {
+        func swingAcross(_ dist: Float, step: Float, kind: MobKind = .husk, trigger: Bool = false, windUp: Bool = false) -> (Int, Int, Int) {
             frames(8) { _ in pose(0.6) }                                         // settle at the start, then the mob
             let at = ahead(dist)
             let z = Mob(kind, at: at)
@@ -581,14 +581,25 @@ enum QuestSim {
             game.mobs.mobs.append(z)
             let h0 = z.health, c0 = controls.bladeContacts, hp0 = sim.hapticCount
             let n = Int((1.2 / step).rounded())
-            frames(n + 1) { i in z.pos = at; z.vel = .zero; pose(0.6 - step * Float(i)); sim.hands[1].trigger = trigger ? 1 : 0 }
+            frames(n + 1) { i in
+                z.pos = at; z.vel = .zero; pose(0.6 - step * Float(i)); sim.hands[1].trigger = trigger ? 1 : 0
+                if windUp && z.attackCooldown <= 0 { z.windUp = 0.3; z.windUpDone = false }      // rearing back to strike
+            }
             let r = (h0 - z.health, controls.bladeContacts - c0, sim.hapticCount - hp0)
             remove(z)
             frames(4) { _ in pose(-0.6) }
             return r
         }
+        let trail0 = controls.trailPeak
+        controls.trailPeak = 0
         let fast = swingAcross(1.6, step: 0.3)                                   // ~20 m/s at the hand
         check(fast.0 > 0 && fast.1 == 1 && fast.2 > 0, "VR swing: a fast blade swing through a husk 1.6 ahead: \(fast.0) damage, \(fast.1) contact (want 1), haptics \(fast.2)")
+        check(controls.trailPeak >= 2, "VR swing: the fast swing leaves a blade trail (\(controls.trailPeak) segments at most; \(trail0) before)")
+        // (c2) The same swing into a husk rearing back to strike: a parry (no damage, a clang), not a hit.
+        let p0 = controls.parriesLanded, g0 = game.parries
+        let parried = swingAcross(1.6, step: 0.3, windUp: true)
+        check(parried.0 == 0 && controls.parriesLanded == p0 + 1 && game.parries == g0 + 1,
+              "VR swing: a blade into a husk winding up parries it (\(parried.0) damage, \(controls.parriesLanded - p0) parry)")
         // (d) The same path slowly (0.3 m/s): a touch, no damage.
         let slow = swingAcross(1.6, step: 0.004)
         check(slow.0 == 0 && slow.1 == 0, "VR swing: a slow blade touch does no damage (\(slow.0) damage, \(slow.1) contacts)")
@@ -616,12 +627,16 @@ enum QuestSim {
         }
         // (e4) The Reclined posture picks Reclined melee and turning it off restores Swing.
         do {
+            let turn0 = QuestSettings.smoothTurn, vig0 = QuestSettings.vignette
+            defer { QuestSettings.smoothTurn = turn0; QuestSettings.vignette = vig0 }
+            QuestSettings.smoothTurn = true; QuestSettings.vignette = 0.3
             QuestSettings.swingMode = true
             QuestOptions.reclinedPosture(true)
             let during = QuestSettings.swingMode
+            let comfort = !QuestSettings.smoothTurn && QuestSettings.vignette >= 0.6
             QuestOptions.reclinedPosture(false)
-            check(!during && QuestSettings.swingMode && !QuestSettings.reclined,
-                  "Reclined posture: melee Reclined while on (\(!during)), Swing restored after (\(QuestSettings.swingMode))")
+            check(!during && QuestSettings.swingMode && !QuestSettings.reclined && comfort,
+                  "Reclined posture: melee Reclined while on (\(!during)), snap turns and a vignette (\(comfort)), Swing restored after (\(QuestSettings.swingMode))")
         }
 
         // (f) The bow, both hands: the drawing hand at the string with its trigger nocks; pulling back draws the string

@@ -57,6 +57,7 @@ enum Snd: Hashable {
     case sculkClick, sculkShriek, sculkBloom, sculkSpread, bell, bellResonate, tntFuse, explode, glassBreak, iceCrack
     case portalTravel, portalTrigger, endPortalOpen, endPortalFrame, beaconActivate, beaconPower, beaconDeactivate
     case fireExtinguish, lavaPop, boatPaddle, railClick, plantBrush
+    case meleeWindUp, parryClang, bowCreak, bowNock      // VR combat feel (VRCombatFeel.swift)
     // Loops (seamless, 2-6 s): fire, furnaces, lava, water, portals, beacons, minecarts, gliding, breathing under water, weather, biome ambience.
     case fireLoop, furnaceLoop, campfireLoop, lavaLoop, waterLoop, portalLoop, beaconLoop, minecartLoop, elytraLoop, underwaterLoop, rain, rainRoof
     case respawnAnchorLoop, spawnerLoop, netherWastesLoop, soulValleyLoop, crimsonLoop, warpedLoop, basaltLoop, ashVaultLoop, endLoop, deepDarkLoop, lushLoop, dripstoneLoop
@@ -114,7 +115,7 @@ enum Snd: Hashable {
              .attackCrit, .attackKnockback, .attackWeak, .shieldBlock, .shieldBreak, .armorEquip, .itemBreak, .bucketFill, .bucketEmpty, .bucketFillLava,
              .bucketEmptyLava, .fishCast, .fishSplash, .fishReel, .xp, .levelUp, .totem, .gasp, .throwItem, .pearlThrow, .potionThrow, .potionSplash,
              .snowballHit, .eggCrack, .bowDraw, .bow, .arrowHit, .crossbowLoad, .crossbowShoot, .tridentThrow, .tridentHit, .tridentReturn, .riptide,
-             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush:
+             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush, .meleeWindUp, .parryClang, .bowCreak, .bowNock:
             return .players
         case .click, .open, .uiHover, .uiBack, .toast: return .ui
         case .rain, .rainRoof, .thunder, .lightning, .windGust: return .weather
@@ -227,6 +228,10 @@ enum Snd: Hashable {
         case .bulletImpact, .bulletFlesh, .grenadeBounce, .soldierStep: return 0.03...1.2
         case .hoof: return 0.03...0.9
         case .plantBrush: return 0.1...0.8
+        case .meleeWindUp: return 0.2...0.8
+        case .parryClang: return 0.3...1.2
+        case .bowCreak: return 0.15...0.6
+        case .bowNock: return 0.03...0.3
         case .bulletWhizz: return 0.1...0.6
         case .soldier: return 0.15...3
         case .voice: return 0.2...8
@@ -273,7 +278,7 @@ final class SoundBank {
               .potBreak, .potInsert, .bundleInsert, .bundleRemove, .bedEnter, .candleOut, .lanternHang, .respawnAnchorCharge, .respawnAnchorSet,
               .sculkClick, .sculkShriek, .sculkBloom, .sculkSpread, .bell, .bellResonate, .tntFuse, .explode, .glassBreak, .iceCrack,
               .portalTravel, .portalTrigger, .endPortalOpen, .endPortalFrame, .beaconActivate, .beaconPower, .beaconDeactivate,
-              .fireExtinguish, .lavaPop, .boatPaddle, .railClick, .plantBrush,
+              .fireExtinguish, .lavaPop, .boatPaddle, .railClick, .plantBrush, .meleeWindUp, .parryClang, .bowCreak, .bowNock,
               .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
               .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
               .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop, .stationHumLoop,
@@ -346,6 +351,7 @@ final class SoundBank {
         case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot ? 3 : 2
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
         case .hoof, .plantBrush: return 4
+        case .meleeWindUp, .bowCreak: return 3
         case .soldier(_, let b): return b == .idle ? 4 : 3
         case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2
         case .note, .voice: return 1

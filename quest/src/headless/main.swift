@@ -85,6 +85,8 @@ PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count
 EruptionTests.run(game, check: check)
 // L3 placement rules keep old saves (Sources/L3GuardTests.swift).
 L3GuardTests.run(game, check: check)
+// L3 VR combat feel (Sources/VRCombatFeelTests.swift): wind-ups, parry, hit-stop and feel, trail, bow, assist.
+VRCombatFeelTests.run(game, check: check)
 if CommandLine.arguments.contains("--workshop-only") {
     print(failures == 0 ? "workshop: all checks passed" : "workshop: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }

@@ -65,14 +65,17 @@ extension Game {
             // The ammo by name (contents survive a save; the raw ItemID in `tag` shifts when items are added).
             let ammo = h.contents?.first?.item ?? ItemID(h.tag)
             let angles: [Float] = multi ? [0, -0.17, 0.17] : [0]
+            // VR: from the aiming hand along its ray, the hand logic the bow uses (Dominant Hand picks it).
+            let look = vrAim?.dir ?? player.look
+            let from = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye
             for (i, a) in angles.enumerated() {
-                let dir = simd_normalize(player.look + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * tanf(a))
+                let dir = simd_normalize(look + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * tanf(a))
                 if Items.key(ammo) == "firework_rocket" {
                     let rk = h.contents?.first ?? ItemStack(ammo, 1)
-                    rockets.append(Rocket(at: player.eye + dir * 0.5, dir: dir, flight: rk.tag, stars: rk.contents ?? [], crossbow: true))
+                    rockets.append(Rocket(at: from + dir * 0.5, dir: dir, flight: rk.tag, stars: rk.contents ?? [], crossbow: true))
                     continue
                 }
-                let arrow = projectiles.shoot(from: player.eye, dir: dir, speed: 63, fromPlayer: true, damage: 2)
+                let arrow = projectiles.shoot(from: from, dir: dir, speed: 63, fromPlayer: true, damage: 2)
                 arrow.pierce = pierce
                 arrow.crit = true                                // crossbow bolts always crit (reference: 7-11)
                 if Potions.potion(of: ammo) != nil { arrow.tip = ammo }

@@ -186,7 +186,7 @@ extension Mob {
         if watched { vel.x = 0; vel.z = 0; walkAmount = 0; return 0 }
         if canTarget && dist < 24 {
             face(g.player.pos)
-            if g.meleeGap(self) < halfW + 1.4 && attackCooldown <= 0 {
+            if g.meleeStrike(self, reach: halfW + 1.4) {
                 attackCooldown = 1.5
                 g.hurtPlayer(spec.attack, from: pos, cause: "was slain by a Barkwraith", attacker: self)
             }
