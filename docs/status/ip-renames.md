@@ -99,6 +99,7 @@ Standing rule (Remington): borrow the feel of Red Dead Redemption 2, GoldenEye a
 | Frigate spinal gun: helm HUD gauge (CombatHUD), ship status line (ShipPlay), subtitles | `mainGun*`, `Snd.mainGun*` | MAC | Tidebreaker ("Main gun charging / fires" in subtitles) |
 | Mac gamepad layout preset: Pause > Controls row, help text, toast (PadMap, PauseMenu) | `padLayout = "halo"`, `PadMap.halo` | Halo | Shooter |
 | Injured-horse cure: item name, shop rows, toasts (HorseLife, Items, Shops, Riding; the gap pass) | `saddle_salve` | Horse Reviver (a western game's item) | Saddle Salve |
+| Brimstone Keep mini-boss: boss bar, name tag, toast, trophy item, advancement, Keeper's Journal (DeepGates, DeepWayUp, Advancements) | `warden`, `makeKeepWarden`, `warden_brand`, `adventure/keep_warden` | Keep Warden, Warden's Brand, Wardenbreaker (never shipped) | Keep Castellan, Castellan's Brand, Castellan's Fall |
 | (none found) | | UNSC | (grep of Sources/, quest/, docs/ on 2026-10-09: no occurrence) |
 
 ## The exploding mob replaced (2026-10-11, L1 part 2, Lane C)

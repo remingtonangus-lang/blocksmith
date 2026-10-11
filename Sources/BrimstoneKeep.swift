@@ -14,6 +14,17 @@ enum BrimstoneKeep {
     static let causeway = 36                       // the built causeway (trim deck, basalt piers) out from the centre
     static let reachOut = 72                       // the tunnel / bridge runs on to here, with ladders down and up
     static let oreMin = 8
+    // Three layouts (the gap pass, DE7), picked by the keep's seed: 0 the square castle with corner towers, 1 a ring fort
+    // (a round curtain wall with six round towers), 2 a bastioned citadel (diamond bastions at the corners and an inner
+    // wall round the keep). All share the gatehouses, the keep, the strongroom, the Ember Gate and the garrison roles.
+    static let layoutNames = ["castle", "ring fort", "bastioned citadel"]
+    static func variant(_ seed: UInt64) -> Int {
+        // Region seeds share their high bits, so mix them first (splitmix64 finaliser).
+        var z = seed &+ 0x9E37_79B9_7F4A_7C15
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return Int((z ^ (z >> 31)) % 3)
+    }
 
     // Fortresses of the Deep (Fortress.deepType, a fortress in every slot): the chunk of each start's origin.
     static func fortressChunk(_ worldSeed: UInt64, _ rx: Int, _ rz: Int) -> (Int, Int) {
@@ -55,7 +66,9 @@ enum BrimstoneKeep {
         let piece = Piece(min: IVec3(ox - r, f - 40, oz - r), max: IVec3(ox + r, f + 26, oz + r)) { w in
             build(&w, ox: ox, oz: oz, f: f, seed: seed)
         }
-        return StructureStart(kind: "brimstone_keep", pieces: [piece], anchor: IVec3(ox, f + 1, oz + 15))
+        let s = StructureStart(kind: "brimstone_keep", pieces: [piece], anchor: IVec3(ox, f + 1, oz + 15))
+        s.plan = NSNumber(value: variant(seed))            // the layout, for DeepGapTests
+        return s
     }
 
     // Where the strongroom's ore sits: inner wall faces and the floor, picked by position hash (same in every chunk).
@@ -84,30 +97,81 @@ enum BrimstoneKeep {
         w.fill(ox - h + 2, f, oz - h + 2, ox + h - 2, f, oz + h - 2, trim)
         // The open courtyard (cleared of rock up to well over the walls).
         w.fill(ox - h + 2, f + 1, oz - h + 2, ox + h - 2, f + 26, oz + h - 2, AIR)
-        // Curtain walls: two thick, ember brick on a dark footing, crenellated.
-        for (x0, z0, x1, z1) in [(ox - h, oz - h, ox - h + 1, oz + h), (ox + h - 1, oz - h, ox + h, oz + h),
-                                 (ox - h, oz - h, ox + h, oz - h + 1), (ox - h, oz + h - 1, ox + h, oz + h)] {
-            w.fill(x0, f + 1, z0, x1, f + 2, z1, dark)
-            w.fill(x0, f + 3, z0, x1, f + 12, z1, brick)
-            w.fill(x0, f + 13, z0, x1, f + 15, z1, AIR)
-        }
-        for i in stride(from: -h, through: h, by: 2) {
-            for (x, z) in [(ox - h, oz + i), (ox + h, oz + i), (ox + i, oz - h), (ox + i, oz + h)] { w.set(x, f + 13, z, brick) }
-        }
-        // Red lamps along the inner faces, magma vents in the courtyard floor.
-        for i in stride(from: -h + 4, through: h - 4, by: 6) {
-            for (x, z) in [(ox - h + 1, oz + i), (ox + h - 1, oz + i), (ox + i, oz - h + 1), (ox + i, oz + h - 1)] { w.set(x, f + 6, z, lamp) }
-        }
-        for (dx, dz) in [(-12, -12), (12, -12), (-12, 12), (12, 12), (-12, 0), (12, 0)] { w.set(ox + dx, f, oz + dz, magma) }
-        // Corner towers: solid, 7 x 7, to 20 over the floor, crenellated tops.
-        for (sx, sz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
-            let tx = ox + sx * h, tz = oz + sz * h
-            w.fill(tx - 3, f + 1, tz - 3, tx + 3, f + 20, tz + 3, dark)
-            w.fill(tx - 3, f + 21, tz - 3, tx + 3, f + 23, tz + 3, AIR)
-            for i in -3...3 where (i + 3) % 2 == 0 {
-                for (x, z) in [(tx - 3, tz + i), (tx + 3, tz + i), (tx + i, tz - 3), (tx + i, tz + 3)] { w.set(x, f + 21, z, brick) }
+        let layout = variant(seed)
+        // Tower tops (the Cinderwisps' perches): where each layout puts them.
+        var towers: [(Int, Int)] = []
+        if layout == 1 {
+            // Ring fort: a round curtain wall (two thick) on the square plinth, crenellated, six round towers on it.
+            for z in (oz - h)...(oz + h) { for x in (ox - h)...(ox + h) {
+                let d = sqrtf(Float((x - ox) * (x - ox) + (z - oz) * (z - oz)))
+                guard d >= Float(h) - 1.6 && d <= Float(h) + 0.4 else { continue }
+                w.fill(x, f + 1, z, x, f + 2, z, dark)
+                w.fill(x, f + 3, z, x, f + 12, z, brick)
+                if (x + z) % 2 == 0 { w.set(x, f + 13, z, brick) }
+            } }
+            for k in 0..<6 {
+                let a = (Float(k) * 60 + 30) * .pi / 180
+                let tx = ox + Int((sinf(a) * Float(h)).rounded()), tz = oz + Int((-cosf(a) * Float(h)).rounded())
+                for z in (tz - 3)...(tz + 3) { for x in (tx - 3)...(tx + 3) where (x - tx) * (x - tx) + (z - tz) * (z - tz) <= 10 {
+                    w.fill(x, f + 1, z, x, f + 20, z, dark)
+                    if (x - tx) * (x - tx) + (z - tz) * (z - tz) >= 7 && (x + z) % 2 == 0 { w.set(x, f + 21, z, brick) }
+                } }
+                w.set(tx, f + 21, tz, lamp)
+                towers.append((tx, tz))
             }
-            w.set(tx, f + 21, tz, lamp)
+            for k in 0..<12 {
+                let a = Float(k) * .pi / 6 + 0.26
+                w.set(ox + Int((sinf(a) * Float(h - 2)).rounded()), f + 6, oz + Int((cosf(a) * Float(h - 2)).rounded()), lamp)
+            }
+        } else {
+            // Curtain walls: two thick, ember brick on a dark footing, crenellated.
+            for (x0, z0, x1, z1) in [(ox - h, oz - h, ox - h + 1, oz + h), (ox + h - 1, oz - h, ox + h, oz + h),
+                                     (ox - h, oz - h, ox + h, oz - h + 1), (ox - h, oz + h - 1, ox + h, oz + h)] {
+                w.fill(x0, f + 1, z0, x1, f + 2, z1, dark)
+                w.fill(x0, f + 3, z0, x1, f + 12, z1, brick)
+                w.fill(x0, f + 13, z0, x1, f + 15, z1, AIR)
+            }
+            for i in stride(from: -h, through: h, by: 2) {
+                for (x, z) in [(ox - h, oz + i), (ox + h, oz + i), (ox + i, oz - h), (ox + i, oz + h)] { w.set(x, f + 13, z, brick) }
+            }
+            // Red lamps along the inner faces.
+            for i in stride(from: -h + 4, through: h - 4, by: 6) {
+                for (x, z) in [(ox - h + 1, oz + i), (ox + h - 1, oz + i), (ox + i, oz - h + 1), (ox + i, oz + h - 1)] { w.set(x, f + 6, z, lamp) }
+            }
+            for (sx, sz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
+                let tx = ox + sx * h, tz = oz + sz * h
+                if layout == 2 {
+                    // Bastioned citadel: a diamond bastion on each corner, solid to 16, its point out.
+                    for dz in -6...6 { for dx in -6...6 where abs(dx) + abs(dz) <= 6 {
+                        w.fill(tx + dx, f + 1, tz + dz, tx + dx, f + 16, tz + dz, dark)
+                        if abs(dx) + abs(dz) >= 5 && (dx + dz) % 2 == 0 { w.set(tx + dx, f + 17, tz + dz, brick) }
+                    } }
+                    w.set(tx, f + 17, tz, lamp)
+                } else {
+                    // Castle: corner towers, solid, 7 x 7, to 20 over the floor, crenellated tops.
+                    w.fill(tx - 3, f + 1, tz - 3, tx + 3, f + 20, tz + 3, dark)
+                    w.fill(tx - 3, f + 21, tz - 3, tx + 3, f + 23, tz + 3, AIR)
+                    for i in -3...3 where (i + 3) % 2 == 0 {
+                        for (x, z) in [(tx - 3, tz + i), (tx + 3, tz + i), (tx + i, tz - 3), (tx + i, tz + 3)] { w.set(x, f + 21, z, brick) }
+                    }
+                    w.set(tx, f + 21, tz, lamp)
+                }
+                towers.append((tx, tz))
+            }
+            if layout == 2 {
+                // The inner wall: 7 high round the keep, half-size 11, a 3-wide gate on each axis.
+                let a = 11
+                for i in -a...a where abs(i) > 1 {
+                    for (x, z) in [(ox + i, oz - a), (ox + i, oz + a), (ox - a, oz + i), (ox + a, oz + i)] {
+                        w.fill(x, f + 1, z, x, f + 7, z, brick)
+                        if i % 2 == 0 { w.set(x, f + 8, z, brick) }
+                    }
+                }
+                for (x, z) in [(ox - 2, oz + a), (ox + 2, oz + a), (ox - 2, oz - a), (ox + 2, oz - a)] { w.set(x, f + 8, z, lamp) }
+            }
+        }
+        for (dx, dz) in [(-12, -12), (12, -12), (-12, 12), (12, 12), (-12, 0), (12, 0)] where layout != 2 || max(abs(dx), abs(dz)) != 11 {
+            w.set(ox + dx, f, oz + dz, magma)                                               // magma vents in the courtyard
         }
         // Gatehouses: a 3-wide gate through each wall, flanking piers, and a causeway out through the rock (a bridge where
         // there is only air or lava). It runs on to reachOut; every 8 blocks a ladder goes down from the deck to the
@@ -186,17 +250,25 @@ enum BrimstoneKeep {
         w.chest(ox + 3, f - 9, oz + 4, loot: "brimstone_strongroom", seed: seed ^ 0x51, facing: 1)
         w.chest(ox, f + 10, oz - 4, loot: "brimstone_keep", seed: seed ^ 0x52)
         w.chest(ox - 4, f + 10, oz + 4, loot: "brimstone_keep", seed: seed ^ 0x53)
+        // The Ember Gate (DeepGates.swift): in the courtyard north of the keep, asleep until the Warden falls.
+        DeepGates.build(&w, ox: ox, oz: oz, f: f)
         // Spawners: Cinderwisps on two towers.
-        w.spawner(ox + h, f + 22, oz - h, mob: "blaze")
-        w.spawner(ox - h, f + 22, oz + h, mob: "blaze")
+        let top = layout == 2 ? f + 18 : f + 22
+        w.spawner(towers[1].0, top, towers[1].1, mob: "blaze")
+        w.spawner(towers[towers.count - 2].0, top, towers[towers.count - 2].1, mob: "blaze")
         // The garrison.
         let y1 = Float(f + 1)
         for (dx, dz) in [(-10, -10), (10, -10), (-10, 10), (10, 10)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
-        for (dx, dz) in [(0, 15), (0, -15)] { w.mob("piglin_brute@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
-        for (dx, dz) in [(-h, 0), (h, 0), (0, -h), (0, h)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, Float(f + 13), Float(oz + dz) + 0.5)) }
-        for (sx, sz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
-            w.mob("blaze@deep", V3(Float(ox + sx * h) + 1.5, Float(f + 21), Float(oz + sz * h) + 1.5))
+        // Gate guards (brutes at the north and south gates), wall guards (Blight Skeletons on the walls), tower guards
+        // (Cinderwisps), the strongroom's Ashguard detail, and the Keep Warden in the strongroom with the hoard.
+        for (dx, dz) in [(5, 16), (-5, -16)] { w.mob("piglin_brute@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
+        w.mob("piglin_brute:warden@deep", V3(Float(ox) + 0.5, Float(f - 9), Float(oz + 2) + 0.5))
+        if layout != 1 {
+            for (dx, dz) in [(-h, 0), (h, 0), (0, -h), (0, h)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, Float(f + 13), Float(oz + dz) + 0.5)) }
+        } else {
+            for (dx, dz) in [(-h + 1, 4), (h - 1, -4), (4, -h + 1), (-4, h - 1)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
         }
+        for (tx, tz) in towers.prefix(4) { w.mob("blaze@deep", V3(Float(tx) + 1.5, Float(top - 1), Float(tz) + 1.5)) }
         w.mob("soldier_trooper@ash^180", V3(Float(ox - 2) + 0.5, y1, Float(oz + 3) + 0.5))
         w.mob("soldier_trooper@ash^180", V3(Float(ox + 1) + 0.5, y1, Float(oz + 2) + 0.5))
         w.mob("soldier_officer@ash^180", V3(Float(ox) + 0.5, Float(f + 10), Float(oz) + 0.5))
@@ -258,6 +330,7 @@ extension Game {
     func hellHints() {
         guard !hellHinted, DeepGen.inHell(player.pos.y) else { return }
         hellHinted = true
+        achieve("deep_hell")
         guard let k = nearestKeep() else { return }
         let d = Int(simd_length(V2(Float(k.anchor.x) - player.pos.x, Float(k.anchor.z) - player.pos.z)))
         onToast?("Sealrock under this fire blocks the way down. A Brimstone Keep about \(d) blocks off holds the Sunderite that breaks it (compasses point there)")

@@ -104,6 +104,7 @@ extension Mob {
         if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
         if faction == Faction.ashguard.rawValue { d["fac"] = Float(faction) }
+        if warden { d["warden"] = 1 }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -133,6 +134,7 @@ extension Mob {
         if let x = d["stayX"], let y = d["stayY"], let z = d["stayZ"] { stayAt = V3(x, y, z) }
         if let x = d["brushCd"] { hs.brushCool = x }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
+        if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
     }
 }
 

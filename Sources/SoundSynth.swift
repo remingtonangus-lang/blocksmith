@@ -785,6 +785,10 @@ struct Synth {
         case .crimsonLoop: out = Synth.loopify(Synth.mix(droneLoop(5.0, f: 65, partials: 3, detune: 0.01, noiseLP: 400, noiseGain: 0.4, gain: 0.25), bubbles(5.0, count: 6, fLo: 100, fHi: 250, len: 0.15, gain: 0.25)), fade: 0.05)
         case .warpedLoop: out = Synth.loopify(Synth.mix(droneLoop(5.0, f: 98, partials: 4, detune: 0.02, noiseLP: 1200, noiseGain: 0.15, gain: 0.2), bubbles(5.0, count: 8, fLo: 500, fHi: 1400, len: 0.12, gain: 0.15)), fade: 0.05)
         case .basaltLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 2500, gain: 0.5), crackle(5.0, density: 6, f: 1200, q: 4, gain: 1.0)), fade: 0.05)
+        // The Ash Vault (the gap pass, DE2): a hot wind under a huge roof, a low engine drone, a far-off gun now and then.
+        case .ashVaultLoop:
+            let bed = Synth.mix(windLoop(6.0, lp: 700, gain: 0.55), droneLoop(6.0, f: 46, partials: 3, detune: 0.015, noiseLP: 300, noiseGain: 0.3, gain: 0.22))
+            out = Synth.loopify(Synth.mix(bed, rumble(6.0, f: 38, attack: 0.02, decay: 1.4, gain: 0.35)), fade: 0.05)
         case .endLoop: out = droneLoop(6.0, f: 73, partials: 5, detune: 0.03, noiseLP: 2000, noiseGain: 0.12, gain: 0.22)
         case .deepDarkLoop: out = Synth.loopify(Synth.mix(droneLoop(6.0, f: 41, partials: 2, detune: 0.01, noiseLP: 200, noiseGain: 0.5, gain: 0.3), bubbles(6.0, count: 3, fLo: 80, fHi: 200, len: 0.3, gain: 0.2)), fade: 0.05)
         case .lushLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 1200, gain: 0.35), bubbles(5.0, count: 8, fLo: 1200, fHi: 3000, len: 0.05, gain: 0.25)), fade: 0.05)

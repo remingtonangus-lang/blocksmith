@@ -120,6 +120,12 @@ final class Game {
     var sealHintAt: Double = -100
     var hellHinted = false
     var keepCompass: (key: Int64, keep: StructureStart?)?
+    var wokenGates: [String] = []   // keeps whose Ember Gate is awake (DeepGates.swift), saved
+    var deepReturn: V3?             // where the Gate Shard takes you back down (the last gate or lift you rode up), saved
+    var deepEntry: V3?              // where you last broke into the Deep from the surface (the way-up marker), saved
+    var gateCooldown: Float = 0
+    var deepLifts: [IVec3] = []     // Deep Lifts the player set down (the way-up marker), saved
+    var sealShafts: [IVec3] = []    // shafts the player blew through the seal (the way-up marker in the vault), saved
     var ashVictory = false
     var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
     var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
@@ -1193,6 +1199,7 @@ final class Game {
             swing = 1
             return
         }
+        if useNow && useGateShard() { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -1276,7 +1283,7 @@ final class Game {
             }
         }
         if useGadget(useHeld: useHeld, useNow: useNow) { return }
-        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && (useBook() || useBundle()) { return }
+        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && (useBook() || useJournal() || useBundle()) { return }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
@@ -1471,6 +1478,7 @@ final class Game {
             if key == "wither_skeleton_skull" { trySummonBlight(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { if !trySummonCopperGolem(at) { trySummonGolem(at) } }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
+            if key == DeepGates.liftKey { noteDeepLift(at, placed: true) }
             TownLaw.placed(self, at)
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
@@ -1627,6 +1635,7 @@ final class Game {
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         boarlingsGuard(p, block: b)
+        if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
         TownLaw.broke(self, p, b)
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
@@ -1788,7 +1797,7 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
-        if dim.dim == .deep { ashUnitDied(m) }
+        if dim.dim == .deep { ashUnitDied(m); wardenDied(m) }
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }

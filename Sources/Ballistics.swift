@@ -231,6 +231,8 @@ final class Armory {
         if head { dmg *= 1.5 }
         // Bosses shrug off most of a gun round (keeps the wyrm, the Blight and the deep stalker real fights).
         if m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian { dmg *= 0.35 }
+        // A Cinder Tank's plate turns rifle and pistol rounds (bring a launcher: docs/status/deep-balance.md).
+        if m.kind == .ashTank && s.kind == .bullet { dmg *= 0.2 }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)

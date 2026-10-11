@@ -72,6 +72,8 @@ extension Game {
 
     // The lift: back to the bed or world spawn, like leaving the Hollow.
     func liftHome() {
+        deepReturn = V3(Float(AshWar.liftAt.x) + 0.5, Float(AshWar.liftAt.y + 1), Float(AshWar.liftAt.z) + 2.5)
+        gateCooldown = DeepGates.cooldown
         let to = spawnPoint
         changeDimension(to: .overworld, at: to)
         player.pos = to

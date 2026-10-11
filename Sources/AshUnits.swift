@@ -27,7 +27,7 @@ extension MobKind {
                         drops: [("iron_ingot", 0, 2), ("bread", 1, 4), ("rifle_rounds", 2, 8)], xp: 8, call: .gun(12))
         default:
             return Spec(name: "The Ash Marshal", halfW: 0.38, height: 2.1, health: 380, speed: 3.0, behavior: .monster,
-                        drops: [("gold_ingot", 4, 9), ("diamond", 2, 5), ("heavy_rounds", 4, 10), ("arc_cell", 2, 4)], xp: 250,
+                        drops: [("gold_ingot", 4, 9), ("diamond", 2, 5), ("heavy_rounds", 4, 10), ("arc_cell", 2, 4), ("marshal_cap", 1, 1)], xp: 250,
                         call: .gun(11), fireImmune: true)
         }
     }
@@ -79,6 +79,7 @@ extension Mob {
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
+        if tag == "warden" { m.makeKeepWarden() }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }
         return m
     }

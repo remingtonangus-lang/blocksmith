@@ -23,6 +23,7 @@ enum DeepExpansionTests {
         keeps(game, check)
         sky(game, check)
         army(game, check)
+        DeepGapTests.run(game, check)
         print(String(format: "deep expansion: checks took %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
 
@@ -308,7 +309,8 @@ enum DeepExpansionTests {
                 } } }
             } }
             let monsters = mobs.filter { $0.hasSuffix("@deep") }.count, ash = mobs.filter { $0.contains("@ash") }.count
-            check(b[brick, default: 0] > 2500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
+            // (the ring fort is the leanest of the three layouts in ember brick)
+            check(b[brick, default: 0] > 1500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
                   "deep keeps \(seed): keep \(dist) blocks from the origin: \(b[brick, default: 0]) ember brick, \(strongOre) Sunderite Ore in the strongroom, \(chests) chests, garrison \(monsters) monsters + \(ash) Ashguard")
             // Walk in from the hell band around it: from open ground 70-90 blocks out (a ring of 48 columns, the first
             // standing cell going down from over the keep's floor), on foot with jumps and ladders, into the strongroom.

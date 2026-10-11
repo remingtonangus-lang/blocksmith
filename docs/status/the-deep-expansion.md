@@ -124,7 +124,7 @@ partial. Three PRs close it. Expanded objectives, written before building:
   (the warden's drop) carries you back down to the last gate you woke. The ways back are one per layer: the gates from
   the hell band, the command-bunker lift (after the Marshal) and a buildable Deep Lift from the vault.
 - Keeps (DE7): three layouts (the castle, a ring fort, a terraced citadel), guards with roles (wardens on the walls,
-  brutes at the gates, Ashguard at the strongroom), a mini-boss (the Keep Warden, boss bar) and a loot vault.
+  brutes at the gates, Ashguard at the strongroom), a mini-boss (the Keep Castellan, boss bar) and a loot vault.
 - Time to kill (D4b): a full-gear run in questcheck (the best armour and weapons a player has at the vault) against
   every Ashguard unit: time for the player to kill each and time for each to kill the player, written in
   docs/status/deep-balance.md with the progression curve (DE1).
@@ -136,6 +136,19 @@ partial. Three PRs close it. Expanded objectives, written before building:
 - Recipe hints (DE5): a Keeper's Journal (fortress chests, and a hint from the first Ashguard officer you kill) names the
   whole Sunderite chain and where the keeps stand; the chain is in the recipe book.
 - The seal breaking (DE6): a big moment: a deep boom, a light column, shake, falling debris, an advancement.
-- Rewards (DE13): a unique reward per layer (hell: the Warden's Brand trophy and Gate Shard; seal: Sealrock Shard
+- Rewards (DE13): a unique reward per layer (hell: the Castellan's Brand trophy and Gate Shard; seal: Sealrock Shard
   blocks; vault: the Marshal's Cap trophy and Ashguard plating) and an advancement per milestone (hell band, a keep
-  warden, the seal broken, the vault, the Marshal).
+  castellan, the seal broken, the vault, the Marshal).
+
+### Respawn, beds and the ways back (DE4)
+- Beds do not work in the Deep: using one blows it up like in the Emberdeep (power 5, fire) and sets no spawn
+  (`Farming.swift`, the bed branch of block use: any dimension but the overworld). Respawn anchors work only in the
+  Emberdeep.
+- Dying in the Deep respawns you on the surface, at your bed (if it still stands) or the world spawn (`Game.respawn`).
+  Your things stay where you fell, so the way back down matters:
+  - the hole you dug: break through the surface's lowest layer at the same x, z (the seam, `DeepSeam.swift`);
+  - a woken Ember Gate: use a Gate Shard on the surface to drop back to the last gate you woke (`DeepGates.swift`).
+- The ways up, one per layer, all shown on the HUD's way-up line while in the Deep (`DeepWayUp.swift`): from the
+  hell band and the crusts the hole you came down or a woken Ember Gate (step into its veil); from the vault a shaft
+  you blew through the seal, a Deep Lift you built (ingot + piston + iron block) or, after the Marshal, the
+  command-bunker lift. Climbing out of the Deep's top layer always works too.
