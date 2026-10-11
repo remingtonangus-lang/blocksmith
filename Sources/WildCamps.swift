@@ -58,10 +58,7 @@ enum WildCamps {
         StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
             var roll = SRng(seed)
             guard roll.chance(chance) else { return nil }
-            // G12: rarer citadels and cities freed ground the camps had given way to (7.6 -> 10.5 per 2048^2); a share
-            // of regions keeps no camp so L3's 10-15 minutes holds (ground saved before G12 keeps its camp).
-            let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing)
-            if !WorldRules.savedBeforeG12(gen, cx0, cz0, reach: 2) && hashf(rx0, 7611, rz0, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA3) >= campKeepG12 { return nil }
+            if thinnedG12(gen, seed, cx0, cz0) { return nil }
             if let s = site(gen, seed, cx0, cz0) { return s }
             // L3 rarity (a camp every 10-15 minutes of walking; docs/status/l3-part3.md): when the region's spot
             // won't take a camp, one more spot in its placement square, unless ground there was saved before this rule
@@ -76,6 +73,23 @@ enum WildCamps {
             }
             return nil
         }
+    }
+
+    // G12: rarer citadels and cities freed ground the camps had given way to (7.6 -> 10.5 per 2048^2); a share of
+    // regions keeps no camp so L3's 10-15 minutes holds. Ground saved before G12 at either of the region's spots (since
+    // L3 a camp may stand at its alternate spot) keeps its camp.
+    static func thinnedG12(_ gen: WorldGen, _ seed: UInt64, _ cx0: Int, _ cz0: Int) -> Bool {
+        let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
+        let ax = rx0 * spacing + Int(hashf(rx0, rz0, 7501, s32) * Float(spacing - separation - 1))
+        let az = rz0 * spacing + Int(hashf(rx0, rz0, 7601, s32) * Float(spacing - separation - 1))
+        if WorldRules.savedBeforeG12(gen, cx0, cz0, reach: 2) || WorldRules.savedBeforeG12(gen, ax, az, reach: 2) { return false }
+        return hashf(rx0, 7611, rz0, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA3) >= campKeepG12
+    }
+    // The alternate spot of the region holding chunk (cx0, cz0) (for checks).
+    static func alternateSpot(_ seed: UInt64, _ cx0: Int, _ cz0: Int) -> (Int, Int) {
+        let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
+        return (rx0 * spacing + Int(hashf(rx0, rz0, 7501, s32) * Float(spacing - separation - 1)),
+                rz0 * spacing + Int(hashf(rx0, rz0, 7601, s32) * Float(spacing - separation - 1)))
     }
 
     // A camp at chunk (cx, cz), or nil where the ground or the neighbours won't have one.

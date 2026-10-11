@@ -72,6 +72,19 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --basetest-only [phase]: the Mac snap shard's citadel scenes (Sources/BaseTests.swift) at the citadel nearest spawn,
+// as `--structure military_base --basetest patrol` frames it (cloud threads can see which citadel G12's rules leave).
+if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
+    let phase = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "patrol"
+    if let s = world.gen.structures?.nearest("military_base", x: Int(spawn.x), z: Int(spawn.z), maxRegions: 6) {
+        print("basetest: citadel at \(s.anchor.x) \(s.anchor.z)")
+        game.player.pos = V3(Float(s.anchor.x), Float(s.anchor.y + 1), Float(s.anchor.z))
+        _ = world.loadSync(center: game.player.pos, radius: 6)
+        let ok = BaseTests.run(game: game, world: world, phase: phase)
+        print(ok ? "basetest: all checks passed" : "basetest: FAILED"); exit(ok ? 0 : 1)
+    }
+    print("basetest: no citadel within 6 regions"); exit(1)
+}
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
     check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
@@ -124,6 +137,7 @@ PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count
 EruptionTests.run(game, check: check)
 // L3 placement rules keep old saves (Sources/L3GuardTests.swift).
 L3GuardTests.run(game, check: check)
+L3GuardTests.g12(game, check: check)       // (G12 and old saves)
 if CommandLine.arguments.contains("--workshop-only") {
     print(failures == 0 ? "workshop: all checks passed" : "workshop: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }

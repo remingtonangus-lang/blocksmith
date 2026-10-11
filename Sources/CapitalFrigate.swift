@@ -280,8 +280,9 @@ extension Capital {
             hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
             for y in (ny - rr - 1)...(ny + rr + 1) { for x in (nx - rr - 1)...(nx + rr + 1) where mfEngine(x, y, L - 1) {
                 let d2 = (x - nx) * (x - nx) + (y - ny) * (y - ny)
-                if d2 <= (rr - 1) * (rr - 1) { hb.set(x, y, L - 1, AIR); hb.set(x, y, L - 2, thr) }      // recessed glowing core
-                else if d2 <= rr * rr + 1 { hb.set(x, y, L - 1, trim) }                                  // nozzle ring
+                // The glowing core fills the whole nozzle (G8: it was a radius smaller, "two small points at night").
+                if d2 <= rr * rr { hb.set(x, y, L - 1, AIR); hb.set(x, y, L - 2, thr) }                    // recessed glowing core
+                else if d2 <= (rr + 1) * (rr + 1) { hb.set(x, y, L - 1, trim) }                          // nozzle ring
             } }
         }
         // Navigation lights at the boom tips and the engine block's corners.

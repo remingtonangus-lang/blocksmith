@@ -55,11 +55,13 @@ Results:
   hauls you up at 9 b/s and sets you on the hangar deck. While a player is within 34 blocks of the foot the frigate
   heaves to (0.6 b/s, holding its heading) so the line can be caught.
 - BoardingTests (questcheck, and the Mac `--questbugs`): a bot under a cruising frigate is hauled aboard, walks to the
-  ladder at z 89, climbs to the bridge deck and walks to the helm with the left stick only.
+  ladder at z 89, climbs to the bridge deck and walks to the helm with the left stick only (in survival, from a
+living player: the full questcheck reached it with the player dead on the death screen).
 
 ## G8: the frigate's thrusters read as two small points at night (done audit 25b6)
 Objectives: the stern reads as engines from a few hundred blocks at night; cheap (a handful of particles, one light).
-Results: ShipManager.driveGlow: a blue-white glow sprite over each nozzle (7.5 blocks across, 3.5 for the centre one),
+Results: the glowing cores fill each nozzle (a block wider all round: radius 4 on the four great ones, was 3; new
+frigates). ShipManager.driveGlow: a blue-white glow sprite over each nozzle (7.5 blocks across, 3.5 for the centre one),
 growing with distance up to 3x past 150 blocks so it never shrinks to a dot, brighter at night, flickering slightly;
 one shared light on the stern within 160 blocks (the flash list is shared with gunfire). Works on AI and commandeered
 frigates. Check: MainGunTests 1b (four or more nozzle sprites over 2.5 degrees across from 300 blocks astern at night);
@@ -87,6 +89,11 @@ Results:
 - City size and mix: CapitalCity.planFor draws small, medium or large (40/35/25 %), the building share (40-70 %),
   squares against gardens and the canopy share per city. Small cities keep at least six buildings.
 - Ground saved before G12 (StructureCache.legacyG12) keeps the old rules and the old plan.
+- Old saves (verifier pass): a citadel or city that G12 would now drop keeps the old rules whenever ground within
+  its reach on other placements was saved before G12 (28 chunks round a citadel, 46 round a city region's placement
+  square: cities keep 240 from citadels, camps 170 and 240), so nothing that gave way to it appears on saved ground;
+  a city region with saved ground anywhere it reaches uses the old keep share and the old large plan for every spot;
+  the camp thinning skips a region with saved ground at either of its spots. Check: L3GuardTests.g12 (questcheck).
 - Check: `--worldgencheck` (questcheck binary or Mac) fails on two citadels within 800, a citadel within 640 of the
   spawn or none within 2,000 (was 1,600; the camps' orders now lead there), and prints the citadel count and the city sizes.
 
@@ -94,3 +101,13 @@ Results:
 Results: the first city name is Brightmoor now (CapitalTown.cityNames); MainGunTests 8 checks no city carries the
 navy's name. snap.sh renders capital_city (from above) and capital_street (street level). A saved city's fountain
 sign keeps the text it was built with.
+
+## Verifier pass on the batch (independent)
+It confirmed G13 (one hull damage path, crews saved), G11, G8, G6, G7 and the G12 world-gen numbers (25 seeds: nearest
+citadel 713-1753, none within 800 of another, cities 1,247+ from spawn, camps every 11 minutes). Fixed from its
+findings: the boarding check started with a dead player in the full questcheck and its survival and helm checks
+could not fail; G12 could cut saved structures in half (camps at their alternate spot; neighbours of a dropped citadel
+or city); the drive glow looked up its texture by name every frame; G8 lacked the bigger glowing faces. Not changed:
+the frigate heaves to for any player under its winch, hostile or not (a hostile frigate holding still over you is
+a fair fight); a pre-G12 save's city that drew "Meridian" keeps that name on its sign while new lookups say
+Brightmoor. The town checks (G10) still fail on the base in the full questcheck; G10 stays open.

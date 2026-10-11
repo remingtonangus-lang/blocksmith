@@ -15,6 +15,7 @@ enum FrigateBoarding {
     static let haulSpeed: Float = 9          // blocks per second up the line
     static let heaveRadius: Float = 34       // a player this close to the foot (horizontally) makes the frigate heave to
     static var hauled = 0                    // players hauled aboard (tests)
+    static let puffLayer = Int(Tex.id("puff"))   // (looked up once: the line and the drive glow draw every frame)
 
     static func anchor(_ s: Ship) -> V3 { s.toWorld(V3(anchorX, anchorY, anchorZ)) }
 }
@@ -33,7 +34,7 @@ extension ShipManager {
         let ground = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) + 1 : world.gen.column(gx, gz).height + 1)
         let length = max(0, top.y - ground)
         if simd_length(pp - top) < 140 && length > 0 {
-            let layer = Int(Tex.id("puff"))
+            let layer = FrigateBoarding.puffLayer
             var y: Float = 0
             while y < length {
                 g.particles.add(Particle(pos: top - V3(0, y, 0), vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),

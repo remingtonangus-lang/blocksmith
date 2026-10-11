@@ -196,6 +196,11 @@ final class StructureCache {
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
     func clear(cx: Int, cz: Int, reach r: Int, guardSet: Set<Int64>) -> Bool {
         if guardSet.isEmpty { return true }
+        let side = 2 * r + 1
+        if guardSet.count < side * side {                // (a small guard set and a wide reach: walk the set)
+            for k in guardSet where abs(Int(k >> 32) - cx) <= r && abs(Int(Int32(truncatingIfNeeded: k)) - cz) <= r { return false }
+            return true
+        }
         for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) where guardSet.contains(StructureCache.key(x, z)) { return false } }
         return true
     }

@@ -118,7 +118,7 @@ enum CapitalCity {
             // G12: each city draws its size (small 16 lots, medium 24, large 32) and its mix of lot uses from the pool
             // (an office quarter, a park city, squares), so no two read alike. Ground saved before G12 keeps the
             // old plan (every city large, the one mix).
-            let varied = sc.clear(cx: cx, cz: cz, reach: 9, guardSet: sc.legacyG12)
+            let varied = !WorldRules.capitalLegacy(gen, floorDiv(cx, 56), floorDiv(cz, 56))
             var mix = SRng(seed ^ 0x612C)
             let sizeRoll = mix.float()
             let size: Float = !varied ? 1.1 : (sizeRoll < 0.4 ? 0.5 : (sizeRoll < 0.75 ? 0.75 : 1.1))
