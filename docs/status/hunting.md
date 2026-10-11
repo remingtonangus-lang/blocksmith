@@ -102,3 +102,5 @@ pelts; legendary animals with map clues and unique pelts; fishing with species, 
   - Legends can't be tamed.
   - A fish fight near full line no longer ends silently.
 - Noted: the spear counts as a clean weapon on medium game (a default, beside the listed tools).
+- Re-verify: the per-second upkeep restarts with a new world's clock (so the new-world reset really runs), and a legend's
+  body waits for its ground to be loaded before its loot drops.

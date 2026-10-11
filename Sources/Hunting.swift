@@ -239,7 +239,7 @@ enum Hunting {
 
     static var lastTick: Double = -10
     static func tick(_ g: Game) {
-        guard g.clock - lastTick >= 1 else { return }
+        guard g.clock - lastTick >= 1 || g.clock < lastTick else { return }      // (a new Game's clock starts at 0)
         lastTick = g.clock
         // A world of its own: a new world starts clean (a saved one loads its state in Game.loadExtra).
         if state.seed == nil { state.seed = g.world.seed } else if state.seed != g.world.seed { reset(); state.seed = g.world.seed }
@@ -248,7 +248,9 @@ enum Hunting {
         // pelt and trophy on the ground rather than vanish (a legend is gone for good once its loot is out).
         var gone: [Body] = []
         bodies.removeAll { b in
-            let out = b.dim == g.world.dim && (b.until < g.clock || simd_length(b.mob.pos - p) > 160)
+            // A legend's body stays until its ground is loaded, so its loot lands somewhere real.
+            let here = b.dim == g.world.dim && (b.legend < 0 || g.world.isLoaded(Int(floor(b.mob.pos.x)), Int(floor(b.mob.pos.z))))
+            let out = here && (b.until < g.clock || (b.legend < 0 && simd_length(b.mob.pos - p) > 160))
             if out { gone.append(b) }
             return out
         }
