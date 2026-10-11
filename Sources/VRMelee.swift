@@ -163,16 +163,50 @@ extension Game {
         }
     }
 
-    // Where mobs aim and measure their melee reach (Mob.update): the player's feet, or in VR the column under the
-    // headset (seated leaning moves the head up to 35 cm without moving the player), at most 0.5 m from the feet. The
-    // reach numbers are unchanged; they are measured to where the player really is, so leaning back out of reach
-    // dodges and leaning in gets hit.
+    // Where mobs walk and face (Mob.update; their reach is meleeGap): the player's feet, or in VR the column under the
+    // headset (seated leaning moves the head without moving the player), at most 0.5 m from the feet.
     var meleeBody: V3 {
         guard let h = vrHead else { return player.pos }
         var d = V2(h.x - player.pos.x, h.z - player.pos.z)
         let l = simd_length(d)
         if l > 0.5 { d *= 0.5 / l }
         return V3(player.pos.x + d.x, player.pos.y, player.pos.z + d.y)
+    }
+
+    // A melee hit that did damage (Game.interact): the hit mob flashes white-hot for Mob.hitFlashTime (distinct from the
+    // red hurt tint) and sparks fly from the contact point along the swing. Quest: the blade's contact point and sweep
+    // (QuestControls.swingContact, with its haptic); the Mac and pads: the near side of the mob along the look.
+    // A fist or a non-weapon (sparks false): a dimmer, shorter flash and no sparks.
+    func bladeFlash(_ m: Mob, at point: V3? = nil, along dir: V3? = nil, power: Float = 1, sparks: Bool = true) {
+        m.hitFlash = Mob.hitFlashTime * (sparks ? 1 : 0.55)
+        guard sparks else { return }
+        let c = point ?? (m.pos + V3(0, m.height * 0.6, 0) - V3(player.look.x, 0, player.look.z) * m.halfW)
+        particles.bladeSpark(at: c, along: dir ?? player.look, power: min(1.3, max(0.3, power)))
+    }
+
+    // How far a mob's arms are from the player's body, for melee reach (Mob.update): the horizontal distance from the
+    // mob's centre to the part of the player's body level with the mob (its feet to its top, as the reference attack box:
+    // inflated sideways, not up). The body is a segment from the feet to the headset in VR (wherever the head leans, no
+    // clamp) or to the eyes on the Mac. Leaning in over a zombie gets hit, a mob on a ledge reaches down to the head, a
+    // player on a 2-block pillar or the floor above is out of reach (infinite gap).
+    func meleeGap(_ m: Mob) -> Float {
+        let f = player.pos
+        let d = (vrHead ?? player.eye) - f
+        let lo = m.pos.y, hi = m.pos.y + m.height
+        // The stretch t0...t1 of the body (0 feet, 1 head) whose height is within the mob's.
+        var t0: Float = 0, t1: Float = 1
+        if abs(d.y) < 1e-4 {
+            if f.y < lo || f.y > hi { return .greatestFiniteMagnitude }
+        } else {
+            let a = (lo - f.y) / d.y, b = (hi - f.y) / d.y
+            t0 = max(0, min(a, b)); t1 = min(1, max(a, b))
+            if t0 > t1 { return .greatestFiniteMagnitude }
+        }
+        // Closest point of that stretch to the mob's centre, sideways.
+        let h = V2(d.x, d.z), r = V2(m.pos.x - f.x, m.pos.z - f.z)
+        let hh: Float = simd_dot(h, h)
+        let t: Float = hh < 1e-8 ? t0 : min(t1, max(t0, simd_dot(r, h) / hh))
+        return simd_length(r - h * t)
     }
 
     // The first living mob the swept blade touches, within VRMelee.reach of `eye` and in sight of it (world space).

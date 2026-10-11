@@ -118,6 +118,22 @@ final class ParticleManager {
         }
     }
 
+    // Blade contact (Game.bladeFlash): a white-hot burst at the point of contact and fast short sparks thrown along the
+    // swing, glowing (bloom in Fancy), over in a quarter second: brighter and quicker than the crit dust.
+    func bladeSpark(at c: V3, along dir: V3, power: Float) {
+        let smoke = Int(Tex.id("smoke"))
+        add(Particle(pos: c, vel: .zero, life: 0.09, maxLife: 0.09, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                     size: 0.22 + 0.12 * power, gravity: 0, color: V3(1, 0.96, 0.82), collide: false, glow: true))
+        let n = 6 + Int(power * 6)
+        for _ in 0..<n {
+            let r = V3(Rand.float(in: -1...1), Rand.float(in: -0.4...1), Rand.float(in: -1...1))
+            let d = simd_normalize(dir * 1.4 + r + V3(0, 1e-4, 0))
+            add(Particle(pos: c, vel: d * Rand.float(in: 4...8), life: Rand.float(in: 0.12...0.26), maxLife: 0.26, layer: smoke,
+                         uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.03...0.05), gravity: 10,
+                         color: V3(1, Rand.float(in: 0.75...0.95), 0.45), collide: false, glow: true))
+        }
+    }
+
     func update(_ dt: Float, _ w: World) {
         for i in list.indices {
             list[i].life -= dt

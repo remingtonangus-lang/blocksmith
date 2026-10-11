@@ -243,10 +243,12 @@ final class Game {
     // Quest Swing melee (VRMelee.swift): the mob the swung blade physically touched this frame (QuestControls.swingContact),
     // with swingPower. Consumed by interact; a swing never mines or uses anything else.
     var swingMob: Mob?
+    var swingPoint: V3?                // ... where the blade touched it and the blade's sweep (the contact flash, bladeFlash)
+    var swingDir = V3(0, 0, -1)
     // Quest Swing melee chosen (QuestSettings.swingMode): with a melee weapon only its blade's contact attacks
     // creatures (meleeContactOnly, VRMelee.swift); the trigger mines, fires and hits non-living things.
     var swingMelee = false
-    // Quest: the headset's world position (mobs measure their melee reach to the column under it: meleeBody).
+    // Quest: the headset's world position (mobs walk toward the column under it, meleeBody; reach: meleeGap).
     var vrHead: V3?
     // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
     var vrBow: (draw: Float, origin: V3, dir: V3)?
@@ -952,7 +954,8 @@ final class Game {
         let touchedMob = swingMob.flatMap { $0 === riding || $0.health <= 0 ? nil : $0 }
         let swung = swingPower > 0 && touchedMob != nil
         let swingPow = swingPower
-        swingPower = 0; swingMob = nil
+        let swingAt = swingPoint, swingAlong = swingDir
+        swingPower = 0; swingMob = nil; swingPoint = nil
         // Blocks break and place from 6 blocks away (playtest v78). Melee on mobs stays short (3.5, below).
         let reach: Float = 6
         let ray = world.raycast(player.eye, player.look, maxDist: reach)
@@ -1068,7 +1071,14 @@ final class Game {
                 let kb = Float(Enchant.level(.knockback, held))
                 // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
                 let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
+                let hp0 = m.health
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
+                // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
+                // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
+                if m.health < hp0 {
+                    bladeFlash(m, at: swung ? swingAt : nil, along: swung ? swingAlong : nil, power: swung ? swingPow : charge,
+                               sparks: !held.isEmpty && VRMelee.isSwingWeapon(Items.key(held.item)))
+                }
                 m.provoke(self)
                 m.killedByPlayer = true
                 m.lootingLevel = Enchant.level(.looting, held)

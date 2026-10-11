@@ -131,7 +131,7 @@ extension Mob {
         if kind == .wolf || kind == .polarBear || kind == .panda || kind == .goat || kind == .bee || kind == .fox || kind == .ocelot || kind == .cat {
             if aggro && canTarget {
                 face(player)
-                if dist < halfW + 1.2 && attackCooldown <= 0 {
+                if g.meleeGap(self) < halfW + 1.2 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .bee {
@@ -419,7 +419,7 @@ extension Mob {
                     vel += (simd_normalize(c - pos) * spec.speed - vel) * min(1, dt * 2)
                     if Rand.float(in: 0..<1) < dt / 6 { phase = 1 }
                 } else {
-                    let d = g.player.eye - pos
+                    let d = (g.vrHead ?? g.player.eye) - pos       // VR: dives at the real head
                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
                     if simd_length(d) < 1.2 {
                         if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
@@ -439,7 +439,7 @@ extension Mob {
         case .endermite:
             if canTarget {
                 face(player)
-                if dist < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
+                if g.meleeGap(self) < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
                 return spec.speed
             }
             age += dt
@@ -461,7 +461,7 @@ extension Mob {
             if anger >= 80 && canTarget {
                 face(player)
                 attackCooldown -= 0
-                if dist < 2.4 && attackCooldown <= 0 {
+                if g.meleeGap(self) < 2.4 && attackCooldown <= 0 {
                     attackCooldown = 1.8
                     g.hurtPlayer(spec.attack, from: pos, cause: "was obliterated by a sonically-charged shriek", knockback: 1.5, attacker: self)
                 } else if dist < 15 && dist > 4 && spellTimer <= 0 {

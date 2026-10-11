@@ -43,3 +43,11 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   and the Sheriff's Revolver"; the sheriff's warn/arrest flow and the HUD's standing line came in with it.
 - Repro: `build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot /tmp/tt.png --seed 12345 --find plains --time 0.3 --rd 4 --towntests | grep FAIL`
 - Owner: the cloud towns project (sheriff/honour are its scope). Not a Mac CI lane; questcheck runs TownTests too.
+
+## 2026-10-10 late: `--mobtests` "path ladder climb" and "path swimmer crosses water"
+- Fails after merging origin/claude/quest-port (The Deep expansion #22) into the 25b4zxx work: the ladder path ends at
+  0,3,0 (8 nodes, 3 rungs) and `reaches(deck)` is false; the swimmer's 16-node path round the pool doesn't count as
+  swimming. 145 other mob checks pass. 25b4zxx didn't touch Pathfinding.swift or MobTests.swift (its melee reach
+  change only affects attack checks), so the likely cause is terrain/blocks at the test site after the merge.
+- Repro: `build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot /tmp/m.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck | grep FAIL`
+- Not bisected (test-infrastructure timebox); next session on mobs: build 91da13ce vs fb5cef8b and compare.

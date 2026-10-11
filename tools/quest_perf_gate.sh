@@ -11,6 +11,9 @@
 # Local check (~9 min at 60 s a route, needs build/Blocksmith.app): tools/quest_perf_gate.sh [--secs N] [--rd N]
 #   [--routes "village taiga"]. Run it on a quiet Mac: other builds on the machine show up as hitches. Device numbers
 #   come from the `perf:` lines (tools/quest_perf_log.py on adb logcat output).
+# CI (snap.sh checks shard, heavy lane: --secs 20 --routes "taiga flyover"): PERF_GATE_CI=1 gates on the controller
+# test and the quads / unmeshed budgets only; frame times and tick CPU are printed for the record (a shared CI VM is not
+# a Quest and its timings swing run to run). The CI routes are 20 s, the budgets come from 60 s local runs.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 BIN=${BIN:-build/Blocksmith.app/Contents/MacOS/Blocksmith}
@@ -32,7 +35,8 @@ grep "^trace\|FAIL\|rdgovernor" /tmp/quest_perf_gate_rd.log | cut -c1-200
 echo "quest_perf_gate: render distance $RD, $SECS s a route ($ROUTES)"
 ROUTES="$ROUTES" BIN="$BIN" tools/bench_routes.sh --quest --rd "$RD" --secs "$SECS" | grep "tick spikes\|world.update mean" | cut -c1-220
 python3 - "$RD" "$GOV" "$ROUTES" <<'PY'
-import json, sys
+import json, os, sys
+ci = os.environ.get("PERF_GATE_CI") == "1"
 m = json.load(open("snaps/routes_quest.json"))
 bad = int(sys.argv[2])
 # Counted-work budgets for the playtest routes at rd 16 (Oct 10 after the fixes: taiga 460k quads, tick CPU p99 2.6-3.6 ms;
@@ -47,14 +51,15 @@ for r in sys.argv[3].split():
     if p99 is None:
         print(f"  {r:9s} no result (crash or timeout)"); bad += 1; continue
     if r in counted:
-        fails = [f"{n} {m.get(f'{k}.{n}', 1e9):.1f} > {lim}" for n, lim in counted[r].items() if m.get(f"{k}.{n}", 1e9) > lim]
+        fails = [f"{n} {m.get(f'{k}.{n}', 1e9):.1f} > {lim}" for n, lim in counted[r].items()
+                 if m.get(f"{k}.{n}", 1e9) > lim and not (ci and n == "tick_cpu_ms_p99")]   # CI: a shared VM's CPU time swings
         bad += 1 if fails else 0
         print(f"  {r:9s} quads {m.get(f'{k}.quads', 0) / 1000:.0f}k, tick CPU p99 {m.get(f'{k}.tick_cpu_ms_p99', 0):.1f}, hand-over p99 {m.get(f'{k}.update_ms_p99', 0):.1f} ms, "
               f"not meshed {m.get(f'{k}.unmeshed_pct', 0):.1f}% (frame p99 {p99:.1f} ms, info)  {'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
         continue
     ok = p99 <= 13.9 and hpm <= 1
-    bad += 0 if ok else 1
-    print(f"  {r:9s} p99 {p99:5.1f} ms (<= 13.9)  hitches {hpm:4.1f}/min (<= 1)  {'PASS' if ok else 'FAIL'}")
+    bad += 0 if ok or ci else 1
+    print(f"  {r:9s} p99 {p99:5.1f} ms (<= 13.9)  hitches {hpm:4.1f}/min (<= 1)  {'PASS' if ok else ('over (info on CI)' if ci else 'FAIL')}")
 print(f"quest_perf_gate: {'PASS' if bad == 0 else f'FAIL ({bad})'} at render distance {sys.argv[1]}{' (controller test FAILED)' if sys.argv[2] != '0' else ''}")
 sys.exit(1 if bad else 0)
 PY

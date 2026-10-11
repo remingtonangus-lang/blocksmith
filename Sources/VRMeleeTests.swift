@@ -289,8 +289,9 @@ enum VRMeleeTests {
             game.inventory.held = keep
         }
 
-        // 6. Mob melee reaches the real head: leaning back out of reach dodges, leaning in gets hit, and without a
-        // headset (or standing over the feet) the reach is unchanged.
+        // 6. Mob melee reaches the real body: a segment from the feet to the headset (Game.meleeGap), no clamp under
+        // the head. Leaning in gets hit, however far; a mob on a ledge reaches down to the head; a player on a pillar
+        // over a zombie's head is out of its reach; without a headset (or standing over the feet) the reach is unchanged.
         do {
             game.survival = true
             game.swingMelee = false
@@ -298,15 +299,16 @@ enum VRMeleeTests {
             game.difficulty = 2
             defer { game.difficulty = keepDiff }
             p.pitch = 0
-            func hurt(zombieAt dz: Float, lean: Float?) -> Bool {
+            func hurt(zombieAt dz: Float, up: Float = 0, lean: Float?) -> Bool {
                 game.health = 20
-                let z = zombie(P + V3(0, 0, -dz))
+                let at = P + V3(0, up, -dz)
+                let z = zombie(at)
                 defer { remove(z) }
                 var took = false, last = game.health
                 ticks(91) {
                     if game.health < last { took = true }
                     game.health = 20; last = 20
-                    z.pos = P + V3(0, 0, -dz); z.vel = .zero
+                    z.pos = at; z.vel = .zero
                     game.vrHead = lean.map { P + V3(0, 1.62, -$0) }
                 }
                 game.vrHead = nil
@@ -314,13 +316,72 @@ enum VRMeleeTests {
             }
             let near = hurt(zombieAt: 1.4, lean: nil)
             let over = hurt(zombieAt: 1.4, lean: 0)
-            let back = hurt(zombieAt: 1.4, lean: -0.35)
             let lean = hurt(zombieAt: 1.85, lean: 0.35)
             let far = hurt(zombieAt: 1.85, lean: nil)
+            let deep = hurt(zombieAt: 2.3, lean: 0.8)
+            let deepFeet = hurt(zombieAt: 2.3, lean: 0)
+            let ledge = hurt(zombieAt: 1.4, up: 1.5, lean: 0)
+            let pillar = hurt(zombieAt: 0.8, up: -3.5, lean: nil)
+            let pillar2 = hurt(zombieAt: 0.8, up: -2, lean: nil)
+            let pillar2v = hurt(zombieAt: 0.8, up: -2, lean: 0.3)
+            let step1 = hurt(zombieAt: 1.2, up: -1, lean: nil)
             check(near && over, "zombie 1.4 blocks away hits (no headset \(near), head over the feet \(over))")
-            check(!back, "leaning 35 cm back from a zombie 1.4 blocks away dodges its hit (hit: \(back))")
             check(lean && !far, "a zombie 1.85 blocks away: misses the feet \(!far), hits a head leaning 35 cm in \(lean)")
+            check(deep && !deepFeet, "a zombie 2.3 blocks away hits a head leaning 80 cm in \(deep) (no 0.5 m clamp), not a head over the feet \(!deepFeet)")
+            check(ledge, "a zombie on a ledge 1.5 blocks up and 1.4 out reaches down to the head (hit: \(ledge))")
+            check(!pillar, "a player on a pillar 3.5 blocks over a zombie is out of its reach (hit: \(pillar))")
+            check(!pillar2 && !pillar2v, "a player 2 blocks over a zombie (pillar, or the floor above a 1-block ceiling) is out of reach, standing \(!pillar2) or leaning \(!pillar2v)")
+            check(step1, "a player on a 1-block step beside a zombie still gets hit (hit: \(step1))")
+            let z = zombie(P + V3(0, 0, -1.2))
+            game.vrHead = P + V3(0, 1.62, -0.6)
+            let gap = game.meleeGap(z)
+            game.vrHead = nil
+            remove(z)
+            check(abs(gap - 0.6) < 0.08, String(format: "meleeGap measures to the leaning body: zombie 1.2 out, head 0.6 in -> %.2f (want 0.6)", gap))
             game.survival = false
+        }
+
+        // 6b. The contact flash (Game.bladeFlash): a weapon hit makes the mob flash white-hot (brighter than the hurt
+        // tint, over in a fraction of a second) and throws glowing sparks; the Quest blade does the same at its contact point.
+        do {
+            game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
+            game.swingMelee = false
+            let z = zombie(P + V3(0, 0, -2))
+            defer { remove(z) }
+            ticks(90) { z.pos = P + V3(0, 0, -2); z.vel = .zero }
+            func shade(_ m: Mob) -> Float {
+                let cap = 4096
+                let buf = UnsafeMutablePointer<MobVert>.allocate(capacity: cap)
+                defer { buf.deallocate() }
+                let n = writeMobVertices([m], eye: P + V3(0, 1.6, 0), daylight: 1, world: game.world, into: buf, capacity: cap)
+                var sum: Float = 0
+                for i in 0..<n { let c = buf[i].color; sum += (c.x + c.y + c.z) / 3 * c.w }
+                return n > 0 ? sum / Float(n) : 0
+            }
+            let before = shade(z)
+            let sparks0 = game.particles.list.filter { $0.glow }.count
+            ticks(1) { z.pos = P + V3(0, 0, -2); z.vel = .zero; game.input.leftClicked = true }
+            let flashed = z.hitFlash > 0
+            let lit = shade(z)
+            let sparks = game.particles.list.filter { $0.glow }.count - sparks0
+            ticks(12) { z.pos = P + V3(0, 0, -2); z.vel = .zero }
+            let hurtOnly = z.hurt > 0 ? shade(z) : -1
+            let flashOver = z.hitFlash == 0
+            ticks(1) { z.pos = P + V3(0, 0, -2); z.vel = .zero; game.input.leftClicked = true }
+            check(z.hitFlash == 0, "a click into the zombie's hurt invulnerability (no damage) doesn't flash it")
+            game.inventory.held = .empty
+            ticks(40) { z.pos = P + V3(0, 0, -2); z.vel = .zero }
+            let s1 = game.particles.list.filter { $0.glow }.count
+            ticks(1) { z.pos = P + V3(0, 0, -2); z.vel = .zero; game.input.leftClicked = true }
+            check(z.hitFlash > 0 && z.hitFlash < Mob.hitFlashTime && game.particles.list.filter { $0.glow }.count <= s1,
+                  "a punch flashes dimmer and throws no sparks")
+            check(flashed && sparks >= 6, "a sword hit flashes the zombie (\(flashed)) and throws \(sparks) glowing sparks (want >= 6)")
+            check(lit > before * 1.5 && hurtOnly > 0 && lit > hurtOnly * 1.5 && flashOver,
+                  String(format: "the flash is brighter than the mob (%.2f -> %.2f) and its red hurt tint (%.2f), and over within 0.2 s while the hurt tint is still on", before, lit, hurtOnly))
+            let q = zombie(P + V3(1, 0, -2))
+            game.bladeFlash(q, at: P + V3(1, 1.2, -1.7), along: V3(1, 0, 0), power: 1.2)
+            check(q.hitFlash > 0, "the Quest blade's contact (bladeFlash at the contact point) flashes the mob it touched")
+            remove(q)
         }
 
         // 7. The VR bow shot: power from the physical draw, from the bow along the nocked arrow.

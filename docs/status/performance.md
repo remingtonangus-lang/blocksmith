@@ -131,7 +131,18 @@ quads); the next `perf:` log at rd 16 over a taiga says it directly (gpu vs cpu 
 the next lever is drawing far leaves as opaque blocks (no alpha test, which tile GPUs pay for), a texture-side change.
 
 
+## CI gate (task 25b4zxx)
+
+`tools/quest_perf_gate.sh` runs in the heavy CI lane (mac.yml part `questperf`, 30 s a route) with `PERF_GATE_CI=1`:
+it fails on the render-distance governor test and the counted-work budgets (quads, tick CPU, unmeshed share); the
+frame-time p99/hitch lines are printed for the record only (a shared CI VM's GPU is not a Quest). Locally (quiet Mac)
+the frame-time limits gate too.
+
 ## Still to measure on the headset
+
+- Oct 10 evening (25b4zxx): no headset on adb, so the 128 px textures + sharp-bilinear + aniso 8 (a9550de7) and the
+  governor/leaf perf (0c7cb107, 9c1130a1) are not device-proven yet. Plan: `tools/quest-local.sh`, ~10 min each in the
+  busiest town and the taiga at rd 16, `tools/quest_perf_log.py` on the log; if gpu ms sits near 13.9, try aniso 4.
 
 - A 72 Hz session at rd 16: `adb logcat -s Blocksmith | grep perf:` (or `tools/quest_perf_log.py` on the pulled log).
   Good: `missed 0-2`, cpu under ~11 ms, gpu under ~11 ms. If the guard keeps stepping down, the `record ms:` split

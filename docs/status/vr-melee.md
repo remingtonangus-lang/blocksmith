@@ -41,10 +41,16 @@ fires, or touches ship blocks).
 
 ## Mob melee against the real body
 
-Mobs measure their melee reach to `Game.meleeBody`: the column under the headset (`Game.vrHead`, at most 0.5 m from
-the feet), on the Mac the feet. The numbers are unchanged (centre to centre under halfW + 1.3, within 2 blocks up or
-down), so mobs are exactly as dangerous standing still; seated leaning back 35 cm dodges a zombie 1.4 blocks away,
-leaning in gets hit by one 1.85 away.
+Mobs measure their melee reach with `Game.meleeGap` (task 25b4zxx): the distance from the mob's upper body (a
+segment from a quarter of its height to its top) to the player's body, a segment from the feet to the headset in VR
+(no clamp) or to the eyes on the Mac. Reach numbers are unchanged (halfW + 1.3 for zombies), so mobs are as dangerous
+standing still; a zombie 2.3 blocks away hits a head leaning 80 cm in, a zombie on a ledge reaches down to the head,
+a player on a pillar 3.5 blocks up is out of reach. `Game.meleeBody` (column under the headset) is only what mobs walk
+and face toward.
+
+Blade contact flash (`Game.bladeFlash`): the hit mob flashes white-hot for 0.14 s (before the red hurt tint) and
+glowing sparks fly from the contact point along the swing; the Quest blade calls it at its contact point with its
+haptic pulse, Mac/pad melee hits on the mob's near side.
 
 ## Bow (Sources/VRMelee.swift `VRBow`, QuestControls.bowUpdate / drawBow)
 

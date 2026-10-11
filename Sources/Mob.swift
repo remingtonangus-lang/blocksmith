@@ -250,6 +250,7 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
     let kind: MobKind
     var spec: MobKind.Spec       // per mob: the Ashguard renames its soldiers (AshUnits.swift)
@@ -279,6 +280,7 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
     var lastHurtAmount = 0
     var spiderChasing = false            // a spider that turned on you in the dark keeps at it in the light
@@ -480,6 +482,7 @@ final class Mob {
         guard deck != nil || w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
         // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
+        hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white
         if health <= 0 && kind != .enderDragon { return }
         if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
         faceGoal = nil
@@ -624,7 +627,7 @@ final class Mob {
             } else if canTarget && angry {
                 face(player)
                 speed = spec.speed * 1.2
-                if dist < halfW + 1.3 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
+                if g.meleeGap(self) < halfW + 1.3 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                 }
@@ -663,7 +666,7 @@ final class Mob {
             if canTargetFar(g, dist, 48) && w.canSee(eye, g.player.eye) {
                 face(player)
                 speed = dist > 6 ? spec.speed : 0
-                if dist < 1.8 && attackCooldown <= 0 && volley == 0 {
+                if g.meleeGap(self) < 1.8 && attackCooldown <= 0 && volley == 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Cinderwisp")
                 } else if attackCooldown <= 0 {
@@ -769,7 +772,7 @@ final class Mob {
             } else if aggro && canTarget && dist < 16 {
                 face(player)
                 speed = spec.speed * 1.4
-                if dist < 2.2 && attackCooldown <= 0 {
+                if g.meleeGap(self) < 2.2 && attackCooldown <= 0 {
                     attackCooldown = 1.25
                     g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
                 }
@@ -813,7 +816,7 @@ final class Mob {
                     vel += forward * 4 + V3(0, 5, 0)
                 }
                 let reach = halfW + 1.1
-                if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
+                if g.meleeGap(self) < reach + 0.2 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(meleeDamage, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
@@ -913,7 +916,7 @@ final class Mob {
                         vel = .zero
                     }
                 }
-                if dist < 1.6 && attackCooldown <= 0 {
+                if g.meleeGap(self) < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
                 }
@@ -927,7 +930,7 @@ final class Mob {
                 vel.z = forward.z * spec.speed * 1.5
                 g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
-            if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
+            if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeGap(self) < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
                 let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
                 g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)", attacker: self)
@@ -1897,6 +1900,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         bright = bright + (1 - bright) * amb
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
+        // Blade contact (Game.bladeFlash): a white-hot flash over the whole body for its first 0.14 s, distinct from the
+        // red hurt tint that follows it.
+        let flash: Float = min(1, m.hitFlash / Mob.hitFlashTime)
+        let flashCol = V3(1, 0.97, 0.86)
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
@@ -1912,6 +1919,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let size = p.mx - p.mn
             if far && max(size.x, max(size.y, size.z)) < tiny { continue }
             let rot = p.rotation
+            let pc: V3 = simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
             for f in 0..<6 {
                 for k in order {
                     let ci = (f * 4 + k) * 3
@@ -1923,9 +1931,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let t = min(1, max(0, q.y * 0.1))
                     let ground: Float = glow ? 1 : 0.72 + 0.28 * t * t * (3 - 2 * t)
                     let ao = ground * (CT[ci + 1] == 0 ? 0.9 : 1)
+                    let sh: Float = faceShade[f] * lit * ao
                     q *= scale / 16
                     let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * lit * ao), local: V4(lp, 0))
+                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
                     n += 1
                 }
             }

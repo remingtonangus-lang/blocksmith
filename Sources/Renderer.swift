@@ -102,6 +102,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     var horizonKey = HorizonKey()
     var horizonNrm: [V3] = []
     var horizonBase: [V3] = []
+    var horizonVol: [Float] = []
     var horizonProj: [V4] = []
     private var eyeAdapts = [Float](repeating: 1, count: 4)
     private var eyeAdaptTs = [Double](repeating: 0, count: 4)

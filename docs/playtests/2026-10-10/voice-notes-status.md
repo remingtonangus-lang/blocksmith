@@ -286,7 +286,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:06 - The volcano just looks weird when it's in the background. That shouldn
 
 - **Transcript:** The volcano just looks weird when it's in the background. That shouldn't be there
-- **Status:** partial: volcanoes only in snow-free, dry, even country with wooded foothills and a ragged edge - c9730ff0; docs/status/worldgen-oct10.md. Still open: the far cone reads pale through the haze (continuation task 25b4zx)
+- **Status:** fixed: volcanoes only in snow-free, dry, even country with wooded foothills and a ragged edge - c9730ff0; far cone in dark rock (horizon ring under the impostor, landmark haze) - 25b4zxx; docs/status/worldgen-oct10.md (volcano_far_135623_after.jpg)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -332,7 +332,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:19 - The frame comes back together. Volcanoes, they don't mesh very well in
 
 - **Transcript:** The frame comes back together. Volcanoes, they don't mesh very well into the, uh
-- **Status:** partial: volcano blending (c9730ff0; far view still pale, 25b4zx) + render distance recovery (0c7cb107)
+- **Status:** fixed: volcano blending (c9730ff0; far view dark rock, 25b4zxx) + render distance recovery (0c7cb107)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface
@@ -358,7 +358,7 @@ Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/que
 ## 09:23:26 - into the environment
 
 - **Transcript:** into the environment
-- **Status:** partial: volcano blending at the foot - c9730ff0 (far view: 25b4zx)
+- **Status:** fixed: volcano blending at the foot - c9730ff0 (far view: 25b4zxx)
 - **Build:** 0.95 (2913b0a, M1-M4 (device-tested; ship riding, chests, comfort options, weapon wheel))
 - **World:** Quest World (seed 2943808052895834412)
 - **Dimension:** Surface

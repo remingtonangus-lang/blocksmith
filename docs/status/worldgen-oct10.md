@@ -64,7 +64,11 @@ Changes (Landmarks.swift, WorldGen.swift):
 
 Shots: volcano_beach_after.jpg (his 09:23:06 view: the cone is gone), volcano_foothills_135623.jpg (foot and apron),
 volcano_mid_135623.jpg (rd 24 from 360 blocks), volcano_far_135623.jpg (650 blocks at rd 16). Far away the cone
-still reads pale: that is the renderer's distance haze over unloaded terrain (render-distance work, not changed here).
+read pale (task 25b4zxx fixed it): the coarse horizon ring z-fought the cone's impostor with snow-white map shading under
+the ground's heavy haze. Now the ring sits 10 blocks under volcano cells (the impostor wins), those cells are dark rock
+and take the landmarks' lighter haze only where a cell is mostly cone (half-cone foot cells showed as lime slivers).
+After: volcano_far_135623_after.jpg (noon, same 650-block view), volcano_far_135623_dusk_after.jpg. Shared code
+(HorizonRing.swift), so the Quest's far view is the same.
 
 ## 3. Ruined gates
 

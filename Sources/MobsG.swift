@@ -300,9 +300,10 @@ extension Mob {
             face(t)
             let d = t - pos
             let l = simd_length(d)
-            if attackCooldown <= 0 && l < 1.2 {
+            let onPlayer = simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01
+            if attackCooldown <= 0 && (onPlayer ? g.meleeGap(self) < halfW + 0.9 : l < 1.2) {
                 attackCooldown = 1
-                if simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01 { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Hexling", attacker: self) }
+                if onPlayer { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Hexling", attacker: self) }
                 else if let v = g.mobs.mobs.first(where: { simd_length($0.pos + V3(0, $0.height * 0.5, 0) - t) < 0.01 }) { v.hit(from: pos, damage: spec.attack) }
             }
             let want: V3 = d * (spec.speed / max(l, 0.01))
@@ -400,9 +401,10 @@ extension Mob {
         guard let tp = t else { wander(); return moving ? spec.speed * 0.5 : 0 }
         face(tp)
         let d = simd_length(V2(tp.x - pos.x, tp.z - pos.z))
-        if d < halfW + 1.6 && attackCooldown <= 0 {
+        let onPlayer = simd_length(tp - g.player.pos) < 0.01
+        if (onPlayer ? g.meleeGap(self) : d) < halfW + 1.6 && attackCooldown <= 0 {
             attackCooldown = 2
-            if simd_length(tp - g.player.pos) < 0.01 {
+            if onPlayer {
                 g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Siegebeast", knockback: 2.5, attacker: self)
                 if g.blocking { stun = 2 }
             } else if let m = g.mobs.mobs.first(where: { simd_length($0.pos - tp) < 0.01 }) {

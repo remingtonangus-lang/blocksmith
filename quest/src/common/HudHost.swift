@@ -21,6 +21,7 @@ class HudRendererBase {
     var horizonKey = HorizonKey()
     var horizonNrm: [V3] = []
     var horizonBase: [V3] = []
+    var horizonVol: [Float] = []
     var horizonProj: [V4] = []
     // Hotbar / slot block icons (drawBlockIcon in the extracted HUD code): the Mac Renderer's cache, same layout.
     struct IconInfo { var order: [Box]; var fit: Float; var mid: V3; var leafy: Bool; var glassy: Bool }

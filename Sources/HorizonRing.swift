@@ -19,6 +19,7 @@ final class HorizonRing {
         var n = 0                                // samples per side
         var h: [Float] = []
         var c: [V3] = []
+        var v: [Float] = []                      // volcano weight (0 ... 1): those cells are landmark rock, not haze
     }
 
     private let lock = NSLock()
@@ -69,17 +70,23 @@ final class HorizonRing {
     static func sample(_ gen: WorldGen, seed: UInt64, x0: Int, z0: Int, n: Int, s: Int) -> Snapshot {
         var out = Snapshot(seed: seed, x0: x0, z0: z0, n: n, h: [], c: [])
         out.h.reserveCapacity(n * n)
+        out.v.reserveCapacity(n * n)
         out.c.reserveCapacity(n * n)
         for j in 0..<n {
             for i in 0..<n {
                 let col = gen.column(x0 + i * s, z0 + j * s)
                 let wet = col.biome.isOcean || col.biome.isRiver
-                out.h.append(Float(wet ? max(col.height, SEA) : col.height))
+                let vol = gen.columnData(x0 + i * s, z0 + j * s).vol
+                let vw = vol > 0.05 ? min(1, vol * 3) : 0
+                // A volcano's cells sit 10 blocks under the cone: where its impostor is drawn (LandmarkRender) the
+                // impostor's faces win the depth test instead of z-fighting the coarse ring (the pale, spotted far cone of
+                // the Oct 10 playtest, volcano_far_135623); where it isn't, they still fill in the far side of the cone.
+                out.h.append(Float(wet ? max(col.height, SEA) : col.height) - 10 * vw)
+                out.v.append(vw)
                 let rgb = MapCache.shade(col.biome, height: col.height)
                 var c = V3(Float((rgb >> 16) & 255), Float((rgb >> 8) & 255), Float(rgb & 255)) / 255
                 // Volcano flanks in their dark rock (the map's peak white turned the far cone into a snowy mountain).
-                let vol = gen.columnData(x0 + i * s, z0 + j * s).vol
-                if vol > 0.05 { c = simd_mix(c, V3(0.22, 0.21, 0.21), V3(repeating: min(1, vol * 3))) }
+                if vw > 0 { c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: vw)) }
                 out.c.append(c)
             }
         }
@@ -109,6 +116,7 @@ extension Renderer {
             horizonKey = key
             horizonNrm = [V3](repeating: V3(0, 1, 0), count: n * n)
             horizonBase = [V3](repeating: .zero, count: n * n)
+            horizonVol = [Float](repeating: 0, count: n * n)
             for j in 0..<(n - 1) { for i in 0..<(n - 1) {
                 let k = i + j * n
                 let a = V3(Float(s.x0) + Float(i) * sp, s.h[k], Float(s.z0) + Float(j) * sp)
@@ -119,6 +127,10 @@ extension Renderer {
                 horizonNrm[k] = nrm
                 let sum: V3 = s.c[k] + s.c[k + 1] + s.c[k + n] + s.c[k + n + 1]
                 horizonBase[k] = sum * 0.25
+                // Rock haze only where the cell is mostly cone: the foot's half-rock cells kept their grass colour under the
+                // lighter haze and showed as bright green slivers round the base.
+                let va: Float = (s.v[k] + s.v[k + 1] + s.v[k + n] + s.v[k + n + 1]) * 0.25
+                horizonVol[k] = max(0, va * 2 - 1)
             } }
         }
         // Every grid vertex projected once a frame (each cell projected its four corners: inner vertices four times).
@@ -139,7 +151,11 @@ extension Renderer {
                 let lit: Float = (0.45 + 0.55 * max(0, simd_dot(nrm, sun))) * night * hdrK
                 // Never clearer than the fully fogged edge of the loaded terrain in front of it: faint silhouettes of
                 // hills and coasts (at 0.62 the far land read as a clear band beyond a fog curtain, horizon_ring_evening).
-                let haze: Float = 0.8 + 0.17 * Terrain.smooth(loaded, range, dist)
+                // Volcano rock keeps the landmark impostors' lighter haze (LandmarkRender): with the ground's it read
+                // as a snowy mountain in the background.
+                let ground: Float = 0.8 + 0.17 * Terrain.smooth(loaded, range, dist)
+                let rock: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
+                let haze: Float = ground + (rock - ground) * horizonVol[k]
                 let col = V4(base * lit * (1 - haze) + fog * haze, 1)
                 let pa = horizonProj[k], pb = horizonProj[k + 1], pc = horizonProj[k + n], pd = horizonProj[k + n + 1]
                 out.append(SimpleVert(pos: pa, color: col)); out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pc, color: col))

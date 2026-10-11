@@ -777,7 +777,8 @@ final class QuestControls {
             game.swingMob = m
             bladeHits.append(ObjectIdentifier(m))
             bladeContacts += 1
-            game.particles.crit(at: point)
+            game.swingPoint = point          // the contact flash and sparks there once the hit lands (Game.bladeFlash)
+            game.swingDir = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
             app.input.haptic(aimHand, amplitude: min(1, 0.55 + 0.35 * pow), seconds: 0.07, frequency: 160)
         } else if touchBuzz <= 0 {
             touchBuzz = 0.3
