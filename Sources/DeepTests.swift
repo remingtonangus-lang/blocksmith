@@ -80,7 +80,7 @@ enum DeepTests {
             return false
         }
         check(htHurt > 0 && gunShells > 0, "deep war: a half-track's MG hits (\(htHurt) ticks) and a field gun lobs shells (\(gunShells))")
-        g.mobs.mobs.removeAll()
+        g.mobs.mobs.removeAll(); g.arms.slugs.removeAll(); g.ashStrikes.removeAll()     // its high-arc shells still in the air
         // The Marshal: barrages, his guard, and his fall.
         let marshal = unit("ash_marshal^180", dz: 14)
         marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks

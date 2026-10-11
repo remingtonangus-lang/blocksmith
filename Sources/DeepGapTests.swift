@@ -229,9 +229,12 @@ enum DeepGapTests {
                 if dealt >= 20 { toKill = t; break }
             }
         }
-        // 2. The player on the unit: aim at its middle and hold the trigger.
+        // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
+        // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
+        // swung his time from 44 s to over 180 s between runs).
         var kill: Float?
         if let m = place() {
+            let hold = m.pos
             g.inventory.held = ItemStack(Items.id(gun), 1)
             for i in 0..<9 where i != g.inventory.selected { g.inventory.main[i] = ItemStack(Items.id(ammo), Items.def(Items.id(ammo)).maxStack) }
             let pm = PadManager.shared
@@ -245,6 +248,7 @@ enum DeepGapTests {
                 var p = PadSnapshot(); p.rt = (Int(t * 20) % 2 == 0 || (Guns.index(g.inventory.held.item).map { Guns.all[$0].auto } ?? true)) ? 1 : 0
                 pm.simulated = p
                 g.tick(0.05)
+                m.pos.x = hold.x; m.pos.z = hold.z; m.vel.x = 0; m.vel.z = 0
                 t += 0.05
                 if !g.alive { g.alive = true; g.health = 20 }
             }
