@@ -77,3 +77,39 @@ world).
    - Flint and steel fails on a frame and an Ember Charge lights it.
    - Every base command chest holds a charge, and saved chunks get the floor.
    - The namecheck stays clean, and a busy-hell timing check keeps the mob tick within budget.
+
+## Built (2026-10-11, Lane B thread)
+- Sources/HellMobs.swift has the seven mobs (MobKind brand_squire, brand_knight, brand_champion, brand_commander,
+  searwing, scorchling, slagthrower; save keys fixed). It also has their AI (HellState), the parry and shield rules
+  (`orderGuard`, called from Mob.hit; `Mob.playerMelee` marks the player's blade), the slag in flight
+  (Game.hell.slag), hell spawns (`MobManager.hellOwnSpawn` from trySpawnEmberdeep), the Commander's muster
+  (`Game.hellTick`), the boss bar and the models.
+- Sources/HellGate.swift has Wardstone (`HellGate.floor` in WorldGen, `HellGate.stamp` on saved surface chunks), the
+  Ember Charge (`useEmberCharge`: a shaft through Wardstone, or wakes a portal frame), the cold-frame and Wardstone
+  hints, and the Brand Greatsword.
+- Loot: steelhold_command always holds one Ember Charge and steelhold_vault one or two (Loot.extraPools), so Capital
+  Citadels, Boreal Stations and the frigate's vault carry them. There is no recipe.
+- Brimstone Keeps (new ones) post a Brand Knight and two Squires at the gate.
+- Advancements: Under the World (break_ward), Riposte (brand_parry), The Order Broken (brand_commander).
+- Checks: `questcheck --hell-only` (HellMobsTests, part of every full questcheck), 19 checks. With --render it also
+  writes hell_mobs.png, a lineup of all seven on the Quest renderer.
+
+## Defaults picked (no questions asked)
+- Names: the Brand Order (the Brand Squire, Knight, Champion and Commander, after the Castellan's Brand trophy),
+  Searwing, Scorchling, Slagthrower, Wardstone, Ember Charge, Brand Greatsword.
+- **Rank numbers:**
+
+  | | Squire | Knight | Champion | Commander (raged) |
+  |---|---|---|---|---|
+  | Health | 24 | 36 | 52 | 280 |
+  | Guard (blocked blade hits) | 3 | 5 | 6 | 10 (14) |
+  | Wind-up | 0.75 s | 0.62 s | 0.5 s, with a second cut | 0.55 s (0.42 s) |
+  | Charge hit | none | 8 | 10 | 13 |
+
+- **Shield rule:** a hit counts as frontal within about 70 degrees of where the knight faces. A blade or an arrow is
+  stopped. Anything else is cut to 30 %, and a hit that would be cut to 1 or less clangs off.
+- Parries and openings take half again.
+- The gate is the surface's bottom 3 layers (they were plain emberslate). Climbing up out of the Deep cuts a way up
+  through the floor and leaves the bottom layer shut.
+- Old worlds: unvisited bases get charges in their command chests. Command chests that were already generated keep
+  what they rolled.
