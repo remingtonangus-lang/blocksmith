@@ -447,6 +447,9 @@ final class QuestControls {
         if ship != nil {
             want = max(want, min(1, shipTurnRate * 2.5), min(1, max(0, shipAccel - 0.5) / 6))
             let shipSpeed = simd_length(carryVel)
+            // At the helm of a fast ship (the frigate cruises at 42 b/s) the ground streaming past narrows the view too
+            // (audit 25b6 #5); scaled by the Comfort Vignette setting like every other term (0 = off).
+            if game.world.ships.pilot != nil { want = max(want, ShipComfort.vignette(speed: shipSpeed)) }
             deckReference += ((shipSpeed > 0.5 || shipTurnRate > 0.05 ? 1 : 0) - deckReference) * min(1, dt * 2)
         } else {
             deckReference = max(0, deckReference - dt * 2)
@@ -872,13 +875,14 @@ final class QuestControls {
     var bladeWorld: (V3, V3) { (bladeA, bladeB) }
 
     // The held item's drawn size (drawHeld): the icon's half size, and whether it is held as a tool by the handle.
-    private func heldSize() -> (Float, Bool) {
+    func heldSize() -> (Float, Bool) {
         let held = game.held
         if held.isEmpty { return (0, false) }
         let k = Items.key(held.item)
         let big = k.hasSuffix("_sword") || k == "trident" || k == "mace" || k.hasSuffix("_spear")
         let tool = held.def.tool != .none || held.def.attack > 1.5 || k.hasSuffix("bow") || k == "fishing_rod"
-        return (big ? 0.55 : (tool ? 0.47 : 0.2), big || tool)          // x1.3 (store pass: still read small)
+        let size: Float = big ? 0.55 : (tool ? 0.47 : 0.2)              // x1.3 (store pass: still read small)
+        return (size * QuestSettings.heldScale, big || tool)
     }
 
     // Touch-select: pointing the laser at a hotbar slot on the HUD panel and pulling the trigger picks it (the trigger
@@ -1028,7 +1032,7 @@ final class QuestControls {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
             guard cap > 1536 else { return }      // up to ~1300 with upgrade parts (Upgrades.gunParts)
             // Larger than life (rifle ~1.2 m, sidearm ~0.33 m): 3.2x the screen model. Empty: no magazine, red light.
-            let gk: Float = 3.2
+            let gk: Float = 3.2 * QuestSettings.heldScale
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
                                           rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench, into: ptr)
             let ads = V3(0, -0.085, -0.44)

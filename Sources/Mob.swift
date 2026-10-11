@@ -314,6 +314,7 @@ final class Mob {
     var aggro = false               // voidwalker / spider provoked
     var stare: Float = 0            // voidwalker: s the player has looked it in the face (1.5 s provokes it)
     var inLove: Float = 0
+    var bred = false                // born from the player breeding (kept by AnimalThinning)
     var breedCooldown: Float = 0
     var age: Float = 0              // babies grow up at 1200 s
     var baby = false
@@ -2184,6 +2185,7 @@ final class MobManager {
                 if a.kind == .turtle || a.kind == .frog || a.kind == .sniffer { a.hasEgg = true; continue }
                 let baby = Mob(a.kind != b.kind ? .mule : a.kind, at: (a.pos + b.pos) * 0.5)
                 baby.baby = true
+                baby.bred = true
                 baby.scale = 0.5
                 baby.inheritFrom(a, b)
                 babies.append(baby)

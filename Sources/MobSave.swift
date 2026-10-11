@@ -97,6 +97,7 @@ extension Mob {
         if bond != 0 { d["bond"] = bond }
         if let h = horse, h.bondXP > 0 { d["bxp"] = h.bondXP }
         if breed >= 0 { d["breed"] = Float(breed) }
+        if bred { d["bred"] = 1 }
         if downed > 0 { d["down"] = downed }
         if peltQ != 0 { d["pq"] = Float(peltQ) }
         if legend >= 0 { d["legend"] = Float(legend) }
@@ -128,6 +129,7 @@ extension Mob {
         bond = d["bond"] ?? 0
         if let x = d["bxp"] { hs.bondXP = x }
         breed = Int(d["breed"] ?? -1)
+        bred = (d["bred"] ?? 0) > 0
         downed = d["down"] ?? 0
         peltQ = Int8(max(0, min(3, d["pq"] ?? 0)))
         legend = Int8(max(-1, min(Float(Hunting.legends.count - 1), d["legend"] ?? -1)))
@@ -184,5 +186,6 @@ extension MobManager {
             guard p.count == 2 else { continue }
             stored[ChunkKey(x: p[0], z: p[1]), default: []] += v
         }
+        thinOldCrowds(s)
     }
 }

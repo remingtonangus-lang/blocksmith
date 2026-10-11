@@ -222,6 +222,16 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 game.player.pos = saved
             } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
         }
+        // A swamp lily pond (audit 25b6 #1/#10; Mac: snaps/lily_pond.png, the same view): pad rafts on open water.
+        do {
+            let saved = (game.player.pos, game.player.flying, game.time)
+            game.player.flying = true
+            game.time = 0.27 * DAY_LENGTH
+            game.player.pos = V3(967.5, Float(world.gen.column(967, 1810).height) + 6, 1810.5)
+            _ = world.loadSync(center: game.player.pos, radius: 4)
+            try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_lily_pond.png"), yaw: 0, pitch: -0.61)
+            (game.player.pos, game.player.flying, game.time) = saved
+        }
         // The Oct 10 playtest's far volcano (docs/status/worldgen-oct10, seed 135623 from x 1334 z 2060, 60 up, noon): the
         // cone's sun-side shading and the horizon ring under it on the Quest renderer. Nothing loaded: ring + impostor only.
         do {
@@ -284,6 +294,9 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     }
                 }
             }
+            // Pinned fallback (audit 25b6 #2): seed 12345 has a beach by the swamp at about (950, 1790) (Mac pond shot).
+            if shore == nil, let pin = AuditGapTests.pinnedShore(world.gen) { shore = pin.0; seaDir = pin.1 }
+            check(shore != nil, "render: a shore for the water views (8 directions out to 3200 blocks, then the pinned seed-12345 beach)")
             if let sh = shore {
                 let (sx, sz) = sh
                 let saved = (game.player.pos, game.player.flying, game.time)
@@ -306,7 +319,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: name), yaw: yaw, pitch: pitch)
                 }
                 (game.player.pos, game.player.flying, game.time) = saved
-            } else { print("WARN render: no shore within 3200 blocks in 8 directions (water view skipped; docs/status/done-audit.md)") }
+            }
         }
         // --golden DIR: the Quest copies of the golden shots (docs/STORE_QUALITY.md; the Mac list is tools/golden.sh):
         // the world shots this renderer can stage from spawn, compared build to build by a reviewer.

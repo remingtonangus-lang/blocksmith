@@ -454,6 +454,46 @@ final class WorldGen: TerrainGenerator {
             }
         } }
 
+        // Open water in swamps (audit 25b6 #10: swamps on seeds 12345/777 read as dry grass with almost no pools or
+        // pads): blobs of a low-frequency noise sink to the local water level as ponds 1-3 deep with mud and clay beds,
+        // likelier on the lowest ground. The level is the column's own water level (the sea for these low biomes), so
+        // neighbouring ponds and chunks share it and nothing spills. WorldGenTrees puts lily pads on them.
+        let mudB = Blocks.id("mud"), clayB = Blocks.id("clay")
+        for lz in 0..<CS { for lx in 0..<CS {
+            let biome = biomes[lx + lz * CS]
+            guard biome == .swamp || biome == .mangroveSwamp else { continue }
+            let k = lx + lz * CS, top = tops[k], wl = wls[k]
+            let rise = top - wl
+            guard rise >= 0 && rise <= 2 else { continue }
+            let wx = bx + lx, wz = bz + lz
+            // Only where the four neighbours share the water level (inland levels step by a block: a pond on the
+            // higher step spilled over the lower one, swamp check on seed 12345).
+            let level = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in
+                let nx = lx + d.0, nz = lz + d.1
+                let nwl = nx >= 0 && nx < CS && nz >= 0 && nz < CS ? wls[nx + nz * CS] : YOFF + Int(floorf(terrain.column(wx + d.0, wz + d.1).wl))
+                return nwl == wl
+            }
+            guard level else { continue }
+            let p = flora.noise2(Float(wx) / 19 + 311, Float(wz) / 19 - 207) + 0.35 * flora.noise2(Float(wx) / 6 - 51, Float(wz) / 6 + 93)
+            let thr: Float = 0.02
+            // Banks: the ground round a pond comes down to the water in 1-block steps (water level, then one above), so
+            // a pond lies flush in the grass instead of sunk in a square-cut pit (pond shots, seeds 12345/777).
+            if p <= thr {
+                let bank = p > thr - 0.09 ? wl : (p > thr - 0.18 ? wl + 1 : top)
+                guard bank < top else { continue }
+                let surf = b[Chunk.index(lx, top, lz)]
+                for y in (bank + 1)...top { b[Chunk.index(lx, y, lz)] = AIR }
+                b[Chunk.index(lx, bank, lz)] = surf
+                tops[k] = bank
+                continue
+            }
+            let depth = 1 + (p > thr + 0.14 ? 1 : 0) + (p > thr + 0.3 ? 1 : 0)
+            let floorY = wl - depth
+            for y in (floorY + 1)...top { b[Chunk.index(lx, y, lz)] = y <= wl ? WATER : AIR }
+            b[Chunk.index(lx, floorY, lz)] = hash3(wx, floorY, wz, 0x5A3F) % 5 == 0 ? clayB : mudB
+            tops[k] = floorY
+        } }
+
         // Shallow pools in the flat ground of swamps.
         let tops0 = tops
         for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
@@ -499,6 +539,7 @@ final class WorldGen: TerrainGenerator {
         placeTrees(&b, cx, cz, lat)
         mark(5)
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
+        sealSwampPuddles(&b, biomes, wls)
         freeze(&b, bx, bz, biomes, cols, tops)
         hardenLava(&b)
         HellGate.floor(&b)          // the Wardstone floor: only an Ember Charge opens the way down (HellGate.swift)
@@ -526,6 +567,26 @@ final class WorldGen: TerrainGenerator {
                 }
             }
         }
+    }
+
+    // Swamp puddles and pond edges at or above the water level whose bank a later pass took away (trees beside a jungle edge cleared the
+    // neighbour's top block: the swamp check found ~40 spilling cells on seed 12345) turn to mud, pad and all.
+    private func sealSwampPuddles(_ b: inout [BlockID], _ biomes: [Biome], _ wls: [Int]) {
+        let mud = Blocks.id("mud"), pad = Blocks.id("lily_pad")
+        for lz in 0..<CS { for lx in 0..<CS {
+            let biome = biomes[lx + lz * CS]
+            guard biome == .swamp || biome == .mangroveSwamp else { continue }
+            let wl = wls[lx + lz * CS]
+            for y in wl..<min(CH - 1, wl + 12) where b[Chunk.index(lx, y, lz)] == WATER {
+                let open = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { d in
+                    let nx = lx + d.0, nz = lz + d.1
+                    return nx >= 0 && nx < CS && nz >= 0 && nz < CS && b[Chunk.index(nx, y, nz)] == AIR
+                }
+                guard open else { continue }
+                b[Chunk.index(lx, y, lz)] = mud
+                if b[Chunk.index(lx, y + 1, lz)] == pad { b[Chunk.index(lx, y + 1, lz)] = AIR }
+            }
+        } }
     }
 
     // Single blocks the cave and ravine carvers left hanging with air on all six sides (gencheck floating_block: lone

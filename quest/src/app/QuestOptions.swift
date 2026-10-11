@@ -16,6 +16,7 @@ enum QuestOptions {
     static let snapAngles: [Float] = [15, 22.5, 30, 45, 60, 90]
     static let turnSpeeds: [Float] = [45, 60, 90, 120, 150, 180, 240]
     static let vignettes: [Float] = [0, 0.3, 0.6, 1]
+    static let heldScales: [Float] = [0.8, 0.9, 1, 1.15, 1.3, 1.5]
     static func vignetteName(_ v: Float) -> String {
         v <= 0.01 ? "Off" : (v < 0.45 ? "Low" : (v < 0.8 ? "Medium" : "High"))
     }
@@ -28,7 +29,7 @@ enum QuestOptions {
         // Bug Notes stays: the playtest build's voice notes (QuestVoiceNotes); store builds' stub has available = false.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "controls", "keys", "padmap"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_seated", "q_reclined", "q_swing", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -43,6 +44,7 @@ enum QuestOptions {
             "q_reclined": VRMelee.reclinedPostureHelp,
             "q_swing": VRMelee.optionHelp,
             "q_recenter": "Puts you back at the centre of your play space at the current height and facing (or hold the Menu button).",
+            "q_held": "How big swords, tools, blocks and guns look in your hand (0.8x to 1.5x).",
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
@@ -73,6 +75,7 @@ enum QuestOptions {
                 ("Lying Down View: \(on(S.reclined))", "q_reclined"),
                 ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
                 ("Recenter View", "q_recenter"),
+                ("Held Item Size: \(String(format: "%gx", S.heldScale))", "q_held"),
                 ("Dominant Hand: \(S.leftHanded ? "Left" : "Right")", "q_hand"),
                 ("Refresh Rate: \(Int(hooks.currentRate())) Hz", "q_hz"),
                 ("Foveated Rendering: \(fovNames[max(0, min(3, S.foveation))])\(fovNote)", "q_fov"),
@@ -141,6 +144,7 @@ enum QuestOptions {
         case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()
         case "q_recenter": hooks.recenter()
+        case "q_held": S.heldScale = step(heldScales, heldScales.min { abs($0 - S.heldScale) < abs($1 - S.heldScale) } ?? 1, back)
         case "q_hand": S.leftHanded.toggle()
         case "q_hz":
             let rates = hooks.rates()

@@ -5,7 +5,8 @@ import Foundation
 // the alias tables. A world whose world.json lacks extra["format"] >= `format` is copied once to
 // <Worlds parent>/Backups/<folder>-before-r3-<yyyyMMdd-HHmmss> before anything loads (outside the world list).
 enum SaveMigration {
-    static let format = 3
+    // 4: old animal crowds thinned once on load (AnimalThinning.swift), after the backup.
+    static let format = 4
 
     // old block key (without a [state] suffix) -> new block key
     static var blockAliases: [String: String] = ["redstone_ore": "copper_ore", "deepslate_redstone_ore": "deepslate_copper_ore"]
@@ -48,7 +49,8 @@ enum SaveMigration {
         let fm = FileManager.default
         let root = backupRoot(for: dir)
         let folder = dir.standardizedFileURL.lastPathComponent
-        let prefix = folder + "-before-r3-"
+        let old = Int(meta.extra?["format"] ?? "") ?? 0
+        let prefix = folder + (old < 3 ? "-before-r3-" : "-before-f\(format)-")
         if let have = try? fm.contentsOfDirectory(atPath: root.path), have.contains(where: { $0.hasPrefix(prefix) }) { return nil }
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")

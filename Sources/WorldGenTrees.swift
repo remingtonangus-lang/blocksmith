@@ -631,7 +631,10 @@ extension WorldGen {
                         if h2 < chance && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                     }
                 } else if biome == .swamp || biome == .mangroveSwamp {
-                    if depth <= 2 && h < 0.08 * calm(0.6) && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
+                    // Pads grow in rafts (a patch noise), a few strays elsewhere: open ponds still show water.
+                    let raft = flora.noise2(Float(wx) / 9 + 57, Float(wz) / 9 - 113)
+                    let padChance: Float = raft > 0.15 ? 0.45 : 0.04
+                    if depth <= 3 && h < padChance && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
                     else if h > 0.8 && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 }
                 continue

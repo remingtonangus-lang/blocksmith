@@ -30,6 +30,8 @@ final class SimHost: QuestHost {
 }
 
 enum QuestSim {
+    static var snap: ((String) -> Void)?
+
     static func run(game: Game, ctx: VkContext, out: String, check: (Bool, String) -> Void) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
         try scene.uploadTextures()
@@ -41,6 +43,9 @@ enum QuestSim {
         wr.extraOpaque = { s, eye in AllocCount.measure("drawOpaque") { controls.drawOpaque(s, eye: eye) } }
         wr.extraOverlay = { s, eye in AllocCount.measure("drawOverlay") { controls.drawOverlay(s, eye: eye) } }
         wr.prePass = { s in AllocCount.measure("recordPanel") { controls.recordPanel(s) } }
+        // A stereo frame of the current state, named after the --questsim PNG (the drawn-bow shots: audit 25b6 #7).
+        snap = { name in try? render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: name)) }
+        defer { snap = nil }
         game.paused = false
         game.survival = false
         game.player.flying = false
@@ -168,6 +173,7 @@ enum QuestSim {
         QuestSettings.swingMode = true
         if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // fill the hole the trigger test left
         swingMelee(game: game, host: host, controls: controls, py: py, down: down, frames: frames, check: check)
+        heldItemSize(game: game, controls: controls, check: check)
         if let c = brokenCell { game.world.setBlock(c.x, c.y, c.z, STONE) }        // the platform stays whole for the next checks
 
         // 6. Place: the left trigger with a block in hand places it against the targeted face.
@@ -469,6 +475,39 @@ enum QuestSim {
 
     // Swing melee and the bow through the device path (QuestControls.swingContact / bowUpdate). Creative, on the
     // stone platform, the head level.
+    // Held Item Size (audit 25b6 #4): every step of the option scales the drawn sword, and at the largest the sword in a
+    // relaxed hand at the hip (pointing 45 degrees down to 30 up, rolled +-30) keeps clear of the eyes and the floor.
+    static func heldItemSize(game: Game, controls: QuestControls, check: (Bool, String) -> Void) {
+        let keepHeld = game.inventory.held, keepScale = QuestSettings.heldScale
+        defer { game.inventory.held = keepHeld; QuestSettings.heldScale = keepScale }
+        game.inventory.held = ItemStack(Items.id("diamond_sword"), 1)
+        let eye = V3(0, 1.62, 0), hip = V3(0.2, 0.95, -0.15)
+        var lengths: [Float] = []
+        var nearEye: Float = 9, lowest: Float = 9
+        for k in QuestOptions.heldScales {
+            QuestSettings.heldScale = k
+            let (size, tool) = controls.heldSize()
+            for pd in stride(from: -45, through: 30, by: 5) { for rd in stride(from: -30, through: 30, by: 15) {
+                let rot = simd_quatf(angle: Float(rd) * .pi / 180, axis: V3(0, 0, 1)) * simd_quatf(angle: Float(pd) * .pi / 180, axis: V3(1, 0, 0))
+                let (base, tip, _) = VRMelee.blade(handPos: hip, handRot: rot, size: size, tool: tool)
+                let grip = hip + rot.act(V3(0, 0.01, -0.03))
+                let drawnTip = grip + (tip - grip) / VRMelee.bladeScale
+                if pd == 0 && rd == 0 { lengths.append(simd_length(drawnTip - grip)) }
+                guard k == QuestOptions.heldScales.last! else { continue }
+                for i in 0...20 {
+                    let p = grip + (drawnTip - grip) * (Float(i) / 20)
+                    nearEye = min(nearEye, simd_length(p - eye)); lowest = min(lowest, p.y)
+                }
+                _ = base
+            } }
+        }
+        let grows = zip(lengths, lengths.dropFirst()).allSatisfy { $0.0 < $0.1 }
+        check(grows && lengths.count == QuestOptions.heldScales.count && abs(lengths[2] / lengths[0] - 1 / 0.8) < 0.02,
+              "Held Item Size: the sword grows with every step (\(lengths.map { String(format: "%.2f", $0) }) m)")
+        check(nearEye > 0.25 && lowest > 0.05, String(format: "Held Item Size 1.5x: the %.2f m sword at the hip stays %.2f m from the eyes (want > 0.25) and %.2f m above the floor (want > 0.05)",
+                                                       lengths.last ?? 0, nearEye, lowest))
+    }
+
     static func swingMelee(game: Game, host: SimHost, controls: QuestControls, py: Int, down: simd_quatf,
                            frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void) {
         let sim = host.sim, rig = host.rig
@@ -609,6 +648,7 @@ enum QuestSim {
             frames(30) { i in hands(atString + (back - atString) * Float(i + 1) / 30, true) }
             let pose = controls.bowPose
             let ramps = sim.hapticCount - hp0
+            snap?("_bow_drawn_\(left ? "left" : "right").png")         // fully drawn, the string at the hand
             let wantDir = simd_normalize(grip - back)
             let before = game.projectiles.arrows.count
             frames(2) { _ in hands(back, false) }

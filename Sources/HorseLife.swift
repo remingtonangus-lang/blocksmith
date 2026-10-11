@@ -294,6 +294,14 @@ enum RideComfort {
     }
 }
 
+// The comfort vignette at a ship's helm: nothing at walking and sailing speeds, rising from 12 b/s to 0.55 at the
+// frigate's 42 b/s top speed (a steady cruise is mostly comfortable; the turn and acceleration terms add to it).
+enum ShipComfort {
+    static func vignette(speed: Float) -> Float {
+        return min(0.55, max(0, speed - 12) / 30 * 0.55)
+    }
+}
+
 // The saddlebags in VR: a hand reaching down to the horse's flank, behind the saddle, and gripping opens them
 // (QuestControls: the grip at the flank opens MountMenu instead of stepping the hotbar).
 extension HorseLife {

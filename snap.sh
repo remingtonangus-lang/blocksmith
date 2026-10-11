@@ -94,6 +94,8 @@ done
 "$BIN" --snapshot snaps/tour_jungle.png --seed 424242 --find jungle --yaw 80 --pitch -10 --time 0.24 --up 12 --rd 12 || true
 "$BIN" --snapshot snaps/tour_river.png --seed 12345 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
 "$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/lily_pond.png --seed 12345 --x 967 --z 1810 --yaw 0 --pitch -35 --time 0.27 --up 6 --rd 8 || true      # swamp ponds with pad rafts (audit 25b6 #1/#10)
+"$BIN" --snapshot snaps/lily_pond_777.png --seed 777 --x 1482 --z -668 --yaw 0 --pitch -35 --time 0.27 --up 6 --rd 8 || true
 "$BIN" --snapshot snaps/tour_lake.png --seed 12345 --feature lake --yaw 30 --pitch -35 --time 0.23 --up 40 --rd 12 || true
 "$BIN" --snapshot snaps/tour_lake_424242.png --seed 424242 --feature lake --yaw 30 --pitch -35 --time 0.23 --up 40 --rd 12 || true
 "$BIN" --snapshot snaps/tour_delta.png --seed 12345 --feature delta --yaw 0 --pitch -45 --time 0.23 --up 50 --rd 12 || true

@@ -86,6 +86,8 @@ enum QuestSettings {
     static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
+    // The held item's size (VR option "Held Item Size", audit 25b6 #4): multiplies swords, tools, blocks and guns.
+    static var heldScale: Float { get { max(0.8, min(1.5, float("quest.heldScale", 1))) } set { store(newValue, "quest.heldScale") } }
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }
     // Lower the render distance when frames are missed at the frame budget (this session only).
     static var clouds: Bool { get { bool("quest.clouds", true) } set { store(newValue, "quest.clouds") } }

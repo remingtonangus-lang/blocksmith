@@ -52,10 +52,11 @@ void main() {
         vec3 wp = rel + u.eye.xyz;
         if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * waveK[ao];
     }
-    // Lily pads (Mesher: a foliage-tinted leaf 1/16 over the surface, at 15/16) ride the same swell as the shallows.
+    // Lily pads (Mesher: a foliage-tinted leaf 1/16 over the surface, at 15/16) ride the same swell as the water corner
+    // under them: the Mesher hands each pad corner that water corner's shore factor in its AO bits.
     else if (tintMode == 2u && face >= 2u && face <= 3u && ((w0 >> 9) & 15u) == 15u && skyL > 0.9) {
         vec3 wp = rel + u.eye.xyz;
-        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * 0.7;
+        if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * waveK[ao];
     }
     // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
     // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
