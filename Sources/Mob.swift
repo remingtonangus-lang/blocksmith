@@ -425,6 +425,7 @@ final class Mob {
     var canPickUp = false           // zombie / skeleton that picks up gear (55% x regional difficulty)
     var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
     var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
+    var waveUnit = false            // the last battle's units (AshFinal): never despawn, never saved
     weak var patrolLeader: Mob?
     var patrolGoal: V3?
     var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding

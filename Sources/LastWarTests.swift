@@ -7,6 +7,7 @@ enum LastWarTests {
     static func run(_ g: Game, check: (Bool, String) -> Void) {
         let t0 = CFAbsoluteTimeGetCurrent()
         let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty
+        let wasMenu = g.menu
         let wasMobs = g.mobs.mobs, wasVictory = g.ashVictory, wasStage = g.ashStage, wasWave = g.ashWave
         defer {
             g.mobs.mobs = wasMobs
@@ -14,6 +15,7 @@ enum LastWarTests {
             g.lastWar.wave.removeAll(); g.lastWar.spawned = false; g.lastWar.inBunker = 0
             g.ashStrikes.removeAll(); g.arms.slugs.removeAll()
             g.credits = nil; g.creditsAsh = false
+            g.menu = wasMenu                      // a shell that downed the test player opened the death screen
             g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20
             if g.dim.dim != homeDim { g.changeDimension(to: homeDim, at: home) }
             g.player.pos = home; g.player.vel = .zero; g.player.flying = false
@@ -61,7 +63,12 @@ enum LastWarTests {
             let peak = a.reduce(0) { max($0, abs($1)) }
             if a.count < 400 || peak < 0.05 { bad.append("gun sound \(slot): \(a.count) samples, peak \(peak)") }
         }
-        check(bad.isEmpty, "lastwar: the Kessel, Hagel, Sturmwind and Ashsaw have items, models, icons and sounds \(bad)")
+        let all: UInt64 = Enchant.pack([(.stability, 3), (.extendedMag, 3), (.penetration, 1), (.quickReload, 2)])
+        for i in [Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw] {
+            let v = (Guns.models[i].count + Guns.upgradeParts(i, all, magOut: false).count + 1) * 36
+            if v > 1336 { bad.append("\(Guns.all[i].key): \(v) vertices upgraded") }
+        }
+        check(bad.isEmpty, "lastwar: the Kessel, Hagel, Sturmwind and Ashsaw have items, models (within the arm buffer upgraded), icons and sounds \(bad)")
         // Loadouts: every Ashguard rank carries the army's own arms, and heavies the Ashsaw.
         var wrong: [String] = []
         for key in ["soldier_recruit", "soldier_trooper", "soldier_marksman", "soldier_ironclad", "soldier_officer", "ash_marshal", "ash_chancellor"] {
@@ -268,7 +275,15 @@ enum LastWarTests {
               && w1.allSatisfy { $0.aggro && $0.faction == Faction.ashguard.rawValue && !$0.keepOnUnload }
               && dists.allSatisfy { $0 > 25 && $0 < 75 },
               "lastwar: wave 1 comes in (\(w1.count) units at \(Int(dists.min() ?? 0))-\(Int(dists.max() ?? 0)) blocks, hunting, not saved)")
-        kill(Array(w1.dropLast(2)))
+        // Unloaded alive (the player ran off, left the vault or died): the wave regroups and comes again, never skipped.
+        let ids1 = Set(w1.map { ObjectIdentifier($0) })
+        g.mobs.mobs.removeAll { ids1.contains(ObjectIdentifier($0)) }
+        sim(2) { !g.lastWar.spawned }
+        let regrouped = g.ashWave == 0 && !g.lastWar.spawned
+        sim(10) { g.lastWar.spawned }
+        let w1b = g.lastWar.wave
+        check(regrouped && w1b.count >= 7, "lastwar: a wave that unloads alive regroups and comes again (\(w1b.count) units), not skipped")
+        kill(Array(w1b.dropLast(2)))
         sim(2) { g.ashWave == 1 }
         check(g.ashWave == 1 && !g.lastWar.spawned, "lastwar: wave 1 is beaten with two stragglers left; a breather")
         // Save mid-battle: the stage and wave are kept; the wave in progress comes again.
@@ -294,20 +309,27 @@ enum LastWarTests {
         let w3 = g.lastWar.wave
         let bar = g.ashBossBar()
         let behemoth = w3.contains { $0.kind == .ashBehemoth }
-        // A busy last stand: the whole of wave 3 fighting costs little (beyond the game tick around it, timed with the
-        // wave stood out of the way first).
-        let held = g.mobs.mobs
-        g.mobs.mobs.removeAll { m in w3.contains { $0 === m } }
-        let t0 = CFAbsoluteTimeGetCurrent()
-        sim(3)
-        let base = (CFAbsoluteTimeGetCurrent() - t0) * 1000 / 60
-        g.mobs.mobs = held
+        // A busy last stand: the whole of wave 3 thinking, aiming and firing costs little per game tick.
+        sim(1)
+        let live3 = w3.filter { $0.health > 0 }
         let tt = CFAbsoluteTimeGetCurrent()
-        sim(3)
+        for _ in 0..<60 { for m in live3 { m.update(0.05, game: g) }; g.health = 20; g.alive = true }
         let ms = (CFAbsoluteTimeGetCurrent() - tt) * 1000 / 60
+        // And the whole game tick (shells, blasts, particles, remeshing) with the wave against without it.
+        func tickCost() -> Double { let t = CFAbsoluteTimeGetCurrent(); sim(3); return (CFAbsoluteTimeGetCurrent() - t) * 1000 / 60 }
+        let full = tickCost()
+        let held = g.mobs.mobs, ids3 = Set(live3.map { ObjectIdentifier($0) })
+        g.mobs.mobs.removeAll { ids3.contains(ObjectIdentifier($0)) }
+        let slugs = g.arms.slugs
+        g.arms.slugs.removeAll()
+        g.ashStage = 0                                   // (the battle would count the held-out wave as gone)
+        let base = tickCost()
+        g.ashStage = 1
+        g.mobs.mobs = held; g.arms.slugs = slugs
         check(behemoth && bar?.0 == "Ashguard Behemoth" && w3.count >= 6,
               "lastwar: wave 3 is the Behemoth with tanks and heavies, under a boss bar (\(w3.count) units, \(bar?.0 ?? "no bar"))")
-        check(ms - base < 3, String(format: "lastwar: the last wave fighting costs %.2f ms a game tick over %.2f ms without it", ms - base, base))
+        check(ms < 1.5 && full - base < 4, String(format: "lastwar: the last wave's %d units cost %.2f ms a tick to think; the whole tick %.2f ms against %.2f ms without them",
+                                                   live3.count, ms, full, base))
         kill(g.lastWar.wave)
         sim(2) { g.ashStage == 2 }
         var open = 0

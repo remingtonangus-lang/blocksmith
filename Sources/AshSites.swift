@@ -620,9 +620,9 @@ extension AshWar {
             // A road through a line: a red-and-white barrier, a guard hut, an MG nest, a flag; the Last Line's gates
             // also hold a tank dug in behind an earth berm.
             let last = s.kind == "lastgate"
-            // (the boom is raised: the road stays open underneath it)
-            box(-4, y0 + 1, 4, -4, y0 + 3, 4, k.plating); box(4, y0 + 1, 4, 4, y0 + 3, 4, k.plating)
-            for u in -3...3 { put(u, y0 + 3, 4, u % 2 == 0 ? k.redWool : k.whiteWool) }
+            // (the boom is raised high: the road stays open underneath it, tanks and the Behemoth included)
+            box(-4, y0 + 1, 4, -4, y0 + 5, 4, k.plating); box(4, y0 + 1, 4, 4, y0 + 5, 4, k.plating)
+            for u in -3...3 { put(u, y0 + 5, 4, u % 2 == 0 ? k.redWool : k.whiteWool) }
             building(last ? -7 : -9, -4, last ? -5 : -6, 2, h: 4, wall: k.concrete, roof: k.plating)
             sandbagRing(last ? 5 : 6, 3, 1)
             soldier("ironclad", Float(last ? 5 : 6), 3)

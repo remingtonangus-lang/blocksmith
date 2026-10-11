@@ -111,7 +111,7 @@ Listed in the backlog:
      - the Ashguard stands down everywhere;
      - a new epilogue ("The war below the world is over"), then THE END and the credits;
      - the advancement Ashes to Ashes (now for the Chancellor), after The Last Battle for holding out;
-     - the lift home opens in the bunker.
+     - the lift home opens in the command bunker above.
    - Worlds that beat the old ending (the Marshal) count as beaten, and nothing changes for them.
 8. **Checks (questcheck slice "lastwar:").**
    - Every gun registers with its model, icon, sound and ammo, Ashguard soldiers carry the right guns, and the
@@ -157,3 +157,16 @@ Listed in the backlog:
   Barrages come every 13 s (10 s on Hard) from wave 2 on.
 - Leaving the vault pauses the battle; a reload brings the current wave again.
 - Worlds won under the old ending (the Marshal) count as won.
+
+## Verifier pass (2026-10-11) and fixes
+- Wave units are never despawned (`Mob.waveUnit`, exempt in shouldDespawn) and never saved; a wave whose units unload
+  alive (the player left the vault or died) regroups and comes again instead of counting as beaten.
+- Waves spawn on the vault floor itself (not roofs), off the lines (not in a trench), out of the player's sight when
+  any spot is.
+- The checkpoint booms are raised to five blocks: tanks and the Behemoth drive under them.
+- The officers' cap badge is a round red cockade with a white centre (the old white square with a black bar could
+  read as two strokes at a distance).
+- The breather toast names the next wave; the Chancellor speaks over the loudspeakers as the battle starts.
+- The Ashsaw's cooling slots were trimmed so every upgraded gun fits the first-person arm buffer (checked).
+- Tests: the battle check now closes the death screen a downed test player opened (it broke the VR checks after it),
+  and the last-wave timing check measures both the units' thinking and the whole tick against a baseline.

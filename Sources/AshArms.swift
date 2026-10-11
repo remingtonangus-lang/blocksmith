@@ -111,10 +111,10 @@ enum AshArms {
         var p: [Part] = []
         switch i {
         case Guns.ashsaw:
-            for z: Float in [-20.6, -18.0, -15.4, -12.8, -10.2] {
-                p.append(b(-0.96, 0.5, z, 0.08, 1.0, 1.4, bore, 0))
-                p.append(b(0.88, 0.5, z, 0.08, 1.0, 1.4, bore, 0))
-                p.append(b(-0.5, 1.96, z, 1.0, 0.08, 1.4, bore, 0))
+            // (kept few: with upgrade parts every gun fits the first-person arm buffer, UpgradesTests)
+            for z: Float in [-19.4, -15.4, -11.4] {
+                p.append(b(-0.96, 0.5, z, 0.08, 1.0, 2.0, bore, 0))
+                p.append(b(0.88, 0.5, z, 0.08, 1.0, 2.0, bore, 0))
             }
         case Guns.kessel:
             p.append(b(-0.2, -1.6, -19.8, 0.4, 0.4, 0.6, steel, pMetal))

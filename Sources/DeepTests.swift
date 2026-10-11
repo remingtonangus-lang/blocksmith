@@ -122,7 +122,7 @@ enum DeepTests {
         check(g.ashVictory && g.ashStage == 3 && g.advancements.contains("adventure/ash_victory") && g.creditsAsh && g.credits != nil,
               "deep war: the Ash Chancellor's fall is the victory (advancement, ending)")
         g.credits = nil; g.creditsAsh = false
-        g.mobs.mobs.removeAll()
+        g.mobs.mobs.removeAll(); g.arms.slugs.removeAll()        // (the Chancellor's last rounds still in the air)
         hurt = 0
         _ = unit("ash_tank^180", dz: 24)
         sim(10)

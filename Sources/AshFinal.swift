@@ -133,6 +133,8 @@ final class LastWar {
     var wave: [Mob] = []
     var barrage: Float = 0
     var inBunker: Float = 0
+    var voice: Float = 0                // seconds to the Chancellor's loudspeaker line at the battle's start
+    var vanished = 0                    // wave units gone without dying (unloaded: the player left, died or ran off)
     var spawnedWaves = 0                // harness counter
 }
 
@@ -198,17 +200,31 @@ extension Game {
         lastWar.breather = 8
         sfx(.gun(10), 1.8, at: player.pos)
         onToast?("The Ash Marshal is dead. Sirens: the Ashguard is throwing its last army at you. Hold the citadel")
+        lastWar.voice = 4
     }
 
     private func lastBattleSecond(_ s: Float) {
         let lw = lastWar
-        let live = Set(mobs.mobs.map { ObjectIdentifier($0) })
-        lw.wave.removeAll { u in u.health <= 0 || !live.contains(ObjectIdentifier(u)) }
+        if !lw.wave.isEmpty {
+            let live = Set(mobs.mobs.map { ObjectIdentifier($0) })
+            var gone = 0
+            lw.wave.removeAll { u in
+                if u.health <= 0 { return true }
+                if !live.contains(ObjectIdentifier(u)) { gone += 1; return true }
+                return false
+            }
+            lw.vanished += gone
+        }
+        if lw.voice > 0 {
+            lw.voice -= s
+            if lw.voice <= 0 { onToast?("The Chancellor, over the loudspeakers: \"Every last man to the citadel. Crush them!\"") }
+        }
         if !lw.spawned {
             lw.breather -= s
             guard lw.breather <= 0, DeepGen.inVault(player.pos.y), !AshFinal.inside(player.pos) else { return }
             if spawnAshWave(ashWave) {
                 lw.spawned = true
+                lw.vanished = 0
                 lw.barrage = 10
                 onToast?("Wave \(ashWave + 1) of 3: \(AshFinal.waveNames[ashWave]) are coming")
                 sfx(.gun(10), 1.6, at: player.pos)
@@ -224,9 +240,19 @@ extension Game {
             }
         }
         // A wave is beaten when at most two of it are left standing (the last one: when none is).
-        let left = lw.wave.count
+        // Units that vanished alive (unloaded) still stand; with none of the wave left here to fight, it regroups and
+        // comes again (leaving the vault or dying never skips a wave).
+        let left = lw.wave.count + lw.vanished
         let beaten = ashWave == 2 ? left == 0 : left <= 2
+        if !beaten && lw.wave.isEmpty {
+            lw.spawned = false
+            lw.vanished = 0
+            lw.breather = 6
+            onToast?("The Ashguard regroups: wave \(ashWave + 1) is coming again")
+            return
+        }
         guard beaten else { return }
+        lw.vanished = 0
         ashWave += 1
         lw.spawned = false
         lw.wave.removeAll()
@@ -239,7 +265,7 @@ extension Game {
             bunkerSecond(0)
         } else {
             lw.breather = AshFinal.breather
-            onToast?("Wave \(ashWave) beaten. More are coming: \(Int(AshFinal.breather)) seconds")
+            onToast?("Wave \(ashWave) beaten. Next, \(AshFinal.waveNames[ashWave]): \(Int(AshFinal.breather)) seconds")
         }
     }
 
@@ -259,6 +285,7 @@ extension Game {
             guard let p = ashWaveGround(angle: base + Float(i) * 0.35, wide: vehicle) else { continue }
             guard let m = Mob.structureMob(key + "@ash", at: p) else { continue }
             m.persistent = false                       // a wave isn't saved: the wave comes again after a reload
+            m.waveUnit = true                          // and doesn't despawn while the player is in the vault
             let d = here - p
             m.yaw = -atan2f(d.x, -d.z)
             m.soldierBrain.turret = m.yaw
@@ -276,19 +303,23 @@ extension Game {
         return true
     }
 
-    // Open loaded floor round the player at 45-70 blocks (closer if the vault is cramped there).
+    // Open loaded vault floor round the player at 30-66 blocks: on the floor itself (not a roof or a trench), off the
+    // lines and out of the player's sight when it can be (the first pass); any open floor otherwise.
     func ashWaveGround(angle: Float, wide: Bool) -> V3? {
         let c = player.pos
-        for r in [58, 48, 66, 38, 30] as [Float] {
-            for k in 0..<6 {
-                let a = angle + Float(k) * 1.05
-                let x = Int(floor(c.x + sinf(a) * r)), z = Int(floor(c.z - cosf(a) * r))
-                guard world.isLoaded(x, z) else { continue }
-                let top = min(DeepGen.ceilingBase - 4, Int(c.y) + 14), bottom = max(DeepGen.floorBase - 8, Int(c.y) - 20)
-                var y = top
-                while y > bottom {
-                    if Blocks.collide[Int(world.block(x, y - 1, z))] && open(x, y, z, wide) { return V3(Float(x) + 0.5, Float(y), Float(z) + 0.5) }
-                    y -= 1
+        let dg = world.gen as? DeepGen
+        for hidden in [true, false] {
+            for r in [58, 48, 66, 38, 30] as [Float] {
+                for k in 0..<6 {
+                    let a = angle + Float(k) * 1.05
+                    let x = Int(floor(c.x + sinf(a) * r)), z = Int(floor(c.z - cosf(a) * r))
+                    guard world.isLoaded(x, z), AshLines.cut(x, z) == .none, AshLines.distance(x, z) > 2 else { continue }
+                    let f = dg?.floorY(x, z) ?? DeepGen.floorBase
+                    for y in [f + 1, f + 2, f, f + 3] where Blocks.collide[Int(world.block(x, y - 1, z))] && open(x, y, z, wide) {
+                        let p = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+                        if hidden && world.canSee(player.eye, p + V3(0, 1.5, 0)) { break }
+                        return p
+                    }
                 }
             }
         }

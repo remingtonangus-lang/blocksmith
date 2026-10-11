@@ -130,8 +130,9 @@ enum AshLook {
                 hb(-3.8, 29.8, -4.46, 7.6, 0.3, 0.14, lv.metal, Pat.metal)
             }
             if full {
-                hb(-0.75, 31.4, -5.48, 1.5, 1.5, 0.14, white, Pat.cloth)
-                hb(-0.25, 31.55, -5.56, 0.5, 1.2, 0.14, mark, 0)
+                // a red cockade with a white centre (one round badge, nothing letter-like)
+                hb(-0.75, 31.4, -5.48, 1.5, 1.5, 0.14, mark, 0)
+                hb(-0.3, 31.85, -5.56, 0.6, 0.6, 0.14, white, Pat.cloth)
             }
         default:
             // Side cap and a headset.
