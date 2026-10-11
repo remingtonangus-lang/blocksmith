@@ -31,6 +31,7 @@ enum PlaytestOct11Tests {
         mobVariety(game, check)
         noOverlap(game, check)
         shotsDrawFolk(game, check)
+        tonics(check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -346,8 +347,13 @@ enum PlaytestOct11Tests {
         // A stone wall three blocks ahead (-z): each placement lands on the face toward the player, one closer each time.
         for dy in 1...3 { for dx in -1...1 { w.setBlock(x0 + dx, y0 + dy, z0 - 3, STONE) } }
         game.player.yaw = 0; game.player.pitch = -0.25
+        // Each placement is taken away again at once, so every repeat aims at the same clear wall face (a block placed
+        // in front of it moved the aim and the next placement onto other faces, or onto none).
         func frames(_ n: Int, lt: Float) {
-            for _ in 0..<n { var p = PadSnapshot(); p.lt = lt; PadManager.shared.simulated = p; game.tick(1.0 / 60) }
+            for _ in 0..<n {
+                var p = PadSnapshot(); p.lt = lt; PadManager.shared.simulated = p; game.tick(1.0 / 60)
+                for dy in 1...3 { for dz in -2...0 { for dx in -1...1 where w.block(x0 + dx, y0 + dy, z0 + dz) != AIR { w.setBlock(x0 + dx, y0 + dy, z0 + dz, AIR) } } }
+            }
         }
         frames(20, lt: 1)                                 // held with an empty hand
         game.select(1)                                    // the hotbar steps onto the tables, trigger still down
@@ -624,5 +630,18 @@ enum PlaytestOct11Tests {
         let heads = simd_dot(folk[0].forward, simd_normalize(p - folk[0].pos)) > 0.5 || simd_length(folk[0].pos - p) < 4
         check(going.count == 5 && sheriff && nearest && heads,
               "P63 gunfire: \(going.count) townsfolk come to look (the sheriff: \(sheriff), the four nearest: \(nearest)); the nearest, \(Int(d0)) blocks off, turns toward the shot (\(heads))")
+    }
+
+    // P42: our own tonic names (no "Potion of"), and the doctor's rarer stock turns up in only some shops.
+    static func tonics(_ check: (Bool, String) -> Void) {
+        let names = Potions.types.indices.compactMap { i -> String? in
+            let t = Potions.types[i]
+            return t.effects.isEmpty ? nil : Potions.displayName(0, t)
+        }
+        let original = !names.contains { $0.contains("Potion of") }
+        let regen = (0..<400).filter { Economy.carries("potion_regeneration", keeper: $0 * 7919) }.count
+        let heal = (0..<400).allSatisfy { Economy.carries("potion_healing", keeper: $0 * 7919) }
+        check(original && heal && regen > 100 && regen < 180,
+              "P42 tonics: \(names.prefix(4).joined(separator: ", ")), ...; Second Wind in \(regen) of 400 doctors' shops, Mending in all (\(heal))")
     }
 }

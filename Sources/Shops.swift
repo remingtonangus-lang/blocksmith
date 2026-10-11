@@ -185,6 +185,16 @@ enum Economy {
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city (their rounds, capital_rounds, are never sold: only looted).
     static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg"]
+    // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
+    // fixed per keeper), so finding one is worth the ride.
+    static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,
+                                        "splash_potion_healing": 0.5, "golden_apple": 0.25]
+    static func carries(_ key: String, keeper look: Int) -> Bool {
+        guard let p = rare[key] else { return true }
+        var h: UInt64 = 1469598103934665603 ^ UInt64(UInt32(truncatingIfNeeded: look))
+        for b in key.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
+        return Float(h % 10_000) / 10_000 < p
+    }
 
     // The catalogue with items this build has (index = position in VillagerData.stock).
     static func catalog(_ k: ShopKind) -> [(item: ItemID, perDay: Int)] {
@@ -336,8 +346,12 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         // P40: the Capital's arms are sold only in the Capital's own towns.
         let capital = mob.map { CapitalTown.city(game, x: Int(floorf($0.pos.x)), z: Int(floorf($0.pos.z))) != nil } ?? false
         let cat = Economy.catalog(kind)
+        let look = mob?.villager?.look ?? 0
         return treaty + (Economy.services[kind] ?? []).map { Row.service($0) }
-            + cat.indices.filter { capital || !Economy.capitalOnly.contains(Items.key(cat[$0].item)) }.map { Row.item($0) }
+            + cat.indices.filter { i in
+                let k = Items.key(cat[i].item)
+                return (capital || !Economy.capitalOnly.contains(k)) && Economy.carries(k, keeper: look)
+            }.map { Row.item($0) }
     }
 
     func have(_ item: ItemID) -> Int {

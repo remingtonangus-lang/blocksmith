@@ -120,3 +120,11 @@ The Ashguard is styled on a period army, but every name is invented (Kessel, Hag
 Chancellor) and the emblem is fictional (a diamond split by a bar on a white disc; LastWarTests checks it is
 mirror-symmetric). The period's real names (parties, units, people, arms, vehicles) were added to tools/coined-terms.txt
 so the namecheck in every build keeps them out of anything the player reads.
+
+## Oct 11 evening (P42): potions are frontier tonics
+Every "Potion of X" is now "X Tonic" with an original name (keys and effects unchanged): Night Vision -> Owl-Eye,
+Invisibility -> Ghostwalk, Leaping -> Jackrabbit, Fire Resistance -> Emberward, Swiftness -> Quickstep, Slowness ->
+Molasses, the Tortoise -> Ironhide, Water Breathing -> Gillwater, Healing -> Mending, Harming -> Black Draught, Poison ->
+Snakebite, Regeneration -> Second Wind, Strength -> Bull's Blood, Weakness -> Sapping, Slow Falling -> Featherfall,
+Luck -> Lucky Penny, Wind Charging -> Gale, Weaving -> Spinner's, Oozing -> Ooze, Infestation -> Swarm.
+Splash and lingering forms read "Splash Quickstep Tonic"; tipped arrows "Quickstep Arrow".
