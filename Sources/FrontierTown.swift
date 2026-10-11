@@ -25,7 +25,7 @@ extension Village {
         office.frontier = true
         lots[i] = office
         // The bank: the next house nearest the square, at least 5 wide (TownServices.swift: emerald exchange, savings).
-        guard let j = lots.indices.filter({ rank[lots[$0].kind] != nil && lots[$0].w >= 5 && $0 != i })
+        guard let j = lots.indices.filter({ rank[lots[$0].kind] != nil && lots[$0].w >= 5 && lots[$0].d >= 7 && $0 != i })
                 .min(by: { (rank[lots[$0].kind]!, d2(lots[$0])) < (rank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
         let h = lots[j]
         var bank = Lot(kind: .bank, ax: h.ax, az: h.az, face: h.face, w: h.w, d: h.d, y: h.y, seed: h.seed, job: "banker")
@@ -68,15 +68,15 @@ extension Village {
         falseFront(&w, b, m, wallH: wallH, band: blk("yellow_terracotta", stone))
         boardwalk(&w, b, m, wallH: wallH)
         sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "BANK", "Savings and", "Exchange"])
-        // The teller's counter across the room (a gap at the wall side to walk behind it), bars over it.
-        let cv = l.d - 4
+        // The teller's counter across the room, bars over it, two clear rows in from the door (a bank is at least 7 deep)
+        // and a gap at the wall side to walk behind it; the lamp stands on its end, never in the way in.
+        let cv = max(3, l.d - 4)
         let counter = blk("polished_andesite", m.planks)
         let bars = blk("iron_bars", m.fence)
         for u in 1...(l.w - 3) {
             b.set(&w, u, 0, cv, counter)
-            if u != du { b.set(&w, u, 1, cv, bars) }
+            b.set(&w, u, 1, cv, u == 1 ? blk("lantern", AIR) : (u == du ? AIR : bars))
         }
-        b.set(&w, du, 1, cv, blk("lantern", AIR))
         // The strongroom: the back row, gold and iron behind bars.
         for u in 1...(l.w - 2) where u % 2 == 1 { b.set(&w, u, 0, l.d - 2, blk(u % 4 == 1 ? "gold_block" : "iron_block", stone)) }
         b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
