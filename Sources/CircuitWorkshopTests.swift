@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Metal
 
 // The Sparkstone Workshop's benches (CircuitWorkshop.swift) run through the real circuit engine: the deck is built far
 // above the terrain beside the player, every bench is driven the way a player would (Game.useCircuit on its lever or
@@ -132,9 +133,45 @@ enum CircuitWorkshopTests {
         } else { check(false, "workshop: the observer sensor bench was built") }
 
         // The world: seven benches, each with its sign; picked from the Worlds menu.
-        let signs = at.values.filter { w.blockEntities[$0 + IVec3(-1, 0, -2)]?.kind == .sign }.count
+        let signs = at.values.filter { w.blockEntities[$0 + IVec3(-1, 0, -1)]?.kind == .sign }.count
         check(at.count == CircuitWorkshop.benches.count && signs == at.count,
               "workshop: \(at.count) benches built, \(signs) signed (the Sparkstone Workshop world in the Worlds menu)")
+        entry(device: w.device, check: check)
+    }
+
+    // Entering the world the way the Worlds menu does: a fresh save folder named after the workshop, its fixed seed, the
+    // player at the world's spawn as a new world puts them. The first tick must build the deck there and stand the
+    // player on the walkway; a second visit to the same folder must find it and leave the player alone.
+    static func entry(device: MTLDevice, check: (Bool, String) -> Void) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("wsentry-\(getpid())", isDirectory: true)
+        let dir = root.appendingPathComponent(CircuitWorkshop.worldName, isDirectory: true)
+        try? FileManager.default.removeItem(at: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        func visit() -> (Game, V3) {
+            let save = SaveManager(dir: dir)
+            let w = World(seed: CircuitWorkshop.seed, device: device, save: save)
+            w.renderDistance = 4
+            let g = Game(world: w, save: save, persistent: true)
+            g.survival = false
+            g.player.pos = g.spawnPoint
+            let start = g.player.pos
+            for _ in 0..<3 { g.workshopTick() }
+            return (g, start)
+        }
+        let (g, start) = visit()
+        let spawn = g.spawnPoint
+        // The walkway start in x/z (the deck's height came from the ground before it was built).
+        let o = IVec3(Int(floorf(spawn.x)) - 8, 0, Int(floorf(spawn.z)) - 4), ws = CircuitWorkshop.walkwayStart(o)
+        let onWalk = abs(g.player.pos.x - ws.x) < 0.01 && abs(g.player.pos.z - ws.z) < 0.01
+        let built = CircuitWorkshop.built(g.world, spawn: spawn)
+        let below = g.world.block(Int(floorf(g.player.pos.x)), Int(floorf(g.player.pos.y)) - 1, Int(floorf(g.player.pos.z)))
+        let near = abs(g.player.pos.x - spawn.x) < 16 && abs(g.player.pos.z - spawn.z) < 16
+        check(built && onWalk && near && Blocks.key(below) == CircuitWorkshop.markerBlock && g.workshopChecked,
+              "workshop world entry: the first tick builds the deck over the world's spawn and stands the player on the walkway (built \(built), on walkway \(onWalk), standing on \(Blocks.key(below)), spawn " + String(format: "%.0f, %.0f; started %.0f, %.0f)", spawn.x, spawn.z, start.x, start.z))
+        g.saveNow(); SaveIO.flush()
+        let (g2, start2) = visit()
+        check(CircuitWorkshop.built(g2.world, spawn: g2.spawnPoint) && simd_length(g2.player.pos - start2) < 0.01,
+              "workshop world entry: coming back finds the deck and doesn't build it again or move the player")
     }
 }
 

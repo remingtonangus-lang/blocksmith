@@ -130,9 +130,9 @@ enum CircuitWorkshop {
     @discardableResult
     static func build(_ w: World, at o: IVec3) -> [String: IVec3] {
         let b = Builder(w, o)
-        let floor = Blocks.id("smooth_stone") == AIR ? STONE : Blocks.id("smooth_stone")
+        let floor = Blocks.has("smooth_stone") ? Blocks.id("smooth_stone") : STONE
         for x in -1...deckLength { for z in -4...deckDepth {
-            b.putB(b.P(x, -1, z), z >= -3 && z <= -1 ? Blocks.id("chiseled_stone_bricks") : floor)
+            b.putB(b.P(x, -1, z), (z >= -3 && z <= -1) || (x == -1 && z == -4) ? Blocks.id(markerBlock) : floor)
             for y in 0...5 { b.putB(b.P(x, y, z), AIR) }
         } }
         var at: [String: IVec3] = [:]
@@ -140,8 +140,9 @@ enum CircuitWorkshop {
             b.o = o + IVec3(x, 0, 0)
             bench.build(b)
             at[bench.key] = b.o
-            // The sign: a wall sign facing the walkway on a post at the bench's west end.
-            let post = b.P(-1, 0, -1), sign = b.P(-1, 0, -2)
+            // The sign: a wall sign facing the walkway on a post at the bench's west end (the post stands in the gap
+            // between benches, so the 3-wide walkway stays clear: a wall sign has no collision).
+            let post = b.P(-1, 0, 0), sign = b.P(-1, 0, -1)
             b.put(post, "chiseled_stone_bricks")
             if Blocks.has("oak_sign") {
                 b.putB(sign, Blocks.id("oak_sign") + 4)               // wall sign facing north
@@ -153,6 +154,23 @@ enum CircuitWorkshop {
         return at
     }
 
+    // The player's start on the walkway: its west end, middle row.
+    static func walkwayStart(_ o: IVec3) -> V3 { V3(Float(o.x) + 0.5, Float(o.y), Float(o.z) - 2 + 0.5) }
+
+    // Whether the deck stands at this spawn already: its walkway corner (the deck's marker block) at the origin's
+    // column, at any height, or the first bench's sign.
+    static func built(_ w: World, spawn: V3) -> Bool {
+        let x0 = Int(floorf(spawn.x)) - 8, z0 = Int(floorf(spawn.z)) - 4
+        let first = layout()[0].1
+        let marker = Blocks.id(markerBlock)
+        for y in 1..<CH {
+            if w.block(x0 - 1, y - 1, z0 - 4) == marker && w.block(x0 - 1, y - 1, z0 - 3) == marker { return true }
+            if w.blockEntities[IVec3(x0 + first - 1, y, z0 - 1)]?.kind == .sign { return true }
+        }
+        return false
+    }
+    static let markerBlock = "chiseled_stone_bricks"
+
     // Where the deck goes in the workshop world: over the fixed spawn, 10 above the highest ground under it.
     static func origin(_ w: World, spawn: V3) -> IVec3 {
         let x0 = Int(floorf(spawn.x)) - 8, z0 = Int(floorf(spawn.z)) - 4
@@ -163,23 +181,22 @@ enum CircuitWorkshop {
 }
 
 extension Game {
-    // In the workshop world: once the ground under the spawn has loaded, build the deck if this world has none yet (its
-    // first bench's sign is the marker) and stand the player on its walkway.
+    // In the workshop world: on its first tick in the overworld, build the deck over the world's spawn if this world has
+    // none yet (the walkway's marker block, or the first bench's sign) and stand the player on its walkway.
     func workshopTick() {
         guard !workshopChecked else { return }
         guard save?.dir.lastPathComponent == CircuitWorkshop.worldName else { workshopChecked = true; return }
-        let spawn = findSpawn(varied: false)
-        let cx = Int(floorf(spawn.x)), cz = Int(floorf(spawn.z))
-        for x in stride(from: -16, through: CircuitWorkshop.deckLength, by: 16) { for z in [-16, 0, 16] {
-            guard world.chunkAt(cx + x, cz + z) != nil else { return }                 // wait for the ground to load
-        } }
+        guard dim.dim == .overworld else { return }                               // back in the overworld later
         workshopChecked = true
-        let first = CircuitWorkshop.layout()[0].1
-        let signX = cx - 8 + first - 1, signZ = cz - 4 - 2
-        if (0..<CH).contains(where: { world.blockEntities[IVec3(signX, $0, signZ)]?.kind == .sign }) { return }
+        // The world's own spawn (varied per seed, as a new world places the player), loaded around the whole deck now
+        // rather than waiting for streaming (a short render distance never reaches its far end).
+        let spawn = spawnPoint
+        let len = CircuitWorkshop.deckLength
+        _ = world.loadSync(center: spawn + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
+        if CircuitWorkshop.built(world, spawn: spawn) { return }
         let o = CircuitWorkshop.origin(world, spawn: spawn)
         CircuitWorkshop.build(world, at: o)
-        player.pos = V3(Float(o.x) + 0.5, Float(o.y), Float(o.z) - 2 + 0.5)
+        player.pos = CircuitWorkshop.walkwayStart(o)
         player.vel = .zero
         player.yaw = -.pi / 2                                          // looking east along the walkway (forward = -sin yaw, -cos yaw)
         onToast?("Sparkstone Workshop: seven benches along the walkway")

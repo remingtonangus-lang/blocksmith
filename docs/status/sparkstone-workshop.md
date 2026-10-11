@@ -42,3 +42,13 @@ flip-flop. Their parts are covered one by one in docs/status/copper-parity.md (-
 ## Screenshots
 `questcheck --render X --workshop-shots DIR` writes workshop_{walkway,door,sorter}.png (the deck built east of the
 spawn, run 3.5 s so the clocks tick and the door shuts). In docs/status/evidence/sparkstone-workshop/.
+
+## Verifier pass (2026-10-11)
+- Blocking, fixed: the world looked for its deck site at the old fixed origin instead of the world's varied spawn, so the
+  deck never built in the real game. Now `workshopTick` uses `Game.spawnPoint`, loads the deck area itself (any render
+  distance), runs only in the overworld, and a questcheck test enters the world through a real save folder twice
+  (built and standing on the walkway the first time; found and left alone the second).
+- Also fixed: the sign posts stood on the walkway (now in the gap between benches, the walkway is 3 clear rows); the
+  deck's corner block is the "already built" marker, so breaking a sign no longer rebuilds the deck.
+- Left as is: a hopper's receive wait is 7 or 8 ticks depending on order (reference: always 7); once the world exists
+  the Worlds list shows its save beside the "Sparkstone Workshop (circuits)" row (both open the same world).
