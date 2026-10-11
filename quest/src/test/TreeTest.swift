@@ -100,7 +100,9 @@ enum TreeTest {
         var plainsLitter = 0, forestLitter = 0, ancient = 0, n = 0
         for i in 0..<4000 {
             let pick = Float(i) / 4000
-            if let k = TreePlacer.choose(.plains, 0.001, pick, YOFF + 6), [.deadOak, .stumpOak, .fallenOak].contains(k) { plainsLitter += 1 }
+            for open in [Biome.plains, .snowyPlains, .meadow, .windsweptHills, .grove] {
+                if let k = TreePlacer.choose(open, 0.0001, pick, YOFF + 6), [.deadOak, .stumpOak, .fallenOak, .deadSpruce, .stumpSpruce, .stumpBirch].contains(k) { plainsLitter += 1 }
+            }
             if let k = TreePlacer.choose(.forest, 0.001, pick, YOFF + 6) {
                 n += 1
                 if [.deadOak, .stumpOak, .fallenOak, .stumpBirch].contains(k) { forestLitter += 1 }
@@ -108,7 +110,7 @@ enum TreeTest {
             }
         }
         check(plainsLitter == 0 && forestLitter > n / 50 && forestLitter < n / 5 && ancient > 0 && ancient < n / 40,
-              "trees: litter in woods only (forest \(forestLitter) of \(n), plains \(plainsLitter)), ancient oaks rare (\(ancient))")
+              "trees: litter in woods only (forest \(forestLitter) of \(n); plains, snowy plains, meadow, hills, grove \(plainsLitter)), ancient oaks rare (\(ancient))")
     }
 }
 

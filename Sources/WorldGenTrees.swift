@@ -53,8 +53,11 @@ enum TreePlacer {
             if e < 0.082 { return .fallenOak }
             return k
         case .birch:
-            return e < 0.02 ? .stumpBirch : k
+            return woods && e < 0.02 ? .stumpBirch : k
         case .spruce, .pine:
+            // Litter in the conifer woods only (never the lone spruces of snowy plains, hills or groves).
+            let taiga = biome == .taiga || biome == .snowyTaiga || biome == .oldGrowthPineTaiga || biome == .oldGrowthSpruceTaiga
+            guard taiga || biome == .windsweptForest else { return k }
             if e < 0.03 { return .deadSpruce }
             if e < 0.05 { return .stumpSpruce }
             return k
@@ -107,8 +110,8 @@ enum TreePlacer {
             for t in sc.types { for st in sc.startsNear(cx: cx, cz: cz, t) { keepOut.append((st.min, st.max)) } }
             for st in sc.fixed where st.max.x >= bx - 16 && st.min.x < bx + CS + 16 && st.max.z >= bz - 16 && st.min.z < bz + CS + 16 { keepOut.append((st.min, st.max)) }
         }
-        func blocked(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            keepOut.contains { mn, mx in x >= mn.x - 4 && x <= mx.x + 4 && z >= mn.z - 4 && z <= mx.z + 4 && y + 14 >= mn.y && y - 2 <= mx.y }
+        func blocked(_ x: Int, _ y: Int, _ z: Int, reach: Int = 4, tall: Int = 14) -> Bool {
+            keepOut.contains { mn, mx in x >= mn.x - reach && x <= mx.x + reach && z >= mn.z - reach && z <= mx.z + reach && y + tall >= mn.y && y - 2 <= mx.y }
         }
         b.withUnsafeMutableBufferPointer { buf in
             let w = TreeWriter(b: buf.baseAddress!, bx: bx, bz: bz)
@@ -135,7 +138,7 @@ enum TreePlacer {
                     let hint = YOFF + Int(k.h) + 30
                     guard k.rv > 1.2, let kind = choose(biome, r2, pick, YOFF + Int(k.h)), let gy = top(tx, tz, hint),
                           gy >= SEA, gy - YOFF >= Int(floorf(k.wl)) else { continue }
-                    if !keepOut.isEmpty && blocked(tx, gy, tz) { continue }
+                    if !keepOut.isEmpty && (kind == .ancientOak ? blocked(tx, gy, tz, reach: 8, tall: 18) : blocked(tx, gy, tz)) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
                         let soil = Blocks.key(w.get(tx, gy, tz))
@@ -335,7 +338,7 @@ enum TreePlacer {
             } else {
                 // The tier under the tip is a leafy cross (a bare trunk block between the tip and the first tier read as a
                 // stump poking out of every snowy crown: blind critic, run 395 snowy).
-                let pattern = [[1, 2, 1, 2, 3, 2, 3], [1, 1, 2, 1, 2, 2, 2], [1, 2, 2, 3, 2, 3, 3], [1, 2, 1, 2, 3, 2, 3]][variant]
+                let pattern = [[1, 2, 1, 2, 3, 2, 3], [1, 1, 1, 2, 1, 2, 2], [1, 2, 2, 3, 2, 3, 3], [1, 2, 1, 2, 3, 2, 3]][variant]
                 var yy = y + h - 1, k = 0
                 let bare = variant == 3 ? y + h / 2 : y + 2         // high-crowned: a bare lower trunk
                 while yy >= bare {

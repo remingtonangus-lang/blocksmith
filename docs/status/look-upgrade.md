@@ -137,13 +137,20 @@ From the backlog: more tree shapes per species, woodland detail, trees that read
 - `questcheck` TreeTest (quest/src/test/TreeTest.swift): each kind grown 40 times into a blank chunk: distinct
   silhouettes (oak 31, birch 22, spruce 16, pine 23 of 40), no log cut off from the ground, no leaf more than 5 from
   wood, nothing past the 7-block margin (grown at both (8,8) and (7,7)); the ancient oak's 2x2 trunk is 9+ tall;
-  fallen trunks lie on the ground (never over air); litter only in woods (0 of 4000 plains picks) and ancient oaks
-  rare; leaf textures keep at least 50 % cutout cover at every mip.
+  fallen trunks lie on the ground (never over air); litter only in woods (none from 4000 picks each on plains, snowy plains, meadow, windswept
+  hills and grove) and ancient oaks rare; leaf textures keep at least 50 % cutout cover at every mip.
 - `questcheck --gencheck` (288 chunks over 3 seeds), before / after: floating_block 6/6, leak 2/2, leaves_orphan 1/1,
   ore_in_air 3/3, plant_floating 1/1, spring 10/10, trunk_floating 0/1. The one new floating log is a known class
   that predates this change: a cave or pool in the tree's own chunk removed the soil under its trunk, so that chunk
   grows nothing while the neighbour (which can't see the soil) grows its limbs. The old small crowns showed the same
   as an orphan leaf patch; the fix is a soil test that can see carving across chunks (noted in BUGS.md).
+- Verifier pass (independent review): FAIL on one point, fixed: birch and spruce litter also appeared in open biomes
+  (lone spruces on snowy plains, meadow birches); now woods and conifer woods only, and the check covers those biomes.
+  Also from the review: the narrow spruce tapers (it read as a cylinder), ancient oaks keep a wider berth from
+  structures. Noted, not changed: the silhouette count is a coarse proxy for the four shapes; the half-tree class
+  above.
+- Existing saves: shapes are picked by new random draws, so in an old world newly generated chunks beside saved ones
+  can show a seam in the trees along the border.
 - Portraits: `questcheck --render X --tree-shots DIR` writes trees_{oaks,birches,spruces,woodland,ancient}.png
   (each tree grown alone on a floating pad, three-quarter view at noon). In docs/status/evidence/look-upgrade/, with
   trees_world_before.png / trees_world_after.png: the spawn view at 32 px before and after the leaf fix.
