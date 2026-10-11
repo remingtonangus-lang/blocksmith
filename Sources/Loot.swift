@@ -159,7 +159,8 @@ enum Mining {
         case "glowstone": return one("glowstone_dust", rnd(2, 4))
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)
-        case "glass", "spawner", "glass_pane", "sealrock": return []
+        case "glass", "spawner", "glass_pane": return []
+        case "sealrock": return one("sealrock_shard", 1)            // the seal's trophy (DeepGates.swift)
         case "sunderite_ore": return one("raw_sunderite", 1)
         case "fern":
             if shears { return one(key) }

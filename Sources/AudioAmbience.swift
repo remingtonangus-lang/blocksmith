@@ -40,7 +40,7 @@ final class AudioState {
 
 final class MusicDirector {
     // Moods that cut in at once (built once: musicTick runs every frame).
-    static let hardMoods: Set<MusicMood> = [.title, .ember, .hollow, .boss, .combat, .tension]
+    static let hardMoods: Set<MusicMood> = [.title, .ember, .vault, .hollow, .boss, .combat, .tension]
     var wait: Float = Rand.float(in: 60...150)
     var mood: MusicMood? = nil              // mood of the piece being played
     var pieces = 0
@@ -235,6 +235,7 @@ extension Game {
 
         // Biome beds.
         switch dim.dim {
+        case .deep where DeepGen.inVault(p.y): ask("bed", .ashVaultLoop, 0.55)
         case .deep where !DeepGen.inHell(p.y): ask("bed", .basaltLoop, 0.4)
         case .nether, .deep:
             let b = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
@@ -426,6 +427,7 @@ extension Game {
         switch dim.dim {
         case .nether: return .ember
         case .deep where DeepGen.inHell(player.pos.y): return .ember
+        case .deep where DeepGen.inVault(player.pos.y) && combatLevel() < 2 && !ashVictory: return .vault
         case .end: return .hollow
         case .overworld, .deep: break
         }

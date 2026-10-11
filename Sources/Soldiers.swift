@@ -434,11 +434,14 @@ extension Mob {
         if b.gun == Guns.launcher { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1)
+        // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a
+        // tighter group than the same rank on the surface.
+        let veteran = faction == Faction.ashguard.rawValue
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1) * (veteran ? 1.6 : 1)
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
-                let d = Guns.scatter(dir, rank.spread + gs.spread * 0.5)
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5) * (veteran ? 0.6 : 1))
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }

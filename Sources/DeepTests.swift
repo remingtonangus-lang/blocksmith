@@ -35,6 +35,13 @@ enum DeepTests {
                 g.health = 20
                 g.tick(0.05)
                 if g.health < 20 { hurt += 1; maxHit = max(maxHit, 20 - g.health) }
+                // A shell that downs the test player calms every mob (Game.calmMobs): the fight carries on.
+                if !g.alive {
+                    for m in g.mobs.mobs where m.faction == Faction.ashguard.rawValue && m.health > 0 {
+                        m.aggro = true; m.lockTime = 5
+                        m.brain?.lastSeen = g.player.eye; m.brain?.seenAgo = 0
+                    }
+                }
                 g.health = 20; g.alive = true
                 g.player.pos = stand; g.player.vel = .zero
                 w.pendingMobs.removeAll()
@@ -80,7 +87,7 @@ enum DeepTests {
             return false
         }
         check(htHurt > 0 && gunShells > 0, "deep war: a half-track's MG hits (\(htHurt) ticks) and a field gun lobs shells (\(gunShells))")
-        g.mobs.mobs.removeAll()
+        g.mobs.mobs.removeAll(); g.arms.slugs.removeAll(); g.ashStrikes.removeAll()     // its high-arc shells still in the air
         // The Marshal: barrages, his guard, and his fall.
         let marshal = unit("ash_marshal^180", dz: 14)
         marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks

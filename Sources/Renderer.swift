@@ -1564,7 +1564,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
             if let o = game.stationOpBar() { bars.append(o) }
             if let a = game.ashBossBar() { bars.append((a.0, a.1, V4(0.8, 0.1, 0.08, 1))) }
+            if let a = game.wardenBossBar() { bars.append((a.0, a.1, V4(0.9, 0.35, 0.1, 1))) }
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
+            // The way up out of the Deep (DeepWayUp.swift), under the bars.
+            if let up = game.deepWayUpHUD() {
+                let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
+                text(up, (W - textWidth(up, s)) / 2, uy, s, V4(1, 0.78, 0.5, 1))
+            }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)

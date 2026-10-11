@@ -302,7 +302,7 @@ final class StructureCache {
 
 enum Loot {
     static let tables: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
-        "fortress": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
+        "fortress": (2...4, [("keepers_journal", 1, 1, 6), ("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
                              ("saddle", 1, 1, 10), ("obsidian", 2, 4, 2), ("rib_armor_trim_smithing_template", 1, 1, 1)]),
         "dungeon": (1...3, [("saddle", 1, 1, 20), ("golden_apple", 1, 1, 15), ("enchanted_golden_apple", 1, 1, 2),
@@ -419,7 +419,7 @@ enum Loot {
                                  ("emerald", 1, 4, 8), ("gold_ingot", 1, 4, 6), ("clock", 1, 1, 3), ("compass", 1, 1, 3),
                                  ("rifle_rounds", 8, 24, 6), ("glass_bottle", 2, 4, 4), ("white_wool", 2, 6, 5)]),
         // Brimstone Keeps (BrimstoneKeep.swift): the hell band's strongholds and the Sunderite strongroom under each keep.
-        "brimstone_keep": (3...6, [("raw_sunderite", 1, 2, 5), ("gold_ingot", 2, 6, 12), ("netherite_scrap", 1, 2, 4), ("blaze_rod", 2, 6, 10),
+        "brimstone_keep": (3...6, [("keepers_journal", 1, 1, 4), ("raw_sunderite", 1, 2, 5), ("gold_ingot", 2, 6, 12), ("netherite_scrap", 1, 2, 4), ("blaze_rod", 2, 6, 10),
                                    ("rifle_rounds", 12, 32, 10), ("heavy_rounds", 4, 10, 6), ("golden_apple", 1, 1, 4), ("diamond", 1, 3, 6),
                                    ("tnt", 1, 3, 6)]),
         "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
@@ -428,12 +428,12 @@ enum Loot {
         "ash_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_launcher", 1, 1, 5), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
                                ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("golden_apple", 1, 1, 3)]),
-        "ash_supply": (4...8, [("bread", 3, 8, 15), ("cooked_beef", 2, 6, 12), ("baked_potato", 3, 8, 10), ("iron_ingot", 3, 8, 10),
+        "ash_supply": (4...8, [("ashguard_journal", 1, 1, 5), ("bread", 3, 8, 15), ("cooked_beef", 2, 6, 12), ("baked_potato", 3, 8, 10), ("iron_ingot", 3, 8, 10),
                                ("gold_ingot", 2, 6, 8), ("gunpowder", 3, 9, 10), ("rifle_rounds", 12, 40, 12), ("rocket_ammo", 1, 4, 8),
                                ("coal", 4, 12, 8), ("golden_apple", 1, 1, 3), ("potion_healing", 1, 2, 4)]),
         "ash_fuel": (3...6, [("coal_block", 1, 4, 12), ("blaze_powder", 2, 6, 8), ("gunpowder", 4, 12, 12), ("tnt", 2, 6, 8),
                              ("fire_charge", 2, 6, 8), ("rocket_ammo", 2, 4, 6), ("iron_ingot", 2, 6, 8)]),
-        "ash_command": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 6), ("gun_launcher", 1, 1, 8),
+        "ash_command": (5...9, [("ashguard_journal", 1, 1, 5), ("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 6), ("gun_launcher", 1, 1, 8),
                                 ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 10, 10), ("arc_cell", 6, 14, 6), ("netherite_scrap", 1, 3, 4),
                                 ("diamond_chestplate@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
         "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),

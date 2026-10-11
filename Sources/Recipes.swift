@@ -473,6 +473,7 @@ enum Recipes {
         }
         r += Guns.recipes()
         r += deepRecipes()
+        r += deepGateRecipes()
         r += springRecipes()
         r += Cloudwailer.recipes()
         r += shipRecipes()

@@ -20,7 +20,7 @@ struct MusicNote {
 
 enum MusicMood: String, CaseIterable {
     case title, day, night, underground, underwater, ember, hollow, creative, boss, rain, snow, desert, ocean, grove
-    case mountain, swamp, jungle, tension, combat
+    case mountain, swamp, jungle, tension, combat, vault
     var label: String {
         switch self {
         case .title: return "Title"
@@ -42,6 +42,7 @@ enum MusicMood: String, CaseIterable {
         case .jungle: return "Canopy"
         case .tension: return "The Capital"
         case .combat: return "Firefight"
+        case .vault: return "The Ash Vault"
         }
     }
 }
@@ -499,6 +500,8 @@ enum Composer {
         case .night: return Spec(scales: ["dorian", "aeolian", "pentMinor"], bpm: 50...64, lead: [.bell, .harp, .flute], pad: .pad, bass: true, arp: false, bells: true, drums: 0, density: 0.45, restiness: 0.45, root: 45...55, bars: 36...48, padVel: 0.4)
         case .underground: return Spec(scales: ["aeolian", "phrygian", "dorian"], bpm: 44...56, lead: [.bell, .shimmer], pad: .drone, bass: false, arp: false, bells: true, drums: 0, density: 0.3, restiness: 0.6, root: 40...50, bars: 32...44, padVel: 0.5)
         case .underwater: return Spec(scales: ["lydian", "major", "wholeTone"], bpm: 48...60, lead: [.shimmer, .organ], pad: .pad, bass: false, arp: false, bells: true, drums: 0, density: 0.4, restiness: 0.5, root: 48...56, bars: 32...44, padVel: 0.5)
+        // The Ash Vault (the gap pass, DE2): a slow march in a minor key, low brass-like organ over a drone, a snare-like pulse.
+        case .vault: return Spec(scales: ["harmonicMinor", "aeolian", "phrygian"], bpm: 60...68, lead: [.organ, .metal], pad: .drone, bass: true, arp: false, bells: false, drums: 2, density: 0.45, restiness: 0.4, root: 36...43, bars: 32...44, padVel: 0.6)
         case .ember: return Spec(scales: ["phrygian", "harmonicMinor", "aeolian"], bpm: 56...72, lead: [.organ, .metal, .flute], pad: .drone, bass: true, arp: false, bells: false, drums: 1, density: 0.4, restiness: 0.5, root: 38...46, bars: 36...48, padVel: 0.55)
         case .hollow: return Spec(scales: ["wholeTone", "lydianAug", "lydian"], bpm: 46...58, lead: [.bell, .shimmer, .harp], pad: .pad, bass: false, arp: true, bells: true, drums: 0, density: 0.4, restiness: 0.5, root: 52...62, bars: 36...48, padVel: 0.4)
         case .creative: return Spec(scales: ["pentMajor", "major", "lydian"], bpm: 72...92, lead: [.pluck, .harp, .organ], pad: .pad, bass: true, arp: true, bells: true, drums: 0, density: 0.7, restiness: 0.25, root: 52...60, bars: 40...56, padVel: 0.4)

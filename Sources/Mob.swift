@@ -326,6 +326,8 @@ final class Mob {
     var persistent = false          // structure mobs never despawn at random
     // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
     var power: Float = 1
+    var warden = false              // a Brimstone Keep's Warden (DeepGates.swift)
+    var wardenRaged = false
     var faction = 0                 // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0

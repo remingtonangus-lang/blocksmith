@@ -21,6 +21,7 @@ enum DeepSeal {
     static let pickHardness: Float = 25                // how hard Sealrock is to a Sunderite Pickaxe (~3 s a block)
     static let chargeFuse: Float = 3
     static let chargeRadius = 1                        // 3x3 shaft
+    static var moments = 0
 
     // What the generator ever put in the band's layers (lower crust rock, ores, lava pockets, caves): the only blocks
     // the seal replaces in a saved chunk and the only ones a charge blows open past the seal. Anything else there was
@@ -172,8 +173,34 @@ extension Game {
         } }
         let c = V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5
         Explosion.explode(at: c, power: 2.6, game: self, breakBlocks: false)
-        if removed > 0 { achieve("break_seal") }
+        if removed > 0 {
+            achieve("break_seal")
+            sealBreakMoment(at: c, shaft: at)
+        }
         return removed
+    }
+
+    // The seal breaking is a big moment (the gap pass, DE6): a deep boom and the debris after it, a light column up the
+    // shaft from the vault's glow below, a hard shake, rock raining down the shaft and the vault named.
+    // Once per shaft: a second charge or pick-hole within 4 blocks of a known shaft just opens it.
+    func sealBreakMoment(at c: V3, shaft: IVec3) {
+        if sealShafts.contains(where: { abs($0.x - shaft.x) <= 4 && abs($0.z - shaft.z) <= 4 }) { return }
+        sealShafts.append(shaft)
+        if sealShafts.count > 16 { sealShafts.removeFirst() }
+        sfx(.explodeLarge, 1.7, at: c)
+        sfx(.debrisRain, 1.3, at: c)
+        sfx(.mainGunRumble, 0.8, at: c)
+        for k in 0..<6 { addFlash(at: c + V3(0, Float(k * 6) - 12, 0), color: V3(7, 3.2, 1.4), radius: 40, life: 1.6) }
+        addShake(simd_length(player.pos - c) < 24 ? 1 : 0.5)
+        for _ in 0..<160 {
+            let o = V3(Rand.float(in: -1.6...1.6), Rand.float(in: -2...14), Rand.float(in: -1.6...1.6))
+            particles.add(Particle(pos: c + o, vel: V3(Rand.float(in: -0.8...0.8), Rand.float(in: -6 ... -1), Rand.float(in: -0.8...0.8)),
+                                   life: 2.4, maxLife: 2.4, layer: Int(Tex.id("sealrock")), uv0: V2(Rand.float(in: 0..<0.75), Rand.float(in: 0..<0.75)),
+                                   uvSize: 0.25, size: Rand.float(in: 0.08...0.2), gravity: 14, color: V3(1, 1, 1), collide: true))
+        }
+        for _ in 0..<24 { particles.smoke(at: c + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -8...4), Rand.float(in: -1.5...1.5))) }
+        DeepSeal.moments += 1
+        onToast?("The seal breaks. Far below, the Ash Vault glows")
     }
 
     // Hitting Sealrock with anything but Sunderite says what it takes (once a minute at most).

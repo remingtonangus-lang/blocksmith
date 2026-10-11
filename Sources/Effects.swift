@@ -413,6 +413,12 @@ extension Game {
         if deepVisited { d["deepVisited"] = "1" }
         if smoothTerrain { d["terrain"] = "smooth" }
         if ashVictory { d["ashVictory"] = "1" }
+        if ashOfficerHint { d["ashOfficerHint"] = "1" }
+        if !wokenGates.isEmpty { d["gates"] = wokenGates.joined(separator: ";") }
+        if let r = deepReturn { d["deepReturn"] = "\(r.x),\(r.y),\(r.z)" }
+        if let r = deepEntry { d["deepEntry"] = "\(r.x),\(r.y),\(r.z)" }
+        if !deepLifts.isEmpty { d["deepLifts"] = deepLifts.map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: ";") }
+        if !sealShafts.isEmpty { d["sealShafts"] = sealShafts.suffix(16).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: ";") }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
@@ -440,6 +446,21 @@ extension Game {
         smoothTerrain = d["terrain"] == "smooth"
         SmoothTerrain.use(world: smoothTerrain, world: world)
         ashVictory = d["ashVictory"] == "1"
+        wokenGates = (d["gates"] ?? "").split(separator: ";").map(String.init)
+        func v3(_ s: String?) -> V3? {
+            guard let p = s?.split(separator: ",").compactMap({ Float(String($0)) }), p.count == 3 else { return nil }
+            return V3(p[0], p[1], p[2])
+        }
+        deepReturn = v3(d["deepReturn"]); deepEntry = v3(d["deepEntry"])
+        ashOfficerHint = d["ashOfficerHint"] == "1"
+        deepLifts = (d["deepLifts"] ?? "").split(separator: ";").compactMap { s in
+            let p = s.split(separator: ",").compactMap { Int(String($0)) }
+            return p.count == 3 ? IVec3(p[0], p[1], p[2]) : nil
+        }
+        sealShafts = (d["sealShafts"] ?? "").split(separator: ";").compactMap { s in
+            let p = s.split(separator: ",").compactMap { Int(String($0)) }
+            return p.count == 3 ? IVec3(p[0], p[1], p[2]) : nil
+        }
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {

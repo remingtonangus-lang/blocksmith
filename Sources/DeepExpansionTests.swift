@@ -23,6 +23,7 @@ enum DeepExpansionTests {
         keeps(game, check)
         sky(game, check)
         army(game, check)
+        DeepGapTests.run(game, check)
         print(String(format: "deep expansion: checks took %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
 
@@ -113,8 +114,8 @@ enum DeepExpansionTests {
         let tHand = Mining.breakSeconds(SEALROCK, .empty, onGround: true, inWater: false)
         let tSun = Mining.breakSeconds(SEALROCK, sunder, onGround: true, inWater: false)
         let tOther = Mining.breakSeconds(BEDROCK, sunder, onGround: true, inWater: false)
-        check(tDusk.isInfinite && tHand.isInfinite && tOther.isInfinite && tSun > 1 && tSun < 5 && Mining.drops(SEALROCK, sunder).isEmpty,
-              String(format: "deep seal: Duskium pickaxe and hand never break it, a Sunderite Pickaxe takes %.2f s (bedrock still unbreakable, no drop)", tSun))
+        check(tDusk.isInfinite && tHand.isInfinite && tOther.isInfinite && tSun > 1 && tSun < 5 && Mining.drops(SEALROCK, sunder).map { Items.def($0.item).name } == ["sealrock_shard"],
+              String(format: "deep seal: Duskium pickaxe and hand never break it, a Sunderite Pickaxe takes %.2f s (bedrock still unbreakable; it drops one Sealrock Shard)", tSun))
         check(DeepSeal.crosses(210, 185) && DeepSeal.crosses(150, 201) && !DeepSeal.crosses(205, 230) && !DeepSeal.crosses(60, 150),
               "deep seal: a teleport across it is recognised (spiral fruit never crosses)")
     }
@@ -266,7 +267,12 @@ enum DeepExpansionTests {
             g.player.vel = .zero; g.player.airPeak = g.player.pos.y
             g.effects.clear()
             var t: Float = 0
-            while t < 90 { g.tick(0.05); t += 0.05; if g.player.onGround && t > 0.5 { break } }
+            // Only the fall may hurt: no keep garrison or band monster joins in on the way down.
+            while t < 90 {
+                g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll(); g.projectiles.arrows.removeAll(); g.projectiles.fireballs.removeAll()
+                g.tick(0.05); t += 0.05
+                if g.player.onGround && t > 0.5 { break }
+            }
             g.tick(0.05)
             return 20 - g.health
         }
@@ -308,7 +314,8 @@ enum DeepExpansionTests {
                 } } }
             } }
             let monsters = mobs.filter { $0.hasSuffix("@deep") }.count, ash = mobs.filter { $0.contains("@ash") }.count
-            check(b[brick, default: 0] > 2500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
+            // (the ring fort is the leanest of the three layouts in ember brick)
+            check(b[brick, default: 0] > 1500 && strongOre >= BrimstoneKeep.oreMin && chests >= 3 && monsters >= 12 && ash >= 6,
                   "deep keeps \(seed): keep \(dist) blocks from the origin: \(b[brick, default: 0]) ember brick, \(strongOre) Sunderite Ore in the strongroom, \(chests) chests, garrison \(monsters) monsters + \(ash) Ashguard")
             // Walk in from the hell band around it: from open ground 70-90 blocks out (a ring of 48 columns, the first
             // standing cell going down from over the keep's floor), on foot with jumps and ladders, into the strongroom.

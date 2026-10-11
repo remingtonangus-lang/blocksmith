@@ -442,6 +442,8 @@ final class ItemRegistry {
         SpawnEggs.register(self)
         Guns.register(self)
         registerDeepExpansionItems()
+        registerDeepGateItems()
+        registerDeepJournalItems()
         ExplorerMaps.register(self)
         Hunting.register(self)
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }

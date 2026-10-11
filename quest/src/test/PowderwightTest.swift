@@ -57,6 +57,7 @@ enum PowderwightTest {
         } } }
         p.pos = sp
         let wight = Mob(.creeper, at: sp + V3(2, 0, 0))
+        wight.sightTimer = 0          // its first look is a random 0-0.5 s off: the check times the fuse, not that roll
         game.survival = true
         game.weather = Weather(); game.weather.rain = 0; game.weather.raining = false
         func run(_ secs: Float) { var t: Float = 0; while t < secs && wight.health > 0 { wight.update(0.05, game: game); t += 0.05 } }
