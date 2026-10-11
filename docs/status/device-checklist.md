@@ -19,3 +19,17 @@ Things only the headset can prove. Run them in order the next time `adb devices`
 The Mac `--quest` proxy numbers (gate in `snap.sh` checks shard, budgets in performance.md) are the stand-in until then.
 Aniso 8 vs 4 was A/B'd only on the Mac proxy (no difference); recheck GPU ms on device with aniso 4 if GPU is the
 limit in step 4.
+
+## 2. Polygon terrain walk (task 25b5a, docs/status/polygon-test.md)
+
+1. Default build (`tools/quest-local.sh`), then Create New World > Terrain: Smooth (Test), seed 12345.
+2. Walk the spawn hills and a beach for 5 minutes; then Options > Video > Smooth Terrain off and walk the same spot.
+3. Note: comfort of the eased step-ups, any see-through gaps at chunk edges, how steep stone/snow looks up close.
+4. Frame rate: `tools/quest-local.sh --log 600 > /tmp/quest-smooth.log`, read with
+   `python3 tools/quest_perf_log.py /tmp/quest-smooth.log --windows`, once per mode at rd 16. Add both rows to polygon-test.md.
+
+## 3. Device feel for merged lane features (backlog M3)
+
+- Six-iron (B1, docs/status/six-iron.md): shoot and reload it in VR: does the aim line up with the barrel, is recoil readable.
+- Hunting (B3, docs/status/hunting.md): a clean kill, skinning, and the fishing fight: do they feel physical in VR, not menu-like.
+- Not merged yet (check when they land): flying vehicles and the crawler (A4), frigate radar (A5), VR melee vs knights (B6).

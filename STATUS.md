@@ -42,6 +42,9 @@
 > (Farsight Rifle, $250, "Nobody Was Here"); loud pays less. The alarm locks the uplink, sends squads down the
 > stairwell and roused soldiers now open bulkhead doors. HUD bar shows the next job. Checks: borealtest (15 per seed).
 > Details: docs/status/boreal-station.md.
+> **Polygon terrain test (2026-10-11, task 25b5a, quest-port):** Smooth terrain is now a per-world option (Create New
+> World > Terrain; Options > Video flips the open world) with smooth vertex normals on Quest. Cost ~+0.5 ms p99, +20-30 MB.
+> Shots, bench and verdict: docs/status/polygon-test.md. Device walk + fps: docs/status/device-checklist.md section 2.
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Toggle: Options > Video > Smooth Terrain (Prototype), `--smooth`/`--cubic`, or Quest
