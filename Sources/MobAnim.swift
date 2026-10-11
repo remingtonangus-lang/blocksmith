@@ -83,11 +83,13 @@ enum MobAnim {
             if (m.headYaw != 0 || m.headPitch != 0) && turn > 0 || big != 1 { p.joint = j }
         }
         guard falls(m) else { return p }
-        // Body: a lunge forward on an attack (front down), rocked back by a hit, a breath at rest.
+        // Body: a lunge forward on an attack (front down), rocked back by a hit or a wind-up, a breath at rest.
         let strike = m.strikeT > 0 ? sinf(min(1, m.strikeT / 0.3) * .pi) : 0
         let rock = min(1, m.hurt / 0.3)
+        // A VR wind-up (VRCombatFeel.swift): it rears back before the strike, so you can see it coming.
+        let rear: Float = m.windUp > 0 ? sinf(min(1, (VRMelee.windUpTime - m.windUp) / VRMelee.windUpTime) * .pi * 0.5) : 0
         let breathe = 1 + 0.018 * sinf(m.animT * 2.3) * (1 - min(1, m.walkAmount * 2)) * (m.deathT < 0 ? 1 : 0)
-        var a = rx(-0.16 * strike + 0.12 * rock * (m.deathT < 0 ? 1 : 0)) * simd_float3x3(diagonal: V3(1, breathe, 1))
+        var a = rx(-0.16 * strike + (0.12 * rock + 0.24 * rear) * (m.deathT < 0 ? 1 : 0)) * simd_float3x3(diagonal: V3(1, breathe, 1))
         var b = V3.zero
         if m.deathT >= 0 {
             // Not the genre's sideways flip: an upright body buckles and falls back onto its back (about the back edge

@@ -170,9 +170,9 @@ final class WorldRenderer {
     // (drawLandmarkSmoke: it writes no depth, so the sky drawn after it covered every volcano plume on the Quest).
     private var landmarkSmoke: (offset: Int, count: Int)?
     private func drawLandmarks(_ s: SceneRenderer.Slot, _ eye: V3, far: Float, fogColor: V3) {
+        landmarkSmoke = nil                         // before the guard: never a stale offset from an earlier frame
         guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater else { return }
         var smokeStart = 0
-        landmarkSmoke = nil
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { landmarkMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,

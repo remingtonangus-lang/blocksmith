@@ -109,12 +109,16 @@ enum QuestOptions {
         "Menu: pause; hold: recenter view",
     ]
 
-    // The Reclined posture picks Reclined melee; turning it off again restores the melee style from before.
+    // The Reclined posture picks Reclined melee, snap turning and a Medium vignette or stronger; turning it off again
+    // restores the melee style from before.
     static func reclinedPosture(_ on: Bool) {
         let S = QuestSettings.self
         if on && !S.reclined {
             S.swingBeforeReclined = S.swingMode ? 1 : 0
             S.swingMode = false
+            // Comfort defaults lying back (VRCombatFeel): snap turns and at least a Medium vignette (changeable after).
+            S.smoothTurn = false
+            S.vignette = max(S.vignette, 0.6)
         } else if !on && S.reclined {
             if S.swingBeforeReclined >= 0 { S.swingMode = S.swingBeforeReclined == 1 }
             S.swingBeforeReclined = -1

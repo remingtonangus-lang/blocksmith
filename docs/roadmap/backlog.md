@@ -154,7 +154,7 @@ NOTE (10-10 21:26): Quest renderer first. Do the sky, mobs, creeper replacement 
 L2. Redstone. DONE (PR #38): the Sparkstone Workshop world (Worlds menu), seven standard circuits checked against the reference in questcheck --workshop-only; 4 engine fixes (docs/status/sparkstone-workshop.md).
 REDSTONE: Build a redstone test world with standard circuits (clocks, T flip-flops, piston doors, item sorters, observers, comparator subtraction) and make every one behave like the genre reference; automate the check.
 
-L3. Oct 10 AM playtest flesh-out list (skip towns items; lane B owns them). CLAIMED: Lane C thread, 2026-10-11 (objectives and progress: docs/status/ground-l3.md).
+L3. Oct 10 AM playtest flesh-out list (skip towns items; lane B owns them). [DONE: Lane C thread, 2026-10-11, PRs #42 (ground), #43 (perf overlay, world gen, eruptions), #45 (VR combat feel); docs/status/ground-l3.md, l3-part3.md, vr-combat-feel.md. The 20-minute soak, device fps and the Quest build ship are on lane M's device checklist. Ruined portals were removed at Remington's request.]
 FLESH-OUT of the Oct 10 AM playtest task (Remington, 10-10 14:45). That task got his literal list; these are the extra objectives (written by the overseer) it must also meet. Read what 25b4z already shipped (git log, docs/playtests/2026-10-10/voice-notes-status.md), skip what is truly MET, build the rest. Grade everything at the end with the DONE GATE reviewer.
 TEXTURES/GROUND
 - Before/after captures from the Quest build at 1, 4 and 16 blocks for stone, chest, grass, ores, planks; put them in the status doc.

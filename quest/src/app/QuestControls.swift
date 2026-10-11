@@ -59,12 +59,20 @@ final class QuestControls {
     private var bladeValid = false
     private var bladeHits: [ObjectIdentifier] = []
     private var touchBuzz: Float = 0
+    private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
+    private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
+    private var tutorialSwing = true, tutorialStep = 99, tutorialNext: Double = 0   // the first-use tutorial toasts in progress
+    private(set) var parriesLanded = 0                 // (harness)
+    var trailPeak = 0                                  // (harness) most trail segments seen
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
     private(set) var bowNocked = false
     private(set) var bowPose: VRBow.Pose?               // tracking space, while a bow is held
     private var bowTick: Float = 0, bowHum: Float = 0
+    private var bowNockT: Float = 1                     // seconds since the arrow was nocked (it slides onto the string)
+    private var bowDrawLast: Float = 0                  // last frame's draw (creaks as it crosses VRBow.creaks)
+    private var bowReleaseT: Float = 1, bowReleaseDraw: Float = 0   // the string shivering after a shot
     private var bowHinted = false
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
@@ -214,7 +222,20 @@ final class QuestControls {
         p.rt = R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
-        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false }
+        if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false; bladeTrail.clear() }
+        // First use of each melee style with a weapon in hand: how it works, once (VRMelee.swingTutorial / reclinedTutorial).
+        if !inMenu && game.alive && game.vrWeaponHeld {
+            if QuestSettings.swingMode && !QuestSettings.swingTutorialShown {
+                QuestSettings.swingTutorialShown = true; tutorialSwing = true; tutorialStep = 0; tutorialNext = game.clock
+            } else if !QuestSettings.swingMode && !QuestSettings.reclinedTutorialShown {
+                QuestSettings.reclinedTutorialShown = true; tutorialSwing = false; tutorialStep = 0; tutorialNext = game.clock
+            }
+        }
+        // ... one short toast at a time, so each line is readable.
+        let tutorial = tutorialSwing ? VRMelee.swingTutorial : VRMelee.reclinedTutorial
+        if tutorialStep < tutorial.count && game.clock >= tutorialNext && !inMenu {
+            game.onToast?(tutorial[tutorialStep]); tutorialStep += 1; tutorialNext = game.clock + VRMelee.tutorialGap
+        }
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
         // Aimed at a body to skin (Hunting.swift), the left trigger skins instead of nocking.
         if !inMenu && game.alive && !held.isEmpty && Items.key(held.item) == "bow"
@@ -688,6 +709,7 @@ final class QuestControls {
             game.player.yaw = app.rig.headYaw
             game.player.pitch = max(-1.55, min(1.55, app.rig.headPitch))
             aimHit = nil
+            game.vrAim = nil
             return
         }
         let w = game.world
@@ -719,6 +741,7 @@ final class QuestControls {
         d = simd_normalize(d)
         game.player.yaw = atan2f(-d.x, -d.z)
         game.player.pitch = asinf(max(-0.999, min(0.999, d.y)))
+        game.vrAim = (aimOrigin, aimDir)                // the crossbow shoots from the aiming hand (GameCombat)
     }
 
     // Entry distance of a ray into a box (slab test), nil if it misses.
@@ -801,21 +824,41 @@ final class QuestControls {
         touchBuzz = max(0, touchBuzz - dt)
         guard bladeValid else { bladeValid = true; return }
         // A jump of more than 1.5 m (teleport, respawn, boarding) is not a swing.
-        guard simd_length(a1 - a0) < 1.5 else { return }
+        guard simd_length(a1 - a0) < 1.5 else { bladeTrail.clear(); return }
         let speed = simd_length(tipRel - prevRel) / dt
+        bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
+        trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
         if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true) }
+        // The blade knocking into stone or wood: a dull knock in the hand (blocks are never broken by a swing).
+        scrapeBuzz = max(0, scrapeBuzz - dt)
+        if speed >= VRMelee.minTipSpeed && scrapeBuzz <= 0
+            && Blocks.collide[Int(game.world.block(Int(floor(b1.x)), Int(floor(b1.y)), Int(floor(b1.z))))] {
+            scrapeBuzz = 0.2
+            app.input.haptic(aimHand, amplitude: 0.45, seconds: 0.03, frequency: 240)
+        }
         // Hostiles take a casual swing; villagers, townsfolk, golems, animals and pets only with the trigger held.
         guard let (m, point) = game.bladeContact(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, eye: rig.headWorld, except: bladeHits,
                                                  deliberate: R.trigger > 0.5) else { return }
         if speed >= VRMelee.minTipSpeed {
+            let along = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
+            // Into a mob winding up, at its arms or weapon: a parry (no damage; it staggers back).
+            if game.tryParry(m, at: point, along: along) {
+                bladeHits.append(ObjectIdentifier(m))
+                parriesLanded += 1
+                app.input.haptic(aimHand, amplitude: 1, seconds: 0.05, frequency: 340)
+                app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.05, frequency: 340)
+                return
+            }
             let pow = VRMelee.power(speed)
             game.swingPower = pow
             game.swingMob = m
             bladeHits.append(ObjectIdentifier(m))
             bladeContacts += 1
             game.swingPoint = point          // the contact flash and sparks there once the hit lands (Game.bladeFlash)
-            game.swingDir = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
-            app.input.haptic(aimHand, amplitude: min(1, 0.55 + 0.35 * pow), seconds: 0.07, frequency: 160)
+            game.swingDir = along
+            // Flesh thuds, armour rings, bone and stone knock (HitFeel).
+            let (amp, secs, freq) = HitFeel.of(m).haptic(power: pow)
+            app.input.haptic(aimHand, amplitude: amp, seconds: secs, frequency: freq)
         } else if touchBuzz <= 0 {
             touchBuzz = 0.3
             app.input.haptic(aimHand, amplitude: 0.15, seconds: 0.02, frequency: 250)
@@ -834,8 +877,9 @@ final class QuestControls {
         let hasArrow = !game.survival || game.arrowSlot() != nil
         if trig && !bowNocked && L.aimValid && hasArrow {
             if simd_length(L.aimPos - VRBow.restNock(grip: grip, handRot: rot)) < VRBow.nockRange {
-                bowNocked = true; bowTick = 0; bowHum = 0
+                bowNocked = true; bowTick = 0; bowHum = 0; bowNockT = 0; bowDrawLast = 0
                 app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
+                game.sfx(.bowNock, 0.6, at: rig.toWorld(grip))
             } else if !bowHinted {
                 bowHinted = true
                 game.onToast?("Bow: put your other hand on the string, hold its trigger and pull back")
@@ -845,7 +889,11 @@ final class QuestControls {
         let pose = VRBow.pose(grip: grip, handRot: rot, drawHand: bowNocked && L.aimValid ? L.aimPos : nil)
         bowPose = pose
         game.vrBow = (draw: pose.draw, origin: rig.toWorld(pose.grip) + rig.toWorldDir(pose.dir) * 0.1, dir: simd_normalize(rig.toWorldDir(pose.dir)))
+        bowNockT += dt; bowReleaseT += dt
         if bowNocked {
+            // The limbs creak as the draw passes 35, 65 and 90 % (louder the further it bends).
+            if VRBow.creak(from: bowDrawLast, to: pose.draw) != nil { game.sfx(.bowCreak, 0.3 + 0.4 * pose.draw, at: rig.toWorld(grip)) }
+            bowDrawLast = pose.draw
             // Tension: a tick in the drawing hand at every tenth of the draw, stronger and deeper as it bends; a steady
             // hum in both hands at full draw.
             if pose.draw >= bowTick + 0.1 {
@@ -861,7 +909,12 @@ final class QuestControls {
         }
         if !trig && bowNocked {
             bowNocked = false                               // looses this frame (the game sees the use trigger let go)
-            if pose.draw >= 0.1 { app.input.haptic(aimHand, amplitude: 0.8, seconds: 0.06, frequency: 140) }
+            if pose.draw >= 0.1 {
+                app.input.haptic(aimHand, amplitude: 0.8, seconds: 0.06, frequency: 140)
+                // The string shivers (drawBow) and the bow hand feels it buzz out.
+                bowReleaseT = 0; bowReleaseDraw = pose.draw
+                app.input.haptic(aimHand, amplitude: 0.35 * pose.draw, seconds: 0.25, frequency: 210)
+            }
         }
         return wasNocked && trig ? 1 : 0
     }
@@ -1117,15 +1170,33 @@ final class QuestControls {
             beam(bp.limb(u0), bp.limb(u1), 0.022 * taper, 0.013 * taper, abs(u0 + u1) < 0.3 ? wrap : wood)
         }
         let str = V3(0.85, 0.83, 0.78)
-        beam(bp.tipTop, bp.nock, 0.0035, 0.0035, str)
-        beam(bp.nock, bp.tipBottom, 0.0035, 0.0035, str)
+        // After a shot the string's middle shivers sideways (VRBow.stringWobble).
+        let shiver = bp.nock + side * VRBow.stringWobble(bowReleaseT, draw: bowReleaseDraw)
+        beam(bp.tipTop, shiver, 0.0035, 0.0035, str)
+        beam(shiver, bp.tipBottom, 0.0035, 0.0035, str)
         if bowNocked {
-            let tip = bp.nock + bp.dir * VRBow.arrowLength
-            beam(bp.nock, tip - bp.dir * 0.07, 0.006, 0.006, V3(0.62, 0.5, 0.34))
+            // The arrow slides back onto the string as it is nocked (VRBow.nockSlide).
+            let nk = bp.nock + bp.dir * VRBow.nockSlide(bowNockT)
+            let tip = nk + bp.dir * VRBow.arrowLength
+            beam(nk, tip - bp.dir * 0.07, 0.006, 0.006, V3(0.62, 0.5, 0.34))
             beam(tip - bp.dir * 0.07, tip, 0.015, 0.006, V3(0.55, 0.57, 0.6))
-            beam(bp.nock + bp.dir * 0.02, bp.nock + bp.dir * 0.13, 0.004, 0.02, V3(0.9, 0.9, 0.88))
+            beam(nk + bp.dir * 0.02, nk + bp.dir * 0.13, 0.004, 0.02, V3(0.9, 0.9, 0.88))
         }
         if let off = app.scene.push(s, v, priority: true) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+    }
+
+    // The blade trail (BladeTrail): a pale ribbon from base to tip over the last few fast frames, fading with age.
+    private func drawBladeTrail(_ s: SceneRenderer.Slot, eye: V3) {
+        guard bladeValid, game.menu == nil else { return }
+        var v = takeVerts()
+        defer { giveVerts(v) }
+        bladeTrail.segments(now: game.clock) { a0, b0, a1, b1, al0, al1 in
+            let c0 = V4(0.92, 0.95, 1, al0), c1 = V4(0.92, 0.95, 1, al1)
+            let m0 = c0 * V4(1, 1, 1, 0.25), m1 = c1 * V4(1, 1, 1, 0.25)       // fainter toward the hand
+            QuestControls.quad(&v, V4(a0 - eye, 1), V4(b0 - eye, 1), V4(b1 - eye, 1), V4(a1 - eye, 1), m0, c0, c1, m1)
+        }
+        if v.isEmpty { return }
+        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
     }
 
     // Aboard a moving ship: a faint level ring with a forward notch at the user's feet, fixed to the user's body
@@ -1182,6 +1253,7 @@ final class QuestControls {
             hp.draw(s, model: m, alpha: 1, onTop: true)
         }
         drawDeckReference(s, eye: eye)
+        drawBladeTrail(s, eye: eye)
         var v = takeVerts()
         defer { giveVerts(v) }
         screenEffects(&v)

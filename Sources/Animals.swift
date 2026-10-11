@@ -131,7 +131,7 @@ extension Mob {
         if kind == .wolf || kind == .polarBear || kind == .panda || kind == .goat || kind == .bee || kind == .fox || kind == .ocelot || kind == .cat {
             if aggro && canTarget {
                 face(player)
-                if g.meleeGap(self) < halfW + 1.2 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: halfW + 1.2) {
                     attackCooldown = 1
                     g.hurtPlayer(legend >= 0 ? spec.attack * 2 : spec.attack, from: pos, cause: "was slain by \(customName ?? spec.name)", attacker: self)
                     if kind == .bee {
@@ -439,7 +439,7 @@ extension Mob {
         case .endermite:
             if canTarget {
                 face(player)
-                if g.meleeGap(self) < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
+                if g.meleeStrike(self, reach: 1) { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
                 return spec.speed
             }
             age += dt
@@ -461,7 +461,7 @@ extension Mob {
             if anger >= 80 && canTarget {
                 face(player)
                 attackCooldown -= 0
-                if g.meleeGap(self) < 2.4 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: 2.4) {
                     attackCooldown = 1.8
                     g.hurtPlayer(spec.attack, from: pos, cause: "was obliterated by a sonically-charged shriek", knockback: 1.5, attacker: self)
                 } else if dist < 15 && dist > 4 && spellTimer <= 0 {

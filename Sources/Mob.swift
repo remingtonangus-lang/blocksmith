@@ -296,6 +296,10 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var windUp: Float = 0                // VR: seconds left of a melee wind-up (Game.meleeStrike, VRCombatFeel.swift)
+    var windUpDone = false               // ... it just ended: the strike lands next if the player is still in reach
+    var windUpAge: Float = 0             // ... seconds since it ended (dropped after 0.1 s unused)
+    var hitStop: Float = 0               // a landed blade froze it for this long (VRMelee.hitStop)
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
@@ -539,6 +543,10 @@ final class Mob {
         aiTimer -= dt
         unreachableTimer -= dt
         attackCooldown -= dt
+        // A finished wind-up is used by the next AI tick or dropped (the target died, left, or the AI skipped its
+        // strike), so a stale one never lands a later strike without its warning.
+        if windUpDone { windUpAge += dt; if windUpAge > 0.1 { windUpDone = false } }
+        if windUp > 0 { windUp -= dt; if windUp <= 0 { windUp = 0; windUpDone = true; windUpAge = 0 } }
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
@@ -670,7 +678,7 @@ final class Mob {
             } else if canTarget && angry {
                 face(player)
                 speed = spec.speed * 1.2
-                if g.meleeGap(self) < halfW + 1.3 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: halfW + 1.3) {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                 }
@@ -816,7 +824,7 @@ final class Mob {
             } else if aggro && canTarget && dist < 16 {
                 face(player)
                 speed = spec.speed * 1.4
-                if g.meleeGap(self) < 2.2 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: 2.2) {
                     attackCooldown = 1.25
                     g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
                 }
@@ -860,7 +868,7 @@ final class Mob {
                     vel += forward * 4 + V3(0, 5, 0)
                 }
                 let reach = halfW + 1.1
-                if g.meleeGap(self) < reach + 0.2 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: reach + 0.2) {
                     attackCooldown = 1
                     g.hurtPlayer(meleeDamage, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
@@ -977,7 +985,7 @@ final class Mob {
                         vel = .zero
                     }
                 }
-                if g.meleeGap(self) < 1.6 && attackCooldown <= 0 {
+                if g.meleeStrike(self, reach: 1.6) {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
                 }
@@ -991,7 +999,7 @@ final class Mob {
                 vel.z = forward.z * spec.speed * 1.5
                 g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
-            if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeGap(self) < halfW + 0.9 && attackCooldown <= 0 {
+            if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeStrike(self, reach: halfW + 0.9) {
                 attackCooldown = 1
                 let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
                 g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)", attacker: self)
@@ -2133,6 +2141,7 @@ final class MobManager {
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
+            if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
             m.update(dt, game: game)
             m.easeStep(fromY: before.y, wasGround: wasGround, dt)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
