@@ -3848,7 +3848,9 @@ enum HDTex {
         var clumps: [(Float, Float, Float)] = []
         for _ in 0..<12 { clumps.append((rng.float() * fn, rng.float() * fn, 0.55 + rng.float() * 0.35)) }
         let clumpR: Float = fn * 0.2
-        let count = needles ? n * n / 18 : n * n / 70
+        // As many leaves at every size (each scales with n): a count per pixel gave 128 px canopies ~85 % cover but
+        // 32 px ones 11 % (cover goes with n squared), so trees in 32 / 64 px shots were bare speckled sticks.
+        let count = needles ? 128 * 128 / 18 : 128 * 128 / 70
         for _ in 0..<count {
             let cx: Float = rng.float() * fn, cy: Float = rng.float() * fn
             // Nearest clump (wrap-aware).

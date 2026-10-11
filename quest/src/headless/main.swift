@@ -44,6 +44,9 @@ let device = sharedSystemDevice
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
 // (Sources/StructCheck.swift) on the Linux host, as the Mac's `--structcheck` runs it.
 if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device: device)) }
+// --gencheck [--seeds A,B --areas N]: the generated-world defect scan (Sources/GenCheck.swift: floating trunks and
+// plants, leaks, ...), as the Mac's `--gencheck` runs it.
+if CommandLine.arguments.contains("--gencheck") { exit(GenCheck.run(device: device)) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)
@@ -280,6 +283,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         try? FileManager.default.createDirectory(atPath: skyDir, withIntermediateDirectories: true)
         try SkyTest.run(game: game, ctx: ctx, dir: skyDir, check: check)
         PowderwightTest.run(game: game, check: check)
+        TreeTest.run(check: check)
+        if let shots = arg("--tree-shots") { try TreeShots.run(game: game, ctx: ctx, dir: shots) }
         if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
