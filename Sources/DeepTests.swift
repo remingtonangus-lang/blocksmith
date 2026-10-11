@@ -95,6 +95,8 @@ enum DeepTests {
         var marked = false
         sim(15) { if !g.ashStrikes.isEmpty { marked = true }; return marked }
         marshal.health = marshal.spec.health / 2
+        // Still on the player (a shell from the barrage that downed the test player calms every mob).
+        marshal.aggro = true; marshal.soldierBrain.lastSeen = g.player.eye; marshal.soldierBrain.seenAgo = 0; marshal.lockTime = 5
         func guardNow() -> [Mob] { g.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && Soldier.rank($0.kind) != nil && $0.kind != .ashMarshal } }
         sim(3) { guardNow().count >= 4 }
         let guard_ = guardNow()

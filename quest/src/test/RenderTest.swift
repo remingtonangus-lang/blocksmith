@@ -11,6 +11,9 @@ enum RenderTest {
     static var recordMs = 0.0             // CPU time recording the last frame's world
     static var lastRGBA: [UInt8] = []     // the last frame, both eyes side by side (width * 2 x height)
     static var lastFrameMs: Double = 0    // its lavapipe frame time
+    // The last frame's draw load: sections, draw calls, terrain quads, CPU record ms, and mobs within the mob distance.
+    static var lastStats: (sections: Int, draws: Int, quads: Int, recordMs: Double, mobsDrawn: Int, mobVerts: Int) = (0, 0, 0, 0, 0, 0)
+    static var lastStages = ""            // where the record time went (WorldRenderer stages, ms per frame over the 3)
     static func render(game: Game, ctx: VkContext, path: String, width: Int = 640, height: Int = 640,
                        yaw: Float = 0, pitch: Float = -0.15, fovDeg: Float = 90) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
@@ -60,6 +63,10 @@ enum RenderTest {
         }
         print(String(format: "rendertest: %d sections visible, %d draws, %d quads; cull %.2f ms, CPU record %.2f ms, frame (lavapipe) %.0f ms",
                      scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs, wr.frameCPUMs, ms.last!))
+        let md = wr.mobMaxDist
+        lastStages = wr.takeStages() + ", mob vertices \(wr.lastMobVerts)"
+        lastStats = (scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs,
+                     game.mobs.mobs.filter { $0.health > 0 && simd_length($0.pos - center) < md }.count, wr.lastMobVerts)
         landmarkVerts = wr.landmarkCount
         drawnQuads = scene.drawnQuads; recordMs = wr.frameCPUMs
         if wr.landmarkCount > 0 { print(String(format: "rendertest: landmark impostors %d vertices, %.2f ms", wr.landmarkCount, wr.landmarkMs)) }

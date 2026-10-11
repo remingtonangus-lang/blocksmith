@@ -19,7 +19,11 @@ enum AshVaultGapTests {
         layout(check)
         rails(check)
         let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty, wasMobs = g.mobs.mobs
+        // The army fights only until the Marshal falls; the balance duels before this kill him.
+        let wasVictory = g.ashVictory
+        g.ashVictory = false
         defer {
+            g.ashVictory = wasVictory
             g.mobs.mobs = wasMobs; g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20
             g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashStrikes.removeAll(); g.ashWrecks.removeAll(); g.ashSpot = nil
             g.onToast = nil
@@ -194,7 +198,7 @@ enum AshVaultGapTests {
         tick(0.2, seen: true)
         let alert = g.ashAlarmLevel == 1 && toasts.contains { $0.hasPrefix("Alarm: Alert") }
         tick(22, seen: true)
-        let alarm = g.ashAlarmLevel == 2 && toasts.contains { $0.hasPrefix("Alarm: Alarm") }
+        let alarm = g.ashAlarmLevel == 2 && toasts.contains { $0.hasPrefix("Alarm raised") }
         let dead = Mob.structureMob("soldier_trooper@ash", at: stand + V3(30, 0, 0))!
         dead.killedByPlayer = true
         for _ in 0..<3 { g.ashAlarmKill(dead) }
@@ -318,10 +322,19 @@ enum AshVaultGapTests {
         g.mobs.mobs.append(gunner)
         gunner.aggro = true
         let gb = gunner.soldierBrain
-        gb.lastSeen = stand + V3(0, 1.4, 0); gb.seenAgo = 0.5; gb.sees = false; gb.react = 0; gb.shotTimer = 0
+        gb.lastSeen = stand + V3(10, 1.4, 0); gb.seenAgo = 0.5; gb.sees = false; gb.react = 0; gb.shotTimer = 0
+        // The player ducked behind a wall from where he was seen (10 blocks along, in the open): out of sight, the gunner
+        // hoses that spot (in view, the ordinary AI takes over).
+        var wall: [(Int, Int, Int, BlockID)] = []
+        let wz = Int(floor(stand.z)) + 10
+        for dx in -2...2 { for dy in 0...4 {
+            let x = Int(floor(stand.x)) + dx, y = Int(floor(stand.y)) + dy
+            wall.append((x, y, wz, g.world.block(x, y, wz))); g.world.setBlock(x, y, wz, STONE)
+        } }
         let s0 = g.arms.slugs.count, mag0 = gb.mag
         for _ in 0..<20 { _ = gunner.ashRoleAI(0.05, g, dist: 20, canTarget: true) }
         let suppressed = gb.mag < mag0 || g.arms.slugs.count > s0
+        for (x, y, z, b) in wall { g.world.setBlock(x, y, z, b) }
         let officer = Mob(.soldierOfficer, at: stand + V3(10, 0, 30))
         officer.ashSetup()
         let idle = Mob.structureMob("ash_tank@ash^0", at: stand + V3(40, 0, 80))!
@@ -347,7 +360,10 @@ enum AshVaultGapTests {
 
     // The biggest battle: the player at the citadel's north gate at Total War, every Ashguard unit loaded around it
     // awake and fighting. Game.tick timed over 30 s of play.
-    static func biggestBattle(_ g: Game, _ check: (Bool, String) -> Void) {
+    // The battle's setting (also rendered by questcheck --render for the draw side): the player at the north gate at
+    // Total War, the loaded garrisons awake and on him.
+    @discardableResult
+    static func battleScene(_ g: Game) -> V3 {
         let y = Float(AshWar.ground + 1)
         let stand = V3(0.5, y, -47.5)
         g.changeDimension(to: .deep, at: stand)
@@ -356,6 +372,7 @@ enum AshVaultGapTests {
         g.mobs.mobs.removeAll()
         g.survival = true; g.alive = true; g.paused = false; g.menu = nil; g.difficulty = 2
         g.player.pos = stand; g.player.flying = false
+        g.ashVictory = false
         g.ashAlarm = 3.5; g.ashAlarmLevel = 3; g.ashSquadsSent = 0; g.ashReinforceT = 0
         // Let the loaded chunks' garrisons arrive.
         for _ in 0..<20 { g.health = 20; g.tick(0.05); g.player.pos = stand; g.player.vel = .zero }
@@ -363,6 +380,11 @@ enum AshVaultGapTests {
             m.aggro = true
             m.brain?.lastSeen = g.player.eye
         }
+        return stand
+    }
+
+    static func biggestBattle(_ g: Game, _ check: (Bool, String) -> Void) {
+        let stand = battleScene(g)
         let skipped0 = AshArmy.lodSkipped
         var times: [Double] = []
         var peak = 0

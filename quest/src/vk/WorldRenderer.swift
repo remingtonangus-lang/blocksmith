@@ -13,6 +13,7 @@ final class WorldRenderer {
     var extraOverlay: ((SceneRenderer.Slot, V3) -> Void)?    // drawn last (panels over everything)
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
     private(set) var frameCPUMs = 0.0
+    private(set) var lastMobVerts = 0     // mob vertices written in the last frame
     // Where the record time goes, summed until the next perf line (QuestApp FrameStats): cull + records, HUD panel,
     // opaque terrain, ships + landmarks, mobs, entities, the rest (hands, sky, water, overlay).
     static let stageNames = ["cull", "hud", "terrain", "ships", "mobs", "entities", "rest"]
@@ -130,6 +131,7 @@ final class WorldRenderer {
         updateCave(cam.center)
         let (u, clear) = uniforms(cam)
         scene.maxSection = game.inVaultSky ? AshSky.cutSection : NSEC         // the vault's roof is left to the sky
+        scene.fogCull = game.inVaultSky && !game.player.headInWater && !game.player.headInLava ? AshSky.fogEnd + 8 : 0
         scene.setUniforms(s, u)
         scene.resetScratch()
         let eye = cam.center
@@ -231,14 +233,20 @@ final class WorldRenderer {
 
     // Off-screen mobs past 64 blocks and mobs beyond the fog are skipped, as on the Mac (Renderer.mobMaxDist): every
     // loaded mob was rebuilt each frame, ~200 at render distance 14.
+    // Past the vault's fog (scene.fogCull) a unit is the fog colour: not drawn.
+    var mobMaxDist: Float {
+        let rd = Float(game.world.renderDistance * CS + 24)
+        return scene.fogCull > 0 && !SceneRenderer.fogCullOff ? min(rd, scene.fogCull) : rd
+    }
     private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         let tp = game.cameraMode != 0
         guard !game.mobs.mobs.isEmpty || tp else { return }
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
-                                 cull: frustum, maxDist: Float(game.world.renderDistance * CS + 24), corpses: game.mobs.corpses)
+                                 cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses)
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
+        lastMobVerts = n
         scene.commit(off, n, MobVert.self)
         scene.drawScratch(s, "mob", offset: off, count: n)
     }

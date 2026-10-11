@@ -509,6 +509,65 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             shot("deep_keep", at: V3(Float(ox) + 0.5, Float(DeepGen.hellBase + BrimstoneKeep.floorUp + 9), Float(oz + BrimstoneKeep.causeway) + 0.5), yaw: 0, pitch: -0.12)
         }
     }
+    // The biggest battle's draw side (gap pass D5/DE14): the citadel at Total War from the north gate, looking in, with
+    // the vault's fog budget (sections and units wholly past the fog are left out) and without it.
+    do {
+        let savedMobs = game.mobs.mobs, savedVictory = game.ashVictory
+        let stand = AshVaultGapTests.battleScene(game)
+        // Out to render distance 10 (the headset plays at 16): past the vault's fog (AshSky.fogEnd 130 + 8), so the
+        // budget has something to cut. The wider load wakes more garrisons.
+        let rd0 = game.world.renderDistance
+        game.world.renderDistance = 10
+        _ = game.world.loadSync(center: stand, radius: 10)
+        for (name, p) in game.world.pendingMobs { if let m = Mob.structureMob(name, at: p) { game.mobs.mobs.append(m) } }
+        game.world.pendingMobs.removeAll()
+        game.player.pos = stand
+        game.player.flying = true
+        let out = (dir.isEmpty ? "." : dir) + "/deep_battle.png"
+        var with = RenderTest.lastStats, without = RenderTest.lastStats
+        SoldierRig.lodBuilt = [0, 0, 0, 0]
+        do {
+            SceneRenderer.fogCullOff = true
+            try RenderTest.render(game: game, ctx: ctx, path: out, yaw: .pi, pitch: 0.05)
+            without = RenderTest.lastStats
+            SceneRenderer.fogCullOff = false
+            try RenderTest.render(game: game, ctx: ctx, path: out, yaw: .pi, pitch: 0.05)
+            with = RenderTest.lastStats
+            print("render: \(out)")
+        } catch { SceneRenderer.fogCullOff = false; check(false, "deep render battle: \(error)") }
+        let units = game.mobs.mobs.filter { $0.health > 0 && $0.faction == Faction.ashguard.rawValue }.count
+        game.world.renderDistance = rd0
+        do {
+            // Which models carry the mob pass: units in reach and in view of the camera, by kind, with their part counts.
+            SoldierRig.eye = game.player.eye; SoldierRig.drawing = true
+            var byKind: [String: (Int, Int)] = [:]
+            let look = V3(-sinf(Float.pi), 0, -cosf(Float.pi))
+            for m in game.mobs.mobs where m.health > 0 {
+                let d = m.pos - game.player.eye
+                if simd_length(d) > 152 || (simd_length(d) > 64 && simd_dot(simd_normalize(d), look) < 0.5) { continue }
+                let n = mobModelParts(m).count
+                let e = byKind["\(m.kind)", default: (0, 0)]
+                byKind["\(m.kind)"] = (e.0 + 1, e.1 + n)
+            }
+            SoldierRig.drawing = false
+            print("deep battle draw by kind (units, parts): " + byKind.sorted { $0.value.1 > $1.value.1 }.map { "\($0.key) \($0.value.0)/\($0.value.1)" }.joined(separator: ", "))
+        }
+        print("deep battle draw stages: \(RenderTest.lastStages); soldier rigs by level (near, mid, far, silhouette) \(SoldierRig.lodBuilt); culled \(MobDrawStats.culled), dropped \(MobDrawStats.dropped)")
+        print(String(format: "deep battle draw: %d units; fog budget on: %d sections, %d draws, %d quads, %d units in reach, CPU record %.2f ms; off: %d sections, %d draws, %d quads, %d units, %.2f ms",
+                     units, with.sections, with.draws, with.quads, with.mobsDrawn, with.recordMs,
+                     without.sections, without.draws, without.quads, without.mobsDrawn, without.recordMs))
+        // The fog ends at AshSky.fogEnd: nothing past it is drawn, and the battle's record stays inside a 72 Hz frame's
+        // CPU share (4 ms of 13.9).
+        // The budget: the fog cuts sections, terrain and units, and the mob pass stays inside a third of the frame's
+        // shared vertex scratch (the rest: dropped items, particles, hands, HUD); past it the farthest units would drop.
+        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride, mobBudget = SceneRenderer.scratchSize / 3
+        check(units >= 40 && with.sections < without.sections && with.mobsDrawn < without.mobsDrawn && mobBytes <= mobBudget,
+              String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms (debug build)",
+                     units, with.sections, with.quads, with.mobsDrawn, with.mobVerts, Double(mobBytes) / 1048576, Double(mobBudget) / 1048576, with.recordMs,
+                     without.sections, without.quads, without.mobsDrawn, without.mobVerts, without.recordMs))
+        game.mobs.mobs = savedMobs; game.ashVictory = savedVictory
+        game.ashAlarm = 0; game.ashAlarmLevel = 0; game.ashStrikes.removeAll(); game.arms.slugs.removeAll()
+    }
     game.changeDimension(to: .overworld, at: home)
     game.player.pos = home; game.player.vel = .zero; game.player.flying = false
     _ = game.world.loadSync(center: home, radius: 4)
