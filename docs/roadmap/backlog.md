@@ -174,6 +174,11 @@ A7. [towns] Rename the Capital city "Meridian" (CapitalTown.swift:17): it clashe
 A8. [frigate] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
 A9. [horses] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
     neck/mane, add a Quest horse render to questcheck.
+A10. [towns] `--towntests` has 5 FAIL on fa79ef5e: wallet/honour HUD lines empty (HonourTests.swift:218,
+    HonourGapTests.swift:263), "sheriff shoots an outlaw player", "3 bread for $0.90". Fix, then add --towntests to
+    snap.sh's checks shard so they gate CI.
+A11. [frigate] No designed way to board the Meridian frigate 45 blocks up outside `/vessel frigate`: a boarding route
+    (drop ladder, or hail-and-board when it flies low) plus a ride-check bot that reaches the helm from the ground.
 
 ## SMALLER IDEAS (take when a lane is empty)
 O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.

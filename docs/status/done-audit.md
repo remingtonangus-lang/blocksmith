@@ -291,3 +291,55 @@ should be styled are (61%); nothing proven on the Quest renderer (CI Quest rende
 Gaps: queued 25b4zzz-blocksmith-art-gaps (CHROME=1): ~300 layers of high-visibility families, 64 icons, gold ore
 specks, 2 seams, UI/effect icons, one texpack commit. ASTC vs lossless and the 128 px spec change are Remington's
 call (listed in the report). Fixed here: CI Quest renders load the art; remaining-list recount; licence open item.
+
+## 25b4z-blocksmith-playtest-oct10am (+ gap rounds zx .. zxxxxx) — Opus reviewer
+25b4zy (flesh-out) never ran, so graded against its own text. `--swingtest` 56 ok; `--rdgovernortest` PASS;
+`--worldgencheck 24` pass; `--questbugs` 285 ok / 1 fail (maingun, not this task); `--towntests` 281 ok / **5 FAIL**
+(cloud lane). All 38 voice notes have a status; 5 spot-checked "fixed" notes match the code. Shots:
+snaps/audit-25b4z-{camp,camp2,volcano-far,town,texclose}.png.
+
+| Requirement | Grade | Evidence |
+|---|---|---|
+| 1a Blur cause found, crisp at headset distance | PARTIAL | 64 px pack was the cause; now 128 px, sharp-bilinear, aniso 8; never seen on a headset |
+| 1b Keep frame rate | PARTIAL | +146 MB GPU memory, est. < 0.2 ms; no device log |
+| 1c Grass detail | MET | 80cd6bb4 |
+| 1d Flower bush detail | MET | firefly bush painter |
+| 1e Keep praised art | MET | untouched |
+| 2a Auto render distance recovers | MET | rdgovernortest 16 -> 12 -> 16 |
+| 2b Cause of the drops | PARTIAL | Mac proxy: taiga GPU-bound, 512k quads, 2/3 leaves; device unconfirmed |
+| 2c Proof gains are permanent | PARTIAL | CI gate checks quad counts only (budget raised 360k -> 380k); frame times info-only |
+| 3 Capital spacing across seeds | MET | 25 seeds, nearest city min 1248 |
+| 4 Volcano far view blends in | PARTIAL | dark, sun-lit, but a hard cut-out on a pale haze band, no visible foothills at 650 blocks |
+| 5 Ruined portals removed/rare | MET | 0 in worldgencheck |
+| 6a All villagers become townsfolk incl. old saves | MET | towntest old-save conversion ok |
+| 6b Wallet on HUD | PARTIAL (cloud) | HUD/inventory wallet checks fail with empty text (HonourTests.swift:218, HonourGapTests.swift:263) |
+| 6c Emerald vs dollar documented | MET | economy.md |
+| 6d Theft anger | MET | law test ok |
+| 6e Sheriff replaces the golem | PARTIAL (cloud) | new towns ok; "sheriff shoots an outlaw player" FAILS; old towns keep golems by design |
+| 6f English voice lines | MET | 14 voices, ~10 contexts, 4.97 MB ADPCM; not heard on headset |
+| 7 Wild camps | MET | 5 kinds, ~5 per 2048^2, structcheck 0 |
+| 8 Note 1 identified | MET | swing-mode melee |
+| 9a No block breaking near creatures | MET | Game.swift:1139 |
+| 9b Blocks only with trigger held | MET | blade never mines |
+| 9c Real blade contact, min speed | MET | VRMelee swept capsule |
+| 9d Enemy melee physically reaches | PARTIAL (cloud) | monsters MET; hostile townsfolk still centre distance (Townsfolk.swift:260, backlog T1) |
+| 9e Haptics + hit flash | MET | |
+| 9f Generous but physical reach | PARTIAL | reach 3.0, blade x1.3; feel untried |
+| 9g Reclined mode replaces the alternative | MET | |
+| 9h One-line descriptions in the menu | MET | |
+| 10a Bow the right way round | PARTIAL | geometry tests pass; no rendered drawn-bow image |
+| 10b-e String/arrow follow hand, haptics, release, both hands | MET | swingtest |
+| Status copy of 38 notes | MET | |
+| Ship a quest-dist build | PARTIAL | head APK failed to compile (getpid, CircuitWorkshopTests.swift:146): **fixed in this audit** |
+| E1 VR comfort | PARTIAL | no headset |
+| E2 Failure states | MET | |
+| E3 Left-handed parity | MET | |
+| E4 Saves/migration | MET | |
+| E5 Quest perf proven on device | MISSING | no device log since 128 px + governor |
+| E6 Variety | MET | |
+| E7 Regression gates | PARTIAL | --towntests not in a CI lane, 5 FAIL |
+| E8 Feedback | MET | |
+
+Gaps: device perf proof (Remington: plug in the Quest; device-checklist.md section 1); towntests 5 FAIL + add to the
+checks shard (cloud: towns, backlog A10); townsfolk melee (cloud, T1); volcano base blend, drawn-bow render,
+perf-gate p99 gating -> queued 25b4zzza-blocksmith-audit-gaps.
