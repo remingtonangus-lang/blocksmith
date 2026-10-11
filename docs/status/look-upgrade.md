@@ -155,3 +155,34 @@ From the backlog: more tree shapes per species, woodland detail, trees that read
 - Portraits: `questcheck --render X --tree-shots DIR` writes trees_{oaks,birches,spruces,woodland,ancient}.png
   (each tree grown alone on a floating pad, three-quarter view at noon). In docs/status/evidence/look-upgrade/, with
   trees_world_before.png / trees_world_after.png: the spawn view at 32 px before and after the leaf fix.
+
+## Part 4: mob animation
+
+### Objectives (the overseer's list plus our own)
+From the backlog: mobs and animals move like living things. Our own:
+- A death you can see: the body tips over and goes in a puff, instead of vanishing the instant its health runs out.
+- Heads turn: monsters watch their prey, animals and townsfolk glance at you when you're close, never twisting past a
+  neck's reach (a player behind it gets its body turned, not its head).
+- An attack throws the body into a lunge; a hit rocks it back; at rest it breathes.
+- Babies read as babies: a bigger head on the small body.
+- No per-model rewrite: the layers apply over every existing model; machines, vehicles and armour stands stay still.
+- No cost to speak of: one small transform per mob, no allocation per frame.
+
+### What shipped
+- `Sources/MobAnim.swift` (shared): `MobAnim.pose(m)` builds a whole-model transform (lunge, rock, breath, the fall)
+  and a head transform (turn, look up/down, baby scale) applied to the posed boxes in `writeMobVertices`. Heads are
+  found per model by a joint (`HeadJoint`: boxes above the neck for people, in front of it for cows, sheep, pigs,
+  chickens; helmets turn with the head). `Mob.animTick` picks what it watches (every 0.25 s) and eases the head there.
+- Deaths: `MobManager.corpses` holds the dead for 1 s (never updated, only drawn): over 0.45 s an upright one buckles and
+  falls back onto its back (not the genre's sideways flip) and a four-legged one folds its legs and slumps, leaning a
+  little; they redden, settle, then go in a puff of pale smoke (`Particles.deathPuff`).
+  Loot and XP still drop at the moment of death; at most 24 corpses at once.
+- Kept: the per-model walk cycles, arm poses, wing flaps and tail wiggles.
+
+### Checks (questcheck, quest/src/test/MobAnimTest.swift)
+A cow turns its head toward the player beside it (and not round toward one behind it); a zombie turns its head toward
+the player, 6 of its 17 boxes counted as the head; a calf's head is bigger; an attack lunges the body forward, a hit
+rocks it back, rest breathes (about 1 px); a dead cow slumps down; a killed zombie leaves the live list, falls back onto its back (no sideways flip) and draws with finite
+vertices, then goes in a puff and is gone; armour stands and boats keep still. Portraits: `--mob-shots DIR --mob-kinds
+zombie,cow,villager,sheep` adds `look` (head turned) and `fall` (mid-fall) shots: docs/status/evidence/look-upgrade/
+mob_{zombie,cow,villager,sheep}_{look,fall}.png.

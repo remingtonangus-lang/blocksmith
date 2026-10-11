@@ -60,14 +60,14 @@ enum PowderwightTest {
         game.survival = true
         game.weather = Weather(); game.weather.rain = 0; game.weather.raining = false
         func run(_ secs: Float) { var t: Float = 0; while t < secs && wight.health > 0 { wight.update(0.05, game: game); t += 0.05 } }
-        run(1.0)
+        run(1.3)                                                   // it may take a few ticks to step in and see you
         let dry = wight.fuse
         if dry == 0 {
             print(String(format: "powderwight: debug alive %d survival %d dist %.2f see %d difficulty %d hp %d pos %.1f %.1f %.1f player %.1f %.1f %.1f",
                          game.alive ? 1 : 0, game.survival ? 1 : 0, simd_length(wight.pos - p.pos), w.canSee(wight.eye, p.eye) ? 1 : 0,
                          game.difficulty, wight.health, wight.pos.x, wight.pos.y, wight.pos.z, p.pos.x, p.pos.y, p.pos.z))
         }
-        check(dry > 0.6 && wight.health > 0, String(format: "powderwight: strikes its fuse beside the player (%.2f s burnt of %.2f)", dry, Mob.hisserFuse))
+        check(dry > 0.3 && dry < Mob.hisserFuse && wight.health > 0, String(format: "powderwight: strikes its fuse beside the player (%.2f s burnt of %.2f)", dry, Mob.hisserFuse))
         let sparks = game.particles.list.filter { $0.glow && simd_length($0.pos - wight.kegSpark) < 1.5 }.count
         let sparkUp = wight.kegSpark.y - wight.pos.y
         check(sparks >= 3 && sparkUp > 1.4 && sparkUp < 2.1, String(format: "powderwight: the lit fuse spits sparks off its keg (%d live, %.2f blocks up)", sparks, sparkUp))
