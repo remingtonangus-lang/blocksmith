@@ -1,0 +1,148 @@
+== flight16: hottest functions (samples at top of stack, all threads) ==
+        __workq_kernreturn  (in libsystem_kernel.dylib)        19099
+        __semwait_signal  (in libsystem_kernel.dylib)        3616
+        specialized static Mesher.flood(_:_:_:_:)  (in Blocksmith)        2270
+        specialized static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        1996
+        __psynch_cvwait  (in libsystem_kernel.dylib)        1730
+        specialized static Mesher.computeLight(_:_:y0:_:emitters:)  (in Blocksmith)        844
+        start_wqthread  (in libsystem_pthread.dylib)        641
+        specialized static Mesher.connectivity(_:_:_:)  (in Blocksmith)        223
+        WorldGen.generate(cx:cz:)  (in Blocksmith)        139
+        __bzero  (in libsystem_platform.dylib)        92
+        read  (in libsystem_kernel.dylib)        79
+        specialized smoothOpen #1 (_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        75
+        specialized static TexCompress.encodeColour(_:_:_:)  (in Blocksmith)        70
+        vert #1 (_:_:_:_:_:_:_:_:_:_:_:_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        70
+        specialized static BlockStore.emitMask(of:)  (in Blocksmith)        64
+        Noise.noise2(_:_:)  (in Blocksmith)        50
+        _platform_memmove  (in libsystem_platform.dylib)        38
+        Noise.noise3(_:_:_:)  (in Blocksmith)        36
+        specialized static TextureGen.bleed(_:_:)  (in Blocksmith)        30
+        __ulock_wake  (in libsystem_kernel.dylib)        28
+        WorldGen.CaveLattice.sample(_:_:_:_:)  (in Blocksmith)        27
+        specialized Array.init(_unsafeUninitializedCapacity:initializingWith:)  (in Blocksmith)        27
+        specialized static TextureImport.image(_:size:)  (in Blocksmith)        26
+        specialized static HDTex.upscale(_:detail:salt:n:)  (in Blocksmith)        24
+        inflate  (in libz.1.dylib)        23
+        swift_release  (in libswiftCore.dylib)        23
+        specialized static World.orphanEntities(_:_:have:)  (in Blocksmith)        22
+        specialized static HDTex.vnoise(_:_:_:)  (in Blocksmith)        18
+        specialized static Mesher.shared(_:)  (in Blocksmith)        18
+        swift_retain  (in libswiftCore.dylib)        18
+        _platform_memset  (in libsystem_platform.dylib)        16
+        Renderer.encode(_:width:height:split:)  (in Blocksmith)        14
+        __psynch_mutexdrop  (in libsystem_kernel.dylib)        14
+        iokit_user_client_trap  (in IOKit)        14
+        specialized cornerDrop #1 (_:_:_:_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        12
+        objc_msgSend  (in libobjc.A.dylib)        10
+        specialized static Chunk.computeHeights(_:)  (in Blocksmith)        10
+        specialized static Circuit.trackedCells(_:cx:cz:)  (in Blocksmith)        10
+        WorldGen.placeVegetation(_:_:_:_:_:cols:)  (in Blocksmith)        9
+        __psynch_mutexwait  (in libsystem_kernel.dylib)        9
+        mach_msg2_trap  (in dyld)        9
+        specialized WorldGen.vein(_:_:_:_:_:_:y:size:)  (in Blocksmith)        9
+        specialized static TexCompress.encode(_:size:into:)  (in Blocksmith)        9
+        specialized static TexCompress.encodeAlpha(_:_:)  (in Blocksmith)        9
+        __open  (in libsystem_kernel.dylib)        8
+== meshprof: hottest functions (samples at top of stack, all threads) ==
+        __workq_kernreturn  (in libsystem_kernel.dylib)        9375
+        specialized static Mesher.flood(_:_:_:_:)  (in Blocksmith)        3281
+        specialized static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        1911
+        specialized static Mesher.computeLight(_:_:y0:_:emitters:)  (in Blocksmith)        852
+        specialized static Mesher.connectivity(_:_:_:)  (in Blocksmith)        165
+        vert #1 (_:_:_:_:_:_:_:_:_:_:_:_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        110
+        specialized smoothOpen #1 (_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        85
+        __bzero  (in libsystem_platform.dylib)        65
+        specialized Array.init(_unsafeUninitializedCapacity:initializingWith:)  (in Blocksmith)        20
+        swift_release  (in libswiftCore.dylib)        9
+        _platform_memmove  (in libsystem_platform.dylib)        8
+        _platform_memset  (in libsystem_platform.dylib)        8
+        _ContiguousArrayStorage.__deallocating_deinit  (in libswiftCore.dylib)        6
+        specialized cornerDrop #1 (_:_:_:_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        6
+        specialized static Mesher.shared(_:)  (in Blocksmith)        6
+        swift_bridgeObjectRelease  (in libswiftCore.dylib)        6
+== genprof: hottest functions (samples at top of stack, all threads) ==
+        __workq_kernreturn  (in libsystem_kernel.dylib)        8898
+        WorldGen.generate(cx:cz:)  (in Blocksmith)        3127
+        Noise.noise3(_:_:_:)  (in Blocksmith)        1002
+        WorldGen.CaveLattice.sample(_:_:_:_:)  (in Blocksmith)        650
+        Noise.noise2(_:_:)  (in Blocksmith)        341
+        specialized WorldGen.vein(_:_:_:_:_:_:y:size:)  (in Blocksmith)        290
+        WorldGen.placeVegetation(_:_:_:_:_:cols:)  (in Blocksmith)        193
+        sample #1 (_:_:_:_:) in WorldGen.placeOreVeins(_:_:_:)  (in Blocksmith)        73
+        __sincosf_stret  (in libsystem_m.dylib)        62
+        WorldGen.lattice(_:_:)  (in Blocksmith)        30
+        swift_isUniquelyReferenced_nonNull_native  (in libswiftCore.dylib)        27
+        specialized Terrain.biome(_:_:dT:dW:)  (in Blocksmith)        26
+        swift_release  (in libswiftCore.dylib)        26
+        swift_retain  (in libswiftCore.dylib)        26
+        __bzero  (in libsystem_platform.dylib)        22
+        specialized static TreePlacer.place(_:_:_:gen:top:)  (in Blocksmith)        22
+        specialized static TreePlacer.blob(_:_:_:_:rx:ry:_:_:)  (in Blocksmith)        21
+        WorldGen.climate(_:_:)  (in Blocksmith)        18
+        specialized static Terrain.blend(_:_:_:_:_:_:)  (in Blocksmith)        18
+        Terrain.node(_:_:)  (in Blocksmith)        17
+        os_unfair_lock_lock  (in libsystem_platform.dylib)        17
+        specialized __RawDictionaryStorage.find<A>(_:hashValue:)  (in Blocksmith)        17
+        Terrain.computeNode(_:_:)  (in Blocksmith)        14
+        closure #1 in StructureCache.place(into:cx:cz:)  (in Blocksmith)        14
+        specialized WorldGen.bankWater(_:_:_:_:_:_:)  (in Blocksmith)        14
+        Hasher.combine(bytes:)  (in libswiftCore.dylib)        13
+        Hasher._finalize()  (in libswiftCore.dylib)        12
+        DYLD-STUB$$swift_isUniquelyReferenced_nonNull_native  (in Blocksmith)        11
+        Terrain.macroLerp(_:_:)  (in Blocksmith)        9
+        WorldGen.placeOres(_:_:_:_:_:)  (in Blocksmith)        9
+        _platform_memset  (in libsystem_platform.dylib)        8
+        partial apply for closure #4 in static OverworldStructures.mineshaftLayout(_:_:_:_:mesa:)  (in Blocksmith)        8
+        specialized Set.contains(_:)  (in Blocksmith)        8
+        StructureCache.startsNear(cx:cz:_:)  (in Blocksmith)        6
+        specialized _ArrayBuffer._consumeAndCreateNew(bufferIsUnique:minimumCapacity:growForAppend:)  (in Blocksmith)        6
+        swift_bridgeObjectRetain  (in libswiftCore.dylib)        6
+        nanov2_malloc  (in libsystem_malloc.dylib)        5
+        specialized __RawDictionaryStorage.find<A>(_:)  (in Blocksmith)        5
+== mobprof: hottest functions (samples at top of stack, all threads) ==
+        __workq_kernreturn  (in libsystem_kernel.dylib)        15431
+        World.sweep(_:_:axis:_:)  (in Blocksmith)        453
+        specialized __RawDictionaryStorage.find<A>(_:hashValue:)  (in Blocksmith)        422
+        specialized static Mesher.flood(_:_:_:_:)  (in Blocksmith)        416
+        specialized static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        386
+        mach_absolute_time  (in libsystem_kernel.dylib)        364
+        Hasher._finalize()  (in libswiftCore.dylib)        256
+        specialized static PathFinder.standCost(_:_:_:_:_:)  (in Blocksmith)        244
+        Hasher._combine(_:)  (in libswiftCore.dylib)        227
+        Game.randomTicks()  (in Blocksmith)        211
+        swift_release  (in libswiftCore.dylib)        183
+        specialized static Mesher.computeLight(_:_:y0:_:emitters:)  (in Blocksmith)        169
+        swift_retain  (in libswiftCore.dylib)        145
+        Mob.update(_:game:)  (in Blocksmith)        135
+        specialized __RawDictionaryStorage.find<A>(_:)  (in Blocksmith)        133
+        swift::RefCounts<swift::RefCountBitsT<(swift::RefCountInlinedness)1>>::doDecrementSlow<(swift::PerformDeinit)1>(swift::RefCountBitsT<(swift::RefCountInlinedness)1>, unsigned int)  (in libswiftCore.dylib)        130
+        World.block(_:_:_:)  (in Blocksmith)        120
+        start_wqthread  (in libsystem_pthread.dylib)        105
+        Hasher.init(_seed:)  (in libswiftCore.dylib)        96
+        swift::RefCounts<swift::RefCountBitsT<(swift::RefCountInlinedness)1>>::incrementSlow(swift::RefCountBitsT<(swift::RefCountInlinedness)1>, unsigned int)  (in libswiftCore.dylib)        69
+        ccrng_crypto_generate  (in libcorecrypto.dylib)        62
+        _nanov2_free  (in libsystem_malloc.dylib)        52
+        specialized static Mesher.connectivity(_:_:_:)  (in Blocksmith)        47
+        specialized static PathFinder.solidTop(_:_:_:_:)  (in Blocksmith)        46
+        static PathFinder.step(_:_:_:)  (in Blocksmith)        45
+        _platform_memmove  (in libsystem_platform.dylib)        43
+        specialized static Hasher._hash(seed:bytes:count:)  (in libswiftCore.dylib)        43
+        DYLD-STUB$$Hasher._combine(_:)  (in Blocksmith)        42
+        os_unfair_lock_assert_owner  (in libsystem_platform.dylib)        41
+        nanov2_malloc  (in libsystem_malloc.dylib)        40
+        DYLD-STUB$$swift_release  (in Blocksmith)        36
+        World.collides(_:_:)  (in Blocksmith)        34
+        os_unfair_lock_lock  (in libsystem_platform.dylib)        34
+        _free  (in libsystem_malloc.dylib)        33
+        _malloc_zone_malloc  (in libsystem_malloc.dylib)        33
+        swift_isUniquelyReferenced_nonNull_native  (in libswiftCore.dylib)        32
+        DYLD-STUB$$swift_retain  (in Blocksmith)        31
+        _mach_boottime_usec  (in libsystem_c.dylib)        31
+        swift_deallocObject  (in libswiftCore.dylib)        31
+        os_unfair_lock_unlock  (in libsystem_platform.dylib)        30
+        specialized Set.contains(_:)  (in Blocksmith)        30
+        swift_weakLoadStrong  (in libswiftCore.dylib)        30
+        vert #1 (_:_:_:_:_:_:_:_:_:_:_:_:) in static Mesher.buildSection(_:_:sy:lod:damage:)  (in Blocksmith)        30
+        specialized add #1 (_:_:_:) in static PathFinder.step(_:_:_:)  (in Blocksmith)        28
+        MobKind.spec.getter  (in Blocksmith)        27
