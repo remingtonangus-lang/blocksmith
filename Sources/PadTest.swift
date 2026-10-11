@@ -223,6 +223,13 @@ enum PadTest {
         check(g.inventory.main[1].count == 1, "X places one item")
         tap(g, "a")
         check(g.inventory.main[1].count == 10 && g.carried.isEmpty, "A places the rest")
+        // P61: A held on the stack counts items onto the cursor; letting go keeps that many.
+        for _ in 0..<45 { frame(g, pad("a")) }
+        frame(g)
+        let counted = g.carried.count
+        check(counted >= 2 && counted < 10 && g.inventory.main[1].count == 10 - counted, "holding A counts \(counted) of 10 onto the cursor (P61)")
+        tap(g, "a")
+        check(g.inventory.main[1].count == 10 && g.carried.isEmpty, "A puts the counted items back")
         check(Prompt.menuLegend(g.menu!, g).contains("Pick up"), "legend describes the hovered slot")
         tap(g, "b")
         check(g.menu == nil, "B closes the inventory")

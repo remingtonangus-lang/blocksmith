@@ -77,6 +77,7 @@ final class Game {
     var inventoryOpen: Bool { menu != nil }
     var carried = ItemStack.empty
     var menuDrag: [MenuSlot] = []        // slots a mouse drag has passed over (MenuInput)
+    var stackHold: StackHold?            // A held on a stack: counting items onto the cursor (P61, MenuInput)
     var menuDragButton = 0
     var menuCursor = 0            // controller cursor (slot index)
     var menuHover: MenuSlot?      // slot under the mouse / controller cursor
@@ -750,6 +751,7 @@ final class Game {
 
     func closeMenu() {
         menuDrag = []
+        stackHold = nil
         guard let m = menu, !(m is DeathMenu) else { return }
         sneakHeldFromMenu = true
         audioMenuClosed(m)
