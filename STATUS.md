@@ -45,6 +45,7 @@
 > **Polygon terrain test (2026-10-11, task 25b5a, quest-port):** Smooth terrain is now a per-world option (Create New
 > World > Terrain; Options > Video flips the open world) with smooth vertex normals on Quest. Cost ~+0.5 ms p99, +20-30 MB.
 > Shots, bench and verdict: docs/status/polygon-test.md. Device walk + fps: docs/status/device-checklist.md section 2.
+> The Quest create-world path (Terrain Smooth) is now covered by questcheck through shared Sources/WorldRequest.swift (25b5axx).
 > **Smooth terrain prototype (2026-10-10, task 25b3, quest-port; DECISION PENDING, off by default):** natural blocks
 > (stone, dirt, grass, sand, ores...) mesh as a surface-nets surface. Block data, saves and gameplay are unchanged, and
 > crafted blocks stay cubic. Now a per-world option (see the polygon test above); `--smooth`/`--cubic` force it; Quest
