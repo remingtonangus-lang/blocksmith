@@ -58,14 +58,14 @@ enum WildCamps {
             guard roll.chance(chance) else { return nil }
             if let s = site(gen, seed, cx0, cz0) { return s }
             // L3 rarity (a camp every 10-15 minutes of walking; docs/status/l3-part3.md): when the region's spot
-            // won't take a camp, one more spot in its placement square, unless the region was explored before (its
-            // camp, or none, stays as it was).
-            if WorldRules.explored(gen, cx0, cz0, reach: 2) { return nil }
+            // won't take a camp, one more spot in its placement square, unless ground there was saved before this rule
+            // (its camp, or none, stays as it was).
+            if WorldRules.savedBeforeL3(gen, cx0, cz0, reach: 2) { return nil }
             let rx = floorDiv(cx0, spacing), rz = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
             for k in 1...1 {
                 let cx = rx * spacing + Int(hashf(rx, rz, 7500 + k, s32) * Float(spacing - separation - 1))
                 let cz = rz * spacing + Int(hashf(rx, rz, 7600 + k, s32) * Float(spacing - separation - 1))
-                if WorldRules.explored(gen, cx, cz, reach: 2) { continue }
+                if WorldRules.savedBeforeL3(gen, cx, cz, reach: 2) { continue }
                 if let s = site(gen, seed &+ UInt64(k) &* 0x9E3779B97F4A7C15, cx, cz) { return s }
             }
             return nil
@@ -84,7 +84,7 @@ enum WildCamps {
             // Variant by country (the abandoned camp can be any of them).
             let bio = col.biome
             let spawnD = simd_length(V2(Float(x), Float(z)) - WorldRules.spawnCentre(gen))
-            guard spawnD > 64 || WorldRules.explored(gen, cx, cz, reach: 2) else { return nil }   // not on the spawn (a natural start)
+            guard spawnD > 64 || WorldRules.savedBeforeL3(gen, cx, cz, reach: 2) else { return nil }   // not on the spawn (a natural start)
             var options: [String] = []
             // Weights: the camp of the country 3, abandoned 1, outlaws 1.
             if woods.contains(bio) { options += Array(repeating: "camp_hunters", count: 3) }

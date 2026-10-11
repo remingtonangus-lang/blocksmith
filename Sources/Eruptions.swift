@@ -5,7 +5,7 @@ import simd
 // (Landmarks.swift), a roll every 10 s (a hash of the time slot and the volcano, so a world replays the same) starts
 // one about every 20 minutes spent near it. An eruption lasts 18-30 s: every 2-5 s a burst throws glowing lava bombs and
 // dark ash out of the crater, and its boom reaches the player at the speed of sound (a low rumble and, within 600
-// blocks, a little screen shake; a ridden horse within 300 startles). Past the loaded terrain the impostor's plume swells and throws
+// blocks, a little screen shake; a ridden horse within 150 rears). Past the loaded terrain the impostor's plume swells and throws
 // sparks (LandmarkRender). Nothing is placed or burnt: a small eruption is a show, it never edits the world or a save.
 struct Eruption {
     var v: Volcano
@@ -39,11 +39,13 @@ extension Game {
     func eruptionTick(_ dt: Float) {
         // Booms on their way (sound travels 343 blocks a second).
         if !eruptionBooms.isEmpty {
-            var keep: [(Double, Float, Float)] = []
-            for (at, vol, shk) in eruptionBooms {
-                if clock >= at { sfx(.volcanoRumble, vol); if shk > 0 { addShake(shk) } } else { keep.append((at, vol, shk)) }
+            for (at, vol, shk, spook) in eruptionBooms where clock >= at {
+                sfx(.volcanoRumble, vol)
+                if shk > 0 { addShake(shk) }
+                // A ridden horse within 150 blocks startles when the boom reaches it (not by horseHears' blast radius).
+                if spook, let r = riding, r.gaited, r.tamed, r.health > 0 { r.spook(self) }
             }
-            eruptionBooms = keep
+            eruptionBooms.removeAll { clock >= $0.0 }
         }
         guard dim.dim == .overworld, let wg = world.gen as? WorldGen else { eruption = nil; return }
         let eye = player.eye
@@ -96,7 +98,6 @@ extension Game {
         // The boom: louder near, never silent inside the reach; shake only within 600 blocks.
         let vol: Float = max(0.25, 1.3 - d / 700) * (0.5 + 0.5 * s)
         let shk: Float = d < Game.eruptionShakeRange ? 0.45 * (1 - d / Game.eruptionShakeRange) * (0.5 + 0.5 * s) : 0
-        eruptionBooms.append((clock + Double(d / 343), vol, shk))
-        if riding != nil, d < 300 { horseHears(at: vent, kind: .explosion, power: 1) }
+        eruptionBooms.append((clock + Double(d / 343), vol, shk, d < 150))
     }
 }

@@ -139,7 +139,8 @@ extension Renderer {
                     let c = V3(v.x, Float(YOFF) + hgt, v.z) + ofs
                     // A diamond in each of two crossed planes (a glowing lump from any side).
                     let top = p(c + V3(0, bs, 0)), bot = p(c - V3(0, bs, 0))
-                    for side in [V3(bs * 0.7, 0, 0), V3(0, 0, bs * 0.7)] {
+                    for (sx, sz) in [(bs * 0.7, Float(0)), (Float(0), bs * 0.7)] {
+                        let side = V3(sx, 0, sz)
                         let l = p(c - side), r = p(c + side)
                         tri(l, r, top, bomb, &out); tri(r, l, bot, bomb, &out)
                     }

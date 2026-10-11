@@ -155,7 +155,7 @@ final class WorldRenderer {
         if !skip.contains("extra") { extraOpaque?(s, eye) }
         if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
         if !skip.contains("sky") { drawSkyLayer(s, eye) }
-        if !skip.contains("landmarks") { drawLandmarkSmoke(s) }
+        if !skip.contains("landmarks") && !skip.contains("smoke") { drawLandmarkSmoke(s) }
         if !skip.contains("trans") { scene.drawTranslucent(s, underwater: game.player.headInWater) }
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }

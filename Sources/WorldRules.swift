@@ -35,6 +35,12 @@ enum WorldRules {
         return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.explored)
     }
 
+    // Ground near (cx, cz) saved before the L3 placement rules (capitals apart, camps' alternate spot and clear spawn).
+    static func savedBeforeL3(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
+        guard let sc = gen.structures else { return false }
+        return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyL3) || explored(gen, cx, cz, reach: reach)
+    }
+
     // May a Capital city stand with its centre at chunk (cx, cz)?
     static func capitalAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
         if explored(gen, cx, cz, reach: 9) { return true }
@@ -47,13 +53,13 @@ enum WorldRules {
     // L3: no two Capital cities within `capitalMinApart`. Each region has a priority; a city gives way to a city of a
     // higher-priority neighbouring region that stands too close (regions are 56 chunks: cities two regions apart are
     // always 1,216+ blocks apart, so the 8 neighbours are enough). Asking a neighbour only ever climbs in priority, so
-    // the lookups end. Cities already explored in a save stay.
+    // the lookups end. A city with ground saved before this rule stays (savedBeforeL3).
     static func capitalPriority(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Float {
         hashf(rx, 7353, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA92)
     }
     static func capitalApart(_ gen: WorldGen, _ s: StructureStart, _ rx: Int, _ rz: Int, _ cx: Int, _ cz: Int) -> Bool {
         guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "capital_city" }) else { return true }
-        if explored(gen, cx, cz, reach: 9) { return true }
+        if savedBeforeL3(gen, cx, cz, reach: 9) { return true }
         let mine = capitalPriority(gen, rx, rz)
         for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
             guard capitalPriority(gen, rx + dx, rz + dz) > mine, let o = sc.start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }

@@ -17,7 +17,7 @@ enum EruptionTests {
         let gapMin = Double(5 * slots) * Game.eruptionSlot / Double(max(1, hits)) / 60
         check(gapMin > 15 && gapMin < 25, "eruption: one about every " + String(format: "%.1f", gapMin) + " minutes spent near a volcano (\(hits) in 5 x 60 h)")
 
-        // A volcano 150 blocks off (synthetic: the logic doesn't need its terrain).
+        // A volcano 120 blocks off (synthetic: the logic doesn't need its terrain).
         let saved = (g.eruption, g.eruptionBooms, g.shake, g.audio.record, g.particles.list)
         defer { g.eruption = saved.0; g.eruptionBooms = saved.1; g.shake = saved.2; g.audio.record = saved.3; g.particles.list = saved.4 }
         func volcano(_ d: Float) -> Volcano {
@@ -28,7 +28,7 @@ enum EruptionTests {
             return v
         }
         // 2. The strength curve: rises over 3 s, holds, fades over the last 5.
-        g.startEruption(volcano(150))
+        g.startEruption(volcano(120))
         guard var e = g.eruption else { check(false, "eruption: startEruption starts one"); return }
         let c0 = e.start
         let curve = [0, 1.5, 10, Double(e.length) - 2.5, Double(e.length)].map { e.strength(c0 + $0) }
@@ -36,18 +36,18 @@ enum EruptionTests {
               && e.length >= 18 && e.length <= 30,
               "eruption: lasts " + String(format: "%.0f s", e.length) + ", strength " + curve.map { String(format: "%.2f", $0) }.joined(separator: " "))
 
-        // 3. A burst 150 blocks off: glowing lava bombs and ash, the boom on its way (arriving in 150/343 s) with a shake.
+        // 3. A burst 120 blocks off: glowing lava bombs and ash, the boom on its way (arriving in 120/343 s) with a shake.
         g.particles.list.removeAll(); g.eruptionBooms.removeAll(); g.shake = 0
         e.start = g.clock - 8; e.nextBurst = g.clock; g.eruption = e
         g.eruptionTick(0.05)
         let bombs = g.particles.list.filter { $0.glow }.count, ash = g.particles.list.filter { !$0.glow }.count
         let boom = g.eruptionBooms.first
         let delay = boom.map { $0.0 - g.clock } ?? -1
-        check(bombs >= 14 && ash >= 8 && g.eruption?.bursts == 1 && abs(delay - 150.0 / 343) < 0.05 && (boom?.2 ?? 0) > 0 && g.shake == 0,
-              "eruption: a burst 150 blocks away throws \(bombs) lava bombs and \(ash) ash puffs; its boom arrives in " + String(format: "%.2f s", delay) + " (shake waits for it)")
+        check(bombs >= 14 && ash >= 8 && g.eruption?.bursts == 1 && abs(delay - 120.0 / 343) < 0.05 && (boom?.2 ?? 0) > 0 && g.shake == 0 && boom?.3 == true,
+              "eruption: a burst 120 blocks away throws \(bombs) lava bombs and \(ash) ash puffs; its boom arrives in " + String(format: "%.2f s", delay) + " (shake and a ridden horse's startle wait for it)")
         // 4. The boom arrives: the rumble plays and the view shakes.
         g.audio.record = [:]
-        g.eruptionBooms = g.eruptionBooms.map { (g.clock, $0.1, $0.2) }
+        g.eruptionBooms = g.eruptionBooms.map { (g.clock, $0.1, $0.2, $0.3) }
         g.eruptionTick(0.05)
         let heard = g.audio.record?[Snd.volcanoRumble.name] ?? 0
         check(heard == 1 && g.shake > 0.1 && g.eruptionBooms.isEmpty,
@@ -63,7 +63,7 @@ enum EruptionTests {
         g.eruption = far
         g.eruptionTick(0.05)
         let fb = g.eruptionBooms.first
-        check(g.particles.list.isEmpty && fb != nil && (fb?.1 ?? 0) >= 0.25 && (fb?.2 ?? 1) == 0,
+        check(g.particles.list.isEmpty && fb != nil && (fb?.1 ?? 0) >= 0.25 && (fb?.2 ?? 1) == 0 && fb?.3 == false,
               "eruption: far away, no particles and a boom of " + String(format: "%.2f", fb?.1 ?? 0) + " with no shake")
 
         // 7. The end: past its length the eruption is over.

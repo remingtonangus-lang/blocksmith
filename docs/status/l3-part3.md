@@ -17,16 +17,19 @@ Expanded (mine):
    the last second, not just the average, because a hitch is what a player feels. It says when Auto Render Distance
    is holding the distance below the chosen one. No allocation per frame: a fixed 128-frame ring.
 2. Capitals are kept apart by a rule, not by luck. Each capital region gets a priority hash. A capital whose
-   neighbouring region has a higher-priority capital within 1200 blocks is dropped. Regions the player has already
-   explored keep theirs, so no save loses a city.
+   neighbouring region has a higher-priority capital within 1200 blocks is dropped. A save keeps every city and
+   camp whose ground it had generated before this update: the first load takes a snapshot of the chunk folder into
+   structure-guard-l3.txt (StructureCache.legacyL3), the same way earlier placement changes were guarded.
 3. A natural start means no surface structure within 24 blocks of the spawn (mineshaft tunnels below don't count)
-   and the spawn on dry land. Camps also keep 64 blocks from the spawn.
+   and the spawn on dry land. Camps are kept 64 blocks from the spawn by rule. Villages, capitals (1200+ by rule)
+   and the other structures are not placed by a spawn rule; the 51-seed check measures them and fails under 24
+   blocks (closest seen: 31).
 4. Camp rarity is measured as minutes of walking: a camp seen within 96 blocks either side, at walking speed
    (4.3 blocks/s). The check fails outside 10-15 minutes.
 5. Eruptions are rare and cheap: about one per 20 minutes spent within 1100 blocks of a volcano, 18-30 s each. A
    burst every 2-5 s throws glowing lava bombs and ash. Its boom arrives at the speed of sound (the shake waits for
    it too) and is heard all over the reach. The view shakes within 600 blocks, through the existing shake, so VR's
-   Blast Shake and Screen Effects options cover it. A ridden horse within 300 blocks startles. Past the loaded terrain
+   Blast Shake and Screen Effects options cover it. A ridden horse within 150 blocks rears when the boom reaches it. Past the loaded terrain
    the far impostor swells its plume, lights the plume's foot and throws sparks, so an eruption reads from the
    horizon. An eruption never edits the world or a save. The roll is a hash of the time slot and the volcano, so a
    replay erupts at the same moments.
@@ -36,10 +39,13 @@ Expanded (mine):
   hitch 3 s old; the two lines read "72 fps  14.1 ms (worst 30.0)  GPU 9.2 ms" / "Render distance 6 of 10 (auto)
   Chunks 218, 0 jobs"; the Interface row toggles Off -> On and the HUD grows 1710 -> 2016 vertices.
 - `eruption:` (Sources/EruptionTests.swift): rarity over 5 volcanoes x 60 h of rolls; the strength curve; a burst at
-  150 blocks (bombs, ash, the boom 0.44 s later, the shake waiting for it); the boom plays the rumble and shakes the
+  120 blocks (bombs, ash, the boom 0.35 s later, the shake and a horse's startle waiting for it); the boom plays the rumble and shakes the
   view; bursts 2-5 s apart; at 900 blocks no particles, a quieter boom and no shake; over after its length; the
-  rumble is in the bank and passes the sound check. On the Quest renderer, the 700-block volcano view is rendered again
-  while erupting, and the impostor must draw its bombs.
+  rumble is in the bank and passes the sound check. On the Quest renderer, the 700-block volcano view is rendered
+  again while erupting, and the impostor must draw its bombs. The calm view is also rendered with and without the
+  smoke, and the plume's pixels must differ.
+- `l3 guard:` (Sources/L3GuardTests.swift): a made-up city 300 blocks from a real, stronger one is dropped, but kept
+  when one chunk of its ground is in the L3 guard. Camps read the same guard.
 - `--worldgencheck 50` (Sources/WorldGenCheck.swift): 50 seeds plus Remington's Quest world.
 
 ## World-gen numbers (50 seeds + 1, 2026-10-11)

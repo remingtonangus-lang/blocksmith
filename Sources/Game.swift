@@ -159,7 +159,7 @@ final class Game {
     var falling: [FallingBlock] = []
     var vrShake = true                     // VR comfort page "Blast Shake" (QuestSettings.blastShake): eye jolt from blasts
     var eruption: Eruption?                // a volcano erupting near the player (Eruptions.swift)
-    var eruptionBooms: [(Double, Float, Float)] = []   // booms on their way: arrival clock, volume, shake
+    var eruptionBooms: [(Double, Float, Float, Bool)] = []   // booms on their way: arrival clock, volume, shake, startles a horse
     var eruptionSlotDone = Int.min
     var shake: Float = 0                   // screen-shake trauma 0...1 (MainGun.swift: addShake, shakeView, shakeVR)
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
