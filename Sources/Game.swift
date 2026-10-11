@@ -1587,7 +1587,7 @@ final class Game {
             let be = world.entity(p, .brewing)
             world.blockEntities[p] = be
             openMenu(BrewingMenu(game: self, entity: be))
-        case "enchanting_table": openMenu(EnchantMenu(game: self, at: p))
+        case "enchanting_table": openMenu(UpgradeBenchMenu(game: self))           // the Upgrade Bench (Upgrades.swift)
         case "smithing_table": openMenu(SmithingMenu(game: self))
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))

@@ -1321,7 +1321,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         // First-person arm + held item, squeezed into the front of the depth range so it never clips.
         // Both are written without per-vertex bounds checks, so the pass only runs when its worst case
         // (1024 arm / gun vertices + 64 held-item vertices) fits in what is left of the ring.
-        let firstPersonEnd = ((scratchOff + 255) & ~255) + 1024 * MemoryLayout<MobVert>.stride + 256 + 64 * MemoryLayout<EntityVert>.stride
+        let firstPersonEnd = ((scratchOff + 255) & ~255) + 1536 * MemoryLayout<MobVert>.stride + 256 + 160 * MemoryLayout<EntityVert>.stride
         if drawHUD && !game.hideHUD && !tp && game.menu == nil && game.sleeping == 0 && firstPersonEnd <= ringSize {
             var uh = u
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
@@ -1348,7 +1348,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 1024)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 1536)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
@@ -1375,7 +1375,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let gi = gunIndex, !game.sniperScoped {
                 let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.reloadTime(game.held, gi) - game.arms.reload) * 3) : 0
                 an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
-                                            bob: V3(0, bob, 0), light: light, rounds: game.arms.reload > 0 ? 0 : game.held.tag, into: armPtr + an)
+                                            bob: V3(0, bob, 0), light: light, rounds: game.arms.reload > 0 ? 0 : game.held.tag,
+                                            upgrades: game.held.ench, into: armPtr + an)
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(VW), height: Double(VH), znear: 0, zfar: 0.001))
@@ -1388,8 +1389,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: an)
             if !held.isEmpty && gunIndex == nil {
                 let itOff = (scratchOff + 255) & ~255
-                let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: 64)
-                var wr = EntityWriter(out: itPtr, capacity: 64)
+                let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: 160)
+                var wr = EntityWriter(out: itPtr, capacity: 160)
                 if let b = held.def.block, !Blocks.flatIcon(b) {
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
@@ -1404,6 +1405,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                         let k: Float = i == 0 ? 1 : 0.7
                         wr.sprite(center: c + n, half: 0.2, right: r, up: up, layer: layer, light: light * k)
                     }
+                    // Upgrades show on the model (Upgrades.accents): a grip wrap, a band on the head, a line on the edge.
+                    let nrm = simd_normalize(simd_cross(r, up))
+                    Upgrades.writeAccents(&wr, held, center: c + nrm * 0.01, half: 0.2, right: r, up: up, normal: nrm, thick: 0.013, light: light)
                 }
                 if wr.n > 0 {
                     scratchOff = itOff + wr.n * MemoryLayout<EntityVert>.stride
@@ -1689,7 +1693,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol))
                 }
                 let k = st.def.name
-                if st.ench != 0 || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
+                // Upgraded tools: a pip per part along the top edge (Upgrades.pips) instead of the old glint.
+                let pips = k == "enchanted_book" ? [] : Upgrades.pips(st)
+                for (pi, col) in pips.enumerated() {
+                    rect(x + size * (2 + 3.2 * Float(pi)) / 16, y + size * 0.5 / 16, size * 2.4 / 16, size * 2.4 / 16, V4(0, 0, 0, 0.85))
+                    rect(x + size * (2.4 + 3.2 * Float(pi)) / 16, y + size * 0.9 / 16, size * 1.6 / 16, size * 1.6 / 16, V4(col, 1))
+                }
+                if (st.ench != 0 && pips.isEmpty) || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
                     // Enchantment glint: a pulsing violet sheen over the sprite.
                     let a = 0.25 + 0.15 * sinf(Float(game.clock) * 3 + Float(x) * 0.01)
                     quad(pts, uvs, V4(0.75, 0.35, 1, a), Float(layer))

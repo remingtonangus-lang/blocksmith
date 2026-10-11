@@ -169,7 +169,7 @@ final class GrindstoneMenu: Menu {
     let box = ItemContainer(2)
     let out = ItemContainer(1)
     init(game: Game) {
-        super.init("Repair & Disenchant", game: game)
+        super.init("Repair & Strip Parts", game: game)
         slots.append(MenuSlot(49, 19, box, 0))
         slots.append(MenuSlot(49, 40, box, 1))
         slots.append(MenuSlot(129, 34, out, 0, .result))
