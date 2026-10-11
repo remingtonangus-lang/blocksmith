@@ -348,6 +348,9 @@ extension Game {
         guard victim.kind == .villager else { return }
         if Townsfolk.townLastLine < clock - 1.5 { TownVoice.speak(self, victim, .hurt) }
         TownLaw.assault(self, victim)
+        // Lay hands on the sheriff and there is no warning shot: his first round is meant (G15, with the tougher sheriff
+        // above, so his six-iron can't be taken off him with a sword before iron armour).
+        if victim.villager?.role == "sheriff" { victim.town.warned = true; victim.town.lastDuel = clock }
         let yours = TownConquest.owns(TownLaw.town(of: victim, self))        // your own town backs away; nobody draws on you
         for o in mobs.mobs where o.kind == .villager && o.health > 0 && simd_length(o.pos - victim.pos) < 24 {
             guard o === victim || simd_length(o.pos - victim.pos) < 8 || world.canSee(o.eye, victim.eye) else { continue }

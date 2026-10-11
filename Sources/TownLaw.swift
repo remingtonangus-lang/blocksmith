@@ -56,6 +56,7 @@ enum TownLaw {
         var owned: [String: [Int]]? = nil
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
+        var emeraldTip: Bool? = nil                 // the one-time "emeralds sell at a bank" tip was shown (G14)
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -321,6 +322,13 @@ enum TownLaw {
 
     // MARK: Every frame (from HudExtras.tick); real work once a second.
 
+    // G14: the first emerald you carry in survival says what it is for (the exchange was undiscoverable).
+    static func emeraldTip(_ g: Game) {
+        guard g.survival, state.emeraldTip != true, Items.has("emerald"), g.inventory.main.countOf(Items.id("emerald")) > 0 else { return }
+        state.emeraldTip = true
+        g.onToast?("Emeralds: a town bank buys them at \(Money.format(Bank.sellEmerald)) each (the sign says BANK)")
+    }
+
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
         // Sheriffs draw after their challenge.
@@ -335,6 +343,7 @@ enum TownLaw {
         let dt = Float(lastTick < 0 ? 1 : min(5, g.clock - lastTick))
         lastTick = g.clock
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
+        emeraldTip(g)
         // Heat cools; hostility runs out.
         let cool = Honour.coolRate(Honour.value)
         for (t, h) in state.heat where !isHostile(t) {

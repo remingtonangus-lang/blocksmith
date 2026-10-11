@@ -31,3 +31,16 @@ unless another suite is named.
 | P23 cleared bases | fixed | a citadel whose garrison is dead is cleared for good: no patrols of fresh troops, lifetime cap of two dropships, no Kestrel, no rebuild crew | basetest cleared |
 | P24 things to steal | fixed | every shop keeps a filled till chest behind its counter (houses already had chests) | towns P24 |
 | P25 auto-placing | fixed | holding use repeats only the item the press began with; a menu ends the hold | P25 held use |
+| P26 horses | fixed (animation to the Mac worker) | taming bar with "Bucking: sit still" / "Pat it now"; bonding levels need 200/600/1400 xp (pats 2, brush 10, treats 2, riding 1 per 40 m); pace 8-17 m/s by breed; hold B whistles the horse to 4.5 blocks, a spare horse stops 3.5 away; a downed horse dies to the next melee hit | horse tests, P26 horses |
+| P27 monsters in daylight | fixed | at full daylight, out of sight and under open sky, hostile mobs (not sun-burners, not in rain) fade out over about 8 s | P27 day clears |
+| P28 craft counts | fixed | each recipe tile shows how many you can make; the detail panel says "You can make N" | P28 craft tiles |
+| P29 prices | part | map $1.50, raw titanium $28, titanium ingot $40; the sheriff's revolver look is open (item art) | prices |
+| P30 armour vs guns | fixed | armour stops at most 15 of 25 points against a round and every round of 2+ does at least half a heart; the shotgun hits harder (4 a pellet, tighter) | P30 armour vs guns |
+| P31 hostages | fixed | townsfolk under threat from soldiers or monsters say raid lines, never "put that away" | towns hostage lines |
+| P32 guns | part | rounds leave the controller aim ray in VR, hip spread halved; reload says why it can't start; the Farsight scope is G21 | P32 VR gun aim |
+| P33 capital assault | fixed | inside the walls the alarm sounds at once, lockdown after 10 s (reinforcements); tower floors 1, 2, 4, 6 get a ring corridor with spokes and doors | basetest alarm, structcheck military_base |
+| P34 capital food | fixed | Field Ration (fills 10 hunger, 16 saturation) in citadel supply and command chests | P34 ration |
+| P35 floating pillars | fixed | capital portico columns reach down to the ground | structcheck capital_city |
+| P36 radar blocks | fixed | a citadel console shows its patrols and garrison on the radar for 30 s | P36 console radar |
+| P37 sheriff office | see G14 | | |
+| P38 hunger | fixed with P12 | | P12 hunger |

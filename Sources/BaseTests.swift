@@ -363,7 +363,8 @@ enum BaseTests {
         for line in b.log { print("basetest log: \(line)") }
         let avg = b.ticks > 0 ? b.tickMs / Double(b.ticks) : 0
         print(String(format: "basetest: citadel update %.3f ms avg, %.3f ms worst over %d updates", avg, b.tickWorstMs, b.ticks))
-        check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg))
+        // (A short phase, the alarm's few updates, is all first-update setup: the average needs a real run.)
+        if b.ticks >= 20 { check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg)) }
         for r in results { print(r) }                  // again at the end, where the CI log tail shows them
         print(String(format: "basetest: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))

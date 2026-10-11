@@ -58,9 +58,25 @@ if let out = arg("--view"), let ctx = vkctx {
     vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true
     _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
-    let yaw = -look[0] * .pi / 180
+    var yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
+    // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
+    if let want = arg("--sign"), let sc = vw.gen.structures,
+       let s = sc.nearest("village", x: Int(at[0]), z: Int(at[2]), maxRegions: 12, accept: { _ in true }) {
+        vg.player.pos = V3(Float(s.anchor.x), 140, Float(s.anchor.z))
+        _ = vw.loadSync(center: vg.player.pos, radius: max(3, vw.renderDistance))
+        let signs = vw.blockEntities.filter { $0.value.kind == .sign && $0.value.lines.contains(want) }.map { $0.key }
+        if let p = signs.min(by: { abs($0.x - s.anchor.x) + abs($0.z - s.anchor.z) < abs($1.x - s.anchor.x) + abs($1.z - s.anchor.z) }) {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.shape[Int(vw.block(p.x + dx, p.y - 2, p.z + dz))] == "door" {
+                let d = V3(Float(dx), 0, Float(dz))
+                vg.player.pos = V3(Float(p.x + dx) + 0.5, Float(p.y - 2), Float(p.z + dz) + 0.5) + d * Float(arg("--in").flatMap(Int.init) ?? 1)
+                yaw = atan2f(-d.x, -d.z) + look[0] * .pi / 180; pitch = look[1] * .pi / 180
+                print("view: \(want) sign at \(p.x) \(p.y) \(p.z), standing at \(vg.player.pos)")
+            }
+        }
+    }
     do {
-        try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: look[1] * .pi / 180)
+        try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: pitch)
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }
 }

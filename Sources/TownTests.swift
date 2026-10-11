@@ -396,6 +396,19 @@ enum TownTests {
             _ = p.townReact(0.05, g)
             g.menu = menu
             check(p.town.handsUp > 0, "defence: a pointed gun puts their hands up")
+            // P31: a hostage among soldiers or monsters: hands up, but no scolding and no grudge (the gun is for them).
+            let h = Mob(.villager, at: base); h.home = base; Townsfolk.setup(h, game: g)
+            let z = Mob(.zombie, at: base + V3(5, 0, 0)); z.aggro = true
+            g.mobs.mobs = [h, z]
+            let rep0 = h.villager?.reputation ?? 0, said0 = Townsfolk.townLastLine
+            Townsfolk.townLastLine = -100
+            g.menu = nil
+            _ = h.townReact(0.05, g)
+            g.menu = menu
+            let rep1 = h.villager?.reputation ?? 0
+            check(h.town.handsUp > 0 && rep1 == rep0, "defence P31: a hostage with a monster beside them raises their hands and holds no grudge (\(rep0) -> \(rep1))")
+            Townsfolk.townLastLine = max(Townsfolk.townLastLine, said0)
+            g.mobs.mobs = [p]
         }
     }
 

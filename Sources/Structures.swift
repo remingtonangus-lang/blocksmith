@@ -355,6 +355,8 @@ enum Loot {
         "shipwreck_map": (1...3, [("paper", 1, 10, 20), ("feather", 1, 5, 10), ("book", 1, 5, 5), ("clock", 1, 1, 1), ("compass", 1, 1, 1),
                                   ("map", 1, 1, 1)]),
         "buried_treasure": (1...1, [("heart_of_the_sea", 1, 1, 1)]),
+        "sheriff_locker": (3...6, [("rifle_rounds", 4, 12, 10), ("shotgun_shells", 2, 6, 6), ("gold_nugget", 2, 8, 8), ("emerald", 1, 3, 6),
+                                   ("lead", 1, 2, 4), ("paper", 1, 4, 6), ("compass", 1, 1, 2), ("iron_ingot", 1, 3, 4)]),
         "shop_register": (2...5, [("gold_nugget", 2, 9, 12), ("emerald", 1, 3, 8), ("iron_ingot", 1, 3, 6), ("gold_ingot", 1, 2, 4),
                                   ("paper", 1, 4, 6), ("bread", 1, 3, 4), ("diamond", 1, 1, 1)]),
         "shop_register_general": (3...6, [("gold_nugget", 3, 12, 12), ("emerald", 1, 5, 10), ("gold_ingot", 1, 3, 6), ("iron_ingot", 1, 4, 6),

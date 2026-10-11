@@ -173,7 +173,9 @@ extension MobManager {
     // 70 monsters crowded into a small area at low render distances).
     func cap(_ c: SpawnCategory, _ w: World) -> Int {
         let rd = max(1, min(8, w.renderDistance))
-        return max(1, c.cap * (2 * rd + 1) * (2 * rd + 1) / 289)
+        let base = max(1, c.cap * (2 * rd + 1) * (2 * rd + 1) / 289)
+        // G19: Easy keeps fewer monsters about, Hard more (Difficulty.rows).
+        return c == .monster ? max(1, Int((Float(base) * Difficulty.row.spawns).rounded())) : base
     }
 
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).

@@ -788,10 +788,20 @@ extension WorldGen {
             }
             // A calmer ground (playtest v78: "too noisy"): no tall grass, about a third of the short grass, half the
             // flowers and ferns (themed biomes keep their relative richness).
+            let rawGrass = grassP, rawTall = tallP
             grassP *= 0.35; flowerP *= 0.5; fernP *= 0.5; tallP = 0
             // PM9: short grass about 1/8 again (0.11: measured 0.10-0.12 over nine biomes), ferns ~1/3; flowers stay
             // (themed flower biomes a little calmer).
             grassP *= calm(0.11); fernP *= calm(0.35)
+            // G18 (Oct 11 playtest: "plain grass looks barren"): the calm speckle stays between them, but grass now grows
+            // in patches (a low-frequency noise): thick in a patch's heart, with a few tall tufts there, thinning to
+            // the calm ground at its edge. Clumps read as a meadow where the old uniform speckle read as noise (v78).
+            if !old && rawGrass > 0.05 {
+                let patch = flora.noise2(Float(wx) / 11 + 520, Float(wz) / 11 - 340)
+                let t = max(0, min(1, (patch - 0.08) / 0.3)), t2 = t * t
+                grassP += t2 * rawGrass * 1.1
+                if t > 0.8 { tallP = max(rawTall, 0.03) * 0.5 }
+            }
             if biome == .flowerForest || biome == .cherryGrove || biome == .meadow { flowerP *= calm(0.7) }
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {

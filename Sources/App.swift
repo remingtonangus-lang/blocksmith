@@ -391,8 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         game.openMenu(AdvancementMenu(game: game))
     }
     @objc func cycleDifficulty(_ sender: NSButton) {
-        game.difficulty = (game.difficulty + 1) % 4
-        sender.title = "Difficulty: \(Game.difficultyNames[game.difficulty])"
+        // G19: chosen when the world is made, locked afterwards.
+        game.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[game.difficulty]) for this one")
     }
 
     // MARK: Worlds screen

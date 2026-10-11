@@ -22,6 +22,9 @@ enum PlaytestOct11Tests {
         armourVsGuns(game, check)
         vrGunAim(game, check)
         consoleRadar(game, check)
+        sheriffGuardsGun(game, check)
+        grassPatches(check)
+        difficultyLevels(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -326,7 +329,8 @@ enum PlaytestOct11Tests {
             PadManager.shared.simulated = nil
         }
         _ = placed
-        let table = Items.id("crafting_table")
+        // Planks, not his crafting table: a placed table becomes the target and a held press opens it instead of repeating.
+        let table = Items.id("oak_planks")
         game.survival = true; game.paused = false; game.menu = nil
         game.inventory.main[0] = .empty
         game.inventory.main[1] = ItemStack(table, 16)
@@ -428,5 +432,85 @@ enum PlaytestOct11Tests {
         let lines = game.radarLines(HudLayout(1280, 800)).map { $0.text }
         check(used && lines.contains("Citadel console") && lines.count >= 2,
               "P36 console: using a command console shows the radar readout (\(lines.dropFirst().prefix(4).joined(separator: "; ")))")
+    }
+
+    // G15: a sheriff takes many iron-sword blows and, struck, skips the warning shot.
+    static func sheriffGuardsGun(_ game: Game, _ check: (Bool, String) -> Void) {
+        let base = game.player.pos + V3(3, 0, 0)
+        let m = Mob(.villager, at: base); m.home = base
+        Townsfolk.setup(m, game: game)
+        guard var v = m.villager else { check(false, "G15 sheriff: no townsperson"); return }
+        TownLaw.deputize(&v); m.villager = v
+        let mobs0 = game.mobs.mobs
+        defer { game.mobs.mobs = mobs0 }
+        game.mobs.mobs = [m]
+        let blows = Int((Float(m.health) / (6 / m.townStats.toughness)).rounded(.up))
+        game.townAlarm(m)
+        check(blows >= 6 && m.town.warned, "G15 sheriff: an iron sword needs \(blows) blows (was 5) and his first round after you strike him is meant (no warning: \(m.town.warned))")
+    }
+
+    // G18: plains grass grows in patches: more cover than the calm v78 ground, clumped (a grass block's neighbours carry
+    // grass far more often than the field's average), with a few tall tufts.
+    static func grassPatches(_ check: (Bool, String) -> Void) {
+        let gen = WorldGen(seed: 12345)
+        var tops = 0, short = 0, tall = 0, pairs = 0, both = 0
+        let tallID = Blocks.id("tall_grass")
+        var found = 0
+        outer: for r in stride(from: 0, to: 4000, by: 64) { for (dx, dz) in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
+            let wx = dx * r, wz = dz * r
+            guard gen.column(wx, wz).biome == .plains else { continue }
+            let cx = floorDiv(wx, CS), cz = floorDiv(wz, CS)
+            for oz in 0..<2 { for ox in 0..<2 {
+                let b = gen.generate(cx: cx + ox, cz: cz + oz)
+                var g = [Bool](repeating: false, count: CSQ), top = [Bool](repeating: false, count: CSQ)
+                for lz in 0..<CS { for lx in 0..<CS {
+                    guard gen.column((cx + ox) * CS + lx, (cz + oz) * CS + lz).biome == .plains else { continue }
+                    var y = CH - 2
+                    while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
+                    let at = b[Chunk.index(lx, y, lz)]
+                    if at == TALL_GRASS { short += 1; g[lx + lz * CS] = true } else if at == tallID + 1 { tall += 1; g[lx + lz * CS] = true }
+                } }
+                for lz in 0..<CS { for lx in 0..<CS where gen.column((cx + ox) * CS + lx, (cz + oz) * CS + lz).biome == .plains {
+                    var y = CH - 2
+                    while y > 1 && !Blocks.opaque[Int(b[Chunk.index(lx, y, lz)])] { y -= 1 }
+                    if b[Chunk.index(lx, y, lz)] == GRASS { tops += 1; top[lx + lz * CS] = true }
+                } }
+                for lz in 0..<CS { for lx in 0..<(CS - 1) where top[lx + lz * CS] && top[lx + 1 + lz * CS] && g[lx + lz * CS] {
+                    pairs += 1; if g[lx + 1 + lz * CS] { both += 1 }
+                } }
+            } }
+            found += 1
+            if found >= 6 { break outer }
+        } }
+        let share = Float(short + tall) / Float(max(1, tops)), clump = Float(both) / Float(max(1, pairs))
+        check(found >= 3 && share > 0.08 && share < 0.35 && clump > share * 1.5 && tall > 0,
+              String(format: "G18 grass patches: %.0f%% of plains grass blocks carry grass (calm v78 ground ~4%%), %.0f%% of a grass block's neighbours do (clumped), %d tall tufts in %d areas", share * 100, clump * 100, tall, found))
+    }
+
+    // G19: Easy, Normal and Hard differ in monster toughness, speed and numbers and in hunger, and the pause menu won't
+    // change a made world's level.
+    static func difficultyLevels(_ game: Game, _ check: (Bool, String) -> Void) {
+        let was = (game.difficulty, Difficulty.level, game.menu)
+        let paused0 = game.paused
+        defer { game.difficulty = was.0; Difficulty.level = was.1; game.paused = paused0 }
+        var blows: [Int] = [], caps: [Int] = []
+        for lv in 1...3 {
+            Difficulty.level = lv
+            let z = Mob(.zombie, at: game.player.pos + V3(0, 0, -40))
+            var n = 0
+            while z.health > 0 && n < 200 { z.health -= Difficulty.scaleHit(6, z); n += 1 }
+            blows.append(n)
+            caps.append(game.mobs.cap(.monster, game.world))
+        }
+        let hunger = (1...3).map { Difficulty.rows[$0].hunger }, speed = (1...3).map { Difficulty.rows[$0].speed }
+        game.difficulty = 2
+        let menu = PauseMenu(game: game)
+        game.menu = menu
+        menu.act("difficulty", back: false)
+        let locked = game.difficulty == 2
+        game.menu = was.2
+        check(blows[0] < blows[1] && blows[1] < blows[2] && caps[0] < caps[1] && caps[1] < caps[2]
+                && hunger[0] < hunger[1] && hunger[1] < hunger[2] && speed[0] < speed[2] && locked,
+              "G19 difficulty: a zombie takes \(blows) blows of 6 on easy/normal/hard, monster cap \(caps), hunger x\(hunger), speed x\(speed); the pause menu keeps it locked (\(locked))")
     }
 }

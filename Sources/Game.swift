@@ -2359,8 +2359,10 @@ final class Game {
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         // Swimming 0.01 a metre, sprinting on the ground HungerRates.sprint, walking nothing (HungerRates).
-        exhaustion += moved * (player.inWater ? HungerRates.swim : (player.sprinting && player.onGround ? HungerRates.sprint : 0))
-        if player.jumped { exhaustion += player.sprinting ? HungerRates.sprintJump : HungerRates.jump }
+        // G19: Easy drains hunger slower, Hard faster (Difficulty.rows), movement and jumps alike.
+        let hm = Difficulty.rows[max(0, min(3, difficulty))].hunger
+        exhaustion += moved * (player.inWater ? HungerRates.swim : (player.sprinting && player.onGround ? HungerRates.sprint : 0)) * hm
+        if player.jumped { exhaustion += (player.sprinting ? HungerRates.sprintJump : HungerRates.jump) * hm }
         while exhaustion >= 4 {
             exhaustion -= 4
             if saturation > 0 { saturation = max(0, saturation - 1) } else { hunger = max(0, hunger - 1) }

@@ -387,6 +387,7 @@ final class WorldGen: TerrainGenerator {
         mark(0)
         // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE, magma = Blocks.id("magma_block")
+        let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt")
         // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
         // each block only lerps along y and z: the same operations in the same order as Lattice.sample
         // (bit-identical, groundY relies on it) without 8 lattice loads per block.
@@ -418,7 +419,17 @@ final class WorldGen: TerrainGenerator {
                         // The deeper, the hotter: emberslate creeps into the deeprock below -24 and owns it below -56,
                         // with the odd magma block.
                         let h = hash3(wx, y, wz, s32 ^ 0xE5B)
-                        if Int(h % 32) < -24 - yd { b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue }
+                        if Int(h % 32) < -24 - yd {
+                            // The threshold (G17, Oct 11 playtest: the rock went from deeprock to a flat lava sea and the
+                            // Wardstone with nothing between): below -48 hell's own rock takes over a little more each
+                            // layer, blackstone and basalt bands and magma, a third of the rock at the floor.
+                            if yd < -48 {
+                                let r = Int(h >> 8 % 100), share = (-48 - yd) * 2      // 2% at -49 ... 32% at -64
+                                if r < share / 3 { b[i] = magma; continue }
+                                if r < share { b[i] = (y + Int(h % 2)) % 5 < 2 ? basalt : blackstone; continue }
+                            }
+                            b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue
+                        }
                     }
                     b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
                 }

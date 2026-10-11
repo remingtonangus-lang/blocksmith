@@ -97,7 +97,7 @@ enum HorseTests {
                 if tStop < 0 && speed(h) < 0.5 { tStop = Float(i) * dt }
                 return tStop >= 0
             }
-            check(walk > 1 && walk <= 2.7 && abs(trot - 8) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
+            check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
                   String(format: "horse gaits: walk %.1f, trot %.1f, gallop %.1f b/s (top %.0f)", walk, trot, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
             check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))

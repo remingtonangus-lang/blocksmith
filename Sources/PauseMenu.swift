@@ -148,7 +148,7 @@ final class PauseMenu: Menu {
         "audio_music_skip": "Ends the piece that is playing and starts the next. Also Y on the pause menu, or the Skip Music Track key (N).",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
-        "difficulty": "How much damage mobs do and whether hunger can kill.",
+        "difficulty": "Set when the world was made: monster damage, toughness, speed and numbers, and hunger.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
         "bugnotes": BugNotes.hint,
@@ -159,7 +159,7 @@ final class PauseMenu: Menu {
         "perf": "Frame rate, frame times (average and worst of the last second), render distance and chunk jobs in the corner of the view.",
         "quit": "Save the world and close Blocksmith.",
         "totitle": "Save the world and return to the title screen.",
-        "create": "Choose a name, seed, game mode and difficulty.",
+        "create": "Choose a name, seed, game mode and difficulty (the difficulty is locked once the world is made).",
         "newworld": "Start a new world with a random seed straight away.",
         "workshop": "A creative test world with the standard circuits built and signed: clocks, a toggle, a piston door, a sorter.",
         "w_play": "Load this world.",
@@ -195,7 +195,7 @@ final class PauseMenu: Menu {
             }
             rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
-                    ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
+                    ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
                     ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
             if g.coop.current > 0 {
@@ -532,7 +532,8 @@ final class PauseMenu: Menu {
         case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
-        case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)
+        // G19: a world's difficulty is chosen when it is made (Create New World) and locked afterwards.
+        case "difficulty": g.onToast?("Difficulty is chosen when a world is made and stays \(Game.difficultyNames[g.difficulty]) for this one")
         case "fov": g.fovSetting = step([50, 60, 70, 80, 90, 100, 110], g.fovSetting)
         case "sens": g.sensitivity = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()

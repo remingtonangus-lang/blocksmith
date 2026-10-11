@@ -4,7 +4,7 @@ import Foundation
 //   - Covered boardwalks: every shop front gets a plank walk the width of its false front, flush with the street, with
 //     a slab awning over it on two posts (the old awning only covered the door).
 //   - The sheriff's office: the medium house nearest the square becomes a stone-fronted office with the sheriff's desk,
-//     a jail cell behind iron bars (its door left open), a WANTED board and a town notice by the door.
+//     two stone jail cells behind iron bars and open iron doors, a strongbox, a WANTED board and a town notice by the door.
 // A town whose ground a save had already generated keeps its old lots (StructureCache.legacyFrontier, taken once per
 // save like the other structure guards), so no house is finished half as an office across a chunk border.
 extension Village {
@@ -71,6 +71,8 @@ extension Village {
         falseFront(&w, b, m, wallH: wallH, band: blk("yellow_terracotta", stone))
         boardwalk(&w, b, m, wallH: wallH)
         sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "BANK", "Savings and", "Exchange"])
+        // (G14) The exchange spelled out at the door, beside the window (the same column as the office's notices).
+        sign(&w, b, u: 1, dy: 1, v: -1, lines: ["EMERALDS", "bought and sold", "at the teller", "inside"])
         // The teller's counter across the room, bars over it, always a clear row in from the door (a small bank puts the
         // counter one row nearer the strongroom), a gap at the door's line to reach the teller and one at the wall side to
         // walk behind it; the lamp stands on its end, never in the way in.
@@ -111,12 +113,51 @@ extension Village {
         let cellV = l.d - 3
         if cellV > 2 { b.set(&w, 1, 0, 2, b.stair(m.stairs, high: 0)) }
         if du > 2 { b.set(&w, l.w - 2, 0, 1, blk("bookshelf", m.planks)) }   // (a small office keeps the way to its cell clear)
-        // The jail cell across the back: iron bars with the cell door left open, a hay bunk, a bucket.
+        // The cell block across the back (Oct 11 playtest P37/G14: one long barred row with glass windows, a hay bale
+        // and a gap for a door read as a stall, not a jail). Now: stone walls, a stone floor and barred windows round
+        // the back row, split into two cells by a stone wall where the office is wide enough, each with a front of bars
+        // and an iron door (left open, so no one is shut in for good), a plank bunk, a bucket and a chain on the wall.
         let bars = blk("iron_bars", m.fence)
-        for u in 1...(l.w - 2) where u != l.w - 2 { for dy in 0...2 { b.set(&w, u, dy, cellV, bars) } }
-        b.set(&w, 1, 0, l.d - 2, blk("hay_block", m.planks))
-        b.set(&w, 3, 0, l.d - 2, blk("cauldron", AIR))
+        let ironDoor = blk("iron_door", m.door)
+        let floor = blk("cobblestone", COBBLE)
+        let inner = l.w - 2                                        // cell row width (u 1...l.w-2)
+        let split = inner >= 5 && cellV > 2 ? du : -1              // the partition column (the doorway's line), or none
+        // The doors: one per cell, either side of the partition (the desk and chair leave those columns free).
+        let doors: [Int] = split > 0 ? [split - 1, split + 1] : [l.w - 2]
+        for v in cellV...(l.d - 1) {
+            for u in 0...(l.w - 1) where u == 0 || u == l.w - 1 || v == l.d - 1 {
+                // Stone walls round the cells (the log corners kept), a barred window over each bunk.
+                let corner = (u == 0 || u == l.w - 1) && v == l.d - 1
+                if corner { continue }
+                for dy in 0..<wallH { b.set(&w, u, dy, v, dy == 2 && v == l.d - 1 && (u == 1 || u == l.w - 2) ? bars : stone) }
+            }
+        }
+        for u in 1...(l.w - 2) {
+            b.set(&w, u, -1, l.d - 2, floor)
+            if cellV < l.d - 2 { for v in (cellV + 1)..<(l.d - 1) { b.set(&w, u, -1, v, floor) } }
+            for dy in 0...2 {
+                if u == split { b.set(&w, u, dy, cellV, stone); continue }
+                if doors.contains(u) {
+                    let f = dir(l, 1)                              // facing the street like the front door, swung open
+                    b.set(&w, u, dy, cellV, dy == 0 ? ironDoor + BlockID(f + 4) : (dy == 1 ? ironDoor + BlockID(f + 4 + 8) : bars))
+                } else { b.set(&w, u, dy, cellV, bars) }
+            }
+            if u == split { for v in (cellV + 1)..<(l.d - 1) { for dy in 0..<wallH { b.set(&w, u, dy, v, stone) } } }
+        }
+        // In each cell: a bunk under the window and a chain hanging from the ceiling over it; a deeper cell gets a
+        // bucket too (a one-row cell keeps its floor clear inside the door).
+        for (u, cell) in [(1, 0), (l.w - 2, 1)] where split > 0 || cell == 0 {
+            b.set(&w, u, 0, l.d - 2, m.slab)
+            for dy in 3..<wallH { b.set(&w, u, dy, l.d - 2, blk("chain", AIR)) }
+            if cellV < l.d - 2 { b.set(&w, u, 0, l.d - 3, blk("cauldron", AIR)) }
+        }
         b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
-        b.set(&w, l.w - 2, 2, l.d - 2, b.wallTorch(facing: 1))
+        b.set(&w, l.w - 2, 2, cellV - 1, b.wallTorch(facing: 3))
+        // The strongbox of confiscated goods beside the second cell's door (theft from it is theft like any town container,
+        // TownLaw); only where two cells leave the way to the doors clear.
+        if split > 0 && du > 2 {
+            let (x, z) = world(l, l.w - 2, 2)
+            w.chest(x, l.y, z, loot: "sheriff_locker", seed: SRng(l.seed &+ 0x5E1F).next(), facing: dir(l, 3))
+        }
     }
 }

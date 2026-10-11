@@ -91,8 +91,11 @@ enum PlaytestV78Tests {
                 if a == tallID { tall += 1 }
             }
         } }
-        check(grassTops > 500 && tall == 0 && Float(short) / Float(max(1, grassTops)) < 0.15,
-              String(format: "plants: %d grass blocks, %.1f%% short grass, %d tall grass (want < 15%% and none)", grassTops, Float(short) * 100 / Float(max(1, grassTops)), tall))
+        // G18 (Oct 11, "plain grass looks barren") reverses part of v78: grass grows in patches with a few tall tufts in
+        // their hearts; overall still well short of the old uniform field.
+        let shortShare = Float(short) / Float(max(1, grassTops)), tallShare = Float(tall) / Float(max(1, grassTops))
+        check(grassTops > 500 && shortShare < 0.35 && tallShare < 0.03,
+              String(format: "plants: %d grass blocks, %.1f%% short grass, %.1f%% tall tufts (want < 35%% and < 3%%)", grassTops, shortShare * 100, tallShare * 100))
         check(Blocks.crossSize[Int(TALL_GRASS)] < 12 && Blocks.crossSize[Int(Blocks.id("poppy"))] < 16, "plants: short grass and flowers draw smaller than a block")
         spawning(game, check)
     }
