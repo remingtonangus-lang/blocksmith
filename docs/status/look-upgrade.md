@@ -186,3 +186,40 @@ rocks it back, rest breathes (about 1 px); a dead cow slumps down; a killed zomb
 vertices, then goes in a puff and is gone; armour stands and boats keep still. Portraits: `--mob-shots DIR --mob-kinds
 zombie,cow,villager,sheep` adds `look` (head turned) and `fall` (mid-fall) shots: docs/status/evidence/look-upgrade/
 mob_{zombie,cow,villager,sheep}_{look,fall}.png.
+
+## General: golden shots and frame cost, before and after
+
+`questcheck --render X --render-only --golden DIR` now also stages three biomes at noon (the middle of a forest, a
+desert and a taiga near spawn; snowy plains when one is within about 2.5 km, none on the test seed). The "before" set is
+the same harness change cherry-picked onto the commit before the sky PR (#26), so both sides show identical views.
+Sheet: [golden_before_after.png](evidence/look-upgrade/golden_before_after.png) (spawn, dusk, night, rain, aerial,
+forest, desert, taiga, town; left eye, 32 px textures).
+
+Frame cost on lavapipe (a CPU rasteriser, so relative only; the headset numbers are lane M's device check):
+
+| shot | quads before | quads after | lavapipe ms before | after |
+|---|---|---|---|---|
+| spawn | 78 721 | 78 335 | 109 | 74 |
+| dusk | 34 771 | 34 771 | 88 | 57 |
+| night | 60 791 | 60 481 | 76 | 83 |
+| rain | 64 691 | 64 305 | 79 | 83 |
+| aerial | 43 256 | 43 336 | 80 | 70 |
+| forest | 89 577 | 91 123 | 89 | 86 |
+| desert | 41 285 | 41 392 | 55 | 56 |
+| taiga | 93 551 | 90 014 | 81 | 74 |
+| town | 56 811 | 56 739 | 119 | 105 |
+| capital city | 85 852 | 85 852 | 136 | 139 |
+| Boreal station | 180 540 | 177 603 | 165 | 154 |
+
+Geometry stays within 2 % (the new tree shapes trade a few logs for fuller crowns; the leaf fix is texture only), and
+lavapipe's frame times are within its own run-to-run noise (±15 ms on the same view). The cloud pass costs about 5 ms
+of a sky-filled 320x320 lavapipe frame (SkyTest prints it each run). No regression is measurable here; the headset
+frame-rate proof (docs/status device checklist) stays with lane M.
+
+What the sheet shows: real cloud decks at noon, warm sunset cloud undersides at dusk, dim cloud shapes and stars at
+night, a closed dark deck in rain; fuller tree crowns at spawn and in the forest (the old 32 px leaves were 11 %
+covered speckle).
+
+Wide-leeway improvements made along the way: the leaf-canopy coverage fix (every leaf texture, all resolutions);
+the tree soil tests run before any tree is built (removed an order-dependent half-tree case); the mob layers'
+head glances use their own per-mob hash (they no longer shift the gameplay RNG).
