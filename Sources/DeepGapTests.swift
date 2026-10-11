@@ -259,10 +259,11 @@ enum DeepGapTests {
 
     static func balance(_ g: Game, _ check: (Bool, String) -> Void) {
         let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty
+        let wasTime = g.time               // ~20 minutes of duels: put the clock back (later checks open shops by the hour)
         let armourSlots = g.inventory.armor.slots, mainSlots = g.inventory.main.slots, held = g.inventory.held
         defer {
             g.inventory.armor.slots = armourSlots; g.inventory.main.slots = mainSlots; g.inventory.held = held
-            g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20
+            g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20; g.time = wasTime
             if g.dim.dim != homeDim { g.changeDimension(to: homeDim, at: home) }
             g.player.pos = home; g.player.vel = .zero
             _ = g.world.loadSync(center: home, radius: 4)
