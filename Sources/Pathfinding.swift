@@ -337,6 +337,8 @@ enum PathFinder {
             expanded += 1
             if expanded > maxNodes { break }
             var flat: UInt8 = 0                                    // orthogonal neighbours reachable on the same level (bits)
+            let feetHere = blk(w, p.x, p.y, p.z)
+            let lifted = pr.span == 1 && (pr.climbs && climbable(feetHere) || Blocks.fluidKind[Int(feetHere)] == 1)
             for (di, (dx, dz)) in dirs.enumerated() {
                 let qx = p.x + dx, qz = p.z + dz
                 if blocked && qx == goal.x && qz == goal.z { continue }        // not over the goal block
@@ -347,7 +349,9 @@ enum PathFinder {
                     // A jump rises 1 block plus the difference in floor heights: from a bottom slab onto a full block is
                     // 1.5, more than a mob can jump (citizens jumped at a terrace edge off a half-step walkway all night:
                     // CapitalTownTests seed 55555). Floors are the cells' collision tops under the feet.
-                    if dy == 1 && 1 + solidTop(w, qx, p.y, qz) - solidTop(w, p.x, p.y - 1, p.z) > 1.25 { continue }
+                    // Off a ladder or out of water the body rises from the cell itself, not from a floor (path ladder climb /
+                    // swimmer mobtests failed after this rule came in with the capital cities).
+                    if dy == 1 && !lifted && 1 + solidTop(w, qx, p.y, qz) - solidTop(w, p.x, p.y - 1, p.z) > 1.25 { continue }
                     if dy < 0 && !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue }             // clear drop column
                     guard let c = standCost(w, qx, q.y, qz, pr) else {
                         // A solid cell at this level ends the search downwards (can't drop through it).

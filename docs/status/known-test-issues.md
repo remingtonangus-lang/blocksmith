@@ -52,7 +52,9 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   swimming. 145 other mob checks pass. 25b4zxx didn't touch Pathfinding.swift or MobTests.swift (its melee reach
   change only affects attack checks), so the likely cause is terrain/blocks at the test site after the merge.
 - Repro: `build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot /tmp/m.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck | grep FAIL`
-- Not bisected (test-infrastructure timebox); next session on mobs: build 91da13ce vs fb5cef8b and compare.
+- FIXED (25b4zxxxx, 2026-10-11): not the Deep. The step-height rule from a092303d (Capital cities #16) in
+  Pathfinding refused a 1-up step whose rise from the floor below exceeded 1.25 blocks; off a ladder rung or out of
+  water the body rises from the cell itself, so the rule now skips those (`lifted`). `--mobtests`: 149 ok, 0 FAIL.
 
 ## maingun crater size under load (2026-10-11, cloud gap pass, frigate)
 - "maingun: the slug lands N blocks out and blasts a ...-block crater" wants > 2000 blocks; where the slug lands (102-112
