@@ -79,6 +79,29 @@ do {   // the simd shim's array-free 4x4 inverse and transpose
                   simd_length(e.columns.2 - i.columns.2), simd_length(e.columns.3 - i.columns.3))
     check(err < 1e-5 && t[1, 0] == m[0, 1] && t[3, 2] == m[2, 3], String(format: "simd shim: inverse (error %.1e) and transpose", err))
 }
+// Create New World with Terrain Smooth (docs/status/polygon-test.md): the menu's action through the parse and setup
+// QuestApp.appAction / load use, then the option and the mesher mode must hold before the first loadSync.
+do {
+    let was = SmoothTerrain.enabled
+    for (action, smooth) in [("create:1:2:1:Polygon Test:12345", true), ("create:0:3:0:Block Test:hello", false)] {
+        guard let req = WorldRequest.create(action: action) else { check(false, "create action parses: \(action)"); continue }
+        let wantName = smooth ? "Polygon Test" : "Block Test", wantDiff = smooth ? 2 : 3
+        let wantSeed: UInt64? = smooth ? 12345 : WorldRequest.seedValue("hello")
+        let fieldsOK: Bool = req.name == wantName && req.survival == smooth && req.difficulty == wantDiff
+        check(fieldsOK && req.smooth == smooth && req.seed == wantSeed, "create action parses: \(action)")
+        SmoothTerrain.set(!smooth, world: nil)            // the previous world's mode, which the new one must replace
+        let cw = World(seed: req.seed ?? seed, device: device, save: nil)
+        cw.renderDistance = 2
+        let cg = Game(world: cw, save: nil, persistent: false)
+        req.setUp(cg, meta: nil)
+        check(cg.smoothTerrain == smooth && SmoothTerrain.enabled == (SmoothTerrain.forced ?? smooth) && cw.chunks.isEmpty,
+              "new world from the menu: Terrain \(smooth ? "Smooth" : "Blocks") set before loadSync (option \(cg.smoothTerrain), mesher \(SmoothTerrain.enabled))")
+        _ = cw.loadSync(center: cg.player.pos, radius: 1)
+        check(SmoothTerrain.enabled == (SmoothTerrain.forced ?? smooth) && !cw.chunks.isEmpty, "new world loads in its terrain mode")
+    }
+    check(WorldRequest.create(action: "create:1:2:1:Name") == nil, "a short create action is ignored")
+    SmoothTerrain.set(was, world: nil)
+}
 let warm = QuestWarmup.run()                                          // as the app's loading thread does
 check(warm.ms < 500, String(format: "warmup tables built (%.0f ms)", warm.ms))
 var quads = 0, sections = 0

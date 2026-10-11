@@ -17,6 +17,9 @@ Objectives: docs/objectives/polygon-test.md. Built on the smooth-terrain prototy
   chunk and ship shaders light smooth vertices with it (Gouraud), so slopes shade gradually instead of in 6 flat face
   tones. Mac shaders read the same encoding (Mac look unchanged otherwise).
 - Natural one-block steps are walked up without a jump (eased VR view step); built blocks still need a jump.
+- Quest create path tested headless: questcheck feeds `create:1:2:1:Polygon Test:12345` (and a Blocks one) through
+  `WorldRequest.create(action:)` + `setUp` (Sources/WorldRequest.swift, the same code QuestApp.appAction / load run) and
+  asserts `game.smoothTerrain` and `SmoothTerrain.enabled` are set before the first `loadSync`.
 - `--smoothtest` 14/14 PASS, now gating in the snap.sh checks shard (step walking, mesh rules, normal codes, world option save/load, older saves, create page).
 
 ## Side by side (Quest renderer, questcheck on lavapipe, left eye, seed 12345)
