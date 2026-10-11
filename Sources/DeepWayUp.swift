@@ -37,6 +37,14 @@ extension Game {
     }
 
     // "Way up: the Ember Gate, 132 blocks ahead-left".
+    // The HUD's copy, rebuilt four times a second (structure lookups and a string; the HUD asks every frame).
+    func deepWayUpHUD() -> String? {
+        if clock - wayUpCache.clock < 0.25 && clock >= wayUpCache.clock { return wayUpCache.line }
+        let line = deepWayUpLine()
+        wayUpCache = (clock, line)
+        return line
+    }
+
     func deepWayUpLine() -> String? {
         guard let w = deepWayUp() else { return nil }
         let d = V2(w.at.x - player.pos.x, w.at.z - player.pos.z)

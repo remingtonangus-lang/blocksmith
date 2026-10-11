@@ -2,7 +2,8 @@
 
 Numbers come from `questcheck --deep-only` (DeepGapTests.balance). Each duel is seeded, so a run gives the same
 numbers until the code changes. The player stands still in full Duskium armour (the best a player can wear at the
-vault) on normal difficulty. "Kills you" is how long the unit takes to deal 20 hearts of damage through that armour.
+vault) on normal difficulty. "Kills you" is how long the unit takes to deal 20 health (10 hearts) of damage through that armour; the player is
+healed every tick, so this is a damage rate, not a staged fight.
 "You kill it" is how long the player takes holding the trigger with the named weapon, aimed at the unit's middle.
 Standing still is the worst case: a moving player takes far less fire.
 
@@ -23,14 +24,14 @@ Standing still is the worst case: a moving player takes far less fire.
 | The Ash Marshal (alone, no guard) | 4.2 s | 44.1 s | Skybreaker Launcher |
 
 The check enforces five things:
-- The Ashguard rifleman is harder than a surface one: it kills you faster and takes at least 1.2× as long to kill.
+- The Ashguard rifleman is harder than a surface one: it kills you faster and takes at least 1.3× as long to kill.
 - A Cinder Tank shrugs off rifles: their rounds do a fifth of their damage on its plate, so bring a launcher.
 - Every unit can be beaten with full gear: the Marshal within 180 s, everything else within 60 s.
 - Nothing kills a full-gear player in under 2 s.
 - Melee monsters (the Brute, the Castellan) kill fastest standing still. Their counter is distance; rifles outrange them.
 
 Tuning made in the gap pass:
-- Ashguard soldiers are veterans: 60 % more health (they had that before), 60 % more gun damage and a 40 % tighter
+- Ashguard soldiers are veterans: 75 % more health (60 % before the gap pass), 60 % more gun damage and a 40 % tighter
   group than the same rank on the surface.
 - The Cinder Tank's plate cuts bullet damage to 20 %.
 
@@ -42,7 +43,8 @@ Tuning made in the gap pass:
 | Into the hell band (Deep, internal y 200-375) | Diamond to Duskium, rifle, fire resistance | Blight Skeletons and Brutes kill in 2-6 s standing: fight at range. Keeps hold the Sunderite and the Castellan (24 s of rifle fire) |
 | At the seal (y 192-199) | Duskium plus a Sunderite Pickaxe or Sunder Charge from keep ore | No enemy: only Sunderite breaks Sealrock. The break drops a Sealrock Shard |
 | Into the Ash Vault | Full Duskium, rifle and launcher, healing | Riflemen 4 s each, Heavies 17 s, armour needs the launcher. Squads of 3-6 arrive at Alarm, armour joins at Total War |
-| The Marshal | Launcher, cover, keep moving (marked barrages) | 44 s of launcher hits alone, plus two guard calls |
+| The Marshal | Launcher, cover, keep moving (marked barrages) | 44 s of launcher hits alone, plus two guard calls. Drops the Marshal's Cap, a helmet a little better than Duskium |
 
 Rewards along the curve (DE13): the Castellan's Brand and a Gate Shard (hell band), the Sealrock Shard (seal), the
-Marshal's Cap and Ashguard plating (vault). Each milestone has an advancement.
+Marshal's Cap, a wearable helmet (vault). Each milestone has an advancement. The trophies drop once, whatever the
+Looting. The first Ashguard officer you kill carries a Keeper's Journal.

@@ -111,13 +111,16 @@ enum DeepGapTests {
         // Into the veil: up to the surface; the shard back down to the gate's front.
         g.player.pos = V3(Float(c.ox) + 0.5, Float(c.f + 2), Float(c.oz - DeepGates.gateBack) + 0.5)
         g.gateCooldown = 0
-        g.gatesTick(0.05)
-        let up = g.dim.dim == .overworld && g.deepReturn != nil
+        g.gateHold = 0
+        for _ in 0..<10 { g.gatesTick(0.05) }                    // walking through (half a second): stays
+        let passed = g.dim.dim == .deep
+        for _ in 0..<22 where g.dim.dim == .deep { g.gatesTick(0.05) }
+        let up = passed && g.dim.dim == .overworld && g.deepReturn != nil
         g.inventory.held = ItemStack(Items.id("gate_shard"), 1)
         g.gateCooldown = 0
         let used = g.useGateShard()
         let back = g.dim.dim == .deep && simd_length(g.player.pos - DeepGates.front(k)) < 0.6 && g.inventory.held.count == 1
-        check(up && used && back, "deep gap: stepping into the gate goes home (\(up)), the Gate Shard brings you back to its front, not used up (\(back))")
+        check(up && used && back, "deep gap: walking through the gate doesn't, standing in it 1.5 s goes home (\(up)), the Gate Shard brings you back to its front, not used up (\(back))")
         // A Deep Lift set down in the vault: the marker finds it, standing on it goes home.
         let lp = IVec3(140, DeepGen.floorBase + 1, 360)
         g.player.pos = V3(Float(lp.x) + 4.5, Float(lp.y), Float(lp.z) + 0.5)
@@ -162,9 +165,16 @@ enum DeepGapTests {
         g.shake = 0
         let p0 = g.particles.list.count
         g.player.pos = V3(0.5, Float(DeepSeal.top + 1), 0.5)
-        g.sealBreakMoment(at: V3(0.5, Float(DeepSeal.top) - 4, 0.5))
-        check(DeepSeal.moments == m0 + 1 && g.flashes.count >= flashes0 + 6 && g.shake >= 0.99 && g.particles.list.count >= p0 + 150,
-              "deep gap: the seal breaking is a moment (\(g.flashes.count - flashes0) light flashes up the shaft, shake \(g.shake), \(g.particles.list.count - p0) debris and smoke)")
+        let shafts0 = g.sealShafts
+        g.sealShafts.removeAll()
+        let at = IVec3(0, DeepSeal.bottom, 0)
+        g.sealBreakMoment(at: V3(0.5, Float(DeepSeal.top) - 4, 0.5), shaft: at)
+        let once = DeepSeal.moments == m0 + 1
+        g.sealBreakMoment(at: V3(2.5, Float(DeepSeal.top) - 4, 0.5), shaft: IVec3(2, DeepSeal.bottom, 0))     // the same shaft, widened
+        let marked = g.sealShafts == [at] && DeepSeal.moments == m0 + 1
+        g.sealShafts = shafts0
+        check(once && marked && g.flashes.count >= flashes0 + 6 && g.shake >= 0.99 && g.particles.list.count >= p0 + 150,
+              "deep gap: the seal breaking is a moment (\(g.flashes.count - flashes0) light flashes up the shaft, shake \(g.shake), \(g.particles.list.count - p0) debris and smoke), once per shaft, marked for the way up (\(marked))")
         // Journals: the chain and the keeps in the Keeper's Journal, found in Deep fortress and keep chests.
         let kj = DeepJournals.all["keepers_journal"]?.pages.joined(separator: " ") ?? ""
         let chain = ["Sealrock", "Brimstone Keep", "Raw Sunderite", "Cinder Powder", "Flux", "blast furnace", "Ingot", "Duskium Pickaxe", "Sunder Charge", "compass"]
@@ -297,7 +307,7 @@ enum DeepGapTests {
         let cap = r("Capital rifleman"), rifle = r("Ashguard Rifleman"), tankR = r("Cinder Tank (rifle)"), tankL = r("Cinder Tank (launcher)")
         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
-        let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.2
+        let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
             && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
         let beatable = report.filter { !$0.name.hasPrefix("Cinder Tank (rifle)") }.allSatisfy { $0.playerKills != nil }

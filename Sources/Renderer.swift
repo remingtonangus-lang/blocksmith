@@ -1567,7 +1567,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let a = game.wardenBossBar() { bars.append((a.0, a.1, V4(0.9, 0.35, 0.1, 1))) }
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             // The way up out of the Deep (DeepWayUp.swift), under the bars.
-            if let up = game.deepWayUpLine() {
+            if let up = game.deepWayUpHUD() {
                 let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
                 text(up, (W - textWidth(up, s)) / 2, uy, s, V4(1, 0.78, 0.5, 1))
             }

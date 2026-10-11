@@ -46,6 +46,7 @@ enum DeepGates {
     }
 
     static var woken = 0, rodeUp = 0, rodeDown = 0
+    static let holdTime: Float = 1.5
 }
 
 extension BlockRegistry {
@@ -91,7 +92,13 @@ extension ItemRegistry {
         // Trophies, one per layer (DE13): the hell band's, the seal's and the vault's.
         item("warden_brand", "Castellan's Brand", "rod", 0xD8502A, stack: 1)
         item("sealrock_shard", "Sealrock Shard", "lump", 0x2A2232)
-        item("marshal_cap", "The Marshal's Cap", "helmet", 0x1C1C20, stack: 1)
+        // Worn like a helmet: a little better than Duskium (armour 3, toughness 3).
+        if !has("marshal_cap") {
+            var d = ItemDef("marshal_cap", "The Marshal's Cap")
+            d.sprite = Sprite(mask: "helmet", base: 0x1C1C20, extras: [:])
+            d.maxStack = 1; d.armorSlot = .head; d.armor = 3; d.toughness = 3; d.durability = 500
+            add(d)
+        }
     }
 }
 
@@ -143,6 +150,8 @@ extension Mob {
         spec.drops = [("gate_shard", 1, 1), ("warden_brand", 1, 1), ("gold_ingot", 3, 6), ("netherite_scrap", 1, 2)]
         spec.xp = 120
         if !loading { health = spec.health }
+        // Saved past half health: still raging (no second bellow, no second speed-up).
+        if loading && !wardenRaged && health * 2 < spec.health { wardenRaged = true; spec.speed *= 1.3 }
         power = max(power, 1.8)
     }
 
@@ -180,7 +189,7 @@ extension Game {
     // The Warden fell: the keep's gate wakes (its veil fills now and whenever its ground loads again).
     func wardenDied(_ m: Mob) {
         guard m.warden, let k = keepAt(m.pos) else { return }
-        achieve("keep_warden")
+        if m.killedByPlayer { achieve("keep_warden") }
         let key = DeepGates.keyFor(k)
         if !wokenGates.contains(key) {
             wokenGates.append(key)
@@ -199,14 +208,27 @@ extension Game {
     // Deep Lift rides up.
     func gatesTick(_ dt: Float) {
         gateCooldown = max(0, gateCooldown - dt)
-        if !wokenGates.isEmpty, let k = keepAt(player.pos), wokenGates.contains(DeepGates.keyFor(k)) { fillGate(k) }
+        gateFillT -= dt
+        if gateFillT <= 0 {
+            gateFillT = 1                                      // a structure lookup: once a second is plenty
+            if !wokenGates.isEmpty, let k = keepAt(player.pos), wokenGates.contains(DeepGates.keyFor(k)) { fillGate(k) }
+        }
         guard gateCooldown <= 0, alive, riding == nil else { return }
         let f = player.pos
         let x = Int(floor(f.x)), y = Int(floor(f.y + 0.1)), z = Int(floor(f.z))
         let veil = Blocks.id(DeepGates.veilKey), lift = Blocks.id(DeepGates.liftKey)
-        if world.block(x, y, z) == veil || world.block(x, y + 1, z) == veil, let k = keepAt(f) {
-            rideUp(from: DeepGates.front(k), how: "The Ember Gate carries you up to the surface")
-        } else if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
+        if world.block(x, y, z) == veil || world.block(x, y + 1, z) == veil {
+            // Stand in it a moment to ride (the gate stands on the north path: walking through doesn't send you home).
+            if gateHold == 0 { onToast?("Stay in the Ember Gate to ride up") }
+            gateHold += dt
+            if gateHold >= DeepGates.holdTime, let k = keepAt(f) {
+                gateHold = 0
+                rideUp(from: DeepGates.front(k), how: "The Ember Gate carries you up to the surface")
+            }
+            return
+        }
+        gateHold = 0
+        if if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
             rideUp(from: V3(Float(x) + 0.5, Float(world.block(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Deep Lift carries you up to the surface")
         }
     }
@@ -238,9 +260,20 @@ extension Game {
         gateCooldown = DeepGates.cooldown
         DeepGates.rodeDown += 1
         changeDimension(to: .deep, at: to)
-        for y in Int(floor(to.y))...(Int(floor(to.y)) + 1) where Blocks.collide[Int(world.block(Int(floor(to.x)), y, Int(floor(to.z))))] {
-            world.setBlock(Int(floor(to.x)), y, Int(floor(to.z)), AIR)
+        // Land on the nearest open standing spot round the gate or lift (never digging out what was built there); only
+        // with none within 3 blocks is the landing cell itself cleared.
+        var land = to
+        let bx = Int(floor(to.x)), by = Int(floor(to.y)), bz = Int(floor(to.z))
+        func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            !Blocks.collide[Int(world.block(x, y, z))] && !Blocks.collide[Int(world.block(x, y + 1, z))] && Blocks.collide[Int(world.block(x, y - 1, z))]
         }
+        search: for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+            if open(bx + dx, by + dy, bz + dz) { land = V3(Float(bx + dx) + 0.5, Float(by + dy), Float(bz + dz) + 0.5); break search }
+        } } } }
+        if land == to && !open(bx, by, bz) {
+            for y in by...(by + 1) where Blocks.collide[Int(world.block(bx, y, bz))] { world.setBlock(bx, y, bz, AIR) }
+        }
+        let to = land
         player.pos = to
         player.vel = .zero
         player.airPeak = to.y

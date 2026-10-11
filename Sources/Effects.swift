@@ -413,6 +413,7 @@ extension Game {
         if deepVisited { d["deepVisited"] = "1" }
         if smoothTerrain { d["terrain"] = "smooth" }
         if ashVictory { d["ashVictory"] = "1" }
+        if ashOfficerHint { d["ashOfficerHint"] = "1" }
         if !wokenGates.isEmpty { d["gates"] = wokenGates.joined(separator: ";") }
         if let r = deepReturn { d["deepReturn"] = "\(r.x),\(r.y),\(r.z)" }
         if let r = deepEntry { d["deepEntry"] = "\(r.x),\(r.y),\(r.z)" }
@@ -451,6 +452,7 @@ extension Game {
             return V3(p[0], p[1], p[2])
         }
         deepReturn = v3(d["deepReturn"]); deepEntry = v3(d["deepEntry"])
+        ashOfficerHint = d["ashOfficerHint"] == "1"
         deepLifts = (d["deepLifts"] ?? "").split(separator: ";").compactMap { s in
             let p = s.split(separator: ",").compactMap { Int(String($0)) }
             return p.count == 3 ? IVec3(p[0], p[1], p[2]) : nil

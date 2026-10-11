@@ -175,15 +175,18 @@ extension Game {
         Explosion.explode(at: c, power: 2.6, game: self, breakBlocks: false)
         if removed > 0 {
             achieve("break_seal")
-            sealBreakMoment(at: c)
-            sealShafts.append(at)
+            sealBreakMoment(at: c, shaft: at)
         }
         return removed
     }
 
     // The seal breaking is a big moment (the gap pass, DE6): a deep boom and the debris after it, a light column up the
     // shaft from the vault's glow below, a hard shake, rock raining down the shaft and the vault named.
-    func sealBreakMoment(at c: V3) {
+    // Once per shaft: a second charge or pick-hole within 4 blocks of a known shaft just opens it.
+    func sealBreakMoment(at c: V3, shaft: IVec3) {
+        if sealShafts.contains(where: { abs($0.x - shaft.x) <= 4 && abs($0.z - shaft.z) <= 4 }) { return }
+        sealShafts.append(shaft)
+        if sealShafts.count > 16 { sealShafts.removeFirst() }
         sfx(.explodeLarge, 1.7, at: c)
         sfx(.debrisRain, 1.3, at: c)
         sfx(.mainGunRumble, 0.8, at: c)

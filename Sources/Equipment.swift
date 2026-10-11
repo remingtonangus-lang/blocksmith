@@ -11,6 +11,7 @@ enum ArmorLook {
                                     ("turtle_", V3(0.3, 0.6, 0.25)), ("copper_", V3(0.78, 0.48, 0.33)), ("steel_", V3(0.40, 0.45, 0.52)), ("fur_", V3(0.54, 0.42, 0.29))]
         for (p, c) in mats where k.hasPrefix(p) { return c }
         if k == "carved_pumpkin" { return V3(0.9, 0.55, 0.1) }
+        if k == "marshal_cap" { return V3(0.11, 0.11, 0.12) }
         if k.hasSuffix("_head") || k.hasSuffix("_skull") { return V3(0.8, 0.8, 0.75) }
         return nil
     }

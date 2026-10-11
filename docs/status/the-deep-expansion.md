@@ -120,10 +120,10 @@ partial. Three PRs close it. Expanded objectives, written before building:
 
 **D3, the Deep's progression and story (PR 3).**
 - Ember Gates (D2b, DE4): a ruined gate frame beside every Brimstone Keep, the Deep's stand-in for a portal. Dormant
-  until the keep's warden falls; then stepping in carries you to the surface (your bed or world spawn), and a Gate Shard
-  (the warden's drop) carries you back down to the last gate you woke. The ways back are one per layer: the gates from
+  until the keep's Castellan falls; then standing in it 1.5 s carries you to the surface (your bed or world spawn), and a Gate Shard
+  (the Castellan's drop) carries you back down to the last gate or lift you rode up. The ways back are one per layer: the gates from
   the hell band, the command-bunker lift (after the Marshal) and a buildable Deep Lift from the vault.
-- Keeps (DE7): three layouts (the castle, a ring fort, a terraced citadel), guards with roles (wardens on the walls,
+- Keeps (DE7): three layouts (the castle, a ring fort, a terraced citadel), guards with roles (sentries on the walls,
   brutes at the gates, Ashguard at the strongroom), a mini-boss (the Keep Castellan, boss bar) and a loot vault.
 - Time to kill (D4b): a full-gear run in questcheck (the best armour and weapons a player has at the vault) against
   every Ashguard unit: time for the player to kill each and time for each to kill the player, written in
@@ -137,7 +137,7 @@ partial. Three PRs close it. Expanded objectives, written before building:
   whole Sunderite chain and where the keeps stand; the chain is in the recipe book.
 - The seal breaking (DE6): a big moment: a deep boom, a light column, shake, falling debris, an advancement.
 - Rewards (DE13): a unique reward per layer (hell: the Castellan's Brand trophy and Gate Shard; seal: Sealrock Shard
-  blocks; vault: the Marshal's Cap trophy and Ashguard plating) and an advancement per milestone (hell band, a keep
+  blocks; vault: the Marshal's Cap, worn as a helmet) and an advancement per milestone (hell band, a keep
   castellan, the seal broken, the vault, the Marshal).
 
 ### Respawn, beds and the ways back (DE4)
@@ -147,7 +147,7 @@ partial. Three PRs close it. Expanded objectives, written before building:
 - Dying in the Deep respawns you on the surface, at your bed (if it still stands) or the world spawn (`Game.respawn`).
   Your things stay where you fell, so the way back down matters:
   - the hole you dug: break through the surface's lowest layer at the same x, z (the seam, `DeepSeam.swift`);
-  - a woken Ember Gate: use a Gate Shard on the surface to drop back to the last gate you woke (`DeepGates.swift`).
+  - a woken Ember Gate: use a Gate Shard on the surface to drop back to the last gate or lift you rode up (`DeepGates.swift`).
 - The ways up, one per layer, all shown on the HUD's way-up line while in the Deep (`DeepWayUp.swift`): from the
   hell band and the crusts the hole you came down or a woken Ember Gate (step into its veil); from the vault a shaft
   you blew through the seal, a Deep Lift you built (ingot + piston + iron block) or, after the Marshal, the

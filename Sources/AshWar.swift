@@ -51,6 +51,12 @@ extension Game {
     // Called from mobDied.
     func ashUnitDied(_ m: Mob) {
         if m.kind == .ashTank && m.killedByPlayer { achieve("ash_tank") }
+        // The first officer you kill carries a Keeper's Journal (the Sunderite chain and where the keeps stand).
+        if m.kind == .soldierOfficer && m.killedByPlayer && !ashOfficerHint {
+            ashOfficerHint = true
+            drops.spawn(ItemStack(Items.id("keepers_journal"), 1), at: m.pos + V3(0, 0.5, 0))
+            onToast?("The officer carried a Keeper's Journal")
+        }
         if m.kind.ashVehicle {
             // Vehicles brew up: a burst (fuel trucks a big one, with fire) and smoke; the blocks around are spared.
             let fuel = m.kind == .ashTruck && m.variant == 1

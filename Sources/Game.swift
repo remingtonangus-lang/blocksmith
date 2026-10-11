@@ -120,6 +120,10 @@ final class Game {
     var sealHintAt: Double = -100
     var hellHinted = false
     var keepCompass: (key: Int64, keep: StructureStart?)?
+    var ashOfficerHint = false       // the first Ashguard officer the player kills carries a Keeper's Journal (DE5), saved
+    var gateFillT: Float = 0         // DeepGates.gatesTick: next woken-gate refill check
+    var gateHold: Float = 0          // seconds stood in an Ember Gate's veil
+    var wayUpCache: (clock: Double, line: String?) = (-1, nil)
     var wokenGates: [String] = []   // keeps whose Ember Gate is awake (DeepGates.swift), saved
     var deepReturn: V3?             // where the Gate Shard takes you back down (the last gate or lift you rode up), saved
     var deepEntry: V3?              // where you last broke into the Deep from the surface (the way-up marker), saved
@@ -1169,7 +1173,11 @@ final class Game {
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
-                        if b == SEALROCK { achieve("break_seal") } else if Blocks.key(b) == "sunderite_ore" { achieve("sunderite") }
+                        if b == SEALROCK {
+                            achieve("break_seal")
+                            // Through the last layer: the same moment as a charge, and a way-up mark in the vault.
+                            if t.hit.y == DeepSeal.bottom { sealBreakMoment(at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5, shaft: t.hit) }
+                        } else if Blocks.key(b) == "sunderite_ore" { achieve("sunderite") }
                         // Only tools wear, and only on blocks with some hardness (shears on anything they cut): a bow or a
                         // rod in hand, or a pickaxe through grass and torches, lost durability before (reference).
                         let tl = held.isEmpty ? ToolType.none : held.def.tool
@@ -1814,7 +1822,9 @@ final class Game {
                 if m.kind == .slime && m.sized && m.slimeSize > 1 { break }               // only the smallest slimes drop balls
                 if n == "copper_ingot" && m.kind == .drowned { continue }                 // a chance drop below
                 if n == pkOnly && !m.killedByPlayer { continue }                          // player kills only
-                var c = Rand.int(in: lo...(hi + looting))
+                // Boss trophies and keys drop once, whatever the Looting.
+                let once = ["gate_shard", "warden_brand", "marshal_cap"].contains(n)
+                var c = Rand.int(in: lo...(hi + (once ? 0 : looting)))
                 if m.kind == .witherSkeleton && n == "coal" { c = max(0, Rand.int(in: -1...(1 + looting))) }     // 1 in 3
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }

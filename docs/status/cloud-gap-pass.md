@@ -113,5 +113,5 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | DE10 | Mortars and artillery with audible incoming warnings | PARTIAL | the Marshal's barrage has a flare; batteries' shells have no warning | D2 | |
 | DE11 | Squads with roles (rifle, MG, officer, medic), cover, flanking, retreat, calling armour; difficulty scales it | PARTIAL | no medic, no armour call | D2 | |
 | DE12 | Ash Marshal: phases, arena, victory changes the Vault for good | MET | guard calls at 2/3 and 1/3, barrages, bunker; army stands down, lift | - | MET |
-| DE13 | Rewards unique to each layer; advancements for each milestone | PARTIAL | advancements for vault/tank/victory/sunderite; no hell-band or seal milestone, no layer trophies | D3 | MET: one advancement per Deep milestone (6) and a reward per layer (Castellan's Brand, Gate Shard, Sealrock Shard, Marshal's Cap) |
+| DE13 | Rewards unique to each layer; advancements for each milestone | PARTIAL | advancements for vault/tank/victory/sunderite; no hell-band or seal milestone, no layer trophies | D3 | MET: one advancement per Deep milestone (6) and a reward per layer (Castellan's Brand, Gate Shard, Sealrock Shard, the wearable Marshal's Cap) |
 | DE14 | Perf: unit caps, LOD, fog budgets measured in the biggest battle | MISSING | none | D2 | |
