@@ -205,6 +205,7 @@ final class CraterJob {
             let R = Int(ceilf(r * 1.5)) + 3                   // (the scorch reaches 1.5 radii)
             let y0 = max(0, cy - R), y1 = min(CH - 1, cy + R)
             if scanY < y0 { scanY = y0 }
+            if scanY > y1 { circuitsNear = false; return step(g, blocks: blocks) }   // (a blast above or below the world)
             let yEnd = min(y1, scanY + CraterJob.scanLayers - 1)
             var found = false
             scan: for qz in floorDiv(cz - R, CS)...floorDiv(cz + R, CS) { for qx in floorDiv(cx - R, CS)...floorDiv(cx + R, CS) {

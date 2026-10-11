@@ -37,15 +37,23 @@ enum MainGunTests {
         // lands on (100 to 180 blocks ahead, within the streamed world around the player) is dry land near the
         // highest ground under the hull, which sets the frigate's cruise height (spawnCapital), so the crater is dug
         // in earth rather than under the sea and the shot lands about 130 blocks out.
+        let open: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .savanna, .snowyPlains]
         func dry(_ x: Int, _ z: Int) -> Bool {
             var top = SEA
             for k in -4...4 { for j in -1...1 { top = max(top, w.gen.column(x + k * 60, z + j * 40).height) } }
+            // The landing strip and the crater's reach either side: open country well above the sea (no swamp pools,
+            // rivers or jungle crowns for the slug to burst in).
             return stride(from: 100, through: 180, by: 20).allSatisfy { d in
-                let h = w.gen.column(x, z - d).height
-                return h > SEA + 1 && h >= top - 10
+                [(0, 0), (-16, 0), (16, 0), (0, -16), (0, 16)].allSatisfy { o in
+                    let c = w.gen.column(x + o.0, z - d + o.1)
+                    return c.height > SEA + 3 && c.height >= top - 10 && open.contains(c.biome)
+                }
             }
         }
-        var fx = Int(home.x) + 300, fz = Int(home.z)
+        // (From the world spawn, not wherever earlier checks left the player: the full questcheck and the slice then
+        // test the same site; the walk check ahead of it ends a different distance out from build to build.)
+        let origin = (w.gen as? WorldGen).map { WorldRules.spawnCentre($0) } ?? V2(home.x, home.z)
+        var fx = Int(origin.x) + 300, fz = Int(origin.y)
         search: for r in 0..<20 {
             for k in -r...r {
                 for (dx, dz) in [(k, -r), (k, r), (-r, k), (r, k)] where dry(fx + dx * 96, fz + dz * 96) {
@@ -55,6 +63,7 @@ enum MainGunTests {
             }
         }
         let n0 = w.ships.list.count
+        print("maingun: the frigate at \(fx),\(fz) (spawn \(Int(origin.x)),\(Int(origin.y)); the player was at \(Int(home.x)),\(Int(home.z)))")
         w.ships.spawnCapital("capfrigate", home: IVec3(fx, 0, fz), yaw: 0, region: nil, sync: true)
         guard let s = w.ships.list.dropFirst(n0).first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
             check(false, "maingun: the Meridian frigate spawns"); return
@@ -156,7 +165,7 @@ enum MainGunTests {
             } }
             return wet
         }
-        var pitch: Float = -0.52
+        var pitch: Float = .nan
         for k in 0..<10 {
             let pk = -0.52 + Float(k) * 0.03
             let ray = V3(h.x * cosf(pk), sinf(pk), h.y * cosf(pk))
@@ -169,7 +178,15 @@ enum MainGunTests {
             _ = w.loadSync(center: guess, radius: 2)
             guard let at = w.ships.mainGunAimPoint(s, st, pitch: pk) else { continue }
             _ = w.loadSync(center: at, radius: 2)                   // (the bowl and its rim, round the predicted landing)
-            if wetTops(at) == 0 { pitch = pk; break }
+            // On the ground itself, not in a tree's crown (a slug that bursts in a jungle canopy digs half a bowl of air).
+            let ground = Float(w.gen.column(Int(floor(at.x)), Int(floor(at.z))).height) + 1
+            if wetTops(at) == 0 && at.y < ground + 3 { pitch = pk; break }
+        }
+        // No dry landing at any pitch: say so (firing into water anyway made a small, drowned crater that read as a
+        // weak gun; done audit 25b6 verifier).
+        guard !pitch.isNaN else {
+            check(false, String(format: "maingun: a dry landing ahead of the frigate at %.0f,%.0f (every pitch lands in water or past the world)", mw0.x, mw0.z))
+            return
         }
         let dir = V3(h.x * cosf(pitch), sinf(pitch), h.y * cosf(pitch))
         // Where the slug will land (the generator's heights along its path), loaded beforehand.
