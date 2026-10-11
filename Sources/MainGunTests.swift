@@ -465,6 +465,8 @@ enum MainGunTests {
             let navy = m.spec.name
             check(capital.hasPrefix("Capital") && navy.hasPrefix("Meridian") && Mob.crewNames.values.allSatisfy { $0.count == 6 },
                   "maingun: a Meridian frigate's crewman is a \(navy), not a \(capital)")
+            // G7: no Capital city shares the navy's name.
+            check(!CapitalTown.cityNames.contains { $0.contains("Meridian") }, "maingun: no Capital city is named after the Meridian Navy")
         }
 
         // 5. An AI frigate charging at the player warns them (a toast and a buzz) while there is time to get clear.

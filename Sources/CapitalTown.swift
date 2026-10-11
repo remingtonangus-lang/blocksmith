@@ -14,9 +14,10 @@ import simd
 enum CapitalTown {
     static let storeW = 10, storeD = 8, perFlat = 3
 
-    static let cityNames = ["Meridian", "Concord", "Halcyon", "Argent", "Solace", "Lumen", "Belmont", "Highmere", "Vantage",
+    static let cityNames = ["Brightmoor", "Concord", "Halcyon", "Argent", "Solace", "Lumen", "Belmont", "Highmere", "Vantage",
                             "Clearwater", "Westholm", "Alder Crown", "Fairhaven", "Silverlake", "Calder", "Ostrava Hill"]
 
+    // (G7: the first name was "Meridian", the navy's name; a city that drew it is Brightmoor now.)
     static func cityName(_ x: Int, _ z: Int, seed: UInt64) -> String {
         Townsfolk.pick(cityNames, Townsfolk.mix(x, z, seed ^ 0xC17A))
     }

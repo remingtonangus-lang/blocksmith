@@ -89,3 +89,8 @@ Results:
 - Ground saved before G12 (StructureCache.legacyG12) keeps the old rules and the old plan.
 - Check: `--worldgencheck` (questcheck binary or Mac) fails on two citadels within 800, a citadel within 640 of the
   spawn or none within 1,600, and prints the citadel count and the city sizes.
+
+## G7: a Capital city could be named "Meridian", the navy's name (done audit 25b6)
+Results: the first city name is Brightmoor now (CapitalTown.cityNames); MainGunTests 8 checks no city carries the
+navy's name. snap.sh renders capital_city (from above) and capital_street (street level). A saved city's fountain
+sign keeps the text it was built with.
