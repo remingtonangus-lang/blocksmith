@@ -7,6 +7,29 @@ How to use this file (cloud threads and the Mac worker):
 - IP: inspiration only. No coined names from Halo, GoldenEye, Red Dead, Minecraft or real military units in player-visible text (tools/namecheck.py --coined; add new banned words to tools/coined-terms.txt). The WW2 layer uses fictional names and a fictional emblem: no swastikas, SS runes, Iron Crosses or real unit insignia (store-safe; also required for sale in Germany).
 - Quest is the product: every feature must hold 72 fps on Quest 3 in its busiest scene, and be judged on QuestSim or the device.
 
+## PLAYTEST Oct 11 AM (P1-P15): TOP PRIORITY, take these before any other G item
+He played build 0.129 (04d1296) on the Quest; later merges may already fix some, so check each against claude/quest-port first and only fix what is still broken. His 241 spoken notes, each with game state and a Mac repro line: docs/playtests/2026-10-11/voice-notes.md. Fix the class of each problem, not the instance; Quest first. Record each note status in docs/playtests/2026-10-11/voice-notes-status.md. Checks that need the real headset go to docs/status/device-checklist.md (the Mac overseer runs them).
+P1. Water/ice: ice in water shows the water running down its sides (seam/flow faces visible).
+P2. Sugarcane does not look right when stacked; make stacked cane seamless.
+P3. Dripstone is still upside down.
+P4. Trees are visible through the ground when 40 blocks underground (culling/LOD bug).
+P5. Dropped item stacks look like a single item; make stacks read as stacks.
+P6. Sign text runs off the signs.
+P7. Iron ore is too hard to see (titanium reads fine); raise iron ore texture contrast.
+P8. The distant volcano still looked wrong on the Quest build he played; verify the far-view fix (audit gap 6) reaches the Quest renderer.
+P9. Inventory (hold Y) opens a few hundred ms too slowly; cut the hold time or open immediately.
+P10. Crafting grid cells are too small for a controller pointer (misclicks); make the targets 5x5-grid sized and test with the controller pointer.
+P11. Show the player height (Y) next to X and Z.
+P12. Hunger drains too fast: drain mainly from sprinting, attacking and jumping, very little from walking.
+P13. VR melee: hits register only for top-down or side-to-side swings, never bottom-up, and the sword sometimes passes through an enemy with no damage. Fix blade-vs-hitbox for every swing direction; raise the attack rate a bit.
+P14. Footsteps still sound like walking through mud; one unidentified sound plays that should be improved or removed (find it from the note timestamps).
+P15. Frame rate dropped to about 22 fps in a survival world at high render distance; find the scene from the notes state lines and fix the cause.
+Praised, keep: performance at 24 chunks, removing the big water buckets, cave mob density, jungle, hell blocks, the Powderwight look, raw titanium.
+
+## MOVED FROM THE MAC (Oct 11): take after the P and G items
+Q1. Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
+Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
+
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
 
