@@ -80,6 +80,7 @@ extension Game {
         for i in bolts.indices { bolts[i].life -= dt }
         bolts.removeAll { $0.life <= 0 }
         lightningFlash = max(0, lightningFlash - dt * 3)
+        skyTick(dt)
         guard wetWorld else { return }
         // Splashes where rain lands around the player.
         if w.rain > 0.2 {
@@ -126,6 +127,7 @@ extension Game {
         bolts.append(Bolt(pos: at, life: 0.35, seed: Rand.u64(in: 1...UInt64.max)))
         scrapeCopperByLightning(IVec3(Int(floor(at.x)), Int(floor(at.y)) - 1, Int(floor(at.z))))
         lightningFlash = 1
+        sky.flashAt(at - player.eye, strength: 1)
         addFlash(at: at + V3(0, 6, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.35)
         let d = simd_length(at - player.pos)
         if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }

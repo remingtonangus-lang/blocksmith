@@ -26,7 +26,7 @@ final class WorldRenderer {
     }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
-    static let debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
+    static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
     // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
@@ -99,6 +99,12 @@ final class WorldRenderer {
         u.horizon = V4(sky, skyGlow)
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, game.starAlpha)                 // faint at sunset, full once the sun is well down
+        // Clouds (clouds.frag, drawn over the stars, sun and moon): the eye in cloud space, cover and storm flashes.
+        let sk = game.sky
+        let cx = Double(eye.x) + sk.driftX, cz = Double(eye.z) + sk.driftZ
+        u.clouds = V4(Float(cx), Float(cz), game.cloudCover, sk.flash)
+        u.cloudFlash = V4(sk.flashDir, min(1, game.weather.rain * 0.55 + game.weather.thunder * 0.45))
+        u.wind = V4(sk.wind.x, sk.wind.y, sk.haze, 0)
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
@@ -197,6 +203,7 @@ final class WorldRenderer {
             body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
             scene.commit(off, bw.n, EntityVert.self)
             scene.drawScratch(s, "body", offset: off, count: bw.n)
+            if QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld { scene.drawClouds(s) }
         } else if !underwater && game.inVaultSky {
             // The Cinder Sun over the Ash Vault: big, dull and red through the haze.
             let (ptr, off, cap) = scene.reserve(s, EntityVert.self, max: 6)

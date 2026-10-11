@@ -7,6 +7,8 @@ import CVulkan
 // a PNG. Exercises the Quest renderer end to end (multiview, pipelines, textures, culling) without a headset.
 enum RenderTest {
     static var landmarkVerts = 0          // impostor vertices in the last rendered frame
+    static var lastRGBA: [UInt8] = []     // the last frame, both eyes side by side (width * 2 x height)
+    static var lastFrameMs: Double = 0    // its lavapipe frame time
     static func render(game: Game, ctx: VkContext, path: String, width: Int = 640, height: Int = 640,
                        yaw: Float = 0, pitch: Float = -0.15, fovDeg: Float = 90) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
@@ -65,6 +67,8 @@ enum RenderTest {
             let si = (e * width * height + y * width + x) * 4, di = (y * width * 2 + e * width + x) * 4
             out[di] = src[si]; out[di + 1] = src[si + 1]; out[di + 2] = src[si + 2]; out[di + 3] = 255
         } } }
+        lastRGBA = out
+        lastFrameMs = ms.last!
         try PNG.encode(rgba: out, width: width * 2, height: height).write(to: URL(fileURLWithPath: path))
         print("rendertest: wrote \(path)")
         scene.waitIdle()
