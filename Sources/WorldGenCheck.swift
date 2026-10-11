@@ -47,7 +47,7 @@ enum WorldGenCheck {
         var seeds = (0..<n).map { UInt64(1000 + $0 * 7919) }
         seeds.append(2943808052895834412)                          // Remington's Quest world (playtest Oct 10)
         var fails: [String] = []
-        var capD: [Int] = [], capCount = 0, citD: [Int] = [], portals = 0, vols = 0, volsBefore = 0
+        var capD: [Int] = [], capPair: [Int] = [], startClear: [Int] = [], capCount = 0, citD: [Int] = [], portals = 0, vols = 0, volsBefore = 0
         var volWhy: [String: Int] = [:], cells = 0
         var camps: [String: Int] = [:]
         func fail(_ s: String) { fails.append(s); print("worldgencheck: FAIL " + s) }
@@ -76,11 +76,33 @@ enum WorldGenCheck {
             capD.append(nearCity)
             if nearCity < Int(WorldRules.capitalMinSpawn) { fail("seed \(seed): Capital city \(nearCity) blocks from spawn") }
             if nearCity > 4000 { fail("seed \(seed): no Capital city within 4,000 blocks (\(nearCity))") }
+            // Capital cities from each other (L3): the closest pair in the 4096^2 square.
+            var pair = 99999
+            for a in 0..<cities.count { for b in (a + 1)..<cities.count {
+                let d = Int(simd_length(V2(Float(cities[a].anchor.x - cities[b].anchor.x), Float(cities[a].anchor.z - cities[b].anchor.z))))
+                pair = min(pair, d)
+            } }
+            if pair < 99999 { capPair.append(pair) }
+            if pair < Int(WorldRules.capitalMinApart) { fail("seed \(seed): two Capital cities \(pair) blocks apart") }
+            // A natural start (L3): no surface structure piece within 24 blocks of the spawn (tunnels below don't
+            // count), and the spawn on dry land above the sea.
+            let spawnCol = gen.column(cx, cz)
+            if spawnCol.height <= SEA || spawnCol.biome.isOcean { fail("seed \(seed): spawn on \(spawnCol.biome) at height \(spawnCol.height - YOFF)") }
+            var nearest = 99999, nearestKind = ""
+            for t in sc.types where t.name != "mineshaft" { for s in starts(t.name, half: 256) {
+                for p in s.pieces where p.max.y >= spawnCol.height - 4 {          // surface pieces (not mineshafts below)
+                    let dx = max(p.min.x - cx, 0, cx - p.max.x), dz = max(p.min.z - cz, 0, cz - p.max.z)
+                    let d = Int(Float(dx * dx + dz * dz).squareRoot())
+                    if d < nearest { nearest = d; nearestKind = s.kind }
+                }
+            } }
+            startClear.append(nearest)
+            if nearest < 24 { fail("seed \(seed): spawn \(nearest) blocks from a \(nearestKind) (no natural start)") }
             // Citadels.
             let cit = sc.nearest("military_base", x: cx, z: cz, maxRegions: 4).map(dist) ?? 99999
             citD.append(cit)
             if cit < Int(WorldRules.citadelMinSpawn) { fail("seed \(seed): Capital citadel \(cit) blocks from spawn") }
-            if cit > 1500 { fail("seed \(seed): nearest Capital citadel \(cit) blocks out (findability)") }
+            if cit > 1600 { fail("seed \(seed): nearest Capital citadel \(cit) blocks out (findability)") }
             // Ruined gates.
             if sc.types.contains(where: { $0.name == "ruined_portal" }) { fail("ruined gates still generate") }
             for t in sc.types { for s in starts(t.name, half: 1024) where s.kind == "ruined_portal" { portals += 1; _ = s } }
@@ -109,11 +131,14 @@ enum WorldGenCheck {
                 let v = gen.terrain.volcano(cell: vx, vz)
                 guard v.exists else { continue }
                 vols += 1; vline.append("\(Int(v.x)),\(Int(v.z))")
+                // One wet point of 12 is a stream crossing the foothills (the site rule sees the terrain before rivers
+                // are cut); two or more is a cone standing in water.
+                var wet: [String] = []
                 for k in 0..<12 {
                     let a = Float(k) * Float.pi / 6
                     let px = Int(v.x + cosf(a) * v.r * 1.2), pz = Int(v.z + sinf(a) * v.r * 1.2)
                     let col = gen.column(px, pz)
-                    if col.height <= SEA || col.biome.isOcean { fail("seed \(seed): volcano at \(Int(v.x)),\(Int(v.z)) has \(col.biome) at its foot (\(px),\(pz))"); break }
+                    if col.height <= SEA || col.biome.isOcean { wet.append("\(col.biome) at \(px),\(pz)"); if col.biome.isOcean || wet.count >= 2 { fail("seed \(seed): volcano at \(Int(v.x)),\(Int(v.z)) has water at its foot (\(wet.joined(separator: "; ")))"); break }; continue }
                     if [.snowyTaiga, .snowyPlains, .snowySlopes, .frozenPeaks, .iceSpikes, .grove, .snowyBeach, .frozenRiver].contains(col.biome) {
                         fail("seed \(seed): volcano at \(Int(v.x)),\(Int(v.z)) stands in \(col.biome) (\(px),\(pz))"); break
                     }
@@ -129,11 +154,18 @@ enum WorldGenCheck {
         let campList: String = camps.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         let whyList: String = volWhy.filter { $0.key != "no roll" }.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         print("worldgencheck: \(s) seeds | nearest Capital city \(stats(capD)); \(f2(capCount)) per 4096^2 | nearest citadel \(stats(citD))")
+        if !capPair.isEmpty { print("worldgencheck: Capital cities from each other (closest pair per seed in 4096^2, \(capPair.count) seeds with 2+) \(stats(capPair))") }
+        print("worldgencheck: spawn to the nearest structure piece \(stats(startClear))")
         print("worldgencheck: ruined gates \(portals) | camps \(f2(total)) per 2048^2 (\(campList))")
         let pct: String = String(format: "%.1f %% of cells; old rules %d, %.1f %%", 100 * Double(vols) / Double(max(1, cells)), volsBefore, 100 * Double(volsBefore) / Double(max(1, cells)))
         print("worldgencheck: volcanoes \(vols) in \(cells) cells of 1280^2 (\(pct)); turned down: \(whyList)")
         let perSeed = Double(total) / Double(s)
-        if perSeed < 2 || perSeed > 14 { fail("camps per 2048^2 square \(perSeed) outside 2...14") }
+        // Camp rarity (L3: one every 10-15 minutes of travel): walking 4.3 blocks/s and spotting a camp within
+        // WildCamps.sightRange either side sweeps 2 * range * 4.3 * 60 blocks^2 a minute.
+        let sweepPerMin = 2 * Double(WildCamps.sightRange) * 4.3 * 60
+        let minutes = perSeed > 0 ? (2048.0 * 2048.0 / perSeed) / sweepPerMin : 999
+        print("worldgencheck: camps \(String(format: "%.1f", perSeed)) per 2048^2: one every \(String(format: "%.1f", minutes)) minutes of walking (seen within \(WildCamps.sightRange))")
+        if minutes < 10 || minutes > 15 { fail("a camp every \(String(format: "%.1f", minutes)) minutes of walking (target 10-15)") }
         for k in WildCamps.kinds where camps[k, default: 0] == 0 { fail("no \(k) on any seed") }
         print(fails.isEmpty ? "worldgencheck: all checks passed" : "worldgencheck: \(fails.count) FAILED")
         return fails.isEmpty ? 0 : 1

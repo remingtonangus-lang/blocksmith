@@ -12,6 +12,7 @@ import simd
 enum WorldRules {
     static let capitalMinSpawn: Float = 1200
     static let capitalKeep: Float = 0.7
+    static let capitalMinApart: Float = 1200   // L3: no two Capital cities closer (checked over 50 seeds, --worldgencheck)
     static let citadelMinSpawn: Float = 320
     static let margin: Float = 40              // the anchor sits off the site centre; settleSpawn moves the spawn a little
 
@@ -34,6 +35,12 @@ enum WorldRules {
         return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.explored)
     }
 
+    // Ground near (cx, cz) saved before the L3 placement rules (capitals apart, camps' alternate spot and clear spawn).
+    static func savedBeforeL3(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
+        guard let sc = gen.structures else { return false }
+        return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyL3) || explored(gen, cx, cz, reach: reach)
+    }
+
     // May a Capital city stand with its centre at chunk (cx, cz)?
     static func capitalAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
         if explored(gen, cx, cz, reach: 9) { return true }
@@ -43,9 +50,27 @@ enum WorldRules {
         return hashf(rx, 7351, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA91) < capitalKeep
     }
 
+    // L3: no two Capital cities within `capitalMinApart`. Each region has a priority; a city gives way to a city of a
+    // higher-priority neighbouring region that stands too close (regions are 56 chunks: cities two regions apart are
+    // always 1,216+ blocks apart, so the 8 neighbours are enough). Asking a neighbour only ever climbs in priority, so
+    // the lookups end. A city with ground saved before this rule stays (savedBeforeL3).
+    static func capitalPriority(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Float {
+        hashf(rx, 7353, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA92)
+    }
+    static func capitalApart(_ gen: WorldGen, _ s: StructureStart, _ rx: Int, _ rz: Int, _ cx: Int, _ cz: Int) -> Bool {
+        guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "capital_city" }) else { return true }
+        if savedBeforeL3(gen, cx, cz, reach: 9) { return true }
+        let mine = capitalPriority(gen, rx, rz)
+        for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+            guard capitalPriority(gen, rx + dx, rz + dz) > mine, let o = sc.start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+            if simd_length(V2(Float(o.anchor.x - s.anchor.x), Float(o.anchor.z - s.anchor.z))) < capitalMinApart { return false }
+        } }
+        return true
+    }
+
     // May a Capital citadel stand with its centre at chunk (cx, cz)?
     static func citadelAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
         if explored(gen, cx, cz, reach: 5) { return true }
-        return simd_length(V2(Float(cx * CS + 8), Float(cz * CS + 8)) - spawnCentre(gen)) >= citadelMinSpawn + margin
+        return simd_length(V2(Float(cx * CS + 8), Float(cz * CS + 8)) - spawnCentre(gen)) >= citadelMinSpawn + 2 * margin   // the anchor sits up to ~60 off the centre chunk
     }
 }

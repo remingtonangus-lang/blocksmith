@@ -69,6 +69,13 @@ enum TerrainAudio {
         case .iceCreak:
             let groan = g.tone(g.rnd(0.4, 0.9), f0: g.rnd(600, 1100) * p, f1: g.rnd(250, 500) * p, wave: .sine, attack: 0.02, release: 0.2, vib: 0.05, vibRate: 25, gain: 0.3)
             return Synth.mix(groan, g.crackle(0.8, density: 60, f: 3000, q: 5, gain: 1.0))
+        case .volcanoRumble:
+            // An eruption: a deep thud from inside the mountain, a long rolling rumble and the patter of falling rock.
+            var o = g.rumble(5.5, f: 28 * p, attack: 0.04, decay: 2.6, gain: 2.8)
+            o = Synth.mix(o, Synth.decayEnv(g.wash(5.5, lp: 180, hp: 18, wobble: 1.2, rate: 1.5, gain: 1.8), 2.4))
+            o = Synth.mix(o, g.burst(0.6, lp: 300 * p, hp: 20, attack: 0.005, decay: 0.3, gain: 2.0))
+            o = Synth.mix(o, g.crackle(3.0, density: 40, f: 900, q: 2, gain: 0.35), at: g.frames(1.2))
+            return Synth.echo(o, delay: 0.9, feedback: 0.3, mix: 0.3, tail: 1.5)
         default:  // rockfall: tumbling stones down a slope
             var o = g.rumble(1.6, f: 70, attack: 0.05, decay: 0.6, gain: 1.4)
             for k in 0..<14 { o = Synth.mix(o, g.material(.stone, pitch: g.rnd(0.6, 1.1), scale: 0.6, gain: 0.5), at: g.frames(Float(k) * 0.09 * g.rnd(0.6, 1.4))) }

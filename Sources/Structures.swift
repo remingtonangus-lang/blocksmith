@@ -185,6 +185,9 @@ final class StructureCache {
     // And when frontier towns got three street plans, a bank, street lamps and welcome signs (2026-10-11, the towns
     // gap pass): a town with ground saved before that keeps the crossroads plan and its old lots.
     var legacyTownsGap: Set<Int64> = []
+    // And when L3 kept Capital cities apart and gave camps an alternate spot and a clear spawn (2026-10-11,
+    // WorldRules.capitalApart, WildCamps): ground saved before that keeps its cities and camps as they were.
+    var legacyL3: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }

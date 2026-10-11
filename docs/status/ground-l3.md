@@ -54,5 +54,5 @@ ores before and after), sway_and_lawn.png (two meadow frames 0.7 s apart and the
 - Part 2: VR melee and bow polish. Swing-mode first-use tutorial, blade trail, hit-stop, haptics by material,
   friendly-fire guard, enemy wind-up telegraphs, parry, reclined aim-assist and seated height calibration. Bow:
   nock, creak, string vibration, left-handed support, crossbow on the same hand logic.
-- Part 3: perf overlay (fps, frame ms, render distance, chunk jobs) in settings, plus worldgen checks (capitals'
+- Part 3 (docs/status/l3-part3.md): perf overlay (fps, frame ms, render distance, chunk jobs) in settings, plus worldgen checks (capitals'
   distance from spawn and from each other over 50 seeds, rare small volcano eruptions, camp rarity).

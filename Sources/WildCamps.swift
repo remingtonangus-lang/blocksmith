@@ -27,6 +27,8 @@ enum WildCamps {
     static let outlawLand: Set<Biome> = [.forest, .darkForest, .taiga, .oldGrowthSpruceTaiga, .savanna, .windsweptSavanna,
                                          .badlands, .woodedBadlands, .plains, .birchForest]
     static let outlawMinSpawn: Float = 400
+    // How far off a camp is noticed (its campfire smoke and tent over the land): sets the rarity check's sweep.
+    static let sightRange = 96
 
     // Loot tables (Loot.fill falls back to these).
     static let loot: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
@@ -51,9 +53,29 @@ enum WildCamps {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx, cz in
+        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
+            var roll = SRng(seed)
+            guard roll.chance(chance) else { return nil }
+            if let s = site(gen, seed, cx0, cz0) { return s }
+            // L3 rarity (a camp every 10-15 minutes of walking; docs/status/l3-part3.md): when the region's spot
+            // won't take a camp, one more spot in its placement square, unless ground there was saved before this rule
+            // (its camp, or none, stays as it was).
+            if WorldRules.savedBeforeL3(gen, cx0, cz0, reach: 2) { return nil }
+            let rx = floorDiv(cx0, spacing), rz = floorDiv(cz0, spacing), s32 = UInt32(truncatingIfNeeded: seed)
+            for k in 1...1 {
+                let cx = rx * spacing + Int(hashf(rx, rz, 7500 + k, s32) * Float(spacing - separation - 1))
+                let cz = rz * spacing + Int(hashf(rx, rz, 7600 + k, s32) * Float(spacing - separation - 1))
+                if WorldRules.savedBeforeL3(gen, cx, cz, reach: 2) { continue }
+                if let s = site(gen, seed &+ UInt64(k) &* 0x9E3779B97F4A7C15, cx, cz) { return s }
+            }
+            return nil
+        }
+    }
+
+    // A camp at chunk (cx, cz), or nil where the ground or the neighbours won't have one.
+    static func site(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {
             var rng = SRng(seed)
-            guard rng.chance(chance) else { return nil }
+            _ = rng.chance(chance)                           // the region's roll (keeps the old camps' kinds and layouts)
             let x = cx * CS + 8, z = cz * CS + 8
             let col = gen.column(x, z)
             guard col.height > SEA + 1 else { return nil }
@@ -62,6 +84,7 @@ enum WildCamps {
             // Variant by country (the abandoned camp can be any of them).
             let bio = col.biome
             let spawnD = simd_length(V2(Float(x), Float(z)) - WorldRules.spawnCentre(gen))
+            guard spawnD > 64 || WorldRules.savedBeforeL3(gen, cx, cz, reach: 2) else { return nil }   // not on the spawn (a natural start)
             var options: [String] = []
             // Weights: the camp of the country 3, abandoned 1, outlaws 1.
             if woods.contains(bio) { options += Array(repeating: "camp_hunters", count: 3) }
@@ -93,7 +116,6 @@ enum WildCamps {
             return StructureStart(kind: kind, pieces: [Piece(min: IVec3(x - r - 1, y - 6, z - r - 1), max: IVec3(x + r + 1, y + 9, z + r + 1)) { w in
                 build(&w, kind, x, y, z, rot, s)
             }], anchor: IVec3(x, y + 1, z))
-        }
     }
 
     // MARK: Building

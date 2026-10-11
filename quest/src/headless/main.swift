@@ -14,6 +14,8 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
+// --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
+if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
 if let secs = Double(arg("--xr") ?? "") {
     let tmpXR = FileManager.default.temporaryDirectory.appendingPathComponent("questxr-\(getpid())")
@@ -74,6 +76,12 @@ if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
+// L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
+PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
+// L3 volcano eruptions (Sources/EruptionTests.swift): rarity, bursts near and far, the boom, the sound.
+EruptionTests.run(game, check: check)
+// L3 placement rules keep old saves (Sources/L3GuardTests.swift).
+L3GuardTests.run(game, check: check)
 if CommandLine.arguments.contains("--workshop-only") {
     print(failures == 0 ? "workshop: all checks passed" : "workshop: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
@@ -187,6 +195,27 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 let lp = path.replacingOccurrences(of: ".png", with: "_landmark.png")
                 try RenderTest.render(game: game, ctx: ctx, path: lp, yaw: atan2f(dir.x, dir.y), pitch: 0.05)
                 check(RenderTest.landmarkVerts > 0, "volcano impostor 700 blocks away drawn (\(RenderTest.landmarkVerts) vertices)")
+                // The same view erupting (Sources/Eruptions.swift): the impostor throws glowing bombs and its plume swells.
+                let calm = RenderTest.landmarkVerts
+                let was = game.eruption
+                game.eruption = Eruption(v: v, start: game.clock - 8, length: 25, nextBurst: game.clock + 100)
+                try RenderTest.render(game: game, ctx: ctx, path: lp.replacingOccurrences(of: "_landmark", with: "_landmark_erupting"), yaw: atan2f(dir.x, dir.y), pitch: 0.05)
+                game.eruption = was
+                let erupting = RenderTest.landmarkVerts
+                // Calm again (the first view may have drawn before the horizon ring was ready): the bombs are the difference.
+                try RenderTest.render(game: game, ctx: ctx, path: lp.replacingOccurrences(of: "_landmark", with: "_landmark_calm"), yaw: atan2f(dir.x, dir.y), pitch: 0.05)
+                check(erupting >= RenderTest.landmarkVerts + 18 * 6, "volcano impostor erupting: bombs drawn (\(calm), calm \(RenderTest.landmarkVerts) -> erupting \(erupting) vertices)")
+                // The plume shows: the same calm view without the smoke differs (the sky once painted over it).
+                let withSmoke = RenderTest.lastRGBA
+                WorldRenderer.debugSkip.insert("smoke")
+                try RenderTest.render(game: game, ctx: ctx, path: lp.replacingOccurrences(of: "_landmark", with: "_landmark_nosmoke"), yaw: atan2f(dir.x, dir.y), pitch: 0.05)
+                WorldRenderer.debugSkip.remove("smoke")
+                var plumePx = 0
+                for i in stride(from: 0, to: min(withSmoke.count, RenderTest.lastRGBA.count), by: 4) {
+                    let d = abs(Int(withSmoke[i]) - Int(RenderTest.lastRGBA[i])) + abs(Int(withSmoke[i + 1]) - Int(RenderTest.lastRGBA[i + 1])) + abs(Int(withSmoke[i + 2]) - Int(RenderTest.lastRGBA[i + 2]))
+                    if d > 12 { plumePx += 1 }
+                }
+                check(plumePx > 300, "volcano plume drawn over the sky on the Quest renderer (\(plumePx) px differ without it)")
                 game.player.pos = saved
             } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
         }

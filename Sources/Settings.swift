@@ -47,6 +47,7 @@ final class Settings {
     @Pref("padLookCurve2") var lookCurve = 0         // right stick response: 0 default (power), 1 linear, 2 precise
 
     // Video
+    @Pref("perfOverlay") var perfOverlay = false     // frame rate, frame times, render distance, chunk jobs in the HUD corner (PerfOverlay)
     @Pref("launchFullscreen") var launchFullscreen = true
     @Pref("vsync") var vsync = true
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
@@ -87,7 +88,7 @@ final class Settings {
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
         safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
-        subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
+        subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
