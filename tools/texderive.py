@@ -35,7 +35,7 @@ RELATIVES = [('crimson_planks', 'oak_planks'), ('warped_planks', 'oak_planks'), 
              ('crimson_nylium', 'mycelium_top'), ('warped_nylium', 'mycelium_top'), ('pale_moss_block', 'moss_block'),
              ('sandstone_bottom', 'sandstone_top'),
              # final fill (2026-10-10): remaining same-material blocks from the imported set
-             ('weathered_copper', 'copper_block'), ('oxidized_copper', 'copper_block'), ('mushroom_block_inside', 'mushroom_stem'),
+             ('exposed_copper', 'copper_block'), ('weathered_copper', 'copper_block'), ('oxidized_copper', 'copper_block'), ('mushroom_block_inside', 'mushroom_stem'),
              ('resin_bricks', 'stone_bricks'),
              ('chiseled_resin_bricks', 'chiseled_stone_bricks'), ('chiseled_tuff_bricks', 'chiseled_stone_bricks'),
              ('reinforced_deepslate', 'polished_deepslate'), ('slime_block', 'honey_block'), ('resin_block', 'honey_block'),
@@ -77,6 +77,10 @@ def families(names, have):
             out.append((f'{st}_{form}', form))
     for c in COLOURS:
         out.append((f'{c}_stained_glass', 'glass'))
+        out.append((f'{c}_candle', 'candle'))
+        out += [(f'{c}_shulker_box_{f}', f'shulker_box_{f}') for f in ('side', 'top')]
+        if c != 'red':   # red is the painted bed
+            out += [(f'{c}_bed_{f}', f'red_bed_{f}') for f in ('side', 'top_foot', 'top_head')]
     for n in names:
         m = re.match(r'stripped_(\w+)_log_top$', n)
         if m:
@@ -118,6 +122,16 @@ def recolour(base_path, mean):
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8))
 
 
+def recolour_dyed(base_path, mean):
+    """Beds: only the red-dyed cloth takes the new colour; pillow and wooden frame keep the painted base."""
+    b = np.asarray(Image.open(base_path).convert('RGBA'), dtype=np.float32) / 255
+    r, g, bl = b[..., 0], b[..., 1], b[..., 2]
+    m = np.clip(((r - np.maximum(g, bl)) - 0.12) * 5, 0, 1)[..., None]
+    rc = np.asarray(recolour(base_path, mean), dtype=np.float32) / 255
+    out = b * (1 - m) + rc * m
+    return Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--bin', default=os.path.join(ROOT, 'build/Blocksmith.app/Contents/MacOS/Blocksmith'))
@@ -138,7 +152,12 @@ def main():
             Image.open(os.path.join(a.out, n[:-2] + '.png')).rotate(-90).save(os.path.join(a.out, n + '.png'))
             derived.add(n)
     pairs = families(names, have)
-    means = procedural_means(a.bin, [t for t, _ in pairs])
+    bed = lambda t: re.match(r'(\w+?)_bed_', t)
+    wool = {t: bed(t).group(1) + '_wool' for t, _ in pairs if bed(t)}   # cloth colour, not the wood/pillow mix
+    means = procedural_means(a.bin, [wool.get(t, t) for t, _ in pairs])
+    for t, w in wool.items():
+        if w in means:
+            means[t] = means[w]
     for t, _ in pairs:   # stripped log ends take the imported stripped side's colour, so end and side match
         side = t[:-4]
         if t.endswith('_log_top') and side in have:
@@ -150,7 +169,7 @@ def main():
             if t in GRADE:
                 g = lum(m)
                 m = g + (m - g) * GRADE[t]
-            recolour(os.path.join(a.out, b + '.png'), m).save(os.path.join(a.out, t + '.png'))
+            (recolour_dyed if t in wool else recolour)(os.path.join(a.out, b + '.png'), m).save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     tiles = [(t, os.path.join(ROOT, 'assets/gemini/tiles', b + '.png')) for t, b in TILES if t in names and t not in have]
     tmeans = procedural_means(a.bin, [t for t, _ in tiles if t not in KEEP_COLOUR])

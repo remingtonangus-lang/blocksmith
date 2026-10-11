@@ -150,7 +150,7 @@ enum Potions {
                 d.maxStack = fi == 3 ? 64 : 1
                 d.drink = fi == 0
                 d.texKey = fi == 3 ? "item_tipped_arrow" : (fi == 0 ? "item_potion_bottle" : (fi == 1 ? "item_splash_bottle" : "item_lingering_bottle"))
-                d.overlay = fi == 3 ? "item_tipped_arrow_head" : "item_potion_liquid"
+                d.overlay = fi == 3 ? "item_tipped_arrow_head" : ["item_potion_liquid", "item_splash_liquid", "item_lingering_liquid"][fi]
                 d.overlayColor = t.color
                 let id = reg.add(d)
                 info[id] = (fi, ti)
@@ -169,6 +169,9 @@ enum Potions {
         }
         let liquidRows = shapes["bottle"] ?? []
         p["item_potion_liquid"] = ItemTextures.autoPainter(liquidRows, base: 0xFFFFFF, extras: ["c": 0xFFFFFF], only: "c")
+        // Each bottle has its own liquid layer so painted art can give splash/lingering bottles their own shape.
+        p["item_splash_liquid"] = p["item_potion_liquid"]
+        p["item_lingering_liquid"] = p["item_potion_liquid"]
         let arrowRows = shapes["arrow"] ?? []
         p["item_tipped_arrow"] = ItemTextures.autoPainter(arrowRows, base: 0x9A9A9A, extras: [:])
         p["item_tipped_arrow_head"] = ItemTextures.autoPainter(arrowRows, base: 0xFFFFFF, extras: ["z": 0xF4F4F4], only: "z")

@@ -555,5 +555,35 @@
     "-"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i20_hunting.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "bear_pelt_good",
+    "fox_pelt_good",
+    "goat_pelt_good",
+    "rabbit_pelt_good"
+   ],
+   [
+    "wolf_pelt_good",
+    "fur_helmet",
+    "fur_chestplate",
+    "fur_leggings"
+   ],
+   [
+    "fur_boots",
+    "hunters_satchel",
+    "legend_satchel",
+    "hunters_map"
+   ],
+   [
+    "game_meat",
+    "cooked_game_meat",
+    "bear_claw",
+    "wolf_fang"
+   ]
+  ]
  }
 ]

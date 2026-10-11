@@ -1,0 +1,131 @@
+[
+ {
+  "sheet": "assets/gemini/sheets/s23_doors.jpg",
+  "cols": 4,
+  "rows": 2,
+  "inset": 0.006,
+  "mode": "door",
+  "tiles": [
+   [
+    "oak_door",
+    "spruce_door",
+    "birch_door",
+    "jungle_door"
+   ],
+   [
+    "acacia_door",
+    "dark_oak_door",
+    "mangrove_door",
+    "cherry_door"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s24_doors2.jpg",
+  "cols": 4,
+  "rows": 2,
+  "inset": 0.006,
+  "mode": "door",
+  "tiles": [
+   [
+    "crimson_door",
+    "warped_door",
+    "pale_oak_door",
+    "iron_door"
+   ],
+   [
+    "copper_door",
+    "exposed_copper_door",
+    "weathered_copper_door",
+    "oxidized_copper_door"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s26_trapdoors.jpg",
+  "cols": 4,
+  "rows": 4,
+  "inset": 0.006,
+  "mode": "square",
+  "tiles": [
+   [
+    "oak_trapdoor",
+    "spruce_trapdoor",
+    "birch_trapdoor",
+    "jungle_trapdoor"
+   ],
+   [
+    "acacia_trapdoor",
+    "dark_oak_trapdoor",
+    "mangrove_trapdoor",
+    "cherry_trapdoor"
+   ],
+   [
+    "crimson_trapdoor",
+    "warped_trapdoor",
+    "pale_oak_trapdoor",
+    "iron_trapdoor"
+   ],
+   [
+    "copper_trapdoor",
+    "exposed_copper_trapdoor",
+    "weathered_copper_trapdoor",
+    "oxidized_copper_trapdoor"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s27_cutouts.jpg",
+  "cols": 4,
+  "rows": 4,
+  "inset": 0.0,
+  "mode": "square",
+  "tiles": [
+   [
+    "glass",
+    "iron_bars",
+    "copper_bars",
+    "cobweb"
+   ],
+   [
+    "rail",
+    "rail_corner",
+    "powered_rail",
+    "powered_rail_on"
+   ],
+   [
+    "detector_rail",
+    "detector_rail_on",
+    "activator_rail",
+    "activator_rail_on"
+   ],
+   [
+    "vine:tint",
+    "lily_pad:tint",
+    "glow_lichen",
+    "scaffolding_top"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/plants/p03_tall.jpg",
+  "cols": 4,
+  "rows": 2,
+  "inset": 0.004,
+  "mode": "plant",
+  "tiles": [
+   [
+    "tall_grass:tint",
+    "large_fern:tint",
+    "sunflower",
+    "lilac"
+   ],
+   [
+    "rose_bush",
+    "peony",
+    "pitcher_plant:1",
+    "tall_dry_grass:1"
+   ]
+  ]
+ }
+]
