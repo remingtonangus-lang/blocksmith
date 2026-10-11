@@ -229,6 +229,9 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             game.time = 0.27 * DAY_LENGTH
             game.player.pos = V3(967.5, Float(world.gen.column(967, 1810).height) + 6, 1810.5)
             _ = world.loadSync(center: game.player.pos, radius: 4)
+            // Above the tallest block there (heightmap with the trees), as the Mac snapshot: the terrain height alone
+            // put the first renders inside a swamp oak's crown.
+            game.player.pos.y = Float(max(world.gen.column(967, 1810).height, world.topY(967, 1810))) + 6
             try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_lily_pond.png"), yaw: 0, pitch: -0.61)
             (game.player.pos, game.player.flying, game.time) = saved
         }

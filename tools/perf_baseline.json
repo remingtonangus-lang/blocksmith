@@ -1,0 +1,44 @@
+{
+ "ci": {
+  "flyover": {
+   "quads": 366948
+  },
+  "taiga": {
+   "quads": 447130
+  }
+ },
+ "local": {
+  "ashvault": {
+   "frame_ms_p99": 8.71,
+   "quads": 19464
+  },
+  "capital": {
+   "frame_ms_p99": 11.88,
+   "quads": 165810
+  },
+  "cave": {
+   "frame_ms_p99": 6.27,
+   "quads": 24316
+  },
+  "flyover": {
+   "frame_ms_p99": 15.66,
+   "quads": 318380
+  },
+  "forest": {
+   "frame_ms_p99": 11.01,
+   "quads": 157501
+  },
+  "plains": {
+   "frame_ms_p99": 9.67,
+   "quads": 104963
+  },
+  "taiga": {
+   "frame_ms_p99": 15.88,
+   "quads": 433306
+  },
+  "village": {
+   "frame_ms_p99": 9.44,
+   "quads": 100198
+  }
+ }
+}

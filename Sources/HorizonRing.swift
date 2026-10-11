@@ -78,15 +78,18 @@ final class HorizonRing {
                 let wet = col.biome.isOcean || col.biome.isRiver
                 let vol = gen.columnData(x0 + i * s, z0 + j * s).vol
                 let vw = vol > 0.05 ? min(1, vol * 3) : 0
-                // A volcano's cells sit 10 blocks under the cone: where its impostor is drawn (LandmarkRender) the
+                // A volcano's cells sit up to 30 blocks under the cone and its apron: where its impostor is drawn (LandmarkRender) the
                 // impostor's faces win the depth test instead of z-fighting the coarse ring (the pale, spotted far cone of
                 // the Oct 10 playtest, volcano_far_135623); where it isn't, they still fill in the far side of the cone.
-                out.h.append(Float(wet ? max(col.height, SEA) : col.height) - 10 * vw)
+                out.h.append(Float(wet ? max(col.height, SEA) : col.height) - 30 * vw)
                 out.v.append(vw)
                 let rgb = MapCache.shade(col.biome, height: col.height)
                 var c = V3(Float((rgb >> 16) & 255), Float((rgb >> 8) & 255), Float(rgb & 255)) / 255
                 // Volcano flanks in their dark rock (the map's peak white turned the far cone into a snowy mountain).
-                if vw > 0 { c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: vw)) }
+                // Only where the cone stands (vw past 0.5): the foothill cells round it keep their ground colour, so the
+                // impostor's apron (LandmarkRender) fades into country, not into dark streaks (25b6 audit, far blend).
+                let rw = max(0, vw * 2 - 1)
+                if rw > 0 { c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: rw)) }
                 out.c.append(c)
             }
         }
@@ -97,6 +100,18 @@ final class HorizonRing {
 struct HorizonKey: Equatable { var seed: UInt64 = 0, x0 = Int.min, z0 = 0, n = 0 }
 
 extension Renderer {
+    // The ring ground's lit, unhazed colour under a world point (nil outside the current snapshot), lit as buildHorizon
+    // lights it: landmark impostors blend their foot into it so a cone stands in the horizon ground.
+    func horizonGround(_ x: Float, _ z: Float, sun: V3, day: Float, hdrK: Float) -> V3? {
+        let n = horizonKey.n, sp = Float(HorizonRing.spacing)
+        guard n > 1, horizonBase.count == n * n, horizonNrm.count == n * n else { return nil }
+        let i = Int(((x - Float(horizonKey.x0)) / sp).rounded(.down)), j = Int(((z - Float(horizonKey.z0)) / sp).rounded(.down))
+        guard i >= 0, j >= 0, i < n - 1, j < n - 1 else { return nil }
+        let k = i + j * n
+        let lit: Float = (0.45 + 0.55 * max(0, simd_dot(horizonNrm[k], sun))) * (0.3 + 0.7 * day) * hdrK
+        return horizonBase[k] * lit
+    }
+
     // Appends the ring's triangles (projected by `project`, the impostor shell), hazed toward the fog: distant ground
     // reads as silhouettes in the haze, a little clearer for high ground lit by the sun.
     func buildHorizon(_ out: inout [SimpleVert], game: Game, eye: V3, loaded: Float, fog: V3, sun: V3, day: Float,

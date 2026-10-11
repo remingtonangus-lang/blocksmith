@@ -81,29 +81,45 @@ extension Renderer {
                 return v.base + v.peak * powf((1 - t) / (1 - tc), 1.55)
             }
             let seg = 28
-            let rings: [Float] = [1.05, 0.85, 0.66, 0.5, 0.38, 0.28, v.crater / v.r]
+            // Out to 1.35 radii: the foot and an apron flare into the horizon ground, taking on its colour and its
+            // heavier haze (at ~650 blocks a fog-coloured foot ring read as a pale band with a hard outline, 25b6 audit).
+            let rings: [Float] = [1.35, 1.05, 0.85, 0.66, 0.5, 0.38, 0.28, v.crater / v.r]
             let rock = V3(0.2, 0.19, 0.19), foot = V3(0.3, 0.34, 0.26)
+            let groundHaze: Float = 0.8 + 0.17 * Terrain.smooth(loaded, HorizonRing.range, dist)
             func ringPoint(_ t: Float, _ i: Int) -> V3 {
                 let a = Float(i) / Float(seg) * 2 * .pi
                 let rr = t * v.r
-                let hgt = t > 1 ? v.base - 6 : height(t)
+                let hgt = t > 1 ? v.base - 6 - 8 * (t - 1) : height(t)
                 return V3(v.x + cosf(a) * rr, Float(YOFF) + hgt, v.z + sinf(a) * rr)
+            }
+            // Vertex colour: cone rock up high, the ring ground's own colour and haze at the apron's edge.
+            func vcol(_ t: Float, _ w: V3, _ up: V3) -> V4 {
+                let rk: V3 = shade(t > 0.9 ? foot : rock * (t < 0.3 ? 0.85 : 1), up)
+                let f = Terrain.smooth(0.7, 1.3, t)
+                guard f > 0 else { return V4(rk, 1) }
+                // Ground sampled past the volcano's own ring cells (those are dark rock, sunk under the cone): the
+                // apron's edge takes the colour of the country round it.
+                let o = V2(w.x - v.x, w.z - v.z), ol = max(simd_length(o), 1)
+                let gx = v.x + o.x / ol * v.r * 1.75, gz = v.z + o.y / ol * v.r * 1.75
+                let g = horizonGround(gx, gz, sun: sun, day: day, hdrK: hdrK) ?? foot * (0.3 + 0.7 * day) * hdrK
+                let gh: V3 = g * (1 - groundHaze) + fog * groundHaze
+                return V4(rk * (1 - f) + gh * f, 1)
             }
             for ri in 0..<(rings.count - 1) {
                 let t0 = rings[ri], t1 = rings[ri + 1]
-                let col = t0 > 0.9 ? foot : rock * (t1 < 0.3 ? 0.85 : 1)
                 for i in 0..<seg {
                     let a0 = ringPoint(t0, i), b0 = ringPoint(t0, i + 1)
                     let a1 = ringPoint(t1, i), b1 = ringPoint(t1, i + 1)
                     let n = simd_normalize(simd_cross(b0 - a0, a1 - a0) + V3(0, 1e-4, 0))
                     let up = n.y < 0 ? -n : n
-                    // The foot fades into the fog, with a skirt hanging out of sight: alone past the loaded terrain the
-                    // outer ring floated as a pale disc (volcano_horizon, run 482).
-                    let cc = ri == 0 ? V4(fog, 1) : V4(shade(col, up), 1)
-                    tri(p(a0), p(b0), p(a1), cc, &out); tri(p(b0), p(b1), p(a1), cc, &out)
+                    let ca0 = vcol(t0, a0, up), cb0 = vcol(t0, b0, up), ca1 = vcol(t1, a1, up), cb1 = vcol(t1, b1, up)
+                    out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(a1), color: ca1))
+                    out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(b1), color: cb1)); out.append(SimpleVert(pos: p(a1), color: ca1))
                     if ri == 0 {
+                        // A skirt hanging out of sight under the apron edge, in the ground's colour.
                         let a2 = a0 - V3(0, 60, 0), b2 = b0 - V3(0, 60, 0)
-                        tri(p(a0), p(b0), p(b2), cc, &out); tri(p(a0), p(b2), p(a2), cc, &out)
+                        out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(b2), color: cb0))
+                        out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b2), color: cb0)); out.append(SimpleVert(pos: p(a2), color: ca0))
                     }
                 }
             }
