@@ -121,7 +121,7 @@ partial. Three PRs close it. Expanded objectives, written before building:
   | Biggest battle (citadel north gate, Total War) | Debug questcheck | Optimized (-O) build |
   |---|---|---|
   | Ashguard units fighting | 115 | 123 |
-  | Game.tick avg / p95 / worst over 30 s at 72 Hz | 6.99 / 11.95 / 27.6 ms | 1.95 / 3.56 / 6.14 ms |
+  | Game.tick avg / p95 over 30 s at 72 Hz (check: debug avg < 10, p95 < 16) | 7.0-8.5 / 12-14 ms over runs | 1.95 / 3.56 ms (worst 6.14) |
   | Draw, render distance 10, fog budget on: sections, quads, units in reach | 112, 24,090, 175 | same |
   | Same view without the fog budget | 133, 26,821, 188 | same |
   | Mob vertices per frame (budget: a third of the 12 MB vertex scratch) | 56,214 (2.6 of 4.0 MB) | 57,180 |

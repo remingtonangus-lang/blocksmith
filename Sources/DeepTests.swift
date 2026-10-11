@@ -93,7 +93,14 @@ enum DeepTests {
         let marshal = unit("ash_marshal^180", dz: 14)
         marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks
         var marked = false
-        sim(15) { if !g.ashStrikes.isEmpty { marked = true }; return marked }
+        // Held 14 blocks off (he charges; a barrage needs him to see you from beyond 5 blocks, and a run where he closed
+        // before his first look made the check flaky).
+        let m0 = marshal.pos
+        sim(15) {
+            marshal.pos.x = m0.x; marshal.pos.z = m0.z; marshal.vel.x = 0; marshal.vel.z = 0
+            if !g.ashStrikes.isEmpty { marked = true }
+            return marked
+        }
         marshal.health = marshal.spec.health / 2
         // Still on the player (a shell from the barrage that downed the test player calms every mob).
         marshal.aggro = true; marshal.soldierBrain.lastSeen = g.player.eye; marshal.soldierBrain.seenAgo = 0; marshal.lockTime = 5
