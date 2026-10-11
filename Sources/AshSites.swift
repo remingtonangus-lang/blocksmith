@@ -614,8 +614,13 @@ extension AshWar {
             box(-6, y0 + 1, 1, -5, y0 + 2, 3, k.bags); box(5, y0 + 1, 1, 6, y0 + 2, 3, k.bags)
             banner(2, -4, top: y0 + 4, len: 3); banner(-2, -4, top: y0 + 4, len: 3)
             chest(3, -2, "ash_supply")
-            soldier("ironclad", 0, 1); soldier("recruit", -2, 0)
-            if rng.chance(0.5) { soldier("trooper", 2, -1) }
+            // The Last Line's eight sit inside the citadel's battle (its garrisons count against that budget,
+            // AshVaultGapTests' biggest battle): the MG crew alone there.
+            soldier("ironclad", 0, 1)
+            if s.x * s.x + s.z * s.z > 200 * 200 {
+                soldier("recruit", -2, 0)
+                if rng.chance(0.5) { soldier("trooper", 2, -1) }
+            }
         case "checkpoint", "lastgate":
             // A road through a line: a red-and-white barrier, a guard hut, an MG nest, a flag; the Last Line's gates
             // also hold a tank dug in behind an earth berm.
@@ -625,8 +630,8 @@ extension AshWar {
             for u in -3...3 { put(u, y0 + 5, 4, u % 2 == 0 ? k.redWool : k.whiteWool) }
             building(last ? -7 : -9, -4, last ? -5 : -6, 2, h: 4, wall: k.concrete, roof: k.plating)
             sandbagRing(last ? 5 : 6, 3, 1)
-            soldier("ironclad", Float(last ? 5 : 6), 3)
-            soldier("officer", -2, 1); soldier("trooper", 2, 2); soldier("recruit", -3, 6)
+            if !last { soldier("ironclad", 6, 3) }                              // (the Last Line's gates: the tank alone, inside the citadel battle's budget)
+            if !last { soldier("officer", -2, 1); soldier("trooper", 2, 2); soldier("recruit", -3, 6) }
             if last {
                 // beside the road (it stays open), its gun over the berm
                 box(3, y0 + 1, -1, 9, y0 + 2, -1, k.black)                        // the berm

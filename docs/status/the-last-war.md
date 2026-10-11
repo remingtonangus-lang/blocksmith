@@ -170,3 +170,11 @@ Listed in the backlog:
 - The Ashsaw's cooling slots were trimmed so every upgraded gun fits the first-person arm buffer (checked).
 - Tests: the battle check now closes the death screen a downed test player opened (it broke the VR checks after it),
   and the last-wave timing check measures both the units' thinking and the whole tick against a baseline.
+
+## Rebased onto the Ash Vault army (D2, #47), 2026-10-11
+- Marked barrages now ride D2's AshStrike queue (whistle, credit to the shooter); B7's own strike tick is gone.
+- The Last Line sits inside the citadel's biggest battle: its bunkers hold one MG gunner each and its gates the dug-in
+  tank only (the Ember Line, far out, keeps full garrisons). Tanks and half-tracks drop small parts past 34 blocks while
+  drawing (wheels, links, grilles, dischargers). Numbers and the remaining perf gap: docs/status/known-test-issues.md.
+- The pose oracle runs at the end of questcheck too (`--posecheck-only` for just it); seated soldiers need a head top
+  above 27 px (a seat drops the hips ~3.5 px).

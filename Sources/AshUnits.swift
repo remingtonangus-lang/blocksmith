@@ -192,7 +192,7 @@ extension Mob {
         b.ashTimer -= dt
         if b.sees && b.ashTimer <= 0 && dist > 5 {
             b.ashTimer = g.difficulty >= 3 ? 9 : 12
-            g.ashMarkBarrage("The Ash Marshal marks your position: move!")
+            g.ashMarkBarrage("The Ash Marshal marks your position: move!", from: self, by: spec.name)
         }
         return sp
     }
@@ -473,6 +473,10 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
     let pitch = b?.pitch ?? 0
     let kick = (b?.kick ?? 0) * 5
     var p: [Part] = []
+    // Level of detail while the mob pass draws (SoldierRig.eye, the soldiers' mid distance): past 34 blocks the small
+    // parts (wheels, links, grilles, dischargers) go; the hull, turret, gun and markings stay. The citadel battle's
+    // vehicles stay inside the mob vertex budget (questcheck's "ash vault draw").
+    let fine: Bool = { guard SoldierRig.drawing, let e = SoldierRig.eye else { return true }; return simd_length_squared(m.pos - e) < 34 * 34 }()
     func turned(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, pivot: V3, gun: Bool = false, pat: Float = 7) {
         var q = box(x, y, z, w, h, d, c, pat)
         q.pivot = pivot
@@ -497,7 +501,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         for s: Float in [-1, 1] {
             let xo: Float = s < 0 ? -27 : 17
             p.append(box(xo, 0, -42, 10, 13, 84, dark, 4))                                    // track
-            for k in 0..<8 {                                                                   // interleaved road wheels
+            for k in 0..<8 where fine {                                                        // interleaved road wheels
                 let outer = k % 2 == 0
                 let x: Float = s < 0 ? (outer ? -28.0 : -27.5) : (outer ? 27.0 : 26.9)
                 p.append(box(x, 1.5, Float(k) * 9.5 - 40, outer ? 1.0 : 0.6, 11, 11, steel * (outer ? 1 : 0.8), 8))
@@ -510,31 +514,38 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-17, 6, -42, 34, 12, 84, black, 7))                                       // lower hull
         p.append(box(-28, 18, -36, 56, 10, 74, plate, 7))                                      // superstructure over the tracks
         p.append(box(-28, 10, -44, 56, 18, 8, plate, 7))                                       // near-vertical front plate
-        p.append(box(-24, 12, -44.8, 48, 5, 0.8, dark, 4))                                     // spare track links
-        for k in 0..<8 { p.append(box(-23 + Float(k) * 6, 12, -45.2, 0.6, 5, 0.4, steel)) }
-        p.append(box(-21, 22, -44.6, 9, 2, 0.6, V3(0.03, 0.03, 0.03)))                         // driver's visor
-        p.append(box(8, 20.5, -44.8, 5, 5, 1, steel, 8))                                       // hull MG ball
-        p.append(box(9.8, 22.3, -48.6, 1.4, 1.4, 4, dark, 8))
+        if fine {
+            p.append(box(-24, 12, -44.8, 48, 5, 0.8, dark, 4))                                 // spare track links
+            for k in 0..<8 { p.append(box(-23 + Float(k) * 6, 12, -45.2, 0.6, 5, 0.4, steel)) }
+            p.append(box(-21, 22, -44.6, 9, 2, 0.6, V3(0.03, 0.03, 0.03)))                     // driver's visor
+            p.append(box(8, 20.5, -44.8, 5, 5, 1, steel, 8))                                   // hull MG ball
+            p.append(box(9.8, 22.3, -48.6, 1.4, 1.4, 4, dark, 8))
+            for x: Float in [-16, -6, 4] { p.append(box(x, 28, 22, 8, 0.6, 12, dark)) }       // engine deck grilles
+        }
         p.append(box(-28.4, 25, -30, 56.8, 2, 20, red))                                        // red band on both flanks
-        for x: Float in [-16, -6, 4] { p.append(box(x, 28, 22, 8, 0.6, 12, dark)) }           // engine deck grilles
         for x: Float in [-15, 11] {                                                            // exhaust stacks with guards
-            p.append(box(x, 14, 38, 4, 13, 4, steel, 8)); p.append(box(x + 0.5, 27, 38.5, 3, 0.6, 3, V3(0.02, 0.02, 0.02)))
+            p.append(box(x, 14, 38, 4, 13, 4, steel, 8))
+            if fine { p.append(box(x + 0.5, 27, 38.5, 3, 0.6, 3, V3(0.02, 0.02, 0.02))) }
         }
         let pv = V3(0, 33.5, -2)
         turned(-19, 28, -20, 38, 14, 34, black, pivot: pv)                                     // boxy turret
         turned(-18, 42, -18, 36, 0.8, 30, plate, pivot: pv)                                    // roof
         turned(-15, 30, 14, 30, 9, 8, plate, pivot: pv)                                        // stowage bin
         turned(-19.4, 37, -14, 38.8, 2, 20, red, pivot: pv, pat: 0)                            // turret band
-        turnedMark(-19.4, 30, -6, side: -1, size: 6, pivot: pv); turnedMark(19.4, 30, -6, side: 1, size: 6, pivot: pv)
         turned(-14, 42.8, 2, 9, 4, 9, plate, pivot: pv)                                        // commander's cupola
-        turned(-13, 46.8, 3, 7, 0.8, 7, dark, pivot: pv)
-        for s: Float in [-1, 1] { turned(s < 0 ? -21 : 19, 36, -16, 2, 2, 2.5, steel, pivot: pv, pat: 8) }   // smoke dischargers
-        turned(12, 42, 10, 0.6, 22, 0.6, steel, pivot: pv)                                     // antenna
+        if fine {
+            turnedMark(-19.4, 30, -6, side: -1, size: 6, pivot: pv); turnedMark(19.4, 30, -6, side: 1, size: 6, pivot: pv)
+            turned(-13, 46.8, 3, 7, 0.8, 7, dark, pivot: pv)
+            for s: Float in [-1, 1] { turned(s < 0 ? -21 : 19, 36, -16, 2, 2, 2.5, steel, pivot: pv, pat: 8) }   // smoke dischargers
+            turned(12, 42, 10, 0.6, 22, 0.6, steel, pivot: pv)                                 // antenna
+        }
         turned(-10, 29, -25, 20, 11, 5, plate, pivot: pv, gun: true)                           // mantlet
         turned(-1.6, 32.9, -96 + kick, 3.2, 3.2, 72, steel, pivot: pv, gun: true, pat: 8)      // long gun
         turned(-3, 31.5, -100.4 + kick, 6, 6, 2.0, dark, pivot: pv, gun: true, pat: 8)         // double-baffle muzzle brake
-        turned(-3, 31.5, -97.2 + kick, 6, 6, 1.4, dark, pivot: pv, gun: true, pat: 8)
-        turned(5, 31, -28, 1.5, 1.5, 4, dark, pivot: pv, gun: true)                            // coaxial MG
+        if fine {
+            turned(-3, 31.5, -97.2 + kick, 6, 6, 1.4, dark, pivot: pv, gun: true, pat: 8)
+            turned(5, 31, -28, 1.5, 1.5, 4, dark, pivot: pv, gun: true)                        // coaxial MG
+        }
         if let c = b?.charge, c > 0 { turned(-1.2, 33.3, -100.8, 2.4, 2.4, 0.5, V3(1.5 + c * 3, 0.5, 0.15), pivot: pv, gun: true, pat: 9) }
     case .ashBehemoth:
         // The Behemoth: a super-heavy tank twice the Cinder's mass, skirted tracks, a huge rounded turret with a main gun
@@ -571,9 +582,9 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         // and a shielded machine gun.
         for s: Float in [-1, 1] {
             p.append(box(s < 0 ? -20 : 14, 0, -40, 6, 12, 12, dark, 4))                       // front wheels
-            p.append(box(s < 0 ? -20.5 : 19.5, 3, -37, 1, 6, 6, steel, 8))
+            if fine { p.append(box(s < 0 ? -20.5 : 19.5, 3, -37, 1, 6, 6, steel, 8)) }
             p.append(box(s < 0 ? -20 : 12, 0, -8, 8, 10, 42, dark, 4))                         // rear tracks
-            for k in 0..<4 { p.append(box(s < 0 ? -20.6 : 19.6, 1.5, Float(k) * 9.5 - 6, 1, 7, 7, steel * (k % 2 == 0 ? 1 : 0.8), 8)) }
+            for k in 0..<4 where fine { p.append(box(s < 0 ? -20.6 : 19.6, 1.5, Float(k) * 9.5 - 6, 1, 7, 7, steel * (k % 2 == 0 ? 1 : 0.8), 8)) }
             p.append(box(s < 0 ? -21 : 15, 12, -42, 6, 1.5, 16, black, 7))                    // fenders
             // Stepped side plates: lower, then a narrower upper course leaning in.
             p.append(box(s < 0 ? -17 : 13, 10, -26, 4, 7, 62, black, 7))
@@ -584,19 +595,19 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-12, 8, -46, 24, 6, 20, black, 7))                                       // engine nose, stepped
         p.append(box(-11, 14, -44, 22, 3, 18, plate, 7))
         p.append(box(-10, 17, -38, 20, 3, 12, plate, 7))
-        p.append(box(-9, 9, -46.8, 18, 5, 1, dark))                                            // radiator louvres
+        if fine { p.append(box(-9, 9, -46.8, 18, 5, 1, dark)) }                                // radiator louvres
         p.append(box(-14, 17, -27, 28, 9, 2, plate, 7))                                        // cab front plate
         p.append(box(-11, 22, -27.6, 7, 1.2, 0.6, V3(0.03, 0.03, 0.03))); p.append(box(4, 22, -27.6, 7, 1.2, 0.6, V3(0.03, 0.03, 0.03)))
         p.append(box(-13, 10, -25, 26, 5, 60, dark))                                           // troop compartment floor
-        p.append(box(-13, 15, -16, 3, 4, 46, plate)); p.append(box(10, 15, -16, 3, 4, 46, plate))   // bench seats
+        if fine { p.append(box(-13, 15, -16, 3, 4, 46, plate)); p.append(box(10, 15, -16, 3, 4, 46, plate)) }   // bench seats
         p.append(box(-13, 10, 35, 26, 15, 2, plate, 7))                                        // rear doors
-        p.append(box(-0.3, 12, 36.8, 0.6, 10, 0.6, dark))
+        if fine { p.append(box(-0.3, 12, 36.8, 0.6, 10, 0.6, dark)) }
         p.append(box(-12, 16, 37, 3, 2, 0.6, glow, 9)); p.append(box(9, 16, 37, 3, 2, 0.6, glow, 9))
         let pv = V3(0, 30, -12)
         turned(-1, 25, -13, 2, 6, 2, steel, pivot: pv, pat: 8)                                 // pintle
         turned(-7, 26, -15, 14, 9, 1, plate, pivot: pv)                                        // gun shield
         turned(-1.1, 28.6, -30, 2.2, 2.4, 16, dark, pivot: pv, gun: true, pat: 8)              // perforated jacket
-        for z: Float in [-28.0, -24.5, -21.0] { turned(-1.15, 29.2, z, 2.3, 0.6, 1.6, V3(0.02, 0.02, 0.02), pivot: pv, gun: true) }
+        for z: Float in [-28.0, -24.5, -21.0] where fine { turned(-1.15, 29.2, z, 2.3, 0.6, 1.6, V3(0.02, 0.02, 0.02), pivot: pv, gun: true) }
         turned(-0.7, 28.8, -32, 1.4, 1.8, 2.2, steel, pivot: pv, gun: true, pat: 8)
         turned(-1.8, 26, -12, 3.6, 3, 2, steel, pivot: pv, gun: true, pat: 8)                  // receiver
     case .ashArtillery:

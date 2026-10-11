@@ -139,10 +139,9 @@ final class LastWar {
 }
 
 extension Game {
-    // Every frame in the Deep: marked barrages land; once a second the last battle and the bunker.
+    // Once a second in the Deep: the last battle and the bunker (marked barrages land in ashArmyTick, AshArmy.swift).
     func lastWarTick(_ dt: Float) {
         guard dim.dim == .deep else { return }
-        ashStrikesTick(dt)
         lastWar.clock += dt
         guard lastWar.clock >= 1 else { return }
         let s = lastWar.clock
@@ -155,36 +154,14 @@ extension Game {
         }
     }
 
-    // Marked barrages (the Marshal's, the last battle's guns): a red flare where each shell will land.
-    func ashStrikesTick(_ dt: Float) {
-        var i = 0
-        while i < ashStrikes.count {
-            ashStrikes[i].t -= dt
-            let s = ashStrikes[i]
-            if s.t <= 0 {
-                var shell = Slug(pos: s.at + V3(0, 26, 0), vel: V3(0, -55, 0), kind: .shell, damage: 0, fromPlayer: false,
-                                 shooter: nil, by: "the Ashguard's guns", life: 2, gravity: 9)
-                shell.power = 1.5
-                arms.spawn(shell)
-                ashStrikes.remove(at: i)
-                continue
-            }
-            if Rand.float(in: 0..<1) < dt * 14 {
-                particles.add(Particle(pos: s.at + V3(Rand.float(in: -0.3...0.3), 0.2, Rand.float(in: -0.3...0.3)), vel: V3(0, 2.5, 0), life: 0.5,
-                                       maxLife: 0.5, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.18, gravity: -1,
-                                       color: V3(2.6, 0.3, 0.15), collide: false, glow: true))
-            }
-            i += 1
-        }
-    }
-
     // Three marked shells round the player (leading them a little).
-    func ashMarkBarrage(_ toast: String) {
+    func ashMarkBarrage(_ toast: String, from: Mob? = nil, by: String = "the Ashguard's guns") {
         let p = player.pos
         let lead = V3(player.vel.x, 0, player.vel.z) * 1.2
         for k in 0..<3 {
             let off = k == 0 ? V3.zero : V3(Rand.float(in: -4...4), 0, Rand.float(in: -4...4))
-            ashStrikes.append((at: p + lead + off, t: 2 + Float(k) * 0.45))
+            let at = p + lead + off
+            ashStrikes.append(AshStrike(at: at, t: 2 + Float(k) * 0.45, power: 1.5, from: from.map { ObjectIdentifier($0) }, by: by))
         }
         sfx(.gun(10), 1.2, at: p)
         onToast?(toast)
