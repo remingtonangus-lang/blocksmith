@@ -798,8 +798,8 @@ extension WorldGen {
             // the calm ground at its edge. Clumps read as a meadow where the old uniform speckle read as noise (v78).
             if !old && rawGrass > 0.05 {
                 let patch = flora.noise2(Float(wx) / 11 + 520, Float(wz) / 11 - 340)
-                let t = max(0, min(1, (patch - 0.08) / 0.3)), t2 = t * t
-                grassP += t2 * rawGrass * 1.1
+                let t = max(0, min(1, (patch - 0.02) / 0.28)), t2 = t * t
+                grassP += (t + t2) * rawGrass * 1.0
                 if t > 0.8 { tallP = max(rawTall, 0.03) * 0.5 }
             }
             if biome == .flowerForest || biome == .cherryGrove || biome == .meadow { flowerP *= calm(0.7) }

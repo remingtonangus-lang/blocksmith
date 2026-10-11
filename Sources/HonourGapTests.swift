@@ -92,6 +92,12 @@ extension TownTests {
         Honour.value = 40
         Honour.tipChance = 1
         let tip = Honour.tip(g, from: base)
+        // P50: the first respected greeting in a country tells what its hills are rich in (the map shows it after).
+        let ctry = Countries.of(g, town: TownLaw.town(of: farmer, g), near: farmer.pos)
+        Countries.state.learned = nil
+        let knew = Countries.knows(ctry)
+        _ = Honour.greet(g, farmer, farmer.villager!)
+        check(!knew && Countries.knows(ctry), "honour gap P50: \(ctry.name)'s riches are unknown until a townsperson tells the respected (told: \(Countries.knows(ctry)))")
         let tips0 = Honour.tipsGiven
         _ = Honour.greet(g, farmer, farmer.villager!)
         check(tip != nil && Honour.tipsGiven == tips0 + 1, "honour gap: the respected are told where things are (\"\(tip ?? "no tip")\")")
