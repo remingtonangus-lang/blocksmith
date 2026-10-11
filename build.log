@@ -1,0 +1,576 @@
+Sources/main.swift:1387:62: warning: expression took 280ms to type-check (limit: 150ms)
+1385 |                 let side = st < 4 ? V3(-nv.z, 0, nv.x) : V3(1, 0, 0)
+1386 |                 renderer.probes.append(("item \(p.x),\(p.z)", c - nv * 0.42))
+1387 |                 renderer.probes.append(("rim \(p.x),\(p.z)", c - nv * 0.44 + side * 0.33))
+     |                                                              `- warning: expression took 280ms to type-check (limit: 150ms)
+1388 |             }
+1389 |             // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
+
+Sources/main.swift:1416:26: warning: expression took 420ms to type-check (limit: 150ms)
+1414 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1415 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1416 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 420ms to type-check (limit: 150ms)
+1417 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1418 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+Sources/main.swift:1416:26: warning: expression took 961ms to type-check (limit: 150ms)
+1414 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1415 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1416 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 961ms to type-check (limit: 150ms)
+1417 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1418 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+Sources/main.swift:1416:26: warning: expression took 996ms to type-check (limit: 150ms)
+1414 |             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+1415 |             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
+1416 |             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
+     |                          `- warning: expression took 996ms to type-check (limit: 150ms)
+1417 |             game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+1418 |             renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
+
+Sources/main.swift:1514:17: warning: expression took 233ms to type-check (limit: 150ms)
+1512 |             let fwd = V3(-sinf(p1.yaw), 0, -cosf(p1.yaw)), right = V3(cosf(p1.yaw), 0, -sinf(p1.yaw))
+1513 |             game.coop.withSeat(1, game) {
+1514 |                 game.player.pos = game.settleSpawn(p1.pos + fwd * 4 + right * 1.2)
+     |                 `- warning: expression took 233ms to type-check (limit: 150ms)
+1515 |                 game.player.yaw = p1.yaw + .pi
+1516 |                 game.player.pitch = -0.05
+
+Sources/Animals.swift:423:21: warning: expression took 181ms to type-check (limit: 150ms)
+421 |                 } else {
+422 |                     let d = (g.vrHead ?? g.player.eye) - pos       // VR: dives at the real head
+423 |                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
+    |                     `- warning: expression took 181ms to type-check (limit: 150ms)
+424 |                     if simd_length(d) < 1.2 {
+425 |                         if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
+
+Sources/Animals.swift:423:21: warning: expression took 175ms to type-check (limit: 150ms)
+421 |                 } else {
+422 |                     let d = (g.vrHead ?? g.player.eye) - pos       // VR: dives at the real head
+423 |                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
+    |                     `- warning: expression took 175ms to type-check (limit: 150ms)
+424 |                     if simd_length(d) < 1.2 {
+425 |                         if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
+
+Sources/AshSites.swift:127:21: warning: expression took 1722ms to type-check (limit: 150ms)
+125 |                             AshSite(kind: "battery", x: 236, z: 262, r: 22, face: 135)]
+126 |         for k in 0..<8 {
+127 |             let a = (Float(k) * 45 + 22.5) * .pi / 180
+    |                     `- warning: expression took 1722ms to type-check (limit: 150ms)
+128 |             s.append(AshSite(kind: "outpost", x: Int(sinf(a) * 470), z: Int(-cosf(a) * 470), r: 16, face: k * 45 + 22))
+129 |         }
+
+Sources/AshSites.swift:64:21: warning: expression took 167ms to type-check (limit: 150ms)
+ 62 |             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x18181A) }
+ 63 |             if x == 8 || y == 8 { return hex(0x2A1010) }
+ 64 |             let c = Float(abs(x - 8) + abs(y - 8))
+    |                     `- warning: expression took 167ms to type-check (limit: 150ms)
+ 65 |             return hex(0xFF5A3C, 1.05 - c * 0.04)
+ 66 |         }
+
+Sources/Banners.swift:215:24: warning: expression took 232ms to type-check (limit: 150ms)
+213 |             let o = a + halfDown * Float(half)
+214 |             let pts = [o + halfDown, o + right + halfDown, o + right, o]
+215 |             let back = [o + right + halfDown, o + halfDown, o, o + right]
+    |                        `- warning: expression took 232ms to type-check (limit: 150ms)
+216 |             let uv = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+217 |             let uvBack = [V2(1, 1), V2(0, 1), V2(0, 0), V2(1, 0)]
+
+Sources/BaseTests.swift:107:28: warning: expression took 312ms to type-check (limit: 150ms)
+105 |                     return true
+106 |                 }
+107 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 312ms to type-check (limit: 150ms)
+108 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+109 |                     for sd in [Float(1), -1] {
+
+Sources/BaseTests.swift:107:28: warning: expression took 457ms to type-check (limit: 150ms)
+105 |                     return true
+106 |                 }
+107 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 457ms to type-check (limit: 150ms)
+108 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+109 |                     for sd in [Float(1), -1] {
+
+Sources/BaseTests.swift:107:28: warning: expression took 404ms to type-check (limit: 150ms)
+105 |                     return true
+106 |                 }
+107 |                 var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+    |                            `- warning: expression took 404ms to type-check (limit: 150ms)
+108 |                 search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+109 |                     for sd in [Float(1), -1] {
+
+Sources/CapitalBases.swift:295:20: warning: expression took 372ms to type-check (limit: 150ms)
+293 |     // The garrison soldiers of a citadel (inside its walls, not crewing, not on patrol).
+294 |     func garrison(_ r: BaseRecord, _ b: BaseWatch) -> [Mob] {
+295 |         let busy = Set((b.patrols[r.key] ?? []).map { ObjectIdentifier($0) } + (b.crews[r.key] ?? []).map { ObjectIdentifier($0) }
+    |                    `- warning: expression took 372ms to type-check (limit: 150ms)
+296 |                        + (b.workers[r.key] ?? []).map { ObjectIdentifier($0) })
+297 |         return mobs.mobs.filter { m in
+
+Sources/CapitalBasesWork.swift:252:22: warning: expression took 227ms to type-check (limit: 150ms)
+250 |             crew.append(m)
+251 |         }
+252 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 227ms to type-check (limit: 150ms)
+253 |         var skipped: [(IVec3, BlockID)] = []
+254 |         while budget > 0, !q.isEmpty {
+
+Sources/CapitalBasesWork.swift:252:22: warning: expression took 191ms to type-check (limit: 150ms)
+250 |             crew.append(m)
+251 |         }
+252 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 191ms to type-check (limit: 150ms)
+253 |         var skipped: [(IVec3, BlockID)] = []
+254 |         while budget > 0, !q.isEmpty {
+
+Sources/CapitalBasesWork.swift:252:22: warning: expression took 192ms to type-check (limit: 150ms)
+250 |             crew.append(m)
+251 |         }
+252 |         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)
+    |                      `- warning: expression took 192ms to type-check (limit: 150ms)
+253 |         var skipped: [(IVec3, BlockID)] = []
+254 |         while budget > 0, !q.isEmpty {
+
+Sources/CapitalShips.swift:1317:27: warning: expression took 586ms to type-check (limit: 150ms)
+1315 |                 let frigate = s.isFlyingCapital
+1316 |                 st.mainGunCD = frigate ? 24 : 16
+1317 |                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+     |                           `- warning: expression took 586ms to type-check (limit: 150ms)
+1318 |                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
+1319 |                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
+
+Sources/CapitalShips.swift:1317:27: warning: expression took 671ms to type-check (limit: 150ms)
+1315 |                 let frigate = s.isFlyingCapital
+1316 |                 st.mainGunCD = frigate ? 24 : 16
+1317 |                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
+     |                           `- warning: expression took 671ms to type-check (limit: 150ms)
+1318 |                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
+1319 |                 let sh = Shell(pos: mw + dir * 2, vel: dir * 260, owner: s.id, power: frigate ? 10 : 7)
+
+Sources/Cinematic.swift:141:22: warning: expression took 255ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |                      `- warning: expression took 255ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+
+Sources/Cinematic.swift:141:13: warning: expression took 405ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |             `- warning: expression took 405ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+
+Sources/Cinematic.swift:141:13: warning: expression took 435ms to type-check (limit: 150ms)
+139 |             let fast: Float = input.control || p.l3 ? 4 : 1
+140 |             let fw = V3(-sinf(c.yaw), 0, -cosf(c.yaw)), rt = V3(cosf(c.yaw), 0, -sinf(c.yaw))
+141 |             c.pos += (fw * f + rt * s + V3(0, u, 0)) * 8 * fast * dt
+    |             `- warning: expression took 435ms to type-check (limit: 150ms)
+142 |             // Keyframes and playback.
+143 |             if input.tapped(40) || (p.x && !q.x) {                                           // K
+
+Sources/CountriesTests.swift:189:22: warning: expression took 175ms to type-check (limit: 150ms)
+187 |             tick(at: p + fwd * 120)
+188 |             tick(at: p - fwd * 120)
+189 |             tick(at: p - fwd * 25 + side * 30)
+    |                      `- warning: expression took 175ms to type-check (limit: 150ms)
+190 |             let before = Countries.standing(n)
+191 |             tick(at: p + fwd * 20 + side * 30)
+
+Sources/CountriesTests.swift:191:22: warning: expression took 223ms to type-check (limit: 150ms)
+189 |             tick(at: p - fwd * 25 + side * 30)
+190 |             let before = Countries.standing(n)
+191 |             tick(at: p + fwd * 20 + side * 30)
+    |                      `- warning: expression took 223ms to type-check (limit: 150ms)
+192 |             check(Countries.smuggled == 1 && Countries.standing(n) < before, "countries: running the post costs standing with \(n.name) (\(Int(before)) -> \(Int(Countries.standing(n))))")
+193 |             // A post built near you: floor, booth and both flags.
+
+Sources/DeepGapTests.swift:44:21: warning: expression took 217ms to type-check (limit: 150ms)
+ 42 |                     let (_, ms) = sc.place(into: &b, cx: cx, cz: cz)
+ 43 |                     chunks[StructureCache.key(cx, cz)] = b
+ 44 |                     mobs += ms.filter { abs($0.1.x - Float(c.ox)) < 26 && abs($0.1.z - Float(c.oz)) < 26 }.map { $0.0 }
+    |                     `- warning: expression took 217ms to type-check (limit: 150ms)
+ 45 |                 } }
+ 46 |                 func get(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+
+Sources/DeepGapTests.swift:318:22: warning: expression took 497ms to type-check (limit: 150ms)
+316 |         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
+317 |         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
+318 |         let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
+    |                      `- warning: expression took 497ms to type-check (limit: 150ms)
+319 |             && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+320 |         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
+
+Sources/DeepGapTests.swift:318:22: warning: expression took 703ms to type-check (limit: 150ms)
+316 |         // Harder than the surface: the Ashguard rifleman takes longer to kill and kills faster than a Capital one; the tank
+317 |         // shrugs off rifles (or takes far longer) and falls to the launcher; every unit can be beaten with full gear.
+318 |         let harder = (rifle?.playerKills ?? 0) > (cap?.playerKills ?? .infinity) * 1.3
+    |                      `- warning: expression took 703ms to type-check (limit: 150ms)
+319 |             && (rifle?.toKillPlayer ?? .infinity) < (cap?.toKillPlayer ?? 0)
+320 |         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
+
+Sources/DeepGates.swift:127:21: warning: expression took 153ms to type-check (limit: 150ms)
+125 |         }
+126 |         p["deep_lift"] = { x, y in
+127 |             let d = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
+    |                     `- warning: expression took 153ms to type-check (limit: 150ms)
+128 |             if d > 6.5 { return hex(0x2A2A30) }
+129 |             if d > 5 { return hex(0xB03A55) }
+
+Sources/FlightModel.swift:113:30: warning: expression took 205ms to type-check (limit: 150ms)
+111 |         stalled = stallN * 3 > s.wings.count
+112 |         // Virtual fin over the tail: weathervane and rudder (steer adds a little rudder for coordinated turns).
+113 |         let tail = s.toWorld(com - fwdL * max(2, aft) + upL * 1.5)
+    |                              `- warning: expression took 205ms to type-check (limit: 150ms)
+114 |         let vt = s.velocity(at: tail)
+115 |         let rightW = s.dirToWorld(rightL)
+
+Sources/Game.swift:2030:27: warning: expression took 172ms to type-check (limit: 150ms)
+2028 |             d.y = 0
+2029 |             let l = simd_length(d)
+2030 |             if l > 0.01 { player.vel += d / l * 6 * knockback + V3(0, 4 * knockback, 0) }
+     |                           `- warning: expression took 172ms to type-check (limit: 150ms)
+2031 |         }
+2032 |     }
+
+Sources/GameCircuit.swift:262:44: warning: expression took 225ms to type-check (limit: 150ms)
+260 |             if boneMealGrow(front) { take() }
+261 |         default:
+262 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 225ms to type-check (limit: 150ms)
+263 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+264 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+Sources/GameCircuit.swift:262:44: warning: expression took 232ms to type-check (limit: 150ms)
+260 |             if boneMealGrow(front) { take() }
+261 |         default:
+262 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 232ms to type-check (limit: 150ms)
+263 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+264 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+Sources/GameCircuit.swift:262:44: warning: expression took 195ms to type-check (limit: 150ms)
+260 |             if boneMealGrow(front) { take() }
+261 |         default:
+262 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 195ms to type-check (limit: 150ms)
+263 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+264 |                 inventory.armor[sl.rawValue] = stack.with(count: 1); take()
+
+Sources/HorseGapTests.swift:349:23: warning: expression took 316ms to type-check (limit: 150ms)
+347 |             let h = horse(15, 0); h.yaw = 0
+348 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                       `- warning: expression took 316ms to type-check (limit: 150ms)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+
+Sources/HorseGapTests.swift:349:23: warning: expression took 318ms to type-check (limit: 150ms)
+347 |             let h = horse(15, 0); h.yaw = 0
+348 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                       `- warning: expression took 318ms to type-check (limit: 150ms)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+
+Sources/HorseGapTests.swift:350:24: warning: expression took 344ms to type-check (limit: 150ms)
+348 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                        `- warning: expression took 344ms to type-check (limit: 150ms)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+352 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+
+Sources/HorseGapTests.swift:350:24: warning: expression took 288ms to type-check (limit: 150ms)
+348 |             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+    |                        `- warning: expression took 288ms to type-check (limit: 150ms)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+352 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+
+Sources/HorseGapTests.swift:351:25: warning: expression took 224ms to type-check (limit: 150ms)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 224ms to type-check (limit: 150ms)
+352 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+353 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+
+Sources/HorseGapTests.swift:351:25: warning: expression took 346ms to type-check (limit: 150ms)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 346ms to type-check (limit: 150ms)
+352 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+353 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+
+Sources/HorseGapTests.swift:351:25: warning: expression took 360ms to type-check (limit: 150ms)
+349 |             let bag = h.pos + right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+350 |             let bagL = h.pos - right * 0.55 - fwd * 0.4 + V3(0, 0.9, 0)
+351 |             let ahead = h.pos + right * 0.55 + fwd * 0.9 + V3(0, 0.9, 0)
+    |                         `- warning: expression took 360ms to type-check (limit: 150ms)
+352 |             let lap = h.pos - fwd * 0.2 + V3(0, 1.5, 0)
+353 |             check(HorseLife.reachesSaddlebag(h, hand: bag) && HorseLife.reachesSaddlebag(h, hand: bagL) && !HorseLife.reachesSaddlebag(h, hand: ahead)
+
+Sources/HuntingTests.swift:191:75: warning: expression took 243ms to type-check (limit: 150ms)
+189 |         let pikeS = Fishing.species[2]
+190 |         let ws = (0..<300).map { _ in Fishing.weight(pikeS, luck: 0) }
+191 |         check(ws.allSatisfy { $0 >= pikeS.minLb && $0 <= pikeS.maxLb } && (ws.max() ?? 0) - (ws.min() ?? 0) > 10, String(format: "hunting: pike weigh %.1f-%.1f lb", ws.min() ?? 0, ws.max() ?? 0))
+    |                                                                           `- warning: expression took 243ms to type-check (limit: 150ms)
+192 |         func play(_ power: Float, _ bot: (Fishing.Fight) -> Bool) -> Fishing.Outcome {
+193 |             let f = Fishing.Fight(species: 2, weight: 20, power: power, line: 16, dir: V3(0, 0, -1))
+
+Sources/HuntingTests.swift:191:9: warning: expression took 251ms to type-check (limit: 150ms)
+189 |         let pikeS = Fishing.species[2]
+190 |         let ws = (0..<300).map { _ in Fishing.weight(pikeS, luck: 0) }
+191 |         check(ws.allSatisfy { $0 >= pikeS.minLb && $0 <= pikeS.maxLb } && (ws.max() ?? 0) - (ws.min() ?? 0) > 10, String(format: "hunting: pike weigh %.1f-%.1f lb", ws.min() ?? 0, ws.max() ?? 0))
+    |         `- warning: expression took 251ms to type-check (limit: 150ms)
+192 |         func play(_ power: Float, _ bot: (Fishing.Fight) -> Bool) -> Fishing.Outcome {
+193 |             let f = Fishing.Fight(species: 2, weight: 20, power: power, line: 16, dir: V3(0, 0, -1))
+
+Sources/InputMatrix.swift:83:9: warning: expression took 2635ms to type-check (limit: 150ms)
+ 81 |         ]
+ 82 |         var md = "# Input binding matrix (Blocksmith --inputmatrix)\n\nController layout: \(PadMap.layoutName). Each cell: what a tap / a 0.8 s hold changed.\n\n"
+ 83 |         md += "| button | " + contexts.map { $0.0 }.joined(separator: " | ") + " |\n|---|" + contexts.map { _ in "---|" }.joined() + "\n"
+    |         `- warning: expression took 2635ms to type-check (limit: 150ms)
+ 84 |         var conflicts: [String] = []
+ 85 |         var cells: [String: [String]] = [:]
+
+Sources/LandmarkRender.swift:76:24: warning: expression took 256ms to type-check (limit: 150ms)
+ 74 |                 let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
+ 75 |                 let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
+ 76 |                 return base * tint * lit * hdrK * (1 - haze) + fog * haze
+    |                        `- warning: expression took 256ms to type-check (limit: 150ms)
+ 77 |             }
+ 78 |             func height(_ t: Float) -> Float {
+
+Sources/LandmarkRender.swift:76:24: warning: expression took 268ms to type-check (limit: 150ms)
+ 74 |                 let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
+ 75 |                 let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
+ 76 |                 return base * tint * lit * hdrK * (1 - haze) + fog * haze
+    |                        `- warning: expression took 268ms to type-check (limit: 150ms)
+ 77 |             }
+ 78 |             func height(_ t: Float) -> Float {
+
+Sources/MainGun.swift:143:62: warning: expression took 160ms to type-check (limit: 150ms)
+141 |                 let a = Rand.float(in: 0..<(2 * .pi)), rr = Rand.float(in: 2...5)
+142 |                 let off = (side * cosf(a) + up * sinf(a)) * rr - md * Rand.float(in: 0...6)
+143 |                 g.particles.add(Particle(pos: mw + off, vel: s.vel - off * 3 + md * 4, life: 0.3, maxLife: 0.3, layer: layer, uv0: V2(0, 0),
+    |                                                              `- warning: expression took 160ms to type-check (limit: 150ms)
+144 |                                          uvSize: 1, size: Rand.float(in: 0.12...0.3), gravity: 0, color: V3(0.55, 0.85, 1), collide: false, glow: true))
+145 |             }
+
+Sources/MainGun.swift:196:43: warning: expression took 230ms to type-check (limit: 150ms)
+194 |             let r = side * cosf(a) + up * sinf(a)
+195 |             let g0 = Rand.float(in: 0.55...0.75)
+196 |             g.particles.add(Particle(pos: mw + dir * 3 + r * 2, vel: r * Rand.float(in: 10...16) + dir * 6 + s.vel, life: Rand.float(in: 1.2...2.2), maxLife: 2.2,
+    |                                           `- warning: expression took 230ms to type-check (limit: 150ms)
+197 |                                      layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8), gravity: -0.3, color: V3(g0, g0, g0), collide: false))
+198 |         }
+
+Sources/MainGun.swift:367:41: warning: expression took 216ms to type-check (limit: 150ms)
+365 |                     if d < MainGun.shockRadius && !onShooter && abs(pp.y - c.y) < MainGun.shockHeight {
+366 |                         let f = 1 - d / MainGun.shockRadius
+367 |                         if g.survival { g.hurtPlayer(Int((2 + 10 * f * f).rounded()), from: c, cause: "was flattened by a shockwave", knockback: 0, type: .explosion) }
+    |                                         `- warning: expression took 216ms to type-check (limit: 150ms)
+368 |                         let out = d > 0.1 ? V3((pp.x - c.x) / d, 0, (pp.z - c.z) / d) : V3(1, 0, 0)
+369 |                         g.player.vel += out * (3 + 7 * f) + V3(0, 2 + 3 * f, 0)
+
+Sources/Mesher.swift:96:21: warning: expression took 201ms to type-check (limit: 150ms)
+ 94 |         var t = [UInt8](repeating: 0, count: 6 * 8 * 4)
+ 95 |         for f in 0..<6 { for lv in 0..<8 { for v in 0..<4 {
+ 96 |             let m = chipTable[(f * 8 + lv) * 4 + v]
+    |                     `- warning: expression took 201ms to type-check (limit: 150ms)
+ 97 |             var k = 0
+ 98 |             while k < 3 {
+
+Sources/Mob.swift:476:16: warning: expression took 5041ms to type-check (limit: 150ms)
+ 474 |         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
+ 475 |         let r = V3(cosf(yaw), 0, -sinf(yaw))
+ 476 |         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+     |                `- warning: expression took 5041ms to type-check (limit: 150ms)
+ 477 |     }
+ 478 |     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+
+Sources/Mob.swift:476:16: warning: expression took 3981ms to type-check (limit: 150ms)
+ 474 |         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
+ 475 |         let r = V3(cosf(yaw), 0, -sinf(yaw))
+ 476 |         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+     |                `- warning: expression took 3981ms to type-check (limit: 150ms)
+ 477 |     }
+ 478 |     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+
+Sources/Music.swift:299:9: warning: expression took 167ms to type-check (limit: 150ms)
+297 |         gainTarget = 1
+298 |         gainRate = 1 / max(0.01, fadeIn * sr)
+299 |         seed = UInt64(bitPattern: Int64(s.title.utf8.reduce(0) { ($0 &* 31 &+ Int($1)) & 0x7FFFFFFF })) | 1
+    |         `- warning: expression took 167ms to type-check (limit: 150ms)
+300 |     }
+301 | 
+
+Sources/PadTest.swift:750:44: warning: expression took 162ms to type-check (limit: 150ms)
+748 |             let r = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)), f = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+749 |             CombatHUD.shared.hurt(g, from: g.player.pos + r * 4, amount: 4)
+750 |             CombatHUD.shared.hurt(g, from: g.player.pos - f * 4 - r * 2, amount: 2)
+    |                                            `- warning: expression took 162ms to type-check (limit: 150ms)
+751 |             if name == "combat" {
+752 |                 for (i, n) in ["gun_rifle", "gun_shotgun", "gun_smg", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
+
+Sources/Particles.swift:138:21: warning: expression took 154ms to type-check (limit: 150ms)
+136 |         for _ in 0..<n {
+137 |             let r = V3(Rand.float(in: -1...1), Rand.float(in: -0.4...1), Rand.float(in: -1...1))
+138 |             let d = simd_normalize(dir * 1.4 + r + V3(0, 1e-4, 0))
+    |                     `- warning: expression took 154ms to type-check (limit: 150ms)
+139 |             add(Particle(pos: c, vel: d * Rand.float(in: 4...8), life: Rand.float(in: 0.12...0.26), maxLife: 0.26, layer: smoke,
+140 |                          uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.03...0.05), gravity: 10,
+
+Sources/Particles.swift:138:21: warning: expression took 230ms to type-check (limit: 150ms)
+136 |         for _ in 0..<n {
+137 |             let r = V3(Rand.float(in: -1...1), Rand.float(in: -0.4...1), Rand.float(in: -1...1))
+138 |             let d = simd_normalize(dir * 1.4 + r + V3(0, 1e-4, 0))
+    |                     `- warning: expression took 230ms to type-check (limit: 150ms)
+139 |             add(Particle(pos: c, vel: d * Rand.float(in: 4...8), life: Rand.float(in: 0.12...0.26), maxLife: 0.26, layer: smoke,
+140 |                          uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.03...0.05), gravity: 10,
+
+Sources/Player.swift:192:44: warning: expression took 162ms to type-check (limit: 150ms)
+190 |             speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
+191 |             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
+192 |             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
+    |                                            `- warning: expression took 162ms to type-check (limit: 150ms)
+193 |             if dolphinsGrace { speed *= 2.2 }
+194 |         }
+
+Sources/PlaytestPM9BTests.swift:94:25: warning: expression took 5958ms to type-check (limit: 150ms)
+ 92 |             // Per biome a few dozen blades decide it: 1/8 with room for sampling noise; the sum over biomes below is strict.
+ 93 |             check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
+ 94 |             let total = plantKeys.reduce(0) { $0 + (b.n[$1] ?? 0) } - (b.n["kelp"] ?? 0) - (b.n["seagrass"] ?? 0) - (b.n["bamboo"] ?? 0)
+    |                         `- warning: expression took 5958ms to type-check (limit: 150ms)
+ 95 |             let before = plantKeys.reduce(0) { $0 + (a.n[$1] ?? 0) } - (a.n["kelp"] ?? 0) - (a.n["seagrass"] ?? 0) - (a.n["bamboo"] ?? 0)
+ 96 |             check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
+
+Sources/PlaytestPM9BTests.swift:95:26: warning: expression took 6342ms to type-check (limit: 150ms)
+ 93 |             check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
+ 94 |             let total = plantKeys.reduce(0) { $0 + (b.n[$1] ?? 0) } - (b.n["kelp"] ?? 0) - (b.n["seagrass"] ?? 0) - (b.n["bamboo"] ?? 0)
+ 95 |             let before = plantKeys.reduce(0) { $0 + (a.n[$1] ?? 0) } - (a.n["kelp"] ?? 0) - (a.n["seagrass"] ?? 0) - (a.n["bamboo"] ?? 0)
+    |                          `- warning: expression took 6342ms to type-check (limit: 150ms)
+ 96 |             check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
+ 97 |             if biome == "desert" {
+
+Sources/RenderDistanceGovernor.swift:129:21: warning: expression took 5646ms to type-check (limit: 150ms)
+127 |         }
+128 |         let minRD = trace.min() ?? 16
+129 |         let steps = (1..<trace.count).map { (trace[$0] - trace[$0 - 1]).signum() }.filter { $0 != 0 }
+    |                     `- warning: expression took 5646ms to type-check (limit: 150ms)
+130 |         let changes = steps.isEmpty ? 0 : (1..<steps.count).filter { steps[$0] != steps[$0 - 1] }.count
+131 |         log("trace 1 (heavy 60 s, then light): " + trace.map(String.init).joined(separator: " "))
+
+Sources/Renderer.swift:944:17: warning: expression took 241ms to type-check (limit: 150ms)
+ 942 |                 let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
+ 943 |                 let up = simd_normalize(simd_cross(r, d)) * 12
+ 944 |                 bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
+     |                 `- warning: expression took 241ms to type-check (limit: 150ms)
+ 945 |                 scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
+ 946 |                 enc.setRenderPipelineState(crackPipe)
+
+Sources/Renderer.swift:944:17: warning: expression took 229ms to type-check (limit: 150ms)
+ 942 |                 let r = simd_normalize(simd_cross(d, V3(0, 0, 1))) * 12
+ 943 |                 let up = simd_normalize(simd_cross(r, d)) * 12
+ 944 |                 bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], Int(Tex.id("moon_0")), AshSky.sunTint)
+     |                 `- warning: expression took 229ms to type-check (limit: 150ms)
+ 945 |                 scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
+ 946 |                 enc.setRenderPipelineState(crackPipe)
+
+Sources/Renderer.swift:914:17: warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 912 |         // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
+ 913 |         do {
+ 914 |             var verts: [SimpleVert] = []
+     |                 `- warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 915 |             let sd = game.sunDir
+ 916 |             let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+
+Sources/ShipCombat.swift:136:30: warning: expression took 392ms to type-check (limit: 150ms)
+134 |                     let ang = acosf(max(-1, min(1, simd_dot(cur, want))))
+135 |                     let k = ang > 1e-3 ? min(1, 2.5 * dt / ang) : 1
+136 |                     sh.vel = simd_normalize(cur + (want - cur) * k + V3(1e-5, 0, 0)) * speed
+    |                              `- warning: expression took 392ms to type-check (limit: 150ms)
+137 |                     // Near the target: burst (missiles chasing a 480-block hull aim at its centre, so a hull hit fuses first).
+138 |                     if simd_length(a - start) < 2.5 { near = true }
+
+Sources/Ships.swift:110:21: warning: expression took 179ms to type-check (limit: 150ms)
+ 108 |                 var v: Float = 0
+ 109 |                 for bx in Blocks.boxes[i] {
+ 110 |                     v += Float(Int(bx.x1) - Int(bx.x0)) * Float(Int(bx.y1) - Int(bx.y0)) * Float(Int(bx.z1) - Int(bx.z0)) / 4096
+     |                     `- warning: expression took 179ms to type-check (limit: 150ms)
+ 111 |                 }
+ 112 |                 d *= max(0.1, min(1, v > 0 ? v : 0.5))
+
+Sources/Soldiers.swift:695:24: warning: expression took 151ms to type-check (limit: 150ms)
+693 |         let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+694 |         let flat = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
+695 |         let trunnion = m.pos + V3(0, trunnionY, 0) + flat * (-trunnionZ) + side * (sx * spacing)
+    |                        `- warning: expression took 151ms to type-check (limit: 150ms)
+696 |         return trunnion + fwd * barrel
+697 |     }
+
+Sources/Structures.swift:304:98: warning: expression took 165ms to type-check (limit: 150ms)
+302 | 
+303 | enum Loot {
+304 |     static let tables: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
+    |                                                                                                  `- warning: expression took 165ms to type-check (limit: 150ms)
+305 |         "fortress": (2...4, [("keepers_journal", 1, 1, 6), ("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
+306 |                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
+
+Sources/TerrainTools.swift:81:26: warning: expression took 177ms to type-check (limit: 150ms)
+ 79 |             for col in 0..<n {
+ 80 |                 let i = row * n + col
+ 81 |                 let hx = (hs[row * n + min(n - 1, col + 1)] - hs[row * n + max(0, col - 1)]) / Float(2 * step)
+    |                          `- warning: expression took 177ms to type-check (limit: 150ms)
+ 82 |                 let zi1: Int = min(n - 1, row + 1) * n + col, zi0: Int = max(0, row - 1) * n + col
+ 83 |                 let hz: Float = (hs[zi1] - hs[zi0]) / Float(2 * step)
+
+Sources/Textures.swift:642:16: warning: expression took 173ms to type-check (limit: 150ms)
+ 640 |         p["tnt_top"] = { x, y in
+ 641 |             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+ 642 |             if dx * dx + dy * dy < 4 { return hex(0x3A3A3A) }
+     |                `- warning: expression took 173ms to type-check (limit: 150ms)
+ 643 |             return hex(0xB8B0A0, 0.9 + 0.1 * r(x, y, 151))
+ 644 |         }
+
+Sources/TexturesHD.swift:2749:41: warning: expression took 226ms to type-check (limit: 150ms)
+2747 |                     let dx: Float = abs(Float(x) + 0.5 - fn / 2), dy: Float = abs(Float(y) + 0.5 - fn / 2)
+2748 |                     if flower && max(dx, dy) < 3 * Float(u) {
+2749 |                         let bk: Float = 0.9 + 0.2 * fine[y * n + x] + 0.1 * (1 - max(dx, dy) / (3 * Float(u)))
+     |                                         `- warning: expression took 226ms to type-check (limit: 150ms)
+2750 |                         plot(&img, x, y, col(0xE0CCE8) * bk)
+2751 |                     } else if !flower && edge < u {
+
+Sources/TexturesHD.swift:3992:33: warning: expression took 208ms to type-check (limit: 150ms)
+3990 |             for y in 0..<n { for x in 0..<n {
+3991 |                 let i = y * n + x
+3992 |                 let wy: Float = Float(y) + (w[i] - 0.5) * Float(n) * 0.25
+     |                                 `- warning: expression took 208ms to type-check (limit: 150ms)
+3993 |                 let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * Float.pi * 6)
+3994 |                 let t0: Float = 0.55 + (grain[i] - 0.5) * 0.24
+
+Sources/Villager.swift:94:42: warning: expression took 194ms to type-check (limit: 150ms)
+ 92 | 
+ 93 |     // Level -> trade pool (two random offers are picked per level; masters get one... all as in the reference).
+ 94 |     static let trades: [String: [[T]]] = [
+    |                                          `- warning: expression took 194ms to type-check (limit: 150ms)
+ 95 |         "farmer": [
+ 96 |             [emeraldFor("wheat", 20, 16, 2), emeraldFor("potato", 26, 16, 2), emeraldFor("carrot", 22, 16, 2), emeraldFor("beetroot", 15, 16, 2),
+
+Sources/WorldGenCheck.swift:47:21: warning: expression took 194ms to type-check (limit: 150ms)
+ 45 |         setvbuf(stdout, nil, _IOLBF, 0)
+ 46 |         let n = Int(arg("--worldgencheck") ?? "") ?? 24
+ 47 |         var seeds = (0..<n).map { UInt64(1000 + $0 * 7919) }
+    |                     `- warning: expression took 194ms to type-check (limit: 150ms)
+ 48 |         seeds.append(2943808052895834412)                          // Remington's Quest world (playtest Oct 10)
+ 49 |         var fails: [String] = []
+Built build/Blocksmith.app (release)
