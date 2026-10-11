@@ -213,6 +213,7 @@ final class Game {
     var flashes: [LightFlash] = []
     var bolts: [Bolt] = []
     var lightningFlash: Float = 0
+    var sky = SkyState()                   // clouds, biome sky tint, distant storm flashes (SkyLook.swift)
     var rainSoundTimer: Float = 0
     var lightningTimer: Float = 8
     var lightningRods: [IVec3] = []
@@ -568,6 +569,8 @@ final class Game {
         let s = sunDir.y
         let dusk = max(0, 1 - abs(s - 0.02) / 0.22)
         c = simd_mix(c, V3(0.95, 0.5, 0.28), V3(repeating: dusk * 0.45))
+        // The biome's air (SkyLook.swift): hazier and warmer over desert, colder blue over snow.
+        c = sky.tinted(c)
         // Overcast: desaturate toward grey; lightning flashes it white.
         let grey = V3(repeating: (c.x + c.y + c.z) / 3 * 0.6)
         c = simd_mix(c, grey, V3(repeating: weather.rain * 0.75))
@@ -579,7 +582,9 @@ final class Game {
     var skyZenith: V3 {
         if inVaultSky { return AshSky.zenith }
         let c = skyColor
-        return simd_mix(c * V3(0.36, 0.55, 0.86), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
+        // A hazy biome (desert) washes the zenith toward the horizon; a cold one keeps it deep.
+        let deep = simd_mix(V3(0.36, 0.55, 0.86), V3(0.6, 0.68, 0.84), V3(repeating: sky.haze))
+        return simd_mix(c * deep, c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
 
     // MARK: Hotbar / items

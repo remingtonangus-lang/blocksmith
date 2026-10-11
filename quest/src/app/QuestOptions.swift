@@ -75,6 +75,7 @@ enum QuestOptions {
                 ("HUD Position: \(S.hudDrop < 0.33 ? "Middle" : (S.hudDrop < 0.5 ? "Low" : "Lower"))", "q_hud"),
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
+                ("Clouds: \(on(S.clouds))", "q_clouds"),
                 ("Texture Detail: \(S.textureRes >= 128 ? "High" : "Medium")\(S.textureRes != TextureGen.size ? " (next launch)" : "")", "q_tex"),
             ]
             if hooks.rates().count <= 1 { rows.removeAll { $0.1 == "q_hz" } }
@@ -144,6 +145,7 @@ enum QuestOptions {
         case "q_hud": S.hudDrop = step([Float(0.25), 0.42, 0.6], [Float(0.25), 0.42, 0.6].min { abs($0 - S.hudDrop) < abs($1 - S.hudDrop) } ?? 0.42, back)
         case "q_bright": S.brightness = step([0, 0.25, 0.5, 0.75, 1], S.brightness, back)
         case "q_autord": S.autoRenderDistance.toggle()
+        case "q_clouds": S.clouds.toggle()
         case "q_tex": S.textureRes = S.textureRes >= 128 ? 64 : 128
         case "q_fov":
             S.foveation = step([0, 1, 2, 3], S.foveation, back)

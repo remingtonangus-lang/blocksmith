@@ -17,6 +17,9 @@ struct FrameUniforms {
     var starTint = V4(1, 1, 1, 0)
     var misc = V4(0, 1, 0, 0)
     var waves = V4(1, 0, 0, 0)       // x = ocean swell scale (Weather.swell)
+    var clouds = V4(0, 0, 0.45, 0)   // clouds.frag: eye in cloud space (xz), cover, storm flash (SkyLook.swift)
+    var cloudFlash = V4(0, 0.3, 1, 0) // flash direction, storm darkness
+    var wind = V4(1, 0, 0, 1)        // wind direction (xz), biome haze, cave dimming
 }
 
 // One frame's camera: the head centre in world space and each eye's camera-relative view-projection.
@@ -432,6 +435,7 @@ final class SceneRenderer {
             "water": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le),
             "waterUnder": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le, cull: none),
             "sky": PipeDesc(vert: "sky.vert", frag: "sky.frag", depthWrite: false, compare: le, cull: none),
+            "clouds": PipeDesc(vert: "sky.vert", frag: "clouds.frag", blend: true, depthWrite: false, compare: le, cull: none),
             "star": PipeDesc(vert: "star.vert", frag: "star.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
             "body": PipeDesc(vert: "body.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "simple": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
@@ -776,6 +780,11 @@ final class SceneRenderer {
         var o: VkDeviceSize = 0
         vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
         vkCmdDraw(s.cmd, UInt32(starVerts), 1, 0, 0)
+    }
+
+    func drawClouds(_ s: Slot) {
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("clouds"))
+        vkCmdDraw(s.cmd, 3, 1, 0, 0)
     }
 
     func drawSky(_ s: Slot) {

@@ -84,6 +84,7 @@ enum QuestSettings {
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }
     // Lower the render distance when frames are missed at the frame budget (this session only).
+    static var clouds: Bool { get { bool("quest.clouds", true) } set { store(newValue, "quest.clouds") } }
     static var autoRenderDistance: Bool { get { bool("quest.autoRenderDistance", true) } set { store(newValue, "quest.autoRenderDistance") } }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }

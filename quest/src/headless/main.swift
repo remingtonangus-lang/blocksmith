@@ -258,6 +258,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             game.mobs.mobs = savedMobs; game.mobs.rebuildIndex()
             _ = world.loadSync(center: game.player.pos, radius: 6)        // the spawn area back for the mob draw test
         }
+        let skyDir = arg("--sky-dir") ?? tmp.appendingPathComponent("shots").path
+        try? FileManager.default.createDirectory(atPath: skyDir, withIntermediateDirectories: true)
+        try SkyTest.run(game: game, ctx: ctx, dir: skyDir, check: check)
+        if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
