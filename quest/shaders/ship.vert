@@ -42,7 +42,7 @@ void main() {
     oUV = uv;
     oLayer = float(layer);
     oTint = tintMode != 0u ? plains[tintMode - 1u] : vec3(1.0);
-    oOverlay = smoothV ? 0.0 : float((w1 >> 30) & 1u);
+    oOverlay = (smoothV || face == 6u) ? 0.0 : float((w1 >> 30) & 1u);     // crosses: the bit marks a swaying plant
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
@@ -54,6 +54,6 @@ void main() {
     float fs = faceShade[face];
     if (smoothV) { nl = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nl); }
     vec3 nw = (pc.model * vec4(nl, 0.0)).xyz;
-    oShade = lit * sunShadeN(nw, fs, sw, u.sunDir.xyz) * aoCurve[ao];
+    oShade = lit * sunShadeN(nw, fs, sw, u.sunDir.xyz) * aoCurve[(face == 6u && ((w1 >> 30) & 1u) == 1u) ? 3u : ao];
     oDist = length(rel);
 }

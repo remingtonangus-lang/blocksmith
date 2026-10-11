@@ -4025,23 +4025,43 @@ enum HDTex {
         }
     }
 
-    // Ore: crystal clusters (faceted Voronoi chips) set into a stone material, with a dark rim.
-    static func ore(_ base: @escaping Gen, _ c0: UInt32, _ c1: UInt32, clusters: Int = 6, faint: Bool = false) -> Gen {
-        { n, s in
+    // Ore: crystal clusters (faceted Voronoi chips) set into a stone material, with a dark rim. Each ore has its own
+    // shape as well as its colour (L3: "every ore distinct by colour and shape, not just tint", readable at 10+
+    // blocks): round lumps (coal, copper), long diagonal streaks (iron), a scatter of small nuggets (gold), flat
+    // horizontal lenses (lapis), upright prisms (emerald, quartz). OreTests measures them.
+    enum OreShape { case lump, streak, nugget, lens, prism }
+    // BS_ORE_LUMPS=1: every ore in round lumps as before L3 (before/after captures).
+    static let oreLumps = ProcessInfo.processInfo.environment["BS_ORE_LUMPS"] == "1"
+    static func ore(_ base: @escaping Gen, _ c0: UInt32, _ c1: UInt32, clusters: Int = 6, faint: Bool = false, shape shape0: OreShape = .lump) -> Gen {
+        let shape = oreLumps ? .lump : shape0
+        return { n, s in
             var img = base(n, s &+ 31)
             let facets = voronoi(n, max(8, n / 6), s &+ 5, jitter: 1)
             var rng = SRng(UInt64(truncatingIfNeeded: s) &* 31337 &+ 7)
             let a = V3(Float((c0 >> 16) & 255), Float((c0 >> 8) & 255), Float(c0 & 255)) / 255
             let b = V3(Float((c1 >> 16) & 255), Float((c1 >> 8) & 255), Float(c1 & 255)) / 255
             let wob = fbm(n, max(1, n / 16), 2, s &+ 6)
-            for _ in 0..<clusters {
+            // Per shape: how many, radius range (of n), long and short axis scale, axis angle and its spread (radians).
+            let count: Int, r0: Float, r1: Float, long: Float, short: Float, angle: Float, spread: Float
+            switch shape {
+            case .lump: (count, r0, r1, long, short, angle, spread) = (clusters, 0.06, 0.11, 1, 1, 0, 0)
+            case .streak: (count, r0, r1, long, short, angle, spread) = (max(4, clusters - 1), 0.065, 0.09, 2.3, 0.6, 0.7, 0.3)
+            case .nugget: (count, r0, r1, long, short, angle, spread) = (clusters * 3, 0.03, 0.045, 1, 1, 0, 0)
+            case .lens: (count, r0, r1, long, short, angle, spread) = (max(3, clusters - 2), 0.07, 0.1, 2.7, 0.5, 0, 0.12)
+            case .prism: (count, r0, r1, long, short, angle, spread) = (clusters, 0.06, 0.085, 2.2, 0.55, Float.pi / 2, 0.2)
+            }
+            for _ in 0..<count {
                 let cx: Float = Float(n) * (0.1 + rng.float() * 0.8), cy: Float = Float(n) * (0.1 + rng.float() * 0.8)
-                let r: Float = Float(n) * (faint ? 0.025 + rng.float() * 0.02 : 0.06 + rng.float() * 0.05)
-                let ri = Int(r * 1.5) + 2
+                let r: Float = Float(n) * (faint ? 0.025 + rng.float() * 0.02 : r0 + rng.float() * (r1 - r0))
+                let th: Float = angle + (rng.float() * 2 - 1) * spread
+                let ca = cosf(th), sa = sinf(th)
+                let ri = Int(r * 1.5 * max(long, short)) + 2
                 for dy in -ri...ri { for dx in -ri...ri {
                     let x = Int(cx) + dx, y = Int(cy) + dy
                     let i = (((y % n) + n) % n) * n + (((x % n) + n) % n)
-                    let d0: Float = Float(dx * dx + dy * dy).squareRoot()
+                    let u: Float = (Float(dx) * ca + Float(dy) * sa) / long
+                    let v: Float = (Float(dy) * ca - Float(dx) * sa) / short
+                    let d0: Float = (u * u + v * v).squareRoot()
                     let d: Float = d0 + (wob[i] - 0.5) * r * 0.8
                     if d < r {
                         let f: Float = facets.id[i]
@@ -5957,8 +5977,8 @@ enum HDTex {
         "mud": soil([(0, 0x2E2628), (0.5, 0x3C3236), (1, 0x4E4246)], pebble: 0x5A4E50, pebbles: 3, clods: 6),
         // Emberdeep and the Hollow.
         "netherrack": netherrackGen,
-        "nether_gold_ore": ore(netherrackGen, 0xD8A824, 0xFCE878, clusters: 9),
-        "nether_quartz_ore": ore(netherrackGen, 0xCFC6B8, 0xFFFFFF, clusters: 8),
+        "nether_gold_ore": ore(netherrackGen, 0xD8A824, 0xFCE878, clusters: 5, shape: .nugget),
+        "nether_quartz_ore": ore(netherrackGen, 0xCFC6B8, 0xFFFFFF, clusters: 7, shape: .prism),
         "crimson_nylium": crimsonNylium,
         "crimson_nylium_side": topped(crimsonNylium, depth: 0.2, over: netherrackGen),
         "warped_nylium": warpedNylium,
@@ -6031,18 +6051,18 @@ enum HDTex {
         "red_sand": sandLike([(0, 0x9E5222), (0.5, 0xB8662C), (1, 0xD0803C)]),
         "gravel": gravel([(0, 0x5C5654), (0.4, 0x7C7672), (0.7, 0x968C80), (1, 0xB0A8A0)]),
         "coal_ore": ore(stone(stoneGrey), 0x1E1E20, 0x46464A),
-        "iron_ore": ore(stone(stoneGrey), 0xC4966E, 0xECCCAA),
+        "iron_ore": ore(stone(stoneGrey), 0xC4966E, 0xECCCAA, shape: .streak),
         "copper_ore": ore(stone(stoneGrey), 0xB8683C, 0x6ECAA4),
-        "gold_ore": ore(stone(stoneGrey), 0xD8A824, 0xFCE878),
-        "lapis_ore": ore(stone(stoneGrey), 0x1C3A9C, 0x4C7CEC),
+        "gold_ore": ore(stone(stoneGrey), 0xD8A824, 0xFCE878, clusters: 5, shape: .nugget),
+        "lapis_ore": ore(stone(stoneGrey), 0x1C3A9C, 0x4C7CEC, shape: .lens),
         "diamond_ore": ore(stone(stoneGrey), 0x98A1AD, 0xB3BCC7, clusters: 4, faint: true),
-        "emerald_ore": ore(stone(stoneGrey), 0x12A04A, 0x7CF4A8),
+        "emerald_ore": ore(stone(stoneGrey), 0x12A04A, 0x7CF4A8, shape: .prism),
         "deepslate_coal_ore": ore(stone(deepslate), 0x161618, 0x3A3A3E),
-        "deepslate_iron_ore": ore(stone(deepslate), 0xB08660, 0xDEBC98),
-        "deepslate_gold_ore": ore(stone(deepslate), 0xCC9C20, 0xF4DE70),
+        "deepslate_iron_ore": ore(stone(deepslate), 0xB08660, 0xDEBC98, shape: .streak),
+        "deepslate_gold_ore": ore(stone(deepslate), 0xCC9C20, 0xF4DE70, clusters: 5, shape: .nugget),
         "deepslate_diamond_ore": ore(stone(deepslate), 0x69717D, 0x7F8794, clusters: 4, faint: true),
-        "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC),
-        "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498),
+        "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC, shape: .lens),
+        "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498, shape: .prism),
         "deepslate_copper_ore": ore(stone(deepslate), 0xA85E36, 0x60BA96)
     ]
     static let tablePart7: [String: Gen] = [

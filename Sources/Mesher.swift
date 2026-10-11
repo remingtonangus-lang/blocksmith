@@ -17,7 +17,7 @@ struct SectionMesh {
 //
 // Vertex = 2 x UInt32 (positions/uv in 1/16 block):
 //   w0: x(9) y(9)<<9 z(9)<<18 shade(3)<<27 tint(2)<<30        tint: 0 none, 1 grass, 2 foliage, 3 water
-//   w1: u(5) v(5)<<5 layer(10)<<10 ao(2)<<20 sky(4)<<22 block(4)<<26 overlay(1)<<30
+//   w1: u(5) v(5)<<5 layer(10)<<10 ao(2)<<20 sky(4)<<22 block(4)<<26 overlay(1)<<30   (cross plants: overlay = sways, ao = its phase)
 // 4 verts per quad (corners 0..3 CCW seen from outside), drawn with a shared index buffer.
 enum Mesher {
     // Water top faces carry the water depth in their AO bits (Quest only: its water shader reads it; the Mac's water
@@ -26,6 +26,13 @@ enum Mesher {
     static var waterDepthAO = false
     #else
     static var waterDepthAO = true
+    #endif
+    // Cross plants that bend in the wind (Blocks.sway) carry the overlay bit (crosses have no overlay otherwise); the
+    // Quest chunk and ship shaders move their top corners (the Mac's shaders don't read it, so it stays off there).
+    #if os(macOS)
+    static var plantSway = false
+    #else
+    static var plantSway = true
     #endif
 
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
@@ -234,6 +241,7 @@ enum Mesher {
         let far = lod == 1
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let crossT = Blocks.crossSize
+        let swayT = Blocks.sway, swayOn = Mesher.plantSway
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes, collideT = Blocks.collide
         let CT = cornerTable, NT = normalTable, PTab = plantTable
@@ -486,11 +494,13 @@ enum Mesher {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
                         let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
+                        let sway = swayOn && swayT[bi]
+                        let aoC = sway ? (x &* 5 &+ z &* 3 &+ y) & 3 : 3      // swaying: the AO bits hold its phase (crosses draw unshaded)
                         for q in 0..<4 {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
                                 vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
-                                     6, tintV, cornerU[k], cornerV[k], layer, 3, l, false)
+                                     6, tintV, cornerU[k], cornerV[k], layer, aoC, l, sway)
                             }
                         }
                         continue

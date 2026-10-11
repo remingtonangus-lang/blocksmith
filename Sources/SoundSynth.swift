@@ -695,6 +695,8 @@ struct Synth {
         case .dispenseFail: out = repeated({ g in g.modes(0.06, [(500, 0.4, 0.015)]) }, times: 2, interval: 0.09, jitter: 0)
         case .tripwire: out = Synth.mix(modes(0.1, [(2800 * p, 0.3, 0.02)]), burst(0.03, lp: 6000, hp: 1500, decay: 0.005, gain: 0.6))
         case .fizz: out = burst(0.6, lp: 8000, hp: 3000, attack: 0.02, decay: 0.25, gain: 0.9)
+        // Walking through plants (L3): a short leafy swish with a flutter, a few dry ticks of stems.
+        case .plantBrush: out = Synth.window(Synth.mix(swishNoise(rnd(0.32, 0.45), lo: 1400 * p, hi: 6500 * p, attack: 0.04, decay: 0.12, gain: 0.55), grains(4, spread: 0.3, lp: 7000, hp: 2500, decay: 0.004, gain: 0.25)))
         case .railClick: out = Synth.mix(modes(0.08, [(2200 * p, 0.3, 0.015)]), burst(0.03, lp: 5000, hp: 1200, decay: 0.006, gain: 0.5))
         case .anvil:
             out = Synth.mix(modes(0.9, [(830 * p, 0.5, 0.35), (1970 * p, 0.3, 0.25), (3120 * p, 0.2, 0.12), (4410 * p, 0.12, 0.08)]),

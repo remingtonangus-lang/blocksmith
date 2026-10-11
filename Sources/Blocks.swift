@@ -57,6 +57,7 @@ struct BlockDef {
     var aoOcc: Bool? = nil
     var hidden = false               // not offered in the creative inventory
     var group: String? = nil         // state group (defaults to name)
+    var sway: Bool? = nil            // cross plants: the top bends in the wind (nil: BlockRegistry.swayDefault)
 
     init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
@@ -100,6 +101,7 @@ final class BlockRegistry {
     var connectKind: [UInt8] = []
     var shape: [String] = []
     var hidden: [Bool] = []
+    var sway: [Bool] = []           // cross plants whose top corners bend in the wind (Quest chunk.vert; Mesher flags them)
     var hardness: [Float] = []
     var resistance: [Float] = []
     // Flammable in the reference though neither wooden-sounding, leaves nor a plant (World.fireOdds gives their odds).
@@ -220,6 +222,7 @@ final class BlockRegistry {
         connectKind.append(d.connect)
         shape.append(d.shape)
         hidden.append(d.hidden)
+        sway.append(d.sway ?? BlockRegistry.swayDefault(d))
         hardness.append(d.hardness)
         resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name
@@ -866,6 +869,17 @@ extension BlockRegistry {
                   "closed_eyeblossom"] { m[f] = 12 }
         return m
     }()
+
+    // Plants (L3 flesh-out): cross plants that grow up from the ground bend their top in the wind. Not stacked ones (a
+    // bent top would part from the next block's still bottom: cane, kelp, bamboo, dripleaf stems, the lower half of a tall plant, which
+    // tall() marks), not hanging ones (their top is where they hold on) and not fire, webs, crystals or dripstone.
+    static func swayDefault(_ d: BlockDef) -> Bool {
+        guard d.render == .cross && d.sound == .plant && d.fluid < 0 else { return false }     // not underwater ones
+        let n = d.group ?? d.name
+        for k in ["cane", "vine", "kelp", "bamboo", "hanging", "weeping", "twisting", "spore_blossom", "roots", "lichen", "stem"]
+            where n.contains(k) { return false }
+        return true
+    }
 }
 
 // Frequently used states (resolved once, lazily, by name).

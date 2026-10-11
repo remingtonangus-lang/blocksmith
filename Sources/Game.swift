@@ -281,6 +281,8 @@ final class Game {
     // Audio (nil when headless or if the audio device can't start)
     var sound: SoundEngine?
     private var stepDist: Float = 0
+    var plantBrushDist: Float = 0.9          // blocks walked inside plants since the last rustle
+    var plantBrushes = 0                     // rustles played (checks)
     private var wasInWater = false
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
@@ -2250,7 +2252,7 @@ final class Game {
     }
 
     // Footsteps, landing thuds and splashes.
-    private func audioTick(from before: V3) {
+    func audioTick(from before: V3) {
         let p = player
         if p.inWater && !wasInWater && p.vel.y < -3 { sfx(.splash, min(1, -p.vel.y / 12)) }
         wasInWater = p.inWater
@@ -2269,8 +2271,16 @@ final class Game {
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { particles.dust(under, at: p.pos, count: 1, spread: 0.25) }
         }
+        // Walking through plants (L3): a rustle every ~1.2 blocks moved inside grass, flowers or bushes (feet or head).
+        let moved = simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
+        let px = Int(floor(p.pos.x)), pz = Int(floor(p.pos.z)), py = Int(floor(p.pos.y + 0.1))
+        let plant = Blocks.sway[Int(world.block(px, py, pz))] || Blocks.sway[Int(world.block(px, py + 1, pz))]
+        if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
+            plantBrushDist += moved
+            if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }
+        } else if !plant { plantBrushDist = 0.9 }
         guard p.onGround && !p.flying && !p.inWater else { stepDist = 0.8; return }
-        stepDist += simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
+        stepDist += moved
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))

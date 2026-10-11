@@ -30,11 +30,12 @@ layout(set = 0, binding = 1) uniform sampler2DArray tex;
 // derivatives of the moved uv never exceed a texel per pixel, so the hardware LOD stays at the top mip up close.
 // tools/texsharp.py models it. Every texture-array lookup goes through here (HUD: hud.frag has its own copy).
 #ifdef BS_FRAG
-vec2 sharpUV(vec2 uv) {
+// d = texels per pixel (fwidth of uv * size), given so a caller that moves uv per block can pass the unmoved rate.
+vec2 sharpUVd(vec2 uv, vec2 dt) {
     vec2 sz = vec2(textureSize(tex, 0).xy);
     vec2 t = uv * sz;
     vec2 seam = floor(t + 0.5);
-    vec2 d = clamp(fwidth(t), vec2(1e-4), vec2(1.0));
+    vec2 d = clamp(dt, vec2(1e-4), vec2(1.0));
     vec2 o = seam + clamp((t - seam) / d, -0.5, 0.5);
     // A seam on a tile boundary is a block face's edge: the REPEAT blend there mixed in the art's opposite edge (a
     // dark line of dirt along the top of every grass side, the frame of a chest front wrapping round), so magnified
@@ -43,6 +44,7 @@ vec2 sharpUV(vec2 uv) {
     o = mix(o, floor(t) + 0.5, vec2(tile));
     return o / sz;
 }
+vec2 sharpUV(vec2 uv) { return sharpUVd(uv, fwidth(uv * vec2(textureSize(tex, 0).xy))); }
 vec4 texSharp(vec2 uv, float layer) { return texture(tex, vec3(sharpUV(uv), layer)); }
 #endif
 
@@ -60,11 +62,44 @@ vec3 oceanWave1(vec2 w, float t) {
 }
 vec3 oceanWave(vec2 w, float t) { return oceanWave1(w, t) * u.waves.x; }
 
+// Plant sway (chunk.vert / ship.vert): the xz offset of a swaying plant's top corner at world point w, phase 0-3 per plant.
+// The wind (u.wind.xy) pushes the tops downwind in gusts that roll across the ground (~9 m apart), each plant flutters
+// on its own phase; stronger in storms (u.waves.x: 0.6 calm, up to 5). About a tenth of a block at the crest.
+vec2 plantSway(vec3 w, float phase) {
+    vec2 d = length(u.wind.xy) > 0.01 ? normalize(u.wind.xy) : vec2(0.7071, 0.7071);
+    float t = u.params.z;
+    float storm = clamp(u.waves.x / 0.6, 1.0, 2.5);
+    float gust = 0.5 + 0.5 * sin(dot(w.xz, d) * 0.7 - t * 1.6);
+    float flutter = sin(t * 2.9 + phase * 1.57 + w.y * 0.5);
+    float lean = (0.035 + 0.045 * gust) * storm;
+    return d * (lean + 0.022 * storm * flutter) + vec2(-d.y, d.x) * (0.014 * storm * sin(t * 2.3 + phase * 2.1));
+}
+
 float hash21(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
 }
+
+#ifdef BS_FRAG
+// Grass tops (L3): each block's top turned and mirrored into one of 8 orientations by a hash of its world cell, so the
+// tiling never lines up across a lawn. uv is the face's (x, z) texture coordinate (whole units = blocks, as both the
+// per-vertex and the projected top uv are), cell the block's world xz. The derivatives are taken before the turn and
+// turned with it, so the mip level and sharpUV see no jump at block edges (no seam lines between turned blocks).
+vec4 texSharpTurned(vec2 uv, float layer, vec2 cell) {
+    int r = int(hash21(cell * 1.618 + vec2(17.0, 5.0)) * 8.0) & 7;
+    vec2 c = floor(uv), f = uv - c;
+    vec2 gx = dFdx(uv), gy = dFdy(uv);
+    if ((r & 4) != 0) { f.x = 1.0 - f.x; gx.x = -gx.x; gy.x = -gy.x; }
+    r &= 3;
+    if (r == 1) { f = vec2(f.y, 1.0 - f.x); gx = vec2(gx.y, -gx.x); gy = vec2(gy.y, -gy.x); }
+    else if (r == 2) { f = 1.0 - f; gx = -gx; gy = -gy; }
+    else if (r == 3) { f = vec2(1.0 - f.y, f.x); gx = vec2(-gx.y, gx.x); gy = vec2(-gy.y, gy.x); }
+    vec2 sz = vec2(textureSize(tex, 0).xy);
+    vec2 o = sharpUVd(c + f, (abs(gx) + abs(gy)) * sz);
+    return textureGrad(tex, vec3(o, layer), gx, gy);
+}
+#endif
 
 float vnoise(vec2 p) {
     vec2 i = floor(p), f = fract(p);

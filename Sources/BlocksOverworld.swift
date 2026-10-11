@@ -31,7 +31,7 @@ extension BlockRegistry {
                 var d = BlockDef(upper ? "\(n)[upper]" : n, disp)
                 d.tex = [upper ? "\(n)_top" : "\(n)_bottom"]; d.render = .cross; d.layer = .cutout; d.opaque = false
                 d.collide = false; d.hardness = 0; d.sound = .plant; d.replaceable = true; d.tint = tint; d.skyStop = false
-                d.group = n; d.hidden = upper
+                d.group = n; d.hidden = upper; d.sway = upper
                 add(d)
             }
         }

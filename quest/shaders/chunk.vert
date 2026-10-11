@@ -57,6 +57,10 @@ void main() {
         vec3 wp = rel + u.eye.xyz;
         if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * 0.7;
     }
+    // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
+    // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
+    bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u;
+    if (sway && vv == 0u) rel.xz += plantSway(rel + u.eye.xyz, float(ao)) * smoothstep(0.3, 0.8, skyL);   // no wind in caves
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
     oLayer = float(layer);
@@ -65,8 +69,8 @@ void main() {
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
         oTint = unpackUnorm4x8(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
-    oOverlay = smoothV ? 0.0 : float((w1 >> 30) & 1u);
-    oAnim = face == 7u ? 1.0 : 0.0;
+    oOverlay = (smoothV || face == 6u) ? 0.0 : float((w1 >> 30) & 1u);
+    oAnim = face == 7u ? 1.0 : (face == 2u && tintMode == 1u ? 2.0 : 0.0);     // 1 lava, 2 a grass top (turned per block)
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     vec3 skyTint = mix(vec3(0.6, 0.7, 1.0), vec3(1.0), smoothstep(0.26, 0.6, u.params.y));
     float blk0 = blkL / (4.0 - 3.0 * blkL);
@@ -85,7 +89,7 @@ void main() {
     // skylight 5, leaving a dark band of skylight 5-10 walls at a cave mouth between the lit outside and the filled
     // inside (light -> dark -> light walking in). dk already keeps it off on the night surface and daylight seabeds.
     float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0 * (1.0 - smoothstep(0.15, 0.68, skyL)) * dk;
-    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, tintMode == 3u ? 1.0 : float(ao) / 3.0));
+    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, (tintMode == 3u || sway) ? 1.0 : float(ao) / 3.0));
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     bool water = tintMode == 3u;
     oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;
@@ -93,7 +97,7 @@ void main() {
     vec3 nrm = faceNormal(face);
     float fs = faceShade[face];
     if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
-    oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * (water ? 1.0 : aoCurve[ao]);
+    oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * ((water || sway) ? 1.0 : aoCurve[ao]);
     oDist = length(rel);
     oRel = rel;
     oFace = float(face);
