@@ -35,7 +35,7 @@ unless another suite is named.
 | P27 monsters in daylight | fixed | at full daylight, out of sight and under open sky, hostile mobs (not sun-burners, not in rain) fade out over about 8 s | P27 day clears |
 | P28 craft counts | fixed | each recipe tile shows how many you can make; the detail panel says "You can make N" | P28 craft tiles |
 | P29 prices | part | map $1.50, raw titanium $28, titanium ingot $40; the sheriff's revolver look is open (item art) | prices |
-| P30 armour vs guns | fixed | armour stops at most 15 of 25 points against a round and every round of 2+ does at least half a heart; the shotgun hits harder (4 a pellet, tighter) | P30 armour vs guns |
+| P30 armour vs guns | fixed | armour stops at most 12 of 25 points against a round (P45; was 15) and every round of 2+ does at least half a heart; the shotgun hits harder (4 a pellet, tighter) | P30 armour vs guns |
 | P31 hostages | fixed | townsfolk under threat from soldiers or monsters say raid lines, never "put that away" | towns hostage lines |
 | P32 guns | part | rounds leave the controller aim ray in VR, hip spread halved; reload says why it can't start; the Farsight scope is G21 | P32 VR gun aim |
 | P33 capital assault | fixed | inside the walls the alarm sounds at once, lockdown after 10 s (reinforcements); tower floors 1, 2, 4, 6 get a ring corridor with spokes and doors | basetest alarm, structcheck military_base |
@@ -44,3 +44,32 @@ unless another suite is named.
 | P36 radar blocks | fixed | a citadel console shows its patrols and garrison on the radar for 30 s | P36 console radar |
 | P37 sheriff office | see G14 | | |
 | P38 hunger | fixed with P12 | | P12 hunger |
+| P39 lava | fixed | cave-floor lava pools kept; single lava sources added along cave floors | P39 lava |
+| P40 capital ammo | fixed | Capital guns load Capital Rounds (never sold, looted from soldiers and citadels); rifle rounds $0.30, shells $0.40; Capital guns sold only in Capital cities | P40 ammo |
+| P41 Elk Gulch stairs | open | the note's spot is solid rock in the current generator (the town moved), so the stairs could not be found; structcheck walkability is clean; needs the voice shot | |
+| P42 potions | part | an original set of frontier tonics ("Quickstep Tonic", "Mending Tonic", "Black Draught"; docs/status/ip-renames.md); the doctor's rarer tonics turn up in only some shops; bottle art unchanged (he called the shop look "not bad") | P42 tonics |
+| P43 gun accuracy | fixed | every gun but the shotgun hits exactly where the sights point | P32/P43 VR gun aim |
+| P44 rarity | part | coal and iron rarer; Capital cities and citadels about one per 4,000 x 4,000 blocks on new ground; surface water unchanged (the lakes graph would seam saved worlds) | P44 rarity |
+| P45 guns too easy in titanium | fixed | armour caps at 12 of 25 against a round | P30 armour vs guns |
+| P46 endgame hordes | open | feature | |
+| P47 gunpowder upside down | fixed | dropped item icons drew upside down on both renderers | view --drop gunpowder |
+| P48 base towns | open | feature | |
+| P49 horses | part | mounting with a gun in hand works; the rest is in the horse items list | P49 |
+| P50 earned knowledge | fixed | a country's riches are told by a townsperson to a respected player (honour 20+), then shown on the map and at the border; before that only the name | honour gap P50 |
+| P51 roads and riders | open | feature | |
+| P52 polygon world | done | on the Quest: Create New World > Terrain: Smooth (Test); an open world: Options > Video > Smooth Terrain (docs/status/polygon-test.md) | questcheck create path |
+| P53 HUD | fixed | the Quest HUD rests at 45% and comes up solid for 4 s on a grip press or when hurt (VR Comfort > HUD Fade); in-game button prompts retire after 3 hours of play (Button Hints brings them back) | |
+| P54 vehicles | open | design prototype | |
+| P55 mob variety | fixed | each monster rolls its own speed (x0.8-1.25), hit (x0.7-1.4), toughness (x0.75-1.35) and archer aim | P55 mob variety |
+| P56 VR reload | fixed | off hand at the hip takes a magazine, slotting it at the gun hand loads it; X still reloads | P56 VR reload |
+| P57 bodies | fixed | bodies stay where they fell until the player is 48+ blocks away | mob anim P57 |
+| P58 lines and time | fixed | closing-up and off-to-bed lines only in the evening; late at night the closed lines | P58/P59 night manners |
+| P59 someone else's bed | fixed | sleeping in a town bed you didn't place costs 3 honour, once a night | P58/P59 night manners |
+| P60 mob overlap | fixed | mobs are eased apart from each other and from the player | P60 no overlap |
+| P61 hold A to count | fixed | hold A on a stack: items count onto the cursor, faster as you hold; a tap still takes the stack | padtest (Mac) |
+| P62 town spacing | fixed (new ground) | 4 blocks between buildings along the street, deeper yards | P62 town spacing |
+| P63 gunfire in town | fixed | the law within 48 blocks and the four nearest townsfolk within 32 walk over to look | P63 gunfire |
+| P64 death and damage | fixed | experience is kept on death; bare skin takes a fifth more; deputies carry six-irons | towns |
+| P65 clipping craft | fixed | crawlers break through buildings as they drive; dropships clear the tallest block under and ahead of the hull | |
+| P66 drop craft | fixed | the cockpit is opened so the pilot sees out; it burns fuel (4 min) and refuels from coal or blaze rods | |
+| P67 sheriff jobs marker | keep | works as he said | |

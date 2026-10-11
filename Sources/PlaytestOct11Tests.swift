@@ -34,6 +34,7 @@ enum PlaytestOct11Tests {
         tonics(check)
         townSpacing(game, check)
         vrReload(game, check)
+        caveLava(check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -688,5 +689,21 @@ enum PlaytestOct11Tests {
         let full = game.held.tag == Guns.magSize(game.held)
         check(away == .none && grab == .grabbed && ins == .inserted && full,
               "P56 VR reload: a grip away from the hip takes nothing (\(away)); at the hip a magazine (\(grab)); at the gun it slots in (\(ins)): \(game.held.tag) / \(Guns.magSize(game.held))")
+    }
+
+    // P39: lava stays easy to find: cupped single sources on cave floors between -50 and -8, never spilling.
+    static func caveLava(_ check: (Bool, String) -> Void) {
+        let gen = WorldGen(seed: 12345)
+        var cupped = 0, chunks = 0
+        for cz in 0..<4 { for cx in 0..<4 {
+            let b = gen.generate(cx: cx * 3, cz: cz * 3 - 5)
+            chunks += 1
+            for y in (YOFF - 50)..<(YOFF - 8) { for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+                let i = Chunk.index(lx, y, lz)
+                guard b[i] == LAVA, b[i + CSQ] == AIR else { continue }
+                if [1, -1, CS, -CS, -CSQ].allSatisfy({ Blocks.opaque[Int(b[i + $0])] }) { cupped += 1 }
+            } } }
+        } }
+        check(cupped >= 4, "P39 lava: \(cupped) cupped lava sources on cave floors (-50 to -8) in \(chunks) chunks")
     }
 }
