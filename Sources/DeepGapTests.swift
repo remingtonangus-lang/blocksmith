@@ -293,15 +293,15 @@ enum DeepGapTests {
             return m
         }
         let cases: [(String, (V3) -> Mob?, String, String, Float)] = [
-            ("Capital rifleman (surface, for scale)", capital(.soldierRecruit), "gun_rifle", "rifle_rounds", 18),
-            ("Blight Skeleton (hell band)", deep("wither_skeleton"), "gun_rifle", "rifle_rounds", 6),
-            ("Boarling Brute (hell band)", deep("piglin_brute"), "gun_rifle", "rifle_rounds", 6),
-            ("Keep Castellan", ash("piglin_brute:warden@deep"), "gun_rifle", "rifle_rounds", 6),
-            ("Ashguard Rifleman", ash("soldier_recruit@ash"), "gun_rifle", "rifle_rounds", 18),
-            ("Ashguard Stormer", ash("soldier_trooper@ash"), "gun_rifle", "rifle_rounds", 18),
-            ("Ashguard Heavy", ash("soldier_ironclad@ash"), "gun_rifle", "rifle_rounds", 18),
+            ("Capital rifleman (surface, for scale)", capital(.soldierRecruit), "gun_rifle", "capital_rounds", 18),
+            ("Blight Skeleton (hell band)", deep("wither_skeleton"), "gun_rifle", "capital_rounds", 6),
+            ("Boarling Brute (hell band)", deep("piglin_brute"), "gun_rifle", "capital_rounds", 6),
+            ("Keep Castellan", ash("piglin_brute:warden@deep"), "gun_rifle", "capital_rounds", 6),
+            ("Ashguard Rifleman", ash("soldier_recruit@ash"), "gun_rifle", "capital_rounds", 18),
+            ("Ashguard Stormer", ash("soldier_trooper@ash"), "gun_rifle", "capital_rounds", 18),
+            ("Ashguard Heavy", ash("soldier_ironclad@ash"), "gun_rifle", "capital_rounds", 18),
             ("Ashguard Half-track", ash("ash_halftrack@ash"), "gun_launcher", "rocket_ammo", 20),
-            ("Cinder Tank (rifle)", ash("ash_tank@ash"), "gun_rifle", "rifle_rounds", 24),
+            ("Cinder Tank (rifle)", ash("ash_tank@ash"), "gun_rifle", "capital_rounds", 24),
             ("Cinder Tank (launcher)", ash("ash_tank@ash"), "gun_launcher", "rocket_ammo", 24),
             ("The Ash Marshal", marshalAlone, "gun_launcher", "rocket_ammo", 16),
         ]

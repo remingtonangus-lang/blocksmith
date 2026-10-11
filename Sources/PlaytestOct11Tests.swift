@@ -25,6 +25,9 @@ enum PlaytestOct11Tests {
         sheriffGuardsGun(game, check)
         grassPatches(check)
         difficultyLevels(game, check)
+        capitalAmmo(check)
+        rarity(check)
+        nightManners(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -418,7 +421,7 @@ enum PlaytestOct11Tests {
         game.fireHeldGun(gi)
         guard let s = game.arms.slugs.last, game.arms.slugs.count > n0 else { check(false, "P32 VR gun aim: no round fired"); return }
         let off = simd_length(s.pos - (hand + dir * 0.3)), ang = acosf(min(1, simd_dot(simd_normalize(s.vel), dir))) * 180 / .pi
-        check(off < 0.01 && ang < 3, String(format: "P32 VR gun aim: the round leaves the hand (%.2f off) along the hand's ray (%.1f degrees, spread included)", off, ang))
+        check(off < 0.01 && ang < 0.05, String(format: "P32/P43 VR gun aim: the round leaves the hand (%.2f off) exactly along the hand's ray (%.2f degrees off)", off, ang))
     }
 
     // P36: a citadel's command console, used, puts the Capital sites and patrols on the radar readout for 30 s.
@@ -512,5 +515,55 @@ enum PlaytestOct11Tests {
         check(blows[0] < blows[1] && blows[1] < blows[2] && caps[0] < caps[1] && caps[1] < caps[2]
                 && hunger[0] < hunger[1] && hunger[1] < hunger[2] && speed[0] < speed[2] && locked,
               "G19 difficulty: a zombie takes \(blows) blows of 6 on easy/normal/hard, monster cap \(caps), hunger x\(hunger), speed x\(speed); the pause menu keeps it locked (\(locked))")
+    }
+
+    // P40: the Capital's guns fire capital rounds, which no shop sells; frontier rifle rounds cost real money; a gunsmith
+    // outside a Capital city doesn't offer the Capital's guns.
+    static func capitalAmmo(_ check: (Bool, String) -> Void) {
+        let capGuns = ["gun_rifle", "gun_smg", "gun_sidearm"]
+        let usesOwn = capGuns.allSatisfy { k in Guns.all.first { $0.key == k }?.ammo == "capital_rounds" }
+        let sold = Economy.stock.values.contains { $0.contains { $0.0 == "capital_rounds" } }
+        let price = Economy.value["rifle_rounds"] ?? 0
+        let gated = capGuns.allSatisfy { Economy.capitalOnly.contains($0) }
+        check(usesOwn && !sold && price >= 25 && gated && Items.has("capital_rounds"),
+              "P40 ammo: Capital guns load capital rounds (\(usesOwn)), never sold (\(!sold)); rifle rounds cost \(Money.format(price)) each; Capital guns only in Capital towns (\(gated))")
+    }
+
+    // P44: with the real shares, Capital city and citadel regions that keep a site come to about one each per 4,000 x
+    // 4,000 blocks (each kept region still needs fit ground, about half of them), over a 40,000-block square.
+    static func rarity(_ check: (Bool, String) -> Void) {
+        let s32 = UInt32(truncatingIfNeeded: UInt64(12345))
+        var cities = 0, citadels = 0
+        for rz in -22..<22 { for rx in -22..<22 where hashf(rx, 7351, rz, s32 ^ 0xCA91) < WorldRules.capitalKeepP44 { cities += 1 } }
+        for rz in -31..<31 { for rx in -31..<31 where hashf(rx, 7361, rz, s32 ^ 0xC17A) < WorldRules.citadelKeepP44 { citadels += 1 } }
+        // 44 x 44 regions of 896 blocks and 62 x 62 of 640: both about 39,700 blocks square, 98 squares of 4,000.
+        let perCity = Float(cities) / 2 / 98, perCitadel = Float(citadels) / 2 / 98
+        check(perCity > 0.5 && perCity < 1.6 && perCitadel > 0.5 && perCitadel < 1.6,
+              String(format: "P44 rarity: about %.1f Capital cities and %.1f citadels per 4,000 x 4,000 blocks (%d and %d kept regions)", perCity, perCitadel, cities, citadels))
+    }
+
+    // P58: past dusk nobody says the evening lines (closing up, off to bed); every such line is a real take, and the chef
+    // falls back to the closed lines. P59: sleeping in a town bed that isn't yours costs honour once a night; your own
+    // placed bed costs nothing.
+    static func nightManners(_ game: Game, _ check: (Bool, String) -> Void) {
+        let texts = Set(TownVoice.takes.map { $0.text })
+        let real = TownVoice.eveningOnly.allSatisfy { texts.contains($0) }
+        let chefLate = (TownVoice.index["chef_m"]?[.night] ?? []).filter { !TownVoice.eveningOnly.contains(TownVoice.takes[$0].text) }
+        let windows = !TownVoice.isLate(0.55) && TownVoice.isLate(0.75) && !TownVoice.isLate(0.1)
+        let g = game, savedTime = g.time, savedSurv = g.survival, h0 = Honour.value
+        defer { g.time = savedTime; g.survival = savedSurv; TownLaw.forceTown = nil; TownLaw.reset(); Honour.value = h0 }
+        TownLaw.reset(); TownLaw.forceTown = true; g.survival = true; g.time = 3.7 * DAY_LENGTH
+        let bed = IVec3(Int(floorf(g.player.pos.x)) + 3, Int(floorf(g.player.pos.y)), Int(floorf(g.player.pos.z)))
+        let a = Honour.value
+        TownLaw.sleptIn(g, bed)
+        let b = Honour.value
+        TownLaw.sleptIn(g, bed)                                  // the same night again: no second charge
+        let c = Honour.value
+        let mine = bed + IVec3(0, 0, 5)
+        TownLaw.placed(g, mine)
+        TownLaw.sleptIn(g, mine + IVec3(1, 0, 0))                 // the head half of a bed you placed
+        let d = Honour.value
+        check(real && chefLate.isEmpty && windows && b < a && c == b && d == c,
+              "P58/P59 night manners: evening-only lines are real takes (\(real)), the chef has none late (\(chefLate.count)), late window ok (\(windows)); a town bed costs \(b - a) honour once a night (again: \(c - b)), your own bed \(d - c)")
     }
 }

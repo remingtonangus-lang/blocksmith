@@ -14,6 +14,7 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
+WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
@@ -74,6 +75,12 @@ if let out = arg("--view"), let ctx = vkctx {
                 print("view: \(want) sign at \(p.x) \(p.y) \(p.z), standing at \(vg.player.pos)")
             }
         }
+    }
+    // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
+    if let k = arg("--drop"), Items.has(k) {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw))
+        let e = ItemEntity(ItemStack(Items.id(k), 1), at: vg.player.eye + ahead * 1.6 - V3(0, 0.3, 0), vel: .zero, delay: 9)
+        vg.drops.items.append(e)
     }
     do {
         try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: pitch)

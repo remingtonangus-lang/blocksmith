@@ -157,7 +157,8 @@ extension Village {
         // TownLaw); only where two cells leave the way to the doors clear.
         if split > 0 && du > 2 {
             let (x, z) = world(l, l.w - 2, 2)
-            w.chest(x, l.y, z, loot: "sheriff_locker", seed: SRng(l.seed &+ 0x5E1F).next(), facing: dir(l, 3))
+            var rng = SRng(l.seed &+ 0x5E1F)
+            w.chest(x, l.y, z, loot: "sheriff_locker", seed: rng.next(), facing: dir(l, 3))
         }
     }
 }

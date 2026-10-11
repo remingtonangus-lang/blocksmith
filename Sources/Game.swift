@@ -1039,6 +1039,10 @@ final class Game {
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
         if !swung && skinUse(useHeld, fdt) { mining = nil; return }
+        // P49: a gun in hand doesn't stop you mounting: the use press on a horse within reach mounts it (the gun's aim
+        // took the press first, so nobody could get on with a gun out).
+        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
+           hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
@@ -2137,8 +2141,9 @@ final class Game {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
             var eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
             // Gun rounds: armour stops at most 60% (full titanium stopped 80%, and the rounding left most rounds doing
-            // nothing: "I lost no health at all under gunfire", Oct 11 playtest P30). The wear below stays heavy.
-            if bulletHit { eff = min(eff, 15) }
+            // nothing: "I lost no health at all under gunfire", Oct 11 playtest P30). The wear below stays heavy. P45
+            // (Oct 11 evening, "with titanium armour it was too easy to collect these guns"): at most 48% now.
+            if bulletHit { eff = min(eff, 12) }
             dmg *= 1 - eff / 25
             // Only wearable armour wears: a carved pumpkin or a head (durability 0) vanished on the first hit, and
             // Glider Wings don't take damage from hits (reference).

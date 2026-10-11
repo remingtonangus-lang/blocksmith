@@ -975,12 +975,13 @@ final class WorldGen: TerrainGenerator {
         for _ in 0..<14 { vein(&b, bx, bz, &rng, GRAVEL, GRAVEL, y: y(rng.range(-64, 320)), size: 33) }
         // 1.18+ ore distributions (count per chunk, height distribution, vein size).
         let coal = COAL_ORE, dCoal = g("deepslate_coal_ore")
-        for _ in 0..<30 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(rng.range(136, 320)), size: 17) }
-        for _ in 0..<20 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17) }
+        // P44 (Oct 11 evening, "iron ore and coal too common"): about 60% of the reference counts.
+        for _ in 0..<18 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(rng.range(136, 320)), size: 17) }
+        for _ in 0..<12 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17) }
         let iron = IRON_ORE, dIron = g("deepslate_iron_ore")
-        for _ in 0..<90 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, 80, 384)), size: 9) }
-        for _ in 0..<10 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, -24, 56)), size: 9) }
-        for _ in 0..<10 { vein(&b, bx, bz, &rng, iron, dIron, y: y(rng.range(-64, 72)), size: 4) }
+        for _ in 0..<54 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, 80, 384)), size: 9) }
+        for _ in 0..<6 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, -24, 56)), size: 9) }
+        for _ in 0..<6 { vein(&b, bx, bz, &rng, iron, dIron, y: y(rng.range(-64, 72)), size: 4) }
         let copper = g("copper_ore"), dCopper = g("deepslate_copper_ore")
         for _ in 0..<16 { vein(&b, bx, bz, &rng, copper, dCopper, y: y(triangle(&rng, -16, 112)), size: 10) }
         let gold = GOLD_ORE, dGold = g("deepslate_gold_ore")

@@ -78,7 +78,7 @@ enum TownLaw {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
-        offences = 0; lastTick = -1
+        offences = 0; lastTick = -1; sleptBeds = [:]
         TownConquest.reset(); TownConquest.wary = []
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
@@ -166,6 +166,20 @@ enum TownLaw {
                      "_table", "stand", "stonecutter", "grindstone", "anvil", "bricks", "wall", "pane", "bars", "flower_pot",
                      "jukebox", "iron_block", "stripped_", "smooth_stone", "chain"]
         return words.contains { k.contains($0) }
+    }
+
+    // P59: sleeping in a town bed that isn't yours (not one you placed, not a town you own) costs honour, once a night
+    // per bed; taking the bed is already an offence (property, broke()).
+    static var sleptBeds: [IVec3: Int] = [:]
+    static let bedHonour: Float = -3
+    static func sleptIn(_ g: Game, _ p: IVec3) {
+        let halves = [p, p + IVec3(1, 0, 0), p - IVec3(1, 0, 0), p + IVec3(0, 0, 1), p - IVec3(0, 0, 1)]
+        guard g.survival, !halves.contains(where: { placedSet.contains($0) }), isTownOwned(g, p) else { return }
+        guard !TownConquest.owns(Townsfolk.town(g, at: V3(Float(p.x), Float(p.y), Float(p.z)))) else { return }
+        let night = Int(g.time / DAY_LENGTH)
+        guard sleptBeds[p] != night else { return }
+        sleptBeds[p] = night
+        Honour.change(g, bedHonour, "you slept in someone else's bed")
     }
 
     // Game.breakBlock (the player broke b at p).

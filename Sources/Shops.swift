@@ -108,7 +108,7 @@ enum Economy {
         "shield": 230, "iron_bars": 22, "anvil": 3600,
         // Gunsmith
         "gun_sidearm": 4500, "gun_revolver": 9000, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000,
-        "rifle_rounds": 4, "shotgun_shells": 10, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
+        "rifle_rounds": 30, "capital_rounds": 60, "shotgun_shells": 40, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
         // Stable
         "saddle": 600, "leather_horse_armor": 320, "iron_horse_armor": 900, "golden_horse_armor": 1500,
         "carrot_on_a_stick": 70,
@@ -137,8 +137,8 @@ enum Economy {
                    ("glass_bottle", 16), ("map", 2), ("compass", 1), ("clock", 1), ("paper", 32), ("book", 8),
                    ("shears", 2), ("fishing_rod", 2), ("lead", 4), ("flint_and_steel", 2), ("wheat_seeds", 32),
                    ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12)],
-        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 180),
-                    ("shotgun_shells", 60), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
+        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 48),
+                    ("shotgun_shells", 24), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
                    ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8),
                    ("hunters_map", 1)],
@@ -164,7 +164,7 @@ enum Economy {
                    "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
                    "amethyst_shard", "cocoa_beans", "emerald"],
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
-                    "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
+                    "gun_rifle", "gun_sniper", "rifle_rounds", "capital_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
                    "bone", "rotten_flesh", "egg", "pufferfish", "tropical_fish"] + Hunting.buys,
         .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
@@ -183,6 +183,8 @@ enum Economy {
     static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
+    // P40: sold only by gunsmiths in a Capital city (their rounds, capital_rounds, are never sold: only looted).
+    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg"]
 
     // The catalogue with items this build has (index = position in VillagerData.stock).
     static func catalog(_ k: ShopKind) -> [(item: ItemID, perDay: Int)] {
@@ -331,7 +333,11 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         }
         // A country's capital: its general store draws up treaties (Countries.swift).
         let treaty: [Row] = kind == .general && mob.map { Countries.offersTreaty(game, $0) } == true ? [.service(.treaty)] : []
-        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) } + Economy.catalog(kind).indices.map { Row.item($0) }
+        // P40: the Capital's arms are sold only in the Capital's own towns.
+        let capital = mob.map { CapitalTown.city(game, x: Int(floorf($0.pos.x)), z: Int(floorf($0.pos.z))) != nil } ?? false
+        let cat = Economy.catalog(kind)
+        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) }
+            + cat.indices.filter { capital || !Economy.capitalOnly.contains(Items.key(cat[$0].item)) }.map { Row.item($0) }
     }
 
     func have(_ item: ItemID) -> Int {

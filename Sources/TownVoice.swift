@@ -175,9 +175,19 @@ enum TownVoice {
     // A line for this person in this context (never the same twice running for one voice). Nil: the voice has none
     // (always in the speaker's own voice: no borrowed lines that would have no take).
     private static var lastTake: [String: Int] = [:]
-    static func line(_ ctx: Ctx, _ m: Mob) -> (String, Int)? {
+    // P58: "night" lines that only fit the evening (closing up, off to bed). Past dusk (late) they are skipped; a voice
+    // left with none falls back to its closed lines (shops) or its greeting.
+    static let eveningOnly: Set<String> = ["Kitchen's closing up.", "Last call, folks.", "Early start tomorrow. Off to bed.",
+                                           "Animals are in. Day's done.", "Getting late. I'm turning in."]
+    static func isLate(_ dayFraction: Double) -> Bool { dayFraction > 0.62 && dayFraction < 0.97 }
+
+    static func line(_ ctx: Ctx, _ m: Mob, late: Bool = false) -> (String, Int)? {
         let vk = voice(m)
-        guard let ids = index[vk]?[ctx], !ids.isEmpty else { return nil }
+        guard var ids = index[vk]?[ctx], !ids.isEmpty else { return nil }
+        if late && ctx == .night {
+            ids = ids.filter { !eveningOnly.contains(takes[$0].text) }
+            if ids.isEmpty { return line(index[vk]?[.closed]?.isEmpty == false ? .closed : .greet, m) }
+        }
         var pick = ids[Rand.int(in: 0...(ids.count - 1))]
         if ids.count > 1 && pick == lastTake[vk] { pick = ids[(ids.firstIndex(of: pick)! + 1) % ids.count] }
         lastTake[vk] = pick
@@ -187,7 +197,7 @@ enum TownVoice {
     // Says a line for the context: a toast (or subtitle) and the recorded take at the speaker.
     @discardableResult
     static func speak(_ g: Game, _ m: Mob, _ ctx: Ctx) -> String? {
-        guard let (text, _) = line(ctx, m) else { return nil }
+        guard let (text, _) = line(ctx, m, late: isLate(Double(g.dayFraction))) else { return nil }
         Townsfolk.say(g, m, text)
         return text
     }

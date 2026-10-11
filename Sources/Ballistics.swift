@@ -478,7 +478,9 @@ extension Game {
         let st = held
         let steady = Guns.steadiness(st)
         let hip = vrAim != nil ? (gs.spread + gs.aimSpread) / 2 : gs.spread
-        let spread = (hip + (gs.aimSpread - hip) * a.aim) * steady + a.bloom
+        // P43 (Oct 11 evening, superseding P32's accuracy): the player's guns hit exactly where the sights point; only
+        // the shotgun's pellets spread.
+        let spread = gs.pellets > 1 ? (hip + (gs.aimSpread - hip) * a.aim) * steady + a.bloom : 0
         let pierce = Int8(Enchant.level(.penetration, st))
         let fiery = Enchant.level(.incendiary, st) > 0
         let muzzle = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye + look * 0.3
@@ -588,7 +590,7 @@ extension Game {
     var gunSpread: Float? {
         guard let gi = heldGun else { return nil }
         let gs = Guns.all[gi]
-        return gs.spread + (gs.aimSpread - gs.spread) * arms.aim + arms.bloom
+        return gs.pellets > 1 ? gs.spread + (gs.aimSpread - gs.spread) * arms.aim + arms.bloom : 0          // P43
     }
 
     var sniperScoped: Bool { heldGun == Guns.sniper && arms.aim > 0.85 }

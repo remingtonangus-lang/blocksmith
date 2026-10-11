@@ -191,6 +191,7 @@ final class StructureCache {
     // And when G12 made citadels and Capital cities rarer, kept citadels apart and gave each city its own size and
     // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
     var legacyG12: Set<Int64> = []
+    var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -415,11 +416,11 @@ enum Loot {
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
         // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
         "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
-                                     ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
+                                     ("capital_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
                                      ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3),
                                      ("firing_mechanism", 1, 2, 7)]),
         "steelhold_supply": (4...8, [("capital_ration", 2, 6, 14), ("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
-                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
+                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("capital_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
                                      ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),
         "steelhold_command": (4...7, [("capital_ration", 2, 4, 6), ("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
