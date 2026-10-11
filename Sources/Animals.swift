@@ -439,7 +439,7 @@ extension Mob {
         case .endermite:
             if canTarget {
                 face(player)
-                if g.meleeGap(self) < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
+                if g.meleeStrike(self, reach: 1) { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
                 return spec.speed
             }
             age += dt

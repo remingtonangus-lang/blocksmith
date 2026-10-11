@@ -476,6 +476,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
     do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
+    game.vrHead = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 

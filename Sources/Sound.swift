@@ -109,13 +109,13 @@ enum Snd: Hashable {
         case .mobZombie, .mobSkeleton, .mobSpider, .mobSlime, .mobWailer, .mobCinderwisp, .mobBoarling, .mobUndeadBoarling, .mobBlight, .mobVex, .mobRavager,
              .mobWarden, .creeperHiss, .fireball, .evokerCast, .fangs, .raidHorn, .mobVoidwalker, .teleport, .dragonGrowl, .dragonFlap, .dragonShoot,
              .dragonDeath, .crystalBreak, .witherSpawn, .witherShoot, .witherDeath, .wardenHeartbeat, .wardenRoar, .wardenSonicCharge, .wardenSonicBoom,
-             .wardenEmerge, .wardenDig, .wardenSniff, .elderCurse, .guardianLaser, .zombieBreakDoor, .zombieInfect, .phantomSwoop, .beeSting, .breezeShoot:
+             .wardenEmerge, .wardenDig, .wardenSniff, .elderCurse, .guardianLaser, .zombieBreakDoor, .zombieInfect, .phantomSwoop, .beeSting, .breezeShoot, .meleeWindUp:
             return .hostile
         case .step, .splash, .swim, .land, .hurt, .hurtFall, .hurtDrown, .hurtFire, .playerDeath, .eat, .burp, .drink, .pickup, .dig, .attack, .attackSweep,
              .attackCrit, .attackKnockback, .attackWeak, .shieldBlock, .shieldBreak, .armorEquip, .itemBreak, .bucketFill, .bucketEmpty, .bucketFillLava,
              .bucketEmptyLava, .fishCast, .fishSplash, .fishReel, .xp, .levelUp, .totem, .gasp, .throwItem, .pearlThrow, .potionThrow, .potionSplash,
              .snowballHit, .eggCrack, .bowDraw, .bow, .arrowHit, .crossbowLoad, .crossbowShoot, .tridentThrow, .tridentHit, .tridentReturn, .riptide,
-             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush, .meleeWindUp, .parryClang, .bowCreak, .bowNock:
+             .windCharge, .shearsSnip, .ignite, .spyglass, .goatHorn, .elytraLoop, .underwaterLoop, .boatPaddle, .minecartLoop, .plantBrush, .parryClang, .bowCreak, .bowNock:
             return .players
         case .click, .open, .uiHover, .uiBack, .toast: return .ui
         case .rain, .rainRoof, .thunder, .lightning, .windGust: return .weather

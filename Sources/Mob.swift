@@ -296,6 +296,7 @@ final class Mob {
     var hurt: Float = 0
     var windUp: Float = 0                // VR: seconds left of a melee wind-up (Game.meleeStrike, VRCombatFeel.swift)
     var windUpDone = false               // ... it just ended: the strike lands next if the player is still in reach
+    var windUpAge: Float = 0             // ... seconds since it ended (dropped after 0.1 s unused)
     var hitStop: Float = 0               // a landed blade froze it for this long (VRMelee.hitStop)
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
     var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
@@ -539,7 +540,10 @@ final class Mob {
         aiTimer -= dt
         unreachableTimer -= dt
         attackCooldown -= dt
-        if windUp > 0 { windUp -= dt; if windUp <= 0 { windUp = 0; windUpDone = true } }
+        // A finished wind-up is used by the next AI tick or dropped (the target died, left, or the AI skipped its
+        // strike), so a stale one never lands a later strike without its warning.
+        if windUpDone { windUpAge += dt; if windUpAge > 0.1 { windUpDone = false } }
+        if windUp > 0 { windUp -= dt; if windUp <= 0 { windUp = 0; windUpDone = true; windUpAge = 0 } }
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
@@ -992,7 +996,7 @@ final class Mob {
                 vel.z = forward.z * spec.speed * 1.5
                 g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
-            if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeGap(self) < halfW + 0.9 && attackCooldown <= 0 {
+            if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeStrike(self, reach: halfW + 0.9) {
                 attackCooldown = 1
                 let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
                 g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)", attacker: self)

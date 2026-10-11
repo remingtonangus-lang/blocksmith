@@ -61,6 +61,7 @@ final class QuestControls {
     private var touchBuzz: Float = 0
     private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
     private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
+    private var tutorialSwing = true, tutorialStep = 99, tutorialNext: Double = 0   // the first-use tutorial toasts in progress
     private(set) var parriesLanded = 0                 // (harness)
     var trailPeak = 0                                  // (harness) most trail segments seen
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
@@ -225,10 +226,15 @@ final class QuestControls {
         // First use of each melee style with a weapon in hand: how it works, once (VRMelee.swingTutorial / reclinedTutorial).
         if !inMenu && game.alive && game.vrWeaponHeld {
             if QuestSettings.swingMode && !QuestSettings.swingTutorialShown {
-                QuestSettings.swingTutorialShown = true; game.onToast?(VRMelee.swingTutorial)
+                QuestSettings.swingTutorialShown = true; tutorialSwing = true; tutorialStep = 0; tutorialNext = game.clock
             } else if !QuestSettings.swingMode && !QuestSettings.reclinedTutorialShown {
-                QuestSettings.reclinedTutorialShown = true; game.onToast?(VRMelee.reclinedTutorial)
+                QuestSettings.reclinedTutorialShown = true; tutorialSwing = false; tutorialStep = 0; tutorialNext = game.clock
             }
+        }
+        // ... one short toast at a time, so each line is readable.
+        let tutorial = tutorialSwing ? VRMelee.swingTutorial : VRMelee.reclinedTutorial
+        if tutorialStep < tutorial.count && game.clock >= tutorialNext && !inMenu {
+            game.onToast?(tutorial[tutorialStep]); tutorialStep += 1; tutorialNext = game.clock + VRMelee.tutorialGap
         }
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
         // Aimed at a body to skin (Hunting.swift), the left trigger skins instead of nocking.
@@ -818,7 +824,7 @@ final class QuestControls {
         touchBuzz = max(0, touchBuzz - dt)
         guard bladeValid else { bladeValid = true; return }
         // A jump of more than 1.5 m (teleport, respawn, boarding) is not a swing.
-        guard simd_length(a1 - a0) < 1.5 else { return }
+        guard simd_length(a1 - a0) < 1.5 else { bladeTrail.clear(); return }
         let speed = simd_length(tipRel - prevRel) / dt
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))

@@ -35,7 +35,11 @@ Expanded (mine):
      away dodges it.
    - All the main melee strikes go through one gate (`Game.meleeStrike`): the zombie family, spiders, wither
      skeletons, husks, Boarlings, golems, Voidwalkers, wolves and other animals that bite, the Warden and the
-     Barkwraith.
+     Barkwraith, plus slimes and magma cubes, Voidmites, Hexlings and Siegebeasts. The Cinderwisp's touch and the hell
+     mobs (their own wind-ups) are not.
+   - A finished wind-up that the mob's AI doesn't use within 0.1 s is dropped (you died, it lost sight of you), so it
+     never lands a later strike without its warning.
+   - The grunt is a hostile-mob sound (the Hostile Creatures volume).
 2. Parry: a fast blade meeting a winding-up mob at its upper body (its arms or weapon) cancels the strike.
    - No damage is dealt.
    - The mob is pushed back and staggered for 1.3 s.
@@ -50,12 +54,15 @@ Expanded (mine):
    - A blade swung into a block gives a dull knock. It never breaks the block.
 5. The blade trail: a pale ribbon over the last few fast frames, fading in 0.14 s.
    - It shows only while the tip moves at hitting speed, so walking with a sword leaves none.
-   - A fixed ring of samples: no allocation per frame.
+   - A fixed ring of samples: no allocation per frame. A jump of the hand (teleport, boarding) clears it.
+   - Known limits: it draws over the scene without a depth test (it is gone in 0.14 s), and its samples are in world
+     space, so on a fast ship it smears behind you for that moment.
 6. Reclined aim assist: the nearest hostile within ~14 degrees of the laser and in reach is attacked. It never picks
    a friendly creature (aim straight at one to hit it). Swing melee has no assist.
 7. Comfort defaults: turning on Lying Down View also sets snap turning and at least a Medium vignette. Both can be
    changed afterwards.
-8. Tutorials: the first time a melee weapon is held in each mode, a toast explains it.
+8. Tutorials: the first time a melee weapon is held in each mode, three short toasts explain it, 3.2 s apart. Each
+   fits the Quest HUD on one line.
    - Swing: swing into enemies, faster hits harder, step away to dodge, swing into a wind-up to parry, hold the
      trigger for friendly creatures.
    - Reclined: aim and pull, the assist, and where to switch modes.
@@ -73,7 +80,8 @@ Expanded (mine):
   - Trail segments behind a fast blade, none after 0.2 s, none for a slow blade.
   - Nock slide, creak thresholds, the string shiver and its end.
   - The four new sounds pass the bank's sound check.
-  - Tutorial texts and help width.
+  - Tutorial texts, each toast's width, and the help width.
+  - An unused wind-up is dropped.
   - Hit feel for a zombie, an armoured zombie, a skeleton and a golem.
   - No wind-up off VR.
   - In VR: the wind-up with its grunt, then the strike after 0.4 s; stepping out of reach dodges it.

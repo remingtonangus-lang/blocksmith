@@ -90,10 +90,14 @@ extension VRMelee {
     static let parryStagger: Float = 1.3        // a parried mob can't strike again for this long
     static let reclinedCone: Float = 0.97       // Reclined aim assist: within ~14 degrees of the laser (swords outside it: 10)
 
-    static let swingTutorial = "Swing melee: swing your weapon into enemies to hit them. A fast swing hits harder. " +
-        "Watch for an enemy rearing back: step away to dodge, or swing into it to parry. Hold the trigger to hit a friendly creature."
-    static let reclinedTutorial = "Reclined melee: aim the laser at an enemy and pull the trigger to attack. " +
-        "The aim helps a little toward enemies near the laser. Change it in VR Comfort & Controls > Melee."
+    // Shown one toast at a time (each fits the Quest HUD's one-line toast; QuestControls steps through them).
+    static let swingTutorial = ["Swing melee: swing your weapon into an enemy. Faster hits harder.",
+                                "An enemy rearing back is about to strike: step away to dodge.",
+                                "Or swing into it high to parry. Hold the trigger to hit a friend."]
+    static let reclinedTutorial = ["Reclined melee: aim the laser at an enemy and pull the trigger.",
+                                   "The aim helps a little toward enemies near the laser.",
+                                   "Change it in VR Comfort & Controls > Melee."]
+    static let tutorialGap: Double = 3.2         // seconds between its toasts (a toast shows for 2.2 s)
 }
 
 extension Game {

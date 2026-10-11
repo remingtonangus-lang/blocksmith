@@ -34,8 +34,12 @@ enum VRCombatFeelTests {
             if !c.ok || !SoundBank.allSounds.contains(where: { $0.name == s.name }) { bad.append("\(s.name): " + c.problems.joined(separator: ", ")) }
         }
         check(bad.isEmpty, "combat feel: wind-up, parry clang, bow creak and nock sounds in the bank (\(bad.isEmpty ? "all 4" : bad.joined(separator: "; ")))")
-        check(VRMelee.swingTutorial.contains("dodge") && VRMelee.swingTutorial.contains("parry") && VRMelee.reclinedTutorial.contains("Melee"),
-              "combat feel: the Swing tutorial teaches the dodge and the parry, the Reclined one where to switch")
+        let swing = VRMelee.swingTutorial.joined(separator: " "), reclined = VRMelee.reclinedTutorial.joined(separator: " ")
+        // Each line is one toast: it must fit the Quest HUD (1024 px at scale 2: 512 units, with its backing margin).
+        let widest = (VRMelee.swingTutorial + VRMelee.reclinedTutorial).map { Font.width($0) }.max() ?? 0
+        check(swing.contains("dodge") && swing.contains("parry") && reclined.contains("Melee") && widest <= 480
+              && Double(VRMelee.swingTutorial.count) * VRMelee.tutorialGap < 12,
+              "combat feel: the Swing tutorial teaches the dodge and the parry, the Reclined one where to switch; each toast fits (widest \(widest) of 480 units)")
         check(Float(Font.width(VRMelee.reclinedPostureHelp)) <= 2 * 232 / 0.85,
               "combat feel: the Lying Down View help (\(Font.width(VRMelee.reclinedPostureHelp)) units) fits the pause menu's two lines")
     }
@@ -49,6 +53,10 @@ enum VRCombatFeelTests {
         }
         let P = V3(floorf(p.pos.x) + 0.5, floorf(p.pos.y) + 70, floorf(p.pos.z) + 0.5)
         let fy = Int(floorf(P.y)) - 1, fx = Int(floorf(P.x)), fz = Int(floorf(P.z))
+        // The arena is put back afterwards (the sky checks later look up from this spot).
+        var was: [(Int, Int, Int, BlockID)] = []
+        for dz in -5...5 { for dx in -5...5 { for k in 0...4 { was.append((fx + dx, fy + k, fz + dz, game.world.block(fx + dx, fy + k, fz + dz))) } } }
+        defer { for (x, y, z, b) in was { game.world.setBlock(x, y, z, b) } }
         for dz in -5...5 { for dx in -5...5 {
             game.world.setBlock(fx + dx, fy, fz + dz, STONE)
             for k in 0...3 { game.world.setBlock(fx + dx, fy + 1 + k, fz + dz, AIR) }
@@ -94,6 +102,12 @@ enum VRCombatFeelTests {
         let hitAway = game.meleeStrike(z, reach: z.halfW + 1.3)
         p.pos = P; game.vrHead = p.eye
         check(!hitAway && game.dodges == d0 + 1 && z.attackCooldown > 0, "combat feel: stepping out of reach during the wind-up dodges the strike")
+        // A finished wind-up the AI didn't use (it stopped targeting you) is dropped, so it can't strike later unwarned.
+        z.windUp = 0.01; z.windUpDone = false
+        game.survival = false
+        for _ in 0..<12 { z.update(1.0 / 60, game: game); z.pos = P + V3(0, 0, -1.6); z.vel = .zero }
+        game.survival = true
+        check(!z.windUpDone && z.windUp == 0, "combat feel: an unused wind-up is dropped, never kept for a later unwarned strike")
 
         // 4. A parry: the blade meets it high while it winds up; low, or not winding up, is a normal hit.
         z.attackCooldown = 0; z.windUp = 0; z.windUpDone = false
