@@ -81,7 +81,7 @@ final class HorizonRing {
                 // A volcano's cells sit up to 30 blocks under the cone and its apron: where its impostor is drawn (LandmarkRender) the
                 // impostor's faces win the depth test instead of z-fighting the coarse ring (the pale, spotted far cone of
                 // the Oct 10 playtest, volcano_far_135623); where it isn't, they still fill in the far side of the cone.
-                out.h.append(Float(wet ? max(col.height, SEA) : col.height) - 30 * vw)
+                out.h.append(Float(wet ? max(col.height, SEA) : col.height) - 30 * min(1, vw * 4))
                 out.v.append(vw)
                 let rgb = MapCache.shade(col.biome, height: col.height)
                 var c = V3(Float((rgb >> 16) & 255), Float((rgb >> 8) & 255), Float(rgb & 255)) / 255

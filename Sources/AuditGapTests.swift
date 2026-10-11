@@ -113,6 +113,13 @@ enum AuditGapTests {
         _ = SaveManager(dir: wdir).loadMeta()
         let backups = ((try? fm.contentsOfDirectory(atPath: tmp.appendingPathComponent("Backups").path)) ?? [])
         let backedMobs = backups.first.map { fm.fileExists(atPath: tmp.appendingPathComponent("Backups/\($0)/mobs.json").path) } ?? false
+        // A failed backup leaves the crowds alone (and the marker unwritten, so a later load retries).
+        SaveMigration.backupFailed.insert(wdir.standardizedFileURL.path)
+        let held = MobManager()
+        held.load(from: sm)
+        SaveMigration.backupFailed.remove(wdir.standardizedFileURL.path)
+        check(held.stored.values.reduce(0) { $0 + $1.count } == 30 && !fm.fileExists(atPath: wdir.appendingPathComponent(MobManager.thinMarker).path),
+              "animal thinning: no backup, no thinning (keeps \(held.stored.values.reduce(0) { $0 + $1.count }) of 30)")
         let mm = MobManager()
         mm.load(from: sm)
         let n0 = mm.stored[ChunkKey(x: 0, z: 0)]?.count ?? 0, n1 = mm.stored[ChunkKey(x: 1, z: 0)]?.count ?? 0

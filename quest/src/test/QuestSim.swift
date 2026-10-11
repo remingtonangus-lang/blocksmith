@@ -476,7 +476,7 @@ enum QuestSim {
     // Swing melee and the bow through the device path (QuestControls.swingContact / bowUpdate). Creative, on the
     // stone platform, the head level.
     // Held Item Size (audit 25b6 #4): every step of the option scales the drawn sword, and at the largest the sword in a
-    // relaxed hand at the hip (pointing 45 degrees down to 30 up, rolled +-30) keeps clear of the eyes and the floor.
+    // relaxed hand at the hip (pointing 70 degrees down to 30 up, rolled +-30) keeps clear of the eyes and the floor.
     static func heldItemSize(game: Game, controls: QuestControls, check: (Bool, String) -> Void) {
         let keepHeld = game.inventory.held, keepScale = QuestSettings.heldScale
         defer { game.inventory.held = keepHeld; QuestSettings.heldScale = keepScale }
@@ -487,7 +487,9 @@ enum QuestSim {
         for k in QuestOptions.heldScales {
             QuestSettings.heldScale = k
             let (size, tool) = controls.heldSize()
-            for pd in stride(from: -45, through: 30, by: 5) { for rd in stride(from: -30, through: 30, by: 15) {
+            // -70: the arm hanging, the controller resting forward-down in the hand (the blade sits ~43 degrees up the
+            // grip, VRMelee.blade); +30: the hand raised at the hip.
+            for pd in stride(from: -70, through: 30, by: 5) { for rd in stride(from: -30, through: 30, by: 15) {
                 let rot = simd_quatf(angle: Float(rd) * .pi / 180, axis: V3(0, 0, 1)) * simd_quatf(angle: Float(pd) * .pi / 180, axis: V3(1, 0, 0))
                 let (base, tip, _) = VRMelee.blade(handPos: hip, handRot: rot, size: size, tool: tool)
                 let grip = hip + rot.act(V3(0, 0.01, -0.03))
@@ -648,7 +650,20 @@ enum QuestSim {
             frames(30) { i in hands(atString + (back - atString) * Float(i + 1) / 30, true) }
             let pose = controls.bowPose
             let ramps = sim.hapticCount - hp0
-            snap?("_bow_drawn_\(left ? "left" : "right").png")         // fully drawn, the string at the hand
+            // The render: pulled on to full draw, the head turned down toward the drawing hand so the string at the hand,
+            // the nocked arrow and the bent limbs are in view; then back to `back` for the release checks.
+            if snap != nil {
+                let full = grip + simd_normalize(back - grip) * (VRBow.fullDraw + 0.02)
+                frames(6) { i in hands(back + (full - back) * Float(i + 1) / 6, true) }
+                let keepHead = sim.headRot
+                sim.headRot = simd_quatf(angle: 0.55 * sx, axis: V3(0, 1, 0)) * simd_quatf(angle: -0.6, axis: V3(1, 0, 0))
+                frames(2) { _ in hands(full, true) }
+                let d = controls.bowPose?.draw ?? 0
+                check(d > 0.98, String(format: "VR bow (%@): fully drawn for the render (draw %.2f)", name, d))
+                snap?("_bow_drawn_\(left ? "left" : "right").png")
+                sim.headRot = keepHead
+                frames(6) { i in hands(full + (back - full) * Float(i + 1) / 6, true) }
+            }
             let wantDir = simd_normalize(grip - back)
             let before = game.projectiles.arrows.count
             frames(2) { _ in hands(back, false) }

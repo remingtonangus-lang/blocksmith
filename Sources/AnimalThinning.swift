@@ -16,6 +16,8 @@ extension MobManager {
         let marker = s.dir.appendingPathComponent(MobManager.thinMarker)
         let fm = FileManager.default
         guard !fm.fileExists(atPath: marker.path) else { return (0, 0) }
+        // No backup, no thinning: it runs again on a later load once the copy succeeds.
+        guard !SaveMigration.backupFailed.contains(s.dir.standardizedFileURL.path) else { return (0, 0) }
         var removed = 0, kept = 0
         lazy var penT: [Bool] = (0..<Blocks.count).map {
             let k = Blocks.key(BlockID($0))

@@ -22,6 +22,8 @@ if on checks; then
 # and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
 rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
 "$BIN" --sounds build/sounds
+# Levels gate (~40 s): SFX peaks <= -1 dBFS, no clipped file, dry-material steps measure dry (docs/status/audio_levels.md).
+python3 tools/audiolevels.py build/sounds > build/audiolevels.log; grep "^files\|wet-sounding" build/audiolevels.log
 for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
          mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
          dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \

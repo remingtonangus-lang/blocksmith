@@ -42,6 +42,9 @@ enum SaveMigration {
             .appendingPathComponent("Backups", isDirectory: true)
     }
 
+    // Worlds whose backup failed this run: destructive migrations (AnimalThinning) leave them alone.
+    static var backupFailed = Set<String>()
+
     // Copies an old-format world folder once. Returns the backup folder when one was made.
     @discardableResult
     static func backupIfNeeded(dir: URL, meta: WorldMeta) -> URL? {
@@ -61,6 +64,7 @@ enum SaveMigration {
             try fm.copyItem(at: dir, to: dest)
         } catch {
             print("save migration: backup of \(folder) failed: \(error)")
+            backupFailed.insert(dir.standardizedFileURL.path)
             return nil
         }
         print("save migration: backed up \(folder) to \(dest.path)")

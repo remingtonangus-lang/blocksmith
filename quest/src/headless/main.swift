@@ -297,7 +297,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     }
                 }
             }
-            // Pinned fallback (audit 25b6 #2): seed 12345 has a beach by the swamp at about (950, 1790) (Mac pond shot).
+            // Pinned fallback (audit 25b6 #2): seed 12345 has a beach at about (-2680, 36) (AuditGapTests.pinnedShore): the 8-direction search from spawn finds no deep sea there.
             if shore == nil, let pin = AuditGapTests.pinnedShore(world.gen) { shore = pin.0; seaDir = pin.1 }
             check(shore != nil, "render: a shore for the water views (8 directions out to 3200 blocks, then the pinned seed-12345 beach)")
             if let sh = shore {
