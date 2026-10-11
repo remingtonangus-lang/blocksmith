@@ -15,7 +15,7 @@ import simd
 //            deposit, a witness behind a wall, creative, blocks outside the village's pieces (your house near a
 //            town, a dungeon chest under it) and breaking a full town chest (costs as much as emptying it).
 //   sheriff: new towns put a sheriff on the square and no golem; townsfolk don't summon golems; a town without one
-//            gets one; he carries a revolver, has a man's name and voice, and shoots an outlaw player; a second
+//            gets one; he carries a six-iron, has a man's name and voice, and shoots an outlaw player; a second
 //            sheriff in the same town (a cured one, the square's own after one was sent) serves as a deputy.
 //   wallet:  the HUD shows the cash in town and when it changes (with the change), inside the screen.
 //   voices:  every take is packed, decodes, peaks <= -1 dBFS, 0.3-6 s, starts and ends at zero; every voice has
@@ -325,10 +325,9 @@ extension TownTests {
         for i in 0..<12 {
             guard let m = Mob.structureMob("villager:sheriff", at: g.player.pos + V3(Float(i) * 7.3, 0, Float(i) * 3.1)) else { continue }
             n += 1
-            // (the ~5% who rolled the Sheriff's Revolver carry it; the rest a sword, like the deputies)
-            if m.villager?.role == "sheriff" && m.townWeapon == (m.villager?.revolver == true ? .revolver : .sword) && !Townsfolk.isWoman(m.villager) && TownVoice.voice(m) == "sheriff" { men += 1 }
+            if m.villager?.role == "sheriff" && m.townWeapon == .revolver && !Townsfolk.isWoman(m.villager) && TownVoice.voice(m) == "sheriff" { men += 1 }
         }
-        check(n == 12 && men == 12, "sheriff: \(men)/\(n) structure sheriffs carry their weapon (the revolver only if rolled), have a man's name and the sheriff's voice")
+        check(n == 12 && men == 12, "sheriff: \(men)/\(n) structure sheriffs carry the six-iron, have a man's name and the sheriff's voice")
         let parts = Mob.structureMob("villager:sheriff", at: g.player.pos).map { townsfolkParts($0, swing: 0).filter { $0.mn.x.isFinite && $0.mx.y.isFinite }.count } ?? 0
         check(parts >= 30, "sheriff: the model builds (\(parts) parts, star and hat)")
         // Townsfolk no longer summon golems. On dry ground at the spawn (earlier checks in the full questcheck left the
@@ -378,11 +377,14 @@ extension TownTests {
             s.pos = base + V3(6, 0, 0); s.home = s.pos
             g.player.pos = base
             g.mobs.mobs = [s]
-            if var v = s.villager { v.revolver = true; s.villager = v }        // one of the few with the gun
+            // In iron (below it one round kills: SixIron), so the player lives through the check.
+            let worn = g.inventory.armor.slots
+            TownTests.wear(g, "iron")
             s.town.anger = 30
             for _ in 0..<200 { s.update(0.05, game: g); if g.health < 20 { break } }
-            check(g.health < 20, "sheriff: shoots an outlaw player (health \(g.health))")
-            g.health = 20
+            check(g.health < 20 && g.alive, "sheriff: shoots an outlaw player in iron with his six-iron (health \(g.health))")
+            for i in 0..<4 { g.inventory.armor[i] = worn[i] }
+            g.health = 20; g.alive = true
         }
         // New towns: the sheriff on the square, no golem.
         let w = makeWorld()

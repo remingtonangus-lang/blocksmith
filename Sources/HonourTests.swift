@@ -13,8 +13,8 @@ import simd
 //             hostility and lets the shop open again; an outlaw or a wanted player is challenged once a visit; a
 //             bounty lapses after 7 days; honour and bounties survive a save round trip.
 //   heat:     cools twice as fast for the honourable, half as fast for an outlaw.
-//   revolver: a registered one-handed six-shooter with its own model and icon, bought (not sold) by gunsmiths; 5% of
-//             sheriffs carry it (20,000 rolls, rolled once and saved) and drop it loaded; every sheriff drops cartridges.
+//   revolver: the six-iron, a registered one-handed six-shooter with its own model and icon, bought (not sold) by
+//             gunsmiths; every sheriff carries one and 25% drop it loaded (20,000 rolls); every sheriff drops cartridges.
 //   hud:      the standing shows under the wallet in town, on screen, with the bounty.
 //   towns:    generated towns have a sheriff's office (sign, jail bars, WANTED board) and plank boardwalks in front of
 //             their shops; a town on ground a save already generated keeps its old lots (no office).
@@ -26,7 +26,7 @@ extension TownTests {
             g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.survival = savedSurvival; g.money = savedMoney; g.time = savedTime
             g.drops.items = savedDrops
             if g.menu != nil { g.closeMenu() }
-            TownLaw.forceTown = nil; TownLaw.reset(); Honour.revolverChance = 0.05
+            TownLaw.forceTown = nil; TownLaw.reset(); Honour.revolverChance = 0.25
         }
         standings(check)
         honourCrimes(g, check)
@@ -35,6 +35,7 @@ extension TownTests {
         revolver(g, check)
         frontierTowns(makeWorld, check)
         honourGap(g, check)                  // HonourGapTests.swift: the gap pass (log, pulse, board, jobs, hunters, ...)
+        sixIron(g, check)                    // SixIronTests.swift: the six-iron, the iron rule, taking a town
     }
 
     static func standings(_ check: (Bool, String) -> Void) {
@@ -231,31 +232,30 @@ extension TownTests {
         check(TextureGen.painters()["item_gun_revolver"] != nil, "revolver: has its own icon")
         let sold = ShopKind.allCases.contains { Economy.catalog($0).contains { $0.item == id } }
         check(!sold && Economy.buysItem(.gunsmith, id), "revolver: gunsmiths buy it, nobody sells it")
-        // The 5% drop.
+        // The 25% drop.
         var hits = 0
         let n = 20_000
         for _ in 0..<n where Honour.rollRevolver(Rand.float(in: 0..<1)) { hits += 1 }
         let rate = Float(hits) / Float(n)
-        check(abs(Honour.revolverChance - 0.05) < 1e-6 && rate > 0.04 && rate < 0.06, String(format: "revolver: %.2f%% of sheriffs carry it (20,000 rolls)", rate * 100))
+        check(abs(Honour.revolverChance - 0.25) < 1e-6 && rate > 0.23 && rate < 0.27, String(format: "revolver: %.1f%% of fallen sheriffs drop their six-iron (20,000 rolls)", rate * 100))
         TownLaw.reset(); TownLaw.forceTown = true; g.survival = true
         Honour.revolverChance = 1
         let s = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff")
         s.killedByPlayer = true; s.playerHurtAt = g.clock
         g.drops.items = []
-        check(s.villager?.revolver == true && Honour.carriesRevolver(s), "revolver: a sheriff who rolled it carries it (saved with him)")
+        check(Honour.carriesRevolver(s) && s.townWeapon == .revolver, "revolver: every sheriff carries the six-iron")
         g.mobDied(s)
         let gun = g.drops.items.first { $0.stack.item == id }
         let ammo = g.drops.items.first { Items.key($0.stack.item) == "rifle_rounds" }
         check(gun?.stack.tag == 6 && (ammo?.stack.count ?? 0) >= 3, "revolver: a forced drop comes loaded (\(gun?.stack.tag ?? -1)) with \(ammo?.stack.count ?? 0) cartridges")
         Honour.revolverChance = 0
         g.drops.items = []
+        TownLaw.reset(); TownLaw.forceTown = true
         let s2 = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff"); s2.killedByPlayer = true; s2.playerHurtAt = g.clock
-        Honour.revolverChance = 1
-        check(!Honour.carriesRevolver(s2), "revolver: the roll is made once (a sheriff without it never gains it later)")
         g.mobDied(s2)
         check(!g.drops.items.contains { $0.stack.item == id } && g.drops.items.contains { Items.key($0.stack.item) == "rifle_rounds" },
               "revolver: otherwise just cartridges")
-        Honour.revolverChance = 0.05
+        Honour.revolverChance = 0.25
         g.drops.items = []
     }
 

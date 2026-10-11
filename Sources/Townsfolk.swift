@@ -17,7 +17,7 @@ enum TownWeapon: Int, CaseIterable {
     case none, sword, pitchfork, hammer, cleaver, axe, shovel, hoe, revolver     // revolver: the sheriff (TownLaw.shoot)
 
     var damage: Int { [0, 6, 5, 5, 5, 6, 3, 3, 5][rawValue] }
-    var reach: Float { self == .pitchfork ? 2.9 : (self == .revolver ? 12 : 2.2) }
+    var reach: Float { self == .pitchfork ? 2.9 : (self == .revolver ? 16 : 2.2) }      // revolver: at monsters (the player: SixIron.reach)
     var cooldown: Float { self == .pitchfork ? 1.3 : (self == .revolver ? 1.6 : 1.1) }
     var name: String { ["bare hands", "sword", "pitchfork", "hammer", "cleaver", "axe", "shovel", "hoe", "revolver"][rawValue] }
 }
@@ -34,6 +34,13 @@ struct TownState {
     var mealSearch: Float = 0
     var eating = false
     var aimMemory: Float = 0        // > 0: already offended by a pointed gun (no further reputation loss)
+    // The sheriff's six-iron (SixIron.duel): the aim telegraph, where he aimed, rounds fired, reloading, warned yet.
+    var aim: Float = 0
+    var aimAt = V3(0, 0, 0)
+    var fired = 0
+    var reload: Float = 0
+    var warned = false
+    var drawn: Float = 0            // > 0: the gun is out (his challenge, before the fight starts)
 }
 
 enum Townsfolk {
@@ -125,7 +132,7 @@ enum Townsfolk {
         let look = v.look ?? 0
         switch v.role ?? "worker" {
         case "deputy": return .sword
-        case "sheriff": return v.revolver == true ? .revolver : .sword      // ~5% carry the gun (Honour.carriesRevolver)
+        case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
         case "elder", "child", "citizen", "banker": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
@@ -213,6 +220,7 @@ extension Mob {
     func townDefend(_ dt: Float, _ g: Game) -> Float? {
         town.swing = max(0, town.swing - dt)
         town.anger = max(0, town.anger - dt)
+        town.drawn = max(0, town.drawn - dt)
         guard health > 0 else { return nil }
         let w = townWeapon
         if w == .none { return nil }
@@ -233,8 +241,12 @@ extension Mob {
             }
         }
         if let f = town.foe, f.health <= 0 || simd_length(f.pos - home) > 44 { town.foe = nil }
-        let playerFoe = town.anger > 0 && g.alive && g.survival && simd_length(g.player.pos - pos) < 24
-        guard town.foe != nil || playerFoe else { return nil }
+        let playerFoe = town.anger > 0 && g.alive && g.survival && simd_length(g.player.pos - pos) < (w == .revolver ? SixIron.reach + 4 : 24)
+        guard town.foe != nil || playerFoe else {
+            if town.anger <= 0 { town.warned = false; town.aim = 0 }        // the next fight starts with a warning shot again
+            return nil
+        }
+        if w == .revolver && town.foe == nil { return SixIron.duel(self, dt, g) }
         let at = town.foe?.pos ?? g.player.pos
         let dist = simd_length(V2(at.x - pos.x, at.z - pos.z))
         face(at)
@@ -352,7 +364,8 @@ extension Game {
         }
         // Nobody serves a wanted man: a bounty in this town closes its counters until it's paid; nobody serves an
         // outlaw anywhere.
-        if survival && !m.baby && v.tradeKind != nil && (Honour.bounty(TownLaw.town(of: m, self)) > 0 || Honour.isOutlaw) {
+        if survival && !m.baby && v.tradeKind != nil && !TownConquest.owns(TownLaw.town(of: m, self))
+            && (Honour.bounty(TownLaw.town(of: m, self)) > 0 || Honour.isOutlaw) {
             m.face(player.pos)
             Townsfolk.say(self, m, Honour.isOutlaw ? "I don't serve outlaws. Give yourself up to the law first."
                                                    : "Not while there's a price on your head. Square it with the sheriff.")

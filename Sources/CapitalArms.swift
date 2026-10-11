@@ -79,7 +79,7 @@ enum CapitalArms {
     static func model(_ i: Int) -> GunModel {
         switch i {
         case Guns.revolver:
-            // The Sheriff's Revolver: a long blued barrel over its ejector rod, a fluted cylinder, a brass trigger guard
+            // The six-iron: a long blued barrel over its ejector rod, a fluted cylinder, a brass trigger guard
             // and a walnut grip with a rounded butt (original design).
             let p: [Part] = [
                 b(-0.45, 0.3, -8.5, 0.9, 0.9, 6, blued, pMetal),                  // barrel

@@ -54,9 +54,9 @@ enum Guns {
         GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
-        // The Sheriff's Revolver: a six-shot frontier revolver only a town sheriff carries; a killed sheriff drops it
-        // 5% of the time (Honour.sheriffDrops). Never sold, so it's a trophy. Slow, heavy single shots.
-        GunSpec(key: "gun_revolver", name: "Sheriff's Revolver", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
+        // The six-iron: the six-shot frontier revolver every town sheriff carries (SixIron.swift); a killed sheriff drops
+        // it a quarter of the time (Honour.sheriffDrops). Never sold, so it's a trophy. Slow, heavy single shots.
+        GunSpec(key: "gun_revolver", name: "Six-Iron", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
                 spread: 0.026, aimSpread: 0.006, speed: 150, recoil: 0.065, reload: 2.4, range: 70, durability: 700, zoom: 0.86,
                 shot: .bullet, sound: 13, accent: V3(0.36, 0.2, 0.1)),
     ]

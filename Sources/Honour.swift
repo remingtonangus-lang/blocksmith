@@ -200,6 +200,7 @@ enum Honour {
             change(g, -loss, role == "sheriff" ? "you killed the sheriff" : "murder")
             addBounty(g, town, cents)
             if role == "sheriff" { sheriffDrops(g, m) }
+            if role == "sheriff" || role == "deputy" { TownConquest.lawFell(g, m, town: town) }   // the town may give up
             return
         }
         guard m.kind.hostile else { return }
@@ -214,26 +215,19 @@ enum Honour {
         g.mobs.mobs.contains { TownLaw.isTownsperson($0) && simd_length($0.pos - p) < 32 }
     }
 
-    // MARK: The Sheriff's Revolver
+    // MARK: The six-iron
 
-    // About one sheriff in twenty carries the Sheriff's Revolver instead of the ordinary service revolver (the brief:
-    // "a 5% chance per sheriff of carrying a gun"). Rolled once, when he takes the badge (TownLaw.deputize) or, for a
-    // sheriff from an older save, the first time it's asked; saved with him. He shoots straighter and harder with it
-    // (TownLaw.shoot), says so when greeted, and always drops it when he falls.
-    static var revolverChance: Float = 0.05
+    // Every sheriff carries a six-iron (SixIron.swift; backlog B1 replaced the old 5% gun chance). One in four comes
+    // out of the fight in good enough shape to take: a killed sheriff drops it loaded `revolverChance` of the time, and
+    // always a few cartridges. (VillagerData.revolver, the old per-sheriff roll, is still read from saves but no
+    // longer matters.)
+    static var revolverChance: Float = 0.25
     static func rollRevolver(_ r: Float) -> Bool { r < revolverChance }
-    static func carriesRevolver(_ m: Mob) -> Bool {
-        guard m.villager?.role == "sheriff", var v = m.villager else { return false }
-        if let c = v.revolver { return c }
-        let c = rollRevolver(Rand.float(in: 0..<1))
-        v.revolver = c; m.villager = v
-        return c
-    }
-    // A killed sheriff: always a few cartridges, and his Sheriff's Revolver (loaded) if he carried one.
+    static func carriesRevolver(_ m: Mob) -> Bool { m.villager?.role == "sheriff" }
     static func sheriffDrops(_ g: Game, _ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
         if Items.has("rifle_rounds") { g.drops.spawn(ItemStack(Items.id("rifle_rounds"), Rand.int(in: 3...8)), at: at) }
-        if Items.has(Guns.revolverKey), carriesRevolver(m) {
+        if Items.has(Guns.revolverKey), carriesRevolver(m), rollRevolver(Rand.float(in: 0..<1)) {
             var s = ItemStack(Items.id(Guns.revolverKey), 1)
             s.tag = Guns.all[Guns.revolver].mag
             g.drops.spawn(s, at: at)
@@ -251,7 +245,7 @@ enum Honour {
             }
         }
         guard let here else { challengedVisit = nil; outlawSpotted = nil; return }
-        guard challengedVisit != here, g.survival, !TownLaw.isHostile(here), bounty(here) > 0 || isOutlaw else { return }
+        guard challengedVisit != here, g.survival, !TownLaw.isHostile(here), !TownConquest.owns(here), bounty(here) > 0 || isOutlaw else { return }
         // The nearest lawman who can see you calls you out and walks over.
         guard let law = g.mobs.mobs.filter({ TownLaw.isTownsperson($0) && TownLaw.isLaw($0) && !$0.lying && simd_length($0.pos - g.player.pos) < 24
                                               && g.world.canSee($0.eye, g.player.eye) })
@@ -304,9 +298,9 @@ extension Honour {
         }
         guard h >= respected else { return false }
         let name = TownBoard.playerName
-        // A sheriff with the Sheriff's Revolver says so.
+        // The sheriff mentions his six-iron.
         if Honour.carriesRevolver(m) && Rand.float(in: 0..<1) < 0.5 {
-            Townsfolk.say(g, m, "Afternoon, \(name). This here's the Sheriff's Revolver. Pray I never need it.")
+            Townsfolk.say(g, m, "Afternoon, \(name). This here six-iron stays holstered for folks like you.")
             return true
         }
         // The honourable: a gift, once a day per town.
