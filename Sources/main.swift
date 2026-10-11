@@ -1689,7 +1689,7 @@ if let dir = arg("--sounds") {
         }
         var peak: Float = 0
         for x in mix { peak = max(peak, abs(x)) }
-        if peak > 0.95 { let k = 0.95 / peak; for i in 0..<scapeLen { mix[i] *= k } }
+        if peak > 0.87 { let k = 0.87 / peak; for i in 0..<scapeLen { mix[i] *= k } }     // -1.2 dBFS (the SFX peak cap)
         try? FileManager.default.createDirectory(atPath: "\(dir)/scapes", withIntermediateDirectories: true)
         SoundBank.writeWAV(mix, to: "\(dir)/scapes/scape_\(name).wav")
     }

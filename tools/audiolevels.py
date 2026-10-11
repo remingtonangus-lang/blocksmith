@@ -105,7 +105,7 @@ def main():
     print(text)
     if out:
         open(out, "w").write("# Audio levels (tools/audiolevels.py)\n\n" + "\n".join("- " + s for s in summary) + "\n\n" + "\n".join(md) + "\n")
-    return 0
+    return 1 if fails or wetlist else 0        # a gate: any loud/clipped file or wet-sounding dry step fails
 
 if __name__ == "__main__":
     sys.exit(main())

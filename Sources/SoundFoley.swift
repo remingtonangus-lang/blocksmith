@@ -67,8 +67,10 @@ struct FoleyMat {
             f.thump = 0.5; f.thumpF = 115; f.click = 0; f.contact = 0.005
             f.modes = [(210, 0.06, 0.3)]; f.squelch = 1.0; f.debris = 0
         case .sculk:
-            f.thump = 0.6; f.thumpF = 88; f.click = 0; f.contact = 0.004
-            f.modes = [(150, 0.06, 0.2)]; f.tex = 0.2; f.texLo = 300; f.texHi = 1500; f.squelch = 0.6; f.debris = 0.2
+            // Springy but dry: a short muted press and a fine crackle (the squelch made it read as mud).
+            f.thump = 0.35; f.thumpF = 105; f.click = 0.1; f.clickF = 2200; f.contact = 0.003
+            f.modes = [(240, 0.025, 0.15)]; f.tex = 0.6; f.texLo = 800; f.texHi = 4200; f.texRate = 1500; f.texGrain = 0.0028
+            f.texLen = 0.08; f.debris = 0.2
         case .wood:
             f.thump = 0.45; f.thumpF = 110; f.click = 0.45; f.clickF = 2500; f.contact = 0.0008
             f.modes = [(150, 0.05, 0.5), (275, 0.04, 0.45), (490, 0.03, 0.34), (860, 0.02, 0.2), (1520, 0.012, 0.1)]
@@ -84,8 +86,10 @@ struct FoleyMat {
             f.thump = 0.2; f.thumpF = 150; f.click = 0.5; f.clickF = 5000; f.contact = 0.0003
             f.modes = [(1250, 0.4, 0.3), (2210, 0.3, 0.25), (3490, 0.22, 0.2), (4870, 0.15, 0.1)]; f.shatter = 0.5; f.debris = 0.2
         case .wool:
-            f.thump = 0.5; f.thumpF = 140; f.click = 0; f.contact = 0.007
-            f.tex = 0.1; f.texLo = 300; f.texHi = 1200; f.swish = 0.4; f.swishLo = 300; f.swishHi = 1500; f.debris = 0
+            // A soft, dry cloth brush: little low thump, fibre rustle in the mids (the old one measured wet).
+            f.thump = 0.25; f.thumpF = 150; f.click = 0; f.contact = 0.007
+            f.tex = 0.45; f.texLo = 900; f.texHi = 3800; f.texRate = 1400; f.texGrain = 0.003; f.texLen = 0.07
+            f.swish = 0.35; f.swishLo = 900; f.swishHi = 4000; f.debris = 0
         case .bone:
             f.thump = 0.3; f.thumpF = 120; f.click = 0.7; f.clickF = 3000; f.contact = 0.0005
             f.modes = [(640, 0.03, 0.35), (1460, 0.02, 0.3), (2900, 0.012, 0.15)]; f.debris = 0.6
