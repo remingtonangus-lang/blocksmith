@@ -233,7 +233,9 @@ final class ItemEntityManager {
                     // step back a little so they overlap like a held hand of cards.
                     let off = right * (Float(k) * 0.08) - up * (Float(k) * 0.06) + simd_normalize(c) * (Float(k) * 0.02)
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
-                    wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
+                    // (`up` arrives pointing down, the particles' convention: the icon's top row goes up. P47: it drew
+                    // upside down on both renderers, plain on a pile of gunpowder.)
+                    wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: -up, layer: layer, light: light)
                 }
             }
         }
