@@ -485,6 +485,9 @@ if CommandLine.arguments.contains("--horse-only") {
 
 // The Deep (Sources/DeepTests.swift + DeepExpansionTests.swift): layers, seam, the Ashguard war, the Sealrock, Sunderite,
 // Brimstone Keeps, the vault's sky and the army's strength.
+// The Deep's checks run minutes of game time (duels, wars, the biggest battle): the clock and weather go back after,
+// or the checks below meet a different hour (night spawns crowded the walk check and moved every town check after it).
+let deepWas = (game.time, game.weather)
 if !CommandLine.arguments.contains("--no-deep") { DeepTests.run(game, check) }
 // With --render: the Ash Vault under its own sky and a Brimstone Keep, through the Quest renderer (next to the PNG).
 if let path = renderPath, !path.isEmpty, let ctx = vkctx {
@@ -572,6 +575,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     game.player.pos = home; game.player.vel = .zero; game.player.flying = false
     _ = game.world.loadSync(center: home, radius: 4)
 }
+(game.time, game.weather) = deepWas
 if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deeptest: all checks passed" : "deeptest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.

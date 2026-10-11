@@ -18,13 +18,13 @@ enum AshVaultGapTests {
         let t0 = CFAbsoluteTimeGetCurrent()
         layout(check)
         rails(check)
-        let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty, wasMobs = g.mobs.mobs
+        let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival, wasDiff = g.difficulty
         // The army fights only until the Marshal falls; the balance duels before this kill him.
         let wasVictory = g.ashVictory
         g.ashVictory = false
         defer {
             g.ashVictory = wasVictory
-            g.mobs.mobs = wasMobs; g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20
+            g.mobs.mobs.removeAll(); g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20
             g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashStrikes.removeAll(); g.ashWrecks.removeAll(); g.ashSpot = nil
             g.onToast = nil
             if g.dim.dim != homeDim { g.changeDimension(to: homeDim, at: home) }
