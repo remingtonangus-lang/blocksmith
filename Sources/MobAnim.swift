@@ -7,7 +7,8 @@ import simd
 //   neck's reach, and a baby's head is drawn bigger;
 // - each attack throws the body into a short lunge, a hit rocks it back;
 // - at rest it breathes;
-// - when it dies it tips over onto its side, reddens and goes in a puff, instead of vanishing on the spot.
+// - when it dies it falls back (upright mobs) or slumps down (four-legged ones), reddens and goes in a puff, instead
+//   of vanishing on the spot.
 // Platform-neutral: the Mac and the Quest draw through writeMobVertices.
 
 // Which boxes are the head (box centre above `minY`, or in front of `maxZ`) and where its neck is (model pixels).
@@ -57,6 +58,16 @@ enum MobAnim {
         }
     }
 
+    // Bodies that stand on two legs fall back; the rest (four legs, birds, fish, blobs) slump. By model, not by size:
+    // a cow is as tall as it is long.
+    static let fourLegged: Set<MobKind> = [.cow, .mooshroom, .sheep, .pig, .chicken, .spider, .caveSpider, .hoglin, .zoglin, .strider,
+        .ravager, .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .camelHusk, .goat,
+        .panda, .polarBear, .turtle, .frog, .tadpole, .armadillo, .sniffer, .bee, .parrot, .bat, .allay, .axolotl, .squid,
+        .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish, .skeletonHorse, .zombieHorse, .phantom, .guardian,
+        .elderGuardian, .endermite, .silverfish, .slime, .magmaCube, .ghast, .happyGhast, .nautilus, .zombieNautilus, .shulker,
+        .creeper]
+    static func upright(_ m: Mob) -> Bool { !fourLegged.contains(m.kind) && m.height >= m.halfW * 2.5 }
+
     static func rx(_ a: Float) -> simd_float3x3 { simd_float3x3(V3(1, 0, 0), V3(0, cosf(a), sinf(a)), V3(0, -sinf(a), cosf(a))) }
     static func ry(_ a: Float) -> simd_float3x3 { simd_float3x3(V3(cosf(a), 0, -sinf(a)), V3(0, 1, 0), V3(sinf(a), 0, cosf(a))) }
     static func rz(_ a: Float) -> simd_float3x3 { simd_float3x3(V3(cosf(a), sinf(a), 0), V3(-sinf(a), cosf(a), 0), V3(0, 0, 1)) }
@@ -64,11 +75,12 @@ enum MobAnim {
     static func pose(_ m: Mob) -> MobPose {
         var p = MobPose()
         if m.lying || m.sitting || m.carcass { return p }                // a hunted body lies on its side (Hunting.swift)
-        if m.deathT < 0, let j = headJoint(m) {
-            let big: Float = m.baby ? 1.35 : 1
-            p.ha = ry(m.headYaw) * rx(m.headPitch) * simd_float3x3(diagonal: V3(repeating: big))
+        if let j = headJoint(m) {
+            let big: Float = m.baby ? 1.35 : 1                      // kept while it falls (no snap back to adult size)
+            let turn: Float = m.deathT < 0 ? 1 : 0
+            p.ha = ry(m.headYaw * turn) * rx(m.headPitch * turn) * simd_float3x3(diagonal: V3(repeating: big))
             p.hb = j.pivot - p.ha * j.pivot
-            if m.headYaw != 0 || m.headPitch != 0 || big != 1 { p.joint = j }
+            if (m.headYaw != 0 || m.headPitch != 0) && turn > 0 || big != 1 { p.joint = j }
         }
         guard falls(m) else { return p }
         // Body: a lunge forward on an attack (front down), rocked back by a hit, a breath at rest.
@@ -78,13 +90,24 @@ enum MobAnim {
         var a = rx(-0.16 * strike + 0.12 * rock * (m.deathT < 0 ? 1 : 0)) * simd_float3x3(diagonal: V3(1, breathe, 1))
         var b = V3.zero
         if m.deathT >= 0 {
-            // Tips over sideways about the outer edge of its footprint (to its right), easing in like a fall.
+            // Not the genre's sideways flip: an upright body buckles and falls back onto its back (about the back edge
+            // of its footprint, away from what killed it); a four-legged one folds its legs and slumps down, leaning
+            // a little onto its side. Eased in like a fall.
             let k = min(1, m.deathT / fallTime)
-            let ang = -k * k * (.pi / 2) * (m.height < m.halfW * 2.5 ? 0.35 : 1)      // flat mobs roll only a little
-            let edge = V3(m.halfW * 16 / max(0.25, m.sized ? 1 : m.scale), 0, 0)
-            let r = rz(ang)
+            let px = 16 / max(0.25, m.sized ? 1 : m.scale)
+            let upright = MobAnim.upright(m)
+            let r: simd_float3x3
+            var piv = V3.zero
+            if upright {
+                r = rx(k * k * (.pi / 2) * 0.94)
+                piv = V3(0, 0, m.halfW * px)
+            } else {
+                r = rz(-k * 0.3)
+                piv = V3(m.halfW * px, 0, 0)
+            }
             a = r * a
-            b = edge - r * edge
+            b = piv - r * piv
+            if !upright { b.y -= k * k * m.height * px * 0.3 }                          // the legs fold under it
             let sink = max(0, m.deathT - 0.65) * 6                                       // settles into the ground
             b.y -= sink
         }
@@ -95,6 +118,11 @@ enum MobAnim {
 
 extension Mob {
     // Called from update (alive only): what it watches, the strike pulse, the breathing clock.
+    // A cosmetic roll from the mob's own clock (not the gameplay RNG: glances must not shift spawns or drops).
+    private func glance(_ salt: UInt32) -> Float {
+        hashf(Int(animT * 4), ObjectIdentifier(self).hashValue & 0xffffff, 0, 0x9e37 &+ salt)
+    }
+
     func animTick(_ dt: Float, _ g: Game) {
         animT += dt
         if attackCooldown > lastCooldown + 0.3 { strikeT = 0.3 }        // an attack just reset the cooldown
@@ -109,10 +137,11 @@ extension Mob {
             if kind.hostile {
                 lookAt = d < 16 && g.alive ? pe : nil
             } else if d < 6 && g.alive {
-                // Animals and townsfolk glance at you now and then when you're close, and watch you when you hold food
-                // (breeding) or stand right beside them.
-                if lookAt == nil && Rand.float(in: 0..<1) < (d < 2.5 ? 0.6 : 0.12) { lookAt = pe }
-                else if lookAt != nil && Rand.float(in: 0..<1) < 0.05 { lookAt = nil }
+                // Animals and townsfolk glance at you now and then when you're close, and watch you
+                // when you stand right beside them (within 3 blocks, always).
+                if d < 3 { lookAt = pe }                                  // right beside it: it watches you
+                else if lookAt == nil && glance(1) < 0.12 { lookAt = pe }
+                else if lookAt != nil && glance(2) < 0.05 { lookAt = nil }
                 if lookAt != nil { lookAt = pe }
             } else { lookAt = nil }
         }
@@ -144,12 +173,13 @@ extension MobManager {
         if corpses.count >= MobAnim.maxCorpses { corpses.removeFirst() }
         m.deathT = 0
         m.hurt = 0.3
+        m.strikeT = 0                                       // no frozen lunge in the fall
         corpses.append(m)
     }
 
     func corpseTick(_ dt: Float, _ g: Game) {
         guard !corpses.isEmpty else { return }
-        for c in corpses { c.deathT += dt }
+        for c in corpses { c.deathT += dt; c.hitFlash = max(0, c.hitFlash - dt) }   // the killing hit's flash fades (Mob.update no longer runs)
         for c in corpses where c.deathT >= MobAnim.deathTime {
             let n = Int(4 + min(8, c.height * c.halfW * 8))
             for _ in 0..<n { g.particles.deathPuff(at: c.pos + V3(Rand.float(in: -c.halfW...c.halfW), Rand.float(in: 0...max(0.2, c.height * 0.5)), Rand.float(in: -c.halfW...c.halfW))) }

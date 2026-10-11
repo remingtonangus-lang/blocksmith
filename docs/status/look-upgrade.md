@@ -173,15 +173,16 @@ From the backlog: mobs and animals move like living things. Our own:
   and a head transform (turn, look up/down, baby scale) applied to the posed boxes in `writeMobVertices`. Heads are
   found per model by a joint (`HeadJoint`: boxes above the neck for people, in front of it for cows, sheep, pigs,
   chickens; helmets turn with the head). `Mob.animTick` picks what it watches (every 0.25 s) and eases the head there.
-- Deaths: `MobManager.corpses` holds the dead for 1 s (never updated, only drawn): they tip onto their side over
-  0.45 s (flat mobs roll only a little), redden, settle, then go in a puff of pale smoke (`Particles.deathPuff`).
+- Deaths: `MobManager.corpses` holds the dead for 1 s (never updated, only drawn): over 0.45 s an upright one buckles and
+  falls back onto its back (not the genre's sideways flip) and a four-legged one folds its legs and slumps, leaning a
+  little; they redden, settle, then go in a puff of pale smoke (`Particles.deathPuff`).
   Loot and XP still drop at the moment of death; at most 24 corpses at once.
 - Kept: the per-model walk cycles, arm poses, wing flaps and tail wiggles.
 
 ### Checks (questcheck, quest/src/test/MobAnimTest.swift)
 A cow turns its head toward the player beside it (and not round toward one behind it); a zombie turns its head toward
 the player, 6 of its 17 boxes counted as the head; a calf's head is bigger; an attack lunges the body forward, a hit
-rocks it back, rest breathes (about 1 px); a killed zombie leaves the live list, tips onto its side and draws with finite
+rocks it back, rest breathes (about 1 px); a dead cow slumps down; a killed zombie leaves the live list, falls back onto its back (no sideways flip) and draws with finite
 vertices, then goes in a puff and is gone; armour stands and boats keep still. Portraits: `--mob-shots DIR --mob-kinds
 zombie,cow,villager,sheep` adds `look` (head turned) and `fall` (mid-fall) shots: docs/status/evidence/look-upgrade/
 mob_{zombie,cow,villager,sheep}_{look,fall}.png.
