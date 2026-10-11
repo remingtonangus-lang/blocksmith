@@ -27,3 +27,18 @@ Results:
   test firing into a swamp in the full questcheck (the site is now chosen from the world spawn, in open country, and
   the test fails loudly when no dry landing exists). Full questcheck: every maingun and factions check passes; the
   12 failures left are the base's (town law/honour/bounty/six-iron/countries, the Marshal's barrage).
+
+## G13: the gun did far too little to vessels; frigates carried Capital soldiers (Oct 11 AM playtest)
+Objectives (backlog + Lane A's own):
+1. A direct hit on a crawler wrecks it and tears out hundreds of blocks; a near miss beside it still hurts it.
+2. The same rule for every Capital vessel (frigates, crawlers, dropships), one code path (mainGunHullDamage).
+3. Frigate crews belong to their own navy: their own rank names (and the livery they already had), kept through a save.
+
+Results:
+- ShipManager.mainGunHullDamage: a direct hit tears a 12-block-radius hole (was 7) and knocks out the drive (a crawler
+  is wrecked on its next tick, a flier goes down); a ground hit within 9 blocks of a vessel's bounds tears its nearest
+  side (radius 12 - 0.6 x distance) and within 5 blocks wrecks it.
+- Crews: Mob.faction's didSet gives a navy's soldiers that navy's ranks (Meridian Rating / Marine / Gunner / Heavy
+  Marine / Lieutenant / Helmsman; Stormwarden and Ironback sets too). The faction is now saved for every faction, not
+  only the Ashguard, so a crew no longer reloads as Capital soldiers.
+- Checks: MainGunTests 7 (direct hit and near miss on an Ironback Crawler) and 8 (crew names).

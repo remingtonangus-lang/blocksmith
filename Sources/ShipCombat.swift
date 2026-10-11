@@ -184,15 +184,7 @@ extension ShipManager {
             if kind == 3, let g = game {
                 let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
                 mainGunImpact(at: p, owner: owner, game: g)
-                // Into a hull: a 7-block hole torn through whatever plate it hit (tear), and the drive knocked out as
-                // a 42 cm shell does (heavyHit; after the tear, whose rebuild recounts engines): a Capital vessel goes
-                // down.
-                if let hit {
-                    MainGun.lastTorn = tear(at: p, radius: 7, except: owner, game: g)
-                    let r = hit.root
-                    if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }
-                    MainGun.shipHits += 1
-                }
+                mainGunHullDamage(at: p, owner: owner, direct: hit, game: g)
                 continue
             }
             if let g = game {
@@ -349,6 +341,35 @@ extension ShipManager {
 
     // The Tidebreaker's slug through a hull: every breakable cell within `radius` of c is torn out, whatever its
     // resistance (capital plate and light panels shrug off ordinary blasts), so a hit leaves a hole you can see.
+    // What a Tidebreaker slug does to vessels (Oct 11 playtest, G13: "against a crawler it should tear off a huge chunk
+    // or destroy it outright"). Into a hull: a hole MainGun.hullTear blocks across torn through it and the drive
+    // knocked out (a Capital vessel goes down, a crawler is wrecked). A near miss on the ground beside a vessel still
+    // tears the side nearest the blast, smaller with distance, and one within MainGun.disableMiss blocks wrecks it too.
+    func mainGunHullDamage(at p: V3, owner: Int, direct: Ship?, game g: Game) {
+        func disable(_ r: Ship) { if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0; MainGun.disabled += 1 } }
+        if let hit = direct {
+            MainGun.lastTorn = tear(at: p, radius: MainGun.hullTear, except: owner, game: g)
+            disable(hit.root)
+            MainGun.shipHits += 1
+            return
+        }
+        var torn = 0
+        for s in capitals where s.id != owner && !s.wrecked {
+            let q = simd_clamp(p, s.worldMin, s.worldMax)       // the nearest point of its bounds
+            let d = simd_length(q - p)
+            guard d < MainGun.nearMiss else { continue }
+            // Toward the hull from that point: the first hull block along the line from the blast to its centre.
+            let mid = (s.worldMin + s.worldMax) * 0.5
+            var at = q
+            let step = simd_normalize(mid - q + V3(1e-4, 0, 0))
+            var n = Int(simd_length(mid - q))
+            while n > 0 && !shipBlock(in: s, at: at) { at += step; n -= 1 }
+            torn += tear(at: at, radius: MainGun.hullTear - d * 0.6, except: owner, game: g)
+            if d < MainGun.disableMiss { disable(s) }
+        }
+        if torn > 0 { MainGun.lastTorn = torn; MainGun.shipHits += 1 }
+    }
+
     func tear(at c: V3, radius: Float, except: Int, game: Game?) -> Int {
         var total = 0
         for s in list where s.root.id != except && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius

@@ -104,7 +104,7 @@ extension Mob {
         if let s = stayAt { d["stayX"] = s.x; d["stayY"] = s.y; d["stayZ"] = s.z }
         if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
-        if faction == Faction.ashguard.rawValue { d["fac"] = Float(faction) }
+        if faction != 0 { d["fac"] = Float(faction) }      // (a navy's crew keep their colours and ranks through a save)
         if warden { d["warden"] = 1 }
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
         if let b = brain, b.extra {
@@ -143,6 +143,7 @@ extension Mob {
         if let x = d["stayX"], let y = d["stayY"], let z = d["stayZ"] { stayAt = V3(x, y, z) }
         if let x = d["brushCd"] { hs.brushCool = x }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
+        else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
         if let r = d["ashRole"] { ashTakeRole(Int(r)) }
         if (d["ashExtra"] ?? 0) > 0 {

@@ -406,6 +406,46 @@ enum MainGunTests {
             } else { check(false, "maingun: the target frigate spawns") }
         }
 
+        // 7. Against an Ironback Crawler (Oct 11 playtest, G13: "it should tear off a huge chunk or destroy it outright"):
+        // a direct hit wrecks it and tears a hole hundreds of blocks big; a near miss on the ground beside it still
+        // tears its side and, close enough, wrecks it too.
+        for near in [false, true] {
+            let n1 = w.ships.list.count
+            let tp = s.toWorld(st.mainGunMuzzle) + s.dirToWorld(st.mainGunDir) * 150
+            w.ships.spawnCapital("crawler", home: IVec3(Int(tp.x) + (near ? 60 : 0), 0, Int(tp.z)), yaw: 0, region: nil, sync: true)
+            guard let e = w.ships.list.dropFirst(n1).first(where: { $0.role == "crawler" }), let est = w.ships.capState[e.id] else {
+                check(false, "maingun: the target crawler spawns"); continue
+            }
+            defer { w.ships.remove(e); w.ships.capState.removeValue(forKey: e.id); w.ships.shockwaves.removeAll() }
+            _ = w.loadSync(center: e.pos, radius: 3)
+            func hull() -> Int { w.ships.list.filter { $0.root === e.root }.reduce(0) { $0 + $1.blockCount } }
+            let blocks0 = hull(), hits0 = MainGun.shipHits
+            if near {
+                // A slug into the ground 3 blocks off its flank (its side, level with the wheels).
+                let p = V3(e.worldMax.x + 3, e.worldMin.y + 2, (e.worldMin.z + e.worldMax.z) * 0.5)
+                w.ships.mainGunHullDamage(at: p, owner: s.id, direct: nil, game: g)
+            } else {
+                let mw = s.toWorld(st.mainGunMuzzle)
+                w.ships.fireMainGun(s, st, dir: simd_normalize((e.worldMin + e.worldMax) * 0.5 - mw), game: g)
+                var frames = 0
+                while MainGun.shipHits == hits0 && frames < 300 { w.ships.updateShells(1.0 / 72, game: g); frames += 1 }
+            }
+            w.ships.capitalTick(1.0 / 72, game: g)                // (the wreck is declared on its next tick)
+            let torn = blocks0 - hull()
+            check(MainGun.shipHits == hits0 + 1 && e.wrecked && torn >= (near ? 150 : 400),
+                  "maingun: a \(near ? "near miss 3 blocks off" : "direct hit on") an Ironback Crawler wrecks it (\(est.disabledWhy)) and tears out \(torn) of its \(blocks0) blocks")
+        }
+
+        // 8. The frigates carry their own navy, not Capital soldiers: a Meridian crewman goes by the navy's ranks.
+        do {
+            let m = Mob(.soldierTrooper, at: g.player.pos)
+            let capital = m.spec.name
+            m.faction = Faction.meridian.rawValue
+            let navy = m.spec.name
+            check(capital.hasPrefix("Capital") && navy.hasPrefix("Meridian") && Mob.crewNames.values.allSatisfy { $0.count == 6 },
+                  "maingun: a Meridian frigate's crewman is a \(navy), not a \(capital)")
+        }
+
         // 5. An AI frigate charging at the player warns them (a toast and a buzz) while there is time to get clear.
         do {
             var said: String?

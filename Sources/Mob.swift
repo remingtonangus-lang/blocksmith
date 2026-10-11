@@ -337,7 +337,9 @@ final class Mob {
     var power: Float = 1
     var warden = false              // a Brimstone Keep's Warden (DeepGates.swift)
     var wardenRaged = false
-    var faction = 0                 // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
+    var faction = 0 {               // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
+        didSet { if faction != oldValue { crewSetup() } }   // a navy's crew go by its own ranks (Soldiers.swift)
+    }
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
     var circleAngle: Float = 0
