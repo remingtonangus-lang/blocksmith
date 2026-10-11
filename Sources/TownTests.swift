@@ -306,7 +306,7 @@ enum TownTests {
         // Weapons by role.
         let kid = Mob(.villager, at: g.player.pos); kid.baby = true; Townsfolk.setup(kid, game: g)
         var elder = VillagerData(); elder.role = "elder"
-        check(farmer.townWeapon == .pitchfork && dep.townWeapon == .sword && shop.townWeapon == .cleaver && kid.townWeapon == .none
+        check(farmer.townWeapon == .pitchfork && dep.townWeapon == .revolver && shop.townWeapon == .cleaver && kid.townWeapon == .none
               && Townsfolk.weapon(elder, baby: false) == .none && keeper(g, .blacksmith, at: g.player.pos).townWeapon == .hammer,
               "people: farmers carry pitchforks, deputies swords, butchers cleavers, smiths hammers; children and elders nothing")
         // Models: every role and shop builds a body with a head, a weapon where armed, nothing NaN.

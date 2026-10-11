@@ -140,7 +140,7 @@ enum Townsfolk {
         guard let v, !baby else { return .none }
         let look = v.look ?? 0
         switch v.role ?? "worker" {
-        case "deputy": return .sword
+        case "deputy": return .revolver                                 // P64: deputies carry six-irons too
         case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
         case "elder", "child", "citizen", "banker": return .none     // citizens: the Capital's soldiers keep the streets

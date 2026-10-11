@@ -2068,6 +2068,8 @@ final class Game {
             default: break
             }
             if let a = attacker { scaled *= a.power }
+            // P64 (Oct 11 evening playtest): bare skin takes more than the reference: a fifth more with no armour on.
+            if inventory.armorPoints == 0 { scaled *= 1.2 }
             let whole = floorf(scaled)
             amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
         }
@@ -2215,9 +2217,9 @@ final class Game {
         sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
-        // Drop everything where we died (plus up to 100 XP worth: 7 per level).
+        // Drop everything where we died. Experience is kept (P64, Oct 11 evening playtest: losing levels on death felt
+        // like losing hours; the reference dropped up to 100 XP as orbs and reset the rest).
         let at = player.pos + V3(0, 1, 0)
-        let lostXP = min(100, xpLevel * 7)
         effects.clear()
         absorption = 0
         for c in [inventory.main, inventory.armor, inventory.offhand] {
@@ -2227,8 +2229,6 @@ final class Game {
                 c[i] = .empty
             }
         }
-        xpLevel = 0; xpPoints = 0
-        if lostXP > 0 { addXPOrbs(lostXP, at: at) }                // lies there as orbs (Game.xpOrbs)
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
@@ -2249,7 +2249,7 @@ final class Game {
                 let at = V3(Float(a.x) + 0.5, Float(a.y) + 1, Float(a.z) + 0.5)
                 if dim.dim != .nether { changeDimension(to: .nether, at: at) }
                 player.pos = at; player.vel = .zero; player.airPeak = at.y; player.pendingFall = 0
-                health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; xpLevel = 0; xpPoints = 0; timeSinceRest = 0
+                health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; timeSinceRest = 0
                 return
             }
             anchorSpawn = nil
@@ -2278,8 +2278,6 @@ final class Game {
         saturation = 5
         exhaustion = 0
         air = 15
-        xpLevel = 0
-        xpPoints = 0
         timeSinceRest = 0
     }
 
