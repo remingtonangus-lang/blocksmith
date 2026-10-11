@@ -216,6 +216,21 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
 T2. questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
     $0.00 bounty), bounty (law never challenges, lapse day), honour HUD/meter/inventory, six-iron hit rate, countries
     ore. Towns-lane code; the Mac worker did not touch it. Reproduce: quest/tools/linux-check.sh then questcheck.
+T3. Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f14, still red on PR #49's run 940), left
+    when #49 merged (Lane A thread, 2026-10-11): each needs its root cause, not a looser threshold.
+    a. play: `--playthrough` blight fight: 388 arrows for 31 damage, 0 sword hits in 601 s, so no Blight Star (the
+       Blight sits 5 blocks above the player and the sword never reaches it).
+    b. checks: `--structcheck` floating 1 (a capital_city wall over a dip, see the structcheck-on-linux baseline);
+       agent life: 3 unmet goals of 3 on seeds 12345 and 777.
+    c. tours: ridecheck 3 FAILED (crew leave their posts / the disabled deck; bay troops inside a solid on the ramp,
+       24.3,10.1,71.3 ship space), rulescheck "water heads for the drop 3 east and not west" (both ways), questbugs
+       "VR trigger spam: zombie not dead in 6 s" and "aliased chunk blocks load as wardstone".
+T4. Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
+    `questcheck --basetest-only patrol`). G12 moved seed 12345's nearest citadel to -456,920. A gunshot 40 blocks south of
+    its gate: PathFinder.find (8,000 nodes) walks gate -> spot, but the patrol leader stops 36 blocks short ("no way on")
+    after ~4 blocks: basePatrol (CapitalBasesWork.swift) orders 18-block waypoints at `standY` ground and the soldier's
+    own search gives up on them. Fix the class: a patrol follows one long path (or waypoints taken from it), and the
+    test's "reaches the spot" passes at this citadel and the old one.
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate

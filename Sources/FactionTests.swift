@@ -134,7 +134,8 @@ enum FactionTests {
     static func structures(_ check: (Bool, String) -> Void) {
         let fm = FileManager.default
         // Cities and citadels near spawn on a spread of seeds.
-        var worst = 0, worstBase = 0
+        // G12 made both rarer and kept citadels 640+ from the spawn: still findable on foot, never at the spawn.
+        var worst = 0, worstBase = 0, nearest = 99999, nearestBase = 99999
         for i in 0..<6 {
             let seed = UInt64(1000 + i * 7919)
             let gen = WorldGen(seed: seed)
@@ -146,9 +147,14 @@ enum FactionTests {
             let dc = c.map { Int(simd_length(V2(Float($0.anchor.x - x), Float($0.anchor.z - z)))) } ?? 99999
             let db = b.map { Int(simd_length(V2(Float($0.anchor.x - x), Float($0.anchor.z - z)))) } ?? 99999
             worst = max(worst, dc); worstBase = max(worstBase, db)
+            nearest = min(nearest, dc); nearestBase = min(nearestBase, db)
         }
-        check(worst < 2200, "factions: a Capital city within 2,200 blocks of spawn on 6 seeds (worst \(worst))")
-        check(worstBase < 1200, "factions: a Capital citadel within 1,200 blocks of spawn on 6 seeds (worst \(worstBase))")
+        check(worst < 4000, "factions: a Capital city within 4,000 blocks of spawn on 6 seeds (worst \(worst))")
+        check(worstBase < 2400, "factions: a Capital citadel within 2,400 blocks of spawn on 6 seeds (worst \(worstBase))")
+        check(Float(nearest) >= WorldRules.capitalMinSpawn - WorldRules.margin - 160,
+              "factions: no Capital city near the spawn on 6 seeds (nearest \(nearest))")
+        check(Float(nearestBase) >= WorldRules.citadelMinSpawn - WorldRules.margin - 160,
+              "factions: no Capital citadel near the spawn on 6 seeds (nearest \(nearestBase))")
 
         // The structure guard: taken once from the chunk folder, never grows afterwards.
         let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("factions-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)

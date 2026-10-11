@@ -312,7 +312,7 @@ struct AshKit {
     let console = Blocks.has("command_console") ? Blocks.id("command_console") : Blocks.id("ash_plating")
     let table = Blocks.id("crafting_table")
     let mortar = Blocks.id("ash_mortar")
-    let whiteWool = Blocks.has("white_wool") ? Blocks.id("white_wool") : Blocks.id("ash_banner_edge")
+    let whiteWool = Blocks.has("white_wool") ? Blocks.id("white_wool") : Blocks.id("ash_plating")
 }
 
 extension AshWar {

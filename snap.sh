@@ -13,7 +13,9 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 # Full run: a failing shot or test is recorded and the rest still run; the script fails at the end.
 set +e
 FAILED=()
-trap 'rc=$?; FAILED+=("$LINENO"); echo "snap.sh: line $LINENO: failed (exit $rc)"' ERR
+# $LINENO inside an if-block is the block's closing line on macOS bash 3.2 (CI's debug rerun then re-ran "fi" until it
+# timed out): name the failing command's own line by finding its text.
+trap 'rc=$?; L=$(grep -nF -- "$BASH_COMMAND" "$0" 2>/dev/null | head -1 | cut -d: -f1); L=${L:-$LINENO}; FAILED+=("$L"); echo "snap.sh: line $L: failed (exit $rc): $BASH_COMMAND"' ERR
 # Shards (CI heavy lane runs them as parallel jobs): SNAP_SHARD=checks | tours | shots; unset runs all three.
 SHARD="${SNAP_SHARD:-all}"
 on() { [ "$SHARD" = all ] || [ "$SHARD" = "$1" ]; }
