@@ -271,6 +271,10 @@ extension TownTests {
         BountyHunters.tick(g)
         check(!g.mobs.mobs.contains { $0.customName == BountyHunters.name }, "honour gap: no hunters for someone with a clean name")
         Honour.value = -90
+        // Where the posse can stand depends on the random ring of tries around the player (water, sight lines); a fixed
+        // seed keeps this check from turning on whatever other checks drew from Rand before it (it failed after the sky
+        // checks, PR #26, drew a few more numbers).
+        Rand.seed(12345)
         BountyHunters.tick(g)
         let hunters = g.mobs.mobs.filter { $0.customName == BountyHunters.name }
         let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 32 && $0.lockTime > 0 }
