@@ -61,7 +61,7 @@ B4. Countries that give minerals. [DONE: Lane B thread, 2026-10-11, PR #39; docs
 B5. Enchantments become tool upgrades. [DONE: Lane B thread, 2026-10-11, PR #40; docs/status/upgrades.md] Intent: enchanting is too similar to the original; make it tool upgrades that still need experience.
 - A workbench upgrade tree per tool and weapon (sharper edge, reinforced head, balanced grip, scopes, extended mags) paid with experience plus materials; visible changes on the model; old enchanted items convert in saves.
 
-B6. Hell's own mobs. [DONE: Lane B thread, 2026-10-11, PR #PRNUM; docs/status/hell-mobs.md] Intent: hell needs its own mobs, including a dark burgundy knight class. Hell comes after mastering the bases and getting upgrades.
+B6. Hell's own mobs. [DONE: Lane B thread, 2026-10-11, PR #44; docs/status/hell-mobs.md] Intent: hell needs its own mobs, including a dark burgundy knight class. Hell comes after mastering the bases and getting upgrades.
 - A knight order in dark burgundy armour: squire, knight, champion and a commander mini-boss, with shields, parries and charges that suit VR melee. Plus 3+ other original hell mobs with distinct roles (flying, swarm, ranged).
 - Gate: hell is reachable only with base-tier gear (a key or charge looted from command fortresses), so the order is clear.
 
