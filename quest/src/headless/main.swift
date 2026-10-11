@@ -562,7 +562,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         // shared vertex scratch (the rest: dropped items, particles, hands, HUD); past it the farthest units would drop.
         let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride, mobBudget = SceneRenderer.scratchSize / 3
         check(units >= 40 && with.sections < without.sections && with.mobsDrawn < without.mobsDrawn && mobBytes <= mobBudget,
-              String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms (debug build)",
+              String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms",
                      units, with.sections, with.quads, with.mobsDrawn, with.mobVerts, Double(mobBytes) / 1048576, Double(mobBudget) / 1048576, with.recordMs,
                      without.sections, without.quads, without.mobsDrawn, without.mobVerts, without.recordMs))
         game.mobs.mobs = savedMobs; game.ashVictory = savedVictory

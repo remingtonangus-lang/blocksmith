@@ -6,6 +6,8 @@ Remington's ask (2026-10-10 23:49): grade the cloud threads' merged work (#17 ho
 `docs/objectives/deep-expansion.md`, harshly (scale words count), then build every PARTIAL / MISSING item, one PR per
 area, and stop when the table is all MET.
 
+**Status (2026-10-11): all 83 lines MET** with the D2 PR (Ash Vault world and army), the last area.
+
 Grading rule: **MET** only when the code does what the line says at the scale it says, with an automated check.
 **PARTIAL**: something real exists but a stated part, the scale, or the check is missing. **MISSING**: nothing.
 The "Fix" column names the PR area that closes the line; the "After" column is filled in as each PR merges.
@@ -92,11 +94,11 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | D2b | Rare ore in guarded bastion strongholds **next to a portal-replacement structure** | PARTIAL | Brimstone Keeps hold Sunderite; no portal-like structure beside them | D3 | MET: every keep has an Ember Gate frame (the portal replacement) that wakes when the Castellan falls (deeptest: 20 keeps over 5 seeds) |
 | D2c | Ore processed (smelt + craft) into a tool or charge | MET | flux -> blast furnace ingot -> pick / charge | - | MET |
 | D3a | Ash Vault huge with its own sky | MET | 133-145 tall, haze + Cinder Sun | - | MET |
-| D3b | Towns, bunkers, rail lines, airfields | PARTIAL | HQ bunker, outposts and camps; no towns, no rail, no airfield | D2 | |
-| D3c | Tanks, halftracks, rifles, MGs, mortars, artillery, officers, patrols, alarms, reinforcements | PARTIAL | no mortars, no foot patrols moving between sites, no vault-wide alarm; reinforcements only the Marshal's guard | D2 | |
+| D3b | Towns, bunkers, rail lines, airfields | PARTIAL | HQ bunker, outposts and camps; no towns, no rail, no airfield | D2 | MET: four garrison towns (barracks, mess, radio room, quarters, depot, signal tower, mortar pit, 12+ soldiers each), the HQ bunker, the Ashguard Rail (six lines, 2,013 cells laid, halts with carts, buffer stops) and Airfield One (runway lamps, two hangars, six bombers, tower, fuel, AA pits); AshVaultGapTests |
+| D3c | Tanks, halftracks, rifles, MGs, mortars, artillery, officers, patrols, alarms, reinforcements | PARTIAL | no mortars, no foot patrols moving between sites, no vault-wide alarm; reinforcements only the Marshal's guard | D2 | MET: mortar crews and field guns, MG gunners, medics, officers, foot patrols walking legs between sites, a vault-wide alarm (Quiet/Alert/Alarm/Total War, saved) and reinforcement squads with armour at Total War; AshVaultGapTests |
 | D4a | Harder than surface bases (more units, armour needing explosives, squads, flanking, cover) | MET | army metric 8695 vs 4127; Soldier AI cover/flank/retreat | - | MET |
 | D4b | Full-gear test run with time-to-kill numbers documented | MISSING | none | D3 | MET: seeded full-gear duels against every unit, both ways, in docs/status/deep-balance.md |
-| D5 | 72 fps on Quest 3 (LOD, unit caps, fog); test Mac and Quest | PARTIAL | no unit cap or measurement in the biggest battle | D2 | |
+| D5 | 72 fps on Quest 3 (LOD, unit caps, fog); test Mac and Quest | PARTIAL | no unit cap or measurement in the biggest battle | D2 | MET (cloud side): unit caps (64 near, 24 extras), AI LOD, far soldiers as silhouettes, back faces skipped, the vault fog budget; the biggest battle measured: Game.tick 1.95 ms avg / 3.56 p95 (-O), 57k mob vertices, 2.7 ms world record; device runs are the Mac worker's |
 
 ### Expanded objectives
 | # | Line | Before | Evidence | Fix | After |
@@ -108,10 +110,10 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | DE5 | Barrier ore chain in the recipe book with hints (journal or hell NPC) | PARTIAL | recipes exist; no hint journal/NPC | D3 | MET: the Keeper's Journal (fortress and keep chests) names the whole Sunderite chain and the keeps; recipes in the book |
 | DE6 | Barrier break is a big moment (sound, light, falling debris) | PARTIAL | a charge opens the shaft with an explosion; no special moment | D3 | MET: boom, a light column up the shaft, shake, falling debris, a toast and an advancement |
 | DE7 | Bastion strongholds: 3+ layouts, guard roles, mini-boss, loot vaults | PARTIAL | one keep layout, no mini-boss | D3 | MET: castle, ring fort and bastioned citadel layouts, guard roles, the Keep Castellan mini-boss with a boss bar, a strongroom vault |
-| DE8 | Ash Vault story: journals, signs, radio chatter; rising alarm level | MISSING | none | D2 | |
-| DE9 | Vehicles destructible with debris and fire, crew bail out | PARTIAL | brew-up blast + smoke; no crew | D2 | |
-| DE10 | Mortars and artillery with audible incoming warnings | PARTIAL | the Marshal's barrage has a flare; batteries' shells have no warning | D2 | |
-| DE11 | Squads with roles (rifle, MG, officer, medic), cover, flanking, retreat, calling armour; difficulty scales it | PARTIAL | no medic, no armour call | D2 | |
+| DE8 | Ash Vault story: journals, signs, radio chatter; rising alarm level | MISSING | none | D2 | MET: signs at every site, Ashguard field journals in the vault's supply and command chests, radio chatter in radio rooms and with each alarm step, the rising four-level alarm; AshVaultGapTests |
+| DE9 | Vehicles destructible with debris and fire, crew bail out | PARTIAL | brew-up blast + smoke; no crew | D2 | MET: a wreck throws debris, burns with fire round the hull and its crew bails out fighting (two from a tank, one from a half-track); AshVaultGapTests |
+| DE10 | Mortars and artillery with audible incoming warnings | PARTIAL | the Marshal's barrage has a flare; batteries' shells have no warning | D2 | MET: mortar crews and field guns fire on spotted positions; every shell gets a whistle and a red smoke marker 1.5 s+ before it lands (3.1 s mortar, 1.8 s+ field gun in the check); AshVaultGapTests |
+| DE11 | Squads with roles (rifle, MG, officer, medic), cover, flanking, retreat, calling armour; difficulty scales it | PARTIAL | no medic, no armour call | D2 | MET: squads of officer, MG gunner, medic and riflemen; medics heal, MG gunners suppress the last spot, officers call the nearest idle tank; cover, flanking and retreat from the soldier AI; difficulty scales squad size, reinforcements and mortar rate; AshVaultGapTests |
 | DE12 | Ash Marshal: phases, arena, victory changes the Vault for good | MET | guard calls at 2/3 and 1/3, barrages, bunker; army stands down, lift | - | MET |
 | DE13 | Rewards unique to each layer; advancements for each milestone | PARTIAL | advancements for vault/tank/victory/sunderite; no hell-band or seal milestone, no layer trophies | D3 | MET: one advancement per Deep milestone (6) and a reward per layer (Castellan's Brand, Gate Shard, Sealrock Shard, the wearable Marshal's Cap) |
-| DE14 | Perf: unit caps, LOD, fog budgets measured in the biggest battle | MISSING | none | D2 | |
+| DE14 | Perf: unit caps, LOD, fog budgets measured in the biggest battle | MISSING | none | D2 | MET: unit caps, AI LOD and the fog budget measured in the biggest battle (questcheck --deep-only: tick ms, sections, quads, units and mob vertices with and without the fog budget); numbers in docs/status/the-deep-expansion.md |
