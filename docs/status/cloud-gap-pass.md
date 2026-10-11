@@ -18,11 +18,11 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 ### Remington's brief
 | # | Line | Before | Evidence (code at quest-port 2026-10-10 23:45) | Fix | After |
 |---|------|--------|-----------|-----|-------|
-| A1a | Horse call/whistle reliable at range, horse pathfinds to you | PARTIAL | Riding.swift callHorse: >64 blocks it is teleported behind you; within 64 it walks straight at you (`face` + speed, no path), so it sticks on walls/rivers | R | |
-| A1b | Bonding levels unlock things: tighter turning, calmer under fire, tricks | PARTIAL | HorseFeel bond 1-4 gives stamina and nerves; no turning bonus, no tricks | R | |
+| A1a | Horse call/whistle reliable at range, horse pathfinds to you | PARTIAL | Riding.swift callHorse: >64 blocks it is teleported behind you; within 64 it walks straight at you (`face` + speed, no path), so it sticks on walls/rivers | R | MET: a called horse paths round walls (160 blocks, 1500 nodes); stuck 6 s, brought round on your level; HorseGapTests |
+| A1b | Bonding levels unlock things: tighter turning, calmer under fire, tricks | PARTIAL | HorseFeel bond 1-4 gives stamina and nerves; no turning bonus, no tricks | R | MET: tighter turns per level, a level-3 rear on command, a level-4 sliding stop and calm under gunfire; HorseGapTests |
 | A1c | Brushing / feeding / patting | MET | HorseFeel care, HorseTests | - | MET |
-| A1d | The horse remembers you | PARTIAL | one bonded horse id; any other horse forgets you the moment you ride another | R | |
-| A1e | A stable to keep and swap horses | MISSING | stable shop sells tack only; no keeping, storing or swapping horses | R | |
+| A1d | The horse remembers you | PARTIAL | one bonded horse id; any other horse forgets you the moment you ride another | R | MET: every horse you have ridden keeps its own bond; the last one ridden comes when called; HorseGapTests |
+| A1e | A stable to keep and swap horses | MISSING | stable shop sells tack only; no keeping, storing or swapping horses | R | MET: the stable keeps up to six horses (any town) and swaps them; HorseGapTests |
 | A1f | Saddlebags as storage | MET | 9 slots at bond 2 (HorseFeel) | - | MET |
 | A1g | Stamina and health with care | MET | HorseFeel stamina, brushing heals | - | MET |
 | A1h | Weighty gaits, smooth on slopes | MET | HorseTests gaits / staircase | - | MET |
@@ -51,17 +51,17 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | EH7 | Redemption path: jobs, donations, protecting towns | PARTIAL | protecting yes; no jobs, no donations | H/T | MET: notice-board jobs, donations, protecting towns; HonourGapTests |
 | EH8 | Per-world save with migration | MET | optional fields in TownLaw.Saved | - | MET |
 | EH9 | Honour actions logged so tests can prove each rule | MISSING | no log | H | MET: every change logged (day, amount, reason), saved; HonourGapTests |
-| ER1 | Name your horse (VR-friendly) | MISSING | none | R | |
-| ER2 | Breeds with different speed, stamina, courage, looks | MISSING | random speed per horse only | R | |
-| ER3 | Taming wild horses with a calm-down minigame | MISSING | random temper roll while bucking | R | |
-| ER4 | Fears predators and gunfire until bonded | PARTIAL | spooks at gunfire/explosions; predators only when "a hostile monster" is adjacent; no wolves etc. | R | |
+| ER1 | Name your horse (VR-friendly) | MISSING | none | R | MET: named when it becomes yours; rename at the stable from a list (no typing); HorseGapTests |
+| ER2 | Breeds with different speed, stamina, courage, looks | MISSING | random speed per horse only | R | MET: five breeds with their own speed, stamina, courage, jump and coats; HorseGapTests |
+| ER3 | Taming wild horses with a calm-down minigame | MISSING | random temper roll while bucking | R | MET: the calm-down minigame (sit still through bucks, pat as it settles); HorseGapTests |
+| ER4 | Fears predators and gunfire until bonded | PARTIAL | spooks at gunfire/explosions; predators only when "a hostile monster" is adjacent; no wolves etc. | R | MET: predators and monsters within 6 blocks frighten it below level 3, gunfire below level 4; HorseGapTests |
 | ER5 | Horse armour | MET | vanilla armour slot, stable sells it | - | MET |
-| ER6 | Injured horse revivable with a reviver item; death permanent only if left | MISSING | horses die outright | R | |
-| ER7 | Stable UI: buy, sell, store, swap | MISSING | stable shop has tack only | R | |
-| ER8 | Saddlebags reachable in VR by reaching to the horse's side | MISSING | menu only | R | |
-| ER9 | VR comfort while riding: vignette, smooth vs snap turn, horizon-locked option | PARTIAL | vignette + turn modes exist globally; no horizon lock; vignette not driven by the horse | R | |
-| ER10 | Hooves sound per surface | MISSING | generic step sound | R | |
-| ER11 | Horse waits, grazes and wanders a little when left | PARTIAL | bonded horse follows within 10 blocks; no "stay", no grazing | R | |
+| ER6 | Injured horse revivable with a reviver item; death permanent only if left | MISSING | horses die outright | R | MET: down for 5 minutes, a Horse Reviver saves it, left too long it dies; HorseGapTests |
+| ER7 | Stable UI: buy, sell, store, swap | MISSING | stable shop has tack only | R | MET: the stablehand's Horses menu: buy, stable, take out, sell, rename; HorseGapTests |
+| ER8 | Saddlebags reachable in VR by reaching to the horse's side | MISSING | menu only | R | MET: grip with a hand at the horse's flank behind the saddle opens the bags (QuestControls); HorseGapTests |
+| ER9 | VR comfort while riding: vignette, smooth vs snap turn, horizon-locked option | PARTIAL | vignette + turn modes exist globally; no horizon lock; vignette not driven by the horse | R | MET: horse-driven vignette (turns, speed changes) and Steady Saddle on the VR comfort page; HorseGapTests |
+| ER10 | Hooves sound per surface | MISSING | generic step sound | R | MET: six hoof sounds by the ground underfoot, rhythm by gait; HorseGapTests |
+| ER11 | Horse waits, grazes and wanders a little when left | PARTIAL | bonded horse follows within 10 blocks; no "stay", no grazing | R | MET: left alone it waits, grazes and wanders a few blocks; HorseGapTests |
 | ET1 | Every town has a name on a sign and on the map | PARTIAL | name in greetings; no sign at the edge, not on the map | T | MET: "Welcome to <name>" sign at each main-street end; named on the map when found; TownGapTests |
 | ET2 | Notice board with bounties and jobs | MISSING | none | T | MET: TownBoard (deliveries, monster hunts, outlaws with a spawned boss); HonourGapTests |
 | ET3 | Doctor heals and sells tonics | MET | Shops .doctor treatment + potions | - | MET |

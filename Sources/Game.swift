@@ -257,6 +257,7 @@ final class Game {
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
+    var steadySaddle = false           // VR comfort: the view eases over a ridden horse's jumps and bucks (ViewStep.swift)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
     private var mineSoundTimer: Float = 0

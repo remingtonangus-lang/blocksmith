@@ -7,6 +7,12 @@ extension Game {
     func animalInteract(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
         let pos = m.pos + V3(0, m.height, 0)
+        // A downed horse: only a Horse Reviver helps (HorseLife.swift).
+        if m.downed > 0 {
+            if useReviver(on: m) { return true }
+            onToast?("\(m.customName ?? "This horse") is badly hurt: it needs a Horse Reviver (stable or doctor)")
+            return true
+        }
         // Taming with a chance per item (reference: 1 in 3).
         func tameTry(_ odds: Int = 3) {
             consumeHeld()
@@ -207,14 +213,8 @@ extension Game {
 // farther away, or stored with its chunk thousands of blocks off, it is brought to a spot ~14 blocks behind the player
 // and runs up.
 extension Game {
-    func bondHorse(_ m: Mob) {
-        // Any other horse loaded with an old bond is just a horse again.
-        for o in mobs.mobs where o.bond != 0 && o !== m { o.bond = 0 }
-        horseBond = Float(Rand.int(in: 1...16_000_000))
-        m.bond = horseBond
-        m.persistent = true
-        onToast?("This is your horse now: \(Prompt.g(.fly)) calls it")
-    }
+    // (The gap pass: other horses of yours keep their bond and id; this one becomes the one that's called.)
+    func bondHorse(_ m: Mob) { makeCurrentHorse(m) }
 
     // Returns false when there is no bonded horse (the fly button keeps its "no flying" toast).
     func callHorse() -> Bool {
@@ -231,9 +231,16 @@ extension Game {
                 break
             }
         }
+        if horse == nil, let s = Stable.kept.first(where: { $0.rec.extra?["bond"] == horseBond }) {
+            onToast?("\(Stable.name(s)) is in the stable at \(s.town)")
+            return true
+        }
         guard let h = horse else { onToast?("Your horse doesn't answer (it may have died)"); horseBond = 0; return true }
+        if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Horse Reviver"); return true }
         let d = simd_length(h.pos - player.pos)
-        if d > 64 || !world.isLoaded(Int(floor(h.pos.x)), Int(floor(h.pos.z))) {
+        h.stayAt = nil
+        h.hs.callStuck = 0; h.hs.callWas = h.pos
+        if d > 160 || !world.isLoaded(Int(floor(h.pos.x)), Int(floor(h.pos.z))) {
             // Out of sight behind the player, on the ground, then it runs up.
             let back = V3(sinf(player.yaw), 0, cosf(player.yaw))
             var spot = player.pos + back * 14
@@ -244,24 +251,45 @@ extension Game {
         }
         horseCall = 25
         sfx(.mob(h.kind, .ambient), 1.2, at: h.pos)
-        onToast?("You call your horse")
+        onToast?("You call \(h.customName ?? "your horse")")
         return true
     }
 }
 
 extension Mob {
-    // Unridden, the bonded horse keeps near the player and gallops to them when called; nil = not the bonded horse.
+    // Unridden, a horse of yours waits where it was left (grazing, wandering a few blocks: HorseLife.waitWhereLeft);
+    // the one you rode last comes when called, along a path (Pathfinding: 160-block reach for it), and if it makes no
+    // headway for 6 s it is brought round behind you out of sight. nil = not a horse of yours.
     func bondedHorseAI(_ dt: Float, _ g: Game, dist: Float) -> Float? {
-        guard bond != 0, bond == g.horseBond, tamed, g.riding !== self, g.alive else { return nil }
-        if g.horseCall > 0 && dist < 3 { g.horseCall = 0 }
-        let called = g.horseCall > 0
-        if dist > 80 { return nil }                       // left far behind: it waits until called
-        if called || dist > 10 {
+        guard bond != 0, tamed, g.riding !== self, g.alive else { return nil }
+        let current = bond == g.horseBond
+        if current && g.horseCall > 0 && dist < 3 { g.horseCall = 0; stayAt = pos }
+        if current && g.horseCall > 0 {
+            let h = hs
+            if simd_length(pos - h.callWas) > 2 { h.callWas = pos; h.callStuck = 0 } else { h.callStuck += dt }
+            if h.callStuck > 6 && dist > 8 {
+                h.callStuck = 0
+                // Behind you, on ground at your level (never off a cliff edge onto the ground below); with no such ground,
+                // beside you.
+                let back = V3(sinf(g.player.yaw), 0, cosf(g.player.yaw))
+                var spot = g.player.pos
+                for d: Float in [10, 7, 4, 2] {
+                    let p = g.player.pos + back * d
+                    let x = Int(floor(p.x)), z = Int(floor(p.z))
+                    guard g.world.isLoaded(x, z) else { continue }
+                    let y = Float(g.world.topY(x, z) + 1)
+                    guard abs(y - g.player.pos.y) < 3 else { continue }
+                    spot = V3(p.x, y, p.z)
+                    break
+                }
+                pos = g.world.freeSpawn(spot); vel = .zero; h.callWas = pos; HorseLife.broughtRound += 1
+            }
             face(g.player.pos)
-            return spec.speed * (called || dist > 18 ? 2.2 : 1.2)
+            return spec.speed * (dist > 18 ? 2.2 : 1.4)
         }
-        wander()
-        return moving ? spec.speed * 0.3 : 0
+        // A horse of yours you walk up to knows you: it turns to you and nickers now and then.
+        if dist < 5 && Rand.float(in: 0..<1) < dt * 0.15 { face(g.player.pos); g.sfx(.mob(kind, .ambient), 0.5, at: pos); HorseLife.greetings += 1 }
+        return waitWhereLeft(dt, g)
     }
 }
 
@@ -291,14 +319,9 @@ extension Mob {
                 }
             }
         default:
-            // Untamed: buck the rider off unless the taming roll succeeds.
+            // Untamed: the calm-down minigame (HorseLife.tameStep): sit still through the bucks, pat it as it settles.
             if !tamed {
-                jumpCharge += dt
-                if jumpCharge > 1 {
-                    jumpCharge = 0
-                    if Rand.int(in: 0..<100) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
-                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
-                }
+                if !tameStep(dt, g, inp) { return }
             }
             // (bond 0 too: with no horse bonded yet, horseBond is 0 as well, so the first tamed horse never bonded.)
             if tamed && kind != .camel && (bond == 0 || bond != g.horseBond) { g.bondHorse(self) }
@@ -308,7 +331,7 @@ extension Mob {
             } else {
                 yaw = g.player.moveYaw ?? g.player.yaw      // VR: steer with the head, not the aiming hand
                 let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
-                speed = saddled || !tamed ? base * max(-0.25, inp.forward) : 0
+                speed = tamed && saddled ? base * max(-0.25, inp.forward) : 0          // (a wild horse goes its own way)
             }
             // Hold jump to charge, release to leap (horses); camels dash.
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
@@ -409,7 +432,7 @@ extension Mob {
     func randomizeVariant() {
         switch kind {
         case .horse:
-            variant = Rand.int(in: 0..<5) | (Rand.int(in: 0..<16) << 4) | (Rand.int(in: 0..<16) << 8)
+            HorseLife.roll(self)                             // a breed: its speed, jump and coat (HorseLife.swift)
             health = Rand.int(in: 15...30)
         case .donkey, .mule, .llama, .traderLlama:
             variant = Rand.int(in: 0..<4) | (Rand.int(in: 0..<16) << 4) | (Rand.int(in: 0..<16) << 8)

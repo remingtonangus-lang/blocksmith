@@ -56,8 +56,18 @@ extension Game {
         defer { p.viewLastY = y; p.viewLastGround = p.onGround }
         if let m = riding {
             p.viewDY = m.viewDY; p.viewDV = m.viewDV
+            // Steady Saddle (the VR comfort page): the view rides a slow average of the saddle's height, so a horse's
+            // jumps, bucks and hops over blocks barely lift or drop the horizon (it catches up in about a second).
+            if steadySaddle && m.gaited {
+                let target = m.pos.y + m.viewDY
+                if let s = p.steadyY, abs(target - s) < 4 { p.steadyY = s + (target - s) * min(1, dt * 2.5) } else { p.steadyY = target }
+                p.viewDY += max(-1.5, min(1.5, (p.steadyY ?? target) - target))
+            } else {
+                p.steadyY = nil
+            }
             return
         }
+        p.steadyY = nil
         ViewStep.decay(&p.viewDY, &p.viewDV, dt)
         guard let ly = p.viewLastY, !p.flying else { return }
         var d = y - ly

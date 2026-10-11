@@ -34,6 +34,12 @@ final class HorseState {
         patCool = max(0, patCool - dt); brushCool = max(0, brushCool - dt); feedCool = max(0, feedCool - dt)
     }
     var thrown = 0
+    var calm: Float = -1             // taming: the calm meter (-1 = not taming), HorseLife.tameStep
+    var bucking = false
+    var buckTime: Float = 0
+    var callStuck: Float = 0         // s a called horse has made no headway (then it's brought round behind you)
+    var callWas = V3(0, -9999, 0)
+    var tricks = 0                   // rears on command (HorseTests)
 }
 
 enum HorseFeel {
@@ -63,7 +69,7 @@ extension Mob {
     }
     var topSpeed: Float { kind == .donkey || kind == .mule ? 7.5 : horseSpeed }
     var bondLevel: Int { HorseFeel.level(horse?.bondXP ?? 0) }
-    var staminaMax: Float { HorseFeel.staminaMax[bondLevel - 1] }
+    var staminaMax: Float { HorseFeel.staminaMax[bondLevel - 1] * (kind == .horse ? horseBreed.stamina : 1) }
     var stamina: Float {
         get { let h = hs; if h.stamina < 0 { h.stamina = staminaMax }; return h.stamina }
         set { hs.stamina = simd_clamp(newValue, 0, staminaMax) }
@@ -108,7 +114,8 @@ extension Mob {
         var d = steer - yaw
         while d > .pi { d -= 2 * .pi }
         while d < -.pi { d += 2 * .pi }
-        let rate: Float = 4.5 - 2.9 * min(1, now / max(top, 1))
+        // Each bond level turns a little tighter (the gap pass: bond unlocks).
+        let rate: Float = (4.5 - 2.9 * min(1, now / max(top, 1))) * (1 + 0.12 * Float(lvl - 1))
         yaw += simd_clamp(d, -rate * dt, rate * dt)
         // Gait from the stick and the spurs.
         let push = inp.forward
@@ -137,6 +144,8 @@ extension Mob {
             if h.spent && h.gait > .trot { h.gait = .trot }
         } else {
             h.idle += dt
+            // Level 3: a rear on command (spur standing still), no throw.
+            if inp.spur && lvl >= 3 && now < 0.5 && h.rear <= 0 { rearUp(g, canThrow: false); h.tricks += 1 }
             if push < -0.3 { back = true; h.gait = .stand }
             else if h.idle > 0.25 { h.gait = .stand }
         }
@@ -153,9 +162,8 @@ extension Mob {
         h.monsterScan -= dt
         if h.monsterScan <= 0 {
             h.monsterScan = 0.5
-            for m in g.mobs.mobs where m !== self && m.health > 0 && m.kind.hostile && m.kind.spec.behavior != .neutral {
-                if simd_length_squared(m.pos - pos) < 9 { spook(g); break }
-            }
+            // (and predators within 6 blocks until bond level 3: HorseLife.predatorNear)
+            if predatorNear(g) { spook(g) }
         }
         if h.rear > 0 {
             h.rear -= dt
@@ -184,7 +192,8 @@ extension Mob {
         // Momentum: build up, ease down, brake.
         if onGround || inWaterNow(g.world) {
             let accel = HorseFeel.accelBase + HorseFeel.accelPerTop * top
-            let k: Float = target > h.speed ? accel : (target > 0.1 ? HorseFeel.ease : HorseFeel.brake)
+            // Level 4: a sliding stop, twice the braking.
+            let k: Float = target > h.speed ? accel : (target > 0.1 ? HorseFeel.ease : HorseFeel.brake * (lvl >= 4 && target == 0 ? 2 : 1))
             if h.rear > 0 { h.speed = h.speed > 0 ? max(0, h.speed - HorseFeel.brake * dt) : min(0, h.speed + HorseFeel.brake * dt) }
             else { h.speed += simd_clamp(target - h.speed, -k * dt, k * dt) }
             if inWaterNow(g.world) { h.speed = min(h.speed, max(2, top * 0.35)) }
@@ -204,7 +213,7 @@ extension Mob {
         } else if hitWall {
             h.speed = max(0, min(h.speed, along))
         }
-        if tamed && bond != 0 && bond == g.horseBond {
+        if tamed && bond != 0 {                          // any horse of yours (each keeps its own bond)
             h.rideAccum += simd_length(V2(moved.x, moved.z))
             if h.rideAccum >= 12 { h.rideAccum -= 12; addBond(1, g) }
         }
@@ -239,7 +248,9 @@ extension Mob {
         let h = hs
         h.rear = 1.1
         h.gait = .stand
-        h.rearThrow = canThrow && Rand.float(in: 0..<1) < HorseFeel.throwChance[bondLevel - 1]
+        // Breeds' courage: an even-tempered saddlebred as before, a draft horse steadier, a sandrunner jumpier.
+        let nerve: Float = kind == .horse ? 1.7 - horseBreed.courage : 1
+        h.rearThrow = canThrow && Rand.float(in: 0..<1) < HorseFeel.throwChance[bondLevel - 1] * nerve
         // It plants its hind legs and brakes (gaitStep, footing still watching); it only rises off the ground once
         // nearly stopped, so no hop sails a galloping horse on.
         if onGround && abs(h.speed) < 3 { vel.y = 2.4 }
@@ -283,7 +294,7 @@ extension Game {
         guard let r = riding, r.gaited, r.tamed, r.health > 0 else { return }
         let d = simd_length(p - r.pos)
         switch kind {
-        case .gunshot: if d < 12 && simd_length(p - player.pos) > 2.5 { r.spook(self) }
+        case .gunshot: if d < 12 && simd_length(p - player.pos) > 2.5 && r.bondLevel < 4 { r.spook(self) }   // level 4: used to it
         case .explosion: if d < 6 + power * 3 { r.spook(self) }
         case .cannon: if d < 24 { r.spook(self) }
         }
@@ -291,6 +302,7 @@ extension Game {
 
     // Use while riding a horse: an empty hand pats it, a brush grooms it, a treat feeds it. True when handled.
     func horseUse(_ m: Mob) -> Bool {
+        if m.gaited && !m.tamed && held.isEmpty { m.tamePat(self); return true }       // taming (HorseLife.swift)
         guard m.gaited, m.tamed else { return false }
         let key = Items.key(held.item)
         if held.isEmpty { horsePat(m); return true }

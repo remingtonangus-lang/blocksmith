@@ -54,6 +54,7 @@ enum TownLaw {
         var raidDay: [String: Int]? = nil
         // TownConquest: the towns you took (town -> [anchor x, anchor z, day taken, day tribute last paid]).
         var owned: [String: [Int]]? = nil
+        var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()

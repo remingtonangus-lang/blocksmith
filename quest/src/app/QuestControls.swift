@@ -72,6 +72,7 @@ final class QuestControls {
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var prevSelTrig = false
     private var vignette: Float = 0            // current strength 0...1
+    private var rideYaw: Float?, rideVel = V2.zero, rideTurn: Float = 0, rideAccel: Float = 0   // the ridden horse (vignette)
     private(set) var wallFade: Float = 0       // the view fading to black with the head inside a solid block, 0...1
     private var turnFlash: Float = 0
     private var lastFeet = V3.zero
@@ -207,6 +208,7 @@ final class QuestControls {
         // trigger never attacks. Reclined: no swinging, the trigger attacks what the laser picks.
         let held = game.held
         game.swingMelee = QuestSettings.swingMode
+        game.steadySaddle = QuestSettings.steadySaddle
         game.vrHead = rig.headWorld
         p.rt = R.trigger
         p.lt = L.trigger                                    // use / place (hold to repeat)
@@ -222,7 +224,20 @@ final class QuestControls {
         lastHurtFlash = game.hurtFlash
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
-        if !inMenu && game.world.ships.pilot == nil {
+        // Riding: a hand reaching down to the horse's flank behind the saddle and gripping opens the saddlebags
+        // (HorseLife.reachesSaddlebag) instead of stepping the hotbar.
+        var bagGrip = false
+        if !inMenu, let h = game.riding, MountMenu.opens(h), h.tamed {
+            for (hd, now, was, i) in [(L, lGrip, prevGripL, moveHand), (R, rGrip, prevGripR, aimHand)]
+                where now && !was && hd.gripValid && HorseLife.reachesSaddlebag(h, hand: rig.toWorld(hd.gripPos)) {
+                game.openMenu(MountMenu(game: game, mob: h))
+                app.input.haptic(i, amplitude: 0.4, seconds: 0.04, frequency: 200)
+                HorseLife.bagReaches += 1
+                bagGrip = true
+                break
+            }
+        }
+        if !inMenu && !bagGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
         }
@@ -432,7 +447,21 @@ final class QuestControls {
             deckReference += ((shipSpeed > 0.5 || shipTurnRate > 0.05 ? 1 : 0) - deckReference) * min(1, dt * 2)
         } else {
             deckReference = max(0, deckReference - dt * 2)
-            if game.riding != nil { want = min(1, want + 0.2) }
+            if let h = game.riding, h.gaited {
+                // A horse: its turns and speed changes darken the edges more than a steady run (RideComfort).
+                var dy = h.yaw - (rideYaw ?? h.yaw)
+                while dy > .pi { dy -= 2 * .pi }
+                while dy < -.pi { dy += 2 * .pi }
+                let v = V2(h.vel.x, h.vel.z)
+                let k = min(1, dt * 8)
+                rideTurn += (abs(dy) / max(dt, 1e-3) - rideTurn) * k
+                rideAccel += ((rideYaw == nil ? 0 : simd_length(v - rideVel) / max(dt, 1e-3)) - rideAccel) * k
+                rideYaw = h.yaw; rideVel = v
+                want = max(want, RideComfort.vignette(speed: simd_length(v), turnRate: rideTurn, accel: rideAccel))
+            } else {
+                rideYaw = nil; rideTurn = 0; rideAccel = 0
+                if game.riding != nil { want = min(1, want + 0.2) }
+            }
         }
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)

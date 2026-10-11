@@ -429,6 +429,8 @@ final class ItemRegistry {
         item("radar_module", "Radar Module", "module", 0x2F6A3E, ["c": 0xD8C66A, "d": 0x16181A])
         item("radar_set", "Radar Set", "radar", 0x6A7078, ["c": 0x58E07A, "d": 0x0C1A10], stack: 1)
         item("intercepted_orders", "Intercepted Orders", "orders", 0xE8E0C8, ["c": 0xA02A20, "d": 0x3A3A3A], stack: 16)
+        // The gap pass (HorseLife.swift): brings a downed horse of yours back to its feet. Sold by stables and doctors.
+        item("horse_reviver", "Horse Reviver", "bottle", 0xD0DCF0, ["c": 0xD8542A], stack: 16)
         // Durability / combat numbers for the weapon items above.
         for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
                                    ("carrot_on_a_stick", 25, 1, 4), ("warped_fungus_on_a_stick", 100, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {

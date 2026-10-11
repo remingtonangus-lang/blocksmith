@@ -81,6 +81,7 @@ enum Snd: Hashable {
     // 4 rocket, 5 arc lance, 6 reload, 7 dry fire, 8 ricochet, 9 deck gun, 10 alarm, 11 radio call, 12 turret whine.
     case gun(Int), gunReload(Int), gunDistant(Int), bulletImpact(SoundMat), bulletWhizz, bulletFlesh, grenadeBounce
     case soldier(Int, Bark), soldierStep(Int)
+    case hoof(Int)                  // a hoof fall by the ground: 0 stone, 1 wood, 2 earth, 3 sand, 4 snow, 5 water (HorseLife)
     case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
@@ -124,6 +125,7 @@ enum Snd: Hashable {
         case .voice: return .friendly
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
+        case .hoof: return .friendly
         case .rocketFlightLoop, .shellFlightLoop: return .players
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
@@ -197,6 +199,7 @@ enum Snd: Hashable {
         case .bulletImpact(let m): return "bullet_impact_\(m.name)"
         case .soldier(let r, let b): return "soldier_\(r)_\(b.name)"
         case .soldierStep(let r): return "soldier_step_\(r)"
+        case .hoof(let s): return "hoof_\(HorseLife.surfaceNames[max(0, min(5, s))])"
         case .voice(let i): return "voice_\(i)"
         default: return String(describing: self)
         }
@@ -215,6 +218,7 @@ enum Snd: Hashable {
         case .mainGunFire: return 2...8
         case .mainGunRumble: return 4...12
         case .bulletImpact, .bulletFlesh, .grenadeBounce, .soldierStep: return 0.03...1.2
+        case .hoof: return 0.03...0.9
         case .bulletWhizz: return 0.1...0.6
         case .soldier: return 0.15...3
         case .voice: return 0.2...8
@@ -289,6 +293,7 @@ final class SoundBank {
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
+        for k in 0...5 { s.append(.hoof(k)) }
         return s
     }
 
@@ -331,6 +336,7 @@ final class SoundBank {
         case .birdCall: return 6
         case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot ? 3 : 2
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
+        case .hoof: return 4
         case .soldier(_, let b): return b == .idle ? 4 : 3
         case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2
         case .note, .voice: return 1

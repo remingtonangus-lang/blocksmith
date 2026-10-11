@@ -66,3 +66,41 @@ the horse (every gun / blast sound now does); care cooldowns only ran while ridd
 - Device feel (Quest) not tested here: the Mac worker owns device testing.
 - Gait sounds (hoof rhythm per gait) and a rearing pose are looks/audio work for the Mac lane.
 - Town stables selling horses: towns thread.
+
+## Gap pass (2026-10-11, cloud gap pass area R; docs/status/cloud-gap-pass.md)
+
+Expanded objectives written before building (each is a row of the gap table: A1a, A1b, A1d, A1e, ER1-ER4, ER6-ER11):
+- Breeds (HorseLife.swift, HorseBreed): Plains Mustang, Sandrunner, Mountain Pony, Draft Horse, Saddlebred, each with
+  its own speed range, stamina, courage (fright and throw odds), jump and coats. Every new horse rolls one; an old
+  save's horse gets the breed its speed fits. The Saddlebred is the baseline (stamina and nerve as before).
+- Names (ER1, VR-friendly): your horse is named from a list when it first becomes yours; the stable renames it from
+  the list (one press each, no typing).
+- Taming (ER3): a calm-down minigame instead of a dice roll. The wild horse bucks in bursts; sit still through a
+  buck and pat it (use, empty hand) as it settles; steering or patting mid-buck frightens it. Calm full: tamed.
+  Calm gone at the end of a buck: thrown.
+- Fear (ER4): until bond level 3 a horse is frightened by predators (wolves, bears, big cats) and monsters within 6
+  blocks, not only a monster beside it; until level 4, by other people's gunfire.
+- Bond unlocks (A1b): tighter turning at each level (+12% a level); level 3, a rear on command (spur standing still,
+  never a throw); level 4, a sliding stop (twice the braking with the stick let go) and calm under gunfire.
+- The horse remembers you (A1d): every horse you have ridden keeps its own bond and id; the one ridden last comes
+  when called.
+- Calling (A1a): a called horse paths to you (round walls and rivers, up to 160 blocks, 1500-node searches); stuck
+  for 6 s, it is brought round behind you on your own level (never off a cliff edge onto the ground below).
+- Left alone (ER11): a horse of yours that isn't called waits where you left it, grazing and wandering a few blocks.
+- Injured (ER6): a horse of yours that would die goes down for 5 minutes; a Horse Reviver (stable, doctor) brings
+  it back; left that long, it dies for good. Wild horses just die.
+- The stable (A1e, ER7): the stablehand's counter has a Horses button: buy any breed (saddled, tamed, yours),
+  stable a horse standing nearby (up to six, in any town; the whole horse is kept: name, breed, bond, gear, bags),
+  take one out (free here, $2 to bring one over from another town's stable), sell (half the breed's price plus a
+  little per bond level), rename. Calling a stabled horse says which stable it's in.
+- Saddlebags in VR (ER8): reach down to the horse's flank behind the saddle with either hand and grip: the bags
+  open (a short buzz) instead of stepping the hotbar.
+- VR comfort (ER9): the comfort vignette on a horse follows its turns and speed changes (a steady run is light,
+  wheeling round and pulling up darken more); Steady Saddle (VR Comfort page, on by default) eases the view over
+  jumps, bucks and hops (a 1.2-block lift moves the eye 0.04). Snap or smooth turning is the global setting.
+- Hooves (ER10): hoof falls by the ground underfoot (stone, wood, earth, sand and gravel, snow, water), synthesized,
+  their rhythm following the gait.
+
+Checks: HorseGapTests.swift (36 checks, end of `--horse-only` and every questcheck). HorseTests' test horse is pinned
+to the Saddlebred so the older gait, stamina and nerve numbers hold; the gunshot check now expects level 3 to rear and
+level 4 not to.
