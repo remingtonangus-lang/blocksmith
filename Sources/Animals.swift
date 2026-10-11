@@ -496,6 +496,8 @@ extension Mob {
             return ashVehicleAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .ashMarshal:
             return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
+        case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
+            return hellAI(dt, g, dist: dist, canTarget: canTarget)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
             if faction == Faction.ashguard.rawValue { return ashSoldierAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) }
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)

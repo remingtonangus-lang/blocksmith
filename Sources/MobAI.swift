@@ -31,6 +31,9 @@ extension MobKind {
         case .ashArtillery: return 160
         case .ashTruck: return 16
         case .ashMarshal: return 48
+        case .brandSquire, .brandKnight, .brandChampion, .slagthrower: return 32
+        case .brandCommander, .searwing: return 48
+        case .scorchling: return 24
         default: return 16
         }
     }

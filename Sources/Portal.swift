@@ -6,7 +6,7 @@ import simd
 // (128 blocks in the Surface, 16 in the Emberdeep), otherwise a new one is built.
 extension Game {
     // Tries to light a portal whose interior contains `p`. Returns true on success.
-    func tryLightPortal(at p: IVec3) -> Bool {
+    func tryLightPortal(at p: IVec3, probe: Bool = false) -> Bool {
         let w = world
         for axisX in [true, false] {
             let dx = axisX ? 1 : 0, dz = axisX ? 0 : 1
@@ -35,6 +35,7 @@ extension Game {
                 ok = isObs(IVec3(b.x - dx, b.y + j, b.z - dz)) && isObs(IVec3(b.x + dx * width, b.y + j, b.z + dz * width))
             }
             guard ok else { continue }
+            if probe { return true }                  // just asking whether `p` is inside a whole frame (HellGate.swift)
             let portal = axisX ? PORTAL_X : PORTAL_Z
             for i in 0..<width { for j in 0..<height { w.setBlockAsync(b.x + dx * i, b.y + j, b.z + dz * i, portal) } }
             w.setBlock(b.x, b.y, b.z, portal)

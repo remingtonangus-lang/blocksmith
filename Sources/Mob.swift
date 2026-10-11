@@ -29,6 +29,7 @@ enum MobKind: Int, CaseIterable {
     case copperGolem
     case soldierOfficer, soldierCrew       // the Capital's officers and pilots / vehicle crews (SoldierRig.swift)
     case ashTank, ashHalftrack, ashArtillery, ashTruck, ashMarshal     // the Ashguard in the Ash Vault (AshUnits.swift)
+    case brandSquire, brandKnight, brandChampion, brandCommander, searwing, scorchling, slagthrower   // hell's own (HellMobs.swift)
 
     struct Spec {
         var name: String
@@ -139,6 +140,8 @@ enum MobKind: Int, CaseIterable {
             return militarySpec
         case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal:
             return ashSpec
+        case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
+            return hellSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
@@ -243,6 +246,8 @@ enum MobKind: Int, CaseIterable {
         .copperGolem: "copper_golem",
         .soldierOfficer: "soldier_officer", .soldierCrew: "soldier_crew",
         .ashTank: "ash_tank", .ashHalftrack: "ash_halftrack", .ashArtillery: "ash_artillery", .ashTruck: "ash_truck", .ashMarshal: "ash_marshal",
+        .brandSquire: "brand_squire", .brandKnight: "brand_knight", .brandChampion: "brand_champion", .brandCommander: "brand_commander",
+        .searwing: "searwing", .scorchling: "scorchling", .slagthrower: "slagthrower",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -290,6 +295,7 @@ final class Mob {
     var panic: Float = 0
     var hurt: Float = 0
     var hitFlash: Float = 0              // seconds of the blade-contact flash left (Game.bladeFlash; drawn brighter than hurt)
+    var hell: HellState?                 // hell's own mobs: guard, wind-up, charge, dive (HellMobs.swift)
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
     var lastHurtAmount = 0
     var spiderChasing = false            // a spider that turned on you in the dark keeps at it in the light
@@ -444,6 +450,7 @@ final class Mob {
         callTimer = Rand.float(in: 6...20)
         randomizeVariant()
         if kind.ash { ashSetup() }
+        if kind.hellOwn { hellSetup() }
         if kind == .sheep {
             let r = Rand.float(in: 0..<1)
             woolColor = r < 0.81836 ? "white" : (r < 0.86836 ? "black" : (r < 0.91836 ? "gray" : (r < 0.96836 ? "light_gray" : (r < 0.99836 ? "brown" : "pink"))))
@@ -1327,6 +1334,8 @@ final class Mob {
         if downed > 0 { return }                                    // a downed horse takes no more (HorseLife.swift)
         var damage = damage
         var knockback = knockback
+        // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
+        if kind.brandOrder && damage > 0 && orderGuard(from: src, damage: &damage, knockback: &knockback) { return }
         if iframes && damage > 0 {
             if invulnerable > 0 {
                 if damage <= lastHurtAmount { return }
@@ -1567,6 +1576,8 @@ private func parts(_ m: Mob) -> [Part] {
         return ashVehicleParts(m)
     case .ashMarshal:
         return soldierParts(m, swing: swing)
+    case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
+        return hellParts(m, swing: swing)
     case .copperGolem:
         return copperGolemParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
@@ -2342,7 +2353,10 @@ final class MobManager {
         if simd_length(spawnPos - pp) < 24 { return }
         typealias Entry = (MobKind, Int, Int, Int)      // kind, weight, min group, max group
         var list: [Entry]
-        if w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && Blocks.key(w.block(x, y - 1, z)) == "nether_bricks" {
+        let inFortress = w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && Blocks.key(w.block(x, y - 1, z)) == "nether_bricks"
+        // Hell's own (HellMobs.swift): order patrols, Searwings, Scorchling packs, Slagthrowers.
+        if !inFortress && hellOwnSpawn(game, at: spawnPos) { return }
+        if inFortress {
             list = [(.blaze, 10, 2, 3), (.zombifiedPiglin, 5, 4, 4), (.witherSkeleton, 8, 5, 5), (.skeleton, 2, 5, 5), (.magmaCube, 3, 4, 4)]
         } else {
             switch w.gen.column(x, z).biome {

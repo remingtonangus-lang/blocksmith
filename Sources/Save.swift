@@ -168,7 +168,7 @@ final class SaveManager {
             p += 2
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
-        if overworldFloor { SaveManager.stripBedrockFloor(&out) }
+        if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
         if deepSeal { DeepSeal.stamp(&out) }
         return out
     }

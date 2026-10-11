@@ -14,6 +14,8 @@ extension Game {
         let p = player.pos
         switch dim.dim {
         case .overworld where p.y < 0.5:
+            // The Wardstone floor (HellGate.swift): only an Ember Charge's shaft lets you through.
+            if world.block(Int(floor(p.x)), 0, Int(floor(p.z))) == WARDSTONE { break }
             crossSeam(down: true)
         case .deep where p.y >= Float(CH - 1):
             crossSeam(down: false)
@@ -52,7 +54,8 @@ extension Game {
         let feet = down ? CH - 3 : 1
         let to = V3(player.pos.x, Float(feet), player.pos.z)
         changeDimension(to: down ? .deep : .overworld, at: to)
-        for y in feet...(feet + 1) where world.block(x, y, z) != AIR { world.setBlock(x, y, z, AIR) }
+        // Climbing out into the surface's Wardstone floor cuts a way up through it (the floor below stays shut).
+        for y in feet...(down ? feet + 1 : max(feet + 1, HellGate.floorTop)) where world.block(x, y, z) != AIR { world.setBlock(x, y, z, AIR) }
         if !Blocks.opaque[Int(world.block(x, feet - 1, z))] { world.setBlock(x, feet - 1, z, EMBERSLATE) }
         player.pos = to
         player.vel = .zero

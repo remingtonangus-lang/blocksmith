@@ -117,6 +117,7 @@ final class Game {
     var smoothTerrain = false     // world option: natural ground meshes smooth (SmoothTerrain.swift), saved as extra "terrain"
     var deepUpdraftHinted = false
     var sunderCharges: [(at: IVec3, t: Float)] = []    // Sunder Charges burning on Sealrock (DeepSeal.swift)
+    var hell = HellWorld()                              // hell's own mobs and the gate: slag in flight, charges, musters (HellMobs.swift)
     var sealHintAt: Double = -100
     var hellHinted = false
     var keepCompass: (key: Int64, keep: StructureStart?)?
@@ -1095,7 +1096,9 @@ final class Game {
                 // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
                 let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
                 let hp0 = m.health
+                Mob.playerMelee = true
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
+                Mob.playerMelee = false
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
                 // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
                 if m.health < hp0 {
@@ -1155,6 +1158,7 @@ final class Game {
                 if secs.isInfinite {
                     mineProgress = 0
                     if b == SEALROCK { sealHint() }
+                    if b == WARDSTONE { wardHint() }
                 } else {
                     let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
@@ -1203,6 +1207,7 @@ final class Game {
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && useSunderCharge(on: target) { swing = 1; return }
+        if useNow && useEmberCharge(on: target) { swing = 1; return }
         // A Hunter's Map marks the next legendary animal's den (Hunting.swift).
         if useNow && Items.key(h.item) == "hunters_map" {
             if Hunting.readMap(self) { consumeHeld(); sfx(.pageTurn, 0.6) }
@@ -1808,6 +1813,7 @@ final class Game {
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
         if dim.dim == .deep { ashUnitDied(m); wardenDied(m) }
+        if m.kind.hellOwn { hellDied(m) }
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
@@ -2449,6 +2455,7 @@ final class Game {
         ashenTick(Float(dt))
         TickProf.mark("ashen")
         deepTick(Float(dt))
+        hellTick(Float(dt))
         TickProf.mark("deep")
         advancementTick()
         TickProf.mark("advancements")

@@ -481,6 +481,9 @@ enum Loot {
                       (3...3, [("rail", 4, 8, 20), ("powered_rail", 1, 4, 5), ("detector_rail", 1, 4, 5), ("activator_rail", 1, 4, 5),
                                ("torch", 1, 16, 15)])],
         "igloo_chest": [(1...1, [("golden_apple", 1, 1, 1)])],
+        // The way into hell is base loot (HellGate.swift): every command chest holds an Ember Charge, a vault one or two.
+        "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
+        "steelhold_vault": [(1...1, [("ember_charge", 1, 2, 1)])],
         "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],
     ]
 
