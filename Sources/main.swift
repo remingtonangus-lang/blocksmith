@@ -339,16 +339,15 @@ enum Snapshot {
             case "enchant":
                 game.survival = true
                 game.xpLevel = 30
-                let m = EnchantMenu(game: game, at: IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
-                m.shelves = 15
-                m.box[0] = ItemStack(Items.id("diamond_pickaxe"), 1)
-                m.box[1] = ItemStack(Items.id("lapis_lazuli"), 12)
-                m.changed()
+                game.inventory.main[game.inventory.selected] = ItemStack(Items.id("diamond_pickaxe"), 1)
+                game.inventory.main[20] = ItemStack(Items.id("diamond"), 8)
+                game.inventory.main[21] = ItemStack(Items.id("copper_ingot"), 8)
+                let m = UpgradeBenchMenu(game: game)
                 game.openMenu(m)
                 var sword = ItemStack(Items.id("diamond_sword"), 1)
-                sword.ench = Enchant.pack([(.sharpness, 5), (.looting, 3), (.unbreaking, 3), (.mending, 1), (.vanishingCurse, 1)])
+                sword.ench = Enchant.pack([(.sharpness, 5), (.looting, 3), (.unbreaking, 3), (.mending, 1)])
                 game.inventory.main[10] = sword
-                game.menuCursor = 5 + 18 + 1
+                game.menuCursor = 1                                   // the first upgrade row
                 game.menuHover = m.slots[game.menuCursor]
             case "trade":
                 game.survival = true

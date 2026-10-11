@@ -67,7 +67,7 @@ enum Enchant {
             d("thorns", "Spiked Plates", 3, 1, .chest, .armor, (10, 20), (60, 20), anvil: 8),
             d("depth_strider", "Swim Fins", 3, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, group: 5),
             d("frost_walker", "Rime Soles", 2, 2, .feet, nil, (10, 10), (25, 10), anvil: 4, treasure: true, group: 5),
-            d("binding_curse", "Curse of Binding", 1, 1, .wearable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
+            d("binding_curse", "Stuck Fast", 1, 1, .wearable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
             d("soul_speed", "Ash Treads", 3, 1, .feet, nil, (10, 10), (25, 10), anvil: 8, treasure: true),
             d("swift_sneak", "Quiet Soles", 3, 1, .legs, nil, (25, 25), (75, 25), anvil: 8, treasure: true),
             d("sharpness", "Honed Edge", 5, 10, [.sword, .spear], [.sword, .axe, .spear], (1, 11), (21, 11), anvil: 1, group: 2),
@@ -95,7 +95,7 @@ enum Enchant {
             d("quick_charge", "Lever Crank", 3, 5, .crossbow, nil, (12, 20), (50, 0), anvil: 2),
             d("piercing", "Bodkin Bolts", 4, 10, .crossbow, nil, (1, 10), (50, 0), anvil: 1, group: 7),
             d("mending", "Field Kit", 1, 2, .durable, nil, (25, 25), (75, 25), anvil: 4, treasure: true, group: 4),
-            d("vanishing_curse", "Curse of Vanishing", 1, 1, .vanishable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
+            d("vanishing_curse", "Fading Fit", 1, 1, .vanishable, nil, (25, 0), (50, 0), anvil: 8, treasure: true, curse: true),
             d("density", "Dense Core", 5, 5, .mace, nil, (5, 8), (25, 8), anvil: 2, group: 2),
             d("breach", "Breaching Head", 4, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, group: 2),
             d("wind_burst", "Wind Vents", 3, 2, .mace, nil, (15, 9), (65, 9), anvil: 4, treasure: true),
@@ -314,7 +314,7 @@ enum Enchant {
 
     // Random enchantment for loot ("enchant_randomly": any applicable level, treasure included).
     static func randomly(_ item: ItemID, treasure: Bool = true) -> [(Ench, Int)] {
-        let opts = Ench.allCases.filter { (treasure || !def($0).treasure) && applies($0, item, table: false) }
+        let opts = Ench.allCases.filter { (treasure || !def($0).treasure) && !def($0).curse && applies($0, item, table: false) }
         guard let e = opts.pick() else { return [] }
         return [(e, Rand.int(in: 1...def(e).max))]
     }

@@ -10,7 +10,7 @@ import simd
 // and inventory icons get pips instead of the old glint.
 
 enum UpgradePart: String {
-    case edge, head, bit, grip, limbs, string, lining, plates, soles, visor, mag, loader, scope, rounds, tines, line, core, kit
+    case edge, coating, blade, head, bit, grip, limbs, string, lining, plates, soles, visor, mag, loader, scope, rounds, tines, line, core, kit
     var name: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
 }
 
@@ -32,8 +32,8 @@ enum Upgrades {
         return Dictionary(uniqueKeysWithValues: [
             s(.sharpness, .edge, "flint", 1, steel), s(.smite, .edge, "gold_nugget", 2, V3(1, 0.95, 0.75)),
             s(.baneOfArthropods, .edge, "spider_eye", 1, V3(0.45, 0.85, 0.35)), s(.knockback, .grip, "iron_nugget", 2, iron),
-            s(.fireAspect, .edge, "blaze_powder", 1, V3(1, 0.45, 0.1)), s(.looting, .grip, "leather", 1, leather),
-            s(.sweepingEdge, .edge, "flint", 2, V3(0.7, 0.85, 1)),
+            s(.fireAspect, .coating, "blaze_powder", 1, V3(1, 0.45, 0.1)), s(.looting, .grip, "leather", 1, leather),
+            s(.sweepingEdge, .blade, "flint", 2, V3(0.7, 0.85, 1)),
             s(.efficiency, .bit, "copper_ingot", 1, V3(0.95, 0.55, 0.3)), s(.silkTouch, .bit, "amethyst_shard", 2, V3(0.75, 0.5, 0.95)),
             s(.unbreaking, .head, "iron_ingot", 1, iron), s(.fortune, .bit, "lapis_lazuli", 3, V3(0.2, 0.35, 0.95)),
             s(.power, .limbs, "string", 2, V3(0.3, 0.2, 0.12)), s(.punch, .limbs, "iron_nugget", 2, iron),
@@ -89,7 +89,7 @@ enum Upgrades {
         guard let mat = m, Items.has(mat) else { return nil }
         switch mat {
         case "diamond", "netherite_ingot", "breeze_rod": return (mat, max(1, (level + 1) / 2))
-        case "oak_planks", "cobblestone", "string", "leather": return (mat, 2 * level)
+        case "oak_planks", "cobblestone", "string", "leather": return (mat, 2 * level)      // (oak planks for any wood)
         default: return (mat, level)
         }
     }
@@ -153,8 +153,17 @@ enum Upgrades {
     // Accents in the held sprite's own square (-1...1 both ways; the handle at bottom left, the head top right):
     // segments with a width and a colour, one per upgraded part.
     struct Accent { var a: V2; var b: V2; var w: Float; var color: V3 }
+    private static var accentCache: [UInt64: [Accent]] = [:]
+    private static var pipCache: [UInt64: [V3]] = [:]
     static func accents(_ s: ItemStack) -> [Accent] {
         guard s.ench != 0 else { return [] }
+        if let c = accentCache[s.ench] { return c }
+        let out = makeAccents(s)
+        if accentCache.count > 256 { accentCache = [:] }
+        accentCache[s.ench] = out
+        return out
+    }
+    private static func makeAccents(_ s: ItemStack) -> [Accent] {
         var out: [Accent] = []
         var seen = Set<String>()
         for (e, lv) in Enchant.list(s) {
@@ -163,6 +172,8 @@ enum Upgrades {
             let w: Float = 0.06 + 0.012 * Float(lv)
             switch sp.part {
             case .edge: out.append(Accent(a: V2(-0.15, 0.05), b: V2(0.6, 0.8), w: w * 0.6, color: sp.accent))
+            case .coating: out.append(Accent(a: V2(0.05, -0.15), b: V2(0.8, 0.6), w: w * 0.6, color: sp.accent))
+            case .blade: out.append(Accent(a: V2(0.1, 0.1), b: V2(0.7, 0.7), w: w * 1.3, color: sp.accent))
             case .grip: out.append(Accent(a: V2(-0.72, -0.48), b: V2(-0.48, -0.72), w: w * 1.6, color: sp.accent))
             case .head, .core: out.append(Accent(a: V2(0.22, 0.62), b: V2(0.62, 0.22), w: w, color: sp.accent))
             case .bit, .tines: out.append(Accent(a: V2(0.45, 0.75), b: V2(0.75, 0.45), w: w, color: sp.accent))
@@ -183,7 +194,6 @@ enum Upgrades {
         let ac = accents(s)
         guard !ac.isEmpty else { return }
         let solid = Int(Tex.id("smoke"))
-        let uv = [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)]
         for a in ac {
             let pa: V3 = c + r * (a.a.x * h) + u * (a.a.y * h)
             let pb: V3 = c + r * (a.b.x * h) + u * (a.b.y * h)
@@ -192,7 +202,7 @@ enum Upgrades {
             let col = V4(a.color * light, 1)
             for f: Float in [-1, 1] {
                 let o: V3 = n * (t * f)
-                wr.quad([pa - side + o, pb - side + o, pb + side + o, pa + side + o], uv, solid, col)
+                wr.quad4(pa - side + o, pb - side + o, pb + side + o, pa + side + o, V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6), solid, col)
             }
         }
     }
@@ -242,7 +252,11 @@ enum Upgrades {
     // Pips along an inventory icon's top edge, one per upgraded part (up to four), in the parts' colours.
     static func pips(_ s: ItemStack) -> [V3] {
         guard s.ench != 0 else { return [] }
-        return Enchant.list(s).compactMap { specs[$0.0]?.accent }.prefix(4).map { $0 }
+        if let c = pipCache[s.ench] { return c }
+        let out = Enchant.list(s).compactMap { specs[$0.0]?.accent }.prefix(4).map { $0 }
+        if pipCache.count > 256 { pipCache = [:] }
+        pipCache[s.ench] = out
+        return out
     }
 }
 
@@ -290,8 +304,9 @@ final class UpgradeBenchMenu: ListMenu {
             let k = Upgrades.cost(s.item, e, level: lv + 1)
             let afford = !game.survival || (game.xpLevel >= k.xp && k.items.allSatisfy { game.inventory.main.countOf($0.0) >= $0.1 })
             let mats = Upgrades.costText(k)
+            // A row you can't afford still presses: the bench says what's short.
             out.append(Row(icon: k.items.first.map { ItemStack($0.0, 1) } ?? .empty, name: Enchant.displayLine(e, lv + 1),
-                           detail: "\(part)" + (mats.isEmpty ? "" : ": " + mats), value: "\(k.xp) lv", enabled: afford, good: afford))
+                           detail: "\(part)" + (mats.isEmpty ? "" : ": " + mats), value: "\(k.xp) lv", enabled: true, good: afford))
         }
         return out
     }

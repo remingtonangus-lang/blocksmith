@@ -326,7 +326,7 @@ final class ItemRegistry {
         food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
         food("chorus_fruit", "Spiral Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
-        food("enchanted_golden_apple", "Enchanted Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
+        food("enchanted_golden_apple", "Radiant Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
         food("pufferfish", "Pufferfish", "pufferfish", 0xE8C040, 1, 0.2, ["c": 0x303030])
         food("tropical_fish", "Tropical Fish", "fish", 0xE87A2A, 1, 0.2, ["c": 0xF8F8F8])
         food("poisonous_potato", "Poisonous Potato", "potato", 0xA8B050, 2, 1.2)

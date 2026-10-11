@@ -16,7 +16,7 @@ mags), paid with experience plus materials; visible changes on the model; old en
    - the guns' magazine, loader, scope and rounds.
    Examples: Honed Edge (was sharpness), Reinforced Head, Balanced Grip, Stabilising Scope, Extended Magazine.
    Levels and effects stay as they were, so combat and mining balance doesn't move. Parts that conflict still exclude
-   each other (one edge treatment, one bit, one lining). The curses are not upgrades.
+   each other (one edge metal: honed, silvered or serrated; one bit: fine or prospector's; one lining or plate set). The curses are not upgrades.
 3. **Paid with experience plus materials.**
    - Each level costs experience levels (level + 1; advanced parts +3).
    - Each level also costs the item's own material (planks, cobblestone, iron, gold, titanium, copper, steel,
@@ -38,3 +38,17 @@ mags), paid with experience plus materials; visible changes on the model; old en
    charges the right experience and materials, refuses what you can't afford, respects conflicts and the maximum, and
    works on worn armour. Old-save conversion drops curses. Gun models gain parts with upgrades, and tool accents
    appear. The namecheck stays clean.
+
+## Built (2026-10-11, Lane B thread)
+- Sources/Upgrades.swift: the parts and materials per upgrade, costs, `fit`, conversion, model accents, gun parts,
+  icon pips and the Upgrade Bench screen (UpgradeBenchMenu, a ListMenu). Enchant.swift keeps the storage and effects;
+  its names are now the upgrade names. Loot and librarian kits never roll curses; old curses load stripped.
+- Guns.writeFirstPerson takes the upgrades (cached parts per gun and set); the Mac arm buffer and the Quest guard are
+  1536 vertices (worst gun with every part ~1340). Held tools draw accent quads on both renderers.
+- Renamed player-visible text: Upgrade Bench, Upgrade Kit, Bottle of Experience, Radiant Golden Apple, "Repair &
+  Strip Parts", the advancement "Fine Tuned", the sound captions.
+- Checks: TownTests "upgrades:" (UpgradesTests.swift), 14 checks.
+
+## Differences
+- Upgrade Kits (old enchanted books) are still fitted on the anvil, as books were.
+- The bench's model and recipe still look like the old table; a new look belongs to the look owner (lane M).

@@ -224,7 +224,7 @@ enum Villagers {
             buyN = min(64, t.buyN + lv)
         case "book":
             // Random tradeable enchantment at a random level; treasure costs double.
-            let opts = Ench.allCases.filter { ![.soulSpeed, .swiftSneak, .windBurst].contains($0) }
+            let opts = Ench.allCases.filter { ![.soulSpeed, .swiftSneak, .windBurst].contains($0) && !Enchant.def($0).curse }
             let e = opts.pick()!
             let d = Enchant.def(e)
             let l = Rand.int(in: 1...d.max)

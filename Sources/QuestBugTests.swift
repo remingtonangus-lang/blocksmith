@@ -529,8 +529,8 @@ enum QuestBugTests {
             let onSword = Enchant.combine(ItemStack(sword, 1), book, rename: nil, creative: false)
             check(Enchant.level(.penetration, onRifle?.out ?? .empty) == 2 && Enchant.level(.penetration, onSword?.out ?? .empty) == 0,
                   "r3 gun ench: Penetration book applies to a rifle on the anvil, not to a sword")
-            check(!(0..<200).contains { _ in Enchant.randomly(sword).contains { gunSet.contains($0.0) } } && Enchant.displayLine(.penetration, 2) == "Penetration II",
-                  "r3 gun ench: random loot enchants keep gun enchantments off swords; tooltip 'Penetration II'")
+            check(!(0..<200).contains { _ in Enchant.randomly(sword).contains { gunSet.contains($0.0) } } && Enchant.displayLine(.penetration, 2) == "Piercing Rounds II",
+                  "r3 gun ench: random loot enchants keep gun enchantments off swords; tooltip 'Piercing Rounds II'")
         }
     }
 }
