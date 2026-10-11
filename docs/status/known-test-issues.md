@@ -69,3 +69,6 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
 - "horse gap: the stablehand's counter has a Horses button (none)" failed once (run on 98e184b8), passed on run 121;
   "powderwight: strikes its fuse beside the player" failed on run 121, passed on 98e184b8. One-off fails on the same
   base, random town/mob state; horses and the Powderwight are cloud scope. Not touched.
+- 2026-10-11 Quest CI run 38118811056 (f0248336): "deep war ... Marshal", "boreal ... birdCall" and "horse gap ...
+  Horses button" failed together (all listed above as flaky; cloud-lane areas); polygon terrain checks passed. The APK was
+  not published by that run; the last published quest-dist is 04d12966.
