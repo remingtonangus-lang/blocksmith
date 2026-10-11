@@ -134,7 +134,7 @@ enum TownStatsHUD {
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, TownLaw.inTown != nil,
-              !Turrets.shared.active, !WeaponWheel.shared.open, let m = current(g) else { return [] }
+              !Turrets.shared.active, !WeaponWheel.shared.open, Tutorial.ownSeat(g), let m = current(g) else { return [] }
         let s = L.s
         let t = describe(m)
         let w = Float(Font.width(t)) * s

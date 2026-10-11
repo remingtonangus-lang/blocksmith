@@ -40,3 +40,4 @@ read them.
 person, determinism, a child growing up re-rolls, a 12-point blow on an elder vs a blacksmith, hammer vs pitchfork
 damage and deputy vs smith swing rate through Mob.townDefend, a deputy outwalking an elder in real Mob.update frames,
 model width, the crosshair line's text and that it follows your look.
+- Split-screen co-op: the glance line shows for the first seat only (shared aim state; the verifier's re-check).
