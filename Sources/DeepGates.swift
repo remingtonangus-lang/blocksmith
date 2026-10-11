@@ -228,7 +228,7 @@ extension Game {
             return
         }
         gateHold = 0
-        if if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
+        if world.block(x, y, z) == lift || (world.block(x, y - 1, z) == lift && f.y - Float(y) < 0.3) {
             rideUp(from: V3(Float(x) + 0.5, Float(world.block(x, y, z) == lift ? y : y - 1) + 0.25, Float(z) + 1.5), how: "The Deep Lift carries you up to the surface")
         }
     }
@@ -273,10 +273,9 @@ extension Game {
         if land == to && !open(bx, by, bz) {
             for y in by...(by + 1) where Blocks.collide[Int(world.block(bx, y, bz))] { world.setBlock(bx, y, bz, AIR) }
         }
-        let to = land
-        player.pos = to
+        player.pos = land
         player.vel = .zero
-        player.airPeak = to.y
+        player.airPeak = land.y
         sfx(.click, 0.8)
         onToast?("The Gate Shard pulls you down into the Deep")
         return true
