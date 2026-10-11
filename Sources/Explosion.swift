@@ -17,7 +17,8 @@ enum Explosion {
         w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
-        for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
+        // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
+        if breakBlocks { for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
             var d = V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1)
             d = simd_normalize(d)
@@ -39,7 +40,7 @@ enum Explosion {
                 p += d * 0.3
                 intensity -= 0.225
             }
-        } } }
+        } } } }
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
         for b in destroyed {
@@ -138,7 +139,10 @@ extension Explosion {
 
     // Offsets of the cube of radius ri, nearest first by the bowl's metric (built once per radius).
     private static var craterOffsetCache: [Int: [SIMD3<Int16>]] = [:]
+    private static let craterOffsetLock = NSLock()      // (a charging Tidebreaker builds them on a worker: MainGun)
     static func craterOffsets(_ ri: Int) -> [SIMD3<Int16>] {
+        craterOffsetLock.lock()
+        defer { craterOffsetLock.unlock() }
         if let o = craterOffsetCache[ri] { return o }
         var o: [(Float, SIMD3<Int16>)] = []
         o.reserveCapacity((2 * ri + 1) * (2 * ri + 1) * (2 * ri + 1))
@@ -166,14 +170,22 @@ final class CraterJob {
     private var rim: [IVec3] = []
     private(set) var done = false
     static let blocksPerFrame = 250
+    static var initCost = ""                 // (MainGunTests)
+    private var circuitsNear: Bool?
+    private var scanY = Int.min
+    static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
     // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
     init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false) {
         center = c; self.r = r; self.cap = cap
         offsets = Explosion.craterOffsets(Int(ceilf(r)))
         if quiet { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
         g.world.ships.blast(at: c, power: 14, game: g)
+        let t1 = CFAbsoluteTimeGetCurrent()
         Explosion.explode(at: c, power: 8, game: g, breakBlocks: false)
+        let t2 = CFAbsoluteTimeGetCurrent()
+        CraterJob.initCost = String(format: "ship blast %.1f, explosion %.1f", (t1 - t0) * 1000, (t2 - t1) * 1000)
         g.particles.explosion(at: c + V3(0, 2, 0), power: 8)
         g.sfx(.debrisRain, 1, at: c + V3(0, 2, 0))
         g.addFlash(at: c + V3(0, 1, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.6)
@@ -185,6 +197,31 @@ final class CraterJob {
         if done { return true }
         let w = g.world
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
+        if circuitsNear == nil {
+            // Any circuit part within reach of the bowl or its scorch (a changed block marks neighbours up to 2 away)?
+            // None: carve without the per-block circuit marks. 100k cells, straight through each chunk's array and
+            // spread over the first few frames (one pass was a 30-40 ms frame); the carving waits for it (under the
+            // fireball, unseen).
+            let R = Int(ceilf(r * 1.5)) + 3                   // (the scorch reaches 1.5 radii)
+            let y0 = max(0, cy - R), y1 = min(CH - 1, cy + R)
+            if scanY < y0 { scanY = y0 }
+            let yEnd = min(y1, scanY + CraterJob.scanLayers - 1)
+            var found = false
+            scan: for qz in floorDiv(cz - R, CS)...floorDiv(cz + R, CS) { for qx in floorDiv(cx - R, CS)...floorDiv(cx + R, CS) {
+                guard let c = w.chunkAt(qx * CS, qz * CS) else { continue }
+                let lx0 = max(0, cx - R - qx * CS), lx1 = min(CS - 1, cx + R - qx * CS)
+                let lz0 = max(0, cz - R - qz * CS), lz1 = min(CS - 1, cz + R - qz * CS)
+                for y in scanY...yEnd { for lz in lz0...lz1 { for lx in lx0...lx1 where Circuit.kinds[Int(c.blocks[Chunk.index(lx, y, lz)])] != .none {
+                    found = true; break scan
+                } } }
+            } }
+            scanY = yEnd + 1
+            if found { circuitsNear = true } else if scanY > y1 { circuitsNear = false } else if blocks != .max { return false }
+            if circuitsNear == nil { return step(g, blocks: blocks) }   // (all at once: the harness's Explosion.crater)
+        }
+        let quiet0 = w.circuitQuiet
+        w.circuitQuiet = circuitsNear == false
+        defer { w.circuitQuiet = quiet0 }
         var budget = blocks
         while next < offsets.count && budget > 0 && removed < cap {
             let o = offsets[next]

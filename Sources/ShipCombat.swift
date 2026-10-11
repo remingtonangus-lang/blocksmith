@@ -111,7 +111,7 @@ extension ShipManager {
     // Moves shells and detonates them (call once per frame).
     func updateShells(_ dt: Float, game: Game?) {
         for s in list { s.reload = max(0, s.reload - dt) }
-        if let g = game { updateShockwaves(dt, game: g) }
+        if let g = game { updateShockwaves(dt, game: g); TickProf.mark("ships.shockwaves") }
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
