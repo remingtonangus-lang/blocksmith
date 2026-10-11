@@ -98,7 +98,7 @@ B6. Hell's own mobs. [DONE: Lane B thread, 2026-10-11, PR #44; docs/status/hell-
 - A knight order in dark burgundy armour: squire, knight, champion and a commander mini-boss, with shields, parries and charges that suit VR melee. Plus 3+ other original hell mobs with distinct roles (flying, swarm, ranged).
 - Gate: hell is reachable only with base-tier gear (a key or charge looted from command fortresses), so the order is clear.
 
-B7. The Reich below hell. [CLAIMED: Lane B thread, 2026-10-11] Intent: below hell is Nazi Germany: tiger tanks, black everything, red flags with black, replicas of German weapons from the time; it should be clear what we are going for. You kill them and you have beaten the game.
+B7. The Reich below hell. [DONE: Lane B thread, 2026-10-11, PR #46; docs/status/the-last-war.md] Intent: below hell is Nazi Germany: tiger tanks, black everything, red flags with black, replicas of German weapons from the time; it should be clear what we are going for. You kill them and you have beaten the game.
 - Build on the Ashguard and the Ash Vault (PR 22 and the gap pass). Black uniforms and vehicles, red banners with a black fictional emblem, heavy tanks in the style of the period, half-tracks, artillery, and period-style rifles, SMGs and MGs under fictional names.
 - A final campaign: fortified lines, a leader in a final bunker, a big last battle and an ending.
 - Store-safe as stated at the top.
