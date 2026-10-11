@@ -141,9 +141,10 @@ From the backlog: more tree shapes per species, woodland detail, trees that read
   hills and grove) and ancient oaks rare; leaf textures keep at least 50 % cutout cover at every mip.
 - `questcheck --gencheck` (288 chunks over 3 seeds), before / after: floating_block 6/6, leak 2/2, leaves_orphan 1/1,
   ore_in_air 3/3, plant_floating 1/1, spring 10/10, trunk_floating 0/1. The one new floating log is a known class
-  that predates this change: a cave or pool in the tree's own chunk removed the soil under its trunk, so that chunk
-  grows nothing while the neighbour (which can't see the soil) grows its limbs. The old small crowns showed the same
-  as an orphan leaf patch; the fix is a soil test that can see carving across chunks (noted in BUGS.md).
+  that predates this change: the trunk's own chunk refused the site (its soil test failed: a cave or pool took the
+  soil, or the block there is the wrong one), while the neighbour, which can't see that soil, grew the limbs. The old
+  small crowns showed the same as an orphan leaf patch; the fix is a soil test every chunk can evaluate alike (noted
+  in BUGS.md).
 - Verifier pass (independent review): FAIL on one point, fixed: birch and spruce litter also appeared in open biomes
   (lone spruces on snowy plains, meadow birches); now woods and conifer woods only, and the check covers those biomes.
   Also from the review: the narrow spruce tapers (it read as a cylinder), ancient oaks keep a wider berth from
