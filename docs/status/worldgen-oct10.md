@@ -76,7 +76,7 @@ volcano_far_ab_old_noon.jpg / volcano_far_ab_new_noon.jpg and the evening crops 
 volcano_far_ab_old_eve.jpg / volcano_far_ab_new_eve.jpg: the old cone is pale and snow-spotted with no modelling; the
 new one is dark rock, lit on the sun's side and cooler in shade (LandmarkRender: a low key light from the sun's bearing
 on top of the overhead sun, warm/cool tint). Quest renderer: questcheck now renders the same view headless
-(`stereo_volcano135623.png` in the quest-host CI artifact) and checks the impostor draws; the impostor and ring are
+(`stereo_volcano135623.png` in the quest-host CI artifact; first run 98e184b8: volcano_far_quest_135623.jpg, a dark cone lit on the sun side, check ok with 20,292 vertices at 650 blocks) and checks the impostor draws; the impostor and ring are
 shared code, so the colours are the same on the headset.
 
 ## 3. Ruined gates

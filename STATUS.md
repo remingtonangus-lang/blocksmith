@@ -1,5 +1,10 @@
 # Status
 
+> **Oct 10 AM gaps, round 2 (25b4zxxxx, 2026-10-11):** `--mobtests` back to 149 ok (Pathfinding's capital-city
+> step-height rule now skips ladder rungs and water); aniso 8 vs 4 A/B on the Mac Quest proxy shows no GPU difference
+> (stays 8); the flyover's +20% drawn quads bisected to the Oct 10 worldgen merge bad1cbfb (the route crosses other land
+> now), accepted, gate budget 380k (performance.md); far volcano gets sun-side modelling, same-commit A/B shots and a
+> Quest-renderer render in questcheck (docs/status/worldgen-oct10). Still open: headset perf logs (no Quest on adb).
 > **Oct 10 AM playtest gaps (25b4zxx, 2026-10-10 late):** the far volcano reads as dark rock (horizon ring under the
 > impostor; docs/status/worldgen-oct10.md); enemy melee reaches the player's real body (`Game.meleeGap`: feet to
 > headset, only the part level with the mob; no hits on a 2-block pillar); a white-hot flash + weapon sparks when a hit

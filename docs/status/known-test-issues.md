@@ -62,3 +62,10 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   check running at once) moved it onto shallow water: 1425 blocks twice with the same binary, 2435 / 3226 on quieter runs.
   "the helm shows where the shot will land ... predicted in 4.68 ms" (wants a fast prediction) failed in the same loaded run.
   The checks run before the gap-pass code (MainGunGapTests runs last), so they are load-sensitive, not a regression.
+
+## questcheck on claude/quest-port @ 28eda0ac (+ 25b4zxxxx), 2026-10-11
+- "deep hell: a 70-block drop into a hall floats down unhurt (3-8 damage)" and the boreal birdCall check fail on the
+  upstream head (run 121) as well; the Deep's D1 hell band (#33) is the cloud lane's.
+- "horse gap: the stablehand's counter has a Horses button (none)" failed once (run on 98e184b8), passed on run 121;
+  "powderwight: strikes its fuse beside the player" failed on run 121, passed on 98e184b8. One-off fails on the same
+  base, random town/mob state; horses and the Powderwight are cloud scope. Not touched.
