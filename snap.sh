@@ -129,6 +129,7 @@ done
 python3 tools/namecheck.py --coined                                                                              # gating: no coined reference-game names in player-facing text (docs/status/ip-renames.md)
 "$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
 "$BIN" --snapshot snaps/questbugs.png --seed 12345 --find plains --time 0.3 --rd 4 --questbugs        # gating: Quest playtest checks (VR locomotion ignores the hand, swings, swim-out)
+"$BIN" --snapshot snaps/smoothtest.png --seed 12345 --time 0.3 --rd 6 --smoothtest        # gating: polygon terrain world option, meshing, normals (docs/status/polygon-test.md)
 "$BIN" --snapshot snaps/swingtest.png --seed 12345 --find plains --time 0.3 --rd 4 --swingtest        # gating: VR melee contact + bow (docs/status/vr-melee.md)
 "$BIN" --snapshot snaps/rdgovernor.png --seed 12345 --find plains --time 0.3 --rd 4 --rdgovernortest        # gating: Auto Render Distance goes down on sustained misses, back up to the choice, saves only the choice (playtest 2026-10-10)
 PERF_GATE_CI=1 BIN="$BIN" tools/quest_perf_gate.sh --secs 20 --routes "taiga flyover"        # gating: Quest proxy counted work (quads, unmeshed) on the playtest routes at rd 16; frame times info (docs/status/performance.md)

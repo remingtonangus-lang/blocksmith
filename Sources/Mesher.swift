@@ -225,7 +225,9 @@ enum Mesher {
 
     // `damage`: chipped blocks around this section (World.damage): x and z relative to the centre chunk's corner
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
-    static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
+    // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
+    static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
+                             smoothOK: Bool = true) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -252,7 +254,7 @@ enum Mesher {
         var anyBlock = false
         for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
-        let smooth = SmoothTerrain.enabled, natT = SmoothTerrain.natural
+        let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.

@@ -12,8 +12,10 @@ Each pair is cubic (left) vs smooth (right). These are the same 6 places, seed 1
 All six pairs on one sheet: [smooth-terrain/sheet.jpg](smooth-terrain/sheet.jpg).
 
 ## How to try it
+- **Since 2026-10-11 it is a per-world option** (docs/status/polygon-test.md): Create New World > Terrain, or Options > Video >
+  **Smooth Terrain (Test, This World)**. The lines below describe the first prototype.
 - **Mac:** Pause > Options > Video > **Smooth Terrain (Prototype)**. The world remeshes in the background. On the command line, `--smooth` turns it on and `--cubic` forces it off.
-- **Quest:** the same row is on the pause menu's Video page, or put `smoothTerrain = on` in `quest-settings.txt`
+- **Quest:** the same row is on the pause menu's Video page, or put `smoothTerrain = on` in `quest-settings.txt` (now: only the Create New World default)
   (`adb push quest-settings.txt /sdcard/Android/data/com.blocksmith.quest/files/`).
   The APK with the toggle is on quest-dist (5a27c73, built from b1b5290).
 - It is **off by default**, and saves are untouched. Switching it off gives back exactly the old meshes: the verifier found a cubic render byte-identical to one made with no flag.

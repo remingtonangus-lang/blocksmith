@@ -83,6 +83,9 @@ enum SmoothTests {
             neighbourQuads = Mesher.buildSection(nn.0, nn.1, sy: sy).opaque.count / 8
         }
         check(neighbourQuads == 0, "no quads owned twice", "+x chunk section holds \(neighbourQuads) quads (owner is the block's chunk)")
+        // Ship hulls (ShipRender: smoothOK false) stay cubes in a smooth world.
+        let ms = Mesher.buildSection(nb.0, nb.1, sy: sy, smoothOK: false)
+        check(ms.opaque.count / 8 == 6, "ship meshes stay cubic", "\(ms.opaque.count / 8) quads (6 expected)")
         SmoothTerrain.enabled = false
         let mc = Mesher.buildSection(nb.0, nb.1, sy: sy)
         check(mc.opaque.count / 8 == 6, "cubic mode back to a cube", "\(mc.opaque.count / 8) quads")

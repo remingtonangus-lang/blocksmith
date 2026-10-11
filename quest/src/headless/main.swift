@@ -166,10 +166,12 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             for (name, x, z, up, yaw, pitch) in views {
                 var quads: [Int] = [], rec: [Double] = []
                 for smooth in [false, true] {
-                    SmoothTerrain.enabled = smooth
                     let pw = World(seed: 12345, device: device, save: nil)
                     pw.renderDistance = 6
                     let pg = Game(world: pw, save: nil, persistent: false)
+                    // As QuestApp does for a new world: the option is set on the game, then applied before any meshing.
+                    pg.smoothTerrain = smooth
+                    SmoothTerrain.use(world: pg.smoothTerrain, world: pw)
                     pg.time = 0.22 * DAY_LENGTH
                     pg.player.flying = true
                     pg.player.pos = V3(x, Float(pw.gen.column(Int(x), Int(z)).height) + up, z)
@@ -179,9 +181,9 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     quads.append(RenderTest.drawnQuads); rec.append(RenderTest.recordMs)
                 }
                 print("polygon \(name): quads drawn blocks \(quads[0]) smooth \(quads[1]), " + String(format: "CPU record %.2f -> %.2f ms", rec[0], rec[1]))
-                check(quads[0] > 0 && quads[1] > 0, "polygon terrain \(name): blocks and smooth both drawn on the Quest renderer")
+                check(quads[0] > 0 && quads[1] > 0 && quads[1] != quads[0], "polygon terrain \(name): blocks and smooth both drawn (and differ) on the Quest renderer")
             }
-            SmoothTerrain.enabled = was
+            SmoothTerrain.set(was, world: nil)
         }
         // The water look (water.frag: Fresnel sky, glint, swell, depth, shore foam): from a beach toward the sea, at
         // noon; compared with the Mac's Fancy water by eye (Quest v63: the water had never been ported).

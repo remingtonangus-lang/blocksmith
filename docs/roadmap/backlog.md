@@ -72,9 +72,9 @@ B7. The Reich below hell. Intent: below hell is Nazi Germany: tiger tanks, black
 
 ## LANE M (the Mac worker; needs the device or the Mac)
 
-M1. Polygon terrain test. Intent: a test of the polygon idea to see how it turns out. Build on the smooth-terrain prototype (task 25b3) and make it playable as an option on Quest so Remington can walk around in it; screenshots and fps compared with blocks.
+M1. Polygon terrain test. [DONE: Mac queue, 2026-10-11; docs/status/polygon-test.md; device walk in device-checklist.md section 2] Intent: a test of the polygon idea to see how it turns out. Build on the smooth-terrain prototype (task 25b3) and make it playable as an option on Quest so Remington can walk around in it; screenshots and fps compared with blocks.
 M2. (moved to lane C as L2)
-M3. Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
+M3. [Checklist written 2026-10-11: device-checklist.md section 3; needs the headset] Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
 
 ## LANE C (optional third cloud thread): looks, redstone, polish
 Moved from the Mac queue on Oct 10 21:52 (Quest is the product; judge on QuestSim, Mac renderer only where shared code forces it).

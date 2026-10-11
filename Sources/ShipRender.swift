@@ -198,7 +198,7 @@ final class ShipMesh {
                 for s in 1..<max(2, nsec) {
                     let k = key(cx, s, cz)
                     if let only, !only.contains(k) { continue }
-                    let m = Mesher.buildSection(n9, h9, sy: s, lod: 0, damage: chips(cx, cz))
+                    let m = Mesher.buildSection(n9, h9, sy: s, lod: 0, damage: chips(cx, cz), smoothOK: false)
                     out.append((k, m, V3(Float(cx * 16), Float(s * 16 - 16), Float(cz * 16))))
                 }
             }

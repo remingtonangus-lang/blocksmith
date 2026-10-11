@@ -17,7 +17,7 @@ Objectives: docs/objectives/polygon-test.md. Built on the smooth-terrain prototy
   chunk and ship shaders light smooth vertices with it (Gouraud), so slopes shade gradually instead of in 6 flat face
   tones. Mac shaders read the same encoding (Mac look unchanged otherwise).
 - Natural one-block steps are walked up without a jump (eased VR view step); built blocks still need a jump.
-- `--smoothtest` 13/13 PASS (step walking, mesh rules, normal codes, world option save/load, older saves, create page).
+- `--smoothtest` 14/14 PASS, now gating in the snap.sh checks shard (step walking, mesh rules, normal codes, world option save/load, older saves, create page).
 
 ## Side by side (Quest renderer, questcheck on lavapipe, left eye, seed 12345)
 ![blocks vs smooth](polygon-test/sheet.jpg)
@@ -26,7 +26,9 @@ Single shots: polygon-test/{spawn,hills,slopes,beach}_{blocks,smooth}.jpg.
 
 ## Cost
 Quest renderer (questcheck, same views): quads drawn blocks -> smooth: spawn 102k -> 105k, hills 63k -> 70k,
-slopes 26k -> 30k, beach 32k -> 39k (+3 to +25%). CPU record time within noise (3.5-4.9 ms both ways).
+slopes 26k -> 30k, beach 32k -> 39k (+3 to +25%). CPU record time within noise (3.5-4.9 ms both ways). questcheck builds each pair through the world option
+(`Game.smoothTerrain` then `SmoothTerrain.use`, as QuestApp does). Frame time on lavapipe is a CPU rasterizer, not a
+Quest GPU, so it is not used as fps; the Mac `--quest` proxy below is the stand-in until the device run.
 
 Quest proxy bench (`tools/bench_routes.sh --quest --cubic|--smooth`, release build, 2 eyes 1440x1584, budget 13.9 ms):
 
@@ -50,7 +52,10 @@ Device fps: not measured (no headset on adb); first item in device-checklist sec
 - **What breaks / looks off:** steep stone and snow slopes look scalloped (every block becomes a rounded lump, because
   the surface still follows the block grid; a heightfield-smoothed surface would fix this but costs more meshing).
   Paths and built blocks stay cubic, so a path through hills is a staircase in smooth land. A placed dirt/sand block
-  turns into a lump. Mining still removes whole blocks, so a dug hole is a rounded pit, not a cube.
+  turns into a lump. Collision is still block boxes: on slopes feet, mobs and dropped items can float or sink by up to
+  about half a block where the drawn surface rounds off (the first thing a VR walk will notice; a slope-following
+  collision surface would be the fix). Ships stay cubic in a smooth world (hulls are built blocks; ShipRender meshes
+  with smoothOK false, checked by `--smoothtest`). Mining still removes whole blocks, so a dug hole is a rounded pit, not a cube.
 - **Cost:** about +0.5 ms p99, +20-30 MB, +5-10% load, +3-25% triangles: affordable on Quest at the current budgets.
 - **Recommendation:** keep it as a per-world option (done) and let Remington walk it on the headset. If he likes it,
   next steps are (1) a wider blur for steep stone/snow so they read as rock faces, not lumps, (2) smooth paths
@@ -58,4 +63,4 @@ Device fps: not measured (no headset on adb); first item in device-checklist sec
 
 ## M3 (device feel for lane A/B features)
 Flying vehicles, the crawler, frigate radar (lane A) and the knights (B6) have not merged yet, so there is nothing to
-feel-check for them. The merged lane B features that need hands-on VR feel (six-iron, hunting: skinning and the fishing fight) are listed in device-checklist section 3 with what to judge.
+feel-check for them. The merged lane B features that need hands-on VR feel (six-iron, hunting: skinning and the fishing fight, townsfolk melee from B2) are listed in device-checklist section 3 with what to judge.
