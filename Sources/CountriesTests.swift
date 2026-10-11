@@ -176,11 +176,19 @@ extension TownTests {
             tick(at: p - V3(dir.x, 0, dir.y) * 3)
             check(owed > 0 && Countries.owed == 0 && g.money == 10_000 - owed && Countries.paidPost != nil,
                   "countries: customs asks \(Money.format(owed)) duty near the post and takes it at the booth")
-            // Back away, then run the post.
-            tick(at: p - V3(dir.x, 0, dir.y) * 120)
-            tick(at: near)
+            // Back away, then gallop straight through the booth in one tick: that pays too.
+            let fwd = V3(dir.x, 0, dir.y), side = V3(-dir.y, 0, dir.x)
+            tick(at: p - fwd * 120)
+            tick(at: p - fwd * 20)
+            let money0 = g.money
+            tick(at: p + fwd * 20)
+            check(Countries.smuggled == 0 && g.money == money0 - owed, "countries: riding through the booth between two ticks pays the duty")
+            // Back away, then cross 30 blocks off the booth: that's running it.
+            tick(at: p + fwd * 120)
+            tick(at: p - fwd * 120)
+            tick(at: p - fwd * 25 + side * 30)
             let before = Countries.standing(n)
-            tick(at: p + V3(dir.x, 0, dir.y) * 20)
+            tick(at: p + fwd * 20 + side * 30)
             check(Countries.smuggled == 1 && Countries.standing(n) < before, "countries: running the post costs standing with \(n.name) (\(Int(before)) -> \(Int(Countries.standing(n))))")
             // A post built near you: floor, booth and both flags.
             let bx = Int(floor(savedPos.x)) + 20, bz = Int(floor(savedPos.z)) + 20

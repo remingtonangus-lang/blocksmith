@@ -35,7 +35,7 @@ Remington's intent: there should be countries too that give minerals. Listed:
 5. **Standing with each country (-100 to 100).**
    - Crimes in its towns lower it (the honour and law system's offences, per country). Trade raises it a little.
    - At -50 or below you're its enemy: its towns start on edge and its lawmen draw on sight, as in a raided town.
-   - You can ally with a country by paying a treaty fee at its capital's sheriff, with standing of 25 or more. An ally's
+   - You can ally with a country by paying a treaty fee at its capital's general store, with standing of 25 or more. An ally's
      shops give 10% off (never under the shops' best price) and its customs charge nothing.
    - Raiding (crimes, killing its law) is how standing drops.
 6. **Taking a country.** Taking its capital town (the B1 surrender) annexes it:
@@ -55,3 +55,35 @@ Remington's intent: there should be countries too that give minerals. Listed:
      Old saves start clean.
    - Lookups are O(1) (a seat-cell lookup). The border check runs once a second; generation adds a few veins per
      chunk.
+
+## Built (2026-10-11, Lane B thread)
+- Sources/Countries.swift: the layer (2048-block jittered seat cells, nearest of 3x3), names (syllables, with a re-roll
+  list of real places and historical names), flags, rich minerals, tax, capitals (the capital city, else the village,
+  nearest the seat inside the country; a country with no town within four village regions of its seat has none and
+  can't be annexed), standing, treaties, annexing, border posts and customs, wars, the minimap line and the big map's
+  borders and names (with each country's minerals).
+- Hooks: WorldGen.placeOres (extra veins on their own random stream), TownLaw.offence / turnHostile, TownConquest
+  (owns, standing, lawFell, surrender), ShopPricing.country + Economy.buyPrice/sellPrice, the treaty service row,
+  the shop's "Ostvaal, tax 8%" line, Effects save/load ("countries"), HudExtras.tick.
+- Prices: a country pays x0.7 for minerals it's rich in and x1.3 for the others (never more than the least money that
+  buys one), sells the ones it lacks at x1.3; taxes add on; an ally's 10% never goes under the shops' best price.
+- Customs: crossing at a post owes 8% of the minerals' value to the country across; stopping at the booth (8 blocks)
+  or passing through it between two ticks pays; crossing within 48 blocks of the post without passing the booth is
+  running it (-10 standing).
+- Border posts are built (deferred remesh) only on open ground: no structure within 24 blocks, no built blocks in the
+  footprint, the whole footprint loaded and the player not on it.
+
+## Differences from the objectives
+- Enemy towns start on edge (heat one short of hostile, the wary prices); their law doesn't draw on sight until you
+  give them a reason.
+- The treaty is signed at the capital's general store, not its sheriff.
+- War news is a toast; towns that changed hands follow the new owner in prices, annexing and standing, but aren't
+  recoloured on the map.
+- Towns are keyed by name (as TownLaw and TownConquest already are): two towns with the same name share a country.
+- Flag colours show on the map, the minimap line and the posts, not in toasts (toasts are plain text).
+
+## Checks
+TownTests "countries:" (CountriesTests.swift): the layer, a chunk with and without its country's veins (only rich ores
+added, into stone), prices and no money loop, crossing, standing and enemies, trade goodwill, capital, treaty, ally
+prices, duty, annexing, the border post (owe, pay at the booth, pay riding through, run it), building a post, wars over
+60 days and a frontier town changing hands, save/load, the map borders.

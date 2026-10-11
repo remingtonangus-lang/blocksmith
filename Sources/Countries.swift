@@ -101,6 +101,19 @@ enum Countries {
     static let last = ["vaal", "mark", "land", "ria", "dor", "heim", "stad", "mere", "gard", "wick", "onia", "esh", "hold",
                        "reach", "vania", "moor"]
 
+    // Real places, real historical names and near-misses of other works' places the syllables can spell: re-rolled.
+    static let blockedNames: Set<String> = ["ostmark", "ostland", "harstad", "fenland", "savonia", "valonia", "gordor", "marland",
+                                            "holland", "valland", "selland", "ardland", "calland", "belland", "torland", "tamland",
+                                            "eldland", "vesland", "rholand", "gorland", "itheland", "kesland", "dravania", "harland",
+                                            "marmark", "belgard", "tormark", "ardmark", "eldorado", "eldoria", "calonia", "savoria",
+                                            "marmoor", "fenmoor", "vesmere", "dramark", "ostria", "valdor", "valheim", "eldheim",
+                                            "lorria", "cal", "mordor", "gondor", "rohan", "eriador", "tamria", "tamriel", "valenwood",
+                                            "harrenhal", "belgium", "wenland", "wendor"]
+    static func blocked(_ n: String) -> Bool {
+        let l = n.lowercased()
+        return blockedNames.contains(l) || l.hasPrefix("nazi") || l.hasPrefix("reich")
+    }
+
     // MARK: The layer (pure, any thread)
 
     @inline(__always) static func hash(_ cx: Int, _ cz: Int, _ seed: UInt64, _ salt: UInt64) -> UInt64 {
@@ -143,8 +156,13 @@ enum Countries {
 
     static func make(_ cx: Int, _ cz: Int, seed: UInt64) -> Country {
         let h = hash(cx, cz, seed, 0xF1A6)
-        var name = Townsfolk.pick(first, h) + Townsfolk.pick(middle, h >> 11) + Townsfolk.pick(last, h >> 22)
-        if name.count > 11 { name = Townsfolk.pick(first, h) + Townsfolk.pick(last, h >> 22) }
+        var name = ""
+        for k in 0..<8 {
+            let r = k == 0 ? h : Townsfolk.mix(cx, cz, seed ^ 0xF1A6 &+ UInt64(k))
+            name = Townsfolk.pick(first, r) + Townsfolk.pick(middle, r >> 11) + Townsfolk.pick(last, r >> 22)
+            if name.count > 11 { name = Townsfolk.pick(first, r) + Townsfolk.pick(last, r >> 22) }
+            if !blocked(name) { break }
+        }
         let a = Int((h >> 33) % UInt64(dyes.count))
         let b = (a + 1 + Int((h >> 41) % UInt64(dyes.count - 1))) % dyes.count
         let s = seat(cx, cz, seed: seed)
@@ -207,13 +225,15 @@ enum Countries {
     static var owedPost: String?
     static var paidPost: String?                 // paid at this post (until you leave it)
     static var postPause: Double = 0
+    static var lastPostDistance: Float = .infinity  // the nearest you came to the owed post's booth (since it asked)
     static var crossings = 0, smuggled = 0, warNews = 0, annexes = 0    // (tests)
     static var capitals: [String: (String, Int, Int)?] = [:]
     static var postSpots: [String: (Int, Int)?] = [:]
 
     static func reset() {
         state = Saved(); lastTick = -10; lastKey = nil; lastTown = nil; owed = 0; owedTo = nil; owedPost = nil; paidPost = nil
-        crossings = 0; smuggled = 0; warNews = 0; annexes = 0; capitals = [:]; postSpots = [:]
+        crossings = 0; smuggled = 0; warNews = 0; annexes = 0; capitals = [:]; postSpots = [:]; lastPos = nil
+        lastPostDistance = .infinity; hud = nil
     }
     static func save(_ d: inout [String: String]) {
         if let e = try? JSONEncoder().encode(state), let s = String(data: e, encoding: .utf8) { d["countries"] = s }
@@ -363,7 +383,7 @@ enum Countries {
         let c = of(g, town: m.villager?.town ?? "", near: m.pos)
         if isAlly(c) { return ("You are allies already", false) }
         let s = standing(c)
-        if s < allyAt { return (String(format: "Needs standing %d with %@ (now %d)", Int(allyAt), c.name, Int(s.rounded())), false) }
+        if s < allyAt { return ("Needs standing \(Int(allyAt)) with \(c.name) (now \(Int(s.rounded())))", false) }
         return ("Ally with \(c.name): 10% off, no customs", true)
     }
     static func signTreaty(_ g: Game, _ m: Mob) -> (String, Bool) {
@@ -384,7 +404,7 @@ enum Countries {
         guard g.clock - lastTick >= 1 || g.clock < lastTick else { return }
         lastTick = g.clock
         if state.seed == nil { state.seed = g.world.seed } else if state.seed != g.world.seed { reset(); state.seed = g.world.seed }
-        guard g.dim.dim == .overworld, g.world.frame == nil else { lastKey = nil; return }
+        guard g.dim.dim == .overworld, g.world.frame == nil else { lastKey = nil; lastPos = nil; return }
         let p = g.player.pos
         let c = at(g, p)
         if let was = lastKey, was != c.key {
@@ -399,12 +419,33 @@ enum Countries {
         lastTown = TownLaw.inTown
         posts(g)
         wars(g)
+        lastPos = p
+        hud = makeHud(g)
+    }
+    static var lastPos: V3?
+    // How close the path since the last tick came to a booth (the segment from the last position to here).
+    static func passed(_ g: Game, _ spot: (Int, Int)) -> Float {
+        let q = V2(Float(spot.0) + 0.5, Float(spot.1) + 0.5)
+        let a = V2(g.player.pos.x, g.player.pos.z)
+        let b = lastPos.map { V2($0.x, $0.z) } ?? a
+        let ab = b - a
+        let t = max(0, min(1, simd_dot(q - a, ab) / max(1e-4, simd_dot(ab, ab))))
+        return min(simd_length(a + ab * t - q), lastPostDistance)
     }
 
     static func crossed(_ g: Game, from: String, into c: Country) {
         // Ran a post without paying: smuggling.
         if owed > 0, owedTo == c.key, let pk = owedPost, let spot = postSpots[pk] ?? nil,
            simd_length(V2(Float(spot.0) - g.player.pos.x, Float(spot.1) - g.player.pos.z)) < 48, g.survival {
+            // Through the booth (the tick is once a second: at a run or on a horse you can be past it before one
+            // sees you there): that's paying, when you can.
+            if passed(g, spot) < payRadius, g.money >= owed {
+                g.money -= owed
+                g.sfx(.villagerTrade, 0.6)
+                g.onToast?("Paid \(Money.format(owed)) duty to \(c.name)")
+                paidPost = pk; owed = 0; owedTo = nil
+                return
+            }
             smuggled += 1
             change(g, c, -10)
             g.onToast?("You ran \(c.name)'s customs post. They won't forget it.")
@@ -458,6 +499,9 @@ enum Countries {
             guard here == (a.cx, a.cz) || here == (b.cx, b.cz) else { continue }
             let col = g.world.gen.column(x, z)
             guard !col.biome.isOcean, !col.biome.isRiver, col.height > SEA else { continue }
+            if let sc = g.world.gen.structures, sc.types.contains(where: { t in
+                sc.startsNear(cx: floorDiv(x, CS), cz: floorDiv(z, CS), t).contains { $0.max.x >= x - 24 && $0.min.x <= x + 24 && $0.max.z >= z - 24 && $0.min.z <= z + 24 }
+            }) { continue }
             if let s = g.world.gen.structures?.nearest("village", x: x, z: z, maxRegions: 1),
                abs(s.anchor.x - x) < 120 && abs(s.anchor.z - z) < 120 { continue }
             out = (x, z)
@@ -492,11 +536,15 @@ enum Countries {
         let here = at(g, p)
         var near: (String, (Int, Int), Country, Country)?
         for n in neighbours(g, here) {
-            guard let s = postSpot(g, here, n) else { continue }
+            // Only borders within 200 blocks (the spot search reads structure starts: once, and only near).
+            var nn = V2(Float(n.seatX - here.seatX), Float(n.seatZ - here.seatZ)); nn = nn / max(1, simd_length(nn))
+            let mid = V2(Float(n.seatX + here.seatX) / 2, Float(n.seatZ + here.seatZ) / 2)
+            guard abs(simd_dot(V2(p.x, p.z) - mid, nn)) < 200, let s = postSpot(g, here, n) else { continue }
             let d = simd_length(V2(Float(s.0) - p.x, Float(s.1) - p.z))
             let k = warKey(here.key, n.key)
-            if d < 96, !state.posts.contains(k), g.world.isLoaded(s.0, s.1), g.world.isLoaded(s.0 + 6, s.1 + 6) {
-                build(g, at: s, here, n)
+            if d < 96, d > 8, !state.posts.contains(k), g.world.isLoaded(s.0 - 2, s.1 - 2), g.world.isLoaded(s.0 + 4, s.1 + 2),
+               g.world.isLoaded(s.0 - 2, s.1 + 2), g.world.isLoaded(s.0 + 4, s.1 - 2) {
+                if clear(g, at: s) { build(g, at: s, here, n) }
                 state.posts.append(k)
                 MapCache.shared.discover(g, kind: "border_post", x: s.0, z: s.1, name: "\(here.name) - \(n.name) border post")
             }
@@ -511,11 +559,12 @@ enum Countries {
         let due = duty(g, into: target)
         if due == 0 { owed = 0; owedTo = nil; return }
         if owedPost != k || owedTo != target.key {
-            owedPost = k; owedTo = target.key; owed = due
+            owedPost = k; owedTo = target.key; owed = due; lastPostDistance = .infinity
             g.onToast?("\(target.name) customs: \(Money.format(due)) duty on your minerals. Stop at the post to pay.")
         }
         owed = due
         let d = simd_length(V2(Float(s.0) + 0.5 - p.x, Float(s.1) + 0.5 - p.z))
+        lastPostDistance = min(lastPostDistance, d)
         if d < payRadius {
             if g.money >= due {
                 g.money -= due
@@ -529,9 +578,26 @@ enum Countries {
         }
     }
 
+    // The footprint holds nothing anyone built (an old save's base, a cabin): a post goes only on open ground.
+    static func clear(_ g: Game, at s: (Int, Int)) -> Bool {
+        let gy = g.world.gen.column(s.0, s.1).height
+        let made = ["plank", "brick", "glass", "wool", "fence", "door", "slab", "stairs", "torch", "chest", "bed", "concrete",
+                    "lantern", "furnace", "table", "carpet", "rail", "wall", "steel", "copper_block", "iron_block"]
+        for dz in -2...2 { for dx in -2...4 { for y in (gy - 2)...(gy + 6) {
+            let id = g.world.block(s.0 + dx, y, s.1 + dz)
+            guard id != AIR else { continue }
+            let n = Blocks.def(id).name
+            if made.contains(where: { n.contains($0) }) { return false }
+        } } }
+        return true
+    }
+
     // A small guard post: a stone-brick floor, a roofed booth on log posts and a flag on a fence pole.
     static func build(_ g: Game, at s: (Int, Int), _ a: Country, _ b: Country) {
         let w = g.world
+        // Hundreds of edits: the mesh workers redraw the sections (synchronous remeshes stalled the Quest's frame).
+        w.deferRemesh = true
+        defer { w.deferRemesh = false }
         func id(_ n: String, _ fb: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : fb }
         let floorB = id("stone_bricks", STONE), log = id("spruce_log", STONE), roof = id("spruce_slab", id("spruce_planks", STONE))
         let fence = id("spruce_fence", log), fill = id("cobblestone", STONE)
@@ -575,7 +641,7 @@ enum Countries {
         let seed = g.world.seed
         for (a, b) in pairs {
             let k = warKey(a.key, b.key)
-            let h = Townsfolk.mix(a.cx * 7 + b.cx, a.cz * 7 + b.cz, seed ^ UInt64(day) &* 0x2545F4914F6CDD1D)
+            let h = Townsfolk.mix(a.cx * 7 + b.cx, a.cz * 7 + b.cz, seed ^ UInt64(bitPattern: Int64(day)) &* 0x2545F4914F6CDD1D)
             let roll = Int(h % 100)
             if isAnnexed(a) || isAnnexed(b) { state.wars[k] = nil; continue }
             if let started = state.wars[k] {
@@ -623,7 +689,9 @@ enum Countries {
     // MARK: HUD
 
     // Under the minimap: the country you're in, in its flag colour.
-    static func hudLine(_ g: Game) -> (String, V4)? {
+    static var hud: (String, V4)?
+    static func hudLine(_ g: Game) -> (String, V4)? { g.dim.dim == .overworld && lastKey != nil ? hud : nil }
+    static func makeHud(_ g: Game) -> (String, V4)? {
         guard g.dim.dim == .overworld, let k = lastKey, let c = byKey(g, k) else { return nil }
         var t = c.name
         if isAnnexed(c) { t += " (yours)" } else if isAlly(c) { t += " (ally)" } else if isEnemy(c) { t += " (enemy)" }
@@ -668,11 +736,12 @@ enum Countries {
         for gz in gz0...gz1 { for gx in gx0...gx1 {
             let c = country(gx, gz, seed: g.world.seed)
             guard let p = MapDraw.project(Float(c.seatX), Float(c.seatZ), x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc) else { continue }
-            var name = c.name
-            if isAnnexed(c) { name += " (yours)" }
+            var name = c.name + ": " + c.rich.map { $0.name }.joined(separator: ", ")
+            if isAnnexed(c) { name = c.name + " (yours)" }
             let w = Float(Font.width(name)) * s
-            out.append(HudLine(text: "", x: p.x - w / 2 - 6 * s, y: p.y - 2 * s, scale: s, bg: dyes[c.flag.0].1, box: V2(4 * s, 3 * s)))
-            out.append(HudLine(text: "", x: p.x - w / 2 - 6 * s, y: p.y + s, scale: s, bg: dyes[c.flag.1].1, box: V2(4 * s, 3 * s)))
+            let yours = isAnnexed(c)            // your flag: gold over black
+            out.append(HudLine(text: "", x: p.x - w / 2 - 6 * s, y: p.y - 2 * s, scale: s, bg: yours ? V4(1, 0.8, 0.25, 1) : dyes[c.flag.0].1, box: V2(4 * s, 3 * s)))
+            out.append(HudLine(text: "", x: p.x - w / 2 - 6 * s, y: p.y + s, scale: s, bg: yours ? V4(0.1, 0.1, 0.12, 1) : dyes[c.flag.1].1, box: V2(4 * s, 3 * s)))
             out.append(HudLine(text: name, x: p.x - w / 2, y: p.y - 3 * s, scale: s,
                                color: isAnnexed(c) ? V4(1, 0.85, 0.3, 1) : V4(1, 1, 1, 0.95), bg: V4(0, 0, 0, 0.55)))
         }}
