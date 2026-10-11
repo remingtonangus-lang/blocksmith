@@ -921,6 +921,7 @@ struct Synth {
         case .grenadeBounce: out = WeaponAudio.grenadeBounce(&self, p: p)
         case .soldier(let r, let b): out = SoldierVoice.render(&self, rank: r, b, p: p)
         case .soldierStep(let r): out = SoldierVoice.step(&self, rank: r, p: p)
+        case .hoof(let s): out = HorseLife.hoof(&self, surface: s, p: p)
         case .voice(let i): out = TownVoice.render(i)
         }
         if !s.isLoop { out = Synth.trimTail(out) }

@@ -103,3 +103,6 @@ MAC
 UNSC
 Halo
 Spartan
+# Western-game terms (Remington, 2026-10-09: borrow the feel, never the names)
+Horse Reviver
+Horse Stimulant

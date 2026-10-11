@@ -544,7 +544,7 @@ func horseParts(_ m: Mob) -> [Part] {
     let clock = m.callTimer                                   // counts down steadily between calls
     let idle = max(0, 1 - amt * 2)
     let gw: Float = min(clock - 1.5, 6 - clock) * 1.5
-    let calm: Float = m.saddled || m.panic > 0 ? 0 : 1
+    let calm: Float = (m.saddled && m.stayAt == nil) || m.panic > 0 ? 0 : 1      // a horse left waiting grazes, saddle and all
     let graze: Float = max(0, min(1, gw)) * idle * calm
 
     let lu: Float = small ? 6.5 : 8, ll: Float = small ? 5 : 5.5, lh: Float = 1.5

@@ -96,6 +96,7 @@ enum Economy {
         "white_bed": 130, "red_bed": 140,
         // General goods
         "torch": 4, "lantern": 110, "bucket": 330, "map": 520, "compass": 480, "clock": 1100, "shears": 220,
+        "saddle_salve": 600, "brush": 150,
         "fishing_rod": 60, "lead": 60, "flint_and_steel": 120, "spyglass": 900, "name_tag": 800, "treasure_map": 2500,
         // Blacksmith
         "stone_sword": 20, "stone_pickaxe": 24, "stone_axe": 24, "stone_shovel": 12, "stone_hoe": 16,
@@ -139,9 +140,9 @@ enum Economy {
                    ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8)],
         .doctor: [("potion_healing", 4), ("splash_potion_healing", 2), ("potion_regeneration", 2), ("potion_swiftness", 2),
                   ("potion_night_vision", 2), ("potion_fire_resistance", 2), ("milk_bucket", 2), ("golden_apple", 1),
-                  ("glistering_melon_slice", 4), ("honey_bottle", 6)],
+                  ("glistering_melon_slice", 4), ("honey_bottle", 6), ("saddle_salve", 2)],
         .stable: [("saddle", 1), ("lead", 4), ("hay_block", 16), ("leather_horse_armor", 1), ("iron_horse_armor", 1),
-                  ("golden_horse_armor", 1), ("golden_carrot", 8), ("apple", 16), ("carrot_on_a_stick", 1)],
+                  ("golden_horse_armor", 1), ("golden_carrot", 8), ("apple", 16), ("carrot_on_a_stick", 1), ("saddle_salve", 3), ("brush", 1)],
         .tailor: [("leather_helmet", 2), ("leather_chestplate", 2), ("leather_leggings", 2), ("leather_boots", 2),
                   ("white_wool", 16), ("black_wool", 8), ("gray_wool", 8), ("brown_wool", 8), ("red_wool", 8), ("blue_wool", 8),
                   ("white_carpet", 16), ("white_bed", 2), ("red_bed", 2), ("name_tag", 1)],
@@ -279,7 +280,14 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         TownVoice.speakSoon(game, keeper, .greet)
     }
 
-    var extraTitle: String? { kind == .gunsmith && mob?.villager?.shopKind == .gunsmith ? "Upgrade" : (kind == .saloon && mob?.villager?.shopKind == .saloon ? "Dice" : nil) }
+    var extraTitle: String? {
+        switch (kind, mob?.villager?.shopKind) {
+        case (.gunsmith, .gunsmith?): return "Upgrade"
+        case (.saloon, .saloon?): return "Dice"
+        case (.stable, .stable?): return "Horses"
+        default: return nil
+        }
+    }
     var hasBarter: Bool { slots.contains { if case .button(let b) = $0.kind { return b == ShopMenu.barter }; return false } }
 
     override func onClose() {
@@ -350,6 +358,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case ShopMenu.extra:
             game.sfx(.click, 0.4)
             if kind == .gunsmith, let m = mob { game.switchMenu(to: GunUpgradeMenu(game: game, keeper: m)) }
+            else if kind == .stable, let m = mob { game.switchMenu(to: StableMenu(game: game, keeper: m)) }
             else if kind == .saloon { game.switchMenu(to: DiceMenu(game: game, keeper: mob)) }
         case ShopMenu.barter:
             guard let m = mob else { return }

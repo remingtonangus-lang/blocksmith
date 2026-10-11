@@ -18,6 +18,8 @@ Checks that fail for reasons other than a game bug, and what was done about them
   "deep war: the Marshal marks a barrage and calls his guard". Best guess: random damage variance / Marshal AI timing
   in the test, not the pm9 changes (the same build passes 3 of 4 runs). Repro: `Blocksmith --snapshot /tmp/q.png
   --seed 12345 --find plains --time 0.3 --rd 4 --questbugs --only deep` a few times.
+- 2026-10-11 (cloud gap pass, horses): "the Marshal marks a barrage" failed again in one full questcheck run on a
+  branch that touches no Deep code; it passed two `--deep-only` reruns before. Still the same timing flake.
 
 ## questcheck full run, 2026-10-10 (honour thread, claude/project-thread-dkuflx)
 - **"sheriff: a town without one gets a sheriff" / "only one is sent"**: failed on claude/quest-port 581dfc8 too, in the

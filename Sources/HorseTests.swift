@@ -41,6 +41,7 @@ enum HorseTests {
         func horse(top: Int = 15, xp: Float = 0) -> Mob {
             let h = Mob(.horse, at: lane0)
             h.variant = (top << 4) | (8 << 8)
+            h.breed = HorseBreed.saddlebred.rawValue                     // the baseline breed (stamina and nerve 1)
             h.owner = true; h.saddled = true; h.persistent = true; h.health = 30
             h.hs.bondXP = xp
             h.yaw = 0
@@ -267,13 +268,17 @@ enum HorseTests {
             g.mobs.mobs.removeAll { $0 === z }
             ride(h, 1.5, push: 0)
             h.hs.spookCool = 0
-            g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))               // anyone's gun (the sheriff's, a soldier's) via its sound
+            g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))               // level 4 is used to gunfire (the gap pass: until bonded)
+            let used = h.hs.rear == 0
+            h.hs.bondXP = 300                                         // level 3: anyone's gun (the sheriff's, a soldier's) via its sound
+            g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))
             let heard = h.hs.rear > 0
+            h.hs.bondXP = 700; h.hs.rearThrow = false
             ride(h, 1.5, push: 0)
             h.hs.spookCool = 0
             for k in [6, 8, 10, 11, 12] { g.sfx(.gun(k), 0.5, at: h.pos + V3(5, 1, 0)) }   // ricochet, alarm, radio, charge-up
             check(h.hs.rear == 0, "horse nerves: ricochets (the rider's own rounds), alarms, radios and charge-ups don't spook it")
-            check(heard, "horse nerves: a gunshot 4 blocks off (through its sound) makes it rear")
+            check(heard && used, "horse nerves: a gunshot 4 blocks off (through its sound) makes a level-3 horse rear (\(heard)), not a level-4 one (\(used))")
             check(!own && blast && cannon && monster, "horse nerves: rears at a blast \(blast), a cannon \(cannon), a monster beside it \(monster); not at the rider's own gunshot (\(own ? "reared" : "steady"))")
             // Throw odds by level: 40 frights each.
             func throwsOf(_ xp: Float, pat: Bool) -> Int {
@@ -389,6 +394,9 @@ enum HorseTests {
             check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down))
             g.riding = nil
         }
+        // The gap pass (HorseGapTests.swift): breeds, names, taming, fear, injury, the stable, calling, comfort, hooves.
+        gap(g, check, lane0: lane0, stripEnd: z1, horse: { horse(top: $0, xp: $1) }, mount: mount,
+            ride: { h, s, p, spur in ride(h, s, push: p, spurAt: spur, loop: true) })
         // Tidy: the strip goes.
         w.deferRemesh = true
         for z in z1...z0 { for x in sx - 3...sx + 3 { w.setBlock(x, Y, z, AIR) } }

@@ -371,6 +371,9 @@ final class Mob {
     var boostTotal: Float = 0
     var temper = 0                  // horse taming progress
     var horse: HorseState?          // ridden-horse gait, stamina and bond (HorseFeel.swift)
+    var breed = -1                  // HorseBreed (HorseLife.swift), saved; -1: inferred from the speed roll (older horses)
+    var downed: Float = 0           // s left for a downed horse of yours to be revived (HorseLife.swift), saved
+    var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
@@ -484,6 +487,7 @@ final class Mob {
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white
         if health <= 0 && kind != .enderDragon { return }
+        if downed > 0 { downedTick(dt, g); return }                 // an injured horse lies still (HorseLife.swift)
         if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
         faceGoal = nil
         strafe = 0
@@ -1274,6 +1278,7 @@ final class Mob {
     // Off for guns, blasts and scripted hits, which have their own rates.
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if kind == .warden && emergeTime > 0 { return }
+        if downed > 0 { return }                                    // a downed horse takes no more (HorseLife.swift)
         var damage = damage
         var knockback = knockback
         if iframes && damage > 0 {
@@ -2009,7 +2014,9 @@ final class MobManager {
                 let sp = MobVoice.stepInfo[m.kind.rawValue]
                 let moved: Float = sqrtf(dxm * dxm + dzm * dzm)
                 if moved < 1 && sp.walks { m.stepAcc += moved }
-                let stride: Float = sp.stride
+                // Hooves fall faster than a walker's steps, closer still at a gallop (HorseLife.hoof).
+                let hsp: Float = m.gaited ? sqrtf(m.vel.x * m.vel.x + m.vel.z * m.vel.z) : 0
+                let stride: Float = m.gaited ? (hsp < 3 ? 0.6 : (hsp < 9 ? 1.0 : 1.5)) : sp.stride
                 if m.stepAcc > stride {
                     m.stepAcc = 0
                     do {
@@ -2017,6 +2024,12 @@ final class MobManager {
                         if under != AIR {
                             let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
                             if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(Soldier.voice(r)), vol + 0.15, at: m.pos) }
+                            else if m.gaited {
+                                let feet = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y + 0.1)), Int(floor(m.pos.z)))
+                                let srf = Blocks.isLiquid(feet) ? 5 : HorseLife.surface(under)
+                                HorseLife.lastHoof = srf
+                                game.sfx(.hoof(srf), vol * (hsp > 9 ? 1.2 : 1), at: m.pos)
+                            }
                             else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
                         }
                     }
@@ -2068,6 +2081,11 @@ final class MobManager {
         // The wyrm never just vanishes: however its health ran out (potions, /kill, explosions) it plays its death
         // sequence, which opens the exit portal (Hollow.swift).
         for m in mobs where m.kind == .enderDragon && m.health <= 0 && m.health > -1000 { m.health = 1; m.phase = 6; m.phaseTime = 0 }
+        // A horse of yours goes down instead of dying: a reviver can still save it (HorseLife.swift).
+        // (one already down stays down whatever took its health: instant damage, a hull crushing it; only its own
+        // time running out kills it, downedTick)
+        for m in mobs where m.health <= 0 && m.downed > 0 { m.health = 1 }
+        for m in mobs where m.health <= 0 && m.canGoDown { m.goDown(game) }
         // Deaths: loot + XP, slime splitting.
         var spawned: [Mob] = []
         for m in mobs where m.health <= 0 {

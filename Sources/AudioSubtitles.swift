@@ -334,6 +334,7 @@ extension Snd {
             case .retreat: return "Soldier falls back"
             }
         case .soldierStep: return positional ? "Boots" : nil
+        case .hoof: return positional ? "Hooves" : nil
         }
     }
 }
