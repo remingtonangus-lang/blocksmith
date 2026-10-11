@@ -1,0 +1,8 @@
+Sources/Renderer.swift:915:17: warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 913 |         // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
+ 914 |         do {
+ 915 |             var verts: [SimpleVert] = []
+     |                 `- warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 916 |             let sd = game.sunDir
+ 917 |             let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+Built build/debug/Blocksmith.app (debug)

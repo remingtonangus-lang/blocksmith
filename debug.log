@@ -1,0 +1,15 @@
+rerun (debug build): fi
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "fi"
+(lldb) run
+2026-10-11 18:41:31.299630+0000 Blocksmith[21139:56574] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-11 18:41:31.302561+0000 Blocksmith[21139:56574] [StateRestoration] BOOL _NSPersistentUIDeleteItemAtFileURL(NSURL *const __strong) Failed to open directory URL for deletion: file:///Users/runner/Library/Saved%20Application%20State/com.remington.blocksmith.savedState/ restorecount.plist
+2026-10-11 18:41:34.492323+0000 Blocksmith[21139:56527] [vppu]         vpPlatformUtil.mm:312   Cannot retrieve theDeviceBoardID string...
+2026-10-11 18:41:34.803296+0000 Blocksmith[21139:56527] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x600003dcff40> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-11 18:42:14.019109+0000 Blocksmith[21139:57126] [AMCP] 134403          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-11 18:42:14.138277+0000 Blocksmith[21139:57126] [AMCP] 134403          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+2026-10-11 18:42:15.122890+0000 Blocksmith[21139:57126] [AMCP] 134403          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+textures: 1807 layers at 128 px, BC3, 37.7 MB with mips (build 96620 ms, upload 40859 ms)
+2026-10-11 18:44:33.248656+0000 Blocksmith[21139:57126] [AMCP] 134403          HALC_ProxyIOContext.cpp:1346  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+usb-gip: watching for wired Xbox (GIP) controllers: 045e, 0e6f, 0f0d, 10f5, 1532, 20d6, 24c6, 2dc8
