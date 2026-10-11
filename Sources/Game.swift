@@ -203,6 +203,7 @@ final class Game {
     var warningLevel = 0
     var shriekDecay = 600    // nightwings appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
+    var workshopChecked = false                 // the Sparkstone Workshop deck check has run (CircuitWorkshop.swift)
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
     var crossbowCharge: Float = 0
@@ -2512,6 +2513,7 @@ final class Game {
         spawnerTick(0.05)
         TickProf.mark("spawners")
         world.redstone.tick()
+        if !workshopChecked { workshopTick() }                // the Sparkstone Workshop world builds its deck once (CircuitWorkshop.swift)
         TickProf.mark("circuits")
         // (No minecart: an empty list, without building two arrays 20 times a second.)
         let carts: [V3] = mobs.mobs.contains { $0.kind == .minecart } ? mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos } : []

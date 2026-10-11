@@ -280,6 +280,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
             case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: self.game.smoothTerrain)
+            case "workshop": self.switchWorld(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
                 let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)

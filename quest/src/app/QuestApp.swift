@@ -200,6 +200,8 @@ final class QuestApp {
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: game?.smoothTerrain))
+        case "workshop":
+            switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1))
         case _ where id.hasPrefix("create:"):
             // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
             let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)

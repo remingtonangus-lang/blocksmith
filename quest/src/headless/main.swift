@@ -67,6 +67,11 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
+CircuitWorkshopTests.run(game, check: check)
+if CommandLine.arguments.contains("--workshop-only") {
+    print(failures == 0 ? "workshop: all checks passed" : "workshop: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
 if CommandLine.arguments.contains("--capitals-only") {
     TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check)
@@ -333,6 +338,35 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         TreeTest.run(check: check)
         if let shots = arg("--tree-shots") { try TreeShots.run(game: game, ctx: ctx, dir: shots) }
         MobAnimTest.run(game: game, check: check)
+        // --workshop-shots DIR: the Sparkstone Workshop deck from its walkway (CircuitWorkshop.swift), built east of
+        // the spawn, run a few seconds so the clocks tick and the door shuts, then cleared.
+        if let dir = arg("--workshop-shots") {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let saved = (game.player.pos, game.player.flying, game.time)
+            let x0 = Int(spawn.x) + 160, z0 = Int(spawn.z)
+            _ = world.loadSync(center: V3(Float(x0 + CircuitWorkshop.deckLength / 2), spawn.y, Float(z0)), radius: 5)
+            var top = SEA
+            for x in stride(from: 0, through: CircuitWorkshop.deckLength, by: 4) { top = max(top, world.topY(x0 + x, z0)) }
+            let o = IVec3(x0, min(CH - 12, top + 12), z0)
+            let at = CircuitWorkshop.build(world, at: o)
+            for _ in 0..<70 { world.redstone.tick() }
+            game.player.flying = true
+            game.time = 0.27 * DAY_LENGTH
+            let views: [(String, V3, Float, Float)] = [
+                ("workshop_walkway", V3(Float(o.x) - 3, Float(o.y) + 2.5, Float(o.z) - 3), -1.9, -0.3),
+                ("workshop_door", V3(Float(at["piston_door"]!.x) + 5.5, Float(o.y) + 1.2, Float(o.z) - 5), .pi, -0.08),
+                ("workshop_sorter", V3(Float(at["hopper_sorter"]!.x) + 6, Float(o.y) + 4, Float(o.z) - 4), 2.55, -0.35),
+            ]
+            for (name, p, yaw, pitch) in views {
+                game.player.pos = p
+                _ = world.loadSync(center: p, radius: 5)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/\(name).png", yaw: yaw, pitch: pitch)
+                print("workshop: \(dir)/\(name).png")
+            }
+            CircuitWorkshop.clear(world, at: o)
+            (game.player.pos, game.player.flying, game.time) = saved
+            _ = world.loadSync(center: game.player.pos, radius: 6)
+        }
         if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)

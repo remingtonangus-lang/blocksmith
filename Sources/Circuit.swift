@@ -29,6 +29,9 @@ final class Circuit {
     private var pressedAt: [IVec3: Int] = [:]        // plates and detector rails: last tick something was on them
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
     private var hopperCooldown: [IVec3: Int] = [:]
+    // A hopper that was empty and just had an item put in waits a full transfer before passing it on (reference): a
+    // filter hopper under it gets the first pull (hopper sorters).
+    func hopperReceived(_ p: IVec3) { hopperCooldown[p] = 8 }
     private var busy = false
     private var condLevel: [IVec3: Int] = [:]         // conducting components: last block power (wake neighbours on change)
     private var lecternOn = Set<IVec3>()              // lecterns giving their page-turn pulse
@@ -388,8 +391,10 @@ final class Circuit {
         if !scheduled.isEmpty {
             let due = scheduled.filter { $0.at <= now }
             scheduled.removeAll { $0.at <= now }
-            for e in due { scheduledSet.remove(e.p) }
-            for e in due { fire(e.p) }
+            // Each one leaves the schedule as it fires, not all first: one firing earlier in the tick that touches a
+            // component already due (an observer clock's partner) must not schedule it again (reference: a block with
+            // a tick pending ignores the update). Order: as scheduled.
+            for e in due { scheduledSet.remove(e.p); fire(e.p) }
         }
         // First in, first out by a read index (removeFirst() moved the whole queue each time: quadratic in a big
         // circuit's 20,000 updates); updates may append more, which this tick still reaches up to the cap.
@@ -585,8 +590,10 @@ final class Circuit {
             mark(front); wakeAround(front)
         case .observer:
             if s < 6 {
-                setQuiet(p, base(b) + BlockID(s + 6))
+                // Its own turn-off first, then the change its watchers see (reference order: in an observer clock the
+                // partner's tick lands after this one's, so each sees the other's every change: on 2 of every 4 ticks).
                 schedule(p, 2)
+                setQuiet(p, base(b) + BlockID(s + 6))
             } else {
                 setQuiet(p, base(b) + BlockID(s - 6))
             }
@@ -696,6 +703,7 @@ final class Circuit {
             case "cake": return (7 - off) * 2                                   // slices left x 2
             case "end_portal_frame": return off > 0 ? 15 : 0                    // with an eye
             case "respawn_anchor": return off * 15 / 4                          // 0, 3, 7, 11, 15
+            case _ where k.hasSuffix("copper_bulb"): return off == 1 ? 15 : 0     // lit (the bulb T flip-flop's output)
             case "jukebox":                                                     // the disc's number while one is in
                 guard let j = game?.jukeboxes.first(where: { $0.pos == q }) else { return 0 }
                 return Circuit.discSignal[j.disc.replacingOccurrences(of: "music_disc_", with: "")] ?? 1
@@ -875,6 +883,7 @@ final class Circuit {
             if move(from: p + Circuit.D[face], dir: face, push: true, piston: p) {
                 setQuiet(p, base(b) + BlockID(face + 6))
                 setQuiet(p + Circuit.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
+                wakeAround(p)
                 game?.sfx(.pistonExtend, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 wakeAround(p + Circuit.D[face] + Circuit.D[face])
             }
@@ -882,6 +891,7 @@ final class Circuit {
             let head = p + Circuit.D[face]
             if Circuit.kind(block(head)) == .pistonHead { setQuiet(head, AIR) }
             setQuiet(p, base(b) + BlockID(face))
+            wakeAround(p)                                    // its neighbours see it change (a quasi-powered piston below retracts too)
             if sticky {
                 let q = head + Circuit.D[face]
                 let qb = block(q)
