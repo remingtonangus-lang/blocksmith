@@ -39,6 +39,14 @@ enum TownLaw {
         var honourGains: [String: Float]? = nil
         var bounty: [String: Int]? = nil
         var bountyDay: [String: Int]? = nil
+        // The gap pass (docs/status/cloud-gap-pass.md): every honour change ("day|amount|why", newest last, capped),
+        // each town's notice-board jobs, the day bounty hunters last rode, the towns that already gave you a gift
+        // today ("day:town") and your name as townsfolk say it.
+        var honourLog: [String]? = nil
+        var jobs: [String: TownJob]? = nil
+        var huntersDay: Int? = nil
+        var gifts: [String]? = nil
+        var playerName: String? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -59,6 +67,7 @@ enum TownLaw {
     static func reset() {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
+        Honour.lastWhy = ""; Honour.outlawSpotted = nil
         offences = 0; lastTick = -1
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
@@ -242,7 +251,8 @@ enum TownLaw {
         guard g.dim.dim == .overworld, g.survival else { return }      // creative: no theft, no warnings
         var ws = witnesses(g, at: p)
         if let v = victim, !ws.contains(where: { $0 === v }) { ws.insert(v, at: 0) }
-        guard let first = ws.first else { return }
+        // Unseen, it still costs honour (a third of what a witness would make it): stealing is stealing.
+        guard let first = ws.first else { Honour.unseenTheft(g, 0.5 * add); return }
         let town = town(of: first, g)
         let h = heat(town) + add
         state.heat[town] = h
@@ -325,6 +335,8 @@ enum TownLaw {
         }
         // Which town the player is in.
         guard g.dim.dim == .overworld, g.alive else { inTown = nil; return }
+        TownBoard.tick(g)
+        BountyHunters.tick(g)
         var nearest: Mob?
         var nd: Float = 48
         var sheriffs: [String: [Mob]] = [:]
@@ -334,15 +346,18 @@ enum TownLaw {
             if o.villager?.role == "sheriff" { sheriffs[town(of: o, g), default: []].append(o) }
         }
         oneSheriff(g, sheriffs)
-        guard let near = nearest else { inTown = nil; Honour.tick(g, town: nil); return }
+        guard let near = nearest else { inTown = nil; Honour.tick(g, town: nil); TownBoard.posters(g, town: nil); return }
         let here = town(of: near, g)
         inTown = here
+        TownBoard.posters(g, town: here)
         Honour.tick(g, town: here)
         let day = Int(g.time / DAY_LENGTH)
         if sheriffs[here] != nil { state.appointed[here] = day }
         else if day - (state.appointed[here] ?? -99) >= 3, squareLoaded(g, near) {
             appointSheriff(g, here, near: near)
         }
+        // Outlaws are fought on sight (Honour.outlawSeen); the WANTED boards show your poster; outlaws from jobs.
+        if g.survival && Honour.isOutlaw && !isHostile(here) { Honour.outlawSeen(g, here) }
         // A hostile town keeps its armed folk on you while you're about.
         if isHostile(here) {
             for o in g.mobs.mobs where isTownsperson(o) && o.townWeapon != .none && !o.baby && simd_length(o.pos - g.player.pos) < 32 {
@@ -429,6 +444,7 @@ enum TownLaw {
     // The sheriff's role (Townsfolk.setup with the "sheriff" tag): a man's name, so his voice fits.
     static func deputize(_ v: inout VillagerData) {
         v.role = "sheriff"; v.locked = true; v.profession = "none"
+        if v.revolver == nil { v.revolver = Honour.rollRevolver(Rand.float(in: 0..<1)) }
         if Townsfolk.isWoman(v), let p = v.person {
             let men = Townsfolk.firstNames.filter { !Townsfolk.women.contains($0) }
             let last = p.split(separator: " ").last.map(String.init) ?? "Hale"
@@ -446,6 +462,7 @@ enum TownLaw {
         g.particles.smoke(at: muzzle)
         guard g.world.canSee(muzzle, target) else { return }
         let d = simd_length(target - muzzle)
+        // (Only the few who carry the Sheriff's Revolver shoot: Honour.carriesRevolver, Townsfolk.weapon.)
         let chance: Float = d < 6 ? 0.85 : 0.7
         guard Rand.float(in: 0..<1) < chance else {
             if foe == nil { g.sfx(.bulletWhizz, 0.8, at: g.player.eye) }
@@ -479,6 +496,7 @@ extension Game {
     // only for a voice without one).
     func townGreet(_ m: Mob, _ v: VillagerData) {
         if TownLaw.isHostile(self, m) || v.reputation <= -60 { TownVoice.speak(self, m, .angry); return }
+        if Honour.greet(self, m, v) { return }          // the standing's own words: warnings, tips, gifts, your name
         let ctx: TownVoice.Ctx = raid != nil ? .raid : dayFraction > 0.5 ? .night : (Rand.float(in: 0..<1) < 0.55 ? .greet : .chatter)
         if TownVoice.speak(self, m, ctx) == nil { Townsfolk.say(self, m, Townsfolk.greeting(v, self)) }
     }

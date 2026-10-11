@@ -50,6 +50,7 @@ struct VillagerData: Codable {
     var shop: String? = nil              // ShopKind raw value
     var stock: [Int]? = nil              // per catalogue entry, refilled daily
     var stockDay: Int? = nil
+    var revolver: Bool? = nil            // a sheriff carrying the Sheriff's Revolver (Honour.carriesRevolver; nil: not rolled yet)
 }
 
 enum Villagers {

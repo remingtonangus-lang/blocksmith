@@ -73,3 +73,24 @@ Structures.swift + World.swift (structure-guard-frontier.txt), HudExtras.swift, 
   office's cell door was reachable only diagonally (the shelf moved out of the way).
 - Known: the boardwalk posts stand on the street's edge column, narrowing a 3-wide street to 2 at each post (by
   design: the boardwalk is the street's edge). The house turned into the office loses its resident.
+
+## Gap pass (2026-10-11, docs/status/cloud-gap-pass.md area H)
+Built what the expanded objectives asked for and #19 left out; checked by HonourGapTests (part of TownTests):
+- **Log + meter**: every change is logged ("day|amount|why", last 60, saved; TownLaw.Saved.honourLog). The HUD meter
+  swells and brightens for 0.8 s on a change, with a chime (up) or a knell (down), and shows the reason under it.
+- **Theft**: unseen theft now costs a third of a witnessed one (0.5 a point of heat).
+- **Deeds**: fair trades +0.5 (3 a day); jobs and donations (below); protecting towns as before.
+- **Tiers**: Outlaw: refused service in every town, fought on sight (the first to see you cries out, 3 s later the
+  armed attack and the rest run), hunted in the wild (bounty hunters); surrender to any sheriff or deputy for a $10
+  fine (plus bounties) to drop back to Disreputable. Disreputable: warned off when greeted. Respected: tips about a
+  place nearby ("Word is there's an outlaw camp about 300 blocks north-west of here"), greeted by name. Honourable:
+  a gift once per town per day.
+- **Notice board** (TownBoard.swift; the WANTED board in the sheriff's office, or talking to the law when you owe
+  nothing): honour, wanted posters, two jobs a day per town (deliveries paid between shop sell and buy prices, hunts
+  near town, a named outlaw with his gang to bring in), a $1 donation (+2 honour, 6 a day), and your name (picked from
+  a list: VR friendly, no keyboard).
+- **Posters**: a town's WANTED boards show your own poster while you're wanted there or an outlaw.
+- **Bounty hunters** (BountyHunters.swift): outlaws or $25+ in bounties, out in the wild: a posse of 2-3 once a day.
+- **Sheriff's Revolver**: now 5% of sheriffs *carry* it (rolled once, saved; they shoot straighter and harder with it,
+  say so when greeted, and always drop it), as the brief says; before it was a 5% drop from any sheriff.
+- New list screen (ListMenu.swift, the shop's look) reused by the board and later screens.

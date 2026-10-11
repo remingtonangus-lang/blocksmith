@@ -9,6 +9,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=build/quest-linux; GEN=build/quest-gen; mkdir -p "$OUT" "$GEN"
 MODE="${1:-typecheck}"
+# IP: no flagged coined names (UNSC, MAC, ...; tools/coined-terms.txt) in player-visible strings (docs/status/ip-renames.md).
+python3 tools/namecheck.py --coined
 OPT="${QUEST_OPT:--Onone}"
 python3 quest/tools/extract_hud.py "$GEN/HudGenerated.swift" >/dev/null
 python3 quest/tools/shaders.py "$GEN/QuestSPIRV.swift" >/dev/null

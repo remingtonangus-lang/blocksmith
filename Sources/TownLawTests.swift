@@ -325,9 +325,10 @@ extension TownTests {
         for i in 0..<12 {
             guard let m = Mob.structureMob("villager:sheriff", at: g.player.pos + V3(Float(i) * 7.3, 0, Float(i) * 3.1)) else { continue }
             n += 1
-            if m.villager?.role == "sheriff" && m.townWeapon == .revolver && !Townsfolk.isWoman(m.villager) && TownVoice.voice(m) == "sheriff" { men += 1 }
+            // (the ~5% who rolled the Sheriff's Revolver carry it; the rest a sword, like the deputies)
+            if m.villager?.role == "sheriff" && m.townWeapon == (m.villager?.revolver == true ? .revolver : .sword) && !Townsfolk.isWoman(m.villager) && TownVoice.voice(m) == "sheriff" { men += 1 }
         }
-        check(n == 12 && men == 12, "sheriff: \(men)/\(n) structure sheriffs carry a revolver, have a man's name and the sheriff's voice")
+        check(n == 12 && men == 12, "sheriff: \(men)/\(n) structure sheriffs carry their weapon (the revolver only if rolled), have a man's name and the sheriff's voice")
         let parts = Mob.structureMob("villager:sheriff", at: g.player.pos).map { townsfolkParts($0, swing: 0).filter { $0.mn.x.isFinite && $0.mx.y.isFinite }.count } ?? 0
         check(parts >= 30, "sheriff: the model builds (\(parts) parts, star and hat)")
         // Townsfolk no longer summon golems. On dry ground at the spawn (earlier checks in the full questcheck left the
@@ -377,6 +378,7 @@ extension TownTests {
             s.pos = base + V3(6, 0, 0); s.home = s.pos
             g.player.pos = base
             g.mobs.mobs = [s]
+            if var v = s.villager { v.revolver = true; s.villager = v }        // one of the few with the gun
             s.town.anger = 30
             for _ in 0..<200 { s.update(0.05, game: g); if g.health < 20 { break } }
             check(g.health < 20, "sheriff: shoots an outlaw player (health \(g.health))")
