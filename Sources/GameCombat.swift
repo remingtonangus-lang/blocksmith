@@ -192,7 +192,7 @@ extension Game {
 
     func bobberTick(_ dt: Float) {
         guard let b = bobber else { return }
-        if Items.key(held.item) != "fishing_rod" || simd_length(b.pos - player.pos) > 32 { bobber = nil; return }
+        if Items.key(held.item) != "fishing_rod" || (b.fight == nil && simd_length(b.pos - player.pos) > 32) { bobber = nil; return }
         let cell = world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z)))
         b.inWater = Blocks.fluidKind[Int(cell)] == 1
         if let f = b.fight { fishFightTick(b, f, dt); return }

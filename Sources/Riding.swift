@@ -23,7 +23,7 @@ extension Game {
             } else { particles.smoke(at: pos) }
         }
         switch m.kind {
-        case .wolf where !m.tamed && key == "bone": tameTry(); return true
+        case .wolf where !m.tamed && m.legend < 0 && key == "bone": tameTry(); return true
         case .nautilus where !m.tamed && key == "pufferfish": tameTry(); return true
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
         case .ocelot where m.owner == nil && (key == "cod" || key == "salmon"):         // trusting ocelots breed on fish

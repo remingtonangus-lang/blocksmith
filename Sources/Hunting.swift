@@ -164,9 +164,10 @@ enum Hunting {
 
     // MARK: Bodies
 
-    struct Body { let mob: Mob; let quality: Int; let legend: Int; let until: Double }
+    struct Body { let mob: Mob; let quality: Int; let legend: Int; let until: Double; let dim: Dim }
     static var bodies: [Body] = []
-    static var bodyMobs: [Mob] = []                    // the same mobs, for the renderer (no array built per frame)
+    static var bodyMobs: [Mob] = []                    // those in this dimension, for the renderer (no array built per frame)
+    static func refresh(_ g: Game) { bodyMobs = bodies.filter { $0.dim == g.world.dim }.map { $0.mob } }
     static var skinned = 0, carcasses = 0, legendsKilled = 0       // counters (HuntingTests)
 
     // Game.mobDied: a game animal you killed leaves its body (no loot yet). True when it did.
@@ -187,21 +188,20 @@ enum Hunting {
         for _ in 0..<24 where !Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] && y > 1 { y -= 1 }
         b.pos.y = Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] ? floor(y - 0.05) + 1 : y
         if m.legend >= 0 {
-            legendsKilled += 1
-            state.killed.insert(Int(m.legend))
+            legendsKilled += 1                               // gone for good once skinned (or its body's loot dropped)
             g.onToast?("You brought down \(legends[Int(m.legend)].name)")
             g.sfx(.goatHorn, 0.6, at: m.pos)
         }
         if bodies.count >= maxBodies { bodies.removeFirst() }
-        bodies.append(Body(mob: b, quality: q, legend: Int(m.legend), until: g.clock + bodyTime))
-        bodyMobs = bodies.map { $0.mob }
+        bodies.append(Body(mob: b, quality: q, legend: Int(m.legend), until: g.clock + bodyTime, dim: g.world.dim))
+        refresh(g)
         carcasses += 1
         return true
     }
 
     static func body(_ g: Game, under eye: V3, _ look: V3, reach: Float = 3.5) -> Int? {
         var best: Int?, bestT = reach
-        for (i, b) in bodies.enumerated() {
+        for (i, b) in bodies.enumerated() where b.dim == g.world.dim {
             let m = b.mob
             // Lying on its side: as wide as it is tall.
             let r = max(m.halfW, m.height * 0.5) + 0.15
@@ -212,9 +212,12 @@ enum Hunting {
     }
 
     // Skinning: hold use on a body. Progress is per body; looking away or letting go resets it.
-    static var skinning: ObjectIdentifier?
-    static var skinProgress: Float = 0
-    static var skinNeed: Float = 1
+    // Per seat (split-screen co-op skins on each side).
+    static var skinningBy: [ObjectIdentifier?] = [nil, nil]
+    static var progressBy: [Float] = [0, 0]
+    static var needBy: [Float] = [1, 1]
+    static func seat(_ g: Game) -> Int { g.coop.active ? min(1, max(0, g.coop.current)) : 0 }
+    static var skinProgress: Float { progressBy[0] }
 
     // What a skinned body gives.
     static func yield(_ b: Body) -> [ItemStack] {
@@ -238,10 +241,22 @@ enum Hunting {
     static func tick(_ g: Game) {
         guard g.clock - lastTick >= 1 else { return }
         lastTick = g.clock
+        // A world of its own: a new world starts clean (a saved one loads its state in Game.loadExtra).
+        if state.seed == nil { state.seed = g.world.seed } else if state.seed != g.world.seed { reset(); state.seed = g.world.seed }
         let p = g.player.pos
-        let before = bodies.count
-        bodies.removeAll { $0.until < g.clock || simd_length($0.mob.pos - p) > 96 }
-        if bodies.count != before { bodyMobs = bodies.map { $0.mob } }
+        // Bodies go after 3 minutes, or once you're 160 blocks off, in their own dimension. A legend's body leaves its
+        // pelt and trophy on the ground rather than vanish (a legend is gone for good once its loot is out).
+        var gone: [Body] = []
+        bodies.removeAll { b in
+            let out = b.dim == g.world.dim && (b.until < g.clock || simd_length(b.mob.pos - p) > 160)
+            if out { gone.append(b) }
+            return out
+        }
+        for b in gone where b.legend >= 0 {
+            for s in yield(b) { g.drops.spawn(s, at: b.mob.pos + V3(0, 0.5, 0)) }
+            state.killed.insert(b.legend)
+        }
+        refresh(g)
         guard g.world.dim == .overworld else { return }
         legendTick(g)
     }
@@ -254,6 +269,7 @@ enum Hunting {
         var dens: [[Int]]? = nil
         var records: [String: Float] = [:]           // heaviest fish per species, lb
         var caught: [String: Int]? = nil            // fish landed per species
+        var seed: UInt64? = nil                     // the world it belongs to
     }
     static var state = Saved()
     static func save(_ d: inout [String: String]) {
@@ -264,7 +280,7 @@ enum Hunting {
         if let s = d["hunting"], let data = s.data(using: .utf8), let st = try? JSONDecoder().decode(Saved.self, from: data) { state = st }
     }
     static func reset() {
-        state = Saved(); bodies = []; bodyMobs = []; skinning = nil; skinProgress = 0; lastTick = -10
+        state = Saved(); bodies = []; bodyMobs = []; skinningBy = [nil, nil]; progressBy = [0, 0]; lastTick = -10
         denCache = nil; denSeed = nil; Fishing.reset()
     }
 
@@ -307,7 +323,7 @@ enum Hunting {
     static func legendTick(_ g: Game) {
         let p = g.player.pos
         let d = dens(g)
-        for (i, l) in legends.enumerated() where !state.killed.contains(i) {
+        for (i, l) in legends.enumerated() where !state.killed.contains(i) && !bodies.contains(where: { $0.legend == i }) {
             let den = d[i]
             let dx = Float(den.x) + 0.5 - p.x, dz = Float(den.z) + 0.5 - p.z
             let far = dx * dx + dz * dz
@@ -346,6 +362,7 @@ enum Hunting {
 
     // A Hunter's Map: marks the next legend's den you haven't been shown (and haven't killed).
     static func readMap(_ g: Game) -> Bool {
+        guard g.world.dim == .overworld else { g.onToast?("This map only charts the land above"); return false }
         let d = dens(g)
         guard let i = legends.indices.first(where: { !state.revealed.contains($0) && !state.killed.contains($0) }) else {
             g.onToast?("This map shows nothing you haven't hunted"); return false
@@ -397,17 +414,11 @@ enum Hunting {
     }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, !Turrets.shared.active, !WeaponWheel.shared.open,
-              Tutorial.ownSeat(g) else { return [] }
+        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, !Turrets.shared.active, !WeaponWheel.shared.open else { return [] }
         let s = L.s
         var out: [HudLine] = []
-        // Skinning progress, or the fish fight, take the line's place.
-        if let t = skinLine() ?? Fishing.line(g) {
-            let w = Float(Font.width(t.0)) * s
-            out.append(HudLine(text: t.0, x: (L.W - w) / 2, y: L.H / 2 + 56 * s, scale: s, color: t.1, bg: V4(0, 0, 0, 0.5)))
-            return out
-        }
-        guard let m = current(g) else { return [] }
+        if let a = actionLines(g, L) { return a }
+        guard Tutorial.ownSeat(g), let m = current(g) else { return [] }
         let t = describe(m)
         let w = Float(Font.width(t)) * s
         let q = quality(m)
@@ -416,9 +427,17 @@ enum Hunting {
         return out
     }
 
-    static func skinLine() -> (String, V4)? {
-        guard skinning != nil, skinProgress > 0 else { return nil }
-        let n = 10, f = Int(min(1, skinProgress / max(0.1, skinNeed)) * Float(n))
+    // Skinning progress or the fish fight (any seat), in the line's place; ahead of a townsperson's glance.
+    static func actionLines(_ g: Game, _ L: HudLayout) -> [HudLine]? {
+        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, let t = skinLine(g) ?? Fishing.line(g) else { return nil }
+        let s = L.s, w = Float(Font.width(t.0)) * s
+        return [HudLine(text: t.0, x: (L.W - w) / 2, y: L.H / 2 + 56 * s, scale: s, color: t.1, bg: V4(0, 0, 0, 0.5))]
+    }
+
+    static func skinLine(_ g: Game) -> (String, V4)? {
+        let i = seat(g)
+        guard skinningBy[i] != nil, progressBy[i] > 0 else { return nil }
+        let n = 10, f = Int(min(1, progressBy[i] / max(0.1, needBy[i])) * Float(n))
         return ("Skinning " + String(repeating: "|", count: f) + String(repeating: ".", count: n - f), V4(0.95, 0.85, 0.75, 1))
     }
 }
@@ -494,32 +513,28 @@ extension String {
 extension Game {
     // Holding use on a body you're aiming at skins it (before guns, which also take the use button to aim).
     func skinUse(_ useHeld: Bool, _ dt: Float) -> Bool {
-        guard useHeld, !Hunting.bodies.isEmpty, let i = Hunting.body(self, under: player.eye, player.look) else {
-            Hunting.skinning = nil; Hunting.skinProgress = 0
-            return false
-        }
+        let seat = Hunting.seat(self)
+        func stop() -> Bool { Hunting.skinningBy[seat] = nil; Hunting.progressBy[seat] = 0; return false }
+        guard useHeld, !Hunting.bodies.isEmpty, let i = Hunting.body(self, under: player.eye, player.look) else { return stop() }
         let b = Hunting.bodies[i]
         // A block in the way (aiming past the body at a wall) wins only when it's nearer.
         if let t = target, let bt = World.rayBox(player.eye, player.look, b.mob.pos - V3(1, 0, 1), b.mob.pos + V3(1, 1, 1)),
-           simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) + 0.5 < bt.0 {
-            Hunting.skinning = nil; Hunting.skinProgress = 0
-            return false
-        }
+           simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) + 0.5 < bt.0 { return stop() }
         let id = ObjectIdentifier(b.mob)
-        if Hunting.skinning != id {
-            Hunting.skinning = id; Hunting.skinProgress = 0
-            Hunting.skinNeed = Hunting.animal(b.mob.kind)?.skinTime ?? 1
-            if b.legend >= 0 { Hunting.skinNeed = 2.4 }
+        if Hunting.skinningBy[seat] != id {
+            Hunting.skinningBy[seat] = id; Hunting.progressBy[seat] = 0
+            Hunting.needBy[seat] = b.legend >= 0 ? 2.4 : (Hunting.animal(b.mob.kind)?.skinTime ?? 1)
         }
-        let before = Hunting.skinProgress
-        Hunting.skinProgress += dt
+        let before = Hunting.progressBy[seat]
+        Hunting.progressBy[seat] += dt
+        let progress = Hunting.progressBy[seat]
         swing = max(swing, 0.6)
-        if Int(before / 0.3) != Int(Hunting.skinProgress / 0.3) {
+        if Int(before / 0.3) != Int(progress / 0.3) {
             sfx(.shearsSnip, 0.5, at: b.mob.pos)
             particles.crit(at: b.mob.pos + V3(0, 0.3, 0))
             PadManager.shared.rumble(0.15, 0.05)
         }
-        guard Hunting.skinProgress >= Hunting.skinNeed else { return true }
+        guard progress >= Hunting.needBy[seat] else { return true }
         // Done: the pelt, meat and any trophy go to your pack (what doesn't fit drops at your feet).
         let got = Hunting.yield(b)
         for s in got {
@@ -529,9 +544,10 @@ extension Game {
         if let p = got.first { onToast?("Skinned: \(p.displayName)") }
         sfx(.pickup, 0.6)
         Hunting.bodies.remove(at: i)
-        Hunting.bodyMobs = Hunting.bodies.map { $0.mob }
+        Hunting.refresh(self)
+        if b.legend >= 0 { Hunting.state.killed.insert(b.legend) }
         Hunting.skinned += 1
-        Hunting.skinning = nil; Hunting.skinProgress = 0
+        _ = stop()
         achieve("skin")
         return true
     }

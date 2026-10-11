@@ -139,7 +139,7 @@ extension Game {
     // Per frame while a fish is on (bobberTick). Moves the bobber with the fish and ends the fight.
     func fishFightTick(_ b: Bobber, _ f: Fishing.Fight, _ dt: Float) {
         let wasRunning = f.run > 0
-        let r = Fishing.step(f, reel: Fishing.reeling, dt: dt)
+        let r = Fishing.step(f, reel: Fishing.reeling && menu == nil, dt: dt)
         var at = player.pos + f.dir * f.line
         at.y = b.pos.y
         b.pos = at

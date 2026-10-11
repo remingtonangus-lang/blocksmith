@@ -305,6 +305,7 @@ enum Tutorial {
 enum HudExtras {
     // The line under the crosshair: a townsperson's glance, else hunting (studying game, skinning, a fish fight).
     static func glanceLines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        if let a = Hunting.actionLines(g, L) { return a }
         let t = TownStatsHUD.lines(g, L)
         return t.isEmpty ? Hunting.lines(g, L) : t
     }

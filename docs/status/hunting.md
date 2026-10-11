@@ -71,3 +71,34 @@ pelts; legendary animals with map clues and unique pelts; fishing with species, 
 - The butcher is the trapper: every town already has one, so no new shop kind and no town-generation change.
 - Arrows hitting after you switch weapons count as the weapon in hand when they land (the hit hook sees the held
   item).
+
+## Checks
+`questcheck --towns-only` (part of the full questcheck), HuntingTests via TownTests.run:
+- items and prices: poor < good < perfect < legendary, and the butcher buys them all;
+- the quality roll (30/50/20);
+- the weapon-fit table;
+- clean kills: an arrow keeps a perfect fox; a shotgun, a sword, a sprayed rifle and no hit of yours each cost
+  quality, while 2 Farsight rounds keep a perfect bear; tamed and baby animals aren't game;
+- the body drawn on its side, resting on the ground;
+- skinning by holding use (timing, yield, letting go resets);
+- sale prices, the fur and satchel recipes with their tag, satchel room and the fur look;
+- the study line after a steady aim;
+- legendary dens (seeded, distinct, 300-2000 blocks out), the Hunter's Map, a legend's stats and loot, save round
+  trips;
+- fishing: species by water, weights, and bot anglers. One who eases off lands a big pike, one who reels non-stop
+  snaps it, an idle one loses it, and a small perch reels straight in.
+- a hooked fish fought on the real rod until it comes in.
+
+## Verifier pass (independent Opus subagent, 2026-10-11) and what changed
+- Blocker fixed (VR): with a bow in hand the left trigger was taken by the bow's nock, so a bow hunter couldn't skin;
+  aimed at a body, the trigger now skins (QuestControls).
+- Fixed:
+  - Skinning state is per co-op seat, so the other seat no longer resets it. The skinning and fish-fight lines show
+    for either seat, ahead of a townsperson's glance.
+  - A legend counts as gone only once it's skinned or its body's loot drops. A legend body left to rot drops its pelt
+    and trophy instead of vanishing. Bodies last until you're 160 blocks off (was 96, closer than a Farsight shot).
+  - Bodies belong to their dimension. A new world drops the old world's hunting state (it carries its seed).
+  - A Hunter's Map read away from the surface world does nothing.
+  - Legends can't be tamed.
+  - A fish fight near full line no longer ends silently.
+- Noted: the spear counts as a clean weapon on medium game (a default, beside the listed tools).

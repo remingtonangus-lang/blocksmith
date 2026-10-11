@@ -91,6 +91,7 @@ extension TownTests {
         g.player.pos = base + V3(0, 0, 0)
         g.target = nil
         let body = Hunting.bodies[0].mob
+        body.pos = base + V3(0, 0, -2.5)                     // level with you, whatever the ground does there
         let to = simd_normalize(body.pos + V3(0, 0.2, 0) - g.player.eye)
         g.player.yaw = atan2f(-to.x, -to.z); g.player.pitch = asinf(to.y)
         let aimed = Hunting.body(g, under: g.player.eye, g.player.look) != nil
@@ -103,7 +104,8 @@ extension TownTests {
         let good = Items.id(Hunting.peltKey(Hunting.animals[2], 2))
         let gotPelt = g.inventory.main.countOf(good) == 1, gotMeat = g.inventory.main.countOf(Items.id("game_meat")) == 2
         check(aimed && started && released && Hunting.bodies.isEmpty && gotPelt && gotMeat && abs(progress - 1.2) < 0.25,
-              String(format: "hunting: holding use on a wolf's body skins it in %.1f s (a Good Wolf Pelt and 2 game meat); letting go starts over", progress))
+              String(format: "hunting: holding use on a wolf's body skins it in %.1f s (a Good Wolf Pelt and 2 game meat); letting go starts over", progress)
+              + (aimed && started && released ? "" : " [aimed \(aimed), started \(started), released \(released)]"))
 
         // Selling and crafting.
         let p = ShopPricing(reputation: 0, hero: 0, honour: 0)
@@ -155,6 +157,13 @@ extension TownTests {
         hold("gun_shotgun"); ash.provoke(g); ash.killedByPlayer = true
         _ = Hunting.died(g, ash)
         let loot = Hunting.bodies.first.map { Hunting.yield($0) } ?? []
+        let notYet = !Hunting.state.killed.contains(0)
+        // Left unskinned, the body's time runs out: its pelt and trophy drop where it lay, and the legend is gone for good.
+        if let b = Hunting.bodies.first { Hunting.bodies = [Hunting.Body(mob: b.mob, quality: 3, legend: 0, until: g.clock - 1, dim: b.dim)] }
+        let drops0 = g.drops.items.count
+        Hunting.lastTick = -10; Hunting.state.seed = g.world.seed
+        Hunting.tick(g)
+        check(notYet && Hunting.bodies.isEmpty && g.drops.items.count >= drops0 + 2, "hunting: a legend's body left to rot drops its pelt and trophy (\(g.drops.items.count - drops0) items)")
         check(Hunting.state.killed.contains(0) && loot.contains { Items.key($0.item) == "legend_pelt_wolf" } && loot.contains { Items.key($0.item) == "ashen_fang" },
               "hunting: a legend always gives its pelt and trophy (\(loot.map { $0.displayName }.joined(separator: ", "))) and stays dead")
         var d: [String: String] = [:]
@@ -163,6 +172,11 @@ extension TownTests {
         Hunting.load(d)
         check(Hunting.state.killed == [0] && Hunting.state.revealed == [0, 1] && Hunting.state.records["pike"] == 12.5 && Hunting.load0(),
               "hunting: legends, revealed dens and fish records survive a save")
+        let keep = Hunting.state
+        Hunting.state.seed = g.world.seed &+ 1; Hunting.lastTick = -10
+        Hunting.tick(g)
+        check(Hunting.state.killed.isEmpty && Hunting.state.seed == g.world.seed, "hunting: another world's hunting state is dropped in a new world")
+        Hunting.state = keep
         let rec = animal(.goat, 3).record
         check(Mob.from(rec)?.peltQ == 3, "hunting: an animal's quality is saved with it")
 
