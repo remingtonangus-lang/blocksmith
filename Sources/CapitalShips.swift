@@ -854,6 +854,7 @@ extension ShipManager {
                     }
                 }
             }
+            driveGlow(s, st, pd, dt, g)
             if st.crewDone.count < st.crew.count && pd < 96 {
                 // The crew aboard: soldiers of the ship's faction at their posts (they ride the hull and fight as
                 // soldiers). Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull
@@ -1082,9 +1083,37 @@ extension ShipManager {
         s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 2), 0)
         levelUp(s, dt)
         st.target = nil
+        driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // The drive's glow (done audit 25b6, G8: "thrusters read as two small points at night"): a soft blue-white sprite
+    // over each nozzle as wide as the nozzle, growing with distance so the stern still reads as engines a few hundred
+    // blocks off (a fixed-size face shrinks to a dot), and the nozzles' light on the hull near by. One particle per
+    // nozzle per frame (five on the Meridian frigate).
+    func driveGlow(_ s: Ship, _ st: CapitalState, _ pd: Float, _ dt: Float, _ g: Game) {
+        guard !st.exhausts.isEmpty, st.engines0 > 0, !s.wrecked, pd < 700 else { return }
+        let k = Float(s.engines) / Float(st.engines0)
+        guard k > 0.4 else { return }
+        let aft = s.dirToWorld(V3(0, 0, 1))
+        let layer = Int(Tex.id("puff"))
+        let far = min(3, max(1, pd / 180))
+        let night = 1 + 0.8 * (1 - g.daylight)
+        for (i, n) in st.exhausts.enumerated() {
+            let small = s.role == "capfrigate" && i == st.exhausts.count - 1      // the centre nozzle (radius 2)
+            let at = s.toWorld(n) + aft * 0.8
+            let flicker = 0.9 + 0.1 * sinf(Float(g.clock) * 37 + Float(i) * 1.7)
+            g.particles.add(Particle(pos: at, vel: s.vel, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0), uvSize: 1,
+                                     size: (small ? 3.5 : 7.5) * far * flicker, gravity: 0, color: V3(0.45, 0.75, 1.3) * k * night,
+                                     collide: false, glow: true))
+        }
+        // One light for the whole stern (the flash list is shared with gunfire: 32 at most).
+        if pd < 160 {
+            let c = st.exhausts.reduce(V3(0, 0, 0), +) / Float(st.exhausts.count)
+            g.addFlash(at: s.toWorld(c) + aft * 3, color: V3(0.5, 0.8, 1.6) * (1.5 * k), radius: 22, life: dt * 1.5)
+        }
     }
 
     private func levelUp(_ s: Ship, _ dt: Float) {

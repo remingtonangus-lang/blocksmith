@@ -105,6 +105,27 @@ enum MainGunTests {
             render("maingun_barrel", atan2f(-to2.x, -to2.z), atan2f(to2.y, simd_length(V2(to2.x, to2.z))))
         }
 
+        // 1b. The drive's glow (G8): from 300 blocks astern at night, a sprite over each nozzle big enough to read.
+        do {
+            let wasT = g.time, at = g.player.pos
+            g.time = 0.75 * DAY_LENGTH
+            let aft = s.dirToWorld(V3(0, 0, 1))
+            g.player.pos = s.toWorld(V3(13.5, 15, Float(Capital.mfLength))) + aft * 300
+            g.particles.list.removeAll()                       // (room under the particle cap)
+            let n0 = g.particles.list.count
+            w.ships.driveGlow(s, st, w.ships.boundsDistance(s, g.player.pos), 1.0 / 72, g)
+            let glows = g.particles.list.dropFirst(n0).filter { $0.glow && $0.size > 6 }
+            // Angular size of the big nozzles' sprites from 300 blocks: at least ~2.5 degrees (a dot is under 1).
+            let deg = (glows.map { $0.size }.max() ?? 0) / 300 * 180 / .pi
+            check(glows.count >= 4 && deg > 2.5, String(format: "maingun: the frigate's drive glows from 300 blocks astern at night (%d nozzle sprites, %.1f degrees across)", glows.count, deg))
+            if let render {
+                settle()
+                let to = s.toWorld(V3(13.5, 15, Float(Capital.mfLength))) - g.player.eye
+                render("maingun_stern_night", atan2f(-to.x, -to.z), atan2f(to.y, simd_length(V2(to.x, to.z))))
+            }
+            g.time = wasT; g.player.pos = at
+        }
+
         // 2. The shockwave on its own, on open ground 150 blocks west of the start.
         do {
             let cx = Int(home.x) - 150, cz = Int(home.z)

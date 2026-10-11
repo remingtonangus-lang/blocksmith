@@ -56,3 +56,11 @@ Results:
   heaves to (0.6 b/s, holding its heading) so the line can be caught.
 - BoardingTests (questcheck, and the Mac `--questbugs`): a bot under a cruising frigate is hauled aboard, walks to the
   ladder at z 89, climbs to the bridge deck and walks to the helm with the left stick only.
+
+## G8: the frigate's thrusters read as two small points at night (done audit 25b6)
+Objectives: the stern reads as engines from a few hundred blocks at night; cheap (a handful of particles, one light).
+Results: ShipManager.driveGlow: a blue-white glow sprite over each nozzle (7.5 blocks across, 3.5 for the centre one),
+growing with distance up to 3x past 180 blocks so it never shrinks to a dot, brighter at night, flickering slightly;
+one shared light on the stern within 160 blocks (the flash list is shared with gunfire). Works on AI and commandeered
+frigates. Check: MainGunTests 1b (four or more nozzle sprites over 2.5 degrees across from 300 blocks astern at night);
+render maingun_stern_night with --render.
