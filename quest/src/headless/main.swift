@@ -576,6 +576,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     _ = game.world.loadSync(center: home, radius: 4)
 }
 (game.time, game.weather) = deepWas
+// ... and the spawn's wild mobs go: the Deep's checks unload and reload the overworld several times, and what wandered
+// back (zombies, slimes, pigs on the path) varied run to run. The walk below sets where every later check stands, and
+// a pig in its way moved the town checks onto rougher ground (the sheriff's line of fire blocked).
+game.mobs.mobs.removeAll()
 if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deeptest: all checks passed" : "deeptest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.

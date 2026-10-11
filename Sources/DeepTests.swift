@@ -108,7 +108,7 @@ enum DeepTests {
         sim(3) { guardNow().count >= 4 }
         let guard_ = guardNow()
         check(marked && guard_.count >= 4 && guard_.allSatisfy { $0.spec.name.hasPrefix("Ashguard") },
-              "deep war: the Marshal marks a barrage and calls his guard (\(guard_.count) Ashguard soldiers)")
+              "deep war: the Marshal marks a barrage (\(marked)) and calls his guard (\(guard_.count) soldiers: \(guard_.map { $0.spec.name }.joined(separator: ", ")))")
         marshal.killedByPlayer = true
         marshal.hit(from: stand, damage: marshal.health + 400)
         sim(1)
