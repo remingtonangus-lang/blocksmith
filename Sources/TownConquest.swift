@@ -12,7 +12,7 @@ import simd
 //              (up to `tributeCap` days), handed over when you walk in.
 //   honour:    taking a town by force costs `honourCost` on top of the killings.
 //   neighbours: for `waryDays` after a taking, other towns within `waryRadius` blocks have heard: their law calls you
-//              out on arrival, they start on edge (heat 2: one more crime turns them) and charge 10% more.
+//              out on arrival, they start on edge (heat 3: one more crime turns them) and charge 10% more.
 // Saved in TownLaw.Saved.owned (town -> [anchor x, anchor z, day taken, day tribute was last paid]).
 enum TownConquest {
     enum Standing { case none, owned, wary }
@@ -58,6 +58,7 @@ enum TownConquest {
         if TownLaw.state.owned == nil { TownLaw.state.owned = [:] }
         TownLaw.state.owned?[town] = [a?.x ?? x, a?.z ?? z, day, day]
         sheriffFell[town] = nil
+        greetedVisit = town                              // (the surrender says it; no "is yours" toast on top)
         surrenders += 1
         // The fight's over: no hostility, no heat, no bounty here; the old grudges go with it.
         TownLaw.state.hostile[town] = nil
@@ -116,7 +117,7 @@ enum TownConquest {
         wary.insert(here)
         guard warnedVisit != here else { return }
         warnedVisit = here
-        TownLaw.state.heat[here] = max(TownLaw.heat(here), 2)
+        TownLaw.state.heat[here] = max(TownLaw.heat(here), TownLaw.hostileHeat - 1)
         if let law = g.mobs.mobs.filter({ TownLaw.isTownsperson($0) && TownLaw.isLaw($0) && !$0.lying && simd_length($0.pos - pos) < 32 })
             .min(by: { simd_length($0.pos - pos) < simd_length($1.pos - pos) }) {
             law.face(pos)

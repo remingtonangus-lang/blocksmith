@@ -22,7 +22,9 @@ enum SixIron {
     static let cooldown: Float = 1.1             // seconds between a shot and the next telegraph
     static let reloadTime: Float = 2.4
     static let rounds = 6
-    static let lethal = 999                      // "one shot": more than any health + golden hearts
+    static let lethal = 999                      // "one shot": past every reduction (only a totem saves you)
+    static let chase: Float = 64                 // an angry sheriff comes for a player he can see this far off
+    static let calmReset: Double = 45            // seconds without a duel before the next fight opens with a warning
 
     // MARK: The iron rule
 
@@ -87,6 +89,9 @@ enum SixIron {
         let target = g.player.pos
         let dist = simd_length(V2(target.x - m.pos.x, target.z - m.pos.z))
         m.face(target)
+        // A fight after a long calm starts with a warning again; a short break (ducking out of sight) doesn't.
+        if g.clock - m.town.lastDuel > calmReset { m.town.warned = false }
+        m.town.lastDuel = g.clock
         // Reloading: stands and thumbs rounds in.
         if m.town.reload > 0 {
             m.town.reload -= dt
@@ -100,12 +105,15 @@ enum SixIron {
             if m.town.aim <= 0 { fire(m, g) }
             return 0
         }
-        // Closes to a comfortable range, then holds.
+        // Closes to a comfortable range, then holds (he comes for a player sniping from further off, up to `chase`).
         m.moving = dist > reach * 0.6
-        let sees = g.world.canSee(m.eye, g.player.eye)
-        if m.attackCooldown <= 0 && dist < reach && abs(target.y - m.pos.y) < 10 && sees {
+        let chest = g.player.pos + V3(0, (g.player.eye.y - g.player.pos.y) * 0.72, 0)
+        if m.attackCooldown <= 0 && dist < reach && abs(target.y - m.pos.y) < 20 && g.world.clearShot(muzzle(m), chest) {
             m.town.aim = aimTime
-            m.town.aimAt = g.player.pos + V3(0, (g.player.eye.y - g.player.pos.y) * 0.72, 0)      // the chest
+            // He leads a moving target most of the way (75-100% of where your run takes you in the aim time): running
+            // steadily one way gets you hit, changing direction or stopping in the window makes him miss.
+            var v = g.player.vel; v.y = 0
+            m.town.aimAt = chest + v * aimTime * Rand.float(in: 0.75...1.0)
             m.moving = false
             g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.55, at: m.eye)                             // the hammer click
             telegraphs += 1
@@ -143,7 +151,7 @@ enum SixIron {
         var d = to / len + V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * spread
         d = simd_normalize(d)
         let reachLen = len + 3
-        guard let t = Armory.playerHit(g, o, d, reachLen), g.world.canSee(o, o + d * max(0, t - 0.05)) else {
+        guard let t = Armory.playerHit(g, o, d, reachLen), g.world.clearShot(o, o + d * max(0, t - 0.05)) else {
             // A miss: the round cracks past if it went near.
             let closest = simd_length(simd_cross(g.player.eye - o, d))
             if closest < 2.5 { g.sfx(.bulletWhizz, 0.8, at: g.player.eye) }
@@ -160,7 +168,7 @@ enum SixIron {
 extension Game {
     // A six-iron round that found the player.
     func sixIronHit(by m: Mob, at p: V3) {
-        guard survival, alive else { return }
+        guard survival, alive, health > 0 else { return }
         let amount = SixIron.damage(score: SixIron.armourScore(inventory.armor.slots), difficulty: difficulty)
         guard amount > 0 else { return }
         CombatHUD.shared.hurt(self, from: m.pos, amount: min(amount, 20))
@@ -169,11 +177,21 @@ extension Game {
         bulletHit = true
         sfx(.bulletFlesh, 0.9)
         let who = m.villager?.person.map { "Sheriff \($0)" } ?? "the sheriff"
-        damage(amount == SixIron.lethal ? Int(Float(health) + absorption) + 20 : amount, "was shot by \(who)",
-               bypassArmor: true, type: .projectile, attacker: m)
+        if amount == SixIron.lethal {
+            // Below iron: no enchantment, Resistance or golden hearts soften it; only a totem pulls you through.
+            Game.onDamage?(health, "was shot by \(who)")
+            hurtFlash = 0.35
+            sfx(.hurt, 1)
+            health = 0
+            absorption = 0
+            if !useTotem() { die("was shot by \(who)") }
+        } else {
+            damage(amount, "was shot by \(who)", bypassArmor: true, type: .projectile, attacker: m)
+        }
         bulletHit = false
         // Armour still takes the round's wear (the ordinary formula, skipped above, is where it would have).
-        for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0 {
+        for i in 0..<4 where !inventory.armor[i].isEmpty && inventory.armor[i].def.durability > 0
+            && !["elytra", "jetpack"].contains(Items.key(inventory.armor[i].item)) {
             var s = inventory.armor[i]
             if Enchant.wearSkipped(s) { continue }
             s.damage += 2

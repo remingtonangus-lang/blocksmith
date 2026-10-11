@@ -69,6 +69,13 @@ extension TownTests {
         }
         let leatherLeft = shot("leather", totem: true)
         check(leatherLeft == 1 && g.inventory.offhand[0].isEmpty && g.alive, "iron rule: a round in leather is lethal (the totem took it: \(leatherLeft) left)")
+        // Resistance IV and golden hearts don't soften a lethal round (verifier: enchanted leather landed in the iron band).
+        wear(g, "leather"); g.health = 20; g.alive = true; g.effects.clear()
+        g.inventory.offhand[0] = Items.has("totem_of_undying") ? ItemStack(Items.id("totem_of_undying"), 1) : .empty
+        g.applyEffect(.resistance, amp: 3, seconds: 30); g.absorption = 8
+        g.sixIronHit(by: sheriff, at: g.player.eye)
+        check(g.health == 1 && g.inventory.offhand[0].isEmpty, "iron rule: Resistance IV and golden hearts don't save you below iron (\(g.health) left: the totem did)")
+        g.effects.clear(); g.absorption = 0
         let ironLeft = shot("iron"), tiLeft = shot("diamond")
         check(ironLeft == 12 && tiLeft == 19, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 19 (\(tiLeft))")
         g.difficulty = 0
@@ -104,8 +111,8 @@ extension TownTests {
         s.town.drawn = 0
         check(drawn && parts >= 30, "six-iron: the challenge draws it (\(parts) parts with the gun out)")
         s.town.anger = 60
-        func round(dodge: (() -> Void)? = nil) -> (aimed: Bool, hit: Bool) {
-            g.health = 20; g.alive = true; g.player.pos = base; g.player.crawling = false
+        func round(vel: V3 = .zero, dodge: (() -> Void)? = nil) -> (aimed: Bool, hit: Bool) {
+            g.health = 20; g.alive = true; g.player.pos = base; g.player.crawling = false; g.player.vel = vel
             s.attackCooldown = 0; s.town.reload = 0
             _ = s.townDefend(0.05, g)
             let aimed = s.town.aim > 0
@@ -131,6 +138,25 @@ extension TownTests {
             if r.hit { proneHits += 1 }
         }
         g.player.crawling = false
+        // Running steadily one way: he leads you, so most rounds find you anyway (a step aside in the window doesn't).
+        var strafeHits = 0
+        for _ in 0..<20 {
+            let r = round(vel: side * 4.3) { g.player.pos = base + side * (4.3 * SixIron.aimTime) }
+            if r.hit { strafeHits += 1 }
+        }
+        g.player.vel = .zero
+        check(strafeHits >= 5, "six-iron: running steadily one way, he leads you (\(strafeHits)/20 hit)")
+        // A window between you: glass hides nothing from his eyes, but he won't fire through it (World.clearShot).
+        let mid = (base + at) * 0.5
+        var saved: [(Int, Int, Int, BlockID)] = []
+        let glass = Blocks.id("glass")
+        for dy in 0...3 { for dx in -1...1 { for dz in -1...1 {
+            let x = Int(floor(mid.x)) + dx, y = Int(floor(base.y)) + dy, z = Int(floor(mid.z)) + dz
+            saved.append((x, y, z, g.world.block(x, y, z))); g.world.setBlock(x, y, z, glass)
+        } } }
+        let behindGlass = round()
+        for (x, y, z, b) in saved { g.world.setBlock(x, y, z, b) }
+        check(!behindGlass.aimed && !behindGlass.hit, "six-iron: he won't fire through a window (aimed \(behindGlass.aimed), hit \(behindGlass.hit))")
         check(telegraphed == 10 && standHits >= 9, "six-iron: every shot is telegraphed; standing still, \(standHits)/10 hit")
         check(dodgeHits == 0 && proneHits <= 1, "six-iron: a step aside dodges it (\(dodgeHits)/10 hit), crawling too (\(proneHits)/10)")
         check(reloading, "six-iron: six rounds, then a reload")

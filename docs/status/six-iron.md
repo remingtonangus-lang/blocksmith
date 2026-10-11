@@ -14,17 +14,21 @@ least iron, then you can take a village.
    (titanium, Duskium): 1 (2 on hard).
 3. **A readable, fair duel in VR**: his challenge draws the gun (hammer click, gun out) and he fights 2.5 s later; the
    first round of a fight is a warning over your head with a line; every shot is telegraphed (arm level at you + a
-   click, 0.65 s) and fires at where you were when he took aim, so stepping aside, dropping low or ducking behind
-   cover dodges it, and standing still gets you hit. Spread grows with range (tight at 10 blocks, looser at 22).
-   Reach 22 blocks (deadly at range). Six rounds, then a 2.4 s reload: the window to close in.
+   click, 0.65 s) and fires where he expects you (leading a running player 75-100% of the way), so a step aside,
+   a change of direction, dropping low or ducking behind cover dodges it, while standing still or running steadily one
+   way gets you hit. He never fires through glass, doors, fences or slabs (World.clearShot). Spread grows with range
+   (tight at 10 blocks, looser at 22). Reach 22 blocks; an angry sheriff comes for a player he can see up to 64 blocks
+   off, so sniping him from range in leather doesn't dodge the rule. Six rounds, then a 2.4 s reload: the window to
+   close in. The warning shot comes back only after 45 s without a duel (ducking out of sight doesn't earn a new one).
 4. **Shield and armour**: a raised shield still blocks a round (and wears); worn armour takes 2 wear a round.
 5. **Taking a village**: the sheriff falls to you and no deputy of that town is left standing (within 10 min) -> the
    town surrenders: hands up, hostility, heat and the bounty there end, old grudges dropped, -10 honour on top of the
-   killings. Then it is yours: keepers always serve you at their best price (inside the shop bounds), its beds and
-   chests are yours (no theft counts there, outlaw status ignored there), townsfolk call you boss, tribute $6 a day
-   (up to 7 days) paid when you walk in, a sheriff sent later works for you.
+   killings. Then it is yours: keepers always serve you at the best price the shops allow (x0.85 buying, x0.55
+   selling), its beds and chests are yours (no theft counts there, outlaw status ignored there, no bounty there),
+   townsfolk call you boss and never draw on you (hit one and they back away), tribute $6 a day (up to 7 days) paid
+   when you walk in, a sheriff sent later works for you.
 6. **Nearby towns react**: for 10 days, towns within 2000 blocks of one you took call you out on arrival, start on
-   edge (heat 2: one more crime turns them) and charge 10% more.
+   edge (heat 3: one more crime turns them) and charge 10% more.
 7. **Saves**: owned towns persist (TownLaw.Saved.owned); old saves load (field optional).
 
 ## Defaults picked (no questions, per the autonomy rule)
@@ -54,6 +58,21 @@ it; townDefend hands the player duel to SixIron; keepers serve you in your town)
 draw on the challenge, monsters-only `shoot`, offences in your own town ignored, TownConquest.tick), Honour.swift
 (drop chance, lawFell hook, no challenge in your town), TownsfolkModel.swift (aim and recoil poses), Shops.swift
 (ShopPricing town standing), Guns.swift (name).
+
+## Verifier pass (independent Opus subagent, 2026-10-11) and what changed
+- Blocker fixed: his line of fire used `canSee` (stops only at opaque blocks), so lethal rounds went through windows,
+  doors, fences and leaves. Now `World.clearShot` gates both the telegraph and the round (checked with a glass wall).
+- Fixed: a lethal round went through `damage()`, where Protection enchantments and Resistance cut it to the iron
+  band; now it skips every reduction and only a totem saves you (checked with Resistance IV + golden hearts).
+- Fixed: a leather player could snipe him from 27+ blocks or from a pillar without a reply; he now comes for you up
+  to 64 blocks and shoots up to 20 blocks above or below.
+- Fixed: ducking out of sight for 3 s earned a fresh warning shot; a paused aim fired later at a stale spot.
+- Fixed: in your own town an assault still set everyone armed (your new sheriff too) on you, and a killing there put a
+  bounty on you; "best price" now really is the shops' best; Glider Wings and the jetpack no longer wear from rounds;
+  the wary heat is 3 so one theft turns a wary town; no double toast after a surrender.
+- Added: partial lead, so running steadily one way no longer dodges every round (the verifier's design note).
+- Known (by design): a raised shield blocks a round and wears 21 durability for it (about 16 rounds per shield).
+  Deputies far away or unloaded don't hold a town from surrendering.
 
 ## Checks
 `questcheck --towns-only` (part of the full questcheck): SixIronTests (iron rule table, real rounds against worn sets,

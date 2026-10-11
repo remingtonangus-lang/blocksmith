@@ -198,7 +198,7 @@ enum Honour {
             let town = TownLaw.town(of: m, g)
             let (loss, cents) = role == "sheriff" ? (Float(25), 2500) : role == "deputy" ? (20, 2000) : (m.baby ? 25 : 15, 1500)
             change(g, -loss, role == "sheriff" ? "you killed the sheriff" : "murder")
-            addBounty(g, town, cents)
+            if !TownConquest.owns(town) { addBounty(g, town, cents) }    // no price on your head in your own town
             if role == "sheriff" { sheriffDrops(g, m) }
             if role == "sheriff" || role == "deputy" { TownConquest.lawFell(g, m, town: town) }   // the town may give up
             return

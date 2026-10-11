@@ -41,6 +41,7 @@ struct TownState {
     var reload: Float = 0
     var warned = false
     var drawn: Float = 0            // > 0: the gun is out (his challenge, before the fight starts)
+    var lastDuel: Double = -1000    // when he last duelled the player (a long calm brings the warning shot back)
 }
 
 enum Townsfolk {
@@ -241,12 +242,10 @@ extension Mob {
             }
         }
         if let f = town.foe, f.health <= 0 || simd_length(f.pos - home) > 44 { town.foe = nil }
-        let playerFoe = town.anger > 0 && g.alive && g.survival && simd_length(g.player.pos - pos) < (w == .revolver ? SixIron.reach + 4 : 24)
-        guard town.foe != nil || playerFoe else {
-            if town.anger <= 0 { town.warned = false; town.aim = 0 }        // the next fight starts with a warning shot again
-            return nil
-        }
+        let playerFoe = town.anger > 0 && g.alive && g.survival && simd_length(g.player.pos - pos) < (w == .revolver ? SixIron.chase : 24)
+        guard town.foe != nil || playerFoe else { town.aim = 0; return nil }   // an interrupted aim never fires later
         if w == .revolver && town.foe == nil { return SixIron.duel(self, dt, g) }
+        town.aim = 0
         let at = town.foe?.pos ?? g.player.pos
         let dist = simd_length(V2(at.x - pos.x, at.z - pos.z))
         face(at)
@@ -336,9 +335,10 @@ extension Game {
         guard victim.kind == .villager else { return }
         if Townsfolk.townLastLine < clock - 1.5 { TownVoice.speak(self, victim, .hurt) }
         TownLaw.assault(self, victim)
+        let yours = TownConquest.owns(TownLaw.town(of: victim, self))        // your own town backs away; nobody draws on you
         for o in mobs.mobs where o.kind == .villager && o.health > 0 && simd_length(o.pos - victim.pos) < 24 {
             guard o === victim || simd_length(o.pos - victim.pos) < 8 || world.canSee(o.eye, victim.eye) else { continue }
-            if o.townWeapon != .none { o.town.anger = max(o.town.anger, 30) } else { o.panic = max(o.panic, 8) }
+            if o.townWeapon != .none && !yours { o.town.anger = max(o.town.anger, 30) } else { o.panic = max(o.panic, 8) }
         }
     }
 
