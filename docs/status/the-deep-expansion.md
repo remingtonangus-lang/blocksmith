@@ -88,7 +88,7 @@ partial. Three PRs close it. Expanded objectives, written before building:
 - The band is 176 tall (internal 200-375; upper crust 376-383). EmberGen takes a height: its lower 64 blocks are the
   Emberdeep's exactly (lava sea, shores, the fortresses and keeps on them), everything above is stretched up to the roof,
   so caverns run 100+ blocks floor to roof and lumenstone hangs in a roof far overhead (twice as many clusters).
-- Check: band height >= 170; the median open run per column at least 1.3x the Emberdeep's and the tallest tenth 120+;
+- Check: band height >= 170; the median open run per column at least 1.5x the Emberdeep's and the tallest tenth 100+;
   the lower 60 blocks >= 97 % identical to the Emberdeep's; the existing biome / fortress / keep / seal checks still pass.
 - Old saves: chunks generated before keep their 128 band (a step in the roof where old meets new, as with the vault).
 

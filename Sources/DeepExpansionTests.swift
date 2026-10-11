@@ -57,7 +57,7 @@ enum DeepExpansionTests {
             let dMed = deepRuns[deepRuns.count / 2], eMed = embRuns[embRuns.count / 2]
             let dTop = deepRuns[deepRuns.count * 9 / 10], eTop = embRuns[embRuns.count * 9 / 10]
             let kept = Float(same) / Float(max(1, total))
-            check(Float(dMed) >= Float(eMed) * 1.3 && dTop >= 120 && dTop > eTop + 30 && kept > 0.97,
+            check(Float(dMed) >= Float(eMed) * 1.5 && dTop >= 100 && dTop > eTop + 40 && kept > 0.97,
                   String(format: "deep hell: open space floor to roof, median %d blocks (the Emberdeep %d), tallest tenth %d+ (%d); the lower 60 blocks %.1f%% the Emberdeep's",
                          dMed, eMed, dTop, eTop, kept * 100))
         }

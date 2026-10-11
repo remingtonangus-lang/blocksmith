@@ -58,6 +58,9 @@ final class EmberGen: TerrainGenerator {
         d += fromMid * fromMid * 1.1 - 0.12
         if y < 12 { d += (12 - y) * 0.08 }
         if y > top - 16 { d += (y - (top - 16)) * 0.08 }
+        // A taller band also opens up over the shores: the rock thins into great halls and spires between the lava
+        // sea and a roof far overhead (nothing changes below y 64).
+        if top > 128 && ys > 64 { d -= sinf(min(1, (ys - 64) / 62) * .pi) * 0.85 }
         return d
     }
 
