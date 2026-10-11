@@ -53,6 +53,39 @@ P37. A sheriff office/jail rework (with G14): the current one looks poor.
 P38. Hunger still drains too fast when sprinting (same as P12).
 Praised, keep: wind sounds (perfect), terrain generation improved, titanium ingot look, helicopters, armour shattering under fire, hostages raising hands, guns badly damaging titanium armour.
 
+## PLAYTEST Oct 11 evening (P39-P67): same priority as P1-P38
+Played build bfb3f146 18:30-19:16; notes with repro lines in docs/playtests/2026-10-11/voice-notes.md (after 18:30). Check each against claude/quest-port first.
+P39. Lava: he reverses the earlier ask; he needs lava. Either keep cave-floor lava pools or replace them with plenty of single lava sources so lava stays easy to collect.
+P40. Ammo economy: store rifle rounds are far too cheap; the capital uses its own rounds that cannot be bought (only looted from capital bases); capital weapons only from the capital or its town.
+P41. Stairs in Elk Gulch sit in the way and look wrong (fix stair placement in town buildings).
+P42. Potions: better visuals; the doctor must not sell every potion (some rare); design an original potion set of our own.
+P43. Guns hit exactly where the sights point (perfect accuracy, except shotguns). This supersedes the accuracy part of P32.
+P44. World rarity pass: iron ore and coal too common; less surface water; structures much rarer: capital towns and military bases about one per 4000x4000 blocks (woodland-mansion rarity); the world should look normal almost everywhere.
+P45. Getting guns was too easy while wearing titanium armour (balance with P30).
+P46. [feature] Endgame: after the player defeats the Reich below hell and returns to the surface, hordes from every faction converge; the player must defeat them all to roam the surface freely.
+P47. Dropped gunpowder renders upside down.
+P48. Military bases get a small town beside them, like the capital town: the player can shop there undetected, but the guards are on edge.
+P49. Horses: longer stamina; gallop speed similar to RDR2; the horse cannot climb from water onto land at equal height (regression); allow a jump while swimming; riding into leaves turns the screen black (camera clipping); let horses squeeze through tight gaps (hesitating in dense trees is fine); hooves on capital brick sound cheap; mounting is blocked while holding a gun; a mob hit makes the horse rear and locks the player (a creeper killed his horse); if your horse dies it falls over and the saddle can be recovered; zombie hits stun the rider too much.
+P50. What each place is known for should be knowledge earned with high honour in a village, not shown up front.
+P51. [feature] Roads linking villages, with occasional riders you can rob (loot their satchel); a nearby village sends a hunting party; at low honour, bounty hunters with guns come for you; if they kill you, the bounty is paid off and you are left with no money.
+P52. He wants to try the polygon test world (M1) on the Quest: make sure it is reachable from the Quest menu and tell him where.
+P53. HUD: make it translucent until the grips are used; remove the button-hint overlays (or make them fade after the first hours / an option).
+P54. [design] Vehicles: either craft a tank from a ludicrous amount of materials or build preset vehicles at a special vehicle table; he is undecided, so prototype one and note the trade-off.
+P55. Mob variety: individual mobs vary widely in speed, damage, toughness and (skeletons) accuracy.
+P56. VR reload: manual reload; grab a magazine from the hip and insert it into the gun.
+P57. Bodies stay on the ground in an area until the player leaves and returns.
+P58. Townsfolk lines ignore the time of day (the kitchen-closing line played far too late at night).
+P59. Sleeping in (or taking) someone else bed costs honour.
+P60. Teleporting mobs snap onto the player and are hard to hit; entities must not overlap each other (also check the mob for Minecraft likeness, with P19).
+P61. Inventory: hold A on a stack and release to choose how many to take, instead of the current pick-up behaviour.
+P62. Town buildings are packed too tightly; widen the spacing between buildings and paths.
+P63. Gunfire in a town should bring people to investigate (noise response).
+P64. Death and damage: do not lose experience on death; unarmoured hits should hurt more; more townsfolk should carry guns.
+P65. Dropships and crawlers clip through capital buildings; they should collide and break blocks instead.
+P66. Drop craft: the pilot can hardly see while driving (camera/visibility); it should need fuel.
+P67. Sheriff jobs: the map marker for him works (keep).
+Praised, keep: guns against enemies, the Hunter Map, the Elk Gulch welcome, the horse staying near, the potion look improving.
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
