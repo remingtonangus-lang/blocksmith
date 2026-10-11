@@ -5,7 +5,7 @@ import simd
 // Run by TownTests.run (questcheck on the host, `--towntests` on the Mac) and alone by `questcheck --towns-only`.
 //   standing: the five standings at their bounds; prices move with honour and never leave the shop bounds the
 //             no-arbitrage check relies on, at any reputation, honour or Friend of the Town.
-//   crimes:   witnessed theft and assault cost honour, unseen theft doesn't; a town turning on you costs more and puts
+//   crimes:   witnessed theft and assault cost honour, unseen theft a third as much; a town turning on you costs more and puts
 //             $5 on your head; murder costs 15 and $15, the sheriff 25 and $25.
 //   deeds:    monsters killed near townsfolk raise it, capped per day (a night of farming earns 8, not 20); outlaws in
 //             the wild raise it; the cap resets the next day; creative changes nothing.
@@ -13,8 +13,8 @@ import simd
 //             hostility and lets the shop open again; an outlaw or a wanted player is challenged once a visit; a
 //             bounty lapses after 7 days; honour and bounties survive a save round trip.
 //   heat:     cools twice as fast for the honourable, half as fast for an outlaw.
-//   revolver: a registered one-handed six-shooter with its own model and icon, bought (not sold) by gunsmiths; a
-//             killed sheriff drops it at a 5% rate (20,000 rolls) and always some cartridges; a forced drop is loaded.
+//   revolver: a registered one-handed six-shooter with its own model and icon, bought (not sold) by gunsmiths; 5% of
+//             sheriffs carry it (20,000 rolls, rolled once and saved) and drop it loaded; every sheriff drops cartridges.
 //   hud:      the standing shows under the wallet in town, on screen, with the bounty.
 //   towns:    generated towns have a sheriff's office (sign, jail bars, WANTED board) and plank boardwalks in front of
 //             their shops; a town on ground a save already generated keeps its old lots (no office).
@@ -34,6 +34,7 @@ extension TownTests {
         bounties(g, check)
         revolver(g, check)
         frontierTowns(makeWorld, check)
+        honourGap(g, check)                  // HonourGapTests.swift: the gap pass (log, pulse, board, jobs, hunters, ...)
     }
 
     static func standings(_ check: (Bool, String) -> Void) {
@@ -66,12 +67,12 @@ extension TownTests {
         let spot = base + V3(1, 0.5, 1)
         g.mobs.mobs = []
         TownLaw.offence(g, heat: 1, at: spot)
-        check(Honour.value == 0, "honour: unseen theft costs nothing (\(Honour.value))")
+        check(Honour.value == -0.5 && Honour.log.last?.why == "theft, unseen", "honour: unseen theft costs a third of a witnessed one (\(Honour.value))")
         let witness = townPerson(g, base + V3(3, 0, 0))
         g.mobs.mobs = [witness]
         TownLaw.offence(g, heat: 1, at: spot)
         let afterTheft = Honour.value
-        check(afterTheft == -1.5, "honour: witnessed theft costs 1.5 a point of heat (\(afterTheft))")
+        check(afterTheft == -2, "honour: witnessed theft costs 1.5 a point of heat (\(afterTheft) after the unseen one)")
         TownLaw.assault(g, witness)
         let afterAssault = Honour.value
         check(afterAssault < afterTheft, "honour: assault costs honour (\(afterTheft) -> \(afterAssault))")
@@ -235,12 +236,13 @@ extension TownTests {
         let n = 20_000
         for _ in 0..<n where Honour.rollRevolver(Rand.float(in: 0..<1)) { hits += 1 }
         let rate = Float(hits) / Float(n)
-        check(abs(Honour.revolverChance - 0.05) < 1e-6 && rate > 0.04 && rate < 0.06, String(format: "revolver: a killed sheriff drops it %.2f%% of the time (20,000 rolls)", rate * 100))
+        check(abs(Honour.revolverChance - 0.05) < 1e-6 && rate > 0.04 && rate < 0.06, String(format: "revolver: %.2f%% of sheriffs carry it (20,000 rolls)", rate * 100))
         TownLaw.reset(); TownLaw.forceTown = true; g.survival = true
+        Honour.revolverChance = 1
         let s = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff")
         s.killedByPlayer = true; s.playerHurtAt = g.clock
         g.drops.items = []
-        Honour.revolverChance = 1
+        check(s.villager?.revolver == true && Honour.carriesRevolver(s), "revolver: a sheriff who rolled it carries it (saved with him)")
         g.mobDied(s)
         let gun = g.drops.items.first { $0.stack.item == id }
         let ammo = g.drops.items.first { Items.key($0.stack.item) == "rifle_rounds" }
@@ -248,6 +250,8 @@ extension TownTests {
         Honour.revolverChance = 0
         g.drops.items = []
         let s2 = townPerson(g, groundSpot(g) + V3(1, 0, 1), tag: "sheriff"); s2.killedByPlayer = true; s2.playerHurtAt = g.clock
+        Honour.revolverChance = 1
+        check(!Honour.carriesRevolver(s2), "revolver: the roll is made once (a sheriff without it never gains it later)")
         g.mobDied(s2)
         check(!g.drops.items.contains { $0.stack.item == id } && g.drops.items.contains { Items.key($0.stack.item) == "rifle_rounds" },
               "revolver: otherwise just cartridges")

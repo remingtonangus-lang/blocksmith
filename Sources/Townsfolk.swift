@@ -339,10 +339,19 @@ extension Game {
             onToast?("\(v.person ?? "They") is asleep.")
             return true
         }
-        // Nobody serves a wanted man: a bounty in this town closes its counters until it's paid.
-        if survival && !m.baby && v.tradeKind != nil && Honour.bounty(TownLaw.town(of: m, self)) > 0 {
+        // The law with nothing owed shows you the town's notice board (jobs, posters, the fund: TownBoard.swift).
+        if survival && !m.baby && TownLaw.isLaw(m) {
             m.face(player.pos)
-            Townsfolk.say(self, m, "Not while there's a price on your head. Square it with the sheriff.")
+            Townsfolk.say(self, m, "Looking for work? Here's what's posted.")
+            TownBoard.open(self, town: TownLaw.town(of: m, self), anchor: IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))))
+            return true
+        }
+        // Nobody serves a wanted man: a bounty in this town closes its counters until it's paid; nobody serves an
+        // outlaw anywhere.
+        if survival && !m.baby && v.tradeKind != nil && (Honour.bounty(TownLaw.town(of: m, self)) > 0 || Honour.isOutlaw) {
+            m.face(player.pos)
+            Townsfolk.say(self, m, Honour.isOutlaw ? "I don't serve outlaws. Give yourself up to the law first."
+                                                   : "Not while there's a price on your head. Square it with the sheriff.")
             return true
         }
         if !m.baby, let k = v.shopKind {

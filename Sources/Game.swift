@@ -1570,7 +1570,11 @@ final class Game {
         case "item_frame", "glow_item_frame": _ = useItemFrame(p)
         case "cartography_table": openMenu(CartographyMenu(game: self))
         case "loom": openMenu(LoomMenu(game: self))
-        case _ where k.hasSuffix("_sign"): if !dyeSign(p) { openSignEditor(p) }
+        case _ where k.hasSuffix("_sign"):
+            // A town's WANTED board opens its notice board (TownBoard.swift) in survival.
+            if survival, world.blockEntities[p]?.lines.first == "WANTED", TownLaw.isTownSpot(self, p) {
+                TownBoard.open(self, town: Townsfolk.town(self, at: V3(Float(p.x), Float(p.y), Float(p.z))), anchor: p)
+            } else if !dyeSign(p) { openSignEditor(p) }
         case "cake":
             // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
             guard !survival || hunger < 20 else { return }

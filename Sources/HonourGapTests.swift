@@ -1,0 +1,240 @@
+import Foundation
+import simd
+
+// The gap pass on honour (docs/status/cloud-gap-pass.md, area H). Run by HonourTests (TownTests.run: questcheck and
+// `questcheck --towns-only`; the Mac's --towntests).
+//   log:      every change is logged with its reason; the log is capped and saved.
+//   meter:    a change pulses the HUD meter (bigger, then settling) and shows the reason under it.
+//   deeds:    fair trades earn a little, capped per day; donations earn 2 each, 6 a day; jobs pay money and honour.
+//   tiers:    an outlaw is fought on sight (the armed come after 3 s, the unarmed run), refused service everywhere,
+//             and can surrender to the law for a fine (back to Disreputable); the disreputable are warned off; the
+//             respected get tips about places nearby and are greeted by name; the honourable get one gift a town a day.
+//   board:    two jobs a day per town (stable for the day), deliveries paid under shop prices, a hunt counted by kills
+//             near town, an outlaw who shows up where he was seen and pays once killed; the screen fits its panel.
+//   posters:  the WANTED boards in a town show your poster while you're wanted there, the old notice otherwise.
+//   hunters:  wanted out in the wild, a posse of named hunters spawns near you and hunts you; killing one earns
+//             no honour; nobody is sent while you're clean or in town.
+extension TownTests {
+    static func honourGap(_ g: Game, _ check: (Bool, String) -> Void) {
+        let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedMoney = g.money, savedTime = g.time
+        defer {
+            g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.money = savedMoney; g.time = savedTime
+            if g.menu != nil { g.closeMenu() }
+            TownLaw.forceTown = nil; TownLaw.reset()
+            Honour.tipChance = 0.25; Honour.giftChance = 0.5; BountyHunters.chancePerSecond = 1.0 / 240
+        }
+        TownLaw.reset(); TownLaw.forceTown = true; g.survival = true
+        let base = groundSpot(g)
+        g.player.pos = base
+        g.mobs.mobs = []
+        g.time = 5.3 * DAY_LENGTH
+
+        // Log and meter.
+        Honour.change(g, -4, "a test of the log")
+        check(Honour.log.last.map { $0.amount == -4 && $0.why == "a test of the log" && $0.day == 5 } == true,
+              "honour gap: a change is logged with its day and reason (\(TownLaw.state.honourLog?.last ?? "none"))")
+        for i in 0..<(Honour.logCap + 10) { Honour.change(g, i % 2 == 0 ? 1 : -1, "spam \(i)") }
+        check(Honour.log.count == Honour.logCap, "honour gap: the log keeps the last \(Honour.logCap) (\(Honour.log.count))")
+        var d: [String: String] = [:]
+        TownLaw.save(&d); TownLaw.load(d, seed: g.world.seed)
+        check(Honour.log.count == Honour.logCap, "honour gap: the log survives a save round trip")
+        TownLaw.reset(); TownLaw.forceTown = true
+        Honour.change(g, 3, "you helped a test")
+        let L = HudLayout(1280, 720)
+        let now = HonourHUD.lines(g, L)
+        let clock0 = g.clock
+        Honour.changedAt = clock0 - 2
+        let later = HonourHUD.lines(g, L)
+        check((now.first?.scale ?? 0) > (later.first?.scale ?? 1) && now.contains { $0.text == "you helped a test" }
+              && later.contains { $0.text == "you helped a test" },
+              String(format: "honour gap: the meter pulses on a change (scale %.2f -> %.2f) and shows the reason", now.first?.scale ?? 0, later.first?.scale ?? 0))
+
+        // Fair trades, capped.
+        TownLaw.reset(); TownLaw.forceTown = true
+        let keeper = keeper(g, .general, at: base + V3(2, 0, 0))
+        g.mobs.mobs = [keeper]
+        g.money = 100_000
+        g.time = 5.3 * DAY_LENGTH
+        for _ in 0..<12 { _ = Shop.buy(g, keeper, .general, index: 0, count: 1) }
+        check(Honour.value == Honour.dailyCap["trade"], "honour gap: fair trades earn honour, \(Honour.dailyCap["trade"] ?? 0) a day at most (\(Honour.value) after 12)")
+
+        // Outlaws: on sight, refused, surrender.
+        TownLaw.reset(); TownLaw.forceTown = true
+        let farmer = townPerson(g, base + V3(4, 0, 0)), elder = townPerson(g, base + V3(-4, 0, 1))
+        if var v = farmer.villager { v.role = "farmer"; farmer.villager = v }
+        if var v = elder.villager { v.role = "elder"; elder.villager = v }
+        let sheriff = townPerson(g, base + V3(0, 0, 5), tag: "sheriff")
+        let town = TownLaw.town(of: farmer, g)
+        for m in [keeper, elder, sheriff] { if var v = m.villager { v.town = town; m.villager = v } }
+        g.mobs.mobs = [keeper, farmer, elder, sheriff]
+        Honour.value = -80
+        TownLaw.lastTick = -1; TownLaw.tick(g)
+        let early = farmer.town.anger
+        Honour.outlawSpotted = (town, g.clock - 4)
+        TownLaw.lastTick = g.clock - 2; TownLaw.tick(g)
+        check(early <= 0 && farmer.town.anger > 0 && elder.panic > 0,
+              "honour gap: an outlaw is fought on sight after a 3 s warning (farmer anger \(early) -> \(farmer.town.anger), elder runs \(elder.panic > 0))")
+        farmer.town.anger = 0; sheriff.town.anger = 0
+        g.time = 5.3 * DAY_LENGTH
+        _ = g.talkToTownsperson(keeper)
+        check(!(g.menu is ShopMenu), "honour gap: no keeper serves an outlaw")
+        if g.menu != nil { g.closeMenu() }
+        g.money = 1200
+        _ = g.talkToTownsperson(sheriff)
+        check(g.money == 200 && Honour.value == Honour.outlaw + 5 && !Honour.isOutlaw,
+              "honour gap: an outlaw surrenders to the law for a \(Money.format(Honour.outlawFine)) fine and is Disreputable again (\(Honour.value))")
+        if g.menu != nil { g.closeMenu() }
+
+        // Disreputable: warned. Respected: tips, name. Honourable: one gift a town a day.
+        let said = Honour.greet(g, farmer, farmer.villager!)
+        check(said, "honour gap: the disreputable are warned off when greeted")
+        TownLaw.state.playerName = "Wren"
+        Honour.value = 40
+        Honour.tipChance = 1
+        let tip = Honour.tip(g, from: base)
+        let tips0 = Honour.tipsGiven
+        _ = Honour.greet(g, farmer, farmer.villager!)
+        check(tip != nil && Honour.tipsGiven == tips0 + 1, "honour gap: the respected are told where things are (\"\(tip ?? "no tip")\")")
+        Honour.value = 80
+        Honour.giftChance = 1; Honour.tipChance = 0
+        g.drops.items = []
+        let gifts0 = Honour.giftsGiven
+        _ = Honour.greet(g, farmer, farmer.villager!)
+        _ = Honour.greet(g, elder, elder.villager!)
+        check(Honour.giftsGiven == gifts0 + 1 && g.drops.items.count == 1,
+              "honour gap: the honourable get one gift a town a day (\(Honour.giftsGiven - gifts0) given, \(g.drops.items.count) dropped)")
+        g.time += DAY_LENGTH
+        _ = Honour.greet(g, elder, elder.villager!)
+        check(Honour.giftsGiven == gifts0 + 2, "honour gap: and another the next day")
+        g.drops.items = []
+
+        // The notice board: jobs, donations, the screen.
+        TownLaw.reset(); TownLaw.forceTown = true
+        g.mobs.mobs = [sheriff]
+        g.time = 7.3 * DAY_LENGTH
+        let anchor = IVec3(Int(floor(base.x)), Int(floor(base.y)), Int(floor(base.z)))
+        let j1 = TownBoard.jobs(g, town, anchor: anchor), j2 = TownBoard.jobs(g, town, anchor: anchor)
+        check(j1.count == 2 && j1.map(\.kind) == j2.map(\.kind) && j1.map(\.count) == j2.map(\.count),
+              "honour gap: two jobs a day per town, the same all day (\(j1.map { "\($0.kind) \($0.count)" }.joined(separator: ", ")))")
+        // Every delivery over many days pays under what any shop asks and over what any shop pays.
+        var bad: [String] = []
+        var kinds = Set<String>()
+        for day in 0..<200 { for slot in 0..<2 {
+            let j = TownBoard.make("Cedar Ford", day, slot)
+            kinds.insert(j.kind)
+            guard j.kind == "deliver", let k = j.item, let v = Economy.value[k] else { continue }
+            let each = Float(j.pay) / Float(j.count)
+            if each >= Float(v) * Economy.minBuyMult || each <= Float(v) * Economy.maxSellMult { bad.append("\(k) \(each)") }
+        } }
+        check(bad.isEmpty && kinds == ["deliver", "hunt", "outlaw"], "honour gap: deliveries pay between shop buy and sell prices; all three job kinds come up" + (bad.isEmpty ? "" : " (\(bad.prefix(3)))"))
+        // Do one of each by hand.
+        func job(_ kind: String) -> (Int, TownJob)? {
+            for day in 7..<60 {
+                g.time = (Double(day) + 0.3) * DAY_LENGTH
+                let js = TownBoard.jobs(g, town, anchor: anchor)
+                if let i = js.firstIndex(where: { $0.kind == kind && !$0.taken }) { return (i, js[i]) }
+            }
+            return nil
+        }
+        g.money = 0
+        if let (i, j) = job("deliver"), let key = j.item {
+            _ = g.inventory.add(ItemStack(Items.id(key), j.count))
+            let h0 = Honour.value
+            let r = TownBoard.use(g, town, i, anchor: anchor)
+            check(r.1 && g.money == j.pay && Honour.value == h0 + j.honour && TownBoard.jobs(g, town, anchor: anchor)[i].paid,
+                  "honour gap: a delivery of \(j.count) \(key) pays \(Money.format(j.pay)) and \(j.honour) honour (\(r.0))")
+        } else { check(false, "honour gap: a delivery job comes up") }
+        if let (i, j) = job("hunt") {
+            _ = TownBoard.use(g, town, i, anchor: anchor)
+            for _ in 0..<j.count { let z = Mob(.zombie, at: base + V3(10, 0, 0)); z.killedByPlayer = true; g.mobDied(z) }
+            let far = Mob(.zombie, at: base + V3(300, 0, 0)); far.killedByPlayer = true; g.mobDied(far)
+            let st = TownBoard.jobs(g, town, anchor: anchor)[i]
+            let m0 = g.money
+            let r = TownBoard.use(g, town, i, anchor: anchor)
+            check(st.done && st.progress == j.count && r.1 && g.money == m0 + j.pay, "honour gap: a hunt counts \(st.progress) of \(j.count) kills near town (not far off) and pays")
+        } else { check(false, "honour gap: a hunt job comes up") }
+        if let (i, j) = job("outlaw") {
+            let msg = TownBoard.use(g, town, i, anchor: anchor).0
+            let t = TownBoard.jobs(g, town, anchor: anchor)[i]
+            let dist = t.target.map { simd_length(V2(Float($0[0] - anchor.x), Float($0[1] - anchor.z))) } ?? 0
+            check(t.taken && dist >= 78 && dist <= 142 && msg.contains("blocks"), "honour gap: an outlaw job says where he was last seen (\(msg))")
+            // Near where he was seen, he turns up with his gang.
+            let spot = V3(Float(t.target![0]) + 0.5, 0, Float(t.target![1]) + 0.5)
+            g.player.pos = V3(spot.x + 10, base.y, spot.z)
+            _ = g.world.loadSync(center: g.player.pos, radius: 3)
+            g.player.pos.y = Float(g.world.topY(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.z))) + 1)
+            TownBoard.tick(g)
+            let boss = g.mobs.mobs.first { $0.customName == j.outlaw }
+            check(boss != nil && g.mobs.mobs.contains { $0.customName == "\(j.outlaw ?? "")'s Gang" }, "honour gap: \(j.outlaw ?? "the outlaw") shows up with his gang")
+            if let b = boss { b.killedByPlayer = true; g.mobDied(b) }
+            g.player.pos = base
+            let m0 = g.money
+            let r = TownBoard.use(g, town, i, anchor: anchor)
+            check(r.1 && g.money == m0 + j.pay, "honour gap: bringing him in pays \(Money.format(j.pay))")
+        } else { check(false, "honour gap: an outlaw job comes up") }
+        // Donations: 2 each, 6 a day.
+        TownLaw.state.honourGains = [:]
+        g.money = 10_000
+        let board = NoticeBoardMenu(game: g, town: town, anchor: anchor)
+        let h0 = Honour.value
+        for _ in 0..<5 {
+            if let i = board.items.firstIndex(where: { if case .donate = $0 { return true }; return false }) {
+                board.scroll = 0
+                if board.rows[i].enabled { board.pressed(i) }
+            }
+        }
+        check(Honour.value == h0 + 6 && g.money == 10_000 - 3 * TownBoard.donation,
+              "honour gap: donations earn 2 honour each, 6 a day (\(Honour.value - h0) for \(Money.format(10_000 - g.money)))")
+        // Your name.
+        if let i = board.items.firstIndex(where: { if case .name = $0 { return true }; return false }) { board.pressed(i) }
+        check(TownBoard.playerName != "Stranger", "honour gap: the board picks your name (\(TownBoard.playerName))")
+        // The screen fits, with the longest names and a full log.
+        TownLaw.state.playerName = "Frankie"
+        Honour.addBounty(g, "Juniper Crossing", 99_999); Honour.addBounty(g, "Silver Junction", 1500)
+        for i in 0..<6 { Honour.change(g, -1, "theft, unseen \(i) and a longer reason to fit") }
+        let big = NoticeBoardMenu(game: g, town: "Juniper Crossing", anchor: anchor)
+        big.status = "Paid $99.99. Juniper Crossing won't forget it."
+        let over = big.overflow()
+        check(over.isEmpty && big.rows.count >= 9, "honour gap: the notice board fits its panel at every scroll (\(big.rows.count) rows)" + (over.isEmpty ? "" : ": \(over.prefix(3))"))
+
+        // Posters.
+        TownLaw.reset(); TownLaw.forceTown = true
+        let p = IVec3(Int(floor(base.x)) + 2, Int(floor(base.y)) + 1, Int(floor(base.z)))
+        let be = g.world.entity(p, .sign)
+        be.lines = TownBoard.oldPoster
+        g.world.blockEntities[p] = be
+        TownLaw.state.playerName = "Kit"
+        Honour.addBounty(g, town, 1500)
+        TownBoard.posters(g, town: town)
+        let wanted = be.lines
+        Honour.clearBounty(town)
+        TownBoard.posters(g, town: town)
+        check(wanted == ["WANTED", "Kit", "Dead or Alive", "$15.00"] && be.lines == TownBoard.oldPoster,
+              "honour gap: a town's WANTED board shows your poster while you're wanted (\(wanted.joined(separator: " / ")))")
+        g.world.blockEntities[p] = nil
+
+        // Bounty hunters.
+        TownLaw.reset(); TownLaw.forceTown = nil
+        g.mobs.mobs = []
+        g.player.pos = base
+        TownLaw.inTown = nil
+        BountyHunters.chancePerSecond = 1
+        BountyHunters.tick(g)
+        check(!g.mobs.mobs.contains { $0.customName == BountyHunters.name }, "honour gap: no hunters for someone with a clean name")
+        Honour.value = -90
+        BountyHunters.tick(g)
+        let hunters = g.mobs.mobs.filter { $0.customName == BountyHunters.name }
+        let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 32 && $0.lockTime > 0 }
+        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 32 blocks, already on the trail")
+        let n0 = g.mobs.mobs.count
+        BountyHunters.tick(g)
+        check(g.mobs.mobs.count == n0, "honour gap: at most one posse a day")
+        if let h = hunters.first {
+            let before = Honour.value
+            h.killedByPlayer = true
+            g.mobDied(h)
+            check(Honour.value == before, "honour gap: killing a bounty hunter earns no honour")
+        }
+        g.mobs.mobs = []
+    }
+}

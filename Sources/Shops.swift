@@ -524,6 +524,7 @@ enum Shop {
         m.villager = v
         g.achieve("trade")
         g.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
+        Honour.earn(g, 0.5, source: "trade", "a fair trade")
         return ("Bought \(n) \(name) for \(Money.format(price * n)).", true)
     }
 
@@ -548,6 +549,7 @@ enum Shop {
         v.addGossip(.trading, 1)
         m.villager = v
         g.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
+        Honour.earn(g, 0.5, source: "trade", "a fair trade")
         return ("Sold \(n) \(name) for \(Money.format(each * n)).", true)
     }
 
