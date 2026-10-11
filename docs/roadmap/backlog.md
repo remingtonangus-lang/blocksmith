@@ -79,7 +79,7 @@ M3. Device feel for the lanes above: flying, crawler, frigate radar and VR melee
 ## LANE C (optional third cloud thread): looks, redstone, polish
 Moved from the Mac queue on Oct 10 21:52 (Quest is the product; judge on QuestSim, Mac renderer only where shared code forces it).
 
-L1. Look upgrade.
+L1. Look upgrade. CLAIMED: Lane C thread, 2026-10-11 (sky first, then creeper replacement, trees, mob animation; one PR each).
 LOOK UPGRADE (not texture style - that waits for Remington's pick): 1) a realistic sky with real-looking clouds (cheap: a few layers/billboards or a 2D cloud texture scrolled, no expensive volumetrics on Quest). 2) Redesign mob and animal models so they stop looking fake/cheap: better proportions, silhouettes, animation; 3) replace the creeper with an original mob that fills its role (keep save compatibility). 4) Tree shapes: more natural, varied silhouettes. Keep compute flat or lower. Blocksmith rules: branch claude/quest-port (shared gameplay also to claude/blocksmith-playtest); read docs/status/quest-port.md first; his saved world must keep loading (backup + migration test). Commit after each item. Verify with ./build.sh fast and --questbugs/QuestSim checks (judge downscaled screenshots yourself). Ship: push, ONE blocking wait per Quest CI run, confirm the APK on quest-dist, install if adb shows the Quest, add notes to quest-port.md. Bar: store quality. Remington gives you wide leeway: if you see anything else that would make the game better without costing more compute, do it.
 
 EXPANDED OBJECTIVES (overseer, 10-10 14:45; meet these as well as the items above):
