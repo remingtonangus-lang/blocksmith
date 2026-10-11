@@ -24,7 +24,7 @@ extension BlockRegistry {
             model(m == 0 ? "brewing_stand" : "brewing_stand[\(m)]", "Brewing Stand", ["brewing_stand_base"], boxes, h: 0.5, emit: 1,
                   group: "brewing_stand", hidden: m != 0)
         }
-        var et = BlockDef("enchanting_table", "Enchanting Table")
+        var et = BlockDef("enchanting_table", "Upgrade Bench")
         et.tex = ["enchanting_table_side", "enchanting_table_side", "enchanting_table_top", "enchanting_table_bottom", "enchanting_table_side", "enchanting_table_side"]
         et.render = .model; et.opaque = false; et.boxes = [Box(0, 0, 0, 16, 12, 16)]; et.hardness = 5; et.resistance = 1200
         et.tool = .pickaxe; et.requiresTool = true; et.emit = 7; et.skyStop = true

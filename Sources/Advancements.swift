@@ -40,7 +40,7 @@ enum Advancements {
         Advancement(id: "enter_the_nether", tab: 0, title: "Down Below", desc: "Build, light and enter an Ember Gate", crit: .dim(.nether)),
         Advancement(id: "shiny_gear", tab: 0, title: "Glittering Guard", desc: "Titanium armor saves lives",
                     crit: .anyItem(["diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"])),
-        Advancement(id: "enchant_item", tab: 0, title: "Spellbound", desc: "Enchant an item at an Enchanting Table", crit: .event("enchant")),
+        Advancement(id: "enchant_item", tab: 0, title: "Fine Tuned", desc: "Fit an upgrade at an Upgrade Bench", crit: .event("enchant")),
         Advancement(id: "cure_zombie_villager", tab: 0, title: "Second Opinion", desc: "Weaken and then cure a Zombie Townsperson", crit: .event("cure"), challenge: false),
         Advancement(id: "follow_ender_eye", tab: 0, title: "Following the Eye", desc: "Enter a Stronghold", crit: .event("stronghold")),
         Advancement(id: "enter_the_end", tab: 0, title: "Journey's End?", desc: "Enter the Hollow Gate", crit: .dim(.end)),

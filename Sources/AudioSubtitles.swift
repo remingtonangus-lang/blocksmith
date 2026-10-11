@@ -136,7 +136,7 @@ extension Snd {
         case .anvil: return "Anvil used"
         case .anvilLand: return "Anvil lands"
         case .anvilBreak: return "Anvil destroyed"
-        case .enchant: return "Enchanting"
+        case .enchant: return "Upgrade fitted"
         case .brew: return "Brewing"
         case .grindstone: return "Grindstone used"
         case .smithing: return "Smithing table used"

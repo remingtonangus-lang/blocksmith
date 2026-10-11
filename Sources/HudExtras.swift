@@ -55,7 +55,7 @@ final class Subtitles {
         case .mobGolem: return "Golem clanks"
         case .anvil: return "Anvil used"
         case .brew: return "Potion brewing"
-        case .enchant: return "Enchanting"
+        case .enchant: return "Upgrade fitted"
         case .drink: return "Drinking"
         case .glassBreak: return "Glass breaks"
         case .mobBlight: return "Blight growls"

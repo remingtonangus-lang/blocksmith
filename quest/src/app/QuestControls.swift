@@ -1026,11 +1026,11 @@ final class QuestControls {
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
-            guard cap > 1024 else { return }
+            guard cap > 1536 else { return }      // up to ~1300 with upgrade parts (Upgrades.gunParts)
             // Larger than life (rifle ~1.2 m, sidearm ~0.33 m): 3.2x the screen model. Empty: no magazine, red light.
             let gk: Float = 3.2
             let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light,
-                                          rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, into: ptr)
+                                          rounds: game.arms.reload > 0 ? 0 : game.held.tag, scale: gk, upgrades: game.held.ench, into: ptr)
             let ads = V3(0, -0.085, -0.44)
             let grip = CapitalArms.models[gi].grip * (0.0125 * gk)
             for i in 0..<n {
@@ -1044,7 +1044,7 @@ final class QuestControls {
             return
         }
         if let bp = bowPose { drawBow(s, eye: eye, bp, light: light); return }
-        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 96, priority: true)
+        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 160, priority: true)
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
         if let b = held.def.block, !Blocks.flatIcon(b) {
@@ -1075,6 +1075,8 @@ final class QuestControls {
                 let o = (Float(i) - 2) * h / 32
                 wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 || i == 4 ? 1 : 0.62))
             }
+            // Upgrades show on the model (Upgrades.accents): a grip wrap, a band on the head, a line on the edge.
+            Upgrades.writeAccents(&wr, held, center: c, half: h, right: r, up: up, normal: side, thick: h * 2.6 / 32, light: light)
         }
         app.scene.commit(off, wr.n, EntityVert.self)
         app.scene.drawScratch(s, "entity", offset: off, count: wr.n)

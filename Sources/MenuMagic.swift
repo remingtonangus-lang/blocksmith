@@ -46,7 +46,7 @@ final class EnchantMenu: Menu {
 
     init(game: Game, at p: IVec3) {
         pos = p
-        super.init("Enchant", game: game)
+        super.init("Upgrade Bench", game: game)
         let item = MenuSlot(15, 47, box, 0)
         item.limit = 1
         slots.append(item)

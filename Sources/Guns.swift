@@ -163,7 +163,7 @@ enum Guns {
     // First-person gun, written straight into a mob-pipeline vertex buffer (view space).
     /// `rounds` 0 hides the magazine and turns the ammo light red; `scale` enlarges the model (Quest: held in the hand).
     static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float, rounds: Int = 1,
-                                 scale: Float = 1, into out: UnsafeMutablePointer<MobVert>) -> Int {
+                                 scale: Float = 1, upgrades: UInt64 = 0, into out: UnsafeMutablePointer<MobVert>) -> Int {
         let CT = Mesher.cornerTable
         let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.085, -0.44)   // a little below the line of sight: the top and barrel show (at -0.05 only the stock's back face did: critic, run 385 gun_aim)
         let sway: V3 = bob * (1 - aim * 0.8)
@@ -176,7 +176,9 @@ enum Guns {
         var n = 0
         var ind = indicator[gi]
         if rounds <= 0 { ind.color = V3(1.9, 0.25, 0.18) }
-        for (pi, p0) in (models[gi] + [ind]).enumerated() {
+        // Upgrades show (Upgrades.gunParts: a scope, a longer magazine, a band for special rounds, a loader lever).
+        let extra = upgradeParts(gi, upgrades, magOut: rounds <= 0)
+        for (pi, p0) in (models[gi] + extra + [ind]).enumerated() {
             if rounds <= 0 && magParts[gi].contains(pi) { continue }            // empty: the magazine is out
             let p = p0
             let size = p.mx - p.mn
@@ -195,6 +197,19 @@ enum Guns {
             }
         }
         return n
+    }
+
+    // The upgrade parts per gun and upgrade set, made once (the first-person model is drawn every frame).
+    private static var upgradeCache: [Int: [Part]] = [:]
+    static func upgradeParts(_ gi: Int, _ ench: UInt64, magOut: Bool) -> [Part] {
+        guard ench != 0 else { return [] }
+        let key = Int(truncatingIfNeeded: ench &* 31 &+ UInt64(gi) &* 2 &+ (magOut ? 1 : 0))
+        if let p = upgradeCache[key] { return p }
+        var p = Upgrades.gunParts(models[gi], mag: magParts[gi], ench)
+        if magOut { p = p.filter { q in !magParts[gi].contains { models[gi][$0].mn.x == q.mn.x && models[gi][$0].mx.x == q.mx.x && models[gi][$0].mn.z == q.mn.z } } }
+        if upgradeCache.count > 64 { upgradeCache = [:] }
+        upgradeCache[key] = p
+        return p
     }
 
     // MARK: Icons and sounds

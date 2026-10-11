@@ -20,7 +20,7 @@ struct ItemStack: Codable, Equatable {
         item = SaveMigration.itemID(name) ?? 0
         count = try (item == 0 ? 0 : c.decode(Int.self, forKey: .n))
         damage = (try? c.decode(Int.self, forKey: .d)) ?? 0
-        if let e = try? c.decode([String].self, forKey: .e) { ench = Enchant.decode(e) }
+        if let e = try? c.decode([String].self, forKey: .e) { ench = Upgrades.convert(Enchant.decode(e)) }
         repairCost = (try? c.decode(Int.self, forKey: .r)) ?? 0
         label = try? c.decode(String.self, forKey: .l)
         tag = (try? c.decode(Int.self, forKey: .t)) ?? 0

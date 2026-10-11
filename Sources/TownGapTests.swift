@@ -162,7 +162,7 @@ extension TownTests {
         if let up = g.menu as? GunUpgradeMenu {
             let rows = up.rows
             let names = rows.map(\.name)
-            check(names.contains("Extended Magazine I") && names.contains("Incendiary I") && names.count == GunUpgrades.price.count,
+            check(names.contains("Extended Magazine I") && names.contains("Incendiary Rounds I") && names.count == GunUpgrades.price.count,
                   "town gap: the upgrades list each gun upgrade's next level (\(names.joined(separator: ", ")))")
             let ix = names.firstIndex(of: "Extended Magazine I") ?? 0
             up.pressed(ix)
