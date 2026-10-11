@@ -108,15 +108,32 @@ partial. Three PRs close it. Expanded objectives, written before building:
 - The alarm (D3c, DE8): a vault-wide alarm level (Quiet, Alert, Alarm, Total War) that rises as you are spotted, kill
   units, wreck vehicles and close on the citadel; sirens and radio lines at each step; it falls slowly unseen; saved.
 - Reinforcements (D3c, DE11): at Alarm and Total War, squads (and at Total War a half-track and a tank) leave the
-  nearest motor pool / citadel for your last known position; officers who see you call the nearest idle tank.
+  nearest garrison (the HQ, a motor pool, a town, a depot, the airfield) for your last known position; officers who see you call the nearest idle tank.
 - Squad roles (DE11): medics heal the wounded, MG gunners suppress, officers call armour; difficulty scales squad size,
-  reaction and reinforcement count.
+  reinforcement count and mortar rate.
 - Vehicles (DE9): a wrecked tank or half-track throws debris, burns, and its crew bails out and fights on.
 - Story (DE8): signs at every site, field journals in the vault's chests (who the Ashguard are, why they are down
   here), radio chatter at radio rooms and over the alarm.
-- Perf (D5, DE14): a unit cap (live Ashguard units near the player, reinforcements and patrols included), the far units'
-  AI LOD, and a measured biggest battle (the citadel at Total War) in questcheck: tick ms and units, with the Quest
-  renderer's draw time at that moment, numbers written here.
+- Perf (D5, DE14): unit caps (no squad joins past 64 live Ashguard units near the player; reinforcements and patrols
+  never pass 24 alive), AI LOD for far units (calm ones past 64 blocks think 4 times a second, unseen fighters past 40 blocks 10 times),
+  and the biggest battle measured in questcheck --deep-only (AshVaultGapTests.biggestBattle and the deep_battle render):
+
+  | Biggest battle (citadel north gate, Total War) | Debug questcheck | Optimized (-O) build |
+  |---|---|---|
+  | Ashguard units fighting | 115 | 123 |
+  | Game.tick avg / p95 over 30 s at 72 Hz (check: debug avg < 10, p95 < 16) | 7.0-8.5 / 12-14 ms over runs | 1.95 / 3.56 ms (worst 6.14) |
+  | Draw, render distance 10, fog budget on: sections, quads, units in reach | 112, 24,090, 175 | same |
+  | Same view without the fog budget | 133, 26,821, 188 | same |
+  | Mob vertices per frame (budget: a third of the 12 MB vertex scratch) | 56,214 (2.6 of 4.0 MB) | 57,180 |
+  | CPU record of the whole world pass (mobs share) | 85 ms (83) | 2.7 ms (2.0) |
+
+  Times are on the cloud machine's x86 core; the Quest 3's cores are slower, so the optimized numbers are the guide
+  and the debug ones a worst case. The draw side did grow with the fight at first: 168 posed soldiers took 112k mob
+  vertices and 229 ms of debug record. Now soldiers past 48 blocks draw as seven-box silhouettes in their livery
+  (legs swing with the walk), the vault's vehicles drop fittings under 3 px past 48 blocks, and far soldiers and
+  vehicles skip faces turned away from the eye. That halved the vertices.
+  The fog budget: in the vault (fog ends at AshSky.fogEnd, 130 blocks) sections and units wholly past the fog plus 8
+  blocks are neither walked nor drawn; on the headset's render distance 16 (256 blocks) that is most of the view.
 
 **D3, the Deep's progression and story (PR 3).**
 - Ember Gates (D2b, DE4): a ruined gate frame beside every Brimstone Keep, the Deep's stand-in for a portal. Dormant

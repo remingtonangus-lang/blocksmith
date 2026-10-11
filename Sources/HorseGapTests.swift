@@ -255,9 +255,13 @@ extension HorseTests {
             let panel = menu.rows.count
             check(panel >= Stable.maxKept + HorseBreed.allCases.count, "horse gap: the stable lists stalls and breeds (\(panel) rows)")
             g.closeMenu()
-            // The stablehand's counter has a Horses button.
+            // The stablehand's counter has a Horses button (in shop hours: earlier checks tick the clock, and at night
+            // the keeper only says the stable is shut).
             g.mobs.mobs = [keeper]
+            let wasTime = g.time
+            g.time = g.time - g.time.truncatingRemainder(dividingBy: DAY_LENGTH) + 0.25 * DAY_LENGTH
             _ = g.talkToTownsperson(keeper)
+            g.time = wasTime
             let sm = g.menu as? ShopMenu
             check(sm?.extraTitle == "Horses", "horse gap: the stablehand's counter has a Horses button (\(sm?.extraTitle ?? "none"))")
             if g.menu != nil { g.closeMenu() }

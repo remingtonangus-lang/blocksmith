@@ -7,7 +7,7 @@ import simd
 extension Game {
     func deepTick(_ dt: Float) {
         if dim.dim == .deep {
-            sunderTick(dt); hellHints(); gatesTick(dt)
+            sunderTick(dt); hellHints(); gatesTick(dt); ashArmyTick(dt)
             for m in mobs.mobs where m.warden { m.wardenTick(dt, self) }
         }
         guard alive, world.frame == nil, riding == nil else { return }

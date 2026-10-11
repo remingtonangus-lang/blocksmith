@@ -45,6 +45,7 @@ enum DeepTests {
                 g.health = 20; g.alive = true
                 g.player.pos = stand; g.player.vel = .zero
                 w.pendingMobs.removeAll()
+                g.mobs.mobs.removeAll { $0.brain?.extra == true }       // the vault's squads and patrols: AshVaultGapTests
                 e += 0.05
                 if until() { return }
             }
@@ -92,13 +93,22 @@ enum DeepTests {
         let marshal = unit("ash_marshal^180", dz: 14)
         marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks
         var marked = false
-        sim(15) { if !g.ashStrikes.isEmpty { marked = true }; return marked }
+        // Held 14 blocks off (he charges; a barrage needs him to see you from beyond 5 blocks, and a run where he closed
+        // before his first look made the check flaky).
+        let m0 = marshal.pos
+        sim(15) {
+            marshal.pos.x = m0.x; marshal.pos.z = m0.z; marshal.vel.x = 0; marshal.vel.z = 0
+            if !g.ashStrikes.isEmpty { marked = true }
+            return marked
+        }
         marshal.health = marshal.spec.health / 2
+        // Still on the player (a shell from the barrage that downed the test player calms every mob).
+        marshal.aggro = true; marshal.soldierBrain.lastSeen = g.player.eye; marshal.soldierBrain.seenAgo = 0; marshal.lockTime = 5
         func guardNow() -> [Mob] { g.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && Soldier.rank($0.kind) != nil && $0.kind != .ashMarshal } }
         sim(3) { guardNow().count >= 4 }
         let guard_ = guardNow()
         check(marked && guard_.count >= 4 && guard_.allSatisfy { $0.spec.name.hasPrefix("Ashguard") },
-              "deep war: the Marshal marks a barrage and calls his guard (\(guard_.count) Ashguard soldiers)")
+              "deep war: the Marshal marks a barrage (\(marked)) and calls his guard (\(guard_.count) soldiers: \(guard_.map { $0.spec.name }.joined(separator: ", ")))")
         marshal.killedByPlayer = true
         marshal.hit(from: stand, damage: marshal.health + 400)
         sim(1)

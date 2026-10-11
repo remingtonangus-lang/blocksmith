@@ -57,12 +57,14 @@ extension Game {
             drops.spawn(ItemStack(Items.id("keepers_journal"), 1), at: m.pos + V3(0, 0.5, 0))
             onToast?("The officer carried a Keeper's Journal")
         }
+        if m.faction == Faction.ashguard.rawValue { ashAlarmKill(m) }
         if m.kind.ashVehicle {
             // Vehicles brew up: a burst (fuel trucks a big one, with fire) and smoke; the blocks around are spared.
             let fuel = m.kind == .ashTruck && m.variant == 1
             let at = m.pos + V3(0, m.height * 0.5, 0)
             Explosion.explode(at: at, power: fuel ? 3.2 : (m.kind == .ashTank ? 2.4 : 1.8), game: self, fire: fuel, except: m, breakBlocks: false)
             for _ in 0..<10 { particles.smoke(at: at + V3(Rand.float(in: -1.2...1.2), Rand.float(in: 0...1.5), Rand.float(in: -1.2...1.2))) }
+            ashWreck(m)
         }
         guard m.kind == .ashMarshal, !ashVictory else { return }
         ashVictory = true

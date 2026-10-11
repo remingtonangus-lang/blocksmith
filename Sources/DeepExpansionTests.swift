@@ -24,6 +24,7 @@ enum DeepExpansionTests {
         sky(game, check)
         army(game, check)
         DeepGapTests.run(game, check)
+        AshVaultGapTests.run(game, check)
         print(String(format: "deep expansion: checks took %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
 

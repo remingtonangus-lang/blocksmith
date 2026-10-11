@@ -901,6 +901,17 @@ struct Synth {
             let tear = wash(2.0, lp: 1500 * p, hp: 200, wobble: 0.6, rate: 9, gain: 0.8)
             let whistle = Synth.bandpass(wash(2.0, lp: 5000, hp: 400, wobble: 0.3, rate: 3, gain: 1.0), 1250 * p, q: 10)
             out = Synth.loopify(Synth.mix(tear, Synth.scaled(whistle, 2.0)), fade: 0.2)
+        case .shellIncoming:
+            // An incoming shell: a whistle falling in pitch over 1.6 s with a tearing wash under it.
+            let fall = tone(1.6, f0: 1900 * p, f1: 650 * p, wave: .sine, attack: 0.25, release: 0.05, gain: 0.45)
+            let tear = wash(1.6, lp: 2400 * p, hp: 300, wobble: 0.5, rate: 11, gain: 0.35)
+            out = Synth.mix(fall, tear)
+        case .ashSiren:
+            // The vault's alarm siren: a hand-cranked wail rising and falling twice.
+            let up = tone(1.4, f0: 260 * p, f1: 720 * p, wave: .saw, attack: 0.3, release: 0.1, gain: 0.3)
+            let down = tone(1.4, f0: 720 * p, f1: 300 * p, wave: .saw, attack: 0.05, release: 0.4, gain: 0.3)
+            let one = Synth.mix(up, down, at: frames(1.3))
+            out = Synth.echo(Synth.lowpass(Synth.mix(one, one, at: frames(2.6)), 2400), delay: 0.45, feedback: 0.35, mix: 0.4, tail: 1.2)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall, .volcanoRumble:
             out = TerrainAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,

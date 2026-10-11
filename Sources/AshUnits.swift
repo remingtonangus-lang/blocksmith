@@ -80,6 +80,7 @@ extension Mob {
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
         if tag == "warden" { m.makeKeepWarden() }
+        if ash, let r = AshArmy.role(tag) { m.ashTakeRole(r) }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }
         return m
     }
@@ -108,8 +109,48 @@ extension Mob {
     }
 
     func ashSoldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
-        let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
-        if canTarget, let b = brain, b.sees, b.seenAgo < 0.1 { ashSpotted(g) }
+        let b = soldierBrain
+        // AI LOD (the gap pass, D5): a calm soldier far from the player, with nowhere to go, thinks four times a second
+        // and keeps walking the way it was meanwhile.
+        if !aggro && dist > AshArmy.lodRange && b.order == nil && hurt <= 0 {
+            b.lodAcc += dt
+            if b.lodAcc < AshArmy.lodStep { AshArmy.lodSkipped += 1; return b.lodSpeed }
+        } else if aggro && dist > AshArmy.fightLodRange && !b.sees && b.seenAgo > 1 && hurt <= 0 && b.role != AshArmy.mortar {
+            // In a fight but out of sight and far: ten thoughts a second, still moving the way it was.
+            b.lodAcc += dt
+            if b.lodAcc < AshArmy.fightLodStep { AshArmy.lodSkipped += 1; return b.lodSpeed }
+        }
+        let step = max(dt, b.lodAcc)
+        b.lodAcc = 0
+        // Reinforcements run in to the last contact before they go to ground and fight (a squad that stopped to trade
+        // shots at 50 blocks never arrived); a calm patrol walks its leg between two sites the same way. Both are
+        // steered (Mob.update's path following) to a waypoint 16 blocks along the line: the path finder searches a
+        // short reach, and a partial path to the far end made them give the run up at once. The last 20 blocks are
+        // the ordinary order walk (a patrol turns at the end: ashRoleAI).
+        let running = b.orderRun || (b.leg != nil && !aggro)
+        if b.extra && running, let o = b.order {
+            let flat = V2(o.x - pos.x, o.z - pos.z), d = simd_length(flat)
+            let wp = pos + V3(flat.x / max(d, 0.01), 0, flat.y / max(d, 0.01)) * min(16, d)
+            if d > 20 && !gaveUp(wp) && unreachableTimer <= 0 {
+                face(wp)
+                moving = true
+                b.lodSpeed = spec.speed * (b.orderRun ? 0.95 : 0.6)
+                return b.lodSpeed
+            }
+            if b.orderRun {
+                b.orderRun = false; b.order = nil
+                // Arrived (or no way round found): hunt from the last contact.
+                if !aggro { aggro = true; b.lastSeen = o + V3(0, 1.6, 0); b.seenAgo = min(b.seenAgo, 5); lockTime = max(lockTime, 20) }
+            } else if d > 20, let leg = b.leg {
+                // A patrol with no way on: back the other way.
+                b.order = simd_length(V2(o.x - leg.1.x, o.z - leg.1.z)) < 4 ? leg.0 : leg.1
+                unreachableTimer = 0
+            }
+        }
+        if let sp = ashRoleAI(step, g, dist: dist, canTarget: canTarget) { b.lodSpeed = sp; return sp }
+        let sp = soldierAI(step, g, dist: dist, canTarget: canTarget)
+        if canTarget, b.sees, b.seenAgo < 0.1 { ashSpotted(g); ashCallArmour(g) }
+        b.lodSpeed = sp
         return sp
     }
 
@@ -125,25 +166,6 @@ extension Mob {
             b.ashCalls = f < 0.34 ? 2 : (f < 0.67 ? 1 : 0)
         }
         let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
-        var i = 0
-        while i < g.ashStrikes.count {
-            g.ashStrikes[i].t -= dt
-            let s = g.ashStrikes[i]
-            if s.t <= 0 {
-                var shell = Slug(pos: s.at + V3(0, 26, 0), vel: V3(0, -55, 0), kind: .shell, damage: 0, fromPlayer: false,
-                                 shooter: ObjectIdentifier(self), by: spec.name, life: 2, gravity: 9)
-                shell.power = 1.5
-                g.arms.spawn(shell)
-                g.ashStrikes.remove(at: i)
-                continue
-            }
-            if Rand.float(in: 0..<1) < dt * 14 {
-                g.particles.add(Particle(pos: s.at + V3(Rand.float(in: -0.3...0.3), 0.2, Rand.float(in: -0.3...0.3)), vel: V3(0, 2.5, 0), life: 0.5,
-                                         maxLife: 0.5, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.18, gravity: -1,
-                                         color: V3(2.6, 0.3, 0.15), collide: false, glow: true))
-            }
-            i += 1
-        }
         guard canTarget, aggro, health > 0 else { return sp }
         if b.sees && b.seenAgo < 0.1 { ashSpotted(g) }
         let frac = Float(health) / Float(spec.health)
@@ -158,7 +180,7 @@ extension Mob {
             let lead = V3(g.player.vel.x, 0, g.player.vel.z) * 1.2
             for k in 0..<3 {
                 let off = k == 0 ? V3.zero : V3(Rand.float(in: -4...4), 0, Rand.float(in: -4...4))
-                g.ashStrikes.append((at: p + lead + off, t: 2 + Float(k) * 0.45))
+                g.ashStrikes.append(AshStrike(at: p + lead + off, t: 2 + Float(k) * 0.45, power: 1.5, from: ObjectIdentifier(self), by: spec.name))
             }
             g.sfx(.gun(10), 1.2, at: p)
             g.onToast?("The Ash Marshal marks your position: move!")
@@ -229,7 +251,18 @@ extension Mob {
             ashSpotted(g)
         } else {
             b.seenAgo += dt
-            if aggro && b.seenAgo > 45 { aggro = false }
+            // Stands down 45 s after the last sighting, its own or (a field gun firing on reports) any unit's.
+            if aggro && b.seenAgo > 45 && (kind != .ashArtillery || g.clock - g.ashSpotSeen > 45) { aggro = false }
+        }
+        // Sent somewhere (a reinforcement column, an officer's call for armour: AshArmy.swift): drive there until the
+        // player is in sight.
+        if let o = b.order, kind != .ashArtillery {
+            let flat = simd_length(V2(o.x - pos.x, o.z - pos.z))
+            if b.sees || flat < 8 { b.order = nil }
+            else {
+                ashSlew(dt, toYaw: atan2f(-(o.x - pos.x), -(o.z - pos.z)), pitch: 0)
+                return ashDrive(dt, g, wantYaw: atan2f(-(o.x - pos.x), -(o.z - pos.z)), flat: flat, near: 0, far: 6, circle: false)
+            }
         }
         switch kind {
         case .ashArtillery: ashArtillery(dt, g, pivot); return 0
@@ -394,16 +427,22 @@ extension Mob {
         let t = t0 + V3(g.player.vel.x, 0, g.player.vel.z) * (flat0 / v) * 0.5
         // High arc (over walls and pillars); close in, where that would be near vertical, the flat one.
         guard let hi = ashPitch(pivot, t, v: v, gr: gr, high: true), let lo = ashPitch(pivot, t, v: v, gr: gr, high: false) else { return }
-        let pitch = hi > 1.25 ? lo : hi
+        // The flat shot only when it still gives a fair warning (a 40-block flat shot lands in under a second).
+        let loFlight = flat0 / max(1, v * cosf(lo))
+        let pitch = hi > 1.25 && loFlight >= AshArmy.minWarning + 0.1 ? lo : hi
         let toT = t - pivot
         let wantYaw = atan2f(-toT.x, -toT.z)
         ashSlew(dt, toYaw: wantYaw, pitch: pitch)
-        if ashTurretOff(wantYaw) < 0.03 && abs(pitch - b.pitch) < 0.03 && b.reload <= 0 {
+        // Every shell is fair (the gap pass, DE10): one that would land in under 1.6 s is never fired, and each one
+        // fired marks where it will land (red smoke, then a whistle 1.5 s out: AshArmy.swift).
+        let flight = flat0 / max(1, v * cosf(pitch))
+        if ashTurretOff(wantYaw) < 0.03 && abs(pitch - b.pitch) < 0.03 && b.reload <= 0 && flight >= AshArmy.minWarning + 0.1 {
             b.charge += dt
             if b.charge > 0.7 {
                 b.charge = 0
                 b.reload = g.difficulty >= 3 ? 6 : 8
                 ashCannon(g, power: 1.5, speed: v, gravity: gr, len: 3.9, spread: 0.012)
+                g.ashStrikes.append(AshStrike(at: t, t: flight, power: 0, from: ObjectIdentifier(self), by: spec.name, shell: false))
             }
         }
     }

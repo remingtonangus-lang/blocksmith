@@ -113,6 +113,7 @@ final class World {
         }
         if dim == .deep, let save, let dg = gen as? DeepGen {
             dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
+            dg.vaultGuard.chunks = save.structureGuard(file: "structure-guard-vault.txt")          // AshVault.swift
         }
         World.registry.add(self)
     }

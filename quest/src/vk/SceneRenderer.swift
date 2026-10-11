@@ -105,6 +105,15 @@ final class SceneRenderer {
     private(set) var cullMs = 0.0
     var caveCulling = true
     var maxSection = NSEC          // sections from here up are left out (the Ash Vault's sky, AshSky.swift)
+    // The fog budget (the Ash Vault, gap pass D5/DE14): sections wholly past this distance are neither walked nor drawn
+    // (they would come out the fog colour). 0: off. `fogCullOff` lets questcheck measure the battle without it.
+    var fogCull: Float = 0
+    static var fogCullOff = false
+    @inline(__always) private func pastFog(_ mn: V3, _ eye: V3) -> Bool {
+        guard fogCull > 0, !SceneRenderer.fogCullOff else { return false }
+        let q = simd_clamp(eye, mn, mn + V3(16, 16, 16))
+        return simd_length_squared(q - eye) > fogCull * fogCull
+    }
     // The swapchain is sRGB: shaders compute display (gamma) values like the Mac, so they write them back to linear.
     var linearOutput = false
     static func isSRGB(_ f: VkFormat) -> Bool { f == VK_FORMAT_R8G8B8A8_SRGB || f == VK_FORMAT_B8G8R8A8_SRGB }
@@ -841,7 +850,7 @@ final class SceneRenderer {
                     let vi = vidx(ndx, ndz, nsy)
                     if visitGen[vi] == gen { continue }
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
-                    if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
+                    if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) || pastFog(nmn, eye) { continue }
                     guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
                     visitGen[vi] = gen
                     bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
@@ -855,7 +864,7 @@ final class SceneRenderer {
                 if !frustum.visible(min: cmn, max: cmn + V3(16, Float(CH), 16)) { continue }
                 for (sy, sec) in c.sections.enumerated() where !sec.empty && sy < maxSection {
                     let mn = V3(cmn.x, Float(sy * 16), cmn.z)
-                    if !frustum.visible(min: mn, max: mn + V3(16, 16, 16)) { continue }
+                    if !frustum.visible(min: mn, max: mn + V3(16, 16, 16)) || pastFog(mn, eye) { continue }
                     visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
                 }
             }

@@ -122,6 +122,9 @@ enum SoldierRig {
     static let upperArm: Float = 6.5, foreArm: Float = 7.0        // shoulder -> elbow -> fist centre (fist at mid thigh)
     // Camera position while mobs are drawn (level of detail); nil draws full detail (pose check, previews).
     static var eye: V3?
+    // Only the mob draw (writeMobVertices) takes the far level: the AI's muzzle lookups build the full rig's muzzle.
+    static var drawing = false
+    static var lodBuilt = [0, 0, 0, 0]     // rigs built per level while drawing (questcheck's battle draw line)
 
     // Rank index used by the rig: 0 trooper, 1 vanguard, 2 marksman, 3 bulwark, 4 officer, 5 pilot.
     static func rank(_ m: Mob) -> Int { Soldier.rank(m.kind) ?? 0 }
@@ -191,6 +194,9 @@ enum SoldierRig {
         if let e = eye {
             let d = simd_length(m.pos - e)
             lod = d > 34 ? 2 : (d > 14 ? 1 : 0)
+            let seated = b.station == .seated || b.station == .passenger
+            if drawing && d > farLOD && !seated { lodBuilt[3] += 1; return far(m, rank: r) }
+            if drawing { lodBuilt[lod] += 1 }
         }
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
         fit(&p, gm)
@@ -218,6 +224,28 @@ enum SoldierRig {
             out.handR *= big; out.handL *= big; out.muzzle *= big; out.gripR *= big; out.foreL *= big; out.chestFront *= big
         }
         return out
+    }
+
+    // Past `farLOD` blocks a soldier is a few pixels tall on the headset: seven boxes in its livery, no pose or IK, the
+    // legs swinging with the walk (the Ash Vault's biggest battle drew ~170 posed soldiers a frame: gap pass D5/DE14).
+    static let farLOD: Float = 48
+    static func far(_ m: Mob, rank r: Int) -> SoldierRigOut {
+        let lv = Livery.of(m, rank: r, seed: seed(m))
+        let sw = sinf(m.walkPhase) * 0.6
+        let hip = V3(0, 12, 0)
+        var o = SoldierRigOut()
+        o.parts.reserveCapacity(7)
+        o.parts.append(Part(mn: V3(-4, 0, -2), mx: V3(0, 12, 2), pivot: hip, rotX: sw, color: lv.legs))
+        o.parts.append(Part(mn: V3(0, 0, -2), mx: V3(4, 12, 2), pivot: hip, rotX: -sw, color: lv.legs))
+        o.parts.append(Part(mn: V3(-4, 12, -2.5), mx: V3(4, 24, 2.5), color: lv.cloth))
+        o.parts.append(Part(mn: V3(-3.5, 24, -3.5), mx: V3(3.5, 31, 3.5), color: lv.plate))
+        o.parts.append(Part(mn: V3(-6.5, 13, -2), mx: V3(-4, 23.5, 2), color: lv.cloth))
+        o.parts.append(Part(mn: V3(4, 13, -2), mx: V3(6.5, 23.5, 2), color: lv.cloth))
+        o.parts.append(Part(mn: V3(-1, 16, -11), mx: V3(1, 18.5, -1), color: lv.metal))
+        if r == 3 {
+            for i in o.parts.indices { o.parts[i].mn *= 1.12; o.parts[i].mx *= 1.12; o.parts[i].pivot *= 1.12 }
+        }
+        return o
     }
 
     // Lowest model point after rotation.

@@ -1961,9 +1961,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       maxDist: Float = .greatestFiniteMagnitude, corpses: [Mob] = []) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-    let order = [0, 1, 2, 0, 2, 3]
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
+    SoldierRig.drawing = true
+    defer { SoldierRig.drawing = false }
     // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
     let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
     // Nearest first, and nothing past the fog: the buffer holds ~2400 model parts, and with the hundreds of mobs loaded
@@ -2022,8 +2023,12 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let still = pose.still
         // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
         // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
-        let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
-        let tiny: Float = 1.2 / max(0.25, scale)
+        // The Ash Vault's vehicles (hundreds of parts each) drop their small fittings from 48 blocks, up to 3 px.
+        let heavy = m.kind.ashVehicle
+        let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
+        let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
+        // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
+        let cullBack = (m.kind.steelhold || heavy) && simd_length_squared(base) > 16 * 16
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2032,8 +2037,16 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let rot = p.rotation
             let isHead = pose.joint?.holds(p) ?? false
             let pc: V3 = simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
+            var ctr = V3.zero
+            if cullBack {
+                var q = p.place(p.mn + size * 0.5, rot)
+                if lie { q = V3(q.x, 4 - q.z, q.y) }
+                q *= scale / 16
+                ctr = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
+            }
             for f in 0..<6 {
-                for k in order {
+                // The face's four corners, then its two triangles (0 1 2, 0 2 3) in place.
+                for k in 0..<4 {
                     let ci = (f * 4 + k) * 3
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     var q = p.place(lp, rot)
@@ -2051,9 +2064,17 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let sh: Float = faceShade[f] * lit * ao
                     q *= scale / 16
                     let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
-                    n += 1
+                    out[n + k] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
                 }
+                if cullBack {
+                    // Facing away from the eye (positions are eye-relative): hidden behind the box's front faces.
+                    let a = out[n].pos, c = out[n + 2].pos
+                    let fc = V3(a.x + c.x, a.y + c.y, a.z + c.z) * 0.5
+                    if simd_dot(fc - ctr, fc) > 0 { continue }
+                }
+                let c3 = out[n + 3]
+                out[n + 3] = out[n]; out[n + 4] = out[n + 2]; out[n + 5] = c3
+                n += 6
             }
         }
     }

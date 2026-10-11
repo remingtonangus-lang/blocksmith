@@ -206,6 +206,7 @@ enum DeepGapTests {
         func place() -> Mob? {
             g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll()
             g.ashStrikes.removeAll(); g.ashSpot = nil
+            g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashReinforceT = 999; g.ashPatrolT = 999
             guard let m = make(spot + V3(0, 0, -dist)) else { return nil }
             m.aggro = true
             m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = 0
@@ -249,6 +250,7 @@ enum DeepGapTests {
                 pm.simulated = p
                 g.tick(0.05)
                 m.pos.x = hold.x; m.pos.z = hold.z; m.vel.x = 0; m.vel.z = 0
+                g.mobs.mobs.removeAll { $0 !== m }; w.pendingMobs.removeAll()     // one unit: no crews, squads or calls
                 t += 0.05
                 if !g.alive { g.alive = true; g.health = 20 }
             }
@@ -270,7 +272,7 @@ enum DeepGapTests {
         defer {
             g.inventory.armor.slots = armourSlots; g.inventory.main.slots = mainSlots; g.inventory.held = held
             g.survival = wasSurvival; g.difficulty = wasDiff; g.alive = true; g.health = 20; g.time = wasTime
-            g.ashVictory = wasVictory
+            g.ashVictory = wasVictory; g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashSquadsSent = 0
             if g.dim.dim != homeDim { g.changeDimension(to: homeDim, at: home) }
             g.player.pos = home; g.player.vel = .zero
             _ = g.world.loadSync(center: home, radius: 4)
@@ -302,12 +304,21 @@ enum DeepGapTests {
             ("The Ash Marshal", marshalAlone, "gun_launcher", "rocket_ammo", 16),
         ]
         report = []
-        // Seeded duels: the same numbers every run (a single duel's spread and hit luck swung a rifleman's time by 2x).
+        // Seeded duels (a single duel's spread and hit luck swung a rifleman's time by 2x). The numbers still shift a
+        // little with what ran before (a full questcheck vs --deep-only): the rules below hold with room to spare.
         let wasDeterministic = Rand.deterministic
         defer { Rand.deterministic = wasDeterministic }
         for (i, (name, make, gun, ammo, dist)) in cases.enumerated() {
-            Rand.seed(0xBA1A_0000 + UInt64(i))
-            let (a, b) = duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: name.hasPrefix("The Ash Marshal") ? 180 : 60)   // the boss: a long fight
+            // The two riflemen the harder-than-the-surface rule compares: three seeds each, averaged (one seed's hit luck
+            // swung the ratio from 1.2 to 1.6 between runs).
+            let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 3 : 1
+            var runs: [(Float?, Float?)] = []
+            for k in 0..<seeds {
+                Rand.seed(0xBA1A_0000 + UInt64(i) + UInt64(k) * 0x100)
+                runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: name.hasPrefix("The Ash Marshal") ? 180 : 60))   // the boss: a long fight
+            }
+            func mean(_ xs: [Float?]) -> Float? { xs.contains { $0 == nil } ? nil : xs.compactMap { $0 }.reduce(0, +) / Float(xs.count) }
+            let (a, b) = (mean(runs.map { $0.0 }), mean(runs.map { $0.1 }))
             report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display))
             print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (name.hasPrefix("The Ash Marshal") ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
         }

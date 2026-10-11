@@ -28,6 +28,7 @@ final class DeepGen: TerrainGenerator {
     let floorN: Noise, ceilN: Noise, riverN: Noise, pocketN: Noise, matN: Noise
     let structures: StructureCache?
     let keepGuard = DeepGuard()
+    let vaultGuard = DeepGuard()           // vault chunks saved before its towns, rail and airfield (AshVault.swift)
 
     init(seed: UInt64) {
         self.seed = seed
@@ -39,7 +40,7 @@ final class DeepGen: TerrainGenerator {
         pocketN = Noise(seed: seed &+ 204)
         matN = Noise(seed: seed &+ 205)
         structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types,
-                                    fixed: AshWar.starts(seed: seed))
+                                    fixed: AshWar.starts(seed: seed, guardSet: vaultGuard))
     }
 
     // MARK: The Ash Vault's shape

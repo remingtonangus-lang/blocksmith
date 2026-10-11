@@ -137,7 +137,16 @@ final class Game {
     var ashSpot: V3?                // where an Ashguard unit last saw the player (the field guns fire on it)
     var ashSpotSeen: Double = -999
     var ashAlertClock: Double = -999
-    var ashStrikes: [(at: V3, t: Float)] = []     // the Marshal's marked barrage: shells land when t runs out
+    var ashStrikes: [AshStrike] = []              // marked shells (the Marshal's barrage, mortars, field guns): AshArmy.swift
+    var ashAlarm: Float = 0                        // the vault's alarm, 0..<4: Quiet, Alert, Alarm, Total War (AshArmy.swift)
+    var ashAlarmLevel = 0                          // the level last announced
+    var ashUnseen: Float = 0
+    var ashReinforceT: Float = 0
+    var ashPatrolT: Float = 45
+    var ashSquadsSent = 0                          // reinforcement squads sent since the alarm last fell to Quiet
+    var ashArmourCall: Double = -999
+    var ashRadioT: Float = 0
+    var ashWrecks: [(at: V3, t: Float)] = []        // burning vehicle wrecks
     var credits: Float?            // seconds into the hollow credits while they are showing
     var dragonSpawnTimer: Float = 3
     private(set) var effects = EffectSet()      // active status effects on the player
@@ -331,7 +340,7 @@ final class Game {
     private var placeCooldown: Double = 0
     var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
-    private(set) var clock: Double = 0
+    var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
     var toastText = ""
     var toastTime: Double = -100
     private var prevPad = PadSnapshot()
