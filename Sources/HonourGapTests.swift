@@ -166,11 +166,37 @@ extension TownTests {
             TownBoard.tick(g)
             let boss = g.mobs.mobs.first { $0.customName == j.outlaw }
             check(boss != nil && g.mobs.mobs.contains { $0.customName == "\(j.outlaw ?? "")'s Gang" }, "honour gap: \(j.outlaw ?? "the outlaw") shows up with his gang")
+            // Verifier 2026-10-11: he turns up once (no respawn loop); a name-tagged stand-in doesn't count.
+            let n1 = g.mobs.mobs.count
+            TownBoard.tick(g); TownBoard.tick(g)
+            let fake = Mob(.chicken, at: spot); fake.customName = j.outlaw; fake.killedByPlayer = true; g.mobDied(fake)
+            check(g.mobs.mobs.count == n1 && boss?.posse == 1 && !TownBoard.jobs(g, town, anchor: anchor)[i].done,
+                  "honour gap: he shows up once, and a chicken name-tagged \(j.outlaw ?? "") doesn't finish the job")
             if let b = boss { b.killedByPlayer = true; g.mobDied(b) }
             g.player.pos = base
             let m0 = g.money
             let r = TownBoard.use(g, town, i, anchor: anchor)
             check(r.1 && g.money == m0 + j.pay, "honour gap: bringing him in pays \(Money.format(j.pay))")
+            // Another day's outlaw drowns before you get to him: the job's off, unpaid, and he doesn't come back.
+            if let (i2, j2) = job("outlaw") {
+                _ = TownBoard.use(g, town, i2, anchor: anchor)
+                let t2 = TownBoard.jobs(g, town, anchor: anchor)[i2]
+                g.player.pos = V3(Float(t2.target![0]) + 10.5, base.y, Float(t2.target![1]) + 0.5)
+                _ = g.world.loadSync(center: g.player.pos, radius: 3)
+                g.mobs.mobs = []
+                TownBoard.tick(g)
+                if let b2 = g.mobs.mobs.first(where: { $0.posse == 1 }) {
+                    b2.killedByPlayer = false; g.mobDied(b2)
+                    g.mobs.mobs = []
+                    TownBoard.tick(g)
+                    let st = TownBoard.jobs(g, town, anchor: anchor)[i2]
+                    let m1 = g.money
+                    let r2 = TownBoard.use(g, town, i2, anchor: anchor)
+                    check(st.done && st.paid && !r2.1 && g.money == m1 && g.mobs.mobs.isEmpty,
+                          "honour gap: \(j2.outlaw ?? "an outlaw") dead by other means ends the job unpaid, no respawn (\(r2.0))")
+                } else { check(false, "honour gap: the second outlaw shows up") }
+                g.player.pos = base
+            }
         } else { check(false, "honour gap: an outlaw job comes up") }
         // Donations: 2 each, 6 a day.
         TownLaw.state.honourGains = [:]
@@ -211,7 +237,30 @@ extension TownTests {
         TownBoard.posters(g, town: town)
         check(wanted == ["WANTED", "Kit", "Dead or Alive", "$15.00"] && be.lines == TownBoard.oldPoster,
               "honour gap: a town's WANTED board shows your poster while you're wanted (\(wanted.joined(separator: " / ")))")
-        g.world.blockEntities[p] = nil
+        // An outlaw's poster shows what surrendering costs (the bounty plus the fine); a player's own WANTED sign is
+        // left alone.
+        let mine = g.world.entity(IVec3(p.x + 1, p.y, p.z), .sign)
+        mine.lines = ["WANTED", "my lost dog", "brown, small", ""]
+        g.world.blockEntities[IVec3(p.x + 1, p.y, p.z)] = mine
+        Honour.value = -90
+        Honour.addBounty(g, town, 500)
+        TownBoard.posters(g, town: town)
+        check(be.lines[3] == Money.format(500 + Honour.outlawFine) && mine.lines[1] == "my lost dog",
+              "honour gap: an outlaw's poster asks \(be.lines[3]) (bounty + fine); your own WANTED sign is untouched")
+        Honour.clearBounty(town); Honour.value = 0
+        g.world.blockEntities[p] = nil; g.world.blockEntities[IVec3(p.x + 1, p.y, p.z)] = nil
+
+        // Unseen theft is capped at 10 a day (a town field cleared at night).
+        TownLaw.reset(); TownLaw.forceTown = true
+        g.mobs.mobs = []
+        for _ in 0..<100 { TownLaw.offence(g, heat: 1, at: g.player.eye) }
+        check(abs(Honour.value + 10) < 0.01, "honour gap: unseen theft costs at most 10 honour a day (\(Honour.value) after 100)")
+        // The inventory shows the meter (and the wallet) wherever you are.
+        TownLaw.reset(); TownLaw.forceTown = nil; TownLaw.inTown = nil
+        g.openMenu(InventoryMenu(game: g))
+        let hud = HonourHUD.lines(g, HudLayout(1280, 800)).map(\.text) + Wallet.lines(g, HudLayout(1280, 800)).map(\.text)
+        g.closeMenu()
+        check(hud.contains { $0.hasPrefix("Honour: ") } && hud.contains { $0.hasPrefix("$") }, "honour gap: the inventory shows your honour and wallet (\(hud.joined(separator: ", ")))")
 
         // Bounty hunters.
         TownLaw.reset(); TownLaw.forceTown = nil
@@ -235,6 +284,15 @@ extension TownTests {
             g.mobDied(h)
             check(Honour.value == before, "honour gap: killing a bounty hunter earns no honour")
         }
+        // They ride off once you're no longer wanted and they're out of range; never sent on Peaceful.
+        Honour.value = 0
+        for h in hunters { h.pos = g.player.pos + V3(60, 0, 0) }
+        BountyHunters.tick(g)
+        check(!g.mobs.mobs.contains { $0.posse == 3 }, "honour gap: hunters leave once you're no longer wanted")
+        g.mobs.mobs = []; Honour.value = -90; TownLaw.state.huntersDay = nil; g.difficulty = 0
+        BountyHunters.tick(g)
+        check(g.mobs.mobs.isEmpty, "honour gap: no bounty hunters on Peaceful")
+        g.difficulty = 2; Honour.value = 0
         g.mobs.mobs = []
     }
 }

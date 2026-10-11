@@ -252,7 +252,7 @@ enum TownLaw {
         var ws = witnesses(g, at: p)
         if let v = victim, !ws.contains(where: { $0 === v }) { ws.insert(v, at: 0) }
         // Unseen, it still costs honour (a third of what a witness would make it): stealing is stealing.
-        guard let first = ws.first else { Honour.change(g, -0.5 * add, "theft, unseen"); return }
+        guard let first = ws.first else { Honour.unseenTheft(g, 0.5 * add); return }
         let town = town(of: first, g)
         let h = heat(town) + add
         state.heat[town] = h
@@ -462,17 +462,16 @@ enum TownLaw {
         g.particles.smoke(at: muzzle)
         guard g.world.canSee(muzzle, target) else { return }
         let d = simd_length(target - muzzle)
-        // The few who carry the Sheriff's Revolver (Honour.carriesRevolver) shoot straighter and harder.
-        let fancy = Honour.carriesRevolver(m)
-        let chance: Float = (d < 6 ? 0.85 : 0.7) + (fancy ? 0.1 : 0)
+        // (Only the few who carry the Sheriff's Revolver shoot: Honour.carriesRevolver, Townsfolk.weapon.)
+        let chance: Float = d < 6 ? 0.85 : 0.7
         guard Rand.float(in: 0..<1) < chance else {
             if foe == nil { g.sfx(.bulletWhizz, 0.8, at: g.player.eye) }
             return
         }
         if let f = foe {
-            f.hit(from: m.pos, damage: fancy ? 10 : 8, knockback: 0.3)
+            f.hit(from: m.pos, damage: 8, knockback: 0.3)
         } else {
-            g.hurtPlayer(TownWeapon.revolver.damage + (fancy ? 2 : 0), from: m.pos, cause: "was shot by Sheriff \(m.villager?.person ?? "")", knockback: 0.4, attacker: m)
+            g.hurtPlayer(TownWeapon.revolver.damage, from: m.pos, cause: "was shot by Sheriff \(m.villager?.person ?? "")", knockback: 0.4, attacker: m)
         }
     }
 }

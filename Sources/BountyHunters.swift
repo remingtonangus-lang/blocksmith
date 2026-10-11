@@ -5,7 +5,8 @@ import simd
 // head across the towns, is now and then ridden down out in the wild: two or three hunters (a Brigand with a
 // crossbowman, a third when the price is $50+) turn up 22-30 blocks off, out of sight, and come straight for them.
 // At most once an in-game day (TownLaw.Saved.huntersDay), never in a town, never in creative. Killing them is no
-// crime and earns no honour (Honour.mobDied). Paying your bounties or your fine stops them.
+// crime and earns no honour (Honour.mobDied). Paying your bounties or your fine stops them: hunters ride off (are
+// removed) once you're no longer wanted, or when they've been out five minutes and are far from you. Never on Peaceful.
 enum BountyHunters {
     static let name = "Bounty Hunter"
     static var chancePerSecond: Float = 1.0 / 240      // about once every four minutes out in the wild while wanted
@@ -16,7 +17,8 @@ enum BountyHunters {
 
     // TownLaw.tick, once a second.
     static func tick(_ g: Game) {
-        guard g.survival, g.dim.dim == .overworld, TownLaw.inTown == nil, wanted() else { return }
+        leave(g)
+        guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, wanted() else { return }
         let day = Int(g.time / DAY_LENGTH)
         guard (TownLaw.state.huntersDay ?? -99) < day, Rand.float(in: 0..<1) < chancePerSecond else { return }
         if send(g) > 0 { TownLaw.state.huntersDay = day }
@@ -40,6 +42,7 @@ enum BountyHunters {
             let m = Mob(placed == 1 ? .pillager : .vindicator, at: w.freeSpawn(at))
             if m.collides(m.pos, w) { continue }
             m.customName = name
+            m.posse = 3; m.posseSince = g.clock
             m.aggro = true; m.lockTime = 30         // they know where you are (Brigands track inside 32 blocks)
             m.health = m.spec.health * 5 / 4
             g.mobs.mobs.append(m)
@@ -53,4 +56,17 @@ enum BountyHunters {
         return placed
     }
     static var sent = 0
+    static let lifetime: Double = 300
+
+    // Hunters ride off when the job's gone (you paid up), or after five minutes out of sight range (they're named, so
+    // they would never despawn on their own).
+    static func leave(_ g: Game) {
+        let paid = !wanted() || !g.survival || g.difficulty == 0
+        g.mobs.mobs.removeAll { m in
+            guard m.posse == 3, m.health > 0 else { return false }
+            let far = simd_length(m.pos - g.player.pos) > 48
+            return (paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
+                || simd_length(m.pos - g.player.pos) > 128
+        }
+    }
 }

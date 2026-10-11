@@ -95,17 +95,18 @@ enum Wallet {
     private static var delta = 0
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive else { return [] }
+        let inv = g.menu is InventoryMenu && g.survival               // the inventory shows it too (with your honour)
+        guard HudExtras.enabled, !g.hideHUD, g.menu == nil || inv, g.alive else { return [] }
         let money = g.money
         if money != shown {
             if shown != Int.min { delta = money - shown; changedAt = g.clock }
             shown = money
         }
         let recent = g.clock - changedAt < 6
-        guard recent || TownLaw.inTown != nil else { return [] }
+        guard recent || TownLaw.inTown != nil || inv else { return [] }
         let s = L.s
-        var y = L.insetY + 6 * s + (g.effects.any ? 54 * s : 0)
-        if Settings.shared.minimap { y += 64 * s + 30 * s }          // under the minimap, its coordinates and waypoint line
+        var y = L.insetY + 6 * s + (g.effects.any && !inv ? 54 * s : 0)
+        if Settings.shared.minimap && !inv { y += 64 * s + 30 * s }          // under the minimap, its coordinates and waypoint line
         let t = Money.format(money)
         let w = Float(Font.width(t)) * s
         let x = L.W - L.insetX - w - 8 * s

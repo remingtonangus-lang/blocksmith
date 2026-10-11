@@ -21,7 +21,7 @@ import simd
 enum Honour {
     static let outlaw: Float = -60, disreputable: Float = -20, respected: Float = 20, honourable: Float = 60
     static let lapseDays = 7
-    static let dailyCap: [String: Float] = ["monster": 8, "outlaw": 9, "trade": 3, "job": 15, "donation": 6]
+    static let dailyCap: [String: Float] = ["monster": 8, "outlaw": 9, "trade": 3, "job": 15, "donation": 6, "theft": 10]
     static let outlawFine = 1000                    // cents: what surrendering as an outlaw costs (on top of bounties)
 
     // HUD (HonourHUD.lines) and the toast throttle.
@@ -64,6 +64,7 @@ enum Honour {
         value = before + amount
         let d = value - before
         guard d != 0 else { return }
+        let burst = why == lastWhy && g.clock - changedAt < 1          // (the same deed again at once: one sound)
         delta = g.clock - changedAt < 6 ? delta + d : d
         changedAt = g.clock
         lastWhy = why
@@ -73,7 +74,7 @@ enum Honour {
         if log.count > logCap { log.removeFirst(log.count - logCap) }
         TownLaw.state.honourLog = log
         // The meter pulses (HonourHUD) with a soft chime up or a low knell down.
-        g.sfx(d > 0 ? .amethystChime : .bellResonate, d > 0 ? 0.45 : 0.3)
+        if !burst { g.sfx(d > 0 ? .amethystChime : .bellResonate, d > 0 ? 0.45 : 0.3) }
         if standing(before) != standing(value) {
             g.onToast?("Honour: \(standing(value))")
             lastToast = g.clock
@@ -95,6 +96,19 @@ enum Honour {
         gains[key] = used + give
         TownLaw.state.honourGains = gains
         change(g, give, why)
+    }
+
+    // Unseen theft (TownLaw.offence with no witness): a loss, capped at 10 a day like the gains (so clearing a town
+    // field at night costs some honour, not all of it), with the chime only once for a burst (change).
+    static func unseenTheft(_ g: Game, _ amount: Float) {
+        let key = "\(Int(g.time / DAY_LENGTH)):theft"
+        var gains = TownLaw.state.honourGains ?? [:]
+        let used = gains[key] ?? 0
+        let take = min(amount, (dailyCap["theft"] ?? 10) - used)
+        guard take > 0 else { return }
+        gains[key] = used + take
+        TownLaw.state.honourGains = gains
+        change(g, -take, "theft, unseen")
     }
 
     // What's left of today's allowance for a capped source.
@@ -171,9 +185,9 @@ enum Honour {
 
     // Game.mobDied.
     static func mobDied(_ g: Game, _ m: Mob) {
+        TownBoard.mobDied(g, m)                                          // (any death: an outlaw drowned ends his job too)
         guard m.killedByPlayer, g.survival, g.dim.dim == .overworld else { return }
-        TownBoard.mobDied(g, m)
-        if m.customName == BountyHunters.name || m.customName?.hasSuffix("'s Gang") == true { return }   // no honour for these
+        if m.posse != 0 { return }                                       // hunters, an outlaw and his gang: no honour
         if m.kind == .villager, m.villager?.person != nil {
             // Only a killing the player did (hurt within 10 s: killedByPlayer is never cleared, so a punch long ago
             // or a rocket that missed doesn't make a later death to a zombie murder) and only in a real town (a
@@ -326,7 +340,18 @@ extension Honour {
                                                ("shipwreck", "a wreck washed up"), ("ruined_portal", "old ruins with a strange arch"),
                                                ("temple", "an old temple"), ("trail_ruins", "buried ruins"), ("military_base", "an army base"),
                                                ("mineshaft", "an old mine")]
+    // One lookup per town per day (StructureCache.nearest can lay out structures: not on every greeting).
+    private static var tipCache: [String: String?] = [:]
     static func tip(_ g: Game, from p: V3) -> String? {
+        let key = "\(Int(g.time / DAY_LENGTH)):\(TownLaw.inTown ?? Townsfolk.town(g, at: p))"
+        if let c = tipCache[key] { if c != nil { tipsGiven += 1 }; return c }
+        if tipCache.count > 64 { tipCache.removeAll() }
+        let t = findTip(g, from: p)
+        tipCache[key] = .some(t)
+        if t != nil { tipsGiven += 1 }
+        return t
+    }
+    static func findTip(_ g: Game, from p: V3) -> String? {
         guard let sc = g.world.gen.structures else { return nil }
         let x = Int(floor(p.x)), z = Int(floor(p.z))
         var best: (Float, String, Float, Float)?
@@ -337,7 +362,6 @@ extension Honour {
             if d > 40 && d < 1200 && (best == nil || d < best!.0) { best = (d, what, dx, dz) }
         }
         guard let b = best else { return nil }
-        tipsGiven += 1
         return "Word is there's \(b.1) about \(Int(b.0 / 10) * 10) blocks \(TownBoard.direction(b.2, b.3)) of here."
     }
     static var tipsGiven = 0
@@ -346,13 +370,14 @@ extension Honour {
 // The honour standing on the HUD, under the wallet: shown in towns and for 6 s after a change (with the change).
 enum HonourHUD {
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, g.survival else { return [] }
+        let inv = g.menu is InventoryMenu                               // the inventory always shows it, under the wallet
+        guard HudExtras.enabled, !g.hideHUD, g.menu == nil || inv, g.alive, g.survival else { return [] }
         let recent = g.clock - Honour.changedAt < 6
-        guard recent || TownLaw.inTown != nil else { return [] }
+        guard recent || TownLaw.inTown != nil || inv else { return [] }
         let s = L.s
-        let walletShown = TownLaw.inTown != nil || g.clock - Wallet.changedAt < 6
-        var y = L.insetY + 6 * s + (g.effects.any ? 54 * s : 0) + (walletShown ? 14 * s : 0)     // one line under the wallet
-        if Settings.shared.minimap { y += 64 * s + 30 * s }
+        let walletShown = TownLaw.inTown != nil || g.clock - Wallet.changedAt < 6 || inv
+        var y = L.insetY + 6 * s + (g.effects.any && !inv ? 54 * s : 0) + (walletShown ? 14 * s : 0)     // one line under the wallet
+        if Settings.shared.minimap && !inv { y += 64 * s + 30 * s }
         let h = Honour.value
         let t = "Honour: " + Honour.standing(h)
         // A change pulses the meter: it swells and brightens for 0.8 s, then settles (with the chime from change()).

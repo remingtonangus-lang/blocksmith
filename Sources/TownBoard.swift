@@ -29,6 +29,28 @@ struct TownJob: Codable {
     var target: [Int]? = nil         // outlaw: where he was last seen (x, z)
     var outlaw: String? = nil        // outlaw: his name
     var spawned: Bool? = nil
+
+    init(day: Int, kind: String, item: String? = nil, count: Int, pay: Int, honour: Float, outlaw: String? = nil) {
+        self.day = day; self.kind = kind; self.item = item; self.count = count; self.pay = pay; self.honour = honour; self.outlaw = outlaw
+    }
+    // Tolerant: a missing flag reads as its default (one odd job never costs the whole town-law save).
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        day = try c.decodeIfPresent(Int.self, forKey: .day) ?? 0
+        kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "hunt"
+        item = try c.decodeIfPresent(String.self, forKey: .item)
+        count = try c.decodeIfPresent(Int.self, forKey: .count) ?? 1
+        pay = try c.decodeIfPresent(Int.self, forKey: .pay) ?? 0
+        honour = try c.decodeIfPresent(Float.self, forKey: .honour) ?? 0
+        progress = try c.decodeIfPresent(Int.self, forKey: .progress) ?? 0
+        taken = try c.decodeIfPresent(Bool.self, forKey: .taken) ?? false
+        done = try c.decodeIfPresent(Bool.self, forKey: .done) ?? false
+        paid = try c.decodeIfPresent(Bool.self, forKey: .paid) ?? false
+        anchor = try c.decodeIfPresent([Int].self, forKey: .anchor)
+        target = try c.decodeIfPresent([Int].self, forKey: .target)
+        outlaw = try c.decodeIfPresent(String.self, forKey: .outlaw)
+        spawned = try c.decodeIfPresent(Bool.self, forKey: .spawned)
+    }
 }
 
 enum TownBoard {
@@ -38,8 +60,8 @@ enum TownBoard {
     static let deliveries: [(String, Int)] = [("wheat", 24), ("carrot", 16), ("potato", 16), ("leather", 6), ("coal", 16), ("bread", 8),
                                               ("iron_ingot", 4), ("cooked_beef", 6), ("white_wool", 8), ("string", 8), ("feather", 12),
                                               ("arrow", 24), ("bone", 12), ("honey_bottle", 2)]
-    static let outlawFirst = ["Black", "Mad", "Slim", "One-Eye", "Dutch", "Red", "Lucky", "Cold", "Snake", "Smiling"]
-    static let outlawLast = ["Jack", "Bill", "Cassidy", "Morrow", "Tolliver", "Crane", "Pike", "Varga", "Kincaid", "Stokes"]
+    static let outlawFirst = ["Black", "Mad", "Slim", "One-Eye", "Gentleman", "Red", "Lucky", "Cold", "Snake", "Smiling"]
+    static let outlawLast = ["Jack", "Bill", "Haskell", "Morrow", "Tolliver", "Crane", "Pike", "Varga", "Kincaid", "Stokes"]
 
     // MARK: Jobs
 
@@ -79,7 +101,9 @@ enum TownBoard {
             let options = deliveries.filter { Items.has($0.0) && Economy.value[$0.0] != nil }
             let (item, n) = options[Int((h >> 8) % UInt64(max(1, options.count)))]
             // Paid 60% of the goods' value: under any shop's price (Economy.minBuyMult 0.85), over what a shop pays (<= 0.55).
-            let pay = max(50, Int(Float((Economy.value[item] ?? 10) * n) * 0.6))
+            // (The 50-cent floor never above 75% of the value: per-unit price rounding can't open a buy-and-deliver loop.)
+            let v = (Economy.value[item] ?? 10) * n
+            let pay = min(max(50, Int(Float(v) * 0.6)), Int(Float(v) * 0.75))
             return TownJob(day: day, kind: kind, item: item, count: n, pay: pay, honour: 4)
         case "hunt":
             let n = 4 + Int((h >> 12) % 5)
@@ -123,7 +147,7 @@ enum TownBoard {
         guard !j.paid else { return ("That job is done.", false) }
         switch j.kind {
         case "deliver":
-            guard let key = j.item, Items.has(key) else { return ("", false) }
+            guard let key = j.item, Items.has(key) else { return ("That job's been called off.", false) }
             let id = Items.id(key)
             guard g.inventory.main.countOf(id) >= j.count else { return ("You need \(j.count) \(ItemStack(id, 1).def.display).", false) }
             g.inventory.main.remove(id, j.count)
@@ -158,15 +182,23 @@ enum TownBoard {
 
     // Hunts and outlaws: kills by the player (Honour.mobDied).
     static func mobDied(_ g: Game, _ m: Mob) {
-        guard m.killedByPlayer, g.survival, var all = TownLaw.state.jobs else { return }
+        guard var all = TownLaw.state.jobs else { return }
         var changed = false
         for (k, var j) in all where j.taken && !j.done {
-            if j.kind == "hunt", m.kind.hostile, let a = j.anchor,
+            // The outlaw dead some other way (drowned, a fall, the sheriff got him): the job's off, no reward.
+            if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n, !(m.killedByPlayer && g.survival) {
+                j.done = true; j.paid = true
+                all[k] = j; changed = true
+                g.onToast?("\(n) is dead, but not by your hand. No reward")
+                continue
+            }
+            guard m.killedByPlayer, g.survival else { continue }
+            if j.kind == "hunt", m.kind.hostile, m.posse == 0, let a = j.anchor,
                simd_length(V2(m.pos.x - Float(a[0]), m.pos.z - Float(a[1]))) < 96 {
                 j.progress += 1
                 if j.progress >= j.count { j.done = true; g.onToast?("Job done: collect your pay at the notice board") }
                 all[k] = j; changed = true
-            } else if j.kind == "outlaw", let n = j.outlaw, m.customName == n {
+            } else if j.kind == "outlaw", m.posse == 1, let n = j.outlaw, m.customName == n {
                 j.done = true; j.progress = 1
                 all[k] = j; changed = true
                 g.onToast?("\(n) is dead. Collect the reward at the notice board")
@@ -177,21 +209,32 @@ enum TownBoard {
 
     // Once a second (TownLaw.tick): a taken outlaw shows up when you get near where he was seen.
     static func tick(_ g: Game) {
-        guard g.dim.dim == .overworld, g.survival, let all = TownLaw.state.jobs else { return }
-        for (k, var j) in all where j.kind == "outlaw" && j.taken && !j.done {
-            guard let t = j.target, let name = j.outlaw else { continue }
-            let c = V3(Float(t[0]) + 0.5, 0, Float(t[1]) + 0.5)
-            guard simd_length(V2(c.x - g.player.pos.x, c.z - g.player.pos.z)) < 56, g.world.isLoaded(t[0], t[1]) else { continue }
-            if g.mobs.mobs.contains(where: { $0.customName == name && $0.health > 0 }) { continue }
-            let y = Float(g.world.topY(t[0], t[1]) + 1)
+        guard g.dim.dim == .overworld, g.survival, g.difficulty > 0, let all = TownLaw.state.jobs else { return }
+        let day = Int(g.time / DAY_LENGTH)
+        // He turns up once (persistent: he's saved with his ground after that), on dry land, while the job is fresh.
+        for (k, var j) in all where j.kind == "outlaw" && j.taken && !j.done && j.spawned != true && day - j.day < 3 {
+            guard let t0 = j.target, let name = j.outlaw else { continue }
+            guard simd_length(V2(Float(t0[0]) - g.player.pos.x, Float(t0[1]) - g.player.pos.z)) < 56,
+                  g.world.isLoaded(t0[0], t0[1]) else { continue }
+            // The nearest dry spot to where he was seen (a spiral out to 12 blocks); none: try again next second.
+            var spot: (Int, Int)?
+            search: for r in 0...12 { for dx in -r...r { for dz in -r...r where max(abs(dx), abs(dz)) == r {
+                let x = t0[0] + dx, z = t0[1] + dz
+                guard g.world.isLoaded(x, z) else { continue }
+                let y = g.world.topY(x, z) + 1
+                if !Blocks.isLiquid(g.world.block(x, y - 1, z)) && !Blocks.isLiquid(g.world.block(x, y, z)) { spot = (x, z); break search }
+            } } }
+            guard let (sx, sz) = spot else { continue }
+            let c = V3(Float(sx) + 0.5, 0, Float(sz) + 0.5)
+            let y = Float(g.world.topY(sx, sz) + 1)
             let boss = Mob(.vindicator, at: g.world.freeSpawn(V3(c.x, y, c.z)))
-            boss.customName = name; boss.persistent = true; boss.aggro = true; boss.lockTime = 20
+            boss.customName = name; boss.persistent = true; boss.aggro = true; boss.lockTime = 20; boss.posse = 1
             boss.health = boss.spec.health * 3 / 2
             g.mobs.mobs.append(boss)
             let pal = Mob(.pillager, at: g.world.freeSpawn(V3(c.x + 3, y, c.z + 2)))
-            pal.customName = "\(name)'s Gang"; pal.persistent = true; pal.aggro = true; pal.lockTime = 20
+            pal.customName = "\(name)'s Gang"; pal.persistent = true; pal.aggro = true; pal.lockTime = 20; pal.posse = 2
             g.mobs.mobs.append(pal)
-            if j.spawned != true { g.onToast?("That's \(name)! Take him down") }
+            g.onToast?("That's \(name)! Take him down")
             j.spawned = true
             var a2 = all; a2[k] = j; TownLaw.state.jobs = a2
         }
@@ -202,14 +245,20 @@ enum TownBoard {
     // The WANTED boards near the player (in the town they are in): your own poster while you're wanted there or an
     // outlaw, the town's old notice otherwise. Once a second (TownLaw.tick).
     static let oldPoster = ["WANTED", "Dead or Alive", "Reward", "$50"]
+    // A town's WANTED board: the poster the office went up with, or one of yours we put up (a sign you wrote yourself
+    // that starts "WANTED" is left alone).
+    static func isBoard(_ be: BlockEntity) -> Bool {
+        be.lines == oldPoster || (be.lines.count == 4 && be.lines[0] == "WANTED" && be.lines[2] == "Dead or Alive")
+    }
     static func posters(_ g: Game, town: String?) {
         guard g.dim.dim == .overworld else { return }
         let p = g.player.pos
         let owed = town.map { Honour.bounty($0) } ?? 0
         let wanted = town != nil && g.survival && (owed > 0 || Honour.isOutlaw)
-        let poster = wanted ? ["WANTED", ShopMenu.fit(playerName, 88), "Dead or Alive", Money.format(max(owed, Honour.isOutlaw ? 2000 : 0))] : oldPoster
-        for (q, be) in g.world.blockEntities where be.kind == .sign && be.lines.first == "WANTED" {
-            guard abs(Float(q.x) - p.x) < 64 && abs(Float(q.z) - p.z) < 64 else { continue }
+        // What surrendering costs: the bounty here, plus the outlaw's fine (Honour.settle).
+        let poster = wanted ? ["WANTED", ShopMenu.fit(playerName, 88), "Dead or Alive", Money.format(owed + (Honour.isOutlaw ? Honour.outlawFine : 0))] : oldPoster
+        for (q, be) in g.world.blockEntities where be.kind == .sign && isBoard(be) {
+            guard abs(Float(q.x) - p.x) < 64 && abs(Float(q.z) - p.z) < 64, TownLaw.isTownSpot(g, q) else { continue }
             if be.lines != poster { be.lines = poster }
         }
     }

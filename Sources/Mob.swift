@@ -330,6 +330,8 @@ final class Mob {
     var villager: VillagerData?     // profession, level, trades
     var town = TownState()          // townsperson: anger, reactions, swings (Townsfolk.swift; not saved)
     var customName: String?         // name tag
+    var posse = 0                   // TownBoard/BountyHunters: 1 a wanted outlaw, 2 his gang, 3 a bounty hunter (saved)
+    var posseSince: Double = -1     // the game clock when a hunter rode in (not saved: reloaded hunters leave when far)
     var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
     var variant = 0                 // colour / breed variant
     var sitting = false

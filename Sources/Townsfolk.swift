@@ -121,7 +121,7 @@ enum Townsfolk {
         let look = v.look ?? 0
         switch v.role ?? "worker" {
         case "deputy": return .sword
-        case "sheriff": return .revolver
+        case "sheriff": return v.revolver == true ? .revolver : .sword      // ~5% carry the gun (Honour.carriesRevolver)
         case "farmer": return .pitchfork
         case "elder", "child", "citizen": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":

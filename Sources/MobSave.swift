@@ -86,6 +86,7 @@ extension Mob {
         if captain { d["captain"] = 1 }
         if trap { d["trap"] = 1 }
         if hasEgg { d["egg"] = 1 }
+        if posse != 0 { d["posse"] = Float(posse) }
         if canPickUp { d["pickup"] = 1 }
         if let h = hive { d["hx"] = Float(h.x); d["hy"] = Float(h.y); d["hz"] = Float(h.z) }
         // A cure in progress and a player-built golem (both were lost when the mob unloaded or the world reloaded: the
@@ -111,6 +112,7 @@ extension Mob {
         captain = (d["captain"] ?? 0) > 0
         trap = (d["trap"] ?? 0) > 0
         hasEgg = (d["egg"] ?? 0) > 0
+        posse = Int(d["posse"] ?? 0)
         canPickUp = (d["pickup"] ?? 0) > 0
         power = d["power"] ?? 1
         if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
