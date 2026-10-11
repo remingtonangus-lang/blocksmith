@@ -1,5 +1,11 @@
 # Status
 
+> **Oct 10 AM playtest gaps (25b4zxx, 2026-10-10 late):** the far volcano reads as dark rock (horizon ring under the
+> impostor; docs/status/worldgen-oct10.md); enemy melee reaches the player's real body (`Game.meleeGap`: feet to
+> headset, only the part level with the mob; no hits on a 2-block pillar); a white-hot flash + weapon sparks when a hit
+> lands (Mac + Quest blade, haptics kept); Quest perf gate in snap.sh's checks shard. `--swingtest` 56 checks. Open
+> (task 25b4zxxx): headset perf logs (no Quest on adb), aniso 4 A/B, first CI run of the gate, hostile townsfolk melee
+> (cloud scope), mobtests path ladder/swimmer after the Deep merge (known-test-issues).
 > **The Deep expansion (2026-10-10, quest-port PR):** Sealrock (8 unbroken layers under the Deep's hell band; only a
 > Sunderite Pickaxe or a Sunder Charge breaks it), Sunderite (only in Brimstone Keep strongrooms; flux -> blast
 > furnace -> ingot -> pickaxe / charge), Brimstone Keeps (guarded hell strongholds; compass points there in the hell
