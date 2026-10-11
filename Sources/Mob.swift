@@ -2123,6 +2123,58 @@ final class MobManager {
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
     func of(_ k: MobKind) -> [Mob] { kindIndex[k.rawValue] }
+    // P60 (Oct 11 evening playtest): bodies don't overlap. Mobs near the player that stand in one another (or in the
+    // player: a voidwalker blinking in on top of him was hard to hit) are eased apart sideways, a little each frame,
+    // never into a wall. Pairs within 48 blocks only; no allocation (a kept scratch list).
+    private var sepNear: [Mob] = []
+    static var separated = 0                        // pushes made (tests)
+    func separate(_ dt: Float, _ g: Game) {
+        let p = g.player.pos, w = g.world
+        sepNear.removeAll(keepingCapacity: true)
+        for m in mobs where m.health > 0 && m.downed <= 0 && m.deck == nil && g.riding !== m && !m.lying && !m.leashed && m.halfW < 1.6
+            && m.kind != .boat && m.kind != .minecart && m.kind != .enderDragon && m.kind != .endCrystal && m.kind != .shulker
+            && m.kind != .deckGun && m.kind != .armorStand && m.hitStop <= 0 {
+            let d = m.pos - p
+            if d.x * d.x + d.z * d.z < 48 * 48 { sepNear.append(m) }
+        }
+        let step = min(0.25, 4 * dt)
+        func nudge(_ m: Mob, _ dir: V2, _ by: Float) {
+            let q = m.pos + V3(dir.x, 0, dir.y) * min(step, by)
+            if !m.collides(q, w) { m.pos = q; MobManager.separated += 1 }
+        }
+        func dirOf(_ dx: Float, _ dz: Float) -> (V2, Float) {
+            let l = sqrtf(dx * dx + dz * dz)
+            if l < 1e-3 { let a = Rand.float(in: 0..<(2 * Float.pi)); return (V2(cosf(a), sinf(a)), 0) }
+            return (V2(dx / l, dz / l), l)
+        }
+        let n = sepNear.count
+        if g.alive && g.riding == nil {
+            for m in sepNear {
+                let dy = m.pos.y - p.y
+                guard dy > -m.height && dy < g.player.height else { continue }
+                let (dir, l) = dirOf(m.pos.x - p.x, m.pos.z - p.z), need = m.halfW + g.player.halfW
+                if l < need { nudge(m, dir, need - l) }
+            }
+        }
+        guard n > 1 else { return }
+        for i in 0..<(n - 1) {
+            let a = sepNear[i]
+            for j in (i + 1)..<n {
+                let b = sepNear[j]
+                let need = a.halfW + b.halfW
+                let dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z
+                guard abs(dx) < need && abs(dz) < need else { continue }
+                let dy = b.pos.y - a.pos.y
+                guard dy > -b.height && dy < a.height else { continue }
+                let (dir, l) = dirOf(dx, dz)
+                guard l < need else { continue }
+                let half = (need - l) * 0.5
+                nudge(b, dir, half)
+                nudge(a, -dir, half)
+            }
+        }
+    }
+
     func rebuildIndex() {
         for i in kindIndex.indices { kindIndex[i].removeAll(keepingCapacity: true) }
         for m in mobs where m.health > 0 { kindIndex[m.kind.rawValue].append(m) }
@@ -2149,7 +2201,7 @@ final class MobManager {
         Mob.hardMode = game.difficulty == 3
         Difficulty.level = game.difficulty
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
-        if !second { hiveTick(dt, game) }
+        if !second { hiveTick(dt, game); separate(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround

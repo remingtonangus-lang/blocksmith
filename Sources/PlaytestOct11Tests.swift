@@ -29,6 +29,7 @@ enum PlaytestOct11Tests {
         rarity(check)
         nightManners(game, check)
         mobVariety(game, check)
+        noOverlap(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -583,5 +584,19 @@ enum PlaytestOct11Tests {
               && Set(hits).count >= 3,
               String(format: "P55 mob variety: zombie speed x%.2f-%.2f, hit x%.2f-%.2f (a 4 lands as %@), toughness x%.2f-%.2f; skeleton aim spread %.2f-%.2f; a cow stays plain",
                      sp.min()!, sp.max()!, dm.min()!, dm.max()!, Set(hits).sorted().map(String.init).joined(separator: "/"), tg.min()!, tg.max()!, sk.min()!, sk.max()!))
+    }
+
+    // P60: two zombies standing in each other, and a voidwalker standing in the player, are eased apart within a second.
+    static func noOverlap(_ game: Game, _ check: (Bool, String) -> Void) {
+        let saved = game.mobs.mobs
+        defer { game.mobs.mobs = saved }
+        let p = game.player.pos
+        let at = V3(p.x + 4, p.y + 20, p.z)                       // in the air: nothing to push them into
+        let a = Mob(.zombie, at: at), b = Mob(.zombie, at: at + V3(0.05, 0, 0)), e = Mob(.enderman, at: p + V3(0.1, 0, 0))
+        game.mobs.mobs = [a, b, e]
+        for _ in 0..<30 { game.mobs.separate(1.0 / 30, game) }
+        let ab = simd_length(V2(a.pos.x - b.pos.x, a.pos.z - b.pos.z)), ep = simd_length(V2(e.pos.x - p.x, e.pos.z - p.z))
+        check(ab >= a.halfW + b.halfW - 0.02 && ep >= e.halfW + game.player.halfW - 0.02,
+              String(format: "P60 no overlap: two zombies %.2f apart (need %.2f), a voidwalker %.2f from the player (need %.2f)", ab, a.halfW + b.halfW, ep, e.halfW + game.player.halfW))
     }
 }
