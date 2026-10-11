@@ -5,5 +5,5 @@ set -uo pipefail
 dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ] || [ -f "$dir/.claude/ALLOW_STOP" ]; then exit 0; fi
 cat <<'JSON'
-{"decision": "block", "reason": "Continue with the next highest-value item in STATUS.md (Playtest feedback queue) / BUGS.md; you are not done until usage runs out. Never idle on CI: work locally while a run is going, push when it has published. Keep CI green and PR #9 current."}
+{"decision": "block", "reason": "Do not stop: take the next unclaimed item in your lane of docs/roadmap/backlog.md (then the other cloud lane), claim it, write expanded objectives, build, verify, self-merge, mark it DONE, repeat. Stop only when every item in docs/roadmap/backlog.md is DONE or claimed by a live thread."}
 JSON
