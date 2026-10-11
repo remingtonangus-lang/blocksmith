@@ -72,6 +72,10 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
+// every stance. --posecheck-only stops after it.
+check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+if CommandLine.arguments.contains("--posecheck-only") { exit(failures == 0 ? 0 : 1) }
 // Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
 HellMobsTests.run(game, check: check)
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {

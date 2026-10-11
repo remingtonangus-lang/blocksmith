@@ -152,7 +152,10 @@ enum PoseCheck {
                     check(finite, "\(tag) finite")
                     check(rig.reachErr < 1.3, "\(tag) hands reach", String(format: "%.1f px short", rig.reachErr))
                     if s.standing { check(lo > -0.8 && lo < 0.9, "\(tag) boots on the ground", String(format: "lowest point %.2f px", lo)) }
-                    check(hi > 30, "\(tag) head up", String(format: "top %.1f px", hi))
+                    // A seat drops the hips about 3.5 px, so a seated head (bare, capped or helmeted) tops out near 29;
+                    // a collapsed head would sit below the shoulders (~24).
+                    let seatedPose = s.name.hasPrefix("station seated") || s.name.hasPrefix("station passenger") || s.name == "aim seated"
+                    check(hi > (seatedPose ? 27 : 30), "\(tag) head up", String(format: "top %.1f px", hi))
                     if s.name.hasPrefix("aim") || s.name == "firing" {
                         let chest = rig.chestFront
                         if gi != Guns.launcher { check(rig.handR.z < chest - 0.5, "\(tag) right hand ahead of the chest", String(format: "z %.1f, chest %.1f", rig.handR.z, chest)) }   // launchers: gripped at the shoulder
