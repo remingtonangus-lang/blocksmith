@@ -261,6 +261,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         let skyDir = arg("--sky-dir") ?? tmp.appendingPathComponent("shots").path
         try? FileManager.default.createDirectory(atPath: skyDir, withIntermediateDirectories: true)
         try SkyTest.run(game: game, ctx: ctx, dir: skyDir, check: check)
+        PowderwightTest.run(game: game, check: check)
+        if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }

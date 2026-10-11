@@ -39,7 +39,7 @@ extension BlockRegistry {
         }
         // Mob heads: 4 floor facings (0-3) + 4 wall facings (4-7). Face texture on the facing side.
         let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Blight Skeleton Skull", "skull_wither"),
-                                                 ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Hisser Head", "head_creeper"),
+                                                 ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Powderwight Head", "head_creeper"),
                                                  ("piglin_head", "Boarling Head", "head_piglin"), ("dragon_head", "Wyrm Head", "head_dragon"),
                                                  ("player_head", "Player Head", "head_player")]
         for (n, disp, t) in heads {
@@ -146,8 +146,8 @@ extension TextureGen {
             ("skull_skeleton", 0xC8C8C4, ["........", "........", ".##..##.", ".##..##.", "........", "...##...", ".#.##.#.", "........"], ["#": 0x2A2A2A]),
             ("skull_wither", 0x2E2E30, ["........", "........", ".##..##.", ".##..##.", "........", "...##...", ".#.##.#.", "........"], ["#": 0x0A0A0A]),
             ("head_zombie", 0x5A8A4A, ["........", "........", ".##..##.", ".#o..o#.", "........", "..####..", "..#..#..", "........"], ["#": 0x2A4A2A, "o": 0x1A1A1A]),
-            // Hisser: wide-set glowing slit eyes and a zigzag hissing mouth (Blocksmith's own face).
-            ("head_creeper", 0x5AB84A, ["........", "........", "#o....o#", "........", "........", "#.#..#.#", ".#.##.#.", "........"], ["#": 0x0A1A0A, "o": 0xE8E04A]),
+            // Powderwight: grey-green dead miner under a cap brim, dim amber eyes, a slack mouth (Blocksmith's own face).
+            ("head_creeper", 0x76866A, ["cccccccc", "bbbbbbbb", "........", ".oo..oo.", "........", "..####..", "........", "........"], ["c": 0x3E3428, "b": 0x2A2318, "o": 0xE8A040, "#": 0x1E2A1A]),
             ("head_piglin", 0xE8A090, ["........", "........", ".##..##.", ".w....w.", "..pppp..", "..p##p..", "..pppp..", "........"], ["#": 0x5A2A2A, "w": 0xF8F8F8, "p": 0xF0B8A8]),
             ("head_dragon", 0x1A1A1E, ["........", ".m....m.", "........", ".pp..pp.", "........", "########", "#......#", "########"], ["#": 0x2A2A30, "m": 0xB050E0, "p": 0xE070F8]),
             ("head_player", 0xB8805A, ["########", "#......#", "........", ".ww..ww.", ".wb..bw.", "...ee...", "..mmmm..", "........"], ["#": 0x4A3020, "w": 0xF8F8F8, "b": 0x3A4AA8, "e": 0x9A6040, "m": 0x6A3A2A]),

@@ -220,7 +220,7 @@ extension Snd {
         case .thunder: return "Thunder roars"
         case .lightning: return "Lightning strikes"
         case .windGust: return "Wind gusts"
-        case .creeperHiss: return "Hisser hisses"
+        case .creeperHiss: return "Powderwight fuse sizzles"
         case .fireball: return "Fireball"
         case .evokerCast: return "Conjurer casts"
         case .fangs: return "Fangs snap"

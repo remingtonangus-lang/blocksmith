@@ -13,7 +13,7 @@ enum Fireworks {
         if key.hasSuffix("_head") || key.hasSuffix("_skull") { return 3 }
         return nil
     }
-    static let shapeNames = ["Small Ball", "Large Ball", "Star-shaped", "Hisser-shaped", "Burst"]
+    static let shapeNames = ["Small Ball", "Large Ball", "Star-shaped", "Keg-shaped", "Burst"]
 
     // Special crafting (dynamic ingredients). Returns the result and grid slots that are not consumed.
     static func craft(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
@@ -230,8 +230,8 @@ extension ParticleManager {
                     dirs.append(V3(cosf(a1 + (a1 - a0) * t) * (0.45 + 0.55 * t), sinf(a1 + (a1 - a0) * t) * (0.45 + 0.55 * t), 0))
                 }
             }
-        case 3:                                      // hisser face
-            let face = ["#..#", "#..#", ".##.", "####", "#..#"]
+        case 3:                                      // powder keg with its lit fuse (the Powderwight's)
+            let face = [".#..", "..#.", "####", "####", "####"]
             for (y, row) in face.enumerated() { for (x, ch) in row.enumerated() where ch == "#" {
                 for _ in 0..<3 { dirs.append(V3((Float(x) - 1.5) * 0.35 + Rand.float(in: -0.05...0.05), (2 - Float(y)) * 0.35, 0)) }
             } }

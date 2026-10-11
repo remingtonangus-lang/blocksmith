@@ -244,9 +244,9 @@ enum Snapshot {
                 game.openMenu(pm)
                 pm.act("create", back: false); pm.newName = "Couch World"; pm.newSeed = "glacier"; pm.editing = 1; pm.build()
             case "death":
-                game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
+                game.openMenu(DeathMenu(game: game, message: "Player was blown up by Powderwight"))
             case "commands":
-                for c in ["/help", "/time set noon", "/give diamond sword 1", "/give hisser-head", "/locate sea temple", "/summon hisser", "hello", "/tp ~ ~2 ~", "/bogus", "/bases", "/rare"] { game.command(c) }
+                for c in ["/help", "/time set noon", "/give diamond sword 1", "/give powderwight-head", "/locate sea temple", "/summon powderwight", "hello", "/tp ~ ~2 ~", "/bogus", "/bases", "/rare"] { game.command(c) }
                 for l in game.commandLog { print("console: " + l) }
                 let m = CommandMenu(game: game, prefill: "/locate military")
                 print("console: suggestions " + m.suggestions.joined(separator: ", "))

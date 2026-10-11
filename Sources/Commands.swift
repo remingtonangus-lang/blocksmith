@@ -3,7 +3,7 @@ import simd
 
 // Command console (T or / on the keyboard, "Commands..." in the pause menu for a controller).
 // The usual cheat commands with the reference game's syntax; names accept both the internal keys
-// (diamond_sword, creeper) and Blocksmith display names (hisser, sea_temple).
+// (diamond_sword, creeper) and Blocksmith display names (powderwight, sea_temple).
 final class CommandMenu: Menu {
     var line = ""
     var historyPos = -1
