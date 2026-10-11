@@ -18,6 +18,9 @@ enum BountyHunters {
     // TownLaw.tick, once a second.
     static func tick(_ g: Game) {
         leave(g)
+        Riders.tick(g)
+        // Gunmen (hunters, posses) stay on you while they're out (townsfolk anger fades on its own).
+        for m in g.mobs.mobs where m.posse == 3 && m.kind == .villager && simd_length(m.pos - g.player.pos) < SixIron.chase { m.town.anger = max(m.town.anger, 5) }
         guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, wanted() else { return }
         let day = Int(g.time / DAY_LENGTH)
         guard (TownLaw.state.huntersDay ?? -99) < day, Rand.float(in: 0..<1) < chancePerSecond else { return }
@@ -39,12 +42,17 @@ enum BountyHunters {
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             // Out of the player's sight if we can (the first few tries), so they ride in.
             if k < 16 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
-            let m = Mob(placed == 1 ? .pillager : .vindicator, at: w.freeSpawn(at))
+            // P51: the first hunter carries a six-iron (an armed townsperson, Riders.gunman); the others are Brigands.
+            let m: Mob
+            if placed == 0 { m = Riders.gunman(g, at: w.freeSpawn(at), role: "posse", name: name) }
+            else {
+                m = Mob(placed == 1 ? .pillager : .vindicator, at: w.freeSpawn(at))
+                m.customName = name
+                m.posse = 3; m.posseSince = g.clock
+                m.aggro = true; m.lockTime = 30         // they know where you are (Brigands track inside 32 blocks)
+                m.health = m.spec.health * 5 / 4
+            }
             if m.collides(m.pos, w) { continue }
-            m.customName = name
-            m.posse = 3; m.posseSince = g.clock
-            m.aggro = true; m.lockTime = 30         // they know where you are (Brigands track inside 32 blocks)
-            m.health = m.spec.health * 5 / 4
             g.mobs.mobs.append(m)
             placed += 1
         }
@@ -57,6 +65,15 @@ enum BountyHunters {
     }
     static var sent = 0
     static let lifetime: Double = 300
+
+    // P51: killed with hunters or a posse on you, they collect: every bounty is paid off and your purse is gone.
+    static func claim(_ g: Game) {
+        guard g.survival, g.mobs.mobs.contains(where: { $0.posse == 3 && $0.health > 0 && simd_length($0.pos - g.player.pos) < 48 }),
+              totalBounty > 0 || g.money > 0 else { return }
+        TownLaw.state.bounty = [:]
+        g.money = 0
+        g.onToast?("The hunters collect: your bounty is paid off with every cent you had")
+    }
 
     // Hunters ride off when the job's gone (you paid up), or after five minutes out of sight range (they're named, so
     // they would never despawn on their own).

@@ -277,7 +277,8 @@ extension Game {
     // fields). Size = ceil(effective regional difficulty) + 1; the first one is the captain.
     func patrolTick(_ dt: Float) {
         specialSpawnersTick(dt)
-        guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5 else { return }
+        // P46: after the Reckoning the surface is the player's: no more Marauder patrols.
+        guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5, !Reckoning.won else { return }
         patrolTimer -= dt
         guard patrolTimer <= 0 else { return }
         patrolTimer = Rand.float(in: 600...660)

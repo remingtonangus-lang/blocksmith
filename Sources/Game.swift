@@ -2220,6 +2220,7 @@ final class Game {
         // Drop everything where we died. Experience is kept (P64, Oct 11 evening playtest: losing levels on death felt
         // like losing hours; the reference dropped up to 100 XP as orbs and reset the rest).
         let at = player.pos + V3(0, 1, 0)
+        BountyHunters.claim(self)
         effects.clear()
         absorption = 0
         for c in [inventory.main, inventory.armor, inventory.offhand] {
@@ -2522,6 +2523,8 @@ final class Game {
             TickProf.mark("block second tick")
             ashTick()
             TickProf.mark("ash war")
+            Reckoning.tick(self, rt)
+            GarrisonTown.tick(self, rt)
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {

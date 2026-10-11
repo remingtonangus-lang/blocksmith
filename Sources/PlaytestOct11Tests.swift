@@ -35,6 +35,9 @@ enum PlaytestOct11Tests {
         townSpacing(game, check)
         vrReload(game, check)
         caveLava(check)
+        reckoning(game, check)
+        garrisonRow(game, check)
+        roadsAndRiders(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -679,7 +682,7 @@ enum PlaytestOct11Tests {
         var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = 0
         game.inventory.held = gun
         let slot = (0..<36).first { $0 != game.selected && game.inventory.main[$0].isEmpty } ?? 20
-        game.inventory.main[slot] = ItemStack(Items.id("capital_rounds"), 40)
+        game.inventory.main[slot] = ItemStack(Items.id("capital_rounds"), 64)
         let head = game.player.eye, gunHand = head + V3(0.2, -0.35, -0.35)
         let hip = head + V3(-0.25, -0.8, 0.05), mid = head + V3(0.1, -0.1, -0.5)
         let away = VRReload.tick(game, offHand: mid, gunHand: gunHand, head: head, grip: true, gripWas: false)
@@ -705,5 +708,160 @@ enum PlaytestOct11Tests {
             } } }
         } }
         check(cupped >= 4, "P39 lava: \(cupped) cupped lava sources on cave floors (-50 to -8) in \(chunks) chunks")
+    }
+
+    // P46: after the Ashguard falls, five waves close in on the player on the surface; a death sends the wave home and
+    // it comes again; the last one beaten pays out and stops Marauder patrols.
+    static func reckoning(_ g: Game, _ check: (Bool, String) -> Void) {
+        let mobs0 = g.mobs.mobs, victory0 = g.ashVictory, survival0 = g.survival, diff0 = g.difficulty, money0 = g.money
+        defer {
+            g.mobs.mobs = mobs0; g.ashVictory = victory0; g.survival = survival0; g.difficulty = diff0; g.money = money0
+            g.alive = true; Reckoning.stage = 0; Reckoning.inField = false; Reckoning.dropshipsOn = true
+        }
+        g.mobs.mobs = []; g.ashVictory = true; g.survival = true; g.difficulty = 2; g.alive = true
+        Reckoning.stage = 0; Reckoning.inField = false; Reckoning.dropshipsOn = false
+        Reckoning.tick(g, 1)
+        let warned = Reckoning.stage == 1 && Reckoning.timer == Reckoning.warning
+        Reckoning.tick(g, Reckoning.warning + 1)
+        let first = Reckoning.members(g)
+        let close = first.allSatisfy { let d = simd_length($0.pos - g.player.pos); return d > 20 && d < 40 }
+        g.alive = false
+        Reckoning.tick(g, 1)
+        let home = Reckoning.members(g).isEmpty && !Reckoning.inField && Reckoning.wave == 0
+        g.alive = true
+        var sizes: [Int] = []
+        for _ in 0..<Reckoning.waves.count {
+            Reckoning.tick(g, Reckoning.breather + 1)
+            sizes.append(Reckoning.members(g).count)
+            for m in Reckoning.members(g) { m.health = 0 }
+            Reckoning.tick(g, Reckoning.minWave + 1)
+        }
+        let won = Reckoning.won && g.money == money0 + Reckoning.reward
+        check(warned && first.count >= 8 && close && home && sizes.count == 5 && sizes.allSatisfy { $0 >= 3 } && won,
+              "P46 the Reckoning: a warning, then \(first.count) Marauders 20-40 blocks off (\(close)); a death sends them home (\(home)); waves of \(sizes); beaten: \(won)")
+    }
+
+    // P48: citadels on new ground get a row of shops below the gate; the garrison leaves a visitor there alone until a
+    // weapon stays out too long.
+    static func garrisonRow(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard let gen = g.world.gen as? WorldGen else { return }
+        var rows = 0, sites = 0, keepers = Set<String>(), guards = 0
+        for i in 0..<24 {
+            let x = (i % 6) * 640 + 8 - 2000, z = (i / 6) * 640 + 8 - 2000
+            guard gen.groundY(x, z) > SEA + 1 else { continue }
+            sites += 1
+            let ps = GarrisonTown.pieces(gen, x, z, UInt64(i) &* 0x9E3779B97F4A7C15)
+            guard !ps.isEmpty else { continue }
+            rows += 1
+            guard keepers.isEmpty else { continue }
+            // Build the row into the chunks it touches and collect the people it places.
+            var chunks = Set<Int64>()
+            for p in ps { for cz in floorDiv(p.min.z, CS)...floorDiv(p.max.z, CS) { for cx in floorDiv(p.min.x, CS)...floorDiv(p.max.x, CS) {
+                chunks.insert(Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(cz))))
+            } } }
+            for k in chunks {
+                let cx = Int(k >> 32), cz = Int(Int32(truncatingIfNeeded: k))
+                var blocks = gen.generate(cx: cx, cz: cz)
+                blocks.withUnsafeMutableBufferPointer { buf in
+                    var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+                    for p in ps where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
+                    for (n, _) in w.mobs {
+                        if n.hasPrefix("villager:shop_") { keepers.insert(String(n.dropFirst(14))) }
+                        if n == "soldier_trooper" { guards += 1 }
+                    }
+                }
+            }
+        }
+        // The guards' patience.
+        let mobs0 = g.mobs.mobs, held0 = g.inventory.held, survival0 = g.survival
+        defer {
+            g.mobs.mobs = mobs0; g.inventory.held = held0; g.survival = survival0
+            GarrisonTown.forceRow = nil; GarrisonTown.opened = false; GarrisonTown.inRow = false; GarrisonTown.tense = 0
+        }
+        g.survival = true
+        GarrisonTown.forceRow = true; GarrisonTown.opened = false; GarrisonTown.tense = 0
+        let s = Mob(.soldierTrooper, at: g.player.pos + V3(6, 0, 0))
+        g.mobs.mobs = [s]
+        g.inventory.held = ItemStack()
+        GarrisonTown.tick(g, 1)
+        let calm = GarrisonTown.shelters(g, s)
+        var held = false
+        if Items.has("gun_sidearm") {
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            GarrisonTown.tick(g, 1); GarrisonTown.tick(g, 1)
+            held = !GarrisonTown.opened && GarrisonTown.warned
+            for _ in 0..<3 { GarrisonTown.tick(g, 1) }
+        }
+        let fire = GarrisonTown.opened && s.aggro && !GarrisonTown.shelters(g, s)
+        check(rows >= 3 && Float(rows) >= Float(sites) * 0.4 && keepers.isSuperset(of: ["general", "saloon"]) && guards == 2 && calm && held && fire,
+              "P48 garrison row: \(rows) of \(sites) citadel sites get a row (shops \(keepers.sorted().joined(separator: ", ")), \(guards) guards); calm while hands are empty (\(calm)), a warning (\(held)), then the garrison opens fire (\(fire))")
+    }
+
+    // P51: roads join neighbouring towns over new ground; a rider held at gunpoint throws down their satchel, which is a
+    // crime (a bounty and a posse with six-irons); bounty hunters carry a gun; dying to them pays the bounty off with
+    // every cent you had.
+    static func roadsAndRiders(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard let gen = g.world.gen as? WorldGen else { return }
+        // Roads.
+        let p440 = WorldRules.p44
+        WorldRules.p44 = true
+        var segs: [Roads.Seg] = []
+        for rz in -3...3 { for rx in -3...3 { for (dx, dz) in [(1, 0), (0, 1)] { if let sgm = Roads.segment(gen, rx, rz, dx, dz) { segs.append(sgm) } } } }
+        var paved = 0, cols = 0
+        if let sgm = segs.first {
+            let mid = Roads.point(sgm, 0.5)
+            let cx = floorDiv(Int(mid.x), CS), cz = floorDiv(Int(mid.y), CS)
+            var blocks = gen.generate(cx: cx, cz: cz)
+            let path = Blocks.id("dirt_path")
+            blocks.withUnsafeMutableBufferPointer { buf in
+                var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+                Roads.draw(gen, &w, cx, cz)
+                for lz in 0..<CS { for lx in 0..<CS {
+                    let x = cx * CS + lx, z = cz * CS + lz
+                    guard Roads.distance(sgm, V2(Float(x) + 0.5, Float(z) + 0.5)).0 <= Roads.halfWidth else { continue }
+                    cols += 1
+                    if (40..<(CH - 1)).contains(where: { w.get(x, $0, z) == path }) { paved += 1 }
+                } }
+            }
+        }
+        WorldRules.p44 = p440
+        // A rider, held up.
+        let mobs0 = g.mobs.mobs, money0 = g.money, held0 = g.inventory.held, honour0 = Honour.value, law0 = TownLaw.state
+        let survival0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
+        defer {
+            g.mobs.mobs = mobs0; g.money = money0; g.inventory.held = held0; Honour.value = honour0; TownLaw.state = law0
+            g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil
+        }
+        g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
+        let p = g.player.pos
+        Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
+        var rider: Mob?
+        for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
+        var robbedOK = false, posse = 0, gunmen = true, mounted = false
+        if let r = rider, let h = r.mount, Items.has("gun_sidearm") {
+            mounted = h.kind == .horse && h.saddled
+            h.pos = p + V3(8, 0, 0); r.pos = h.pos + V3(0, h.height * 0.8, 0)
+            g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
+            let d = r.eye - g.player.eye
+            g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y / simd_length(d))
+            for _ in 0..<4 { _ = Riders.step(r, 0.5, g) }
+            robbedOK = r.posse == Riders.robbed && g.money > 0 && BountyHunters.totalBounty >= Riders.robBounty
+            let gm = g.mobs.mobs.filter { $0.posse == 3 }
+            posse = gm.count
+            gunmen = gm.allSatisfy { $0.townWeapon == .revolver && $0.town.anger > 0 }
+        }
+        // Killed with the posse on you: they collect.
+        BountyHunters.claim(g)
+        let collected = g.money == 0 && BountyHunters.totalBounty == 0
+        // Bounty hunters: the first one carries a six-iron.
+        g.mobs.mobs = []
+        Honour.value = -90; TownLaw.state.huntersDay = nil; TownLaw.inTown = nil
+        let chance0 = BountyHunters.chancePerSecond
+        BountyHunters.chancePerSecond = 1
+        BountyHunters.send(g)
+        BountyHunters.chancePerSecond = chance0
+        let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && $0.townWeapon == .revolver }
+        check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
+              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }
 }

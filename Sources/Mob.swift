@@ -796,6 +796,8 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            // P51: a rider on the road keeps to the road (Riders.swift).
+            if Riders.isRider(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
             if let s = townDefend(dt, g) {

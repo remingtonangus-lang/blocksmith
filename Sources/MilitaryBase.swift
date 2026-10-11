@@ -115,7 +115,7 @@ enum MilitaryBase {
     static func type(_ gen: WorldGen) -> StructureType {
         // One candidate per 40x40-chunk region (64 left most players never meeting one: Remington playtest 2).
         // The Capital citadel (CapitalBase.swift) under the old key: 113 across, so it reaches 4 chunks from its start.
-        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 4) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 6) { [unowned gen] seed, cx0, cz0 in
             // Open, fairly flat ground over the whole footprint.
             func site(_ cx: Int, _ cz: Int) -> Int? {
                 let x = cx * CS + 8, z = cz * CS + 8
@@ -164,7 +164,9 @@ enum MilitaryBase {
             let anchor = IVec3(x, y0 + 1, z + CapitalBase.podium + 8)
             guard WorldRules.citadelApart(gen, cx, cz, anchor: anchor) else { return nil }              // G12: none within 800
             let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed) })
-            return StructureStart(kind: "military_base", pieces: [piece], anchor: anchor)
+            // P48: the garrison row below the south gate, on ground first generated with it (reach 6 covers it).
+            let row = WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz + 5, reach: 3) ? GarrisonTown.pieces(gen, x, z, seed) : []
+            return StructureStart(kind: "military_base", pieces: [piece] + row, anchor: anchor)
         }
     }
 }

@@ -381,7 +381,12 @@ enum TownTests {
         let rep1 = deputy.villager?.reputation ?? 0
         check(rep1 == rep0, "defence: hitting a townsperson who is already fighting you costs no more standing (\(rep0) -> \(rep1))")
         g.health = 20
-        for _ in 0..<120 { deputy.update(0.05, game: g) }
+        // (P64: the deputy's six-iron kills a player without iron in one round: the test wears a full iron set, which
+        // takes 3, and stops at the first hit so the player lives for the checks below.)
+        let armour0 = g.inventory.armor.slots
+        for (i, k) in ["iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots"].enumerated() where Items.has(k) { g.inventory.armor[i] = ItemStack(Items.id(k), 1) }
+        for _ in 0..<120 where g.health >= 20 { deputy.update(0.05, game: g) }
+        g.inventory.armor.slots = armour0
         check(g.health < 20, "defence: the angry deputy hits the player (health \(g.health))")
         // A pointed gun: hands up.
         let p = Mob(.villager, at: base); p.home = base; Townsfolk.setup(p, game: g)

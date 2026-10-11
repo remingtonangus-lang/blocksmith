@@ -44,6 +44,7 @@ struct TownState {
     var lastDuel: Double = -1000    // when he last duelled the player (a long calm brings the warning shot back)
     var investigate: V3?            // where shooting was heard: walking over to look (P63)
     var investigateT: Float = 0
+    var heldUp: Float = 0           // a rider with a gun on them: seconds held up (Riders, P51)
     // TownStats (the person's toughness, speed, strength and attack rate), cached with the role it was rolled for.
     var stats: TownStats?
     var statsRole = ""
@@ -143,7 +144,8 @@ enum Townsfolk {
         case "deputy": return .revolver                                 // P64: deputies carry six-irons too
         case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
-        case "elder", "child", "citizen", "banker": return .none     // citizens: the Capital's soldiers keep the streets
+        case "posse": return .revolver                                  // P51: posses and bounty hunters
+        case "elder", "child", "citizen", "banker", "rider": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer

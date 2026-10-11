@@ -22,10 +22,11 @@ struct StructWriter {
     var entities: [(IVec3, BlockEntity)] = []
     var mobs: [(String, V3)] = []
     // Lowest solid block written per column of this chunk (for filling under a structure: StructureCache.place).
-    final class Low { var y = [Int](repeating: Int.max, count: CS * CS) }
+    // `off`: pieces built without the fill (the town row beside a citadel builds its own foundations, GarrisonTown).
+    final class Low { var y = [Int](repeating: Int.max, count: CS * CS); var off = false }
     let low = Low()
     @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if Blocks.collide[Int(b)] { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
+        if Blocks.collide[Int(b)] && !low.off { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
     }
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -167,6 +168,8 @@ final class StructureCache {
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
+    // Drawn into each chunk after its structures (the overworld's roads: Roads.swift).
+    var after: ((inout StructWriter, Int, Int) -> Void)?
     // Chunks a saved world had already generated before structures were added or moved (task 23: Capital cities,
     // denser citadels). New placements must keep clear of them, or they would appear cut off at the edge of explored
     // ground. Set once by World.init from SaveManager.structureGuard() before any chunk is generated.
@@ -269,6 +272,7 @@ final class StructureCache {
             for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
                 for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
             }
+            after?(&w, cx, cz)
             ents = w.entities
             mobs = w.mobs
         }

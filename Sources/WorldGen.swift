@@ -49,6 +49,7 @@ final class WorldGen: TerrainGenerator {
         }
         bands = bs
         structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self)], fixed: Stronghold.starts(seed: seed))
+        structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz) }      // P51
     }
 
     // MARK: Cave climate
@@ -846,14 +847,14 @@ final class WorldGen: TerrainGenerator {
     }
 
     // P39 (Oct 11 evening playtest: "I need lava"): single lava sources sunk into cave floors between -50 and -8, about
-    // one floor column in 500: a cupped block (rock on four sides and below, open above) that a bucket takes and that
+    // one floor cell in 100 (1 in 500 left a 16-chunk sample with one): a cupped block (rock on four sides and below, open above) that a bucket takes and that
     // never spills when the chunk loads.
     private func floorLava(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
         let s32 = UInt32(truncatingIfNeeded: seed ^ 0x1A7A)
         for y in max(2, YOFF - 50)..<(YOFF - 8) {
             for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
                 let i = Chunk.index(lx, y, lz)
-                guard b[i + CSQ] == AIR, Blocks.opaque[Int(b[i])], hash3(bx + lx, y, bz + lz, s32) % 500 == 0 else { continue }
+                guard b[i + CSQ] == AIR, Blocks.opaque[Int(b[i])], hash3(bx + lx, y, bz + lz, s32) % 100 == 0 else { continue }
                 var cupped = true
                 for o in [1, -1, CS, -CS, -CSQ] where !Blocks.opaque[Int(b[i + o])] { cupped = false; break }
                 if cupped { b[i] = LAVA }
