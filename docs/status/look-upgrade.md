@@ -103,3 +103,55 @@ Verifier pass (independent review): PASS with four defects, all fixed: the check
 the keg was too small to read at range (now bigger, hoops glow amber and turn orange when lit, a bigger spark); the
 command script and snap.sh still used the old mob names. The 20-block night portraits show the amber eyes and the lit
 keg reading clearly.
+
+## Part 3: trees
+
+### Objectives (the overseer's list plus our own)
+From the backlog: more tree shapes per species, woodland detail, trees that read as natural at a glance. Our own:
+- Oak, birch and spruce each grow four distinct shapes; pines two; no two neighbours look stamped from one mould.
+- Woodland litter in woods only: dead snags, stumps and fallen trunks (never on plains or in the open).
+- A rare ancient oak: a 2x2 trunk 9-12 tall with a flared foot and heavy limbs, the landmark of a wood.
+- Root flare on big trunks, only over solid ground (never a root over a drop).
+- Every tree stays inside the 7-block placement margin, so a chunk border never cuts one, and grows the same from
+  both sides of a border.
+- Leaves must read as a canopy at every texture size and distance.
+
+### What shipped
+- `Sources/WorldGenTrees.swift`:
+  - Oaks: a round dome with a low limb, a tall narrow one, a wide spreading one with three limbs, and a forked twin
+    leader. Birches: the classic, a slender tall one, a twin pair from one foot, and one with a kink.
+  - Spruces: classic, narrow, wide and ragged, high-crowned with a bare lower trunk. Pines: two tier patterns.
+  - New kinds: dead oak and dead spruce snags, oak/spruce/birch stumps (some mossy), fallen oak trunks of
+    bark-all-round wood with moss, and the ancient oak.
+  - `choose` turns a few of a wood's trees into litter from a second roll of the same position hash (still a pure
+    function of position); ancient oaks are about 1 % of forest oaks and 5 % of the lone oaks on plains and meadows.
+  - Limbs climb before they step out (no gap under a raised limb); every random draw comes before any chunk-local
+    test, so two chunks always agree on a tree.
+  - Soil tests for every site run on the bare terrain before any tree is built (a site's test once saw a neighbour's
+    root or trunk in one chunk and not the next).
+- `Sources/TexturesHD.swift` leafCanopy: the leaf count no longer scales with the texture size. Leaves already scale
+  with it, so canopies covered 85 % at 128 px but only 11 % at 32 px: every tree in 32/64 px shots (and on 32/64 px
+  settings) was a stick with sparse speckles. Now 85-90 % at every size. The Quest's default 128 px is unchanged.
+
+### Checks
+- `questcheck` TreeTest (quest/src/test/TreeTest.swift): each kind grown 40 times into a blank chunk: distinct
+  silhouettes (oak 31, birch 22, spruce 16, pine 23 of 40), no log cut off from the ground, no leaf more than 5 from
+  wood, nothing past the 7-block margin (grown at both (8,8) and (7,7)); the ancient oak's 2x2 trunk is 9+ tall;
+  fallen trunks lie on the ground (never over air); litter only in woods (none from 4000 picks each on plains, snowy plains, meadow, windswept
+  hills and grove) and ancient oaks rare; leaf textures keep at least 50 % cutout cover at every mip.
+- `questcheck --gencheck` (288 chunks over 3 seeds), before / after: floating_block 6/6, leak 2/2, leaves_orphan 1/1,
+  ore_in_air 3/3, plant_floating 1/1, spring 10/10, trunk_floating 0/1. The one new floating log is a known class
+  that predates this change: the trunk's own chunk refused the site (its soil test failed: a cave or pool took the
+  soil, or the block there is the wrong one), while the neighbour, which can't see that soil, grew the limbs. The old
+  small crowns showed the same as an orphan leaf patch; the fix is a soil test every chunk can evaluate alike (noted
+  in BUGS.md).
+- Verifier pass (independent review): FAIL on one point, fixed: birch and spruce litter also appeared in open biomes
+  (lone spruces on snowy plains, meadow birches); now woods and conifer woods only, and the check covers those biomes.
+  Also from the review: the narrow spruce tapers (it read as a cylinder), ancient oaks keep a wider berth from
+  structures. Noted, not changed: the silhouette count is a coarse proxy for the four shapes; the half-tree class
+  above.
+- Existing saves: shapes are picked by new random draws, so in an old world newly generated chunks beside saved ones
+  can show a seam in the trees along the border.
+- Portraits: `questcheck --render X --tree-shots DIR` writes trees_{oaks,birches,spruces,woodland,ancient}.png
+  (each tree grown alone on a floating pad, three-quarter view at noon). In docs/status/evidence/look-upgrade/, with
+  trees_world_before.png / trees_world_after.png: the spawn view at 32 px before and after the leaf fix.

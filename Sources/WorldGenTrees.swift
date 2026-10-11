@@ -8,6 +8,8 @@ enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
     case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
     case shrubOak, shrubSpruce, shrubAcacia
+    // L1 trees (docs/status/look-upgrade.md part 3): woodland litter and the rare old giants.
+    case deadOak, deadSpruce, stumpOak, stumpSpruce, stumpBirch, fallenOak, ancientOak
 }
 
 struct TreeWriter {
@@ -35,6 +37,35 @@ struct TreeWriter {
 
 enum TreePlacer {
     static func choose(_ biome: Biome, _ roll: Float, _ pick: Float, _ y: Int) -> TreeKind? {
+        guard let k = chooseLiving(biome, roll, pick, y) else { return nil }
+        // A few of the trees a wood would grow are instead dead snags, stumps, fallen trunks or, rarely, an ancient oak
+        // (a second roll from the same pick, so it stays a pure function of position).
+        let e = (pick * 7919).truncatingRemainder(dividingBy: 1)
+        let woods = biome == .forest || biome == .flowerForest || biome == .darkForest || biome == .birchForest
+            || biome == .oldGrowthBirchForest || biome == .windsweptForest
+        switch k {
+        case .oak, .fancyOak:
+            let open = biome == .plains || biome == .sunflowerPlains || biome == .meadow
+            if e < (open ? 0.05 : (woods ? 0.012 : 0)) { return .ancientOak }
+            guard woods else { return k }
+            if e < 0.042 { return .deadOak }
+            if e < 0.062 { return .stumpOak }
+            if e < 0.082 { return .fallenOak }
+            return k
+        case .birch:
+            return woods && e < 0.02 ? .stumpBirch : k
+        case .spruce, .pine:
+            // Litter in the conifer woods only (never the lone spruces of snowy plains, hills or groves).
+            let taiga = biome == .taiga || biome == .snowyTaiga || biome == .oldGrowthPineTaiga || biome == .oldGrowthSpruceTaiga
+            guard taiga || biome == .windsweptForest else { return k }
+            if e < 0.03 { return .deadSpruce }
+            if e < 0.05 { return .stumpSpruce }
+            return k
+        default: return k
+        }
+    }
+
+    private static func chooseLiving(_ biome: Biome, _ roll: Float, _ pick: Float, _ y: Int) -> TreeKind? {
         func p(_ v: Float) -> Bool { roll < v }
         switch biome {
         case .forest: return p(0.35) ? (pick < 0.1 ? .fancyOak : (pick < 0.8 ? .oak : .birch)) : nil
@@ -79,11 +110,13 @@ enum TreePlacer {
             for t in sc.types { for st in sc.startsNear(cx: cx, cz: cz, t) { keepOut.append((st.min, st.max)) } }
             for st in sc.fixed where st.max.x >= bx - 16 && st.min.x < bx + CS + 16 && st.max.z >= bz - 16 && st.min.z < bz + CS + 16 { keepOut.append((st.min, st.max)) }
         }
-        func blocked(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            keepOut.contains { mn, mx in x >= mn.x - 4 && x <= mx.x + 4 && z >= mn.z - 4 && z <= mx.z + 4 && y + 14 >= mn.y && y - 2 <= mx.y }
+        func blocked(_ x: Int, _ y: Int, _ z: Int, reach: Int = 4, tall: Int = 14) -> Bool {
+            keepOut.contains { mn, mx in x >= mn.x - reach && x <= mx.x + reach && z >= mn.z - reach && z <= mx.z + reach && y + tall >= mn.y && y - 2 <= mx.y }
         }
         b.withUnsafeMutableBufferPointer { buf in
             let w = TreeWriter(b: buf.baseAddress!, bx: bx, bz: bz)
+            var sites: [(TreeKind, Int, Int, Int)] = []
+            sites.reserveCapacity(64)
             for gz in floorDiv(bz - margin, cell)...floorDiv(bz + CS - 1 + margin, cell) {
                 for gx in floorDiv(bx - margin, cell)...floorDiv(bx + CS - 1 + margin, cell) {
                     let hv = hash3(gx, 0, gz, gen.s32 ^ 0x7EE5)
@@ -105,7 +138,7 @@ enum TreePlacer {
                     let hint = YOFF + Int(k.h) + 30
                     guard k.rv > 1.2, let kind = choose(biome, r2, pick, YOFF + Int(k.h)), let gy = top(tx, tz, hint),
                           gy >= SEA, gy - YOFF >= Int(floorf(k.wl)) else { continue }
-                    if !keepOut.isEmpty && blocked(tx, gy, tz) { continue }
+                    if !keepOut.isEmpty && (kind == .ancientOak ? blocked(tx, gy, tz, reach: 8, tall: 18) : blocked(tx, gy, tz)) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
                         let soil = Blocks.key(w.get(tx, gy, tz))
@@ -114,9 +147,15 @@ enum TreePlacer {
                         let above = w.get(tx, gy + 1, tz)
                         if above != AIR && !Blocks.replaceable[Int(above)] && !Blocks.key(above).hasSuffix("_carpet") { continue }
                     }
-                    var rng = SRng(UInt64(hash3(tx, gy, tz, gen.s32 ^ 0x7EE7)) | 1)
-                    build(w, kind, tx, gy + 1, tz, &rng)
+                    sites.append((kind, tx, gy, tz))
                 }
+            }
+            // Build only after every site passed its soil test on the bare terrain: a test that saw an earlier tree's
+            // root, stump or fallen trunk would refuse a tree in one chunk and grow it in the next (half a tree, its
+            // limbs hanging in the air: gencheck trunk_floating).
+            for (kind, tx, gy, tz) in sites {
+                var rng = SRng(UInt64(hash3(tx, gy, tz, gen.s32 ^ 0x7EE7)) | 1)
+                build(w, kind, tx, gy + 1, tz, &rng)
             }
         }
     }
@@ -165,13 +204,107 @@ enum TreePlacer {
                 } }
             }
         }
+        // A connected limb from (sx, sy, sz) out along (dx, dz) for `len` steps, rising `rise` blocks evenly (one log per
+        // step, never a gap: gencheck trunk_floating). Returns the tip.
+        func limb(_ sx: Int, _ sy: Int, _ sz: Int, _ dx: Float, _ dz: Float, _ len: Int, rise: Int, _ log: BlockID) -> (Int, Int, Int) {
+            var tip = (sx, sy, sz)
+            for i in 1...max(1, len) {
+                let t = Float(i)
+                let lx = sx + Int((dx * t).rounded()), lz = sz + Int((dz * t).rounded())
+                let ly = sy + Int((Float(rise) * t / Float(max(1, len))).rounded())
+                if ly > tip.1 { for yy in (tip.1 + 1)...ly { w.log(tip.0, yy, tip.2, log) } }    // climb first: no vertical gap
+                w.log(lx, ly, lz, log)
+                tip = (lx, ly, lz)
+            }
+            return tip
+        }
+        // Root flare: a few logs hugging the trunk's foot, only where the ground under them is solid in this chunk
+        // (never a root over a drop).
+        func roots(_ log: BlockID, wide: Bool = false, chance: Float = 0.55) {
+            let span = wide ? 1 : 0
+            for (dx, dz) in [(-1, 0), (1 + span, 0), (0, -1), (0, 1 + span)] where rng.chance(chance) {
+                for o in 0...span {
+                    let rx = x + dx + (dz != 0 ? o : 0), rz = z + dz + (dx != 0 ? o : 0)
+                    let tall = wide && rng.chance(0.4)        // drawn before the chunk-local test: every chunk's rng agrees
+                    guard w.inside(rx, y - 1, rz), Blocks.opaque[Int(w.get(rx, y - 1, rz))], !Mesher.leafT[Int(w.get(rx, y - 1, rz))] else { continue }
+                    w.log(rx, y, rz, log)
+                    if tall { w.log(rx, y + 1, rz, log) }
+                }
+            }
+        }
         switch kind {
         case .oak, .smallOak:
-            let h = kind == .smallOak ? rng.range(3, 4) : rng.range(4, 6)
-            trunk(h, LOG); crown(y + h, LEAVES)
+            // Four oaks (L1): a round dome with a low limb, a tall narrow one, a wide spreading one with three limbs,
+            // and a forked twin leader. Small oaks (badlands) only the first two.
+            let shape = kind == .smallOak ? rng.int(2) : rng.int(4)
+            switch shape {
+            case 0:
+                let h = kind == .smallOak ? rng.range(3, 4) : rng.range(4, 6)
+                trunk(h, LOG)
+                blob(w, x, y + h, z, rx: 2.4 + rng.float() * 0.5, ry: 2.3, LEAVES, &rng)
+                if h >= 5 {
+                    let a = rng.float() * 2 * .pi
+                    let tip = limb(x, y + h - 3, z, cosf(a), sinf(a), 2, rise: 1, LOG)
+                    blob(w, tip.0, tip.1 + 1, tip.2, rx: 1.6, ry: 1.2, LEAVES, &rng)
+                    roots(LOG, chance: 0.35)
+                }
+            case 1:
+                let h = kind == .smallOak ? rng.range(4, 5) : rng.range(6, 8)
+                trunk(h, LOG)
+                blob(w, x, y + h - 1, z, rx: 1.9, ry: 2.8, LEAVES, &rng)
+                w.leaf(x, y + h + 2, z, LEAVES)
+            case 2:
+                let h = rng.range(4, 5)
+                trunk(h, LOG)
+                let a0 = rng.float() * 2 * .pi
+                for i in 0..<3 {
+                    let a = a0 + Float(i) * 2.1 + rng.float() * 0.5
+                    let tip = limb(x, y + h - 1, z, cosf(a), sinf(a), rng.range(2, 3), rise: 2, LOG)
+                    blob(w, tip.0, tip.1 + 1, tip.2, rx: 2.3, ry: 1.5, LEAVES, &rng)
+                }
+                blob(w, x, y + h + 1, z, rx: 2.0, ry: 1.4, LEAVES, &rng)
+                roots(LOG)
+            default:
+                let h = rng.range(3, 4)
+                trunk(h, LOG)
+                let a = rng.float() * 2 * .pi
+                for s in [Float(1), -1] {
+                    let tip = limb(x, y + h - 1, z, cosf(a) * s, sinf(a) * s, 2, rise: 3, LOG)
+                    w.log(tip.0, tip.1 + 1, tip.2, LOG)
+                    blob(w, tip.0, tip.1 + 2, tip.2, rx: 2.2, ry: 1.7, LEAVES, &rng)
+                }
+                roots(LOG, chance: 0.4)
+            }
         case .birch, .tallBirch:
-            let h = kind == .tallBirch ? rng.range(10, 14) : rng.range(5, 7)
-            trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
+            // Four birches: the classic, a slender tall one with a narrow crown, a twin pair from one root, and one with a
+            // kink partway up. Tall (old-growth) birches keep their height.
+            let tall = kind == .tallBirch
+            switch rng.int(4) {
+            case 0:
+                let h = tall ? rng.range(10, 14) : rng.range(6, 8)
+                trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
+            case 1:
+                let h = tall ? rng.range(12, 15) : rng.range(7, 9)
+                trunk(h, BIRCH_LOG)
+                blob(w, x, y + h - 1, z, rx: 1.6, ry: 3.2, BIRCH_LEAVES, &rng)
+                w.leaf(x, y + h + 2, z, BIRCH_LEAVES)
+            case 2:
+                let h = tall ? rng.range(10, 13) : rng.range(5, 7)
+                trunk(h, BIRCH_LOG); crown(y + h, BIRCH_LEAVES)
+                let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
+                // The twin forks off the foot of the trunk one block up (joined to it, never standing over a drop; the
+                // same in every chunk, since it doesn't look at the ground).
+                let h2 = h - rng.range(1, 2)
+                for k in 1..<h2 { w.log(x + dx, y + k, z + dz, BIRCH_LOG) }
+                blob(w, x + dx * 2, y + h2, z + dz * 2, rx: 1.7, ry: 1.8, BIRCH_LEAVES, &rng)
+            default:
+                let h = tall ? rng.range(10, 13) : rng.range(6, 8)
+                let kinkAt = h / 2
+                let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
+                for k in 0..<kinkAt { w.log(x, y + k, z, BIRCH_LOG) }
+                for k in (kinkAt - 1)..<h { w.log(x + dx, y + k, z + dz, BIRCH_LOG) }
+                blob(w, x + dx, y + h, z + dz, rx: 2.0, ry: 2.2, BIRCH_LEAVES, &rng)
+            }
         case .fancyOak:
             let h = rng.range(6, 10)
             trunk(h, LOG)
@@ -190,11 +323,14 @@ enum TreePlacer {
                 blob(w, x + bxo, by + 2, z + bzo, rx: 2.2, ry: 1.6, LEAVES, &rng)
             }
         case .spruce, .pine:
-            let h = kind == .pine ? rng.range(7, 11) : rng.range(6, 9)
+            let variant = rng.int(4)              // spruce: classic, narrow, wide and ragged, high-crowned; pine: two
+            let h = kind == .pine ? rng.range(7, 11) + (variant >= 2 ? 2 : 0) : rng.range(6, 9) + (variant == 3 ? 3 : 0)
             trunk(h, SPRUCE_LOG)
+            if h >= 9 { roots(SPRUCE_LOG, chance: 0.3) }
             w.leaf(x, y + h, z, SPRUCE_LEAVES)
             if kind == .pine {
-                for (dy, r) in [(0, 1), (-1, 2), (-2, 1), (-3, 2), (-4, 1)] {
+                let tiers = variant >= 2 ? [(0, 1), (-1, 1), (-2, 2), (-3, 1), (-4, 2), (-5, 1)] : [(0, 1), (-1, 2), (-2, 1), (-3, 2), (-4, 1)]
+                for (dy, r) in tiers {
                     for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r + (r > 1 ? 0 : 1) {
                         w.leaf(x + dx, y + h + dy, z + dz, SPRUCE_LEAVES)
                     } }
@@ -202,10 +338,12 @@ enum TreePlacer {
             } else {
                 // The tier under the tip is a leafy cross (a bare trunk block between the tip and the first tier read as a
                 // stump poking out of every snowy crown: blind critic, run 395 snowy).
-                let pattern = [1, 2, 1, 2, 3, 2, 3]
+                let pattern = [[1, 2, 1, 2, 3, 2, 3], [1, 1, 1, 2, 1, 2, 2], [1, 2, 2, 3, 2, 3, 3], [1, 2, 1, 2, 3, 2, 3]][variant]
                 var yy = y + h - 1, k = 0
-                while yy >= y + 2 {
-                    let r = pattern[min(k, pattern.count - 1)]
+                let bare = variant == 3 ? y + h / 2 : y + 2         // high-crowned: a bare lower trunk
+                while yy >= bare {
+                    // Wide and ragged: some tiers a step narrower, so the cone has gaps and shoulders.
+                    let r = max(1, pattern[min(k, pattern.count - 1)] - (variant == 2 && k > 1 && hashf(x, yy, z, 0x5B) < 0.3 ? 1 : 0))
                     let round: Int = k == 0 ? 1 : r * r + 1
                     if r > 0 {
                         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= round { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
@@ -361,6 +499,53 @@ enum TreePlacer {
             let leaf = kind == .shrubSpruce ? SPRUCE_LEAVES : (kind == .shrubAcacia ? g("acacia_leaves") : LEAVES)
             w.log(x, y, z, log)
             blob(w, x + rng.range(-1, 1) / 2, y + 1, z + rng.range(-1, 1) / 2, rx: 1.4 + rng.float() * 0.8, ry: 0.9, leaf, &rng)
+        case .deadOak, .deadSpruce:
+            // A dead snag: bare trunk, a broken top and one or two bare stub limbs.
+            let log = kind == .deadOak ? LOG : SPRUCE_LOG
+            let h = rng.range(3, 6)
+            trunk(h, log)
+            for _ in 0..<rng.range(1, 2) where h >= 4 {
+                let a = rng.float() * 2 * .pi
+                _ = limb(x, y + rng.range(2, h - 1), z, cosf(a), sinf(a), rng.range(1, 2), rise: 1, log)
+            }
+            roots(log, chance: 0.3)
+        case .stumpOak, .stumpSpruce, .stumpBirch:
+            let log = kind == .stumpOak ? LOG : (kind == .stumpSpruce ? SPRUCE_LOG : BIRCH_LOG)
+            let h = rng.range(1, 2)
+            trunk(h, log)
+            if rng.chance(0.5) { w.leaf(x, y + h, z, g("moss_carpet")) }
+        case .fallenOak:
+            // A fallen trunk of bark-all-round wood along the ground (each length only where the ground under it is solid
+            // and it lies in air; decided per block, so both chunks of a trunk on a border agree), a stump at its root.
+            let wood = g("oak_wood")
+            w.log(x, y, z, LOG)
+            let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
+            let len = rng.range(4, 6)
+            for i in 2..<(2 + len) {
+                let fx = x + dx * i, fz = z + dz * i
+                guard w.inside(fx, y, fz) else { continue }
+                let under = w.get(fx, y - 1, fz), at = w.get(fx, y, fz)
+                if Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && (at == AIR || Blocks.replaceable[Int(at)] && !Blocks.isLiquid(at)) {
+                    w.force(fx, y, fz, wood)
+                    if hashf(fx, y, fz, 0xFA11) < 0.3, w.get(fx, y + 1, fz) == AIR { w.leaf(fx, y + 1, fz, g("moss_carpet")) }
+                }
+            }
+        case .ancientOak:
+            // A rare old giant: a 2x2 trunk 9-12 tall with a flared foot, four or five heavy limbs and a broad crown.
+            // Kept inside the 7-block placement margin (limb 3-4 + crown 3), so no chunk ever cuts one.
+            let h = rng.range(9, 12)
+            trunk(h, LOG, wide: true)
+            roots(LOG, wide: true, chance: 0.8)
+            let a0 = rng.float() * 2 * .pi
+            let n = rng.range(4, 5)
+            for i in 0..<n {
+                let a = a0 + Float(i) * 2 * .pi / Float(n) + rng.float() * 0.4
+                let sy = y + h - rng.range(2, 5)
+                let tip = limb(x + (cosf(a) > 0 ? 1 : 0), sy, z + (sinf(a) > 0 ? 1 : 0), cosf(a), sinf(a), rng.range(3, 4), rise: 2, LOG)
+                blob(w, tip.0, tip.1 + 1, tip.2, rx: 2.6, ry: 1.9, LEAVES, &rng)      // 2.8 reached 8 out now and then
+            }
+            blob(w, x, y + h + 1, z, rx: 3.0, ry: 2.2, LEAVES, &rng)
+            blob(w, x + 1, y + h + 1, z + 1, rx: 3.0, ry: 2.2, LEAVES, &rng)
         case .iceSpike:
             let ice = g("packed_ice")
             let giant = rng.int(60) == 0
