@@ -3,7 +3,7 @@ import simd
 
 // The look of the overworld sky beyond the dome gradient (L1 look upgrade, docs/status/look-upgrade.md):
 // - one wind that drives every cloud layer (the Quest draws a cumulus deck and a high cirrus deck in clouds.frag; the
-//   drift is kept here in Double so it never loses precision over a long session);
+//   drift accumulates here in Double, and the eye's cloud-space position is sent as Float, fine to ~1e6 blocks);
 // - how cloudy the biome's air is and its tint (hazy warm over desert and badlands, cold blue over snow, damp grey-green
 //   over swamps), eased in over a few seconds as you travel;
 // - distant storm flashes: during a thunderstorm the clouds light up far away between the real strikes, with a far
@@ -99,7 +99,9 @@ extension Game {
                 let a = Rand.float(in: 0..<(2 * .pi)), e = Rand.float(in: 0.08...0.35)
                 s.flashAt(V3(cosf(a) * cosf(e), sinf(e), sinf(a) * cosf(e)), strength: Rand.float(in: 0.45...0.9))
                 s.distantFlashes += 1
-                if s.thunderIn < 0 { s.thunderIn = Rand.float(in: 2.5...7); s.thunderVolume = Rand.float(in: 0.22...0.45) }
+                // One roll at a time (a pending roll takes the louder of the two flashes).
+                let vol = Rand.float(in: 0.22...0.45)
+                if s.thunderIn < 0 { s.thunderIn = Rand.float(in: 2.5...7); s.thunderVolume = vol } else { s.thunderVolume = max(s.thunderVolume, vol) }
             }
         }
         if s.thunderIn >= 0 {

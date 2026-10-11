@@ -63,7 +63,8 @@ final class WorldRenderer {
         caveClock = now
         caveK = caveK < 0 ? target : caveK + (target - caveK) * (1 - expf(-dt / 0.7))
     }
-    var caveScale: Float { 0.08 + 0.92 * min(1, max(0, caveK) * 1.6) }
+    var caveScale: Float { 0.08 + 0.92 * min(1, max(0, WorldRenderer.testCaveK ?? caveK) * 1.6) }
+    static var testCaveK: Float?           // SkyTest: a dark-cave eye without building a cave
 
     func uniforms(_ cam: EyeCamera) -> (FrameUniforms, V3) {
         let p = game.player
@@ -104,7 +105,7 @@ final class WorldRenderer {
         let cx = Double(eye.x) + sk.driftX, cz = Double(eye.z) + sk.driftZ
         u.clouds = V4(Float(cx), Float(cz), game.cloudCover, sk.flash)
         u.cloudFlash = V4(sk.flashDir, min(1, game.weather.rain * 0.55 + game.weather.thunder * 0.45))
-        u.wind = V4(sk.wind.x, sk.wind.y, sk.haze, 0)
+        u.wind = V4(sk.wind.x, sk.wind.y, sk.haze, caveScale)
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
@@ -203,7 +204,9 @@ final class WorldRenderer {
             body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
             scene.commit(off, bw.n, EntityVert.self)
             scene.drawScratch(s, "body", offset: off, count: bw.n)
-            if QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld { scene.drawClouds(s) }
+            if QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld && game.blindFog == nil {
+                scene.drawClouds(s)
+            }
         } else if !underwater && game.inVaultSky {
             // The Cinder Sun over the Ash Vault: big, dull and red through the haze.
             let (ptr, off, cap) = scene.reserve(s, EntityVert.self, max: 6)

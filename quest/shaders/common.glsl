@@ -18,7 +18,7 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 waves;            // x = ocean swell scale (calm 0.6, thunderstorm 5: Weather.swell), y = rain (drop rings)
     vec4 clouds;           // clouds.frag: xy = the eye in cloud space (world xz + wind drift), z = cover 0...1, w = flash
     vec4 cloudFlash;       // xyz = direction of the storm flash (unit), w = storm darkness 0...1
-    vec4 wind;             // xy = wind direction (unit, world xz), z = biome haze 0...1
+    vec4 wind;             // xy = wind direction (unit, world xz), z = biome haze 0...1, w = cave dimming (caveScale)
 } u;
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;

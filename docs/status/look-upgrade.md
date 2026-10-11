@@ -47,17 +47,26 @@ Our own additions:
 Each view is rendered with and without the cloud pass and compared pixel by pixel (left eye, 320x320 on lavapipe):
 fair-weather noon cover 12-85 % of an upward view and bright; rain closes the cover and darkens the sky; a
 thunderstorm darkens it further; a storm flash lights the clouds; sunset clouds are warm (r > b); night clouds are
-dim; 10 s of wind drifts the clouds along the wind; a minute of thunderstorm gives 4-25 distant flashes; desert air is
-hazy/warm and snow air cold/clear.
+dim; no stripes in the last ~6 degrees above the horizon (vertical luma roughness vs the cloudless frame, clear and
+overcast); from a dark cave the clouds dim with the sky; 10 s of wind drifts the clouds along the wind; a minute of thunderstorm gives 4-25 distant flashes; desert air is
+hazier, warmer and less cloudy and snow air colder blue, read from Game.skyColor/skyZenith after the sky state
+settles on each biome.
 
-First run (2026-10-11): noon 71 % cover, cloud luma 189; overcast 88 %, sky luma 92 vs 179; storm 46; storm flash 98;
-sunset cloud r 173 / b 108; night cloud luma 19; 7 distant flashes a minute.
+Verifier pass 1 (independent review): FAIL on horizon aliasing, clouds not dimmed from caves, clouds drawn in blind
+fog. Fixed: footprint filtering (each octave fades to its mean once its cells shrink under ~2 pixels, rim widened by the
+footprint, octaves rotated against each other), u.wind.w carries caveScale, the pass is skipped under blind fog; checks
+added for the first two. Also from the review: the silver lining is stronger at dusk, night clouds are more opaque over
+the stars, a pending far thunder roll takes the louder of two flashes.
+
+Run 2026-10-11 (after the review fixes): noon 66 % cover, cloud luma 196; overcast 83 %, sky luma 91 vs 184; storm 45;
+storm flash 98; sunset cloud r 174 / b 111; night cloud luma 20; horizon roughness 1.62 / 1.66 (0.87 / 0.93 without
+clouds); cave cloud luma 19; 8 distant flashes a minute.
 
 ### Cost
-lavapipe (CPU rasteriser, relative only): a sky-filled 2 x 320x320 view 10.9 ms with clouds vs 8.7 ms without. On the
-Quest the pass touches only sky pixels above the horizon, 7 value-noise taps (~30 ALU each) plus ~40 ALU of lighting,
+lavapipe (CPU rasteriser, relative only): a sky-filled 2 x 320x320 view 11.2 ms with clouds vs 8.4 ms without. On the
+Quest the pass touches only sky pixels above the horizon, 7 value-noise taps (~30 ALU each) plus ~60 ALU of lighting and filtering,
 fp32. The Clouds option turns it off. Device fps before/after is for lane M (M3) to confirm on the headset.
 
 ### Screenshots
-docs/status/evidence/look-upgrade/sky_{noon,sunset,overcast,storm_flash,night}.png (after) and `_before.png` (the same
+docs/status/evidence/look-upgrade/sky_{noon,sunset,overcast,storm_flash,night,horizon,horizon_overcast}.png (after) and `_before.png` (the same
 view without clouds, i.e. the Quest before this change).

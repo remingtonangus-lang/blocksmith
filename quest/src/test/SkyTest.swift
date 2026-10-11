@@ -71,6 +71,36 @@ enum SkyTest {
         let sunset = try view("sunset", time: 0.485, pitch: 0.3, yaw: .pi / 2)
         check(sunset.changed > 0.05 && sunset.cloudR > sunset.cloudB + 12,
               String(format: "sky: sunset clouds are warm (r %.0f, b %.0f over %.0f%%)", sunset.cloudR, sunset.cloudB, sunset.changed * 100))
+        // Toward the horizon (the last ~6 degrees above it) the deck must not alias into 1-pixel stripes: the mean
+        // vertical second difference of luma there, minus the same without clouds (the dome's own gradient).
+        func stripes(_ img: [UInt8], horizonRow: Int) -> Float {
+            var sum: Float = 0, n: Float = 0
+            func l(_ x: Int, _ y: Int) -> Float {
+                let i = (y * w * 2 + x) * 4
+                return 0.2126 * Float(img[i]) + 0.7152 * Float(img[i + 1]) + 0.0722 * Float(img[i + 2])
+            }
+            for y in max(0, horizonRow - 22)..<(horizonRow - 3) { for x in 0..<w { sum += abs(l(x, y) - 2 * l(x, y + 1) + l(x, y + 2)); n += 1 } }
+            return sum / max(1, n)
+        }
+        for (name, rain) in [("horizon", Float(0)), ("horizon_overcast", Float(1))] {
+            let pitch: Float = 0.08
+            let hr = h / 2 + Int(Float(h / 2) * tanf(pitch))
+            _ = try view(name, time: 0.22, pitch: pitch, rain: rain)
+            let on = stripes(RenderTest.lastRGBA, horizonRow: hr)
+            WorldRenderer.debugSkip.insert("clouds")
+            try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/sky_\(name)_off.png", width: w, height: h, yaw: 0.6, pitch: pitch)
+            WorldRenderer.debugSkip.remove("clouds")
+            let off = stripes(RenderTest.lastRGBA, horizonRow: hr)
+            check(on - off < 2.5, String(format: "sky: no stripes toward the horizon (%@: roughness %.2f with clouds, %.2f without)", name, on, off))
+        }
+        // From a dark cave (the dome dimmed to 8 %%) the clouds up a shaft dim with it.
+        do {
+            WorldRenderer.testCaveK = 0
+            defer { WorldRenderer.testCaveK = nil }
+            let cave = try view("cave", time: 0.22, pitch: 0.75)
+            check(cave.cloudLuma < 60 || cave.changed < 0.02,
+                  String(format: "sky: clouds dim with the sky seen from a dark cave (cloud luma %.0f vs %.0f outside)", cave.cloudLuma, noon.cloudLuma))
+        }
         let night = try view("night", time: 0.75, pitch: 0.75)
         check(night.changed > 0.03 && night.cloudLuma < noon.cloudLuma * 0.4,
               String(format: "sky: night clouds are dim shapes (cloud luma %.0f vs %.0f at noon, %.0f%%)", night.cloudLuma, noon.cloudLuma, night.changed * 100))
@@ -104,13 +134,23 @@ enum SkyTest {
         for _ in 0..<1200 { game.skyTick(0.05) }
         let flashes = game.sky.distantFlashes - f0
         check(flashes >= 4 && flashes <= 25, "sky: a minute of thunderstorm flashes the distant clouds \(flashes) times")
-        let (desertT, desertH, desertC) = SkyState.air(.desert)
-        let (snowT, snowH, _) = SkyState.air(.snowyPlains)
-        check(desertH > 0.5 && snowH == 0 && snowT.z / snowT.x > desertT.z / desertT.x && desertC < 0.3,
-              "sky: desert air is hazy and warm with few clouds, snow air cold and clear")
-        var hz = SkyState(); hz.haze = 1; hz.tint = desertT
-        let clearC = V3(0.64, 0.77, 0.92)
-        let hazy = hz.tinted(clearC)
-        check(hazy.x / hazy.z > clearC.x / clearC.z + 0.1, String(format: "sky: desert haze warms the horizon (r/b %.2f vs %.2f)", hazy.x / hazy.z, clearC.x / clearC.z))
+        // Biome air as the game shows it: walk the sky state to the biome under a desert and a snow column and read
+        // the noon horizon and zenith (Game.skyColor / skyZenith, both platforms).
+        game.weather = Weather(); game.weather.rain = 0; game.weather.thunder = 0
+        game.time = 0.25 * DAY_LENGTH
+        func settle(_ b: Biome) -> (V3, V3, Float) {
+            let (t, hz, c) = SkyState.air(b)
+            game.sky.targetTint = t; game.sky.targetHaze = hz; game.sky.targetCover = c
+            for _ in 0..<400 { game.sky.biomeTimer = 1; game.skyTick(0.05) }      // 20 s, the biome sample held
+            return (game.skyColor, game.skyZenith, game.cloudCover)
+        }
+        let (plainH, plainZ, plainC) = settle(.plains)
+        let (desH, desZ, desC) = settle(.desert)
+        let (snowH, snowZ, _) = settle(.snowyPlains)
+        let rb = { (c: V3) -> Float in c.x / c.z }
+        check(rb(desH) > rb(plainH) + 0.08 && rb(desZ) > rb(plainZ) + 0.05 && desC < plainC,
+              String(format: "sky: desert air is hazier and warmer with fewer clouds (horizon r/b %.2f vs %.2f plains, cover %.2f vs %.2f)", rb(desH), rb(plainH), desC, plainC))
+        check(rb(snowH) < rb(plainH) - 0.03 && rb(snowZ) <= rb(plainZ),
+              String(format: "sky: snow air is a colder blue (horizon r/b %.2f vs %.2f plains)", rb(snowH), rb(plainH)))
     }
 }
