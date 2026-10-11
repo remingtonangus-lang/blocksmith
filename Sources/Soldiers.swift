@@ -237,7 +237,7 @@ extension Mob {
         b.strafeTimer -= dt
         if b.reload > 0 {
             b.reload -= dt
-            if b.reload <= 0 { b.mag = gs.mag }
+            if b.reload <= 0 { b.mag = b.role == AshArmy.mg ? AshArmy.beltMag : gs.mag }     // the MG gunner: a belt
         }
         // Line of sight, a few times a second.
         let target = g.player.eye - V3(0, 0.3, 0)

@@ -134,6 +134,12 @@ extension AshWar {
                 }
             }
         }
+        // Buffer stops at the line ends (not where the airfield line turns the corner): a carriage rolls up and stops.
+        for (e, open) in [(r.a, ri == 4), (r.b, ri == 5)] where !open && e >= a && e <= b {
+            let (x, z) = cell(r, e)
+            guard w.inside(x, y0, z) else { continue }
+            w.set(x, y0, z, k.concrete); w.set(x, y0 + 1, z, k.concrete); w.set(x, y0 + 2, z, k.lamp)
+        }
         // Halts on this stretch.
         for h in halts where h.run == ri {
             let first = h.from, last = h.from + h.dir * (haltLength - 1)
@@ -228,7 +234,7 @@ extension AshWar {
         for u in [-4, 4] { box(u, y0 + 1, -34, u, y0 + 6, -34, k.plating); put(u, y0 + 7, -34, k.lamp) }
         box(-4, y0 + 7, -34, 4, y0 + 7, -34, k.concrete)
         put(0, y0 + 7, -34, k.mark)
-        signAt(-5, y0 + 1, -35, dir(0, -1), [name.uppercased(), "Ashguard garrison", "Forty families", "Year 11 below"])
+        signAt(-5, y0 + 1, -35, dir(0, -1), [name.uppercased(), "Ashguard garrison", "Mess, depot, rail", "Year 11 below"])
         for v in stride(from: -28, through: 30, by: 10) { lampPost(-4, v) }
         // West of the street: barracks, the mess hall, the radio room and its mast, a mortar pit.
         hall(-30, -30, -8, -16, h: 6, wall: k.plating, roof: k.concrete, doorSide: 1)

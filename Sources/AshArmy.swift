@@ -34,6 +34,8 @@ enum AshArmy {
     static let lodStep: Float = 0.25
     static var lodSkipped = 0                       // far-AI ticks skipped (the perf check)
     static let levels = ["Quiet", "Alert", "Alarm", "Total War"]
+    static let fightLodRange: Float = 40, fightLodStep: Float = 0.1
+    static let beltMag = 90                        // the squad MG: a belt-fed light gun (the SMG's action), 90 rounds a belt
     static let radioUp = ["",
                           "Radio: \"All posts, intruder in the vault. Eyes open.\"",
                           "Radio: \"Alarm, alarm! Squads to the last contact. Mortars, fire on spotting.\"",
@@ -74,7 +76,7 @@ extension Mob {
     func ashTakeRole(_ r: Int) {
         let b = soldierBrain
         b.role = r
-        if r == AshArmy.mg { b.gun = Guns.smg; b.mag = Guns.all[Guns.smg].mag }
+        if r == AshArmy.mg { b.gun = Guns.smg; b.mag = AshArmy.beltMag }
     }
 
     // Role behaviour before the ordinary soldier AI; nil = carry on as an ordinary soldier.
@@ -88,14 +90,17 @@ extension Mob {
         switch b.role {
         case AshArmy.mortar:
             // Up close the crew fights; otherwise it stays at the tube and fires on what the army has spotted.
-            if (aggro || dist < 18) && canTarget && dist < 18 { return nil }
+            // Nothing the tube can reach (closer than 24 or no fresh spot): the crew fights with its rifles.
+            guard canTarget, !g.ashVictory, let spot = g.ashSpot, g.clock - g.ashSpotSeen < 8 else { return aggro ? nil : 0 }
+            let flat = simd_length(V2(spot.x - pos.x, spot.z - pos.z))
+            guard flat > 24 && flat < 170, dist > 18 || !aggro else { return nil }
             moving = false; wanderGoal = nil; strafe = 0
             b.ashTimer -= dt
-            guard canTarget, !g.ashVictory, let spot = g.ashSpot, g.clock - g.ashSpotSeen < 8 else { return 0 }
-            let flat = simd_length(V2(spot.x - pos.x, spot.z - pos.z))
-            guard flat > 24 && flat < 170 else { return 0 }
             face(spot)
-            if b.ashTimer <= 0 && Soldier.rank(kind) != 0 {             // the loader (a recruit) doesn't fire
+            // The loader (a recruit) fires only when the gunner is down (no other crew within 4 blocks).
+            let gunner = Soldier.rank(kind) != 0
+                || !g.mobs.mobs.contains { $0 !== self && $0.health > 0 && $0.brain?.role == AshArmy.mortar && simd_length_squared($0.pos - pos) < 16 }
+            if b.ashTimer <= 0 && gunner {
                 b.ashTimer = (g.difficulty >= 3 ? 6 : 8) + Rand.float(in: 0...2)
                 let spread = 1.5 + flat * 0.03
                 let at = V3(spot.x + Rand.float(in: -spread...spread), spot.y, spot.z + Rand.float(in: -spread...spread))
@@ -111,9 +116,13 @@ extension Mob {
             b.healScan -= dt
             if b.healScan <= 0 {
                 b.healScan = 1
-                b.patient = g.mobs.mobs.filter { $0 !== self && $0.health > 0 && $0.faction == Faction.ashguard.rawValue
-                    && Soldier.rank($0.kind) != nil && $0.health * 10 < $0.spec.health * 6 && simd_length_squared($0.pos - pos) < 196 }
-                    .min { Float($0.health) / Float($0.spec.health) < Float($1.health) / Float($1.spec.health) }
+                var worst: Mob?, frac: Float = 0.6
+                for m in g.mobs.mobs where m !== self && m.health > 0 && m.faction == Faction.ashguard.rawValue && Soldier.rank(m.kind) != nil
+                    && m.kind != .ashMarshal && simd_length_squared(m.pos - pos) < 196 {
+                    let f = Float(m.health) / Float(m.spec.health)
+                    if f < frac { frac = f; worst = m }
+                }
+                b.patient = worst
             }
             guard let p = b.patient, p.health > 0, p.health < p.spec.health, b.seenAgo > 1.5, hurt <= 0 else { return nil }
             let d = simd_length(V2(p.pos.x - pos.x, p.pos.z - pos.z))
@@ -133,6 +142,12 @@ extension Mob {
         case AshArmy.mg:
             // Suppressing fire: for 3 s after losing sight, the gunner keeps hosing the last spot.
             guard aggro, canTarget, !b.sees, b.seenAgo < 3, let t = b.lastSeen, b.reload <= 0, b.mag > 0 else { return nil }
+            // Still looking for the target while hosing the spot: back in view, the ordinary AI aims at it again.
+            b.losTimer -= dt
+            if b.losTimer <= 0 {
+                b.losTimer = 0.25
+                if g.world.canSee(eye, g.player.eye) { b.sees = true; b.seenAgo = 0; b.lastSeen = g.player.eye; return nil }
+            }
             b.seenAgo += dt
             b.shotTimer -= dt
             face(t)
@@ -147,9 +162,15 @@ extension Mob {
     // An officer who sees the player calls the nearest idle tank (at most every 45 s across the army).
     func ashCallArmour(_ g: Game) {
         guard Soldier.rank(kind) == 4, g.clock - g.ashArmourCall > 45, !g.ashVictory else { return }
-        guard let tank = g.mobs.mobs.filter({ $0.kind == .ashTank && $0.health > 0 && !$0.aggro && simd_length_squared($0.pos - pos) < 200 * 200 })
-            .min(by: { simd_length_squared($0.pos - pos) < simd_length_squared($1.pos - pos) }) else { return }
+        // One look round the army: found or not, the next call waits (an officer in sight with no tank near looked
+        // every frame).
         g.ashArmourCall = g.clock
+        var tank: Mob?, best: Float = 200 * 200
+        for m in g.mobs.mobs where m.kind == .ashTank && m.health > 0 && !m.aggro {
+            let d = simd_length_squared(m.pos - pos)
+            if d < best { best = d; tank = m }
+        }
+        guard let tank else { g.ashArmourCall = g.clock - 30; return }      // nothing near: look again in 15 s
         let tb = tank.soldierBrain
         tb.order = g.player.pos
         tb.lastSeen = g.player.eye
@@ -274,6 +295,11 @@ extension Game {
         let lvl = Int(ashAlarm)
         if lvl != ashAlarmLevel { ashAnnounce(lvl, up: lvl > ashAlarmLevel) }
         guard inVault else { return }
+        // Once a second: squads and patrols left far behind (over 160 blocks) stand down and go.
+        if Int(clock) != Int(clock - Double(dt)) {
+            let p = player.pos
+            mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 }
+        }
         // Reinforcements, patrols, the radio rooms.
         ashReinforceT -= dt
         ashPatrolT -= dt
@@ -287,7 +313,8 @@ extension Game {
         }
         if lvl <= 1 && ashPatrolT <= 0 {
             ashPatrolT = lvl == 1 ? 50 : 75
-            let walking = mobs.mobs.filter { $0.health > 0 && $0.brain?.leg != nil }.count
+            var walking = 0
+            for m in mobs.mobs where m.health > 0 && m.brain?.leg != nil { walking += 1 }
             if walking < 8 && difficulty > 0 { _ = ashSendSquad(patrol: true, armour: false) }
         }
         if ashRadioT <= 0 {
@@ -313,10 +340,10 @@ extension Game {
         if lvl == 0 { ashSquadsSent = 0 }
         if up {
             if lvl >= 2 { sfx(.ashSiren, lvl == 3 ? 1.6 : 1.2, at: player.pos + V3(0, 24, 0)) } else { sfx(.gun(11), 1.0, at: player.eye) }
-            onToast?("Alarm: \(AshArmy.levels[lvl]). \(AshArmy.radioUp[lvl])")
+            onToast?("\(AshArmy.levels[lvl] == "Alarm" ? "Alarm raised" : "Alarm: " + AshArmy.levels[lvl]). \(AshArmy.radioUp[lvl])")
         } else {
             sfx(.gun(11), 0.8, at: player.eye)
-            onToast?("Alarm: \(AshArmy.levels[lvl]). \(AshArmy.radioDown[lvl])")
+            onToast?("\(AshArmy.levels[lvl] == "Alarm" ? "Alarm raised" : "Alarm: " + AshArmy.levels[lvl]). \(AshArmy.radioDown[lvl])")
         }
     }
 
@@ -373,6 +400,7 @@ extension Game {
             let m = Mob(k, at: at + V3(cosf(a) * 1.6, 0, sinf(a) * 1.6))
             m.ashSetup()
             if role != 0 { m.ashTakeRole(role) }
+            m.persistent = true                     // kept by the war, not the spawner; far stragglers go in ashAlarmTick
             let b = m.soldierBrain
             b.extra = true
             if let e = ends {
@@ -389,7 +417,7 @@ extension Game {
         if armour {
             let v = Mob(ashSquadsSent >= 3 ? .ashTank : .ashHalftrack, at: at + V3(dir.y * 5, 0, -dir.x * 5))
             v.ashSetup()
-            v.persistent = false
+            v.persistent = true
             let b = v.soldierBrain
             b.extra = true
             b.order = target

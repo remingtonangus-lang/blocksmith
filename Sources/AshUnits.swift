@@ -115,26 +115,37 @@ extension Mob {
         if !aggro && dist > AshArmy.lodRange && b.order == nil && hurt <= 0 {
             b.lodAcc += dt
             if b.lodAcc < AshArmy.lodStep { AshArmy.lodSkipped += 1; return b.lodSpeed }
+        } else if aggro && dist > AshArmy.fightLodRange && !b.sees && b.seenAgo > 1 && hurt <= 0 && b.role != AshArmy.mortar {
+            // In a fight but out of sight and far: ten thoughts a second, still moving the way it was.
+            b.lodAcc += dt
+            if b.lodAcc < AshArmy.fightLodStep { AshArmy.lodSkipped += 1; return b.lodSpeed }
         }
         let step = max(dt, b.lodAcc)
         b.lodAcc = 0
         // Reinforcements run in to the last contact before they go to ground and fight (a squad that stopped to trade
-        // shots at 50 blocks never arrived).
-        // They path round the compound walls in between (a straight run walked a squad into the first wall).
-        if b.extra && b.orderRun, let o = b.order {
+        // shots at 50 blocks never arrived); a calm patrol walks its leg between two sites the same way. Both are
+        // steered (Mob.update's path following) to a waypoint 16 blocks along the line: the path finder searches a
+        // short reach, and a partial path to the far end made them give the run up at once. The last 20 blocks are
+        // the ordinary order walk (a patrol turns at the end: ashRoleAI).
+        let running = b.orderRun || (b.leg != nil && !aggro)
+        if b.extra && running, let o = b.order {
             let flat = V2(o.x - pos.x, o.z - pos.z), d = simd_length(flat)
-            // Steered (Mob.update's path following) to a waypoint 16 blocks along the line: the path finder searches a
-            // short reach, and a partial path to the far end made them give the run up at once.
             let wp = pos + V3(flat.x / max(d, 0.01), 0, flat.y / max(d, 0.01)) * min(16, d)
             if d > 20 && !gaveUp(wp) && unreachableTimer <= 0 {
                 face(wp)
                 moving = true
-                b.lodSpeed = spec.speed * 0.95
+                b.lodSpeed = spec.speed * (b.orderRun ? 0.95 : 0.6)
                 return b.lodSpeed
             }
-            b.orderRun = false; b.order = nil
-            // Arrived (or no way round found): hunt from the last contact.
-            if !aggro { aggro = true; b.lastSeen = o + V3(0, 1.6, 0); b.seenAgo = min(b.seenAgo, 5); lockTime = max(lockTime, 20) }
+            if b.orderRun {
+                b.orderRun = false; b.order = nil
+                // Arrived (or no way round found): hunt from the last contact.
+                if !aggro { aggro = true; b.lastSeen = o + V3(0, 1.6, 0); b.seenAgo = min(b.seenAgo, 5); lockTime = max(lockTime, 20) }
+            } else if d > 20, let leg = b.leg {
+                // A patrol with no way on: back the other way.
+                b.order = simd_length(V2(o.x - leg.1.x, o.z - leg.1.z)) < 4 ? leg.0 : leg.1
+                unreachableTimer = 0
+            }
         }
         if let sp = ashRoleAI(step, g, dist: dist, canTarget: canTarget) { b.lodSpeed = sp; return sp }
         let sp = soldierAI(step, g, dist: dist, canTarget: canTarget)

@@ -104,13 +104,19 @@ enum AshVaultGapTests {
         let dg = DeepGen(seed: 12345)
         let y0 = AshWar.ground
         var cells = 0, laid = 0, powered = 0, bed = 0, clear = 0
-        var boards = 0, carts = 0
+        var boards = 0, carts = 0, stops = 0, buffers = 0
         var counted = Set<IVec3>()
         for (i, r) in AshWar.railRuns.enumerated() {
             let p0 = AshWar.cell(r, r.a), p1 = AshWar.cell(r, r.b)
             let patch = Patch(dg, x0: min(p0.x, p1.x) - 5, z0: min(p0.z, p1.z) - 5, x1: max(p0.x, p1.x) + 5, z1: max(p0.z, p1.z) + 5)
             for t in r.a...r.b {
                 let (x, z) = AshWar.cell(r, t)
+                // The line ends (bar the airfield line's corner) carry a buffer stop.
+                if (t == r.a && i != 4) || (t == r.b && i != 5) {
+                    stops += 1
+                    if patch.get(x, y0 + 1, z) == Blocks.id("ash_concrete") { buffers += 1 }
+                    continue
+                }
                 cells += 1
                 let b = patch.get(x, y0 + 1, z)
                 if Rails.isRail(b) { laid += 1 }
@@ -124,8 +130,9 @@ enum AshVaultGapTests {
             carts += patch.mobs.filter { $0.0 == "minecart" && AshWar.railShape(Int(floor($0.1.x)), Int(floor($0.1.z))) != nil }
                 .filter { m in AshWar.halts.contains { $0.run == i && abs((r.alongX ? Int(floor(m.1.x)) : Int(floor(m.1.z))) - ($0.from + $0.dir * AshWar.haltLength / 2)) == 0 } }.count
         }
-        check(laid == cells && powered >= cells / 20 - 6 && bed == cells && clear >= cells - 4 && boards == AshWar.halts.count && carts == AshWar.halts.count,
-              "ash vault rail: \(AshWar.railRuns.count) runs, \(laid) of \(cells) cells laid (\(powered) powered), bed under \(bed), headroom \(clear); \(boards) halt boards, \(carts) carts waiting (\(AshWar.halts.count) halts)")
+        check(laid == cells && powered >= cells / 20 - 6 && bed == cells && clear >= cells - 4 && boards == AshWar.halts.count && carts == AshWar.halts.count
+              && buffers == stops && stops == 10,
+              "ash vault rail: \(AshWar.railRuns.count) runs, \(laid) of \(cells) cells laid (\(powered) powered), bed under \(bed), headroom \(clear); \(boards) halt boards, \(carts) carts waiting (\(AshWar.halts.count) halts); \(buffers) of \(stops) buffer stops")
     }
 
     static func ground(_ w: World, _ x: Int, _ z: Int) -> Float {

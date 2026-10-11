@@ -107,7 +107,12 @@ extension Mob {
         if faction == Faction.ashguard.rawValue { d["fac"] = Float(faction) }
         if warden { d["warden"] = 1 }
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
-        if let b = brain, b.extra { d["ashExtra"] = 1 }
+        if let b = brain, b.extra {
+            d["ashExtra"] = 1
+            // A patrol's leg and a squad's run to the last contact carry on after a reload.
+            if let l = b.leg { d["ashL0x"] = l.0.x; d["ashL0z"] = l.0.z; d["ashL1x"] = l.1.x; d["ashL1z"] = l.1.z }
+            if let o = b.order { d["ashOx"] = o.x; d["ashOz"] = o.z; d["ashRun"] = b.orderRun ? 1 : 0 }
+        }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -140,7 +145,13 @@ extension Mob {
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
         if let r = d["ashRole"] { ashTakeRole(Int(r)) }
-        if (d["ashExtra"] ?? 0) > 0 { soldierBrain.extra = true }
+        if (d["ashExtra"] ?? 0) > 0 {
+            let b = soldierBrain
+            b.extra = true
+            persistent = true
+            if let a = d["ashL0x"], let c = d["ashL0z"], let e = d["ashL1x"], let f = d["ashL1z"] { b.leg = (V3(a, pos.y, c), V3(e, pos.y, f)) }
+            if let x = d["ashOx"], let z = d["ashOz"] { b.order = V3(x, pos.y, z); b.orderRun = (d["ashRun"] ?? 0) > 0 }
+        }
     }
 }
 
