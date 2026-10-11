@@ -2272,7 +2272,7 @@ final class MobManager {
     }
 
     // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
-    func trySpawnEmberdeep(_ game: Game, base: Int = YOFF) {
+    func trySpawnEmberdeep(_ game: Game, base: Int = YOFF, height: Int = 128) {
         let w = game.world
         let pp = game.player.pos
         let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...64)
@@ -2298,7 +2298,7 @@ final class MobManager {
             }
             return
         }
-        var y = base + Rand.int(in: 1...126)
+        var y = base + Rand.int(in: 1...(height - 2))
         // Walk down to a floor with two free blocks above it.
         while y > base + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
                                  && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }

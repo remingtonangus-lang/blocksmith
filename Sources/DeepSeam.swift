@@ -53,7 +53,7 @@ extension MobManager {
     func trySpawnDeep(_ game: Game) {
         guard DeepGen.inHell(game.player.pos.y) else { return }
         let n = mobs.count
-        trySpawnEmberdeep(game, base: DeepGen.hellBase)
+        trySpawnEmberdeep(game, base: DeepGen.hellBase, height: DeepGen.hellHeight)
         for m in mobs[n...] where m.kind.hostile { m.power = MobManager.depthPower(.deep, m.pos.y) }
     }
 }

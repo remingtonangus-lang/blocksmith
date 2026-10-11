@@ -8,11 +8,14 @@ import Foundation
 //              lumenstone hanging from the roof; the Ashguard army holds it (AshWar.swift), its headquarters at x 0, z 0
 //   ...191     the lower crust: hot rock, sealed lava pockets, deep ores
 //   192...199  the Sealrock (DeepSeal.swift): only Sunderite breaks it
-//   200...327  the hell band: the Emberdeep's terrain (EmberGen at base 200) with fortresses
-//   328...383  the upper crust, continuous with the surface's emberslate floor above
+//   200...375  the hell band: the Emberdeep's terrain stretched to 176 tall (EmberGen at base 200, height 176; its lower
+//              64 blocks, the lava sea and its shores, exactly the Emberdeep's) with fortresses, bastions and keeps; the
+//              gap pass (D1) raised it from 128: caverns over 100 blocks high, lumenstone hanging in a far-off roof
+//   376...383  the upper crust, continuous with the surface's emberslate floor above
 final class DeepGen: TerrainGenerator {
     static let hellBase = 200
-    static let crustTop = hellBase + 128          // first layer of the upper crust
+    static let hellHeight = 176                    // was 128 before the gap pass (docs/status/cloud-gap-pass.md, D1)
+    static let crustTop = hellBase + hellHeight   // first layer of the upper crust
     static let coreTop = 3
     static let floorBase = 30
     static let ceilingBase = 168                   // was 134 before the Deep expansion (a taller vault)
@@ -29,7 +32,7 @@ final class DeepGen: TerrainGenerator {
     init(seed: UInt64) {
         self.seed = seed
         s32 = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0xDEE9
-        ember = EmberGen(seed: seed, base: DeepGen.hellBase, cap: EMBERSLATE, structures: false)
+        ember = EmberGen(seed: seed, base: DeepGen.hellBase, height: DeepGen.hellHeight, cap: EMBERSLATE, structures: false)
         floorN = Noise(seed: seed &+ 201)
         ceilN = Noise(seed: seed &+ 202)
         riverN = Noise(seed: seed &+ 203)

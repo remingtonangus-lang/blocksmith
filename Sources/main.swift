@@ -558,7 +558,7 @@ enum Snapshot {
             var y = (world.gen as? DeepGen)?.floorY(x, z) ?? 30
             if CommandLine.arguments.contains("--hell") {
                 y = DeepGen.hellBase + 33
-                while y < DeepGen.hellBase + 120 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
+                while y < DeepGen.crustTop - 8 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
             } else { y += 1 }
             pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
