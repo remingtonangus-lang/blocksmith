@@ -145,6 +145,7 @@ final class Game {
     var lastPearl: Double = -10
     var rideInput = MoveInput()
     var falling: [FallingBlock] = []
+    var vrShake = true                     // VR comfort page "Blast Shake" (QuestSettings.blastShake): eye jolt from blasts
     var shake: Float = 0                   // screen-shake trauma 0...1 (MainGun.swift: addShake, shakeView, shakeVR)
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0

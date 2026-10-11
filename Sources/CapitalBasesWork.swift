@@ -213,7 +213,8 @@ extension Game {
     // MARK: Rebuild
 
     func baseRebuild(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float, away: Float) {
-        guard !r.damage.isEmpty else {
+        // A citadel the Tidebreaker broke isn't rebuilt: its craters stay (MainGunStrikes.swift).
+        guard !r.damage.isEmpty, r.broken != true else {
             dismissWorkers(r, b)
             return
         }

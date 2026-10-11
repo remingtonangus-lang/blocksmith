@@ -74,10 +74,10 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | ET10 | Shopkeepers restock over days | MET | restockShop(day:) | - | MET |
 | ET11 | At least 3 town layouts per biome style | MISSING | one radial-plaza generator | T | MET: three street plans (crossroads, main street, grid) chosen per town in every style; TownGapTests |
 | EF1 | Gunner seat/console: aiming reticle, charge meter, cooldown display | MET | helm aim ring + mainGunStatus gauge (CombatHUD) | - | MET |
-| EF2 | Targets worth hitting: enemy ships, the Capital, military bases | PARTIAL | ships yes; bases/Capital take the crater but nothing reacts (no garrison loss, no objective) | F | |
+| EF2 | Targets worth hitting: enemy ships, the Capital, military bases | PARTIAL | ships yes; bases/Capital take the crater but nothing reacts (no garrison loss, no objective) | F | MET: impacts put citadels on lockdown and Boreal on alarm; a strike report counts the garrison killed; 3 hits or 16 dead break a citadel (no reinforcements, no rebuild, Siege Breaker); MainGunGapTests |
 | EF3 | Damage interacts with structures sensibly | MET | crater carving, hull hit tears plate | - | MET |
-| EF4 | Camera-shake comfort toggle for VR | PARTIAL | tied to Screen Effects (a general toggle); no own option on the VR comfort page | F | |
-| EF5 | The shot recorded as a video-like screenshot sequence | PARTIAL | single stills only | F | |
+| EF4 | Camera-shake comfort toggle for VR | PARTIAL | tied to Screen Effects (a general toggle); no own option on the VR comfort page | F | MET: Blast Shake on the VR Comfort page; off keeps the view still, the rumble stays; MainGunGapTests |
+| EF5 | The shot recorded as a video-like screenshot sequence | PARTIAL | single stills only | F | MET: BLOCKSMITH_SHOT_SEQUENCE renders 12 frames from charge to smoke; docs/qa/tidebreaker_sequence.jpg |
 | EB | Military base look (snow, blue lights, corridors, doors with sounds, red alarms, rooms, loot) | MET | Boreal Station, BorealTests | - | MET |
 | EIP | Grep-based test fails on UNSC / MAC / flagged names; ip-renames complete | PARTIAL | tools/namecheck.py exists but runs only in the Mac snap shard, not in the Quest checks threads run | IP | MET: namecheck --coined runs in quest/tools/linux-check.sh (every Quest check) |
 | EV | Village bugs written with seed + coords, regression test | MET | #20 doc + structcheck baseline | - | MET |

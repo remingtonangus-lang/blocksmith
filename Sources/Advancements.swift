@@ -80,6 +80,7 @@ enum Advancements {
         Advancement(id: "adventure/shoot_arrow", tab: 3, title: "Take Aim", desc: "Shoot something with an arrow", crit: .event("arrow_hit")),
         Advancement(id: "adventure/ol_betsy", tab: 3, title: "Crossed", desc: "Shoot a Crossbow", crit: .event("crossbow")),
         Advancement(id: "adventure/voluntary_exile", tab: 3, title: "Exiled", desc: "Kill a raid captain", crit: .event("kill_captain")),
+        Advancement(id: "adventure/break_citadel", tab: 3, title: "Siege Breaker", desc: "Break a Capital citadel with the Tidebreaker", crit: .event("citadel_broken"), challenge: true),
         Advancement(id: "adventure/hero_of_the_village", tab: 3, title: "Village Keeper", desc: "Successfully defend a village from a raid", crit: .event("raid_win"), challenge: true),
         Advancement(id: "adventure/totem_of_undying", tab: 3, title: "Second Chance", desc: "Use a Totem of Rebirth to cheat death", crit: .event("totem")),
         Advancement(id: "adventure/summon_iron_golem", tab: 3, title: "Hired Muscle", desc: "Summon an Iron Golem", crit: .event("iron_golem")),
