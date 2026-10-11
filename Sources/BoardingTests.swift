@@ -12,7 +12,9 @@ enum BoardingTests {
         let pm = PadManager.shared
         let home = g.player.pos, wasPaused = g.paused, wasFlying = g.player.flying, wasSim = pm.simulated
         let wasYaw = g.player.yaw, wasMoveYaw = g.player.moveYaw, wasHealth = g.health
+        let wasAlive = g.alive, wasMenu = g.menu
         defer {
+            g.alive = wasAlive; g.menu = wasMenu
             pm.simulated = wasSim
             g.player.pos = home; g.player.vel = .zero; g.player.flying = wasFlying; g.paused = wasPaused
             g.player.yaw = wasYaw; g.player.moveYaw = wasMoveYaw; g.health = wasHealth
@@ -21,6 +23,10 @@ enum BoardingTests {
         g.paused = false
         g.player.flying = false
         g.player.moveYaw = nil
+        // A living player with no menu open (an earlier check in the full questcheck can leave it dead on the death
+        // screen, where the stick moves nothing).
+        g.alive = true; g.menu = nil; g.health = max(g.health, g.maxHealth)
+        let startHealth = g.health
         // A crewless frigate (drives as if crewed, nobody aboard to shoot) cruising 200 blocks east of the start.
         let n0 = w.ships.list.count
         w.ships.spawnCapital("capfrigate", home: IVec3(Int(home.x) + 200, 0, Int(home.z)), yaw: 0.7, region: nil, sync: true)
@@ -54,7 +60,7 @@ enum BoardingTests {
         check(FrigateBoarding.hauled == hauled0 + 1 && inHangar.y > 8.5 && inHangar.y < 14 && slowest < 2,
               String(format: "boarding: standing at the winch's foot hauls the player %.0f blocks up into the hangar in %.1f s (the frigate heaves to: %.1f -> %.1f b/s)",
                      a0.y - foot.y, Float(frames) / 72, speed0, slowest))
-        check(g.health >= wasHealth || !g.survival, "boarding: the haul does no fall damage (health \(g.health))")
+        check(g.health >= startHealth || !g.survival, "boarding: the haul does no fall damage (health \(g.health))")
         // Walk the hangar to the ladder, climb to the bridge deck, walk to the helm (grid targets, the ship's frame).
         let ladder = V3(10.5, 9.05, 89.5), helm = V3(13.5, 25.05, 75.5)   // (the ladder's cell; its wall is to the west)
         var stage = 0

@@ -68,10 +68,10 @@ render maingun_stern_night with --render.
 ## G6: the first citadel was hard to find (done audit 25b6)
 Objectives: a walking player gets a lead to a citadel well before stumbling on one; the lead is loot the player meets
 early (wild camps), and the first one read points to a citadel, not a city.
-Results: outlaw camps always hold 1-2 Intercepted Orders (Loot extra pool), abandoned camps sometimes (weight 7); the
-first orders read while no citadel is on the map mark the nearest citadel. FindabilityTests (questcheck): 50 of 50
-outlaw chests hold orders, nearest outlaw camp versus nearest citadel from spawn on six seeds, first orders mark a
-citadel.
+Results: outlaw camps always hold 1-2 Intercepted Orders and abandoned and traders' camps always hold one (Loot extra
+pools); the first orders read while no citadel is on the map mark the nearest citadel. FindabilityTests (questcheck):
+50 of 50 outlaw chests hold orders, a camp holding orders is nearer spawn than a citadel on at least 5 of 6 seeds,
+first orders mark a citadel.
 
 ## G12: capitals too common and one at the spawn (Oct 11 AM playtest)
 Objectives (backlog + Lane A's own):
