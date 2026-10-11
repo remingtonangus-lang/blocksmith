@@ -143,7 +143,7 @@ enum CircuitWorkshopTests {
     // player at the world's spawn as a new world puts them. The first tick must build the deck there and stand the
     // player on the walkway; a second visit to the same folder must find it and leave the player alone.
     static func entry(device: MTLDevice, check: (Bool, String) -> Void) {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("wsentry-\(getpid())", isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("wsentry-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         let dir = root.appendingPathComponent(CircuitWorkshop.worldName, isDirectory: true)
         try? FileManager.default.removeItem(at: root)
         defer { try? FileManager.default.removeItem(at: root) }

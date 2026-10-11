@@ -250,3 +250,44 @@ Gaps: device session (Remington: plug in the Quest); Quest water shot revived + 
 water's shore factor; one-time animal thinning on old saves (with migration test); held-item size option + clip check;
 Halo sensitivity table test; swamp open water; textured horse coat (cloud lane: horses). Queued in
 25b4zzz-blocksmith-audit-gaps.
+
+## 25b4-blocksmith-apply-art-style (+x .. xxxxxx) — Opus reviewer
+Counts from `--texnames` vs Resources/Textures; 9 shots snaps/audit-25b4-*.png; Quest CI run 38117715539.
+Verdict: roughly half done. Terrain, ores, woods, plants and most icons match style 3 well; 865 of 1429 layers that
+should be styled are (61%); nothing proven on the Quest renderer (CI Quest renders didn't even load texpack.bin).
+
+| # | Requirement | Grade | Evidence |
+|---|---|---|---|
+| R1 | Re-texture every block | PARTIAL | 433/933; doors, trapdoors, glass, stained glass, beds, candles, glazed terracotta, shulkers, rails, torches, lanterns, tall grass, vines, lily pad procedural |
+| R2 | Ores distinct but natural | PARTIAL | all ore layers styled; gold specks faint at 7 m, close to copper; ancient_debris_top, gilded_blackstone procedural |
+| R3 | Every item | PARTIAL | 432/496 (64 missing; report said 12) |
+| R4 | UI icons | PARTIAL | hearts/air styled; 39 effect icons, XP bar, font, panels not |
+| R5 | Real materials, muted colours, subtle detail | MET | restyled set matches 3-stylised-realism.png; dirt path a bit orange |
+| R6 | Cohesive with lighting/sky | PARTIAL | painted next to flat pixel blocks in one shot; blocky clouds |
+| R7 | 32-64 px per face | PARTIAL | 128 px on purpose for the sharpness complaint; spec change never signed off |
+| R8 | ASTC/ETC compression | MISSING | Quest uploads RGBA8 (~155 MB); only the Mac uses BC3 |
+| R9 | Mipmaps | MET | Lanczos-2 mips, aniso 8 |
+| R10 | No frame-time growth | MISSING | not measured on the headset after 128 px |
+| R11 | Memory within limits | MET (computed) | ~155 MB vs 3 GB peak |
+| R12 | Gemini sheets sliced into tiles | MET | 44 sheets, slice/derive tools |
+| R13 | Every texture checked in golden shots | PARTIAL | galleries cover a subset; seams clean except nether_quartz_ore, deepslate_diamond_ore |
+| R14 | Independent comparison to the reference | PARTIAL | mentioned in CREDITS, no written score |
+| R15 | Don't copy the reference mob look | MET | |
+| R16 | Sources in assets/CREDITS | PARTIAL | prompts recorded; no licence line (added as an open item in this audit) |
+| R17 | Also on claude/blocksmith-playtest | PARTIAL | not merged (branches far apart); playtest branch is frozen Mac work now |
+| R18 | Save keeps loading | MET | no save keys changed; questcheck 667 ok |
+| R19 | Commit per batch | MET | 16 art commits |
+| R20 | Ship a Quest build | MET (no install) | APK quest-129 carries texpack.bin |
+| R21 | List what remains | PARTIAL | art-style-remaining.md was stale (recount added in this audit) |
+| E1 | One style in a single shot | PARTIAL | pixel UI chrome, untextured mobs, blocky clouds; scorecard style row never re-scored |
+| E2 | Readable at Quest resolution/distance | PARTIAL | numpy model only; CI Quest renders used procedural 32 px (fixed in this audit: headless loads texpack.bin) |
+| E3 | Mips/aliasing/shimmer | PARTIAL | modelled, not measured on device |
+| E4 | Memory efficiency | PARTIAL | ~4x an ASTC 4x4 pack |
+| E5 | Variety within families | PARTIAL | 16-colour families (~100 layers) all procedural |
+| E6 | Legal/originality | PARTIAL | original, prompts kept; licence unconfirmed |
+| E7 | Regression shots | MET | galleries + hdatlas in the heavy lane |
+| E8 | Tiling seams | MET | 2 marginal tiles |
+
+Gaps: queued 25b4zzz-blocksmith-art-gaps (CHROME=1): ~300 layers of high-visibility families, 64 icons, gold ore
+specks, 2 seams, UI/effect icons, one texpack commit. ASTC vs lossless and the 128 px spec change are Remington's
+call (listed in the report). Fixed here: CI Quest renders load the art; remaining-list recount; licence open item.
