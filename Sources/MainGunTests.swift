@@ -148,7 +148,7 @@ enum MainGunTests {
         _ = w.loadSync(center: g.player.pos, radius: 3)
         func wetTops(_ c: V3) -> Int {
             var wet = 0
-            for dz in stride(from: -9, through: 9, by: 3) { for dx in stride(from: -9, through: 9, by: 3) where dx * dx + dz * dz <= 81 {
+            for dz in stride(from: -14, through: 14, by: 2) { for dx in stride(from: -14, through: 14, by: 2) where dx * dx + dz * dz <= 196 {
                 let x = Int(floor(c.x)) + dx, z = Int(floor(c.z)) + dz
                 var y = CH - 1
                 while y > 0 && w.block(x, y, z) == AIR { y -= 1 }
@@ -167,7 +167,9 @@ enum MainGunTests {
                 if p.y <= Float(w.gen.column(Int(floor(p.x)), Int(floor(p.z))).height) + 1 { guess = p; break }
             }
             _ = w.loadSync(center: guess, radius: 2)
-            if let at = w.ships.mainGunAimPoint(s, st, pitch: pk), wetTops(at) == 0 { pitch = pk; break }
+            guard let at = w.ships.mainGunAimPoint(s, st, pitch: pk) else { continue }
+            _ = w.loadSync(center: at, radius: 2)                   // (the bowl and its rim, round the predicted landing)
+            if wetTops(at) == 0 { pitch = pk; break }
         }
         let dir = V3(h.x * cosf(pitch), sinf(pitch), h.y * cosf(pitch))
         // Where the slug will land (the generator's heights along its path), loaded beforehand.

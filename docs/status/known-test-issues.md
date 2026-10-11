@@ -63,7 +63,7 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   "the helm shows where the shot will land ... predicted in 4.68 ms" (wants a fast prediction) failed in the same loaded run.
   The checks run before the gap-pass code (MainGunGapTests runs last), so they are load-sensitive, not a regression.
 - FIXED (Lane A, G1, 2026-10-11): the test now zeroes the frigate's drift before the shot, picks the steepest helm
-  pitch whose predicted landing has no water within 9 blocks, and moves the watching player beside the landing once
+  pitch whose predicted landing has no water within 14 blocks (the crater and its rim), and moves the watching player beside the landing once
   the slug is away (a landing past the streamed world became a pending crater). The charge and flight frames are paced
   like the headset (13.9 ms), so the charge's structure warm-up runs as it does in play.
 

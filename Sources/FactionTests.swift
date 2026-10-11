@@ -56,7 +56,12 @@ enum FactionTests {
         let px = Int(g.player.pos.x), pz = Int(g.player.pos.z)
         guard let base = sc.nearest("military_base", x: px, z: pz, maxRegions: 6) else { check(false, "factions: no citadel for the Tidebreaker check"); return }
         let home = g.player.pos
-        defer { g.player.pos = home; g.player.vel = .zero }
+        defer {
+            g.player.pos = home; g.player.vel = .zero
+            // The shot streamed the world round the citadel, far from the start: load the start again for the checks
+            // that run after this one (questcheck's town checks stand townsfolk on the ground round the player).
+            _ = w.loadSync(center: home, radius: 8)
+        }
         let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
         g.player.pos = V3(Float(cx) + 0.5, 200, Float(cz) + 0.5)
         _ = w.loadSync(center: g.player.pos, radius: 4)
