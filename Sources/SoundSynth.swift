@@ -551,7 +551,8 @@ struct Synth {
         var out = x
         var peak: Float = 0
         for v in out where v.isFinite { peak = max(peak, abs(v)) }
-        if peak > 0.9 { let k = 0.9 / peak; for i in 0..<out.count { out[i] *= k } }
+        // 0.88 = -1.1 dBFS: keeps every SFX under the -1 dBFS true-peak ceiling (STORE_QUALITY audio mix).
+        if peak > 0.88 { let k = 0.88 / peak; for i in 0..<out.count { out[i] *= k } }
         if peak > 0 && peak < 0.3 { let k = 0.6 / peak; for i in 0..<out.count { out[i] *= k } }
         let loud: Float
         switch s {

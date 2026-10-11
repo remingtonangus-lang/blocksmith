@@ -106,3 +106,11 @@ docs/status/texture-sharpness.md). All original Blocksmith art.
   decoded peak -2.1 dBFS; LUFS median -20.8.
 - Licence: generated under Remington's OpenRouter account. ElevenLabs output terms for commercial use in a public
   repo still need Remington's confirmation before release.
+
+## Licence status of generated art (done audit 25b6, 2026-10-11)
+- Gemini images (Gemini web app under Remington's Google AI Pro account, and Gemini 3 Pro Image through OpenRouter):
+  the output terms for commercial use in a paid store game have not been confirmed in writing. Before the Meta
+  Horizon Store submission Remington must read and confirm the current Google Gemini and OpenRouter terms for
+  commercial use of generated images (store-readiness item), and record the result here.
+- The independent style review that triggered the s20 ore re-roll left no written score; future art passes record
+  the reviewer's verdict in this file next to the sheet it judged.

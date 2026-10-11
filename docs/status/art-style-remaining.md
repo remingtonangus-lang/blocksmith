@@ -1,5 +1,13 @@
 # Art style: what is still procedural (2026-10-10)
 
+> **Recount by the done audit (25b6, 2026-10-11):** the game now has 1781 layers. 352 stay procedural on purpose
+> (list below), so 1429 should be in the style and 865 are (61%): blocks 433 of 933, items 432 of 496. **64 item
+> icons are missing, not 12**: content added since the pass (pelts, fur armour tiers, Sunderite items, the revolver,
+> fish, potion/spawn-egg layer splits, journals) came in procedural. Biggest visible block families still
+> procedural: doors and trapdoors, glass and stained glass, beds, candles, shulker boxes, glazed terracotta, torches,
+> lanterns, rails, tall grass, ferns, vines, lily pads. Also: gold ore specks are too faint at 7 m, and
+> nether_quartz_ore / deepslate_diamond_ore have marginal wrap seams. Follow-up: 25b4zzz-blocksmith-art-gaps (CHROME=1).
+
 Style 3 "stylised realism" (docs/art/style-options/3-stylised-realism.png) is applied to 866 of 1712 texture layers:
 every common terrain/ore/stone/wood/plant block, the workshop blocks, the original Blocksmith blocks (capital,
 frigate, warship, Ash, Steelhold) and all item icons except the 12 below. Sources: 20 Gemini block sheets, 19 icon

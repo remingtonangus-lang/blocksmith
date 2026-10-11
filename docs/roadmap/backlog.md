@@ -154,6 +154,27 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
     can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
     level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
 
+## FROM THE DONE AUDIT (task 25b6, 2026-10-11; full tables in docs/status/done-audit.md)
+Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.
+A1. [frigate gun, FIRST] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
+    ("charges for 5.56 s", 0-block crater, 0 coil thumps, 0 shake). Tests that call mainGunTick directly pass; the
+    g.tick path doesn't finish the charge. Also make FactionTests.swift:77 fire a real slug instead of Explosion.crater.
+A2. [the Deep] D2 vault pass never merged (garrison towns, rail, airfield + AA, mortar pits, foot patrols, saved
+    vault-wide alarm, reinforcements, crew bail-out DE9, radio/story DE11). This is the "far under spec" part.
+A3. [the Deep] Quest perf in the vault: proxy ashvault route 12 hitches/min (max 45.6 ms); add a live-unit cap and
+    soldier AI LOD, plus a questcheck "citadel at full alarm" number (DE14).
+A4. [the Deep] Playthrough.swift has no Deep stage (keep -> Sunderite -> charge -> seal -> citadel -> Marshal -> lift).
+A5. [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
+    DE10); marksmen get a first-shot glint (an unarmoured arrival died 92 blocks out in 4 s); blend the vault sky over
+    y 120-136 instead of the switch at 128; fog end 130 -> ~220 so the 138-tall vault reads as huge (check proxy p99).
+A6. [base / village] First citadel findability: radar and intercepted orders are base loot, so the first base means
+    wandering ~1,200 blocks. Add a cartographer explorer map to military_base or orders in wild camps.
+A7. [towns] Rename the Capital city "Meridian" (CapitalTown.swift:17): it clashes with the Meridian Navy. Add a
+    capital_city structure shot and a street-level shot to snap.sh.
+A8. [frigate] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
+A9. [horses] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
+    neck/mane, add a Quest horse render to questcheck.
+
 ## SMALLER IDEAS (take when a lane is empty)
 O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
 O2. Hired companions: pay or recruit townsfolk and troops to follow and fight; gear them with your looted armour.

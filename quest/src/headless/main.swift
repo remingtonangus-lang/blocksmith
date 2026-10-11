@@ -41,6 +41,9 @@ var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
     sharedSystemDevice = QuestDevice(vkctx!)
+    // The headset's imported art (AndroidMain reads assets/texpack.bin the same way), so CI renders show the real
+    // textures instead of the procedural fallback (done audit 25b6).
+    if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
@@ -272,11 +275,12 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             let e = game.player.eye
             var shore: (Int, Int)?
             var seaDir: (Float, Float) = (1, 0)
-            search: for r in stride(from: 8, through: 1600, by: 8) {
-                for dir in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
+            // Climate terrain puts the sea far from spawn on some seeds: look along 8 directions out to 3200 blocks.
+            search: for r in stride(from: 8, through: 3200, by: 8) {
+                for dir in [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, 1), (-1, -1), (1, -1)] {
                     let x = Int(e.x) + dir.0 * r, z = Int(e.z) + dir.1 * r
                     if world.gen.column(x, z).height < SEA - 6 && world.gen.column(x - dir.0 * 14, z - dir.1 * 14).height >= SEA {
-                        shore = (x - dir.0 * 14, z - dir.1 * 14); seaDir = (Float(dir.0), Float(dir.1)); break search
+                        shore = (x - dir.0 * 14, z - dir.1 * 14); let len = Float(abs(dir.0) + abs(dir.1)).squareRoot(); seaDir = (Float(dir.0) / len, Float(dir.1) / len); break search
                     }
                 }
             }
@@ -302,7 +306,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                     try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: name), yaw: yaw, pitch: pitch)
                 }
                 (game.player.pos, game.player.flying, game.time) = saved
-            } else { print("render: no shore within 1600 blocks (water view skipped)") }
+            } else { print("WARN render: no shore within 3200 blocks in 8 directions (water view skipped; docs/status/done-audit.md)") }
         }
         // --golden DIR: the Quest copies of the golden shots (docs/STORE_QUALITY.md; the Mac list is tools/golden.sh):
         // the world shots this renderer can stage from spawn, compared build to build by a reviewer.
