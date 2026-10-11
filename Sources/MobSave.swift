@@ -106,6 +106,8 @@ extension Mob {
         if power != 1 { d["power"] = power }
         if faction == Faction.ashguard.rawValue { d["fac"] = Float(faction) }
         if warden { d["warden"] = 1 }
+        if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
+        if let b = brain, b.extra { d["ashExtra"] = 1 }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -137,6 +139,8 @@ extension Mob {
         if let x = d["brushCd"] { hs.brushCool = x }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
+        if let r = d["ashRole"] { ashTakeRole(Int(r)) }
+        if (d["ashExtra"] ?? 0) > 0 { soldierBrain.extra = true }
     }
 }
 

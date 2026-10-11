@@ -24,6 +24,14 @@ extension BlockRegistry {
         block("ash_crate", "Ashguard Crate", side: "ash_crate", top: "ash_crate_top", h: 2, snd: .wood)
         block("ash_sandbags", "Sandbags", h: 1, snd: .sand)
         block("ash_lift", "Lift Plate", h: -1, emit: 15)
+        if !has("ash_mortar") {
+            // A mortar tube on its baseplate (the gap pass: the crews beside one lob shells, AshArmy.swift).
+            var d = BlockDef("ash_mortar", "Ashguard Mortar")
+            d.tex = ["ash_mortar", "ash_mortar", "ash_mortar_top", "ash_mortar", "ash_mortar", "ash_mortar"]
+            d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 2, 14), Box(6, 2, 6, 10, 15, 10)]
+            d.hardness = 3; d.tool = .pickaxe; d.sound = .metal
+            add(d)
+        }
         if !has("ash_drum") {
             var d = BlockDef("ash_drum", "Fuel Drum")
             d.tex = ["ash_drum_side", "ash_drum_side", "ash_drum_top", "ash_drum_top", "ash_drum_side", "ash_drum_side"]
@@ -85,6 +93,14 @@ extension TextureGen {
             if y % 4 == 3 || (x + off) % 8 == 7 { return hex(0x2E2A24) }
             return hex(0x4E483E, 0.9 + 0.1 * r(x / 2, y, 3309) + 0.05 * Float(y % 4 == 0 ? 1 : 0))
         }
+        p["ash_mortar"] = { x, y in
+            if y == 3 || y == 12 { return hex(0x9E1616) }
+            return hex(0x2A2A2E, 0.9 + 0.12 * Float(abs(x - 8)) / 8 + 0.04 * r(x, y, 3312))
+        }
+        p["ash_mortar_top"] = { x, y in
+            let d = max(abs(Float(x) - 7.5), abs(Float(y) - 7.5))
+            return d < 2.5 ? hex(0x060607) : hex(0x2A2A2E, 0.95 + 0.06 * r(x, y, 3313))
+        }
         p["ash_drum_side"] = { x, y in
             if y >= 6 && y <= 8 { return hex(0xB81E1E) }
             if y == 2 || y == 12 { return hex(0x101012) }
@@ -123,6 +139,7 @@ extension AshWar {
                             AshSite(kind: "battery", x: 44, z: -300, r: 22, face: 0),
                             AshSite(kind: "battery", x: -300, z: 46, r: 22, face: 270),
                             AshSite(kind: "battery", x: 236, z: 262, r: 22, face: 135)]
+        s += townSites + [airfield]                                           // the gap pass (AshVault.swift)
         for k in 0..<8 {
             let a = (Float(k) * 45 + 22.5) * .pi / 180
             s.append(AshSite(kind: "outpost", x: Int(sinf(a) * 470), z: Int(-cosf(a) * 470), r: 16, face: k * 45 + 22))
@@ -137,6 +154,9 @@ extension AshWar {
         let span = campSpacing * CS
         let x = rx * span + 40 + Int(h >> 4 % UInt32(span - 80)), z = rz * span + 40 + Int(h >> 14 % UInt32(span - 80))
         guard x * x + z * z > campInner * campInner, abs(x) > 24, abs(z) > 24 else { return nil }
+        // Clear of the towns, the airfield and the rail lines (AshVault.swift).
+        for t in townSites + [airfield] where abs(x - t.x) < t.r + 40 && abs(z - t.z) < t.r + 40 { return nil }
+        guard railDistance(x, z) > 24 else { return nil }
         let face = Int(atan2f(Float(x), -Float(z)) * 180 / .pi)
         return AshSite(kind: "camp", x: x, z: z, r: 12, face: face)
     }
@@ -152,7 +172,7 @@ extension AshWar {
 
     // Distance to the nearest site footprint or road: the vault floor flattens and keeps pillars and lava away.
     static func clearance(_ x: Int, _ z: Int) -> Float {
-        var best = roadDistance(x, z) - 3
+        var best = min(roadDistance(x, z) - 3, railDistance(x, z) - 4)
         for s in sites {
             let dx = max(0, abs(x - s.x) - s.r), dz = max(0, abs(z - s.z) - s.r)
             best = min(best, sqrtf(Float(dx * dx + dz * dz)))
@@ -168,7 +188,10 @@ extension AshWar {
         return max(0, best)
     }
 
-    static func starts(seed: UInt64) -> [StructureStart] { sites.map { start($0, seed: seed) } }
+    // `guardSet`: vault chunks a save generated before the towns, rail and airfield arrived (AshVault.swift).
+    static func starts(seed: UInt64, guardSet: DeepGuard = DeepGuard()) -> [StructureStart] {
+        sites.map { start($0, seed: seed, guardSet: guardSet) } + railStarts(guardSet: guardSet)
+    }
 
     static let campType = StructureType(name: "ash_camp", spacing: campSpacing, separation: 0, salt: 0, reach: 1) { seed, cx, cz in
         let span = campSpacing
@@ -177,17 +200,22 @@ extension AshWar {
     }
     static var types: [StructureType] { [campType] }
 
-    static func start(_ s: AshSite, seed: UInt64) -> StructureStart {
+    static func start(_ s: AshSite, seed: UInt64, guardSet: DeepGuard = DeepGuard()) -> StructureStart {
         let pseed = seed ^ UInt64(UInt32(bitPattern: Int32(truncatingIfNeeded: s.x &* 7919 &+ s.z &* 104729)))
         let lo = IVec3(s.x - s.r - 2, ground - 6, s.z - s.r - 2), hi = IVec3(s.x + s.r + 2, ground + 30, s.z + s.r + 2)
-        return StructureStart(kind: "ash_" + s.kind, pieces: [Piece(min: lo, max: hi) { w in AshWar.build(&w, s, pseed) }],
+        let late = s.kind == "town" || s.kind == "airfield"
+        return StructureStart(kind: "ash_" + s.kind, pieces: [Piece(min: lo, max: hi) { w in
+            // A town or the airfield whose ground a save had already generated in part is left out whole.
+            if late && !guardSet.clear(floorDiv(s.x, CS), floorDiv(s.z, CS), s.r / CS + 2) { return }
+            AshWar.build(&w, s, pseed)
+        }],
                               anchor: IVec3(s.x, ground + 1, s.z))
     }
 }
 
 // MARK: Builders
 
-private struct AshKit {
+struct AshKit {
     let concrete = Blocks.id("ash_concrete"), plating = Blocks.id("ash_plating"), mark = Blocks.id("ash_mark")
     let lamp = Blocks.id("ash_lamp"), crate = Blocks.id("ash_crate"), bags = Blocks.id("ash_sandbags"), drum = Blocks.id("ash_drum")
     let bars = Blocks.has("iron_bars") ? Blocks.id("iron_bars") : AIR
@@ -198,11 +226,12 @@ private struct AshKit {
     let fire = Blocks.has("campfire") ? Blocks.id("campfire") : Blocks.id("ash_lamp")
     let console = Blocks.has("command_console") ? Blocks.id("command_console") : Blocks.id("ash_plating")
     let table = Blocks.id("crafting_table")
+    let mortar = Blocks.id("ash_mortar")
 }
 
 extension AshWar {
     // Local frame: (u, v) with v pointing the way the site faces; the writer clips to the chunk being generated.
-    fileprivate struct Frame {
+    struct Frame {
         let s: AshSite
         let fx: Int, fz: Int            // facing unit vector (rounded to the nearest axis)
         init(_ s: AshSite) {
@@ -304,6 +333,8 @@ extension AshWar {
         } }
 
         switch s.kind {
+        case "town": buildTown(&w, s, f, &rng)
+        case "airfield": buildAirfield(&w, s, f, &rng)
         case "hq":
             // Perimeter wall with crenels and lamps, four gates on the roads, corner towers.
             let a = 42
@@ -451,6 +482,18 @@ extension AshWar {
             let roll = rng.int(8)
             if roll < 2 { unit("ash_tank", -8, 6, heading: 0) } else if roll < 4 { unit("ash_halftrack", -8, 6, heading: 0) }
             lampPost(6, 9)
+        }
+        // Every site's board at its front corner (the gap pass, DE8): what it is, in the Ashguard's words.
+        let boards: [String: [String]] = ["hq": ["ASHGUARD CITADEL", "Command of the", "Ash Marshal", "Halt or be fired on"],
+                                          "staging": ["FIRST ARMOURED", "Column ready", "to roll", ""],
+                                          "motorpool": ["MOTOR POOL", "Fuel is rationed.", "Engines run cold.", ""],
+                                          "fueldepot": ["FUEL DEPOT", "No flame within", "fifty paces", ""],
+                                          "supply": ["SUPPLY DEPOT", "Shells out,", "nothing back", ""],
+                                          "battery": ["GUN BATTERY", "Ranged on every", "road in", ""],
+                                          "outpost": ["OUTPOST", "Report anything", "that moves", ""],
+                                          "camp": ["PATROL CAMP", "Lamps out at", "the second bell", ""]]
+        if let lines = boards[s.kind] {
+            AshWar.sign(&w, f.x(s.r - 1, s.r - 1), y0 + 1, f.z(s.r - 1, s.r - 1), facing: (f.fx, f.fz), lines)
         }
     }
 }

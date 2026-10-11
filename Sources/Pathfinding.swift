@@ -477,8 +477,9 @@ extension Mob {
             let pr = pathProfile(g)
             path.span = pr.span
             // Villagers route around houses and through doors to job sites, beds and the bell 20+ blocks away: 400
-            // expanded cells ran out there (they gave up on job sites inside houses over and over).
-            let s = PathFinder.begin(w, from: pos, to: target, profile: pr, maxNodes: kind == .villager || (bond != 0 && g.horseCall > 0) ? 1500 : 400)
+            // expanded cells ran out there (they gave up on job sites inside houses over and over). Ash Vault squads
+            // (AshArmy) run 50 blocks round compound walls to the last contact.
+            let s = PathFinder.begin(w, from: pos, to: target, profile: pr, maxNodes: kind == .villager || (bond != 0 && g.horseCall > 0) || brain?.extra == true ? 1500 : 400)
             // This tick's share of the 1.5 ms (all of it in the deterministic harness runs); unfinished, it carries on
             // next tick while the mob keeps its old path / heads straight for the target.
             let deadline: Double = Rand.deterministic ? .infinity : t0 + PathFinder.slice - PathFinder.spent

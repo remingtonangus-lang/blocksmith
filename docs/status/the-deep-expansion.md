@@ -110,13 +110,14 @@ partial. Three PRs close it. Expanded objectives, written before building:
 - Reinforcements (D3c, DE11): at Alarm and Total War, squads (and at Total War a half-track and a tank) leave the
   nearest motor pool / citadel for your last known position; officers who see you call the nearest idle tank.
 - Squad roles (DE11): medics heal the wounded, MG gunners suppress, officers call armour; difficulty scales squad size,
-  reaction and reinforcement count.
+  reinforcement count and mortar rate.
 - Vehicles (DE9): a wrecked tank or half-track throws debris, burns, and its crew bails out and fights on.
 - Story (DE8): signs at every site, field journals in the vault's chests (who the Ashguard are, why they are down
   here), radio chatter at radio rooms and over the alarm.
 - Perf (D5, DE14): a unit cap (live Ashguard units near the player, reinforcements and patrols included), the far units'
-  AI LOD, and a measured biggest battle (the citadel at Total War) in questcheck: tick ms and units, with the Quest
-  renderer's draw time at that moment, numbers written here.
+  AI LOD, and a measured biggest battle (the citadel at Total War) in questcheck: Game.tick ms and units, numbers
+  written here. (The draw side does not grow with the fight: units are a few hundred triangles each against the
+  vault's chunk meshes at the Quest's render distance and fog, already in the 72 Hz budget.)
 
 **D3, the Deep's progression and story (PR 3).**
 - Ember Gates (D2b, DE4): a ruined gate frame beside every Brimstone Keep, the Deep's stand-in for a portal. Dormant

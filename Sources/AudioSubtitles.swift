@@ -322,6 +322,8 @@ extension Snd {
         case .explodeSmall, .explodeLarge: return "Explosion"
         case .debrisRain: return "Debris falls"
         case .shellFlightLoop: return "Shell whistles"
+        case .shellIncoming: return "Incoming shell"
+        case .ashSiren: return "Alarm siren wails"
         case .bulletFlesh: return "Bullet hits flesh"
         case .grenadeBounce: return "Grenade bounces"
         case .soldier(_, let b):

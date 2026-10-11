@@ -45,6 +45,7 @@ enum DeepTests {
                 g.health = 20; g.alive = true
                 g.player.pos = stand; g.player.vel = .zero
                 w.pendingMobs.removeAll()
+                g.mobs.mobs.removeAll { $0.brain?.extra == true }       // the vault's squads and patrols: AshVaultGapTests
                 e += 0.05
                 if until() { return }
             }

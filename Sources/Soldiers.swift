@@ -57,6 +57,16 @@ final class SoldierBrain {
     var orderRun = false
     var orderFace: V3?
     var ready = false
+    // The Ash Vault's squads (AshArmy.swift): a role (mortar crew, medic, MG gunner), whether this is a patrol or
+    // reinforcement (an extra, counted against the unit cap), the far-AI tick accumulator, a medic's patient and a
+    // patrol's two ends.
+    var role = 0
+    var extra = false
+    var lodAcc: Float = 0
+    var lodSpeed: Float = 0
+    var healScan: Float = 0
+    weak var patient: Mob?
+    var leg: (V3, V3)?
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -405,7 +415,7 @@ extension Mob {
         return speed
     }
 
-    private func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
+    func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
         guard b.reload <= 0, b.react <= 0, dist < Soldier.ranks[r].sight else { b.aimTime = 0; return }
         if b.mag <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)

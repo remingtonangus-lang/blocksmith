@@ -83,6 +83,7 @@ enum Snd: Hashable {
     case soldier(Int, Bark), soldierStep(Int)
     case hoof(Int)                  // a hoof fall by the ground: 0 stone, 1 wood, 2 earth, 3 sand, 4 snow, 5 water (HorseLife)
     case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
+    case shellIncoming, ashSiren                    // the Ash Vault: an incoming shell's falling whistle, the alarm siren
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
@@ -127,7 +128,8 @@ enum Snd: Hashable {
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
         case .hoof: return .friendly
-        case .rocketFlightLoop, .shellFlightLoop: return .players
+        case .rocketFlightLoop, .shellFlightLoop, .shellIncoming: return .players
+        case .ashSiren: return .hostile
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
@@ -153,6 +155,8 @@ enum Snd: Hashable {
         case .mainGunFire, .mainGunRumble: return 480
         case .shipCollide, .engineStart, .engineIdleLoop, .propSlowLoop, .wheelRollLoop, .turretTraverseLoop, .airshipWindLoop: return 32
         case .engineFullLoop, .propFastLoop, .wingRushLoop, .rocketFlightLoop, .shellFlightLoop: return 48
+        case .shellIncoming: return 64
+        case .ashSiren: return 400
         case .frigateDroneLoop: return 160
         case .carriageTreadLoop: return 96
         case .waterfallLoop: return 32
@@ -309,6 +313,7 @@ final class SoundBank {
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
+        s += [.shellIncoming, .ashSiren]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
     }

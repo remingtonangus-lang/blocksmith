@@ -419,6 +419,7 @@ extension Game {
         if let r = deepEntry { d["deepEntry"] = "\(r.x),\(r.y),\(r.z)" }
         if !deepLifts.isEmpty { d["deepLifts"] = deepLifts.map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: ";") }
         if !sealShafts.isEmpty { d["sealShafts"] = sealShafts.suffix(16).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: ";") }
+        if ashAlarm > 0 { d["ashAlarm"] = String(ashAlarm) }
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
@@ -461,6 +462,8 @@ extension Game {
             let p = s.split(separator: ",").compactMap { Int(String($0)) }
             return p.count == 3 ? IVec3(p[0], p[1], p[2]) : nil
         }
+        ashAlarm = Float(d["ashAlarm"] ?? "") ?? 0
+        ashAlarmLevel = Int(ashAlarm)
         loadAdvancements(d)
         eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {
