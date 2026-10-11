@@ -44,7 +44,13 @@ final class HorseState {
 
 enum HorseFeel {
     static let kinds: Set<MobKind> = [.horse, .donkey, .mule, .skeletonHorse, .zombieHorse]
-    static let levelXP: [Float] = [0, 100, 300, 700]
+    // Bond paced like the reference westerns (Oct 11 playtest P26, "the bonding level is too rapid"; level 4 came in a
+    // few minutes): about 13 min of riding to level 2, 40 to level 3, 90 to level 4, care adding a little on top.
+    static let levelXP: [Float] = [0, 200, 600, 1400]
+    static let ridePerPoint: Float = 40                            // blocks ridden per bond point (was 12)
+    static let patBond: Float = 2, patCool: Float = 60             // (was 4 every 15 s)
+    static let brushBond: Float = 10, brushCool: Float = 300       // (was 15 every 120 s)
+    static let treatBond: Float = 2, treatCool: Float = 60         // (was 3 every 10 s)
     static let staminaMax: [Float] = [100, 115, 130, 150]
     static let drain: [Float] = [1, 0.9, 0.8, 0.7]
     static let regen: [Float] = [1, 1.15, 1.3, 1.5]
@@ -215,7 +221,7 @@ extension Mob {
         }
         if tamed && bond != 0 {                          // any horse of yours (each keeps its own bond)
             h.rideAccum += simd_length(V2(moved.x, moved.z))
-            if h.rideAccum >= 12 { h.rideAccum -= 12; addBond(1, g) }
+            if h.rideAccum >= HorseFeel.ridePerPoint { h.rideAccum -= HorseFeel.ridePerPoint; addBond(1, g) }
         }
     }
 
@@ -314,7 +320,7 @@ extension Game {
     func horsePat(_ m: Mob) {
         let h = m.hs
         if h.rear > 0 && h.rearThrow { h.rearThrow = false; m.addBond(6, self); onToast?("You calm your horse") }
-        if h.patCool <= 0 { h.patCool = 15; m.addBond(4, self) }
+        if h.patCool <= 0 { h.patCool = HorseFeel.patCool; m.addBond(HorseFeel.patBond, self) }
         particles.hearts(at: m.pos + V3(0, m.height, 0))
         sfx(.mob(m.kind, .ambient), 0.4, at: m.pos)
     }
@@ -322,8 +328,8 @@ extension Game {
     func horseBrush(_ m: Mob) {
         let h = m.hs
         guard h.brushCool <= 0 else { onToast?("Your horse is already groomed"); return }
-        h.brushCool = 120
-        m.addBond(15, self)
+        h.brushCool = HorseFeel.brushCool
+        m.addBond(HorseFeel.brushBond, self)
         m.health = min(max(m.spec.health, 30), m.health + 2)
         particles.hearts(at: m.pos + V3(0, m.height, 0))
         damageHeld(1)
@@ -338,7 +344,7 @@ extension Game {
         guard hungry else { return false }
         m.stamina += s
         if m.stamina > m.staminaMax * 0.25 { h.spent = false }
-        if h.feedCool <= 0 { h.feedCool = 10; m.addBond(3, self) }
+        if h.feedCool <= 0 { h.feedCool = HorseFeel.treatCool; m.addBond(HorseFeel.treatBond, self) }
         return true
     }
 }

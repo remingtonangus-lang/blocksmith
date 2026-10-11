@@ -286,8 +286,13 @@ extension Mob {
             let aim = simd_dot(simd_normalize(-to), g.player.look)
             if aim > 0.9975 && g.world.canSee(g.player.eye, eye) {
                 if town.handsUp <= 0 {
-                    if g.clock - Townsfolk.townLastLine > 2 { TownVoice.speak(g, self, .handsup) }
-                    if town.aimMemory <= 0 { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
+                    // With soldiers or monsters fighting nearby (a hostage taking, a raid) the gun is for them: no "put that
+                    // away" and no grudge (Oct 11 playtest P31: hostages scolded him while he shot their captors).
+                    let danger = g.mobs.mobs.contains { m in
+                        m.health > 0 && (m.kind.steelhold || (m.kind.hostile && m.aggro)) && simd_length_squared(m.pos - pos) < 24 * 24
+                    }
+                    if g.clock - Townsfolk.townLastLine > 2 { TownVoice.speak(g, self, danger ? .raid : .handsup) }
+                    if town.aimMemory <= 0 && !danger { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
                     town.aimMemory = 60
                 }
                 town.handsUp = 2.5

@@ -40,8 +40,8 @@ enum VRMeleeTests {
         let len = simd_length(st), flen = simd_length(ft - fb)
         check(len > 1.4 && len < 1.8 && sr >= 0.2 && simd_length(sb) < 0.3 && flen < 0.25,
               String(format: "blade capsule: sword tip %.2f m from the hand (r %.2f), fist %.2f m", len, sr, flen))
-        check(VRMelee.power(VRMelee.minTipSpeed) >= 0.7 && abs(VRMelee.power(4) - 1) < 0.01 && VRMelee.power(20) <= 1.1,
-              "swing power: 0.7 at the minimum tip speed, 1 at 4 m/s, at most 1.1")
+        check(abs(VRMelee.power(VRMelee.minTipSpeed) - 0.6) < 0.01 && abs(VRMelee.power(4.5) - 1) < 0.01 && abs(VRMelee.power(20) - 1.4) < 0.01,
+              "swing power: 0.6 at the minimum tip speed, 1 at 4.5 m/s, 1.4 for a hard swing")
     }
 
     // The bow for both hands: the arrow points from the drawing hand through the grip, the nock follows the hand

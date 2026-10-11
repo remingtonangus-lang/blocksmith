@@ -439,6 +439,23 @@ enum CapitalBase {
         w.fill(X(-1), cmd + 1, Z(-1), X(1), cmd + 1, Z(1), C)
         w.chest(X(-5), cmd + 1, Z(2), loot: "steelhold_command", seed: rng.next(), facing: 3)
         w.chest(X(5), cmd + 1, Z(-2), loot: "steelhold_command", seed: rng.next(), facing: 2)
+        // Corridors (Oct 11 playtest P33: "tower interiors denser, narrow corridors, less open space"): on the quarters
+        // floors a core room behind a ring wall (doors on the diagonals) and walls out along the east, west and south
+        // axes to the glass, each with a doorway, so a floor is three rooms round a core instead of one open ring. The
+        // north stays open to the ladder shaft; the skyway and terrace floors stay concourses.
+        for f in [1, 2, 4, 6] {
+            let fy = P2 + 6 * f
+            let ar: Float = fy > P2 + 30 ? 7.5 : 9.5
+            columns(-10, 10, -10, 10) { dx, dz in
+                guard CapitalBase.rounded(dx, dz, ar) else { return }                   // out to the glass
+                let d = sqrtf(Float(dx * dx + dz * dz))
+                let ring = d >= 2.6 && d <= 3.4 && abs(dx) != abs(dz)
+                let spoke = d > 3.4 && ((dz == 0 && dx != 0) || (dx == 0 && dz > 0))
+                guard ring || spoke else { return }
+                let door = spoke && Int(d.rounded()) == 6
+                for y in (fy + 1)...(fy + 4) where !(door && y <= fy + 2) { put(dx, y, dz, white) }
+            }
+        }
         // Quarters and a lounge on the floors between: beds of white wool, planters, bars at the shaft.
         for f in 1...4 {
             let fy = P2 + 6 * f

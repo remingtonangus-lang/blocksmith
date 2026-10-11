@@ -36,7 +36,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" }
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view")
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -46,6 +46,24 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
+// spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
+if let out = arg("--view"), let ctx = vkctx {
+    let at = (arg("--at") ?? "0,100,0").split(separator: ",").compactMap { Float($0) }
+    let look = (arg("--look") ?? "0,-10").split(separator: ",").compactMap { Float($0) }
+    let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil)
+    vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
+    let vg = Game(world: vw, save: nil, persistent: false)
+    vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
+    vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true
+    _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
+    let yaw = -look[0] * .pi / 180
+    do {
+        try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: look[1] * .pi / 180)
+        print("view: wrote \(out)"); exit(0)
+    } catch { print("FAIL view: \(error)"); exit(1) }
+}
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
 // (Sources/StructCheck.swift) on the Linux host, as the Mac's `--structcheck` runs it.
 if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device: device)) }

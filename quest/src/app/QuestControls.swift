@@ -58,12 +58,14 @@ final class QuestControls {
     private var bladeA = V3.zero, bladeB = V3.zero, bladeTipRel = V3.zero
     private var bladeValid = false
     private var bladeHits: [ObjectIdentifier] = []
+    private var bladeHitAt: [Double] = []               // when each bladeHits mob was hit (VRMelee.rehit)
     private var touchBuzz: Float = 0
     private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
     private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
     private var tutorialSwing = true, tutorialStep = 99, tutorialNext: Double = 0   // the first-use tutorial toasts in progress
     private(set) var parriesLanded = 0                 // (harness)
     var trailPeak = 0                                  // (harness) most trail segments seen
+    var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
@@ -149,6 +151,13 @@ final class QuestControls {
             case .rt: return "R Trigger"
             case .lb: return "L Grip"
             case .rb: return "R Stick"
+            // The pad's D-pad and stick clicks are Touch buttons here (drawn as a D-pad they read as nothing: the
+            // horse's "<D-pad up> calls it" was blank to him, Oct 11 playtest P26).
+            case .dup: return "Y"
+            case .ddown: return "Hold B"
+            case .dright: return "Hold X"
+            case .y: return "Hold Y"
+            case .l3: return "L Stick"
             default: return nil
             }
         }
@@ -831,7 +840,9 @@ final class QuestControls {
         let speed = simd_length(tipRel - prevRel) / dt
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
-        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true) }
+        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true) }
+        // Several hits a second: a mob can take the blade again VRMelee.rehit after its last hit.
+        while let t = bladeHitAt.first, game.clock - t >= VRMelee.rehit { bladeHits.removeFirst(); bladeHitAt.removeFirst() }
         // The blade knocking into stone or wood: a dull knock in the hand (blocks are never broken by a swing).
         scrapeBuzz = max(0, scrapeBuzz - dt)
         if speed >= VRMelee.minTipSpeed && scrapeBuzz <= 0
@@ -846,7 +857,7 @@ final class QuestControls {
             let along = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
             // Into a mob winding up, at its arms or weapon: a parry (no damage; it staggers back).
             if game.tryParry(m, at: point, along: along) {
-                bladeHits.append(ObjectIdentifier(m))
+                bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)
                 parriesLanded += 1
                 app.input.haptic(aimHand, amplitude: 1, seconds: 0.05, frequency: 340)
                 app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.05, frequency: 340)
@@ -855,7 +866,7 @@ final class QuestControls {
             let pow = VRMelee.power(speed)
             game.swingPower = pow
             game.swingMob = m
-            bladeHits.append(ObjectIdentifier(m))
+            bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)
             bladeContacts += 1
             game.swingPoint = point          // the contact flash and sparks there once the hit lands (Game.bladeFlash)
             game.swingDir = along
@@ -1104,7 +1115,7 @@ final class QuestControls {
             return
         }
         if let bp = bowPose { drawBow(s, eye: eye, bp, light: light); return }
-        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 160, priority: true)
+        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 2400, priority: true)
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
         if let b = held.def.block, !Blocks.flatIcon(b) {
@@ -1130,11 +1141,9 @@ final class QuestControls {
             let (h, tool) = heldSize()
             let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
-            // Five stacked layers one texel (h/8) thick: a solid object from any angle, not a paper cut-out.
-            for i in 0..<5 {
-                let o = (Float(i) - 2) * h / 32
-                wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 || i == 4 ? 1 : 0.62))
-            }
+            // One texel (h/8) thick and closed: both faces plus a wall round every opaque texel (ItemExtrude.swift; the
+            // five stacked sprites it replaced read as five pieces and went see-through edge-on: Oct 11 playtest P17).
+            heldQuads = wr.extrudedItem(center: c, half: h, right: r, up: up, normal: side, thick: h / 8, layer: layer, light: light)
             // Upgrades show on the model (Upgrades.accents): a grip wrap, a band on the head, a line on the edge.
             Upgrades.writeAccents(&wr, held, center: c, half: h, right: r, up: up, normal: side, thick: h * 2.6 / 32, light: light)
         }

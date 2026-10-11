@@ -75,7 +75,7 @@ enum Economy {
         "pumpkin_seeds": 3, "melon_slice": 4, "melon_seeds": 3, "sugar_cane": 5, "sugar": 6, "egg": 5, "sweet_berries": 4,
         "glow_berries": 6, "cocoa_beans": 8, "apple": 20, "hay_block": 70, "honeycomb": 25, "honey_bottle": 60,
         // Food
-        "bread": 30, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
+        "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,
         "cooked_rabbit": 32, "cooked_cod": 28, "cooked_salmon": 33, "golden_carrot": 160, "golden_apple": 1300,
         "glistering_melon_slice": 160, "milk_bucket": 400, "dried_kelp": 3,
@@ -84,7 +84,7 @@ enum Economy {
         "leather": 50, "rabbit_hide": 12, "feather": 5, "bone": 6, "rotten_flesh": 2,
         // Materials, ores and gems
         "stick": 1, "coal": 12, "charcoal": 10, "iron_nugget": 10, "iron_ingot": 100, "raw_iron": 60, "gold_nugget": 25,
-        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 900, "diamond": 1500, "emerald": 100,
+        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 2800, "diamond": 4000, "emerald": 100,   // titanium x2.7: an ingot sold for "five bucks" (P29)
         "lapis_lazuli": 40, "quartz": 30, "amethyst_shard": 20, "flint": 4, "string": 8, "gunpowder": 40, "slime_ball": 30,
         "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "spider_eye": 12, "ghast_tear": 300, "rabbit_foot": 150,
         "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 6, "book": 32, "ink_sac": 8,
@@ -96,7 +96,8 @@ enum Economy {
         "leather_helmet": 300, "leather_chestplate": 470, "leather_leggings": 410, "leather_boots": 260,
         "white_bed": 130, "red_bed": 140,
         // General goods
-        "torch": 4, "lantern": 110, "bucket": 330, "map": 520, "compass": 480, "clock": 1100, "shears": 220,
+        "torch": 4, "lantern": 110, "bucket": 330, "map": 150,      // a blank map: cheap (P29; $5.20 read as a treasure map)
+        "compass": 480, "clock": 1100, "shears": 220,
         "saddle_salve": 600, "brush": 150,
         "fishing_rod": 60, "lead": 60, "flint_and_steel": 120, "spyglass": 900, "name_tag": 800, "treasure_map": 2500,
         // Blacksmith

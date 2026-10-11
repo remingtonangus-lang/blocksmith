@@ -272,7 +272,10 @@ extension Game {
             } else if dim.dim == .overworld && a.cave > 0.75 {
                 let l = world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z)))
                 if l.block < 6 && Rand.float(in: 0..<1) < 0.6 {
-                    let s: Snd = [.caveAmbience, .caveAmbience, .caveDrip, .caveWind].pick()!
+                    // Only sounds a player can place: drips and draughts. The eerie cave-noise sting was the loud
+                    // unidentified sound of the Oct 11 playtest (09:17, deep underground, game sound at -17 dBFS: "if
+                    // it's not supposed to be something, get rid of it").
+                    let s: Snd = [.caveDrip, .caveDrip, .caveWind].pick()!
                     sfx(s, s == .caveDrip ? 0.5 : 0.7, at: eye + off)
                 }
             } else if dim.dim == .overworld && eye.y > Float(SEA + 60) && Rand.float(in: 0..<1) < 0.5 {

@@ -12,6 +12,16 @@ enum PlaytestOct11Tests {
         droppedStacks(game, check)
         signText(check)
         craftTiles(game, check)
+        footsteps(check)
+        lavaAtBorder(game, check)
+        noMurkDepths(game, check)
+        unstuckNearby(game, check)
+        heldUseRepeat(game, check)
+        horses(game, check)
+        dayClears(game, check)
+        armourVsGuns(game, check)
+        vrGunAim(game, check)
+        consoleRadar(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -175,5 +185,248 @@ enum PlaytestOct11Tests {
         let right = tiles.map { $0.x + $0.w }.max() ?? 999, bottom = tiles.map { $0.y + $0.h }.max() ?? 999
         check(tiles.count == CraftingBookMenu.perPage && tiles.count <= 25 && minSide >= 30 && !overlap && right < 192 && bottom < 164,
               "P10 crafting tiles: \(tiles.count) tiles of \(minSide) px (were 40 of 20), gaps between them, clear of the panel (right \(right), bottom \(bottom))")
+
+        // P28: a tile says how many you can make (48 planks: 6 chests).
+        let inv = game.inventory.main.slots
+        defer { game.inventory.main.slots = inv }
+        for i in 0..<game.inventory.main.count { game.inventory.main[i] = .empty }
+        game.inventory.main[0] = ItemStack(Items.id("oak_planks"), 48)
+        let book = CraftingBookMenu(game: game)
+        book.query = "chest"; book.refresh()
+        let L = HudLayout(1280, 800).fitted(book)
+        let texts = book.drawLines(L, book.origin(L)).map { $0.text }
+        check(texts.contains("6"),
+              "P28 crafting counts: with 48 planks the chest tile reads 6 (\(texts.filter { Int($0) != nil }.prefix(8).joined(separator: " ")))")
+    }
+
+    // A step's character: the share of its energy below 250 Hz (mud is mostly low thud), above 2 kHz (dry grit and
+    // click), and its decay (s to 3% of the peak; squelches ring on).
+    static func stepShape(_ x: [Float]) -> (low: Float, high: Float, decay: Float) {
+        let sr = Float(SoundBank.rate)
+        let aL = 1 - expf(-2 * .pi * 250 / sr), aH = 1 - expf(-2 * .pi * 2000 / sr)
+        var lp: Float = 0, lp2: Float = 0, eLow: Float = 0, eHigh: Float = 0, eAll: Float = 1e-12
+        for v in x {
+            lp += (v - lp) * aL; lp2 += (v - lp2) * aH
+            eLow += lp * lp; eHigh += (v - lp2) * (v - lp2); eAll += v * v
+        }
+        let pk = x.map { abs($0) }.max() ?? 0
+        let last = x.lastIndex { abs($0) > pk * 0.03 } ?? 0
+        let first = x.firstIndex { abs($0) >= pk * 0.99 } ?? 0
+        return (eLow / eAll, eHigh / eAll, Float(last - first) / sr)
+    }
+
+    // P14: footsteps on ordinary ground must not sound like walking through mud (Oct 11 playtest 09:13, again after the
+    // Oct 10 audit's relative check passed): each dry step is far from the mud step on low thud and ring.
+    static func footsteps(_ check: (Bool, String) -> Void) {
+        let mud = stepShape(SoundBank.render(.step(.mud), variant: 0))
+        var worst = "", ok = true, lines: [String] = []
+        for m: SoundMat in [.dirt, .grass, .stone, .sand, .gravel, .wood, .deepslate, .snow] {
+            var low: Float = 0, high: Float = 0, decay: Float = 0
+            for v in 0..<3 {
+                let sh = stepShape(SoundBank.render(.step(m), variant: v))
+                low += sh.low / 3; high += sh.high / 3; decay = max(decay, sh.decay)
+            }
+            lines.append(String(format: "%@ low %.2f high %.2f %.0f ms", "\(m)", low, high, decay * 1000))
+            if low > 0.3 || high < 0.12 || decay > 0.16 { ok = false; worst = "\(m)" }
+        }
+        print("p14 steps: mud low \(String(format: "%.2f", mud.low)) high \(String(format: "%.2f", mud.high)) \(Int(mud.decay * 1000)) ms; " + lines.joined(separator: "; "))
+        check(ok, "P14 footsteps: dry steps are crisp, not muddy (low thud <= 30%, grit >= 12%, ring <= 160 ms\(worst.isEmpty ? "" : "; \(worst) fails"))")
+    }
+
+    // P18: lava at a chunk's edge beside air in the next chunk flows when the chunks meet (World.borderSprings; the
+    // per-chunk spring scan never saw across the border, so such lava stood still for good).
+    static func lavaAtBorder(_ game: Game, _ check: (Bool, String) -> Void) {
+        let w = game.world, p0 = game.player.pos
+        let cx = (Int(floorf(p0.x)) + 380) >> 4, cz = (Int(floorf(p0.z)) + 40) >> 4
+        _ = w.loadSync(center: V3(Float(cx * 16 + 16), p0.y, Float(cz * 16 + 8)), radius: 2)
+        guard let c = w.chunks[ChunkKey(x: cx, z: cz)], let n = w.chunks[ChunkKey(x: cx + 1, z: cz)] else { check(false, "P18 lava at a border: chunks"); return }
+        // Underground (the border check runs up to the taller column + 2): lava on c's east edge, an air pocket on n's
+        // west edge beside it, both written raw (no fluid update), the originals put back after.
+        let lz = 8, y = max(6, min(Int(c.height[15 + lz * CS]), Int(n.height[lz * CS])) - 12)
+        let ia = Chunk.index(15, y, lz), ib = Chunk.index(0, y, lz)
+        // Everything the lava could reach in 6 ticks, put back raw afterwards.
+        var keep: [(Int, Int, Int, BlockID)] = []
+        for dz in -6...6 { for dy in -6...1 { for dx in -5...7 {
+            let x = cx * 16 + 15 + dx, z = cz * 16 + lz + dz
+            keep.append((x, y + dy, z, w.block(x, y + dy, z)))
+        } } }
+        defer { for (x, yy, z, id) in keep { w.chunkAt(x, z)?.blocks[Chunk.index(x & 15, yy, z & 15)] = id } }
+        // A closed stone cell round the two blocks (a cave or an aquifer beside them let the lava fall away or harden).
+        for dz in -1...1 { for dy in -1...1 { for dx in -1...2 where !(dz == 0 && dy == 0 && (dx == 0 || dx == 1)) {
+            let x = cx * 16 + 15 + dx, z = cz * 16 + lz + dz
+            w.chunkAt(x, z)?.blocks[Chunk.index(x & 15, y + dy, z & 15)] = STONE
+        } } }
+        c.blocks[ia] = LAVA; n.blocks[ib] = AIR
+        let before = w.lavaPending.count
+        w.borderSprings(n)
+        let queued = w.lavaPending.count > before
+        for _ in 0..<6 { w.fluidTick(lava: true) }
+        let spilled = Blocks.fluidKind[Int(w.block(cx * 16 + 16, y, cz * 16 + lz))] == 2
+        check(queued && spilled, "P18 lava at a chunk border: queued when the chunks meet (\(queued)), spilled into the next chunk (\(spilled))")
+    }
+
+    // P19: no copy of the reference's deep dark: under low-erosion country (where the murk depths were) the generator
+    // lays no murk, no Buried Citadel is placed, and the cave biome is never the murk depths.
+    static func noMurkDepths(_ game: Game, _ check: (Bool, String) -> Void) {
+        guard let wg = game.world.gen as? WorldGen else { check(false, "P19 no murk depths: generator"); return }
+        let murk = Set(["sculk", "sculk_vein", "sculk_sensor", "sculk_shrieker", "sculk_catalyst"].filter { Blocks.has($0) }.map { Blocks.id($0) })
+        var spot: (Int, Int)?
+        search: for r in stride(from: 0, through: 6000, by: 96) { for a in 0..<16 {
+            let x = Int(cosf(Float(a) * .pi / 8) * Float(r)), z = Int(sinf(Float(a) * .pi / 8) * Float(r))
+            if wg.climate(x, z).e < -0.7 { spot = (x, z); break search }
+        } }
+        guard let (x, z) = spot else { check(false, "P19 no murk depths: no low-erosion country within 6,000 blocks to test"); return }
+        var found = 0
+        for dz in -1...1 { for dx in -1...1 {
+            let b = wg.generate(cx: (x >> 4) + dx, cz: (z >> 4) + dz)
+            found += b.reduce(0) { $0 + (murk.contains($1) ? 1 : 0) }
+        } }
+        let citadel = BigStructures.types(wg).contains { $0.name == "ancient_city" }
+        check(found == 0 && !citadel && !GameBlocks.stalkerCalls,
+              "P19 no murk depths: \(found) murk blocks in 9 chunks of low-erosion country at \(x), \(z); Buried Citadel \(citadel ? "still placed" : "gone"); shriekers call no stalker")
+    }
+
+    // P20: a player embedded in rock with a cave beside them steps into the cave, not up through the rock above.
+    static func unstuckNearby(_ game: Game, _ check: (Bool, String) -> Void) {
+        let w = game.world, p0 = game.player.pos
+        let x0 = ((Int(floorf(p0.x)) + 420) & ~15) + 8, z0 = ((Int(floorf(p0.z)) + 40) & ~15) + 8
+        _ = w.loadSync(center: V3(Float(x0), p0.y, Float(z0)), radius: 2)
+        let y0 = min(CH - 40, w.topY(x0, z0) + 20)
+        var placed: [IVec3] = []
+        for dy in -2...12 { for dz in -3...3 { for dx in -3...3 {
+            w.setBlock(x0 + dx, y0 + dy, z0 + dz, STONE); placed.append(IVec3(x0 + dx, y0 + dy, z0 + dz))
+        } } }
+        defer { for q in placed { w.setBlock(q.x, q.y, q.z, AIR) } }
+        // A two-high pocket one block east; the player inside the rock beside it.
+        w.setBlock(x0 + 1, y0, z0, AIR); w.setBlock(x0 + 1, y0 + 1, z0, AIR)
+        let pl = Player()
+        pl.pos = V3(Float(x0) + 0.5, Float(y0), Float(z0) + 0.5)
+        pl.update(dt: 1.0 / 60, input: MoveInput(), world: w)
+        let moved = pl.pos - V3(Float(x0) + 0.5, Float(y0), Float(z0) + 0.5)
+        check(simd_length(moved) < 1.6 && !pl.collides(at: pl.pos, w),
+              String(format: "P20 unstuck: embedded beside a cave, the player moves %.1f blocks into it (up %.1f), not up through the rock", simd_length(moved), moved.y))
+    }
+
+    // P25: holding use (a trigger resting or stuck down) and stepping the hotbar onto a block doesn't place it; a fresh
+    // press places, and a hold that began with the block keeps placing it.
+    static func heldUseRepeat(_ game: Game, _ check: (Bool, String) -> Void) {
+        let w = game.world, p0 = game.player.pos
+        let x0 = ((Int(floorf(p0.x)) - 300) & ~15) + 8, z0 = ((Int(floorf(p0.z)) + 40) & ~15) + 8
+        _ = w.loadSync(center: V3(Float(x0), p0.y, Float(z0)), radius: 2)
+        let y0 = min(CH - 30, w.topY(x0, z0) + 12)
+        var placed: [IVec3] = []
+        for dz in -4...4 { for dx in -4...4 { w.setBlock(x0 + dx, y0, z0 + dz, STONE); placed.append(IVec3(x0 + dx, y0, z0 + dz)) } }
+        let was = (game.survival, game.paused, game.selected, game.player.pos, game.player.yaw, game.player.pitch, game.player.flying)
+        let inv = game.inventory.main.slots
+        defer {
+            for dy in 0...8 { for dz in -4...4 { for dx in -4...4 { w.setBlock(x0 + dx, y0 + dy, z0 + dz, AIR) } } }
+            game.inventory.main.slots = inv
+            game.survival = was.0; game.paused = was.1; game.selected = was.2
+            game.player.pos = was.3; game.player.yaw = was.4; game.player.pitch = was.5; game.player.flying = was.6
+            PadManager.shared.simulated = nil
+        }
+        _ = placed
+        let table = Items.id("crafting_table")
+        game.survival = true; game.paused = false; game.menu = nil
+        game.inventory.main[0] = .empty
+        game.inventory.main[1] = ItemStack(table, 16)
+        game.selected = 0
+        game.player.flying = false
+        game.player.pos = V3(Float(x0) + 0.5, Float(y0 + 1), Float(z0) + 0.5); game.player.vel = .zero
+        // A stone wall three blocks ahead (-z): each placement lands on the face toward the player, one closer each time.
+        for dy in 1...3 { for dx in -1...1 { w.setBlock(x0 + dx, y0 + dy, z0 - 3, STONE) } }
+        game.player.yaw = 0; game.player.pitch = -0.25
+        func frames(_ n: Int, lt: Float) {
+            for _ in 0..<n { var p = PadSnapshot(); p.lt = lt; PadManager.shared.simulated = p; game.tick(1.0 / 60) }
+        }
+        frames(20, lt: 1)                                 // held with an empty hand
+        game.select(1)                                    // the hotbar steps onto the tables, trigger still down
+        frames(60, lt: 1)
+        let afterStep = game.inventory.main[1].count
+        frames(5, lt: 0)
+        frames(40, lt: 1)                                 // a fresh press, held: places, then repeats
+        let afterPress = game.inventory.main[1].count
+        check(afterStep == 16 && afterPress <= 14,
+              "P25 held use: stepping onto a block with the trigger down places none (\(16 - afterStep) placed); a fresh press held places \(afterStep - afterPress)")
+    }
+
+    // P26: a horse's slowest roll outruns a sprint; bond to level 4 takes about 90 minutes of riding; the owner's blow
+    // finishes a downed horse; a called horse pulls up beside you.
+    static func horses(_ game: Game, _ check: (Bool, String) -> Void) {
+        let h = Mob(.horse, at: game.player.pos + V3(30, 0, 0))
+        h.variant = h.variant & ~(15 << 4)                     // the slowest speed roll
+        let slow = h.horseSpeed
+        let ride4 = HorseFeel.levelXP[3] * HorseFeel.ridePerPoint
+        h.downed = HorseLife.downTime; h.health = 1
+        Mob.playerMelee = true
+        h.hit(from: game.player.pos, damage: 6)
+        Mob.playerMelee = false
+        let finished = h.downed > 0 && h.downed <= 0.01
+        check(slow >= 8 && ride4 >= 50_000 && finished,
+              String(format: "P26 horses: slowest gallop %.1f b/s (sprint 5.6); level 4 after %.0f blocks of riding (about %.0f min at 10 b/s); a downed horse struck by its owner is put down (%@)",
+                     slow, ride4, ride4 / 600, finished ? "yes" : "no"))
+    }
+
+    // P27: by day a spider out under the sky behind the player slips away within a minute; at night it stays.
+    static func dayClears(_ game: Game, _ check: (Bool, String) -> Void) {
+        let w = game.world, was = game.time
+        defer { game.time = was }
+        let back = -simd_normalize(V3(game.player.look.x, 0, game.player.look.z) + V3(1e-4, 0, 0))
+        var at = game.player.pos + back * 20
+        _ = w.loadSync(center: at, radius: 1)
+        at.y = Float(w.topY(Int(floor(at.x)), Int(floor(at.z))) + 1)
+        func clearedAfter(_ frac: Double) -> Float {
+            game.time = frac * DAY_LENGTH
+            let sp = Mob(.spider, at: at)
+            var t: Float = 0
+            while t < 60 { if game.mobs.shouldDespawn(sp, simd_length(sp.pos - game.player.pos), 0.05, game) { return t }; t += 0.05 }
+            return -1
+        }
+        let day = clearedAfter(0.25), night = clearedAfter(0.75)
+        check(day >= 0 && night < 0, String(format: "P27 day clears the surface: a spider out of sight under the noon sky is gone after %.0f s; at midnight it stays (%@)",
+                                              day, night < 0 ? "stays" : "gone"))
+    }
+
+    // P30: in full titanium, rifle rounds still hurt (each one landing) and wear the armour hard.
+    static func armourVsGuns(_ game: Game, _ check: (Bool, String) -> Void) {
+        let was = (game.survival, game.health, game.absorption, game.inventory.armor.slots)
+        defer { game.survival = was.0; game.health = was.1; game.absorption = was.2; game.inventory.armor.slots = was.3 }
+        game.survival = true; game.health = 20; game.absorption = 0
+        for (i, k) in ["diamond_boots", "diamond_leggings", "diamond_chestplate", "diamond_helmet"].enumerated() { game.inventory.armor[i] = ItemStack(Items.id(k), 1) }
+        let wear0 = game.inventory.armor.slots.map { $0.damage }.reduce(0, +)
+        for _ in 0..<5 { game.bulletHit = true; game.damage(4, "was shot", type: .projectile); game.bulletHit = false }
+        let lost = 20 - game.health
+        let wear = game.inventory.armor.slots.map { $0.damage }.reduce(0, +) - wear0
+        check(lost >= 5 && lost < 20 && wear >= 5,
+              "P30 armour vs guns: five 4-damage rounds into full titanium cost \(lost) half-hearts (was 0) and \(wear) armour wear")
+    }
+
+    // P32: in VR a round leaves the aiming hand along its ray (it flew from the eye, above the sights).
+    static func vrGunAim(_ game: Game, _ check: (Bool, String) -> Void) {
+        let gi = Guns.all.firstIndex { $0.key == "gun_rifle" } ?? 0
+        let held0 = game.inventory.held
+        defer { game.inventory.held = held0; game.vrAim = nil }
+        var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = 10
+        game.inventory.held = gun
+        let hand = game.player.eye + V3(0.25, -0.45, -0.2), dir = simd_normalize(V3(0.1, 0.05, -1))
+        game.vrAim = (hand, dir)
+        let n0 = game.arms.slugs.count
+        game.fireHeldGun(gi)
+        guard let s = game.arms.slugs.last, game.arms.slugs.count > n0 else { check(false, "P32 VR gun aim: no round fired"); return }
+        let off = simd_length(s.pos - (hand + dir * 0.3)), ang = acosf(min(1, simd_dot(simd_normalize(s.vel), dir))) * 180 / .pi
+        check(off < 0.01 && ang < 3, String(format: "P32 VR gun aim: the round leaves the hand (%.2f off) along the hand's ray (%.1f degrees, spread included)", off, ang))
+    }
+
+    // P36: a citadel's command console, used, puts the Capital sites and patrols on the radar readout for 30 s.
+    static func consoleRadar(_ game: Game, _ check: (Bool, String) -> Void) {
+        guard Blocks.has("command_console") else { check(false, "P36 console: no command_console block"); return }
+        let p = IVec3(Int(floorf(game.player.pos.x)) + 2, Int(floorf(game.player.pos.y)) + 1, Int(floorf(game.player.pos.z)))
+        let was = game.world.block(p.x, p.y, p.z)
+        defer { game.world.setBlock(p.x, p.y, p.z, was); game.consoleRadarUntil = -1; Game.radarCache.time = -1 }
+        game.world.setBlock(p.x, p.y, p.z, Blocks.id("command_console"))
+        let used = game.isInteractive(p) && game.consoleUse(p)
+        let lines = game.radarLines(HudLayout(1280, 800)).map { $0.text }
+        check(used && lines.contains("Citadel console") && lines.count >= 2,
+              "P36 console: using a command console shows the radar readout (\(lines.dropFirst().prefix(4).joined(separator: "; ")))")
     }
 }

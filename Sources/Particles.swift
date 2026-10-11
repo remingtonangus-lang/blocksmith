@@ -142,6 +142,20 @@ final class ParticleManager {
         }
     }
 
+    // The mark a blade leaves where it hit (VRMelee, Oct 11 playtest P16): a red streak along the swing across the
+    // contact point, lingering a second, drawn a little toward the viewer so it sits on the mob's surface.
+    func slashMark(at c: V3, along dir: V3, toward eye: V3, power: Float) {
+        let smoke = Int(Tex.id("smoke"))
+        let d = simd_normalize(dir + V3(0, 1e-4, 0)), out = simd_normalize(eye - c + V3(0, 1e-4, 0))
+        let n = 9, len: Float = 0.3 + 0.25 * power
+        for i in 0..<n {
+            let t = Float(i) / Float(n - 1) - 0.5
+            let w: Float = 1 - abs(t) * 1.2                     // thick in the middle, tapering to the ends
+            add(Particle(pos: c + d * (t * len) + out * 0.06, vel: V3(0, -0.04, 0), life: 1.1, maxLife: 1.1, layer: smoke,
+                         uv0: V2(0, 0), uvSize: 1, size: 0.05 + 0.04 * w, gravity: 0, color: V3(0.75, 0.04, 0.03), collide: false, glow: false))
+        }
+    }
+
     func update(_ dt: Float, _ w: World) {
         for i in list.indices {
             list[i].life -= dt

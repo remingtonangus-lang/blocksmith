@@ -444,7 +444,15 @@ extension Game {
             }
             return true
         }
-        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) { startReload(gi); return true }     // R (rebindable) or pad X
+        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) {                                   // R (rebindable) or pad X
+            // A reload that can't start says why (a full magazine or no rounds did nothing at all: "the reload button
+            // still doesn't work", Oct 11 playtest P32).
+            if !startReload(gi) {
+                onToast?(held.tag >= Guns.magSize(held) ? "Magazine full: \(held.tag) / \(Guns.magSize(held))"
+                         : "No \(Items.def(Items.id(gs.ammo)).display) to reload")
+            }
+            return true
+        }
         let trigger = gs.auto ? fire : firePressed
         guard trigger else { return true }
         if held.tag <= 0 {
@@ -463,13 +471,17 @@ extension Game {
     func fireHeldGun(_ gi: Int) {
         let gs = Guns.all[gi]
         let a = arms
-        let look = player.look
+        // VR: rounds leave the aiming hand along its ray, like the crossbow's bolts (from the eye toward a point 60 blocks
+        // down the ray they flew above the sights at every shorter range, Oct 11 playtest P32), and the hand is the aim:
+        // half way to the aimed spread without holding aim.
+        let look = vrAim?.dir ?? player.look
         let st = held
         let steady = Guns.steadiness(st)
-        let spread = (gs.spread + (gs.aimSpread - gs.spread) * a.aim) * steady + a.bloom
+        let hip = vrAim != nil ? (gs.spread + gs.aimSpread) / 2 : gs.spread
+        let spread = (hip + (gs.aimSpread - hip) * a.aim) * steady + a.bloom
         let pierce = Int8(Enchant.level(.penetration, st))
         let fiery = Enchant.level(.incendiary, st) > 0
-        let muzzle = player.eye + look * 0.3
+        let muzzle = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye + look * 0.3
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {

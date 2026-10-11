@@ -404,6 +404,13 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             box(sl.x, sl.y, sl.w, sl.h, ok ? V4(0.86, 0.9, 0.86, 1) : V4(0.6, 0.6, 0.62, 1))
             icon(r.result, sl.x + 3, sl.y + 3, sl.w - 6)
             if !ok { box(sl.x, sl.y, sl.w, sl.h, V4(0.35, 0.35, 0.38, 0.55)) }
+            // How many you can make, on the tile (Oct 11 playtest P28: it only showed that you could, "show 6 chests").
+            if ok {
+                let times = CraftBook.maxCrafts(r, pool, cap: 99)            // (capped: 15 tiles a frame)
+                let t = "\(times * r.result.count)\(times >= 99 ? "+" : "")"
+                box(sl.x + sl.w - Font.width(t) - 3, sl.y + sl.h - 9, Font.width(t) + 2, 8, V4(0, 0, 0, 0.6))
+                label(t, sl.x + sl.w - Font.width(t) - 2, sl.y + sl.h - 8)
+            }
             let since = Float(game.clock - CraftBook.flashAt)
             if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }
         }
@@ -426,7 +433,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             icon(r.result, 198, 42, 32)
             label(r.result.def.display, 236, 42, ink, maxW: 100)
             label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
-            label(have > 0 ? "Can craft \(have)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
+            label(have > 0 ? "You can make \(have * r.result.count)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
             // Ingredient grid (3x3 or 2x2) with each cell's item; red where you have none.
             let g = max(r.w, 1), cells: [String?] = r.shapeless.isEmpty ? r.cells : r.shapeless.map { Optional($0) }
             let cw = r.shapeless.isEmpty ? g : min(3, r.shapeless.count)

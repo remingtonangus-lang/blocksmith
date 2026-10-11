@@ -406,6 +406,7 @@ enum TownTests {
         w.renderDistance = 3
         guard let sc = w.gen.structures else { check(false, "towns: structures"); return }
         var shopsFound: [ShopKind: Int] = [:], deputies = 0, signs = 0, visited = 0, blocked: [String] = []
+        var tills = 0, noTill: [String] = []
         var seen: [IVec3] = []
         for _ in 0..<3 {
             guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
@@ -420,7 +421,15 @@ enum TownTests {
                     || !w.collides(p + V3(-0.3, -0.2, -0.3), p + V3(0.3, -0.01, 0.3)) {
                     blocked.append("\(name) at \(Int(p.x)) \(Int(p.y)) \(Int(p.z))")
                 }
-                if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) { shopsFound[k, default: 0] += 1 }
+                if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) {
+                    shopsFound[k, default: 0] += 1
+                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor.
+                    let till = w.blockEntities.contains { (q, be) in
+                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 5
+                            && be.container.slots.contains { $0.count > 0 }
+                    }
+                    if till { tills += 1 } else { noTill.append("\(k.rawValue) at \(Int(p.x)) \(Int(p.z))") }
+                }
             }
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
                 if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { signs += 1 }
@@ -431,6 +440,7 @@ enum TownTests {
               "towns: \(visited) towns hold \(all.count)/8 kinds of shop (\(shopsFound.map { "\($0.key.rawValue) \($0.value)" }.sorted().joined(separator: ", "))), \(deputies) deputies")
         let keepers = shopsFound.values.reduce(0, +)
         check(signs >= keepers && keepers > 0, "towns: every shop has its sign (\(signs) signs, \(keepers) shops)")
+        check(noTill.isEmpty && tills > 0, "towns P24: every shop keeps a filled till chest behind the counter (\(tills) tills)" + (noTill.isEmpty ? "" : ", none at " + noTill.prefix(6).joined(separator: ", ")))
         check(blocked.isEmpty, "towns: every townsperson and keeper spawns on a floor with head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
     }
 }

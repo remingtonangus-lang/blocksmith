@@ -102,6 +102,7 @@ G16. [mobs] The Powderwight is too hard to kill before it detonates, even with a
 G17. [hell] Entering hell from above ends at a lava-pool cut-off; make the transition from the deep rock into hell gradual and readable. Hell mobs must be hell's own types everywhere (check B6 covers all spawns).
 G18. [looks] Plain grass looks barren: add more ground cover (tall grass tufts, short grass that rises slightly off the block, variety) within the Quest frame budget.
 G19. [new, Lane B] Difficulty levels: easy, medium, hard chosen when creating a world and locked afterwards; they change enemy speed, damage, health, hunger and spawn density. Document the table.
+G20. [IP, from P19] Replace the remaining close copies of reference features with original designs (docs/status/ip-content-audit-oct11.md: the Hollow + Hollow Spire + Void Dragon, Cinder Fortress / Boarling Keep, Sea Temple, Forest Manor, Proving Halls). The murk depths, Buried Citadel and Deep Stalker summons are already out (P19).
 
 ## LANE A (cloud thread A): factions, bases, navy, vehicles
 

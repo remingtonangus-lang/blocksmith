@@ -38,8 +38,10 @@ enum Guns {
         GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "rifle_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
                 spread: 0.045, aimSpread: 0.026, speed: 130, recoil: 0.009, reload: 1.6, range: 70, durability: 1500, zoom: 0.9,
                 shot: .bullet, sound: 1, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 3, pellets: 9,
-                spread: 0.09, aimSpread: 0.07, speed: 110, recoil: 0.07, reload: 2.6, range: 40, durability: 500, zoom: 0.9,
+        // Hits as hard as it looks (Oct 11 playtest P30: "way too powerful [looking] for what it actually is"): 4 a pellet
+        // (was 3) in a tighter pattern (most pellets missed past a few blocks).
+        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 4, pellets: 9,
+                spread: 0.065, aimSpread: 0.045, speed: 110, recoil: 0.07, reload: 2.6, range: 45, durability: 500, zoom: 0.9,
                 shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 8, interval: 1.3, auto: false, damage: 24, pellets: 1,
                 spread: 0.06, aimSpread: 0.0006, speed: 320, recoil: 0.09, reload: 2.8, range: 260, durability: 400, zoom: 0.22,

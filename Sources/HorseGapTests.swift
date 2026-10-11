@@ -282,8 +282,8 @@ extension HorseTests {
             let round0 = HorseLife.broughtRound
             var t: Float = 0
             // (through the mob list's update: it hands out the path finder's per-tick budget)
-            while t < 25 && simd_length(h.pos - g.player.pos) > 3 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
-            check(simd_length(h.pos - g.player.pos) <= 3 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0))
+            while t < 25 && simd_length(h.pos - g.player.pos) > 5 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
+            check(simd_length(h.pos - g.player.pos) <= 5 && HorseLife.broughtRound == round0, String(format: "horse gap: a called horse finds its way round a wall (%.1f s, %.1f blocks off; at %.1f %.1f %.1f from %.1f %.1f %.1f; brought round %d)", t, simd_length(h.pos - g.player.pos), h.pos.x, h.pos.y, h.pos.z, lane0.x, lane0.y, Float(wallZ) - 6, HorseLife.broughtRound - round0))
             // A gap it can't get through (the wall closed): after 6 s stuck it is brought round to you, on your level
             // (the strip is high in the air: never onto the ground far below).
             for dy in 0...3 { for x in (x0 + 1)...(x0 + 3) { w.setBlock(x, y + dy, wallZ, Blocks.id("stone")) } }
@@ -292,7 +292,7 @@ extension HorseTests {
             _ = g.callHorse()
             let round1 = HorseLife.broughtRound
             t = 0
-            while t < 15 && simd_length(h.pos - g.player.pos) > 3 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
+            while t < 15 && simd_length(h.pos - g.player.pos) > 5 { g.mobs.update(0.05, game: g); g.horseCall = max(g.horseCall, 1); t += 0.05 }
             check(HorseLife.broughtRound > round1 && abs(h.pos.y - g.player.pos.y) < 1.5 && simd_length(h.pos - g.player.pos) < 6,
                   String(format: "horse gap: a called horse that can't get through is brought round to your level after 6 s (%.1f s, %.1f blocks off, %.1f below)", t, simd_length(h.pos - g.player.pos), g.player.pos.y - h.pos.y))
             g.player.yaw = 0

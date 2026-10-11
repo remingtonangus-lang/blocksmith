@@ -1185,7 +1185,9 @@ final class WorldGen: TerrainGenerator {
         let id_spore_blossom = g("spore_blossom")
         for lz in 0..<CS { for lx in 0..<CS {
             let k = climates[lx + lz * CS]
-            let lush = k.h > 0.55, drip = k.c > 0.75, dark = k.e < -0.6
+            // No murk depths any more (Oct 11 playtest P19: a copy of the reference's deep dark with its stalker, never
+            // asked for; IP rule). Murk blocks stay registered for old saves and the creative menu.
+            let lush = k.h > 0.55, drip = k.c > 0.75, dark = false
             guard lush || drip || dark else { continue }
             for y in 8..<(SEA - 10) {
                 let i = Chunk.index(lx, y, lz)

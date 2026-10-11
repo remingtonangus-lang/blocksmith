@@ -1345,7 +1345,9 @@ final class Mob {
     // Off for guns, blasts and scripted hits, which have their own rates.
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if kind == .warden && emergeTime > 0 { return }
-        if downed > 0 { return }                                    // a downed horse takes no more (HorseLife.swift)
+        // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
+        // struck his spare horse and it lay there for five minutes, "stuck in place": Oct 11 playtest P26).
+        if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.

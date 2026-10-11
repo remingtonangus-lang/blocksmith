@@ -99,7 +99,6 @@ enum Spawns {
         let surface = w.gen.column(x, z).biome
         guard w.dim == .overworld, y < SEA - 10, y < w.topY(x, z) - 8, let wg = w.gen as? WorldGen else { return surface }
         let k = wg.climate(x, z)
-        if k.e < -0.6 && y < YOFF { return .deepDark }
         if k.h > 0.55 { return .lushCaves }
         if k.c > 0.75 { return .dripstoneCaves }
         return surface
@@ -183,12 +182,26 @@ extension MobManager {
         guard c.despawns, !m.persistent, !m.waveUnit, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
         if d > c.farDistance { return true }
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
+        if c == .monster && dawnClears(m, d, dt, game) { return true }
         if d > 32 {
             m.farTime += dt
             return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800
         }
         m.farTime = 0
         return false
+    }
+
+    // Day clears the surface (Oct 11 playtest P27, 07:15 in the morning: "there shouldn't be enemies this time of
+    // day"): the night's monsters that don't burn (spiders, creepers, ...) lingered all day under the reference rules; the undead burn.
+    // In daylight, a monster under open sky that isn't fighting the player slips away, never in plain sight: about one
+    // in eight a second while it's out of view or 24+ blocks off. Caves, night, rain and a fight keep it.
+    func dawnClears(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
+        guard game.dim.dim.hasSky, game.daylight > 0.6, !m.aggro, !m.spec.burnsInSun, m.kind.spec.behavior != .neutral, !game.isRainingAt(m.pos) else { return false }
+        let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+        guard game.world.isLoaded(x, z), Float(game.world.topY(x, z)) < m.pos.y + 0.5 else { return false }
+        let to = m.pos + V3(0, m.height * 0.5, 0) - game.player.eye
+        let seen = d < 24 && simd_dot(simd_normalize(to), game.player.look) > 0.45
+        return !seen && Rand.float(in: 0..<1) < dt / 8
     }
 
     // MARK: Animals

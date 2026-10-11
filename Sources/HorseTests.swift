@@ -97,8 +97,8 @@ enum HorseTests {
                 if tStop < 0 && speed(h) < 0.5 { tStop = Float(i) * dt }
                 return tStop >= 0
             }
-            check(walk > 1 && walk <= 2.7 && abs(trot - 8) < 0.4 && abs(gallop - 16) < 0.5,
-                  String(format: "horse gaits: walk %.1f, trot %.1f, gallop %.1f b/s (top 16)", walk, trot, gallop))
+            check(walk > 1 && walk <= 2.7 && abs(trot - 8) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
+                  String(format: "horse gaits: walk %.1f, trot %.1f, gallop %.1f b/s (top %.0f)", walk, trot, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
             check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))
             check(max(lurch, lurch2) <= 12.5, String(format: "horse: no lurch (worst %.1f b/s^2 on the ground, comfort limit 12.5)", max(lurch, lurch2)))
@@ -139,13 +139,14 @@ enum HorseTests {
 
         // Bond: riding, pats, brushing, treats; levels, saddlebags, saved.
         do {
-            check(HorseFeel.level(0) == 1 && HorseFeel.level(99) == 1 && HorseFeel.level(100) == 2 && HorseFeel.level(300) == 3
-                  && HorseFeel.level(700) == 4, "horse bond levels at 0 / 100 / 300 / 700 points")
+            let L = HorseFeel.levelXP
+            check(HorseFeel.level(0) == 1 && HorseFeel.level(L[1] - 1) == 1 && HorseFeel.level(L[1]) == 2 && HorseFeel.level(L[2]) == 3
+                  && HorseFeel.level(L[3]) == 4, "horse bond levels at \(L.map { Int($0) }) points")
             let h = horse(); mount(h)
             ride(h, 4, push: 1, loop: true)                         // a trot: 8 b/s
             let ridden = h.hs.bondXP
-            check(g.horseBond != 0 && h.bond == g.horseBond && ridden >= 1.5,
-                  String(format: "horse bond: %.0f points from 4 s of trotting (1 per 12 blocks; bonded %@, %.1f blocks toward the next)", ridden,
+            check(g.horseBond != 0 && h.bond == g.horseBond && ridden * HorseFeel.ridePerPoint + h.hs.rideAccum >= 24,
+                  String(format: "horse bond: %.0f points from 4 s of trotting (1 per %.0f blocks; bonded %@, %.1f blocks toward the next)", ridden, HorseFeel.ridePerPoint,
                          h.bond == g.horseBond && h.bond != 0 ? "yes" : "no", h.hs.rideAccum))
             let held = g.inventory.held
             g.inventory.held = .empty
@@ -162,16 +163,16 @@ enum HorseTests {
             let fed = g.horseUse(h)
             let treat = (h.hs.bondXP - b2, h.stamina)
             g.inventory.held = held
-            check(patted == 4 && brushed == 15 && fed && treat.0 == 3 && treat.1 >= 34,
-                  String(format: "horse care: pat +%.0f (once per 15 s), brush +%.0f, apple +%.0f and stamina 10 -> %.0f", patted, brushed, treat.0, treat.1))
-            h.hs.bondXP = 99
+            check(patted == HorseFeel.patBond && brushed == HorseFeel.brushBond && fed && treat.0 == HorseFeel.treatBond && treat.1 >= 34,
+                  String(format: "horse care: pat +%.0f (once per %.0f s), brush +%.0f, apple +%.0f and stamina 10 -> %.0f", patted, HorseFeel.patCool, brushed, treat.0, treat.1))
+            h.hs.bondXP = HorseFeel.levelXP[1] - 1
             let bagsBefore = h.saddlebags
             h.addBond(1, g)
             let bags = h.saddlebags && MountMenu.opens(h) && g.packContainer(h).count == 9
             check(!bagsBefore && bags && h.staminaMax == 115, "horse bond level 2: saddlebags (9 slots) and 115 stamina")
             g.packContainer(h)[0] = ItemStack(Items.id("apple"), 3)
             let back = Mob.from(h.record)
-            check(back?.hs.bondXP == 100 && back?.saddlebags == true && back?.cargo?[0].count == 3,
+            check(back?.hs.bondXP == HorseFeel.levelXP[1] && back?.saddlebags == true && back?.cargo?[0].count == 3,
                   "horse bond points and saddlebags saved with the horse")
             g.riding = nil
         }
@@ -234,7 +235,7 @@ enum HorseTests {
             for x in sx - 3...sx + 3 { for y in Y + 1...Y + 3 { w.setBlock(x, y, wz, stone) } }
             w.deferRemesh = false
             var results: [(Int, Bool, Float)] = []
-            for xp: Float in [0, 100] {
+            for xp: Float in [0, HorseFeel.levelXP[1]] {
                 let h = horse(xp: xp); mount(h)
                 var top: Float = 0
                 ride(h, 6, push: 1, spurAt: [2, 12]) { _ in top = max(top, speed(h)); return h.hs.stumbles > 0 }
@@ -250,7 +251,7 @@ enum HorseTests {
 
         // Nerves.
         do {
-            let h = horse(xp: 700); mount(h)                       // level 4: never throws, so every fright is seen
+            let h = horse(xp: HorseFeel.levelXP[3]); mount(h)                       // level 4: never throws, so every fright is seen
             ride(h, 0.5, push: 0)
             g.baseNoise(at: g.player.pos, kind: .gunshot)
             let own = h.hs.rear > 0
@@ -270,10 +271,10 @@ enum HorseTests {
             h.hs.spookCool = 0
             g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))               // level 4 is used to gunfire (the gap pass: until bonded)
             let used = h.hs.rear == 0
-            h.hs.bondXP = 300                                         // level 3: anyone's gun (the sheriff's, a soldier's) via its sound
+            h.hs.bondXP = HorseFeel.levelXP[2]                        // level 3: anyone's gun (the sheriff's, a soldier's) via its sound
             g.sfx(.gun(0), 1, at: h.pos + V3(4, 1, 0))
             let heard = h.hs.rear > 0
-            h.hs.bondXP = 700; h.hs.rearThrow = false
+            h.hs.bondXP = HorseFeel.levelXP[3]; h.hs.rearThrow = false
             ride(h, 1.5, push: 0)
             h.hs.spookCool = 0
             for k in [6, 8, 10, 11, 12] { g.sfx(.gun(k), 0.5, at: h.pos + V3(5, 1, 0)) }   // ricochet, alarm, radio, charge-up
@@ -293,7 +294,7 @@ enum HorseTests {
                 }
                 return n
             }
-            let l1 = throwsOf(0, pat: false), l4 = throwsOf(700, pat: false), calmed = throwsOf(0, pat: true)
+            let l1 = throwsOf(0, pat: false), l4 = throwsOf(HorseFeel.levelXP[3], pat: false), calmed = throwsOf(0, pat: true)
             check(l1 >= 6 && l1 <= 32 && l4 == 0 && calmed == 0,
                   "horse frights: level 1 throws \(l1)/40 (45 %), level 4 \(l4)/40, patted while rearing \(calmed)/40")
         }
@@ -303,7 +304,7 @@ enum HorseTests {
         do {
             var fellAt: [Int] = []
             for d in stride(from: 5, through: 15, by: 2) {
-                let h = horse(xp: 700); mount(h)
+                let h = horse(xp: HorseFeel.levelXP[3]); mount(h)
                 h.pos = V3(lane0.x, lane0.y, Float(z1) + 60)
                 var spooked = false, fell = false
                 ride(h, 9, push: 1, spurAt: [2, 12], loop: false) { _ in
@@ -315,7 +316,7 @@ enum HorseTests {
                 g.riding = nil
             }
             // How hard a fright stops a gallop: within the comfort limit.
-            let hb = horse(xp: 700); mount(hb)
+            let hb = horse(xp: HorseFeel.levelXP[3]); mount(hb)
             ride(hb, 3, push: 1, spurAt: [2, 12], loop: true)
             hb.spook(g)
             let lurch = ride(hb, 0.5, push: 1, loop: true)

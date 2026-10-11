@@ -537,6 +537,8 @@ final class SceneRenderer {
         while first < layers {
             let range = pregenerated != nil ? 0..<layers : first..<min(layers, first + batch)
             let data = pregenerated ?? TextureGen.mipChain(layers: range)
+            // Held items' extrusion masks (ItemExtrude.swift) from the full-size level.
+            if let d0 = data.first { d0.withUnsafeBufferPointer { ItemMasks.record($0, size: size, layers: range) } }
             var total = 0
             for (lvl, d) in data.enumerated() where lvl < levels { total += d.count }
             let staging = try VkBuf(ctx, size: total, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)

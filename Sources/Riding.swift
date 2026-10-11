@@ -267,7 +267,8 @@ extension Mob {
     func bondedHorseAI(_ dt: Float, _ g: Game, dist: Float) -> Float? {
         guard bond != 0, tamed, g.riding !== self, g.alive else { return nil }
         let current = bond == g.horseBond
-        if current && g.horseCall > 0 && dist < 3 { g.horseCall = 0; stayAt = pos }
+        // Called, it pulls up beside you (it ran on to 3 blocks, centre to centre, and walked into him: P26).
+        if current && g.horseCall > 0 && dist < 4.5 { g.horseCall = 0; stayAt = pos; vel.x = 0; vel.z = 0 }
         if current && g.horseCall > 0 {
             let h = hs
             if simd_length(pos - h.callWas) > 2 { h.callWas = pos; h.callStuck = 0 } else { h.callStuck += dt }
@@ -396,7 +397,9 @@ extension Mob {
 
     // Per-horse speed and jump strength from its variant bits: 4.8-16 b/s (reference 4.8-14.5; the best rolls go past
     // it so a good horse is genuinely fast). Unridden horses wander and bolt in proportion (Mob.update).
-    var horseSpeed: Float { 4.8 + Float((variant >> 4) & 15) / 15 * 11.2 }
+    // 8 to 17 b/s (was 4.8 to 16: the slow rolls were slower than sprinting on foot, "his horse felt very slow",
+    // Oct 11 playtest P26).
+    var horseSpeed: Float { 8 + Float((variant >> 4) & 15) / 15 * 9 }
     var horseJump: Float { 0.4 + Float((variant >> 8) & 15) / 15 * 0.6 }
 }
 

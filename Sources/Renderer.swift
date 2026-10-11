@@ -2434,6 +2434,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             text(t, x - textWidth(t, s) - 3 * s, y - 2 * s, s, V4(0.95, 0.85, 0.6, 1))
         }
         if !game.survival, let m = game.riding, m.gaited, m.tamed { horseBar(m, y0 - 8 * s) }
+        // Taming a wild horse (HorseLife.tameStep): the calm meter and what to do now, centred over the hearts (there was
+        // no pat prompt at all, Oct 11 playtest P26).
+        if let m = game.riding, m.gaited, !m.tamed, m.hs.calm >= 0 {
+            let w = floor(total * 0.6), x = floor(x0 + (total - w) / 2), y = y0 - 34 * s
+            rect(x, y, w, 4 * s, V4(0, 0, 0, 0.7))
+            rect(x + s, y + s, (w - 2 * s) * simd_clamp(m.hs.calm / 100, 0, 1), 2 * s, m.hs.bucking ? V4(0.9, 0.45, 0.25, 1) : V4(0.45, 0.85, 0.5, 1))
+            let t = m.hs.bucking ? "Bucking: sit still" : "\(Prompt.g(.use)) Pat it now"
+            text(t, floor((W - textWidth(t, s)) / 2), y - 9 * s, s, V4(1, 1, 1, 1))
+        }
 
         // Survival status: XP bar + level, hearts (left), hunger (right), armor, air bubbles.
         if game.survival {

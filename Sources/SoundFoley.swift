@@ -35,7 +35,7 @@ struct FoleyMat {
             f.tex = 0.75; f.texLo = 600; f.texHi = 3600; f.texRate = 1500; f.texGrain = 0.0028; f.texLen = 0.08; f.debris = 1.1
         case .dirt:
             f.thump = 0.9; f.thumpF = 92; f.click = 0.08; f.clickF = 1500; f.contact = 0.003
-            f.tex = 0.5; f.texLo = 300; f.texHi = 2400; f.texRate = 1100; f.texGrain = 0.0035; f.texLen = 0.07; f.debris = 0.55
+            f.tex = 0.6; f.texLo = 300; f.texHi = 3400; f.texRate = 1100; f.texGrain = 0.0035; f.texLen = 0.07; f.debris = 0.55
         case .grass:
             f.thump = 0.75; f.thumpF = 96; f.click = 0.04; f.clickF = 1500; f.contact = 0.003
             f.tex = 0.4; f.texLo = 500; f.texHi = 3200; f.texRate = 900; f.texGrain = 0.003; f.texLen = 0.08
@@ -291,13 +291,22 @@ extension Synth {
     }
 
     // Footstep: heel strike, then a softer toe roll 45-75 ms later.
+    // Dry ground steps are lighter on the low thud and resonance than a block's own hits, with a firmer contact and
+    // more grit: on the Quest's speakers (plus the cave reverb) the full thud read as walking through mud (Oct 11
+    // playtest P14; PlaytestOct11Tests.footsteps measures it). The wet materials keep their squelch.
     mutating func foleyStep(_ m: SoundMat, p: Float) -> [Float] {
-        let f = FoleyMat.of(m)
+        var f = FoleyMat.of(m)
+        if ![.mud, .slime, .soul].contains(m) {
+            f.thump *= 0.5; f.thumpF *= 1.2; f.contact = min(f.contact, 0.0018)
+            f.click = max(f.click, 0.12) * 1.4
+            f.modes = f.modes.map { ($0.f * 1.15, $0.decay * 0.6, $0.f < 330 ? $0.amp * 0.45 : $0.amp) }
+            f.tex *= 1.35; f.texLo *= 1.25
+        }
         let ring: Float = m == .metal ? 0.25 : 0.5
         let heel = foleyContact(f, p: p, force: 1, ring: ring, texLen: f.texLen, texScale: 1)
         let toe = foleyContact(f, p: p * 1.06, force: rnd(0.45, 0.62), ring: ring * 0.8, texLen: f.texLen * 0.8, texScale: 0.8)
         let out = Synth.mix(heel, toe, at: frames(rnd(0.045, 0.075)))
-        return Synth.trimTail(Synth.room(out, mix: 0.12), below: 0.002)
+        return Synth.trimTail(Synth.room(out, mix: 0.06), below: 0.002)
     }
 
     // Mining tap: a light, short contact (it repeats ~4 times a second, so it must not tire the ear).

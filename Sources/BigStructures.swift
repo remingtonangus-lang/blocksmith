@@ -7,7 +7,8 @@ import simd
 // 34/8, and fossils (1 in 64 desert / swamp chunks).
 enum BigStructures {
     static func types(_ gen: WorldGen) -> [StructureType] {
-        [monument(gen), mansion(gen), ancientCity(gen), trialChambers(gen), oceanRuins(gen), trailRuins(gen), fossil(gen)]
+        // No Buried Citadel (the reference's ancient city under the murk depths; Oct 11 playtest P19, IP rule).
+        [monument(gen), mansion(gen), trialChambers(gen), oceanRuins(gen), trailRuins(gen), fossil(gen)]
     }
     static func piece(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ f: @escaping (inout StructWriter) -> Void) -> Piece {
         Piece(min: IVec3(x0, y0, z0), max: IVec3(x1, y1, z1), build: f)

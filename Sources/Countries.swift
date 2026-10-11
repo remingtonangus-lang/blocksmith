@@ -621,6 +621,17 @@ enum Countries {
         let ca = dyes[a.flag.0].0, cb = dyes[a.flag.1].0, da = dyes[b.flag.0].0, db = dyes[b.flag.1].0
         w.setBlock(px, gy + 6, pz - 1, id(ca + "_wool", fill)); w.setBlock(px, gy + 5, pz - 1, id(cb + "_wool", fill))
         w.setBlock(px, gy + 6, pz + 1, id(da + "_wool", fill)); w.setBlock(px, gy + 5, pz + 1, id(db + "_wool", fill))
+        // Signs at both ends of the booth saying what it is (Oct 11 playtest P21: a bare booth and two flags read as
+        // "what the hell is this thing?"): one per direction, each naming the country you are entering.
+        if Blocks.has("spruce_sign") {
+            let sign = Blocks.id("spruce_sign")
+            for (z, facing, into, from) in [(z0, BlockID(0), b, a), (z0 + 4, BlockID(1), a, b)] {
+                w.setBlock(x0 + 2, gy + 1, z, sign + facing)
+                let be = BlockEntity(.sign)
+                be.lines = ["BORDER POST", "Entering \(into.name)", "from \(from.name)", "Customs: pay here"]
+                w.blockEntities[IVec3(x0 + 2, gy + 1, z)] = be
+            }
+        }
     }
 
     // MARK: Wars (once a day, around you)

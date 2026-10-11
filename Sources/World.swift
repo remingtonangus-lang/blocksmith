@@ -828,6 +828,7 @@ final class World {
     // a ledge beside open air, stood still. Settled cells just tick once. Chunk interior only; at most 96 per chunk.
     static func springs(_ b: [BlockID], _ k: ChunkKey, _ h: [Int16]) -> [IVec3] {
         var out: [IVec3] = []
+        var lavaN = 0, waterN = 0
         let fk = Blocks.fluidKind
         for c in 0..<CSQ {
             let lx = c & 15, lz = c >> 4
@@ -835,13 +836,49 @@ final class World {
             guard top > 2 else { continue }
             for y in 2..<top {
                 let i = c + y * CSQ
-                guard fk[Int(b[i])] != 0 else { continue }               // lava pools spill into caves as lavafalls too
+                let kind = fk[Int(b[i])]
+                guard kind != 0 else { continue }                          // lava pools spill into caves as lavafalls too
+                // Water and lava each get 96: shore water filled the cap before a cave's lava was reached (P18).
+                if kind == 2 ? lavaN >= 96 : waterN >= 96 { continue }
                 let open = b[i - CSQ] == AIR || (lx > 0 && b[i - 1] == AIR) || (lx < 15 && b[i + 1] == AIR)
                     || (lz > 0 && b[i - CS] == AIR) || (lz < 15 && b[i + CS] == AIR)
-                if open { out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz)); if out.count >= 96 { return out } }
+                if open {
+                    out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz))
+                    if kind == 2 { lavaN += 1 } else { waterN += 1 }
+                    if lavaN >= 96 && waterN >= 96 { return out }
+                }
             }
         }
         return out
+    }
+
+    // Fluid on one side of a chunk border with air on the other (World.springs sees one chunk's interior only): lava at
+    // a chunk's edge facing a cave in the next chunk stood still for good (Oct 11 playtest P18 at 12:42: "lava that should
+    // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
+    func borderSprings(_ c: Chunk) {
+        let fk = Blocks.fluidKind
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
+            for i in 0..<CS {
+                // The facing columns: c's edge (lx, lz) and n's (nx, nz).
+                let lx = dx == 1 ? 15 : (dx == -1 ? 0 : i), lz = dz == 1 ? 15 : (dz == -1 ? 0 : i)
+                let nx = dx == 0 ? lx : 15 - lx, nz = dz == 0 ? lz : 15 - lz
+                let top = min(CH - 1, max(Int(c.height[lx + lz * CS]), Int(n.height[nx + nz * CS])) + 2)
+                guard top > 1 else { continue }
+                for y in 1...top {
+                    let a = c.blocks[Chunk.index(lx, y, lz)], b = n.blocks[Chunk.index(nx, y, nz)]
+                    let fa = fk[Int(a)], fb = fk[Int(b)]
+                    guard fa != fb else { continue }
+                    if fa != 0 && b == AIR {
+                        let q = IVec3(c.cx * CS + lx, y, c.cz * CS + lz)
+                        if fa == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
+                    } else if fb != 0 && a == AIR {
+                        let q = IVec3(n.cx * CS + nx, y, n.cz * CS + nz)
+                        if fb == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) }
+                    }
+                }
+            }
+        }
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
@@ -897,6 +934,7 @@ final class World {
         for t in p.tracked { redstone.tracked.insert(t) }
         // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
         for q in p.springs { if Blocks.fluidKind[Int(rawBlock(q.x, q.y, q.z))] == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) } }
+        borderSprings(c)
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.

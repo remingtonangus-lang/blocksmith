@@ -64,6 +64,11 @@ extension Village {
         b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
         b.set(&w, l.w - 2, 2, 1, b.wallTorch(facing: 3))
         fittings(&w, b, m, k, cv: cv)
+        // The till: a strongbox behind the counter, beside the bed's head, reached from behind the counter (Oct 11
+        // playtest P24: towns had nothing worth stealing). Taking from it is theft like any town container (TownLaw).
+        let till = world(l, 2, l.d - 2)
+        var rng = SRng(l.seed &+ 0x7111)
+        w.chest(till.0, l.y, till.1, loot: k == .general ? "shop_register_general" : "shop_register", seed: rng.next(), facing: dir(l, 1))
         let (x, z) = world(l, l.w / 2, cv + 1)
         w.mob("villager:shop_\(k.rawValue)", V3(Float(x) + 0.5, Float(l.y), Float(z) + 0.5))
         // A townsperson or two about the place (customers by day, sleeping in town at night).
