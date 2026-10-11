@@ -1,0 +1,13 @@
+posecheck: 643 raised limbs checked, 0 failed
+textures: 1786 layers at 16 px, BC3, 0.6 MB with mips (build 1612 ms, upload 748 ms)
+target: grass_block at -10 145 26, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(-8.5, 145.0, 29.5)
+light probe: eye sky 15 block 0 in air; floor+1 (y 81) sky 15 block 0 in air, daylight 1.0
+imagecheck fast.png magenta=0.00000 black=0.0000 white=0.0008 std=25.0 hash=3410a2b27e40da2c
+imagecheck fast.png magenta=0.00000 black=0.0000 white=0.0008 std=25.0 hash=3410a2b27e40da2c
+seed 12345  pos -8.5 145.0 29.5  rd 4  chunks 109  (drawn 23)
+gen 15240 ms  mesh(all, parallel) 26023 ms  mesh(1 section) 129.61 ms  quads 320803 opaque / 518 water
+frame (encode+GPU, offscreen, median of 30) 10.53 ms  biome plains
+mesh slabs 12 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 114 MB
+memory: resident 149 MB  (section meshes 10 MB)
+wrote snaps/fast.png
+imagecheck: 1 frames, no flags
