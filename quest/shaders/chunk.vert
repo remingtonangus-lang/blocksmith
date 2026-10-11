@@ -32,7 +32,8 @@ void main() {
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    bool smoothV = uu == 31u && vv != 31u;           // smooth terrain vertex: v holds its normal code
+    if (uu == 31u) {
         if (face == 0u) uv = vec2(-p.z, -p.y);
         else if (face == 1u) uv = vec2(p.z, -p.y);
         else if (face == 2u) uv = vec2(p.x, p.z);
@@ -64,7 +65,7 @@ void main() {
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
         oTint = unpackUnorm4x8(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
-    oOverlay = float((w1 >> 30) & 1u);
+    oOverlay = smoothV ? 0.0 : float((w1 >> 30) & 1u);
     oAnim = face == 7u ? 1.0 : 0.0;
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     vec3 skyTint = mix(vec3(0.6, 0.7, 1.0), vec3(1.0), smoothstep(0.26, 0.6, u.params.y));
@@ -89,7 +90,10 @@ void main() {
     bool water = tintMode == 3u;
     oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;
     float sw = (face < 6u && !water) ? 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
-    oShade = lit * sunShadeN(faceNormal(face), faceShade[face], sw, u.sunDir.xyz) * (water ? 1.0 : aoCurve[ao]);
+    vec3 nrm = faceNormal(face);
+    float fs = faceShade[face];
+    if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
+    oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * (water ? 1.0 : aoCurve[ao]);
     oDist = length(rel);
     oRel = rel;
     oFace = float(face);

@@ -66,6 +66,17 @@ enum SmoothTests {
         check(m.opaque.count / 8 == 6, "lone block has a surface", "\(m.opaque.count / 8) quads (6 expected)")
         check(maxP <= 17 * 16 + 8, "vertices in range", "max \(maxP)/16 (limit 280)")
         check(cubeLike == 0, "no cube corners left", "\(cubeLike) vertices on block corners")
+        // Smooth normals: every vertex carries a code (u = 31, v != 31 or the overlay bit), and the lone block's top
+        // corners lean outward (different codes, none straight up), so the shaders light it round, not faceted.
+        var coded = 0, topCodes = Set<UInt32>()
+        for i in stride(from: 0, to: m.opaque.count, by: 2) {
+            let w0 = m.opaque[i], w1 = m.opaque[i + 1]
+            let code = ((w1 >> 5) & 31) + 31 * ((w1 >> 30) & 1)
+            if w1 & 31 == 31 && code != 31 { coded += 1 }
+            if (w0 >> 27) & 7 == 2 { topCodes.insert(code) }
+        }
+        check(coded == m.opaque.count / 2 && topCodes.count == 4 && !topCodes.contains(24), "smooth vertex normals",
+              "\(coded)/\(m.opaque.count / 2) vertices coded, top codes \(topCodes.sorted())")
         // The neighbours own the quads past the +x/+y/+z faces.
         var neighbourQuads = 0
         if let cn = w.chunkAt(bx + 1, bz), let nn = w.neighbourhood(cn) {

@@ -732,9 +732,10 @@ enum Mesher {
             }
         }
         if smooth {
-            smoothQuads(R, sc, dmg: dmg) { x16, y16, z16, f, tint, layer, ao, l, overlay in
+            smoothQuads(R, sc, dmg: dmg) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
-                vert(false, x16, y16, z16, f, tint, 31, 31, layer, ao, l, overlay)
+                // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
+                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
             }
         }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
@@ -882,11 +883,12 @@ final class MeshScratch {
     let smD = UnsafeMutablePointer<Float>.allocate(capacity: 18 * 18 * 18)
     let smV = UnsafeMutablePointer<Float>.allocate(capacity: 17 * 17 * 17 * 3)
     let smL = UnsafeMutablePointer<Int32>.allocate(capacity: 17 * 17 * 17)
+    let smN = UnsafeMutablePointer<Float>.allocate(capacity: 17 * 17 * 17 * 3)
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
-        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate()
     }
 
     static var current: MeshScratch {

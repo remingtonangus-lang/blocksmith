@@ -22,7 +22,8 @@ void main() {
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    bool smoothV = uu == 31u && vv != 31u;           // smooth terrain vertex: v holds its normal code
+    if (uu == 31u) {
         if (face == 0u) uv = vec2(-p.z, -p.y);
         else if (face == 1u) uv = vec2(p.z, -p.y);
         else if (face == 2u) uv = vec2(p.x, p.z);
@@ -41,7 +42,7 @@ void main() {
     oUV = uv;
     oLayer = float(layer);
     oTint = tintMode != 0u ? plains[tintMode - 1u] : vec3(1.0);
-    oOverlay = float((w1 >> 30) & 1u);
+    oOverlay = smoothV ? 0.0 : float((w1 >> 30) & 1u);
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
@@ -49,7 +50,10 @@ void main() {
     vec3 lit = max(vec3(sky), blk * vec3(1.0, 0.76, 0.46));
     lit = mix(max(lit, vec3(0.035)), vec3(1.0), u.sunDir.w);
     float sw = face < 6u ? 0.85 * smoothstep(0.0, 0.45, u.params.y) * skyL * skyL * clamp((sky - blk) * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w) : 0.0;
-    vec3 nw = (pc.model * vec4(faceNormal(face), 0.0)).xyz;
-    oShade = lit * sunShadeN(nw, faceShade[face], sw, u.sunDir.xyz) * aoCurve[ao];
+    vec3 nl = faceNormal(face);
+    float fs = faceShade[face];
+    if (smoothV) { nl = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nl); }
+    vec3 nw = (pc.model * vec4(nl, 0.0)).xyz;
+    oShade = lit * sunShadeN(nw, fs, sw, u.sunDir.xyz) * aoCurve[ao];
     oDist = length(rel);
 }

@@ -12,8 +12,11 @@ import simd
 // natural solid on one side and a non-solid on the other. The crossing point uses a lightly blurred density
 // (half the cell itself, half its 3x3x3 neighbourhood), so the sign is always the block's own (no block vanishes)
 // while corners and steps round off; flat ground stays exactly at the block top.
-// Quads use the existing vertex format: the dominant normal axis picks the face (texture, shade) and u = v = 31
-// projects the texture from the position, so no shader changes on Mac (Fast, Fancy) or Quest.
+// Quads use the existing vertex format: the dominant normal axis picks the face (texture projection) and u = 31
+// projects the texture from the position. Smooth vertices also carry a smooth normal (the gradient of the block
+// solidity around the vertex, so the same on both sides of a section border): v < 31 plus the overlay bit hold
+// `normalCode`, two tilts toward the face's tangent axes; v = 31 stays the plain projected quad (greedy faces).
+// The shaders light smooth vertices with that normal (Gouraud), not the face's 6-direction shade.
 // A section owns the dual cells 0...16 of its own corner (vertices 0.5...17.5 blocks, never negative in the
 // unsigned 1/16 position bits), so it meshes quads that touch its +x/+y/+z neighbours' first block row.
 enum SmoothTerrain {
@@ -53,6 +56,20 @@ enum SmoothTerrain {
         return Blocks.opaque[i] || Blocks.collide[i]
     }
 
+    // Vertex normal code: tilt levels toward the face's tangent axes (axis+1, axis+2), finer near flat ground.
+    // The shaders hold the same table (smoothNormal in chunk.vert / Shaders.swift / VibrantShaders / ship shaders).
+    static let tiltLevels: [Float] = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1]
+    static func normalCode(_ n: SIMD3<Float>, face f: Int) -> Int {
+        let a = f / 2, sgn: Float = f & 1 == 0 ? 1 : -1
+        let na = max(0.1, n[a] * sgn)
+        func level(_ t: Float) -> Int {
+            var best = 0
+            for i in 1..<7 where abs(tiltLevels[i] - t) < abs(tiltLevels[best] - t) { best = i }
+            return best
+        }
+        return level(n[(a + 1) % 3] / na) * 7 + level(n[(a + 2) % 3] / na)
+    }
+
     // Turns the mode on/off and remeshes everything loaded.
     static func set(_ on: Bool, world: World?) {
         guard on != enabled else { return }
@@ -83,7 +100,7 @@ extension Mesher {
     // Smooth quads for the section whose local 0 is region (C0, C0, C0). `emit` takes position (1/16 block,
     // section-local), face, tint, layer, ao, packed light, overlay.
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8],
-                            _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Bool) -> Void) {
+                            _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let nat = SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins
         let skyL = sc.sky, blkL = sc.blk
@@ -115,7 +132,8 @@ extension Mesher {
 
         // Dual cell vertices 0...16 (17 per axis): position (blocks, section-local), light, ao.
         let K = 17, KK = K * K
-        let VP = sc.smV, VL = sc.smL
+        let VP = sc.smV, VL = sc.smL, VN = sc.smN
+        let dW: [Float] = [-0.5, -1, 1, 0.5], tW: [Float] = [0.5, 1, 1, 0.5]   // normal stencil: blocks c-1...c+2
         for cy in 0..<K { for cz in 0..<K { for cx in 0..<K {
             let vi = cx + cz * K + cy * KK
             var mask = 0
@@ -142,6 +160,16 @@ extension Mesher {
             let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
                 : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
+            // Normal: minus the gradient of solidity over the 4x4x4 blocks around the vertex (S index = block + 1).
+            var g = SIMD3<Float>(0, 0, 0)
+            for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
+                let sv = Float(S[(cx + i) + (cz + k) * N + (cy + j) * NN])
+                if sv == 0 { continue }
+                g.x += sv * dW[i] * tW[j] * tW[k]
+                g.y += sv * tW[i] * dW[j] * tW[k]
+                g.z += sv * tW[i] * tW[j] * dW[k]
+            } } }
+            VN[vi * 3] = -g.x; VN[vi * 3 + 1] = -g.y; VN[vi * 3 + 2] = -g.z
             // Light: mean over the open corners; ao from how many corners occlude.
             var sky = 0, blk = 0, open = 0, occ = 0
             for c in 0..<8 {
@@ -196,7 +224,6 @@ extension Mesher {
                 let tintB = Int(tintT[id])
                 let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
                 let layer = Int(texT[id * 6 + texF])
-                let overlay = false
                 let tint = tintB == 3 ? (texF == 2 ? 1 : 0) : tintB
                 let a0 = Int(VL[corner[0]]) >> 8, a1 = Int(VL[corner[1]]) >> 8
                 let a2 = Int(VL[corner[2]]) >> 8, a3 = Int(VL[corner[3]]) >> 8
@@ -205,7 +232,11 @@ extension Mesher {
                     let cc = flip ? (k + 1) & 3 : k
                     let v = Int(VL[corner[cc]])
                     let pt = pts[cc] * 16
-                    emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, v >> 8, v & 255, overlay)
+                    let vi = corner[cc]
+                    var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
+                    vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
+                    emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, v >> 8, v & 255,
+                         SmoothTerrain.normalCode(vn, face: f))
                 }
             }
         } } }

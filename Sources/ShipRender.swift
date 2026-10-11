@@ -265,7 +265,7 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     float2 uv = float2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    if (uu == 31u) {          // projected (greedy quads; smooth terrain: v holds a normal code)
         switch (face) {
             case 0u: uv = float2(-p.z, -p.y); break;
             case 1u: uv = float2(p.z, -p.y); break;
@@ -288,7 +288,7 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     o.layer = float(layer);
     o.tint = float3(1.0);
     if (tintMode != 0u) { o.tint = unpack_unorm4x8_to_float(tints[(tintMode - 1u) * 256u]).rgb; }
-    o.overlay = float((w1 >> 30) & 1u);
+    o.overlay = (uu == 31u && vv != 31u) ? 0.0 : float((w1 >> 30) & 1u);
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;

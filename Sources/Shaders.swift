@@ -100,7 +100,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     float2 uv = float2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    if (uu == 31u) {          // projected (greedy quads; smooth terrain: v holds a normal code)
         // Greedy-merged quad: UVs from the position so the texture repeats once per block.
         switch (face) {
             case 0u: uv = float2(-p.z, -p.y); break;
@@ -134,7 +134,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
         o.tint = unpack_unorm4x8_to_float(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
-    o.overlay = float((w1 >> 30) & 1u);
+    o.overlay = (uu == 31u && vv != 31u) ? 0.0 : float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;
     // Skylight scales with daylight; block light (torches) is warm and constant (a light warm cast: the old
     // (1, 0.76, 0.46) turned grey stone tan in torch-lit interiors).

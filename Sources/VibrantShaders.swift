@@ -52,7 +52,7 @@ vertex VibOut chunkVibVS(uint vid [[vertex_id]],
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     float2 uv = float2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    if (uu == 31u) {          // projected (greedy quads; smooth terrain: v holds a normal code)
         switch (face) {
             case 0u: uv = float2(-p.z, -p.y); break;
             case 1u: uv = float2(p.z, -p.y); break;
@@ -81,7 +81,7 @@ vertex VibOut chunkVibVS(uint vid [[vertex_id]],
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
         o.tint = unpack_unorm4x8_to_float(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
-    o.overlay = float((w1 >> 30) & 1u);
+    o.overlay = (uu == 31u && vv != 31u) ? 0.0 : float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;
     o.face = float(face);
     o.water = tintMode == 3u ? 1.0 : 0.0;
@@ -109,7 +109,7 @@ vertex VibOut shipVibVS(uint vid [[vertex_id]],
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     float2 uv = float2(float(uu), float(vv)) / 16.0;
-    if (uu == 31u && vv == 31u) {
+    if (uu == 31u) {          // projected (greedy quads; smooth terrain: v holds a normal code)
         switch (face) {
             case 0u: uv = float2(-p.z, -p.y); break;
             case 1u: uv = float2(p.z, -p.y); break;
@@ -126,7 +126,7 @@ vertex VibOut shipVibVS(uint vid [[vertex_id]],
     o.uv = uv;
     o.layer = float(layer);
     o.tint = tintMode != 0u ? unpack_unorm4x8_to_float(tints[(tintMode - 1u) * 256u]).rgb : float3(1.0);
-    o.overlay = float((w1 >> 30) & 1u);
+    o.overlay = (uu == 31u && vv != 31u) ? 0.0 : float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;
     o.face = float(face);
     o.water = tintMode == 3u ? 1.0 : 0.0;
@@ -511,7 +511,7 @@ vertex ShadowOut shadowVS(uint vid [[vertex_id]],
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     ShadowOut o;
     o.pos = lightVP * float4(p + off.xyz, 1.0);
-    o.uv = (uu == 31u && vv == 31u) ? float2(0.5) : float2(float(uu), float(vv)) / 16.0;
+    o.uv = uu == 31u ? float2(0.5) : float2(float(uu), float(vv)) / 16.0;
     o.layer = float(((w1 >> 10) & 1023u) | ((w1 >> 31) << 10));
     return o;
 }

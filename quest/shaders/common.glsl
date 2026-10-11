@@ -124,6 +124,16 @@ vec3 sunShadeN(vec3 n, float base, float w, vec3 sd) {
 vec3 faceNormal(uint f) {
     return f == 0u ? vec3(1, 0, 0) : f == 1u ? vec3(-1, 0, 0) : f == 2u ? vec3(0, 1, 0) : f == 3u ? vec3(0, -1, 0) : f == 4u ? vec3(0, 0, 1) : vec3(0, 0, -1);
 }
+// Smooth terrain vertex normal (SmoothTerrain.normalCode, Mesher: u = 31, v < 31, code = v + 31 * overlay bit):
+// tilts toward the face's two tangent axes; lit like the cube faces (smoothShade blends faceShade by the normal).
+const float smoothTilt[7] = float[](-1.0, -0.5, -0.2, 0.0, 0.2, 0.5, 1.0);
+vec3 smoothNormal(uint f, uint code) {
+    uint a = f / 2u;
+    vec3 e1 = vec3(0.0), e2 = vec3(0.0);
+    e1[(a + 1u) % 3u] = 1.0; e2[(a + 2u) % 3u] = 1.0;
+    return normalize(faceNormal(f) + smoothTilt[code / 7u] * e1 + smoothTilt[code % 7u] * e2);
+}
+float smoothShade(vec3 n) { return n.x * n.x * 0.80 + n.z * n.z * 0.68 + n.y * n.y * (n.y > 0.0 ? 1.0 : 0.55); }
 // Cheap filmic curve for world surfaces (not HUD/panels): soft shoulder above 0.9, highlight lift above mid-grey
 // (shadows and 0.5 untouched), saturation 1.08. ~14 ALU per fragment.
 vec3 filmic(vec3 c) {
