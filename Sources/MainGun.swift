@@ -75,6 +75,7 @@ final class Shockwave {
     var hit: [Mob] = []                     // mobs the front struck (the strike report counts the fallen: MainGunStrikes)
     var site: MainGunStrikes.Site?          // what the slug landed on (a citadel, a Capital city, Boreal Station)
     var reported = false
+    var byPlayer = false                    // fired from the player's helm or ship (only those earn the strike credit)
     init(center: V3, owner: Int) { self.center = center; self.owner = owner }
 }
 
@@ -220,6 +221,7 @@ extension ShipManager {
         MainGun.noteImpact(at: p)
         let wave = Shockwave(center: p, owner: owner)
         wave.site = MainGunStrikes.site(g, at: p)
+        wave.byPlayer = capState[owner]?.gunByPlayer == true || aboard?.root.id == owner || pilot?.root.id == owner
         g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
         if craterGroundLoaded(p) {
             wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)

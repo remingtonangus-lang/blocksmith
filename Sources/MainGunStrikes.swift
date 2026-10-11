@@ -12,7 +12,7 @@ import simd
 //                        dropships, its craters are never rebuilt; the player earns "Siege Breaker". Saved with the
 //                        citadel's record (BaseRecord.strikes / lost / broken).
 enum MainGunStrikes {
-    struct Site { let key: String?; let name: String }
+    struct Site { let key: String?; let name: String; var city = false }
     static let breakStrikes = 3, breakLosses = 16
     static var reports: [String] = []                  // harness
     static var brokenCount = 0
@@ -32,7 +32,7 @@ enum MainGunStrikes {
                 return Site(key: key, name: "the Capital citadel")
             }
         }
-        if let c = CapitalTown.city(g, x: x, z: z) { return Site(key: nil, name: c) }
+        if let c = CapitalTown.city(g, x: x, z: z) { return Site(key: nil, name: c, city: true) }
         if let s = sc.nearest(BorealStation.kind, x: x, z: z, maxRegions: 1) {
             let cx = Float(s.min.x + s.max.x) / 2, cz = Float(s.min.z + s.max.z) / 2
             if abs(p.x - cx) < Float(BorealStation.yard) + MainGun.shockRadius * 0.5 && abs(p.z - cz) < Float(BorealStation.yard) + MainGun.shockRadius * 0.5 {
@@ -42,10 +42,16 @@ enum MainGunStrikes {
         return nil
     }
 
-    // The front has passed: count the fallen, credit the citadel, maybe break it, tell the player.
+    // The front has passed: count the fallen, credit the citadel, maybe break it, tell the player. Only a slug the
+    // player fired (from the helm, or by the ship they're aboard) counts: a Meridian frigate shelling the player beside
+    // a citadel still makes the citadel hear it (the noise bus), but breaks nothing and earns nothing.
     static func report(_ g: Game, _ w: Shockwave) {
-        let fallen = w.hit.filter { $0.health <= 0 && $0.kind.steelhold }.count
+        let dead = w.hit.filter { $0.health <= 0 }
         w.hit.removeAll()
+        guard w.byPlayer else { return }
+        // The Capital's own soldiers (another navy's crew or the Ashguard are not the Capital's garrison).
+        let fallen = dead.filter { $0.kind.steelhold && !$0.kind.ash && $0.factionValue == .steelhold }.count
+        let folk = dead.filter { $0.kind == .villager && $0.villager?.person != nil }.count
         var line: String
         if let site = w.site {
             line = "Tidebreaker hit on \(site.name): \(fallen) of the garrison down"
@@ -64,6 +70,8 @@ enum MainGunStrikes {
                     line += " (already broken)"
                 }
                 g.bases.records[key] = r
+            } else if site.city {
+                line = shellCity(g, site.name, at: w.center, folk: folk, soldiers: fallen)
             }
         } else if fallen > 0 {
             line = "Tidebreaker: \(fallen) Capital soldiers down"
@@ -72,8 +80,31 @@ enum MainGunStrikes {
         }
         reports.append(line)
         if reports.count > 32 { reports.removeFirst() }
-        // Told to whoever fired it (aboard or at the helm of that ship) or is near enough to have seen it.
-        let shooter = g.world.ships.aboard?.root.id == w.owner || g.world.ships.pilot?.root.id == w.owner
-        if shooter || simd_length(g.player.pos - w.center) < MainGun.shockFelt { g.onToast?(line) }
+        g.onToast?(line)                                   // the player fired it: always told
+    }
+
+    // A Capital city shelled by the player: the city turns on them (its law and armed townsfolk fight, the rest flee;
+    // the usual bounty), every townsperson killed is a murder on their honour and their head, and the Capital's
+    // garrison is counted like a citadel's. Creative play: only the report.
+    static var citiesShelled = 0
+    static func shellCity(_ g: Game, _ city: String, at p: V3, folk: Int, soldiers: Int) -> String {
+        citiesShelled += 1
+        let killed = folk > 0 ? ", \(folk) of its people killed" : ""
+        guard g.survival else { return "Tidebreaker hit on \(city): \(soldiers) of the garrison down\(killed)" }
+        let witness = g.mobs.mobs.filter { TownLaw.isTownsperson($0) && TownLaw.town(of: $0, g) == city }
+            .min { simd_length($0.pos - p) < simd_length($1.pos - p) }
+        if let wtn = witness {
+            TownLaw.turnHostile(g, city, at: wtn.pos, witness: wtn)
+        } else {
+            let fresh = !TownLaw.isHostile(city)
+            TownLaw.state.hostile[city] = TownLaw.hostileSeconds
+            TownLaw.state.heat[city] = TownLaw.hostileHeat
+            if fresh { Honour.townTurned(g, city) }
+        }
+        if folk > 0 {
+            Honour.change(g, -Float(min(40, 15 * folk)), "you shelled \(city)")
+            Honour.addBounty(g, city, 1500 * folk)
+        }
+        return "Tidebreaker hit on \(city): \(soldiers) of the garrison down\(killed). \(city) has turned on you"
     }
 }
