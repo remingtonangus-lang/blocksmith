@@ -111,7 +111,7 @@ enum Fireworks {
         if Bundles.isBundle(s) {
             for c in (s.contents ?? []).prefix(6) { out.append("\(c.displayName) x\(c.count)") }
             if (s.contents ?? []).count > 6 { out.append("and \((s.contents ?? []).count - 6) more...") }
-            out.append("\(Bundles.fill(s))/64")
+            out.append("\(Bundles.fill(s))/\(Bundles.capacity(s))")
         }
         if k.hasPrefix("music_disc_") { out.append(MusicDiscs.title(String(k.dropFirst(11)))) }
         if k == "goat_horn" { out.append(GoatHorns.names[max(0, min(7, s.tag))]) }

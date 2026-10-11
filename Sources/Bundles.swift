@@ -4,7 +4,9 @@ import Foundation
 // counts 4 each, unstackables 64, a nested bundle 4 + its contents). Right-click in menus to
 // put items in / take the last one out; using a bundle in hand empties it onto the ground.
 enum Bundles {
-    static func isBundle(_ s: ItemStack) -> Bool { let k = Items.key(s.item); return k == "bundle" || k.hasSuffix("_bundle") }
+    static func isBundle(_ s: ItemStack) -> Bool { let k = Items.key(s.item); return k == "bundle" || k.hasSuffix("_bundle") || Hunting.satchels[k] != nil }
+    // Room: 64 for a bundle, more for the hunting satchels (Hunting.swift).
+    static func capacity(_ b: ItemStack) -> Int { Hunting.satchels[Items.key(b.item)] ?? 64 }
     static func weight(_ s: ItemStack) -> Int {
         if isBundle(s) { return 4 + (s.contents ?? []).reduce(0) { $0 + weight($1) } }
         return s.count * (64 / max(1, s.maxStack))
@@ -15,7 +17,7 @@ enum Bundles {
     static func insert(_ b: ItemStack, _ s: ItemStack) -> (ItemStack, ItemStack) {
         guard !s.isEmpty, !Items.key(s.item).hasSuffix("shulker_box") else { return (b, s) }   // no shell boxes in bundles
         let per = isBundle(s) ? weight(s) : 64 / max(1, s.maxStack)
-        let room = 64 - fill(b)
+        let room = capacity(b) - fill(b)
         let n = min(s.count, room / max(1, per))
         guard n > 0 else { return (b, s) }
         var nb = b

@@ -12,6 +12,7 @@ final class Bobber {
     var approach: Float = 0        // seconds of a fish swimming in
     var bite: Float = 0            // > 0 while a fish is on the hook
     weak var hooked: Mob?
+    var fight: Fishing.Fight?      // a fish on the line (Fishing.swift)
     init(_ p: V3, _ v: V3, wait: Float) { pos = p; vel = v; self.wait = wait }
 }
 
@@ -158,12 +159,22 @@ extension Game {
 
     // MARK: Fishing
 
-    func fishingUse(_ useNow: Bool) -> Bool {
+    func fishingUse(_ useNow: Bool, _ useHeld: Bool = false) -> Bool {
         guard Items.key(held.item) == "fishing_rod" else { return false }
+        Fishing.reeling = useHeld
+        if bobber?.fight != nil { return true }               // a fish on: holding use reels (fishFightTick)
         guard useNow else { return true }
         if let b = bobber {
-            // Reel in.
-            if b.bite > 0 { catchFish(b) }
+            // Reel in. A fish starts a fight (Fishing.swift); junk and treasure come in at once.
+            if b.bite > 0 && catchIsFish() {
+                b.fight = Fishing.start(self, b)
+                b.bite = 0
+                sfx(.fishSplash, 0.8, at: b.pos)
+                PadManager.shared.rumble(0.4, 0.15)
+                swing = 1
+                return true
+            }
+            if b.bite > 0 { catchFish(b, fish: false) }
             else if let m = b.hooked { m.vel += simd_normalize(player.pos - m.pos + V3(0, 1e-3, 0)) * 8 + V3(0, 3, 0); damageHeld(3) }
             else if !b.inWater && Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y - 0.1)), Int(floor(b.pos.z))))] { damageHeld(2) }
             bobber = nil
@@ -181,9 +192,10 @@ extension Game {
 
     func bobberTick(_ dt: Float) {
         guard let b = bobber else { return }
-        if Items.key(held.item) != "fishing_rod" || simd_length(b.pos - player.pos) > 32 { bobber = nil; return }
+        if Items.key(held.item) != "fishing_rod" || (b.fight == nil && simd_length(b.pos - player.pos) > 32) { bobber = nil; return }
         let cell = world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z)))
         b.inWater = Blocks.fluidKind[Int(cell)] == 1
+        if let f = b.fight { fishFightTick(b, f, dt); return }
         if let m = b.hooked {
             b.pos = m.pos + V3(0, m.height * 0.8, 0)
             if m.health <= 0 { b.hooked = nil }
@@ -222,10 +234,17 @@ extension Game {
     }
 
     // Reference fishing loot: fish / junk / treasure by Luck of the Sea and Luck.
-    func catchFish(_ b: Bobber) {
-        achieve("fish")
+    // Whether this bite is a fish (85%, less with luck) rather than junk or treasure.
+    func catchIsFish() -> Bool {
         let luck = Float(Enchant.level(.luckOfTheSea, held) + effects.level(.luck))
         let junkW = max(0, 10 - 2 * luck), treasureW = 5 + 2 * luck, fishW = max(0, 85 - luck)
+        return Rand.float(in: 0..<(junkW + treasureW + fishW)) < fishW
+    }
+
+    func catchFish(_ b: Bobber, fish: Bool = true) {
+        achieve("fish")
+        let luck = Float(Enchant.level(.luckOfTheSea, held) + effects.level(.luck))
+        let junkW = max(0, 10 - 2 * luck), treasureW = 5 + 2 * luck, fishW: Float = fish ? max(0, 85 - luck) : 0
         var r = Rand.float(in: 0..<(junkW + treasureW + fishW))
         var out: ItemStack
         if r < fishW {

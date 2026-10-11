@@ -303,6 +303,12 @@ enum Tutorial {
 }
 
 enum HudExtras {
+    // The line under the crosshair: a townsperson's glance, else hunting (studying game, skinning, a fish fight).
+    static func glanceLines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        if let a = Hunting.actionLines(g, L) { return a }
+        let t = TownStatsHUD.lines(g, L)
+        return t.isEmpty ? Hunting.lines(g, L) : t
+    }
     static var enabled = true       // the snapshot harness turns tips and prompts off unless --hints
     static var loading: String?     // full-screen "Loading..." while a world switch blocks the main thread
 
@@ -314,6 +320,7 @@ enum HudExtras {
         BugNotes.shared.tick(g)
         MapCache.shared.tick(g)
         TownLaw.tick(g)
+        Hunting.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -339,7 +346,7 @@ enum HudExtras {
         let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
         out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
         if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
-        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + TownStatsHUD.lines(g, L) + out }
+        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + glanceLines(g, L) + out }
         return out
     }
 }

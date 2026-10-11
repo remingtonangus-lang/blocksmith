@@ -37,7 +37,7 @@ enum Recipes {
     ]
     static var tagSets: [String: Set<ItemID>] = {
         var out: [String: Set<ItemID>] = [:]
-        for (k, v) in tags { out[k] = Set(v.filter { Items.has($0) }.map { Items.id($0) }) }
+        for (k, v) in tags.merging(Hunting.tags, uniquingKeysWith: { a, _ in a }) { out[k] = Set(v.filter { Items.has($0) }.map { Items.id($0) }) }
         return out
     }()
 
@@ -462,6 +462,7 @@ enum Recipes {
         r.append(shaped(["GGG", "GSG", "OOO"], ["G": "glass", "S": "nether_star", "O": "obsidian"], "beacon"))
         r.append(shaped(["###", "# #"], ["#": "turtle_scute"], "turtle_helmet"))
         r.append(shapeless(["rabbit_hide", "rabbit_hide", "rabbit_hide", "rabbit_hide"], "leather"))
+        r += Hunting.recipes()
         r.append(shapeless(["bowl", "cooked_rabbit", "carrot", "baked_potato", "brown_mushroom"], "rabbit_stew"))
         r.append(shapeless(["bowl", "cooked_rabbit", "carrot", "baked_potato", "red_mushroom"], "rabbit_stew"))
         for f in SuspiciousStew.flowers where Items.has(f.0) {
@@ -536,6 +537,8 @@ enum Recipes {
     // Additional smelting pairs generated for colour families and the newer items.
     static let smeltingExtra: [String: String] = {
         var m: [String: String] = ["cod": "cooked_cod", "salmon": "cooked_salmon", "rabbit": "cooked_rabbit", "mutton": "cooked_mutton",
+                                   "game_meat": "cooked_game_meat", "perch": "cooked_fish", "trout": "cooked_fish", "pike": "cooked_fish",
+                                   "catfish": "cooked_fish",
                                    "potato": "baked_potato", "kelp": "dried_kelp", "cactus": "green_dye", "sea_pickle": "lime_dye",
                                    "wet_sponge": "sponge", "netherrack": "nether_brick", "ancient_debris": "netherite_scrap",
                                    "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz", "deepslate_lapis_ore": "lapis_lazuli",

@@ -374,6 +374,11 @@ final class Mob {
     var horse: HorseState?          // ridden-horse gait, stamina and bond (HorseFeel.swift)
     var breed = -1                  // HorseBreed (HorseLife.swift), saved; -1: inferred from the speed roll (older horses)
     var downed: Float = 0           // s left for a downed horse of yours to be revived (HorseLife.swift), saved
+    var peltQ: Int8 = 0             // game quality 1 poor, 2 good, 3 perfect; rolled on first need, saved (Hunting.swift)
+    var huntHits: UInt8 = 0         // the player's hits on it so far, and the worst weapon fit among them (Hunting.swift)
+    var huntLoss: UInt8 = 0
+    var legend: Int8 = -1           // a legendary animal's index in Hunting.legends, saved
+    var carcass = false             // a body waiting to be skinned (Hunting.bodies, never in the mob list), drawn on its side
     var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
@@ -443,6 +448,7 @@ final class Mob {
     func provoke(_ g: Game) {
         aggro = true
         playerHurtAt = g.clock
+        Hunting.hit(g, self)                                     // weapon and hit count for the pelt
         g.petsAttack(self)
         // Hitting a townsperson who is already fighting you (self-defence) doesn't cost more standing or raise a new alarm.
         if kind == .villager, town.anger <= 0, var v = villager { v.addGossip(.minorNeg, 25); villager = v; g.townAlarm(self) }
@@ -1952,6 +1958,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             if d2 > lo && d2 <= hi { list.append(m) }
         }
     }
+    // Bodies waiting to be skinned (Hunting.swift) are drawn with the mobs, nearest-ring order aside.
+    for m in Hunting.bodyMobs {
+        let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+        if dx * dx + dz * dz <= min(maxD2, 64 * 64) { list.append(m) }
+    }
     defer { MobOrder.list = list }
     for (idx, m) in list.enumerated() {
         // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
@@ -1981,6 +1992,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let lit = glow ? max(bright, 0.85) : bright
         let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
         let lie = m.lying
+        let side: Float = m.carcass ? m.spec.halfW * 16 : 0, sideX: Float = m.spec.height * 8
         // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
         // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
         let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
@@ -1998,6 +2010,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     var q = p.place(lp, rot)
                     if lie { q = V3(q.x, 4 - q.z, q.y) }          // on its back: model up runs toward the pillow
+                    else if side > 0 { q = V3(sideX - q.y, q.x + side, q.z) }   // a body on its side (Hunting.swift)
                     // Cheap ambient occlusion: darker toward the feet (x0.72 at model y 0, full by y 10) and at each
                     // box's lower end, so legs and bellies read as shaded rather than flat-lit.
                     let t = min(1, max(0, q.y * 0.1))

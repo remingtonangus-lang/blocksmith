@@ -27,6 +27,7 @@ struct MobRecord: Codable {
 extension Mob {
     var keepOnUnload: Bool {
         if health <= 0 { return false }
+        if legend >= 0 || carcass { return false }            // a legend comes back at its den (Hunting.legendTick)
         if persistent || customName != nil || villager != nil || leashed { return true }
         // Despawning categories (monsters, bats, fish, squid...) are simply dropped when their chunk unloads.
         return !kind.category.despawns
@@ -97,6 +98,8 @@ extension Mob {
         if let h = horse, h.bondXP > 0 { d["bxp"] = h.bondXP }
         if breed >= 0 { d["breed"] = Float(breed) }
         if downed > 0 { d["down"] = downed }
+        if peltQ != 0 { d["pq"] = Float(peltQ) }
+        if legend >= 0 { d["legend"] = Float(legend) }
         if let s = stayAt { d["stayX"] = s.x; d["stayY"] = s.y; d["stayZ"] = s.z }
         if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
@@ -125,6 +128,8 @@ extension Mob {
         if let x = d["bxp"] { hs.bondXP = x }
         breed = Int(d["breed"] ?? -1)
         downed = d["down"] ?? 0
+        peltQ = Int8(max(0, min(3, d["pq"] ?? 0)))
+        legend = Int8(max(-1, min(Float(Hunting.legends.count - 1), d["legend"] ?? -1)))
         if let x = d["stayX"], let y = d["stayY"], let z = d["stayZ"] { stayAt = V3(x, y, z) }
         if let x = d["brushCd"] { hs.brushCool = x }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }

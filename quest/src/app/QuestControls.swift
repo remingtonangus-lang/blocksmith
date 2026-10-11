@@ -216,7 +216,9 @@ final class QuestControls {
         // Only real melee weapons hit by contact; with anything else (fist, blocks, torches, food) the trigger attacks.
         if !inMenu && game.alive && game.meleeContactOnly && game.heldGun == nil { swingContact(R, dt: dt) } else { bladeValid = false }
         // The bow: drawn by pulling its string back with the other hand (bowUpdate); the left trigger nocks and looses.
-        if !inMenu && game.alive && !held.isEmpty && Items.key(held.item) == "bow" { p.lt = bowUpdate(R, L, dt: dt) } else { bowReset() }
+        // Aimed at a body to skin (Hunting.swift), the left trigger skins instead of nocking.
+        if !inMenu && game.alive && !held.isEmpty && Items.key(held.item) == "bow"
+            && (Hunting.bodies.isEmpty || Hunting.body(game, under: game.player.eye, game.player.look) == nil) { p.lt = bowUpdate(R, L, dt: dt) } else { bowReset() }
         // Getting hurt: a thump in both hands.
         if game.hurtFlash > lastHurtFlash + 0.05 {
             app.input.haptic(0, amplitude: 0.7, seconds: 0.09, frequency: 90)

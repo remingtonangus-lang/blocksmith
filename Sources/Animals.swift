@@ -133,7 +133,7 @@ extension Mob {
                 face(player)
                 if g.meleeGap(self) < halfW + 1.2 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    g.hurtPlayer(legend >= 0 ? spec.attack * 2 : spec.attack, from: pos, cause: "was slain by \(customName ?? spec.name)", attacker: self)
                     if kind == .bee {
                         let poison: [Float] = [0, 0, 10, 18]                 // none on easy, 18 s on hard (reference)
                         let s = poison[max(0, min(3, g.difficulty))]

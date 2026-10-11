@@ -92,7 +92,7 @@ extension Game {
         let feet = IVec3(Int(floor(player.pos.x)), Int(floor(player.pos.y + 0.1)), Int(floor(player.pos.z)))
         let below = IVec3(feet.x, Int(floor(player.pos.y - 0.05)), feet.z)
         let snow = Blocks.id("powder_snow")
-        let boots = Items.key(inventory.armor[3].item) == "leather_boots"
+        let boots = ["leather_boots", "fur_boots"].contains(Items.key(inventory.armor[3].item))
         if boots && world.block(below.x, below.y, below.z) == snow && player.vel.y <= 0 && world.block(feet.x, feet.y, feet.z) != snow {
             player.pos.y = Float(below.y + 1)
             player.vel.y = 0
@@ -105,7 +105,7 @@ extension Game {
             player.vel.y = max(player.vel.y, -1.5)
             if !boots { player.airPeak = player.pos.y }
             // Any piece of leather armour keeps the cold out (reference; only the boots counted).
-            let leather = inventory.armor.slots.contains { Items.key($0.item).hasPrefix("leather_") }
+            let leather = inventory.armor.slots.contains { let k = Items.key($0.item); return k.hasPrefix("leather_") || k.hasPrefix("fur_") }
             if !leather { freeze = min(7, freeze + dt) }
         } else {
             freeze = max(0, freeze - 2 * dt)
