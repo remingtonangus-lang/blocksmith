@@ -70,3 +70,29 @@ fp32. The Clouds option turns it off. Device fps before/after is for lane M (M3)
 ### Screenshots
 docs/status/evidence/look-upgrade/sky_{noon,sunset,overcast,storm_flash,night,horizon,horizon_overcast}.png (after) and `_before.png` (the same
 view without clouds, i.e. the Quest before this change).
+
+## Part 2: the Powderwight (replaces the Hisser)
+
+### Design note
+- **Name**: Powderwight. **Look**: a hunched dead miner, grey-green skin, torn coat with ragged tails, a miner's cap with
+  a dead lamp, dim amber eyes, a powder keg (staves, two iron hoops, fuse cord) slung high over its left shoulder so it
+  shows beside the head from the front. Uneven silhouette, readable at 20 blocks at night by the amber eyes.
+- **Role** (same as the genre mob it replaces): punishes inattention and damages builds. It walks up quietly; within
+  3 blocks in sight it strikes the fuse and blows after 1.75 s (power 3; 6 if lightning-charged), unless the target
+  gets 7 blocks away or out of sight.
+- **Telegraph**: the fuse sizzle (sound, captioned "Powderwight fuse sizzles"), a bright flickering spark on top of the
+  keg plus glowing sparks spitting off it, the keg rattling and swelling, the body leaning in with both arms thrown up,
+  and a warm blink over its body.
+- **Counterplay**: hit it (a hit stops the fuse, as before), back off past 7 blocks or break line of sight, shoot it,
+  or douse it: water puts the fuse out and a soaked Powderwight cannot strike again for 4 s; rain makes its fuse burn
+  slower (x0.7). Cats still scare it.
+- **Drops**: gunpowder 0-2 (unchanged; its keg). Head (by charged blast), banner pattern and music-disc rules unchanged.
+- **Saves**: the internal key stays `creeper`, so every existing save's mobs, heads, banners and stats load as the
+  Powderwight with no migration; a pre-change mob record is decoded in the checks.
+
+### Checks (questcheck, quest/src/test/PowderwightTest.swift)
+Name + key; an old save's record loads as a Powderwight; the lit fuse adds one bright emissive spark part; 1.7-block
+model height; strikes its fuse beside the player on dry ground; the fuse spits glowing sparks from the keg; a hit stops
+the fuse; water douses it and it stays out while soaked; once dry it strikes again. MobDrawTest still draws every kind.
+Portraits: `questcheck --render X --mob-shots DIR --mob-kinds creeper` (day, night, lit) in
+docs/status/evidence/look-upgrade/mob_creeper_*.png; mob_creeper_before.png is the Hisser.

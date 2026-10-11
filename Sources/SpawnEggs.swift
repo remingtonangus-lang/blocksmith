@@ -24,7 +24,7 @@ enum SpawnEggs {
         case .husk: return 0x797061
         case .drowned: return 0x8FF1D7
         case .skeleton, .stray, .bogged: return k == .skeleton ? 0xC1C1C1 : (k == .stray ? 0x617677 : 0x8A9A5B)
-        case .creeper: return 0x0DA70B
+        case .creeper: return 0x5A4630
         case .spider, .caveSpider: return k == .spider ? 0x342D27 : 0x0C424E
         case .enderman, .endermite: return 0x161616
         case .slime: return 0x51A03E

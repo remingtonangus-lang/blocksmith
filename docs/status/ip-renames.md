@@ -100,3 +100,16 @@ Standing rule (Remington): borrow the feel of Red Dead Redemption 2, GoldenEye a
 | Mac gamepad layout preset: Pause > Controls row, help text, toast (PadMap, PauseMenu) | `padLayout = "halo"`, `PadMap.halo` | Halo | Shooter |
 | Injured-horse cure: item name, shop rows, toasts (HorseLife, Items, Shops, Riding; the gap pass) | `saddle_salve` | Horse Reviver (a western game's item) | Saddle Salve |
 | (none found) | | UNSC | (grep of Sources/, quest/, docs/ on 2026-10-09: no occurrence) |
+
+## The exploding mob replaced (2026-10-11, L1 part 2, Lane C)
+The Hisser was the genre's green four-legged exploder under a new name (and its banner charge and firework shape were the
+genre's face). It is now the Powderwight, Blocksmith's own mob in that role: a hunched dead miner with a powder keg
+slung on its back (look, telegraph and counterplay in docs/status/look-upgrade.md part 2). Internal keys unchanged.
+| Was (player-visible) | Now | Where | Internal key (unchanged) |
+|---|---|---|---|
+| Hisser (mob name, death message) | Powderwight | Mob.swift spec, main.swift | `creeper` |
+| "Hisser hisses" (captions) | "Powderwight fuse sizzles" | AudioSubtitles.swift, HudExtras.swift | `creeperHiss` |
+| Hisser Head (green, slit eyes, zigzag mouth) | Powderwight Head (cap brim, amber eyes) | BlocksMagic.swift | `creeper_head`, `head_creeper` |
+| Hisser Charge (banner; the genre's face picture) | Powder Keg Charge (a keg with a lit fuse) | Banners.swift | `creeper`, `creeper_banner_pattern` |
+| Hisser-shaped firework (the genre's face) | Keg-shaped | Fireworks.swift | shape 3 |
+| Green spawn egg | Brown spawn egg | SpawnEggs.swift | `creeper` |

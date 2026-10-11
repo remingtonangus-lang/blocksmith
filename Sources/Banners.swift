@@ -18,7 +18,7 @@ enum Banners {
         ("triangles_bottom", "Base Indented", nil), ("triangles_top", "Chief Indented", nil), ("circle", "Roundel", nil), ("rhombus", "Lozenge", nil),
         ("border", "Bordure", nil), ("gradient", "Gradient", nil), ("gradient_up", "Base Gradient", nil),
         ("curly_border", "Bordure Indented", "bordure_indented_banner_pattern"), ("bricks", "Field Masoned", "field_masoned_banner_pattern"),
-        ("creeper", "Hisser Charge", "creeper_banner_pattern"), ("skull", "Skull Charge", "skull_banner_pattern"),
+        ("creeper", "Powder Keg Charge", "creeper_banner_pattern"), ("skull", "Skull Charge", "skull_banner_pattern"),
         ("flower", "Flower Charge", "flower_banner_pattern"), ("thing", "Thing", "thing_banner_pattern"), ("globe", "Globe", "globe_banner_pattern"),
         ("piglin", "Snout", "piglin_banner_pattern"), ("flow", "Flow", "flow_banner_pattern"), ("guster", "Gust", "guster_banner_pattern"),
     ]
@@ -105,10 +105,10 @@ enum Banners {
 
     // Original charge pictures.
     static let charges: [String: [String]] = [
-        "creeper": [
-            "................", "................", "..####....####..", "..####....####..", "..####....####..", "..####....####..",
-            "......####......", "......####......", "....########....", "....########....", "....########....", "....##....##....",
-            "....##....##....", "................", "................", "................",
+        "creeper": [            // a powder keg with its fuse lit (the Powderwight's)
+            "................", "........#.......", ".......#........", "........#.......", ".....######.....", "....########....",
+            "....########....", "................", "....########....", "....########....", "....########....", "................",
+            "....########....", "....########....", ".....######.....", "................",
         ],
         "skull": [
             "................", ".....######.....", "....########....", "...##########...", "...##..##..##...", "...##..##..##...",

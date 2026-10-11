@@ -61,7 +61,7 @@ enum MobKind: Int, CaseIterable {
                                   burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .skeleton: return Spec(name: "Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                     burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
-        case .creeper: return Spec(name: "Hisser", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
+        case .creeper: return Spec(name: "Powderwight", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
         case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
                                   drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
@@ -292,7 +292,8 @@ final class Mob {
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
-    var flinch: Float = 0           // hisser: a hit stops the swell this long
+    var flinch: Float = 0           // powderwight: a hit stops the fuse this long
+    var soaked: Float = 0           // powderwight: seconds until a doused fuse can be struck again
     var fire: Float = 0             // seconds left burning
     var fireTick: Float = 0
     var aggro = false               // voidwalker / spider provoked
@@ -458,6 +459,15 @@ final class Mob {
         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
     }
     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
+    // Where the Powderwight's fuse burns, in the world: the spark part's centre (model -4.8, 29.2, 5.5) after the hunch
+    // of a lit one (-0.55 about the hip) and the body yaw, as writeMobVertices places it.
+    var kegSpark: V3 {
+        let h: Float = -0.55, cx = cosf(h), sx = sinf(h)
+        let y: Float = 29.2 - 12, z: Float = 5.5
+        let q = V3(-4.8, 12 + y * cx - z * sx, y * sx + z * cx) * (scale / 16)
+        let cy = cosf(yaw), sy = sinf(yaw)
+        return pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
+    }
     static let hisserFuse: Float = 1.75   // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra)
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
@@ -876,12 +886,26 @@ final class Mob {
                 face(player)
                 // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away or out of
                 // sight (behind a wall it un-swells instead of blowing up through it).
+                // Powderwight counterplay (its own): water douses the fuse and a soaked one can't be struck (it
+                // wades on, harmless, until it dries); rain wets it, so the fuse burns slower.
+                if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 {
+                    if fuse > 0 { g.sfx(.fizz, 0.8, at: pos) }
+                    fuse = 0
+                    soaked = 4
+                }
+                soaked = max(0, soaked - dt)
                 if flinch > 0 {
                     flinch -= dt
                     speed = 0
-                } else if (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
+                } else if soaked == 0 && (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
-                    fuse += dt
+                    fuse += dt * (g.isRainingAt(pos) ? 0.7 : 1)
+                    // Sparks spitting off the fuse: the telegraph that reads across a field and in the dark.
+                    if Rand.float(in: 0..<1) < dt * 30 {
+                        g.particles.add(Particle(pos: kegSpark, vel: V3(Rand.float(in: -1.2...1.2), Rand.float(in: 1...2.6), Rand.float(in: -1.2...1.2)),
+                                                 life: 0.35, maxLife: 0.35, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.06,
+                                                 gravity: 9, color: V3(1, 0.75, 0.3), collide: false, glow: true))
+                    }
                     speed = 0
                 } else {
                     fuse = max(0, fuse - dt)
@@ -1594,26 +1618,56 @@ private func parts(_ m: Mob) -> [Part] {
         }
         return p
     case .creeper:
-        let g = V3(0.35, 0.72, 0.3)
-        let pulse: Float = m.fuse > 0 ? 1 + 0.15 * sinf(m.fuse * 30) : 1
-        let white = m.fuse > 0 && Int(m.fuse * 8) % 2 == 0
-        let c = white ? V3(1, 1, 1) : g
-        let s = pulse
-        let dk = c * 0.68                                       // mottled darker patches over body and head
-        return [
-            box(-3 * s, 13, -2 * s - 0.1, 2, 2, 0.1, dk), box(1 * s, 9, -2 * s - 0.1, 2, 2.5, 0.1, dk),
-            box(-1 * s, 14, 2 * s, 2.5, 2, 0.1, dk), box(-4 * s - 0.1, 23, -1, 0.1, 2, 2.5, dk),
-            box(4 * s, 19.5, 0, 0.1, 2, 2, dk), box(-1 * s, 26, -2, 3, 0.1, 2, dk),
-            box(-4 * s, 6, -2 * s, 8 * s, 12, 4 * s, c, 4),
-            box(-4 * s, 18, -4 * s, 8 * s, 8, 8 * s, c, 4),
-            // Hisser face (original): wide-set glowing slit eyes, zigzag hissing mouth.
-            box(-4 * s, 22, -4.2 * s, 1, 1, 0.3, black), box(-3 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3), 9),
-            box(2 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3), 9), box(3 * s, 22, -4.2 * s, 1, 1, 0.3, black),
-            box(-4 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(-2 * s, 20, -4.2 * s, 1, 1, 0.3, black),
-            box(1 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(3 * s, 20, -4.2 * s, 1, 1, 0.3, black),
-            box(-3 * s, 19, -4.2 * s, 1, 1, 0.3, black), box(-1 * s, 19, -4.2 * s, 2, 1, 0.3, black), box(2 * s, 19, -4.2 * s, 1, 1, 0.3, black),
-            leg(-2, -4, 4, 6, 1, c, 4), leg(2, -4, 4, 6, -1, c, 4), leg(-2, 4, 4, 6, -1, c, 4), leg(2, 4, 4, 6, 1, c, 4),
+        // The Powderwight (Blocksmith's own mob in this role; docs/status/look-upgrade.md part 2): a hunched dead miner
+        // with a powder keg strapped to its back. Its eyes glow dim amber in the dark; close to its target it strikes
+        // the fuse (a bright, flickering spark on the keg, the keg shuddering, its arms thrown up) and blows.
+        let lit = m.fuse > 0
+        let flick: Float = lit ? 0.5 + 0.5 * sinf(m.fuse * 41) : 0
+        let blink = lit && Int(m.fuse * 8) % 2 == 0
+        let warm = V3(1.0, 0.82, 0.62)
+        func t(_ c: V3) -> V3 { blink ? simd_mix(c, warm, V3(repeating: 0.6)) : c }
+        let skin = t(V3(0.47, 0.54, 0.41)), coat = t(V3(0.29, 0.25, 0.19)), pants = t(V3(0.2, 0.19, 0.17))
+        let boot = V3(0.13, 0.11, 0.09), wood = t(V3(0.52, 0.34, 0.16)), hoop = V3(0.22, 0.22, 0.24), cap = t(V3(0.26, 0.22, 0.17))
+        let eyeK: Float = lit ? 1.25 : 0.9
+        let amber = V3(0.95, 0.62, 0.22) * eyeK
+        let hunch: Float = lit ? -0.55 : -0.4                     // leans in over its target once lit
+        let hip = V3(0, 12, 0)
+        let shake: Float = lit ? 0.35 * sinf(m.fuse * 55) : 0     // the keg rattles on its straps
+        let sw: Float = lit ? 1 + 0.07 * sinf(m.fuse * 30) : 1      // and swells a little
+        func tb(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float = 0) -> Part {
+            Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), pivot: hip, rotX: hunch, color: c, pattern: pat)
+        }
+        var p: [Part] = [
+            leg(-2, 0, 3.4, 12, 1, pants, 4), leg(2, 0, 3.4, 12, -1, pants, 4),
+            hoof(-2, 0, 3.4, 12, 1, boot, 2.5), hoof(2, 0, 3.4, 12, -1, boot, 2.5),
+            tb(-4, 12, -2.5, 8, 10, 5, coat, 4),                                 // torn coat
+            tb(-4.3, 7, -2.8, 8.6, 5.2, 5.6, coat * 0.88, 4),                    // its tails, ragged over the thighs
+            tb(-2.2, 17, -2.62, 4.4, 4.5, 0.15, skin * 0.85),                    // bare chest where it gapes
+            tb(-4.1, 12, -2.6, 8.2, 1.2, 5.2, V3(0.16, 0.13, 0.1)),              // belt
+            tb(-3.5, 22, -4.2, 7, 6.5, 6, skin, 4),                              // head, low and forward
+            tb(-4, 28.2, -5.6, 8, 0.8, 8, cap), tb(-3.6, 28.6, -3.8, 7.2, 2.2, 6, cap, 4),   // miner's cap and brim
+            tb(-1, 29, -4.4, 2, 1.4, 0.6, V3(0.3, 0.3, 0.28)),                   // its dead lamp
+            tb(-2.7, 25, -4.35, 1.7, 1.1, 0.2, amber, 9), tb(1.0, 25, -4.35, 1.7, 1.1, 0.2, amber, 9),   // glowing eyes
+            tb(-1.6, 23.2, -4.3, 3.2, 0.8, 0.12, black),                         // slack mouth
+            tb(-3.6, 21.4, -2.7, 1, 0.8, 5.4, V3(0.24, 0.17, 0.1)), tb(2.6, 21.4, -2.7, 1, 0.8, 5.4, V3(0.24, 0.17, 0.1)),  // straps
+            // The keg: slung high over the left shoulder so it shows beside the head from the front (an uneven, readable
+            // silhouette); staves, two iron hoops, a fuse cord out of the bung.
+            tb(-6.5 - 0.5 * (sw - 1) * 8 + shake * 0.2, 14, 2.5, 8 * sw, 12, 6 * sw, wood, 4),
+            tb(-6.7 - 0.5 * (sw - 1) * 8, 16, 2.3, 8.4 * sw, 1, 6.4 * sw, hoop, 8),
+            tb(-6.7 - 0.5 * (sw - 1) * 8, 23, 2.3, 8.4 * sw, 1, 6.4 * sw, hoop, 8),
+            tb(-5.1, 26, 5.2, 0.6, 2.6, 0.6, V3(0.18, 0.15, 0.12)),
         ]
+        // The spark: only once the fuse is struck, bright and flickering (readable across a dark field).
+        if lit { p.append(tb(-5.9, 28.1, 4.4, 2.2, 2.2, 2.2, V3(1, 0.78, 0.3) * (0.75 + 0.6 * flick), 9)) }
+        // Arms from the hunched shoulders: hang forward and swing; thrown up and trembling once lit.
+        let sy = hip.y + 9 * cosf(hunch), sz = 9 * sinf(hunch)
+        let armRot: Float = lit ? 2.3 + 0.12 * sinf(m.fuse * 47) : 0.35
+        for side in [-1, 1] as [Float] {
+            let x = side * 5.4, r = armRot + (lit ? 0 : swing * side * 0.8)
+            p.append(Part(mn: V3(x - 1.4, sy - 11, sz - 1.4), mx: V3(x + 1.4, sy + 0.5, sz + 1.4), pivot: V3(x, sy, sz), rotX: r, color: coat, pattern: 4))
+            p.append(Part(mn: V3(x - 1.2, sy - 13.5, sz - 1.2), mx: V3(x + 1.2, sy - 10.8, sz + 1.2), pivot: V3(x, sy, sz), rotX: r, color: skin))
+        }
+        return p
     case .spider, .caveSpider:
         let body = m.kind == .caveSpider ? V3(0.1, 0.22, 0.26) : V3(0.2, 0.17, 0.15)
         let red = V3(0.9, 0.1, 0.1)
