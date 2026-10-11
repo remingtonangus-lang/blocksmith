@@ -196,16 +196,18 @@ struct ShopPricing {
 
     // Reputation 100 or more: 10% off and 10% more for what you sell; down to -100: 25% dearer and 25% less paid;
     // below -100 the shop won't serve you. Friend of the Town (heroOfTheVillage) takes another 5% off (never past minBuyMult).
-    // Honour (Honour.swift) nudges both a little more, inside the same bounds.
-    init(reputation rep: Int, hero: Int, honour: Float = 0) {
+    // Honour (Honour.swift) nudges both a little more, inside the same bounds. A town you took (TownConquest) gives you
+    // its best prices and always serves you; a town wary of you after a taking nearby charges 10% more.
+    init(reputation rep: Int, hero: Int, honour: Float = 0, town: TownConquest.Standing = .none) {
         let r = Float(max(-100, min(100, rep))) / 100
         var b: Float = r >= 0 ? 1 - 0.1 * r : 1 - 0.25 * r
         var s: Float = r >= 0 ? 0.5 * (1 + 0.1 * r) : 0.5 * (1 + 0.25 * r)
         if hero > 0 { b -= 0.05 }
         b += Honour.buyNudge(honour); s *= 1 + Honour.sellNudge(honour)
+        if town == .owned { b = Economy.minBuyMult; s = Economy.maxSellMult } else if town == .wary { b += 0.1; s *= 0.95 }
         b = max(Economy.minBuyMult, min(Economy.maxBuyMult, b))
         s = max(Economy.minSellMult, min(Economy.maxSellMult, s))
-        buyMult = b; sellMult = s; refuses = rep < -100
+        buyMult = b; sellMult = s; refuses = rep < -100 && town != .owned
     }
     func buy(_ value: Int) -> Int { max(1, Int((Float(value) * buyMult).rounded())) }
     func sell(_ value: Int) -> Int { max(0, Int((Float(value) * sellMult).rounded(.down))) }
@@ -286,7 +288,8 @@ final class ShopMenu: Menu, CustomDrawnMenu {
 
     var data: VillagerData? { mob?.villager }
     var pricing: ShopPricing {
-        ShopPricing(reputation: data?.reputation ?? 0, hero: game.effects.level(.heroOfTheVillage), honour: Honour.value)
+        ShopPricing(reputation: data?.reputation ?? 0, hero: game.effects.level(.heroOfTheVillage), honour: Honour.value,
+                    town: TownConquest.standing(data?.town))
     }
 
     func refresh() {
@@ -508,7 +511,8 @@ enum Shop {
         let cat = Economy.catalog(k)
         guard i < cat.count, var stock = v.stock, i < stock.count else { return ("", false) }
         let item = cat[i].item
-        let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value))
+        let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
+                                                                     town: TownConquest.standing(v.town)))
         let name = ItemStack(item, 1).def.display
         guard stock[i] > 0 else { m.villager = v; return ("Sold out of \(name) until tomorrow.", false) }
         let afford = price > 0 ? g.money / price : Int.max
@@ -543,7 +547,8 @@ enum Shop {
         let n = min(want, have)
         let name = ItemStack(item, 1).def.display
         guard n > 0 else { return ("You have no \(name).", false) }
-        let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value))
+        let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
+                                                                     town: TownConquest.standing(v.town)))
         guard each > 0 else { return ("\(name) isn't worth anything here.", false) }
         var left = n
         for j in 0..<36 where left > 0 {

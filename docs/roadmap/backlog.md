@@ -42,12 +42,12 @@ A5. Radar and discovery. Bases reveal other bases; frigates have radar; a map an
 
 ## LANE B (cloud thread B): progression, law, hunting, hell, the Reich
 
-B1. Sheriff's six-iron and the iron rule. [CLAIMED: Lane B thread, 2026-10-11] Intent: the sheriff carries a six-shooter that one-shots you in anything below iron armour, is a middle ground in iron, and hardly hurts diamond and above. You play by the rules until you have diamond or at least iron, then you can take a village.
+B1. Sheriff's six-iron and the iron rule. [DONE: Lane B thread, 2026-10-11, PR #28; docs/status/six-iron.md] Intent: the sheriff carries a six-shooter that one-shots you in anything below iron armour, is a middle ground in iron, and hardly hurts diamond and above. You play by the rules until you have diamond or at least iron, then you can take a village.
 - Every sheriff carries the six-iron (replaces the 5 percent gun chance). Readable draw, warning shot, fair reaction time; deadly at range in VR, dodgeable.
 - Damage tuned per armour tier and documented: leather or none = death in one shot, iron = several shots, diamond and up = chip damage.
 - Taking a village: defeat the sheriff and deputies; the town surrenders, becomes yours (trade discounts, tribute, a bed and storage), honour consequences, and nearby towns react.
 
-B2. Townsfolk variety. Intent: villager attack rates, health and speed vary.
+B2. Townsfolk variety. [CLAIMED: Lane B thread, 2026-10-11] Intent: villager attack rates, health and speed vary.
 - Per-person stats rolled from role and age: farmers weak and slow, blacksmiths strong, deputies fast and armed. Visible cues (build, tools) so players can read them.
 
 B3. Hunting like RDR2. Intent: hunting with pelts and the rest.

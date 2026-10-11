@@ -130,11 +130,15 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     if let t = l.bowTie { b(-1.4, 22.4, -2.5, 1.4, 23.3, -2.3, t) }
     if l.tape { b(-2.4, 21, -2.45, -1.6, 23.5, -2.3, V3(0.92, 0.82, 0.3)); b(1.6, 21, -2.45, 2.4, 23.5, -2.3, V3(0.92, 0.82, 0.3)) }
     // Arms: walk swing, the weapon raised / striking, or hands up.
-    let engaged = m.town.foe != nil || m.town.anger > 0
+    let engaged = m.town.foe != nil || m.town.anger > 0 || m.town.drawn > 0
     var right = -swing * 0.8, left = swing * 0.8
     var rz: Float = 0
     if m.town.handsUp > 0 {
         right = .pi - 0.12; left = .pi - 0.12; rz = 0.22
+    } else if w == .revolver && m.town.swing > 0 {
+        right = .pi / 2 + 0.6 * m.town.swing / 0.3            // the six-iron's recoil kick
+    } else if w == .revolver && m.town.aim > 0 {
+        right = .pi / 2                                        // the aim telegraph: arm level, gun on you (SixIron)
     } else if m.town.swing > 0 {
         let k = 1 - m.town.swing / 0.45                       // 0 -> 1 through the blow
         right = 2.6 - 2.2 * k * k

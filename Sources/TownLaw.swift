@@ -17,8 +17,8 @@ import simd
 //              challenge and draws 2.5 s later.
 // The sheriff (role "sheriff", save key "villager:sheriff") replaces the iron golem as the town protector: new towns
 // get him on the square instead of a golem, older towns get one sent the first time you're there (and a new one three
-// days after he falls). He patrols the square day and night, fights monsters and the player with a revolver (hitscan,
-// a 70% hit chance at range), and can be fought and killed. Townsfolk no longer summon golems; golems already in old
+// days after he falls). He patrols the square day and night, fights monsters and the player with his six-iron
+// (SixIron.swift: against the player, the iron rule; a telegraphed, dodgeable shot), and can be fought and killed. Townsfolk no longer summon golems; golems already in old
 // towns stay (removing mobs from a save would be destructive) and keep defending as before.
 enum TownLaw {
     static var golemsAllowed = false                 // the old golem summoning (MobTests turns it on to keep its rule covered)
@@ -52,6 +52,8 @@ enum TownLaw {
         var bank: Int? = nil
         var bankDay: Int? = nil
         var raidDay: [String: Int]? = nil
+        // TownConquest: the towns you took (town -> [anchor x, anchor z, day taken, day tribute last paid]).
+        var owned: [String: [Int]]? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -74,6 +76,7 @@ enum TownLaw {
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
         offences = 0; lastTick = -1
+        TownConquest.reset(); TownConquest.wary = []
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
     static func compactPlaced(_ n: Int) {
@@ -254,6 +257,7 @@ enum TownLaw {
 
     static func offence(_ g: Game, heat add: Float, at p: V3, victim: Mob? = nil, speak: Bool = true) {
         guard g.dim.dim == .overworld, g.survival else { return }      // creative: no theft, no warnings
+        if TownConquest.owns(Townsfolk.town(g, at: p)) { return }        // your own town: its things are yours
         var ws = witnesses(g, at: p)
         if let v = victim, !ws.contains(where: { $0 === v }) { ws.insert(v, at: 0) }
         // Unseen, it still costs honour (a third of what a witness would make it): stealing is stealing.
@@ -291,7 +295,12 @@ enum TownLaw {
         for o in g.mobs.mobs where isTownsperson(o) && simd_length(o.pos - p) < 64 {
             if var v = o.villager, fresh { v.addGossip(.majorNeg, 12); o.villager = v }
             if o.villager?.role == "sheriff" {
-                if fresh { o.face(g.player.pos); pending.append((o, g.clock + 2.5)); Townsfolk.townLastLine = -100; TownVoice.speak(g, o, .challenge) }
+                if fresh {
+                    // He calls you out and draws (SixIron: the gun comes out with a click; he fights 2.5 s later).
+                    o.face(g.player.pos); pending.append((o, g.clock + 2.5)); o.town.drawn = 3; o.town.warned = false
+                    g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.6, at: o.eye)
+                    Townsfolk.townLastLine = -100; TownVoice.speak(g, o, .challenge)
+                }
                 else { o.town.anger = max(o.town.anger, hostileSeconds) }
             } else if o.townWeapon != .none && !o.baby {
                 o.town.anger = max(o.town.anger, 60)
@@ -352,18 +361,21 @@ enum TownLaw {
             if o.villager?.role == "sheriff" { sheriffs[town(of: o, g), default: []].append(o) }
         }
         oneSheriff(g, sheriffs)
-        guard let near = nearest else { inTown = nil; Honour.tick(g, town: nil); TownBoard.posters(g, town: nil); return }
+        guard let near = nearest else {
+            inTown = nil; Honour.tick(g, town: nil); TownConquest.tick(g, town: nil); TownBoard.posters(g, town: nil); return
+        }
         let here = town(of: near, g)
         inTown = here
         TownBoard.posters(g, town: here)
         Honour.tick(g, town: here)
+        TownConquest.tick(g, town: here)
         let day = Int(g.time / DAY_LENGTH)
         if sheriffs[here] != nil { state.appointed[here] = day }
         else if day - (state.appointed[here] ?? -99) >= 3, squareLoaded(g, near) {
             appointSheriff(g, here, near: near)
         }
         // Outlaws are fought on sight (Honour.outlawSeen); the WANTED boards show your poster; outlaws from jobs.
-        if g.survival && Honour.isOutlaw && !isHostile(here) { Honour.outlawSeen(g, here) }
+        if g.survival && Honour.isOutlaw && !isHostile(here) && !TownConquest.owns(here) { Honour.outlawSeen(g, here) }
         // A hostile town keeps its armed folk on you while you're about.
         if isHostile(here) {
             for o in g.mobs.mobs where isTownsperson(o) && o.townWeapon != .none && !o.baby && simd_length(o.pos - g.player.pos) < 32 {
@@ -450,7 +462,6 @@ enum TownLaw {
     // The sheriff's role (Townsfolk.setup with the "sheriff" tag): a man's name, so his voice fits.
     static func deputize(_ v: inout VillagerData) {
         v.role = "sheriff"; v.locked = true; v.profession = "none"
-        if v.revolver == nil { v.revolver = Honour.rollRevolver(Rand.float(in: 0..<1)) }
         if Townsfolk.isWoman(v), let p = v.person {
             let men = Townsfolk.firstNames.filter { !Townsfolk.women.contains($0) }
             let last = p.split(separator: " ").last.map(String.init) ?? "Hale"
@@ -458,27 +469,19 @@ enum TownLaw {
         }
     }
 
-    // MARK: The sheriff's revolver (from townDefend)
+    // MARK: The sheriff's six-iron at monsters (from townDefend; at the player: SixIron.duel)
 
     static func shoot(_ m: Mob, _ g: Game) {
-        let foe = m.town.foe
-        let target = foe?.eye ?? g.player.eye
-        let muzzle = m.eye + m.forward * 0.5 + V3(0, -0.2, 0)
+        guard let foe = m.town.foe else { return }
+        let target = foe.eye
+        let muzzle = SixIron.muzzle(m)
         g.sfx(.gun(WeaponAudio.sidearmSlot), 1, at: muzzle)
         g.particles.smoke(at: muzzle)
         guard g.world.canSee(muzzle, target) else { return }
         let d = simd_length(target - muzzle)
-        // (Only the few who carry the Sheriff's Revolver shoot: Honour.carriesRevolver, Townsfolk.weapon.)
         let chance: Float = d < 6 ? 0.85 : 0.7
-        guard Rand.float(in: 0..<1) < chance else {
-            if foe == nil { g.sfx(.bulletWhizz, 0.8, at: g.player.eye) }
-            return
-        }
-        if let f = foe {
-            f.hit(from: m.pos, damage: 8, knockback: 0.3)
-        } else {
-            g.hurtPlayer(TownWeapon.revolver.damage, from: m.pos, cause: "was shot by Sheriff \(m.villager?.person ?? "")", knockback: 0.4, attacker: m)
-        }
+        guard Rand.float(in: 0..<1) < chance else { return }
+        foe.hit(from: m.pos, damage: 8, knockback: 0.3)
     }
 }
 
@@ -501,6 +504,7 @@ extension Game {
     // Spoken greeting (TownVoice) for the proximity hello and a tap: always a recorded line (the older text greeting
     // only for a voice without one).
     func townGreet(_ m: Mob, _ v: VillagerData) {
+        if TownConquest.greet(self, m, v) { return }    // your own town: they call you boss
         if TownLaw.isHostile(self, m) || v.reputation <= -60 { TownVoice.speak(self, m, .angry); return }
         if Honour.greet(self, m, v) { return }          // the standing's own words: warnings, tips, gifts, your name
         let ctx: TownVoice.Ctx = raid != nil ? .raid : dayFraction > 0.5 ? .night : (Rand.float(in: 0..<1) < 0.55 ? .greet : .chatter)
