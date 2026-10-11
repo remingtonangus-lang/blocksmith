@@ -77,6 +77,10 @@ if CommandLine.arguments.contains("--capitals-only") {
     TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check)
     print(failures == 0 ? "capitals: all checks passed" : "capitals: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// L3 ground: which plants sway, the mesher's marks for the shader, the rustle (Sources/PlantTests.swift); the look on the
+// Quest renderer is PlantRenderTest under --render (--ground-only stops after it, --ground-shots DIR keeps the frames).
+PlantTests.run(game, check: check)
+OreTests.run(check: check)
 do {   // the simd shim's array-free 4x4 inverse and transpose
     let m = simd_float4x4(SIMD4(2, 0.5, 0, 0), SIMD4(-1, 3, 0.25, 0), SIMD4(0.5, 0, 1.5, 0), SIMD4(4, -2, 7, 1))
     let e = m * m.inverse, i = matrix_identity_float4x4, t = m.transpose
@@ -357,6 +361,8 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         let skyDir = arg("--sky-dir") ?? tmp.appendingPathComponent("shots").path
         try? FileManager.default.createDirectory(atPath: skyDir, withIntermediateDirectories: true)
         try SkyTest.run(game: game, ctx: ctx, dir: skyDir, check: check)
+        try PlantRenderTest.run(game: game, ctx: ctx, dir: arg("--ground-shots"), check: check)
+        if CommandLine.arguments.contains("--ground-only") { print(failures == 0 ? "groundtest: all checks passed" : "groundtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         PowderwightTest.run(game: game, check: check)
         TreeTest.run(check: check)
         if let shots = arg("--tree-shots") { try TreeShots.run(game: game, ctx: ctx, dir: shots) }

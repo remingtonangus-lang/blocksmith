@@ -188,6 +188,7 @@ extension Snd {
         case .lavaPop: return "Lava pops"
         case .boatPaddle: return "Paddling"
         case .railClick: return "Rail clicks"
+        case .plantBrush: return "Leaves rustle"
         case .fireLoop, .campfireLoop: return "Fire crackles"
         case .furnaceLoop: return "Furnace crackles"
         case .lavaLoop: return "Lava bubbles"
