@@ -7,10 +7,10 @@ extension Game {
     func animalInteract(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
         let pos = m.pos + V3(0, m.height, 0)
-        // A downed horse: only a Horse Reviver helps (HorseLife.swift).
+        // A downed horse: only a Saddle Salve helps (HorseLife.swift).
         if m.downed > 0 {
             if useReviver(on: m) { return true }
-            onToast?("\(m.customName ?? "This horse") is badly hurt: it needs a Horse Reviver (stable or doctor)")
+            onToast?("\(m.customName ?? "This horse") is badly hurt: it needs a Saddle Salve (stable or doctor)")
             return true
         }
         // Taming with a chance per item (reference: 1 in 3).
@@ -224,6 +224,10 @@ extension Game {
         if horse == nil {
             for (k, list) in mobs.stored {
                 guard let i = list.firstIndex(where: { $0.extra?["bond"] == horseBond }) else { continue }
+                if (list[i].extra?["down"] ?? 0) > 0 {               // down out there: it stays where it lies
+                    onToast?("\(list[i].name ?? "Your horse") is down and can't come: it needs a Saddle Salve")
+                    return true
+                }
                 var l = list
                 let r = l.remove(at: i)
                 mobs.stored[k] = l.isEmpty ? nil : l
@@ -236,7 +240,7 @@ extension Game {
             return true
         }
         guard let h = horse else { onToast?("Your horse doesn't answer (it may have died)"); horseBond = 0; return true }
-        if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Horse Reviver"); return true }
+        if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Saddle Salve"); return true }
         let d = simd_length(h.pos - player.pos)
         h.stayAt = nil
         h.hs.callStuck = 0; h.hs.callWas = h.pos
@@ -297,6 +301,7 @@ extension Mob {
     // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and magmastriders follow
     // the stick; untamed horses buck until tamed.
     func updateRidden(_ dt: Float, _ g: Game) {
+        stayAt = nil                                        // ridden: where it waits is wherever you get off next
         if kind == .happyGhast { rideCloudwailer(dt, g); return }
         if kind == .nautilus { rideNautilus(dt, g); return }
         let w = g.world

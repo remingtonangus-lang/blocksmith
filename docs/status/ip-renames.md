@@ -98,4 +98,5 @@ Standing rule (Remington): borrow the feel of Red Dead Redemption 2, GoldenEye a
 |---|---|---|---|
 | Frigate spinal gun: helm HUD gauge (CombatHUD), ship status line (ShipPlay), subtitles | `mainGun*`, `Snd.mainGun*` | MAC | Tidebreaker ("Main gun charging / fires" in subtitles) |
 | Mac gamepad layout preset: Pause > Controls row, help text, toast (PadMap, PauseMenu) | `padLayout = "halo"`, `PadMap.halo` | Halo | Shooter |
+| Injured-horse cure: item name, shop rows, toasts (HorseLife, Items, Shops, Riding; the gap pass) | `saddle_salve` | Horse Reviver (a western game's item) | Saddle Salve |
 | (none found) | | UNSC | (grep of Sources/, quest/, docs/ on 2026-10-09: no occurrence) |

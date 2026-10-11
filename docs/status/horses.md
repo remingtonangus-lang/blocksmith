@@ -87,7 +87,7 @@ Expanded objectives written before building (each is a row of the gap table: A1a
 - Calling (A1a): a called horse paths to you (round walls and rivers, up to 160 blocks, 1500-node searches); stuck
   for 6 s, it is brought round behind you on your own level (never off a cliff edge onto the ground below).
 - Left alone (ER11): a horse of yours that isn't called waits where you left it, grazing and wandering a few blocks.
-- Injured (ER6): a horse of yours that would die goes down for 5 minutes; a Horse Reviver (stable, doctor) brings
+- Injured (ER6): a horse of yours that would die goes down for 5 minutes; a Saddle Salve (stable, doctor) brings
   it back; left that long, it dies for good. Wild horses just die.
 - The stable (A1e, ER7): the stablehand's counter has a Horses button: buy any breed (saddled, tamed, yours),
   stable a horse standing nearby (up to six, in any town; the whole horse is kept: name, breed, bond, gear, bags),
@@ -104,3 +104,22 @@ Expanded objectives written before building (each is a row of the gap table: A1a
 Checks: HorseGapTests.swift (36 checks, end of `--horse-only` and every questcheck). HorseTests' test horse is pinned
 to the Saddlebred so the older gait, stamina and nerve numbers hold; the gunshot check now expects level 3 to rear and
 level 4 not to.
+
+### Gap pass verifier (independent Opus subagent) and what changed
+- A horse walked back to an old wait spot after you rode it somewhere else: it now forgets the spot whenever it is
+  ridden, so it waits where you get off. The test rides it away after a call before leaving it.
+- "Horse Reviver" is another western game's item name: it is now the Saddle Salve (ip-renames.md). Both names are
+  in tools/coined-terms.txt so namecheck catches them.
+- Taming had no skill (sitting still always tamed it): each buck now takes more calm than a quiet spell gives back,
+  so only pats timed to the quiet spells fill it. Test: sitting still without patting gets you thrown (about 10 s).
+- Money: a stable buys one horse a day from you.
+- A downed horse could still be finished off by damage that skips hit() (instant damage, a hull): now it stays down
+  until its own time runs out, and it falls to the ground instead of hanging where it went down.
+- Steady Saddle lagged on long climbs: it now uses a second-order follower (its climb rate eased, then its position),
+  so it trails a 3 b/s climb by 0.04 blocks and still absorbs a 1.2-block jump to 0.04.
+- The vignette on a horse is RideComfort's alone (the walking speed term no longer adds 0.5 at any gallop). Turning
+  and braking are capped below full black.
+- A horse left waiting bolts from a wolf (below bond level 3), not only a ridden one.
+- Sandstone sounds hard, not loose. Concrete powder no longer sounds like snow.
+- Old stabled horses show the breed their speed fits.
+- A downed horse in unloaded ground is no longer pulled into the world by a call.

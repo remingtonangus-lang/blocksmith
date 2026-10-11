@@ -457,7 +457,8 @@ final class QuestControls {
                 rideTurn += (abs(dy) / max(dt, 1e-3) - rideTurn) * k
                 rideAccel += ((rideYaw == nil ? 0 : simd_length(v - rideVel) / max(dt, 1e-3)) - rideAccel) * k
                 rideYaw = h.yaw; rideVel = v
-                want = max(want, RideComfort.vignette(speed: simd_length(v), turnRate: rideTurn, accel: rideAccel))
+                // (in place of the walking term: a horse's steady run is lighter than the same speed on foot)
+                want = RideComfort.vignette(speed: simd_length(v), turnRate: rideTurn, accel: rideAccel)
             } else {
                 rideYaw = nil; rideTurn = 0; rideAccel = 0
                 if game.riding != nil { want = min(1, want + 0.2) }

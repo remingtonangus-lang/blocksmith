@@ -2082,6 +2082,9 @@ final class MobManager {
         // sequence, which opens the exit portal (Hollow.swift).
         for m in mobs where m.kind == .enderDragon && m.health <= 0 && m.health > -1000 { m.health = 1; m.phase = 6; m.phaseTime = 0 }
         // A horse of yours goes down instead of dying: a reviver can still save it (HorseLife.swift).
+        // (one already down stays down whatever took its health: instant damage, a hull crushing it; only its own
+        // time running out kills it, downedTick)
+        for m in mobs where m.health <= 0 && m.downed > 0 { m.health = 1 }
         for m in mobs where m.health <= 0 && m.canGoDown { m.goDown(game) }
         // Deaths: loot + XP, slime splitting.
         var spawned: [Mob] = []

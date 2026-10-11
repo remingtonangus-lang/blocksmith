@@ -9,7 +9,7 @@ import simd
 //   taming   sitting still and patting between bucks tames a wild horse; fighting the bucks gets you thrown
 //   fear     a wolf nearby frightens a horse below bond level 3, not one at level 3
 //   unlocks  a level-3 rear on command (no throw), a level-4 sliding stop shorter than level 1's, tighter turns
-//   injury   a horse of yours that would die goes down; a Horse Reviver brings it back; left 5 minutes, it dies
+//   injury   a horse of yours that would die goes down; a Saddle Salve brings it back; left 5 minutes, it dies
 //   stable   buy, stable, take out (here free, from another town for a fee), sell, rename; kept horses survive a save
 //   calling  a stabled horse says where it is; a called horse finds its way round a wall; a horse left alone stays near
 //   comfort  the ride vignette darkens more in a turn than a straight run; Steady Saddle eases a jump's lift; the
@@ -95,6 +95,13 @@ extension HorseTests {
             }
             check(g.riding !== wild2 && !wild2.tamed, String(format: "horse gap: fighting the bucks gets you thrown (%.1f s)", t))
             g.riding = nil
+            let wild3 = Mob(.horse, at: lane0); HorseLife.roll(wild3, breed: .mustang); wild3.yaw = 0; wild3.temper = 0
+            g.mobs.mobs = [wild3]
+            mount(wild3)
+            t = 0
+            while t < 60 && g.riding === wild3 && !wild3.tamed { g.rideInput = MoveInput(); wild3.update(dt, game: g); t += dt }
+            check(g.riding !== wild3 && !wild3.tamed, String(format: "horse gap: sitting still without patting isn't enough: thrown after %.0f s (it takes timed pats)", t))
+            g.riding = nil
         }
 
         // Fear: a wolf nearby frightens a young bond, not a level-3 one.
@@ -154,9 +161,16 @@ extension HorseTests {
             g.inventory.held = ItemStack(Items.id(HorseLife.reviverKey), 1)
             let used = g.useReviver(on: h)
             check(down && used && h.downed == 0 && h.health > 1 && g.inventory.held.isEmpty,
-                  "horse gap: a horse of yours that would die goes down, and a Horse Reviver brings it back (\(h.health) hp)")
+                  "horse gap: a horse of yours that would die goes down, and a Saddle Salve brings it back (\(h.health) hp)")
+            // Down, it takes no more harm from anything (instant damage, a crushing hull) and still falls to the ground.
             h.health = 0
             g.mobs.update(0.05, game: g)
+            h.health = -6
+            let y0 = h.pos.y
+            h.pos.y += 3
+            for _ in 0..<72 { g.mobs.update(1.0 / 72, game: g) }
+            check(h.downed > 0 && h.health > 0 && g.mobs.mobs.contains { $0 === h } && abs(h.pos.y - y0) < 0.1,
+                  String(format: "horse gap: a downed horse can't be finished off and falls to the ground (%.2f from the strip)", h.pos.y - y0))
             for _ in 0..<Int(HorseLife.downTime / 5) + 2 { h.update(5, game: g) }
             g.mobs.update(0.05, game: g)
             check(h.health <= 0 && h.downed == 0 && !g.mobs.mobs.contains { $0 === h } && g.horseBond == 0,
@@ -223,6 +237,15 @@ extension HorseTests {
             if let i = menu.rows.firstIndex(where: { $0.name.hasPrefix("Sell") }) { menu.pressed(i) }
             check(value > 0 && value < HorseBreed.draft.price && g.money == m2 + value && !g.mobs.mobs.contains { $0.kind == .horse } && g.horseBond == 0,
                   "horse gap: selling a horse pays \(Money.format(value)) (less than it cost)")
+            let second = horse(15, 0); second.bond = 99; g.mobs.mobs.append(second)
+            let again = Stable.sell(g, second, town: "Cedar Ford")
+            check(!again.1 && g.mobs.mobs.contains { $0 === second }, "horse gap: a stable buys one horse a day (no taming wild horses for a living)")
+            g.mobs.mobs.removeAll { $0 === second }
+            // A horse kept from before breeds: its breed worked out from its speed.
+            var oldRec = second.record                              // (top speed 15: only the Sandrunner's range)
+            oldRec.extra?["breed"] = nil
+            let oldKept = StabledHorse(rec: oldRec, town: "Cedar Ford", day: 0)
+            check(Stable.breed(oldKept) == .sandrunner, "horse gap: a horse stabled before breeds shows the breed its speed fits (\(Stable.breed(oldKept).name))")
             // Six stalls.
             for _ in 0..<Stable.maxKept { let x = horse(15, 0); x.bond = Float(Rand.int(in: 1...1000)); g.mobs.mobs.append(x); _ = Stable.store(g, x, town: "Cedar Ford") }
             let extra = horse(15, 0); extra.bond = 7
@@ -270,19 +293,29 @@ extension HorseTests {
                   String(format: "horse gap: a called horse that can't get through is brought round to your level after 6 s (%.1f s, %.1f blocks off, %.1f below)", t, simd_length(h.pos - g.player.pos), g.player.pos.y - h.pos.y))
             g.player.yaw = 0
             g.horseCall = 0
+            // Ridden somewhere else after the call (it waited where it arrived), then left: it waits where you got off.
+            mount(h)
+            ride(h, 1.5, 0.6, [])
+            g.riding = nil
             let left = h.pos
-            h.stayAt = nil
             g.player.pos = left + V3(0, 0, 30)
             var far: Float = 0
             for _ in 0..<600 { g.mobs.update(0.05, game: g); far = max(far, simd_length(V2(h.pos.x - left.x, h.pos.z - left.z))) }
-            check(far < 7, String(format: "horse gap: a horse left alone grazes near where it was left (strayed %.1f blocks in 30 s)", far))
+            check(far < 7, String(format: "horse gap: a horse left alone grazes near where you got off, not where it waited before (strayed %.1f blocks in 30 s)", far))
+            // A wolf comes by a horse waiting at bond level 1: it bolts.
+            let bolted0 = HorseLife.bolted
+            let wolf = Mob(.wolf, at: h.pos + V3(3, 0, 0))
+            g.mobs.mobs = [h, wolf]
+            for _ in 0..<10 { g.mobs.update(0.05, game: g); wolf.pos = h.pos + V3(3, 0, 0) }
+            check(HorseLife.bolted > bolted0 && h.panic > 0, "horse gap: a horse left waiting bolts from a wolf (until bond level 3)")
+            g.mobs.mobs = [h]
         }
 
         // Comfort: the ride vignette, Steady Saddle, the saddlebags.
         do {
             let straight = RideComfort.vignette(speed: 10, turnRate: 0, accel: 0)
             let turning = RideComfort.vignette(speed: 10, turnRate: 2.5, accel: 0)
-            let pulling = RideComfort.vignette(speed: 4, turnRate: 0, accel: 9)
+            let pulling = RideComfort.vignette(speed: 4, turnRate: 0, accel: 12)
             check(turning > straight + 0.3 && pulling > straight + 0.3 && straight < 0.4,
                   String(format: "horse gap: the ride vignette darkens in a turn (%.2f) and pulling up (%.2f) more than a straight run (%.2f)", turning, pulling, straight))
             func lift(_ steady: Bool) -> Float {
@@ -299,6 +332,17 @@ extension HorseTests {
                 return eye1 - eye0
             }
             let off = lift(false), on = lift(true)
+            // A long climb at 3 blocks a second: the view keeps up (no head trailing into the hillside).
+            do {
+                let h = horse(15, 0); mount(h)
+                g.steadySaddle = true; g.player.steadyY = nil
+                g.updateViewStep(dt)
+                for _ in 0..<144 { h.pos.y += 3 * dt; g.updateViewStep(dt) }
+                let lag = -g.player.viewDY
+                h.pos.y -= 6
+                g.riding = nil
+                check(abs(lag) < 0.15, String(format: "horse gap: Steady Saddle follows a long climb without lagging (%.2f blocks behind after 2 s at 3 b/s)", lag))
+            }
             check(on < off * 0.3, String(format: "horse gap: Steady Saddle eases a 1.2-block jump (the view lifts %.2f, %.2f without)", on, off))
             let h = horse(15, 0); h.yaw = 0
             let fwd = V3(-sinf(h.yaw), 0, -cosf(h.yaw)), right = V3(-fwd.z, 0, fwd.x)
@@ -312,9 +356,9 @@ extension HorseTests {
 
         // Hooves.
         do {
-            let ids = ["stone", "oak_planks", "grass_block", "sand", "snow_block", "water"].map { Blocks.id($0) }
+            let ids = ["stone", "oak_planks", "grass_block", "sand", "snow_block", "water", "sandstone"].map { Blocks.id($0) }
             let classes = ids.map { HorseLife.surface($0) }
-            check(classes == [0, 1, 2, 3, 4, 5], "horse gap: hoof sounds by the ground (stone, wood, earth, sand, snow, water: \(classes))")
+            check(classes == [0, 1, 2, 3, 4, 5, 0], "horse gap: hoof sounds by the ground (stone, wood, earth, sand, snow, water, sandstone: \(classes))")
             var synth = Synth(seed: 7)
             let loud = (0..<6).map { s -> Float in HorseLife.hoof(&synth, surface: s, p: 1).reduce(0) { max($0, abs($1)) } }
             check(loud.allSatisfy { $0 > 0.01 }, "horse gap: every hoof sound synthesizes (\(loud.map { String(format: "%.2f", $0) }.joined(separator: " ")))")

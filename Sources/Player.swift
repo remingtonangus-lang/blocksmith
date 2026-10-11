@@ -20,6 +20,7 @@ final class Player {
     var onGround = false
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
+    var steadyV: Float = 0, steadyLast: Float = 0   // its eased climb rate and the saddle height last tick
     var viewLastY: Float?, viewLastGround = false
     var inWater = false             // water only (lava is inLava; QA: lava used to count as water)
     var inLava = false

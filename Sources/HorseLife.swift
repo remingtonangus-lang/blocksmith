@@ -5,11 +5,12 @@ import simd
 //   breeds    five breeds with their own speed, stamina, courage, jump and coats (HorseBreed); every horse has one.
 //   names     your horse gets a name when it first bonds; the stable renames it from a list (no typing in VR).
 //   taming    a calm-down minigame instead of a dice roll: the wild horse bucks in bursts; sit still through a buck,
-//             pat it (use, empty hand) while it settles; steering or patting mid-buck frightens it. Calm fills, it's
-//             yours; calm runs out, you're thrown.
+//             pat it (use, empty hand) while it settles; steering or patting mid-buck frightens it. Sitting still alone
+//             loses ground (each buck takes more than a quiet spell gives back): only pats timed to the quiet spells
+//             fill the calm. Calm fills, it's yours; calm runs out, you're thrown.
 //   fear      until bonded it fears predators (wolves, bears, big cats, monsters) as well as gunfire; level 3 shrugs
 //             off predators, level 4 other people's gunfire.
-//   injured   a horse of yours that would die goes down instead: five minutes to bring a Horse Reviver (stable,
+//   injured   a horse of yours that would die goes down instead: five minutes to bring a Saddle Salve (stable,
 //             doctor); left that long, it dies for good.
 //   bond      every horse you have ridden remembers you (its own bond kept, its own id); the one you rode last comes
 //             when called. Unlocks: tighter turning at each level, at level 3 a rear on command (spur standing
@@ -66,7 +67,7 @@ enum HorseLife {
                         "Bramble", "Cinder", "Duke", "Flint", "Ginger", "Ranger", "Sundance", "Tumbleweed"]
     static let downTime: Float = 300                   // s an injured horse lasts without a reviver
     static let predators: Set<MobKind> = [.wolf, .polarBear, .ocelot]
-    static var reviverKey = "horse_reviver"
+    static var reviverKey = "saddle_salve"
 
     // A breed for a horse rolled at spawn (sets its speed, jump and coat bits to the breed's).
     static func roll(_ m: Mob, breed: HorseBreed? = nil) {
@@ -96,7 +97,8 @@ enum HorseLife {
     static func surface(_ b: BlockID) -> Int {
         if Blocks.isLiquid(b) { return 5 }
         let k = Blocks.key(Blocks.groupBase[Int(b)])
-        if k.contains("snow") || k.contains("powder") { return 4 }
+        if k.contains("snow") { return 4 }
+        if k.contains("sandstone") { return 0 }
         if k.contains("sand") || k.contains("gravel") || k.contains("soul") { return 3 }
         if k.contains("planks") || k.contains("log") || k.contains("wood") || k.contains("slab") && k.contains("oak") || k.contains("bridge") { return 1 }
         if k.contains("grass") || k.contains("dirt") || k.contains("mud") || k.contains("moss") || k.contains("podzol") || k.contains("mycelium")
@@ -120,7 +122,7 @@ extension Mob {
         let still = abs(inp.forward) < 0.3 && abs(inp.strafe) < 0.3
         if h.bucking {
             // Mid-buck: a hop and a twist; sitting still ties it, fighting it frightens it.
-            h.calm += (still ? 3 : -22) * dt
+            h.calm += (still ? -4 : -22) * dt
             if onGround && Rand.float(in: 0..<1) < dt * 3 { vel.y = 4.5; yaw += Rand.float(in: -0.6...0.6) }
             if h.buckTime <= 0 {
                 h.bucking = false; h.buckTime = Rand.float(in: 1.4...2.2)
@@ -134,10 +136,10 @@ extension Mob {
                 }
             }
         } else {
-            h.calm += (still ? 7 : 2) * dt
+            h.calm += (still ? 1 : -2) * dt
             if h.buckTime <= 0 { h.bucking = true; h.buckTime = Rand.float(in: 0.8...1.3); g.sfx(.mob(kind, .hurt), 0.6, at: pos) }
         }
-        h.calm = min(100, h.calm)
+        h.calm = max(0, min(100, h.calm))           // (never below 0: -1 means "not taming")
         if h.calm >= 100 {
             owner = true; persistent = true; h.calm = -1
             g.particles.hearts(at: pos + V3(0, height, 0))
@@ -153,7 +155,7 @@ extension Mob {
         let h = hs
         guard h.calm >= 0, h.patCool <= 0 else { return }
         h.patCool = 0.8
-        if h.bucking { h.calm -= 10; g.sfx(.mob(kind, .hurt), 0.4, at: pos) }
+        if h.bucking { h.calm = max(0, h.calm - 10); g.sfx(.mob(kind, .hurt), 0.4, at: pos) }
         else { h.calm += 15; g.particles.hearts(at: pos + V3(0, height, 0)); g.sfx(.mob(kind, .ambient), 0.5, at: pos) }
     }
 
@@ -183,7 +185,7 @@ extension Mob {
         panic = 0
         if g.riding === self { g.dismount() }
         g.sfx(.mob(kind, .death), 0.8, at: pos)
-        g.onToast?("\(customName ?? "Your horse") is down! A Horse Reviver within 5 minutes saves it")
+        g.onToast?("\(customName ?? "Your horse") is down! A Saddle Salve within 5 minutes saves it")
         HorseLife.downs += 1
     }
 
@@ -191,6 +193,14 @@ extension Mob {
     func downedTick(_ dt: Float, _ g: Game) {
         downed -= dt
         vel.x = 0; vel.z = 0
+        // It still falls (downed mid-jump, on a ledge that went, in water: it sinks to the bottom).
+        let w = g.world
+        let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+        if !Blocks.collide[Int(w.block(x, Int(floor(pos.y - 0.05)), z))] && pos.y > 1 {
+            vel.y = max(vel.y - 25 * dt, Blocks.isLiquid(w.block(x, Int(floor(pos.y)), z)) ? -2 : -40)
+            pos.y += vel.y * dt
+            if Blocks.collide[Int(w.block(x, Int(floor(pos.y)), z))] { pos.y = floor(pos.y) + 1; vel.y = 0 }
+        } else { vel.y = 0 }
         if downed <= 0 {
             downed = 0
             health = 0
@@ -214,6 +224,8 @@ extension Mob {
 
     // Unridden, a horse of yours that isn't called waits where you left it: grazes, and wanders a few blocks.
     func waitWhereLeft(_ dt: Float, _ g: Game) -> Float {
+        // A predator near a young bond: it bolts (passive panic), then comes back to where it was left.
+        if panic <= 0 && predatorNear(g) { panic = 3; HorseLife.bolted += 1 }
         let here = stayAt ?? pos
         if stayAt == nil { stayAt = pos }
         return stroll(around: here, 5, 0.35)
@@ -221,7 +233,7 @@ extension Mob {
 }
 
 extension HorseLife {
-    static var tamedCount = 0, thrownCount = 0, downs = 0, revived = 0, greetings = 0, lastHoof = -1, bagReaches = 0, broughtRound = 0
+    static var tamedCount = 0, thrownCount = 0, downs = 0, revived = 0, greetings = 0, lastHoof = -1, bagReaches = 0, bolted = 0, broughtRound = 0
 }
 
 extension Game {
@@ -236,7 +248,7 @@ extension Game {
         onToast?("\(m.customName ?? "This horse") is your horse now: \(Prompt.g(.fly)) calls it")
     }
 
-    // A Horse Reviver used on a downed horse (any of yours, or one lying near): true when used.
+    // A Saddle Salve used on a downed horse (any of yours, or one lying near): true when used.
     func useReviver(on m: Mob) -> Bool {
         guard m.downed > 0, Items.key(held.item) == HorseLife.reviverKey else { return false }
         consumeHeld()
@@ -278,7 +290,7 @@ enum RideComfort {
     // changes speed (a steady run in a straight line is comfortable; turning hard and pulling up are not).
     static func vignette(speed: Float, turnRate: Float, accel: Float) -> Float {
         let run: Float = 0.15 + min(0.2, max(0, speed - 4) / 40)
-        return min(1, max(run, turnRate * 0.35, max(0, accel - 2) / 10))
+        return min(0.9, max(run, min(0.8, turnRate * 0.25), max(0, accel - 2) / 16))
     }
 }
 

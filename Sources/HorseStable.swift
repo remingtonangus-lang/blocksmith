@@ -34,7 +34,8 @@ enum Stable {
     static func name(_ m: Mob) -> String { m.customName ?? "your horse" }
     static func name(_ s: StabledHorse) -> String { s.rec.name ?? "Your horse" }
     static func breed(_ s: StabledHorse) -> HorseBreed {
-        HorseBreed(rawValue: Int(s.rec.extra?["breed"] ?? 0)) ?? .mustang
+        if let b = s.rec.extra?["breed"], let br = HorseBreed(rawValue: Int(b)) { return br }
+        return Mob.from(s.rec)?.horseBreed ?? .mustang      // kept before breeds: worked out from its speed
     }
 
     static func sellValue(_ m: Mob) -> Int { m.horseBreed.price / 2 + 200 * max(0, m.bondLevel - 1) }
@@ -98,8 +99,14 @@ enum Stable {
         return (fee > 0 ? "\(name(s)) came over from \(s.town) (\(Money.format(fee))): waiting outside." : "\(name(s)) is waiting outside.", true)
     }
 
-    static func sell(_ g: Game, _ m: Mob) -> (String, Bool) {
+    // One horse bought from you a day at each stable (no taming wild horses for a living).
+    static func sell(_ g: Game, _ m: Mob, town: String = "") -> (String, Bool) {
         guard m.health > 0, m.downed <= 0, m.yours else { return ("That horse isn't here.", false) }
+        let day = Int(g.time / DAY_LENGTH)
+        if TownLaw.state.horseSold?[town] == day { return ("I've bought one today already. Come back tomorrow.", false) }
+        var daySold = TownLaw.state.horseSold ?? [:]
+        daySold[town] = day
+        TownLaw.state.horseSold = daySold
         if g.riding === m { g.dismount() }
         let v = sellValue(m)
         if m.bond == g.horseBond { g.horseBond = 0 }
@@ -164,7 +171,9 @@ final class StableMenu: ListMenu {
             acts.append(.buy(b))
         }
         for m in mine {
-            out.append(Row(name: "Sell \(Stable.name(m))", detail: m.horseBreed.name, value: Money.format(Stable.sellValue(m))))
+            let today = TownLaw.state.horseSold?[town] != Int(game.time / DAY_LENGTH)
+            out.append(Row(name: "Sell \(Stable.name(m))", detail: today ? m.horseBreed.name : "One a day: come back tomorrow",
+                           value: Money.format(Stable.sellValue(m)), enabled: today))
             acts.append(.sell(m))
         }
         return out
@@ -183,7 +192,7 @@ final class StableMenu: ListMenu {
         case .buy(let b): r = Stable.buy(game, b, at: at)
         case .store(let m): r = Stable.store(game, m, town: town)
         case .take(let k): r = Stable.takeOut(game, k, town: town, at: at)
-        case .sell(let m): r = Stable.sell(game, m)
+        case .sell(let m): r = Stable.sell(game, m, town: town)
         case .rename(let m): r = ("Your horse is called \(Stable.rename(m)) now.", true)
         }
         say(r.0, good: r.1)
