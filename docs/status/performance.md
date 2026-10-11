@@ -139,7 +139,17 @@ frame-time p99/hitch lines are printed for the record only (a shared CI VM's GPU
 the frame-time limits gate too.
 First CI run (run 38100602991, 20 s routes): governor PASS; taiga 456k quads, tick CPU p99 2.1 ms, frame p99 15.7 ms
 (info); flyover 362k quads (budget was 360k; 320k on Oct 10 before the Deep/honour merges), 2.2% not meshed, frame
-p99 18.6 ms (info). Flyover budget now 380k; the +13% quads since the merges is open (task 25b4zxxx).
+p99 18.6 ms (info). Flyover budget now 380k.
+
+Flyover quad rise, found (task 25b4zxxxx, 2026-10-11): release builds, `--quest --rd 16 --secs 20`, `git bisect`
+on the first-parent line 32ea9050..HEAD (threshold 340k): 310k quads / 692 draws up to 348e6c5e, 372k / 823 draws
+from **bad1cbfb** (merge of the Oct 10 worldgen fixes: volcano siting in snow-free dry country, capital cities none
+within 1,200 blocks of spawn, wild camps replacing ruined gates). Not the Deep or honour merges (the earlier guess).
+The disc at the route's end is unchanged (same 6.3M exposed faces by kind with `BS_QUADKINDS=1`; same loaded quads),
+so the extra drawn quads are along the flight: the playtest seed's route now crosses open spruce taiga where there was
+a cone/city before. Accepted: it is the world Remington asked for, the cost on the proxy is GPU p99 15.35 -> 16.09 ms
+at rd 16 (the governor's job), and the budget 380k stays (+2%). If the headset log shows the flyover stepping rd down,
+the lever is the far spruce leaves (1.1M exposed faces, the largest surface kind; drawing far leaves opaque).
 
 ## Anisotropy 8 vs 4 (task 25b4zxxxx, 2026-10-11)
 
