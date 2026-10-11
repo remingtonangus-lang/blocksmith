@@ -76,7 +76,25 @@ M1. Polygon terrain test. Intent: a test of the polygon idea to see how it turns
 M2. Redstone works well. Full logic parity with the genre reference: dust, repeaters, comparators, pistons, observers, hoppers; a test world with standard circuits that all pass.
 M3. Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
 
-## OUR OWN IDEAS (lower priority; take when a lane is empty)
+## OVERSEER'S FEATURES (Claude's own list, equal weight to Remington's; lane in brackets)
+C1. [B] Railways and train robberies: craftable track, steam locomotives and carriages; scheduled passenger and cargo trains between towns and countries; RDR-style hold-ups (stop the train, crack the strongbox, escape the posse) with honour and bounty fallout; armoured trains in the Ash Vault.
+C2. [B] Heists: bank and payroll heists in towns with scouting, a plan (loud or quiet), a VR safe-crack and lock-pick minigame, getaway on horseback, wanted level by witnesses.
+C3. [A] Stealth and disguises (GoldenEye and Metal Gear feel): light and noise meters, guard sight cones and suspicion states, silent VR takedowns, wearing a troop's uniform to walk through lower base tiers until a higher rank looks closely, cameras and alarm panels.
+C4. [A] Siege warfare: siege engines (ram, trebuchet, the existing siege carriage, mortars) to crack castle bases and walled towns; walls with damage states; defenders on ramparts; you can also be besieged.
+C5. [A] The living war map: the Capital, the military, the navy, the countries and the Reich hold territory and push front lines over in-game weeks; battles happen without you; your actions tip them; a war table in captured bases shows it.
+C6. [B] Your own nation: villages and bases you take become provinces; settlers arrive, build and farm; you set taxes and laws; they need defending; your flag flies on the map; a capital you design.
+C7. [B] Your gang camp (RDR2 camp): recruitable members with names and skills, a camp ledger, upgrades (bigger tents, a cook, an armoury), members who go on jobs and bring loot or trouble, camp morale.
+C8. [M] Physical VR crafting: hammering blades on the anvil, sharpening, fitting gun parts, physical reloads (drop the mag, seat a new one, rack the slide), holstering on the body; always with a seated or Reclined shortcut.
+C9. [A] Field radio and support: once you hold a base, call in artillery, supply drops or a frigate bombardment on a map grid, with cooldowns and cost; enemies can jam it.
+C10. [A] Airships and a sky layer: the Capital's armoured airships as mobile fortresses patrolling high above; board one with a flyer or a grapple; a small cloud-island layer mirroring the Deep below, with its own loot.
+C11. [A] Submarines, wrecks and mines: build or capture a submarine; sunken warships and treasure wrecks to dive; naval mines and torpedoes; the navy hunts you with sonar.
+C12. [B] Seasons: spring, summer, autumn, winter over in-game weeks; lakes freeze, snow on trees, crops by season, animals migrate, hunting seasons, festivals in towns.
+C13. [B] Legendary weapons and armour: named one-off items from bosses, legendary animals and command fortresses, each with a story, a look and a unique perk; a gallery in your base.
+C14. [B] Jobs and contracts: notice boards in towns, bases and countries offering procedural jobs (escort, delivery, bounty, clear a camp, defend a town) that pay money and reputation and pull you around the world.
+C15. [A] Mining expeditions: dynamite, mine carts and rail inside mines, supports and cave-ins, gas pockets and lamps; deep ore veins worth an expedition.
+C16. [A+B, last] Co-op for two players on Quest: a friend joins your world (host-authoritative), shares horses, vehicles and heists. The biggest sales driver on Quest, and the biggest job, so it goes last, after the single-player game is store-ready.
+
+## SMALLER IDEAS (take when a lane is empty)
 O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
 O2. Hired companions: pay or recruit townsfolk and troops to follow and fight; gear them with your looted armour.
 O3. Faction reputation: towns, the Capital, the military, the navy and the countries each remember you; bounties and allies follow.
