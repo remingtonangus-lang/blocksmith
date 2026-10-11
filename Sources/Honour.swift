@@ -371,7 +371,7 @@ enum HonourHUD {
         let s = L.s
         let walletShown = TownLaw.inTown != nil || g.clock - Wallet.changedAt < 6 || inv
         var y = L.insetY + 6 * s + (g.effects.any && !inv ? 54 * s : 0) + (walletShown ? 14 * s : 0)     // one line under the wallet
-        if Settings.shared.minimap && !inv { y += 64 * s + 30 * s }
+        if Settings.shared.minimap && !inv { y += 64 * s + Minimap.below(g) * s }
         let h = Honour.value
         let t = "Honour: " + Honour.standing(h)
         // A change pulses the meter: it swells and brightens for 0.8 s, then settles (with the chime from change()).

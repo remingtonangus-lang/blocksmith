@@ -191,6 +191,7 @@ final class MapCache {
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
         case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
         case "legend": return ("L", V4(0.95, 0.5, 0.2, 1), "Legendary animal's den")
+        case "border_post": return ("P", V4(0.75, 0.2, 0.2, 1), "Border post")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
         }
     }
@@ -353,6 +354,13 @@ enum Minimap {
     private static var terrainKeys: [TerrainKey?] = [nil, nil]
     private static var terrainRows: [[HudLine]] = [[], []]
 
+    // How far under the map's top the lines below it end (the wallet and honour go under them): the coordinates, the
+    // country line and the waypoint line.
+    static func below(_ g: Game) -> Float {
+        let pin = g.dim.dim == .overworld && MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) != nil
+        return 30 + (pin && Countries.hudLine(g) != nil ? 9 : 0)
+    }
+
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard Settings.shared.minimap, HudExtras.enabled, g.menu == nil, g.alive, !g.hideHUD else { return [] }
         let s = L.s
@@ -377,6 +385,13 @@ enum Minimap {
         let coords = "\(Int(floor(g.player.pos.x))) \(Int(floor(g.player.pos.z)))"
         out.append(HudLine(text: coords, x: x0 + size - Float(Font.width(coords)) * s, y: y0 + size + 4 * s, scale: s, color: V4(0.9, 0.9, 0.9, 0.9),
                            bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
+        // The country you're in, in its flag colour, under the coordinates (Countries.swift).
+        var under: Float = 13
+        if let (t, c) = Countries.hudLine(g) {
+            out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: c,
+                               bg: V4(0, 0, 0, max(0.45, Settings.shared.textBackground))))
+            under += 9
+        }
         // Nearest waypoint: distance and compass direction under the coordinates.
         if g.dim.dim == .overworld, let pin = MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) {
             let dx: Float = Float(pin.x) + 0.5 - g.player.pos.x, dz: Float = Float(pin.z) + 0.5 - g.player.pos.z
@@ -385,7 +400,7 @@ enum Minimap {
             let ang: Float = atan2f(dx, -dz)                               // 0 = north (-z), clockwise
             let i = Int(((ang / (2 * .pi) * 8) + 8.5).rounded(.down)) % 8
             let t = dist < 3 ? "+ here" : "+ \(dist) \(dirs[i])"
-            out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + 13 * s, scale: s, color: V4(0.4, 0.9, 0.95, 0.95),
+            out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: V4(0.4, 0.9, 0.95, 0.95),
                                bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
         }
         return out
@@ -459,6 +474,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         let x0 = o.x + 8 * s, y0 = o.y + 18 * s
         let cols = 152, rows = 82
         MapDraw.terrain(&out, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
+        Countries.mapBorders(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
         MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s, labels: true)
         // Centre cross and what is under it.
         let mx = x0 + Float(cols) * px / 2, my = y0 + Float(rows) * px / 2

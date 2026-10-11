@@ -55,10 +55,10 @@ B3. Hunting like RDR2. [DONE: Lane B thread, 2026-10-11, PR #35; docs/status/hun
 - A trapper or butcher in towns buys pelts by quality; crafted outfits, saddles and satchels from pelts (bigger inventory).
 - Legendary animals with map clues and unique pelts. Fishing with species, sizes and a fishing minigame that works in VR.
 
-B4. Countries that give minerals. [CLAIMED: Lane B thread, 2026-10-11] Intent: there should be countries too that give minerals.
+B4. Countries that give minerals. [DONE: Lane B thread, 2026-10-11, PR #39; docs/status/countries.md] Intent: there should be countries too that give minerals.
 - The world is divided into a handful of countries with borders, flags, capitals and towns, each rich in particular minerals. They trade, tax and pay tribute; you can ally with one, raid another, or take it over through its capital. Border posts, customs and wars between countries that change the map over time.
 
-B5. Enchantments become tool upgrades. Intent: enchanting is too similar to the original; make it tool upgrades that still need experience.
+B5. Enchantments become tool upgrades. [CLAIMED: Lane B thread, 2026-10-11] Intent: enchanting is too similar to the original; make it tool upgrades that still need experience.
 - A workbench upgrade tree per tool and weapon (sharper edge, reinforced head, balanced grip, scopes, extended mags) paid with experience plus materials; visible changes on the model; old enchanted items convert in saves.
 
 B6. Hell's own mobs. Intent: hell needs its own mobs, including a dark burgundy knight class. Hell comes after mastering the bases and getting upgrades.

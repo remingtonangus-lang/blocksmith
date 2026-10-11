@@ -22,8 +22,17 @@ extension Economy {
 
     static func isEmerald(_ item: ItemID) -> Bool { Items.key(item) == "emerald" }
     // What the player pays for one / is paid for one at this counter.
-    static func buyPrice(_ item: ItemID, _ p: ShopPricing) -> Int { isEmerald(item) ? emeraldBuy : p.buy(value(of: item) ?? 0) }
-    static func sellPrice(_ item: ItemID, _ p: ShopPricing) -> Int { isEmerald(item) ? emeraldSell : p.sell(value(of: item) ?? 0) }
+    // A country's terms (Countries.swift) add its tax, its mineral prices and an ally's discount.
+    static func buyPrice(_ item: ItemID, _ p: ShopPricing) -> Int {
+        if isEmerald(item) { return emeraldBuy }
+        let v = value(of: item) ?? 0
+        return p.country.active ? p.country.buy(item, v, p) : p.buy(v)
+    }
+    static func sellPrice(_ item: ItemID, _ p: ShopPricing) -> Int {
+        if isEmerald(item) { return emeraldSell }
+        let v = value(of: item) ?? 0
+        return p.country.active ? p.country.sell(item, v, p) : p.sell(v)
+    }
 
     // A craftsperson's cash counter: the shop catalogue closest to their trade.
     static let professionShop: [String: ShopKind] = [
@@ -106,7 +115,7 @@ enum Wallet {
         guard recent || TownLaw.inTown != nil || inv else { return [] }
         let s = L.s
         var y = L.insetY + 6 * s + (g.effects.any && !inv ? 54 * s : 0)
-        if Settings.shared.minimap && !inv { y += 64 * s + 30 * s }          // under the minimap, its coordinates and waypoint line
+        if Settings.shared.minimap && !inv { y += 64 * s + Minimap.below(g) * s }          // under the minimap, its coordinates and waypoint line
         let t = Money.format(money)
         let w = Float(Font.width(t)) * s
         let x = L.W - L.insetX - w - 8 * s

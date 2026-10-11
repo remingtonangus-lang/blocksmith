@@ -409,6 +409,7 @@ extension Game {
         d["money"] = "\(money)"
         TownLaw.save(&d)
         Hunting.save(&d)
+        Countries.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
         if smoothTerrain { d["terrain"] = "smooth" }
         if ashVictory { d["ashVictory"] = "1" }
@@ -434,6 +435,7 @@ extension Game {
         money = d["money"].flatMap { Int($0) } ?? Money.start
         TownLaw.load(d, seed: world.seed)
         Hunting.load(d)
+        Countries.load(d)
         deepVisited = d["deepVisited"] == "1"
         smoothTerrain = d["terrain"] == "smooth"
         SmoothTerrain.use(world: smoothTerrain, world: world)
