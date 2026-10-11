@@ -282,10 +282,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: self.game.smoothTerrain)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
-                let parts = id.split(separator: ":", maxSplits: 5, omittingEmptySubsequences: false).map(String.init)
-                guard parts.count == 6 else { return }
-                self.switchWorld(name: parts[4], seed: AppDelegate.seedValue(parts[5]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2,
-                                 smooth: parts[3] == "1")
+                guard let r = WorldRequest.create(action: id) else { return }
+                self.switchWorld(name: r.name ?? "World", seed: r.seed, survival: r.survival, difficulty: r.difficulty, smooth: r.smooth)
             default: break
             }
         }
@@ -463,15 +461,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         switchWorld(name: name, seed: seed, survival: survival, difficulty: diff)
     }
     // Seed text -> seed: numbers as they are, other text via a stable 64-bit FNV-1a hash, empty = random.
-    static func seedValue(_ text: String) -> UInt64? {
-        let t = text.trimmingCharacters(in: .whitespaces)
-        if t.isEmpty { return nil }
-        if let v = UInt64(t) { return v }
-        if let v = Int64(t) { return UInt64(bitPattern: v) }
-        var h: UInt64 = 0xcbf29ce484222325
-        for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
-        return h
-    }
+    static func seedValue(_ text: String) -> UInt64? { WorldRequest.seedValue(text) }
     @objc func saveQuit() { game.closeMenusForExit(); game.saveNow(); SaveIO.flush(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {

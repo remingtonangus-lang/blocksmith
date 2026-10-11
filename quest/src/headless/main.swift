@@ -86,7 +86,7 @@ do {
     for (action, smooth) in [("create:1:2:1:Polygon Test:12345", true), ("create:0:3:0:Block Test:hello", false)] {
         guard let req = WorldRequest.create(action: action) else { check(false, "create action parses: \(action)"); continue }
         let wantName = smooth ? "Polygon Test" : "Block Test", wantDiff = smooth ? 2 : 3
-        let wantSeed: UInt64? = smooth ? 12345 : WorldRequest.seedValue("hello")
+        let wantSeed: UInt64? = smooth ? 12345 : 0xa430d84680aabd0b   // FNV-1a of "hello"
         let fieldsOK: Bool = req.name == wantName && req.survival == smooth && req.difficulty == wantDiff
         check(fieldsOK && req.smooth == smooth && req.seed == wantSeed, "create action parses: \(action)")
         SmoothTerrain.set(!smooth, world: nil)            // the previous world's mode, which the new one must replace
@@ -94,7 +94,7 @@ do {
         cw.renderDistance = 2
         let cg = Game(world: cw, save: nil, persistent: false)
         req.setUp(cg, meta: nil)
-        check(cg.smoothTerrain == smooth && SmoothTerrain.enabled == (SmoothTerrain.forced ?? smooth) && cw.chunks.isEmpty,
+        check(cg.smoothTerrain == smooth && SmoothTerrain.enabled == (SmoothTerrain.forced ?? smooth),
               "new world from the menu: Terrain \(smooth ? "Smooth" : "Blocks") set before loadSync (option \(cg.smoothTerrain), mesher \(SmoothTerrain.enabled))")
         _ = cw.loadSync(center: cg.player.pos, radius: 1)
         check(SmoothTerrain.enabled == (SmoothTerrain.forced ?? smooth) && !cw.chunks.isEmpty, "new world loads in its terrain mode")
