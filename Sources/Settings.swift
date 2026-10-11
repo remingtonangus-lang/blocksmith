@@ -63,6 +63,7 @@ final class Settings {
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
     @Pref("buttonHints") var buttonHints = true      // control legends under menus and contextual prompts in game
+    @Pref("hintSeconds") var hintSeconds: Float = 0  // seconds played with the in-game prompts showing (P53: they retire at 3 h)
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
@@ -87,7 +88,7 @@ final class Settings {
         lookX = 3; lookY = 3; lookAccel = 3; lookDead = Settings.lookDeadDefault; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
-        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
+        safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1

@@ -53,6 +53,17 @@ final class QuestControls {
     private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
     private var sprintHinted = false            // the click-to-sprint hint was shown
     private var prevGripL = false, prevGripR = false
+    // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
+    // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
+    private var hudSolid: Float = 0
+    private(set) var hudAlpha: Float = 0.95
+    static let hudRest: Float = 0.45
+    private func hudFadeTick(_ dt: Float) {
+        hudSolid = max(0, hudSolid - dt)
+        if game.hurtFlash > 0 || game.health <= 6 { hudSolid = max(hudSolid, 1) }
+        let want: Float = !QuestSettings.hudFade || hudSolid > 0 ? 0.95 : QuestControls.hudRest
+        hudAlpha += (want - hudAlpha) * min(1, dt * (want > hudAlpha ? 10 : 2))
+    }
     // Swing melee (swingContact): last frame's blade capsule (world), its tip relative to the head (tracking space), the
     // mobs this swing already hit, and the slow-touch buzz timer.
     private var bladeA = V3.zero, bladeB = V3.zero, bladeTipRel = V3.zero
@@ -171,6 +182,7 @@ final class QuestControls {
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
+        hudFadeTick(dt)
         // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
         QuestControls.keyboardHook?(game.menu.map { $0.capturesText && !($0 is KeyboardMenu) } ?? false)
 
@@ -276,6 +288,7 @@ final class QuestControls {
         if !inMenu && !bagGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         }
         prevGripL = lGrip; prevGripR = rGrip
         // A stick click with the stick pushed out is the push itself clicking (Touch sticks click when shoved forward):
@@ -1248,7 +1261,7 @@ final class QuestControls {
             let c = panelCenter - eye
             let m = float4x4(columns: (V4(rx * panelSize.x, 0), V4(uy * panelSize.y, 0), V4(n, 0), V4(c, 1)))
             let inMenu = mode == .menu
-            panel.draw(s, model: m, alpha: inMenu ? 1 : 0.95, onTop: true)
+            panel.draw(s, model: m, alpha: inMenu ? 1 : hudAlpha, onTop: true)
         }
         if let hp = hintPanel, let h = hint, let hit = aimHit, game.menu == nil {
             // Beside the dot, a little above, facing the head; about 3 degrees tall wherever it is.

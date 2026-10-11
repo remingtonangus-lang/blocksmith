@@ -200,8 +200,26 @@ enum ContextPrompts {
         return out.prefix(4).map { Prompt.g($0.0) + " " + $0.1 }
     }
 
+    // P53 (Oct 11 evening playtest: "players won't need to know that after they've been playing a while"): the
+    // in-game button prompts show for the first three hours of play, then retire (once, with a toast). Button Hints
+    // in Options turns them off sooner, or on again for another three hours. Menu legends are unaffected.
+    static let retireAfter: Float = 3 * 3600
+    static var shown: Bool { HudExtras.enabled && Settings.shared.buttonHints && Settings.shared.hintSeconds < retireAfter }
+    private static var pending: Float = 0, lastClock: Double = -1
+    static func tick(_ g: Game) {
+        let dt = lastClock < 0 ? 0 : Float(max(0, min(1, g.clock - lastClock)))
+        lastClock = g.clock
+        guard shown, g.menu == nil, !g.paused, g.alive else { return }
+        pending += dt
+        guard pending >= 30 else { return }                // UserDefaults written twice a minute, not every frame
+        let st = Settings.shared
+        st.hintSeconds += pending
+        pending = 0
+        if st.hintSeconds >= retireAfter { g.onToast?("Button prompts are now hidden (Options > Button Hints brings them back)") }
+    }
+
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard HudExtras.enabled, Settings.shared.buttonHints, g.menu == nil, g.alive else { return [] }
+        guard shown, g.menu == nil, g.alive else { return [] }
         let list = items(g)
         let s = L.s
         var out: [HudLine] = []
@@ -322,6 +340,7 @@ enum HudExtras {
         TownLaw.tick(g)
         Hunting.tick(g)
         Countries.tick(g)
+        ContextPrompts.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -335,7 +354,7 @@ enum HudExtras {
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
-        if enabled && Settings.shared.buttonHints && Prompt.pad && g.menu == nil {
+        if ContextPrompts.shown && Prompt.pad && g.menu == nil {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
             let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)

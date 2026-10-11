@@ -581,7 +581,7 @@ final class PauseMenu: Menu {
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
         case "couch": HudLayout.couch.toggle()
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
-        case "hints": st.buttonHints.toggle()
+        case "hints": st.buttonHints.toggle(); if st.buttonHints { st.hintSeconds = 0 }     // on again: another 3 h (P53)
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
         case "bugnotes":
             if BugNotes.denied {
