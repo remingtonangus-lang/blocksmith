@@ -188,6 +188,39 @@ extension Bench {
         } }
         print("bench \(k) far cut quads by face: \(byFace.prefix(6).map { "\($0 / 1000)k" }.joined(separator: " ")), greedy-path \(merged / 1000)k")
         print("bench \(k) loaded quads: near solid \(q[0][0] / 1000)k cut \(q[0][1] / 1000)k trans \(q[0][2] / 1000)k (\(q[0][3]) sections) | far solid \(q[1][0] / 1000)k cut \(q[1][1] / 1000)k trans \(q[1][2] / 1000)k (\(q[1][3]) sections)")
+        // BS_QUADKINDS=1: exposed block faces by block kind and structures by kind in the drawn disc at the route's end
+        // (what a quad-count rise came from; task 25b4zxxx's flyover +13%).
+        if getenv("BS_QUADKINDS") != nil {
+            let cx = Int(floor(p.x / 16)), cz = Int(floor(p.z / 16))
+            var faces = [Int](repeating: 0, count: Blocks.count)
+            var kinds: [String: Int] = [:], seen = Set<String>()
+            for dz in -rd...rd { for dx in -rd...rd where world.inMeshRadius(dx, dz) {
+                guard let c = world.chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { continue }
+                for y in 1..<(CH - 1) { for lz in 0..<CS { for lx in 0..<CS {
+                    let b = Int(c.blocks[Chunk.index(lx, y, lz)])
+                    if b == Int(AIR) { continue }
+                    var n = 0
+                    if !Blocks.opaque[Int(c.blocks[Chunk.index(lx, y + 1, lz)])] { n += 1 }
+                    if !Blocks.opaque[Int(c.blocks[Chunk.index(lx, y - 1, lz)])] { n += 1 }
+                    if lx > 0 && !Blocks.opaque[Int(c.blocks[Chunk.index(lx - 1, y, lz)])] { n += 1 }
+                    if lx < CS - 1 && !Blocks.opaque[Int(c.blocks[Chunk.index(lx + 1, y, lz)])] { n += 1 }
+                    if lz > 0 && !Blocks.opaque[Int(c.blocks[Chunk.index(lx, y, lz - 1)])] { n += 1 }
+                    if lz < CS - 1 && !Blocks.opaque[Int(c.blocks[Chunk.index(lx, y, lz + 1)])] { n += 1 }
+                    faces[b] += n
+                } } }
+                if let sc = world.gen.structures {
+                    for t in sc.types { for s in sc.startsNear(cx: cx + dx, cz: cz + dz, t) {
+                        let id = "\(s.kind) \(s.min.x) \(s.min.z)"
+                        if seen.insert(id).inserted { kinds[s.kind, default: 0] += 1 }
+                    } }
+                }
+            } }
+            var byKey: [String: Int] = [:]
+            for i in 0..<faces.count where faces[i] > 0 { byKey[Blocks.key(Blocks.groupBase[i]), default: 0] += faces[i] }
+            let total = byKey.values.reduce(0, +)
+            print("bench \(k) exposed faces \(total / 1000)k by kind: " + byKey.sorted { $0.value > $1.value }.prefix(40).map { "\($0.key) \($0.value / 1000)k" }.joined(separator: ", "))
+            print("bench \(k) structures in the disc: " + kinds.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+        }
         let fu = dist(upd)
         put("\(k).update_ms", fu, "mean,p99")
         put("\(k).missed_pct", Double(missed) / Double(max(1, frames)) * 100)

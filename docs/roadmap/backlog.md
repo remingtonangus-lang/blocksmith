@@ -148,6 +148,12 @@ C12. [B] Mining expeditions replace genre-style abandoned mineshafts: real worki
 C13. [B] Village size variety: village sizes span hamlet, village, town, large town and city, with rarity scaling exponentially (each size roughly 3 to 4 times rarer than the one below). Bigger places get more shops, a mine, a rail station if a line passes, more law. Check the size histogram over 50 seeds.
 C14. [A+B, last] Two-player co-op on Quest: a friend joins your world (host-authoritative), shares horses, vehicles and robberies. The biggest sales driver on Quest and the biggest job, so it goes last, after the single-player game is store-ready.
 
+## FOR THE TOWNS LANE (from the Mac worker, task 25b4zxxxx, 2026-10-11)
+T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~line 238 tests the centre distance
+    (`dist < w.reach + 0.3`, feet height window 2.5) so an angry townsperson can't hit a player on a 2-block step and
+    can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
+    level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
+
 ## SMALLER IDEAS (take when a lane is empty)
 O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
 O2. Hired companions: pay or recruit townsfolk and troops to follow and fight; gear them with your looted armour.

@@ -141,6 +141,14 @@ First CI run (run 38100602991, 20 s routes): governor PASS; taiga 456k quads, ti
 (info); flyover 362k quads (budget was 360k; 320k on Oct 10 before the Deep/honour merges), 2.2% not meshed, frame
 p99 18.6 ms (info). Flyover budget now 380k; the +13% quads since the merges is open (task 25b4zxxx).
 
+## Anisotropy 8 vs 4 (task 25b4zxxxx, 2026-10-11)
+
+Mac `--quest` proxy (two 1440x1584 eyes, rd default, 20 s a run, fast build, same commit with a temporary
+`BS_ANISO` switch on the Metal sampler): GPU p99 village 4.63 / 4.52 ms at 8 vs 4.62 / 4.55 ms at 4; taiga 9.38 / 9.49
+at 8 vs 9.31 / 9.38 at 4. The difference (<= 0.1 ms) is inside run-to-run noise, far under the 0.5 ms switch rule, so
+the Quest sampler stays at anisotropy 8 (quest/src/vk/SceneRenderer.swift). Caveat: the M1 is not an Adreno 740; a
+headset `perf:` log at rd 16 over the taiga is still the real proof (see below). The switch was removed after the A/B.
+
 ## Still to measure on the headset
 
 - Oct 10 evening (25b4zxx): no headset on adb, so the 128 px textures + sharp-bilinear + aniso 8 (a9550de7) and the

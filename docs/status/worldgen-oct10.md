@@ -70,6 +70,15 @@ and take the landmarks' lighter haze only where a cell is mostly cone (half-cone
 After: volcano_far_135623_after.jpg (noon, same 650-block view), volcano_far_135623_dusk_after.jpg. Shared code
 (HorizonRing.swift), so the Quest's far view is the same.
 
+Same-commit A/B (task 25b4zxxxx, 2026-10-11; temporary env switches for the old ring colouring and the old overhead-only
+cone lighting, removed afterwards): `--seed 135623 --x 1334 --z 2060 --yaw 270 --pitch 0 --up 130 --rd 8`.
+volcano_far_ab_old_noon.jpg / volcano_far_ab_new_noon.jpg and the evening crops (time 0.42)
+volcano_far_ab_old_eve.jpg / volcano_far_ab_new_eve.jpg: the old cone is pale and snow-spotted with no modelling; the
+new one is dark rock, lit on the sun's side and cooler in shade (LandmarkRender: a low key light from the sun's bearing
+on top of the overhead sun, warm/cool tint). Quest renderer: questcheck now renders the same view headless
+(`stereo_volcano135623.png` in the quest-host CI artifact) and checks the impostor draws; the impostor and ring are
+shared code, so the colours are the same on the headset.
+
 ## 3. Ruined gates
 
 Removed from overworld generation (OverworldStructures.types); `ruinedPortal` and the "ruined_portal" loot table

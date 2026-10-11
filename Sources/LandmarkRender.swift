@@ -38,6 +38,8 @@ extension Renderer {
         let loaded = rd * 16
         let sun = game.sunDir
         let day = game.daylight
+        let az = simd_normalize(V2(sun.x, sun.z))
+        let keyDir = simd_normalize(V3(az.x, 0.45, az.y))
         let hdrK: Float = hdrActive ? 1.6 : 1
         let place: Float = far * 0.93
         var smoke = landmarkSmoke
@@ -65,9 +67,13 @@ extension Renderer {
             // Near: the real terrain shows it (until its centre is past the loaded area). Far: past the landmark range.
             guard dist > loaded + v.r * 0.2, dist < Renderer.landmarkRange else { continue }
             let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
+            // Sun-side shading: the overhead sun alone lit every flank alike (a flat grey cut-out far away, Oct 10
+            // playtest); a low key light from the sun's bearing models the cone, warm on the lit side, cool in shadow.
             func shade(_ base: V3, _ n: V3) -> V3 {
-                let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
-                return base * lit * hdrK * (1 - haze) + fog * haze
+                let key: Float = max(0, simd_dot(n, keyDir))
+                let lit: Float = 0.26 + (0.42 * max(0, simd_dot(n, sun)) + 0.62 * key) * day
+                let tint: V3 = simd_mix(V3(0.86, 0.9, 1.04), V3(1.12, 1.0, 0.86), V3(repeating: key))
+                return base * tint * lit * hdrK * (1 - haze) + fog * haze
             }
             func height(_ t: Float) -> Float {
                 let tc = v.crater / v.r

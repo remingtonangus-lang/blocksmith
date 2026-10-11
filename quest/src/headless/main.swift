@@ -135,6 +135,24 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 game.player.pos = saved
             } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
         }
+        // The Oct 10 playtest's far volcano (docs/status/worldgen-oct10, seed 135623 from x 1334 z 2060, 60 up, noon): the
+        // cone's sun-side shading and the horizon ring under it on the Quest renderer. Nothing loaded: ring + impostor only.
+        do {
+            let vw = World(seed: 135623, device: device, save: nil)
+            vw.renderDistance = 6
+            let vg = Game(world: vw, save: nil, persistent: false)
+            vg.time = 0.25 * DAY_LENGTH
+            let x: Float = 1334, z: Float = 2060
+            vg.player.pos = V3(x, Float(vw.gen.column(Int(x), Int(z)).height + 60), z)
+            vg.player.flying = true
+            if let wg = vw.gen as? WorldGen, let v = wg.terrain.volcanoes(near: x, z, reach: 2600)
+                .min(by: { simd_length(V2($0.x - x, $0.z - z)) < simd_length(V2($1.x - x, $1.z - z)) }) {
+                let d = simd_normalize(V2(x - v.x, z - v.z))
+                let vp = path.replacingOccurrences(of: ".png", with: "_volcano135623.png")
+                try RenderTest.render(game: vg, ctx: ctx, path: vp, yaw: atan2f(d.x, d.y), pitch: 0.02)
+                check(RenderTest.landmarkVerts > 0, "seed 135623 far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
+            } else { check(false, "seed 135623: a volcano within 2600 blocks of x 1334 z 2060") }
+        }
         // The water look (water.frag: Fresnel sky, glint, swell, depth, shore foam): from a beach toward the sea, at
         // noon; compared with the Mac's Fancy water by eye (Quest v63: the water had never been ported).
         do {
