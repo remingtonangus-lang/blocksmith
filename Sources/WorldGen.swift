@@ -11,6 +11,7 @@ import Foundation
 final class WorldGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
+    var countryOres = true          // CountriesTests compares a chunk with and without its country's veins
     let tempN: Noise, humN: Noise, contN: Noise, eroN: Noise, weirdN: Noise
     let ridgeN: Noise, detailN: Noise, dens1: Noise, dens2: Noise
     let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise, pocketNoise: Noise
@@ -929,6 +930,28 @@ final class WorldGen: TerrainGenerator {
             let em = g("emerald_ore")
             let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
             for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
+        }
+        if countryOres { placeCountryOres(&b, bx, bz) }
+    }
+
+    // Countries (Countries.swift): extra veins of the two minerals the country under this chunk is rich in, on a random
+    // stream of their own so nothing else in the chunk moves.
+    private func placeCountryOres(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let g = Blocks.id
+        var rng = SRng(seed ^ 0xC0_C0A7 &+ UInt64(bitPattern: Int64(bx &* 73856093 ^ bz &* 19349663)))
+        func y(_ d: Int) -> Int { d + YOFF }
+        for m in Countries.rich(atX: bx + 8, z: bz + 8, seed: seed) {
+            switch m {
+            case .coal: for _ in 0..<20 { vein(&b, bx, bz, &rng, COAL_ORE, g("deepslate_coal_ore"), y: y(triangle(&rng, 0, 192)), size: 17) }
+            case .iron: for _ in 0..<24 { vein(&b, bx, bz, &rng, IRON_ORE, g("deepslate_iron_ore"), y: y(triangle(&rng, -24, 120)), size: 9) }
+            case .copper: for _ in 0..<14 { vein(&b, bx, bz, &rng, g("copper_ore"), g("deepslate_copper_ore"), y: y(triangle(&rng, -16, 112)), size: 10) }
+            case .gold: for _ in 0..<5 { vein(&b, bx, bz, &rng, GOLD_ORE, g("deepslate_gold_ore"), y: y(triangle(&rng, -64, 48)), size: 9) }
+            case .lapis: for _ in 0..<5 { vein(&b, bx, bz, &rng, g("lapis_ore"), g("deepslate_lapis_ore"), y: y(rng.range(-64, 64)), size: 7) }
+            case .titanium: for _ in 0..<4 { vein(&b, bx, bz, &rng, DIAMOND_ORE, g("deepslate_diamond_ore"), y: y(max(-64, triangle(&rng, -144, 16))), size: 4) }
+            case .emerald:
+                let em = g("emerald_ore"), dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
+                for _ in 0..<40 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 160)), size: 3) }
+            }
         }
     }
 

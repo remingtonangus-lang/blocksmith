@@ -321,6 +321,7 @@ enum HudExtras {
         MapCache.shared.tick(g)
         TownLaw.tick(g)
         Hunting.tick(g)
+        Countries.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {

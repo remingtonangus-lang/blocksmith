@@ -26,6 +26,7 @@ enum TownTests {
         people(g, check)
         variety(g, check)                    // TownStatsTests.swift: townsfolk toughness, speed, strength, build, the glance line
         hunting(g, check)                    // HuntingTests.swift: quality, clean kills, skinning, pelts, legends, fishing
+        countries(g, check)                  // CountriesTests.swift: the layer, minerals, prices, borders, customs, wars
         defence(g, check)
         towns(makeWorld, check)
         townGap(g, makeWorld, check)         // TownGapTests.swift: plans, bank, upgrades, dice, night raids, the map

@@ -265,6 +265,7 @@ enum TownLaw {
         // Unseen, it still costs honour (a third of what a witness would make it): stealing is stealing.
         guard let first = ws.first else { Honour.unseenTheft(g, 0.5 * add); return }
         let town = town(of: first, g)
+        Countries.crime(g, town: town, at: p, heat: add)
         let h = heat(town) + add
         state.heat[town] = h
         offences += 1
@@ -312,6 +313,7 @@ enum TownLaw {
         }
         if fresh {
             Honour.townTurned(g, town)
+            Countries.townTurned(g, town: town, at: p)
             if witness.villager?.role != "sheriff" { Townsfolk.townLastLine = -100; TownVoice.speak(g, witness, .angry) }
             g.onToast?("\(town) has turned on you!")
         }

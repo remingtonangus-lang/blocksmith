@@ -60,10 +60,10 @@ enum ShopKind: String, CaseIterable, Codable {
 
 // A paid service instead of an item (the doctor patching you up, a hot meal at the saloon).
 enum ShopService: String, CaseIterable {
-    case treatment, meal
-    var name: String { self == .treatment ? "Patch Me Up" : "Hot Meal" }
-    var icon: String { self == .treatment ? "potion_healing" : "rabbit_stew" }
-    var detail: String { self == .treatment ? "Heals you fully" : "Fills you up" }
+    case treatment, meal, treaty
+    var name: String { self == .treatment ? "Patch Me Up" : (self == .meal ? "Hot Meal" : "Treaty of Alliance") }
+    var icon: String { self == .treatment ? "potion_healing" : (self == .meal ? "rabbit_stew" : "writable_book") }
+    var detail: String { self == .treatment ? "Heals you fully" : (self == .meal ? "Fills you up" : "Ally with this country") }
 }
 
 enum Economy {
@@ -120,6 +120,7 @@ enum Economy {
         switch s {
         case .treatment: return 100 + 10 * max(0, 20 - g.health)       // $1 plus 10 cents a half-heart
         case .meal: return 120
+        case .treaty: return Countries.treatyFee
         }
     }
 
@@ -196,12 +197,14 @@ enum Economy {
 
 struct ShopPricing {
     var buyMult: Float, sellMult: Float, refuses: Bool
+    var country = CountryTerms.none         // the town's country: mineral prices, tax, an ally's discount (Countries.swift)
 
     // Reputation 100 or more: 10% off and 10% more for what you sell; down to -100: 25% dearer and 25% less paid;
     // below -100 the shop won't serve you. Friend of the Town (heroOfTheVillage) takes another 5% off (never past minBuyMult).
     // Honour (Honour.swift) nudges both a little more, inside the same bounds. A town you took (TownConquest) gives you
     // its best prices and always serves you; a town wary of you after a taking nearby charges 10% more.
-    init(reputation rep: Int, hero: Int, honour: Float = 0, town: TownConquest.Standing = .none) {
+    init(reputation rep: Int, hero: Int, honour: Float = 0, town: TownConquest.Standing = .none, country: CountryTerms = .none) {
+        self.country = country
         let r = Float(max(-100, min(100, rep))) / 100
         var b: Float = r >= 0 ? 1 - 0.1 * r : 1 - 0.25 * r
         var s: Float = r >= 0 ? 0.5 * (1 + 0.1 * r) : 0.5 * (1 + 0.25 * r)
@@ -297,9 +300,16 @@ final class ShopMenu: Menu, CustomDrawnMenu {
     }
 
     var data: VillagerData? { mob?.villager }
+    // "Ostvaal, tax 8%" (Countries.swift).
+    var countryLine: String? {
+        guard game.dim.dim == .overworld, let m = mob, let t = m.villager?.town else { return nil }
+        let c = Countries.of(game, town: t, near: m.pos)
+        let tax = Int((pricing.country.tax * 100).rounded())
+        return tax > 0 ? "\(c.name), tax \(tax)%" : c.name
+    }
     var pricing: ShopPricing {
         ShopPricing(reputation: data?.reputation ?? 0, hero: game.effects.level(.heroOfTheVillage), honour: Honour.value,
-                    town: TownConquest.standing(data?.town))
+                    town: TownConquest.standing(data?.town), country: Countries.terms(game, town: data?.town, at: mob?.pos ?? game.player.pos))
     }
 
     func refresh() {
@@ -318,7 +328,9 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             }
             return out
         }
-        return (Economy.services[kind] ?? []).map { Row.service($0) } + Economy.catalog(kind).indices.map { Row.item($0) }
+        // A country's capital: its general store draws up treaties (Countries.swift).
+        let treaty: [Row] = kind == .general && mob.map { Countries.offersTreaty(game, $0) } == true ? [.service(.treaty)] : []
+        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) } + Economy.catalog(kind).indices.map { Row.item($0) }
     }
 
     func have(_ item: ItemID) -> Int {
@@ -339,8 +351,12 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             return (st, st.def.display, left > 0 ? "\(left) in stock" : "Sold out today", Money.format(price), left > 0 && game.money >= price)
         case .service(let s):
             let price = Economy.price(s, game)
-            let need = s == .treatment ? game.health < 20 : game.hunger < 20
             let st = Items.has(s.icon) ? ItemStack(Items.id(s.icon), 1) : .empty
+            if s == .treaty, let m = mob {
+                let (d, ok) = Countries.treatyDetail(game, m)
+                return (st, s.name, d, Money.format(price), ok && game.money >= price)
+            }
+            let need = s == .treatment ? game.health < 20 : game.hunger < 20
             return (st, s.name, need ? s.detail : (s == .treatment ? "You're in good health" : "You're not hungry"),
                     Money.format(price), need && game.money >= price)
         case .sell(let it):
@@ -435,7 +451,8 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         func right(_ t: String, _ x: Int, _ y: Int, _ c: V4) { label(t, x - Font.width(t), y, c) }
         // Who and where, and the wallet.
         if let v = data {
-            let line = [v.person, v.town].compactMap { $0 }.joined(separator: " of ")
+            var line = [v.person, v.town].compactMap { $0 }.joined(separator: " of ")
+            if let n = countryLine { line += ", " + n }
             label(ShopMenu.fit(line, width - 16), 8, 15, mid)
         }
         right("Wallet " + Money.format(game.money), width - 8, 6, V4(0.1, 0.38, 0.12, 1))
@@ -523,7 +540,7 @@ enum Shop {
         guard i < cat.count, var stock = v.stock, i < stock.count else { return ("", false) }
         let item = cat[i].item
         let price = Economy.buyPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
-                                                                     town: TownConquest.standing(v.town)))
+                                                                     town: TownConquest.standing(v.town), country: Countries.terms(g, town: v.town, at: m.pos)))
         let name = ItemStack(item, 1).def.display
         guard stock[i] > 0 else { m.villager = v; return ("Sold out of \(name) until tomorrow.", false) }
         let afford = price > 0 ? g.money / price : Int.max
@@ -548,6 +565,7 @@ enum Shop {
         g.achieve("trade")
         g.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         Honour.earn(g, 0.5, source: "trade", "a fair trade")
+        Countries.traded(g, town: v.town, at: m.pos)
         return ("Bought \(n) \(name) for \(Money.format(price * n)).", true)
     }
 
@@ -559,7 +577,7 @@ enum Shop {
         let name = ItemStack(item, 1).def.display
         guard n > 0 else { return ("You have no \(name).", false) }
         let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
-                                                                     town: TownConquest.standing(v.town)))
+                                                                     town: TownConquest.standing(v.town), country: Countries.terms(g, town: v.town, at: m.pos)))
         guard each > 0 else { return ("\(name) isn't worth anything here.", false) }
         var left = n
         for j in 0..<36 where left > 0 {
@@ -574,10 +592,12 @@ enum Shop {
         m.villager = v
         g.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         Honour.earn(g, 0.5, source: "trade", "a fair trade")
+        Countries.traded(g, town: v.town, at: m.pos)
         return ("Sold \(n) \(name) for \(Money.format(each * n)).", true)
     }
 
     static func service(_ g: Game, _ m: Mob, _ s: ShopService) -> (String, Bool) {
+        if s == .treaty { return Countries.signTreaty(g, m) }
         let price = Economy.price(s, g)
         switch s {
         case .treatment where g.health >= 20: return ("You look healthy to me.", false)

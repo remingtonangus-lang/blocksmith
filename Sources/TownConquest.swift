@@ -31,11 +31,11 @@ enum TownConquest {
 
     static func reset() { sheriffFell = [:]; warnedVisit = nil; greetedVisit = nil; surrenders = 0 }
 
-    static func owns(_ town: String?) -> Bool { town.map { TownLaw.state.owned?[$0] != nil } ?? false }
+    static func owns(_ town: String?) -> Bool { town.map { TownLaw.state.owned?[$0] != nil || Countries.annexes($0) } ?? false }
     static func standing(_ town: String?) -> Standing {
         guard let t = town else { return .none }
         if owns(t) { return .owned }
-        return wary.contains(t) ? .wary : .none
+        return wary.contains(t) || Countries.isEnemyTown(t) ? .wary : .none
     }
     static var wary = Set<String>()                  // towns on edge after a taking nearby (worked out on arrival)
 
@@ -43,6 +43,7 @@ enum TownConquest {
 
     static func lawFell(_ g: Game, _ m: Mob, town: String) {
         guard !owns(town) else { return }
+        Countries.lawKilled(g, town: town, at: m.pos)
         if m.villager?.role == "sheriff" { sheriffFell[town] = g.clock }
         guard let t = sheriffFell[town], g.clock - t < sheriffWindow else { return }
         let standing = g.mobs.mobs.contains {
@@ -82,6 +83,7 @@ enum TownConquest {
         }
         g.sfx(.bell, 0.8, at: p)
         g.onToast?("\(town) surrenders. It's yours: its beds and chests, its best prices, and tribute every day.")
+        Countries.townTaken(g, town, at: p)
     }
 
     // MARK: Every second (TownLaw.tick): tribute in your towns, the neighbours' news.
