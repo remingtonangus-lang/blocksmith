@@ -137,10 +137,10 @@ final class MapCache {
 
     func marked(kind: String, x: Int, z: Int) -> Bool { marks.contains { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 } }
 
-    func discover(_ g: Game, kind: String, x: Int, z: Int) {
+    func discover(_ g: Game, kind: String, x: Int, z: Int, name given: String? = nil) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         // A town goes on the map under its name (the gap pass: "a name on a sign and the map").
-        let name = kind == "village" ? Townsfolk.town(g, at: V3(Float(x), 64, Float(z))) : nil
+        let name = kind == "village" ? Townsfolk.town(g, at: V3(Float(x), 64, Float(z))) : given
         marks.append(Mark(kind: kind, x: x, z: z, name: name))
         saveMarks(g)
         g.onToast?("\(name ?? MapCache.style(kind).name) marked on the map")
@@ -190,6 +190,7 @@ final class MapCache {
         case "vessel_crawler": return ("I", V4(0.75, 0.45, 0.25, 1), "Ironback crawler patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
         case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
+        case "legend": return ("L", V4(0.95, 0.5, 0.2, 1), "Legendary animal's den")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
         }
     }

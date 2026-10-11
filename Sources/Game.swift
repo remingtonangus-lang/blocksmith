@@ -992,6 +992,8 @@ final class Game {
            !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
             takeCommand(s); return
         }
+        // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
+        if !swung && skinUse(useHeld, fdt) { mining = nil; return }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
@@ -1183,6 +1185,12 @@ final class Game {
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && useSunderCharge(on: target) { swing = 1; return }
+        // A Hunter's Map marks the next legendary animal's den (Hunting.swift).
+        if useNow && Items.key(h.item) == "hunters_map" {
+            if Hunting.readMap(self) { consumeHeld(); sfx(.pageTurn, 0.6) }
+            swing = 1
+            return
+        }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -1198,7 +1206,7 @@ final class Game {
         if crossbowUse(useHeld, useNow, fdt) { return }
         if tridentUse(useHeld, fdt) { return }
         if spearUse(useHeld, fdt) { return }
-        if fishingUse(useNow) { return }
+        if fishingUse(useNow, useHeld) { return }
         // Bow: hold to draw, release to shoot.
         // Brushing suspicious sand / gravel (archaeology).
         if Items.key(h.item) == "brush", useHeld, let t = target, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)).hasPrefix("suspicious_") {
@@ -1784,7 +1792,9 @@ final class Game {
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
         // needs a baby, so behind a plain !baby it could never drop.)
-        if !m.baby || m.isZombie {
+        // Game you killed leaves its body to skin instead of loot (Hunting.swift).
+        let body = Hunting.died(self, m)
+        if (!m.baby || m.isZombie) && !body {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             // Drops with reference rules of their own are rolled below (and skipped here).
             let custom: Set<MobKind> = [.shulker, .witch, .polarBear, .pillager]

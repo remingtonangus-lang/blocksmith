@@ -68,7 +68,8 @@ enum ShopService: String, CaseIterable {
 
 enum Economy {
     // Value in cents of one item. Shopkeepers sell at value x buyMult and buy at value x sellMult.
-    static let value: [String: Int] = [
+    static let value: [String: Int] = baseValue.merging(Hunting.values) { a, _ in a }
+    static let baseValue: [String: Int] = [
         // Crops and farm goods
         "wheat": 6, "wheat_seeds": 2, "carrot": 6, "potato": 6, "beetroot": 6, "beetroot_seeds": 2, "pumpkin": 25,
         "pumpkin_seeds": 3, "melon_slice": 4, "melon_seeds": 3, "sugar_cane": 5, "sugar": 6, "egg": 5, "sweet_berries": 4,
@@ -137,7 +138,8 @@ enum Economy {
         .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 180),
                     ("shotgun_shells", 60), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
-                   ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8)],
+                   ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8),
+                   ("hunters_map", 1)],
         .doctor: [("potion_healing", 4), ("splash_potion_healing", 2), ("potion_regeneration", 2), ("potion_swiftness", 2),
                   ("potion_night_vision", 2), ("potion_fire_resistance", 2), ("milk_bucket", 2), ("golden_apple", 1),
                   ("glistering_melon_slice", 4), ("honey_bottle", 6), ("saddle_salve", 2)],
@@ -162,7 +164,7 @@ enum Economy {
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
                     "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
-                   "bone", "rotten_flesh", "egg"],
+                   "bone", "rotten_flesh", "egg", "pufferfish", "tropical_fish"] + Hunting.buys,
         .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
                   "blaze_rod", "honey_bottle", "phantom_membrane", "glass_bottle", "slime_ball"],
         .stable: ["wheat", "hay_block", "apple", "carrot", "golden_carrot", "leather", "saddle", "leather_horse_armor",
