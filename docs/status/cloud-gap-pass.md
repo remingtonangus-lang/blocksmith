@@ -33,24 +33,24 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | C | Main gun: barrel, charge-up (sound, glow, shake, haptics), devastating shot, crater, shockwave, rumble, slow reload, blast frame time on Quest | MET | MainGun.swift, MainGunTests, MainGunPerf line | - | MET |
 | D | Rename UNSC / MAC in player-visible text, ip-renames.md | MET | coined-terms.txt has both; namecheck 0 hits | - | MET |
 | HON1 | Honour saved per world, shown subtly in HUD | MET | Honour.swift, HonourHUD | - | MET |
-| HON2 | Stealing loses honour, more if seen | PARTIAL | only witnessed theft costs anything; unseen theft is free (HonourTests asserts it) | H | |
-| HON3 | Fair trades, helping, protecting regain it | PARTIAL | protecting yes; fair trades and helping give nothing | H | |
-| HON4 | Low honour: villages hostile automatically; villagers flee or warn, sheriff and armed attack on sight | PARTIAL | an outlaw is only *challenged*; townsfolk turn hostile only on reputation < -100 or a crime | H | |
-| HON5 | Sheriff ~5% gun chance (5% of sheriffs *carry* a gun) | PARTIAL | Honour.sheriffDrops, 5.1% over 20,000 rolls. but the brief says 5% of sheriffs carry it; #19 made it a 5% drop and the sheriff never shoots it | H | |
+| HON2 | Stealing loses honour, more if seen | PARTIAL | only witnessed theft costs anything; unseen theft is free (HonourTests asserts it) | H | MET: unseen theft costs a third (capped 10/day); HonourTests, HonourGapTests |
+| HON3 | Fair trades, helping, protecting regain it | PARTIAL | protecting yes; fair trades and helping give nothing | H | MET: fair trades +0.5 (3/day), jobs, donations; HonourGapTests |
+| HON4 | Low honour: villages hostile automatically; villagers flee or warn, sheriff and armed attack on sight | PARTIAL | an outlaw is only *challenged*; townsfolk turn hostile only on reputation < -100 or a crime | H | MET: outlaws fought on sight after a 3 s warning, unarmed run, refused service; disreputable warned; HonourGapTests |
+| HON5 | Sheriff ~5% gun chance (5% of sheriffs *carry* a gun) | PARTIAL | Honour.sheriffDrops, 5.1% over 20,000 rolls. but the brief says 5% of sheriffs carry it; #19 made it a 5% drop and the sheriff never shoots it | H | MET: ~5% of sheriffs carry (and shoot) the revolver, the rest a sword; TownLawTests, HonourTests |
 | HON6 | Village errors in Quest build: walk villages, fix, list | MET | #20 structcheck sweep, frigate-polish-village-sweep.md | - | MET |
 
 ### Expanded objectives
 | # | Line | Before | Evidence | Fix | After |
 |---|------|--------|----------|-----|-------|
-| EH1 | Meter pulses with a sound when honour changes and shows the reason | PARTIAL | HUD shows the delta; toast with reason (throttled 8 s); no pulse, no sound | H | |
+| EH1 | Meter pulses with a sound when honour changes and shows the reason | PARTIAL | HUD shows the delta; toast with reason (throttled 8 s); no pulse, no sound | H | MET: meter pulse + chime, reason line, log; HonourGapTests |
 | EH2 | 5 tiers with real consequences: prices, greetings | MET | standing(), ShopPricing nudge | - | MET |
-| EH3 | Tips and gifts at high honour | MISSING | none | H | |
-| EH4 | Refused service at very low honour | PARTIAL | refused only while a bounty is out in that town | H | |
-| EH5 | Posters at very low honour | PARTIAL | the WANTED board is a static block in the sheriff's office; nothing shows the player | H | |
-| EH6 | Bounty hunters at very low honour | MISSING | none | H | |
-| EH7 | Redemption path: jobs, donations, protecting towns | PARTIAL | protecting yes; no jobs, no donations | H/T | |
+| EH3 | Tips and gifts at high honour | MISSING | none | H | MET: tips (respected), one gift a town a day (honourable); HonourGapTests |
+| EH4 | Refused service at very low honour | PARTIAL | refused only while a bounty is out in that town | H | MET: outlaws refused service everywhere; HonourGapTests |
+| EH5 | Posters at very low honour | PARTIAL | the WANTED board is a static block in the sheriff's office; nothing shows the player | H | MET: town WANTED boards show your poster (bounty + fine); HonourGapTests |
+| EH6 | Bounty hunters at very low honour | MISSING | none | H | MET: bounty hunters out of town, once a day, leave when you pay; HonourGapTests |
+| EH7 | Redemption path: jobs, donations, protecting towns | PARTIAL | protecting yes; no jobs, no donations | H/T | MET: notice-board jobs, donations, protecting towns; HonourGapTests |
 | EH8 | Per-world save with migration | MET | optional fields in TownLaw.Saved | - | MET |
-| EH9 | Honour actions logged so tests can prove each rule | MISSING | no log | H | |
+| EH9 | Honour actions logged so tests can prove each rule | MISSING | no log | H | MET: every change logged (day, amount, reason), saved; HonourGapTests |
 | ER1 | Name your horse (VR-friendly) | MISSING | none | R | |
 | ER2 | Breeds with different speed, stamina, courage, looks | MISSING | random speed per horse only | R | |
 | ER3 | Taming wild horses with a calm-down minigame | MISSING | random temper roll while bucking | R | |
@@ -63,14 +63,14 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | ER10 | Hooves sound per surface | MISSING | generic step sound | R | |
 | ER11 | Horse waits, grazes and wanders a little when left | PARTIAL | bonded horse follows within 10 blocks; no "stay", no grazing | R | |
 | ET1 | Every town has a name on a sign and on the map | PARTIAL | name in greetings; no sign at the edge, not on the map | T | |
-| ET2 | Notice board with bounties and jobs | MISSING | none | T | |
+| ET2 | Notice board with bounties and jobs | MISSING | none | T | MET: TownBoard (deliveries, monster hunts, outlaws with a spawned boss); HonourGapTests |
 | ET3 | Doctor heals and sells tonics | MET | Shops .doctor treatment + potions | - | MET |
 | ET4 | Bank for the emerald exchange | PARTIAL | the general store buys/sells emeralds; no bank | T | |
 | ET5 | Gunsmith upgrades | MISSING | gunsmith sells/buys only | T | |
 | ET6 | Saloon with one simple game (cards or dice) | MISSING | none | T | |
 | ET7 | Street lamps at night | PARTIAL | old village lamp posts only along some roads; no lamps on frontier streets that light at night | T | |
 | ET8 | Town defence events (raids at night), townsfolk fight beside you | PARTIAL | omen raids exist (player-triggered); no night raid events; townsfolk defend vs monsters | T | |
-| ET9 | People remember you (greet by name at high honour) | PARTIAL | they say *their* name; never yours | T | |
+| ET9 | People remember you (greet by name at high honour) | PARTIAL | they say *their* name; never yours | T | MET: respected and honourable are greeted by the name you pick on the board; HonourGapTests |
 | ET10 | Shopkeepers restock over days | MET | restockShop(day:) | - | MET |
 | ET11 | At least 3 town layouts per biome style | MISSING | one radial-plaza generator | T | |
 | EF1 | Gunner seat/console: aiming reticle, charge meter, cooldown display | MET | helm aim ring + mainGunStatus gauge (CombatHUD) | - | MET |
@@ -79,7 +79,7 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 | EF4 | Camera-shake comfort toggle for VR | PARTIAL | tied to Screen Effects (a general toggle); no own option on the VR comfort page | F | |
 | EF5 | The shot recorded as a video-like screenshot sequence | PARTIAL | single stills only | F | |
 | EB | Military base look (snow, blue lights, corridors, doors with sounds, red alarms, rooms, loot) | MET | Boreal Station, BorealTests | - | MET |
-| EIP | Grep-based test fails on UNSC / MAC / flagged names; ip-renames complete | PARTIAL | tools/namecheck.py exists but runs only in the Mac snap shard, not in the Quest checks threads run | IP | |
+| EIP | Grep-based test fails on UNSC / MAC / flagged names; ip-renames complete | PARTIAL | tools/namecheck.py exists but runs only in the Mac snap shard, not in the Quest checks threads run | IP | MET: namecheck --coined runs in quest/tools/linux-check.sh (every Quest check) |
 | EV | Village bugs written with seed + coords, regression test | MET | #20 doc + structcheck baseline | - | MET |
 
 ## The Deep (`docs/objectives/deep-expansion.md`)
