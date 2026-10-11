@@ -292,7 +292,7 @@ final class Mob {
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
-    var flinch: Float = 0           // powderwight: a hit stops the fuse this long
+    var flinch: Float = 0           // powderwight: a hit stops the fuse this long (internal key creeper)
     var soaked: Float = 0           // powderwight: seconds until a doused fuse can be struck again
     var fire: Float = 0             // seconds left burning
     var fireTick: Float = 0
@@ -459,12 +459,12 @@ final class Mob {
         return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
     }
     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
-    // Where the Powderwight's fuse burns, in the world: the spark part's centre (model -4.8, 29.2, 5.5) after the hunch
+    // Where the Powderwight's fuse burns, in the world: the spark part's centre (model -5.2, 30.35, 5.7) after the hunch
     // of a lit one (-0.55 about the hip) and the body yaw, as writeMobVertices places it.
     var kegSpark: V3 {
         let h: Float = -0.55, cx = cosf(h), sx = sinf(h)
-        let y: Float = 29.2 - 12, z: Float = 5.5
-        let q = V3(-4.8, 12 + y * cx - z * sx, y * sx + z * cx) * (scale / 16)
+        let y: Float = 30.35 - 12, z: Float = 5.7
+        let q = V3(-5.2, 12 + y * cx - z * sx, y * sx + z * cx) * (scale / 16)
         let cy = cosf(yaw), sy = sinf(yaw)
         return pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
     }
@@ -889,7 +889,10 @@ final class Mob {
                 // Powderwight counterplay (its own): water douses the fuse and a soaked one can't be struck (it
                 // wades on, harmless, until it dries); rain wets it, so the fuse burns slower.
                 if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 {
-                    if fuse > 0 { g.sfx(.fizz, 0.8, at: pos) }
+                    if fuse > 0 {
+                        g.sfx(.fizz, 0.8, at: pos)
+                        if simd_length(pos - g.player.pos) < 16 { g.achieve("damp_squib") }
+                    }
                     fuse = 0
                     soaked = 4
                 }
@@ -916,7 +919,7 @@ final class Mob {
                     health = -1000
                     return
                 }
-            } else { fuse = max(0, fuse - dt); wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else { fuse = max(0, fuse - dt); soaked = max(0, soaked - dt); wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .enderman:
             // Provoked by being looked at (in the face) or hit; teleports away from water.
             if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
@@ -1626,8 +1629,8 @@ private func parts(_ m: Mob) -> [Part] {
         let blink = lit && Int(m.fuse * 8) % 2 == 0
         let warm = V3(1.0, 0.82, 0.62)
         func t(_ c: V3) -> V3 { blink ? simd_mix(c, warm, V3(repeating: 0.6)) : c }
-        let skin = t(V3(0.47, 0.54, 0.41)), coat = t(V3(0.29, 0.25, 0.19)), pants = t(V3(0.2, 0.19, 0.17))
-        let boot = V3(0.13, 0.11, 0.09), wood = t(V3(0.52, 0.34, 0.16)), hoop = V3(0.22, 0.22, 0.24), cap = t(V3(0.26, 0.22, 0.17))
+        let skin = t(V3(0.58, 0.57, 0.53)), coat = t(V3(0.29, 0.25, 0.19)), pants = t(V3(0.2, 0.19, 0.17))
+        let boot = V3(0.13, 0.11, 0.09), wood = t(V3(0.52, 0.34, 0.16)), hoop = lit ? V3(1.0, 0.45, 0.15) * (0.7 + 0.5 * flick) : V3(0.22, 0.22, 0.24), cap = t(V3(0.26, 0.22, 0.17))
         let eyeK: Float = lit ? 1.25 : 0.9
         let amber = V3(0.95, 0.62, 0.22) * eyeK
         let hunch: Float = lit ? -0.55 : -0.4                     // leans in over its target once lit
@@ -1652,13 +1655,13 @@ private func parts(_ m: Mob) -> [Part] {
             tb(-3.6, 21.4, -2.7, 1, 0.8, 5.4, V3(0.24, 0.17, 0.1)), tb(2.6, 21.4, -2.7, 1, 0.8, 5.4, V3(0.24, 0.17, 0.1)),  // straps
             // The keg: slung high over the left shoulder so it shows beside the head from the front (an uneven, readable
             // silhouette); staves, two iron hoops, a fuse cord out of the bung.
-            tb(-6.5 - 0.5 * (sw - 1) * 8 + shake * 0.2, 14, 2.5, 8 * sw, 12, 6 * sw, wood, 4),
-            tb(-6.7 - 0.5 * (sw - 1) * 8, 16, 2.3, 8.4 * sw, 1, 6.4 * sw, hoop, 8),
-            tb(-6.7 - 0.5 * (sw - 1) * 8, 23, 2.3, 8.4 * sw, 1, 6.4 * sw, hoop, 8),
-            tb(-5.1, 26, 5.2, 0.6, 2.6, 0.6, V3(0.18, 0.15, 0.12)),
+            tb(-8 - 0.5 * (sw - 1) * 10 + shake * 0.2, 13, 2.5, 10 * sw, 14, 7 * sw, wood, 4),
+            tb(-8.2 - 0.5 * (sw - 1) * 10, 15.5, 2.3, 10.4 * sw, 1.2, 7.4 * sw, hoop, lit ? 9 : 8),   // hoops glow hot once lit
+            tb(-8.2 - 0.5 * (sw - 1) * 10, 23.5, 2.3, 10.4 * sw, 1.2, 7.4 * sw, hoop, lit ? 9 : 8),
+            tb(-5.6, 27, 5.2, 0.8, 2.4, 0.8, V3(0.18, 0.15, 0.12)),
         ]
         // The spark: only once the fuse is struck, bright and flickering (readable across a dark field).
-        if lit { p.append(tb(-5.9, 28.1, 4.4, 2.2, 2.2, 2.2, V3(1, 0.78, 0.3) * (0.75 + 0.6 * flick), 9)) }
+        if lit { p.append(tb(-6.85, 28.7, 4.05, 3.3, 3.3, 3.3, V3(1, 0.8, 0.32) * (0.8 + 0.6 * flick), 9)) }
         // Arms from the hunched shoulders: hang forward and swing; thrown up and trembling once lit.
         let sy = hip.y + 9 * cosf(hunch), sz = 9 * sinf(hunch)
         let armRot: Float = lit ? 2.3 + 0.12 * sinf(m.fuse * 47) : 0.35

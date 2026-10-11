@@ -7,8 +7,18 @@ import simd
 enum PowderwightTest {
     static func run(game: Game, check: (Bool, String) -> Void) {
         let p = game.player
-        let saved = (p.pos, p.flying, game.weather, game.survival, game.health)
-        defer { (p.pos, p.flying, game.weather, game.survival, game.health) = saved }
+        let saved = (p.pos, p.flying, game.weather, game.survival, game.health, game.mobs.mobs, p.sneaking, game.inventory.armor[0], game.alive)
+        defer {
+            (p.pos, p.flying, game.weather, game.survival, game.health, game.mobs.mobs, p.sneaking, game.inventory.armor[0], game.alive) = saved
+            game.mobs.rebuildIndex()
+        }
+        // What the fuse rule senses, forced: a live, unhidden, standing player in plain sight with no cats about
+        // (invisibility is not set by any earlier check).
+        game.mobs.mobs = []; game.mobs.rebuildIndex()
+        p.sneaking = false
+        game.inventory.armor[0] = .empty
+        game.alive = true
+        game.health = 20
         p.flying = false
         let w = game.world
         // Name, save key, drops: the mob keeps its save key ("creeper"), so old saves' mobs load as Powderwights.

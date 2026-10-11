@@ -23,7 +23,9 @@ enum MobPortraits {
         defer { for (q, b) in restore { w.setBlock(q.x, q.y, q.z, b) } }
         for key in kinds {
             guard let k = MobKind.allCases.first(where: { $0.key == key }) else { print("mobshots: no kind \(key)"); continue }
-            for (tag, t, fuse) in [("day", 0.22, Float(0)), ("night", 0.75, Float(0)), ("lit", 0.22, Float(0.9))] {
+            // night20: the readability shot, 20 blocks off in the dark (backlog: hostile silhouettes read at 20 blocks).
+            for (tag, t, fuse, far) in [("day", 0.22, Float(0), Float(1)), ("night", 0.75, Float(0), Float(1)), ("lit", 0.22, Float(0.9), Float(1)),
+                                        ("night20", 0.75, Float(0), Float(6.5)), ("lit_night20", 0.75, Float(0.9), Float(6.5))] {
                 if fuse > 0 && k != .creeper { continue }
                 let m = Mob(k, at: V3(Float(pad.x) + 0.5, Float(pad.y + 1), Float(pad.z) + 0.5))
                 m.yaw = -0.22 * .pi                                       // three-quarter, face toward the camera
@@ -32,11 +34,11 @@ enum MobPortraits {
                 game.time = t * DAY_LENGTH
                 // Camera 3 blocks off toward -z / +x, eye a little above the mob's middle, looking at it.
                 let target = m.pos + V3(0, m.height * 0.55, 0)
-                let eye = target + V3(1.6, 0.5, -2.6) * max(1, m.height / 1.7)
+                let eye = target + V3(1.6, 0.5, -2.6) * max(1, m.height / 1.7) * far
                 p.pos = eye - V3(0, p.eyeHeight, 0)
                 let f = simd_normalize(target - eye)
                 try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/mob_\(key)_\(tag).png", width: 360, height: 360,
-                                      yaw: atan2f(-f.x, -f.z), pitch: asinf(f.y), fovDeg: 55)
+                                      yaw: atan2f(-f.x, -f.z), pitch: asinf(f.y), fovDeg: far > 1 ? 40 : 55)
             }
         }
     }

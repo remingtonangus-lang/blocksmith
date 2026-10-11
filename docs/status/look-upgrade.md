@@ -85,7 +85,7 @@ view without clouds, i.e. the Quest before this change).
   and a warm blink over its body.
 - **Counterplay**: hit it (a hit stops the fuse, as before), back off past 7 blocks or break line of sight, shoot it,
   or douse it: water puts the fuse out and a soaked Powderwight cannot strike again for 4 s; rain makes its fuse burn
-  slower (x0.7). Cats still scare it.
+  slower (x0.7). Cats still scare it. Putting a lit fuse out with water earns the "Damp Squib" advancement.
 - **Drops**: gunpowder 0-2 (unchanged; its keg). Head (by charged blast), banner pattern and music-disc rules unchanged.
 - **Saves**: the internal key stays `creeper`, so every existing save's mobs, heads, banners and stats load as the
   Powderwight with no migration; a pre-change mob record is decoded in the checks.
@@ -94,5 +94,12 @@ view without clouds, i.e. the Quest before this change).
 Name + key; an old save's record loads as a Powderwight; the lit fuse adds one bright emissive spark part; 1.7-block
 model height; strikes its fuse beside the player on dry ground; the fuse spits glowing sparks from the keg; a hit stops
 the fuse; water douses it and it stays out while soaked; once dry it strikes again. MobDrawTest still draws every kind.
-Portraits: `questcheck --render X --mob-shots DIR --mob-kinds creeper` (day, night, lit) in
-docs/status/evidence/look-upgrade/mob_creeper_*.png; mob_creeper_before.png is the Hisser.
+Portraits: `questcheck --render X --mob-shots DIR --mob-kinds creeper` (day, night, lit, and
+night20 / lit_night20 from 20 blocks at night) in docs/status/evidence/look-upgrade/mob_creeper_*.png;
+mob_creeper_before.png is the Hisser.
+
+Verifier pass (independent review): PASS with four defects, all fixed: the check now forces the state it depends on
+(no mobs, not sneaking, no head armour, alive) and restores it; the soaked timer also runs while the mob has no target;
+the keg was too small to read at range (now bigger, hoops glow amber and turn orange when lit, a bigger spark); the
+command script and snap.sh still used the old mob names. The 20-block night portraits show the amber eyes and the lit
+keg reading clearly.
