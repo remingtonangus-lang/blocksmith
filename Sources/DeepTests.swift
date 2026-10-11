@@ -35,6 +35,13 @@ enum DeepTests {
                 g.health = 20
                 g.tick(0.05)
                 if g.health < 20 { hurt += 1; maxHit = max(maxHit, 20 - g.health) }
+                // A shell that downs the test player calms every mob (Game.calmMobs): the fight carries on.
+                if !g.alive {
+                    for m in g.mobs.mobs where m.faction == Faction.ashguard.rawValue && m.health > 0 {
+                        m.aggro = true; m.lockTime = 5
+                        m.brain?.lastSeen = g.player.eye; m.brain?.seenAgo = 0
+                    }
+                }
                 g.health = 20; g.alive = true
                 g.player.pos = stand; g.player.vel = .zero
                 w.pendingMobs.removeAll()
