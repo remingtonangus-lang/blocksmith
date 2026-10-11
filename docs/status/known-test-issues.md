@@ -75,6 +75,6 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
 - FIXED in the gap pass's D3 (cloud, 2026-10-11), each a test leaking state or riding a random roll, not the game:
   "deep hell: a 70-block drop" (the keep garrison shot the falling test player: the drop now counts only the fall);
   "horse gap: Horses button" (the Deep balance duels ran ~20 minutes of game time and shut the stable for the night:
-  the clock is put back); "powderwight: strikes its fuse" (the Powderwight's first look is a random 0-0.5 s off: the
+  the clock is put back; D2's battle checks tick it too, so the check now asks the stablehand at noon); "powderwight: strikes its fuse" (the Powderwight's first look is a random 0-0.5 s off: the
   check zeroes it); "deep war ... Marshal" (a barrage shell downed the test player and calmed every mob: the war sim
   puts the Ashguard back on the player). The boreal birdCall check stays known red.
