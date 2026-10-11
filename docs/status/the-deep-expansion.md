@@ -78,3 +78,64 @@ Known limits:
 - Burning Sunder Charges are not saved (quitting during the 3 s fuse loses the charge).
 - In a pre-expansion save the Marshal loads at his old full health (220 of 380).
 - The Mac renderer's vault edits are not compiled on Linux; the Mac CI build covers them.
+
+## Gap pass (2026-10-11, docs/status/cloud-gap-pass.md rows D1-D5, DE1-DE14)
+The 2026-10-10 grading found the hell band still 128 tall, no portal-like structure at the keeps, no towns / rail /
+airfield / mortars / patrols / alarm in the vault, no time-to-kill run, no perf measurement, and most expanded objectives
+partial. Three PRs close it. Expanded objectives, written before building:
+
+**D1, the hell band (PR 1).**
+- The band is 176 tall (internal 200-375; upper crust 376-383). EmberGen takes a height: its lower 64 blocks are the
+  Emberdeep's exactly (lava sea, shores, the fortresses and keeps on them), everything above is stretched up to the roof,
+  so caverns run 100+ blocks floor to roof and lumenstone hangs in a roof far overhead (twice as many clusters).
+- Check: band height >= 170; the median open run per column at least 1.5x the Emberdeep's and the tallest tenth 100+;
+  the lower 60 blocks >= 97 % identical to the Emberdeep's; the existing biome / fortress / keep / seal checks still pass.
+- Old saves: chunks generated before keep their 128 band under a 56-layer crust: where old meets new the hall ends in a
+  rock face up to ~48 blocks tall (accepted, as with the vault; no save hook rewrites saved chunks).
+- Safety: the crust above the band is now 8 layers, so digging down from the surface can open onto a 100-block hall;
+  a drop over 24+ blocks of air in the hell band gets the vault's slow-fall updraft (DeepSeam.swift), shorter falls
+  still hurt. The upper crust's ore and lava-pocket range shrank with it (y 376-379).
+
+**D2, the Ash Vault world and army (PR 2).**
+- Garrison towns (D3b): four Ashguard towns on the ring road's far side (streets of barracks, a mess hall, a radio room,
+  a depot, a signal tower, a station), each with soldiers and its story signs.
+- Rail (D3b): rail lines on embankments from the citadel to every town and the airfield, stations at both ends.
+- Airfield (D3b): a runway with lamps, hangars with parked bombers built of blocks, a control tower, fuel, AA guns.
+- Mortars (D3c, DE10): mortar pits at the citadel, towns and outposts; crews lob shells at whatever the Ashguard has
+  spotted. Every incoming mortar and field-gun shell is fair: a whistle and a red smoke marker where it will land,
+  1.5 s or more before impact.
+- Patrols (D3c): foot squads walk the roads between sites (a rifle squad: officer, MG, riflemen, a medic).
+- The alarm (D3c, DE8): a vault-wide alarm level (Quiet, Alert, Alarm, Total War) that rises as you are spotted, kill
+  units, wreck vehicles and close on the citadel; sirens and radio lines at each step; it falls slowly unseen; saved.
+- Reinforcements (D3c, DE11): at Alarm and Total War, squads (and at Total War a half-track and a tank) leave the
+  nearest motor pool / citadel for your last known position; officers who see you call the nearest idle tank.
+- Squad roles (DE11): medics heal the wounded, MG gunners suppress, officers call armour; difficulty scales squad size,
+  reaction and reinforcement count.
+- Vehicles (DE9): a wrecked tank or half-track throws debris, burns, and its crew bails out and fights on.
+- Story (DE8): signs at every site, field journals in the vault's chests (who the Ashguard are, why they are down
+  here), radio chatter at radio rooms and over the alarm.
+- Perf (D5, DE14): a unit cap (live Ashguard units near the player, reinforcements and patrols included), the far units'
+  AI LOD, and a measured biggest battle (the citadel at Total War) in questcheck: tick ms and units, with the Quest
+  renderer's draw time at that moment, numbers written here.
+
+**D3, the Deep's progression and story (PR 3).**
+- Ember Gates (D2b, DE4): a ruined gate frame beside every Brimstone Keep, the Deep's stand-in for a portal. Dormant
+  until the keep's warden falls; then stepping in carries you to the surface (your bed or world spawn), and a Gate Shard
+  (the warden's drop) carries you back down to the last gate you woke. The ways back are one per layer: the gates from
+  the hell band, the command-bunker lift (after the Marshal) and a buildable Deep Lift from the vault.
+- Keeps (DE7): three layouts (the castle, a ring fort, a terraced citadel), guards with roles (wardens on the walls,
+  brutes at the gates, Ashguard at the strongroom), a mini-boss (the Keep Warden, boss bar) and a loot vault.
+- Time to kill (D4b): a full-gear run in questcheck (the best armour and weapons a player has at the vault) against
+  every Ashguard unit: time for the player to kill each and time for each to kill the player, written in
+  docs/status/deep-balance.md with the progression curve (DE1).
+- Progression (DE1): gear expected entering the hell band, at the seal and entering the vault; checks that the layers'
+  enemies sit on that curve.
+- Layer moods (DE2): the vault gets its own ambient bed and music theme (hell and crust already differ).
+- Way-back marker (DE3): the compass and the HUD point to the way up: in the hell band the hole you came down, in the
+  vault the nearest woken gate shaft / lift.
+- Recipe hints (DE5): a Keeper's Journal (fortress chests, and a hint from the first Ashguard officer you kill) names the
+  whole Sunderite chain and where the keeps stand; the chain is in the recipe book.
+- The seal breaking (DE6): a big moment: a deep boom, a light column, shake, falling debris, an advancement.
+- Rewards (DE13): a unique reward per layer (hell: the Warden's Brand trophy and Gate Shard; seal: Sealrock Shard
+  blocks; vault: the Marshal's Cap trophy and Ashguard plating) and an advancement per milestone (hell band, a keep
+  warden, the seal broken, the vault, the Marshal).

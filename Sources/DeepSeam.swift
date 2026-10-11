@@ -14,6 +14,21 @@ extension Game {
             crossSeam(down: true)
         case .deep where p.y >= Float(CH - 1):
             crossSeam(down: false)
+        case .deep where DeepGen.inHell(p.y) && !player.onGround && !player.flying && (player.vel.y < -18 || effects.has(.slowFalling)):
+            // The hell band's halls run 100+ blocks floor to roof under a thin crust: a long drop into one (digging
+            // down from the surface) rides the lava sea's rising heat instead of killing you. Ordinary falls still hurt:
+            // only over a drop of 24+ blocks. Once floating it lasts until you land.
+            if effects.has(.slowFalling) { applyEffect(.slowFalling, amp: 0, seconds: 1.5); break }
+            let x = Int(floor(p.x)), z = Int(floor(p.z)), y = Int(floor(p.y))
+            var open = 0
+            while open < 24 && y - open > 0 && !Blocks.collide[Int(world.block(x, y - open - 1, z))] { open += 1 }
+            if open >= 24 {
+                if !effects.has(.slowFalling) && !deepUpdraftHinted {
+                    deepUpdraftHinted = true
+                    onToast?("Hot air rising from the lava sea slows your fall")
+                }
+                applyEffect(.slowFalling, amp: 0, seconds: 1.5)
+            }
         case .deep:
             // Updrafts: a long drop into the vault floats down (no fall damage), so breaking through its roof is survivable.
             if DeepGen.inVault(p.y) && !player.onGround && !player.flying && player.vel.y < -6 {
@@ -53,7 +68,7 @@ extension MobManager {
     func trySpawnDeep(_ game: Game) {
         guard DeepGen.inHell(game.player.pos.y) else { return }
         let n = mobs.count
-        trySpawnEmberdeep(game, base: DeepGen.hellBase)
+        trySpawnEmberdeep(game, base: DeepGen.hellBase, height: DeepGen.hellHeight)
         for m in mobs[n...] where m.kind.hostile { m.power = MobManager.depthPower(.deep, m.pos.y) }
     }
 }

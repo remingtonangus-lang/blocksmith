@@ -87,7 +87,7 @@ PR areas: **H** honour, **T** towns, **R** horses, **F** frigate gun, **D1** hel
 ### Remington's brief
 | # | Line | Before | Evidence | Fix | After |
 |---|------|--------|----------|-----|-------|
-| D1 | Hell as big as the Nether: **much taller** open space, sky/ceiling far overhead, varied biomes, lava seas, fortresses | PARTIAL | band still 128 tall (the brief names "only 128" as the problem); biomes, lava sea, fortresses, bastions yes | D1 | |
+| D1 | Hell as big as the Nether: **much taller** open space, sky/ceiling far overhead, varied biomes, lava seas, fortresses | PARTIAL | band still 128 tall (the brief names "only 128" as the problem); biomes, lava sea, fortresses, bastions yes | D1 | MET: band 176 tall, halls median 90 blocks floor to roof (Emberdeep 31), tallest tenth 103+; long drops float down (deeptest) |
 | D2a | Hard barrier normal tools can't break | MET | Sealrock, DeepExpansionTests | - | MET |
 | D2b | Rare ore in guarded bastion strongholds **next to a portal-replacement structure** | PARTIAL | Brimstone Keeps hold Sunderite; no portal-like structure beside them | D3 | |
 | D2c | Ore processed (smelt + craft) into a tool or charge | MET | flux -> blast furnace ingot -> pick / charge | - | MET |

@@ -19,21 +19,49 @@ enum DeepExpansionTests {
         processing(check)
         saves(check)
         play(game, check)
+        hellDrop(game, check)
         keeps(game, check)
         sky(game, check)
         army(game, check)
         print(String(format: "deep expansion: checks took %.1f s", CFAbsoluteTimeGetCurrent() - t0))
     }
 
-    // The hell band: 128 tall, all five ember biomes within reach, fortresses, bastions and keeps on their grids.
+    // The hell band: 176 tall (the gap pass, D1; the Emberdeep is 128), all five ember biomes within reach, fortresses, bastions and keeps on their grids.
     static func hell(_ check: (Bool, String) -> Void) {
         let g = DeepGen(seed: 12345)
         var biomes = Set<String>()
         for z in stride(from: -2000, through: 2000, by: 160) { for x in stride(from: -2000, through: 2000, by: 160) {
             biomes.insert("\(g.ember.biome(x, z))")
         } }
-        check(DeepGen.crustTop - DeepGen.hellBase == 128 && biomes.count == 5,
-              "deep hell: the band is 128 tall with all five ember biomes within 2,000 blocks (\(biomes.sorted().joined(separator: ", ")))")
+        check(DeepGen.crustTop - DeepGen.hellBase == DeepGen.hellHeight && DeepGen.hellHeight >= 170 && biomes.count == 5,
+              "deep hell: the band is \(DeepGen.hellHeight) tall (the Emberdeep's 128) with all five ember biomes within 2,000 blocks (\(biomes.sorted().joined(separator: ", ")))")
+        // Much taller open space: the tallest open (air) run in each column, over 16 chunks, against the Emberdeep's; the
+        // lower 64 blocks (the lava sea and its shores, where the fortresses and keeps stand) unchanged.
+        do {
+            let emb = EmberGen(seed: 12345, base: DeepGen.hellBase, cap: EMBERSLATE, structures: false)
+            var deepRuns: [Int] = [], embRuns: [Int] = []
+            var same = 0, total = 0
+            for cz in 0..<4 { for cx in 0..<4 {
+                var a = [BlockID](repeating: AIR, count: CSQ * CH), b = a
+                g.ember.fill(&a, cx: cx * 7, cz: cz * 7); emb.fill(&b, cx: cx * 7, cz: cz * 7)
+                for lz in stride(from: 0, to: CS, by: 3) { for lx in stride(from: 0, to: CS, by: 3) {
+                    func run(_ arr: [BlockID], _ h: Int) -> Int {
+                        var best = 0, cur = 0
+                        for y in 0..<h { if arr[Chunk.index(lx, DeepGen.hellBase + y, lz)] == AIR { cur += 1; best = max(best, cur) } else { cur = 0 } }
+                        return best
+                    }
+                    deepRuns.append(run(a, DeepGen.hellHeight)); embRuns.append(run(b, 128))
+                    for y in 0..<60 { total += 1; if a[Chunk.index(lx, DeepGen.hellBase + y, lz)] == b[Chunk.index(lx, DeepGen.hellBase + y, lz)] { same += 1 } }
+                } }
+            } }
+            deepRuns.sort(); embRuns.sort()
+            let dMed = deepRuns[deepRuns.count / 2], eMed = embRuns[embRuns.count / 2]
+            let dTop = deepRuns[deepRuns.count * 9 / 10], eTop = embRuns[embRuns.count * 9 / 10]
+            let kept = Float(same) / Float(max(1, total))
+            check(Float(dMed) >= Float(eMed) * 1.5 && dTop >= 100 && dTop > eTop + 40 && kept > 0.97,
+                  String(format: "deep hell: open space floor to roof, median %d blocks (the Emberdeep %d), tallest tenth %d+ (%d); the lower 60 blocks %.1f%% the Emberdeep's",
+                         dMed, eMed, dTop, eTop, kept * 100))
+        }
         guard let sc = g.structures else { check(false, "deep hell: no structures"); return }
         var found: [String: Int] = [:]
         for k in ["fortress", "bastion", "brimstone_keep"] {
@@ -217,6 +245,37 @@ enum DeepExpansionTests {
         if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
         g.player.pos = home
         g.player.vel = .zero
+        _ = g.world.loadSync(center: home, radius: 4)
+    }
+
+    // A long drop into a hell-band hall (digging down from the surface through the thin crust) floats you down; a
+    // 12-block fall still hurts.
+    static func hellDrop(_ g: Game, _ check: (Bool, String) -> Void) {
+        let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival
+        let x = 2000, z = 2000, base = DeepGen.hellBase + 90
+        g.changeDimension(to: .deep, at: V3(Float(x) + 0.5, Float(base + 70), Float(z) + 0.5))
+        let w = g.world
+        _ = w.loadSync(center: V3(Float(x), Float(base + 40), Float(z)), radius: 2)
+        func drop(_ h: Int, at ox: Int) -> Int {
+            for y in base...(base + h + 4) { for dz in -2...2 { for dx in -2...2 { w.setBlock(ox + dx, y, z + dz, AIR) } } }
+            for dz in -2...2 { for dx in -2...2 { w.setBlock(ox + dx, base - 1, z + dz, EMBERSLATE) } }
+            g.survival = true; g.alive = true; g.paused = false; g.menu = nil
+            g.health = 20
+            g.player.flying = false
+            g.player.pos = V3(Float(ox) + 0.5, Float(base + h), Float(z) + 0.5)
+            g.player.vel = .zero; g.player.airPeak = g.player.pos.y
+            g.effects.clear()
+            var t: Float = 0
+            while t < 90 { g.tick(0.05); t += 0.05; if g.player.onGround && t > 0.5 { break } }
+            g.tick(0.05)
+            return 20 - g.health
+        }
+        let longHurt = drop(70, at: x), shortHurt = drop(12, at: x + 8)
+        check(longHurt == 0 && shortHurt > 0, "deep hell: a 70-block drop into a hall floats down unhurt (\(longHurt) damage), a 12-block fall still hurts (\(shortHurt))")
+        g.effects.clear()
+        g.survival = wasSurvival
+        if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
+        g.player.pos = home; g.player.vel = .zero
         _ = g.world.loadSync(center: home, radius: 4)
     }
 

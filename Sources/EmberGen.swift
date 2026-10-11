@@ -8,12 +8,14 @@ final class EmberGen: TerrainGenerator {
     let d1: Noise, d2: Noise, bT: Noise, bH: Noise, deco: Noise
     static let lavaLevel = 31
     let base: Int                   // internal y of the band's floor: YOFF (displayed y 0) in the Emberdeep
+    let height: Int                 // 128 in the Emberdeep; the Deep's hell band is taller (DeepGen.hellHeight)
     let cap: BlockID                // floor and roof: bedrock in the Emberdeep, emberslate as the Deep's hell band
     let structures: StructureCache?
 
-    init(seed: UInt64, base: Int = YOFF, cap: BlockID = BEDROCK, structures: Bool = true) {
+    init(seed: UInt64, base: Int = YOFF, height: Int = 128, cap: BlockID = BEDROCK, structures: Bool = true) {
         self.seed = seed
         self.base = base
+        self.height = height
         self.cap = cap
         s32 = UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) ^ 0x4E7E4
         d1 = Noise(seed: seed &+ 101)
@@ -44,14 +46,21 @@ final class EmberGen: TerrainGenerator {
         [UInt32](repeating: 0xFF3A7ABF, count: 768)
     }
 
-    // Density at displayed y (0...127): > 0 is solid.
+    // Density at band y (0 ... height - 1): > 0 is solid. A taller band (the Deep's) keeps the lower half exactly as the
+    // Emberdeep's (the lava sea, the shores, the fortresses and keeps standing on them) and stretches everything above
+    // y 64 up to its roof: the caverns, the pillars and the open space overhead grow with it.
     private func density(_ x: Float, _ y: Float, _ z: Float) -> Float {
-        var d = d1.noise3(x / 72, y / 36, z / 72) * 0.9 + d2.noise3(x / 24, y / 16, z / 24) * 0.35
+        let top = Float(height)
+        let ys = y <= 64 ? y : 64 + (y - 64) * 64 / (top - 64)              // the shape's y (0...128)
+        var d = d1.noise3(x / 72, ys / 36, z / 72) * 0.9 + d2.noise3(x / 24, ys / 16, z / 24) * 0.35
         // Solid near the floor and roof, open in the middle.
-        let fromMid = (y - 64) / 64
+        let fromMid = (ys - 64) / 64
         d += fromMid * fromMid * 1.1 - 0.12
         if y < 12 { d += (12 - y) * 0.08 }
-        if y > 112 { d += (y - 112) * 0.08 }
+        if y > top - 16 { d += (y - (top - 16)) * 0.08 }
+        // A taller band also opens up over the shores: the rock thins into great halls and spires between the lava
+        // sea and a roof far overhead (nothing changes below y 64).
+        if top > 128 && ys > 64 { d -= sinf(min(1, (ys - 64) / 62) * .pi) * 0.85 }
         return d
     }
 
@@ -61,11 +70,12 @@ final class EmberGen: TerrainGenerator {
         return b
     }
 
-    // Writes the 128-tall band (base ... base + 127) into a chunk array.
+    // Writes the band (base ... base + height - 1) into a chunk array.
     func fill(_ b: inout [BlockID], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
         // Density on a 4 x 8 x 4 lattice, trilinearly interpolated (fast and smooth).
-        let lx = 5, ly = 17, lz = 5
+        let H = height
+        let lx = 5, ly = H / 8 + 1, lz = 5
         var lat = [Float](repeating: 0, count: lx * ly * lz)
         for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
             lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
@@ -75,8 +85,8 @@ final class EmberGen: TerrainGenerator {
             for x in 0..<CS {
                 let i0 = x / 4, k0 = z / 4
                 let fx = Float(x % 4) / 4, fz = Float(z % 4) / 4
-                for y in 0..<128 {
-                    let j0 = min(15, y / 8)
+                for y in 0..<H {
+                    let j0 = min(ly - 2, y / 8)
                     let fy = Float(y - j0 * 8) / 8
                     func L(_ i: Int, _ j: Int, _ k: Int) -> Float { lat[i + j * lx + k * lx * ly] }
                     let c00 = L(i0, j0, k0) + (L(i0 + 1, j0, k0) - L(i0, j0, k0)) * fx
@@ -88,7 +98,7 @@ final class EmberGen: TerrainGenerator {
                     let wx = bx + x, wz = bz + z
                     var id: BlockID = AIR
                     if y < 5 && (y == 0 || hash3(wx, y, wz, s32) % 5 < UInt32(5 - y)) { id = bedrock }
-                    else if y > 122 && (y == 127 || hash3(wx, y, wz, s32 ^ 1) % 5 < UInt32(y - 122)) { id = bedrock }
+                    else if y > H - 6 && (y == H - 1 || hash3(wx, y, wz, s32 ^ 1) % 5 < UInt32(y - (H - 6))) { id = bedrock }
                     else if d > 0 { id = netherrack }
                     else if y <= EmberGen.lavaLevel { id = lava }
                     b[Chunk.index(x, base + y, z)] = id
@@ -106,14 +116,15 @@ final class EmberGen: TerrainGenerator {
         let crimsonNy = Blocks.id("crimson_nylium"), warpedNy = Blocks.id("warped_nylium")
         let quartz = Blocks.id("nether_quartz_ore"), gold = Blocks.id("nether_gold_ore"), debris = Blocks.id("ancient_debris")
         let glow = LAMP
-        func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { y < 0 || y >= 128 ? BEDROCK : b[Chunk.index(x, base + y, z)] }
-        func set(_ x: Int, _ y: Int, _ z: Int, _ v: BlockID) { if y >= 0 && y < 128 { b[Chunk.index(x, base + y, z)] = v } }
+        let H = height
+        func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { y < 0 || y >= H ? BEDROCK : b[Chunk.index(x, base + y, z)] }
+        func set(_ x: Int, _ y: Int, _ z: Int, _ v: BlockID) { if y >= 0 && y < H { b[Chunk.index(x, base + y, z)] = v } }
 
         for z in 0..<CS {
             for x in 0..<CS {
                 let wx = bx + x, wz = bz + z
                 let bio = biome(wx, wz)
-                for y in 1..<127 {
+                for y in 1..<(H - 1) {
                     let cur = at(x, y, z)
                     guard cur == netherrack else { continue }
                     let above = at(x, y + 1, z)
@@ -144,11 +155,12 @@ final class EmberGen: TerrainGenerator {
             }
         }
         // Lumenstone clusters hanging from ceilings: grown by attaching to the ceiling or existing lumenstone.
-        for k in 0..<2 {
+        // A taller band hangs more of them, high overhead (the Deep's hell: lights in a far-off roof, like a night sky).
+        for k in 0..<(H > 128 ? 4 : 2) {
             let h = hash3(cx, k, cz, s32 ^ 0x6C0)
             if h % 3 == 0 { continue }
             let x0 = 3 + Int(h % 10), z0 = 3 + Int((h >> 4) % 10)
-            var y0 = 120
+            var y0 = H - 8
             while y0 > 40 && !(at(x0, y0, z0) == AIR && at(x0, y0 + 1, z0) == netherrack) { y0 -= 1 }
             if y0 <= 40 { continue }
             set(x0, y0, z0, glow)
@@ -173,7 +185,7 @@ final class EmberGen: TerrainGenerator {
                 guard bio == .crimsonForest || bio == .warpedForest else { continue }
                 let crimson = bio == .crimsonForest
                 let ny = crimson ? crimsonNy : warpedNy
-                for y in 32..<120 where at(x, y, z) == ny && at(x, y + 1, z) == AIR {
+                for y in 32..<(H - 8) where at(x, y, z) == ny && at(x, y + 1, z) == AIR {
                     let h = hash3(wx, y, wz, s32 ^ 0xF6)
                     if h % 100 < 3 && x > 2 && x < 13 && z > 2 && z < 13 {
                         let height = 4 + Int(h >> 8) % 8
@@ -199,7 +211,7 @@ final class EmberGen: TerrainGenerator {
                     }
                 }
                 if crimson {
-                    for y in 40..<124 where at(x, y, z) == netherrack && at(x, y - 1, z) == AIR && hash3(wx, y, wz, s32 ^ 0xF8) % 12 == 0 {
+                    for y in 40..<(H - 4) where at(x, y, z) == netherrack && at(x, y - 1, z) == AIR && hash3(wx, y, wz, s32 ^ 0xF8) % 12 == 0 {
                         let len = 1 + Int(hash3(wx, y, wz, s32 ^ 0xF9) % 6)
                         for i in 1...len where at(x, y - i, z) == AIR { set(x, y - i, z, Blocks.id("weeping_vines")) }
                     }
