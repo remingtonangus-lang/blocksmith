@@ -147,31 +147,40 @@ enum CircuitWorkshopTests {
         let dir = root.appendingPathComponent(CircuitWorkshop.worldName, isDirectory: true)
         try? FileManager.default.removeItem(at: root)
         defer { try? FileManager.default.removeItem(at: root) }
+        // As App.makeGame / QuestApp.load: a saved world gets its meta back (its spawn, its position), a new one starts
+        // at spawnPoint.
         func visit() -> (Game, V3) {
             let save = SaveManager(dir: dir)
+            let meta = save.loadMeta()
             let w = World(seed: CircuitWorkshop.seed, device: device, save: save)
             w.renderDistance = 4
             let g = Game(world: w, save: save, persistent: true)
-            g.survival = false
-            g.player.pos = g.spawnPoint
+            if let m = meta { g.apply(m) } else { g.survival = false; g.player.pos = g.spawnPoint }
             let start = g.player.pos
             for _ in 0..<3 { g.workshopTick() }
             return (g, start)
         }
         let (g, start) = visit()
-        let spawn = g.spawnPoint
+        let site = g.findSpawn()
         // The walkway start in x/z (the deck's height came from the ground before it was built).
-        let o = IVec3(Int(floorf(spawn.x)) - 8, 0, Int(floorf(spawn.z)) - 4), ws = CircuitWorkshop.walkwayStart(o)
+        let o = IVec3(Int(floorf(site.x)) - 8, 0, Int(floorf(site.z)) - 4), ws = CircuitWorkshop.walkwayStart(o)
         let onWalk = abs(g.player.pos.x - ws.x) < 0.01 && abs(g.player.pos.z - ws.z) < 0.01
-        let built = CircuitWorkshop.built(g.world, spawn: spawn)
+        let built = CircuitWorkshop.built(g.world, spawn: site)
         let below = g.world.block(Int(floorf(g.player.pos.x)), Int(floorf(g.player.pos.y)) - 1, Int(floorf(g.player.pos.z)))
-        let near = abs(g.player.pos.x - spawn.x) < 16 && abs(g.player.pos.z - spawn.z) < 16
+        let near = abs(g.player.pos.x - start.x) < 16 && abs(g.player.pos.z - start.z) < 16
         check(built && onWalk && near && Blocks.key(below) == CircuitWorkshop.markerBlock && g.workshopChecked,
-              "workshop world entry: the first tick builds the deck over the world's spawn and stands the player on the walkway (built \(built), on walkway \(onWalk), standing on \(Blocks.key(below)), spawn " + String(format: "%.0f, %.0f; started %.0f, %.0f)", spawn.x, spawn.z, start.x, start.z))
+              "workshop world entry: the first tick builds the deck over the world's spawn and stands the player on the walkway (built \(built), on walkway \(onWalk), standing on \(Blocks.key(below)), spawn " + String(format: "%.0f, %.0f)", start.x, start.z))
+        // The player moves the spawn 200 blocks away (a bed) and walks off; the next visit must find the deck where it
+        // is, build no second one at the new spawn and leave the player where they were.
+        let bed = V3(start.x + 200, start.y, start.z)
+        g.spawnPoint = g.settleSpawn(bed)
+        g.player.pos = g.spawnPoint + V3(0, 0.5, 0)
         g.saveNow(); SaveIO.flush()
         let (g2, start2) = visit()
-        check(CircuitWorkshop.built(g2.world, spawn: g2.spawnPoint) && simd_length(g2.player.pos - start2) < 0.01,
-              "workshop world entry: coming back finds the deck and doesn't build it again or move the player")
+        _ = g2.world.loadSync(center: g2.spawnPoint, radius: 1)
+        let second = CircuitWorkshop.built(g2.world, spawn: g2.spawnPoint)
+        check(CircuitWorkshop.built(g2.world, spawn: site) && !second && simd_length(g2.player.pos - start2) < 0.01 && abs(start2.x - bed.x) < 16,
+              "workshop world entry: coming back (spawn moved 200 blocks by a bed) finds the deck, builds no second one (\(second)) and leaves the player be")
     }
 }
 

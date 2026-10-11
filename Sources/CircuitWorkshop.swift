@@ -188,13 +188,16 @@ extension Game {
         guard save?.dir.lastPathComponent == CircuitWorkshop.worldName else { workshopChecked = true; return }
         guard dim.dim == .overworld else { return }                               // back in the overworld later
         workshopChecked = true
-        // The world's own spawn (varied per seed, as a new world places the player), loaded around the whole deck now
-        // rather than waiting for streaming (a short render distance never reaches its far end).
-        let spawn = spawnPoint
+        // The site: the world's first spawn (varied per seed, where a new world places the player), from the terrain
+        // alone, so it never moves (spawnPoint does: a bed, the spawn command) and never lands on the deck itself.
+        let site = findSpawn()
+        _ = world.loadSync(center: site, radius: 1)                                // the marker corner is near the site
+        if CircuitWorkshop.built(world, spawn: site) { return }
+        // Building: the whole deck area now, rather than waiting for streaming (a short render distance never reaches
+        // its far end). Once per world.
         let len = CircuitWorkshop.deckLength
-        _ = world.loadSync(center: spawn + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
-        if CircuitWorkshop.built(world, spawn: spawn) { return }
-        let o = CircuitWorkshop.origin(world, spawn: spawn)
+        _ = world.loadSync(center: site + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
+        let o = CircuitWorkshop.origin(world, spawn: site)
         CircuitWorkshop.build(world, at: o)
         player.pos = CircuitWorkshop.walkwayStart(o)
         player.vel = .zero

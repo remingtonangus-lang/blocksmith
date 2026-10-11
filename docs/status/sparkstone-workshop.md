@@ -45,9 +45,11 @@ spawn, run 3.5 s so the clocks tick and the door shuts). In docs/status/evidence
 
 ## Verifier pass (2026-10-11)
 - Blocking, fixed: the world looked for its deck site at the old fixed origin instead of the world's varied spawn, so the
-  deck never built in the real game. Now `workshopTick` uses `Game.spawnPoint`, loads the deck area itself (any render
-  distance), runs only in the overworld, and a questcheck test enters the world through a real save folder twice
-  (built and standing on the walkway the first time; found and left alone the second).
+  deck never built in the real game. Now the site is the world's first spawn from the terrain (`findSpawn()`: varied
+  per seed, never moves, unlike `spawnPoint` which a bed changes), the deck area is loaded only when building (any
+  render distance, no hitch on later visits), only in the overworld, and a questcheck test enters the world through
+  a real save folder twice the way the apps do (meta applied on the second visit, after a bed moved the spawn 200
+  blocks): built and on the walkway the first time; found, no second deck, player left alone the second.
 - Also fixed: the sign posts stood on the walkway (now in the gap between benches, the walkway is 3 clear rows); the
   deck's corner block is the "already built" marker, so breaking a sign no longer rebuilds the deck.
 - Left as is: a hopper's receive wait is 7 or 8 ticks depending on order (reference: always 7); once the world exists
