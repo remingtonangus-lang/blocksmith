@@ -213,6 +213,19 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
     (`dist < w.reach + 0.3`, feet height window 2.5) so an angry townsperson can't hit a player on a 2-block step and
     can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
     level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
+T2. questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
+    $0.00 bounty), bounty (law never challenges, lapse day), honour HUD/meter/inventory, six-iron hit rate, countries
+    ore. Towns-lane code; the Mac worker did not touch it. Reproduce: quest/tools/linux-check.sh then questcheck.
+
+## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
+AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
+     panels, ship parts): list in docs/status/art-style-remaining.md. Needs Gemini sheets (Mac, CHROME=1).
+AR2. cave_vines, weeping_vines, twisting_vines and the torch_top/torch_bottom variants are still procedural.
+AR3. Add a snap with XP set so the xp_bar fill is seen in evidence; check its stripes read as a tube at 3 px tall.
+AR4. Beds read as a thin flat slab in the Mac family gallery; check them at play distance on Quest.
+AR5. Close-up tiled shot of nether_quartz_ore / deepslate_diamond_ore to confirm the seam blend.
+AR6. texpack.bin grew 12.9 -> 18.6 MB; weigh it for the repo and Quest download (ASTC is Remington's call).
+AR7. Save each Gemini prompt verbatim in assets/CREDITS.md going forward (s23-s28/p03/i20 record pattern + cells only).
 
 ## FROM THE DONE AUDIT (task 25b6, 2026-10-11; items G1-G11, renamed from A1-A11 so they are not confused with Lane A; full tables in docs/status/done-audit.md). Whichever cloud thread is free takes these FIRST, before new lane items.
 Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.
