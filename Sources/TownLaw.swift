@@ -182,6 +182,26 @@ enum TownLaw {
         Honour.change(g, bedHonour, "you slept in someone else's bed")
     }
 
+    // P63 (Oct 11 evening playtest): gunfire in a town draws people. The sheriff and deputies within 48 blocks, and the
+    // four nearest grown townsfolk within 32, walk over to where the shot came from and look about (law 20 s, others
+    // 12 s). Nobody already fighting, asleep or a child.
+    static var shotsHeard = 0
+    static func gunfire(_ g: Game, at p: V3) {
+        guard g.dim.dim == .overworld, isTownSpot(g, IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))) else { return }
+        var folk: [(Mob, Float)] = []
+        for m in g.mobs.mobs where isTownsperson(m) && !m.lying && !m.baby && m.town.anger <= 0 && m.villager?.role != "child" {
+            let d = simd_length(m.pos - p)
+            guard d > 3 else { continue }
+            if isLaw(m) {
+                if d < 48 { if m.town.investigate == nil { shotsHeard += 1 }; m.town.investigate = p; m.town.investigateT = 20 }
+            } else if d < 32 { folk.append((m, d)) }
+        }
+        for (m, _) in folk.sorted(by: { $0.1 < $1.1 }).prefix(4) {
+            if m.town.investigate == nil { shotsHeard += 1 }
+            m.town.investigate = p; m.town.investigateT = 12
+        }
+    }
+
     // Game.breakBlock (the player broke b at p).
     // A town container costs what taking its contents would (less what the player put in), at least 1.
     static func broke(_ g: Game, _ p: IVec3, _ b: BlockID) {

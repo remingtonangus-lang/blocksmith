@@ -42,6 +42,8 @@ struct TownState {
     var warned = false
     var drawn: Float = 0            // > 0: the gun is out (his challenge, before the fight starts)
     var lastDuel: Double = -1000    // when he last duelled the player (a long calm brings the warning shot back)
+    var investigate: V3?            // where shooting was heard: walking over to look (P63)
+    var investigateT: Float = 0
     // TownStats (the person's toughness, speed, strength and attack rate), cached with the role it was rolled for.
     var stats: TownStats?
     var statsRole = ""

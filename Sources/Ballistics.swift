@@ -520,6 +520,7 @@ extension Game {
         a.shotsFired += 1
         sfx(.gun(gs.sound), 1)
         baseNoise(at: player.pos, kind: .gunshot)                 // citadels within earshot send a patrol (CapitalBases.swift)
+        TownLaw.gunfire(self, at: player.pos)                       // townsfolk come to see what the shooting was (P63)
         addFlash(at: muzzle + look * 0.4, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // muzzle light (Fancy)
         // Gunfire carries: Steelhold soldiers within 32 blocks come to investigate.
         if survival && clock - a.lastNoise > 0.5 {

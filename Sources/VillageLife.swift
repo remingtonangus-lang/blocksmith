@@ -232,6 +232,12 @@ extension Mob {
             if simd_length(V2(bed.x - pos.x, bed.z - pos.z)) > 1.2 { face(bed); moving = true; return spec.speed * 1.2 }
             return 0
         }
+        // Shooting heard in town (TownLaw.gunfire): the law and a few others walk over to see, then go back to the day.
+        if let spot = town.investigate {
+            town.investigateT -= dt
+            if town.investigateT <= 0 { town.investigate = nil }
+            else { return stroll(around: spot, 4, TownLaw.isLaw(self) ? 1.4 : 1.1) }
+        }
         if let bed = bedWalk {
             bedWalk = nil
             face(bed); moving = true

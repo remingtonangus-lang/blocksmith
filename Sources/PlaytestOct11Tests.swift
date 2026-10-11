@@ -30,6 +30,7 @@ enum PlaytestOct11Tests {
         nightManners(game, check)
         mobVariety(game, check)
         noOverlap(game, check)
+        shotsDrawFolk(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -598,5 +599,30 @@ enum PlaytestOct11Tests {
         let ab = simd_length(V2(a.pos.x - b.pos.x, a.pos.z - b.pos.z)), ep = simd_length(V2(e.pos.x - p.x, e.pos.z - p.z))
         check(ab >= a.halfW + b.halfW - 0.02 && ep >= e.halfW + game.player.halfW - 0.02,
               String(format: "P60 no overlap: two zombies %.2f apart (need %.2f), a voidwalker %.2f from the player (need %.2f)", ab, a.halfW + b.halfW, ep, e.halfW + game.player.halfW))
+    }
+
+    // P63: a shot in town sends the sheriff and the four nearest grown townsfolk to look, and they walk that way.
+    static func shotsDrawFolk(_ game: Game, _ check: (Bool, String) -> Void) {
+        let mobs0 = game.mobs.mobs
+        defer { game.mobs.mobs = mobs0; TownLaw.forceTown = nil }
+        TownLaw.forceTown = true
+        let p = game.player.pos
+        var folk: [Mob] = []
+        for i in 0..<7 {
+            let at = p + V3(Float(6 + i * 3), 0, 0)
+            let m = Mob(.villager, at: at); m.home = at
+            Townsfolk.setup(m, game: game)
+            if i == 6, var v = m.villager { TownLaw.deputize(&v); m.villager = v }
+            folk.append(m)
+        }
+        game.mobs.mobs = folk
+        TownLaw.gunfire(game, at: p)
+        let going = folk.filter { $0.town.investigate != nil }
+        let sheriff = folk[6].town.investigate != nil, nearest = folk.prefix(4).allSatisfy { $0.town.investigate != nil }
+        let d0 = simd_length(folk[0].pos - p)
+        _ = folk[0].villagerDay(0.05, game)
+        let heads = simd_dot(folk[0].forward, simd_normalize(p - folk[0].pos)) > 0.5 || simd_length(folk[0].pos - p) < 4
+        check(going.count == 5 && sheriff && nearest && heads,
+              "P63 gunfire: \(going.count) townsfolk come to look (the sheriff: \(sheriff), the four nearest: \(nearest)); the nearest, \(Int(d0)) blocks off, turns toward the shot (\(heads))")
     }
 }
