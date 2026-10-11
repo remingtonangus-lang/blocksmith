@@ -19,6 +19,7 @@ enum DeepExpansionTests {
         processing(check)
         saves(check)
         play(game, check)
+        hellDrop(game, check)
         keeps(game, check)
         sky(game, check)
         army(game, check)
@@ -244,6 +245,37 @@ enum DeepExpansionTests {
         if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
         g.player.pos = home
         g.player.vel = .zero
+        _ = g.world.loadSync(center: home, radius: 4)
+    }
+
+    // A long drop into a hell-band hall (digging down from the surface through the thin crust) floats you down; a
+    // 12-block fall still hurts.
+    static func hellDrop(_ g: Game, _ check: (Bool, String) -> Void) {
+        let home = g.player.pos, homeDim = g.dim.dim, wasSurvival = g.survival
+        let x = 2000, z = 2000, base = DeepGen.hellBase + 90
+        g.changeDimension(to: .deep, at: V3(Float(x) + 0.5, Float(base + 70), Float(z) + 0.5))
+        let w = g.world
+        _ = w.loadSync(center: V3(Float(x), Float(base + 40), Float(z)), radius: 2)
+        func drop(_ h: Int, at ox: Int) -> Int {
+            for y in base...(base + h + 4) { for dz in -2...2 { for dx in -2...2 { w.setBlock(ox + dx, y, z + dz, AIR) } } }
+            for dz in -2...2 { for dx in -2...2 { w.setBlock(ox + dx, base - 1, z + dz, EMBERSLATE) } }
+            g.survival = true; g.alive = true; g.paused = false; g.menu = nil
+            g.health = 20
+            g.player.flying = false
+            g.player.pos = V3(Float(ox) + 0.5, Float(base + h), Float(z) + 0.5)
+            g.player.vel = .zero; g.player.airPeak = g.player.pos.y
+            g.effects.clear()
+            var t: Float = 0
+            while t < 90 { g.tick(0.05); t += 0.05; if g.player.onGround && t > 0.5 { break } }
+            g.tick(0.05)
+            return 20 - g.health
+        }
+        let longHurt = drop(70, at: x), shortHurt = drop(12, at: x + 8)
+        check(longHurt == 0 && shortHurt > 0, "deep hell: a 70-block drop into a hall floats down unhurt (\(longHurt) damage), a 12-block fall still hurts (\(shortHurt))")
+        g.effects.clear()
+        g.survival = wasSurvival
+        if homeDim != g.dim.dim { g.changeDimension(to: homeDim, at: home) }
+        g.player.pos = home; g.player.vel = .zero
         _ = g.world.loadSync(center: home, radius: 4)
     }
 

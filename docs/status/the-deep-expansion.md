@@ -90,7 +90,11 @@ partial. Three PRs close it. Expanded objectives, written before building:
   so caverns run 100+ blocks floor to roof and lumenstone hangs in a roof far overhead (twice as many clusters).
 - Check: band height >= 170; the median open run per column at least 1.5x the Emberdeep's and the tallest tenth 100+;
   the lower 60 blocks >= 97 % identical to the Emberdeep's; the existing biome / fortress / keep / seal checks still pass.
-- Old saves: chunks generated before keep their 128 band (a step in the roof where old meets new, as with the vault).
+- Old saves: chunks generated before keep their 128 band under a 56-layer crust: where old meets new the hall ends in a
+  rock face up to ~48 blocks tall (accepted, as with the vault; no save hook rewrites saved chunks).
+- Safety: the crust above the band is now 8 layers, so digging down from the surface can open onto a 100-block hall;
+  a drop over 24+ blocks of air in the hell band gets the vault's slow-fall updraft (DeepSeam.swift), shorter falls
+  still hurt. The upper crust's ore and lava-pocket range shrank with it (y 376-379).
 
 **D2, the Ash Vault world and army (PR 2).**
 - Garrison towns (D3b): four Ashguard towns on the ring road's far side (streets of barracks, a mess hall, a radio room,
