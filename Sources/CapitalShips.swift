@@ -1250,7 +1250,8 @@ extension ShipManager {
         g.sfx(want ? .pistonContract : .pistonExtend, 1.2, at: s.toWorld(V3(Float(ox) + 0.5, 9, 78)))
     }
 
-    // Trees, plants, fences, glass and timber under the crawler's front give way (no drops).
+    // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
+    // masonry (P65).
     private func crush(_ s: Ship, _ st: CapitalState, _ dt: Float) {
         st.crushTimer -= dt
         guard st.crushTimer <= 0 else { return }
@@ -1285,7 +1286,10 @@ extension ShipManager {
                     let soft: Bool = key.hasSuffix("_leaves") || key.hasSuffix("_log") || key.hasSuffix("_planks") || key.hasSuffix("_fence")
                         || key.contains("glass") || key.hasSuffix("_wood") || key.contains("mushroom_block") || key == "cactus"
                         || key == "bamboo" || (!Blocks.collide[Int(b)] && hardness[Int(b)] >= 0)
-                    if !soft { continue }
+                    // P65: driving on, it breaks through buildings (walls, brick, stone work) instead of passing
+                    // through them; natural ground and unbreakable blocks stay.
+                    let built = !full && !ShipParts.natural[Int(b)] && hardness[Int(b)] >= 0
+                    if !soft && !built { continue }
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }
@@ -1551,6 +1555,20 @@ extension ShipManager {
         // Over loaded ground, the real top block (tree crowns too: hovering at terrain height put it in the canopy).
         let top: Int = world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height
         let ground = Float(max(top, SEA))
+        // P65 (Oct 11 evening playtest: dropships flew through Capital towers): in flight it clears the highest block
+        // under its whole hull and a hull length ahead, not just the column at its centre.
+        var clear = ground
+        if st.phase == 1 || st.phase >= 4 {
+            let lo = s.localMin, hi = s.localMax
+            let ahead = V3(s.vel.x, 0, s.vel.z) * 1.5
+            for c in [V3(lo.x, 0, lo.z), V3(hi.x, 0, lo.z), V3(lo.x, 0, hi.z), V3(hi.x, 0, hi.z), (lo + hi) * 0.5] {
+                for a in [V3(0, 0, 0), ahead] {
+                    let w = s.toWorld(c) + a
+                    let x = Int(floor(w.x)), z = Int(floor(w.z))
+                    if world.isLoaded(x, z) { clear = max(clear, Float(world.topY(x, z))) }
+                }
+            }
+        }
         let keelY = s.pos.y - keel
         if !s.wrecked && s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6 {
             s.wrecked = true
@@ -1586,7 +1604,7 @@ extension ShipManager {
             if st.phaseT > 3 { st.phase = 1; st.phaseT = 0 }
         case 1:
             let dir = toDrop / max(1, dd)
-            let cruise = ground + 22 + keel
+            let cruise = max(ground + 22, clear + 6) + keel
             want = V3(dir.x, 0, dir.y) * min(24, max(6, dd * 0.6)) + V3(0, max(-6, min(6, (cruise - s.pos.y) * 0.8)), 0)
             if dd < 10 || st.phaseT > 60 { st.phase = 2; st.phaseT = 0 }
         case 2:
@@ -1619,7 +1637,7 @@ extension ShipManager {
             let d = max(1, simd_length(to))
             let tangent = V2(-to.y, to.x) / d
             let h = simd_normalize(tangent + to / d * ((d - 30) / 20))
-            want = V3(h.x, 0, h.y) * 10 + V3(0, max(-4, min(4, (ground + 16 + keel - s.pos.y) * 0.6)), 0)
+            want = V3(h.x, 0, h.y) * 10 + V3(0, max(-4, min(4, (max(ground + 16, clear + 6) + keel - s.pos.y) * 0.6)), 0)
             if st.phaseT > 45 { st.phase = 5; st.phaseT = 0 }
         default:
             let away = simd_normalize(here - V2(g.player.pos.x, g.player.pos.z) + V2(1e-3, 0))
