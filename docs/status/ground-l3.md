@@ -43,7 +43,12 @@ How each is checked (questcheck):
 - `--ground-only` stops after these; `--ground-shots DIR` writes the frames and the materials wall at 1, 4, 10 and 16
   blocks (`BS_ORE_LUMPS=1` renders the ores as they were before, for comparisons).
 
-Results and evidence: below, once the full check and the verifier have run.
+Verifier round 1 (fixed): dripleaf stems swayed (stacked: they parted at every joint), and swaying plants took their
+phase as AO in the cave-fill term (random darker plants in caves). Also from its notes: sway fades out without
+skylight (no wind in caves), underwater plants don't sway, and the rustle plays only on foot (not swimming or riding).
+
+Evidence: docs/status/evidence/ground-l3/materials_before_after.png (the materials wall at 1, 4, 10 and 16 blocks,
+ores before and after), sway_and_lawn.png (two meadow frames 0.7 s apart and the lawn seen from above).
 
 ## Later parts
 - Part 2: VR melee and bow polish. Swing-mode first-use tutorial, blade trail, hit-stop, haptics by material,

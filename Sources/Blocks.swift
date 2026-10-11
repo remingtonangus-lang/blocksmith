@@ -871,12 +871,12 @@ extension BlockRegistry {
     }()
 
     // Plants (L3 flesh-out): cross plants that grow up from the ground bend their top in the wind. Not stacked ones (a
-    // bent top would part from the next block's still bottom: cane, kelp, bamboo, the lower half of a tall plant, which
+    // bent top would part from the next block's still bottom: cane, kelp, bamboo, dripleaf stems, the lower half of a tall plant, which
     // tall() marks), not hanging ones (their top is where they hold on) and not fire, webs, crystals or dripstone.
     static func swayDefault(_ d: BlockDef) -> Bool {
-        guard d.render == .cross && d.sound == .plant else { return false }
+        guard d.render == .cross && d.sound == .plant && d.fluid < 0 else { return false }     // not underwater ones
         let n = d.group ?? d.name
-        for k in ["cane", "vine", "kelp", "bamboo", "hanging", "weeping", "twisting", "spore_blossom", "roots", "lichen"]
+        for k in ["cane", "vine", "kelp", "bamboo", "hanging", "weeping", "twisting", "spore_blossom", "roots", "lichen", "stem"]
             where n.contains(k) { return false }
         return true
     }

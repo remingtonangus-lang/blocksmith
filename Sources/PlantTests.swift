@@ -9,7 +9,7 @@ enum PlantTests {
         let w = g.world
         // 1. The sway table: ground plants yes (a tall plant's upper half only), stacked, hanging and non-plants no.
         let yes = ["short_grass", "fern", "poppy", "dandelion", "tall_grass[upper]", "large_fern[upper]", "rose_bush[upper]"]
-        let no = ["tall_grass", "large_fern", "sugar_cane", "vine", "cobweb", "fire", "grass_block", "oak_leaves", "kelp"]
+        let no = ["tall_grass", "large_fern", "sugar_cane", "vine", "cobweb", "fire", "grass_block", "oak_leaves", "kelp", "seagrass", "big_dripleaf_stem"]
         let wrongYes = yes.filter { Blocks.has($0) && !Blocks.sway[Int(Blocks.id($0))] }
         let wrongNo = no.filter { Blocks.has($0) && Blocks.sway[Int(Blocks.id($0))] }
         let swaying = (0..<Blocks.count).filter { Blocks.sway[$0] && Blocks.groupBase[$0] == BlockID($0) }.count

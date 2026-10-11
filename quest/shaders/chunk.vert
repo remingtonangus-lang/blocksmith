@@ -60,7 +60,7 @@ void main() {
     // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
     // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
     bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u;
-    if (sway && vv == 0u) rel.xz += plantSway(rel + u.eye.xyz, float(ao));
+    if (sway && vv == 0u) rel.xz += plantSway(rel + u.eye.xyz, float(ao)) * smoothstep(0.3, 0.8, skyL);   // no wind in caves
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(rel, 1.0);
     oUV = uv;
     oLayer = float(layer);
@@ -89,7 +89,7 @@ void main() {
     // skylight 5, leaving a dark band of skylight 5-10 walls at a cave mouth between the lit outside and the filled
     // inside (light -> dark -> light walking in). dk already keeps it off on the night surface and daylight seabeds.
     float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0 * (1.0 - smoothstep(0.15, 0.68, skyL)) * dk;
-    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, tintMode == 3u ? 1.0 : float(ao) / 3.0));
+    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, (tintMode == 3u || sway) ? 1.0 : float(ao) / 3.0));
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     bool water = tintMode == 3u;
     oWDepth = water ? (face == 2u ? waterDepthM[ao] : 1.5) : -1.0;

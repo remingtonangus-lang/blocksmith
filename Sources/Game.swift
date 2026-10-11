@@ -2275,7 +2275,7 @@ final class Game {
         let moved = simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
         let px = Int(floor(p.pos.x)), pz = Int(floor(p.pos.z)), py = Int(floor(p.pos.y + 0.1))
         let plant = Blocks.sway[Int(world.block(px, py, pz))] || Blocks.sway[Int(world.block(px, py + 1, pz))]
-        if plant && moved > 0.01 && !p.flying {
+        if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
             plantBrushDist += moved
             if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }
         } else if !plant { plantBrushDist = 0.9 }
