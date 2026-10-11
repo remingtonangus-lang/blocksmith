@@ -555,5 +555,193 @@
     "-"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i20_hunting.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "bear_pelt_good",
+    "fox_pelt_good",
+    "goat_pelt_good",
+    "rabbit_pelt_good"
+   ],
+   [
+    "wolf_pelt_good",
+    "fur_helmet",
+    "fur_chestplate",
+    "fur_leggings"
+   ],
+   [
+    "fur_boots",
+    "hunters_satchel",
+    "legend_satchel",
+    "hunters_map"
+   ],
+   [
+    "game_meat",
+    "cooked_game_meat",
+    "bear_claw",
+    "wolf_fang"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i21_trophies.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "ashen_fang",
+    "ashguard_journal",
+    "brand_greatsword",
+    "catfish"
+   ],
+   [
+    "cooked_fish",
+    "crag_horn",
+    "ember_charge",
+    "ember_tail"
+   ],
+   [
+    "explorer_mark",
+    "frame",
+    "frostjaw_claw",
+    "gate_shard"
+   ],
+   [
+    "keepers_journal",
+    "marshal_cap",
+    "perch",
+    "pike"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i22_guns_sunderite.jpg",
+  "grid": 4,
+  "tiles": [
+   [
+    "gun_ashsaw",
+    "gun_hagel",
+    "gun_kessel",
+    "gun_revolver"
+   ],
+   [
+    "gun_sturmwind",
+    "raw_sunderite",
+    "saddle_salve",
+    "sealrock_shard"
+   ],
+   [
+    "sunder_charge",
+    "sunderite_flux",
+    "sunderite_ingot",
+    "sunderite_pickaxe"
+   ],
+   [
+    "trout",
+    "warden_brand",
+    "potion_bottle",
+    "splash_bottle"
+   ]
+  ],
+  "cellbg": true,
+  "inset": 0.1
+ },
+ {
+  "sheet": "assets/gemini/icons/i23_effects_a.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_speed",
+    "=effect_slowness",
+    "=effect_haste",
+    "=effect_mining_fatigue"
+   ],
+   [
+    "=effect_strength",
+    "=effect_instant_health",
+    "=effect_instant_damage",
+    "=effect_jump_boost"
+   ],
+   [
+    "=effect_nausea",
+    "=effect_regeneration",
+    "=effect_resistance",
+    "=effect_fire_resistance"
+   ],
+   [
+    "=effect_water_breathing",
+    "=effect_invisibility",
+    "=effect_blindness",
+    "=effect_night_vision"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i24_effects_b.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_hunger",
+    "=effect_weakness",
+    "=effect_poison",
+    "=effect_health_boost"
+   ],
+   [
+    "=effect_absorption",
+    "=effect_saturation",
+    "=effect_glowing",
+    "=effect_levitation"
+   ],
+   [
+    "=effect_luck",
+    "=effect_bad_luck",
+    "=effect_slow_falling",
+    "=effect_tide_blessing"
+   ],
+   [
+    "=effect_swimmers_grace",
+    "=effect_darkness",
+    "=effect_ill_omen",
+    "=effect_siege_omen"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/icons/i25_effects_c_tinted.jpg",
+  "grid": 4,
+  "inset": 0.04,
+  "cellbg": true,
+  "tiles": [
+   [
+    "=effect_proving_omen",
+    "=effect_blight",
+    "=effect_friend_of_the_town",
+    "=effect_infested"
+   ],
+   [
+    "=effect_oozing",
+    "=effect_weaving",
+    "=effect_wind_charged",
+    "lingering_bottle"
+   ],
+   [
+    "tipped_arrow",
+    "spawn_egg",
+    "harness",
+    "-"
+   ],
+   [
+    "-",
+    "-",
+    "-",
+    "-"
+   ]
+  ]
  }
 ]

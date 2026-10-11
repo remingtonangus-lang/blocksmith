@@ -2440,7 +2440,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             let xpY = y0 - 7 * s
             rect(x0, xpY, total, 5 * s, V4(0, 0, 0, 0.8))
             let xpFrac = Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel))
-            rect(x0 + s, xpY + s, (total - 2 * s) * xpFrac, 3 * s, V4(0.5, 1, 0.13, 1))
+            // The fill is the painted xp_bar layer (a glossy green tube), cropped, not squeezed, as it grows.
+            let xpW = (total - 2 * s) * xpFrac
+            quad([V2(x0 + s, xpY + s), V2(x0 + s + xpW, xpY + s), V2(x0 + s + xpW, xpY + 4 * s), V2(x0 + s, xpY + 4 * s)],
+                 [V2(0, 0), V2(xpFrac, 0), V2(xpFrac, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("xp_bar")))
             if game.xpLevel > 0 {
                 let t = "\(game.xpLevel)"
                 text(t, floor((W - textWidth(t, s)) / 2), xpY - 7 * s, s, V4(0.5, 1, 0.13, 1))

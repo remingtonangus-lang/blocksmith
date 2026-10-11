@@ -17,6 +17,7 @@ enum VRMeleeTests {
         bow(check)
         text(check)
         play(game, check)
+        VRCombatFeelTests.run(game, check: check)
         print("swingtest: \(fails) failures")
         return fails
     }

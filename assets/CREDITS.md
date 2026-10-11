@@ -114,3 +114,45 @@ docs/status/texture-sharpness.md). All original Blocksmith art.
   commercial use of generated images (store-readiness item), and record the result here.
 - The independent style review that triggered the s20 ore re-roll left no written score; future art passes record
   the reviewer's verdict in this file next to the sheet it judged.
+
+## Icons batch 3: trophies, guns, effects (2026-10-11)
+Same style, prompt pattern and source as the item icons above (Gemini on gemini.google.com, Remington's Google AI Pro
+account). Cell maps in docs/textures/icons.json.
+- assets/gemini/icons/i21_trophies.jpg, i22_guns_sunderite.jpg: hunting trophies, journals, fish, potion/splash bottles,
+  the Steelhold guns and revolver, Sunderite items.
+- assets/gemini/icons/i23_effects_a.jpg, i24_effects_b.jpg, i25_effects_c_tinted.jpg: the 39 status-effect icons
+  ("a sheet of 16 status-effect icons ... bold readable silhouettes and strong saturated colours so each reads at small
+  size", one symbol per cell, e.g. winged boot = speed, snail on an iron ball = slowness, glowing cat eye = night
+  vision). i25 also holds the two-layer items painted with the runtime-tinted part in "PURE GREEN" (lingering bottle
+  liquid, tipped arrowhead, spawn egg spots, harness band); tools/iconsplit.py splits them into base + greyscale
+  overlay. Absorption/glowing halos de-pinked after slicing. The XP bar fill (Resources/Textures/xp_bar.png) is painted
+  to match. All original Blocksmith art.
+
+## Art gaps sheets: doors, trapdoors, glazed terracotta, cutouts, tiles, tall plants, hunting icons (2026-10-11)
+Source: Gemini on gemini.google.com (Remington's Google AI Pro account), 2026-10-11, same STYLISED REALISM prompt
+pattern as the block, plant and icon sheets above ("a SQUARE 1:1 sheet of N textures for a voxel survival game,
+STYLISED REALISM style (real-world materials, simplified, natural muted colours, soft hand-painted look, NOT pixel
+art, NOT cartoon), one item per cell in a clean grid, each fills its cell edge to edge, no border, no text"), naming
+each cell in order. The per-sheet prompt text was not saved; the cell lists below (from the cell maps in
+docs/textures/panels.json, sheets.json and icons.json) are what each prompt asked for. Sliced with tools/texslice.py /
+tools/iconslice, colour families by tools/texderive.py / tools/iconderive.py. Style judged by eye against
+docs/art/style-options/3-stylised-realism.png and by the independent done-gate reviewer (on-style, 2026-10-11:
+"revolver and fur chestplate checked by eye: on-style"; gold nuggets read apart from copper). All original Blocksmith
+art.
+- assets/gemini/sheets/s23_doors.jpg (4x2 tall door panels, mode door): oak, spruce, birch, jungle, acacia, dark oak,
+  mangrove, cherry doors ("full-height door seen face-on, top half with the window/pattern, bottom half solid").
+- assets/gemini/sheets/s24_doors2.jpg (4x2): crimson, warped, pale oak, iron doors; copper door in 4 weathering stages.
+- assets/gemini/sheets/s25_glazed.jpg (4x4): 14 glazed terracotta colours, each an original swirling tile motif
+  (white and orange derived by texderive).
+- assets/gemini/sheets/s26_trapdoors.jpg (4x4): the matching trapdoors for every wood, iron and the copper stages.
+- assets/gemini/sheets/s27_cutouts.jpg (4x4, transparent background requested as flat magenta): glass, iron bars,
+  copper bars, cobweb, rail, rail corner, powered/detector/activator rails (off and on), vine, lily pad, glow lichen,
+  scaffolding top. Stained glass is glass with a dyed translucent fill (texderive).
+- assets/gemini/sheets/s28_tiles.jpg (4x4): ancient debris top, gilded blackstone, chiseled copper, copper grate, red
+  bed top head/foot and side (other 15 bed colours derived), shulker box side/top (16 colours derived), candle
+  (colours derived), bone block, dried kelp, barrel top/bottom, quartz and purpur pillar tops.
+- assets/gemini/plants/p03_tall.jpg (4x2, plant mode): tall grass, large fern (both greyscale for biome tint),
+  sunflower, lilac, rose bush, peony, pitcher plant, tall dry grass.
+- assets/gemini/icons/i20_hunting.jpg (4x4 item icons): bear/fox/goat/rabbit/wolf pelts, fur helmet/chestplate/
+  leggings/boots, hunter's and legend satchels, hunter's map, game meat and cooked game meat (pelt tiers and fur armour
+  tiers derived by iconderive).

@@ -31,7 +31,9 @@ FAMILIES = [
     (r'item_\w+_banner_pattern$', 'item_flower_banner_pattern', 'tint'),
     (r'item_(%s)_banner$' % '|'.join(COLOURS), 'item_white_banner', 'tint'),
     (r'item_\w+_pottery_sherd$', 'item_angler_pottery_sherd', 'copy'),
-]
+    # hunting: poor/perfect pelts from the painted good pelt, legendary pelts from the same animal's pelt
+] + [(r'item_%s_pelt_(poor|perfect)$' % a, 'item_%s_pelt_good' % a, 'tint') for a in ('bear', 'fox', 'goat', 'rabbit', 'wolf')] \
+  + [(r'item_legend_pelt_%s$' % a, 'item_%s_pelt_good' % a, 'tint') for a in ('bear', 'fox', 'goat', 'wolf')]
 
 
 # 'ratio' families: base x (material / base material) mean colour of imported block textures; spears only on the head

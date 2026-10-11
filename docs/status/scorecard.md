@@ -53,7 +53,7 @@ nothing and LB/RB open the crafting book; D-pad down drops on tap but not on hol
 ## 4. Visual quality and art direction
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| One coherent style (style 3 stylised realism) | all shots match docs/art/style-options/3-stylised-realism.png | every shot is still the blocky 16 px look; scores below | RED | golden_mac_sheet.jpg |
+| One coherent style (style 3 stylised realism) | all shots match docs/art/style-options/3-stylised-realism.png | 1221 of 1489 layers in style 3 (82%, 2026-10-11 art-gaps pass): all item + effect icons, XP bar, doors/glass/beds/candles/shulkers/glazed/torches/lanterns/rails/tall plants; 268 long-tail block layers left (docs/status/art-style-remaining.md); Mac shot scores below predate it | AMBER | golden_mac_sheet.jpg, ~/ClaudeTools/projects/blocksmith-qa/runs/2026-10-11/artgaps |
 | Ground noise | calm grass/flowers | plant counts per biome: short grass 66 -> 7 per chunk (x0.106), desert cactus 1.24 -> 0.40/chunk, ferns/dead bush/cane/leaf litter/flowers cut (verified). No image noise metric yet | AMBER | docs/status/evidence/2026-10-09-pm/plants.md, `--only pm9b` |
 | Models | believable mobs | connectivity: every mob kind stays in one piece over 19,392 walk/gallop/knockback/hurt poses (14 kinds had gaps, incl. the horse knee; verified). Head look/attack/sit poses not covered; believability not reviewed | RED (only connectivity measured) | `--questbugs --only pm9a` |
 | Sky | realistic sky + clouds | blocky cloud slabs (base_battle, frigate); dusk/night readable | RED | golden_mac_sheet.jpg |

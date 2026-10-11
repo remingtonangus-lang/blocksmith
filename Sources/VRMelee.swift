@@ -20,7 +20,7 @@ enum VRMelee {
 
     // The Quest options page's text (QuestOptions), here so the Mac `--swingtest` can check it fits the pause menu.
     static let optionHelp = "Swing: hit mobs by swinging your weapon into them. Reclined: no swinging, the trigger attacks."
-    static let reclinedPostureHelp = "Lying Down View: Recenter View levels the view to your gaze. Turning it on picks Reclined melee."
+    static let reclinedPostureHelp = "Lying Down View: Recenter levels the view to your gaze. On: Reclined melee, snap turns, a vignette."
     static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: trigger attacks",
                             "Main trigger: mine / fire (both modes)", "Bow: off-hand trigger at string, pull"]
 

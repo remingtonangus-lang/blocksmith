@@ -1,5 +1,11 @@
 # Status
 
+> **Art gaps (25b4zzz, 2026-10-11, done):** style 3 now covers 1221 of 1489 layers (82%, was 61%): doors/trapdoors
+> (all woods, copper, iron), glass + stained glass, beds, candles, shulkers, glazed terracotta, torches, lanterns, rails,
+> tall plants, vines, lily pads, ancient debris, gilded blackstone; every item icon; 39 effect icons + XP bar; bigger gold
+> nuggets; quartz/diamond seams blended. texpack.bin repacked once. Done gate MET (REPORT.md); long tail AR1-AR7 in
+> docs/roadmap/backlog.md. Evidence: ~/ClaudeTools/projects/blocksmith-qa/runs/2026-10-11/artgaps (+ quest/).
+
 > **Audit gaps 1-10 (25b4zzza..., 2026-10-11):** pads take the water's shore factor (Mesher, Mac + Quest chunk.vert);
 > swamps get open ponds with pad rafts; old worlds back up, then thin wild animal crowds once (format 4); VR "Held Item
 > Size" 0.8-1.5x (sword + guns) with a hip-clearance QuestSim check; helm speed vignette; Quest water views use a pinned

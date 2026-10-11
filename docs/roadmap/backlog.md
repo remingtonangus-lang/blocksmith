@@ -26,6 +26,33 @@ P14. Footsteps still sound like walking through mud; one unidentified sound play
 P15. Frame rate dropped to about 22 fps in a survival world at high render distance; find the scene from the notes state lines and fix the cause.
 Praised, keep: performance at 24 chunks, removing the big water buckets, cave mob density, jungle, hell blocks, the Powderwight look, raw titanium.
 
+## PLAYTEST Oct 11 midday (P16-P38): same priority as P1-P15
+He played build 3222ab3d (12:40-13:31); notes 12:40 onward in docs/playtests/2026-10-11/voice-notes.md (with repro lines). Several repeat P items because no P fix had shipped yet; check against claude/quest-port first.
+P16. VR melee (extends P13): swings at targets below the player never hit; only one hit registers per few hundred ms when swinging fast (allow several hits per second); damage should scale with swing speed; leave a visible hit mark (red streak) on what you hit.
+P17. The held sword is see-through edge-on and looks like five pieces stitched together: give held tools real thickness and a clean single mesh.
+P18. Lava next to him did not spill/flow toward him (12:42); water falling one block looks wrong from the side (with P1).
+P19. Minecraft lookalike content: a deep-dark-style cave with a warden-like mob appeared, which he never asked for (12:45-12:48). Audit for content copied from Minecraft (warden, deep dark, end city and similar) and replace it with original designs or remove it (IP rule).
+P20. Teleported through a wall of blocks once (12:48, collision/rubber-band bug).
+P21. Unclear objects: something at 12:52 he could not identify (make its purpose obvious) and an eye-like item/creature at 13:03 that looks poor; find them from the repro lines.
+P22. Coral underwater looks low effort; rework coral and reef looks.
+P23. Capital base soldiers must not respawn once killed, so a base or city can be cleared for good.
+P24. Villages need things to steal: chests in houses, and a register/strongbox chest behind the general store counter; chest placement in buildings must make sense, and buildings should have a readable purpose instead of filler.
+P25. Input bug: the left grip / a stuck trigger auto-placed blocks (a crafting table) repeatedly (12:56-12:57).
+P26. Horses: taming is undiscoverable (no pat prompt; hand-only patting unexplained); bonding levels rise far too fast (aim for RDR2-like riding time); verify speed tiers (his horse felt very slow); a way to call your horse (e.g. hold A to whistle); a spare horse walks into him (follow to near, not onto, the player); a horse he attacked would not die and froze in place; some hits on a horse do no damage; the running animation looks wrong. Keep: the horse rearing/falling backwards.
+P27. Hostile mobs should not be out in daylight; follow the day/night cycle.
+P28. Crafting shows only that you can make an item; show how many (e.g. 6 chests).
+P29. General store: an empty map for 6 dollars must be a treasure map or cost much less; check prices (titanium ingot 5 dollars felt cheap); the pistol sold by the sheriff looks wrong.
+P30. Titanium armour vs guns: he lost no health at all under gunfire; armour should take heavy durability damage from bullets (that part is good) but some damage must still get through; swords should do little to it. A shock weapon held by enemies looks far more powerful in the inventory than it is; match its look to its strength.
+P31. Hostages tell him to put his weapon away while held hostage by the soldiers he is fighting; fix that dialogue (hands-up is good).
+P32. Guns: the reload button still does not work; guns are not accurate enough; rounds land higher than the sights; the Farsight rifle cannot aim down its scope.
+P33. Capital assault: entering a capital base should trigger an alarm and send reinforcements from the capital tower; it should be genuinely hard. Tower interiors: denser, narrow corridors, less open space (inspired by the N64 Siberia facility feel, all original).
+P34. Capital special food: more technologically advanced rations unique to the capital.
+P35. Some building pillars float above the ground (foundations must reach the terrain).
+P36. The radar blocks in capital bases should do something (e.g. reveal patrols or other bases when used).
+P37. A sheriff office/jail rework (with G14): the current one looks poor.
+P38. Hunger still drains too fast when sprinting (same as P12).
+Praised, keep: wind sounds (perfect), terrain generation improved, titanium ingot look, helicopters, armour shattering under fire, hostages raising hands, guns badly damaging titanium armour.
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
@@ -127,7 +154,7 @@ NOTE (10-10 21:26): Quest renderer first. Do the sky, mobs, creeper replacement 
 L2. Redstone. DONE (PR #38): the Sparkstone Workshop world (Worlds menu), seven standard circuits checked against the reference in questcheck --workshop-only; 4 engine fixes (docs/status/sparkstone-workshop.md).
 REDSTONE: Build a redstone test world with standard circuits (clocks, T flip-flops, piston doors, item sorters, observers, comparator subtraction) and make every one behave like the genre reference; automate the check.
 
-L3. Oct 10 AM playtest flesh-out list (skip towns items; lane B owns them). CLAIMED: Lane C thread, 2026-10-11 (objectives and progress: docs/status/ground-l3.md).
+L3. Oct 10 AM playtest flesh-out list (skip towns items; lane B owns them). [DONE: Lane C thread, 2026-10-11, PRs #42 (ground), #43 (perf overlay, world gen, eruptions), #45 (VR combat feel); docs/status/ground-l3.md, l3-part3.md, vr-combat-feel.md. The 20-minute soak, device fps and the Quest build ship are on lane M's device checklist. Ruined portals were removed at Remington's request.]
 FLESH-OUT of the Oct 10 AM playtest task (Remington, 10-10 14:45). That task got his literal list; these are the extra objectives (written by the overseer) it must also meet. Read what 25b4z already shipped (git log, docs/playtests/2026-10-10/voice-notes-status.md), skip what is truly MET, build the rest. Grade everything at the end with the DONE GATE reviewer.
 TEXTURES/GROUND
 - Before/after captures from the Quest build at 1, 4 and 16 blocks for stone, chest, grass, ores, planks; put them in the status doc.
@@ -186,6 +213,19 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
     (`dist < w.reach + 0.3`, feet height window 2.5) so an angry townsperson can't hit a player on a 2-block step and
     can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
     level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
+T2. questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
+    $0.00 bounty), bounty (law never challenges, lapse day), honour HUD/meter/inventory, six-iron hit rate, countries
+    ore. Towns-lane code; the Mac worker did not touch it. Reproduce: quest/tools/linux-check.sh then questcheck.
+
+## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
+AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
+     panels, ship parts): list in docs/status/art-style-remaining.md. Needs Gemini sheets (Mac, CHROME=1).
+AR2. cave_vines, weeping_vines, twisting_vines and the torch_top/torch_bottom variants are still procedural.
+AR3. Add a snap with XP set so the xp_bar fill is seen in evidence; check its stripes read as a tube at 3 px tall.
+AR4. Beds read as a thin flat slab in the Mac family gallery; check them at play distance on Quest.
+AR5. Close-up tiled shot of nether_quartz_ore / deepslate_diamond_ore to confirm the seam blend.
+AR6. texpack.bin grew 12.9 -> 18.6 MB; weigh it for the repo and Quest download (ASTC is Remington's call).
+AR7. Save each Gemini prompt verbatim in assets/CREDITS.md going forward (s23-s28/p03/i20 record pattern + cells only).
 
 ## FROM THE DONE AUDIT (task 25b6, 2026-10-11; items G1-G11, renamed from A1-A11 so they are not confused with Lane A; full tables in docs/status/done-audit.md). Whichever cloud thread is free takes these FIRST, before new lane items.
 Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.

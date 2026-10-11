@@ -84,6 +84,8 @@ enum QuestSettings {
     static var swingMode: Bool { get { bool("quest.swingMode", true) } set { store(newValue, "quest.swingMode") } }
     // The melee style before the Reclined posture switched it to Reclined (-1 none): turning the posture off restores it.
     static var swingBeforeReclined: Int { get { int("quest.swingBeforeReclined", -1) } set { store(newValue, "quest.swingBeforeReclined") } }
+    static var swingTutorialShown: Bool { get { bool("quest.swingTutorial", false) } set { store(newValue, "quest.swingTutorial") } }
+    static var reclinedTutorialShown: Bool { get { bool("quest.reclinedTutorial", false) } set { store(newValue, "quest.reclinedTutorial") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     // The held item's size (VR option "Held Item Size", audit 25b6 #4): multiplies swords, tools, blocks and guns.

@@ -645,5 +645,69 @@
     "mangrove_planks"
    ]
   ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s25_glazed.jpg",
+  "grid": 4,
+  "crop": 0.035,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "black_glazed_terracotta:single",
+    "blue_glazed_terracotta:single",
+    "brown_glazed_terracotta:single",
+    "cyan_glazed_terracotta:single"
+   ],
+   [
+    "gray_glazed_terracotta:single",
+    "green_glazed_terracotta:single",
+    "light_blue_glazed_terracotta:single",
+    "light_gray_glazed_terracotta:single"
+   ],
+   [
+    "lime_glazed_terracotta:single",
+    "magenta_glazed_terracotta:single",
+    "pink_glazed_terracotta:single",
+    "purple_glazed_terracotta:single"
+   ],
+   [
+    "red_glazed_terracotta:single",
+    "yellow_glazed_terracotta:single",
+    "-",
+    "-"
+   ]
+  ]
+ },
+ {
+  "sheet": "assets/gemini/sheets/s28_tiles.jpg",
+  "grid": 4,
+  "crop": 0.04,
+  "stylise": 0.2,
+  "tiles": [
+   [
+    "ancient_debris_top:single",
+    "gilded_blackstone",
+    "chiseled_copper:single",
+    "copper_grate:single"
+   ],
+   [
+    "red_bed_top_head:single",
+    "red_bed_top_foot:single",
+    "red_bed_side:single",
+    "shulker_box_side:single"
+   ],
+   [
+    "shulker_box_top:single",
+    "candle",
+    "bone_block_top:single",
+    "dried_kelp_top:single"
+   ],
+   [
+    "barrel_top:single",
+    "barrel_bottom:single",
+    "quartz_pillar_top:single",
+    "purpur_pillar_top:single"
+   ]
+  ]
  }
 ]

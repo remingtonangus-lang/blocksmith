@@ -698,6 +698,20 @@ struct Synth {
         case .fizz: out = burst(0.6, lp: 8000, hp: 3000, attack: 0.02, decay: 0.25, gain: 0.9)
         // Walking through plants (L3): a short leafy swish with a flutter, a few dry ticks of stems.
         case .plantBrush: out = Synth.window(Synth.mix(swishNoise(rnd(0.32, 0.45), lo: 1400 * p, hi: 6500 * p, attack: 0.04, decay: 0.12, gain: 0.55), grains(4, spread: 0.3, lp: 7000, hp: 2500, decay: 0.004, gain: 0.25)))
+        case .meleeWindUp:
+            // A drawn breath and the scrape of a weapon going back: a rising whoosh over a low growl.
+            let breath = Synth.window(wash(rnd(0.38, 0.5), lp: 1100 * p, hp: 140, wobble: 0.5, rate: 6, gain: 0.7))
+            let growl = Synth.lowpass(tone(0.42, f0: 85 * p, f1: 150 * p, wave: .saw, attack: 0.08, release: 0.1, vib: 0.05, vibRate: 22, gain: 0.25), 700)
+            out = Synth.mix(breath, growl)
+        case .parryClang:
+            // Steel on steel: a bright ring with a sharp strike.
+            out = Synth.mix(modes(0.7, [(1480 * p, 0.5, 0.28), (2960 * p, 0.3, 0.2), (4430 * p, 0.16, 0.12), (6100 * p, 0.08, 0.06)]),
+                            burst(0.04, lp: 10000, hp: 2500, attack: 0.001, decay: 0.01, gain: 0.9))
+        case .bowCreak:
+            // The limbs bending: a slow wooden groan with a crackle of fibres.
+            let groan = Synth.lowpass(tone(rnd(0.24, 0.32), f0: rnd(170, 200) * p, f1: rnd(125, 150) * p, wave: .saw, attack: 0.03, release: 0.08, vib: 0.08, vibRate: 35, gain: 0.22), 1500)
+            out = Synth.mix(groan, crackle(0.28, density: 60, f: 1200, q: 4, gain: 0.3))
+        case .bowNock: out = Synth.mix(modes(0.07, [(1900 * p, 0.3, 0.012)]), burst(0.03, lp: 5000, hp: 1500, decay: 0.006, gain: 0.6))
         case .railClick: out = Synth.mix(modes(0.08, [(2200 * p, 0.3, 0.015)]), burst(0.03, lp: 5000, hp: 1200, decay: 0.006, gain: 0.5))
         case .anvil:
             out = Synth.mix(modes(0.9, [(830 * p, 0.5, 0.35), (1970 * p, 0.3, 0.25), (3120 * p, 0.2, 0.12), (4410 * p, 0.12, 0.08)]),

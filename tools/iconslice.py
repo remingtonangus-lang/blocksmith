@@ -123,7 +123,10 @@ def main():
                 cw, ch = W / g, H / g
                 box = (int(x0 + cw * inset), int(y0 + ch * inset), int(x0 + cw * (1 - inset)), int(y0 + ch * (1 - inset)))
                 plants = s.get('plants', False)       # cross/cutout block sprites: standing on the block's bottom
-                icon = fit(key_cell(sheet.crop(box), bg), s.get('size', a.size), float(f) if f else s.get('fill', 0.9), bottom=plants)
+                crop = sheet.crop(box)
+                # "cellbg": Gemini sometimes paints each cell as a lighter panel; key that panel's own colour
+                # (use with an inset that lands inside the panel).
+                icon = fit(key_cell(crop, crop.getpixel((3, 3)) if s.get('cellbg') else bg), s.get('size', a.size), float(f) if f else s.get('fill', 0.9), bottom=plants)
                 if icon is None:
                     print(name, 'EMPTY')
                     continue
