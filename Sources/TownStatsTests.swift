@@ -13,8 +13,11 @@ import simd
 //             a glance tells you ("strong", "frail", "quick"...), only in town, and only for the person you look at.
 extension TownTests {
     static func variety(_ g: Game, _ check: (Bool, String) -> Void) {
-        let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedSurvival = g.survival
-        defer { g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.survival = savedSurvival; TownLaw.forceTown = nil; TownLaw.reset() }
+        let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedSurvival = g.survival, savedYaw = g.player.yaw, savedPitch = g.player.pitch
+        defer {
+            g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.survival = savedSurvival; g.player.yaw = savedYaw; g.player.pitch = savedPitch
+            TownLaw.forceTown = nil; TownLaw.reset()
+        }
         let base = groundSpot(g)
         func person(_ tag: String, _ i: Int) -> Mob {
             let m = Mob(.villager, at: base + V3(Float(i % 17) * 1.3, 0, Float(i / 17) * 1.1)); m.home = m.pos
@@ -94,8 +97,24 @@ extension TownTests {
         let to = simd_normalize(smith.pos + V3(0, 1.2, 0) - g.player.eye)
         g.player.yaw = atan2f(-to.x, -to.z); g.player.pitch = asinf(to.y)
         let seen = TownStatsHUD.lookedAt(g)
+        TownStatsHUD.aimed = nil; TownStatsHUD.shown = nil
+        let t0 = g.clock
+        let first = TownStatsHUD.current(g, now: t0)
+        let settled = TownStatsHUD.current(g, now: t0 + TownStatsHUD.settle + 0.05)
         g.player.yaw += 1.2
         let away = TownStatsHUD.lookedAt(g)
-        check(seen === smith && away == nil, "variety: the line shows for the person you look at (\(seen?.villager?.person ?? "nobody")), not when you look away")
+        let lingering = TownStatsHUD.current(g, now: t0 + TownStatsHUD.settle + 0.25)
+        let gone = TownStatsHUD.current(g, now: t0 + TownStatsHUD.settle + 0.25 + TownStatsHUD.hold + 0.05)
+        check(seen === smith && away == nil && first == nil && settled === smith && lingering === smith && gone == nil,
+              "variety: the line shows for the person you hold your aim on (\(seen?.villager?.person ?? "nobody"), after \(TownStatsHUD.settle) s), lingers \(TownStatsHUD.hold) s, not when you look away")
+        // Farmers read weak or slow at a glance; a mason who takes up a lectern re-rolls as a librarian.
+        let readable = (0..<100).filter { i in let t = person("farmer", 200 + i).townStats.traits; return t.contains("weak") || t.contains("slow") }.count
+        check(readable >= 85, "variety: \(readable)/100 farmers read weak or slow at a glance")
+        let mason = person("worker", 300)
+        if var v = mason.villager { v.role = "craftsman"; v.profession = "mason"; mason.villager = v }
+        let asMason = mason.townStats
+        if var v = mason.villager { v.profession = "librarian"; mason.villager = v }
+        check(asMason.strength > mason.townStats.strength + 0.2 && TownStatsHUD.describe(mason).contains("librarian"),
+              String(format: "variety: a mason who becomes a librarian re-rolls (strength x%.2f -> x%.2f)", asMason.strength, mason.townStats.strength))
     }
 }

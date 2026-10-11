@@ -22,6 +22,19 @@ read them.
 - Toughness scales damage taken rather than max health, so health bars, healing and saves stay as they are.
 - The sheriff's six-iron ignores strength (a gun is a gun; SixIron owns its damage).
 
+## Verifier pass (independent Opus subagent, 2026-10-11) and what changed
+- Fixed: the stats cache only keyed on role, so a craftsman who lost his workstation and took another kept the old
+  trade's stats (and they changed on reload); it now keys on role, trade and shop (plain compares, no per-frame
+  string building).
+- Fixed: farmers could never read "weak" and a third of them showed nothing; the glance words now compare against an
+  ordinary adult (weak <= 0.88, slow <= 0.9, ...), biggest difference first, and swing rate shows ("fast hands").
+- Fixed (Quest): the line followed the aiming hand and flickered across busy streets; it now needs 0.3 s of steady aim
+  and lingers 0.5 s, sits lower (clear of the damage ring and the deck-gun reload bar) and hides with the weapon wheel
+  or a manned gun. Keepers read by their trade ("storekeeper"), a craftsman without a trade as "craftsman".
+- Known (by design): elders and farmers flee zombies more slowly now (about 1.4 and 1.8 blocks/s against a zombie's
+  2.3), so more of them are caught at night and in raids; deputies top out near 3.2 blocks/s, under a sprinting
+  player and a horse. Speed and swing rate have no body cue beyond the line.
+
 ## Checks
 `questcheck --towns-only` (TownStatsTests via TownTests.run): role means over 300 people each, spread person to
 person, determinism, a child growing up re-rolls, a 12-point blow on an elder vs a blacksmith, hammer vs pitchfork

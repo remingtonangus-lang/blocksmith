@@ -60,23 +60,30 @@ struct TownStats: Equatable {
     // How broad they're built (the model's width and depth scale): slighter for the weak, broader for the strong.
     var build: Float { max(0.86, min(1.16, 0.86 + 0.3 * (strength + toughness - 1.1) / 1.9)) }
 
-    // Words a glance tells you (the crosshair line), strongest cue first; at most three.
+    // Words a glance tells you (the crosshair line): each stat far enough from an ordinary adult's, the biggest
+    // difference first; at most three. (A farmer reads "weak, slow" most of the time, a deputy "quick, fast hands".)
     var traits: [String] {
-        var t: [String] = []
-        if strength >= 1.3 { t.append("strong") } else if strength <= 0.7 { t.append("weak") }
-        if toughness >= 1.3 { t.append("tough") } else if toughness <= 0.75 { t.append("frail") }
-        if speed >= 1.2 { t.append("quick") } else if speed <= 0.85 { t.append("slow") }
-        return Array(t.prefix(3))
+        var t: [(Float, String)] = []
+        func add(_ v: Float, _ hi: Float, _ lo: Float, _ up: String, _ down: String) {
+            if v >= hi { t.append((v - 1, up)) } else if v <= lo { t.append((1 - v, down)) }
+        }
+        add(strength, 1.25, 0.88, "strong", "weak")
+        add(toughness, 1.25, 0.8, "tough", "frail")
+        add(speed, 1.15, 0.9, "quick", "slow")
+        add(rate, 1.15, 0.85, "fast hands", "slow hands")
+        return t.sorted { $0.0 > $1.0 }.prefix(3).map { $0.1 }
     }
 }
 
 extension Mob {
-    // Cached per mob (TownState) and re-rolled when the role changes (a child grows up, a sheriff is deputized).
+    // Cached per mob (TownState) and re-rolled when what it was rolled from changes: the role (a child grows up, a
+    // sheriff is deputized), the trade (a craftsman losing his workstation and taking another) or the shop. Plain
+    // compares, no string building, so a cache hit costs nothing per frame.
     var townStats: TownStats {
-        let role = villager?.role ?? ""
-        if let s = town.stats, town.statsRole == role, town.statsBaby == baby { return s }
+        let role = villager?.role ?? "", prof = villager?.profession ?? "", shop = villager?.shop ?? ""
+        if let s = town.stats, town.statsRole == role, town.statsProf == prof, town.statsShop == shop, town.statsBaby == baby { return s }
         let s = TownStats.roll(villager, baby: baby)
-        town.stats = s; town.statsRole = role; town.statsBaby = baby
+        town.stats = s; town.statsRole = role; town.statsProf = prof; town.statsShop = shop; town.statsBaby = baby
         return s
     }
 }
@@ -102,17 +109,36 @@ enum TownStatsHUD {
         let v = m.villager
         let name = v?.person ?? "Townsperson"
         var job = m.baby ? "child" : (v?.role ?? "worker")
-        if job == "shopkeeper", let k = v?.shopKind { job = k.name.lowercased() }
-        if job == "craftsman", let p = v?.profession { job = p }
+        if job == "shopkeeper", let k = v?.shopKind { job = k.keeper }
+        if job == "craftsman", let p = v?.profession, !["none", "nitwit", ""].contains(p) { job = p }
         let t = m.townStats.traits
         return "\(name), \(job)" + (t.isEmpty ? "" : ": " + t.joined(separator: ", "))
     }
 
+    // Shown once you've held your aim on someone for `settle` s, and kept `hold` s after you look away, so sweeping
+    // a hand (the Quest aims with it) across a busy street doesn't flicker text in front of you.
+    static let settle: Double = 0.3, hold: Double = 0.5
+    static weak var aimed: Mob?
+    static var aimedSince: Double = 0
+    static weak var shown: Mob?
+    static var shownUntil: Double = 0
+
+    static func current(_ g: Game, now: Double? = nil) -> Mob? {
+        let t = now ?? g.clock
+        let m = lookedAt(g)
+        if m !== aimed { aimed = m; aimedSince = t }
+        if let m, t - aimedSince >= settle { shown = m; shownUntil = t + hold }
+        guard let s = shown, s.health > 0, t <= shownUntil else { shown = nil; return nil }
+        return s
+    }
+
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, TownLaw.inTown != nil, let m = lookedAt(g) else { return [] }
+        guard HudExtras.enabled, !g.hideHUD, g.menu == nil, g.alive, TownLaw.inTown != nil,
+              !Turrets.shared.active, !WeaponWheel.shared.open, let m = current(g) else { return [] }
         let s = L.s
         let t = describe(m)
         let w = Float(Font.width(t)) * s
-        return [HudLine(text: t, x: (L.W - w) / 2, y: L.H / 2 + 18 * s, scale: s, color: V4(0.95, 0.92, 0.82, 1), bg: V4(0, 0, 0, 0.5))]
+        // Below the crosshair, clear of the damage ring and the deck-gun reload bar.
+        return [HudLine(text: t, x: (L.W - w) / 2, y: L.H / 2 + 56 * s, scale: s, color: V4(0.95, 0.92, 0.82, 1), bg: V4(0, 0, 0, 0.5))]
     }
 }

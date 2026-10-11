@@ -1323,7 +1323,7 @@ final class Mob {
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
-        // the average holds).
+        // the average holds, except that every hit does at least 1).
         if kind == .villager && villager?.person != nil && damage > 0 {
             let d = Float(damage) / townStats.toughness
             let whole = floorf(d)

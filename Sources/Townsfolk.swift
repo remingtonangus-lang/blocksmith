@@ -45,6 +45,8 @@ struct TownState {
     // TownStats (the person's toughness, speed, strength and attack rate), cached with the role it was rolled for.
     var stats: TownStats?
     var statsRole = ""
+    var statsProf = ""
+    var statsShop = ""
     var statsBaby = false
 }
 
