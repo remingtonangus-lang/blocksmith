@@ -193,6 +193,13 @@ func townsfolkParts(_ m: Mob, swing: Float) -> [Part] {
     case .cap:
         b(-3.5, 30.2, -3.5, 3.5, 32.6, 3.5, h)
     }
+    // Build (TownStats): the body below the neck broader for the strong and tough, slighter for the frail.
+    let k = m.townStats.build
+    if abs(k - 1) > 0.01 {
+        for i in p.indices where p[i].mn.y < 23.4 {
+            p[i].mn.x *= k; p[i].mx.x *= k; p[i].mn.z *= k; p[i].mx.z *= k; p[i].pivot.x *= k; p[i].pivot.z *= k
+        }
+    }
     return p
 }
 

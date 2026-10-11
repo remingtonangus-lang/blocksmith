@@ -755,13 +755,14 @@ final class Mob {
                 villageTick(g)
             }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
+            // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
             if let s = townDefend(dt, g) {
                 if lying { pos.y += 0.1; lying = false; sitting = false }
-                speed = s; break
+                speed = s * townStats.speed; break
             }
             if townReact(dt, g) { speed = 0; break }
             if villagerNight(g) { speed = 0; break }
-            speed = villagerDay(dt, g)
+            speed = villagerDay(dt, g) * townStats.speed
         case .golem:
             if home == nil { home = pos }
             // Village-made golems defend villagers from a player they think badly of (reputation <= -100).
@@ -1321,6 +1322,13 @@ final class Mob {
             }
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
+        // the average holds).
+        if kind == .villager && villager?.person != nil && damage > 0 {
+            let d = Float(damage) / townStats.toughness
+            let whole = floorf(d)
+            damage = max(1, Int(whole) + (Rand.float(in: 0..<1) < d - whole ? 1 : 0))
+        }
         // Ashguard armour is thinnest at the back: hits from behind a tank or half-track do 1.6x (flank them).
         if (kind == .ashTank || kind == .ashHalftrack) && damage > 0 {
             let d = V2(src.x - pos.x, src.z - pos.z)

@@ -24,6 +24,7 @@ enum TownTests {
         honour(g, makeWorld, check)          // HonourTests.swift: honour, bounties, the sheriff's revolver, frontier towns
         shopUI(g, check)
         people(g, check)
+        variety(g, check)                    // TownStatsTests.swift: townsfolk toughness, speed, strength, build, the glance line
         defence(g, check)
         towns(makeWorld, check)
         townGap(g, makeWorld, check)         // TownGapTests.swift: plans, bank, upgrades, dice, night raids, the map
