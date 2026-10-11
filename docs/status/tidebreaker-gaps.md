@@ -64,3 +64,11 @@ growing with distance up to 3x past 180 blocks so it never shrinks to a dot, bri
 one shared light on the stern within 160 blocks (the flash list is shared with gunfire). Works on AI and commandeered
 frigates. Check: MainGunTests 1b (four or more nozzle sprites over 2.5 degrees across from 300 blocks astern at night);
 render maingun_stern_night with --render.
+
+## G6: the first citadel was hard to find (done audit 25b6)
+Objectives: a walking player gets a lead to a citadel well before stumbling on one; the lead is loot the player meets
+early (wild camps), and the first one read points to a citadel, not a city.
+Results: outlaw camps always hold 1-2 Intercepted Orders (Loot extra pool), abandoned camps sometimes (weight 7); the
+first orders read while no citadel is on the map mark the nearest citadel. FindabilityTests (questcheck): 50 of 50
+outlaw chests hold orders, nearest outlaw camp versus nearest citadel from spawn on six seeds, first orders mark a
+citadel.

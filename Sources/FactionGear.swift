@@ -112,7 +112,12 @@ extension Game {
                     } }
                 }
                 func dist(_ c: RadarContact) -> Int { (c.x - px) * (c.x - px) + (c.z - pz) * (c.z - pz) }
-                let fresh = cands.filter { c in !MapCache.shared.marked(kind: c.kind, x: c.x, z: c.z) && dist(c) > 120 * 120 }
+                var fresh = cands.filter { c in !MapCache.shared.marked(kind: c.kind, x: c.x, z: c.z) && dist(c) > 120 * 120 }
+                // The first orders read point to a citadel while none is on the map (done audit 25b6, G6: the first
+                // base meant wandering ~1,200 blocks; orders now turn up in outlaw and abandoned camps, WildCamps.loot).
+                if !MapCache.shared.marks.contains(where: { $0.kind == "military_base" }), fresh.contains(where: { $0.kind == "military_base" }) {
+                    fresh = fresh.filter { $0.kind == "military_base" }
+                }
                 target = (fresh.isEmpty ? cands : fresh).min { dist($0) < dist($1) }
                 if let t = target { text = "Capital patrol routes lead to a \(t.name)" }
             }

@@ -42,10 +42,11 @@ enum WildCamps {
                                  ("white_wool", 1, 4, 8), ("red_dye", 1, 3, 6), ("blue_dye", 1, 3, 6), ("apple", 2, 5, 10), ("map", 1, 1, 3),
                                  ("compass", 1, 1, 2), ("name_tag", 1, 1, 2)]),
         "camp_abandoned": (1...3, [("bone", 1, 4, 20), ("rotten_flesh", 1, 4, 20), ("string", 1, 3, 15), ("stick", 2, 5, 15),
-                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15)]),
+                                   ("iron_nugget", 2, 7, 10), ("paper", 1, 3, 8), ("map", 1, 1, 3), ("name_tag", 1, 1, 2), ("empty", 1, 1, 15),
+                                   ("intercepted_orders", 1, 1, 7)]),           // (a courier's satchel: the way to a citadel, G6)
         "camp_outlaws": (4...7, [("gold_nugget", 3, 12, 16), ("emerald", 1, 5, 12), ("iron_ingot", 1, 4, 12), ("gold_ingot", 1, 2, 6),
                                  ("arrow", 4, 12, 12), ("gunpowder", 1, 4, 10), ("crossbow", 1, 1, 4), ("saddle", 1, 1, 4),
-                                 ("golden_apple", 1, 1, 2), ("compass", 1, 1, 3), ("experience_bottle", 1, 2, 4)]),
+                                 ("golden_apple", 1, 1, 2), ("compass", 1, 1, 3), ("experience_bottle", 1, 2, 4)]),          // (+ a courier's orders, always: Loot.extraPools, G6)
     ]
 
     static func b(_ name: String, _ fallback: String = "oak_planks") -> BlockID { Blocks.has(name) ? Blocks.id(name) : Blocks.id(fallback) }

@@ -727,6 +727,8 @@ do {
     FactionTests.frigate(game, check)
     // Aboard the Meridian frigate from the ground: the winch, the ladder, the helm (G11).
     BoardingTests.run(game, check)
+    // The first citadel can be found: orders in outlaw camps (G6).
+    FindabilityTests.run(game, check)
     if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
