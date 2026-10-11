@@ -122,6 +122,25 @@ def recolour(base_path, mean):
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8))
 
 
+def recolour_glass(base_path, mean):
+    """Stained glass: the painted glass is clear in the middle, so the dye fills it translucently (alpha ~0.45 like
+    the procedural pane) with a soft diagonal sheen; frame and glints take the dye too."""
+    b = np.asarray(Image.open(base_path).convert('RGBA'), dtype=np.float32) / 255
+    h, w = b.shape[:2]
+    a = b[..., 3]
+    L = lum(b[..., :3])
+    solid = a > 0.05
+    rel = L / max(L[solid].mean(), 1e-3) if solid.any() else np.ones_like(L)
+    grey = lum(mean)
+    tgt = grey + (mean - grey) * 0.95
+    yy, xx = np.mgrid[0:h, 0:w] / max(w, 1)
+    sheen = 1 + 0.12 * np.cos((xx + yy) * np.pi * 2.5)
+    rgb = np.where(solid[..., None], rel[..., None] * tgt, sheen[..., None] * tgt)
+    alpha = np.maximum(a, 0.45)
+    out = np.concatenate([np.clip(rgb, 0, 1), alpha[..., None]], -1)
+    return Image.fromarray((out * 255 + 0.5).astype(np.uint8))
+
+
 def recolour_dyed(base_path, mean):
     """Beds: only the red-dyed cloth takes the new colour; pillow and wooden frame keep the painted base."""
     b = np.asarray(Image.open(base_path).convert('RGBA'), dtype=np.float32) / 255
@@ -169,7 +188,7 @@ def main():
             if t in GRADE:
                 g = lum(m)
                 m = g + (m - g) * GRADE[t]
-            (recolour_dyed if t in wool else recolour)(os.path.join(a.out, b + '.png'), m).save(os.path.join(a.out, t + '.png'))
+            (recolour_dyed if t in wool else recolour_glass if t.endswith('_stained_glass') else recolour)(os.path.join(a.out, b + '.png'), m).save(os.path.join(a.out, t + '.png'))
             derived.add(t)
     tiles = [(t, os.path.join(ROOT, 'assets/gemini/tiles', b + '.png')) for t, b in TILES if t in names and t not in have]
     tmeans = procedural_means(a.bin, [t for t, _ in tiles if t not in KEEP_COLOUR])
