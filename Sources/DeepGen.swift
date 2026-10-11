@@ -130,6 +130,12 @@ final class DeepGen: TerrainGenerator {
         } }
         ember.fill(&b, cx: cx, cz: cz)
         crustPockets(&b, bx, bz, floors, ceils)
+        // The Ashguard's lines (teeth, wire, trench) where they cross this chunk.
+        for lz in 0..<CS { for lx in 0..<CS {
+            let wx = bx + lx, wz = bz + lz
+            guard AshLines.distance(wx, wz) == 0, !pillar(wx, wz) else { continue }
+            AshLines.carve(&b, lx, lz, wx, wz, f: floors[lx + lz * CS])
+        } }
         // The vault's roof: basalt stalactites and lumenstone clusters (its only light besides lava and the army's lamps).
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz

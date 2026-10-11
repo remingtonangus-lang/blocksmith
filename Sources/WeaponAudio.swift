@@ -15,7 +15,8 @@ enum WeaponAudio {
     static let fireSlots = 0...5
     static let heavySlot = 9
     static let sidearmSlot = 13      // the Capital Sidearm (Guns.pistol)
-    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot }
+    static let ashSlots = 16...19     // the Ashguard's arms: Kessel bolt rifle, Hagel machine pistol, Sturmwind carbine, Ashsaw
+    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot || ashSlots.contains(k) }
 
     // MARK: Building blocks
 
@@ -181,6 +182,24 @@ enum WeaponAudio {
             o = Synth.mix(o, Synth.mix(g.burst(0.04, lp: 5200, hp: 900, attack: 0.0005, decay: 0.008, gain: 1.5), g.modes(0.08, [(1900 * p, 0.4, 0.012), (2900 * p, 0.2, 0.008)])), at: g.frames(0.16))
             o = Synth.mix(o, g.modes(0.06, [(2400 * p, 0.25, 0.01)]), at: g.frames(0.22))
             return o
+        case 16:  // Kessel bolt rifle: a heavy full-power crack with a long rolling tail, then the bolt worked
+            var o = shot(&g, p: p * 0.85, size: 1.3, bright: 1.2, tail: 1.0, mech: 0)
+            let up = Synth.mix(g.modes(0.07, [(1100 * p, 0.45, 0.016)]), g.burst(0.05, lp: 3000, hp: 500, decay: 0.01, gain: 0.8))
+            let home = Synth.mix(g.modes(0.07, [(1500 * p, 0.45, 0.012)]), g.burst(0.05, lp: 3600, hp: 600, decay: 0.008, gain: 0.8))
+            o = Synth.mix(o, up, at: g.frames(0.5))
+            o = Synth.mix(o, Synth.window(g.wash(0.12, lp: 3000, hp: 600, wobble: 0.3, rate: 20, gain: 0.35)), at: g.frames(0.58))
+            o = Synth.mix(o, home, at: g.frames(0.74))
+            return Synth.mix(o, casing(&g, p: p * 0.85, gain: 0.3), at: g.frames(0.7))
+        case 17:  // Hagel machine pistol: a low, round, slow-cycling pop (pistol rounds through an open bolt)
+            return shot(&g, p: p * 0.92, size: 0.62, bright: 0.85, tail: 0.25, mech: 0.75)
+        case 18:  // Sturmwind carbine: between a rifle and a machine pistol, a hard mid crack
+            var o = shot(&g, p: p * 1.02, size: 0.85, bright: 1.05, tail: 0.4, mech: 0.6)
+            o = Synth.mix(o, casing(&g, p: p * 1.05, gain: 0.25), at: g.frames(0.32))
+            return o
+        case 19:  // Ashsaw: a very short, dry, ripping crack; at its rate the shots run together into a tearing buzz
+            var o = shot(&g, p: p * 1.08, size: 0.55, bright: 1.25, tail: 0.18, mech: 0.2)
+            o = Synth.mix(o, g.burst(0.03, lp: 7000, hp: 1800, attack: 0.0004, decay: 0.006, gain: 0.9))
+            return o
         case 15:  // last round gone: a hollow metallic ping (the bolt locks open)
             return Synth.mix(g.modes(0.5, [(3150 * p, 0.6, 0.18), (4720 * p, 0.3, 0.12), (6300 * p, 0.12, 0.06)]),
                              g.burst(0.03, lp: 7000, hp: 2000, attack: 0.0005, decay: 0.006, gain: 0.7))
@@ -210,6 +229,17 @@ enum WeaponAudio {
             for k in 0..<3 { o = Synth.mix(o, Synth.mix(slide(&g, 0.12), click(&g, 900, 0.8), at: g.frames(0.1)), at: g.frames(Float(k) * 0.32)) }
             o = Synth.mix(o, click(&g, 800, 1), at: g.frames(1.1))
             o = Synth.mix(o, click(&g, 1300, 1), at: g.frames(1.24))
+        case 16:  // Kessel: bolt open, five rounds pressed in from a stripper clip, clip flicked away, bolt closed
+            o = Synth.mix(click(&g, 1200, 1), slide(&g, 0.15), at: g.frames(0.05))
+            o = Synth.mix(o, Synth.mix(slide(&g, 0.3), click(&g, 1800, 0.6), at: g.frames(0.25)), at: g.frames(0.5))
+            o = Synth.mix(o, click(&g, 2600, 0.5), at: g.frames(1.3))
+            o = Synth.mix(o, slide(&g, 0.14), at: g.frames(1.6))
+            o = Synth.mix(o, click(&g, 1600, 1), at: g.frames(1.8))
+        case 19:  // Ashsaw: feed cover up, belt laid in, cover slammed, bolt charged
+            o = Synth.mix(click(&g, 700, 1.2), slide(&g, 0.1), at: g.frames(0.03))
+            o = Synth.mix(o, g.texture(0.5, rate: 40, lo: 2000, hi: 6000, grain: 0.004, gain: 0.5) { x in 1 - x * 0.5 }, at: g.frames(0.6))
+            o = Synth.mix(o, Synth.mix(click(&g, 600, 1.4), g.burst(0.1, lp: 900, hp: 60, decay: 0.03, gain: 1.2)), at: g.frames(1.6))
+            o = Synth.mix(o, Synth.mix(slide(&g, 0.12), click(&g, 1400, 1.1), at: g.frames(0.1)), at: g.frames(2.2))
         case 3:   // farsight: bolt up/back, round, bolt forward/down
             o = Synth.mix(click(&g, 1200, 1), slide(&g, 0.15), at: g.frames(0.05))
             o = Synth.mix(o, click(&g, 1500, 0.7), at: g.frames(0.4))
@@ -225,7 +255,7 @@ enum WeaponAudio {
             o = Synth.mix(o, click(&g, 900, 1), at: g.frames(0.4))
             o = Synth.mix(o, g.tone(0.6, f0: 300 * p, f1: 2400 * p, wave: .sine, attack: 0.02, release: 0.05, gain: 0.3), at: g.frames(0.5))
         default:  // rifle (0), chatter gun (1), generic (6): mag out, mag in, charging handle
-            let fast: Float = w == 1 ? 0.8 : 1
+            let fast: Float = w == 1 || w == 17 ? 0.8 : 1
             o = Synth.mix(click(&g, 1400, 1), slide(&g, 0.1), at: g.frames(0.03))
             o = Synth.mix(o, click(&g, 900, 1.1), at: g.frames(0.45 * fast))
             o = Synth.mix(o, Synth.mix(slide(&g, 0.08), click(&g, 1700, 1), at: g.frames(0.07)), at: g.frames(0.8 * fast))

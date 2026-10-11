@@ -67,6 +67,7 @@ final class SoldierBrain {
     var healScan: Float = 0
     weak var patient: Mob?
     var leg: (V3, V3)?
+    var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first)
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -100,7 +101,7 @@ enum Soldier {
         case .soldierTrooper: return 1
         case .soldierMarksman: return 2
         case .soldierIronclad: return 3
-        case .soldierOfficer, .ashMarshal: return 4
+        case .soldierOfficer, .ashMarshal, .ashChancellor: return 4
         case .soldierCrew: return 5
         default: return nil
         }
@@ -115,14 +116,33 @@ enum Soldier {
         case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
         case .soldierOfficer: return Guns.pistol
         case .ashMarshal: return Guns.smg
+        case .ashChancellor: return Guns.hagel
         case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
         default: return r < 0.5 ? Guns.launcher : Guns.arc
+        }
+    }
+
+    // The Ashguard's loadouts (AshArms.swift): riflemen a bolt rifle or carbine, stormers a carbine or machine pistol,
+    // sharpshooters the bolt rifle, heavies the Ashsaw, officers and drivers a machine pistol, the Marshal a carbine.
+    static func ashGun(_ k: MobKind, roll r: Float) -> Int {
+        switch k {
+        case .soldierRecruit: return r < 0.6 ? Guns.kessel : Guns.sturmwind
+        case .soldierTrooper: return r < 0.55 ? Guns.sturmwind : Guns.hagel
+        case .soldierMarksman: return Guns.kessel
+        case .soldierIronclad: return Guns.ashsaw
+        case .ashMarshal: return Guns.sturmwind
+        case .ashChancellor: return Guns.hagel
+        default: return Guns.hagel
         }
     }
 
     // Preferred distance band for a gun (the rank's own for its main weapon).
     static func band(_ rank: Int, _ gun: Int) -> (Float, Float) {
         switch gun {
+        case Guns.kessel: return rank == 2 ? (16, 40) : (12, 28)
+        case Guns.hagel: return (5, 11)
+        case Guns.sturmwind: return (8, 18)
+        case Guns.ashsaw: return (10, 26)
         case Guns.shotgun: return (2.5, 6)
         case Guns.smg: return (5, 10)
         case Guns.launcher: return (10, 26)
@@ -197,8 +217,8 @@ extension Mob {
     var knockbackTaken: Float {
         switch kind {
         case .soldierIronclad: return 0.15
-        case .deckGun, .ironGolem, .warden, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck: return 0
-        case .ashMarshal: return 0.3
+        case .deckGun, .ironGolem, .warden, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth: return 0
+        case .ashMarshal, .ashChancellor: return 0.3
         case .ravager: return 0.25
         case .hoglin, .zoglin: return 0.4
         default: return 1
@@ -393,7 +413,7 @@ extension Mob {
         } else {
             b.aimTime = 0
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
-            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || r == 3,
+            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || b.gun == Guns.sturmwind || b.gun == Guns.hagel || r == 3,
                b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
                 suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
             }
@@ -425,6 +445,14 @@ extension Mob {
             return
         }
         guard b.shotTimer <= 0 else { return }
+        // An Ashsaw gunner racks the bolt before each burst: a loud clack, then the rip 0.45 s later.
+        if b.gun == Guns.ashsaw && b.burst <= 0 && !b.spun {
+            b.spun = true
+            b.shotTimer = 0.45
+            b.aimHold = max(b.aimHold, 1.5)
+            g.sfx(.gun(14), 1.1, at: eye)
+            return
+        }
         // Marksmen hold a laser on the target before every shot.
         if b.gun == Guns.sniper {
             b.aimTime += dt
@@ -451,7 +479,7 @@ extension Mob {
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5) * (veteran ? 0.6 : 1))
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1))
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -470,10 +498,13 @@ extension Mob {
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
         b.recoil = 1
-        if b.burst <= 0 { b.burst = Rand.int(in: rank.burst) }
+        // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
+        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : Rand.int(in: rank.burst) }
         b.burst -= 1
+        if b.burst <= 0 { b.spun = false }
         let rate: Float = enraged ? 0.6 : 1
-        b.shotTimer = b.burst > 0 ? gs.interval * 1.4 * rate : Rand.float(in: rank.gap) * rate
+        b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate
+                                  : Rand.float(in: rank.gap) * rate * (b.gun == Guns.ashsaw ? 1.3 : 1)
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).

@@ -106,3 +106,29 @@ Spartan
 # Western-game terms (Remington, 2026-10-09: borrow the feel, never the names)
 Horse Reviver
 Horse Stimulant
+# Real WW2 names (the Ashguard's last war, backlog B7: period-style but fictional; no real units, people, arms or emblems)
+*Nazi
+*Reich
+*Führer
+*Fuhrer
+*Wehrmacht
+*Panzer
+*Luftwaffe
+*Gestapo
+*Waffen
+*Swastika
+*Hakenkreuz
+*Hitler
+*Mauser
+*Luger
+*Schmeisser
+*Sturmgewehr
+*Panzerfaust
+*Stuka
+*Messerschmitt
+Tiger
+Panther
+MP40
+MG42
+StG44
+Kar98

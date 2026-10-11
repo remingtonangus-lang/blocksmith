@@ -14,7 +14,7 @@ extension BlockRegistry {
             var d = BlockDef(n, disp)
             let s = side ?? n
             d.tex = [s, s, top ?? s, top ?? s, s, s]
-            d.hardness = h; d.resistance = 30; d.tool = .pickaxe; d.requiresTool = true; d.sound = snd; d.emit = emit
+            d.hardness = h; d.resistance = h < 0 ? 3_600_000 : 30; d.tool = .pickaxe; d.requiresTool = true; d.sound = snd; d.emit = emit
             add(d)
         }
         block("ash_concrete", "Ashcrete", h: 4)
@@ -30,6 +30,36 @@ extension BlockRegistry {
             d.tex = ["ash_mortar", "ash_mortar", "ash_mortar_top", "ash_mortar", "ash_mortar", "ash_mortar"]
             d.render = .model; d.opaque = false; d.boxes = [Box(2, 0, 2, 14, 2, 14), Box(6, 2, 6, 10, 15, 10)]
             d.hardness = 3; d.tool = .pickaxe; d.sound = .metal
+            add(d)
+        }
+        // The last war (AshLines.swift, AshFinal.swift): banners, the citadel's standard, the lines' wire, the
+        // Chancellor's Bunker (its concrete and blast door break for nothing; the door opens when the last battle is won).
+        // Cloth hangs flat: the base state shows its picture on the -Z and +Z faces (a wall facing north or south),
+        // "[x]" on -X and +X; the other faces are plain edge. The +Z and +X faces carry the mirror tile, so a 3x3
+        // standard laid out by AshWar.standard reads right from both sides (the picture is mirror-symmetric).
+        func cloth(_ n: String, _ disp: String, tex: String, mirror: String? = nil) {
+            guard !has(n) else { return }
+            let e = "ash_banner_edge", m = mirror ?? tex
+            var d = BlockDef(n, disp)
+            d.tex = [e, e, e, e, m, tex]
+            d.hardness = 0.8; d.sound = .wool
+            add(d)
+            var x = d
+            x.name = n + "[x]"; x.group = n; x.hidden = true
+            x.tex = [m, tex, e, e, e, e]
+            add(x)
+        }
+        cloth("ash_banner_top", "Ashguard Banner", tex: "ash_banner_top")
+        cloth("ash_banner_mark", "Ashguard Banner", tex: "ash_banner_mark")
+        cloth("ash_banner", "Ashguard Banner", tex: "ash_banner")
+        cloth("ash_banner_end", "Ashguard Banner", tex: "ash_banner_end")
+        for i in 0..<9 { cloth("ash_standard_\(i)", "Ashguard Standard", tex: "ash_standard_\(i)", mirror: "ash_standard_\(i / 3 * 3 + 2 - i % 3)") }
+        block("ash_bunkercrete", "Bunker Concrete", h: -1)
+        block("ash_blastdoor", "Blast Door", h: -1)
+        if !has("ash_wire") {
+            var d = BlockDef("ash_wire", "Barbed Wire")
+            d.tex = ["ash_wire"]; d.render = .cross; d.layer = .cutout; d.opaque = false; d.collide = false
+            d.hardness = 1.5; d.tool = .sword; d.sound = .metal
             add(d)
         }
         if !has("ash_drum") {
@@ -106,6 +136,61 @@ extension TextureGen {
             if y == 2 || y == 12 { return hex(0x101012) }
             return hex(0x242428, 0.9 + 0.12 * Float(abs(x - 8)) / 8)
         }
+        // Banners (the last war): red cloth, black edging, the ember mark (a black diamond split by a bar) on a white disc.
+        func cloth(_ x: Int, _ y: Int) -> V4 { hex(0xA81616, 0.9 + 0.08 * r(x, y / 3, 3320) + 0.05 * Float((x + y) % 2)) }
+        func emblem(_ cx: Float, _ cy: Float, _ rad: Float) -> V4? {
+            let d = abs(cx) + abs(cy)
+            if cx * cx + cy * cy > rad * rad { return nil }
+            if d < rad * 0.82 && (abs(cx) < rad * 0.13 || d > rad * 0.52) { return hex(0x0E0E10) }
+            return hex(0xE8E4DA, 0.97 + 0.03 * r(Int(cx * 3), Int(cy * 3), 3321))
+        }
+        p["ash_banner_edge"] = { x, y in cloth(x, y) }
+        p["ash_banner"] = { x, y in x == 1 || x == 14 ? hex(0x101012) : cloth(x, y) }
+        p["ash_banner_top"] = { x, y in
+            if y <= 1 { return hex(0x2A2A2E, 0.9 + 0.2 * Float(x % 4 == 0 ? 1 : 0)) }
+            if y == 3 || x == 1 || x == 14 { return hex(0x101012) }
+            return cloth(x, y)
+        }
+        p["ash_banner_mark"] = { x, y in
+            if let e = emblem(Float(x) - 7.5, Float(y) - 7.5, 6.6) { return e }
+            return x == 1 || x == 14 ? hex(0x101012) : cloth(x, y)
+        }
+        p["ash_banner_end"] = { x, y in
+            if y >= 14 { return x % 2 == 0 ? hex(0x101012) : hex(0x6A0E0E) }
+            if y == 12 || x == 1 || x == 14 { return hex(0x101012) }
+            return cloth(x, y)
+        }
+        // The citadel's 3x3 standard: one 48-pixel picture over nine blocks (tile i = column i % 3, row i / 3 from the top).
+        for i in 0..<9 {
+            let ox = (i % 3) * 16, oy = (i / 3) * 16
+            p["ash_standard_\(i)"] = { x, y in
+                let X = ox + x, Y = oy + y
+                if X <= 1 || Y <= 1 || X >= 46 || Y >= 46 { return hex(0x101012) }
+                if let e = emblem(Float(X) - 23.5, Float(Y) - 23.5, 17) { return e }
+                return cloth(X, Y)
+            }
+        }
+        // Bunker concrete: heavy poured concrete with shuttering lines and tie holes; the blast door: riveted steel
+        // leaves with red-and-black hazard bands.
+        p["ash_bunkercrete"] = { x, y in
+            if (x == 3 || x == 12) && (y == 4 || y == 11) { return hex(0x16161A) }
+            var k: Float = 0.95 + 0.07 * r(x / 2, y / 2, 3322) + 0.03 * r(x, y, 3323)
+            if y % 8 == 0 { k *= 0.84 }
+            return hex(0x3A3A40, k)
+        }
+        p["ash_blastdoor"] = { x, y in
+            if x == 7 || x == 8 { return hex(0x101012) }
+            if y <= 2 || y >= 13 { return ((x + y) / 3) % 2 == 0 ? hex(0xB01A14) : hex(0x141416) }
+            if (x == 2 || x == 13) && y % 3 == 0 { return hex(0x5A5A60) }
+            return hex(0x2C2C30, 0.94 + 0.08 * r(x / 3, y, 3324))
+        }
+        // Barbed wire: two twisted strands with barbs, the rest see-through.
+        p["ash_wire"] = { x, y in
+            let strand = (y == 4 + (x / 2) % 2) || (y == 11 - (x / 2) % 2)
+            let barb = (x % 5 == 2) && (abs(y - 4) <= 1 || abs(y - 11) <= 1)
+            if strand || barb { return hex(0x5E5A56, 0.85 + 0.25 * r(x, y, 3325)) }
+            return TextureGen.clear
+        }
         p["ash_drum_top"] = { x, y in
             if (x - 10) * (x - 10) + (y - 5) * (y - 5) < 3 { return hex(0x48484E) }
             return hex(0x1C1C1E, 0.95 + 0.05 * r(x, y, 3310))
@@ -172,7 +257,7 @@ extension AshWar {
 
     // Distance to the nearest site footprint or road: the vault floor flattens and keeps pillars and lava away.
     static func clearance(_ x: Int, _ z: Int) -> Float {
-        var best = min(roadDistance(x, z) - 3, railDistance(x, z) - 4)
+        var best = min(roadDistance(x, z) - 3, railDistance(x, z) - 4, AshLines.distance(x, z))
         for s in sites {
             let dx = max(0, abs(x - s.x) - s.r), dz = max(0, abs(z - s.z) - s.r)
             best = min(best, sqrtf(Float(dx * dx + dz * dz)))
@@ -190,7 +275,7 @@ extension AshWar {
 
     // `guardSet`: vault chunks a save generated before the towns, rail and airfield arrived (AshVault.swift).
     static func starts(seed: UInt64, guardSet: DeepGuard = DeepGuard()) -> [StructureStart] {
-        sites.map { start($0, seed: seed, guardSet: guardSet) } + railStarts(guardSet: guardSet)
+        (sites + AshLines.sites).map { start($0, seed: seed, guardSet: guardSet) } + railStarts(guardSet: guardSet) + [AshFinal.start()]
     }
 
     static let campType = StructureType(name: "ash_camp", spacing: campSpacing, separation: 0, salt: 0, reach: 1) { seed, cx, cz in
@@ -227,9 +312,38 @@ struct AshKit {
     let console = Blocks.has("command_console") ? Blocks.id("command_console") : Blocks.id("ash_plating")
     let table = Blocks.id("crafting_table")
     let mortar = Blocks.id("ash_mortar")
+    let whiteWool = Blocks.has("white_wool") ? Blocks.id("white_wool") : Blocks.id("ash_banner_edge")
 }
 
 extension AshWar {
+    // Cloth (AshSites' banners and the 3x3 standard) in world coordinates; `normalX`: the cloth faces along x.
+    static let clothNames = ["ash_banner_top", "ash_banner_mark", "ash_banner", "ash_banner_end"] + (0..<9).map { "ash_standard_\($0)" }
+    static let cloth: [String: (BlockID, BlockID)] = {
+        var t: [String: (BlockID, BlockID)] = [:]
+        for n in clothNames { t[n] = (Blocks.id(n), Blocks.id(n + "[x]")) }
+        return t
+    }()
+    @inline(__always) static func cloth(_ n: String, _ normalX: Bool) -> BlockID { let p = cloth[n]!; return normalX ? p.1 : p.0 }
+
+    // A long banner hanging from `top`: the rod, the mark, cloth, the fringe.
+    static func banner(_ w: inout StructWriter, x: Int, z: Int, top: Int, len: Int = 4, normalX: Bool) {
+        w.set(x, top, z, cloth("ash_banner_top", normalX))
+        w.set(x, top - 1, z, cloth("ash_banner_mark", normalX))
+        if len > 3 { for y in (top - len + 2)...(top - 2) { w.set(x, y, z, cloth("ash_banner", normalX)) } }
+        w.set(x, top - len + 1, z, cloth("ash_banner_end", normalX))
+    }
+
+    // The 3x3 standard centred on (x, z), its top row at `top`. Column 0 of the picture goes at +x (cloth facing along
+    // z) or -z (facing along x): that reads right from the -Z / -X side, and the mirror tiles on the +Z / +X faces
+    // make the other side read right too.
+    static func standard(_ w: inout StructWriter, x: Int, z: Int, top: Int, normalX: Bool) {
+        for i in 0..<9 {
+            let c = i % 3
+            let b = cloth("ash_standard_\(i)", normalX)
+            if normalX { w.set(x, top - i / 3, z + c - 1, b) } else { w.set(x + 1 - c, top - i / 3, z, b) }
+        }
+    }
+
     // Local frame: (u, v) with v pointing the way the site faces; the writer clips to the chunk being generated.
     struct Frame {
         let s: AshSite
@@ -290,10 +404,20 @@ extension AshWar {
                 box(u + du, y0 + 1, v + dv, u + du, y0 + (abs(du) == r || abs(dv) == r ? 2 : 1), v + dv, k.bags)
             } }
         }
+        // Does cloth facing along u (or v) face along world x?
+        func normalX(_ alongU: Bool) -> Bool { alongU ? f.fz != 0 : f.fx != 0 }
+        // A long banner hanging down a wall face from `top` (the wall's face along v, or along u with `alongU`).
+        func banner(_ u: Int, _ v: Int, top: Int, len: Int = 4, alongU: Bool = false) {
+            AshWar.banner(&w, x: f.x(u, v), z: f.z(u, v), top: top, len: len, normalX: normalX(alongU))
+        }
+        // The 3x3 standard on a wall face, centred on (u, v), its top row at `top`.
+        func standard(_ u: Int, _ v: Int, top: Int, alongU: Bool = false) {
+            AshWar.standard(&w, x: f.x(u, v), z: f.z(u, v), top: top, normalX: normalX(alongU))
+        }
+        // A flag: a pole flying the 3x3 standard and a lamp on top.
         func flag(_ u: Int, _ v: Int, h: Int) {
             box(u, y0 + 1, v, u, y0 + h, v, k.chain == AIR ? k.bars : k.chain)
-            box(u + 1, y0 + h - 3, v, u + 4, y0 + h, v, k.redWool)
-            put(u + 2, y0 + h - 1, v, k.mark); put(u + 3, y0 + h - 2, v, k.mark)
+            standard(u + 2, v, top: y0 + h)
             put(u, y0 + h + 1, v, k.lamp)
         }
         func tank(_ u0: Int, _ v0: Int, _ r: Int, h: Int) {
@@ -357,13 +481,23 @@ extension AshWar {
             for (u, v) in [(-6, -a), (6, -a), (-6, a), (6, a), (-a, -6), (-a, 6), (a, -6), (a, 6)] {
                 box(u, y0 + 1, v, u, y0 + 8, v, k.plating); put(u, y0 + 9, v, k.lamp); put(u, y0 + 6, v, k.mark)
             }
+            // The last war: long red banners down the outside of the wall, a lintel over each gate carrying the 3x3
+            // standard, facing out.
+            for i in stride(from: -36, through: 36, by: 12) where abs(i) > 8 {
+                banner(i, a + 1, top: y0 + 6); banner(i, -a - 1, top: y0 + 6); banner(a + 1, i, top: y0 + 6, alongU: true); banner(-a - 1, i, top: y0 + 6, alongU: true)
+            }
+            box(-5, y0 + 7, a, 5, y0 + 10, a, k.concrete); box(-5, y0 + 7, -a, 5, y0 + 10, -a, k.concrete)
+            box(a, y0 + 7, -5, a, y0 + 10, 5, k.concrete); box(-a, y0 + 7, -5, -a, y0 + 10, 5, k.concrete)
+            standard(0, a + 1, top: y0 + 10); standard(0, -a - 1, top: y0 + 10)
+            standard(a + 1, 0, top: y0 + 10, alongU: true); standard(-a - 1, 0, top: y0 + 10, alongU: true)
             // The command bunker in the middle: thick ashcrete, sandbagged roof, the Marshal's map room.
             box(-13, y0 + 1, -10, 13, y0 + 8, 10, k.concrete)
             box(-11, y0 + 1, -8, 11, y0 + 6, 8, AIR)
             box(-11, y0, -8, 11, y0, 8, k.floor)
             box(-13, y0 + 9, -10, 13, y0 + 9, 10, k.bags)
             box(-2, y0 + 1, 10, 2, y0 + 4, 10, AIR)
-            box(-1, y0 + 6, 11, 1, y0 + 8, 11, k.mark)
+            standard(0, 11, top: y0 + 8)
+            banner(-6, 11, top: y0 + 7); banner(6, 11, top: y0 + 7)
             for (u, v) in [(-8, -5), (8, -5), (-8, 5), (8, 5), (0, -6)] { put(u, y0 + 6, v, k.lamp) }
             box(-3, y0 + 1, -2, 3, y0 + 1, 2, k.console)
             box(-2, y0 + 2, -1, 2, y0 + 2, 1, k.table)
@@ -467,6 +601,42 @@ extension AshWar {
             soldier("marksman", 0, 1); soldier("trooper", -6, 5); soldier("recruit", 6, 5); soldier("trooper", 0, -7)
             if rng.chance(0.5) { unit("ash_halftrack", 12, 0, heading: 0) }
             lampPost(-12, -12); lampPost(12, 12)
+        case "bunker":
+            // A line MG bunker straddling the trench: thick concrete, a firing slit facing out, the door at the back, a
+            // sandbagged roof, sandbag wings; an Ashsaw crew inside and a banner on the back wall.
+            box(-4, y0 + 1, -3, 4, y0 + 4, 3, k.concrete)
+            box(-3, y0 + 1, -2, 3, y0 + 3, 2, AIR)
+            box(-3, y0, -2, 3, y0, 2, k.floor)
+            box(-2, y0 + 2, 3, 2, y0 + 2, 3, AIR)
+            box(0, y0 + 1, -3, 0, y0 + 2, -3, AIR)
+            box(-4, y0 + 5, -3, 4, y0 + 5, 3, k.bags)
+            put(-3, y0 + 3, -2, k.lamp)
+            box(-6, y0 + 1, 1, -5, y0 + 2, 3, k.bags); box(5, y0 + 1, 1, 6, y0 + 2, 3, k.bags)
+            banner(2, -4, top: y0 + 4, len: 3); banner(-2, -4, top: y0 + 4, len: 3)
+            chest(3, -2, "ash_supply")
+            soldier("ironclad", 0, 1); soldier("recruit", -2, 0)
+            if rng.chance(0.5) { soldier("trooper", 2, -1) }
+        case "checkpoint", "lastgate":
+            // A road through a line: a red-and-white barrier, a guard hut, an MG nest, a flag; the Last Line's gates
+            // also hold a tank dug in behind an earth berm.
+            let last = s.kind == "lastgate"
+            // (the boom is raised: the road stays open underneath it)
+            box(-4, y0 + 1, 4, -4, y0 + 3, 4, k.plating); box(4, y0 + 1, 4, 4, y0 + 3, 4, k.plating)
+            for u in -3...3 { put(u, y0 + 3, 4, u % 2 == 0 ? k.redWool : k.whiteWool) }
+            building(last ? -7 : -9, -4, last ? -5 : -6, 2, h: 4, wall: k.concrete, roof: k.plating)
+            sandbagRing(last ? 5 : 6, 3, 1)
+            soldier("ironclad", Float(last ? 5 : 6), 3)
+            soldier("officer", -2, 1); soldier("trooper", 2, 2); soldier("recruit", -3, 6)
+            if last {
+                // beside the road (it stays open), its gun over the berm
+                box(3, y0 + 1, -1, 9, y0 + 2, -1, k.black)                        // the berm
+                box(3, y0 + 1, -2, 3, y0 + 1, -6, k.black); box(9, y0 + 1, -2, 9, y0 + 1, -6, k.black)
+                unit("ash_tank", 6, -4, heading: 0)
+            } else {
+                flag(6, -7, h: 9)
+                if rng.chance(0.6) { unit("ash_halftrack", -5, -6, heading: 0) }
+            }
+            lampPost(-6, 6); lampPost(6, 6)
         default:
             // Patrol camp: a black canvas tent, a fire, crates, three men; now and then a tank or half-track.
             for i in 0...3 {
