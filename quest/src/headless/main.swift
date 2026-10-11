@@ -725,6 +725,8 @@ do {
     MainGunTests.run(game, check, render: render)
     // A slug from the helm, through Game.tick, craters a citadel (FactionTests.frigate; done audit 25b6, G1).
     FactionTests.frigate(game, check)
+    // Aboard the Meridian frigate from the ground: the winch, the ladder, the helm (G11).
+    BoardingTests.run(game, check)
     if CommandLine.arguments.contains("--maingun-only") { print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 

@@ -42,3 +42,17 @@ Results:
   Marine / Lieutenant / Helmsman; Stormwarden and Ironback sets too). The faction is now saved for every faction, not
   only the Ashguard, so a crew no longer reloads as Capital soldiers.
 - Checks: MainGunTests 7 (direct hit and near miss on an Ironback Crawler) and 8 (crew names).
+
+## G11: no designed way to board the Meridian frigate from the ground (done audit 25b6)
+Objectives (backlog + Lane A's own):
+1. A visible, discoverable boarding route from the ground to the frigate 30-45 blocks up, without commands or a flyer.
+2. It works while the frigate cruises (it heaves to for a boarder) and does no fall damage.
+3. From where it sets you down, a walkable route reaches the helm, and an automated bot proves it through Game.tick.
+
+Results:
+- FrigateBoarding.swift: a cargo winch line from the port hangar door to the ground (a dark cable with a lit hook at the
+  foot, drawn within 140 blocks; a toast the first time you come within 60). Stand at the foot (2.2 blocks) and it
+  hauls you up at 9 b/s and sets you on the hangar deck. While a player is within 34 blocks of the foot the frigate
+  heaves to (0.6 b/s, holding its heading) so the line can be caught.
+- BoardingTests (questcheck, and the Mac `--questbugs`): a bot under a cruising frigate is hauled aboard, walks to the
+  ladder at z 89, climbs to the bridge deck and walks to the helm with the left stick only.

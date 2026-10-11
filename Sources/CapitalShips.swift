@@ -33,6 +33,8 @@ final class CapitalState {
     func hasRole(_ role: CrewRole) -> Bool { crewRoles.contains(role) }
     var driverAlive: Bool { crewless || !hasRole(.driver) || crewAlive(.driver) > 0 }
     var crewless = false               // harness (--ridecheck): an empty vehicle that still drives as if crewed
+    var heaveTo = false                // a player is at the boarding winch's foot: the frigate slows to a crawl (FrigateBoarding)
+    var winchTold = false
     // Turret i is manned while its gunner (posts shared round-robin over the turrets) lives.
     func turretManned(_ i: Int) -> Bool {
         let posts = crewRoles.indices.filter { crewRoles[$0] == .gunner }
@@ -910,7 +912,7 @@ extension ShipManager {
             }
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
-            if s.role == "capfrigate" { mainGunTick(s, st, dt, g) }
+            if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g) }
             deployTroops(s, st, dt, g)
         }
     }
@@ -1027,6 +1029,7 @@ extension ShipManager {
             want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
             speed = st.testSpeed ?? 10
         }
+        if st.heaveTo { speed = min(speed, 0.6) }       // a player at the boarding winch's foot (FrigateBoarding)
         // Altitude: the keel 30 above the highest ground under and ahead of the hull, below the world's ceiling.
         st.groundTimer -= dt
         if st.groundTimer <= 0 {
@@ -1043,7 +1046,7 @@ extension ShipManager {
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
         let wantY = min(maxY, st.groundMax + Capital.cruiseClearance(s.role ?? "") + keel)
         s.hoverY = wantY
-        let yawRate = turnToward(s, want, maxRate: s.role == "capfrigate" ? 0.13 : 0.07)
+        let yawRate = st.heaveTo ? 0 : turnToward(s, want, maxRate: s.role == "capfrigate" ? 0.13 : 0.07)   // (holds its heading: the line's foot stays put)
         let vy = max(-4, min(4, (wantY - s.pos.y) * 0.4))
         let target = V3(fw.x, 0, fw.z) * speed + V3(0, vy, 0)
         s.vel += (target - s.vel) * min(1, dt * 0.6)
@@ -1080,7 +1083,7 @@ extension ShipManager {
         levelUp(s, dt)
         st.target = nil
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
-        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
+        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
     }
 
