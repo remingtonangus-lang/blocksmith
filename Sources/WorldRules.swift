@@ -11,9 +11,13 @@ import simd
 // once from the chunk folder on the first load with these rules), so nothing already explored is cut in half.
 enum WorldRules {
     static let capitalMinSpawn: Float = 1200
-    static let capitalKeep: Float = 0.7
+    static let capitalKeep: Float = 0.5        // G12 (Oct 11 playtest "capitals are far too common"); 0.7 before
+    static let capitalKeepBeforeG12: Float = 0.7
     static let capitalMinApart: Float = 1200   // L3: no two Capital cities closer (checked over 50 seeds, --worldgencheck)
-    static let citadelMinSpawn: Float = 320
+    static let citadelMinSpawn: Float = 640    // G12: "one sat at the player's spawn with a crawler" (320 before)
+    static let citadelMinSpawnBeforeG12: Float = 320
+    static let citadelKeep: Float = 0.6        // G12: the share of 40-chunk regions that keep their citadel
+    static let citadelMinApart: Float = 800    // G12: "two within 500 blocks" (regions two apart are 880+ apart)
     static let margin: Float = 40              // the anchor sits off the site centre; settleSpawn moves the spawn a little
 
     // The world spawn (x, z): Game.findSpawn's terrain-only search, cached per seed (settleSpawn then moves it at
@@ -41,13 +45,20 @@ enum WorldRules {
         return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyL3) || explored(gen, cx, cz, reach: reach)
     }
 
+    // Ground near (cx, cz) saved before G12 (rarer citadels and cities, citadels apart, cities of varied size).
+    static func savedBeforeG12(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
+        guard let sc = gen.structures else { return false }
+        return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyG12)
+    }
+
     // May a Capital city stand with its centre at chunk (cx, cz)?
     static func capitalAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
         if explored(gen, cx, cz, reach: 9) { return true }
         let c = spawnCentre(gen)
         if simd_length(V2(Float(cx * CS), Float(cz * CS)) - c) < capitalMinSpawn + margin { return false }
         let rx = floorDiv(cx, 56), rz = floorDiv(cz, 56)
-        return hashf(rx, 7351, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA91) < capitalKeep
+        let keep = savedBeforeG12(gen, cx, cz, reach: 9) ? capitalKeepBeforeG12 : capitalKeep
+        return hashf(rx, 7351, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA91) < keep
     }
 
     // L3: no two Capital cities within `capitalMinApart`. Each region has a priority; a city gives way to a city of a
@@ -68,9 +79,30 @@ enum WorldRules {
         return true
     }
 
-    // May a Capital citadel stand with its centre at chunk (cx, cz)?
+    // May a Capital citadel stand with its centre at chunk (cx, cz)? G12: farther from spawn and only some regions
+    // keep theirs; ground saved before G12 keeps the old rule.
     static func citadelAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
         if explored(gen, cx, cz, reach: 5) { return true }
-        return simd_length(V2(Float(cx * CS + 8), Float(cz * CS + 8)) - spawnCentre(gen)) >= citadelMinSpawn + 2 * margin   // the anchor sits up to ~60 off the centre chunk
+        let d = simd_length(V2(Float(cx * CS + 8), Float(cz * CS + 8)) - spawnCentre(gen))   // the anchor sits up to ~60 off the centre chunk
+        if savedBeforeG12(gen, cx, cz, reach: 5) { return d >= citadelMinSpawnBeforeG12 + 2 * margin }
+        let rx = floorDiv(cx, 40), rz = floorDiv(cz, 40)
+        return d >= citadelMinSpawn + 2 * margin && hashf(rx, 7361, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC17A) < citadelKeep
+    }
+
+    // G12: no two citadels within `citadelMinApart`, by region priority as capitalApart does (a citadel gives way to a
+    // higher-priority neighbour's that stands too close). Ground saved before G12 keeps its citadel.
+    static func citadelApart(_ gen: WorldGen, _ cx: Int, _ cz: Int, anchor: IVec3) -> Bool {
+        guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "military_base" }) else { return true }
+        if explored(gen, cx, cz, reach: 5) || savedBeforeG12(gen, cx, cz, reach: 5) { return true }
+        let rx = floorDiv(cx, 40), rz = floorDiv(cz, 40)
+        let mine = citadelPriority(gen, rx, rz)
+        for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+            guard citadelPriority(gen, rx + dx, rz + dz) > mine, let o = sc.start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+            if simd_length(V2(Float(o.anchor.x - anchor.x), Float(o.anchor.z - anchor.z))) < citadelMinApart { return false }
+        } }
+        return true
+    }
+    static func citadelPriority(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Float {
+        hashf(rx, 7363, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC17B)
     }
 }

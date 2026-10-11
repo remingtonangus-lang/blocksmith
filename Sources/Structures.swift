@@ -188,6 +188,9 @@ final class StructureCache {
     // And when L3 kept Capital cities apart and gave camps an alternate spot and a clear spawn (2026-10-11,
     // WorldRules.capitalApart, WildCamps): ground saved before that keeps its cities and camps as they were.
     var legacyL3: Set<Int64> = []
+    // And when G12 made citadels and Capital cities rarer, kept citadels apart and gave each city its own size and
+    // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
+    var legacyG12: Set<Int64> = []
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }

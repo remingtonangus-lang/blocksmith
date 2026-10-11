@@ -50,6 +50,7 @@ enum WorldGenCheck {
         var capD: [Int] = [], capPair: [Int] = [], startClear: [Int] = [], capCount = 0, citD: [Int] = [], portals = 0, vols = 0, volsBefore = 0
         var volWhy: [String: Int] = [:], cells = 0
         var camps: [String: Int] = [:]
+        var citCount = 0, sizes = [0, 0, 0]
         func fail(_ s: String) { fails.append(s); print("worldgencheck: FAIL " + s) }
         for (k, table) in WildCamps.loot { for e in table.entries where e.0 != "empty" && !Items.has(e.0) { fail("loot \(k): no item \(e.0)") } }
         for seed in seeds {
@@ -103,6 +104,14 @@ enum WorldGenCheck {
             citD.append(cit)
             if cit < Int(WorldRules.citadelMinSpawn) { fail("seed \(seed): Capital citadel \(cit) blocks from spawn") }
             if cit > 1600 { fail("seed \(seed): nearest Capital citadel \(cit) blocks out (findability)") }
+            // G12: citadels apart and rarer; cities of varied size.
+            let cits = starts("military_base", half: 2048)
+            citCount += cits.count
+            for a in 0..<cits.count { for b in (a + 1)..<cits.count {
+                let d = Int(simd_length(V2(Float(cits[a].anchor.x - cits[b].anchor.x), Float(cits[a].anchor.z - cits[b].anchor.z))))
+                if d < Int(WorldRules.citadelMinApart) { fail("seed \(seed): two Capital citadels \(d) blocks apart") }
+            } }
+            for c in cities { if let p = c.plan as? CapitalCity.Plan { sizes[p.size] += 1 } }
             // Ruined gates.
             if sc.types.contains(where: { $0.name == "ruined_portal" }) { fail("ruined gates still generate") }
             for t in sc.types { for s in starts(t.name, half: 1024) where s.kind == "ruined_portal" { portals += 1; _ = s } }
@@ -154,6 +163,7 @@ enum WorldGenCheck {
         let campList: String = camps.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         let whyList: String = volWhy.filter { $0.key != "no roll" }.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         print("worldgencheck: \(s) seeds | nearest Capital city \(stats(capD)); \(f2(capCount)) per 4096^2 | nearest citadel \(stats(citD))")
+        print("worldgencheck: Capital citadels \(f2(citCount)) per 4096^2 (none within \(Int(WorldRules.citadelMinApart)) of another); city sizes small \(sizes[0]), medium \(sizes[1]), large \(sizes[2])")
         if !capPair.isEmpty { print("worldgencheck: Capital cities from each other (closest pair per seed in 4096^2, \(capPair.count) seeds with 2+) \(stats(capPair))") }
         print("worldgencheck: spawn to the nearest structure piece \(stats(startClear))")
         print("worldgencheck: ruined gates \(portals) | camps \(f2(total)) per 2048^2 (\(campList))")

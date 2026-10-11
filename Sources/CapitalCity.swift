@@ -46,6 +46,7 @@ enum CapitalCity {
         var shops = [[ShopKind]](repeating: [], count: 4 * N * N) // market lots (kind 4): the two storefronts, west then east
         var flat = [Bool](repeating: false, count: 4 * N * N)     // building lots (kind 0) that are flats, not offices
         var seed: UInt64 = 0                                      // the world seed (lot seeds, CapitalTown)
+        var size = 2                                              // G12: 0 small (16 lots), 1 medium (24), 2 large (32)
         init(ox: Int, oz: Int) { self.ox = ox; self.oz = oz }
         @inline(__always) func idx(_ i: Int, _ j: Int) -> Int { (j + N) * 2 * N + (i + N) }
         func has(_ i: Int, _ j: Int) -> Bool { i >= -N && i < N && j >= -N && j < N && level[idx(i, j)] != Int.min }
@@ -114,11 +115,20 @@ enum CapitalCity {
                 }
             }
             let plan = Plan(ox: x - N * lot, oz: z - N * lot)
+            // G12: each city draws its size (small 16 lots, medium 24, large 32) and its mix of lot uses from the pool
+            // (an office quarter, a park city, squares), so no two read alike. Ground saved before G12 keeps the
+            // old plan (every city large, the one mix).
+            let varied = sc.clear(cx: cx, cz: cz, reach: 9, guardSet: sc.legacyG12)
+            var mix = SRng(seed ^ 0x612C)
+            let sizeRoll = mix.float()
+            let size: Float = !varied ? 1.1 : (sizeRoll < 0.4 ? 0.5 : (sizeRoll < 0.75 ? 0.75 : 1.1))
+            plan.size = size < 0.6 ? 0 : (size < 1 ? 1 : 2)
+            let need = size < 0.6 ? 10 : (size < 1 ? 14 : 18)
             var terrain = [Int](repeating: 0, count: 4 * N * N)
             var count = 0
             for j in -N..<N { for i in -N..<N {
                 let fi = Float(i) + 0.5, fj = Float(j) + 0.5
-                guard fi * fi + fj * fj <= Float(N * N) * 1.1 else { continue }
+                guard fi * fi + fj * fj <= Float(N * N) * size else { continue }
                 let lx = plan.ox + (i + N) * lot + street + 13, lz = plan.oz + (j + N) * lot + street + 13
                 var hs: [Int] = []
                 var wet = false
@@ -132,7 +142,7 @@ enum CapitalCity {
                 plan.level[plan.idx(i, j)] = hs.sorted()[2]
                 count += 1
             } }
-            guard count >= 18, plan.has(0, 0), plan.has(-1, -1), plan.has(0, -1), plan.has(-1, 0) else { return nil }
+            guard count >= need, plan.has(0, 0), plan.has(-1, -1), plan.has(0, -1), plan.has(-1, 0) else { return nil }
             // Terraces: neighbours within 4 blocks of each other (relaxed toward each other); a lot pulled more than
             // 8 from its ground is dropped.
             for _ in 0..<12 {
@@ -152,24 +162,29 @@ enum CapitalCity {
             // terrain between cut walkways: it becomes a garden at its neighbours' mean height.
             for j in -N..<N { for i in -N..<N where !plan.has(i, j) {
                 let fi = Float(i) + 0.5, fj = Float(j) + 0.5
-                guard fi * fi + fj * fj <= Float(N * N) * 1.1 else { continue }
+                guard fi * fi + fj * fj <= Float(N * N) * size else { continue }
                 let ns = [plan.lv(i - 1, j), plan.lv(i + 1, j), plan.lv(i, j - 1), plan.lv(i, j + 1)].compactMap { $0 }
                 if ns.count >= 3 { plan.level[plan.idx(i, j)] = ns.reduce(0, +) / ns.count; plan.kind[plan.idx(i, j)] = 2 }
             } }
             // Lot uses: the civic centre, then buildings, plazas and gardens at random; canopies on the two main
             // avenues and some side walks.
             var rng = SRng(seed ^ 0xC17)
+            // The mix (G12): buildings 40-70 %, the rest squares or gardens in a city's own proportion, canopies on
+            // 15-50 % of the side walks.
+            let pBuild: Float = varied ? 0.4 + 0.3 * mix.float() : 0.55
+            let pPlaza: Float = varied ? pBuild + (1 - pBuild) * (0.2 + 0.6 * mix.float()) : 0.8
+            let pCanopy: Float = varied ? 0.15 + 0.35 * mix.float() : 0.35
             var lots = 0
             for j in -N..<N { for i in -N..<N where plan.has(i, j) {
                 let k = plan.idx(i, j)
                 lots += 1
                 if i == 0 && j == 0 { plan.kind[k] = 3 }
                 else if plan.kind[k] == 2 { }                 // a filled hole stays a garden
-                else { let r = rng.float(); plan.kind[k] = r < 0.55 ? 0 : (r < 0.8 ? 1 : 2) }
-                plan.covered[k * 2] = i == 0 || rng.chance(0.35)
-                plan.covered[k * 2 + 1] = j == 0 || rng.chance(0.35)
+                else { let r = rng.float(); plan.kind[k] = r < pBuild ? 0 : (r < pPlaza ? 1 : 2) }
+                plan.covered[k * 2] = i == 0 || rng.chance(pCanopy)
+                plan.covered[k * 2 + 1] = j == 0 || rng.chance(pCanopy)
             } }
-            guard lots >= 16 else { return nil }
+            guard lots >= need - 2 else { return nil }
             plan.seed = seed
             // The market lots round the civic centre, flats and offices (CapitalTown.swift); not for a city whose ground
             // was partly saved before they existed (StructureCache.legacyCapitalTowns).

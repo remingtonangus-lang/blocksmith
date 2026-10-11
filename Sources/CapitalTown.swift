@@ -45,7 +45,8 @@ enum CapitalTown {
         } }
         spare.sort { ($0.0, $0.1, $0.2) < ($1.0, $1.1, $1.2) }
         var count = plan.kind.indices.filter { plan.level[$0] != Int.min && plan.kind[$0] == 0 }.count
-        for e in spare where count < 8 { plan.kind[plan.idx(e.2, e.1)] = 0; count += 1 }
+        let least = plan.size == 0 ? 6 : 8                    // G12: a small city (16 lots) keeps some squares
+        for e in spare where count < least { plan.kind[plan.idx(e.2, e.1)] = 0; count += 1 }
         // Flats and offices in a checkerboard of building lots; a flat with no office within two lots becomes one
         // (nobody walks across the whole city to work).
         var buildings: [(Int, Int)] = []

@@ -72,3 +72,20 @@ Results: outlaw camps always hold 1-2 Intercepted Orders (Loot extra pool), aban
 first orders read while no citadel is on the map mark the nearest citadel. FindabilityTests (questcheck): 50 of 50
 outlaw chests hold orders, nearest outlaw camp versus nearest citadel from spawn on six seeds, first orders mark a
 citadel.
+
+## G12: capitals too common and one at the spawn (Oct 11 AM playtest)
+Objectives (backlog + Lane A's own):
+1. Capital citadels (the "capital with a crawler") never stand near the spawn and never two close together.
+2. Citadels and Capital cities are rarer, but each still exists within a findable distance (the G6 orders point there).
+3. Cities vary: a size per city (16, 24 or 32 lots) and its own mix of offices, squares and gardens.
+4. Nothing already generated in a save is cut in half (a new guard file, structure-guard-g12.txt).
+
+Results:
+- Citadels: at least 640 blocks from the spawn (was 320), 60 % of 40-chunk regions keep theirs (was all), and none
+  within 800 blocks of another (WorldRules.citadelApart, by region priority as L3 keeps cities apart).
+- Capital cities: half the regions keep theirs (was 70 %); still 1,200+ from the spawn and from each other.
+- City size and mix: CapitalCity.planFor draws small, medium or large (40/35/25 %), the building share (40-70 %),
+  squares against gardens and the canopy share per city. Small cities keep at least six buildings.
+- Ground saved before G12 (StructureCache.legacyG12) keeps the old rules and the old plan.
+- Check: `--worldgencheck` (questcheck binary or Mac) fails on two citadels within 800, a citadel within 640 of the
+  spawn or none within 1,600, and prints the citadel count and the city sizes.
