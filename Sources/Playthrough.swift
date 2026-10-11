@@ -652,8 +652,17 @@ final class Playthrough {
         aim(at: V3(Float(bx) + 1.5, Float(gy) + 1.0, Float(bz) + 0.5))
         game.input.rightClicked = true
         game.tick(0.05)
+        // Hell is gated (HellGate.swift): flint and steel leaves a surface frame cold; an Ember Charge from a base's
+        // command room wakes it, through the same right click.
+        let cold = world.block(bx + 1, gy + 1, bz) != PORTAL_X && world.block(bx + 1, gy + 1, bz) != PORTAL_Z
+        check(cold, "portal: flint and steel leaves a surface frame cold")
+        give("ember_charge", 1)
+        _ = hold("ember_charge")
+        aim(at: V3(Float(bx) + 1.5, Float(gy) + 1.0, Float(bz) + 0.5))
+        game.input.rightClicked = true
+        game.tick(0.05)
         let lit = world.block(bx + 1, gy + 1, bz) == PORTAL_X || world.block(bx + 1, gy + 1, bz) == PORTAL_Z
-        check(lit, "portal: flint and steel lights the frame (\(key(IVec3(bx + 1, gy + 1, bz))))")
+        check(lit, "portal: an Ember Charge wakes the frame (\(key(IVec3(bx + 1, gy + 1, bz))))")
         if !lit { _ = game.tryLightPortal(at: IVec3(bx + 1, gy + 1, bz)) }
         // Step in and wait (4 s in survival).
         game.player.flying = false

@@ -67,6 +67,11 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
+HellMobsTests.run(game, check: check)
+if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
+    print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
 if CommandLine.arguments.contains("--workshop-only") {
@@ -117,6 +122,21 @@ var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
 check(MeshArena.shared.slabBytes > 0, "mesh arena holds \(MeshArena.shared.slabBytes >> 20) MB of host slabs")
+// With --render: hell's own mobs lined up on the arena HellMobsTests fought on (hell_mobs.png next to the PNG).
+if let path = renderPath, !path.isEmpty, let ctx = vkctx, let c = HellMobsTests.arena {
+    let home = game.player.pos, wasFly = game.player.flying
+    let shown = HellMobsTests.lineup(game)
+    game.player.pos = c + V3(0, 0, 4.5); game.player.flying = true
+    let dir = (path as NSString).deletingLastPathComponent
+    do { try RenderTest.render(game: game, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/hell_mobs.png", yaw: 0, pitch: -0.15) }
+    catch { check(false, "hell lineup render: \(error)") }
+    game.mobs.mobs.removeAll { m in shown.contains { $0 === m } }
+    game.player.pos = home; game.player.flying = wasFly
+}
+HellMobsTests.cleanup(game)
+if CommandLine.arguments.contains("--hell-only") {
+    print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     do {
         game.player.pitch = -0.2

@@ -60,7 +60,9 @@ extension Game {
             if t < Spear.engaged {
                 var dmg = Spear.chargeDamage(jab: jab, speed: closing)
                 dmg += Int(Enchant.damageBonus(held, against: m).rounded())
+                Mob.playerMelee = true; Mob.playerMeleePower = 1          // a thrust is a blade (HellMobs.orderGuard)
                 m.hit(from: player.pos, damage: dmg, knockback: 1 + min(closing, 16) * 0.08)
+                Mob.playerMelee = false
                 m.killedByPlayer = true
                 m.lootingLevel = Enchant.level(.looting, held)
                 particles.crit(at: c)

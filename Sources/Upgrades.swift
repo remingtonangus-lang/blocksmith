@@ -198,7 +198,10 @@ enum Upgrades {
             let pa: V3 = c + r * (a.a.x * h) + u * (a.a.y * h)
             let pb: V3 = c + r * (a.b.x * h) + u * (a.b.y * h)
             let d: V3 = pb - pa
-            let side: V3 = simd_normalize(simd_cross(d, n)) * (a.w * h)
+            // The cross product written out (Xcode's simd overloads mis-typed simd_normalize(simd_cross(...)) here).
+            let cr = V3(d.y * n.z - d.z * n.y, d.z * n.x - d.x * n.z, d.x * n.y - d.y * n.x)
+            let cl: Float = max(1e-5, simd_length(cr))
+            let side: V3 = cr * (a.w * h / cl)
             let col = V4(a.color * light, 1)
             for f: Float in [-1, 1] {
                 let o: V3 = n * (t * f)

@@ -208,6 +208,8 @@ enum DeepTests {
     // brings you back; the vault's updrafts catch a long fall.
     static func seam(_ game: Game, _ check: (Bool, String) -> Void) {
         let home = game.player.pos, homeDim = game.dim.dim
+        // A shaft through the Wardstone floor first, as an Ember Charge leaves it (HellGate.swift).
+        for y in 0..<HellGate.floorTop { game.world.setBlock(40, y, -21, AIR) }
         game.player.pos = V3(40.5, 0.3, -20.5)
         game.deepTick(0.05)
         let x = 40, z = -21

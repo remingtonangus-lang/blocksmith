@@ -263,6 +263,9 @@ enum BrimstoneKeep {
         // (Cinderwisps), the strongroom's Ashguard detail, and the Keep Warden in the strongroom with the hoard.
         for (dx, dz) in [(5, 16), (-5, -16)] { w.mob("piglin_brute@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + dz) + 0.5)) }
         w.mob("piglin_brute:warden@deep", V3(Float(ox) + 0.5, Float(f - 9), Float(oz + 2) + 0.5))
+        // The Brand Order's detachment at the gate (HellMobs.swift): a knight and two squires.
+        w.mob("brand_knight@deep", V3(Float(ox) + 0.5, y1, Float(oz + 13) + 0.5))
+        for dx in [-2, 2] { w.mob("brand_squire@deep", V3(Float(ox + dx) + 0.5, y1, Float(oz + 12) + 0.5)) }
         if layout != 1 {
             for (dx, dz) in [(-h, 0), (h, 0), (0, -h), (0, h)] { w.mob("wither_skeleton@deep", V3(Float(ox + dx) + 0.5, Float(f + 13), Float(oz + dz) + 0.5)) }
         } else {

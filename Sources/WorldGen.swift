@@ -501,6 +501,7 @@ final class WorldGen: TerrainGenerator {
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
         freeze(&b, bx, bz, biomes, cols, tops)
         hardenLava(&b)
+        HellGate.floor(&b)          // the Wardstone floor: only an Ember Charge opens the way down (HellGate.swift)
         mark(6)
         return b
     }

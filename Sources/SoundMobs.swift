@@ -106,6 +106,13 @@ enum MobVoice {
         case .soldierCrew: return Profile(family: .soldier, f0: 0, size: 1)
         case .deckGun, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck: return Profile(family: .silent, f0: 0, size: 1)
         case .ashMarshal: return Profile(family: .soldier, f0: 3, size: 1.15)
+        case .brandSquire: return Profile(family: .hum, f0: 140, size: 1.15)
+        case .brandKnight: return Profile(family: .hum, f0: 118, size: 1.3)
+        case .brandChampion: return Profile(family: .growl, f0: 120, size: 1.4)
+        case .brandCommander: return Profile(family: .roar, f0: 85, size: 1.8)
+        case .searwing: return Profile(family: .warble, f0: 1500, size: 1.0)
+        case .scorchling: return Profile(family: .squeak, f0: 1900, size: 0.45)
+        case .slagthrower: return Profile(family: .rumble, f0: 80, size: 1.6)
         case .copperGolem: return Profile(family: .click, f0: 900, size: 0.7)
         }
     }

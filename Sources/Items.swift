@@ -443,6 +443,7 @@ final class ItemRegistry {
         Guns.register(self)
         registerDeepExpansionItems()
         registerDeepGateItems()
+        registerHellItems()
         registerDeepJournalItems()
         ExplorerMaps.register(self)
         Hunting.register(self)

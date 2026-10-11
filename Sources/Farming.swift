@@ -354,7 +354,9 @@ extension Game {
                 tnts.prime(at: t.hit)
             } else {
                 let at = t.hit + t.normal
-                if !tryLightPortal(at: at) { world.placeFire(at) }
+                // On the surface a frame only wakes to an Ember Charge (HellGate.swift): the spark just fizzles in it.
+                if portalLocked(at) { coldFrameHint() }
+                else if !tryLightPortal(at: at) { world.placeFire(at) }
             }
             sfx(.ignite, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
