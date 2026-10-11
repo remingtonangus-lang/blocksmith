@@ -160,6 +160,7 @@ final class PauseMenu: Menu {
         "totitle": "Save the world and return to the title screen.",
         "create": "Choose a name, seed, game mode and difficulty.",
         "newworld": "Start a new world with a random seed straight away.",
+        "workshop": "A creative test world with the standard circuits built and signed: clocks, a toggle, a piston door, a sorter.",
         "w_play": "Load this world.",
         "w_rename": "Give this world a new name.",
         "w_copy": "Make a copy of this world (a backup before big changes).",
@@ -289,7 +290,8 @@ final class PauseMenu: Menu {
         case .worlds:
             title = "Worlds"
             worlds = WorldStore.list()
-            rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld")]
+            rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld"),
+                    ("Sparkstone Workshop (circuits)", "workshop")]
                 + worlds.map { ($0.name == currentWorld ? "\($0.name)  (open)" : $0.name, "world:" + $0.name) }
                 + [("Back", "back")]
         case .world:
@@ -466,6 +468,7 @@ final class PauseMenu: Menu {
             resetCursor = true
         case "create": go(.create); editing = nil; resetCursor = true
         case "newworld": g.appAction?("newworld")
+        case "workshop": g.appAction?("workshop")
         case "edit_name", "edit_seed", "edit_rename":
             editing = id == "edit_name" ? 0 : (id == "edit_seed" ? 1 : 2)
             if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }

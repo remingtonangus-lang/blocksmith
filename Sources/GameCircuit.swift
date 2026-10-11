@@ -279,6 +279,7 @@ extension Game {
         let target = p + Game.hopperOut[out]
         // Not into campfires or item frames (a campfire turned whatever arrived into its smelt result or nothing).
         if let t = world.blockEntities[target], t.kind != .spawner, t.kind != .campfire, t.kind != .frame {
+            let wasEmpty = t.kind == .hopper && (0..<t.container.count).allSatisfy { t.container[$0].isEmpty }
             for i in 0..<c.count where !c[i].isEmpty {
                 let one = c[i].with(count: 1)
                 let ok: Bool
@@ -302,6 +303,7 @@ extension Game {
                 } else { ok = t.container.add(one).isEmpty }
                 if ok { var s = c[i]; s.count -= 1; c[i] = s.count > 0 ? s : .empty; moved = true; break }
             }
+            if moved && wasEmpty { world.redstone.hopperReceived(target) }
         }
         // Pull from above.
         let above = p + IVec3(0, 1, 0)

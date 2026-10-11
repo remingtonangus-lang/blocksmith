@@ -192,6 +192,8 @@ final class QuestApp {
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: game?.smoothTerrain))
+        case "workshop":
+            switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1))
         case _ where id.hasPrefix("create:"):
             if let req = WorldRequest.create(action: id) { switchWorld(req) }
         default: break
