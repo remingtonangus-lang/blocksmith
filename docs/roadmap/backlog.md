@@ -166,7 +166,7 @@ T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~lin
 
 ## FROM THE DONE AUDIT (task 25b6, 2026-10-11; items G1-G11, renamed from A1-A11 so they are not confused with Lane A; full tables in docs/status/done-audit.md). Whichever cloud thread is free takes these FIRST, before new lane items.
 Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.
-G1. [frigate gun, FIRST] [CLAIMED: Lane A thread, 2026-10-11] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
+G1. [frigate gun, FIRST] [DONE: Lane A thread, 2026-10-11, PR #48; docs/status/tidebreaker-gaps.md] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
     ("charges for 5.56 s", 0-block crater, 0 coil thumps, 0 shake). Tests that call mainGunTick directly pass; the
     g.tick path doesn't finish the charge. Also make FactionTests.swift:77 fire a real slug instead of Explosion.crater.
 G2. [the Deep] D2 vault pass never merged (garrison towns, rail, airfield + AA, mortar pits, foot patrols, saved
