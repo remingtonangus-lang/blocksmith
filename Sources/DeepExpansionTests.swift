@@ -267,7 +267,12 @@ enum DeepExpansionTests {
             g.player.vel = .zero; g.player.airPeak = g.player.pos.y
             g.effects.clear()
             var t: Float = 0
-            while t < 90 { g.tick(0.05); t += 0.05; if g.player.onGround && t > 0.5 { break } }
+            // Only the fall may hurt: no keep garrison or band monster joins in on the way down.
+            while t < 90 {
+                g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll(); g.projectiles.arrows.removeAll(); g.projectiles.fireballs.removeAll()
+                g.tick(0.05); t += 0.05
+                if g.player.onGround && t > 0.5 { break }
+            }
             g.tick(0.05)
             return 20 - g.health
         }
