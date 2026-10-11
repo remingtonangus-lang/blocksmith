@@ -41,8 +41,35 @@ extension TownTests {
         voices(g, check)
     }
 
+    // Level, open, dry ground under the player, or the nearest such spot (the player is moved there). The town checks
+    // used to stand on whatever column the walk check ahead of them ended on: a tree's crown or a ledge hid the
+    // witnesses and the sheriff behind leaves (quest-port baseline, 11 town checks red; done audit G10).
     static func groundSpot(_ g: Game) -> V3 {
         let w = g.world
+        func floorY(_ x: Int, _ z: Int) -> Int {
+            var t = w.topY(x, z)
+            while t > 0 && !Blocks.collide[Int(w.block(x, t, z))] && !Blocks.isLiquid(w.block(x, t, z)) { t -= 1 }   // (grass tufts, flowers)
+            return t
+        }
+        func open(_ x: Int, _ z: Int) -> Int? {
+            guard w.isLoaded(x - 8, z - 8) && w.isLoaded(x + 8, z + 8) && w.isLoaded(x - 8, z + 8) && w.isLoaded(x + 8, z - 8) else { return nil }
+            let y = floorY(x, z)
+            for dz in stride(from: -8, through: 8, by: 2) { for dx in stride(from: -8, through: 8, by: 2) {
+                let t = floorY(x + dx, z + dz), b = w.block(x + dx, t, z + dz)
+                guard abs(t - y) <= 1, w.topY(x + dx, z + dz) <= t + 1, !Blocks.isLiquid(b), !Blocks.name(b).hasSuffix("Leaves") else { return nil }
+            } }
+            return y
+        }
+        let x0 = Int(floor(g.player.pos.x)), z0 = Int(floor(g.player.pos.z))
+        if let y = open(x0, z0) { return V3(g.player.pos.x, Float(y + 1), g.player.pos.z) }
+        for r in stride(from: 4, through: 64, by: 4) { for k in stride(from: -r, through: r, by: 4) {
+            for (x, z) in [(x0 + k, z0 - r), (x0 + k, z0 + r), (x0 - r, z0 + k), (x0 + r, z0 + k)] {
+                guard let y = open(x, z) else { continue }
+                let p = V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)
+                g.player.pos = p; g.player.vel = .zero
+                return p
+            }
+        } }
         let x = g.player.pos.x, z = g.player.pos.z
         return V3(x, Float(w.topY(Int(floor(x)), Int(floor(z))) + 1), z)
     }

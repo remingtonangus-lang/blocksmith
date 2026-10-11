@@ -433,6 +433,8 @@ enum MainGunTests {
         for near in [false, true] {
             let n1 = w.ships.list.count
             let tp = s.toWorld(st.mainGunMuzzle) + s.dirToWorld(st.mainGunDir) * 150
+            g.player.pos = tp + V3(-40, 30, 60)                  // (near: a capital past 1,400 blocks of the player is dropped)
+            g.player.vel = .zero
             w.ships.spawnCapital("crawler", home: IVec3(Int(tp.x) + (near ? 60 : 0), 0, Int(tp.z)), yaw: 0, region: nil, sync: true)
             guard let e = w.ships.list.dropFirst(n1).first(where: { $0.role == "crawler" }), let est = w.ships.capState[e.id] else {
                 check(false, "maingun: the target crawler spawns"); continue

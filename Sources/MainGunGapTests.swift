@@ -59,17 +59,20 @@ extension MainGunTests {
             w.ships.mainGunImpact(at: p, owner: -1, game: g)
             w.ships.shockwaves.last?.byPlayer = byPlayer             // as if fired from the player's helm (or an AI's)
             var f = 0
-            while !(w.ships.shockwaves.last?.reported ?? true) && f < 600 { w.ships.updateShockwaves(1.0 / 72, game: g); f += 1 }
+            let wv = w.ships.shockwaves.last                         // (this strike's wave, whatever else is added after it)
+            while !(wv?.reported ?? true) && f < 600 { w.ships.updateShockwaves(1.0 / 72, game: g); f += 1 }
             w.ships.shockwaves.removeAll()
             return squad.filter { $0.health <= 0 }.count
         }
+        MainGunStrikes.reports.removeAll()                       // (the list keeps the last 32: a full list never grows)
+        w.ships.pendingCraters.removeAll()                       // (earlier off-world hits dug as their ground loads: their own waves)
         let reports0 = MainGunStrikes.reports.count
         let dead1 = strike(1)
         g.basesTick(1.1)                                           // the citadel hears the blast
         let r1 = g.bases.records[key]
         let first = MainGunStrikes.reports.count > reports0 ? MainGunStrikes.reports.last! : "none"
         check(r1?.alert == .lockdown && r1?.strikes == 1 && (r1?.lost ?? 0) == dead1 && dead1 > 0 && first.contains("citadel") && first.contains("\(dead1) of the garrison"),
-              "maingun gap: a slug into a citadel puts it on lockdown and reports the garrison it killed (\"\(first)\"; alert \(r1?.alert.name ?? "none"))")
+              "maingun gap: a slug into a citadel puts it on lockdown and reports the garrison it killed (\"\(first)\"; alert \(r1?.alert.name ?? "none"), strikes \(r1?.strikes ?? -1), lost \(r1?.lost ?? -1), killed \(dead1), site \(MainGunStrikes.site(g, at: centre)?.key ?? "none") vs \(key))")
         check(toasts.contains(first), "maingun gap: the strike report is shown to the player near it")
         // A Meridian frigate's slug (not the player's): heard, but no strike, no report, no credit.
         let reportsAI = MainGunStrikes.reports.count

@@ -6,7 +6,7 @@ import simd
 // Per seed, around the world spawn (WorldRules.spawnCentre, the game's own terrain-only spawn search):
 //   capital   nearest Capital city at least WorldRules.capitalMinSpawn out, and one within 4,000 (still findable);
 //             cities per 4096^2 square
-//   citadel   no Capital citadel within WorldRules.citadelMinSpawn, one within 1,500 (findable: the worst seed
+//   citadel   no Capital citadel within WorldRules.citadelMinSpawn, one within 2,000 (G12; 1,500 before) (findable: the worst seed
 //             before these rules was 1,458 out)
 //   portals   no ruined gate starts at all
 //   camps     wild camps per 2048^2 square by kind; each on dry land at least 2 above sea, outlaws away from spawn,
@@ -103,7 +103,7 @@ enum WorldGenCheck {
             let cit = sc.nearest("military_base", x: cx, z: cz, maxRegions: 4).map(dist) ?? 99999
             citD.append(cit)
             if cit < Int(WorldRules.citadelMinSpawn) { fail("seed \(seed): Capital citadel \(cit) blocks from spawn") }
-            if cit > 1600 { fail("seed \(seed): nearest Capital citadel \(cit) blocks out (findability)") }
+            if cit > 2000 { fail("seed \(seed): nearest Capital citadel \(cit) blocks out (findability; G12 rarer, camps' orders lead there)") }
             // G12: citadels apart and rarer; cities of varied size.
             let cits = starts("military_base", half: 2048)
             citCount += cits.count

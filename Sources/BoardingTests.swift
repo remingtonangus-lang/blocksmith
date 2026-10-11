@@ -56,7 +56,7 @@ enum BoardingTests {
                      a0.y - foot.y, Float(frames) / 72, speed0, slowest))
         check(g.health >= wasHealth || !g.survival, "boarding: the haul does no fall damage (health \(g.health))")
         // Walk the hangar to the ladder, climb to the bridge deck, walk to the helm (grid targets, the ship's frame).
-        let ladder = V3(10.5, 9.05, 90.4), helm = V3(13.5, 25.05, 75.5)
+        let ladder = V3(10.5, 9.05, 89.5), helm = V3(13.5, 25.05, 75.5)   // (the ladder's cell; its wall is to the west)
         var stage = 0
         frames = 0
         var best: Float = 999
@@ -67,7 +67,7 @@ enum BoardingTests {
                 walk(g, toward: s.toWorld(V3(ladder.x, l.y, ladder.z)))
                 if simd_length(V2(l.x - ladder.x, l.z - ladder.z)) < 0.6 { stage = 1 }
             case 1:
-                walk(g, toward: s.toWorld(V3(ladder.x, l.y, ladder.z - 2)), jump: true)   // into the ladder: climb
+                walk(g, toward: s.toWorld(V3(ladder.x - 2, l.y, ladder.z)), jump: true)   // into the ladder's wall: climb
                 if l.y > 25 { stage = 2 }
             default:
                 walk(g, toward: s.toWorld(V3(helm.x, l.y, helm.z)))

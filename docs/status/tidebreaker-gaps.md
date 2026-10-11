@@ -60,7 +60,7 @@ Results:
 ## G8: the frigate's thrusters read as two small points at night (done audit 25b6)
 Objectives: the stern reads as engines from a few hundred blocks at night; cheap (a handful of particles, one light).
 Results: ShipManager.driveGlow: a blue-white glow sprite over each nozzle (7.5 blocks across, 3.5 for the centre one),
-growing with distance up to 3x past 180 blocks so it never shrinks to a dot, brighter at night, flickering slightly;
+growing with distance up to 3x past 150 blocks so it never shrinks to a dot, brighter at night, flickering slightly;
 one shared light on the stern within 160 blocks (the flash list is shared with gunfire). Works on AI and commandeered
 frigates. Check: MainGunTests 1b (four or more nozzle sprites over 2.5 degrees across from 300 blocks astern at night);
 render maingun_stern_night with --render.
@@ -88,7 +88,7 @@ Results:
   squares against gardens and the canopy share per city. Small cities keep at least six buildings.
 - Ground saved before G12 (StructureCache.legacyG12) keeps the old rules and the old plan.
 - Check: `--worldgencheck` (questcheck binary or Mac) fails on two citadels within 800, a citadel within 640 of the
-  spawn or none within 1,600, and prints the citadel count and the city sizes.
+  spawn or none within 2,000 (was 1,600; the camps' orders now lead there), and prints the citadel count and the city sizes.
 
 ## G7: a Capital city could be named "Meridian", the navy's name (done audit 25b6)
 Results: the first city name is Brightmoor now (CapitalTown.cityNames); MainGunTests 8 checks no city carries the

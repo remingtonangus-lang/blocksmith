@@ -1099,7 +1099,7 @@ extension ShipManager {
         guard k > 0.4 else { return }
         let aft = s.dirToWorld(V3(0, 0, 1))
         let layer = Int(Tex.id("puff"))
-        let far = min(3, max(1, pd / 180))
+        let far = min(3, max(1, pd / 150))
         let night = 1 + 0.8 * (1 - g.daylight)
         for (i, n) in st.exhausts.enumerated() {
             let small = s.role == "capfrigate" && i == st.exhausts.count - 1      // the centre nozzle (radius 2)

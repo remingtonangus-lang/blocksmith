@@ -27,6 +27,7 @@ enum WildCamps {
     static let outlawLand: Set<Biome> = [.forest, .darkForest, .taiga, .oldGrowthSpruceTaiga, .savanna, .windsweptSavanna,
                                          .badlands, .woodedBadlands, .plains, .birchForest]
     static let outlawMinSpawn: Float = 400
+    static let campKeepG12: Float = 0.75
     // How far off a camp is noticed (its campfire smoke and tent over the land): sets the rarity check's sweep.
     static let sightRange = 96
 
@@ -57,6 +58,10 @@ enum WildCamps {
         StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
             var roll = SRng(seed)
             guard roll.chance(chance) else { return nil }
+            // G12: rarer citadels and cities freed ground the camps had given way to (7.6 -> 10.5 per 2048^2); a share
+            // of regions keeps no camp so L3's 10-15 minutes holds (ground saved before G12 keeps its camp).
+            let rx0 = floorDiv(cx0, spacing), rz0 = floorDiv(cz0, spacing)
+            if !WorldRules.savedBeforeG12(gen, cx0, cz0, reach: 2) && hashf(rx0, 7611, rz0, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA3) >= campKeepG12 { return nil }
             if let s = site(gen, seed, cx0, cz0) { return s }
             // L3 rarity (a camp every 10-15 minutes of walking; docs/status/l3-part3.md): when the region's spot
             // won't take a camp, one more spot in its placement square, unless ground there was saved before this rule
