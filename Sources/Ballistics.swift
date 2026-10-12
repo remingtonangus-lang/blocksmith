@@ -292,7 +292,10 @@ final class Armory {
         let own = shooter.map { $0.kind.steelhold && $0.factionValue == .steelhold } ?? s.by.hasPrefix("Capital")
         g.bases.quiet = own && !s.fromPlayer
         g.ashQuiet = !s.fromPlayer && shooter?.factionValue == .ashguard
-        defer { g.ashQuiet = false }
+        // Every side's soldiers spare their own, not only the Capital and the Ashguard (Greywall and Meridian launchers
+        // hit their own front ranks: questcheck --friendlyfire-only, Q2).
+        g.blastSpares = s.fromPlayer ? .none : (shooter?.factionValue ?? (own ? .steelhold : .none))
+        defer { g.ashQuiet = false; g.blastSpares = .none }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
         g.bases.quiet = false
     }

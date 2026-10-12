@@ -138,6 +138,7 @@ final class Game {
     let lastWar = LastWar()
     var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
     var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
+    var blastSpares = Faction.none  // a soldier's shell or grenade is bursting: it spares its own side (Explosion)
     var ashSpot: V3?                // where an Ashguard unit last saw the player (the field guns fire on it)
     var ashSpotSeen: Double = -999
     var ashAlertClock: Double = -999

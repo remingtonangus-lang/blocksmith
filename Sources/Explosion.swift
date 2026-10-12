@@ -101,7 +101,8 @@ enum Explosion {
             g.player.vel += push
         }
         g.coop.eachSeat(g, hitPlayer)
-        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard) {
+        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)
+            && !(g.blastSpares != .none && m.factionValue == g.blastSpares) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)

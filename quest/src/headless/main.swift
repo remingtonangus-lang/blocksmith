@@ -214,6 +214,12 @@ if CommandLine.arguments.contains("--settings-only") {
     SettingsCheck.run(check: check)
     print(failures == 0 ? "settings: all checks passed" : "settings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --friendlyfire-only: soldier squads of the Capital, Greywall and the Meridian Navy never hurt their own
+// (Sources/FriendlyFireTests.swift, Q2).
+if CommandLine.arguments.contains("--friendlyfire-only") {
+    FriendlyFireTests.run(game: game, check: check)
+    print(failures == 0 ? "friendlyfire: all checks passed" : "friendlyfire: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {
     InputLatencyTests.run(game: game, check: check)
@@ -861,6 +867,7 @@ SettingsCheck.run(check: check)
 leaves("latency") { InputLatencyTests.run(game: game, check: check) }
 leaves("firsthour") { GoalTests.run(game: game, check: check) }
 leaves("vrtext") { VRTextCheck.run(game: game, check: check) }
+leaves("friendlyfire") { FriendlyFireTests.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

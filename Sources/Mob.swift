@@ -1070,6 +1070,14 @@ final class Mob {
             let a = pos + forward * (halfW + 0.45)
             if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
         }
+        // Calm townsfolk never step off a drop deeper than the path finder's three blocks, on a path or not (a path
+        // cutting the corner of a ravine bridge in a village: seed 777 behaviour sim, two fell 5 blocks, Q2). Not when
+        // panicking or running from a zombie or raider (villagerDay's 2.2): a fall beats being caught.
+        if spec.behavior == .villager && panic <= 0 && speed > 0 && speed < 2.2 && onGround {
+            let a = pos + forward * (halfW + 0.45)
+            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
+                && !solid(a.x, pos.y - 3.5, a.z, w) { speed = 0 }
+        }
         if spec.flying {
             if kind == .blaze && speed != 0 {
                 let target = forward * speed
