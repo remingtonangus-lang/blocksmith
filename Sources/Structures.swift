@@ -197,6 +197,49 @@ final class StructureCache {
     var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
     var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)
     var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
+    var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
+
+    // Q2 (scorecard "world gen: no structure overlaps", 138 piece overlaps in 50 seeds): a small start gives way to a
+    // bigger one whose pieces it would cut into, so a ruined portal never stands in a village street or a citadel wall,
+    // a shipwreck never lies inside an ocean ruin, a mineshaft never tunnels through trial chambers. One way only (the
+    // big kinds yield to nothing here), so the check never recurses. Ground saved before this keeps its old starts.
+    static let yields: [String: [String]] = [
+        "ruined_portal": ["village", "military_base", "capital_city", Greywall.kind, BorealStation.kind, "temple",
+                          "pillager_outpost", "mansion", "trail_ruins", "great_ruin", "ocean_ruin", "monument"],
+        "shipwreck": ["ocean_ruin", "monument", "village"],
+        "mineshaft": ["trial_chambers", "ancient_city", "military_base", "monument", "mineshaft"],
+        "desert_well": ["village", "temple", "military_base", "capital_city"],
+        "fossil": ["trial_chambers", "ancient_city"],
+    ]
+    private func givesWay(_ s: StructureStart, _ t: StructureType, _ srx: Int, _ srz: Int) -> Bool {
+        guard let big = StructureCache.yields[t.name] else { return false }
+        @inline(__always) func hit(_ a: IVec3, _ b: IVec3, _ c: IVec3, _ d: IVec3) -> Bool {
+            a.x <= d.x && c.x <= b.x && a.y <= d.y && c.y <= b.y && a.z <= d.z && c.z <= b.z
+        }
+        for name in big {
+            // Its own kind: the start of the earlier region (by z, then x) keeps its place. Made raw, without its own
+            // giving way, so the check never walks a chain of neighbours.
+            if name == t.name {
+                let cx0 = floorDiv(s.min.x, CS) - t.reach, cx1 = floorDiv(s.max.x, CS) + t.reach
+                let cz0 = floorDiv(s.min.z, CS) - t.reach, cz1 = floorDiv(s.max.z, CS) + t.reach
+                for rz in floorDiv(cz0, t.spacing)...floorDiv(cz1, t.spacing) { for rx in floorDiv(cx0, t.spacing)...floorDiv(cx1, t.spacing)
+                    where rz < srz || (rz == srz && rx < srx) {
+                    let (cx, cz) = candidate(t, rx, rz)
+                    guard let b = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz), hit(s.min, s.max, b.min, b.max) else { continue }
+                    if s.pieces.contains(where: { p in b.pieces.contains { q in hit(p.min, p.max, q.min, q.max) } }) { return true }
+                } }
+                continue
+            }
+            guard let o = types.first(where: { $0.name == name }), StructureCache.yields[o.name] == nil else { continue }
+            let cx0 = floorDiv(s.min.x, CS) - o.reach, cx1 = floorDiv(s.max.x, CS) + o.reach
+            let cz0 = floorDiv(s.min.z, CS) - o.reach, cz1 = floorDiv(s.max.z, CS) + o.reach
+            for rz in floorDiv(cz0, o.spacing)...floorDiv(cz1, o.spacing) { for rx in floorDiv(cx0, o.spacing)...floorDiv(cx1, o.spacing) {
+                guard let b = start(o, regionX: rx, regionZ: rz), hit(s.min, s.max, b.min, b.max) else { continue }
+                if s.pieces.contains(where: { p in b.pieces.contains { q in hit(p.min, p.max, q.min, q.max) } }) { return true }
+            } }
+        }
+        return false
+    }
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -222,7 +265,9 @@ final class StructureCache {
         lock.unlock()
         let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         let (cx, cz) = candidate(t, rx, rz)
-        let s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
+        var s = t.make(seed &+ t.salt &+ UInt64(bitPattern: Int64(cx &* 31 &+ cz)), cx, cz)
+        if let st = s, StructureCache.yields[t.name] != nil, clear(cx: cx, cz: cz, reach: t.reach, guardSet: legacyOverlap),
+           givesWay(st, t, rx, rz) { s = nil }
         lock.lock()
         cache[key] = s
         if cache.count > 4096 { cache.removeAll() }

@@ -32,7 +32,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 ## 2. Stability and saves
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| Crashes | 0 in a 4-hour bot soak + 100 save/load cycles | CI smoke is 60 s x 3 render distances; no 4 h soak or 100-cycle save test exists | RED (UNMEASURED) | .github/workflows/mac.yml smoke |
+| Crashes | 0 in a 4-hour bot soak + 100 save/load cycles | 100 save/load cycles (Oct 12, Linux host, `questcheck --savesoak-only`): a survival world played, changed (blocks, inventory, a chest), saved and loaded back as the app does, 100 times: every cycle came back as saved, no World or Game left alive, resident 169 -> 191 MB, save folder 0.2 MB; 5 cycles in every full run. The 4 h bot soak still not run (CI smoke is 60 s x 3 render distances) | AMBER | `questcheck --savesoak-only` |
 | Save safety | old saves load, backup before migration | Oct 11 (audit gap 3): a format-3 world with 30 animals is backed up (Backups/<name>-before-f4-*, mobs.json copied), then crowds over the per-chunk cap are thinned once (12 wild -> 4; penned, owned, named kept); a failed backup skips the thinning. Synthetic save only, no real old player saves tested | AMBER | `--questbugs --only gaps` |
 
 ## 3. Controls, feel and VR comfort
@@ -93,7 +93,7 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 | Spawn density | not empty, not swarms | Oct 9 PM: surface monsters halved (3 nights: 63 -> 33, caves 84 -> 93, verified). Earlier: 30 s per time of day, 50 seeds, player 12 above spawn: midnight surface hostiles median 10 (max 16, zero on 3 seeds); passive surface median 10 (zero on 1 seed at noon); noon surface hostiles median 5 (max 27; mostly creepers/skeletons/zombies; "surface" = above column height - 6, so shade under trees/overhangs counts) - needs a look | AMBER | world_audit.md |
 | Behaviour | no stuck mobs, no friendly fire | not measured this round (agents exist: `--agent`) | RED (UNMEASURED) | - |
 | World gen: safe spawn | safe spawn | 0/50 unsafe (game spawnPoint: feet/head clear, full ground, no lava within 2, no water within 1) | GREEN (verified; cactus, fire, cliff edges, nearby hostiles not checked) | world_audit.md |
-| World gen: overlaps | no structure overlaps | 138 piece-level overlaps in 50 seeds x 2048^2: military_base + ruined_portal 26, military_base + village 8, capital_city + ruined_portal 5, ocean_ruin + shipwreck 14, mineshaft + trial_chambers 32 (underground) | RED | world_audit.md |
+| World gen: overlaps | no structure overlaps | Oct 12 (Q2): small kinds give way to big ones they would cut into (StructureCache.yields: ruined portals, shipwrecks, mineshafts, desert wells, fossils; of two mineshafts the earlier region's stays; saved ground keeps its old starts). 12 seeds x 2048^2: 0 piece overlaps in 1,560 starts. Was 138 in 50 seeds. Mac `--worldaudit` over 50 seeds not re-run | AMBER (GREEN once the 50-seed audit agrees) | `questcheck --overlaps-only` |
 | World gen: findability | bases/citadels findable | distance from spawn: Capital citadel median 428 (max 1544), Capital city median 752 (max 1980), village median 479 (max 2043, 1 seed > 2000) | AMBER (no target distance set) | world_audit.md |
 
 ## 8. UI and UX
@@ -101,7 +101,7 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 |---|---|---|---|---|
 | Legibility / no truncation | readable, nothing cut | 48 screens: 8 flags. Real: creative menu hint line runs off both screen edges at 1280x800 (1386 px wide). By design: credits scroll off the bottom. To review: tooltips (Iron Chestplate, Coal Ore, Torch) extend past their menu panel. Smallest text 12 px (options, 1280x800); VR angular size not measured | RED | ui_overflow.md |
 | Consistency | one style, controller everywhere, settings persist | not reviewed | RED (UNMEASURED) | - |
-| Accessibility | subtitles, colour-safe, per-bus volume | per-category volume sliders exist (SoundCategory); subtitles not found | RED | Sources/Sound.swift |
+| Accessibility | subtitles, colour-safe, per-bus volume | re-read Oct 12: subtitles with a direction arrow (AudioSubtitles.swift, Options > Audio and Accessibility), colourblind-safe cue colours (Settings.colorblind), per-category volume sliders (SoundCategory). Not measured: subtitle size in VR, a screen reader | AMBER | Sources/AudioSubtitles.swift, Settings.swift |
 
 ## 9. Store compliance
 IP names: 28 display strings renamed (docs/status/ip-renames.md), `python3 tools/namecheck.py --coined` 0 hits over 90 terms (CI fast lane); unsure terms flagged for Remington there. AMBER (needs Remington's call on the flagged terms).
