@@ -132,6 +132,41 @@ P104. [DONE: PR #57, 2026-10-12: GreywallArms.swift: five Greywall guns and Slat
 P105. [DONE: PR #57, 2026-10-12: guns differ by range, damage and recoil (four pistols, five rifles); recoil also widens AI aim, Hannibal troops have none; rocket launcher unchanged; --p12-only handling] [Remington, Oct 12 12:18] Weapon variety by recoil: at least three pistol types (and the same idea across rifles) that differ in range, recoil and damage; the better guns are harder to handle because of their recoil. Hannibal troops (power suits) fire them with no recoil penalty. Keep: the rocket launcher, which he praised.
 P106. [DONE: PR #57, 2026-10-12: (4) every natural cave wall meshes smooth (13 more natural blocks); (1) surface relaxation over a 4-cell ring shared between sections (no seams), a stepped hill strays 0.029 blocks from an even slope against 0.050; (2) chipped blocks stay smooth and dent inward; (3) trees are the Mac worker's (tree looks), (5) water left as blocks; device fps for the Mac worker (T17); --smooth2-only] [TOP PRIORITY (Remington, Oct 12 12:34): work it alongside the small P fixes, not after; Remington, Oct 12 12:12-12:21] Polygon terrain, round 2. He found the smooth/polygon test (P84 is resolved on the device) and loves the caves (this is like not Minecraft at all). He wants it developed much further even though it is disruptive. What is wrong today: (1) hills and everything else look wavy and you can still tell it used to be blocks; (2) breaking a block turns that spot back into a cube: instead each block should be made of polygon pieces that break off as you dig; (3) trees are still blocky; (4) some cave areas did not smooth; (5) water still behaves as blocks (fine for now). Goal: smooth and realistic like Red Dead Redemption 2 or Halo while keeping Minecraft block physics underneath (destruction depends on it). Render distance may cost some, but keep compute sensible on Quest; measure fps against blocks. Start with caves, which already look terrific.
 
+Oct 12 afternoon playtest (Remington, 14:59-17:56, on the 12:32 build e13bd0db; check each against claude/quest-port first, several may already be fixed by #57-#60). Notes: docs/playtests/2026-10-12/voice-notes.md. Small fixes first (P107-P130), then features (P131-P139). Keep: field rations and baked potato in base barrels, the shooting range, crafting a standard magazine, obsidian look, granite colour.
+P107. [14:59] A smooth (polygon) world reloaded as blocks: smooth must persist per world across save/load.
+P108. [15:01] The right-hand UI still overlaps the hotbar.
+P109. [15:02] Left grip still does nothing while holding a gun (P74 was in the build he played: regression or wrong hand).
+P110. [15:04, 17:50] Inventory icons: furnace and bed look wrong; dropper and dispenser have no texture; the observer needs a new look.
+P111. [15:10, 17:13, 17:17, 17:21] Textures: granite looks good but soft (sharpen); amethyst looks bad; spider webs looked better before (regression); he likes the deepslate look much more than plain stone.
+P112. [15:12, 15:32] Caves need a little water here and there (some exists, too little).
+P113. [15:14] Looking down a long cave, the sky shows at the far end (it should not in the cave layers).
+P114. [15:22, 17:13, 17:15, 17:28] Lava: flows only sometimes; blocks can usually not be placed into lava (Minecraft allows it; works only sometimes); thrown items should burn in lava; a burning overlay when the player is on fire; making obsidian takes far too long.
+P115. [15:24, 17:19, 17:51] Bounty hunters: they must not find him underground; much rarer, but when they come they are many and a real problem (with P88).
+P116. [15:25] A journal/log to reread notes and messages he has received.
+P117. [15:30] The horse (Ginger) must not come when called from underground.
+P118. [15:32] Hitting gravel still sounds like hitting water.
+P119. [15:34] Ammo: craft loose rounds into magazines (less inventory space); reloading is done by taking a magazine from the hip only; remove the reload button.
+P120. [17:11, 17:47] He wants to craft capital rounds (his favourite ammo); today he cannot. Allow it at a fitting cost.
+P121. [17:22, 17:32] Floating pieces: a rail floating in the air; floating amethyst.
+P122. [17:22] Allow placing blocks while jumping.
+P123. [17:23] He does not know what the four bars on his left are: label them or remove them.
+P124. [17:24] Occasional frame drop with a freeze of about a second: find the hitch.
+P125. [17:25] Glow lights on cave vines (like glow berries), but not a near copy of Minecraft (IP: make it our own).
+P126. [17:30] He fell off an edge while crouching: sneaking must stop at edges.
+P127. [17:49] Sleep was refused when it should be allowed. Sleeping through the night (and time away from a loaded area) should advance furnaces and other timed work by the time passed.
+P128. [17:51] Running through double doors snags in the middle.
+P129. [17:53] He made stairs without meaning to (crafted or placed): find the input that did it.
+P130. [17:54] Shovel digging breaks blocks in uneven bursts: make it smooth and steady.
+P131. [15:06] Home finder: a way to find home (bed or respawn point) when lost, such as a compass needle or map marker.
+P132. [15:13] Railways (with C1): connect the lines into a real network for fast travel; let him lay rails himself; minecarts with an engine that need fuel or power.
+P133. [15:19] Base barrels also hold flavour items useful to a base but useless to the player.
+P134. [17:18, 17:33] Mobs vary a lot in speed and damage; the creeper replacement runs at you, faster.
+P135. [17:26] Small missiles: crawlers, bases and frigates can fire small missiles (not big ones), with a limited supply.
+P136. [17:29, 17:35] Sword damage scales with swing speed and/or how far the blade travelled before the hit; head hits do more.
+P137. [17:51] Repairing a weapon costs more material the more upgrades it has.
+P138. [17:55] Upgrades need a found recipe or blueprint first, found in chests at camps, boats and similar places.
+P139. [15:27-15:29] Progression was unclear underground (which ore breaks the barrier, what to do next) until he worked out the base raid: make the next step clearer.
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
