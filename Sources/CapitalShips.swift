@@ -935,7 +935,7 @@ extension ShipManager {
     private func targetValid(_ t: CapTarget, _ g: Game, spareBases: Bool = true) -> Bool {
         if t.player {
             var ok = false
-            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !(spareBases && g.bases.inAnyBase(g.player.pos)) }
+            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && !(spareBases && g.bases.inAnyBase(g.player.pos)) }
             return ok
         }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }

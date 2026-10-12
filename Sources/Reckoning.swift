@@ -44,6 +44,7 @@ enum Reckoning {
         var live: [Mob] = []            // units in the world now
         var trail: V2?                  // where it lost the player (underground): it waits there
         var tries = 0                   // spawn spots refused for being in plain sight
+        var nextTry: Double = 0         // ... and when it may try again (g.clock)
         init(side: Side, pos: V2, waiting: [String]) { self.side = side; self.pos = pos; self.waiting = waiting }
         var left: Int { waiting.count + live.filter { $0.health > 0 }.count }
     }
@@ -196,7 +197,7 @@ enum Reckoning {
                 var tries = 0
                 while let k = h.waiting.last, alive < liveCap, tries < 12 {
                     tries += 1
-                    guard let m = spawn(g, h, k) else { continue }
+                    guard let m = spawn(g, h, k) else { if g.clock < h.nextTry { break }; continue }
                     h.waiting.removeLast()
                     h.live.append(m); alive += 1
                 }
@@ -230,7 +231,9 @@ enum Reckoning {
         let at = w.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         // Not in plain sight: a unit appearing from nowhere 40 blocks off reads as a pop-in (they come over a rise,
         // round a wall or out of the trees). After a few tries a band takes what ground it gets.
-        if h.tries < 6 && w.canSee(g.player.eye, at + V3(0, 1.5, 0)) { h.tries += 1; return nil }
+        // (One look a band a second: a refused spot holds the band back a second, and the fifth in a row is taken.)
+        if g.clock < h.nextTry { return nil }
+        if h.tries < 5 && w.canSee(g.player.eye, at + V3(0, 1.5, 0)) { h.tries += 1; h.nextTry = g.clock + 1; return nil }
         h.tries = 0
         let m: Mob
         if h.side == .greywall {

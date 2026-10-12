@@ -350,8 +350,8 @@ enum PlaytestOct12Tests {
                     if i > 0 && abs(l.level[i] - l.level[i - 1]) > 1 { bad.append("step \(i): a jump") }
                 }
                 // Clear of every other structure.
-                // (Underground and sky kinds aside: the spur's box reaches 40 down for trestle legs.)
-                for t in sc.types where ![CapitalRail.kind, "military_base", "mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", SkyIsle.kind].contains(t.name) {
+                // (Its own citadel included. Underground and sky kinds aside: the box reaches 40 down for trestle legs.)
+                for t in sc.types where ![CapitalRail.kind, "mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", SkyIsle.kind].contains(t.name) {
                     let span = t.spacing * CS
                     for rz in (floorDiv(p.min.z, span) - 1)...(floorDiv(p.max.z, span) + 1) { for rx in (floorDiv(p.min.x, span) - 1)...(floorDiv(p.max.x, span) + 1) {
                         guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }

@@ -11,7 +11,8 @@ import simd
 // Folded into C1 (railways between towns) later: the same profile and writer.
 enum CapitalRail {
     static let length = 150
-    static let startOff = CapitalBase.A + 1          // the first rail, blocks from the citadel's centre
+    static let startOff = CapitalBase.A + 11         // the first rail, blocks from the citadel's centre (the spur's box,
+                                                     // buffer stop included, starts past the citadel's: A + 8)
     static let lineZ = -24                           // north of the centre (the garrison row is to the south)
     static let reach = 14                            // chunks from its region's corner: covers the whole spur
     static let kind = "capital_rail"
