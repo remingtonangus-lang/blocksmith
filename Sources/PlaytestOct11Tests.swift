@@ -604,11 +604,15 @@ enum PlaytestOct11Tests {
 
     // P60: two zombies standing in each other, and a voidwalker standing in the player, are eased apart within a second.
     static func noOverlap(_ game: Game, _ check: (Bool, String) -> Void) {
-        let saved = game.mobs.mobs, alive0 = game.alive, riding0 = game.riding
-        defer { game.mobs.mobs = saved; game.alive = alive0; game.riding = riding0 }
+        let saved = game.mobs.mobs, alive0 = game.alive, riding0 = game.riding, pos0 = game.player.pos
+        defer { game.mobs.mobs = saved; game.alive = alive0; game.riding = riding0; game.player.pos = pos0 }
         game.alive = true; game.riding = nil                     // (the player shoves only while alive and on foot)
-        let p = game.player.pos
-        let at = V3(p.x + 4, p.y + 20, p.z)                       // in the air: nothing to push them into
+        // In the air, player included (an earlier check can leave the player in a pocket a voidwalker can't be eased
+        // out into): nothing to push them into.
+        var p = pos0
+        p.y = Float(game.world.topY(Int(floor(p.x)), Int(floor(p.z))) + 24)
+        game.player.pos = p
+        let at = V3(p.x + 4, p.y, p.z)
         let a = Mob(.zombie, at: at), b = Mob(.zombie, at: at + V3(0.05, 0, 0)), e = Mob(.enderman, at: p + V3(0.1, 0, 0))
         game.mobs.mobs = [a, b, e]
         for _ in 0..<30 { game.mobs.separate(1.0 / 30, game) }
@@ -845,20 +849,24 @@ enum PlaytestOct11Tests {
         }
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
         g.alive = true; g.riding = nil; g.vrAim = nil            // (whatever an earlier check left: on foot, aiming with the view)
+        // Up in the open air (whatever ground an earlier check left the player on: nothing between gun and rider).
+        g.player.pos.y = Float(g.world.topY(Int(floor(pos0.x)), Int(floor(pos0.z))) + 24)
         let p = g.player.pos
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
         Riders.along = 10...16                 // (inside the host check's loaded ground)
         var rider: Mob?
         for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
-        var robbedOK = false, posse = 0, gunmen = true, mounted = false
+        var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = ""
         if let r = rider, let h = r.mount, Items.has("gun_sidearm") {
             mounted = h.kind == .horse && h.saddled
             h.pos = p + V3(8, 0, 0); r.pos = h.pos + V3(0, h.height * 0.8, 0)
             g.inventory.held = ItemStack(Items.id("gun_sidearm"), 1)
             let d = r.eye - g.player.eye
             g.player.yaw = atan2f(-d.x, -d.z); g.player.pitch = asinf(d.y / simd_length(d))
+            let aimed = Riders.aimedAt(r, g)
             for _ in 0..<4 { _ = Riders.step(r, 0.5, g) }
             robbedOK = r.posse == Riders.robbed && g.money > 0 && BountyHunters.totalBounty >= Riders.robBounty
+            if !robbedOK { robWhy = "aimed \(aimed), robbed \(r.posse == Riders.robbed), money \(g.money), bounty \(BountyHunters.totalBounty), dim \(g.dim.dim)" }
             let gm = g.mobs.mobs.filter { $0.posse == 3 }
             posse = gm.count
             gunmen = gm.allSatisfy { $0.townWeapon == .revolver && $0.town.anger > 0 }
@@ -875,7 +883,7 @@ enum PlaytestOct11Tests {
         BountyHunters.chancePerSecond = chance0
         let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && $0.townWeapon == .revolver }
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
-              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
+              "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }
 
     // P49 horse items: half as much stamina again; a monster beside the horse makes it shy briefly (no throw, never at
