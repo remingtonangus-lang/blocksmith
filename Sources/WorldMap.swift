@@ -535,7 +535,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         out.append(HudLine(text: "", x: mx - s / 2, y: my - 4 * s, scale: s, bg: V4(1, 1, 1, 0.8), box: V2(s, 8 * s)))
         let bx = Int(floor(cx)), bz = Int(floor(cz))
         let biome = g.world.gen.column(bx, bz).biome.displayName
-        let info = "\(biome)   \(bx), \(bz)   1 cell = \(bpc) blocks"
+        let info = "\(biome)   \(bx), \(bz)   1 cell = \(bpc) blocks" + (g.dim.dim == .overworld ? "   \(Seasons.label)" : "")
         out.append(HudLine(text: info, x: o.x + 8 * s, y: o.y + Float(height - 13) * s, scale: s, color: V4(0.2, 0.2, 0.22, 1)))
         let marks = MapCache.shared.marks
         let bases = marks.filter { $0.kind == "military_base" }.count
