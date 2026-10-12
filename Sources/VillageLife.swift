@@ -206,7 +206,9 @@ extension Mob {
     // at an office desk); children idle / play
     // from 3000 / idle from 6000 / play from 10000 / rest from 12000. Shopkeepers mind their counter through their
     // shop's hours; deputies patrol the square day and night.
-    func activity(_ f: Double) -> Activity {
+    // The day's choice is the villager mind's (VillagerMind.swift); today's schedule is ScriptedMind's.
+    func activity(_ f: Double) -> Activity { VillagerMinds.current.choice(self, f) }
+    func scriptedActivity(_ f: Double) -> Activity {
         let t = f * 24000
         if baby { return t < 3000 ? .idle : (t < 6000 ? .play : (t < 10000 ? .idle : .play)) }
         if let k = villager?.shopKind { return Float(f) >= k.hours.0 && Float(f) <= k.hours.1 ? .work : .idle }
