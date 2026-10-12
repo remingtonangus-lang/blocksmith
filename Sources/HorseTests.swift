@@ -80,8 +80,10 @@ enum HorseTests {
             let h = horse(); mount(h)
             ride(h, 2.5, push: 0.5)
             let walk = speed(h)
-            ride(h, 2.5, push: 1)
+            ride(h, 2.5, push: 0.7)
             let trot = speed(h)
+            ride(h, 2.5, push: 1)
+            let canter = speed(h)
             h.pos = lane0; h.vel = .zero; h.hs.speed = 0; h.hs.gait = .stand
             var tGallop: Float = -1
             var tick = 0
@@ -97,8 +99,8 @@ enum HorseTests {
                 if tStop < 0 && speed(h) < 0.5 { tStop = Float(i) * dt }
                 return tStop >= 0
             }
-            check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
-                  String(format: "horse gaits: walk %.1f, trot %.1f, gallop %.1f b/s (top %.0f)", walk, trot, gallop, h.topSpeed))
+            check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(canter - h.topSpeed * 0.75) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
+                  String(format: "horse gaits: walk %.1f, trot %.1f, a full push canters %.1f, spurred gallop %.1f b/s (top %.0f)", walk, trot, canter, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
             check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))
             check(max(lurch, lurch2) <= 12.5, String(format: "horse: no lurch (worst %.1f b/s^2 on the ground, comfort limit 12.5)", max(lurch, lurch2)))
@@ -120,11 +122,11 @@ enum HorseTests {
         do {
             let h = horse(); mount(h)
             var tSpent: Float = -1
-            ride(h, 40, push: 1, spurAt: [2, 12], loop: true) { i in
+            ride(h, 70, push: 1, spurAt: [2, 12], loop: true) { i in
                 if tSpent < 0 && h.hs.spent { tSpent = Float(i) * dt }
                 return tSpent >= 0
             }
-            check(tSpent >= 15 && tSpent <= 35, String(format: "horse stamina: a level-1 gallop lasts %.1f s (15-35; P49 half as long again)", tSpent))
+            check(tSpent >= 28 && tSpent <= 50, String(format: "horse stamina: a level-1 gallop lasts %.1f s (28-50; P83 Oct 12: 21 s was far too short)", tSpent))
             ride(h, 2, push: 1, loop: true)
             let blown = speed(h)
             let spurs = h.hs.spurCount
@@ -364,14 +366,14 @@ enum HorseTests {
                 if (i >= 10 && i < 12) || (i >= 40 && i < 42) { p.l3 = true }
                 pm.simulated = p
                 g.tick(Double(dt))
-                if i == 30 || i == 110 { gaits.append(h.hs.gait) }
+                if i == 8 || i == 30 { gaits.append(h.hs.gait) }
                 if h.pos.z < Float(z1) + 30 { h.pos.z += 90 }
             }
             pm.simulated = nil
             g.paused = wasPaused
             if wasMenu == nil && g.menu != nil { g.closeMenu() }
             g.mobs.mobs.removeAll { $0 === h }
-            check(gaits == [.canter, .gallop], "horse spurs through Game.tick (pad stick click): \(gaits.map(\.name))")
+            check(gaits == [.canter, .gallop], "horse through Game.tick: a full push canters, the stick click spurs it to a gallop: \(gaits.map(\.name))")
             // Use with a treat: aimed ahead it is the rider's own use (eat/place), aimed down at the horse it feeds it.
             let held = g.inventory.held
             g.inventory.held = ItemStack(Items.id("apple"), 4)

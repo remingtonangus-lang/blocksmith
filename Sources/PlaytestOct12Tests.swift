@@ -6,6 +6,26 @@ import simd
 enum PlaytestOct12Tests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
         gunOpensDoors(game, check)
+        horseBond(game, check)
+    }
+
+    // P81/P83 (09:28, a fresh horse "slow as anything"; stamina far too short; bond should raise health too): a full
+    // push canters faster than the player sprints, and a bonded horse takes less of a hit (HorseTests has the gaits).
+    static func horseBond(_ g: Game, _ check: (Bool, String) -> Void) {
+        let at = g.player.pos + V3(60, 40, 60)
+        var took: [Int] = []
+        for lvl in [1, 4] {
+            let h = Mob(.horse, at: at); h.owner = true; h.saddled = true
+            h.hs.bondXP = HorseFeel.levelXP[lvl - 1]
+            let h0 = h.health
+            h.invulnerable = 0
+            h.hit(from: at + V3(2, 0, 0), damage: 10, knockback: 0)
+            took.append(h0 - h.health)
+        }
+        let slowest = Mob(.horse, at: at); slowest.variant = 0                // the slowest breed roll (top 8 b/s)
+        let canter = slowest.gaitSpeed(.canter)
+        check(took[0] == 10 && took[1] == 6 && canter > 5.6,
+              "P83 horse: a 10 hit takes \(took[0]) at bond 1 and \(took[1]) at bond 4; P81 the slowest horse canters at \(canter) b/s on a full push (the player sprints 5.6)")
     }
 
     // A stone floor high over the spawn, cleared above, for checks that press buttons through Game.tick. Returns the

@@ -28,6 +28,7 @@ final class HorseState {
     var idle: Float = 0              // s the stick has been back in the middle (a spurred gait drops after 0.25 s)
     var refused: Float = 0           // s since the horse last refused a drop (toast once per refusal)
     var spurCount = 0                // spurs taken (HorseTests)
+    var spurred = false              // the gait is above the stick's own (a spur), kept while the stick stays pushed
     var stumbles = 0
     func coolDown(_ dt: Float) {
         spookCool = max(0, spookCool - dt)
@@ -53,6 +54,7 @@ enum HorseFeel {
     static let treatBond: Float = 2, treatCool: Float = 60         // (was 3 every 10 s)
     static let staminaMax: [Float] = [150, 170, 195, 225]          // P49 (Oct 11 evening): half as long again (100-150)
     static let drain: [Float] = [1, 0.9, 0.8, 0.7]
+    static let toughness: [Float] = [1, 0.85, 0.72, 0.6]          // share of a hit a horse takes by bond level (P83)
     static let regen: [Float] = [1, 1.15, 1.3, 1.5]
     static let throwChance: [Float] = [0.45, 0.2, 0.05, 0]
     static let accelBase: Float = 3, accelPerTop: Float = 0.4      // b/s^2 = 3 + 0.4 x top speed
@@ -132,7 +134,9 @@ extension Mob {
             h.gait = .stand
         } else if push > 0.3 {
             h.idle = 0
-            let natural: Gait = push >= 0.75 ? .trot : .walk
+            // A full push canters (Oct 12 playtest P81/P83: at a trot a fresh horse ran 4-8 b/s, slower than he
+            // sprints on foot, "slow as anything"); the spur takes it to a gallop.
+            let natural: Gait = push >= 0.85 ? .canter : (push >= 0.6 ? .trot : .walk)
             if inp.spur {
                 h.spurCount += 1
                 if h.spent {
@@ -141,12 +145,13 @@ extension Mob {
                     addBond(-3, g)
                     g.onToast?("Your horse is spent: let it walk to get its wind back")
                 } else {
-                    h.gait = min(.gallop, Gait(rawValue: max(h.gait, .trot).rawValue + 1) ?? .gallop)
+                    h.gait = min(.gallop, Gait(rawValue: max(h.gait, natural, .trot).rawValue + 1) ?? .gallop)
+                    h.spurred = true
                     stamina -= 4
                     if h.gait == .gallop { g.sfx(.mob(kind, .ambient), 0.7, at: pos) }
                 }
             }
-            if h.gait <= .trot { h.gait = natural }
+            if !h.spurred || h.gait <= natural { h.gait = natural; h.spurred = false }
             if h.spent && h.gait > .trot { h.gait = .trot }
         } else {
             h.idle += dt
@@ -158,10 +163,11 @@ extension Mob {
         var target: Float = back ? -1.2 * min(1, -push) : gaitSpeed(h.gait)
         if h.gait == .walk { target *= 0.4 + 0.6 * min(1, (push - 0.3) / 0.45) }
         if !saddled { target = 0 }
-        // Stamina: drains at a canter or gallop, refills slower and walking.
+        // Stamina: a gallop drains it (about 35 s fresh, 75 s at bond level 4: P83, "stamina far too short" at 21 s), a
+        // canter barely, a trot or walk refills it.
         let frac = now / max(top, 1)
-        let rateS: Float = frac > 0.85 ? -7 * HorseFeel.drain[lvl - 1]
-            : (frac > 0.6 ? -2.5 * HorseFeel.drain[lvl - 1] : (12 - 12 * frac) * HorseFeel.regen[lvl - 1])
+        let rateS: Float = frac > 0.85 ? -4.2 * HorseFeel.drain[lvl - 1]
+            : (frac > 0.6 ? -0.5 * HorseFeel.drain[lvl - 1] : (12 - 12 * frac) * HorseFeel.regen[lvl - 1])
         stamina += rateS * dt
         if h.stamina <= 0 && !h.spent { h.spent = true; g.onToast?("Your horse is blown: ease off to a trot") }
         // Nerves: a hostile monster right beside the horse.

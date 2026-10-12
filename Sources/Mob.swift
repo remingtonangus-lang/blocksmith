@@ -1379,6 +1379,9 @@ final class Mob {
         if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
+        // A bonded horse is hardier (P83, Oct 12: bond should raise health as well as stamina): bond levels 2-4 take
+        // 85 / 72 / 60 % of a hit.
+        if gaited && tamed && damage > 1 { damage = max(1, Int((Float(damage) * HorseFeel.toughness[bondLevel - 1]).rounded())) }
         // An Aegis Marine's energy shield soaks the hit first (Navy.swift).
         if shieldMax > 0 && damage > 0 { damage = shieldHit(damage); if damage <= 0 { return } }
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
