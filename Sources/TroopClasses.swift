@@ -63,6 +63,7 @@ extension Mob {
     // A Greywall base's soldier: the class rises with the base's tier.
     func greyTroop(tier t: Greywall.Tier, at p: V3) {
         let roll = hashf(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), 8102)
+        guard t != .outpost else { setTroop(.regular); return }      // an outpost's garrison: Regulars only
         switch kind {
         case .soldierIronclad: setTroop(t.rawValue >= 2 ? .hannibal : .specOps)
         case .soldierMarksman: setTroop(t.rawValue >= 1 ? .specOps : .regular)

@@ -47,7 +47,7 @@ enum TroopTests {
                 }
             }
             let h = seen[.hannibal] ?? 0, s = seen[.specOps] ?? 0
-            if (t.rawValue < 2 && h > 0) || (t.rawValue >= 2 && h == 0) || (t.rawValue >= 1 && s == 0) { ok = false }
+            if (t.rawValue < 2 && h > 0) || (t.rawValue >= 2 && h == 0) || (t.rawValue >= 1 && s == 0) || (t == .outpost && s > 0) { ok = false }
             rows.append("\(t): \(seen[.regular] ?? 0) regular, \(s) spec ops, \(h) Hannibal")
         }
         check(ok, "troop classes by Greywall tier, with their guns: \(rows.joined(separator: "; "))")

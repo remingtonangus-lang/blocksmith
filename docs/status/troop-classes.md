@@ -15,6 +15,10 @@ Lane A thread, 2026-10-12. Code: Sources/TroopClasses.swift (classes, segmented 
 The name Hannibal is historical, not coined by a reference game (checked against tools/coined-terms.txt), so it stays
 as Remington wrote it.
 
+A Greywall outpost's garrison is all Regulars; Spec Ops start at the garrison tier.
+
+The time-to-kill tables count continuous hits; a real fight adds misses, bursts and cover.
+
 ## Segmented armour
 - A round lands on the helmet (top fifth), greaves (below the hips) or vest (between) by where it hits; a melee blow
   lands on the vest.
