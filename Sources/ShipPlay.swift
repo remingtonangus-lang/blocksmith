@@ -327,7 +327,16 @@ extension Game {
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later), else fires the
             // cannons, raised to the view pitch.
             if breakNow && ships.playerMainGun(s, pitch: player.pitch, game: self) { swing = 1; return true }
-            if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
+            // P93: in survival the guns use cannonballs from the pack, one a gun.
+            if breakNow {
+                let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
+                if survival && guns > 0 && s.role == nil && Wrecks.cannonballs(self) == 0 {
+                    onToast?("No cannonballs (craft them from iron and gunpowder)")
+                } else {
+                    let fired = ships.fire(s, pitch: player.pitch + 0.05, game: self)
+                    if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
+                }
+            }
             return true
         }
         let eye = player.eye, look = player.look

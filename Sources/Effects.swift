@@ -409,6 +409,7 @@ extension Game {
         d["money"] = "\(money)"
         TownLaw.save(&d)
         Reckoning.save(&d)
+        AutoTurrets.save(&d)
         Hunting.save(&d)
         Countries.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
@@ -449,6 +450,7 @@ extension Game {
         money = d["money"].flatMap { Int($0) } ?? Money.start
         TownLaw.load(d, seed: world.seed)
         Reckoning.load(d, game: self)
+        AutoTurrets.load(d)
         Hunting.load(d)
         Countries.load(d)
         deepVisited = d["deepVisited"] == "1"

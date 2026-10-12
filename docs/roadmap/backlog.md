@@ -95,7 +95,7 @@ P71. [DONE: PR #56, 2026-10-12: wide-town streets 5 across.] Village paths are s
 P72. [DONE: PR #56, 2026-10-12: open tab gold.] Menu tabs: the selected grey tab does not change colour; only haptics show it. Make the selected tab clearly highlighted.
 P73. [DONE: PR #56, 2026-10-12: tap the map to pin a waypoint.] Map: let him place a waypoint on explored map areas.
 P74. [DONE: PR #56, 2026-10-12: gun in hand opens doors, left grip steps the hotbar.] Holding a gun breaks other inputs: doors will not open and the left grip (inventory wheel) does not work while a gun is held.
-P75. Ground cover: the scattered bits of grass look wrong (flowers look great, keep them). He hands this to us: experiment and pick whatever looks best.
+P75. [DONE: PR #56, 2026-10-12: short grass drawn by the painted blade tufts (36 blades, taller, spread) instead of the stubby imported sprite, compared on the Quest renderer; flowers unchanged. TextureGen.painted lists layers kept painted.] Ground cover: the scattered bits of grass look wrong (flowers look great, keep them). He hands this to us: experiment and pick whatever looks best.
 P76. [DONE: PR #56, 2026-10-12: saddlebags chest on a tamed gaited horse.] Saddle bags: a small chest on the saddle to carry items on the horse.
 P77. [DONE: PR #56, 2026-10-12: blade trail smoothed and dimmed, no strobe.] Sword: a white strobing flicker appears when moving the sword (likely the blade trail). Keep: swing mode, the sword look, the crafting fix.
 P78. [DONE: PR #56, 2026-10-12: corpses not red.] The red hit mark did not stay on the target; dead mobs stay tinted red on the ground; corpses should not be red.
@@ -106,14 +106,14 @@ P82. Regression or not reaching the headset: the Farsight rifle still cannot aim
 P83. [DONE: PR #56, 2026-10-12: longer gallop, bonding toughens.] Horses: running animation still bad; stamina far too short; bonding levels should raise stamina and health like RDR2; RDR2-style health and stamina cores in the UI.
 P84. [DONE: PR #56, 2026-10-12: Polygon Terrain row on the Video page and the world screen.] He cannot find the polygon (smooth terrain) option after several asks: make it obvious (it is at Create New World > Terrain and Options > Video), e.g. a clearly labelled toggle on the world screen; confirm it shows on the Quest build.
 P85. [DONE: PR #56, 2026-10-12: no hotbar hints on the headset.] HUD: remove the L-grip / right-stick hint labels beside the hotbar and the sprint indicator (keep the translucency, he likes it).
-P86. Wall torches look bad: they look fused to the wall and not fully textured.
+P86. [DONE: PR #56, 2026-10-12: a wall torch is one slanted stick (Box.leanX/leanZ shears its top 5 px out) with its foot on the wall, and its sides now sample the torch art (they were blank at the wall's edge).] Wall torches look bad: they look fused to the wall and not fully textured.
 P87. [DONE: PR #56, 2026-10-12: riders on roads about 2.4x as often.] Roads with riders near villages: he still wants them; make sure they appear (they are new-chunk only in old worlds, so check generation).
 P88. [DONE: PR #56, 2026-10-12: 3-5 hunters, twice as tough, red crosses on the map, combat music.] Bounty hunters must be a big deal (RDR2): a map marker at a distance, a music change when they come, and tougher fights.
 P89. [DONE: PR #56, 2026-10-12: leaves rustle.] The leaf-breaking sound sounds wrong.
 P90. [DONE: PR #56, 2026-10-12: no turtles by cold ground.] Turtles appear near a snow biome; fix biome rules for turtle spawns.
 P91. [DONE: PR #56, 2026-10-12: stations, Greywall bases and citadels bank down into the land on new ground.] Bases sit on raised block platforms; blend their foundations into the terrain.
-P92. [feature] Capital trains: a procedurally generated rail line leading out of a base with a train on it (fold into C1 railways).
-P93. [feature] Pirates and wrecks: repair broken ships and float them, craft cannons and cannonballs to mount, combine a computer taken from a base with a cannon for an auto-firing turret. Player-built vs preset vehicles and damage physics are left to us.
+P92. [DONE: PR #56, 2026-10-12: a citadel on new ground lays a rail spur of up to 150 blocks (cuttings, trestles, ballast, buffer stops, a platform with lamps) with a parked train: a Capital Locomotive (furnace cart) and two freight cars of supplies. Folded into C1 later.] [feature] Capital trains: a procedurally generated rail line leading out of a base with a train on it (fold into C1 railways).
+P93. [DONE: PR #56, 2026-10-12: wrecks on new ground are rotten (Rotten Planks) and a helm raises one once they're replaced; ship guns use Cannonballs in survival (iron + gunpowder makes 4); a cannon next to a base computer (console, Greywall terminal or server) is an auto-turret. Pirates as a faction and computers on ships are T15.] [feature] Pirates and wrecks: repair broken ships and float them, craft cannons and cannonballs to mount, combine a computer taken from a base with a cannon for an auto-firing turret. Player-built vs preset vehicles and damage physics are left to us.
 P94. [DONE: PR #56, 2026-10-12: clearer ice.] Ice: a nicer, semi-transparent texture you can see through to the bottom.
 P95. [DONE: PR #56, 2026-10-12: stations 6% and Greywall bases 15% of their old share on new ground.] Bunker bases and military towers are far too common (three within minutes); the rarity rule (about one per 4000x4000) is not holding, at least where he played.
 P96. [DONE: PR #56, 2026-10-12: outlaw only within 800 of where it happened.] Outlaw status should be local: far from the village where he became an outlaw, people should not try to kill him.
@@ -358,6 +358,7 @@ quit. C8: enemy submarines you can capture, the pinging frigate steering to the 
 mines sitting in a dry cell inside the water. A5: the map fog saved on quit (every 10 s today). C7: frigates over high
 ground keep clear of sky isles (with T11).
 T14. [PR #56 verifier leftovers, Lane A, 2026-10-12] P69: crawlers still fight for the Capital ("crawlers aren't Capital either"); P87: only the rider chance went up, nothing checks roads near villages in World376; P91: no test of berm seams across chunks; Game.restedAt is static (the rest cooldown carries across worlds in one session).
+T15. [P93 leftovers, Lane A, 2026-10-12] Pirates as a sea faction (crewed wrecks, raids from the water); an auto-turret on a ship (cannon + computer aboard); patching a wreck's open bow so it floats (today only rotten planks gate raising).
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate

@@ -104,6 +104,28 @@ if let out = arg("--view"), let ctx = vkctx {
         yaw += .pi / 2
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --scene torches: a stone wall with a wall torch facing each way round a pillar, a standing torch and a lawn of
+    // short grass and flowers in front, in the air at --at, seen from 4 blocks off (P86 wall torches, P75 grass bits).
+    if arg("--scene") == "torches" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 6)...(bx + 6) { for z in (bz - 8)...(bz + 2) {
+            vw.setBlock(x, by, z, Blocks.id("grass_block"))
+            for y in (by + 1)...(by + 5) { vw.setBlock(x, y, z, z == bz - 8 ? STONE : AIR) }
+        } }
+        for y in (by + 1)...(by + 3) { vw.setBlock(bx + 3, y, bz - 5, STONE) }        // a pillar: torches on its four sides
+        vw.setBlock(bx, by + 2, bz - 7, TORCH + 2)                                     // on the back wall, facing the camera
+        vw.setBlock(bx - 2, by + 2, bz - 7, Blocks.id("soul_torch[2]"))
+        vw.setBlock(bx + 3, by + 2, bz - 4, TORCH + 2)
+        vw.setBlock(bx + 2, by + 2, bz - 5, TORCH + 3)
+        vw.setBlock(bx + 4, by + 2, bz - 5, TORCH + 4)
+        vw.setBlock(bx - 4, by + 1, bz - 5, TORCH)
+        for x in (bx - 6)...(bx + 6) { for z in (bz - 4)...(bz + 1) where (x * 7 + z * 13) % 3 != 0 {
+            vw.setBlock(x, by + 1, z, (x + z) % 7 == 0 ? Blocks.id("poppy") : Blocks.id("short_grass"))
+        } }
+        let dist = Float(arg("--dist") ?? "") ?? 10                // the camera's distance from the back wall
+        vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

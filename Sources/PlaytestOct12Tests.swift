@@ -28,6 +28,8 @@ enum PlaytestOct12Tests {
         navalGuns(game, check)
         bombard(game, check)
         chaseView(game, check)
+        trains(check)
+        wrecks(game, check)
     }
 
     // P88 (09:37): bounty hunters are a big deal: an outlaw draws four or more, two with six-irons, twice as tough; they
@@ -293,6 +295,163 @@ enum PlaytestOct12Tests {
         let create = m.rows.first { $0.1 == "new_terrain" }?.0 ?? ""
         check(at.allSatisfy { $0 >= 0 && $0 <= 1 } && named.allSatisfy { $0 } && create.contains("Polygons"),
               "P84 polygon terrain: row \(at) on the Video page (desktop, headset), named Polygon (\(named)); Create New World: '\(create)'")
+    }
+
+    // P92: a citadel on new ground lays a rail spur with a parked train: every step a connected rail with head room and
+    // a bed under it, buffer stops, the locomotive and two freight cars, clear of every other structure; old ground none.
+    static func trains(_ check: (Bool, String) -> Void) {
+        let p440 = WorldRules.p44
+        defer { WorldRules.p44 = p440 }
+        func citadels(_ on: Bool) -> (WorldGen, [StructureStart]) {
+            WorldRules.p44 = on
+            let gen = WorldGen(seed: 12345)
+            guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "military_base" }) else { return (gen, []) }
+            var out: [StructureStart] = []
+            let span = t.spacing * CS
+            for rz in floorDiv(-8000, span)...floorDiv(8000, span) { for rx in floorDiv(-8000, span)...floorDiv(8000, span) {
+                if let st = sc.start(t, regionX: rx, regionZ: rz) { out.append(st) }
+            } }
+            return (gen, out)
+        }
+        func spur(_ st: StructureStart) -> Piece? { st.pieces.first { $0.max.z - $0.min.z == 7 && $0.max.x - $0.min.x > 40 } }
+        let (_, old) = citadels(false)
+        let oldSpurs = old.filter { spur($0) != nil }.count
+        let (gen, fresh) = citadels(true)
+        let withRail = fresh.filter { spur($0) != nil }
+        var bad: [String] = [], cars: [String] = [], steps = 0, overlaps = 0, inWay: [String] = []
+        if let st = withRail.first, let sc = gen.structures, let p = spur(st) {
+            // The line again (the same plan the start used; the anchor is on the citadel's centre line).
+            let x = st.anchor.x, z = p.min.z + 3 - CapitalRail.lineZ
+            if let l = CapitalRail.plan(gen, x, z, gen.seed) {
+                var chunks: [IVec2Key: [BlockID]] = [:]
+                for cxk in floorDiv(min(l.x(0), l.x(l.level.count - 1)) - 2, CS)...floorDiv(max(l.x(0), l.x(l.level.count - 1)) + 2, CS) {
+                    let czk = floorDiv(l.z, CS)
+                    for dz in -1...1 {
+                        var blocks = gen.generate(cx: cxk, cz: czk + dz)
+                        cars += sc.place(into: &blocks, cx: cxk, cz: czk + dz).mobs.map { $0.0 }.filter { $0.hasPrefix("minecart") }
+                        chunks[IVec2Key(cxk, czk + dz)] = blocks
+                    }
+                }
+                func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+                    guard let c = chunks[IVec2Key(floorDiv(x, CS), floorDiv(z, CS))], y >= 0, y < CH else { return AIR }
+                    return c[Chunk.index(mod(x, CS), y, mod(z, CS))]
+                }
+                for i in 0..<l.level.count {
+                    let xx = l.x(i), y = l.level[i], b = at(xx, y, l.z)
+                    steps += 1
+                    if !Rails.isRail(b) { bad.append("step \(i): \(Blocks.key(b)) not rail"); continue }
+                    if Rails.shape(b) != CapitalRail.shape(l, i) { bad.append("step \(i): shape \(Rails.shape(b))") }
+                    if at(xx, y + 1, l.z) != AIR || at(xx, y + 2, l.z) != AIR { bad.append("step \(i): no head room") }
+                    if !Blocks.collide[Int(at(xx, y - 1, l.z))] { bad.append("step \(i): nothing under the rail") }
+                    if i > 0 && abs(l.level[i] - l.level[i - 1]) > 1 { bad.append("step \(i): a jump") }
+                }
+                // Clear of every other structure.
+                // (Underground and sky kinds aside: the spur's box reaches 40 down for trestle legs.)
+                for t in sc.types where !["military_base", "mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", SkyIsle.kind].contains(t.name) {
+                    let span = t.spacing * CS
+                    for rz in (floorDiv(p.min.z, span) - 1)...(floorDiv(p.max.z, span) + 1) { for rx in (floorDiv(p.min.x, span) - 1)...(floorDiv(p.max.x, span) + 1) {
+                        guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+                        if o.max.x >= p.min.x && o.min.x <= p.max.x && o.max.z >= p.min.z && o.min.z <= p.max.z { overlaps += 1; inWay.append(o.kind) }
+                    } }
+                }
+            } else { bad.append("no plan") }
+        }
+        let loco = Mob.structureMob("minecart:loco_e", at: V3(0, 100, 0)), freight = Mob.structureMob("minecart:freight", at: V3(4, 100, 0))
+        let carsOK = loco?.variant == 4 && loco?.customName == "Capital Locomotive" && freight?.variant == 1 && (freight?.cargo.map { c in (0..<c.count).contains { !c[$0].isEmpty } } ?? false)
+        check(oldSpurs == 0 && !withRail.isEmpty && bad.isEmpty && steps >= 40 && cars.count == 3 && carsOK && overlaps == 0,
+              "P92 trains: \(withRail.count) of \(fresh.count) citadels on new ground lay a rail spur (old ground \(oldSpurs)); the first: \(steps) steps of connected track with head room and a bed, "
+              + "\(cars.count) cars parked (\(cars.joined(separator: " "))), cars set up \(carsOK), \(overlaps) other structures in its way \(inWay)" + (bad.isEmpty ? "" : "; " + bad.prefix(4).joined(separator: "; ")))
+    }
+
+    // P93: wrecks on new ground are rotten, not holed, and a helm won't raise one until the rotten planks are replaced;
+    // a ship's guns use cannonballs; a cannon by a base computer is an auto-turret that hurts hostiles, not blocks.
+    static func wrecks(_ g: Game, _ check: (Bool, String) -> Void) {
+        let p440 = WorldRules.p44
+        defer { WorldRules.p44 = p440 }
+        // Generated wrecks: rotten planks on new ground only.
+        func rot(_ on: Bool) -> (Int, Int) {
+            WorldRules.p44 = on
+            let gen = WorldGen(seed: 12345)
+            guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "shipwreck" }) else { return (0, 0) }
+            var n = 0, wrecks = 0
+            for rz in -3...3 { for rx in -3...3 where wrecks < 4 {
+                guard let st = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+                wrecks += 1
+                for cz in floorDiv(st.min.z, CS)...floorDiv(st.max.z, CS) { for cx in floorDiv(st.min.x, CS)...floorDiv(st.max.x, CS) {
+                    var blocks = gen.generate(cx: cx, cz: cz)
+                    _ = sc.place(into: &blocks, cx: cx, cz: cz)
+                    n += blocks.reduce(0) { $0 + ($1 == Wrecks.rottenID ? 1 : 0) }
+                } }
+            } }
+            return (n, wrecks)
+        }
+        let (oldRot, _) = rot(false), (newRot, wrecks) = rot(true)
+        // The helm refuses a rotten hull, then raises it once the plank is replaced.
+        let w = g.world, pos0 = g.player.pos
+        // A 3 x 3 raft of planks in the air with a helm on it (and, first, a rotten plank at its edge).
+        let rx = Int(floor(pos0.x)) - 30, rz = Int(floor(pos0.z)) + 30
+        _ = w.loadSync(center: V3(Float(rx), pos0.y, Float(rz)), radius: 2)
+        let ry = min(CH - 10, w.topY(rx, rz) + 20)
+        var raftCells: [(IVec3, BlockID)] = []
+        for z in (rz - 1)...(rz + 1) { for x in (rx - 1)...(rx + 1) { raftCells.append((IVec3(x, ry, z), w.block(x, ry, z))); w.setBlock(x, ry, z, PLANKS) } }
+        raftCells.append((IVec3(rx, ry + 1, rz), w.block(rx, ry + 1, rz))); raftCells.append((IVec3(rx + 2, ry, rz), w.block(rx + 2, ry, rz)))
+        w.setBlock(rx, ry + 1, rz, Blocks.id("ship_helm"))
+        let helm = IVec3(rx, ry + 1, rz)
+        let plank: IVec3? = IVec3(rx + 2, ry, rz)
+        var refused = "", raised = false
+        if let pl = plank {
+            let was = w.block(pl.x, pl.y, pl.z)
+            w.setBlock(pl.x, pl.y, pl.z, Wrecks.rottenID)
+            let (no, msg) = w.ships.assemble(at: helm, game: g)
+            refused = no == nil ? msg : ""
+            w.setBlock(pl.x, pl.y, pl.z, was)
+            if let s = w.ships.assemble(at: helm, game: g).0 { raised = true; w.ships.remove(s) }
+        }
+        for (p, b) in raftCells.reversed() { w.setBlock(p.x, p.y, p.z, b) }
+        // Cannonballs: the pack pays one a gun.
+        let inv = g.inventory.main, slot0 = inv[0]
+        inv[0] = ItemStack(Items.id(Wrecks.cannonball), 3)
+        Wrecks.useCannonballs(g, 2)
+        let balls = Wrecks.cannonballs(g)
+        inv[0] = slot0
+        // The auto-turret: a cannon and a console on a stone deck in the air, a zombie 16 blocks off.
+        let mobs0 = g.mobs.mobs, time0 = g.time
+        let fx = Int(floor(pos0.x)) + 40, fz = Int(floor(pos0.z)) - 40
+        _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 3)
+        let py = min(CH - 14, w.topY(fx, fz) + 30)
+        var placed: [(IVec3, BlockID)] = []
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { placed.append((IVec3(x, y, z), w.block(x, y, z))); w.setBlock(x, y, z, b) }
+        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) {
+            put(x, py, z, STONE)
+            for y in (py + 1)...(py + 5) where w.block(x, y, z) != AIR { put(x, y, z, AIR) }
+        } }
+        put(fx, py + 1, fz, Blocks.id("ship_cannon"))
+        put(fx - 1, py + 1, fz, Blocks.id("command_console"))
+        let sites0 = AutoTurrets.sites
+        AutoTurrets.sites = []
+        AutoTurrets.placed(g, IVec3(fx - 1, py + 1, fz))
+        let online = AutoTurrets.sites.contains(IVec3(fx, py + 1, fz))
+        g.mobs.mobs = []
+        let z0 = Mob(.zombie, at: V3(Float(fx + 16) + 0.5, Float(py + 1), Float(fz) + 0.5))
+        z0.health = 200
+        g.mobs.mobs.append(z0)
+        var deck = 0
+        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deck += 1 } }
+        for _ in 0..<(72 * 6) {
+            z0.pos = V3(Float(fx + 16) + 0.5, Float(py + 1), Float(fz) + 0.5); z0.vel = .zero
+            AutoTurrets.tick(g, 1.0 / 72)
+            w.ships.updateShells(1.0 / 72, game: g)
+        }
+        var deckAfter = 0
+        for z in (fz - 4)...(fz + 4) { for x in (fx - 2)...(fx + 20) where w.block(x, py, z) == STONE { deckAfter += 1 } }
+        let hurt = 200 - z0.health
+        w.ships.shells.removeAll()
+        AutoTurrets.sites = sites0
+        g.mobs.mobs = mobs0; g.time = time0
+        for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
+        check(oldRot == 0 && newRot > 0 && refused.contains("rotten") && raised && balls == 1 && online && hurt > 0 && deckAfter == deck,
+              "P93 wrecks: \(wrecks) wrecks on new ground have \(newRot) rotten planks (old ground \(oldRot)); a rotten hull is refused ('\(refused)'), raised once replaced (\(raised)); "
+              + "3 cannonballs less 2 leaves \(balls); a cannon by a console comes online (\(online)) and hits a zombie 16 off for \(hurt) without breaking blocks (\(deck) -> \(deckAfter))")
     }
 
     // P69 (09:18-09:19): on new ground a Boreal station is Greywall Command's (its troops and stores), and stations and

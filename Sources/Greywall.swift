@@ -174,7 +174,7 @@ enum Greywall {
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base",
                           "capital_city", "great_ruin", BorealStation.kind] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
-                    let m = t.half + (apart && WorldRules.capitalKinds.contains(k) ? WorldRules.capitalApartP69 : 16)
+                    let m = apart && WorldRules.capitalKinds.contains(k) ? t.half + Greywall.margin + WorldRules.capitalApartP69 : t.half + 16   // (P69: the whole box)
                     if o.max.x >= bx - m && o.min.x <= bx + m && o.max.z >= bz - m && o.min.z <= bz + m { return true }
                 }
                 return false

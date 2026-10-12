@@ -24,6 +24,7 @@ final class Shell {
     weak var seekMob: Mob?
     var seekPlayer = false
     var seekPoint: V3?
+    var gentle = false               // hurts, breaks no blocks (an auto-turret's shell: Wrecks.swift)
     init(pos: V3, vel: V3, owner: Int, power: Float) { self.pos = pos; self.vel = vel; self.owner = owner; self.power = power }
 }
 
@@ -127,7 +128,7 @@ extension ShipManager {
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
-        var blasts: [(V3, Float, Int, Bool, Int)] = []
+        var blasts: [(V3, Float, Int, Bool, Int, Bool)] = []
         for sh in shells {
             sh.age += dt
             let start = sh.pos
@@ -195,12 +196,12 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
-            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind)); continue }
+            if let p = hit { blasts.append((p, sh.power, sh.owner, onHull, sh.kind, sh.gentle)); continue }
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
-        for (p, power, owner, onHull, kind) in blasts {
+        for (p, power, owner, onHull, kind, gentle) in blasts {
             if kind == 3, let g = game {
                 let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
                 mainGunImpact(at: p, owner: owner, game: g)
@@ -215,12 +216,12 @@ extension ShipManager {
                 // (Not a hull the player steers: a captured frigate's guns hit its old side.)
                 let steered = from != nil && g.world.ships.pilot?.root.id == from?.root.id
                 g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
-                Explosion.explode(at: p, power: power, game: g)
+                Explosion.explode(at: p, power: power, game: g, breakBlocks: !gentle)
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
-            } else { blast(at: p, power: power, game: nil) }
+            } else if !gentle { blast(at: p, power: power, game: nil) }
         }
     }
 

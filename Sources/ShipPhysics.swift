@@ -173,6 +173,7 @@ extension ShipManager {
         if steps == 4 { accum = 0 }
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
+        if let g = game { AutoTurrets.tick(g, dt) }                // P93 (Wrecks.swift)
         TickProf.mark("ships.shells")
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {

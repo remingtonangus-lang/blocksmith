@@ -17,6 +17,7 @@ enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 struct Box {
     var x0: UInt8, y0: UInt8, z0: UInt8, x1: UInt8, y1: UInt8, z1: UInt8
     var tex: [UInt16]
+    var leanX: Int8 = 0, leanZ: Int8 = 0     // the top face shifted this many 1/16 (a slanted prism: wall torches, P86)
     init(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, tex: [UInt16] = []) {
         self.x0 = UInt8(x0); self.y0 = UInt8(y0); self.z0 = UInt8(z0)
         self.x1 = UInt8(x1); self.y1 = UInt8(y1); self.z1 = UInt8(z1)
@@ -398,17 +399,13 @@ final class BlockRegistry {
                     torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), topTex, Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
                 } else {
                     let w = Tex.id(n + "_wall"), top = Tex.id(n + "_top_full"), bot = Tex.id("torch_bottom")
-                    // Leaning against the wall: the foot sits against it, the head steps out 1 px per third
-                    // (boxes are whole 1/16 units, so the tilt is stepped).
-                    let base = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
-                    let out: (Int, Int) = [(0, -1), (0, 1), (-1, 0), (1, 0)][st - 1]       // away from the wall
-                    var parts: [Box] = []
-                    for (k, (y0, y1)) in [(3, 6), (6, 10), (10, 13)].enumerated() {
-                        let sx = out.0 * (k - 1), sz = out.1 * (k - 1)
-                        parts.append(Box(Int(base.x0) + sx, y0, Int(base.z0) + sz, Int(base.x1) + sx, y1, Int(base.z1) + sz,
-                                         tex: [w, w, k == 2 ? top : w, k == 0 ? bot : w, w, w]))
-                    }
-                    torch.boxes = parts
+                    // Leaning out from the wall: the foot rests on it, the stick a straight slanted prism whose head
+                    // stands 5 px clear (P86, Oct 12: the old stepped stick 2 px off the wall looked fused to it).
+                    var b = [Box(7, 3, 14, 9, 13, 16), Box(7, 3, 0, 9, 13, 2), Box(14, 3, 7, 16, 13, 9), Box(0, 3, 7, 2, 13, 9)][st - 1]
+                    let out: (Int8, Int8) = [(0, -5), (0, 5), (-5, 0), (5, 0)][st - 1]       // away from the wall
+                    b.tex = [w, w, top, bot, w, w]
+                    b.leanX = out.0; b.leanZ = out.1
+                    torch.boxes = [b]
                 }
                 add(torch)
             }

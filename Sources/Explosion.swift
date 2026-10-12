@@ -254,7 +254,8 @@ final class CraterJob {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
             }
-            if Rand.float(in: 0..<1) < 0.02 {
+            // Loose blocks from the first 3000 only: P99's deep bowls (7000+ blocks) left the frame thread ticking hundreds of drops.
+            if removed < 3000 && Rand.float(in: 0..<1) < 0.02 {
                 for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
             }
             w.setBlockAsync(x, y, z, AIR)
@@ -310,7 +311,7 @@ final class CraterJob {
             guard w.chunkAt(x, z) != nil else { continue }
             // The exposed surface: the first solid block down from above the rim (plants and snow on it burnt off).
             var y = min(CH - 2, cy + Int(r) + 2)
-            let floorY = max(1, cy - Int(r))
+            let floorY = max(1, cy - max(Int(r), depth) - 1)          // (P99: the deep bowl's floor too)
             var top: BlockID = AIR
             while y > floorY {
                 let id = w.block(x, y, z)

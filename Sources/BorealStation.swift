@@ -268,7 +268,7 @@ enum BorealStation {
                 let bx = cx * CS + 8, bz = cz * CS + 8
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base", "capital_city", "great_ruin"] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
-                    let m = BorealStation.yard + (apart && WorldRules.capitalKinds.contains(k) ? WorldRules.capitalApartP69 : 12)
+                    let m = apart && WorldRules.capitalKinds.contains(k) ? BorealStation.yard + 8 + WorldRules.capitalApartP69 : BorealStation.yard + 12   // (P69: from the station's whole box)
                     if o.max.x >= bx - m && o.min.x <= bx + m && o.max.z >= bz - m && o.min.z <= bz + m { return true }
                 }
                 return false

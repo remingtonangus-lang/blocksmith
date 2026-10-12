@@ -5725,7 +5725,7 @@ enum HDTex {
         "oxeye_daisy": flowerHD(0xF4F4F4, 0xE8C83A, .ring, top: 5, size: 3, salt: 442),
         "lily_of_the_valley": flowerHD(0xF8F8F8, 0xE8F0E0, .bells, top: 6, size: 1.8, salt: 444),
         "blue_orchid": flowerHD(0x2AA8F0, 0x1A78C8, .ring, top: 5, size: 2.8, salt: 446),
-        "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
+        "short_grass": blades(salt: 101, count: 36, len: 0.25, 0.8, lean: 1.4),
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,
