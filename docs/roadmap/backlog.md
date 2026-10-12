@@ -262,7 +262,8 @@ T3. Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f1
        "VR trigger spam: zombie not dead in 6 s" and "aliased chunk blocks load as wardstone".
     d. Quest host questcheck reds that come and go on claude/quest-port itself (Lane A, PR #50 full runs 50-52,
        2026-10-12): `ash vault perf` (citadel Total War, Game.tick avg 12-14 ms against the 10 ms debug budget),
-       `maingun: the impact itself is cheap` (fx 15 ms of 17 on the frame thread), `deep: sealed lava pockets above the
+       `maingun: the impact itself is cheap` (fx 15 ms of 17 on the frame thread), `lastwar: the last wave's units cost`
+       (whole tick 22 ms against 8.6 without them, under load), `deep: sealed lava pockets above the
        lava sea`, `boreal 12345 ... birdCall`, `boreal ops: a roused soldier leaves the shut archive` (passes alone).
        Load-dependent on a 4-core runner; each needs its own fix (the fx cost first), not a looser budget.
 T4. Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
