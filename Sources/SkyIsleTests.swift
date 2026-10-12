@@ -94,7 +94,7 @@ enum SkyIsleTests {
         check(craft.map { Items.key($0.item) } == GrappleLine.key, "grapple: iron and two string make a Grapple Line")
 
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, held0 = g.inventory.main[g.inventory.selected]
-        let toast0 = g.onToast, surv0 = g.survival, menu0 = g.menu, health0 = g.health
+        let toast0 = g.onToast, surv0 = g.survival, menu0 = g.menu, health0 = g.health, fly0 = g.player.flying
         var said = ""
         g.onToast = { said = $0 }
         var placed: [IVec3] = []
@@ -102,6 +102,7 @@ enum SkyIsleTests {
             for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }
             g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; g.inventory.main[g.inventory.selected] = held0
             g.onToast = toast0; g.survival = surv0; g.menu = menu0; g.grapple = nil; g.health = health0
+            g.player.flying = fly0; g.player.vel = .zero
         }
         g.survival = true; g.menu = nil
         g.inventory.main[g.inventory.selected] = ItemStack(Items.id(GrappleLine.key), 1)

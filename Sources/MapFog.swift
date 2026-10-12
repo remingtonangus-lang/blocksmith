@@ -90,7 +90,7 @@ final class MapFog {
 
     // Harness: forget everything (temp world tests), or swap the explored tiles out and back.
     func reset() { tiles = [:]; world = ""; version &+= 1 }
-    var snapshot: [String: Set<Int64>] { get { tiles } set { tiles = newValue; version &+= 1 } }
+    var snapshot: [String: Set<Int64>] { get { tiles } set { tiles = newValue; cur = tiles[dim] ?? []; version &+= 1 } }
 }
 
 // The compass (A5): held in either hand on the surface, a strip across the top of the view shows the heading and the

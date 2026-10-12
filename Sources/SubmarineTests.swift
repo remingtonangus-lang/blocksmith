@@ -11,6 +11,7 @@ import simd
 enum SubmarineTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let w = g.world
+        let enc0 = w.ships.encounters, fly0 = g.player.flying
         w.ships.encounters = false
         let craft = Recipes.match([Items.id("iron_ingot"), Items.id("glass"), Items.id("iron_ingot"),
                                    Items.id("ship_helm"), Items.id("ship_engine"), Items.id("ship_propeller"),
@@ -29,6 +30,7 @@ enum SubmarineTests {
             w.ships.shells.removeAll(); w.ships.pilot = nil
             g.player.pos = pos0; g.player.yaw = yaw0; g.survival = surv0; g.inventory.main[g.inventory.selected] = held0
             g.onToast = toast0; g.health = health0; Submarine.creativeSafe = safe0
+            w.ships.encounters = enc0; g.player.flying = fly0; g.player.vel = .zero      // (later checks walk and fight on foot)
         }
         g.survival = true
         g.inventory.main[g.inventory.selected] = ItemStack(Items.id(Submarine.kitKey), 1)

@@ -18,7 +18,8 @@ enum MapFogTests {
         }
         g.survival = true
         fog.snapshot = [:]
-        fog.tick(g)                                                    // (loads this world's fog, reveals round the player)
+        fog.tick(g)                                                    // (loads this world's fog)
+        fog.reveal(around: g.player.pos)                               // (the tick reveals once a second: an earlier check may have just had it)
         let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
         let far = (px + 900, pz - 700)
         let near = !fog.fogged(px + 40, pz + 40) && !fog.fogged(px - 80, pz)

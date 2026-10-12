@@ -777,14 +777,23 @@ if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: devi
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
-if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) }
-TroopTests.run(game: game, check: check)
-NavyTests.run(game: game, check: check)
-SkySkiffTests.run(game: game, check: check)
-MapFogTests.run(game: game, check: check)
-RadioTests.run(game: game, check: check)
-SkyIsleTests.run(device: device, game: game, check: check)
-SubmarineTests.run(game: game, check: check)
+// Each Lane A group must leave the player and world as it found them: a skiff check that left the player flying moved
+// every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
+func leaves(_ name: String, _ body: () -> Void) {
+    let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
+    body()
+    let moved = simd_length(game.player.pos - pos)
+    check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu,
+          "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"))")
+}
+leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
+leaves("troopclasses") { TroopTests.run(game: game, check: check) }
+leaves("navy") { NavyTests.run(game: game, check: check) }
+leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
+leaves("mapfog") { MapFogTests.run(game: game, check: check) }
+leaves("radio") { RadioTests.run(game: game, check: check) }
+leaves("skyisle") { SkyIsleTests.run(device: device, game: game, check: check) }
+leaves("submarine") { SubmarineTests.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

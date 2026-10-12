@@ -9,6 +9,7 @@ import simd
 enum SkySkiffTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let w = g.world
+        let enc0 = w.ships.encounters
         w.ships.encounters = false
         let craft = Recipes.match([Items.id("ship_balloon"), Items.id("ship_balloon"), Items.id("ship_balloon"),
                                    Items.id("ship_balloon"), Items.id("ship_helm"), Items.id("ship_balloon"),
@@ -16,12 +17,14 @@ enum SkySkiffTests {
         check(craft.map { Items.key($0.item) } == SkySkiff.key, "skiff: five lift balloons, a helm, an engine and two propellers make a Sky Skiff Kit")
 
         let pos0 = g.player.pos, yaw0 = g.player.yaw, surv0 = g.survival, held0 = g.inventory.main[g.inventory.selected], toast0 = g.onToast
+        let fly0 = g.player.flying
         var said = ""
         g.onToast = { said = $0 }
         var placed: [IVec3] = []
         defer {
             for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }
             g.player.pos = pos0; g.player.yaw = yaw0; g.survival = surv0; g.inventory.main[g.inventory.selected] = held0; g.onToast = toast0
+            g.player.flying = fly0; g.player.vel = .zero; w.ships.encounters = enc0      // (later checks walk and fight on foot)
         }
         g.survival = true
         g.inventory.main[g.inventory.selected] = ItemStack(Items.id(SkySkiff.key), 1)
