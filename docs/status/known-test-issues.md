@@ -93,3 +93,10 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   about +0.5 ms optimized). The Last Line's garrison was cut from ~44 to 12 to get there; the vehicles also got distance
   detail levels so "ash vault draw" stays inside its mob vertex budget (3.5 of 4.0 MB). The perf check stays red until
   the battle's per-unit AI cost comes down (the tanks are the dearest).
+
+## 2026-10-12: the scripted playthrough on the Linux host (Q2, PR #55)
+- `questcheck --playthrough` (seed 12345, ~17 min wall) fails three late-game checks: "blight: defeated in 601 s (388
+  arrows for 37 damage, 0 sword hits)", "blight: the Blight Star drops and is picked up", and "deep: the Ash Chancellor
+  falls (260 swings, health 420 -> 105)". The Blight one is the Mac heavy lane's known red on quest-port too (the
+  bot's arrows barely hurt it); the Chancellor fight is the same kind (the scripted swings run out before he falls).
+  Neither touches what PR #55 changed. The first-hour goal checks in the same run pass (16 goals in order, 0 back).
