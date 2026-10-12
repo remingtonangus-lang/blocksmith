@@ -10,10 +10,11 @@ enum InputLatencyTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let w = g.world, pm = PadManager.shared
         let dt = 1.0 / 72
-        let surv0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, sel0 = g.selected
+        let menu0 = g.menu, surv0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, sel0 = g.selected
         let slot0 = g.inventory.main[0], slot1 = g.inventory.main[1], time0 = g.time, mobs0 = g.mobs.mobs
         // A stone floor high over the spawn with a dirt wall two blocks north, out of the way of the world's own blocks.
         let fx = Int(floor(pos0.x)) + 40, fz = Int(floor(pos0.z)) + 40
+        _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 2)       // (the full run may have the player far off)
         let py = min(CH - 12, w.topY(fx, fz) + 30)
         var placed: [(IVec3, BlockID)] = []
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
@@ -31,7 +32,7 @@ enum InputLatencyTests {
             for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
             g.survival = surv0; g.player.pos = pos0; g.player.vel = .zero; g.player.yaw = yaw0; g.player.pitch = pitch0
             g.inventory.main[0] = slot0; g.inventory.main[1] = slot1; g.selected = sel0; g.time = time0; g.mobs.mobs = mobs0
-            g.mining = nil; if g.menu != nil { g.closeMenu() }; g.paused = false
+            g.mining = nil; if g.menu != nil { g.closeMenu() }; g.paused = false; g.menu = menu0
         }
         let spot = V3(Float(fx) + 0.5, Float(py + 1), Float(fz) + 0.5)
         var mob: Mob?
@@ -51,6 +52,8 @@ enum InputLatencyTests {
             setup()
             pm.touch = PadSnapshot()
             for _ in 0..<20 { g.tick(dt) }                 // on the ground, still, the press edge clear
+            for _ in 0..<72 where !g.player.onGround { g.tick(dt) }
+            for e in Effect.allCases { g.effects.remove(e) }
             if let m = mob, g.mobs.mobs.contains(where: { $0 === m }) { m.pos = spot + mobAt; m.vel = .zero; g.player.pitch = aimPitch }
             g.swing = 0
             var p = PadSnapshot()

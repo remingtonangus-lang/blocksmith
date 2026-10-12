@@ -41,6 +41,7 @@ final class QuestControls {
     private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
     private var lastAimHand: XRHand?               // drawHeld: the last tracked aim pose
     private var sneakLatch = false              // tapped: sneak until the next tap
+    private var l3Rode = false                  // the left stick click began while riding
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
     private var prevClickSprint = false         // (riding: one spur per click)
@@ -367,8 +368,11 @@ final class QuestControls {
         if inMenu {
             l3Hold = 0; sneakLatch = false
         } else {
-            if sneakClick { l3Hold += dt } else {
-                if l3Hold > 0 && l3Hold < 0.3 { sneakLatch.toggle() }
+            if sneakClick { if l3Hold == 0 { l3Rode = game.riding != nil }; l3Hold += dt } else {
+                // A click that began on a mount was the sneak that got off (the held click already dismounts): it
+                // doesn't latch, or the player stayed sneaking on foot and the next horse threw them off at once
+                // (questcheck touch matrix, Q2).
+                if l3Hold > 0 && l3Hold < 0.3 && !l3Rode { sneakLatch.toggle() }
                 l3Hold = 0
             }
             if game.player.flying || game.player.inWater { sneakLatch = false }

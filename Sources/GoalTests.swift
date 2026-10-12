@@ -10,19 +10,22 @@ enum GoalTests {
 
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let st = Settings.shared
-        let surv0 = g.survival, paused0 = g.paused, adv0 = g.advancements, step0 = st.tutorialStep, hints0 = st.tutorialHints, menu0 = g.menu
+        let pos0 = g.player.pos, fly0 = g.player.flying, time0 = g.time, surv0 = g.survival, paused0 = g.paused, adv0 = g.advancements, step0 = st.tutorialStep, hints0 = st.tutorialHints, menu0 = g.menu
         let main0 = g.inventory.main.slots, armor0 = g.inventory.armor.slots, off0 = g.inventory.offhand.slots, en0 = HudExtras.enabled
         defer {
             g.survival = surv0; g.paused = paused0; g.advancements = adv0; st.tutorialStep = step0; st.tutorialHints = hints0
             for i in 0..<main0.count { g.inventory.main[i] = main0[i] }
             for i in 0..<armor0.count { g.inventory.armor[i] = armor0[i] }
             for i in 0..<off0.count { g.inventory.offhand[i] = off0[i] }
-            if g.menu != nil && menu0 == nil { g.closeMenu() }
+            if g.menu != nil { g.closeMenu() }
+            g.menu = menu0; g.player.pos = pos0; g.player.vel = .zero; g.player.flying = fly0; g.time = time0
             HudExtras.enabled = en0
         }
         HudExtras.enabled = true
         st.tutorialHints = true; st.tutorialStep = Tutorial.steps
         g.survival = true; g.advancements = []; g.paused = false
+        // Hovering at noon, healthy: the banner check ticks the game for ten seconds.
+        g.player.flying = true; g.player.vel = .zero; g.time = DAY_LENGTH * 0.25; g.health = 20; g.alive = true
         if g.menu != nil { g.closeMenu() }
         for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
         for i in 0..<g.inventory.armor.slots.count { g.inventory.armor[i] = .empty }
@@ -68,11 +71,13 @@ enum GoalTests {
         G20Guard.overworld = g20
 
         // The banner and the inventory line.
+        Goals.shownID = nil; Goals.current = nil; Goals.lastCheck = -100
         g.advancements = ["root"]
         g.inventory.main[0] = .empty
         for _ in 0..<40 { g.tick(1.0 / 72) }
         let L = HudLayout(1280, 720)
         let shown = Goals.lines(g, L).map { $0.text }
+        let state = "menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), alive \(g.alive), paused \(g.paused), coop \(g.coop.active), wheel \(WeaponWheel.shared.open), goal \(Goals.current?.id ?? "none")"
         g.advancements.insert("mine_stone"); g.inventory.main[0] = ItemStack(Items.id("wooden_pickaxe"), 1)
         for _ in 0..<72 { g.tick(1.0 / 72) }
         let next = Goals.lines(g, L).map { $0.text }
@@ -83,7 +88,7 @@ enum GoalTests {
         g.closeMenu()
         check(shown.contains(where: { $0.contains(Goals.name("wooden_pickaxe")) })
               && next.contains(where: { $0.contains(Goals.name("stone_pickaxe")) }) && faded && inv.contains(where: { $0.contains(Goals.name("stone_pickaxe")) }),
-              "first hour: a new goal shows in the HUD, fades after 8 s and stays on the inventory screen (shown '\(shown.last ?? "")', next '\(next.last ?? "")', faded \(faded), inventory '\(inv.last ?? "")')")
+              "first hour: a new goal shows in the HUD, fades after 8 s and stays on the inventory screen (shown '\(shown.last ?? "")', next '\(next.last ?? "")', faded \(faded), inventory '\(inv.last ?? "")'; \(state))")
 
         // Creative and hints off: nothing.
         g.survival = false

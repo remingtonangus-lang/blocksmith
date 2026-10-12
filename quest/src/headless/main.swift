@@ -42,7 +42,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -198,6 +198,11 @@ if CommandLine.arguments.contains("--overlaps-only") {
 if CommandLine.arguments.contains("--musiclevels-only") {
     MusicLevelTests.run(check: check)
     print(failures == 0 ? "musiclevels: all checks passed" : "musiclevels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --touchmatrix-only: the Touch conflict matrix alone (needs Vulkan: lavapipe).
+if CommandLine.arguments.contains("--touchmatrix-only"), let ctx = vkctx {
+    do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
+    print(failures == 0 ? "touchmatrix: all checks passed" : "touchmatrix: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
 if CommandLine.arguments.contains("--settings-only") {
@@ -707,6 +712,8 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
     do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
+    // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
+    do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     game.vrHead = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
