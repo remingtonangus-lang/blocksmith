@@ -204,6 +204,11 @@ if CommandLine.arguments.contains("--touchmatrix-only"), let ctx = vkctx {
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     print(failures == 0 ? "touchmatrix: all checks passed" : "touchmatrix: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --vrtext-only: text size in degrees on the headset's panels (VRTextCheck.swift, Q2).
+if CommandLine.arguments.contains("--vrtext-only") {
+    VRTextCheck.run(game: game, check: check)
+    print(failures == 0 ? "vrtext: all checks passed" : "vrtext: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
 if CommandLine.arguments.contains("--settings-only") {
     SettingsCheck.run(check: check)
@@ -855,6 +860,7 @@ OverlapTests.run(check: check)
 SettingsCheck.run(check: check)
 leaves("latency") { InputLatencyTests.run(game: game, check: check) }
 leaves("firsthour") { GoalTests.run(game: game, check: check) }
+leaves("vrtext") { VRTextCheck.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

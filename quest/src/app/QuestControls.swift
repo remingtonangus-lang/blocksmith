@@ -32,6 +32,8 @@ final class QuestControls {
     static var keyboardHook: ((Bool) -> Void)?
     static let hintW = 640, hintH = 48
     static let panelW = 1024, panelH = 640
+    // The panels' size and distance in metres: the HUD below the view, menus in front (questcheck's VR text check).
+    static let hudWidthM: Float = 1.25, hudDistM: Float = 1.25, menuWidthM: Float = 1.5, menuDistM: Float = 1.15
 
     private var snapArmed = true
     private var flickArmed = true
@@ -825,10 +827,10 @@ final class QuestControls {
         let rig = app.rig
         let yaw = rig.headYaw - rig.bodyYaw                  // tracking space
         let fwd = V3(-sinf(yaw), 0, -cosf(yaw))
-        panelCenterT = rig.levelHead + fwd * 1.15 + V3(0, -0.1, 0)
+        panelCenterT = rig.levelHead + fwd * QuestControls.menuDistM + V3(0, -0.1, 0)
         panelYawT = yaw
         panelPitch = 0
-        panelSize = V2(1.5, 1.5 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = V2(QuestControls.menuWidthM, QuestControls.menuWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
     // HUD: in the lower view, turning with the head once it looks more than 25 degrees away.
@@ -844,9 +846,9 @@ final class QuestControls {
         let drop = QuestSettings.hudDrop
         // `drop` is where the hotbar sits below eye level (0.42 at 1.25 m is ~18 degrees): the panel is raised to match.
         let Lh = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
-        let panelH = 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW)
+        let panelH = QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW)
         let hotbarBelowCentre = ((Lh.hotbarY0 + Lh.slot / 2) / Float(QuestControls.panelH) - 0.5) * panelH
-        let want = rig.levelHead + fwd * 1.25 + V3(0, -drop + hotbarBelowCentre, 0)
+        let want = rig.levelHead + fwd * QuestControls.hudDistM + V3(0, -drop + hotbarBelowCentre, 0)
         var pos = hudPosT ?? want
         pos += (want - pos) * min(1, dt * 12)
         if simd_length(want - pos) > 0.5 { pos = want }
@@ -854,7 +856,7 @@ final class QuestControls {
         panelCenterT = pos
         panelYawT = hudYawT
         panelPitch = -atan2f(drop, 1.25) * 0.7              // the hotbar end tilted to face the eyes
-        panelSize = V2(1.25, 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = V2(QuestControls.hudWidthM, QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
     // Panel axes (world): right, up, normal toward the viewer.
