@@ -18,6 +18,10 @@ WorldRules.p44 = false                 // fixture seeds keep their cities and ci
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
+// --agent BOT / --behaviorsim: the bots and the mob behaviour sim, shared with the Mac (Sources/Agent*.swift,
+// Sources/BehaviorSim.swift), on the Linux host too (Q2: scorecard "Behaviour" measured off the Mac).
+if arg("--agent") != nil { exit(AgentRun.run()) }
+if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
 if let secs = Double(arg("--xr") ?? "") {
     let tmpXR = FileManager.default.temporaryDirectory.appendingPathComponent("questxr-\(getpid())")
