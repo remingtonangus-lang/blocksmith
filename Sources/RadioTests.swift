@@ -10,7 +10,7 @@ enum RadioTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let w = g.world
         let p0 = g.player.pos, surv0 = g.survival, mobs0 = g.mobs.mobs, recs0 = g.bases.records, marks0 = MapCache.shared.marks
-        let strikes0 = g.ashStrikes, toast0 = g.onToast
+        let strikes0 = g.ashStrikes, toast0 = g.onToast, menu0 = g.menu
         var placed: [IVec3] = []
         defer {
             for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }
@@ -18,6 +18,7 @@ enum RadioTests {
             MapCache.shared.replaceMarks(marks0); g.ashStrikes = strikes0; g.onToast = toast0
             g.radio.suspicion = [:]; g.radio.burned = []; g.radio.alertUntil = [:]; g.radio.last = [:]; g.radio.drops = []
             if g.menu is RadioMenu { g.closeMenu() }
+            g.menu = menu0
         }
         g.onToast = { _ in }
         g.survival = true
