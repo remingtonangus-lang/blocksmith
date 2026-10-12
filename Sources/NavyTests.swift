@@ -98,6 +98,15 @@ enum NavyTests {
         let sorted = zip(cs, cs.dropFirst()).allSatisfy { simd_length(V2(Float($0.0.x), Float($0.0.z)) - p) <= simd_length(V2(Float($0.1.x), Float($0.1.z)) - p) }
         check(!cs.isEmpty && inRange && sorted && cs.contains { $0.kind == Greywall.kind },
               "navy: the frigate radar lists \(cs.count) contacts within 1,500 blocks, nearest first (\(cs.prefix(4).map { "\($0.name) \(g.radarBearing($0))" }.joined(separator: "; ")))")
+        // ...and the bases on it go on the map.
+        let marks0 = MapCache.shared.marks, toast0 = g.onToast
+        g.onToast = { _ in }
+        MapCache.shared.replaceMarks([])
+        g.markRadarSites(cs)
+        let bases = cs.filter { !$0.kind.hasPrefix("vessel_") }
+        let marked = bases.filter { c in MapCache.shared.marks.contains { $0.kind == c.kind && abs($0.x - c.x) < 24 && abs($0.z - c.z) < 24 } }
+        MapCache.shared.replaceMarks(marks0); g.onToast = toast0
+        check(!bases.isEmpty && marked.count == bases.count, "navy: the \(bases.count) bases on the frigate radar go on the map (\(marked.count) marked)")
     }
 
     static func boarding(_ g: Game, _ check: (Bool, String) -> Void) {

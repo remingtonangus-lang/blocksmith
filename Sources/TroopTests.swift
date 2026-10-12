@@ -142,7 +142,7 @@ enum TroopTests {
             angles.append(acosf(max(-1, min(1, simd_dot(a, b)))) * 180 / .pi)
         }
         let mean = angles.isEmpty ? 0 : angles.reduce(0, +) / Float(angles.count)
-        check(angles.count >= 10 && mean > 45, String(format: "troop behaviour: Spec Ops flank %.0f degrees off the line on average (%d of 12 picked a flank)", mean, angles.count))
+        check(angles.count >= 10 && mean > 60 && mean < 95, String(format: "troop behaviour: Spec Ops flank %.0f degrees off the line on average (%d of 12 picked a flank)", mean, angles.count))
         // Hannibal push: it walks in while firing at mid range.
         let h = Mob(.soldierIronclad, at: base + V3(12, 0, 0))
         h.setTroop(.hannibal)

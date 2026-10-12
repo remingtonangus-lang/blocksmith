@@ -1383,7 +1383,7 @@ final class Mob {
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
         // A melee blow on a soldier lands on the vest (TroopClasses.swift; rounds pick their segment in Ballistics).
         if Mob.playerMelee && damage > 0 && troop != 0 && Soldier.rank(kind) != nil {
-            let d = troopArmourHit(Float(damage), seg: 1, nil)
+            let d = troopArmourHit(Float(damage), seg: 1, Mob.meleeGame)
             damage = max(1, Int(d) + (Rand.float(in: 0..<1) < d - floorf(d) ? 1 : 0))
         }
         damage = Difficulty.scaleHit(damage, self)                          // G19: Easy monsters are frailer, Hard tougher
@@ -2274,7 +2274,7 @@ final class MobManager {
                 if let r = Soldier.rank(m.kind) {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
-                    game.sfx(.soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    m.shout(game, .soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 } else if MobVoice.profile(m.kind).family != .silent {
                     // Hissers and magma cubes only rustle / squelch faintly; everyone else calls at the usual level.
                     let quiet: Bool = m.kind == .creeper || m.kind == .magmaCube

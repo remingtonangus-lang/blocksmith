@@ -109,6 +109,7 @@ extension MobKind {
 extension Mob {
     static var playerMelee = false            // set by Game.interact around a melee hit (a parry needs a blade)
     static var playerMeleePower: Float = 1    // that hit's charge (x the swing's power): a tap neither parries nor wears a guard
+    static weak var meleeGame: Game?          // the game round that melee hit (a vest it breaks drops and cracks visibly)
 
     var hellState: HellState {
         if let h = hell { return h }

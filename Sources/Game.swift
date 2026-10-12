@@ -1135,6 +1135,7 @@ final class Game {
                 let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
                 let hp0 = m.health
                 Mob.playerMelee = true
+                Mob.meleeGame = self
                 Mob.playerMeleePower = charge * (swung ? swingPow : 1)
                 // A blade's hits skip the hurt invulnerability: QuestControls lets each mob take one hit per VRMelee.rehit.
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: !swung)

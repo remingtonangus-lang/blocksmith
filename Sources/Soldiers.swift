@@ -289,7 +289,7 @@ extension Mob {
             if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
                 aggro = true
                 b.react = rank.react
-                g.sfx(.soldier(Soldier.voice(r), .alert), 1.1, at: eye)
+                shout(g, .soldier(Soldier.voice(r), .alert), 1.1, at: eye)
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 if r == 4 { b.pointT = 1.4 }
                 alertGarrison(g, g.player.pos)
@@ -352,7 +352,7 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
@@ -399,16 +399,16 @@ extension Mob {
             }
             if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
-            // Rifle troopers swing round the target's side every few seconds.
-            if r == 1 && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
+            // Rifle troopers swing round the target's side every few seconds (Spec Ops flank wider and quietly, below).
+            let tc = troopClass
+            if r == 1 && tc != .specOps && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
                 b.flankTimer = Rand.float(in: 4...7)
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
-                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
+                if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
             }
             // Troop classes: Spec Ops swing wide round the target's flank, quietly; Hannibal troopers push in firing.
-            let tc = troopClass
             if tc == .specOps && r != 2 && b.flankTimer <= 0 && b.reload <= 0 {
                 b.flankTimer = Rand.float(in: 3...5)
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
@@ -423,7 +423,7 @@ extension Mob {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
                 b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
-                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
+                if Rand.float(in: 0..<1) < 0.3 { shout(g, .soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
             }
         } else {
             b.aimTime = 0
@@ -456,7 +456,7 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.4 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -551,7 +551,7 @@ extension Mob {
             b.shotTimer = 2.5
         }
         b.mag -= 1
-        g.sfx(.gun(gs.sound), 1, at: muzzle)
+        g.sfx(.gun(gs.sound), TroopClass.suppressed(self) ? 0.35 : 1, at: muzzle)
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)
     }
 
@@ -579,6 +579,11 @@ extension Mob {
         return nil
     }
 
+    // A soldier's callout; Spec Ops keep quiet (backlog A2: they flank and hunt without shouting).
+    func shout(_ g: Game, _ snd: Snd, _ v: Float, at p: V3) {
+        if troopClass != .specOps { g.sfx(snd, v, at: p) }
+    }
+
     private func throwGrenade(_ g: Game, at t: V3) {
         let from = eye + forward * 0.4
         var d = t - from
@@ -592,7 +597,7 @@ extension Mob {
                      shooter: ObjectIdentifier(self), by: spec.name, life: 2.6, gravity: grav)
         s.power = 2
         g.arms.spawn(s)
-        g.sfx(.soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
+        shout(g, .soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
         soldierBrain.throwT = 0.7
     }
 

@@ -168,6 +168,7 @@ extension Game {
         guard holdingRadar || console || ship, menu == nil else { return [] }
         if clock - Game.radarCache.time > 0.5 || Game.radarCache.world !== world {
             Game.radarCache = (clock, world, ship ? frigateContacts() : radarContacts() + (console ? consoleContacts() : []))
+            if ship { markRadarSites(Game.radarCache.list) }
         }
         let s = L.s
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }

@@ -134,7 +134,7 @@ extension Game {
             // (a net that found out a spoofer: every base of it sounds as soon as a player is inside, C6 RadioSpoof.swift)
             if survival, trigger == nil, radio.alerted(.greywall, clock), let p = players.first(where: { Greywall.inside(site, $0) }) { trigger = p }
             if survival, trigger == nil, let p = players.first(where: { Greywall.inside(site, $0) }) {
-                if mobs.mobs.contains(where: { mine($0) && $0.aggro && ($0.brain?.sees ?? false) }) { trigger = p }
+                if mobs.mobs.contains(where: { mine($0) && $0.aggro && $0.troopClass != .specOps && ($0.brain?.sees ?? false) }) { trigger = p }    // (Spec Ops hunt quietly)
             }
             var fresh = false
             if let t = trigger {
@@ -149,7 +149,7 @@ extension Game {
                 }
             } else if site.on {
                 site.quiet += dt
-                let fighting = mobs.mobs.contains { mine($0) && $0.aggro && ($0.brain?.sees ?? false) }
+                let fighting = mobs.mobs.contains { mine($0) && $0.aggro && $0.troopClass != .specOps && ($0.brain?.sees ?? false) }    // (Spec Ops hunt quietly)
                 if site.quiet > GreywallAlarmState.standDown && !fighting {
                     site.on = false
                     greywallLamps(&site, lit: false)

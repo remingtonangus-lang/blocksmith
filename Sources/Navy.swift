@@ -138,6 +138,13 @@ extension Game {
         out.sort { simd_length(V2(Float($0.x), Float($0.z)) - p) < simd_length(V2(Float($1.x), Float($1.z)) - p) }
         return Array(out.prefix(8))
     }
+
+    // The bases a frigate radar picks up go on the map (the warships it shows move on and are not marked).
+    func markRadarSites(_ cs: [RadarContact]) {
+        for c in cs where !c.kind.hasPrefix("vessel_") {
+            MapCache.shared.discover(self, kind: c.kind, x: c.x, z: c.z, name: c.kind == Greywall.kind ? c.name : nil)
+        }
+    }
 }
 
 extension ShipManager {
