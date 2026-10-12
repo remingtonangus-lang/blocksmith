@@ -43,6 +43,9 @@ extension Game {
                 // Flame and smoke at the top of the torch stick (standing or on a wall).
                 var top = o + V3(0.5, 0.7, 0.5)
                 if let box = world.selectionBoxes(b).first { top = o + V3((box.0.x + box.1.x) / 2, box.1.y + 0.05, (box.0.z + box.1.z) / 2) }
+                if let mb = Blocks.boxes[Int(b)].first, mb.leanX != 0 || mb.leanZ != 0 {     // a leaning wall torch's tip (P86)
+                    top += V3(Float(mb.leanX) / 16, 0, Float(mb.leanZ) / 16)
+                }
                 particles.smoke(at: top + V3(0, 0.05, 0), dark: true)
                 let soul = kind == Emitter.soulTorch.rawValue
                 particles.add(Particle(pos: top, vel: V3(0, Rand.float(in: 0.02...0.08), 0), life: Rand.float(in: 0.25...0.5), maxLife: 0.5,

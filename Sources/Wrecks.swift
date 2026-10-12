@@ -119,6 +119,7 @@ enum AutoTurrets {
                 let aim = m.pos + V3(0, m.height * 0.5, 0)
                 let d = simd_length(aim - muzzle)
                 guard d < range, d > 2, best == nil || d < best!.1 else { continue }
+                guard simd_length(m.pos - g.player.pos) > 5 else { continue }          // the blast would catch the player
                 guard w.canSee(muzzle + simd_normalize(aim - muzzle) * 0.9, aim) else { continue }
                 best = (m, d)
             }

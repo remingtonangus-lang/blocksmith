@@ -919,6 +919,7 @@ extension ShipManager {
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
                 st.target = pickTarget(s, st, g)
+                if st.target?.player != true { st.bombardShots = 0 }      // a new barrage starts with a warning shot again
             } else if var t = st.target {
                 refresh(&t, g)
                 st.target = t
@@ -962,7 +963,7 @@ extension ShipManager {
                 let pp = g.player.pos
                 let onIt = self.aboard?.root === s || self.standing(on: pp)?.root === s
                 // A Capital ship never fires on a player inside a citadel: its shells would land on its own base (Quest round 3).
-                guard g.alive && g.survival && g.difficulty > 0 && !onIt && !spare(pp) else { return }
+                guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && !onIt && !spare(pp) else { return }   // (P98: at peace)
                 let d = self.boundsDistance(s, pp)
                 // In sight and in a sane range only: a frigate killed a player inside a house the moment they
                 // switched to survival, nobody near (Quest round 4). Sighted from the hull's centre or its top.

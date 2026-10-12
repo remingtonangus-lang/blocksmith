@@ -330,8 +330,9 @@ extension Game {
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if breakNow {
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
-                if survival && guns > 0 && s.role == nil && Wrecks.cannonballs(self) == 0 {
-                    onToast?("No cannonballs (craft them from iron and gunpowder)")
+                let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
+                if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
+                    onToast?(balls == 0 ? "No cannonballs (craft them from iron and gunpowder)" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s"): one each to fire")
                 } else {
                     let fired = ships.fire(s, pitch: player.pitch + 0.05, game: self)
                     if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }

@@ -13,7 +13,30 @@ enum CapitalRail {
     static let length = 150
     static let startOff = CapitalBase.A + 1          // the first rail, blocks from the citadel's centre
     static let lineZ = -24                           // north of the centre (the garrison row is to the south)
-    static let reach = 14                            // the citadel type's reach (chunks) covers the whole spur
+    static let reach = 14                            // chunks from its region's corner: covers the whole spur
+    static let kind = "capital_rail"
+
+    // A kind of its own (not pieces of the citadel's start, whose box many readers take as the citadel: the base
+    // record's centre, map markers, the garrison test, and older ground decisions that ask how big a citadel is).
+    // Same grid as the citadels, so each region's spur belongs to that region's citadel. Nothing looks spurs up,
+    // so the spur may ask about any other kind without a loop.
+    static func type(_ gen: WorldGen) -> StructureType {
+        StructureType(name: kind, spacing: 40, separation: 14, salt: 70411993 ^ 0x5A11, reach: reach) { [unowned gen] seed, cx0, cz0 in
+            guard let sc = gen.structures, let mt = sc.types.first(where: { $0.name == "military_base" }),
+                  let base = sc.start(mt, regionX: floorDiv(cx0, 40), regionZ: floorDiv(cz0, 40)) else { return nil }
+            let x = base.anchor.x, z = base.anchor.z - CapitalBase.podium - 8
+            let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+            // On ground first generated with banks (the citadel's own rule) and with none of the spur's ground saved.
+            guard WorldRules.p69(gen, cx, cz, reach: 6), let l = plan(gen, x, z, seed) else { return nil }
+            let mid = l.x(l.level.count / 2)
+            guard WorldRules.p69(gen, floorDiv(mid, CS), floorDiv(l.z, CS), reach: 9) else { return nil }
+            let st = StructureStart(kind: kind, pieces: [piece(l, seed ^ 0x7A11)], anchor: IVec3(l.x0, l.level[0], l.z))
+            st.plan = Plan(l)
+            return st
+        }
+    }
+
+    final class Plan { let line: Line; init(_ l: Line) { line = l } }
 
     struct Line {
         let x0: Int, z: Int, dir: Int                 // first rail at (x0, z), running dir (+1 east, -1 west)
@@ -25,8 +48,7 @@ enum CapitalRail {
     static func plan(_ gen: WorldGen, _ x: Int, _ z: Int, _ seed: UInt64) -> Line? {
         let dir = hashf(x >> 4, z >> 4, 9201, UInt32(truncatingIfNeeded: seed)) < 0.5 ? 1 : -1
         let x0 = x + dir * startOff, lz = z + lineZ
-        // Stop short of other structures (the kinds the citadel's own site already keeps clear of; none of them
-        // looks for citadels, so asking can't loop).
+        // Stop short of other surface structures in the way.
         var n = length
         if let sc = gen.structures {
             let lo = min(x0, x0 + dir * length), hi = max(x0, x0 + dir * length)

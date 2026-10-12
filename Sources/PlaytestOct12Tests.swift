@@ -302,27 +302,31 @@ enum PlaytestOct12Tests {
     static func trains(_ check: (Bool, String) -> Void) {
         let p440 = WorldRules.p44
         defer { WorldRules.p44 = p440 }
-        func citadels(_ on: Bool) -> (WorldGen, [StructureStart]) {
+        var bad0: [String] = []
+        func spurs(_ on: Bool) -> (WorldGen, [StructureStart], Int) {
             WorldRules.p44 = on
             let gen = WorldGen(seed: 12345)
-            guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == "military_base" }) else { return (gen, []) }
-            var out: [StructureStart] = []
+            guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == CapitalRail.kind }),
+                  let mt = sc.types.first(where: { $0.name == "military_base" }) else { return (gen, [], 0) }
+            var out: [StructureStart] = [], bases = 0
             let span = t.spacing * CS
             for rz in floorDiv(-8000, span)...floorDiv(8000, span) { for rx in floorDiv(-8000, span)...floorDiv(8000, span) {
+                // The citadel's own start stays one piece plus its garrison row (its box is the citadel's).
+                if let b = sc.start(mt, regionX: rx, regionZ: rz) {
+                    bases += 1
+                    if b.pieces.contains(where: { $0.max.z - $0.min.z == 7 && $0.max.x - $0.min.x > 40 }) { bad0.append("a citadel start carries a spur") }
+                }
                 if let st = sc.start(t, regionX: rx, regionZ: rz) { out.append(st) }
             } }
-            return (gen, out)
+            return (gen, out, bases)
         }
-        func spur(_ st: StructureStart) -> Piece? { st.pieces.first { $0.max.z - $0.min.z == 7 && $0.max.x - $0.min.x > 40 } }
-        let (_, old) = citadels(false)
-        let oldSpurs = old.filter { spur($0) != nil }.count
-        let (gen, fresh) = citadels(true)
-        let withRail = fresh.filter { spur($0) != nil }
-        var bad: [String] = [], cars: [String] = [], steps = 0, overlaps = 0, inWay: [String] = []
-        if let st = withRail.first, let sc = gen.structures, let p = spur(st) {
-            // The line again (the same plan the start used; the anchor is on the citadel's centre line).
-            let x = st.anchor.x, z = p.min.z + 3 - CapitalRail.lineZ
-            if let l = CapitalRail.plan(gen, x, z, gen.seed) {
+        let (_, old, _) = spurs(false)
+        let oldSpurs = old.count
+        let (gen, withRail, bases) = spurs(true)
+        let fresh = Array(repeating: 0, count: bases)     // (the citadels counted)
+        var bad: [String] = bad0, cars: [String] = [], steps = 0, overlaps = 0, inWay: [String] = []
+        if let st = withRail.first, let sc = gen.structures, let p = st.pieces.first {
+            if let l = (st.plan as? CapitalRail.Plan)?.line {
                 var chunks: [IVec2Key: [BlockID]] = [:]
                 for cxk in floorDiv(min(l.x(0), l.x(l.level.count - 1)) - 2, CS)...floorDiv(max(l.x(0), l.x(l.level.count - 1)) + 2, CS) {
                     let czk = floorDiv(l.z, CS)
@@ -347,7 +351,7 @@ enum PlaytestOct12Tests {
                 }
                 // Clear of every other structure.
                 // (Underground and sky kinds aside: the spur's box reaches 40 down for trestle legs.)
-                for t in sc.types where !["military_base", "mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", SkyIsle.kind].contains(t.name) {
+                for t in sc.types where ![CapitalRail.kind, "military_base", "mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", SkyIsle.kind].contains(t.name) {
                     let span = t.spacing * CS
                     for rz in (floorDiv(p.min.z, span) - 1)...(floorDiv(p.max.z, span) + 1) { for rx in (floorDiv(p.min.x, span) - 1)...(floorDiv(p.max.x, span) + 1) {
                         guard let o = sc.start(t, regionX: rx, regionZ: rz) else { continue }

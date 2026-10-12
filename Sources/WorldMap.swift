@@ -340,7 +340,7 @@ enum MapDraw {
             out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - s / 2, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(6 * s, s)))
             out.append(HudLine(text: "", x: p.x - s / 2, y: p.y - 3 * s, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(s, 6 * s)))
         }
-        // P98: the war bands hunting you (the Reckoning), as orange diamonds, each with how many it still has.
+        // P98: the war bands hunting you (the Reckoning), as orange squares.
         for h in Reckoning.hunts where h.left > 0 {
             guard let p = at(h.pos.x, h.pos.y) else { continue }
             out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(8 * s, 8 * s)))
