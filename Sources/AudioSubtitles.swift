@@ -315,6 +315,8 @@ extension Snd {
         case .shipSplash: return "Hull splashes"
         case .helmTake: return "Helm taken"
         case .engineStart: return "Engine starts"
+        case .trainWhistle: return "Train whistle"
+        case .steamChuff: return "Steam train chuffs"
         case .shipCannon: return "Cannon fires"
         case .mainGunCharge: return "Main gun charging"
         case .mainGunFire: return "Main gun fires"

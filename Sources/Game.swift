@@ -1679,6 +1679,8 @@ final class Game {
             // A town's WANTED board opens its notice board (TownBoard.swift) in survival.
             if survival, let be = world.blockEntities[p], TownBoard.isBoard(be), TownLaw.isTownSpot(self, p) {
                 TownBoard.open(self, town: Townsfolk.town(self, at: V3(Float(p.x), Float(p.y), Float(p.z))), anchor: p)
+            } else if let be = world.blockEntities[p], Trains.isTicketSign(be), Trains.openTickets(self, at: p) {
+                // C1: a station's ticket board (Trains.swift)
             } else if !dyeSign(p) { openSignEditor(p) }
         case "cake":
             // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
@@ -2539,6 +2541,8 @@ final class Game {
             TickProf.mark("ash war")
             Reckoning.tick(self, rt)
             GarrisonTown.tick(self, rt)
+            Trains.tick(self)                       // C1: trains near the player built and taken away
+            Trains.discover(self)
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {

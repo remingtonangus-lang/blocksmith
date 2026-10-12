@@ -584,7 +584,10 @@ final class Mob {
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateSentry(dt, g); return }
         if kind == .deckGun { updateDeckGun(dt, g); return }
-        if kind == .minecart { updateMinecart(dt, g); cartExtras(dt, g); return }
+        if kind == .minecart {
+            if Trains.isCar(self) { Trains.drive(self, dt, g); return }                 // C1 trains move on their timetable
+            updateMinecart(dt, g); cartExtras(dt, g); return
+        }
         if kind == .wither { updateBlight(dt, g); return }
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
@@ -1939,6 +1942,7 @@ private func parts(_ m: Mob) -> [Part] {
     case .armorStand:
         return armorStandParts(m)
     case .minecart:
+        if m.variant >= Trains.loco { return Trains.parts(m) }
         let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
         return [
             box(-10, 2, -7, 20, 2, 14, dark, 4),
