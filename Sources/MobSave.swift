@@ -104,7 +104,8 @@ extension Mob {
         if let s = stayAt { d["stayX"] = s.x; d["stayY"] = s.y; d["stayZ"] = s.z }
         if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
-        if faction != 0 { d["fac"] = Float(faction) }      // (a navy's crew keep their colours and ranks through a save)
+        if faction != 0 { d["fac"] = Float(faction) }
+        if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }      // (a navy's crew keep their colours and ranks through a save)
         if warden { d["warden"] = 1 }
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
         if let b = brain, b.extra {
@@ -142,6 +143,7 @@ extension Mob {
         legend = Int8(max(-1, min(Float(Hunting.legends.count - 1), d["legend"] ?? -1)))
         if let x = d["stayX"], let y = d["stayY"], let z = d["stayZ"] { stayAt = V3(x, y, z) }
         if let x = d["brushCd"] { hs.brushCool = x }
+        if let x = d["lsx"], let z = d["lsz"], let h = d["lsh"] { leash = V3(x, z, h) }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
         else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }

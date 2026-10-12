@@ -194,7 +194,8 @@ final class StructureCache {
     // And when G12 made citadels and Capital cities rarer, kept citadels apart and gave each city its own size and
     // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
     var legacyG12: Set<Int64> = []
-    var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
+    var legacyP44: Set<Int64> = []
+    var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)                // WorldRules.savedBeforeP44
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -250,7 +251,8 @@ final class StructureCache {
 
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
-                                           "military_base": 24, "trail_ruins": 4]     // Steelhold: hillside bases hung 8+ over slopes
+                                           "military_base": 24, "trail_ruins": 4,
+                                           Greywall.kind: 20]     // Steelhold: hillside bases hung 8+ over slopes
     // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
     // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
 
@@ -512,12 +514,15 @@ enum Loot {
         "camp_abandoned": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
+        // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
+        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)])],
+        "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
         "steelhold_vault": [(1...1, [("ember_charge", 1, 2, 1)])],
         "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
-        guard let t = tables[table] ?? WildCamps.loot[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
     }

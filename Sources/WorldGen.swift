@@ -48,7 +48,7 @@ final class WorldGen: TerrainGenerator {
             i += 2
         }
         bands = bs
-        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self)], fixed: Stronghold.starts(seed: seed))
+        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self), Greywall.type(self)], fixed: Stronghold.starts(seed: seed))
         structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz) }      // P51
     }
 

@@ -160,6 +160,11 @@ if CommandLine.arguments.contains("--p11-only") {
     PlaytestOct11Tests.run(game, check)
     print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --greywall-only: the Greywall Command bases (Sources/GreywallTests.swift, backlog A1).
+if CommandLine.arguments.contains("--greywall-only") {
+    GreywallTests.run(device: device, game: game, check: check)
+    print(failures == 0 ? "greywall: all checks passed" : "greywall: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
     check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
@@ -737,6 +742,9 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+
+// Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
+if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

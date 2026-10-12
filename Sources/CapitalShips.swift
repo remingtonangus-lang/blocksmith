@@ -15,8 +15,8 @@ import simd
 // and their fate rests on critical systems: the bridge helm and the drive engines.
 
 enum Faction: Int {
-    case none = 0, steelhold, stormwarden, ironback, ashguard, meridian
-    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy"][rawValue] }
+    case none = 0, steelhold, stormwarden, ironback, ashguard, meridian, greywall
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy", "Greywall Command"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).

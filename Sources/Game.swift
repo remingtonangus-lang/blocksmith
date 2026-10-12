@@ -1021,6 +1021,7 @@ final class Game {
         if useNow, let r = riding, stickBoost(r) { return }
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b), let t = target, greywallMapTableUse(t.hit) { swing = 1; return }
         // Riding a horse and aiming at it: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift).
         // Aimed anywhere else, use does what it always does (eat, place, flip a lever, brush a block).
         // Taming (an untamed horse under you): use with an empty hand pats it wherever you aim (aiming the laser down at

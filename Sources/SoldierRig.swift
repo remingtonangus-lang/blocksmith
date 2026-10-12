@@ -76,6 +76,12 @@ struct Livery {
             l.cloth = V3(0.29, 0.31, 0.2); l.legs = V3(0.25, 0.27, 0.18); l.plate = V3(0.34, 0.36, 0.38)
             l.trim = V3(0.14, 0.15, 0.16); l.metal = V3(0.45, 0.47, 0.5); l.glow = V3(2.2, 1.5, 0.4); l.glove = V3(0.12, 0.12, 0.11)
             l.accent = V3(0.78, 0.8, 0.82)
+        } else if m.faction == Faction.greywall.rawValue {
+            // The Greywall Command: slate-blue fatigues, grey plate, blue lenses, a red alarm-red armband (original livery).
+            l.cloth = V3(0.3, 0.35, 0.42); l.legs = V3(0.25, 0.29, 0.35); l.plate = V3(0.5, 0.54, 0.58)
+            l.trim = V3(0.13, 0.14, 0.16); l.metal = V3(0.56, 0.6, 0.64); l.glow = V3(0.5, 1.3, 2.4); l.glove = V3(0.14, 0.15, 0.17)
+            l.accent = V3(0.78, 0.16, 0.12)
+            if r == 4 { l.cloth = V3(0.22, 0.26, 0.32); l.trim = V3(0.78, 0.16, 0.12) }
         } else if m.faction == Faction.ironback.rawValue {
             l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
             l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)

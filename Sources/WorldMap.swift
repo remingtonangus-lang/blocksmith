@@ -185,6 +185,7 @@ final class MapCache {
         case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "boreal_station": return ("N", V4(0.45, 0.72, 1, 1), "Boreal Station")
+        case "greywall_base": return ("G", V4(0.55, 0.62, 0.72, 1), "Greywall base")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate", "vessel_capfrigate": return ("F", V4(0.55, 0.62, 0.4, 1), "Meridian frigate patrol")
         case "vessel_warfrigate", "vessel_battle": return ("S", V4(0.35, 0.5, 0.95, 1), "Stormwarden frigate patrol")
@@ -214,12 +215,14 @@ final class MapCache {
 
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
         let px = Int(floor(at.x)), pz = Int(floor(at.z))
-        for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" || t.name == "boreal_station" {
+        for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" || t.name == "boreal_station" || t.name == Greywall.kind {
             for s in sc.startsNear(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
                 let dx = cx - px, dz = cz - pz
                 let r = t.name == "capital_city" ? 150 : 96
-                if dx * dx + dz * dz < r * r { discover(g, kind: t.name, x: cx, z: cz) }
+                if dx * dx + dz * dz < r * r {
+                    discover(g, kind: t.name, x: cx, z: cz, name: t.name == Greywall.kind ? Greywall.Tier.of(s).name : nil)
+                }
             }
         }
         // Vessel patrols (ShipVessels): their home point counts once you come within 200 blocks of it.

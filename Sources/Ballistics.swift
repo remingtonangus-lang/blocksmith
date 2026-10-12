@@ -216,6 +216,7 @@ final class Armory {
             g.particles.blockBreak(id, at: b)
             return
         }
+        if s.fromPlayer && g.greywallBlockShot(b, id, at: at) { return }      // wall turrets and alarm panels (GreywallAlarm.swift)
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))

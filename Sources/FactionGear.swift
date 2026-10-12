@@ -21,7 +21,7 @@ extension Game {
         var out: [RadarContact] = []
         guard dim.dim == .overworld, let sc = world.gen.structures else { return out }
         let px = Int(player.pos.x), pz = Int(player.pos.z)
-        for (k, n) in [("military_base", "Capital Citadel"), ("capital_city", "Capital City")] {
+        for (k, n) in [("military_base", "Capital Citadel"), ("capital_city", "Capital City"), (Greywall.kind, "Greywall Base")] {
             if let s = sc.nearest(k, x: px, z: pz, maxRegions: 4) {
                 out.append(RadarContact(name: n, kind: k, x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2))
             }

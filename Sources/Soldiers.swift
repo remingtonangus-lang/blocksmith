@@ -239,6 +239,10 @@ extension Mob {
 
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
+        let sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        return leash == nil ? sp : applyLeash(sp)
+    }
+    private func soldierAIStep(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         guard let r = Soldier.rank(kind) else { return 0 }
         let rank = Soldier.ranks[r]
         let b = soldierBrain
@@ -670,7 +674,9 @@ extension Mob {
 extension Mob {
     // A live soldier posted at this deck gun (CapitalBases sends two per barbette, ~9 blocks behind it, as gunners).
     func deckGunCrewed(_ g: Game) -> Bool {
-        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && m.brain?.orderStation == .gunner {
+        // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
+        let grey = factionValue == .greywall
+        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && (m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall) {
             let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
             if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
         }
@@ -802,6 +808,7 @@ extension Mob {
     static let crewNames: [Faction: [String]] = [
         .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Meridian Heavy Marine", "Meridian Lieutenant", "Meridian Helmsman"],
         .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
+        .greywall: ["Greywall Sentry", "Greywall Rifleman", "Greywall Marksman", "Greywall Heavy", "Greywall Officer", "Greywall Crewman"],
         .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],
     ]
 

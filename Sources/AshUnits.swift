@@ -77,20 +77,30 @@ extension Mob {
         }
     }
 
-    // A structure mob by name: "kind[:fuel][@ash][^heading]" (AshSites.unit), or a plain kind key.
+    // A structure mob by name: "kind[:fuel][@ash|@deep|@grey][^heading]" (AshSites.unit), or a plain kind key.
     static func structureMob(_ name: String, at p: V3) -> Mob? {
         var n = Substring(name)
         var heading: Float?
         if let i = n.firstIndex(of: "^") { heading = Float(n[n.index(after: i)...]); n = n[..<i] }
+        var leash: V3?
+        if let i = n.firstIndex(of: "~") {          // "~cx,cz,half": a Greywall base's leash (GreywallAlarm.swift)
+            let v = n[n.index(after: i)...].split(separator: ",").compactMap { Float($0) }
+            if v.count == 3 { leash = V3(v[0] + 0.5, v[1] + 0.5, v[2]) }
+            n = n[..<i]
+        }
         var ash = false, deep = false
         if n.hasSuffix("@ash") { ash = true; n = n.dropLast(4) }
-        if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }       // a Brimstone Keep's monsters: Deep strength
+        if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }
+        var grey = false
+        if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }       // a Greywall Command base's troops (Greywall.swift)       // a Brimstone Keep's monsters: Deep strength
         var tag = ""
         if let i = n.firstIndex(of: ":") { tag = String(n[n.index(after: i)...]); n = n[..<i] }
         guard let k0 = MobKind.named(String(n)) else { return nil }
         let m = Mob(Soldier.garrison(k0, at: p), at: p)
         m.persistent = true
         if ash { m.ashSetup() }
+        if grey { m.greySetup() }
+        m.leash = leash
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
