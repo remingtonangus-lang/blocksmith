@@ -74,6 +74,11 @@ enum NavyTests {
         defer { g.inventory.main[g.inventory.selected] = held0; g.survival = surv0; g.player.pos = pos0 }
         g.survival = true
         g.player.pos = at + V3(-8, 0, 20); g.player.vel = .zero
+        // (a stone floor under them: it bursts where it lands)
+        let fy = Int(floor(g.player.pos.y)) - 1, fx = Int(floor(g.player.pos.x)), fz = Int(floor(g.player.pos.z))
+        var floor: [IVec3] = []
+        for z in (fz - 12)...(fz + 1) { for x in (fx - 3)...(fx + 3) where g.world.block(x, fy, z) == AIR { g.world.setBlock(x, fy, z, STONE); floor.append(IVec3(x, fy, z)) } }
+        defer { for q in floor { g.world.setBlock(q.x, q.y, q.z, AIR) } }
         let tgt = aegis(g, g.player.pos + V3(0, 0, -5))
         g.mobs.mobs = [tgt]
         g.inventory.main[g.inventory.selected] = ItemStack(Items.id(Navy.pulseKey), 2)

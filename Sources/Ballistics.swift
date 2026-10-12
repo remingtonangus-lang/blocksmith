@@ -150,6 +150,12 @@ final class Armory {
             let block = Armory.blockHit(w, s.pos, dir, len)
             if let b = block, b.0 < hitT {
                 let at = s.pos + dir * max(0, b.0 - 0.05)
+                if s.kind == .grenade && s.pulse {                     // a Pulse Charge bursts where it lands
+                    s.dead = true
+                    slugs[i] = s
+                    detonate(s, at: at + V3(0, 0.3, 0), g)
+                    continue
+                }
                 if s.kind == .grenade {
                     // Bounce off whatever it hit, losing most of its speed.
                     let n = V3(Float(b.2.x), Float(b.2.y), Float(b.2.z))
