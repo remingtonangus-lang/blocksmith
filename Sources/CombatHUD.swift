@@ -122,7 +122,7 @@ final class CombatHUD {
             let r = max(0, Turrets.shared.reload)
             let w = 40 * s, x = cx - w / 2, y = cy + 14 * s
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(w, 4 * s)))
-            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: r <= 0 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * (1 - r / 3), 4 * s)))
+            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: r <= 0 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * max(0, 1 - r / (HeavyTurret.reload * 0.6)), 4 * s)))
         }
         out += WeaponWheel.shared.lines(g, L)
         return out

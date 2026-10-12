@@ -196,6 +196,11 @@ if CommandLine.arguments.contains("--p12-only") {
     PlaytestOct12Tests.run(game, check)
     print(failures == 0 ? "p12: all checks passed" : "p12: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --smooth2-only: polygon terrain round 2 (Sources/SmoothRound2Tests.swift, backlog P106).
+if CommandLine.arguments.contains("--smooth2-only") {
+    SmoothRound2Tests.run(game, check: check)
+    print(failures == 0 ? "smooth2: all checks passed" : "smooth2: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --greywall-only: the Greywall Command bases (Sources/GreywallTests.swift, backlog A1).
 if CommandLine.arguments.contains("--navy-only") {
     NavyTests.run(game: game, check: check)

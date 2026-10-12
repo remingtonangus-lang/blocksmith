@@ -54,7 +54,8 @@ extension Mob {
         guard rearm else { return }
         // Its class's gun (kept through a save: the brain is rebuilt from `variant`).
         guard kind != .deckGun, Soldier.rank(kind) != nil else { return }
-        let gun = TroopClass.pickGun(c, kind, roll: hashf(Int(pos.x * 7), Int(pos.y * 3), Int(pos.z * 5), 8101))
+        let roll = hashf(Int(pos.x * 7), Int(pos.y * 3), Int(pos.z * 5), 8101)
+        let gun = factionValue == .greywall ? GreywallArms.pickGun(c, kind, roll: roll) : TroopClass.pickGun(c, kind, roll: roll)   // P104
         variant = gun
         let b = soldierBrain
         b.gun = gun; b.mag = Guns.all[gun].mag

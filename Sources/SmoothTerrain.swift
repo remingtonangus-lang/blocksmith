@@ -38,6 +38,9 @@ enum SmoothTerrain {
         "clay", "sand", "red_sand", "gravel", "sandstone", "red_sandstone", "snow_block", "deepslate", "emberslate",
         "andesite", "diorite", "granite", "tuff", "calcite", "dripstone_block", "moss_block", "smooth_basalt",
         "terracotta", "netherrack", "soul_soil", "blackstone", "end_stone",
+        // P106 ("some cave areas did not smooth"): the rest of what lines caves (the cave survey, SmoothRound2Tests).
+        "basalt", "magma_block", "amethyst_block", "budding_amethyst", "sculk", "obsidian", "packed_ice", "blue_ice",
+        "infested_stone", "infested_deepslate", "soul_sand", "crimson_nylium", "warped_nylium",
     ]
     // Per block state: meshes as smooth ground.
     static let natural: [Bool] = (0..<Blocks.count).map { i in
@@ -59,6 +62,12 @@ enum SmoothTerrain {
     // Vertex normal code: tilt levels toward the face's tangent axes (axis+1, axis+2), finer near flat ground.
     // The shaders hold the same table (smoothNormal in chunk.vert / Shaders.swift / VibrantShaders / ship shaders).
     static let tiltLevels: [Float] = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1]
+    // P106 surface relaxation (Mesher.smoothQuads): passes and how far each moves a vertex to its neighbours' mean.
+    // BLOCKSMITH_RELAX=0 meshes the round-1 surface (side by side shots, cost).
+    static var relax: Int = min(maxRelax, Int(ProcessInfo.processInfo.environment["BLOCKSMITH_RELAX"] ?? "") ?? 4)
+    static let maxRelax = 4
+    static let relaxRate: Float = 0.8
+    static var vertexHook: ((Int, Int, Int, SIMD3<Float>) -> Void)?   // tests: every owned dual vertex after relaxing
     static func normalCode(_ n: SIMD3<Float>, face f: Int) -> Int {
         let a = f / 2, sgn: Float = f & 1 == 0 ? 1 : -1
         let na = max(0.1, n[a] * sgn)
@@ -111,14 +120,18 @@ extension Mesher {
         scan: for y in 0...16 { for z in 0...16 { for x in 0...16 where nat[Int(R[ri(x, y, z)])] { any = true; break scan } } }
         if !any { return }
 
-        // Solid flags for blocks -1...18 (index +1, 20 per axis).
-        let N = 20, NN = N * N
+        // The ring past the owned dual cells 0...16 that the relaxation reads (one block a pass, at most `maxRelax`).
+        let KO = SmoothTerrain.maxRelax
+        // Solid flags for blocks -KO-1...KO+18 (index +KO+1).
+        let N = 20 + 2 * KO, NN = N * N, SO = KO + 1
         let S = sc.smS
         for y in 0..<N { for z in 0..<N { for x in 0..<N {
-            S[x + z * N + y * NN] = opaqueT[Int(R[ri(x - 1, y - 1, z - 1)])] ? 1 : 0
+            S[x + z * N + y * NN] = opaqueT[Int(R[ri(x - SO, y - SO, z - SO)])] ? 1 : 0
         } } }
-        // Density for blocks 0...17 (18 per axis): half the block, half its 3x3x3 mean.
-        let M = 18, MM = M * M
+        // Density for blocks -KO...KO+17 (index +KO): half the block, half its 3x3x3 mean. A chipped natural
+        // block (being dug, P106) keeps its smooth surface but shrinks toward its centre as the chips come off (its
+        // solid density falls toward the 0.5 threshold), instead of turning back into a cube of sub-cubes.
+        let M = 18 + 2 * KO, MM = M * M, DO = KO
         let D = sc.smD
         for y in 0..<M { for z in 0..<M { for x in 0..<M {
             var s = 0
@@ -126,18 +139,25 @@ extension Mesher {
                 let row = x + (z + dz) * N + (y + dy) * NN
                 s += Int(S[row]) + Int(S[row + 1]) + Int(S[row + 2])
             } }
-            let selfS = Float(S[(x + 1) + (z + 1) * N + (y + 1) * NN])
-            D[x + z * M + y * MM] = 0.5 * selfS + Float(s) / 54
+            let selfS = S[(x + 1) + (z + 1) * N + (y + 1) * NN]
+            var d = 0.5 * Float(selfS) + Float(s) / 54
+            if selfS != 0, !dmg.isEmpty, let dv = dmg[ri(x - DO, y - DO, z - DO)] {
+                let lv = Float(min(7, Int(dv & 31)) + 1) / 8
+                d = 0.5 + max(0.012, (d - 0.5) * (1 - 0.92 * lv))
+            }
+            D[x + z * M + y * MM] = d
         } } }
 
-        // Dual cell vertices 0...16 (17 per axis): position (blocks, section-local), light, ao.
-        let K = 17, KK = K * K
-        let VP = sc.smV, VL = sc.smL, VN = sc.smN
+        // Dual cell vertices -KO...16+KO (index +KO): position (blocks, section-local), light, ao. The ring past
+        // 0...16 feeds the relaxation, so a vertex comes out the same in every section that meshes it.
+        let K = 17 + 2 * KO, KK = K * K
+        let VP = sc.smV, VL = sc.smL, VN = sc.smN, VQ = sc.smQ
         let dW: [Float] = [-0.5, -1, 1, 0.5], tW: [Float] = [0.5, 1, 1, 0.5]   // normal stencil: blocks c-1...c+2
-        for cy in 0..<K { for cz in 0..<K { for cx in 0..<K {
-            let vi = cx + cz * K + cy * KK
+        for ky in 0..<K { for kz in 0..<K { for kx in 0..<K {
+            let cx = kx - KO, cy = ky - KO, cz = kz - KO
+            let vi = kx + kz * K + ky * KK
             var mask = 0
-            for c in 0..<8 where S[(cx + 1 + (c & 1)) + (cz + 1 + (c >> 2)) * N + (cy + 1 + ((c >> 1) & 1)) * NN] != 0 { mask |= 1 << c }
+            for c in 0..<8 where S[(cx + SO + (c & 1)) + (cz + SO + (c >> 2)) * N + (cy + SO + ((c >> 1) & 1)) * NN] != 0 { mask |= 1 << c }
             if mask == 0 || mask == 255 { VL[vi] = -1; continue }
             var sum = SIMD3<Float>(0, 0, 0)
             var n: Float = 0
@@ -146,9 +166,9 @@ extension Mesher {
                     let bit = 1 << sh
                     let c2 = c | bit
                     if (mask >> c & 1) == (mask >> c2 & 1) { continue }
-                    let d1 = D[(cx + (c & 1)) + (cz + (c >> 2)) * M + (cy + ((c >> 1) & 1)) * MM]
-                    let d2 = D[(cx + (c2 & 1)) + (cz + (c2 >> 2)) * M + (cy + ((c2 >> 1) & 1)) * MM]
-                    let t = (d1 - 0.5) / (d1 - d2)
+                    let d1 = D[(cx + DO + (c & 1)) + (cz + DO + (c >> 2)) * M + (cy + DO + ((c >> 1) & 1)) * MM]
+                    let d2 = D[(cx + DO + (c2 & 1)) + (cz + DO + (c2 >> 2)) * M + (cy + DO + ((c2 >> 1) & 1)) * MM]
+                    let t = max(0, min(1, (d1 - 0.5) / (d1 - d2)))
                     let p1 = SIMD3<Float>(Float(c & 1), Float((c >> 1) & 1), Float(c >> 2))
                     let p2 = SIMD3<Float>(Float(c2 & 1), Float((c2 >> 1) & 1), Float(c2 >> 2))
                     sum += p1 + (p2 - p1) * t
@@ -160,10 +180,13 @@ extension Mesher {
             let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
                 : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
-            // Normal: minus the gradient of solidity over the 4x4x4 blocks around the vertex (S index = block + 1).
+            VQ[vi] = pinned ? 1 : 0
+            // The ring only feeds the relaxation: its normals and light are never drawn.
+            if cx < 0 || cy < 0 || cz < 0 || cx > 16 || cy > 16 || cz > 16 { VL[vi] = 0; continue }
+            // Normal: minus the gradient of solidity over the 4x4x4 blocks around the vertex (S index = block + 3).
             var g = SIMD3<Float>(0, 0, 0)
             for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
-                let sv = Float(S[(cx + i) + (cz + k) * N + (cy + j) * NN])
+                let sv = Float(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
                 if sv == 0 { continue }
                 g.x += sv * dW[i] * tW[j] * tW[k]
                 g.y += sv * tW[i] * dW[j] * tW[k]
@@ -183,8 +206,66 @@ extension Mesher {
             let ao = max(0, 3 - max(0, occ - 4))
             VL[vi] = Int32(l | ao << 8)
         } } }
+        // P106 ("you can still tell it used to be blocks"): relax the surface. Each free vertex moves `relaxRate` of the
+        // way to the mean of its surface neighbours, `relax` times, kept inside its own dual cell (so no quad folds over). Steps and
+        // ledges become slopes and rounded shelves; flat ground and pinned joins to built blocks don't move.
+        if SmoothTerrain.relax > 0 {
+            let VR = sc.smR
+            let nbo = [1, -1, K, -K, KK, -KK]
+            for it in 0..<min(KO, SmoothTerrain.relax) {
+                let lo = KO - min(KO, SmoothTerrain.relax) + it + 1, hi = K - 1 - lo   // ring by ring, inward
+                for ky in lo...hi { for kz in lo...hi { for kx in lo...hi {
+                    let vi = kx + kz * K + ky * KK
+                    VR[vi * 3] = VP[vi * 3]; VR[vi * 3 + 1] = VP[vi * 3 + 1]; VR[vi * 3 + 2] = VP[vi * 3 + 2]
+                    guard VL[vi] >= 0, VQ[vi] == 0 else { continue }
+                    var m = SIMD3<Float>(0, 0, 0), c: Float = 0
+                    for o in nbo where VL[vi + o] >= 0 {
+                        m += SIMD3<Float>(VP[(vi + o) * 3], VP[(vi + o) * 3 + 1], VP[(vi + o) * 3 + 2]); c += 1
+                    }
+                    guard c > 0 else { continue }
+                    let cur = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
+                    let lo3 = SIMD3<Float>(Float(kx - KO) + 0.5, Float(ky - KO) + 0.5, Float(kz - KO) + 0.5)
+                    let r = simd_clamp(cur + (m / c - cur) * SmoothTerrain.relaxRate, lo3 + 0.02, lo3 + 0.98)
+                    VR[vi * 3] = r.x; VR[vi * 3 + 1] = r.y; VR[vi * 3 + 2] = r.z
+                } } }
+                for ky in lo...hi { for kz in lo...hi { for kx in lo...hi {
+                    let vi = kx + kz * K + ky * KK
+                    VP[vi * 3] = VR[vi * 3]; VP[vi * 3 + 1] = VR[vi * 3 + 1]; VP[vi * 3 + 2] = VR[vi * 3 + 2]
+                } } }
+            }
+        }
 
-        // Quads: block p and its +axis neighbour q, one solid (natural, not chipped) and one open.
+        // Chips off a block being dug pull the corners round it in toward its centre, after relaxing (so the dent shows).
+        if !dmg.isEmpty {
+            for ky in KO...(KO + 16) { for kz in KO...(KO + 16) { for kx in KO...(KO + 16) {
+                let vi = kx + kz * K + ky * KK
+                guard VL[vi] >= 0, VQ[vi] == 0 else { continue }
+                let cx = kx - KO, cy = ky - KO, cz = kz - KO
+                var p = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
+                var open = SIMD3<Float>(0, 0, 0), no: Float = 0
+                for c in 0..<8 where S[(cx + SO + (c & 1)) + (cz + SO + (c >> 2)) * N + (cy + SO + ((c >> 1) & 1)) * NN] == 0 {
+                    open += SIMD3<Float>(Float(c & 1), Float((c >> 1) & 1), Float(c >> 2)); no += 1
+                }
+                for c in 0..<8 where S[(cx + SO + (c & 1)) + (cz + SO + (c >> 2)) * N + (cy + SO + ((c >> 1) & 1)) * NN] != 0 {
+                    let bx = cx + (c & 1), by = cy + ((c >> 1) & 1), bz = cz + (c >> 2)
+                    guard let dv = dmg[ri(bx, by, bz)] else { continue }
+                    let lv = Float(min(7, Int(dv & 31)) + 1) / 8
+                    // Toward a point a quarter block past the block's centre, away from the open side.
+                    let away = SIMD3<Float>(Float(c & 1), Float((c >> 1) & 1), Float(c >> 2)) - open / max(1, no)
+                    let into = simd_length(away) > 1e-4 ? simd_normalize(away) * 0.25 : SIMD3<Float>(0, 0, 0)
+                    p += (SIMD3<Float>(Float(bx) + 0.5, Float(by) + 0.5, Float(bz) + 0.5) + into - p) * (0.7 * lv)
+                }
+                VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
+            } } }
+        }
+
+        if let hook = SmoothTerrain.vertexHook {             // (tests: the same cell meshed by two sections)
+            for ky in KO...(KO + 16) { for kz in KO...(KO + 16) { for kx in KO...(KO + 16) {
+                let vi = kx + kz * K + ky * KK
+                if VL[vi] >= 0 { hook(kx - KO, ky - KO, kz - KO, SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])) }
+            } } }
+        }
+        // Quads: block p and its +axis neighbour q, one solid (natural) and one open.
         var corner = [Int](repeating: 0, count: 4)
         var pts = [SIMD3<Float>](repeating: .zero, count: 4)
         for y in 0...16 { for z in 0...16 { for x in 0...16 {
@@ -194,20 +275,20 @@ extension Mesher {
                 if p[a] > 15 || p[b] < 1 || p[c] < 1 { continue }
                 var q = p
                 q[a] += 1
-                let sp = S[(p[0] + 1) + (p[2] + 1) * N + (p[1] + 1) * NN] != 0
-                let sq = S[(q[0] + 1) + (q[2] + 1) * N + (q[1] + 1) * NN] != 0
+                let sp = S[(p[0] + SO) + (p[2] + SO) * N + (p[1] + SO) * NN] != 0
+                let sq = S[(q[0] + SO) + (q[2] + SO) * N + (q[1] + SO) * NN] != 0
                 if sp == sq { continue }
                 let s = sp ? p : q
                 let si = ri(s[0], s[1], s[2])
                 let id = Int(R[si])
-                if !nat[id] || dmg[si] != nil { continue }
+                if !nat[id] { continue }
                 // Dual cells around the edge, counter-clockwise seen from the open side.
                 for k in 0..<4 {
                     var d = p
                     let kk = sp ? k : 3 - k
                     d[b] -= (kk == 0 || kk == 3) ? 1 : 0
                     d[c] -= (kk == 0 || kk == 1) ? 1 : 0
-                    let vi = d[0] + d[2] * K + d[1] * KK
+                    let vi = (d[0] + KO) + (d[2] + KO) * K + (d[1] + KO) * KK
                     corner[k] = vi
                     pts[k] = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
                 }

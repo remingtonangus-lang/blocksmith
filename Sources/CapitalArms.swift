@@ -59,6 +59,8 @@ enum CapitalArms {
             p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
         case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw:
             p += AshArms.details(i)
+        case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
+            p += GreywallArms.details(i)
         case Guns.revolver:
             for k in 0..<3 { p.append(b(-0.9, -0.2 + Float(k) * 0.5, -2.2, 0.06, 0.25, 1.6, blued * 0.6, pMetal)) }   // cylinder flutes
             p.append(b(-0.06, -0.2, -8.2, 0.12, 0.2, 5.4, silver, pMetal))                                // barrel seam
@@ -82,6 +84,8 @@ enum CapitalArms {
         switch i {
         case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw:
             return AshArms.model(i)
+        case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
+            return GreywallArms.model(i)
         case Guns.revolver:
             // The six-iron: a long blued barrel over its ejector rod, a fluted cylinder, a brass trigger guard
             // and a walnut grip with a rounded butt (original design).

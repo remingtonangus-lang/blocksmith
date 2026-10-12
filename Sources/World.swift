@@ -274,7 +274,7 @@ final class World {
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
         var sync: [(Chunk, Int)] = []
-        let r = SmoothTerrain.enabled ? 2 : 1       // smooth vertices move with blocks up to 2 away
+        let r = SmoothTerrain.enabled ? 2 + SmoothTerrain.relax : 1    // smooth vertices move with blocks up to 2 away, relaxed 1 more a pass
         for dz in -r...r {
             for dx in -r...r {
                 for dy in -r...r {
@@ -599,7 +599,8 @@ final class World {
         let v = UInt8((f & 7) << 5 | min(7, lv))
         if cur == v { return }
         damage[p] = v
-        remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
+        let r = SmoothTerrain.enabled ? 2 + SmoothTerrain.relax : 1    // (a chipped block shrinks the smooth surface round it)
+        remeshArea(x0: p.x - r, z0: p.z - r, x1: p.x + r, z1: p.z + r, y0: p.y - r, y1: p.y + r)
     }
 
     private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {

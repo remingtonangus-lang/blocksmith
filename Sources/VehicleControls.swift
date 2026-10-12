@@ -99,6 +99,10 @@ final class Turrets {
     weak var manned: Mob?
     var reload: Float = 0
     var lastFired: Double = -10
+    // P101 (Oct 12 12:15, "two barrels, so two shots per load"): each pull fires one barrel, left then right, a short
+    // beat apart; the full reload comes after the second.
+    var loaded = 2                                   // barrels loaded (2 after a reload)
+    static let beat: Float = 0.45                    // between the two barrels
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
@@ -111,6 +115,7 @@ final class Turrets {
         m.aggro = false
         m.persistent = true
         reload = 0.5
+        loaded = 2
         g.player.yaw = m.yaw
         g.player.pitch = m.soldierBrain.pitch
         g.player.flying = false
@@ -147,6 +152,7 @@ final class Turrets {
         g.player.vel = .zero
         g.player.onGround = true
         reload -= dt
+        if reload <= 0 && loaded == 0 { loaded = 2 }
         let fire = g.input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         if fire && reload <= 0 { shoot(g, m) }
         else if fire { g.sfx(.click, 0.4) }
@@ -157,30 +163,34 @@ final class Turrets {
 
     func shoot(_ g: Game, _ m: Mob) {
         let b = m.soldierBrain
-        reload = HeavyTurret.reload * 0.6
+        if loaded <= 0 { loaded = 2 }
+        let sx: Float = loaded == 2 ? -1 : 1           // left barrel first
+        loaded -= 1
+        reload = loaded > 0 ? Turrets.beat : HeavyTurret.reload * 0.6
         lastFired = g.clock
         let pivot = m.pos + V3(0, HeavyTurret.trunnionY, 0)
         let fwd = V3(-sinf(m.yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(m.yaw) * cosf(b.pitch))
-        for sx: Float in [-1, 1] {
-            let muzzle = HeavyTurret.muzzle(m, sx)
-            var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.004) * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
-                         shooter: ObjectIdentifier(m), by: "Player", life: 12, gravity: HeavyTurret.gravity)
-            HeavyTurret.arm(&s)
-            s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach      // P70
-            g.arms.spawn(s)
-            for _ in 0..<10 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...3), dark: false) }
-        }
+        let muzzle = HeavyTurret.muzzle(m, sx)
+        var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.004) * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
+                     shooter: ObjectIdentifier(m), by: "Player", life: 12, gravity: HeavyTurret.gravity)
+        HeavyTurret.arm(&s)
+        s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach      // P70
+        g.arms.spawn(s)
+        HeavyTurret.flash(g, muzzle, fwd, smoke: 10)
+        b.kick = 1; b.kickSide = sx
         g.sfx(.gun(9), 2, at: pivot)
         g.baseNoise(at: pivot, kind: .cannon)
         PadManager.shared.rumble(0.9, 0.3, sharpness: 0.2)
         g.player.pitch += 0.03
+        shots += 1
     }
+    private(set) var shots = 0                        // (tests)
 
     func prompts() -> [String] {
         let ready = reload <= 0
         if Prompt.pad {
-            return [PadMap.glyph(.rt).s + (ready ? " Fire" : " Reloading..."), Glyph.rs.s + " Aim", PadMap.glyph(.b).s + " Leave"]
+            return [PadMap.glyph(.rt).s + (ready ? (loaded == 1 ? " Fire right barrel" : " Fire") : " Reloading..."), Glyph.rs.s + " Aim", PadMap.glyph(.b).s + " Leave"]
         }
-        return [Glyph.mouseL.s + (ready ? " Fire" : " Reloading..."), "Mouse Aim", Glyphs.key("Shift") + " Leave"]
+        return [Glyph.mouseL.s + (ready ? (loaded == 1 ? " Fire right barrel" : " Fire") : " Reloading..."), "Mouse Aim", Glyphs.key("Shift") + " Leave"]
     }
 }

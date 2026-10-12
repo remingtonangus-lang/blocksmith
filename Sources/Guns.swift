@@ -75,17 +75,20 @@ enum Guns {
         GunSpec(key: "gun_ashsaw", name: "Ashsaw Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
                 spread: 0.075, aimSpread: 0.016, speed: 150, recoil: 0.011, reload: 4.2, range: 110, durability: 1600, zoom: 0.85,
                 shot: .bullet, sound: 19, accent: V3(0.2, 0.2, 0.22)),
-    ]
+    ] + GreywallArms.specs                   // (appended: soldiers keep their gun as an index)
     static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6, revolver = 7
     static let kessel = 8, hagel = 9, sturmwind = 10, ashsaw = 11
     static func isAshArm(_ gi: Int) -> Bool { gi >= kessel && gi <= ashsaw }
+    static let slatefall = 12, longwatch = 13, needle = 14, breaker = 15, repeater = 16      // Greywall's (GreywallArms.swift)
+    static func isGreyArm(_ gi: Int) -> Bool { gi >= slatefall && gi <= repeater }
     static let revolverKey = "gun_revolver"
     // Held in one hand on the march, two when aimed (soldier rig, pose checks).
-    static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver }
+    static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver || gi == needle || gi == breaker }
     // capital_rounds (P40): the Capital's service rifle, Chatter Gun and sidearm fire their own rounds, never sold (looted
     // from Capital soldiers and citadels); rifle rounds are the frontier's (the six-iron, the Ashguard's arms).
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
-                                           ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds")]
+                                           ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds"),
+                                           (GreywallArms.ammo, "Slate Rounds")]
     static let rocketPower: Float = 2.5
 
     private(set) static var byItem: [ItemID: Int] = [:]
@@ -283,7 +286,7 @@ enum Guns {
     ]
 
     static func painters(_ p: inout [String: TextureGen.Painter]) {
-        for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }) {
+        for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }).merging(GreywallArms.icons, uniquingKeysWith: { a, _ in a }) {
             let accent = all.first { $0.key == k }?.accent ?? V3(0.35, 0.4, 0.25)
             let grid = rows.map { Array($0) }
             p["item_" + k] = { x, y in
