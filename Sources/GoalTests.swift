@@ -17,7 +17,7 @@ enum GoalTests {
             for i in 0..<main0.count { g.inventory.main[i] = main0[i] }
             for i in 0..<armor0.count { g.inventory.armor[i] = armor0[i] }
             for i in 0..<off0.count { g.inventory.offhand[i] = off0[i] }
-            if g.menu != nil { g.closeMenu() }
+            if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
             g.menu = menu0; g.player.pos = pos0; g.player.vel = .zero; g.player.flying = fly0; g.time = time0
             HudExtras.enabled = en0
         }
@@ -26,7 +26,7 @@ enum GoalTests {
         g.survival = true; g.advancements = []; g.paused = false
         // Hovering at noon, healthy: the banner check ticks the game for ten seconds.
         g.player.flying = true; g.player.vel = .zero; g.time = DAY_LENGTH * 0.25; g.health = 20; g.alive = true
-        if g.menu != nil { g.closeMenu() }
+        if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
         for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
         for i in 0..<g.inventory.armor.slots.count { g.inventory.armor[i] = .empty }
         for i in 0..<g.inventory.offhand.slots.count { g.inventory.offhand[i] = .empty }
@@ -70,14 +70,21 @@ enum GoalTests {
         }
         G20Guard.overworld = g20
 
-        // The banner and the inventory line.
+        // The banner and the inventory line, with nothing left around from earlier checks that could kill the player
+        // during the ten seconds (the full run: a DeathMenu took the banner).
+        let mobs0 = g.mobs.mobs, riding0 = g.riding, credits0 = g.credits, creditsAsh0 = g.creditsAsh
+        defer { g.mobs.mobs = mobs0; g.riding = riding0; g.credits = credits0; g.creditsAsh = creditsAsh0 }
+        g.credits = nil; g.creditsAsh = false
+        g.mobs.mobs.removeAll(); g.world.pendingMobs.removeAll(); g.riding = nil
+        g.effects.clear(); g.onFire = 0; g.air = 15; g.hunger = 20; g.health = 20; g.alive = true
+        g.lastDeath = nil
         Goals.shownID = nil; Goals.current = nil; Goals.lastCheck = -100
         g.advancements = ["root"]
         g.inventory.main[0] = .empty
         for _ in 0..<40 { g.tick(1.0 / 72) }
         let L = HudLayout(1280, 720)
         let shown = Goals.lines(g, L).map { $0.text }
-        let state = "menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), alive \(g.alive), paused \(g.paused), coop \(g.coop.active), wheel \(WeaponWheel.shared.open), goal \(Goals.current?.id ?? "none")"
+        let state = "menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), died \(g.lastDeath.map { "at \($0)" } ?? "no"), health \(g.health), alive \(g.alive), paused \(g.paused), coop \(g.coop.active), wheel \(WeaponWheel.shared.open), goal \(Goals.current?.id ?? "none")"
         g.advancements.insert("mine_stone"); g.inventory.main[0] = ItemStack(Items.id("wooden_pickaxe"), 1)
         for _ in 0..<72 { g.tick(1.0 / 72) }
         let next = Goals.lines(g, L).map { $0.text }

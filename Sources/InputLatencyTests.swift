@@ -11,7 +11,7 @@ enum InputLatencyTests {
         let w = g.world, pm = PadManager.shared
         let dt = 1.0 / 72
         let menu0 = g.menu, surv0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, sel0 = g.selected
-        let slot0 = g.inventory.main[0], slot1 = g.inventory.main[1], time0 = g.time, mobs0 = g.mobs.mobs
+        let slot0 = g.inventory.main[0], slot1 = g.inventory.main[1], time0 = g.time, mobs0 = g.mobs.mobs, riding0 = g.riding
         // A stone floor high over the spawn with a dirt wall two blocks north, out of the way of the world's own blocks.
         let fx = Int(floor(pos0.x)) + 40, fz = Int(floor(pos0.z)) + 40
         _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 2)       // (the full run may have the player far off)
@@ -27,16 +27,24 @@ enum InputLatencyTests {
                 if w.block(x, y, z) != want { put(x, y, z, want) }
             } } }
         }
+        // (closeMenu keeps a DeathMenu, which the full run has open by now: the first press only respawned, so jump
+        // read 1 frame late; it is cleared directly.)
+        // An earlier check may have left the end credits rolling (the first press only skips them: jump read 1 frame
+        // late in the full run).
+        let credits0 = g.credits, creditsAsh0 = g.creditsAsh
+        g.credits = nil; g.creditsAsh = false
         defer {
+            g.credits = credits0; g.creditsAsh = creditsAsh0
             pm.touch = nil
             for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
             g.survival = surv0; g.player.pos = pos0; g.player.vel = .zero; g.player.yaw = yaw0; g.player.pitch = pitch0
-            g.inventory.main[0] = slot0; g.inventory.main[1] = slot1; g.selected = sel0; g.time = time0; g.mobs.mobs = mobs0
-            g.mining = nil; if g.menu != nil { g.closeMenu() }; g.paused = false; g.menu = menu0
+            g.inventory.main[0] = slot0; g.inventory.main[1] = slot1; g.selected = sel0; g.time = time0; g.mobs.mobs = mobs0; g.riding = riding0
+            g.mining = nil; if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }; g.paused = false; g.menu = menu0
         }
         let spot = V3(Float(fx) + 0.5, Float(py + 1), Float(fz) + 0.5)
         var mob: Mob?
         var h0 = 0
+        var before = ""
         var mobAt = V3(0, 0, -1.2), aimPitch: Float = -0.7
 
         // Settle on the floor facing the wall with neutral input, press, and count frames to the effect (nil: none
@@ -44,9 +52,10 @@ enum InputLatencyTests {
         func frames(_ name: String, setup: () -> Void = {}, _ press: (inout PadSnapshot) -> Void, _ effect: () -> Bool) -> Int? {
             arena()
             g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); mob = nil
-            if g.menu != nil { g.closeMenu() }; g.paused = false
+            if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }; g.paused = false
             g.survival = true; g.health = 20; g.alive = true; g.time = DAY_LENGTH * 0.25
             g.player.pos = spot; g.player.vel = .zero; g.player.yaw = 0; g.player.pitch = 0; g.player.flying = false
+            g.riding = nil; g.player.gliding = false; g.player.sneaking = false; g.player.sprinting = false
             g.inventory.main[0] = ItemStack(Items.id("cobblestone"), 64); g.inventory.main[1] = .empty; g.selected = 0
             g.mining = nil
             setup()
@@ -58,6 +67,7 @@ enum InputLatencyTests {
             g.swing = 0
             var p = PadSnapshot()
             press(&p)
+            before = "ground \(g.player.onGround), water \(g.player.inWater), vel.y \(g.player.vel.y), effects \(g.effects.any), riding \(g.riding != nil), credits \(g.credits != nil)"
             for i in 0..<12 {
                 pm.touch = p
                 g.tick(dt)
@@ -70,7 +80,7 @@ enum InputLatencyTests {
         var rows: [String] = [], late: [String] = []
         func row(_ name: String, _ n: Int?) {
             rows.append("\(name) \(n.map(String.init) ?? "none")")
-            if n != 0 { late.append("\(name) \(n.map { "\($0) frames" } ?? "no effect in 12 frames")") }
+            if n != 0 { late.append("\(name) \(n.map { "\($0) frames" } ?? "no effect in 12 frames") (at the press: \(before))") }
         }
         var ref = V3.zero
         row("jump", frames("jump", { $0.a = true }) { g.player.vel.y > 0 })
