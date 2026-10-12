@@ -23,6 +23,7 @@ extension MobVoice.Family {
     var verb: String {
         switch self {
         case .silent: return "clatters"
+        case .engine: return "rumbles"
         case .grunt: return "grunts"
         case .moo: return "moos"
         case .bleat: return "bleats"

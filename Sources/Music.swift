@@ -256,11 +256,27 @@ final class MusicRenderer {
     private(set) var frame = 0
     private var gain: Float = 0, gainTarget: Float = 0, gainRate: Float = 0
     private var seed: UInt64 = 1
+    // The leveller (Q2, scorecard "Mix": music about -16 LUFS): a K-weighted loudness meter on the mix (BS.1770 stage 1
+    // and 2 filters) steers a slow gain so every piece sits near the target, however quiet or busy its instruments are.
+    // Then a soft knee above 0.5 keeps peaks under -1 dBFS. `level` carries over between pieces.
+    static let targetLUFS: Float = -16
+    private var level: Float = 2, levelMS: Float = 0
+    private var kw = [Float](repeating: 0, count: 8)       // two biquads' state: x1 x2 y1 y2 each
+    private let kc: [Float]                                // b0 b1 b2 a1 a2 (shelf), then a1 a2 (high-pass)
     var finished: Bool { score == nil || (noteIdx >= (score?.notes.count ?? 0) && voices.isEmpty && Float(frame) / sr > (score?.length ?? 0)) }
     var isPlaying: Bool { score != nil && !finished }
 
     init(sampleRate: Float = Float(SoundBank.rate)) {
         sr = sampleRate
+        var f0: Float = 1681.9745, q: Float = 0.70717524
+        var k = tanf(.pi * f0 / sampleRate)
+        let vh = powf(10, 3.9998438 / 20), vb = powf(vh, 0.49966677)
+        var a0 = 1 + k / q + k * k
+        let shelf = [(vh + vb * k / q + k * k) / a0, 2 * (k * k - vh) / a0, (vh - vb * k / q + k * k) / a0, 2 * (k * k - 1) / a0, (1 - k / q + k * k) / a0]
+        f0 = 38.135471; q = 0.50032704
+        k = tanf(.pi * f0 / sampleRate); a0 = 1 + k / q + k * k
+        kc = shelf + [2 * (k * k - 1) / a0, (1 - k / q + k * k) / a0]
+        levelMS = powf(10, (MusicRenderer.targetLUFS + 0.691) / 10) / (level * level)
         let lens = [1557, 1617, 1491, 1422, 1277, 1356]
         let rate: Float = Float(sampleRate) / 44100
         combs = lens.map { (l: Int) -> [Float] in [Float](repeating: 0, count: Int(Float(l) * rate)) }
@@ -322,22 +338,52 @@ final class MusicRenderer {
         voices.removeAll { $0.done }
         // Master fade, the piece's own tail fade and a soft limiter.
         let tailStart = max(0, s.length - 8)
+        let lv0 = level, lv1 = nextLevel(n), dl = (lv1 - lv0) / Float(n)
+        var ms: Float = 0
         for i in 0..<n {
             if gain != gainTarget {
                 if abs(gainTarget - gain) <= gainRate { gain = gainTarget } else { gain += gainTarget > gain ? gainRate : -gainRate }
             }
             let t = Float(frame + i) / sr
             let tail: Float = t > tailStart ? max(0, 1 - (t - tailStart) / 8) : 1
-            let g = gain * tail * 0.6
             let (wl, wr) = room(l[i], r[i])
-            let a = (l[i] + wl) * g, b = (r[i] + wr) * g
-            l[i] = a / (1 + abs(a))
-            r[i] = b / (1 + abs(b))
+            let x0 = (l[i] + wl + r[i] + wr) * 0.3                 // the mix at unit level, for the meter
+            ms += kweight(x0)
+            let g = gain * tail * 0.6 * (lv0 + dl * Float(i))
+            l[i] = MusicRenderer.knee((l[i] + wl) * g)
+            r[i] = MusicRenderer.knee((r[i] + wr) * g)
         }
+        // Gate out silence (rests, the fade): only blocks louder than -50 LUFS at unit level move the meter (3 s).
+        ms /= Float(max(1, n))
+        if ms > powf(10, (-50 + 0.691) / 10) { levelMS += (ms - levelMS) * min(1, Float(n) / (3 * sr)) }
         frame += n
         if gainTarget == 0 && gain == 0 { score = nil; voices = [] }
         if noteIdx >= s.notes.count && voices.isEmpty && Float(frame) / sr > s.length { score = nil }
         return true
+    }
+
+    // The level the meter asks for, at most 6 dB a second away from the last one, within -6..+16 dB.
+    private func nextLevel(_ n: Int) -> Float {
+        let want = min(6.3, max(0.5, sqrtf(powf(10, (MusicRenderer.targetLUFS + 0.691) / 10) / max(1e-9, levelMS))))
+        let step = powf(2, Float(n) / sr)                       // ~6 dB a second
+        level = min(level * step, max(level / step, want))
+        return level
+    }
+
+    @inline(__always) private func kweight(_ x: Float) -> Float {
+        let y = kc[0] * x + kc[1] * kw[0] + kc[2] * kw[1] - kc[3] * kw[2] - kc[4] * kw[3]
+        kw[1] = kw[0]; kw[0] = x; kw[3] = kw[2]; kw[2] = y
+        let z = y - 2 * kw[4] + kw[5] - kc[5] * kw[6] - kc[6] * kw[7]
+        kw[5] = kw[4]; kw[4] = y; kw[7] = kw[6]; kw[6] = z
+        return z * z
+    }
+
+    // Linear to 0.5, then a tanh knee that never passes 0.89 (-1 dBFS).
+    @inline(__always) static func knee(_ x: Float) -> Float {
+        let a = abs(x)
+        guard a > 0.5 else { return x }
+        let y = 0.5 + 0.39 * tanhf((a - 0.5) / 0.39)
+        return x < 0 ? -y : y
     }
 
     // Offline: the whole piece (or the first `seconds`) as mono for the harness.

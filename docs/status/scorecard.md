@@ -32,7 +32,7 @@ Evidence files: docs/status/evidence/2026-10-09/.
 ## 2. Stability and saves
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| Crashes | 0 in a 4-hour bot soak + 100 save/load cycles | CI smoke is 60 s x 3 render distances; no 4 h soak or 100-cycle save test exists | RED (UNMEASURED) | .github/workflows/mac.yml smoke |
+| Crashes | 0 in a 4-hour bot soak + 100 save/load cycles | 100 save/load cycles (Oct 12, Linux host, `questcheck --savesoak-only`): a survival world played, changed (blocks, inventory, a chest), saved and loaded back as the app does, 100 times: every cycle came back as saved, no World or Game left alive, resident 169 -> 191 MB, save folder 0.2 MB; 5 cycles in every full run. The 4 h bot soak still not run (CI smoke is 60 s x 3 render distances) | AMBER | `questcheck --savesoak-only` |
 | Save safety | old saves load, backup before migration | Oct 11 (audit gap 3): a format-3 world with 30 animals is backed up (Backups/<name>-before-f4-*, mobs.json copied), then crowds over the per-chunk cap are thinned once (12 wild -> 4; penned, owned, named kept); a failed backup skips the thinning. Synthetic save only, no real old player saves tested | AMBER | `--questbugs --only gaps` |
 
 ## 3. Controls, feel and VR comfort
@@ -58,7 +58,7 @@ nothing and LB/RB open the crafting book; D-pad down drops on tap but not on hol
 | Models | believable mobs | connectivity: every mob kind stays in one piece over 19,392 walk/gallop/knockback/hurt poses (14 kinds had gaps, incl. the horse knee; verified). Head look/attack/sit poses not covered; believability not reviewed | RED (only connectivity measured) | `--questbugs --only pm9a` |
 | Sky | realistic sky + clouds | blocky cloud slabs (base_battle, frigate); dusk/night readable | RED | golden_mac_sheet.jpg |
 | Defects: flicker | no z-fighting/flicker | 0-4 ppm on 7 world shots (threshold ok < 20; synthetic speckles read 182 ppm, so the detector works); only a 0.02 deg nudge, no time step | AMBER | flicker.txt |
-| Defects: floating trees, light leaks | none | not measured | RED (UNMEASURED) | - |
+| Defects: floating trees, light leaks | none | Oct 12 (Q2): `questcheck --gencheck`, 288 chunks over 3 seeds: floating blocks 8 -> 0 (lone blocks at the column top and on chunk edge rows are cleared now; all 8 were there), ores in air 4 -> 1 (edge rule since added), plant_floating 1, leaves_orphan 1, trunk_floating 1 (the half-tree class in BUGS.md, Mac lane). Light leaks not measured | AMBER (light leaks unmeasured; trees Mac lane) | `questcheck --gencheck` |
 
 Golden shots, Mac (score 1-5 vs style 3; reason): spawn 2 (faces a tree trunk at the actual spawn, flat textures);
 forest 2 (dense uniform canopy, blocky); village 3 (readable layout, blocky); cave_torch 2 (flat grey walls, little
@@ -71,10 +71,10 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 ## 5. Audio
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| Coverage | every block/item/mob/vehicle/UI sound | all 20 materials have break/place/step/hit/fall; mob kinds without a voice: deckGun, ashTank, ashHalftrack, ashArtillery, ashTruck (crystal, minecart, boat, armour stand allowed); items not audited | RED | audio_audit.md |
+| Coverage | every block/item/mob/vehicle/UI sound | all 20 materials have break/place/step/hit/fall; Oct 12 (Q2): every mob kind has a voice: the war machines (Cinder Tank, half-track, truck, Behemoth) idle on a diesel chug, gun mounts (field gun, deck gun) clank, all ring when hit and blow up when killed (crystal, minecart, boat, armour stand allowed silent); items not audited | AMBER (items not audited) | `questcheck --musiclevels-only` (sound coverage) |
 | Context: dry vs wet steps | dry surfaces sound dry | block mapping correct (grass, dirt, stone, sand, gravel, planks...: no dry block on mud/slime). Rendered steps (Oct 11, audit gap 9): every dry material measures closer to stone/gravel/wood than to mud/slime (wool 0.12 vs 2.77, sculk 0.31 vs 2.87 after the foley profiles lost their squelch and low thump); all 1009 files <= -1 dBFS (scapes capped -1.2; firefight was -0.4); audiolevels.py now exits 1 on a wet step or a loud file. Reverb wet mix untested | GREEN | audio_levels.md |
 | Context: ambience by place/time | no birds underground, at night, Deep, Ash Vault | 60 s of the director each: forest noon 12 bird calls; forest midnight 0 (owl + crickets); cave under forest (y 51) noon/midnight 0 wildlife; Ash Vault 0; Deep hell band 0. plus a shallow dark cave 6-20 blocks down near the forest surface (the reported case; y 68, sky light 0) at noon: 0 wildlife. Not tested: the reverb wet mix near entrances, caves in other biomes | AMBER | audio_audit.md |
-| Mix | music ~ -16 LUFS, SFX peaks <= -1 dBFS, no clipping | music -18.7 to -27.1 LUFS (all 19 pieces below target); 191 SFX peak above -1 dBFS; 0 clipped files | RED | audio_levels_summary.md |
+| Mix | music ~ -16 LUFS, SFX peaks <= -1 dBFS, no clipping | Oct 12 (Q2): music runs through a leveller (K-weighted meter, slow gain, soft knee under -1 dBFS): all 20 pieces -16.2 to -15.5 LUFS, peaks -2.9 to -1.0 dBFS, none clipped (was -18.7 to -27.1). SFX: 1009 files, 0 over -1 dBFS, 0 clipped (Oct 11 audio_levels.md). Leveller not yet heard on device | GREEN (verify by ear) | `questcheck --musiclevels-only`, audio_levels.md |
 | Music | composed tracks per context | still synthesized; licence questions open (store-readiness.md) | RED | - |
 
 ## 6. Content, progression and balance
@@ -82,7 +82,7 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 |---|---|---|---|---|
 | First hour | always a next goal | not measured this round | RED (UNMEASURED) | - |
 | Progression | all tiers reachable in sane time, 10 seeds | `--playthrough` exists (one seed, CI heavy lane); 10-seed timings not run | AMBER | Sources/Playthrough.swift |
-| Balance | TTK tables in range | not measured | RED (UNMEASURED) | - |
+| Balance | TTK tables in range | Oct 12 (Q2): real duels through Game.tick, 12 night/raid mobs x 3 gear tiers (balance.md): iron gear survives every common night mob 20 s+, nothing kills it under 2 s; early gear beats each common mob, diamond beats all; no one-swing kills; each tier up never worse; a hisser blast kills an unarmoured player, iron survives. Found and fixed: Marauders (and every archer at close range) aimed over the head and never hit a still player (Marauder now 10.6 s unarmoured). Deep units: deep-balance.md; soldier classes: troop-classes.md. Frigate and boss fights not in the table | AMBER (frigate, bosses not tabled) | `questcheck --balance-only` |
 | Copper circuits (redstone parity) | every Java redstone component + behaviour | 111/111 checklist rows pass (verified spot-check: real behaviour asserts); pistons move instantly (Java 2 ticks), 0-tick tricks skipped | AMBER | docs/status/copper-parity.md, `--coppertest` |
 | Bone meal | works wherever Bedrock's does | 64 targets grow via the right-click path, 10 non-targets refuse; stems/glow lichen/mangrove leaves/tall seagrass absent from the game | GREEN (verified) | docs/status/evidence/2026-10-09-pm/bonemeal.md, `--only pm9b` |
 | Enchanting table | classic offers incl. Fortune/Gentle Touch, multi-enchants | pickaxe lvl 30: Fortune 32%, Gentle Touch 17%, never together; multi-enchant 63-75% (books 21%) | GREEN (verified) | docs/status/evidence/2026-10-09-pm/pm9d-enchant-distribution.txt, `--only pm9d` |
@@ -93,15 +93,15 @@ fine, grass noisy). Quest copies: produced once the quest.yml line above is adde
 | Spawn density | not empty, not swarms | Oct 9 PM: surface monsters halved (3 nights: 63 -> 33, caves 84 -> 93, verified). Earlier: 30 s per time of day, 50 seeds, player 12 above spawn: midnight surface hostiles median 10 (max 16, zero on 3 seeds); passive surface median 10 (zero on 1 seed at noon); noon surface hostiles median 5 (max 27; mostly creepers/skeletons/zombies; "surface" = above column height - 6, so shade under trees/overhangs counts) - needs a look | AMBER | world_audit.md |
 | Behaviour | no stuck mobs, no friendly fire | not measured this round (agents exist: `--agent`) | RED (UNMEASURED) | - |
 | World gen: safe spawn | safe spawn | 0/50 unsafe (game spawnPoint: feet/head clear, full ground, no lava within 2, no water within 1) | GREEN (verified; cactus, fire, cliff edges, nearby hostiles not checked) | world_audit.md |
-| World gen: overlaps | no structure overlaps | 138 piece-level overlaps in 50 seeds x 2048^2: military_base + ruined_portal 26, military_base + village 8, capital_city + ruined_portal 5, ocean_ruin + shipwreck 14, mineshaft + trial_chambers 32 (underground) | RED | world_audit.md |
+| World gen: overlaps | no structure overlaps | Oct 12 (Q2): small kinds give way to big ones they would cut into (StructureCache.yields: ruined portals, shipwrecks, mineshafts, desert wells, fossils; of two mineshafts the earlier region's stays; saved ground keeps its old starts). 12 seeds x 2048^2: 0 piece overlaps in 1,560 starts. Was 138 in 50 seeds. Mac `--worldaudit` over 50 seeds not re-run | AMBER (GREEN once the 50-seed audit agrees) | `questcheck --overlaps-only` |
 | World gen: findability | bases/citadels findable | distance from spawn: Capital citadel median 428 (max 1544), Capital city median 752 (max 1980), village median 479 (max 2043, 1 seed > 2000) | AMBER (no target distance set) | world_audit.md |
 
 ## 8. UI and UX
 | Metric | Target | Current | Status | Evidence |
 |---|---|---|---|---|
-| Legibility / no truncation | readable, nothing cut | 48 screens: 8 flags. Real: creative menu hint line runs off both screen edges at 1280x800 (1386 px wide). By design: credits scroll off the bottom. To review: tooltips (Iron Chestplate, Coal Ore, Torch) extend past their menu panel. Smallest text 12 px (options, 1280x800); VR angular size not measured | RED | ui_overflow.md |
+| Legibility / no truncation | readable, nothing cut | 48 screens: 8 flags. Oct 12 (Q2): the menu control legend steps down a text scale until it fits the screen (the creative legend ran 1386 px at 1280x800; Mac renderer, not re-shot). By design: credits scroll off the bottom. To review: tooltips (Iron Chestplate, Coal Ore, Torch) extend past their menu panel. Smallest text 12 px (options, 1280x800); VR angular size not measured | AMBER (re-shoot on Mac; tooltips) | ui_overflow.md |
 | Consistency | one style, controller everywhere, settings persist | not reviewed | RED (UNMEASURED) | - |
-| Accessibility | subtitles, colour-safe, per-bus volume | per-category volume sliders exist (SoundCategory); subtitles not found | RED | Sources/Sound.swift |
+| Accessibility | subtitles, colour-safe, per-bus volume | re-read Oct 12: subtitles with a direction arrow (AudioSubtitles.swift, Options > Audio and Accessibility), colourblind-safe cue colours (Settings.colorblind), per-category volume sliders (SoundCategory). Not measured: subtitle size in VR, a screen reader | AMBER | Sources/AudioSubtitles.swift, Settings.swift |
 
 ## 9. Store compliance
 IP names: 28 display strings renamed (docs/status/ip-renames.md), `python3 tools/namecheck.py --coined` 0 hits over 90 terms (CI fast lane); unsure terms flagged for Remington there. AMBER (needs Remington's call on the flagged terms).

@@ -896,14 +896,14 @@ final class Mob {
         case .ranged:
             aimHold = max(0, aimHold - dt)
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
-            if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
+            if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height / 3, 0)) {
                 face(v.pos)
                 aimHold = 0.8
                 let dv = simd_length(v.pos - pos)
                 speed = dv > 10 ? spec.speed : (dv < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dv < 16 {
                     attackCooldown = crossbowReload
-                    var d = v.pos + V3(0, v.height * 0.6, 0) - eye
+                    var d = v.pos + V3(0, v.height / 3, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
                     tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
@@ -923,7 +923,10 @@ final class Mob {
                 }
                 if attackCooldown <= 0 && dist < 16 {
                     attackCooldown = crossbowReload
-                    let target = g.player.eye - V3(0, 0.3, 0)
+                    // Aimed at a third of the body's height, as the reference does: the lift below is for that point
+                    // (aimed at the face, the lift carried every close bolt over the head: a Marauder standing 5 blocks
+                    // off never hit a still player; Q2 balance duels).
+                    let target = g.player.pos + V3(0, 0.6, 0)
                     var d = target - eye
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
