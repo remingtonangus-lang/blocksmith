@@ -31,7 +31,7 @@ enum BalanceTests {
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, surv0 = g.survival, fly0 = g.player.flying
         let time0 = g.time, diff0 = g.difficulty, health0 = g.health, mobs0 = g.mobs.mobs
         let armour0 = g.inventory.armor.slots, main0 = g.inventory.main.slots, sel0 = g.inventory.selected
-        let enc0 = w.ships.encounters
+        let enc0 = w.ships.encounters, menu0 = g.menu, weather0 = g.weather
         var placed: [IVec3] = []
         let fx = Int(floor(pos0.x)), fz = Int(floor(pos0.z))
         let py = min(CH - 30, w.topY(fx, fz) + 24)
@@ -42,7 +42,7 @@ enum BalanceTests {
             g.survival = surv0; g.player.flying = fly0; g.time = time0; g.difficulty = diff0
             g.health = health0; g.alive = true; g.menu = nil
             g.inventory.armor.slots = armour0; g.inventory.main.slots = main0; g.inventory.selected = sel0
-            w.ships.encounters = enc0
+            w.ships.encounters = enc0; g.menu = menu0; g.weather = weather0
         }
         w.ships.encounters = false
         g.survival = true; g.player.flying = false; g.difficulty = 2
@@ -76,6 +76,8 @@ enum BalanceTests {
             g.mobs.mobs = [m]
             g.player.pos = spot; g.player.vel = .zero; g.health = 20; g.alive = true
             g.time = DAY_LENGTH * 0.75          // midnight for every duel (the clock ran on into day: skeletons burned)
+            // Clear skies (in the full run it could be raining, and a voidwalker in rain only teleports about).
+            g.weather.raining = false; g.weather.thundering = false; g.weather.rain = 0; g.weather.thunder = 0; g.weather.rainTime = 9000; g.weather.thunderTime = 9000
             g.menu = nil; for e in Effect.allCases { g.effects.remove(e) }      // (a witch's poison or a cave spider's carries over)
             return m
         }
