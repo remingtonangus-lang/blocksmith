@@ -8,7 +8,7 @@ enum Explosion {
     // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
     // (reference: the TNT drop-decay rule is off by default).
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
-                        decay: Bool = true) {
+                        decay: Bool = true, resistCap: Float = .infinity) {
         let w = g.world
         // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
         let own = g.bases.quiet
@@ -29,7 +29,8 @@ enum Explosion {
                 let id = w.block(b.x, b.y, b.z)
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
-                    let res = fluid ? 100 : Blocks.resistance[Int(id)]
+                    let r0 = Blocks.resistance[Int(id)]
+                    let res = fluid ? 100 : (r0 <= 12 ? min(resistCap, r0) : r0)       // (only stone-class blocks; vaults, obsidian, bedrock stay)
                     let cost: Float = (res + 0.3) * 0.3
                     if intensity <= cost && !fluid && breakBlocks && intensity > 0 {
                         shaken[b] = max(shaken[b] ?? 0, intensity / cost)
@@ -101,7 +102,8 @@ enum Explosion {
             g.player.vel += push
         }
         g.coop.eachSeat(g, hitPlayer)
-        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard) {
+        for m in g.mobs.mobs where m !== except && !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)
+            && !(g.blastSpares != .none && m.factionValue == g.blastSpares) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)
@@ -131,28 +133,32 @@ extension Explosion {
     // nearest first, so a capped crater is still a round bowl, only shallower. All at once here (harness); the game
     // carves it over a few frames with CraterJob (blocksPerFrame). Returns the number of blocks removed.
     @discardableResult
-    static func crater(at c: V3, radius r: Float, cap: Int = .max, game g: Game) -> Int {
-        let job = CraterJob(at: c, radius: r, cap: cap, game: g)
+    static func crater(at c: V3, radius r: Float, cap: Int = .max, game g: Game, depth: Int? = nil) -> Int {
+        let job = CraterJob(at: c, radius: r, cap: cap, game: g, depth: depth)
         while !job.step(g, blocks: .max) {}
         return job.removed
     }
 
-    // Offsets of the cube of radius ri, nearest first by the bowl's metric (built once per radius).
+    // Offsets of the cells of a bowl of radius ri reaching `depth` down, nearest first by the bowl's metric (built once
+    // per shape). The default depth is the old bowl's, two thirds of its radius.
     private static var craterOffsetCache: [Int: [SIMD3<Int16>]] = [:]
     private static let craterOffsetLock = NSLock()      // (a charging Tidebreaker builds them on a worker: MainGun)
-    static func craterOffsets(_ ri: Int) -> [SIMD3<Int16>] {
+    static func craterOffsets(_ ri: Int, depth: Int? = nil) -> [SIMD3<Int16>] {
+        let dn = depth ?? Int(ceilf(Float(ri) / 1.5))
+        let key = ri * 1000 + dn
         craterOffsetLock.lock()
         defer { craterOffsetLock.unlock() }
-        if let o = craterOffsetCache[ri] { return o }
+        if let o = craterOffsetCache[key] { return o }
+        let down = Float(ri) / Float(max(1, dn))
         var o: [(Float, SIMD3<Int16>)] = []
-        o.reserveCapacity((2 * ri + 1) * (2 * ri + 1) * (2 * ri + 1))
-        for dy in -ri...ri { for dz in -ri...ri { for dx in -ri...ri {
-            let dyf = Float(dy) * (dy < 0 ? 1.5 : 1)
+        o.reserveCapacity((2 * ri + 1) * (2 * ri + 1) * (ri + dn + 1))
+        for dy in -dn...ri { for dz in -ri...ri { for dx in -ri...ri {
+            let dyf = Float(dy) * (dy < 0 ? down : 1)
             o.append((Float(dx * dx + dz * dz) + dyf * dyf, SIMD3<Int16>(Int16(dx), Int16(dy), Int16(dz))))
         } } }
         o.sort { $0.0 < $1.0 }
         let out = o.map { $0.1 }
-        craterOffsetCache[ri] = out
+        craterOffsetCache[key] = out
         return out
     }
 }
@@ -164,6 +170,8 @@ final class CraterJob {
     let center: V3
     let r: Float
     let cap: Int
+    let depth: Int                           // how far down the bowl reaches (P99: the Tidebreaker's goes 22 deep)
+    private let down: Float
     private let offsets: [SIMD3<Int16>]
     private var next = 0
     private(set) var removed = 0
@@ -176,9 +184,12 @@ final class CraterJob {
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
     // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
-    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false) {
+    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil) {
         center = c; self.r = r; self.cap = cap
-        offsets = Explosion.craterOffsets(Int(ceilf(r)))
+        let ri = Int(ceilf(r))
+        self.depth = depth ?? Int(ceilf(Float(ri) / 1.5))
+        down = r / Float(max(1, self.depth))
+        offsets = Explosion.craterOffsets(ri, depth: self.depth)
         if quiet { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         g.world.ships.blast(at: c, power: 14, game: g)
@@ -203,7 +214,7 @@ final class CraterJob {
             // spread over the first few frames (one pass was a 30-40 ms frame); the carving waits for it (under the
             // fireball, unseen).
             let R = Int(ceilf(r * 1.5)) + 3                   // (the scorch reaches 1.5 radii)
-            let y0 = max(0, cy - R), y1 = min(CH - 1, cy + R)
+            let y0 = max(0, cy - max(R, depth + 3)), y1 = min(CH - 1, cy + R)
             if scanY < y0 { scanY = y0 }
             if scanY > y1 { circuitsNear = false; return step(g, blocks: blocks) }   // (a blast above or below the world)
             let yEnd = min(y1, scanY + CraterJob.scanLayers - 1)
@@ -230,7 +241,7 @@ final class CraterJob {
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
             let y = cy + dy
             guard y > 0 && y < CH - 1 else { continue }
-            let dyf = Float(dy) * (dy < 0 ? 1.5 : 1)         // a bowl: shallower than wide
+            let dyf = Float(dy) * (dy < 0 ? down : 1)        // a bowl (the old one shallower than wide, P99's deep)
             let d2: Float = Float(dx * dx + dz * dz) + dyf * dyf
             if d2 > r * r { next = offsets.count; break }     // nearest first: nothing further can be inside
             let edge: Float = r * (0.8 + 0.2 * hashf(cx + dx, y, cz + dz, 911))
@@ -243,7 +254,8 @@ final class CraterJob {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
             }
-            if Rand.float(in: 0..<1) < 0.02 {
+            // Loose blocks from the first 3000 only: P99's deep bowls (7000+ blocks) left the frame thread ticking hundreds of drops.
+            if removed < 3000 && Rand.float(in: 0..<1) < 0.02 {
                 for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
             }
             w.setBlockAsync(x, y, z, AIR)
@@ -299,7 +311,7 @@ final class CraterJob {
             guard w.chunkAt(x, z) != nil else { continue }
             // The exposed surface: the first solid block down from above the rim (plants and snow on it burnt off).
             var y = min(CH - 2, cy + Int(r) + 2)
-            let floorY = max(1, cy - Int(r))
+            let floorY = max(1, cy - max(Int(r), depth) - 1)          // (P99: the deep bowl's floor too)
             var top: BlockID = AIR
             while y > floorY {
                 let id = w.block(x, y, z)

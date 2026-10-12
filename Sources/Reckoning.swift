@@ -1,158 +1,263 @@
 import Foundation
 import simd
 
-// P46 (Oct 11 evening playtest): the endgame. Once the Ashguard has fallen below hell and the player is back on the
-// surface, word spreads and every power in the land comes for them: five waves (the Marauder clans, the Capital, the
-// Stormwarden Fleet, the restless dead, then every banner at once) close in from out of sight, the soldiers partly by
-// dropship. Beat the last wave and the surface is yours: Marauder patrols stop for good. Not in creative or on
-// Peaceful; a death sends the wave home and it comes again after a breather. Saved as "reckoning".
+// The endgame (P46, reworked for P98, Oct 12 playtest). Once the Ashguard has fallen below hell and the player is back on
+// the surface, every power in the land comes for them at once: big hunting groups of the Marauder clans, the Capital,
+// Greywall Command, the Stormwarden Fleet's Aegis Marines and the restless dead march on the player from 450-700 blocks
+// out and follow them across the whole surface. Going underground is the only escape: the groups lose the trail and
+// wait where they last saw the player, and pick it up again when they come back up. The hunt ends only when every
+// group is dead; then the surface is at peace for good (no Marauder patrols, bounty hunters, town raids or Capital
+// patrols against the player). Not in creative or on Peaceful.
+//
+// Quest-safe: a group is a marker on the map (side, position, the units it still has) until it is within `near` of
+// the player; then its units come in out of sight, at most `liveCap` alive at once over all groups, nearest groups
+// first. A unit that falls `lost` behind goes back into its group. A death pushes every group `deathPush` back out.
+// Saved as "reckoning" (stage, timer) and "reckoningHunts" (each group with the units it has left).
 enum Reckoning {
-    struct Group { let kind: MobKind; let n: Int; let faction: Faction }
-    struct Wave { let intro: String; let groups: [Group]; let dropships: [Faction] }
-    static let waves: [Wave] = [
-        Wave(intro: "The Marauder clans ride for you", groups: [Group(kind: .pillager, n: 5, faction: .none), Group(kind: .vindicator, n: 3, faction: .none),
-                                                              Group(kind: .ravager, n: 1, faction: .none)], dropships: []),
-        Wave(intro: "The Capital sends its garrison after you", groups: [Group(kind: .soldierRecruit, n: 3, faction: .steelhold), Group(kind: .soldierTrooper, n: 2, faction: .steelhold),
-                                                                        Group(kind: .soldierMarksman, n: 1, faction: .steelhold)], dropships: [.steelhold]),
-        Wave(intro: "The Stormwarden Fleet is landing", groups: [Group(kind: .soldierTrooper, n: 2, faction: .stormwarden), Group(kind: .soldierIronclad, n: 1, faction: .stormwarden)],
-             dropships: [.stormwarden, .stormwarden]),
-        Wave(intro: "The dead walk out to meet you", groups: [Group(kind: .husk, n: 5, faction: .none), Group(kind: .witherSkeleton, n: 2, faction: .none),
-                                                             Group(kind: .spider, n: 3, faction: .none), Group(kind: .creeper, n: 2, faction: .none)], dropships: []),
-        Wave(intro: "Every banner in the land, at once", groups: [Group(kind: .pillager, n: 3, faction: .none), Group(kind: .vindicator, n: 2, faction: .none),
-                                                                 Group(kind: .ravager, n: 1, faction: .none), Group(kind: .soldierTrooper, n: 2, faction: .steelhold),
-                                                                 Group(kind: .soldierTrooper, n: 2, faction: .stormwarden), Group(kind: .witherSkeleton, n: 1, faction: .none)],
-             dropships: [.steelhold, .stormwarden]),
-    ]
-    static let posse = 4                 // Mob.posse of a horde member (saved with the mob)
-    static let warning: Float = 60       // back on the surface to the first wave
-    static let breather: Float = 25      // between waves
-    static let minWave: Float = 40       // a wave with dropships stays up at least this long (its troops are still flying in)
-    static let reward = 25000            // $250
-    static let rejoin: Float = 20        // seconds a reloaded wave has for its troops to load back in
-    static let retry: Float = 5          // seconds before a wave that found no ground tries again
+    enum Side: Int, CaseIterable {
+        case marauders = 0, capital, greywall, stormwarden, dead
+        var name: String { ["Marauder clans", "the Capital", "Greywall Command", "Stormwarden Aegis Marines", "the restless dead"][rawValue] }
+        var pace: Float { [5, 3.2, 3.2, 3.4, 2.4][rawValue] }          // blocks a second on the march (Marauders ride)
+        var groups: Int { [2, 2, 1, 1, 2][rawValue] }
+        // One group's units (mob keys); Greywall troops get their base suffix, the others a faction.
+        var roster: [String] {
+            switch self {
+            case .marauders: return ["pillager", "pillager", "pillager", "pillager", "pillager", "vindicator", "vindicator", "vindicator",
+                                     "pillager", "ravager", "vindicator", "pillager"]
+            case .capital: return ["soldier_recruit", "soldier_recruit", "soldier_recruit", "soldier_trooper", "soldier_trooper", "soldier_trooper",
+                                   "soldier_marksman", "soldier_marksman", "soldier_ironclad", "soldier_officer", "soldier_recruit", "soldier_trooper"]
+            case .greywall: return ["soldier_recruit", "soldier_trooper", "soldier_trooper", "soldier_trooper", "soldier_marksman", "soldier_marksman",
+                                    "soldier_ironclad", "soldier_ironclad", "soldier_officer", "soldier_trooper", "soldier_recruit", "soldier_recruit"]
+            case .stormwarden: return ["soldier_trooper", "soldier_trooper", "soldier_trooper", "soldier_ironclad", "soldier_ironclad", "soldier_ironclad",
+                                       "soldier_marksman", "soldier_trooper", "soldier_ironclad", "soldier_officer"]
+            case .dead: return ["husk", "husk", "husk", "husk", "wither_skeleton", "wither_skeleton", "spider", "spider", "creeper", "creeper",
+                                "husk", "wither_skeleton", "spider", "husk"]
+            }
+        }
+        var faction: Faction { [.none, .steelhold, .greywall, .stormwarden, .none][rawValue] }
+    }
 
-    static var stage = 0                 // 0 not begun, 1 under way, 2 won
-    static var wave = 0                  // the wave to send next (stage 1), or the one in the field
-    static var timer: Float = 0          // > 0: seconds to the next wave
-    static var inField = false           // a wave is out
-    static var age: Float = 0            // seconds the wave in the field has been out
-    static var won: Bool { stage == 2 }
-    static var dropshipsOn = true        // the host check turns the dropships off (they are checked in --ridecheck)
-    private static var gameID: ObjectIdentifier?    // the game (save) this state belongs to (a new world starts clean;
-                                                    // not the World, which changes with every dimension)
+    final class Hunt {
+        let side: Side
+        var pos: V2                     // the group (its marker; the centre of its units while they're in)
+        var waiting: [String]           // units not in the world (still marching, or pulled back)
+        var live: [Mob] = []            // units in the world now
+        var trail: V2?                  // where it lost the player (underground): it waits there
+        var tries = 0                   // spawn spots refused for being in plain sight
+        var nextTry: Double = 0         // ... and when it may try again (g.clock)
+        init(side: Side, pos: V2, waiting: [String]) { self.side = side; self.pos = pos; self.waiting = waiting }
+        var left: Int { waiting.count + live.filter { $0.health > 0 }.count }
+    }
 
-    static func reset() { stage = 0; wave = 0; timer = 0; inField = false; age = 0 }
-    // Clears the state when another game (a new world in the same run) ticks without a load.
+    static let posseBase = 10           // Mob.posse of a hunt's unit: posseBase + its group (saved with the mob)
+    static let warning: Float = 60      // back on the surface to the groups setting out
+    static let start: ClosedRange<Float> = 450...700
+    static let near: Float = 72         // a group this close brings its units in
+    static let lost: Float = 130        // a unit this far behind goes back into its group
+    static let liveCap = 24             // units alive at once over every group
+    static let reward = 25000           // $250
+    static let deathPush: Float = 250
+
+    static var stage = 0                // 0 not begun, 1 the warning, 2 hunted, 3 won
+    static var timer: Float = 0         // the warning's seconds left
+    static var hunts: [Hunt] = []
+    static var underground = false      // the player is below the surface (the groups have lost the trail)
+    static var won: Bool { stage == 3 }
+    static var groupsLeft: Int { hunts.filter { $0.left > 0 }.count }
+    private static var gameID: ObjectIdentifier?
+
+    static func reset() { stage = 0; timer = 0; hunts = []; underground = false }
     static func own(_ g: Game) {
         let id = ObjectIdentifier(g)
         if gameID != id { reset(); gameID = id }
     }
 
     static func save(_ d: inout [String: String]) {
-        if stage > 0 { d["reckoning"] = "\(stage),\(wave),\(timer),\(inField ? 1 : 0)" }
+        guard stage > 0 else { return }
+        d["reckoning"] = "\(stage),\(timer)"
+        // Units in the world are saved back into their groups (they come in again out of sight after a load).
+        d["reckoningHunts"] = hunts.map { h in
+            let units = h.waiting + h.live.filter { $0.health > 0 }.map { $0.kind.key }
+            return "\(h.side.rawValue),\(Int(h.pos.x)),\(Int(h.pos.y)),\(units.joined(separator: "|"))"
+        }.joined(separator: ";")
     }
     static func load(_ d: [String: String], game: Game) {
         gameID = ObjectIdentifier(game)
+        reset()
         let p = (d["reckoning"] ?? "").split(separator: ",").map(String.init)
-        stage = p.count > 0 ? max(0, min(2, Int(p[0]) ?? 0)) : 0
-        wave = p.count > 1 ? max(0, min(waves.count - 1, Int(p[1]) ?? 0)) : 0
-        timer = p.count > 2 ? Float(p[2]) ?? breather : 0
-        inField = false; age = 0
-        // A wave out when the world was saved is still out: its ground troops are saved mobs (sending it again would
-        // double it). Its dropships are not saved, so it gets a grace while its chunks (and troops) load back in.
-        if p.count > 3 && p[3] == "1" { inField = true; age = -rejoin }
+        stage = p.count > 0 ? max(0, min(3, Int(p[0]) ?? 0)) : 0
+        if p.count == 4 { stage = stage == 2 ? 3 : (stage == 1 ? 2 : stage) }    // a P46 save: won stays won, mid-waves is hunted
+        timer = p.count == 2 ? Float(p[1]) ?? warning : 0
+        for s in (d["reckoningHunts"] ?? "").split(separator: ";") {
+            let f = s.split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+            guard f.count >= 4, let r = Int(f[0]), let side = Side(rawValue: r), let x = Float(f[1]), let z = Float(f[2]) else { continue }
+            let units = f[3].split(separator: "|").map(String.init)
+            if !units.isEmpty { hunts.append(Hunt(side: side, pos: V2(x, z), waiting: units)) }
+        }
+        if stage == 2 && hunts.isEmpty && d["reckoningHunts"] == nil { begin(game) }      // a P46 save mid-waves: new groups
     }
 
-    static func members(_ g: Game) -> [Mob] { g.mobs.mobs.filter { $0.posse == posse && $0.health > 0 } }
+    static func isHunter(_ m: Mob) -> Bool { m.posse >= posseBase && m.posse < posseBase + 40 }
+    static func members(_ g: Game) -> [Mob] { hunts.flatMap { $0.live }.filter { $0.health > 0 } }
+
+    // The groups set out from all around, `start` blocks off.
+    static func begin(_ g: Game) {
+        hunts = []
+        let p = V2(g.player.pos.x, g.player.pos.z)
+        let n = Side.allCases.reduce(0) { $0 + $1.groups }
+        let a0 = Rand.float(in: 0..<(2 * .pi))
+        let scale: Float = [0, 0.75, 1, 1.25][max(0, min(3, g.difficulty))]
+        var i = 0
+        for side in Side.allCases { for _ in 0..<side.groups {
+            let a = a0 + Float(i) * 2 * .pi / Float(n) + Rand.float(in: -0.2...0.2), r = Rand.float(in: start)
+            var roster = side.roster
+            let keep = max(6, Int((Float(roster.count) * scale).rounded()))
+            if keep < roster.count { roster.removeLast(roster.count - keep) } else { roster += roster.prefix(keep - roster.count) }
+            hunts.append(Hunt(side: side, pos: p + V2(sinf(a), cosf(a)) * r, waiting: roster))
+            i += 1
+        } }
+    }
 
     // Once a second (Game.ashTick's slot).
-    static func tick(_ g: Game, _ dt: Float, sync: Bool = false) {
+    static func tick(_ g: Game, _ dt: Float) {
         own(g)
-        guard g.ashVictory, stage < 2, g.survival, g.difficulty > 0 else { return }
+        guard g.ashVictory, stage < 3, g.survival, g.difficulty > 0 else { return }
+        // Strays: hunt units no group knows (saved with the world: their group has them back as waiting) go.
+        g.mobs.mobs.removeAll { m in (m.posse == 4 && m.persistent) || isHunter(m) && !hunts.contains { h in h.live.contains { $0 === m } } }   // (4: P46's waves)
         guard g.dim.dim == .overworld else { return }
         if !g.alive {
-            if inField { sendHome(g); inField = false; timer = breather }
+            let p = V2(g.player.pos.x, g.player.pos.z)
+            for h in hunts {
+                pullBack(g, h)
+                let off = h.pos - p, d = simd_length(off)
+                if d < deathPush { h.pos = p + (d > 1 ? off / d : V2(1, 0)) * deathPush }
+            }
             return
         }
-        if stage == 0 {
-            stage = 1; wave = 0; timer = warning
+        switch stage {
+        case 0:
+            stage = 1; timer = warning
             g.onToast?("Word of the Ashguard's fall has spread. Every army in the land is marching on you")
             g.sfx(.goatHorn, 0.7)
-            return
+        case 1:
+            timer -= dt
+            guard timer <= 0 else { return }
+            stage = 2; begin(g)
+            g.onToast?("\(hunts.count) war bands are hunting you. Only underground will they lose your trail")
+            g.sfx(.goatHorn, 0.9)
+        default:
+            hunt(g, dt)
         }
-        if inField {
-            age += dt
-            let cur = waves[wave]
-            for m in members(g) {
+    }
+
+    static func isUnderground(_ g: Game) -> Bool {
+        let p = g.player.pos, x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
+        guard g.world.isLoaded(x, z) else { return false }
+        return g.world.topY(x, z) >= y + 6 && g.world.lightAt(x, y + 1, z).sky == 0
+    }
+
+    static func hunt(_ g: Game, _ dt: Float) {
+        let p = V2(g.player.pos.x, g.player.pos.z)
+        let down = isUnderground(g)
+        if down != underground {
+            underground = down
+            g.onToast?(down ? "Underground: the war bands have lost your trail" : "Back on the surface: the war bands pick up your trail")
+            for h in hunts { h.trail = down ? p : nil }
+        }
+        for h in hunts {
+            // Units unloaded with their chunks (gone from the mob list alive) go back into the group; the dead are gone.
+            for m in h.live where m.health > 0 && !g.mobs.mobs.contains(where: { $0 === m }) { h.waiting.append(m.kind.key); m.health = 0 }
+            // Far behind: back into the group.
+            for m in h.live where m.health > 0 && simd_length(V2(m.pos.x, m.pos.z) - p) > lost {
+                h.waiting.append(m.kind.key); m.health = 0
+                g.mobs.mobs.removeAll { $0 === m }
+            }
+            h.live.removeAll { $0.health <= 0 }
+            // March and track.
+            if !h.live.isEmpty {
+                var c = V2(0, 0)
+                for m in h.live { c += V2(m.pos.x, m.pos.z) }
+                h.pos = c / Float(h.live.count)
+            } else {
+                let goal = h.trail ?? p, to = goal - h.pos, d = simd_length(to)
+                let stop: Float = h.trail == nil ? near * 0.8 : 4
+                if d > stop { h.pos += to / d * min(d - stop, h.side.pace * dt) }
+            }
+            for m in h.live {
+                if down { m.aggro = false; m.lockTime = 0; continue }
                 m.aggro = true; m.lockTime = max(m.lockTime, 10)
-                if simd_length(m.pos - g.player.pos) > 160 { m.health = 0 }     // ran off: counts as beaten
+                if m.kind.key.hasPrefix("soldier_") { m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = min(m.soldierBrain.seenAgo, 1) }
             }
-            g.mobs.mobs.removeAll { $0.posse == posse && $0.health <= 0 && simd_length($0.pos - g.player.pos) > 160 }
-            let troops = cur.dropships.contains { f in
-                g.mobs.mobs.contains { $0.factionValue == f && $0.posse == 0 && $0.health > 0 && $0.aggro && simd_length($0.pos - g.player.pos) < 64 }
-            }
-            guard age >= 0, members(g).isEmpty, !troops, cur.dropships.isEmpty || age >= minWave else { return }
-            inField = false
-            if wave == waves.count - 1 {
-                stage = 2
-                g.money += reward
-                g.onToast?("The last of them break and run. The surface is yours (+\(Money.format(reward)))")
-                g.sfx(.goatHorn, 1)
-                return
-            }
-            wave += 1; timer = breather
-            g.onToast?("Wave \(wave) of \(waves.count) beaten. More are coming")
-            return
         }
-        timer -= dt
-        if timer <= 0 { send(g, sync: sync) }
+        // Bring units in, nearest groups first, while the player is on the surface.
+        var alive = hunts.reduce(0) { $0 + $1.live.count }
+        if !down {
+            for h in hunts.sorted(by: { simd_length($0.pos - p) < simd_length($1.pos - p) }) {
+                guard alive < liveCap, simd_length(h.pos - p) < near else { break }
+                var tries = 0
+                while let k = h.waiting.last, alive < liveCap, tries < 12 {
+                    tries += 1
+                    guard let m = spawn(g, h, k) else { if g.clock < h.nextTry { break }; continue }
+                    h.waiting.removeLast()
+                    h.live.append(m); alive += 1
+                }
+            }
+        }
+        // Groups wiped out.
+        for (i, h) in hunts.enumerated().reversed() where h.left == 0 {
+            hunts.remove(at: i)
+            if !hunts.isEmpty { g.onToast?("A band of \(h.side.name) is wiped out. \(hunts.count) left hunting you") }
+        }
+        // Units keep their group's number in posse (after removals the indices move).
+        for (i, h) in hunts.enumerated() { for m in h.live { m.posse = posseBase + i } }
+        if hunts.isEmpty {
+            stage = 3
+            g.money += reward
+            g.onToast?("The last war band is destroyed. The land is at peace with you for good (+\(Money.format(reward)))")
+            g.sfx(.goatHorn, 1)
+        }
     }
 
-    // Puts wave `wave` in the field: its ground troops out of sight 26-36 blocks off, its dropships from 180 out.
-    @discardableResult
-    static func send(_ g: Game, sync: Bool = false) -> Int {
-        let w = g.world, cur = waves[wave]
-        let scale: Float = [0, 0.75, 1, 1.35][max(0, min(3, g.difficulty))]
-        var placed = 0
-        for grp in cur.groups {
-            let n = max(1, Int((Float(grp.n) * scale).rounded()))
-            var got = 0
-            for k in 0..<(n * 10) where got < n {
-                let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 26...36)
-                let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
-                guard w.isLoaded(x, z) else { continue }
-                let y = w.topY(x, z) + 1
-                guard !Blocks.isLiquid(w.block(x, y - 1, z)), !Blocks.isLiquid(w.block(x, y, z)) else { continue }
-                let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-                if k < n * 6 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
-                let m = Mob(grp.kind, at: w.freeSpawn(at))
-                if m.collides(m.pos, w) { continue }
-                m.posse = posse
-                m.persistent = true
-                m.aggro = true; m.lockTime = 30
-                if grp.faction != .none { m.faction = grp.faction.rawValue }
-                if m.kind == .soldierIronclad { m.variant = Guns.arc }
-                g.mobs.mobs.append(m)
-                got += 1
-            }
-            placed += got
+    // One unit in out of sight, 36-56 blocks from the player on the group's side.
+    static func spawn(_ g: Game, _ h: Hunt, _ k: String) -> Mob? {
+        let w = g.world, p = V2(g.player.pos.x, g.player.pos.z)
+        let off = h.pos - p, d = simd_length(off)
+        let dir = d > 1 ? off / d : V2(1, 0)
+        let a = atan2f(dir.x, dir.y) + Rand.float(in: -0.7...0.7), r = Rand.float(in: 36...56)
+        let x = Int(floor(p.x + sinf(a) * r)), z = Int(floor(p.y + cosf(a) * r))
+        guard w.isLoaded(x, z) else { return nil }
+        let y = w.topY(x, z) + 1
+        guard !Blocks.isLiquid(w.block(x, y - 1, z)), !Blocks.isLiquid(w.block(x, y, z)) else { return nil }
+        let at = w.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
+        // Not in plain sight: a unit appearing from nowhere 40 blocks off reads as a pop-in (they come over a rise,
+        // round a wall or out of the trees). After a few tries a band takes what ground it gets.
+        // (One look a band a second: a refused spot holds the band back a second, and the fifth in a row is taken.)
+        if g.clock < h.nextTry { return nil }
+        if h.tries < 5 && w.canSee(g.player.eye, at + V3(0, 1.5, 0)) { h.tries += 1; h.nextTry = g.clock + 1; return nil }
+        h.tries = 0
+        let m: Mob
+        if h.side == .greywall {
+            guard let gm = Mob.structureMob("\(k)@grey", at: at) else { return nil }
+            m = gm
+        } else {
+            guard let kind = MobKind.named(k) else { return nil }
+            m = Mob(kind, at: at)
+            if h.side.faction != .none { m.faction = h.side.faction.rawValue }
+            if h.side == .stormwarden && kind == .soldierIronclad { m.variant = Guns.arc }
         }
-        for (i, f) in cur.dropships.enumerated() where dropshipsOn {
-            let a = Rand.float(in: 0..<(2 * .pi)) + Float(i) * 2
-            let fx = g.player.pos.x + sinf(a) * 180, fz = g.player.pos.z + cosf(a) * 180
-            let h = Float(max(w.gen.column(Int(fx), Int(fz)).height, SEA)) + 40
-            g.world.ships.callDropship(faction: f, from: V3(fx, h, fz), to: g.player.pos, game: g, sync: sync)
-        }
-        // Nowhere to stand and nothing flying in (in water, or the ground not loaded): try again shortly.
-        if placed == 0 && (cur.dropships.isEmpty || !dropshipsOn) { timer = retry; return 0 }
-        inField = true; age = 0
-        g.onToast?("\(cur.intro) (wave \(wave + 1) of \(waves.count))")
-        g.sfx(.goatHorn, 0.8)
-        return placed
+        if m.collides(m.pos, w) { return nil }
+        m.posse = posseBase + (hunts.firstIndex { $0 === h } ?? 0)
+        m.persistent = true
+        m.aggro = true; m.lockTime = 30
+        if m.kind.key.hasPrefix("soldier_") { m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = 0 }
+        g.mobs.mobs.append(m)
+        return m
     }
 
-    // The player died: the wave's ground troops go home (they come again with the wave).
-    static func sendHome(_ g: Game) {
-        g.mobs.mobs.removeAll { $0.posse == posse }
+    // The player died: a group's units in the world go back into it.
+    static func pullBack(_ g: Game, _ h: Hunt) {
+        for m in h.live where m.health > 0 { h.waiting.append(m.kind.key) }
+        g.mobs.mobs.removeAll { m in h.live.contains { $0 === m } }
+        h.live = []
     }
 }

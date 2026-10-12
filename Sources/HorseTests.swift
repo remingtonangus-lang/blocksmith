@@ -7,7 +7,7 @@ import simd
 //   gaits      walk / trot / canter / gallop speeds; time to a gallop; stopping time; no lurch above 12.5 b/s^2
 //   turning    a walk turns at least twice as fast as a gallop
 //   stamina    a level-1 gallop lasts 15-35 s; a blown horse drops to a trot and rears when spurred; it refills at a walk
-//   bond       points from riding, pats, brushing and treats; levels; saddlebags at level 2; saved with the horse
+//   bond       points from riding, pats, brushing and treats; levels; saddlebags on a saddled horse (P76); saved with the horse
 //   footing    stops at the strip's end (a sheer drop) and before lava; rides down a staircase and off a 3-block step
 //   crash      a flat-out gallop into a wall stumbles; level 1 throws the rider, level 2 doesn't
 //   nerves     a blast, a cannon and a monster beside it make it rear; the rider's own gunshot doesn't; level 4 never
@@ -80,8 +80,10 @@ enum HorseTests {
             let h = horse(); mount(h)
             ride(h, 2.5, push: 0.5)
             let walk = speed(h)
-            ride(h, 2.5, push: 1)
+            ride(h, 2.5, push: 0.7)
             let trot = speed(h)
+            ride(h, 2.5, push: 1)
+            let canter = speed(h)
             h.pos = lane0; h.vel = .zero; h.hs.speed = 0; h.hs.gait = .stand
             var tGallop: Float = -1
             var tick = 0
@@ -97,8 +99,8 @@ enum HorseTests {
                 if tStop < 0 && speed(h) < 0.5 { tStop = Float(i) * dt }
                 return tStop >= 0
             }
-            check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
-                  String(format: "horse gaits: walk %.1f, trot %.1f, gallop %.1f b/s (top %.0f)", walk, trot, gallop, h.topSpeed))
+            check(walk > 1 && walk <= 2.7 && abs(trot - h.topSpeed * 0.5) < 0.4 && abs(canter - h.topSpeed * 0.75) < 0.4 && abs(gallop - h.topSpeed) < 0.5,
+                  String(format: "horse gaits: walk %.1f, trot %.1f, a full push canters %.1f, spurred gallop %.1f b/s (top %.0f)", walk, trot, canter, gallop, h.topSpeed))
             check(tGallop >= 1 && tGallop <= 2.2, String(format: "horse: standstill to gallop in %.2f s (1-2.2)", tGallop))
             check(tStop >= 0.6 && tStop <= 1.6, String(format: "horse: gallop to a stop in %.2f s (0.6-1.6)", tStop))
             check(max(lurch, lurch2) <= 12.5, String(format: "horse: no lurch (worst %.1f b/s^2 on the ground, comfort limit 12.5)", max(lurch, lurch2)))
@@ -120,11 +122,11 @@ enum HorseTests {
         do {
             let h = horse(); mount(h)
             var tSpent: Float = -1
-            ride(h, 40, push: 1, spurAt: [2, 12], loop: true) { i in
+            ride(h, 70, push: 1, spurAt: [2, 12], loop: true) { i in
                 if tSpent < 0 && h.hs.spent { tSpent = Float(i) * dt }
                 return tSpent >= 0
             }
-            check(tSpent >= 15 && tSpent <= 35, String(format: "horse stamina: a level-1 gallop lasts %.1f s (15-35; P49 half as long again)", tSpent))
+            check(tSpent >= 28 && tSpent <= 50, String(format: "horse stamina: a level-1 gallop lasts %.1f s (28-50; P83 Oct 12: 21 s was far too short)", tSpent))
             ride(h, 2, push: 1, loop: true)
             let blown = speed(h)
             let spurs = h.hs.spurCount
@@ -166,10 +168,15 @@ enum HorseTests {
             check(patted == HorseFeel.patBond && brushed == HorseFeel.brushBond && fed && treat.0 == HorseFeel.treatBond && treat.1 >= 34,
                   String(format: "horse care: pat +%.0f (once per %.0f s), brush +%.0f, apple +%.0f and stamina 10 -> %.0f", patted, HorseFeel.patCool, brushed, treat.0, treat.1))
             h.hs.bondXP = HorseFeel.levelXP[1] - 1
+            // (P76: saddlebags on any tamed, saddled horse; none unsaddled with nothing in them.)
+            let saddled0 = h.saddled
+            h.saddled = false
+            let bareNone = !h.saddlebags
+            h.saddled = saddled0
             let bagsBefore = h.saddlebags
             h.addBond(1, g)
             let bags = h.saddlebags && MountMenu.opens(h) && g.packContainer(h).count == 9
-            check(!bagsBefore && bags && h.staminaMax == HorseFeel.staminaMax[1], "horse bond level 2: saddlebags (9 slots) and \(Int(HorseFeel.staminaMax[1])) stamina")
+            check(bareNone && bagsBefore == h.saddled && bags && h.staminaMax == HorseFeel.staminaMax[1], "horse saddlebags (9 slots) on a saddled horse from bond 1, none unsaddled; bond level 2: \(Int(HorseFeel.staminaMax[1])) stamina")
             g.packContainer(h)[0] = ItemStack(Items.id("apple"), 3)
             let back = Mob.from(h.record)
             check(back?.hs.bondXP == HorseFeel.levelXP[1] && back?.saddlebags == true && back?.cargo?[0].count == 3,
@@ -364,14 +371,14 @@ enum HorseTests {
                 if (i >= 10 && i < 12) || (i >= 40 && i < 42) { p.l3 = true }
                 pm.simulated = p
                 g.tick(Double(dt))
-                if i == 30 || i == 110 { gaits.append(h.hs.gait) }
+                if i == 8 || i == 30 { gaits.append(h.hs.gait) }
                 if h.pos.z < Float(z1) + 30 { h.pos.z += 90 }
             }
             pm.simulated = nil
             g.paused = wasPaused
             if wasMenu == nil && g.menu != nil { g.closeMenu() }
             g.mobs.mobs.removeAll { $0 === h }
-            check(gaits == [.canter, .gallop], "horse spurs through Game.tick (pad stick click): \(gaits.map(\.name))")
+            check(gaits == [.canter, .gallop], "horse through Game.tick: a full push canters, the stick click spurs it to a gallop: \(gaits.map(\.name))")
             // Use with a treat: aimed ahead it is the rider's own use (eat/place), aimed down at the horse it feeds it.
             let held = g.inventory.held
             g.inventory.held = ItemStack(Items.id("apple"), 4)

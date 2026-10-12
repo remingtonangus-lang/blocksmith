@@ -912,14 +912,15 @@ enum HDTex {
             let i = y * n + x
             let crackK: Float = cl((mask[i] - 0.48) * 5)
             let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 90)) * crackK
-            let fr: Float = cl((frost[i] - 0.45) * 2.5)
+            let fr: Float = cl((frost[i] - 0.55) * 2.5)            // (P94: frost in patches, clear ice between)
             let tone: Float = 0.9 + fine[i] * 0.06 + (depth[i] - 0.5) * 0.16
             var c: V3 = V3(0.62, 0.78, 1.0) * tone
             let pale: Float = max(fr * 0.5, edge * 0.8)
             c += (V3(0.9, 0.95, 1.0) - c) * pale
             let bubble = h2(x / max(1, n / 32), y / max(1, n / 32), s &+ 9) > 0.985
             let bub: Float = bubble ? 0.2 : 0
-            let a: Float = 0.58 + fr * 0.14 + edge * 0.3 + bub
+            // P94 (Oct 12 AM, "see-through to the bottom"): clear ice is mostly glass (it was 0.58 at its clearest).
+            let a: Float = 0.3 + fr * 0.2 + edge * 0.35 + bub
             img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), min(1, a))
         } }
         return img
@@ -2659,7 +2660,9 @@ enum HDTex {
                 }
                 return img
             case "cactus_flower":
-                let cx: Float = fn / 2, cy: Float = fn * 0.72
+                // (P80: low in the tile with a green cup down to the bottom row, so it sits on the cactus top.)
+                let cx: Float = fn / 2, cy: Float = fn * 0.86
+                for y in Int(cy)..<n { for x in Int(cx - fn * 0.07)...Int(cx + fn * 0.07) { plot(&img, x, y, col(0x5A8A30) * (0.85 + 0.2 * h2(x, y, s))) } }
                 for k in 0..<9 {
                     let a: Float = -Float.pi * (0.1 + 0.8 * Float(k) / 8)
                     let len: Float = fn * 0.16
@@ -4738,10 +4741,14 @@ enum HDTex {
                 return img
             }
             for y in (9 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
-                let kx: Int = (x - 2 * u) / u, ky: Int = (y - 9 * u) / u
-                let lx: Int = (x - 2 * u) % u, ly: Int = (y - 9 * u) % u
-                var k: Float = (kx + ky) % 2 == 0 ? 0.32 : 0.45
-                if lx == 0 || ly == 0 { k = 0.15 } else if lx == 1 || ly == 1 { k += 0.12 }
+                // Keys a unit and a half wide, each row staggered, a space bar along the bottom, all one shade (P68:
+                // alternating shades read as a chess board).
+                let ky: Int = (y - 9 * u) / u, ly: Int = (y - 9 * u) % u
+                let kw: Int = u + u / 2, off: Int = (ky * u) / 2
+                let lx: Int = ky == 4 ? (x < 5 * u || x >= 11 * u ? 0 : x - 5 * u) : (x - 2 * u + off) % kw
+                var k: Float = 0.36
+                if ky == 4 && (x < 5 * u || x >= 11 * u) { k = 0.15 }
+                else if lx == 0 || ly == 0 { k = 0.15 } else if lx == 1 || ly == 1 { k += 0.1 }
                 img[x, y] = V4(k, k * 1.04, k * 1.1, 1)
             } }
             let cx: Float = fu * 8, cy: Float = fu * 4.5
@@ -5718,7 +5725,7 @@ enum HDTex {
         "oxeye_daisy": flowerHD(0xF4F4F4, 0xE8C83A, .ring, top: 5, size: 3, salt: 442),
         "lily_of_the_valley": flowerHD(0xF8F8F8, 0xE8F0E0, .bells, top: 6, size: 1.8, salt: 444),
         "blue_orchid": flowerHD(0x2AA8F0, 0x1A78C8, .ring, top: 5, size: 2.8, salt: 446),
-        "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
+        "short_grass": blades(salt: 101, count: 36, len: 0.25, 0.8, lean: 1.4),
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,

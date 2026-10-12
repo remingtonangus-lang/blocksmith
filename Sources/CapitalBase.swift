@@ -102,7 +102,7 @@ enum CapitalBase {
         return out
     }
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ y0: Int, _ cz: Int, _ seed: UInt64) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ y0: Int, _ cz: Int, _ seed: UInt64, bank: Bool = false) {
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let white = g("capital_stone", g("white_concrete")), grey = g("capital_stone_trim", g("light_gray_concrete"))
@@ -155,6 +155,7 @@ enum CapitalBase {
                 if !held { w.set(x, y, z, AIR) }
             }
         }
+        if bank { w.berm(cx, cz, half: A, floor: y0, reach: 8) }         // P91: banked into the land round it
         columns(-A, A, -A, A) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.pillarDown(x, y0, z, DIRT, minY: y0 - 48)

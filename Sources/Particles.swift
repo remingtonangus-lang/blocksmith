@@ -164,11 +164,12 @@ final class ParticleManager {
     }
 
     func update(_ dt: Float, _ w: World) {
+        let ships = w.ships.any                    // (debris settles on ship decks too: P70)
         for i in list.indices {
             list[i].life -= dt
             list[i].vel.y -= list[i].gravity * dt
             var np = list[i].pos + list[i].vel * dt
-            if list[i].collide && Blocks.collide[Int(w.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] {
+            if list[i].collide && (Blocks.collide[Int(w.block(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] || (ships && w.ships.solid(at: np))) {
                 list[i].vel = V3(list[i].vel.x * 0.3, 0, list[i].vel.z * 0.3)
                 np = list[i].pos
             }

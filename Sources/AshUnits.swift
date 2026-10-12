@@ -106,6 +106,7 @@ extension Mob {
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
+        if k0 == .minecart { CapitalRail.setupCar(m, tag: tag) }                // P92 trains
         if tag == "warden" { m.makeKeepWarden() }
         if ash, let r = AshArmy.role(tag) { m.ashTakeRole(r) }
         if k0 == .villager && !tag.isEmpty { Townsfolk.setup(m, tag: tag, game: nil) }

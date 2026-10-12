@@ -43,6 +43,7 @@ enum TownLaw {
         // each town's notice-board jobs, the day bounty hunters last rode, the towns that already gave you a gift
         // today ("day:town") and your name as townsfolk say it.
         var honourLog: [String]? = nil
+        var outlawAt: [Float]? = nil                // P96: (x, z) of the last deed that kept you an outlaw (Honour.outlawKnown)
         var jobs: [String: TownJob]? = nil
         var huntersDay: Int? = nil
         var gifts: [String]? = nil
@@ -422,7 +423,7 @@ enum TownLaw {
             appointSheriff(g, here, near: near)
         }
         // Outlaws are fought on sight (Honour.outlawSeen); the WANTED boards show your poster; outlaws from jobs.
-        if g.survival && Honour.isOutlaw && !isHostile(here) && !TownConquest.owns(here) { Honour.outlawSeen(g, here) }
+        if g.survival && Honour.outlawKnown(g) && !isHostile(here) && !TownConquest.owns(here) { Honour.outlawSeen(g, here) }
         // A hostile town keeps its armed folk on you while you're about.
         if isHostile(here) {
             for o in g.mobs.mobs where isTownsperson(o) && o.townWeapon != .none && !o.baby && simd_length(o.pos - g.player.pos) < 32 {

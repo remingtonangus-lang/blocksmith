@@ -34,7 +34,8 @@ enum VRReload {
         }
         guard grip && !gripWas && atHip(head: head, hand: offHand) else { return .none }
         let gs = Guns.all[gi]
-        if g.held.tag >= Guns.magSize(g.held) { g.onToast?("Magazine full: \(g.held.tag) / \(Guns.magSize(g.held))"); return .refused }
+        // A full gun: the grip is the hotbar's (no toast; P74).
+        if g.held.tag >= Guns.magSize(g.held) { return .none }
         if g.ammoCount(gs.ammo) <= 0 { g.onToast?("No \(Items.def(Items.id(gs.ammo)).display) to reload"); return .refused }
         a.magInHand = true
         a.reload = 0

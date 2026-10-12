@@ -763,6 +763,10 @@ enum HeavyTurret {
     static let range: Float = 220                   // once provoked
     static let guardRange: Float = 72               // unprovoked: the citadel's grounds
     static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
+    // Manned by the player (P70, playtest 09:19: "this naval gun needs to do way more damage", on a crawler and a
+    // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast
+    // resistance: Capital stone is 9), and a ship hull hit tears like a power-11 charge.
+    static let mannedPower: Float = 5, mannedBreach: Float = 3, mannedShipPower: Float = 11
 
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
@@ -779,8 +783,25 @@ enum HeavyTurret {
     }
 }
 
+// P70 (playtest 09:19, "let's not just copy and paste the same naval gun"): each gun has one of four looks, from its
+// faction and where it stands: the Capital's three (the twin-gun turret with rangefinder hoods, a taller monitor turret
+// with a roof rangefinder bar and an anti-air mount, an open casemate with a sloped shield and an exposed breech deck)
+// and Greywall's own (a low faceted slate turret with a sensor mast, hazard bands and muzzle-braked barrels). The
+// barrels, their pivots and muzzles are the same in every look (HeavyTurret.muzzle).
+enum DeckGunLook: Int { case turret = 0, monitor, casemate, greywall }
+
+func deckGunLook(_ m: Mob) -> DeckGunLook {
+    if m.factionValue == .greywall { return .greywall }
+    if m.variant == 0 { m.variant = 1 + Int(hashf(Int(floor(m.pos.x)), Int(floor(m.pos.z)), 7070, 0xDEC) * 2.999) }
+    return DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret
+}
+
 func deckGunParts(_ m: Mob) -> [Part] {
-    let grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
+    let look = deckGunLook(m)
+    var grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
+    if look == .greywall { grey = V3(0.33, 0.37, 0.41); mid = V3(0.25, 0.28, 0.31); dark = V3(0.12, 0.13, 0.15); deck = V3(0.22, 0.24, 0.26) }
+    if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
+    let hazard = V3(0.85, 0.66, 0.12)
     let pitch = m.brain?.pitch ?? 0
     let charge = m.brain?.charge ?? 0
     let kick = (m.brain?.kick ?? 0) * 19                // 1.2 m recoil after a salvo
@@ -789,19 +810,67 @@ func deckGunParts(_ m: Mob) -> [Part] {
         // Barbette ring skirt and the turret's rotating base.
         box(-100, -6, -100, 200, 8, 200, deck),
         box(-104, 2, -96, 208, 6, 230, dark),
-        // Gunhouse: the main armoured box, roof, rear overhang.
-        box(-108, 8, -96, 216, 72, 236, grey),
-        box(-104, 80, -100, 208, 8, 236, mid),
-        box(-100, 20, 140, 200, 56, 20, grey * 0.94),
-        // The face plate leaning back in three steps, narrower than the flanks (chamfered front corners).
-        box(-92, 8, -124, 184, 32, 28, grey * 0.97), box(-96, 40, -114, 192, 24, 18, grey * 0.97), box(-100, 64, -104, 200, 16, 8, grey * 0.97),
-        // Rangefinder hoods on both flanks at the rear, and their arms.
-        box(-140, 52, 80, 32, 18, 40, mid), box(108, 52, 80, 32, 18, 40, mid),
-        box(-144, 56, 84, 6, 10, 32, dark), box(138, 56, 84, 6, 10, 32, dark),
-        // Roof periscope hoods and the commander's cupola.
-        box(-60, 88, -40, 18, 8, 22, mid), box(42, 88, -40, 18, 8, 22, mid), box(-14, 88, 60, 28, 12, 28, mid),
-        box(-12, 96, 58, 24, 2, 4, V3(0.1, 0.12, 0.14)),
     ]
+    switch look {
+    case .turret:
+        p += [
+            // Gunhouse: the main armoured box, roof, rear overhang.
+            box(-108, 8, -96, 216, 72, 236, grey),
+            box(-104, 80, -100, 208, 8, 236, mid),
+            box(-100, 20, 140, 200, 56, 20, grey * 0.94),
+            // The face plate leaning back in three steps, narrower than the flanks (chamfered front corners).
+            box(-92, 8, -124, 184, 32, 28, grey * 0.97), box(-96, 40, -114, 192, 24, 18, grey * 0.97), box(-100, 64, -104, 200, 16, 8, grey * 0.97),
+            // Rangefinder hoods on both flanks at the rear, and their arms.
+            box(-140, 52, 80, 32, 18, 40, mid), box(108, 52, 80, 32, 18, 40, mid),
+            box(-144, 56, 84, 6, 10, 32, dark), box(138, 56, 84, 6, 10, 32, dark),
+            // Roof periscope hoods and the commander's cupola.
+            box(-60, 88, -40, 18, 8, 22, mid), box(42, 88, -40, 18, 8, 22, mid), box(-14, 88, 60, 28, 12, 28, mid),
+            box(-12, 96, 58, 24, 2, 4, V3(0.1, 0.12, 0.14)),
+        ]
+    case .monitor:
+        p += [
+            // A taller, narrower gunhouse with a flat face and a stepped back.
+            box(-96, 8, -100, 192, 80, 220, grey),
+            box(-92, 88, -96, 184, 8, 212, mid),
+            box(-90, 8, -116, 180, 64, 16, grey * 0.96),
+            box(-84, 20, 120, 168, 60, 24, grey * 0.92),
+            // The rangefinder bar right across the roof, its two lens hoods past the flanks.
+            // (both kept below the gunner's eye forward and behind where the gunner stands: Turrets.tick)
+            box(-150, 96, -84, 300, 10, 16, mid), box(-160, 94, -86, 12, 14, 20, dark), box(148, 94, -86, 12, 14, 20, dark),
+            // An anti-air mount at the back of the roof: a ring, a small twin gun pointing up, a shield.
+            box(-26, 96, 66, 52, 6, 46, dark), box(-14, 102, 74, 28, 14, 30, mid),
+            box(-10, 116, 70, 4, 24, 4, dark), box(6, 116, 70, 4, 24, 4, dark), box(-22, 102, 62, 44, 14, 4, grey * 0.9),
+            // Ladder rungs up the back.
+            box(-8, 24, 144, 16, 3, 3, dark), box(-8, 44, 144, 16, 3, 3, dark), box(-8, 64, 144, 16, 3, 3, dark),
+        ]
+    case .casemate:
+        p += [
+            // A sloped shield over the guns and an open breech deck behind it, a rail round the back.
+            box(-110, 8, -110, 220, 40, 30, grey), box(-104, 48, -100, 208, 22, 24, grey * 0.96), box(-96, 70, -90, 192, 12, 18, grey * 0.92),
+            box(-120, 8, -80, 20, 56, 120, grey * 0.95), box(100, 8, -80, 20, 56, 120, grey * 0.95),
+            box(-110, 8, -80, 220, 10, 220, deck * 1.1),
+            box(-112, 18, 136, 224, 4, 4, dark), box(-112, 18, -80, 4, 4, 220, dark), box(108, 18, -80, 4, 4, 220, dark),
+            box(-112, 8, 136, 4, 12, 4, dark), box(108, 8, 136, 4, 12, 4, dark),
+            // Shell racks and a loader's seat on the open deck.
+            box(-90, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)), box(50, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)),
+            box(-10, 18, 60, 20, 14, 20, dark),
+        ]
+    case .greywall:
+        p += [
+            // A low faceted gunhouse: four plates sloping back to a flat roof, panel seams, a slab rear.
+            box(-110, 8, -90, 220, 52, 226, grey),
+            box(-100, 60, -76, 200, 14, 200, grey * 0.95), box(-86, 74, -60, 172, 8, 170, mid),
+            box(-96, 8, -120, 192, 22, 30, grey * 0.98), box(-90, 30, -108, 180, 18, 20, grey * 0.96), box(-84, 48, -94, 168, 12, 16, grey * 0.94),
+            box(-111, 34, -90, 222, 2, 226, dark), box(-1, 60, -76, 2, 14, 200, dark),
+            box(-106, 12, 136, 212, 44, 14, mid),
+            // Hazard bands at the barbette and on the rear slab.
+            box(-105, 4, -97, 210, 3, 232, hazard), box(-106, 46, 150, 212, 4, 1, hazard),
+            // The sensor mast with its dish and a beacon.
+            box(60, 82, 60, 6, 70, 6, dark), box(44, 150, 54, 38, 20, 4, mid), box(61, 152, 50, 4, 4, 4, V3(1.4, 0.3, 0.2)),
+            // A sighting block offset to the left.
+            box(-70, 82, 10, 34, 16, 30, mid), box(-66, 88, 8, 26, 6, 2, V3(0.2, 0.55, 0.75)),
+        ]
+    }
     for x: Float in [-36, 36] {
         let pv = V3(x, ty, tz)
         // Gun port mantlet (moves with the gun), the barrel in three tapering sections, a muzzle ring.
@@ -809,7 +878,18 @@ func deckGunParts(_ m: Mob) -> [Part] {
         p.append(Part(mn: V3(x - 13, ty - 13, tz - 140 + kick), mx: V3(x + 13, ty + 13, tz - 30 + kick), pivot: pv, rotX: pitch, color: mid))
         p.append(Part(mn: V3(x - 10.5, ty - 10.5, tz - 260 + kick), mx: V3(x + 10.5, ty + 10.5, tz - 140 + kick), pivot: pv, rotX: pitch, color: mid * 0.95))
         p.append(Part(mn: V3(x - 8.5, ty - 8.5, tz - 330 + kick), mx: V3(x + 8.5, ty + 8.5, tz - 260 + kick), pivot: pv, rotX: pitch, color: mid * 0.9))
-        p.append(Part(mn: V3(x - 10, ty - 10, tz - 340 + kick), mx: V3(x + 10, ty + 10, tz - 330 + kick), pivot: pv, rotX: pitch, color: dark))
+        if look == .greywall {
+            // A fume extractor midway and a slotted muzzle brake.
+            p.append(Part(mn: V3(x - 14, ty - 14, tz - 200 + kick), mx: V3(x + 14, ty + 14, tz - 170 + kick), pivot: pv, rotX: pitch, color: dark))
+            p.append(Part(mn: V3(x - 14, ty - 9, tz - 344 + kick), mx: V3(x + 14, ty + 9, tz - 326 + kick), pivot: pv, rotX: pitch, color: dark))
+            p.append(Part(mn: V3(x - 14.5, ty - 3, tz - 340 + kick), mx: V3(x + 14.5, ty + 3, tz - 336 + kick), pivot: pv, rotX: pitch, color: V3(0.03, 0.03, 0.04)))
+        } else {
+            p.append(Part(mn: V3(x - 10, ty - 10, tz - 340 + kick), mx: V3(x + 10, ty + 10, tz - 330 + kick), pivot: pv, rotX: pitch, color: dark))
+        }
+        if look == .casemate {
+            // The recoil cylinders above each barrel.
+            p.append(Part(mn: V3(x - 6, ty + 13, tz - 110 + kick), mx: V3(x + 6, ty + 21, tz - 20 + kick), pivot: pv, rotX: pitch, color: dark))
+        }
         p.append(Part(mn: V3(x - 4, ty - 4, tz - 340.5 + kick), mx: V3(x + 4, ty + 4, tz - 339.5 + kick), pivot: pv, rotX: pitch, color: V3(0.03, 0.03, 0.04)))
         if charge > 0 {
             p.append(Part(mn: V3(x - 5, ty - 5, tz - 341), mx: V3(x + 5, ty + 5, tz - 340.6), pivot: pv, rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))

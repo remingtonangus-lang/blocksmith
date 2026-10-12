@@ -72,6 +72,10 @@ extension BlockRegistry {
         add(balloon)
 
         // Ballast tank (C8): floods to dive and blows to surface; a hull with tanks under water is a submarine.
+        // Rotten planks (P93, Wrecks.swift): what a raisable wreck's hull is made of where it gave way.
+        var rot = BlockDef(Wrecks.rotten, "Rotten Planks")
+        rot.tex = [Wrecks.rotten]; rot.hardness = 0.5; rot.tool = .axe; rot.sound = .wood; rot.flammable = true
+        add(rot)
         var ballast = BlockDef("ship_ballast", "Ballast Tank")
         ballast.tex = ["ship_ballast_side", "ship_ballast_side", "ship_ballast_top", "ship_ballast_top", "ship_ballast_side", "ship_ballast_side"]
         ballast.hardness = 3; ballast.tool = .pickaxe; ballast.requiresTool = true; ballast.sound = .stone
@@ -173,6 +177,12 @@ extension TextureGen {
             return hex(0x9C6B3C, edge ? 0.7 : 0.9 + 0.15 * r(x / 3, y, 2601 + plank))
         }
         p["ship_wood_dark"] = { x, y in hex(0x5A3A1E, 0.85 + 0.2 * r(x, y / 2, 2602)) }
+        p[Wrecks.rotten] = { x, y in
+            let plank = y / 4, edge = y % 4 == 3 || (x + plank * 5) % 16 == 0
+            let moss = r(x / 2, y / 2, 2631) > 0.72, hole = r(x, y, 2632) > 0.93
+            if hole { return hex(0x1E1A14) }
+            return moss ? hex(0x4E5A2C, 0.8 + 0.2 * r(x, y, 2633)) : hex(0x5E4A34, edge ? 0.6 : 0.75 + 0.2 * r(x / 3, y, 2634 + plank))
+        }
         p["ship_brass"] = { x, y in
             let shine = (x + y) % 7 == 0 ? 1.2 : 1.0
             return hex(0xC9A23A, Float(shine) * (0.85 + 0.15 * r(x, y, 2603)))
@@ -260,6 +270,7 @@ extension Recipes {
         r.append(shaped([" P ", "PIP", " P "], ["P": "#planks", "I": "iron_ingot"], "ship_wheel", 2))
         r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
         r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))
+        r.append(shapeless(["iron_ingot", "gunpowder"], Wrecks.cannonball, 4))                                              // P93
         r.append(shaped(["BBB", "ECE", "BBB"], ["B": "iron_block", "E": "ship_engine", "C": "crafting_table"], VehicleWorks.key))   // P54
         r.append(shaped(["BBB", "BHB", "PEP"], ["B": "ship_balloon", "H": "ship_helm", "P": "ship_propeller", "E": "ship_engine"], SkySkiff.key))   // A4
         r.append(shaped(["  I", " S ", "S  "], ["I": "iron_ingot", "S": "string"], GrappleLine.key))      // C7

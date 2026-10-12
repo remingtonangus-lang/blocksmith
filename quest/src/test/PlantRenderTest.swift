@@ -98,5 +98,16 @@ enum PlantRenderTest {
             game.time = 0.22 * DAY_LENGTH
             try RenderTest.render(game: game, ctx: ctx, path: shots + "/ground_wall_\(d).png", yaw: 0, pitch: -0.12)
         }
+        // Oct 12 AM looks (P75 grass tufts, P86 wall torches, P97 a campfire): close-ups beside the wall.
+        put(x0 + 2, y0 + 1, z0, TORCH + 2); put(x0 + 4, y0 + 1, z0, TORCH + 2); put(x0 + 3, y0 + 2, z0 - 1, STONE)
+        put(x0 + 3, y0 + 2, z0, TORCH + 2)
+        if Blocks.has("campfire") { put(x0 + 8, y0 + 1, z0 + 1, Blocks.id("campfire")) }
+        for (name, pos, yaw, pitch) in [("looks_torch", V3(Float(x0) + 3.5, Float(y0 + 1), Float(z0) + 2.2), Float(0), Float(-0.1)),
+                                        ("looks_campfire", V3(Float(x0) + 8.5, Float(y0 + 1), Float(z0) + 3.2), 0, -0.45),
+                                        ("looks_grass", V3(Float(x0) + 8, Float(y0 + 1), Float(z0) + 9), 0, -0.55)] {
+            game.player.pos = pos
+            game.time = 0.22 * DAY_LENGTH
+            try RenderTest.render(game: game, ctx: ctx, path: shots + "/\(name).png", yaw: yaw, pitch: pitch)
+        }
     }
 }

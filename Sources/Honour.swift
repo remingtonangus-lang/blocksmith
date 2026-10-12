@@ -49,6 +49,18 @@ enum Honour {
         h <= outlaw ? "Outlaw" : h <= disreputable ? "Disreputable" : h < respected ? "Neutral" : h < honourable ? "Respected" : "Honourable"
     }
     static var isOutlaw: Bool { value <= outlaw }
+    // P96 (09:47, "far away enough from the village where I became an outlaw, they shouldn't be trying to kill me"):
+    // the standing is yours everywhere, but only towns within `outlawReach` of the last deed that made or kept you an
+    // outlaw know your face (fight on sight, refuse to serve, put up your poster). A save from before the rule starts
+    // from where the player stands.
+    static let outlawReach: Float = 800
+    static func outlawKnown(_ g: Game) -> Bool {
+        guard isOutlaw else { return false }
+        guard let a = TownLaw.state.outlawAt, a.count == 2 else {
+            TownLaw.state.outlawAt = [g.player.pos.x, g.player.pos.z]; return true
+        }
+        return simd_length(V2(g.player.pos.x - a[0], g.player.pos.z - a[1])) < outlawReach
+    }
 
     // Shop price nudge: down to 5% off at +100, up to 10% dearer at -100 (ShopPricing clamps to the shop bounds).
     static func buyNudge(_ h: Float) -> Float { h >= 0 ? -0.05 * h / 100 : -0.10 * h / 100 }
@@ -64,6 +76,7 @@ enum Honour {
         value = before + amount
         let d = value - before
         guard d != 0 else { return }
+        if d < 0 && value <= outlaw { TownLaw.state.outlawAt = [g.player.pos.x, g.player.pos.z] }
         let burst = why == lastWhy && g.clock - changedAt < 1          // (the same deed again at once: one sound)
         delta = g.clock - changedAt < 6 ? delta + d : d
         changedAt = g.clock
@@ -246,7 +259,7 @@ enum Honour {
             }
         }
         guard let here else { challengedVisit = nil; outlawSpotted = nil; return }
-        guard challengedVisit != here, g.survival, !TownLaw.isHostile(here), !TownConquest.owns(here), bounty(here) > 0 || isOutlaw else { return }
+        guard challengedVisit != here, g.survival, !TownLaw.isHostile(here), !TownConquest.owns(here), bounty(here) > 0 || outlawKnown(g) else { return }
         // The nearest lawman who can see you calls you out and walks over.
         guard let law = g.mobs.mobs.filter({ TownLaw.isTownsperson($0) && TownLaw.isLaw($0) && !$0.lying && simd_length($0.pos - g.player.pos) < 24
                                               && g.world.canSee($0.eye, g.player.eye) })

@@ -44,7 +44,9 @@ struct FoleyMat {
             f.thump = 0.12; f.thumpF = 130; f.click = 0.05; f.clickF = 3000; f.contact = 0.002
             f.tex = 0.6; f.texLo = 1500; f.texHi = 9000; f.texRate = 1600; f.texGrain = 0.0022; f.texLen = 0.12
             f.swish = 0.8; f.swishLo = 2000; f.swishHi = 9500; f.debris = 0.25
-            if m == .leaves { f.texLo = 2000; f.texRate = 2200; f.texGrain = 0.0016 }
+            // Leaves (P89, Oct 12 AM "the leaf-breaking sound sounds wrong": it was a bright 2-9 kHz hiss, static more than
+            // leaves): a softer, lower rustle that lasts, with the twig snaps foleyBreak adds.
+            if m == .leaves { f.texLo = 650; f.texHi = 4600; f.texRate = 1300; f.texGrain = 0.0032; f.texLen = 0.2; f.swish = 0.5; f.swishLo = 900; f.swishHi = 5200 }
         case .gravel:
             f.thump = 0.6; f.thumpF = 100; f.click = 0.3; f.clickF = 3000; f.contact = 0.0015
             f.tex = 1.0; f.texLo = 600; f.texHi = 5200; f.texRate = 2200; f.texGrain = 0.0026; f.texLen = 0.14; f.debris = 1.2
@@ -363,6 +365,12 @@ extension Synth {
             out = Synth.mix(out, trunk)
             out = Synth.mix(out, creak(rnd(0.07, 0.11), f0: rnd(90, 140), f1: rnd(220, 320), gain: 0.35), at: frames(0.0))
             out = Synth.mix(out, texture(0.16, rate: 900, lo: 700, hi: 5000, grain: 0.0035, gain: 0.7) { x in x < 0.3 ? x / 0.3 : (1 - x) / 0.7 }, at: frames(0.02))
+        }
+        if m == .leaves {   // the branch shakes out: a swelling rustle and a few small twig snaps
+            out = Synth.mix(out, texture(0.26, rate: 750, lo: 550 * p, hi: 3600 * p, grain: 0.004, gain: 0.55) { x in x < 0.25 ? x / 0.25 : (1 - x) / 0.75 }, at: frames(0.015))
+            for _ in 0..<3 {
+                out = Synth.mix(out, burst(0.012, lp: 3800, hp: 900, attack: 0.0003, decay: 0.002, gain: rnd(0.12, 0.22)), at: frames(rnd(0.02, 0.16)))
+            }
         }
         if [.stone, .deepslate, .netherrack].contains(m) {   // the block splits: a low crack
             var split = [Float](repeating: 0, count: frames(0.2))

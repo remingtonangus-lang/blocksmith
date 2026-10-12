@@ -297,7 +297,7 @@ extension ShipManager {
     // crew's business; the guns won't shell their own deck).
     func gunsEngage(_ s: Ship, _ g: Game) -> Bool {
         let pp = g.player.pos + V3(0, 1, 0)
-        guard g.alive && g.survival && g.difficulty > 0 && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80) else { return false }
+        guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80) else { return false }   // (P98: at peace)
         if aboard?.root === s || standing(on: g.player.pos)?.root === s { return false }
         return true
     }

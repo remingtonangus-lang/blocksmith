@@ -144,6 +144,9 @@ enum Greywall {
             let rx = floorDiv(cx0, spacing), rz = floorDiv(cz0, spacing)
             let s32 = UInt32(truncatingIfNeeded: gen.seed)
             guard hashf(rx, rz, 9100, s32) < presence else { return nil }
+            guard WorldRules.keepP95(gen, WorldRules.greywallKeepP95, rx: rx, rz: rz, salt: 9150,
+                                     centre: (rx * spacing + (spacing - separation) / 2, rz * spacing + (spacing - separation) / 2),
+                                     reach: (spacing - separation) / 2 + 8) else { return nil }
             let o = Game.spawnOrigin(seed: gen.seed)
             func dist(_ cx: Int, _ cz: Int) -> Int {
                 Int(simd_length(V2(Float(cx * CS + 8 - o.0), Float(cz * CS + 8 - o.1))))
@@ -163,13 +166,15 @@ enum Greywall {
                 }
                 return y
             }
+            // P69's berth is decided once per region (every candidate inside its reach; verifier, PR #56).
+            let span = spacing - separation, apart = WorldRules.p69(gen, rx * spacing + span / 2, rz * spacing + span / 2, reach: span / 2 + 5)
             func crowded(_ cx: Int, _ cz: Int, _ t: Tier) -> Bool {
                 guard let sc = gen.structures else { return false }
                 let bx = cx * CS + 8, bz = cz * CS + 8
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base",
                           "capital_city", "great_ruin", BorealStation.kind] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
-                    let m = t.half + 16
+                    let m = apart && WorldRules.capitalKinds.contains(k) ? t.half + Greywall.margin + WorldRules.capitalApartP69 : t.half + 16   // (P69: the whole box)
                     if o.max.x >= bx - m && o.min.x <= bx + m && o.max.z >= bz - m && o.min.z <= bz + m { return true }
                 }
                 return false
@@ -192,8 +197,9 @@ enum Greywall {
             guard let (S, t) = found else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
             let e = t.half + margin
+            let bank = WorldRules.p69(gen, cx, cz, reach: 4)          // P91 banks, on ground first generated with them
             let piece = Piece(min: IVec3(x - e, S - 12, z - e), max: IVec3(x + e, S + t.wallH + 16, z + e),
-                              build: { w in Greywall.build(&w, x, S, z, t, seed) })
+                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
         }
     }
@@ -204,7 +210,8 @@ enum Greywall {
 
     // MARK: Build
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false) {
+        // (`bank`: ground first generated with the Oct 12 rules: the earth bank, P91, and Greywall's own equipment, P68)
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
@@ -217,6 +224,8 @@ enum Greywall {
         let ladder = g("ladder"), stairsW = g("bunker_concrete_stairs[west]", con)
         let slab = g("bunker_concrete_slab", con), steelSlabTop = g("steel_plating_slab[top]", steel)
         let gold = g("gold_block", steel)
+        let term = bank ? g("greywall_terminal", console) : console, rack = bank ? g("greywall_server", cab) : cab
+        let tf = bank && Blocks.has("greywall_terminal") ? 1 : 0             // (terminals face like the cabinets; the console doesn't)
         let H = t.half, W = t.wallH, kx = t.keepX, kz = t.keepZ, kc = t.keepC
         func put(_ dx: Int, _ y: Int, _ dz: Int, _ b: BlockID) { w.set(cx + dx, S + y, cz + dz, b) }
         func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
@@ -255,6 +264,7 @@ enum Greywall {
                 if !held { w.set(x, y, z, AIR) }
             }
         }
+        if bank { w.berm(cx, cz, half: E, floor: S, reach: 6) }          // P91: banked into the land round it
         // A gravel road from the gate to the keep door (and on out a little).
         columns(-1, 1, kc + kz + 1, E) { dx, dz in w.set(cx + dx, S, cz + dz, path) }
         // Outside the gate the road climbs or drops to the ground one block a step (the site allows six either way), cut
@@ -409,7 +419,7 @@ enum Greywall {
             case "comms":
                 // The map table in the middle, consoles and data cabinets on the back wall, the command chest.
                 let m = ((r.x0 + r.x1) / 2, (r.z0 + r.z1 + 1) / 2)          // the officer's spot (posts)
-                for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 || dx == r.x1 ? console : cab + 0) }   // (always a console at the east end: an outpost's room has one cell to spare)
+                for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 || dx == r.x1 ? term : rack + 0) }   // (always a console at the east end: an outpost's room has one cell to spare)
                 put(m.0 + 1, 1, m.1, mapTable)
                 w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_command" : "greywall_armory", seed: rng.next(), facing: 2)
                 wallLamp(alarmPanel, r.x0, 2, r.z1, wall: 1)
@@ -433,7 +443,7 @@ enum Greywall {
             for dz in kc...(kc + 1) { put(-(kx - 1) + 5, 6, dz, rail) }
             // Command hall: the command console and map table at the north wall, officers' bunks, the command chests.
             let nz = kz0 + 1
-            for dx in -3...3 { put(dx, 6, nz, dx == 0 ? console : cab + 1) }
+            for dx in -3...3 { put(dx, 6, nz, dx == 0 ? term + BlockID(tf) : rack + 1) }
             put(0, 6, nz + 2, mapTable)
             w.chest(cx + 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
             w.chest(cx - 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
@@ -471,7 +481,7 @@ enum Greywall {
             doorAt(0, -5, kc - 3, 2)
             // War room: the war table, consoles round the north wall, the command chest, alarm panel.
             put(kx / 2, -5, kc - 1, mapTable)
-            for dx in 2...(kx - 1) { put(dx, -5, kz0 + 1, dx % 2 == 0 ? console : cab + 1) }
+            for dx in 2...(kx - 1) { put(dx, -5, kz0 + 1, dx % 2 == 0 ? term + BlockID(tf) : rack + 1) }
             w.chest(cx + kx - 1, S - 5, cz + kz1 - 1, loot: "greywall_command", seed: rng.next(), facing: 0)
             wallLamp(alarmPanel, 1, -4, kz1 - 1, wall: 1)
             wallLamp(alarm, kx - 1, -2, kz0 + 1, wall: 0)
@@ -592,6 +602,22 @@ extension BlockRegistry {
             d.hardness = 3; d.tool = .pickaxe; d.sound = .stone; d.emit = 4
             add(d)
         }
+        // P68 (playtest 09:18, "computer room ... like chess"): Greywall's own equipment, on ground first generated
+        // with it: a flat-screen terminal (a widescreen of windows, text and graphs) and a server rack (LED rows).
+        if !has("greywall_terminal") {
+            var d = BlockDef("greywall_terminal", "Greywall Terminal")
+            d.tex = ["greywall_terminal_side", "greywall_terminal_side", "greywall_terminal_top", "steel_plating",
+                     "greywall_terminal_side", "greywall_terminal_side"]
+            d.hardness = 3; d.tool = .pickaxe; d.requiresTool = true; d.sound = .stone; d.emit = 5
+            addFacing(d, front: "greywall_terminal_front")
+        }
+        if !has("greywall_server") {
+            var d = BlockDef("greywall_server", "Server Rack")
+            d.tex = ["greywall_server_side", "greywall_server_side", "greywall_terminal_top", "steel_plating",
+                     "greywall_server_side", "greywall_server_side"]
+            d.hardness = 4; d.tool = .pickaxe; d.requiresTool = true; d.sound = .stone; d.emit = 3
+            addFacing(d, front: "greywall_server_front")
+        }
     }
 }
 
@@ -670,6 +696,54 @@ extension TextureGen {
             let land = Float(x) * 0.6 + sinf(Float(y) * 0.7) * 2 < 7
             let k: Float = 0.96 + 0.04 * r(x, y, 4204)
             return land ? hex(0xC8C29A, k) : hex(0x8FB0C4, k)
+        }
+        // P68: the terminal's widescreen: a title bar, a list of text lines on the left, a bar graph and a status
+        // pane on the right, a thin bezel, the stand's lip and two status LEDs below.
+        p["greywall_terminal_front"] = { x, y in
+            if y >= 12 { return y == 13 && (x == 3 || x == 12) ? hex(x == 3 ? 0x40E080 : 0xE0B030) : hex(0x3A4048, 0.96 + 0.04 * r(x, y, 4231)) }
+            if x == 0 || x == 15 || y == 0 || y == 11 { return hex(0x14181C) }
+            if y == 1 { return hex(x < 11 ? 0x2A6FB0 : 0x1C4E80) }                                        // title bar
+            if x == 7 { return hex(0x0E1C2A) }                                                             // pane divider
+            if x < 7 {
+                let len = 2 + Int(r(y, 0, 4232) * 4)                                                       // text lines
+                return y % 2 == 0 && x >= 2 && x < 1 + len ? hex(0x9AD0F4, 0.85 + 0.15 * r(x, y, 4233)) : hex(0x0B1826)
+            }
+            if y >= 6 {
+                let h = 1 + Int(r(x, 7, 4234) * 4.99)                                                      // bar graph
+                return 10 - y < h && x % 2 == 0 ? hex(x == 12 ? 0xE07A30 : 0x3ACFA0) : hex(0x0B1826)
+            }
+            if y == 3 && x >= 9 && x <= 13 { return hex(0x2A6FB0) }                                        // status pane
+            if y == 4 && x >= 9 && x <= 11 { return hex(0x6AE0B0) }
+            return hex(0x0B1826)
+        }
+        p["greywall_terminal_side"] = { x, y in
+            if x == 0 || x == 15 || y == 15 || y == 0 { return hex(0x23272C) }
+            if y % 3 == 0 && x >= 3 && x <= 12 && y < 12 { return hex(0x1E2226) }                          // vent slots
+            return hex(0x343940, 0.96 + 0.04 * r(x, y, 4235))
+        }
+        p["greywall_terminal_top"] = { x, y in
+            if x == 0 || x == 15 || y == 0 || y == 15 { return hex(0x23272C) }
+            if y >= 9 && y <= 13 && x >= 2 && x <= 13 {                                                    // a flat keyboard
+                if y == 13 { return x >= 5 && x <= 10 ? hex(0x4A5058) : hex(0x1A1D21) }                    // the space bar
+                return (x + (y % 2)) % 3 == 0 ? hex(0x1A1D21) : hex(0x4A5058, 0.95 + 0.05 * r(x, y, 4236))
+            }
+            return hex(0x2E3238, 0.96 + 0.04 * r(x, y, 4237))
+        }
+        // The server rack: four drive bays of blinking LEDs behind a smoked door, a handle on the right.
+        p["greywall_server_front"] = { x, y in
+            if x == 0 || x == 15 || y == 0 || y == 15 { return hex(0x14181C) }
+            if x == 14 { return y >= 5 && y <= 10 ? hex(0x8A929C) : hex(0x1C2025) }                       // handle
+            if y % 4 == 0 { return hex(0x0E1114) }                                                         // bay seams
+            if y % 4 == 2 && x >= 2 && x <= 12 && x % 2 == 0 {
+                let v = r(x, y, 4238)
+                return v < 0.55 ? hex(0x3AE07A) : (v < 0.8 ? hex(0x3A9AE0) : (v < 0.9 ? hex(0xE0B030) : hex(0x14321E)))
+            }
+            return hex(0x22272D, 0.95 + 0.05 * r(x, y, 4239))
+        }
+        p["greywall_server_side"] = { x, y in
+            if x == 0 || x == 15 || y == 0 || y == 15 { return hex(0x23272C) }
+            if x % 4 == 2 && y >= 2 && y <= 13 { return hex(0x1E2226) }                                    // perforations
+            return hex(0x30353B, 0.96 + 0.04 * r(x, y, 4240))
         }
         p["greywall_map_table_side"] = { x, y in
             if y <= 1 { return hex(0x3A4048) }

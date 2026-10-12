@@ -18,6 +18,7 @@ struct Slug {
     var gravity: Float
     var power: Float = 0          // explosive rounds
     var breaks = false            // heavy shells: the burst breaks blocks (HeavyTurret)
+    var breach: Float = .infinity  // a manned deck gun's shell: blocks count at most this blast resistance (P70)
     var traveled: Float = 0
     var dead = false
     var whizzed = false           // a near miss on the player already made its whizz
@@ -26,6 +27,7 @@ struct Slug {
     var incendiary = false        // Incendiary: hit mobs burn 4 s
     var pierced: [ObjectIdentifier] = []   // mobs this round already went through
     var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
+    var side: Faction?            // the shooter's side, taken on its first tick (its blast spares that side after the shooter dies)
 }
 
 struct Beam {
@@ -116,6 +118,9 @@ final class Armory {
             let own: Bool = slugs[i].seat >= 0 ? Int(slugs[i].seat) == g.coop.current || !g.coop.active : g.seatOwns(slugs[i].pos)
             guard own else { continue }
             var s = slugs[i]
+            if s.side == nil {
+                s.side = s.fromPlayer ? Faction.none : (s.shooter.flatMap { id in g.mobs.mobs.first { ObjectIdentifier($0) == id } }?.factionValue ?? .none)
+            }
             s.life -= dt
             if s.life <= 0 {
                 if s.kind == .grenade || s.kind == .rocket { detonate(s, at: s.pos, g) }
@@ -143,7 +148,7 @@ final class Armory {
                     s.dead = true
                     slugs[i] = s
                     detonate(s, at: at, g)
-                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g) }
+                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g, power: s.breach.isFinite ? HeavyTurret.mannedShipPower : 6) }
                     continue
                 }
             }
@@ -292,8 +297,12 @@ final class Armory {
         let own = shooter.map { $0.kind.steelhold && $0.factionValue == .steelhold } ?? s.by.hasPrefix("Capital")
         g.bases.quiet = own && !s.fromPlayer
         g.ashQuiet = !s.fromPlayer && shooter?.factionValue == .ashguard
-        defer { g.ashQuiet = false }
-        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
+        // Every side's soldiers spare their own, not only the Capital and the Ashguard (Greywall and Meridian launchers
+        // hit their own front ranks: questcheck --friendlyfire-only, Q2).
+        g.blastSpares = s.fromPlayer ? .none : (shooter?.factionValue ?? (s.side != nil && s.side != Faction.none ? s.side! : (own ? .steelhold : .none)))
+        defer { g.ashQuiet = false; g.blastSpares = .none }
+        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
+                          resistCap: s.breach)
         g.bases.quiet = false
     }
 

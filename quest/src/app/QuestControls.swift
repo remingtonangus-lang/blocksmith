@@ -304,7 +304,9 @@ final class QuestControls {
                 app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
             default: break
             }
-            magGrip = ev != .none || game.arms.magInHand || (lGrip && VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos)))
+            // Only a grip that took or slotted a magazine (P74, Oct 12 playtest: a hand resting at the side is "at the
+            // hip", so with a gun out and a full magazine every left grip was refused and the hotbar never stepped).
+            magGrip = ev == .grabbed || ev == .inserted || game.arms.magInHand
         } else if game.heldGun == nil { game.arms.magInHand = false }
         if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
@@ -514,6 +516,7 @@ final class QuestControls {
         carryYaw = ship?.yaw ?? 0
         carryRot = ship?.rot ?? simd_quatf()
         if let s = ship { carryLocal = s.toLocal(game.player.pos) }
+        rig.chaseTick(QuestSettings.chaseView && game.alive ? (game.chaseOffset ?? .zero) : .zero, dt: dt)      // P100
         rig.refresh(game: game)
         // Head inside a solid block (seated leaning, roomscale while flying, standing up under a low ceiling): the view
         // fades to black instead of showing the world from inside a wall (the usual VR answer: no x-ray, no disorienting
@@ -558,6 +561,7 @@ final class QuestControls {
                 if game.riding != nil { want = min(1, want + 0.2) }
             }
         }
+        want = max(want, min(0.8, rig.chaseSpeed * 0.08))      // the chase view easing out or back in (P100)
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))

@@ -93,7 +93,10 @@ enum Village {
             let gap = frontier && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyTownsGap) } ?? true)
             // P62 (Oct 11 evening playtest: buildings packed too tightly): roomier lots, on ground saved after P44 only.
             let wide = gap && WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz, reach: 7)
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide)
+            // P71's wider streets only where no save had generated any of the town before them (a half-saved wide town
+            // keeps its old streets and lots: verifier, PR #56).
+            let streets = wide && WorldRules.p69(gen, cx, cz, reach: 7)
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets)
         }
     }
 
@@ -111,7 +114,7 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false) -> StructureStart? {
+                       wide: Bool = false, streets: Bool = false) -> StructureStart? {
         let gap = townsGap ?? frontier
         var rng = SRng(seed)
         let m = mats(style)
@@ -169,8 +172,14 @@ enum Village {
         var goodRoads: [Road] = []
         var lamps = Set<IVec2Key>()                                  // frontier street lamps (edge columns)
         var ends: [(Int, Int, Int, Int, Int, Bool)] = []             // frontier: the outer end of each street (x, z, y, dx, dz, main)
+        // P71 (Oct 12 AM, "the path needs to be wider ... with all the width that the houses are apart"): wide towns'
+        // streets are five blocks, a shoulder column either side of the three-wide road (kept apart in `shoulders`,
+        // by the road step's centre column, so the stepping code below still reads three columns a step); lots stand a
+        // block further back and the street lamps move onto the shoulders.
+        var shoulders: [IVec2Key: [(Int, Int, Int)]] = [:]
         for r in roads {
             var cols: [(Int, Int, Int)] = []
+            var sh: [IVec2Key: [(Int, Int, Int)]] = [:]
             var lastY = r.own ? gen.groundY(r.x, r.z) : cy
             var ok = true
             for s in 0..<r.len {
@@ -179,13 +188,25 @@ enum Village {
                 if abs(y - lastY) > 2 || y < SEA - 1 { if s < 5 { ok = false }; break }
                 lastY = y
                 for w in -1...1 { cols.append((x + (r.dz != 0 ? w : 0), z + (r.dx != 0 ? w : 0), y)) }
+                if streets {
+                    sh[IVec2Key(x, z)] = [-2, 2].compactMap { w -> (Int, Int, Int)? in
+                        let sx = x + (r.dz != 0 ? w : 0), sz = z + (r.dx != 0 ? w : 0)
+                        return abs(gen.groundY(sx, sz) - y) <= 1 ? (sx, sz, y) : nil
+                    }
+                }
             }
             guard ok, cols.count >= 15 else { continue }
             pathCols += cols
+            for (k, v) in sh { shoulders[k] = v; for c in v { occupied.insert(IVec2Key(c.0, c.1)) } }
             goodRoads.append(Road(x: r.x, z: r.z, dx: r.dx, dz: r.dz, len: cols.count / 3, main: r.main, own: r.own))
             if gap {
                 // A street lamp every 8 steps, on alternate sides (lots clear the one in front of a door).
-                for st in stride(from: 4, to: cols.count / 3, by: 8) { lamps.insert(IVec2Key(cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].0, cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)].1)) }
+                for st in stride(from: 4, to: cols.count / 3, by: 8) {
+                    let e = cols[st * 3 + ((st / 8) % 2 == 0 ? 0 : 2)], c = cols[st * 3 + 1]
+                    // (Wide streets: the shoulder beyond that edge, when it has one.)
+                    let out = shoulders[IVec2Key(c.0, c.1)]?.first { abs($0.0 - e.0) + abs($0.1 - e.1) == 1 }
+                    lamps.insert(IVec2Key(out?.0 ?? e.0, out?.1 ?? e.1))
+                }
                 do { let c = cols[cols.count - 2]; ends.append((c.0, c.1, c.2, r.dx, r.dz, r.main)) }
             }
             for c in cols { occupied.insert(IVec2Key(c.0, c.1)) }
@@ -216,7 +237,8 @@ enum Village {
                     let nx = r.dz * side, nz = r.dx * side             // outward normal from road
                     let face: Int = nz == 1 ? 0 : (nz == -1 ? 1 : (nx == 1 ? 2 : 3))
                     let ux = face == 0 ? 1 : (face == 1 ? -1 : 0), uz = face == 2 ? -1 : (face == 3 ? 1 : 0)
-                    let ax = px + nx * 2 - ux * (w / 2), az = pz + nz * 2 - uz * (w / 2)
+                    let off = streets ? 3 : 2                          // (P71: past the shoulder)
+                    let ax = px + nx * off - ux * (w / 2), az = pz + nz * off - uz * (w / 2)
                     let fx = ax + ux * (w - 1) + nx * (d - 1), fz = az + uz * (w - 1) + nz * (d - 1)
                     guard free(ax, az, fx, fz) else { continue }
                     // Ground under the corners: skip steep lots. The floor sits level with the street in front of the
@@ -258,6 +280,7 @@ enum Village {
         var cur: [(Int, Int, Int)] = []
         for (k, c) in pathCols.enumerated() {
             cur.append(c)
+            if k % 3 == 1 { cur += shoulders[IVec2Key(c.0, c.1)] ?? [] }   // (a step's centre: its shoulders with it)
             if cur.count >= 24 || k == pathCols.count - 1 { colsByRoad.append(cur); cur = [] }
         }
         // A road climbing a block from one step to the next gets a half step (a slab on the lower column), so a walker
@@ -285,6 +308,8 @@ enum Village {
                     let ylo = min(y0, y1), yhi = max(y0, y1)
                     guard (h(back) ?? ylo) == ylo, (h(ahead) ?? yhi) <= yhi else { continue }
                     for j in 0..<3 { halfSteps.insert(IVec2Key(pathCols[run[lo] + j].0, pathCols[run[lo] + j].1)) }
+                    let c = pathCols[run[lo] + 1]
+                    for q in shoulders[IVec2Key(c.0, c.1)] ?? [] { halfSteps.insert(IVec2Key(q.0, q.1)) }
                     _ = hi
                 }
             }

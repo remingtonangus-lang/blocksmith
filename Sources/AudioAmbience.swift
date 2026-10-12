@@ -486,6 +486,12 @@ extension Game {
             if d < 48 && m.aggro { fighting = true; break }
         }
         if let r = raid, r.state == 1, simd_length(r.center - p) < 96 { fighting = true }
+        // P88: bounty hunters out for you turn the music: tense while they ride in, a firefight once they're close.
+        for m in mobs.mobs where BountyHunters.isHunter(m) {
+            let d = simd_length(m.pos - p)
+            if d < 120 { garrison = true }
+            if d < 40 { fighting = true; break }
+        }
         // A crewed vessel within its gun range has the player in its sights.
         if !fighting && survival && difficulty > 0 {
             for s in world.ships.list where s.isVessel && !s.captured && s.parent == nil {

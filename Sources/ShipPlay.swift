@@ -128,6 +128,29 @@ extension Game {
         }
     }
 
+    // P100 (Remington, Oct 12: "third person when you take the controls, like GTA"): where the headset's chase view
+    // sits from the player while they drive something: behind it and above (a ship, frigate, Sky Skiff, crawler or drop
+    // craft at the helm: back by thirdPersonDistance; a boat 6 back), pulled in short of blocks between. Nil on foot.
+    var chaseOffset: V3? {
+        var fwd: V3, back: Float
+        if let s = world.ships.pilot {
+            fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
+        } else if let m = riding, m.kind == .boat {
+            fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
+        } else { return nil }
+        fwd.y = 0
+        fwd = simd_length(fwd) > 1e-3 ? simd_normalize(fwd) : V3(0, 0, -1)
+        let want = -fwd * back + V3(0, 2 + back * 0.35, 0)
+        let eye = player.eye, len = simd_length(want), dir = want / max(len, 1e-3)
+        var t: Float = 1
+        while t < len {
+            let q = eye + dir * t
+            if Blocks.opaque[Int(world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { return dir * max(0, t - 1) }
+            t += 0.5
+        }
+        return want
+    }
+
     // Third-person camera distance: farther back while steering, scaled to the ship.
     var thirdPersonDistance: Float {
         guard let s = world.ships.pilot else { return 4 }
@@ -304,7 +327,17 @@ extension Game {
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later), else fires the
             // cannons, raised to the view pitch.
             if breakNow && ships.playerMainGun(s, pitch: player.pitch, game: self) { swing = 1; return true }
-            if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
+            // P93: in survival the guns use cannonballs from the pack, one a gun.
+            if breakNow {
+                let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }
+                let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
+                if guns > 0 && balls < guns {         // a broadside takes one ball a gun ready
+                    onToast?(balls == 0 ? "No cannonballs (craft them from iron and gunpowder)" : "\(guns) guns ready, \(balls) cannonball\(balls == 1 ? "" : "s"): one each to fire")
+                } else {
+                    let fired = ships.fire(s, pitch: player.pitch + 0.05, game: self)
+                    if fired > 0 { swing = 1; if survival && s.role == nil { Wrecks.useCannonballs(self, fired) } }
+                }
+            }
             return true
         }
         let eye = player.eye, look = player.look

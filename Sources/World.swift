@@ -112,6 +112,7 @@ final class World {
             sc.legacyL3 = save.structureGuard(file: "structure-guard-l3.txt")              // WorldRules.savedBeforeL3
             sc.legacyG12 = save.structureGuard(file: "structure-guard-g12.txt")            // WorldRules.savedBeforeG12
             sc.legacyP44 = save.structureGuard(file: "structure-guard-p44.txt")            // WorldRules.savedBeforeP44
+            sc.legacyP95 = save.structureGuard(file: "structure-guard-p95.txt")            // WorldRules.savedBeforeP95
             sc.legacyGreywall = save.structureGuard(file: "structure-guard-greywall.txt")  // Greywall.swift
             sc.legacySkyIsle = save.structureGuard(file: "structure-guard-skyisle.txt")    // SkyIsle.swift
             sc.legacyOverlap = save.structureGuard(file: "structure-guard-overlap.txt")    // StructureCache.yields

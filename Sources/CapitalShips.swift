@@ -57,6 +57,8 @@ final class CapitalState {
     var gunPitch: Float = 0            // the helm's view pitch, kept current while it charges
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
+    var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
+    var bombardShots = 0               // ... shots so far at that player (each lands nearer)
     var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
@@ -917,6 +919,7 @@ extension ShipManager {
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
                 st.target = pickTarget(s, st, g)
+                if st.target?.player != true { st.bombardShots = 0 }      // a new barrage starts with a warning shot again
             } else if var t = st.target {
                 refresh(&t, g)
                 st.target = t
@@ -932,7 +935,7 @@ extension ShipManager {
     private func targetValid(_ t: CapTarget, _ g: Game, spareBases: Bool = true) -> Bool {
         if t.player {
             var ok = false
-            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !(spareBases && g.bases.inAnyBase(g.player.pos)) }
+            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && !(spareBases && g.bases.inAnyBase(g.player.pos)) }
             return ok
         }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
@@ -960,7 +963,7 @@ extension ShipManager {
                 let pp = g.player.pos
                 let onIt = self.aboard?.root === s || self.standing(on: pp)?.root === s
                 // A Capital ship never fires on a player inside a citadel: its shells would land on its own base (Quest round 3).
-                guard g.alive && g.survival && g.difficulty > 0 && !onIt && !spare(pp) else { return }
+                guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && !onIt && !spare(pp) else { return }   // (P98: at peace)
                 let d = self.boundsDistance(s, pp)
                 // In sight and in a sane range only: a frigate killed a player inside a house the moment they
                 // switched to survival, nobody near (Quest round 4). Sighted from the hull's centre or its top.

@@ -333,6 +333,19 @@ enum MapDraw {
             out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(6 * s, 6 * s)))
             out.append(HudLine(text: "", x: p.x - 2 * s, y: p.y - 2 * s, scale: s, bg: col, box: V2(4 * s, 4 * s)))
         }
+        // P88: bounty hunters after you, as red crosses (on the big map and the minimap).
+        for m in g.mobs.mobs where BountyHunters.isHunter(m) {
+            guard let p = at(m.pos.x, m.pos.z) else { continue }
+            out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(6 * s, 6 * s)))
+            out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - s / 2, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(6 * s, s)))
+            out.append(HudLine(text: "", x: p.x - s / 2, y: p.y - 3 * s, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(s, 6 * s)))
+        }
+        // P98: the war bands hunting you (the Reckoning), as orange squares.
+        for h in Reckoning.hunts where h.left > 0 {
+            guard let p = at(h.pos.x, h.pos.y) else { continue }
+            out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(8 * s, 8 * s)))
+            out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(1, 0.55, 0.1, 1), box: V2(6 * s, 6 * s)))
+        }
         // The player: a dot with a facing tick.
         if let p = at(g.player.pos.x, g.player.pos.z) {
             let f = V2(-sinf(g.player.yaw), -cosf(g.player.yaw))
@@ -430,6 +443,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
     static let zooms = [2, 4, 8, 16, 32, 64]
     var zoom = 2                   // index into zooms (blocks per cell)
     var dragFrom: V2?
+    var pressAt: V2?, dragged: Float = 0    // a left press: where, and how far it has dragged since (a tap places a pin)
 
     init(game: Game) {
         cx = game.player.pos.x
@@ -461,24 +475,46 @@ final class MapMenu: Menu, CustomDrawnMenu {
         dz -= g.input.scrollSteps
         if dz != 0 { zoom = max(0, min(MapMenu.zooms.count - 1, zoom + (dz > 0 ? 1 : -1))); g.sfx(.click, 0.3) }
         if (p.a && !q.a) || g.input.tapped(Key.space) { cx = g.player.pos.x; cz = g.player.pos.z }
-        // Waypoint at the centre cross: X on the pad, Enter or right-click (again on a waypoint removes it).
-        if (p.x && !q.x) || g.input.tapped(Key.enter) || g.input.rightClicked {
-            let added = MapCache.shared.togglePin(g, x: Int(floor(cx)), z: Int(floor(cz)), near: max(3, bpc * 3))
+        // Waypoint at the centre cross: X on the pad or Enter; a click on the map (a right-click, or a left tap that
+        // doesn't drag: the headset's laser and trigger) puts it where you point (P73: on the headset the centre cross
+        // was the only way and he never found it). Again on a waypoint removes it.
+        func pin(_ x: Int, _ z: Int) {
+            let added = MapCache.shared.togglePin(g, x: x, z: z, near: max(3, bpc * 3))
             g.sfx(added ? .click : .uiBack, 0.4)
         }
+        let L = HudLayout(g.screen.x, g.screen.y).fitted(self)
+        let mouse = V2(g.input.mouseX, g.input.mouseY)
+        if (p.x && !q.x) || g.input.tapped(Key.enter) { pin(Int(floor(cx)), Int(floor(cz))) }
+        if g.input.rightClicked {
+            if let w = world(at: mouse, L) { pin(w.0, w.1) } else { pin(Int(floor(cx)), Int(floor(cz))) }
+        }
         if g.input.leftDown {
-            let m = V2(g.input.mouseX, g.input.mouseY)
             if let f = dragFrom {
-                let L = HudLayout(g.screen.x, g.screen.y).fitted(self)
-                let d = (m - f) / (2 * L.s) * Float(bpc)
+                let d = (mouse - f) / (2 * L.s) * Float(bpc)
                 cx -= d.x; cz -= d.y
-            }
-            dragFrom = m
-        } else { dragFrom = nil }
+                dragged += simd_length(mouse - f)
+            } else { pressAt = mouse; dragged = 0 }
+            dragFrom = mouse
+        } else {
+            if let at = pressAt, dragged < 2 * L.s, let w = world(at: at, L) { pin(w.0, w.1) }
+            dragFrom = nil; pressAt = nil
+        }
         if g.input.tapped(KeyBinds.key(.map)) { g.closeMenu() }
         MapMenu.prevPad = p
     }
     static var prevPad = PadSnapshot()
+    static let cols = 152, rows = 82
+
+    // The world column under a point on the screen, if it is over the map (drawLines' grid).
+    func world(at m: V2, _ L: HudLayout) -> (Int, Int)? {
+        let o = origin(L), s = L.s, px = 2 * s
+        let x0 = o.x + 8 * s, y0 = o.y + 18 * s
+        let c = (m.x - x0) / px, r = (m.y - y0) / px
+        guard c >= 0 && c < Float(MapMenu.cols) && r >= 0 && r < Float(MapMenu.rows) else { return nil }
+        let wx: Float = cx + (c - Float(MapMenu.cols) / 2) * Float(bpc)
+        let wz: Float = cz + (r - Float(MapMenu.rows) / 2) * Float(bpc)
+        return (Int(floor(wx)), Int(floor(wz)))
+    }
 
     func drawLines(_ L: HudLayout, _ o: V2) -> [HudLine] {
         let g = game
@@ -486,7 +522,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         var out: [HudLine] = []
         let px = 2 * s
         let x0 = o.x + 8 * s, y0 = o.y + 18 * s
-        let cols = 152, rows = 82
+        let cols = MapMenu.cols, rows = MapMenu.rows
         MapDraw.terrain(&out, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
         Countries.mapBorders(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
         WarFront.mapFronts(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc)
@@ -509,6 +545,8 @@ final class MapMenu: Menu, CustomDrawnMenu {
     }
 
     var legend: String {
+        // (On the headset: the laser and trigger, P73.)
+        if game.vrHead != nil { return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.back, "Close")]) + "   Point + trigger: waypoint" }
         if Prompt.pad {
             return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.alt, "Waypoint"), (.back, "Close")])
         }

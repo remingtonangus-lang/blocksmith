@@ -4,20 +4,33 @@ import simd
 // Behaviour for the newer blocks: campfires, beehives, rebirth anchors, sea pickles, turtle eggs,
 // frogspawn, frosted ice, cocoa, conduits, lightning rods, murk shriekers (deep stalker) and catalysts.
 extension Game {
+    static var restedAt: Double = -100
+    func restByFire(_ c: V3) -> Bool {
+        guard clock - Game.restedAt >= 60 else { onToast?("You've rested by the fire a while. Move on, or wait a bit."); return true }
+        Game.restedAt = clock
+        applyEffect(.regeneration, amp: 0, seconds: 12)
+        sfx(.plantBrush, 0.4, at: c)
+        onToast?("You rest by the fire. Your wounds mend.")
+        return true
+    }
+
     // Right-click handling; returns true if used.
     func useNewBlock(_ t: (hit: IVec3, normal: IVec3)) -> Bool {
         let p = t.hit
         let b = world.block(p.x, p.y, p.z)
         let base = Blocks.groupBase[Int(b)]
-        let bk = Blocks.key(base)
+        // (by group: a group whose first state has its own name, the unlit "campfire[off]", never matched its case
+        // below, so a campfire did nothing when used: P97)
+        let bk = Blocks.def(base).group ?? Blocks.key(base)
         let st = Int(b - base)
         let key = Items.key(held.item)
         let c = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
         switch bk {
         case "campfire", "soul_campfire":
-            let lit = st == 0
-            if !lit && (key == "flint_and_steel" || key == "fire_charge") { world.setBlock(p.x, p.y, p.z, base); if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }; return true }
-            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fireExtinguish, 0.7, at: c); damageHeld(1); return true }
+            // (P97: the group's first state is the unlit "campfire[off]" (BlocksMore registers it first): the lit fire is state 1.)
+            let lit = st == 1
+            if !lit && (key == "flint_and_steel" || key == "fire_charge") { world.setBlock(p.x, p.y, p.z, base + 1); if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }; return true }
+            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base); sfx(.fireExtinguish, 0.7, at: c); damageHeld(1); return true }
             // Put raw food on it (up to four items, 30 s each).
             if lit, Recipes.smelt(held.item) != nil, held.def.food != nil {
                 let be = world.entity(p, .campfire)
@@ -29,6 +42,9 @@ extension Game {
                     return true
                 }
             }
+            // P97 (Oct 12 AM, "I can't use the campfire"): anything else but a block, at a lit fire, rests you by it a
+            // while: health mends (regeneration), once a minute.
+            if lit && (held.isEmpty || held.def.block == nil) { return restByFire(c) }
         case "bee_nest", "beehive":
             guard st == 5 else { return false }
             if key == "shears" {

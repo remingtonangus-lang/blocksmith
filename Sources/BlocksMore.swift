@@ -89,7 +89,12 @@ extension BlockRegistry {
                 d.tex = ["campfire_log"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.hardness = 2; d.tool = .axe; d.sound = .wood
                 d.emit = lit ? emit : 0; d.skyStop = false
                 var logs = [Box(1, 0, 0, 5, 4, 16), Box(11, 0, 0, 15, 4, 16), Box(0, 3, 1, 16, 7, 5), Box(0, 3, 11, 16, 7, 15)]
-                if lit { var f = Box(3, 1, 3, 13, 15, 13); f.tex = t6(fire); logs.append(f) }
+                // The flames: two thin crossed sheets (P97: one fire-textured cube "looks weird"; its six faces showed
+                // as a box of fire).
+                if lit {
+                    var f1 = Box(2, 1, 7, 14, 15, 9); f1.tex = t6(fire); logs.append(f1)
+                    var f2 = Box(7, 1, 2, 9, 15, 14); f2.tex = t6(fire); logs.append(f2)
+                }
                 d.boxes = logs
                 add(d)
             }

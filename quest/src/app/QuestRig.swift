@@ -11,6 +11,16 @@ final class QuestRig {
     var anchor = V3.zero
     var shake = V3.zero                         // eye jolt (Game.shakeVR: the Tidebreaker), set each frame by the app
     var zoom: Float = 1                         // G21: the Farsight scope narrows both eyes' views (VRScope)
+    // P100: the chase view while driving (Game.chaseOffset): the whole tracking space (head, hands, panels) eased out
+    // behind the vehicle; zero on foot. The view never turns on its own: only where it sits moves.
+    private(set) var chase = V3.zero
+    private(set) var chaseSpeed: Float = 0         // m/s the chase offset moved last frame (the vignette rises with it)
+    func chaseTick(_ target: V3, dt: Float) {
+        let before = chase
+        chase += (target - chase) * min(1, dt * 2.5)
+        if simd_length(target - chase) < 0.01 { chase = target }
+        chaseSpeed = simd_length(chase - before) / max(dt, 1e-3)
+    }
     private(set) var lastCam: EyeCamera?        // the last frame's eye cameras (the scope's crosshair projects with them)
     var needsRecenter = true
     private(set) var recenters = 0              // counts recentres (panels re-place themselves after one)
@@ -79,7 +89,7 @@ final class QuestRig {
             tilt = simd_quatf(angle: tiltBase, axis: tiltAxis)
             print(String(format: "rig: recentred, head %.2f m above the %@, eye offset %.2f", h, xr.floorSpace ? "floor" : "origin", heightOffset))
         }
-        feet = game.player.pos + V3(0, stepOffset, 0)
+        feet = game.player.pos + V3(0, stepOffset, 0) + chase
         headWorld = toWorld(trackingHead)
         (headYaw, headPitch) = XRMath.yawPitch(toWorldRot(headRot))
         shake = game.shakeVR
@@ -99,7 +109,7 @@ final class QuestRig {
 
     // After the player moved (roomscale, Game.tick): the camera follows the feet.
     func refresh(game: Game) {
-        feet = game.player.pos + V3(0, stepOffset, 0)
+        feet = game.player.pos + V3(0, stepOffset, 0) + chase
         headWorld = toWorld(trackingHead)
     }
 

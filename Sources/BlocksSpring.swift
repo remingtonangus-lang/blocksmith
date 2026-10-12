@@ -83,9 +83,11 @@ extension TextureGen {
         p["short_dry_grass"] = dryGrass(false, 1811)
         p["tall_dry_grass"] = dryGrass(true, 1813)
         p["cactus_flower"] = { x, y in
-            let dx = x - 8, dy = y - 11
+            // (P80: the bloom sits on the tile's bottom row, on the cactus top; it ended 2 px up and floated.)
+            let dx = x - 8, dy = y - 13
             if dx * dx + dy * dy <= 2 { return hex(0xF5E070) }
-            if dx * dx + (dy + 1) * (dy + 1) <= 14 && y <= 13 && y >= 7 { return hex(0xF06AA0, 0.9 + 0.15 * r(x, y, 1815)) }
+            if dx * dx + (dy + 1) * (dy + 1) <= 14 && y <= 14 && y >= 9 { return hex(0xF06AA0, 0.9 + 0.15 * r(x, y, 1815)) }
+            if y == 15 && abs(dx) <= 1 { return hex(0x5A8A30) }
             return clear
         }
         p["leaf_litter"] = { x, y in r(x, y, 1816) < 0.45 ? hex([0xA06A2A, 0x8A5A22, 0xB8862E][Int(r(x, y, 1817) * 3) % 3], 0.9) : clear }

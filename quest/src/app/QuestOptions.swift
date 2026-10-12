@@ -34,7 +34,7 @@ enum QuestOptions {
         // Bug Notes stays: the playtest build's voice notes (QuestVoiceNotes); store builds' stub has available = false.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
                                 "graphics", "fov", "controls", "keys", "padmap"]
-        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
+        PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_ring", "q_saddle", "q_shake", "q_chase", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud", "q_bright"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "q_turn": "Snap turns in steps (most comfortable) or turn smoothly while the right stick is held.",
@@ -43,6 +43,7 @@ enum QuestOptions {
             "q_move": "Smooth: the left stick walks. Teleport: push the left stick forward, aim the arc, release to jump there.",
             "q_vig": "Darkens the edges of the view while moving, turning, riding horses and riding ships. Higher is more comfortable.",
             "q_saddle": "While riding a horse, the view eases over its jumps and bucks instead of following every hop.",
+            "q_chase": "Taking the controls of a ship, airship, crawler, drop craft or boat moves your view out behind it, like a chase camera; back to first person when you let go. Off keeps you in first person.",
             "q_shake": "The view jolts a little when the Tidebreaker fires and blasts land nearby. Off keeps the view still (the controllers still rumble).",
             "q_ring": "A steady ring at your feet while a ship you stand on moves or turns: a fixed reference for your eyes.",
             "q_seated": "Seated: leaning doesn't walk you through the world, and recentring sets standing eye height.",
@@ -76,6 +77,7 @@ enum QuestOptions {
                 ("Ship Deck Ring: \(on(S.deckRing > 0))", "q_ring"),
                 ("Steady Saddle: \(on(S.steadySaddle))", "q_saddle"),
                 ("Blast Shake: \(on(S.blastShake))", "q_shake"),
+                ("Vehicle View: \(S.chaseView ? "Chase" : "First Person")", "q_chase"),
                 ("Seated Mode: \(on(S.seated))", "q_seated"),
                 ("Lying Down View: \(on(S.reclined))", "q_reclined"),
                 ("Melee: \(S.swingMode ? "Swing" : "Reclined")", "q_swing"),
@@ -150,6 +152,7 @@ enum QuestOptions {
         case "q_ring": S.deckRing = S.deckRing > 0 ? 0 : 1
         case "q_saddle": S.steadySaddle.toggle()
         case "q_shake": S.blastShake.toggle()
+        case "q_chase": S.chaseView.toggle()
         case "q_seated": S.seated.toggle(); hooks.recenter()
         case "q_reclined": reclinedPosture(!S.reclined); hooks.recenter()
         case "q_swing": S.swingMode.toggle()

@@ -166,6 +166,7 @@ final class Turrets {
             var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.004) * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
                          shooter: ObjectIdentifier(m), by: "Player", life: 12, gravity: HeavyTurret.gravity)
             HeavyTurret.arm(&s)
+            s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach      // P70
             g.arms.spawn(s)
             for _ in 0..<10 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...3), dark: false) }
         }

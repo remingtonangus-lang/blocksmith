@@ -70,6 +70,9 @@ enum QuestSettings {
     static var steadySaddle: Bool { get { bool("quest.steadySaddle", true) } set { store(newValue, "quest.steadySaddle") } }
     // Blast Shake: the Tidebreaker's and explosions' eye jolt in the headset (Game.vrShake); haptics stay.
     static var blastShake: Bool { get { bool("quest.blastShake", true) } set { store(newValue, "quest.blastShake") } }
+    // Vehicle View (P100): taking the controls of a ship, frigate, Sky Skiff, crawler, drop craft or boat moves the view
+    // out behind it (a chase view, eased, with the vignette), back to first person on leaving; off stays in first person.
+    static var chaseView: Bool { get { bool("quest.chaseView", true) } set { store(newValue, "quest.chaseView") } }
     // Movement: false smooth (left stick walks), true teleport (push the stick forward to aim an arc, release to jump there).
     static var teleport: Bool { get { bool("quest.teleport", false) } set { store(newValue, "quest.teleport") } }
     // Movement follows the head (true) or the left controller (false).
@@ -122,7 +125,7 @@ extension QuestSettings {
         [("quest.refreshRate", refreshRate), ("renderDistance", renderDistance), ("quest.resolutionScale", resolutionScale),
          ("quest.smoothTurn2", smoothTurn), ("quest.brightness", brightness), ("quest.pitchStep", pitchStep), ("quest.snapAngle", snapAngle),
          ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle),
-         ("quest.blastShake", blastShake), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
+         ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop),

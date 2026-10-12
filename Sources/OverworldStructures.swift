@@ -541,7 +541,8 @@ enum OverworldStructures {
             guard biome.isOcean || biome.isBeach else { return nil }
             let y = gen.groundY(x, z)
             let s = seed
-            return StructureStart(kind: "shipwreck", pieces: [piece(x - 15, y - 3, z - 8, x + 15, y + 16, z + 8) { w in shipwreckBuild(&w, x, y - 1, z, s) }],
+            let derelict = WorldRules.p69(gen, cx, cz, reach: 2)     // P93: raisable (rotten, not holed) on new ground
+            return StructureStart(kind: "shipwreck", pieces: [piece(x - 15, y - 3, z - 8, x + 15, y + 16, z + 8) { w in shipwreckBuild(&w, x, y - 1, z, s, derelict: derelict) }],
                                   anchor: IVec3(x, max(y + 6, SEA + 2), z - 15))
         }
     }
@@ -549,7 +550,7 @@ enum OverworldStructures {
     // A sunken sailing ship lying half buried in the seabed (y is its keel): a V-section hull of planks on a log keel,
     // a hold under a deck with hatches, a raised stern cabin, a forecastle and bowsprit, masts with yards. Broken
     // wrecks lose their bow above the hold, have holes in the planking and a snapped mast lying on deck.
-    static func shipwreckBuild(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+    static func shipwreckBuild(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, derelict: Bool = false) {
         var rng = SRng(seed)
         let wood = ["oak", "spruce", "dark_oak"][rng.int(3)]
         let pl = Blocks.id("\(wood)_planks"), fence = Blocks.id("\(wood)_fence")
@@ -580,7 +581,10 @@ enum OverworldStructures {
                         // Holes only above the sea (as air): a hole at sea level was a lone water block in the gunwale
                         // under the rail, drawn as a bright blue tile (blind critic, run 417 shipwreck).
                         let hole = broken && h >= 2 && y + h > SEA && rng.chance(0.12)
-                        at(a, h, b, h == 0 ? logA : (hole ? AIR : pl))
+                        // P93: a derelict's holes are rotten planks, and it is rotten below the waterline too (the
+                        // same draws as before, so the rest of the wreck is unchanged).
+                        let rot = derelict && h >= 1 && (hole || hashf(cx + a * dir, y + h, cz + b, UInt32(truncatingIfNeeded: seed)) < 0.06)
+                        at(a, h, b, h == 0 ? logA : (rot ? Wrecks.rottenID : (hole ? AIR : pl)))
                     } else {
                         at(a, h, b, wet(h))
                     }

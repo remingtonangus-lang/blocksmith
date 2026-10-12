@@ -117,6 +117,11 @@ enum Townsfolk {
             v.role = "banker"; v.locked = true; v.profession = "none"
             let p = m.pos
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]      // behind the teller's counter
+        } else if tag == "camper" {
+            // A wild camp's hunter or prospector (WildCamps, P97): stays by the camp's fire.
+            v.role = "camper"; v.locked = true; v.profession = "none"
+            let p = m.pos
+            v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
         } else if tag.hasPrefix("citizen") {
@@ -389,9 +394,9 @@ extension Game {
         // Nobody serves a wanted man: a bounty in this town closes its counters until it's paid; nobody serves an
         // outlaw anywhere.
         if survival && !m.baby && v.tradeKind != nil && !TownConquest.owns(TownLaw.town(of: m, self))
-            && (Honour.bounty(TownLaw.town(of: m, self)) > 0 || Honour.isOutlaw) {
+            && (Honour.bounty(TownLaw.town(of: m, self)) > 0 || Honour.outlawKnown(self)) {
             m.face(player.pos)
-            Townsfolk.say(self, m, Honour.isOutlaw ? "I don't serve outlaws. Give yourself up to the law first."
+            Townsfolk.say(self, m, Honour.outlawKnown(self) ? "I don't serve outlaws. Give yourself up to the law first."
                                                    : "Not while there's a price on your head. Square it with the sheriff.")
             return true
         }

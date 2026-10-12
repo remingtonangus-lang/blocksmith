@@ -645,8 +645,13 @@ enum Mesher {
                                     let px = CT[ci] == 1 ? mx[0] : mn[0]
                                     let py = CT[ci + 1] == 1 ? mx[1] : mn[1]
                                     let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
-                                    let (u, v) = faceUV(f, px, py, pz)
-                                    vert(isTrans, bx16 + px, by16 + py, bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                                    // A slanted prism (a wall torch) samples its texture as if centred (columns 7-9), where
+                                    // torch art is painted; at the wall's edge its sides came out blank (P86).
+                                    let slant = box.leanX != 0 || box.leanZ != 0
+                                    let (u, v) = slant ? faceUV(f, px + 7 - mn[0], py, pz + 7 - mn[2]) : faceUV(f, px, py, pz)
+                                    let top = py == mx[1]
+                                    let lx = top ? Int(box.leanX) : 0, lz = top ? Int(box.leanZ) : 0
+                                    vert(isTrans, bx16 + px + lx, by16 + py, bz16 + pz + lz, f, tintV, u, v, layer, 3, l, false)
                                 }
                             }
                         }

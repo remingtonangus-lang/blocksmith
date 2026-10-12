@@ -448,6 +448,7 @@ final class ItemRegistry {
         registerDeepGateItems()
         registerHellItems()
         registerNavyItems()
+        registerWreckItems()                          // P93 (Wrecks.swift)
         registerSkySkiff()
         registerSkyIsleItems()                        // C7 (SkyIsle.swift)
         registerSubmarineItems()                      // C8 (Submarines.swift)

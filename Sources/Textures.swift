@@ -5,6 +5,10 @@ import simd
 // Textures are registered by name (Tex.id) by the block/item registries; this file holds a painter
 // for each name. Unknown names render as a magenta/black checker so they are easy to spot.
 enum TextureGen {
+    // Layers drawn by the painters even where imported art exists (P75/P86 looks, Oct 12). BLOCKSMITH_PAINTED
+    // ("a,b,c", or "" for none) overrides it for looks work in a thread (questcheck --view).
+    static let painted: Set<String> = ProcessInfo.processInfo.environment["BLOCKSMITH_PAINTED"]
+        .map { Set($0.split(separator: ",").map(String.init)) } ?? ["short_grass"]   // P75: full blade tufts, not the stubby imported one
     static let S = 16              // the painters' grid (16 x 16 "pixels" per face)
     // Texture resolution on the GPU (pixels per face, default 128; BC3-compressed about 35 MB with mips): HD materials (TexturesHD.swift) where they exist, the 16 px
     // painters upscaled otherwise. BLOCKSMITH_TEXRES or the "textureRes" setting picks 16 / 32 / 64 / 128.
@@ -1129,7 +1133,7 @@ enum TextureGen {
                 var px: [V4]
                 if n == S {
                     px = src
-                } else if let imp = TextureImport.image(name, size: n) {
+                } else if !TextureGen.painted.contains(name), let imp = TextureImport.image(name, size: n) {
                     px = imp
                 } else if let g = HDTex.generator(name, src) {
                     px = g(n, Int(hash3(layer, 7, 3, 0x7E57) & 0xFFFF)).px

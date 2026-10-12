@@ -405,6 +405,12 @@ final class Mob {
     var huntHits: UInt8 = 0         // the player's hits on it so far, and the worst weapon fit among them (Hunting.swift)
     var huntLoss: UInt8 = 0
     var legend: Int8 = -1           // a legendary animal's index in Hunting.legends, saved
+    // The hurt (red) or burning (orange) tint it is drawn with. Living mobs only: a corpse or a hunted carcass is never
+    // updated, so its last hurt stayed and it lay red on the ground (P78, Oct 12 playtest).
+    static func tint(_ m: Mob) -> V3 {
+        let living = m.deathT < 0 && !m.carcass
+        return m.hurt > 0 && living ? V3(1, 0.45, 0.45) : (m.fire > 0 && living ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
+    }
     var carcass = false             // a body waiting to be skinned (Hunting.bodies, never in the mob list), drawn on its side
     var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
@@ -1070,6 +1076,14 @@ final class Mob {
             let a = pos + forward * (halfW + 0.45)
             if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
         }
+        // Calm townsfolk never step off a drop deeper than the path finder's three blocks, on a path or not (a path
+        // cutting the corner of a ravine bridge in a village: seed 777 behaviour sim, two fell 5 blocks, Q2). Not when
+        // panicking or running from a zombie or raider (villagerDay's 2.2): a fall beats being caught.
+        if spec.behavior == .villager && panic <= 0 && speed > 0 && speed < 2.2 && onGround {
+            let a = pos + forward * (halfW + 0.45)
+            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
+                && !solid(a.x, pos.y - 3.5, a.z, w) { speed = 0 }
+        }
         if spec.flying {
             if kind == .blaze && speed != 0 {
                 let target = forward * speed
@@ -1371,6 +1385,9 @@ final class Mob {
         if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
+        // A bonded horse is hardier (P83, Oct 12: bond should raise health as well as stamina): bond levels 2-4 take
+        // 85 / 72 / 60 % of a hit.
+        if gaited && tamed && damage > 1 { damage = max(1, Int((Float(damage) * HorseFeel.toughness[bondLevel - 1]).rounded())) }
         // An Aegis Marine's energy shield soaks the hit first (Navy.swift).
         if shieldMax > 0 && damage > 0 { damage = shieldHit(damage); if damage <= 0 { return } }
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
@@ -2052,7 +2069,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
         bright = bright + (1 - bright) * amb
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
-        let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
+        let tint = Mob.tint(m)
         // Blade contact (Game.bladeFlash): a white-hot flash over the whole body for its first 0.14 s, distinct from the
         // red hurt tint that follows it.
         let flash: Float = min(1, m.hitFlash / Mob.hitFlashTime)

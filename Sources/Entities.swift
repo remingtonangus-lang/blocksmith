@@ -95,8 +95,12 @@ final class ItemEntity {
         }
         if onGround { let f = expf(-10 * dt); vel.x *= f; vel.z *= f }
         if w.collides(V3(pos.x - 0.125, pos.y, pos.z - 0.125), V3(pos.x + 0.125, pos.y + 0.25, pos.z + 0.125)) { pos.y += 0.3; vel.y = 0 }
+        let before = pos
         let hit = w.moveBody(&pos, halfW: 0.125, height: 0.25, vel * dt, step: 0, onGround: onGround)
         if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
+        // On a ship's deck (P70, playtest 09:20: "the pieces are falling through the ship"): the world's collision has
+        // no ship blocks, so a drop into a ship's cell stops where it was.
+        if !hit.y && w.ships.solid(at: pos) { pos = V3(pos.x, before.y, pos.z); if w.ships.solid(at: pos) { pos = before }; onGround = vel.y < 0; vel = .zero }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
     }

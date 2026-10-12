@@ -138,6 +138,7 @@ final class Game {
     let lastWar = LastWar()
     var creditsAsh = false          // the credits showing are the Ashguard victory epilogue (AshWar.epilogue)
     var ashQuiet = false            // an Ashguard shell is bursting: it spares Ashguard units (AshUnits.swift)
+    var blastSpares = Faction.none  // a soldier's shell or grenade is bursting: it spares its own side (Explosion)
     var ashSpot: V3?                // where an Ashguard unit last saw the player (the field guns fire on it)
     var ashSpotSeen: Double = -999
     var ashAlertClock: Double = -999
@@ -1047,6 +1048,14 @@ final class Game {
         // took the press first, so nobody could get on with a gun out).
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
            hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
+        // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
+        // gun's aim took the use press first, so nothing could be opened with a gun out.
+        if useNow && heldGun != nil && !(input.shift || p.b), let t = target,
+           simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) < 4.5 {
+            if isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; mining = nil; return }
+            if isInteractive(t.hit) { openBlock(t.hit); mining = nil; return }
+            if Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)).contains("campfire") && useNewBlock(t) { mining = nil; return }   // (P97)
+        }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
@@ -1530,6 +1539,7 @@ final class Game {
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key.hasSuffix("lightning_rod") { lightningRods.append(at) }
             placedReactions(at)
+            AutoTurrets.placed(self, at)                                  // P93: a cannon by a computer
             world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
