@@ -558,6 +558,6 @@ extension Game {
         if TownLaw.isHostile(self, m) || v.reputation <= -60 { TownVoice.speak(self, m, .angry); return }
         if Honour.greet(self, m, v) { return }          // the standing's own words: warnings, tips, gifts, your name
         let ctx: TownVoice.Ctx = raid != nil ? .raid : dayFraction > 0.5 ? .night : (Rand.float(in: 0..<1) < 0.55 ? .greet : .chatter)
-        if TownVoice.speak(self, m, ctx) == nil { Townsfolk.say(self, m, Townsfolk.greeting(v, self)) }
+        if TownVoice.speak(self, m, ctx) == nil { Townsfolk.say(self, m, VillagerMinds.current.greeting(m, VillagerMinds.context(m, self), self)) }
     }
 }
