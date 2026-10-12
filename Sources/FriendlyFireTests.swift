@@ -22,7 +22,7 @@ enum FriendlyFireTests {
             for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
             g.mobs.mobs = mobs0; g.riding = riding0; g.credits = credits0
             g.survival = surv0; g.player.flying = fly0; g.player.pos = pos0; g.player.vel = .zero; g.time = time0
-            if g.menu != nil { g.closeMenu() }; g.menu = menu0
+            if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }; g.menu = menu0
             g.health = 20; g.alive = true
         }
         // A stone field 41 x 21 with nothing above it.
@@ -31,7 +31,7 @@ enum FriendlyFireTests {
             for y in (py + 1)...(py + 8) where w.block(x, y, z) != AIR { put(x, y, z, AIR) }
         } }
         g.mobs.mobs.removeAll(); w.pendingMobs.removeAll()
-        if g.menu != nil { g.closeMenu() }
+        if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
         g.riding = nil; g.credits = nil
         g.survival = true; g.player.flying = false; g.time = DAY_LENGTH * 0.25
         let stand = V3(Float(fx + 20) + 0.5, Float(py + 1), Float(fz) + 0.5)
@@ -69,7 +69,7 @@ enum FriendlyFireTests {
             var taken: Float = 0
             for _ in 0..<(72 * 20) {
                 g.health = 20; g.alive = true; g.player.pos = stand; g.player.vel = .zero
-                if g.menu != nil { g.closeMenu() }
+                if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }
                 g.tick(1.0 / 72)
                 taken += Float(max(0, 20 - g.health))
             }

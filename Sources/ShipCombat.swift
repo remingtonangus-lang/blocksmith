@@ -211,8 +211,12 @@ extension ShipManager {
                 // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
                 let from = list.first { $0.id == owner }
                 g.bases.quiet = from?.factionValue == .steelhold
+                // A side's ship guns spare its own soldiers (marines boarding beside the impact), as their shells do.
+                // (Not a hull the player steers: a captured frigate's guns hit its old side.)
+                let steered = from != nil && g.world.ships.pilot?.root.id == from?.root.id
+                g.blastSpares = steered ? .none : (from?.factionValue ?? .none)
                 Explosion.explode(at: p, power: power, game: g)
-                g.bases.quiet = false
+                g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
