@@ -104,10 +104,10 @@ extension Mob {
         if let s = stayAt { d["stayX"] = s.x; d["stayY"] = s.y; d["stayZ"] = s.z }
         if let h = horse, h.brushCool > 0 { d["brushCd"] = h.brushCool }
         if power != 1 { d["power"] = power }
-        if faction != 0 { d["fac"] = Float(faction) }
+        if faction != 0 { d["fac"] = Float(faction) }      // (a navy's crew keep their colours and ranks through a save)
         if shieldMax > 0 { d["shm"] = shieldMax; d["sh"] = shield; d["shl"] = shieldLock }
         if troop > 0 { d["tc"] = Float(troop); d["ts0"] = troopSeg.x; d["ts1"] = troopSeg.y; d["ts2"] = troopSeg.z }
-        if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }      // (a navy's crew keep their colours and ranks through a save)
+        if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }
         if warden { d["warden"] = 1 }
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
         if let b = brain, b.extra {

@@ -409,7 +409,7 @@ enum Greywall {
             case "comms":
                 // The map table in the middle, consoles and data cabinets on the back wall, the command chest.
                 let m = ((r.x0 + r.x1) / 2, (r.z0 + r.z1 + 1) / 2)          // the officer's spot (posts)
-                for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 ? console : cab + 0) }
+                for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 || dx == r.x1 ? console : cab + 0) }   // (always a console at the east end: an outpost's room has one cell to spare)
                 put(m.0 + 1, 1, m.1, mapTable)
                 w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_command" : "greywall_armory", seed: rng.next(), facing: 2)
                 wallLamp(alarmPanel, r.x0, 2, r.z1, wall: 1)

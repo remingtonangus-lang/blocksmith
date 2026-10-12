@@ -135,8 +135,8 @@ final class BaseWatch {
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
     func inAnyBase(_ p: V3) -> Bool { records.values.contains { $0.inside(p) } }
     static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
-    let boreal = BorealAlarmState()
-    let greywall = GreywallAlarmState()               // Greywall Command alarms (GreywallAlarm.swift)                   // Boreal Station alarms (BorealAlarm.swift)
+    let boreal = BorealAlarmState()                   // Boreal Station alarms (BorealAlarm.swift)
+    let greywall = GreywallAlarmState()               // Greywall Command alarms (GreywallAlarm.swift)
 
     // One watch per Game (the harness and the app each make one game).
     // Held by a weak reference, not an ObjectIdentifier: a new game allocated where a freed one lived got the old

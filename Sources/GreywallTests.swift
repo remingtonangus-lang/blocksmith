@@ -44,7 +44,10 @@ enum GreywallTests {
                 nearest = min(nearest, d)
                 if d < t.minDist { tooClose.append("\(t) at \(d)") }
                 if d < 600 { nearSpawn += 1 }
-                if (found[t]?.count ?? 0) < (t == .outpost ? 2 : 1) { found[t, default: []].append((seed, s)) }
+                // (bases from different seeds: outposts, most of the bases, from all three, the others from two where found)
+                if (found[t]?.count ?? 0) < (t == .outpost ? 3 : 2) && !(found[t] ?? []).contains(where: { $0.0 == seed }) {
+                    found[t, default: []].append((seed, s))
+                }
             } }
         }
         let frac = Float(bases) / Float(max(1, regions))
@@ -153,6 +156,13 @@ enum GreywallTests {
         check(lamps >= [8, 14, 22, 28][t.rawValue] && panels >= 1 + t.towers.count && maps >= 1,
               "\(tag): \(lamps) alarm lamps, \(panels) alarm panels, \(maps) map tables")
         check(turrets == Greywall.turrets(t).count && flags == 4, "\(tag): \(turrets) wall turrets (\(Greywall.turrets(t).count) planned), the flag on the keep (\(flags) cells)")
+        // What the alarm, the capture and the turrets will find on this generated base (Greywall.scan, as in play): a
+        // command console to hold above all (an outpost had none: it could never be taken, A1 verifier).
+        var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: S, tier: t)
+        let scanned = Greywall.scan(world, &site)
+        check(scanned && !site.consoles.isEmpty && site.lamps.count == lamps && site.panels.count == panels
+              && site.turrets.count == turrets && site.flags.count == flags,
+              "\(tag): the base's scan finds \(site.consoles.count) command consoles, \(site.lamps.count) lamps, \(site.panels.count) panels, \(site.turrets.count) turrets, \(site.flags.count) flag cells")
     }
 
     // A1b on a stand-in base in the air over the player: a shot inside sets the alarm off and lights its lamps, the

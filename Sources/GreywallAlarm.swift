@@ -38,6 +38,8 @@ final class GreywallAlarmState {
     static let squadEvery: Float = 45
     static let maxSquads = 4
     static let leashPad: Float = 4
+    static let turretIds: (BlockID, BlockID) = (Blocks.id("wall_turret"), Blocks.id("wall_turret_damaged"))
+    static let turretDirs = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
 }
 
 extension Greywall {
@@ -51,10 +53,16 @@ extension Game {
     var greywallAlarm: GreywallAlarmState { bases.greywall }
 
     // Finds the alarm lamps and panels of a base once (its whole footprint loaded), for the switch and the count.
-    private func greywallScan(_ site: inout GreywallAlarmState.Site) -> Bool {
+    private func greywallScan(_ site: inout GreywallAlarmState.Site) -> Bool { Greywall.scan(world, &site) }
+}
+
+extension Greywall {
+    // (also run on generated bases by GreywallTests: what the alarm, capture and turrets will find)
+    static func scan(_ world: World, _ site: inout GreywallAlarmState.Site) -> Bool {
         let e = site.tier.half + 2
-        for (x, z) in [(site.cx - e, site.cz - e), (site.cx + e, site.cz - e), (site.cx - e, site.cz + e), (site.cx + e, site.cz + e)]
-            where !world.isLoaded(x, z) { return false }
+        // (every chunk of the footprint, not just the corners: a middle one not in yet would read as air)
+        for cz in floorDiv(site.cz - e, CS)...floorDiv(site.cz + e, CS) { for cx in floorDiv(site.cx - e, CS)...floorDiv(site.cx + e, CS)
+            where !world.isLoaded(cx * CS, cz * CS) { return false } }
         let lampOff = Blocks.groupBase[Int(Blocks.id("alarm_lamp"))], lampOn = Blocks.groupBase[Int(Blocks.id("alarm_lamp_lit"))]
         let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
         let console = Blocks.has("command_console") ? Blocks.groupBase[Int(Blocks.id("command_console"))] : BlockID.max
@@ -71,7 +79,9 @@ extension Game {
         } }
         return true
     }
+}
 
+extension Game {
     // Lights or darkens every lamp still standing (same facing: the lit lamps are the dark ones' twins).
     func greywallLamps(_ site: inout GreywallAlarmState.Site, lit: Bool) {
         let off = Blocks.id("alarm_lamp"), on = Blocks.id("alarm_lamp_lit")
@@ -170,7 +180,9 @@ extension Game {
                     st.log.append("\(key) panels down")
                     onToast?("Every alarm panel is down: the \(site.tier.name) can't call for help")
                 }
-                if site.tier.rawValue >= 2 && standing > 0 && site.squads < GreywallAlarmState.maxSquads {
+                // (and never past the base's own strength plus 12: squads stay, so alarm after alarm can't pile them up)
+                if site.tier.rawValue >= 2 && standing > 0 && site.squads < GreywallAlarmState.maxSquads
+                    && greywallStrength(site) < site.tier.troops + 12 {
                     site.squadT -= dt
                     if site.squadT <= 0 {
                         site.squadT = GreywallAlarmState.squadEvery
@@ -202,6 +214,15 @@ extension Game {
         }
     }
 
+    // The live and parked soldiers leashed to a base.
+    func greywallStrength(_ site: GreywallAlarmState.Site) -> Int {
+        let L = V3(Float(site.cx), Float(site.cz), Float(site.tier.half))
+        let live = mobs.mobs.reduce(0) { $0 + ($1.leash == L && $1.health > 0 ? 1 : 0) }
+        let parked = mobs.stored.values.reduce(0) { n, rs in n + rs.reduce(0) { m, r in
+            m + (r.extra?["lsx"] == L.x && r.extra?["lsz"] == L.y && r.hp > 0 ? 1 : 0) } }
+        return live + parked
+    }
+
     private func players() -> [V3] { (0..<max(1, coop.seatCount)).map { coop.seatPlayer($0, self).pos } }
 }
 
@@ -227,7 +248,14 @@ extension Mob {
             b.lastSeen = V3(max(L.x - L.z, min(L.x + L.z, ls.x)), ls.y, max(L.y - L.z, min(L.y + L.z, ls.z)))
         }
         if out(pos) {
-            face(V3(L.x, pos.y, L.y))
+            // Back in through the gate (south wall): round the outside of the wall to the front first, so the wall doesn't
+            // pin it, then along the front to the gate and in.
+            let H = L.z
+            let goal: V3
+            if pos.z >= L.y + H { goal = abs(pos.x - L.x) > 1.5 ? V3(L.x, pos.y, pos.z) : V3(L.x, pos.y, L.y) }
+            else if abs(pos.x - L.x) > H { goal = V3(pos.x, pos.y, L.y + H + 3) }
+            else { goal = V3(L.x + (pos.x >= L.x ? 1 : -1) * (H + 3), pos.y, pos.z) }
+            face(goal)
             strafe = 0
             return spec.speed * 0.8
         }
@@ -249,7 +277,12 @@ extension Game {
         let garrison = mobs.mobs.contains { m in
             m.faction == Faction.greywall.rawValue && m.health > 0 && m.kind != .deckGun && Greywall.inside(s, m.pos, pad: 8)
         }
-        guard !garrison else { site.hold = 0; return false }
+        // (soldiers parked in chunks outside a small render distance count too: they come back when the player walks over)
+        let parked = mobs.stored.values.contains { rs in rs.contains { r in
+            guard let f = r.extra?["fac"], Int(f) == Faction.greywall.rawValue, r.hp > 0, r.k != MobKind.deckGun.key, r.p.count == 3 else { return false }
+            return Greywall.inside(s, V3(r.p[0], r.p[1], r.p[2]), pad: 8)
+        } }
+        guard !garrison && !parked else { site.hold = 0; return false }
         let atConsole = players.contains { p in s.consoles.contains { simd_length(V3(Float($0.x) + 0.5, Float($0.y), Float($0.z) + 0.5) - p) < 2.6 } }
         guard atConsole else {
             if site.hold > 0 { onToast?("Taking the base stopped: stay at the command console") }
@@ -325,8 +358,8 @@ extension Game {
         let st = greywallAlarm
         guard survival, alive, !st.sites.isEmpty else { return }
         let eye = player.eye
-        let gun = Blocks.id("wall_turret"), hurt = Blocks.id("wall_turret_damaged")
-        let dirs = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
+        let gun = GreywallAlarmState.turretIds.0, hurt = GreywallAlarmState.turretIds.1
+        let dirs = GreywallAlarmState.turretDirs
         for (key, site) in st.sites where !st.taken.contains(key) {
             for p in site.turrets {
                 guard world.isLoaded(p.x, p.z) else { continue }
