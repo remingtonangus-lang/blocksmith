@@ -1372,7 +1372,7 @@ final class Game {
         guard let t = target else { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
-        if useNow && !(input.shift || p.b) && consoleUse(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b) && (radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return

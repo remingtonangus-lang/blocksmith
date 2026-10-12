@@ -165,6 +165,11 @@ if CommandLine.arguments.contains("--navy-only") {
     NavyTests.run(game: game, check: check)
     print(failures == 0 ? "navy: all checks passed" : "navy: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
+if CommandLine.arguments.contains("--radio-only") {
+    RadioTests.run(game: game, check: check)
+    print(failures == 0 ? "radio: all checks passed" : "radio: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --mapfog-only: map fog of war and the compass strip (Sources/MapFogTests.swift, backlog A5).
 if CommandLine.arguments.contains("--mapfog-only") {
     MapFogTests.run(game: game, check: check)
@@ -767,6 +772,7 @@ TroopTests.run(game: game, check: check)
 NavyTests.run(game: game, check: check)
 SkySkiffTests.run(game: game, check: check)
 MapFogTests.run(game: game, check: check)
+RadioTests.run(game: game, check: check)
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

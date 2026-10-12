@@ -121,6 +121,8 @@ extension Game {
             if greywallCaptureTick(&site, key, players, dt) { st.sites[key] = site; continue }
             var trigger: V3? = nil
             for n in b.noises where n.hostile && Greywall.inside(site, n.pos) { trigger = n.pos }
+            // (a net that found out a spoofer: every base of it sounds as soon as a player is inside, C6 RadioSpoof.swift)
+            if survival, trigger == nil, radio.alerted(.greywall, clock), let p = players.first(where: { Greywall.inside(site, $0) }) { trigger = p }
             if survival, trigger == nil, let p = players.first(where: { Greywall.inside(site, $0) }) {
                 if mobs.mobs.contains(where: { mine($0) && $0.aggro && ($0.brain?.sees ?? false) }) { trigger = p }
             }
