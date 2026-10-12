@@ -781,6 +781,9 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 // every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
 func leaves(_ name: String, _ body: () -> Void) {
     let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
+    let menu0 = game.menu
+    // Put it all back after the check, so one group's leftover fails that group, not every group after it.
+    defer { game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0 }
     body()
     let moved = simd_length(game.player.pos - pos)
     check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu,

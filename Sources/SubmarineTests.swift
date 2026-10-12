@@ -19,7 +19,7 @@ enum SubmarineTests {
         check(craft.map { Items.key($0.item) } == Submarine.kitKey, "submarine: iron, glass, a helm, an engine, a propeller and three ballast tanks make a Submarine Kit")
 
         let pos0 = g.player.pos, yaw0 = g.player.yaw, surv0 = g.survival, held0 = g.inventory.main[g.inventory.selected]
-        let toast0 = g.onToast, health0 = g.health, safe0 = Submarine.creativeSafe
+        let toast0 = g.onToast, health0 = g.health, safe0 = Submarine.creativeSafe, menu0 = g.menu
         var said = ""
         g.onToast = { said = $0 }
         var placed: [IVec3] = []
@@ -29,7 +29,7 @@ enum SubmarineTests {
             while w.ships.list.count > ships0, let s = w.ships.list.last { w.ships.remove(s) }
             w.ships.shells.removeAll(); w.ships.pilot = nil
             g.player.pos = pos0; g.player.yaw = yaw0; g.survival = surv0; g.inventory.main[g.inventory.selected] = held0
-            g.onToast = toast0; g.health = health0; Submarine.creativeSafe = safe0
+            g.onToast = toast0; g.health = health0; Submarine.creativeSafe = safe0; g.menu = menu0
             w.ships.encounters = enc0; g.player.flying = fly0; g.player.vel = .zero      // (later checks walk and fight on foot)
         }
         g.survival = true

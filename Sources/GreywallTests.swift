@@ -14,6 +14,8 @@ import simd
 //              fortress up), the alarm lamps, alarm panels and the map table are in place
 enum GreywallTests {
     static func run(device: MTLDevice, game: Game, check: (Bool, String) -> Void) {
+        let fly0 = game.player.flying, menu0 = game.menu
+        defer { game.player.flying = fly0; game.menu = menu0 }       // (the turret check flies; the war table opens a report)
         faction(game, check)
         alarm(game, check)
         capture(game, check)

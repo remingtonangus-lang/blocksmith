@@ -15,6 +15,8 @@ import simd
 //              --write-ttk, written to docs/status/troop-classes-ttk.md
 enum TroopTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let fly0 = g.player.flying, menu0 = g.menu
+        defer { g.player.flying = fly0; g.menu = menu0 }
         classes(g, check)
         segments(g, check)
         saveAndLoot(g, check)
