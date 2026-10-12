@@ -807,7 +807,7 @@ final class Mob {
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
             if let s = townDefend(dt, g) {
-                if lying { pos.y += 0.1; lying = false; sitting = false }
+                if lying { wake(g) }             // (out of bed beside it, not in the wall: VillageLife.wake)
                 speed = s * townStats.speed; break
             }
             if townReact(dt, g) { speed = 0; break }

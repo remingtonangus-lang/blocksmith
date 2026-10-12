@@ -8,6 +8,8 @@ enum VillageLife {
     // Per block state: a bed's head half (string suffix tests ran per cell of the bed searches).
     static let bedHead: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_bed_head") }
     @inline(__always) static func isBedHead(_ b: BlockID) -> Bool { Int(b) < bedHead.count && bedHead[Int(b)] }
+    static let bedAny: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_bed") || Blocks.key(Blocks.groupBase[$0]).hasSuffix("_bed_head") }
+    @inline(__always) static func isBed(_ b: BlockID) -> Bool { Int(b) < bedAny.count && bedAny[Int(b)] }
     static let foodPoints: [String: Int] = ["bread": 4, "carrot": 1, "potato": 1, "beetroot": 1]
     static let crops: [String: (Int, String)] = ["wheat": (7, "wheat"), "carrots": (7, "carrot"), "potatoes": (7, "potato"), "beetroots": (3, "beetroot")]
     // Village Hero gifts by profession (reference hero_of_the_village loot tables).
@@ -136,7 +138,7 @@ extension Mob {
         let f = g.dayFraction
         // The barkeep keeps the saloon open into the night (ShopKind.hours).
         let late = villager?.shop == ShopKind.saloon.rawValue && Float(f) < ShopKind.saloon.hours.1
-        guard f > 0.5 && f < 0.995, !late, let b = villager?.bed else { wake(); return false }
+        guard f > 0.5 && f < 0.995, !late, let b = villager?.bed else { wake(g); return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
         // Close enough to lie down: within 1.2 of the pillow, or up to 1.6 (on the foot end, or diagonal to the head,
         // where the path ends when the head lies against a wall) with nothing in between. At 1.2 only, townsfolk stood
@@ -148,13 +150,13 @@ extension Mob {
             // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
             // here and then let the day schedule re-aim the same tick, so few villagers ever reached their beds).
             if !gaveUp(V3(bedPos.x, Float(b[1]), bedPos.z)) { bedWalk = V3(bedPos.x, Float(b[1]), bedPos.z) }
-            wake()
+            wake(g)
             return false
         }
         // Asleep in bed: lying on the mattress from the foot end, head on the pillow (it stood beside the bed, so
         // villagers never looked asleep: Quest v63). Facing = direction from the foot to the head.
         let hb = g.world.block(b[0], b[1], b[2])
-        guard VillageLife.isBedHead(hb) else { wake(); return false }
+        guard VillageLife.isBedHead(hb) else { wake(g); return false }
         let dirs = [V2(0, 1), V2(0, -1), V2(1, 0), V2(-1, 0)]
         let d = dirs[Int(hb - Blocks.groupBase[Int(hb)]) & 3]
         sitting = true
@@ -166,8 +168,31 @@ extension Mob {
         return true
     }
 
-    private func wake() {
-        if lying { pos.y += 0.1 }       // off the mattress, beside the pillow end
+    func wake(_ g: Game) {
+        if lying {
+            pos.y += 0.1                // off the mattress, beside the pillow end
+            // A bed whose head lies against a wall left the villager standing in the wall when it got up (Q2
+            // behaviour sim on Linux: 8 of 13 villagers in_wall at dawn). Stand up on the nearest free spot instead:
+            // where it lay, then the cells round the bed.
+            let w = g.world
+            func free(_ p: V3) -> Bool {
+                !w.collides(V3(p.x - halfW + 0.02, p.y + 0.02, p.z - halfW + 0.02), V3(p.x + halfW - 0.02, p.y + height - 0.05, p.z + halfW - 0.02))
+            }
+            if !free(pos), let b = villager?.bed {
+                var best: V3?
+                for dz in -2...2 { for dx in -2...2 {
+                    // Standing on the floor beside the bed (a solid block under the cell), or on the mattress itself.
+                    let x = b[0] + dx, z = b[2] + dz
+                    let bed = VillageLife.isBed(w.block(x, b[1], z))
+                    let p = V3(Float(x) + 0.5, Float(b[1]) + (bed ? 0.5625 : 0), Float(z) + 0.5)
+                    // (In sight of where it lay: never through the wall into the next room.)
+                    guard bed || Blocks.collide[Int(w.block(x, b[1] - 1, z))], free(p),
+                          w.clearShot(pos + V3(0, 1.2, 0), p + V3(0, 1.2, 0)) else { continue }
+                    if best.map({ simd_length(p - pos) < simd_length($0 - pos) }) ?? true { best = p }
+                } }
+                if let p = best { pos = p }
+            }
+        }
         sitting = false
         lying = false
     }

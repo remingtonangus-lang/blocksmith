@@ -15,10 +15,6 @@ PadTest.swift
 ShipBench.swift
 ShipTest.swift
 Smoke.swift
-Agent.swift
-AgentBots.swift
-AgentRun.swift
-BehaviorSim.swift
 CustomMusic.swift
 MobRenderCheck.swift
 RideCheck.swift
