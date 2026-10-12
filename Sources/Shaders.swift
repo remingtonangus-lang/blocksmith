@@ -505,6 +505,22 @@ static float3 mobPattern(MobOut in) {
         c *= 0.9 + 0.08 * hf + 0.04 * sin(p.y * 9.0 + p.x * 3.0); // polished metal: fine brushing
     } else if (in.pattern > 9.5 && in.pattern < 10.5) {
         c *= 0.93 + 0.05 * hf;                                    // polished leather
+    } else if (in.pattern > 11.5 && in.pattern < 15.5) {
+        // G9 horse coats: 12 sleek hair, 13 dapple grey, 14 paint (white patches), 15 mane and tail hair.
+        float grain = vnoise(float2(p.x * 2.1 + p.y * 0.9, p.z * 0.35)) * 0.6 + vnoise(float2(p.y * 2.4 + 3.0, p.z * 0.5 + p.x)) * 0.4;
+        if (in.pattern > 14.5) {
+            float strand = vnoise(float2(p.x * 3.3 + p.z * 3.1, p.y * 0.22)) * 0.7 + vnoise(float2(p.x * 7.0 - p.z * 6.0, p.y * 0.5)) * 0.3;
+            c *= 0.62 + 0.55 * strand + 0.05 * hf;
+        } else {
+            c *= 0.9 + 0.12 * grain + 0.03 * (hf - 0.5);
+            if (in.pattern > 12.5 && in.pattern < 13.5) {
+                float d = vnoise(p.xz * 0.62 + p.y * 0.41 + 2.0) * 0.6 + vnoise(p.zy * 0.7 + 9.0) * 0.4;
+                c *= 0.8 + 0.32 * smoothstep(0.5, 0.64, d);
+            } else if (in.pattern > 13.5) {
+                float n = vnoise(p.xz * 0.16 + p.y * 0.13 + 5.0) * 0.7 + vnoise(p.zy * 0.21 + 1.0) * 0.3;
+                c = mix(c, float3(0.93, 0.91, 0.87) * (0.92 + 0.08 * grain), smoothstep(0.55, 0.59, n));
+            }
+        }
     } else if (in.pattern > 8.5) {
         // emissive (9) and smoked glass (11): flat
     } else {
@@ -520,13 +536,13 @@ static float3 mobSheen(float3 n, float3 rel, int pt, float3 toLight, float3 ligh
     if (dot(n, v) > 0.0) n = -n;
     float3 l = normalize(toLight);
     float3 h = normalize(l - v);
-    float shin = pt == 8 ? 40.0 : (pt == 11 ? 90.0 : (pt == 10 ? 24.0 : 32.0));
-    float k = pt == 8 ? 0.5 : (pt == 11 ? 0.55 : (pt == 10 ? 0.22 : 0.28));
+    float shin = pt == 8 ? 40.0 : (pt == 11 ? 90.0 : (pt == 10 ? 24.0 : (pt >= 12 ? 18.0 : 32.0)));
+    float k = pt == 8 ? 0.5 : (pt == 11 ? 0.55 : (pt == 10 ? 0.22 : (pt >= 12 ? 0.12 : 0.28)));
     float s = pow(saturate(dot(n, h)), shin) * k * saturate(dot(n, l) * 4.0);
     float rim = pow(1.0 - saturate(dot(n, -v)), 4.0) * (pt == 11 ? 0.12 : 0.06);
     return lightC * (s + rim);
 }
-static bool mobGlossy(int pt) { return pt == 7 || pt == 8 || pt == 10 || pt == 11; }
+static bool mobGlossy(int pt) { return pt == 7 || pt == 8 || pt == 10 || pt == 11 || (pt >= 12 && pt <= 14); }
 
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
     float3 c = mobPattern(in);

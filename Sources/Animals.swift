@@ -531,12 +531,16 @@ func horseParts(_ m: Mob) -> [Part] {
         c = coats[m.variant % 5]
     }
     let bony = m.kind == .skeletonHorse
-    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : c * 0.42)
+    let mk = HorseCoat.markings(m)
+    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : (mk.flaxen ? V3(0.86, 0.76, 0.52) : c * 0.42))
     let hoof: V3 = bony ? c * 0.68 : V3(0.17, 0.14, 0.12)
+    let white = V3(0.9, 0.88, 0.84)
     let sock: V3 = c * 0.82
     let muzzle: V3 = c * 0.72 + V3(0.07, 0.07, 0.07)
     let dark = V3(0.05, 0.05, 0.05)
-    let pat: Float = bony ? 5 : 4
+    // G9: a hair coat (12), dapples on greys (13), white patches on paints (14); the undead keep bone and rot.
+    let pat: Float = bony ? 5 : (m.kind == .zombieHorse ? 4 : (mk.dapple ? 13 : (mk.paint ? 14 : 12)))
+    let hairPat: Float = bony || m.kind == .zombieHorse ? pat : 15
 
     // Gait state from data already on the mob.
     let amt = m.walkAmount
@@ -566,7 +570,7 @@ func horseParts(_ m: Mob) -> [Part] {
     let fo: Float = 0.5 * gal
     let legs: [(Float, Float, Float, Bool)] = [(-2.6, -8.3, 0, true), (2.6, -8.3, .pi + fo, true),
                                                (-2.7, 8.2, .pi, false), (2.7, 8.2, fo, false)]
-    for (x, z, off, front) in legs {
+    for (li, (x, z, off, front)) in legs.enumerated() {
         let lp: Float = ph + off + (front ? 0 : .pi * gal)
         let a: Float = sinf(lp) * amp + (front ? 0 : -0.08)
         let flex: Float = max(0, cosf(lp)) * (0.6 + 0.5 * gal) * amt
@@ -578,7 +582,8 @@ func horseParts(_ m: Mob) -> [Part] {
         let knee: V3 = hip + V3(0, -lu * cosf(a), -lu * sinf(a))
         let uw: Float = front ? 3 : 3.4
         p.append(Part(mn: V3(x - uw / 2, hip.y - lu - 0.4, z - 1.7), mx: V3(x + uw / 2, hip.y + 2, z + 1.7), pivot: hip, rotX: a, color: c, pattern: pat))
-        p.append(Part(mn: V3(x - 1, knee.y - ll, knee.z - 1), mx: V3(x + 1, knee.y + 0.4, knee.z + 1), pivot: knee, rotX: la, color: sock, pattern: pat))
+        p.append(Part(mn: V3(x - 1, knee.y - ll, knee.z - 1), mx: V3(x + 1, knee.y + 0.4, knee.z + 1), pivot: knee, rotX: la,
+                      color: mk.socks[li] ? white : sock, pattern: mk.socks[li] ? 12 : pat))
         p.append(Part(mn: V3(x - 1.3, knee.y - ll - lh, knee.z - 1.4), mx: V3(x + 1.3, knee.y - ll, knee.z + 1.2), pivot: knee, rotX: la, color: hoof))
     }
 
@@ -588,7 +593,13 @@ func horseParts(_ m: Mob) -> [Part] {
     let nL: Float = small ? 10 : 12
     let nP = V3(0, top - 4, -8.5)
     p.append(Part(mn: V3(-2.1, nP.y - 1, nP.z - 3.2), mx: V3(2.1, nP.y + nL, nP.z + 2.6), pivot: nP, rotX: nA, color: c, pattern: pat))
-    p.append(Part(mn: V3(-0.8, nP.y + 1, nP.z + 2.4), mx: V3(0.8, nP.y + nL + 1.2, nP.z + 3.6), pivot: nP, rotX: nA, color: mane))
+    // The mane: a crest along the top of the neck and hair falling to one side (what the rider sees ahead of the saddle).
+    p.append(Part(mn: V3(-0.8, nP.y + 1, nP.z + 2.4), mx: V3(0.8, nP.y + nL + 1.2, nP.z + 3.6), pivot: nP, rotX: nA, color: mane, pattern: hairPat))
+    if !bony && !small {
+        let sx: Float = mk.maneLeft ? -1 : 1
+        p.append(Part(mn: V3(sx > 0 ? 0.6 : -2.5, nP.y + 0.5, nP.z + 0.6), mx: V3(sx > 0 ? 2.5 : -0.6, nP.y + nL + 0.4, nP.z + 3.5),
+                      pivot: nP, rotX: nA, color: mane * 0.94, pattern: hairPat))
+    }
     // Head: hangs from the poll at the neck's top, angled down; long skull, narrower muzzle, eyes, ears, forelock.
     let poll: V3 = nP + V3(0, nL * cosf(nA), nL * sinf(nA))
     let hA: Float = -0.95 + nodS * 0.5 - graze * 0.3
@@ -603,14 +614,17 @@ func horseParts(_ m: Mob) -> [Part] {
     let earL: Float = small ? 5.5 : 3
     let earC: V3 = small ? c * 0.85 : c
     p.append(hb(-2.1, 2.0, -0.6, -0.9, 2 + earL, 0.6, earC)); p.append(hb(0.9, 2.0, -0.6, 2.1, 2 + earL, 0.6, earC))
-    if !small { p.append(hb(-0.7, 1.4, -2.2, 0.7, 2.5, 0.8, mane)) }   // forelock between the ears
+    if !small { p.append(hb(-0.7, 1.4, -2.2, 0.7, 2.5, 0.8, mane, hairPat)) }   // forelock between the ears
+    // Face markings: a blaze down the face, or a star on the forehead.
+    if mk.blaze { p.append(hb(-0.7, 0.8, -11.2, 0.7, 0.95, -4.8, white, 12)); p.append(hb(-0.9, 2.2, -5.2, 0.9, 2.32, -2.6, white, 12)) }
+    else if mk.star { p.append(hb(-0.8, 2.2, -5.0, 0.8, 2.32, -3.2, white, 12)) }
 
     // Tail: hangs from the top of the rump, a thin dock and a fuller lower part; swishes, lifts at the gallop.
     let swish: Float = sinf(clock * 2.3) * 0.14 * (1 - amt) + sinf(ph) * 0.1 * amt
     let tP = V3(0, top - 1, 11)
     let tA: Float = -0.3 - 0.55 * gal - 0.15 * amt
-    p.append(Part(mn: V3(-1, tP.y - 6, tP.z), mx: V3(1, tP.y + 0.5, tP.z + 2), pivot: tP, rotX: tA, rotZ: swish, color: mane))
-    p.append(Part(mn: V3(-1.6, tP.y - 15, tP.z + 0.2), mx: V3(1.6, tP.y - 5.5, tP.z + 2.8), pivot: tP, rotX: tA, rotZ: swish * 1.3, color: mane))
+    p.append(Part(mn: V3(-1, tP.y - 6, tP.z), mx: V3(1, tP.y + 0.5, tP.z + 2), pivot: tP, rotX: tA, rotZ: swish, color: mane, pattern: hairPat))
+    p.append(Part(mn: V3(-1.6, tP.y - 15, tP.z + 0.2), mx: V3(1.6, tP.y - 5.5, tP.z + 2.8), pivot: tP, rotX: tA, rotZ: swish * 1.3, color: mane, pattern: hairPat))
 
     if m.saddled {
         let leather = V3(0.35, 0.2, 0.1)
@@ -888,5 +902,31 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         ] + eyes(27, -4, 1, 1.5) + bowParts(x: 5, pivot: V3(5, 23, 0), handY: 12, rotX: 1.4)
     default:
         return [box(-4, 0, -4, 8, 8, 8, V3(1, 0, 1))]
+    }
+}
+
+// G9 (backlog: "horse coats are flat untextured colours; texture the coat per variant"): each horse's markings, fixed
+// by its variant (saved with it, so a horse keeps its look): white socks on any of its legs, a blaze or a star on the
+// face, a flaxen mane on some chestnuts and duns, dapples on most greys, and white patches on some (paint horses).
+// The coat itself is a hair texture in the mob shader (patterns 12-15, Shaders.swift and quest/shaders/mob.frag).
+enum HorseCoat {
+    struct Markings { var socks = [false, false, false, false]; var blaze = false; var star = false; var dapple = false
+                      var paint = false; var flaxen = false; var maneLeft = false }
+    static func markings(_ m: Mob) -> Markings {
+        var k = Markings()
+        guard m.kind == .horse || m.kind == .donkey || m.kind == .mule else { return k }
+        let v = m.variant
+        func r(_ salt: Int) -> Float { hashf(v, salt, 0x6A9, 0xC0A7) }
+        k.maneLeft = r(1) < 0.5
+        guard m.kind == .horse else { return k }
+        let coat = v % 5
+        for i in 0..<4 { k.socks[i] = r(10 + i) < (i < 2 ? 0.22 : 0.3) }
+        let face = r(20)
+        k.blaze = face < 0.22
+        k.star = !k.blaze && face < 0.45
+        k.dapple = coat == 1 && r(30) < 0.75
+        k.paint = !k.dapple && coat != 1 && r(31) < 0.2
+        k.flaxen = (coat == 0 || coat == 3) && r(32) < 0.3
+        return k
     }
 }

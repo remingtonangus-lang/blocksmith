@@ -1513,7 +1513,8 @@ struct Part {
     var rotZ: Float = 0
     var color: V3
     var pattern: Float = 0   // 0 plain, 1 cow patches, 2 wool, 3 feathers, 4 mottled, 5 bone, 6 dress cloth,
-                             // 7 enamel (glossy), 8 polished metal, 9 emissive, 10 polished leather, 11 smoked glass
+                             // 7 enamel (glossy), 8 polished metal, 9 emissive, 10 polished leather, 11 smoked glass,
+                             // 12 horse coat, 13 dapple grey, 14 paint horse, 15 mane and tail hair (G9)
     var rotY: Float = 0
 
     // The part's rotation (Ry * Rz * Rx) as a matrix: one set of trig per part instead of per vertex.

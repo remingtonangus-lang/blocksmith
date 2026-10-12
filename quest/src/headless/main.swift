@@ -166,6 +166,14 @@ if CommandLine.arguments.contains("--rail-only") {
     RailwayTests.run(game, check: check)
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the
+// rider's view through the Quest renderer (--horse-shots DIR keeps the PNGs).
+if CommandLine.arguments.contains("--horsecoats-only") {
+    if let ctx = vkctx {
+        do { try HorseCoatShots.run(game: game, ctx: ctx, dir: arg("--horse-shots"), check: check) } catch { check(false, "horsecoats render: \(error)") }
+    } else { HorseCoatShots.modelChecks(check) }
+    print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --towns-only: just the towns of people, law, honour and frontier town checks (Sources/TownTests.swift, HonourTests.swift).
 if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
