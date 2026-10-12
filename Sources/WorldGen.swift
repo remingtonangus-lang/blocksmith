@@ -616,8 +616,8 @@ final class WorldGen: TerrainGenerator {
             let top = tops[lx + lz * CS]
             guard top > 8 else { continue }
             // Up to the column's own top (a cave cut right under the surface left a lone grass block hanging over it,
-            // 3 blocks from seed 12345's spawn). Inside the chunk, ores go with one neighbour left too (5 open sides:
-            // the reference discards ore exposed to air the same way).
+            // 3 blocks from seed 12345's spawn). Ores go with one neighbour left too (5 open sides: the reference
+            // discards ore exposed to air the same way).
             for y in 6...min(top, CH - 2) {
                 let i = Chunk.index(lx, y, lz)
                 let c = b[i]
@@ -629,7 +629,7 @@ final class WorldGen: TerrainGenerator {
                 if lx < CS - 1 { sides += 1; if b[i + 1] == AIR { open += 1 } }
                 if lz > 0 { sides += 1; if b[i - CS] == AIR { open += 1 } }
                 if lz < CS - 1 { sides += 1; if b[i + CS] == AIR { open += 1 } }
-                if open == sides || (sides == 6 && open == 5 && WorldGen.isOre[Int(c)]) { b[i] = AIR }
+                if open == sides || (open == sides - 1 && WorldGen.isOre[Int(c)]) { b[i] = AIR }
             }
         } }
     }

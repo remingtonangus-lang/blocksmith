@@ -197,7 +197,8 @@ enum BalanceTests {
             Game.tick on a walled stone floor at midnight, Normal difficulty. "Kills you": seconds until the mob has dealt
             20 damage to a player standing still. "You kill it": seconds of full-charge swings at a mob held 2.5 blocks
             off (it still fights). Tiers: early (no armour, stone sword), iron (iron set and sword), diamond (diamond set
-            and sword). One seeded duel per cell, so a cell can move a little with hit luck.
+            and sword). "Kills you" averages three seeded duels, "you kill it" is one, so a cell can move a little with
+            hit luck.
 
             \(lines.joined(separator: "\n"))
 
