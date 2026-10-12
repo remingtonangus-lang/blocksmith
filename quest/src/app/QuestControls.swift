@@ -32,6 +32,8 @@ final class QuestControls {
     static var keyboardHook: ((Bool) -> Void)?
     static let hintW = 640, hintH = 48
     static let panelW = 1024, panelH = 640
+    // The panels' size and distance in metres: the HUD below the view, menus in front (questcheck's VR text check).
+    static let hudWidthM: Float = 1.25, hudDistM: Float = 1.25, menuWidthM: Float = 1.5, menuDistM: Float = 1.15
 
     private var snapArmed = true
     private var flickArmed = true
@@ -41,6 +43,7 @@ final class QuestControls {
     private var l3Hold: Float = 0               // s the left stick click has been held (sneak)
     private var lastAimHand: XRHand?               // drawHeld: the last tracked aim pose
     private var sneakLatch = false              // tapped: sneak until the next tap
+    private var l3Rode = false                  // the left stick click began while riding
     private var prevStickClickL = false
     private var clickSprint = false             // this stick click began with the stick pushed out: sprint, not sneak
     private var prevClickSprint = false         // (riding: one spur per click)
@@ -144,13 +147,16 @@ final class QuestControls {
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1
 
+    // Forget held and latched buttons (the Touch matrix starts each cell clean).
+    func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
+
     init(app: QuestHost, game: Game, panel: HudPanel?) {
         self.app = app
         self.game = game
         hudHost = Renderer(game: game)
         game.bufferAttacks = true                       // trigger attacks wait for the cooldown: full-strength hits
         // TV-style HUD scale (bigger text) unless the player picked one: the panel is read at arm's length.
-        if UserDefaults.standard.object(forKey: "couchMode") == nil { HudLayout.couch = true }
+        QuestSettings.platformDefaults()
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
         self.panel = panel
@@ -312,6 +318,8 @@ final class QuestControls {
         if !L.stickClick { clickSprint = false }
         prevStickClickL = L.stickClick
         let sneakClick = L.stickClick && !clickSprint
+        // Any seat that sneak leaves: a mount, a boat or cart, the ship's helm, a deck gun.
+        let seated = game.riding != nil || game.world.ships.pilot != nil || Turrets.shared.manned != nil
         p.a = R.button1
         // B: a tap is sneak / back (sent when it is let go); held, it drops the held item (the pad's D-pad down; keep
         // holding for the whole stack).
@@ -325,6 +333,8 @@ final class QuestControls {
                 if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
                 bHold = 0
             }
+            // Taking a seat ends a latched sneak (it would leave the seat on the next tick).
+            if seated { sneakLatch = false }
             p.b = bPulse > 0 || sneakClick || sneakLatch      // sneak (Game reads the pad's B as sneak)
             if bPulse > 0 { bPulse -= 1 }
             p.down = bHold > 0.4
@@ -367,8 +377,11 @@ final class QuestControls {
         if inMenu {
             l3Hold = 0; sneakLatch = false
         } else {
-            if sneakClick { l3Hold += dt } else {
-                if l3Hold > 0 && l3Hold < 0.3 { sneakLatch.toggle() }
+            if sneakClick { if l3Hold == 0 { l3Rode = seated }; l3Hold += dt } else {
+                // A click that began in a seat was the sneak that got off (the held click already leaves): it doesn't
+                // latch, or the player stayed sneaking on foot and the next horse threw them off at once, or the next
+                // use of the helm took the ship apart (questcheck touch matrix, Q2).
+                if l3Hold > 0 && l3Hold < 0.3 && !l3Rode { sneakLatch.toggle() }
                 l3Hold = 0
             }
             if game.player.flying || game.player.inWater { sneakLatch = false }
@@ -821,10 +834,10 @@ final class QuestControls {
         let rig = app.rig
         let yaw = rig.headYaw - rig.bodyYaw                  // tracking space
         let fwd = V3(-sinf(yaw), 0, -cosf(yaw))
-        panelCenterT = rig.levelHead + fwd * 1.15 + V3(0, -0.1, 0)
+        panelCenterT = rig.levelHead + fwd * QuestControls.menuDistM + V3(0, -0.1, 0)
         panelYawT = yaw
         panelPitch = 0
-        panelSize = V2(1.5, 1.5 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = V2(QuestControls.menuWidthM, QuestControls.menuWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
     // HUD: in the lower view, turning with the head once it looks more than 25 degrees away.
@@ -840,9 +853,9 @@ final class QuestControls {
         let drop = QuestSettings.hudDrop
         // `drop` is where the hotbar sits below eye level (0.42 at 1.25 m is ~18 degrees): the panel is raised to match.
         let Lh = HudLayout(Float(QuestControls.panelW), Float(QuestControls.panelH))
-        let panelH = 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW)
+        let panelH = QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW)
         let hotbarBelowCentre = ((Lh.hotbarY0 + Lh.slot / 2) / Float(QuestControls.panelH) - 0.5) * panelH
-        let want = rig.levelHead + fwd * 1.25 + V3(0, -drop + hotbarBelowCentre, 0)
+        let want = rig.levelHead + fwd * QuestControls.hudDistM + V3(0, -drop + hotbarBelowCentre, 0)
         var pos = hudPosT ?? want
         pos += (want - pos) * min(1, dt * 12)
         if simd_length(want - pos) > 0.5 { pos = want }
@@ -850,7 +863,7 @@ final class QuestControls {
         panelCenterT = pos
         panelYawT = hudYawT
         panelPitch = -atan2f(drop, 1.25) * 0.7              // the hotbar end tilted to face the eyes
-        panelSize = V2(1.25, 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
+        panelSize = V2(QuestControls.hudWidthM, QuestControls.hudWidthM * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
     // Panel axes (world): right, up, normal toward the viewer.

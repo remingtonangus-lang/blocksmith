@@ -58,6 +58,7 @@ final class Playthrough {
                 game.onFire = 0
             }
             if let p = pin { game.player.pos = p; game.player.vel = .zero }
+            noteGoal()
             if let d = done, d() { return true }
         }
         return done == nil
@@ -72,6 +73,21 @@ final class Playthrough {
         handleDeath()
         game.health = max(game.health, 20)
         if let p = pin { game.player.pos = p; game.player.vel = .zero }
+        noteGoal()
+    }
+
+    // First hour (Goals.swift): the next goal the player would see, each change with the game time it came at.
+    var goals: [(String, Double)] = []
+    func noteGoal() {
+        let id = Goals.next(game)?.id ?? "(none)"
+        if goals.last?.0 != id { goals.append((id, simSeconds)) }
+    }
+    func goalsCheck(_ full: Bool) {
+        let idx = goals.map { g in Goals.all.firstIndex { $0.id == g.0 } ?? Goals.all.count }
+        let back = zip(idx, idx.dropFirst()).filter { $1 < $0 }.count
+        info("goals in order: " + goals.map { "\($0.0) \(Int($0.1))s" }.joined(separator: ", "))
+        check(back == 0, "first hour: the next goal only moves forward along the path (\(goals.count) goals seen, \(back) steps back)")
+        if full { check(goals.last?.0 == "(none)" || idx.last.map { $0 >= Goals.all.count - 1 } == true, "first hour: the run ends with the path walked (last goal \(goals.last?.0 ?? "-"))") }
     }
 
     // The death screen: log what killed the player, get up where they fell and pick their things back up.
@@ -380,6 +396,7 @@ final class Playthrough {
         if want("blight") { t.blight() }
         if want("deep") { t.theDeep() }
         t.advancementsCheck(only.isEmpty)
+        t.goalsCheck(only.isEmpty)
         t.section("summary")
         t.info("deaths: \(t.deaths), damage healed by the test: \(t.damageTaken) half-hearts")
         print(String(format: "playthrough: %ld failed checks, %.0f s of game time in %.1f s wall", t.fails.count, t.simSeconds, CFAbsoluteTimeGetCurrent() - t.t0))

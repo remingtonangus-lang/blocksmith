@@ -42,7 +42,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -52,6 +52,11 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --settings-phase P ROOT: one launch of the settings check (quest/src/headless/SettingsCheck.swift), before anything
+// else touches UserDefaults.
+if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {
+    exit(SettingsCheck.phase(CommandLine.arguments[i + 1], root: CommandLine.arguments[i + 2]))
+}
 // --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
 // spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
 if let out = arg("--view"), let ctx = vkctx {
@@ -193,6 +198,31 @@ if CommandLine.arguments.contains("--overlaps-only") {
 if CommandLine.arguments.contains("--musiclevels-only") {
     MusicLevelTests.run(check: check)
     print(failures == 0 ? "musiclevels: all checks passed" : "musiclevels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --touchmatrix-only: the Touch conflict matrix alone (needs Vulkan: lavapipe).
+if CommandLine.arguments.contains("--touchmatrix-only"), let ctx = vkctx {
+    do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
+    print(failures == 0 ? "touchmatrix: all checks passed" : "touchmatrix: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --vrtext-only: text size in degrees on the headset's panels (VRTextCheck.swift, Q2).
+if CommandLine.arguments.contains("--vrtext-only") {
+    VRTextCheck.run(game: game, check: check)
+    print(failures == 0 ? "vrtext: all checks passed" : "vrtext: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
+if CommandLine.arguments.contains("--settings-only") {
+    SettingsCheck.run(check: check)
+    print(failures == 0 ? "settings: all checks passed" : "settings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
+if CommandLine.arguments.contains("--latency-only") {
+    InputLatencyTests.run(game: game, check: check)
+    print(failures == 0 ? "latency: all checks passed" : "latency: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --firsthour-only: a next goal at every step of the story path (Sources/Goals.swift, GoalTests.swift, Q2).
+if CommandLine.arguments.contains("--firsthour-only") {
+    GoalTests.run(game: game, check: check)
+    print(failures == 0 ? "firsthour: all checks passed" : "firsthour: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --balance-only: combat time-to-kill duels against the night roster (Sources/BalanceTests.swift, Q2; --write-balance).
 if CommandLine.arguments.contains("--balance-only") {
@@ -687,6 +717,8 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
     do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
+    // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
+    do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     game.vrHead = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
@@ -825,6 +857,10 @@ leaves("savesoak") { SaveSoakTests.run(device: device, cycles: 5, check: check) 
 leaves("balance") { BalanceTests.run(game: game, check: check) }
 MusicLevelTests.run(check: check)
 OverlapTests.run(check: check)
+SettingsCheck.run(check: check)
+leaves("latency") { InputLatencyTests.run(game: game, check: check) }
+leaves("firsthour") { GoalTests.run(game: game, check: check) }
+leaves("vrtext") { VRTextCheck.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

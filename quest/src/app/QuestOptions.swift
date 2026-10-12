@@ -23,6 +23,11 @@ enum QuestOptions {
 
     static func install(_ h: Hooks) {
         hooks = h
+        Settings.onReset = { g in
+            QuestSettings.reset(g)
+            h.setRate(QuestSettings.refreshRate)
+            if h.foveated() { h.setFoveation(QuestSettings.foveation) }
+        }
         PauseMenu.hostEntry = ("VR Comfort & Controls...", "host:vr")
         // Rows with no meaning in the headset: window, display and frame-rate options (the runtime owns the display),
         // the field of view (the lenses set it), photo mode's free camera (the head is the camera) and split screen.

@@ -1574,6 +1574,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let a = game.hellBossBar() { bars.append((a.0, a.1, V4(0.55, 0.06, 0.14, 1))) }
             if let a = game.ashAlarmBar() { bars.append(a) }
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
+            Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0)
             // The way up out of the Deep (DeepWayUp.swift), under the bars.
             if let up = game.deepWayUpHUD() {
                 let uy = L.insetY + 12 * s + Float(bars.count) * 19 * s
@@ -2187,7 +2188,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 let list = am.list
                 let done = list.filter { game.advancements.contains($0.id) }.count
-                text("\(done)/\(list.count) done  (\(game.advancements.count)/\(Advancements.all.count) total)", o.x + 8 * s, o.y + 34 * s, s, titleC, shadow: false)
+                text("\(done)/\(list.count) done  (\(game.advancements.filter { Advancements.index[$0] != nil }.count)/\(Advancements.all.count) total)", o.x + 8 * s, o.y + 34 * s, s, titleC, shadow: false)
                 for (row, a) in list.dropFirst(am.scroll).prefix(AdvancementMenu.rows).enumerated() {
                     let y = o.y + Float(48 + row * 15) * s
                     let got = game.advancements.contains(a.id)

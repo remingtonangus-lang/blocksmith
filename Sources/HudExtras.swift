@@ -333,6 +333,7 @@ enum HudExtras {
     // Per frame from Game.tick (also while a menu is open).
     static func tick(_ g: Game) {
         Tutorial.tick(g)
+        Goals.tick(g)
         Feedback.tick(g)
         Narrator.shared.tick(g)
         BugNotes.shared.tick(g)
@@ -345,7 +346,7 @@ enum HudExtras {
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        var out = Tutorial.lines(g, L)
+        var out = Tutorial.lines(g, L) + Goals.lines(g, L)
         let bn = BugNotes.shared
         if bn.listening {
             // Bug Notes mic dot: grey = listening, red = recording a note (top-left, inside the safe area).

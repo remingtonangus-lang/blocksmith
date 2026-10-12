@@ -1,0 +1,127 @@
+import Foundation
+import simd
+
+// Response within one frame (Q2, scorecard "Response within one frame"; `questcheck --latency-only`, and part of every
+// questcheck run). Each control is pressed through the pad path the headset feeds (PadManager.touch, read by Game.tick
+// in the same frame the XR layer polls the controllers, QuestApp.frame) and the frame its effect first shows in the
+// game state is counted: 0 means the very tick that read the press, so the frame drawn next shows it. Every control
+// must answer at frame 0: jump, walk, look, sneak, the hotbar, pause, the inventory, mining, placing and an attack.
+enum InputLatencyTests {
+    static func run(game g: Game, check: (Bool, String) -> Void) {
+        let w = g.world, pm = PadManager.shared
+        let dt = 1.0 / 72
+        let menu0 = g.menu, surv0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, sel0 = g.selected
+        let slot0 = g.inventory.main[0], slot1 = g.inventory.main[1], time0 = g.time, mobs0 = g.mobs.mobs, riding0 = g.riding
+        // A stone floor high over the spawn with a dirt wall two blocks north, out of the way of the world's own blocks.
+        let fx = Int(floor(pos0.x)) + 40, fz = Int(floor(pos0.z)) + 40
+        _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 2)       // (the full run may have the player far off)
+        let py = min(CH - 12, w.topY(fx, fz) + 30)
+        var placed: [(IVec3, BlockID)] = []
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            placed.append((IVec3(x, y, z), w.block(x, y, z)))
+            w.setBlock(x, y, z, b)
+        }
+        func arena() {
+            for z in (fz - 4)...(fz + 4) { for x in (fx - 4)...(fx + 4) { for y in py...(py + 4) {
+                let want = y == py ? STONE : (z == fz - 2 && x == fx && y <= py + 2 ? DIRT : AIR)
+                if w.block(x, y, z) != want { put(x, y, z, want) }
+            } } }
+        }
+        // (closeMenu keeps a DeathMenu, which the full run has open by now: the first press only respawned, so jump
+        // read 1 frame late; it is cleared directly.)
+        // An earlier check may have left the end credits rolling (the first press only skips them: jump read 1 frame
+        // late in the full run).
+        let credits0 = g.credits, creditsAsh0 = g.creditsAsh
+        g.credits = nil; g.creditsAsh = false
+        defer {
+            g.credits = credits0; g.creditsAsh = creditsAsh0
+            pm.touch = nil
+            for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
+            g.survival = surv0; g.player.pos = pos0; g.player.vel = .zero; g.player.yaw = yaw0; g.player.pitch = pitch0
+            g.inventory.main[0] = slot0; g.inventory.main[1] = slot1; g.selected = sel0; g.time = time0; g.mobs.mobs = mobs0; g.riding = riding0
+            g.mining = nil; if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }; g.paused = false; g.menu = menu0
+        }
+        let spot = V3(Float(fx) + 0.5, Float(py + 1), Float(fz) + 0.5)
+        var mob: Mob?
+        var h0 = 0
+        var before = ""
+        var mobAt = V3(0, 0, -1.2), aimPitch: Float = -0.7
+
+        // Settle on the floor facing the wall with neutral input, press, and count frames to the effect (nil: none
+        // within 12 frames).
+        func frames(_ name: String, setup: () -> Void = {}, _ press: (inout PadSnapshot) -> Void, _ effect: () -> Bool) -> Int? {
+            arena()
+            g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); mob = nil
+            if g.menu is DeathMenu { g.menu = nil } else if g.menu != nil { g.closeMenu() }; g.paused = false
+            g.survival = true; g.health = 20; g.alive = true; g.time = DAY_LENGTH * 0.25
+            g.player.pos = spot; g.player.vel = .zero; g.player.yaw = 0; g.player.pitch = 0; g.player.flying = false
+            g.riding = nil; g.player.gliding = false; g.player.sneaking = false; g.player.sprinting = false
+            g.inventory.main[0] = ItemStack(Items.id("cobblestone"), 64); g.inventory.main[1] = .empty; g.selected = 0
+            g.mining = nil
+            setup()
+            pm.touch = PadSnapshot()
+            for _ in 0..<20 { g.tick(dt) }                 // on the ground, still, the press edge clear
+            for _ in 0..<72 where !g.player.onGround { g.tick(dt) }
+            for e in Effect.allCases { g.effects.remove(e) }
+            if let m = mob, g.mobs.mobs.contains(where: { $0 === m }) { m.pos = spot + mobAt; m.vel = .zero; g.player.pitch = aimPitch }
+            g.swing = 0
+            var p = PadSnapshot()
+            press(&p)
+            before = "ground \(g.player.onGround), water \(g.player.inWater), vel.y \(g.player.vel.y), effects \(g.effects.any), riding \(g.riding != nil), credits \(g.credits != nil)"
+            for i in 0..<12 {
+                pm.touch = p
+                g.tick(dt)
+                if effect() { pm.touch = PadSnapshot(); g.tick(dt); return i }
+            }
+            pm.touch = PadSnapshot(); g.tick(dt)
+            return nil
+        }
+
+        var rows: [String] = [], late: [String] = []
+        func row(_ name: String, _ n: Int?) {
+            rows.append("\(name) \(n.map(String.init) ?? "none")")
+            if n != 0 { late.append("\(name) \(n.map { "\($0) frames" } ?? "no effect in 12 frames") (at the press: \(before))") }
+        }
+        var ref = V3.zero
+        row("jump", frames("jump", { $0.a = true }) { g.player.vel.y > 0 })
+        row("walk", frames("walk", setup: { ref = spot }, { $0.ly = 1 }) { simd_length(V2(g.player.pos.x - ref.x, g.player.pos.z - ref.z)) > 1e-4 })
+        var yaw = Float(0)
+        row("look", frames("look", setup: { yaw = 0 }, { $0.rx = 1 }) { g.player.yaw != yaw })
+        row("sneak", frames("sneak", { $0.b = true }) { g.player.sneaking })
+        row("hotbar", frames("hotbar", { $0.rb = true }) { g.selected != 0 })
+        row("pause", frames("pause", { $0.menu = true }) { g.paused && g.menu != nil })
+        row("inventory", frames("inventory", { $0.y = true }) { g.menu != nil })
+        let wall = IVec3(fx, py + 2, fz - 2)
+        row("mine", frames("mine", { $0.rt = 1 }) { g.mining == wall || g.swing > 0 || w.block(wall.x, wall.y, wall.z) != DIRT })
+        let front = IVec3(fx, py + 2, fz - 1)
+        row("place", frames("place", { $0.lt = 1 }) { w.block(front.x, front.y, front.z) != AIR })
+        row("attack", frames("attack", setup: {
+            // A pig in the gap, at arm's length (the wall behind it).
+            let m = Mob(.pig, at: spot + V3(0, 0, -1.2))
+            g.mobs.mobs = [m]; mob = m; h0 = m.health
+            g.player.pitch = -0.7
+            for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
+        }, { $0.rt = 1 }) { mob.map { $0.health < h0 } ?? false })
+        // Melee reach (scorecard "Reach": melee ~3): a pig further off each try, aimed at its middle; the furthest level gap
+        // from the eye to its near side that a blow still lands across (0.25-block steps; the eye is above the pig, so the
+        // ray itself is a little longer).
+        var reach: Float = 0, missed = false
+        for i in 0..<16 {
+            let d = 1.5 + Float(i) * 0.25
+            let n = frames("reach", setup: {
+                for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
+                let m = Mob(.pig, at: spot + V3(0, 0, -d))
+                g.mobs.mobs = [m]; mob = m; h0 = m.health
+                mobAt = V3(0, 0, -d)
+                aimPitch = -atan2f(g.player.eyeHeight - m.height / 2, d)
+            }, { $0.rt = 1 }) { mob.map { $0.health < h0 } ?? false }
+            if n != nil { reach = d - (mob?.halfW ?? 0) } else { missed = true; break }
+        }
+        mobAt = V3(0, 0, -1.2); aimPitch = -0.7
+        print(String(format: "melee reach: blows land up to %.2f blocks (level) from the eye to the target's near side", reach))
+        check(missed && reach >= 2.9 && reach <= 4, String(format: "reach: melee lands to %.2f blocks, level gap (target about 3; the game allows a 3.5 ray from the eye)", reach))
+        print("input latency (frames to the first effect, 0 = the same tick): " + rows.joined(separator: ", "))
+        check(late.isEmpty, "latency: every control answers in the frame that reads the press (\(rows.count) controls)"
+              + (late.isEmpty ? "" : "; late: " + late.joined(separator: ", ")))
+    }
+}

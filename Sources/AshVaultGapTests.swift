@@ -389,6 +389,17 @@ enum AshVaultGapTests {
         var times: [Double] = []
         var peak = 0
         let dt: Double = 1 / 72
+        // Friendly fire (scorecard "Behaviour"): the player never attacks here, so every hit an Ashguard unit takes in
+        // the battle came from its own side (a tank's shell, a grenade, a blow) or the ground (falls, fire).
+        var ff: [String: (Int, Int)] = [:]
+        Mob.onHit = { m, src, d in
+            guard m.faction == Faction.ashguard.rawValue, d > 0, m.health > 0 else { return }
+            let near = g.mobs.mobs.filter { $0 !== m && $0.health > 0 && simd_length($0.pos - src) < 3 }.min { simd_length($0.pos - src) < simd_length($1.pos - src) }
+            let by = near.map { "\($0.kind.key)" } ?? "blast/other"
+            let e = ff["\(m.kind.key) by \(by)"] ?? (0, 0)
+            ff["\(m.kind.key) by \(by)"] = (e.0 + 1, e.1 + d)
+        }
+        defer { Mob.onHit = nil }
         for _ in 0..<(72 * 30) {
             g.health = 20; g.alive = true
             g.ashSpot = stand; g.ashSpotSeen = g.clock
@@ -410,6 +421,10 @@ enum AshVaultGapTests {
         // Budget for this unoptimized questcheck build, which runs about 4x the optimized tick (1.95 ms avg, 3.56 p95 for
         // the same battle with -O: docs/status/the-deep-expansion.md): avg 10 / p95 16 here is ~2.5 / 4 ms shipped, inside
         // the 13.9 ms of a 72 Hz frame with the draw. (It was 8 / 14; the world's own tick grew round it and sat at 7-8.5.)
+        Mob.onHit = nil
+        let ffHits = ff.values.reduce(0) { $0 + $1.0 }
+        let ffList = ff.sorted { $0.value.0 > $1.value.0 }.prefix(6).map { "\($0.key) \($0.value.0)x \($0.value.1) hp" }.joined(separator: ", ")
+        check(ffHits == 0, "friendly fire: the Ashguard never hurts its own in the biggest battle (30 s, \(peak) units; \(ffHits) hits\(ffList.isEmpty ? "" : ": " + ffList))")
         check(peak >= 40 && extras <= AshArmy.extrasCap && avg < 10 && battle.p95 < 16,
               String(format: "ash vault perf: the biggest battle (citadel, Total War) %d units, Game.tick avg %.2f ms, p95 %.2f ms (debug budget 10 / 16, about 2.5 / 4 ms optimized); reinforcements %d (cap %d)", peak, avg, battle.p95, extras, AshArmy.extrasCap))
     }
