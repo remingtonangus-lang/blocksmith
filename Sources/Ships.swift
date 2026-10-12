@@ -977,10 +977,10 @@ final class ShipManager {
     }
 
     // All ships as JSON (nil when there are none).
-    func encode() -> Data? {
+    func encode(_ only: [Ship]? = nil) -> Data? {
         var out: [Saved] = []
         // Capital ships aren't saved (a 5-million-cell grid per save): their region brings them back.
-        for s in list where !s.root.kinematic {
+        for s in (only ?? list) where !s.root.kinematic {
             var map: [BlockID: UInt16] = [:]
             var names: [String] = []
             var idx = [UInt16](repeating: 0, count: s.grid.blocks.count)

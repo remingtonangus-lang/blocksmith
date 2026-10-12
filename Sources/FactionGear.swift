@@ -85,6 +85,7 @@ extension Game {
         let held = inventory.main[inventory.selected]
         guard !held.isEmpty else { return false }
         if pulseChargeUse() { return true }
+        if skySkiffUse() { return true }               // A4 (SkySkiff.swift)
         let k = Items.key(held.item)
         if k == "radar_set" {
             let cs = radarContacts()

@@ -165,6 +165,16 @@ if CommandLine.arguments.contains("--navy-only") {
     NavyTests.run(game: game, check: check)
     print(failures == 0 ? "navy: all checks passed" : "navy: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --mapfog-only: map fog of war and the compass strip (Sources/MapFogTests.swift, backlog A5).
+if CommandLine.arguments.contains("--mapfog-only") {
+    MapFogTests.run(game: game, check: check)
+    print(failures == 0 ? "mapfog: all checks passed" : "mapfog: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --skiff-only: the Sky Skiff, the ready-made flyer (Sources/SkySkiffTests.swift, backlog A4).
+if CommandLine.arguments.contains("--skiff-only") {
+    SkySkiffTests.run(game: game, check: check)
+    print(failures == 0 ? "skiff: all checks passed" : "skiff: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--troopclasses-only") {
     TroopTests.run(game: game, check: check)
     print(failures == 0 ? "troopclasses: all checks passed" : "troopclasses: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -755,6 +765,8 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) }
 TroopTests.run(game: game, check: check)
 NavyTests.run(game: game, check: check)
+SkySkiffTests.run(game: game, check: check)
+MapFogTests.run(game: game, check: check)
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

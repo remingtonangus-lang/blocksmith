@@ -448,6 +448,7 @@ final class ItemRegistry {
         registerDeepGateItems()
         registerHellItems()
         registerNavyItems()
+        registerSkySkiff()
         registerTroopArmour()
         registerDeepJournalItems()
         ExplorerMaps.register(self)

@@ -266,6 +266,7 @@ enum MapDraw {
 
     static func terrain(_ out: inout [HudLine], x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float) {
         let unknown: UInt32 = 0x1E2024
+        let fog = MapFog.shared
         let halfRows: Float = Float(rows) / 2, halfCols: Float = Float(cols) / 2, step: Float = Float(bpc)
         // A named function, not a trailing closure: the release type checker timed out on the closure body.
         func draw(_ lookup: (Int, Int) -> UInt32?) {
@@ -279,7 +280,8 @@ enum MapDraw {
                     var col: UInt32 = 0xFFFFFFFE
                     if c < cols {
                         let fx: Float = wx + (Float(c) - halfCols) * step
-                        col = lookup(Int(floor(fx)), bz) ?? unknown
+                        let bx = Int(floor(fx))
+                        col = fog.fogged(bx, bz) ? MapFog.dark : (lookup(bx, bz) ?? unknown)     // A5: unexplored ground stays dark
                     }
                     if col == runColor { continue }
                     if c > 0 && runColor != 0xFFFFFFFF {
@@ -360,7 +362,7 @@ enum Minimap {
     // The terrain rows only change when the player crosses a block or new cells arrive: rebuilt then, reused otherwise
     // (rebuilding read 1024 cells through the cache lock every frame: ~11% of the frame's CPU encode in the profile).
     // One entry per split-screen seat.
-    private struct TerrainKey: Equatable { var bx: Int, bz: Int, version: Int, x0: Float, y0: Float, px: Float }
+    private struct TerrainKey: Equatable { var bx: Int, bz: Int, version: Int, fog: Int, x0: Float, y0: Float, px: Float }
     private static var terrainKeys: [TerrainKey?] = [nil, nil]
     private static var terrainRows: [[HudLine]] = [[], []]
 
@@ -383,7 +385,7 @@ enum Minimap {
         let bpc = 4
         // Every sample is floor(wx) + a whole number of blocks, so the rows depend only on the block the player is in.
         let seat = min(1, g.coop.current)
-        let key = TerrainKey(bx: Int(floor(g.player.pos.x)), bz: Int(floor(g.player.pos.z)), version: MapCache.shared.version, x0: x0, y0: y0, px: px)
+        let key = TerrainKey(bx: Int(floor(g.player.pos.x)), bz: Int(floor(g.player.pos.z)), version: MapCache.shared.version, fog: MapFog.shared.version, x0: x0, y0: y0, px: px)
         if terrainKeys[seat] != key {
             terrainRows[seat].removeAll(keepingCapacity: true)
             MapDraw.terrain(&terrainRows[seat], x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
