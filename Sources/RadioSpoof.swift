@@ -121,7 +121,7 @@ extension Game {
         radio.burned.insert(n.key)
         radio.alertUntil[n.faction.rawValue] = clock + RadioNet.alertFor
         for k in bases.records.keys where n.faction == .steelhold {
-            if let r = bases.records[k], simd_length(r.centre - player.pos) < 1500 { bases.records[k]?.alert = max(r.alert, .alert) }
+            if let r = bases.records[k], simd_length(r.centre - player.pos) < 1500, r.alert.rawValue < BaseAlert.alert.rawValue { bases.records[k]?.alert = .alert }
         }
         let a = Rand.float(in: 0..<(2 * .pi))
         let c = player.pos + V3(cosf(a), 0, sinf(a)) * RadioNet.hunterRange
