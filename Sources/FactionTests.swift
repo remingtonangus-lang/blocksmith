@@ -42,6 +42,7 @@ enum FactionTests {
         g.dragonKilled = false
         g.inventory.main[slot] = ItemStack(Items.id("intercepted_orders"), 2)
         let used = g.factionGearUse()
+        if g.menu is BookMenu { g.closeMenu() }          // (P68: the orders open as a document)
         let mark = MapCache.shared.marks.last
         check(used && g.inventory.main[slot].count == 1 && mark.map { $0.kind == "capital_city" || $0.kind == "military_base" } == true,
               "factions: intercepted orders are read (1 used) and mark a Capital site (\(mark?.kind ?? "none"))")

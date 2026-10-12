@@ -242,9 +242,9 @@ extension ShipManager {
 
     // A 42 cm shell striking a Capital vessel (Quest round 4: hits barely scratched them): the drive engines are
     // knocked out (a frigate goes down, a crawler stops: CapitalShips' disable check) and the hull is torn open.
-    func heavyHit(_ s: Ship, at p: V3, game: Game) {
+    func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6) {
         let r = s.root
-        blast(at: p, power: 6, game: game)
+        blast(at: p, power: power, game: game)
         if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0 }   // after the blast (its rebuild recounts them)
     }
 
@@ -254,6 +254,11 @@ extension ShipManager {
         let l = s.toLocal(p)
         return Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))]
     }
+
+    // Whether any ship is about, and whether a world point is inside a ship's solid block (drops and debris resting on
+    // decks: P70).
+    var any: Bool { !list.isEmpty }
+    func solid(at p: V3) -> Bool { !list.isEmpty && shipBlock(at: p, except: -1) }
 
     // Whether a world point is inside a solid block of a ship other than the root `except`.
     func shipBlock(at p: V3, except: Int) -> Bool {

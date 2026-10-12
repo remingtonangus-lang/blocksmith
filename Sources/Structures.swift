@@ -85,6 +85,41 @@ struct StructWriter {
         }
     }
 
+    // P91 (playtest 09:40, "make the base bleed into the ground"): an earth bank round a levelled site, so a base
+    // stands on a mound instead of a square plateau with block cliffs. Columns outside the square of half-size `half`
+    // round (cx, cz), at ring distance d = 1...reach, are banked up to floor - d with the ground they stand on (grass,
+    // sand or snowy grass on top, dirt or sand below), through air, plants and shallow water. Only from the plan and
+    // the column itself, so neighbouring chunks agree; never over structure blocks (a solid block at the bank's top
+    // means the land is already that high, or something was built there).
+    func berm(_ cx: Int, _ cz: Int, half: Int, floor fy: Int, reach: Int) {
+        let snowL = Blocks.has("snow") ? Blocks.id("snow") : AIR
+        for lz in 0..<CS { for lx in 0..<CS {
+            let x = bx + lx, z = bz + lz
+            let d = max(abs(x - cx) - half, abs(z - cz) - half)
+            guard d >= 1 && d <= reach else { continue }
+            let top = fy - d
+            guard top > 2 && top < CH - 2 else { continue }
+            var y = top, wet = 0, layer = AIR
+            while y > max(1, top - 40) {
+                let b = blocks[Chunk.index(lx, y, lz)]
+                if b == WATER { wet += 1 }
+                else if b != AIR && !(Blocks.replaceable[Int(b)] && Blocks.fluidKind[Int(b)] == 0) { break }
+                if b == snowL && snowL != AIR { layer = b }
+                y -= 1
+            }
+            guard y < top, wet <= 3 else { continue }
+            let g = blocks[Chunk.index(lx, y, lz)]
+            guard Blocks.opaque[Int(g)] && Blocks.collide[Int(g)] && Blocks.fluidKind[Int(g)] == 0 else { continue }
+            let sandy = g == SAND || g == SANDSTONE || wet > 0, snowy = !sandy && (g == SNOWY_GRASS || g == SNOW || layer != AIR)
+            guard sandy || snowy || g == GRASS || g == DIRT || g == STONE || g == COBBLE else { continue }
+            let cap = sandy ? SAND : (snowy ? SNOWY_GRASS : GRASS), fill = sandy ? SAND : DIRT
+            if g == GRASS || g == SNOWY_GRASS { blocks[Chunk.index(lx, y, lz)] = DIRT }
+            for yy in (y + 1)...top { blocks[Chunk.index(lx, yy, lz)] = yy == top ? cap : fill }
+            let above = blocks[Chunk.index(lx, top + 1, lz)]
+            if Blocks.replaceable[Int(above)] && Blocks.fluidKind[Int(above)] == 0 { blocks[Chunk.index(lx, top + 1, lz)] = snowy ? snowL : AIR }
+        } }
+    }
+
     // Pillar from y down until a solid block (inside this chunk only).
     func pillarDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
         guard inside(x, y, z) else { return }
@@ -195,6 +230,7 @@ final class StructureCache {
     // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
     var legacyG12: Set<Int64> = []
     var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
+    var legacyP95: Set<Int64> = []                // WorldRules.savedBeforeP95
     var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)
     var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)

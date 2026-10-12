@@ -21,6 +21,20 @@ enum VRCombatFeelTests {
         for i in 0..<5 { slow.add(base: .zero, tip: V3(0, 0, -1), speed: 1, now: 10 + Double(i) / 72) }
         check(fresh == 4 && later == 0 && slow.segmentCount(now: now) == 0,
               "combat feel: the blade trail has \(fresh) segments behind a fast blade, \(later) after 0.2 s, \(slow.segmentCount(now: now)) for a slow one")
+        // P77 (09:25, "a white strobing flicker when moving the sword"): a steady sword move whose tracked tip speed
+        // jitters around the hit threshold keeps one trail, never popping on and off from frame to frame.
+        var jit = BladeTrail()
+        var drops = 0, litFrames = 0, was = false
+        for i in 0..<72 {
+            let v: Float = 2.1 + (i % 2 == 0 ? 0.55 : -0.55) + 0.15 * sinf(Float(i) * 1.7)
+            jit.add(base: V3(Float(i) * 0.03, 1, 0), tip: V3(Float(i) * 0.03, 1, -1.2), speed: v, now: 20 + Double(i) / 72)
+            let on = jit.segmentCount(now: 20 + Double(i) / 72) > 0
+            if on { litFrames += 1 }
+            if was && !on { drops += 1 }
+            was = on
+        }
+        check(drops == 0 && litFrames > 60 && BladeTrail.peakAlpha <= 0.35,
+              "P77 sword trail: a jittery steady move keeps one trail (\(drops) drop-outs over \(litFrames) lit frames of 72), faint at the blade (alpha \(BladeTrail.peakAlpha))")
         // The bow: the arrow slides onto the string, the limbs creak at 35/65/90 %, the string shivers then rests.
         let creaks = [VRBow.creak(from: 0.2, to: 0.4), VRBow.creak(from: 0.4, to: 0.5), VRBow.creak(from: 0.6, to: 0.95), VRBow.creak(from: 0.9, to: 0.5)]
         let wob = (0..<20).map { abs(VRBow.stringWobble(Float($0) * 0.005, draw: 1)) }.max() ?? 0

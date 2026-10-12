@@ -263,9 +263,10 @@ enum BorealStation {
             func crowded(_ cx: Int, _ cz: Int) -> Bool {
                 guard let sc = gen.structures else { return false }
                 let bx = cx * CS + 8, bz = cz * CS + 8
+                let apart = WorldRules.p69(gen, cx, cz, reach: 4)
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base", "capital_city", "great_ruin"] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
-                    let m = BorealStation.yard + 12
+                    let m = BorealStation.yard + (apart && WorldRules.capitalKinds.contains(k) ? WorldRules.capitalApartP69 : 12)
                     if o.max.x >= bx - m && o.min.x <= bx + m && o.max.z >= bz - m && o.min.z <= bz + m { return true }
                 }
                 return false
@@ -275,6 +276,8 @@ enum BorealStation {
                 guard let y = site(cx, cz), !crowded(cx, cz) else { return nil }
                 return y
             }
+            guard WorldRules.keepP95(gen, WorldRules.stationKeepP95, rx: floorDiv(cx0, 28), rz: floorDiv(cz0, 28), salt: 8150,
+                                     centre: (floorDiv(cx0, 28) * 28 + 10, floorDiv(cz0, 28) * 28 + 10), reach: 10 + 6) else { return nil }
             var cx = cx0, cz = cz0
             var found = usable(cx, cz)
             if found == nil {
@@ -287,9 +290,10 @@ enum BorealStation {
             }
             guard let S = found else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
+            let grey = WorldRules.p69(gen, cx, cz, reach: 4)
             let e = BorealStation.yard + 8
             let piece = Piece(min: IVec3(x - e, S - depth - 4, z - e), max: IVec3(x + e, S + 32, z + e),
-                              build: { w in BorealStation.build(&w, x, S, z, seed) })
+                              build: { w in BorealStation.build(&w, x, S, z, seed, grey: grey, bank: grey) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x - 5, S + 1, z + yard + 2))
         }
     }
@@ -347,7 +351,9 @@ enum BorealStation {
 
     // MARK: Build
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64) {
+    // `grey`: a station on ground no save had generated before P69 is Greywall Command's (its troops and stores), not
+    // the Capital's (Oct 12 AM playtest 09:18: "it shouldn't be Capital ... it's a different force").
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ seed: UInt64, grey: Bool = false, bank: Bool = false) {
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
         let con = g("bunker_concrete"), dark = g("bunker_concrete_dark", con), tile = g("bunker_floor", con)
@@ -392,6 +398,7 @@ enum BorealStation {
                 if !held { w.set(x, y, z, AIR) }
             }
         }
+        if bank { w.berm(cx, cz, half: Y + 2, floor: S, reach: 6) }      // P91: banked into the land round it
 
         // MARK: Bunker monolith, rooms, surfaces
         columns(-B, B, -B, B) { dx, dz in
@@ -496,8 +503,8 @@ enum BorealStation {
         // MARK: Control room (north): screen wall, two rows of desks, the command chest
         for dx in -5...5 { for ly in 2...3 { put(dx, F + ly, -24, console) } }
         for dz in [-20, -18] { for dx in -4...4 where dx != 0 { put(dx, F + 1, dz, console) } }
-        w.chest(X(5), F + 1, Z(-23), loot: "steelhold_command", seed: rng.next(), facing: 1)
-        w.chest(X(-5), F + 1, Z(-23), loot: "steelhold_supply", seed: rng.next(), facing: 1)
+        w.chest(X(5), F + 1, Z(-23), loot: grey ? "greywall_command" : "steelhold_command", seed: rng.next(), facing: 1)
+        w.chest(X(-5), F + 1, Z(-23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 1)
 
         // MARK: Data archive (west): cabinet rows, two tall
         for dz in -5...5 where dz != 0 {
@@ -506,7 +513,7 @@ enum BorealStation {
                 put(-19, F + ly, dz, cab + 2); put(-18, F + ly, dz, cab + 3)
             }
         }
-        w.chest(X(-16), F + 1, Z(-6), loot: "steelhold_command", seed: rng.next(), facing: 2)
+        w.chest(X(-16), F + 1, Z(-6), loot: grey ? "greywall_command" : "steelhold_command", seed: rng.next(), facing: 2)
 
         // MARK: Holding cells (east): a walk along the bars, three cells
         for dz in -6...6 { for ly in 1...4 { put(18, F + ly, dz, ly == 4 ? con : bars) } }
@@ -517,7 +524,7 @@ enum BorealStation {
 
         // MARK: Armory (north-east): crate stacks, weapon chests, guns on the north wall
         for dz in stride(from: -21, through: -11, by: 3) { w.fill(X(22), F + 1, Z(dz), X(23), F + 2, Z(dz + 1), crate) }
-        for dz in [-21, -18, -15] { w.chest(X(16), F + 1, Z(dz), loot: "steelhold_armory", seed: rng.next(), facing: 3) }
+        for dz in [-21, -18, -15] { w.chest(X(16), F + 1, Z(dz), loot: grey ? "greywall_armory" : "steelhold_armory", seed: rng.next(), facing: 3) }
         for dx in 17...21 where rng.chance(0.75) {
             let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper]
             let gun = Guns.all[rack[rng.int(6)]]
@@ -532,7 +539,7 @@ enum BorealStation {
         for dx in 19...20 { put(dx, F + 3, 13, panel); put(dx, F + 3, 19, panel) }
         for (dx, dz) in [(18, 13), (21, 13), (18, 19), (21, 19)] { put(dx, F + 5, dz, chain); put(dx, F + 6, dz, chain) }
         for dz in 10...12 { put(23, F + 1, dz, barrel) }
-        w.chest(X(16), F + 1, Z(22), loot: "steelhold_supply", seed: rng.next(), facing: 3)
+        w.chest(X(16), F + 1, Z(22), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 3)
 
         // MARK: Mess (south-west): two long tables with slab benches, the galley along the south wall
         for tx in [-21, -18] {
@@ -542,7 +549,7 @@ enum BorealStation {
             }
         }
         for dx in (-23)...(-17) { put(dx, F + 1, 23, dx % 2 == 0 ? g("smoker", barrel) : barrel) }
-        w.chest(X(-16), F + 1, Z(23), loot: "steelhold_supply", seed: rng.next(), facing: 0)
+        w.chest(X(-16), F + 1, Z(23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 0)
 
         // MARK: Barracks (north-west): bunks along both walls, lockers on the north wall
         for dz in stride(from: -22, through: -10, by: 3) {
@@ -553,7 +560,7 @@ enum BorealStation {
             }
         }
         for dx in (-21)...(-19) { put(dx, F + 1, -23, steel); put(dx, F + 2, -23, steel) }
-        w.chest(X(-20), F + 1, Z(-9), loot: "steelhold_supply", seed: rng.next(), facing: 0)
+        w.chest(X(-20), F + 1, Z(-9), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 0)
 
         // MARK: Blockhouse over the stairwell
         let bh0 = -8, bh1 = 7, bz0 = 14, bz1 = 23
@@ -702,8 +709,9 @@ enum BorealStation {
         }
 
         // MARK: Garrison
-        for (k, dx, ly, dz) in garrison { w.mob(k, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
-        for (k, dx, ly, dz) in surfaceGarrison { w.mob(k, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
-        w.mob("deck_gun", V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
+        let tag = grey ? "@grey" : ""
+        for (k, dx, ly, dz) in garrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
+        for (k, dx, ly, dz) in surfaceGarrison { w.mob(k + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
+        w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
     }
 }

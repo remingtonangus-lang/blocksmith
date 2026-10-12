@@ -117,8 +117,8 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
-        "smooth": "Test, this world only: natural ground (stone, dirt, sand, ores) is smooth instead of cubic; built blocks stay cubic.",
-        "new_terrain": "Smooth (test): natural ground is rounded polygons instead of cubes; mining, building and saves work the same. Switch later in Video.",
+        "smooth": "This world only: natural ground (stone, dirt, sand, ores) is smooth polygons instead of cubes; built blocks stay cubic.",
+        "new_terrain": "Polygons: natural ground is smooth, rounded polygons instead of cubes; mining, building and saves work the same. Switch later in Options > Video.",
         "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
         "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
@@ -233,7 +233,10 @@ final class PauseMenu: Menu {
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
-                rows = [(PauseMenu.rdLabel(g), "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
+                // (P84: the polygon terrain option second from the top, named the way players ask for it; it sat last
+                // as "Smooth Terrain (Test, This World)" and Remington never found it.)
+                rows = [(PauseMenu.rdLabel(g), "rd"), ("Polygon Terrain (This World): \(on(g.smoothTerrain))", "smooth"),
+                        ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
                         ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
@@ -241,8 +244,7 @@ final class PauseMenu: Menu {
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
                         ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
-                        ("Block Chipping: \(on(st.chipping))", "chipping"),
-                        ("Smooth Terrain (Test, This World): \(on(g.smoothTerrain))", "smooth")]
+                        ("Block Chipping: \(on(st.chipping))", "chipping")]
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
                 rows = audioRows().filter { $0.1 != "audio_back" }
@@ -321,7 +323,7 @@ final class PauseMenu: Menu {
                     ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
                     ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
-                    ("Terrain: \(newSmooth ? "Smooth (Test)" : "Blocks")", "new_terrain"),
+                    ("Terrain: \(newSmooth ? "Polygons (Smooth)" : "Blocks")", "new_terrain"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
         if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }

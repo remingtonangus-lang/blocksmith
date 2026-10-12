@@ -88,36 +88,36 @@ Praised, keep: guns against enemies, the Hunter Map, the Elk Gulch welcome, the 
 
 ## PLAYTEST Oct 12 AM (P68-P97): top priority with any open P items
 Played build 07d9fc85 (#50-#54 merged) 09:17-09:49 in his existing world; notes with repro lines in docs/playtests/2026-10-12/voice-notes.md. P82 and P84 say items claimed done in #50 did not work on the headset: verify on the real build, not only in headless checks.
-P68. Greywall outpost interior: he loves the space (keep the layout), but the computer room uses old-looking props (a chess-like computer); Greywall needs its own modern equipment. Intercepted orders should be readable documents you can pull out and read (RDR2-style text).
-P69. Greywall bases sit right beside Capital structures; they are a different force and must be placed apart from anything Capital. Crawlers are not Capital either; check faction labels and ownership.
-P70. Naval guns: do not reuse one copy-pasted naval gun model everywhere; damage against crawlers and the Capital tower is still far too low (much more); wreck debris falls through the ship deck. Keep: the explosion effects.
-P71. Village paths are still too narrow for the spacing between houses; widen them (P62 follow-up).
-P72. Menu tabs: the selected grey tab does not change colour; only haptics show it. Make the selected tab clearly highlighted.
-P73. Map: let him place a waypoint on explored map areas.
-P74. Holding a gun breaks other inputs: doors will not open and the left grip (inventory wheel) does not work while a gun is held.
+P68. [DONE: PR #56, 2026-10-12: Greywall terminals and server racks on new ground, the console keyboard no longer a checkerboard, orders open as a document.] Greywall outpost interior: he loves the space (keep the layout), but the computer room uses old-looking props (a chess-like computer); Greywall needs its own modern equipment. Intercepted orders should be readable documents you can pull out and read (RDR2-style text).
+P69. [DONE: PR #56, 2026-10-12: Greywall bases and stations kept 480+ from Capital sites, station garrisons are Greywall troops; the citadel crawler is still Capital.] Greywall bases sit right beside Capital structures; they are a different force and must be placed apart from anything Capital. Crawlers are not Capital either; check faction labels and ownership.
+P70. [DONE: PR #56, 2026-10-12: four deck gun looks, a manned shell breaks ~30 Capital stone blocks and tears hulls at power 11, drops and debris rest on ship decks.] Naval guns: do not reuse one copy-pasted naval gun model everywhere; damage against crawlers and the Capital tower is still far too low (much more); wreck debris falls through the ship deck. Keep: the explosion effects.
+P71. [DONE: PR #56, 2026-10-12: wide-town streets 5 across.] Village paths are still too narrow for the spacing between houses; widen them (P62 follow-up).
+P72. [DONE: PR #56, 2026-10-12: open tab gold.] Menu tabs: the selected grey tab does not change colour; only haptics show it. Make the selected tab clearly highlighted.
+P73. [DONE: PR #56, 2026-10-12: tap the map to pin a waypoint.] Map: let him place a waypoint on explored map areas.
+P74. [DONE: PR #56, 2026-10-12: gun in hand opens doors, left grip steps the hotbar.] Holding a gun breaks other inputs: doors will not open and the left grip (inventory wheel) does not work while a gun is held.
 P75. Ground cover: the scattered bits of grass look wrong (flowers look great, keep them). He hands this to us: experiment and pick whatever looks best.
-P76. Saddle bags: a small chest on the saddle to carry items on the horse.
-P77. Sword: a white strobing flicker appears when moving the sword (likely the blade trail). Keep: swing mode, the sword look, the crafting fix.
-P78. The red hit mark did not stay on the target; dead mobs stay tinted red on the ground; corpses should not be red.
+P76. [DONE: PR #56, 2026-10-12: saddlebags chest on a tamed gaited horse.] Saddle bags: a small chest on the saddle to carry items on the horse.
+P77. [DONE: PR #56, 2026-10-12: blade trail smoothed and dimmed, no strobe.] Sword: a white strobing flicker appears when moving the sword (likely the blade trail). Keep: swing mode, the sword look, the crafting fix.
+P78. [DONE: PR #56, 2026-10-12: corpses not red.] The red hit mark did not stay on the target; dead mobs stay tinted red on the ground; corpses should not be red.
 P79. Some NPC/mob models look underdeveloped (he could not tell who they were, maybe pillagers); the skeleton on the spire looks wrong; design our own enemy instead (with P19/G20).
-P80. The flower on top of cactus floats above it.
-P81. Player movement felt very slow at 09:28 (check his state at that note: speed modifiers, armour weight, status).
+P80. [DONE: PR #56, 2026-10-12: bloom sits on the cactus.] The flower on top of cactus floats above it.
+P81. [DONE: PR #56, 2026-10-12: slowest horse canters at 6 b/s.] Player movement felt very slow at 09:28 (check his state at that note: speed modifiers, armour weight, status).
 P82. Regression or not reaching the headset: the Farsight rifle still cannot aim and the reload button still does not work (P32, P56, G21 were claimed done). Verify on the device build.
-P83. Horses: running animation still bad; stamina far too short; bonding levels should raise stamina and health like RDR2; RDR2-style health and stamina cores in the UI.
-P84. He cannot find the polygon (smooth terrain) option after several asks: make it obvious (it is at Create New World > Terrain and Options > Video), e.g. a clearly labelled toggle on the world screen; confirm it shows on the Quest build.
-P85. HUD: remove the L-grip / right-stick hint labels beside the hotbar and the sprint indicator (keep the translucency, he likes it).
+P83. [DONE: PR #56, 2026-10-12: longer gallop, bonding toughens.] Horses: running animation still bad; stamina far too short; bonding levels should raise stamina and health like RDR2; RDR2-style health and stamina cores in the UI.
+P84. [DONE: PR #56, 2026-10-12: Polygon Terrain row on the Video page and the world screen.] He cannot find the polygon (smooth terrain) option after several asks: make it obvious (it is at Create New World > Terrain and Options > Video), e.g. a clearly labelled toggle on the world screen; confirm it shows on the Quest build.
+P85. [DONE: PR #56, 2026-10-12: no hotbar hints on the headset.] HUD: remove the L-grip / right-stick hint labels beside the hotbar and the sprint indicator (keep the translucency, he likes it).
 P86. Wall torches look bad: they look fused to the wall and not fully textured.
-P87. Roads with riders near villages: he still wants them; make sure they appear (they are new-chunk only in old worlds, so check generation).
-P88. Bounty hunters must be a big deal (RDR2): a map marker at a distance, a music change when they come, and tougher fights.
-P89. The leaf-breaking sound sounds wrong.
-P90. Turtles appear near a snow biome; fix biome rules for turtle spawns.
-P91. Bases sit on raised block platforms; blend their foundations into the terrain.
+P87. [DONE: PR #56, 2026-10-12: riders on roads about 2.4x as often.] Roads with riders near villages: he still wants them; make sure they appear (they are new-chunk only in old worlds, so check generation).
+P88. [DONE: PR #56, 2026-10-12: 3-5 hunters, twice as tough, red crosses on the map, combat music.] Bounty hunters must be a big deal (RDR2): a map marker at a distance, a music change when they come, and tougher fights.
+P89. [DONE: PR #56, 2026-10-12: leaves rustle.] The leaf-breaking sound sounds wrong.
+P90. [DONE: PR #56, 2026-10-12: no turtles by cold ground.] Turtles appear near a snow biome; fix biome rules for turtle spawns.
+P91. [DONE: PR #56, 2026-10-12: stations, Greywall bases and citadels bank down into the land on new ground.] Bases sit on raised block platforms; blend their foundations into the terrain.
 P92. [feature] Capital trains: a procedurally generated rail line leading out of a base with a train on it (fold into C1 railways).
 P93. [feature] Pirates and wrecks: repair broken ships and float them, craft cannons and cannonballs to mount, combine a computer taken from a base with a cannon for an auto-firing turret. Player-built vs preset vehicles and damage physics are left to us.
-P94. Ice: a nicer, semi-transparent texture you can see through to the bottom.
-P95. Bunker bases and military towers are far too common (three within minutes); the rarity rule (about one per 4000x4000) is not holding, at least where he played.
-P96. Outlaw status should be local: far from the village where he became an outlaw, people should not try to kill him.
-P97. Camps: the campfire cannot be used and its fire looks wrong; a camp should have a person at or near it.
+P94. [DONE: PR #56, 2026-10-12: clearer ice.] Ice: a nicer, semi-transparent texture you can see through to the bottom.
+P95. [DONE: PR #56, 2026-10-12: stations 6% and Greywall bases 15% of their old share on new ground.] Bunker bases and military towers are far too common (three within minutes); the rarity rule (about one per 4000x4000) is not holding, at least where he played.
+P96. [DONE: PR #56, 2026-10-12: outlaw only within 800 of where it happened.] Outlaw status should be local: far from the village where he became an outlaw, people should not try to kill him.
+P97. [DONE: PR #56, 2026-10-12: campfires respond (they never did), rest by a lit fire mends, flames are crossed sheets, a camper at each camp.] Camps: the campfire cannot be used and its fire looks wrong; a camp should have a person at or near it.
 Praised, keep: the outpost interior space, explosions, sugarcane fix, crafting fix, the sword and swing mode, flowers, the translucent HUD, camps.
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items

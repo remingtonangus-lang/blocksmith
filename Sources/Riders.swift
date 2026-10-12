@@ -9,7 +9,7 @@ import simd
 // hunters, so killing either is no further crime (Honour.mobDied).
 enum Riders {
     static let riding = 5, robbed = 6
-    static var chancePerSecond: Float = 1.0 / 120   // near a road, about once every two minutes
+    static var chancePerSecond: Float = 1.0 / 50    // near a road, about once a minute (P87: twice as often; he never met one)
     static let robHold: Float = 1.2                 // seconds of aim before the satchel comes down
     static let robBounty = 2500                     // $25 on your head in the nearest town
     static let murderBounty = 6000

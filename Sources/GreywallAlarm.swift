@@ -66,13 +66,14 @@ extension Greywall {
         let lampOff = Blocks.groupBase[Int(Blocks.id("alarm_lamp"))], lampOn = Blocks.groupBase[Int(Blocks.id("alarm_lamp_lit"))]
         let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
         let console = Blocks.has("command_console") ? Blocks.groupBase[Int(Blocks.id("command_console"))] : BlockID.max
+        let terminal = Blocks.has("greywall_terminal") ? Blocks.groupBase[Int(Blocks.id("greywall_terminal"))] : BlockID.max   // P68
         let gun = Blocks.groupBase[Int(Blocks.id("wall_turret"))], gunHurt = Blocks.groupBase[Int(Blocks.id("wall_turret_damaged"))]
         let flag = Blocks.id("greywall_flag"), mine = Blocks.id("taken_flag")
         for z in (site.cz - e)...(site.cz + e) { for x in (site.cx - e)...(site.cx + e) {
             for y in (site.S - 8)...(site.S + site.tier.wallH + 12) {
                 let g = Blocks.groupBase[Int(world.block(x, y, z))]
                 if g == lampOff || g == lampOn { site.lamps.append(IVec3(x, y, z)) } else if g == panel { site.panels.append(IVec3(x, y, z)) }
-                else if g == console { site.consoles.append(IVec3(x, y, z)) }
+                else if g == console || g == terminal { site.consoles.append(IVec3(x, y, z)) }
                 else if g == gun || g == gunHurt { site.turrets.append(IVec3(x, y, z)) }
                 else if g == flag || g == mine { site.flags.append(IVec3(x, y, z)) }
             }

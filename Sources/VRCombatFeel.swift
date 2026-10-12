@@ -33,26 +33,32 @@ enum HitFeel: Int {
     }
 }
 
-// The last few blade poses for the trail: a fixed ring (no allocation per frame). A sample counts only while the tip
-// moved at VRMelee.minTipSpeed or more; each fades out over `life` seconds.
+// The last few blade poses for the trail: a fixed ring (no allocation per frame). A sample counts only while the blade
+// is lit: the tip's speed, smoothed over a few frames, rises to VRMelee.minTipSpeed and the trail stays lit until it
+// falls below VRMelee.rearmSpeed (P77: tracking jitter around the threshold flipped the ribbon on and off every frame,
+// a white strobe while moving the sword). Each sample fades out over `life` seconds.
 struct BladeTrail {
     static let count = 12
     static let life: Float = 0.14
+    static let peakAlpha: Float = 0.32
     var base = [V3](repeating: .zero, count: count), tip = [V3](repeating: .zero, count: count)
     var time = [Double](repeating: -10, count: count)
     var fast = [Bool](repeating: false, count: count)
     var head = 0
+    var smooth: Float = 0, lit = false
 
     mutating func add(base b: V3, tip t: V3, speed: Float, now: Double) {
-        base[head] = b; tip[head] = t; time[head] = now; fast[head] = speed >= VRMelee.minTipSpeed
+        smooth = 0.6 * speed + 0.4 * smooth
+        lit = lit ? smooth >= VRMelee.rearmSpeed : smooth >= VRMelee.minTipSpeed
+        base[head] = b; tip[head] = t; time[head] = now; fast[head] = lit
         head = (head + 1) % BladeTrail.count
     }
-    mutating func clear() { for i in 0..<BladeTrail.count { time[i] = -10; fast[i] = false } }
+    mutating func clear() { for i in 0..<BladeTrail.count { time[i] = -10; fast[i] = false }; smooth = 0; lit = false }
 
     // Visits each ribbon segment from the newest back: (base0, tip0, base1, tip1, alpha0, alpha1). A segment needs
-    // both its samples fast and young; alpha falls from 0.5 at the blade to 0 at `life` seconds old.
+    // both its samples lit and young; alpha falls from peakAlpha at the blade to 0 at `life` seconds old.
     func segments(now: Double, _ body: (V3, V3, V3, V3, Float, Float) -> Void) {
-        func alpha(_ i: Int) -> Float { 0.5 * max(0, 1 - Float(now - time[i]) / BladeTrail.life) }
+        func alpha(_ i: Int) -> Float { BladeTrail.peakAlpha * max(0, 1 - Float(now - time[i]) / BladeTrail.life) }
         for k in 0..<(BladeTrail.count - 1) {
             let i = (head - 1 - k + 2 * BladeTrail.count) % BladeTrail.count
             let j = (i - 1 + BladeTrail.count) % BladeTrail.count

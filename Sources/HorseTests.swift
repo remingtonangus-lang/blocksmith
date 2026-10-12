@@ -7,7 +7,7 @@ import simd
 //   gaits      walk / trot / canter / gallop speeds; time to a gallop; stopping time; no lurch above 12.5 b/s^2
 //   turning    a walk turns at least twice as fast as a gallop
 //   stamina    a level-1 gallop lasts 15-35 s; a blown horse drops to a trot and rears when spurred; it refills at a walk
-//   bond       points from riding, pats, brushing and treats; levels; saddlebags at level 2; saved with the horse
+//   bond       points from riding, pats, brushing and treats; levels; saddlebags on a saddled horse (P76); saved with the horse
 //   footing    stops at the strip's end (a sheer drop) and before lava; rides down a staircase and off a 3-block step
 //   crash      a flat-out gallop into a wall stumbles; level 1 throws the rider, level 2 doesn't
 //   nerves     a blast, a cannon and a monster beside it make it rear; the rider's own gunshot doesn't; level 4 never
@@ -168,10 +168,15 @@ enum HorseTests {
             check(patted == HorseFeel.patBond && brushed == HorseFeel.brushBond && fed && treat.0 == HorseFeel.treatBond && treat.1 >= 34,
                   String(format: "horse care: pat +%.0f (once per %.0f s), brush +%.0f, apple +%.0f and stamina 10 -> %.0f", patted, HorseFeel.patCool, brushed, treat.0, treat.1))
             h.hs.bondXP = HorseFeel.levelXP[1] - 1
+            // (P76: saddlebags on any tamed, saddled horse; none unsaddled with nothing in them.)
+            let saddled0 = h.saddled
+            h.saddled = false
+            let bareNone = !h.saddlebags
+            h.saddled = saddled0
             let bagsBefore = h.saddlebags
             h.addBond(1, g)
             let bags = h.saddlebags && MountMenu.opens(h) && g.packContainer(h).count == 9
-            check(!bagsBefore && bags && h.staminaMax == HorseFeel.staminaMax[1], "horse bond level 2: saddlebags (9 slots) and \(Int(HorseFeel.staminaMax[1])) stamina")
+            check(bareNone && bagsBefore == h.saddled && bags && h.staminaMax == HorseFeel.staminaMax[1], "horse saddlebags (9 slots) on a saddled horse from bond 1, none unsaddled; bond level 2: \(Int(HorseFeel.staminaMax[1])) stamina")
             g.packContainer(h)[0] = ItemStack(Items.id("apple"), 3)
             let back = Mob.from(h.record)
             check(back?.hs.bondXP == HorseFeel.levelXP[1] && back?.saddlebags == true && back?.cargo?[0].count == 3,

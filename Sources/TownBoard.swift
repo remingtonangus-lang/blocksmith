@@ -254,9 +254,10 @@ enum TownBoard {
         guard g.dim.dim == .overworld else { return }
         let p = g.player.pos
         let owed = town.map { Honour.bounty($0) } ?? 0
-        let wanted = town != nil && g.survival && (owed > 0 || Honour.isOutlaw)
+        let known = Honour.outlawKnown(g)
+        let wanted = town != nil && g.survival && (owed > 0 || known)
         // What surrendering costs: the bounty here, plus the outlaw's fine (Honour.settle).
-        let poster = wanted ? ["WANTED", ShopMenu.fit(playerName, 88), "Dead or Alive", Money.format(owed + (Honour.isOutlaw ? Honour.outlawFine : 0))] : oldPoster
+        let poster = wanted ? ["WANTED", ShopMenu.fit(playerName, 88), "Dead or Alive", Money.format(owed + (known ? Honour.outlawFine : 0))] : oldPoster
         for (q, be) in g.world.blockEntities where be.kind == .sign && isBoard(be) {
             guard abs(Float(q.x) - p.x) < 64 && abs(Float(q.z) - p.z) < 64, TownLaw.isTownSpot(g, q) else { continue }
             if be.lines != poster { be.lines = poster }

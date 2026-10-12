@@ -82,9 +82,10 @@ extension Mob {
         get { let h = hs; if h.stamina < 0 { h.stamina = staminaMax }; return h.stamina }
         set { hs.stamina = simd_clamp(newValue, 0, staminaMax) }
     }
-    // Saddlebags: a tamed horse at bond level 2 carries 9 slots (MountMenu, Boats.packContainer).
-    // (Still open while they hold anything, should the bond fall back below 2.)
-    var saddlebags: Bool { gaited && tamed && !chested && (bondLevel >= 2 || (cargo.map { $0.slots.contains { !$0.isEmpty } } ?? false)) }
+    // Saddlebags: a small chest on the back of the saddle of any tamed, saddled horse, 9 slots (MountMenu,
+    // Boats.packContainer; P76, Oct 12 AM: he wanted one and never found the bond-2 perk they used to be). Still open
+    // while they hold anything, should the saddle come off.
+    var saddlebags: Bool { gaited && tamed && !chested && (saddled || (cargo.map { $0.slots.contains { !$0.isEmpty } } ?? false)) }
 
     func gaitSpeed(_ g: Gait) -> Float {
         let top = topSpeed
@@ -103,7 +104,7 @@ extension Mob {
         h.bondXP = max(0, h.bondXP + pts)
         let now = bondLevel
         guard now > before else { return }
-        let perk = ["", "", "saddlebags", "steadier nerves", "never throws you"][now]
+        let perk = ["", "", "more stamina, tougher", "steadier nerves", "never throws you"][now]
         g.onToast?("Bond with your horse: level \(now) (\(perk))")
         g.particles.hearts(at: pos + V3(0, height, 0))
     }

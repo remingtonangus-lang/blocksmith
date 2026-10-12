@@ -164,7 +164,7 @@ extension Game {
     // Honey or combs taken: every bee around (and in the hive) is angered, unless a campfire smokes it.
     func beeHiveDisturbed(_ c: V3) {
         let x = Int(floor(c.x)), y = Int(floor(c.y)), z = Int(floor(c.z))
-        for dy in 1...5 where Blocks.key(Blocks.groupBase[Int(world.block(x, y - dy, z))]).hasSuffix("campfire") { return }
+        for dy in 1...5 where Blocks.key(world.block(x, y - dy, z)).hasSuffix("campfire") { return }
         for m in mobs.of(.bee) where simd_length(m.pos - c) < 16 { m.aggro = true; m.lockTime = 20 }
         let h = IVec3(x, y, z)
         if let inside = mobs.hives[h] {

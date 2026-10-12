@@ -8,7 +8,7 @@ enum Explosion {
     // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
     // (reference: the TNT drop-decay rule is off by default).
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
-                        decay: Bool = true) {
+                        decay: Bool = true, resistCap: Float = .infinity) {
         let w = g.world
         // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
         let own = g.bases.quiet
@@ -29,7 +29,8 @@ enum Explosion {
                 let id = w.block(b.x, b.y, b.z)
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
-                    let res = fluid ? 100 : Blocks.resistance[Int(id)]
+                    let r0 = Blocks.resistance[Int(id)]
+                    let res = fluid ? 100 : (r0 < 1000 ? min(resistCap, r0) : r0)      // (bedrock and the like stay)
                     let cost: Float = (res + 0.3) * 0.3
                     if intensity <= cost && !fluid && breakBlocks && intensity > 0 {
                         shaken[b] = max(shaken[b] ?? 0, intensity / cost)

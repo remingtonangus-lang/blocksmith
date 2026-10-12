@@ -18,6 +18,7 @@ struct Slug {
     var gravity: Float
     var power: Float = 0          // explosive rounds
     var breaks = false            // heavy shells: the burst breaks blocks (HeavyTurret)
+    var breach: Float = .infinity  // a manned deck gun's shell: blocks count at most this blast resistance (P70)
     var traveled: Float = 0
     var dead = false
     var whizzed = false           // a near miss on the player already made its whizz
@@ -147,7 +148,7 @@ final class Armory {
                     s.dead = true
                     slugs[i] = s
                     detonate(s, at: at, g)
-                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g) }
+                    if s.kind == .shell { w.ships.heavyHit(h.1, at: at, game: g, power: s.breach.isFinite ? HeavyTurret.mannedShipPower : 6) }
                     continue
                 }
             }
@@ -300,7 +301,8 @@ final class Armory {
         // hit their own front ranks: questcheck --friendlyfire-only, Q2).
         g.blastSpares = s.fromPlayer ? .none : (shooter?.factionValue ?? (s.side != nil && s.side != Faction.none ? s.side! : (own ? .steelhold : .none)))
         defer { g.ashQuiet = false; g.blastSpares = .none }
-        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
+        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
+                          resistCap: s.breach)
         g.bases.quiet = false
     }
 

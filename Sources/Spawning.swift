@@ -240,12 +240,27 @@ extension MobManager {
         }
     }
 
+    // Turtles keep to warm beaches (P90: they turned up beside snow, where a beach strip met snowy plains or a cold
+    // sea): the beach itself and nothing cold within 40 blocks.
+    static func turtleShore(_ w: World, _ x: Int, _ z: Int) -> Bool {
+        guard w.gen.column(x, z).biome == .beach else { return false }
+        let cold: Set<Biome> = [.coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .frozenRiver, .snowyBeach]
+        for r in [20, 40] { for k in 0..<8 {
+            let a = Float(k) * .pi / 4
+            let b = w.gen.column(x + Int(cosf(a) * Float(r)), z + Int(sinf(a) * Float(r))).biome
+            if cold.contains(b) || b.info.temp < 0.3 { return false }
+        } }
+        return true
+    }
+
     func spawnAnimalPack(_ w: World, _ kind: MobKind, _ x: Int, _ z: Int, _ n: Int, chunk: ChunkKey? = nil) {
         let biome = w.gen.column(x, z).biome
+        if kind == .turtle && !MobManager.turtleShore(w, x, z) { return }
         var placed = 0
         for _ in 0..<(n * 4) where placed < n {
             var sx = x + Rand.int(in: -4...4), sz = z + Rand.int(in: -4...4)
             if let k = chunk { sx = k.x * CS + mod(sx, CS); sz = k.z * CS + mod(sz, CS) }
+            if kind == .turtle && w.gen.column(sx, sz).biome != .beach { continue }
             guard let y = animalSurface(w, sx, sz, kind), w.lightAt(sx, y, sz).sky > 8 || w.lightAt(sx, y, sz).block > 8 else { continue }
             let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
             if m.collides(m.pos, w) { continue }

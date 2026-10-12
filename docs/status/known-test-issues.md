@@ -100,3 +100,9 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   falls (260 swings, health 420 -> 105)". The Blight one is the Mac heavy lane's known red on quest-port too (the
   bot's arrows barely hurt it); the Chancellor fight is the same kind (the scripted swings run out before he falls).
   Neither touches what PR #55 changed. The first-hour goal checks in the same run pass (16 goals in order, 0 back).
+
+## 2026-10-12: "deep war: a Cinder tank engages" (flaky, PR #56 slices)
+- The check wants the tank's worst single hit on the player under 16. Over 20 logged runs it was 11-15; one `--boreal-only`
+  run on the PR #56 branch read 17 (the main gun's shell and its blast landing in one tick). Random spread in the shell
+  and blast damage, not this PR (nothing here touches the Ashguard's guns or the player's damage). Left as is; if it
+  recurs, measure the shell + blast sum the check means and widen the limit or count them as one hit.

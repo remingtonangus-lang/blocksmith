@@ -41,6 +41,7 @@ enum FindabilityTests {
         defer { g.inventory.main[slot] = held }
         g.inventory.main[slot] = ItemStack(Items.id("intercepted_orders"), 1)
         let used = g.factionGearUse()
+        if g.menu is BookMenu { g.closeMenu() }          // (P68: the orders open as a document)
         let mark = MapCache.shared.marks.last
         check(used && mark?.kind == "military_base", "findability: the first orders read mark a citadel (\(mark?.kind ?? "nothing"))")
     }

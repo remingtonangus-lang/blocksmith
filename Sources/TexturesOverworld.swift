@@ -100,7 +100,7 @@ extension TextureGen {
         p["mud_bricks"] = bricks(0x89684F, 0x6A4E3A, 372)
         p["ice"] = { x, y in
             let crack = (x * 3 + y * 7) % 13 == 0
-            return V4(0.62, 0.78, 1.0, crack ? 0.9 : 0.62 + 0.08 * r(x, y, 373))
+            return V4(0.62, 0.78, 1.0, crack ? 0.8 : 0.32 + 0.08 * r(x, y, 373))      // (P94: clear enough to see through)
         }
         // Packed / blue ice: frosty mottling, pale fracture lines and a few bright crystal glints.
         func iceP(_ c: UInt32, _ salt: Int) -> Painter {

@@ -619,6 +619,13 @@ func horseParts(_ m: Mob) -> [Part] {
         p.append(box(-4.7, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8)); p.append(box(4.3, top - 5, -1.6, 0.4, 5, 1.2, leather * 0.8))
     }
     if m.chested { p.append(box(-7, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(4.6, bot + 1, 0, 2.4, 7, 7, V3(0.55, 0.38, 0.2))) }
+    else if m.saddlebags {
+        // P76: the saddlebags, a small strapped chest behind the saddle.
+        let wood = V3(0.55, 0.38, 0.2)
+        p.append(box(-2.6, top + 0.2, 4.4, 5.2, 3.4, 4.2, wood))
+        p.append(box(-2.7, top + 2.1, 4.3, 5.4, 0.5, 4.4, wood * 0.6))                     // lid line
+        p.append(box(-0.5, top + 1.4, 4.1, 1, 1.2, 0.3, V3(0.75, 0.7, 0.6)))              // clasp
+    }
     if m.armorTier > 0 {
         // leather, iron, gold, diamond, (5 is wolf armour), copper, duskium
         let colors: [V3] = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84), V3(0.62, 0.42, 0.36),

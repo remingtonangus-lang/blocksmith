@@ -201,6 +201,7 @@ enum WildCamps {
             let hide = rng.chance(0.5) ? b("brown_wool") : b("green_wool")
             tent(-4, -1, wool: hide, ridge: "spruce")
             campfire(2, 1, lit: true)
+            mob("villager:camper", 2, 3)                      // (P97: someone at the fire)
             // Drying rack: two posts with a fence bar, hides hanging from it.
             let fence = b("spruce_fence", "oak_fence")
             for dz in [-4, 0] { put(4, 0, dz, fence); put(4, 1, dz, fence) }
@@ -230,6 +231,7 @@ enum WildCamps {
             put(-5, 0, 3, b("crafting_table"))
             put(3, 0, 3, b("grindstone", "crafting_table"))
             campfire(-2, 2, lit: rng.chance(0.6), seatsX: false)
+            mob("villager:camper", 0, 2)                      // (P97: the prospector, by the fire)
             chest(-3, 5, "camp_prospectors")
         case "camp_traders":
             // Covered wagon along local z: plank bed on log wheels, wool canopy on fence hoops.

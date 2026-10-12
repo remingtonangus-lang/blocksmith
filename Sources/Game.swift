@@ -1054,6 +1054,7 @@ final class Game {
            simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) < 4.5 {
             if isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; mining = nil; return }
             if isInteractive(t.hit) { openBlock(t.hit); mining = nil; return }
+            if Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)).contains("campfire") && useNewBlock(t) { mining = nil; return }   // (P97)
         }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }

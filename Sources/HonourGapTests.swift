@@ -283,8 +283,9 @@ extension TownTests {
         Rand.seed(12345)
         BountyHunters.tick(g)
         let hunters = g.mobs.mobs.filter { $0.customName == BountyHunters.name }
-        let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 32 && $0.lockTime > 0 }
-        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 32 blocks, already on the trail")
+        // (P88: a bigger posse, from 30-42 blocks out, so it rides in.)
+        let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 44 && $0.lockTime > 0 }
+        check(hunters.count >= 4 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail")
         let n0 = g.mobs.mobs.count
         BountyHunters.tick(g)
         check(g.mobs.mobs.count == n0, "honour gap: at most one posse a day")

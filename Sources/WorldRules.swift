@@ -74,6 +74,29 @@ enum WorldRules {
     static func capitalLegacyP44(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Bool {
         savedBeforeP44(gen, rx * 56 + 18, rz * 56 + 18, reach: capitalLegacyReach)
     }
+    // P95 (Oct 12 AM, World376: "bunker bases ... way too common", 19 Boreal stations and 4 Greywall bases in one
+    // 4,000 x 4,000 square): only these shares of the regions keep their station or base, so each comes to about one
+    // per 4,000 x 4,000 like the citadels (Boreal regions are 448 blocks, 80 to the square, about a quarter on snowy
+    // ground; Greywall regions are 1,024, 15 to the square, seven in ten tried). Ground saved before keeps what it had;
+    // the host checks keep the old shares (p44) so their fixture seeds still hold the stations they test.
+    static let stationKeepP95: Float = 0.06
+    static let greywallKeepP95: Float = 0.15
+    // P69 (Oct 12 AM 09:18-09:19: "a different force, not the Capital ... shouldn't be right beside a Capital anything"):
+    // on new ground Boreal stations are Greywall Command's, and stations and Greywall bases keep this far (blocks,
+    // footprint edge to footprint edge) from a Capital citadel or city.
+    static let capitalKinds: Set<String> = ["military_base", "capital_city"]
+    static let capitalApartP69 = 480
+    static func p69(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
+        guard p44, let sc = gen.structures else { return false }
+        return sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyP95)
+    }
+    static func keepP95(_ gen: WorldGen, _ share: Float, rx: Int, rz: Int, salt: Int, centre: (Int, Int), reach: Int) -> Bool {
+        guard p44 else { return true }
+        if hashf(rx, salt, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0x95B5) < share { return true }
+        guard let sc = gen.structures else { return false }
+        return !sc.clear(cx: centre.0, cz: centre.1, reach: reach, guardSet: sc.legacyP95)
+    }
+
     // Ground near (cx, cz) saved before P44 (the rarer cities and citadels).
     static func savedBeforeP44(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
         guard let sc = gen.structures else { return false }

@@ -131,9 +131,41 @@ extension Game {
             MapCache.shared.discover(self, kind: t.kind, x: t.x, z: t.z)
             onToast?("\(text): \(radarBearing(t)). Marked on your map.")
             sfx(.pageTurn, 0.8, at: player.pos)
+            // P68 (playtest 09:18, "pull them out and read it"): the orders open as a document to read.
+            if menu == nil {
+                var doc = ItemStack(Items.id("written_book"), 1)
+                doc.pages = ordersPages(t)
+                doc.label = "Intercepted Orders"
+                openMenu(BookMenu(game: self, stack: doc, source: .hand(inventory.selected)))
+            }
             return true
         }
         return false
+    }
+
+    // The text of a set of intercepted orders pointing at `t`: a dispatch header, the orders themselves (where, which
+    // way, how far, what to watch for) and a signature, a page or two of the book screen. The words come from the
+    // target and a hash of its position, so the same orders always read the same.
+    func ordersPages(_ t: RadarContact) -> [String] {
+        let h = { (k: Int) -> Int in Int(hashf(t.x, t.z, 6800 + k, 0x0D) * 997) }
+        let officers = ["Col. Harrow Vane", "Maj. Edda Corran", "Capt. Tobin Lisle", "Col. Mara Quill", "Maj. Aldous Pike", "Capt. Wren Halloway"]
+        let units = ["3rd Rifle Company", "Ironback Battery", "1st Mounted Patrol", "Road Watch, East", "Signal Section 9", "Column Grey"]
+        let watch = ["outlaws on the old road", "Greywall scouts in the hills", "wagons travelling after dark", "riders without papers",
+                     "smoke from unlicensed camps", "lights on the ridge after sundown"]
+        let dx = Float(t.x) - player.pos.x, dz = Float(t.z) - player.pos.z
+        var deg = Double(atan2f(dx, -dz) * 180 / .pi)
+        if deg < 0 { deg += 360 }
+        let compass = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"][Int((deg + 22.5) / 45) % 8]
+        let km = Int((dx * dx + dz * dz).squareRoot() / 100)
+        let bearing = "\(km < 10 ? "\(max(1, km) * 100) m" : "\(km / 10) km") \(compass) of here, at grid \(t.x), \(t.z)"
+        let warship = t.kind.hasPrefix("vessel_")
+        var p1 = warship ? "FLEET SIGNAL - MOST SECRET\nIntercept no. \(1000 + h(1))\n" : "CAPITAL STAFF - DISPATCH\nIntercept no. \(1000 + h(1))\n"
+        p1 += "To: \(units[h(2) % units.count])\n\n"
+        if warship { p1 += "The \(t.name) keeps station \(bearing). Supply boats to come alongside by night only, no lamps." }
+        else { p1 += "Report to the \(t.name), \(bearing). Be inside the walls by nightfall." }
+        let p2b = "Watch for \(watch[h(3) % watch.count]). Stop and search; send word by runner, not by radio.\n\n"
+        let p2 = p2b + "Burn these orders once read.\n\n- \(officers[h(4) % officers.count])"
+        return [p1, p2]                  // (PlaytestOct12Tests.readOrders: each fits the book page)
     }
 
     // HUD while a radar is held: a small panel above the hotbar, refreshed twice a second.

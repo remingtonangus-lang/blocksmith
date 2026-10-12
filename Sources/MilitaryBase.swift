@@ -72,7 +72,11 @@ extension TextureGen {
         }
         p["command_console_top"] = { x, y in
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x2C3035) }
-            if y >= 9 && x >= 2 && x <= 13 && y <= 13 { return hex((x + y) % 2 == 0 ? 0x22262B : 0x5A6068) }
+            // A keyboard: rows of keys with gaps and a space bar (P68: the old checkerboard read as a chess board).
+            if y >= 9 && x >= 2 && x <= 13 && y <= 13 {
+                if y == 13 { return x >= 5 && x <= 10 ? hex(0x4A5058) : hex(0x22262B) }
+                return (x + (y % 2)) % 3 == 0 ? hex(0x22262B) : hex(0x4A5058, 0.95 + 0.05 * r(x, y, 1911))
+            }
             if y >= 2 && y <= 6 && x >= 3 && x <= 12 { return hex(0x1A4A6A, 0.85 + 0.25 * r(x, y, 1908)) }
             return hex(0x454A51)
         }
@@ -163,7 +167,8 @@ enum MilitaryBase {
             let e = CapitalBase.A + 8               // the site plus the ring where cut trees' leaves are cleared
             let anchor = IVec3(x, y0 + 1, z + CapitalBase.podium + 8)
             guard WorldRules.citadelApart(gen, cx, cz, anchor: anchor) else { return nil }              // G12: none within 800
-            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed) })
+            let bank = WorldRules.p69(gen, cx, cz, reach: 6)          // P91 banks, on ground first generated with them
+            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 80, z + e), build: { w in CapitalBase.build(&w, x, y0, z, seed, bank: bank) })
             // P48: the garrison row below the south gate, on ground first generated with it (reach 6 covers it).
             let row = WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz + 5, reach: 3) ? GarrisonTown.pieces(gen, x, z, seed) : []
             return StructureStart(kind: "military_base", pieces: [piece] + row, anchor: anchor)
