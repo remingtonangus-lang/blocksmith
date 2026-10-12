@@ -215,6 +215,7 @@ extension Mob {
         if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
         if villager?.role == "banker" { return BankMenu.open(f) ? .work : .idle }       // behind the teller's counter
         let prof = villager?.profession ?? "none"
+        if Seasons.festival && villager?.town != nil && t >= 2000 && t < 12000 { return .meet }   // C9: the town festival at the bell
         if t >= 5600 && t < 6600 { return .eat }
         // Capital citizens (no trade, a desk) go to the office.
         let desk = villager?.role == "citizen" && villager?.jobSite != nil

@@ -174,6 +174,7 @@ enum Hunting {
     static func died(_ g: Game, _ m: Mob) -> Bool {
         guard animal(m.kind) != nil, m.killedByPlayer, !m.baby, m.owner == nil, !m.carcass,
               m.customName == nil || m.legend >= 0 else { return false }
+        Seasons.gameKilled(g, m)                             // C9: out of season near a town
         let q = kept(m)
         let b = Mob(m.kind, at: m.pos)
         b.carcass = true

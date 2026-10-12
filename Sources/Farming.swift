@@ -82,7 +82,8 @@ extension Game {
             let l = world.lightAt(p.x, p.y, p.z)
             guard max(l.sky, l.block) >= 9 else { return }
             if key == "beetroots" && Rand.int(in: 0..<3) == 0 { return }       // beetroots only grow on a 2/3 roll
-            let f = cropGrowth(p, Blocks.groupBase[Int(b)])
+            let f = cropGrowth(p, Blocks.groupBase[Int(b)]) * Seasons.cropScale(sky: l.sky)   // C9: the season
+            guard f > 0 else { return }
             if Rand.float(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }

@@ -25,7 +25,7 @@ extension Economy {
     // A country's terms (Countries.swift) add its tax, its mineral prices and an ally's discount.
     static func buyPrice(_ item: ItemID, _ p: ShopPricing) -> Int {
         if isEmerald(item) { return emeraldBuy }
-        let v = value(of: item) ?? 0
+        let v = Int((Float(value(of: item) ?? 0) * Seasons.sellScale(item)).rounded())   // C9: pelts in season, crops in winter
         return p.country.active ? p.country.buy(item, v, p) : p.buy(v)
     }
     static func sellPrice(_ item: ItemID, _ p: ShopPricing) -> Int {

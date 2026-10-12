@@ -367,6 +367,7 @@ enum TownLaw {
 
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
+        Seasons.tick(g)                                  // C9: the season, herds and festival nights
         Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         // Sheriffs draw after their challenge.
         if !pending.isEmpty {

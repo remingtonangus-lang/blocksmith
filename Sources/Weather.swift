@@ -49,7 +49,7 @@ extension Game {
         guard wetWorld else { return 0 }
         let b = world.gen.column(x, z).biome
         if b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau || b == .windsweptSavanna { return 0 }
-        return b.snows(at: y) ? 2 : 1
+        return Seasons.snows(b, at: y) ? 2 : 1            // C9: winter snow over the temperate biomes
     }
 
     // Is (x,y,z) open to the sky (for rain)?
@@ -174,7 +174,8 @@ extension Game {
             guard y > 0 && y < CH - 1 else { continue }
             let top = world.block(x, y, z)
             let biome = world.gen.column(x, z).biome
-            guard biome.snows(at: y) else {
+            guard Seasons.snows(biome, at: y) else {
+                seasonalMelt(x, y, z, top, biome)            // C9: seasonal snow and ice melt
                 // Rain fills cauldrons (1 in 20).
                 if weather.rain > 0.5 && Blocks.key(Blocks.groupBase[Int(top)]) == "cauldron" && Rand.int(in: 0..<20) == 0 {
                     world.setBlockAsync(x, y, z, Blocks.id("water_cauldron"))

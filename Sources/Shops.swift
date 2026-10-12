@@ -223,6 +223,7 @@ struct ShopPricing {
         var s: Float = r >= 0 ? 0.5 * (1 + 0.1 * r) : 0.5 * (1 + 0.25 * r)
         if hero > 0 { b -= 0.05 }
         b += Honour.buyNudge(honour); s *= 1 + Honour.sellNudge(honour)
+        b += Seasons.buyNudge                                   // C9: festival days
         if town == .owned { b = Economy.minBuyMult; s = Economy.maxSellMult } else if town == .wary { b += 0.1; s *= 0.95 }
         b = max(Economy.minBuyMult, min(Economy.maxBuyMult, b))
         s = max(Economy.minSellMult, min(Economy.maxSellMult, s))

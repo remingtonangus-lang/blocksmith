@@ -174,6 +174,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --seasons-only: C9 seasons (Sources/SeasonsTests.swift).
+if CommandLine.arguments.contains("--seasons-only") {
+    SeasonsTests.run(game, check: check)
+    print(failures == 0 ? "seasons: all checks passed" : "seasons: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --mind-only: C4 the villager mind interface (Sources/VillagerMindTests.swift).
 if CommandLine.arguments.contains("--mind-only") {
     VillagerMindTests.run(game, check: check)

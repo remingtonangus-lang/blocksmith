@@ -283,7 +283,9 @@ extension MobManager {
         if max(abs(dx), abs(dz)) < 2 { return }
         guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { return }
         let x = c.cx * CS + Rand.int(in: 0..<CS), z = c.cz * CS + Rand.int(in: 0..<CS)
-        guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { return }
+        let biome = w.gen.column(x, z).biome
+        guard Rand.float(in: 0..<1) < Seasons.animalChance(biome) else { return }        // C9: fewer in winter
+        guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
         spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
     }
 
