@@ -186,6 +186,7 @@ final class MapCache {
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "boreal_station": return ("N", V4(0.45, 0.72, 1, 1), "Boreal Station")
         case "greywall_base": return ("G", V4(0.55, 0.62, 0.72, 1), "Greywall base")
+        case "sky_isle": return ("K", V4(0.6, 0.85, 1.0, 1), "Sky isle")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate", "vessel_capfrigate": return ("F", V4(0.55, 0.62, 0.4, 1), "Meridian frigate patrol")
         case "vessel_warfrigate", "vessel_battle": return ("S", V4(0.35, 0.5, 0.95, 1), "Stormwarden frigate patrol")
@@ -210,7 +211,7 @@ final class MapCache {
             saveMarks(g)
         }
         // Round every player (split screen: player 2 passing a citadel or village alone discovered nothing).
-        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos) }
+        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos); SkyIsle.discover(g, sc, at: g.coop.seatPlayer(i, g).pos) }
     }
 
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {

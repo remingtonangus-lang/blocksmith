@@ -196,6 +196,7 @@ final class StructureCache {
     var legacyG12: Set<Int64> = []
     var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
     var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)
+    var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -522,7 +523,7 @@ enum Loot {
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
     }

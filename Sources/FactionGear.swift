@@ -86,6 +86,7 @@ extension Game {
         guard !held.isEmpty else { return false }
         if pulseChargeUse() { return true }
         if skySkiffUse() { return true }               // A4 (SkySkiff.swift)
+        if grappleUse() { return true }                // C7 (SkyIsle.swift)
         let k = Items.key(held.item)
         if k == "radar_set" {
             let cs = radarContacts()

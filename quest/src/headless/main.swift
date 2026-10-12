@@ -175,6 +175,11 @@ if CommandLine.arguments.contains("--mapfog-only") {
     MapFogTests.run(game: game, check: check)
     print(failures == 0 ? "mapfog: all checks passed" : "mapfog: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --skyisle-only: sky isles and the Grapple Line (Sources/SkyIsleTests.swift, backlog C7).
+if CommandLine.arguments.contains("--skyisle-only") {
+    SkyIsleTests.run(device: device, game: game, check: check)
+    print(failures == 0 ? "skyisle: all checks passed" : "skyisle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --skiff-only: the Sky Skiff, the ready-made flyer (Sources/SkySkiffTests.swift, backlog A4).
 if CommandLine.arguments.contains("--skiff-only") {
     SkySkiffTests.run(game: game, check: check)
@@ -773,6 +778,7 @@ NavyTests.run(game: game, check: check)
 SkySkiffTests.run(game: game, check: check)
 MapFogTests.run(game: game, check: check)
 RadioTests.run(game: game, check: check)
+SkyIsleTests.run(device: device, game: game, check: check)
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {
