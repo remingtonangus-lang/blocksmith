@@ -230,8 +230,15 @@ enum GreywallTests {
         let held = m.applyLeash(m.spec.speed)
         m.pos = V3(Float(cx + t.half + 9) + 0.5, Float(S + 1), Float(cz) + 0.5)
         let back = m.applyLeash(m.spec.speed)
-        let toward = simd_dot(m.forward, V3(-1, 0, 0)) > 0.9
-        check(held == 0 && back > 0 && toward, String(format: "greywall leash: a step out past the wall is held (%.2f), a soldier outside walks back in (%.2f, facing in %@)", held, back, toward ? "yes" : "no"))
+        // Carried out past the east wall it heads round the outside to the front (the gate side), not into the wall.
+        let toward = simd_dot(m.forward, V3(0, 0, 1)) > 0.9
+        var steps = 0
+        while steps < 600 && m.applyLeash(m.spec.speed) > 0 && (abs(m.pos.x - Float(cx)) > Float(t.half + 4) || abs(m.pos.z - Float(cz)) > Float(t.half + 4)) {
+            m.pos += m.forward * 0.25; steps += 1
+        }
+        let front = m.pos.z > Float(cz + t.half) && steps < 600
+        check(held == 0 && back > 0 && toward && front,
+              String(format: "greywall leash: a step out past the wall is held (%.2f), a soldier outside walks round to the gate side (%.2f, south %@) and is back at the front after %d steps (%@)", held, back, toward ? "yes" : "no", steps, front ? "yes" : "no"))
     }
 
     // A1c: a cleared base held at its command console for 10 s is the player's: the alarm silent for good, the deck
