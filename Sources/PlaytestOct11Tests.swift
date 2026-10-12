@@ -42,6 +42,7 @@ enum PlaytestOct11Tests {
         vehicleWorks(game, check)
         vrScope(check)
         G20Tests.run(check)
+        G20Tests.glint(game, check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.

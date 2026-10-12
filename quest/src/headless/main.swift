@@ -94,6 +94,9 @@ if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device
 // --gencheck [--seeds A,B --areas N]: the generated-world defect scan (Sources/GenCheck.swift: floating trunks and
 // plants, leaks, ...), as the Mac's `--gencheck` runs it.
 if CommandLine.arguments.contains("--gencheck") { exit(GenCheck.run(device: device)) }
+// --playthrough [--only overworld,emberdeep,stronghold,end,blight] [--seed N]: the Mac's scripted full-game run
+// (Sources/Playthrough.swift), so cloud threads can run it too.
+if CommandLine.arguments.contains("--playthrough") { exit(Playthrough.run()) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)

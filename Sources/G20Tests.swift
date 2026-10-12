@@ -14,7 +14,7 @@ enum G20Tests {
             b.withUnsafeMutableBufferPointer { buf in
                 var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
                 f(&w)
-                for (_, be) in w.entities where be.mob != nil { out.spawners.append(be.mob!) }
+                for (_, be) in w.entities where !be.mob.isEmpty { out.spawners.append(be.mob) }
                 out.mobs += w.mobs.map { $0.0 }
             }
             for v in b { out.count[Blocks.key(Blocks.groupBase[Int(v)]), default: 0] += 1 }
@@ -46,5 +46,32 @@ enum G20Tests {
         let m = build(-22, -22, 22, 22) { BoarlingMound.build(&$0, ox: 0, oz: 0, y: 60, seed: 7) }
         check(m.count["gold_block", default: 0] >= 5 && m.mobs.contains("piglin_brute") && m.mobs.filter { $0 == "piglin" }.count >= 4 && m.count["chest", default: 0] >= 5,
               "G20 \(BoarlingMound.name): \(m.count["gold_block", default: 0]) gold blocks in the hoard, \(m.mobs.filter { $0 == "piglin" }.count) boarlings and brutes, \(m.count["chest", default: 0]) chests")
+    }
+}
+
+extension G20Tests {
+    // G5: an Ashguard sharpshooter's scope glints for 1.1 s before its first shot at a target, then fires as usual.
+    static func glint(_ g: Game, _ check: (Bool, String) -> Void) {
+        let p = g.player.pos
+        let at = V3(p.x + 30, p.y + 40, p.z)                 // in the air, a clear line to a spot beside it
+        let m = Mob(.soldierMarksman, at: at)
+        m.faction = Faction.ashguard.rawValue
+        let b = m.soldierBrain
+        b.gun = Guns.kessel; b.mag = 10; b.react = 0; b.reload = 0; b.shotTimer = 0
+        let gs = Guns.all[b.gun], target = at + V3(-20, 0, 0)
+        var firstAt: Float = -1, t: Float = 0
+        let arms0 = g.arms.slugs.count
+        while t < 3 && firstAt < 0 {
+            m.soldierFire(0.05, g, b, gs, rank: 2, dist: 20, target: target)
+            t += 0.05
+            if b.mag < 10 { firstAt = t }
+        }
+        let mag1 = b.mag
+        b.shotTimer = 0
+        m.soldierFire(0.05, g, b, gs, rank: 2, dist: 20, target: target)
+        let second = b.mag < mag1
+        g.arms.slugs.removeSubrange(arms0..<g.arms.slugs.count)
+        check(firstAt >= 1.1 && firstAt < 1.4 && second && b.glinted,
+              String(format: "G5 sharpshooter glint: the first shot after %.2f s of glint, the next with none (%@)", firstAt, second ? "fired" : "held"))
     }
 }
