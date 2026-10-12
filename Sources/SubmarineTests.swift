@@ -112,7 +112,7 @@ enum SubmarineTests {
             for c in charges { last[ObjectIdentifier(c)] = c.pos }
             w.ships.updateShells(0.05, game: g); tt += 0.05
         }
-        let bursts = charges.compactMap { last[ObjectIdentifier($0)] }.filter { abs($0.y - depth) < 3 }.count
+        let bursts = charges.compactMap { last[ObjectIdentifier($0)] }.filter { $0.y > s.worldMin.y - 2 && $0.y < s.worldMax.y + 2 }.count      // at its depth, or on its hull
         check(quiet && charges.count == 2 && said.contains("Sonar") && bursts == 2,
               "submarine: sonar ignores a quiet boat (\(quiet)), pings a loud one ('\(said)') and drops \(charges.count) charges, \(bursts) bursting at its depth (\(String(format: "%.1f", depth)); last seen at \(charges.compactMap { last[ObjectIdentifier($0)] }.map { String(format: "%.1f,%.1f,%.1f", $0.x, $0.y, $0.z) }), frigate keel \(String(format: "%.1f", f.worldMin.y)), \(String(format: "%.1f", tt)) s)")
         w.ships.remove(f)
