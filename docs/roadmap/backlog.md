@@ -279,14 +279,6 @@ T5. P18 water falling one block (Oct 11 playtest, "looks weird from the side"): 
     shallow rim's side faces reading as separate dashes along a diagonal edge. No defect pinned; needs a headset look
     (lane M) with the scene above to say what "weird" is.
 
-T10. PR #51 Mac heavy-lane leftovers after its 30-minute time-box (Lane A, 2026-10-12). Fixed in #51: the G20 stronghold
-    check (it read terrain without structures), the hollow gate stage (the open gate took the player through before
-    the frames were read; the trip back left a portal cooldown), the Deep death loop (armour worn out by the Blight
-    fight), the gun and ammo count. Left, each needing its own look on the Mac lane (Metal-only checks):
-    a. tours: `padtest` 6 fails on #51's run (not reproduced on Linux; compare with the base's tours run first).
-    b. shots: `towntests` line 69 newly gated on #51's run; the Linux towns slice is green on the same code.
-    The Blight fight (T3a) stays red as on claude/quest-port.
-
 T6. [A1 leftovers, Greywall Command] Coastal guns of two calibres at shore bases (the tower deck guns stand in);
 turrets at corridor corners; reinforcements by truck (they come on foot); the nearest-outpost distance over 20 seeds
 (sampled on 3); an end-to-end capture of a generated base in the harness (the scan of every generated tier is checked,
@@ -305,6 +297,14 @@ saved; Aegis Marines bigger and faster than troopers; a rising recharge tone; a 
 frigate end to end.
 T9. [A4 leftover, the crawler] Crawler polish: terrain jitter and clipping, VR boarding and exit, repair after
 capture. Needs the Mac ride check (`--ridecheck`, Metal only) and device testing, so it was not changed blind.
+
+T10. PR #51 Mac heavy-lane leftovers after its 30-minute time-box (Lane A, 2026-10-12). Fixed in #51: the G20 stronghold
+    check (it read terrain without structures), the hollow gate stage (the open gate took the player through before
+    the frames were read; the trip back left a portal cooldown), the Deep death loop (armour worn out by the Blight
+    fight), the gun and ammo count. Left, each needing its own look on the Mac lane (Metal-only checks):
+    a. tours: `padtest` 6 fails on #51's run (not reproduced on Linux; compare with the base's tours run first).
+    b. shots: `towntests` line 69 newly gated on #51's run; the Linux towns slice is green on the same code.
+    The Blight fight (T3a) stays red as on claude/quest-port.
 
 T11. [C7 leftover, sky isles] The Capital's airships keep their own routes: a frigate patrol that circles a sky isle at
 cruise clearance, and a structcheck pass that walks an isle's top (the shrine floor and the turf rim).
