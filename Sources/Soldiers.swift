@@ -239,6 +239,7 @@ extension Mob {
 
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
+        navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
         let sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
         return leash == nil ? sp : applyLeash(sp)
     }
@@ -817,7 +818,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
 // (Soldier.rank: recruit, trooper, marksman, ironclad, officer, crew). The Ashguard renames its own (AshUnits.swift).
 extension Mob {
     static let crewNames: [Faction: [String]] = [
-        .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Meridian Heavy Marine", "Meridian Lieutenant", "Meridian Helmsman"],
+        .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Aegis Marine", "Meridian Lieutenant", "Meridian Helmsman"],
         .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
         .greywall: ["Greywall Sentry", "Greywall Rifleman", "Greywall Marksman", "Greywall Heavy", "Greywall Officer", "Greywall Crewman"],
         .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],

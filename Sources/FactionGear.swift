@@ -84,6 +84,7 @@ extension Game {
     func factionGearUse() -> Bool {
         let held = inventory.main[inventory.selected]
         guard !held.isEmpty else { return false }
+        if pulseChargeUse() { return true }
         let k = Items.key(held.item)
         if k == "radar_set" {
             let cs = radarContacts()
@@ -162,13 +163,14 @@ extension Game {
 
     func radarLines(_ L: HudLayout) -> [HudLine] {
         let console = clock < consoleRadarUntil
-        guard holdingRadar || console, menu == nil else { return [] }
+        let ship = frigateRadar
+        guard holdingRadar || console || ship, menu == nil else { return [] }
         if clock - Game.radarCache.time > 0.5 || Game.radarCache.world !== world {
-            Game.radarCache = (clock, world, radarContacts() + (console ? consoleContacts() : []))
+            Game.radarCache = (clock, world, ship ? frigateContacts() : radarContacts() + (console ? consoleContacts() : []))
         }
         let s = L.s
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }
-        let head = console ? "Citadel console" : (postGame ? "Radar" : "Radar (fleets sail after the end game)")
+        let head = ship ? "Frigate radar (1,500 m)" : console ? "Citadel console" : (postGame ? "Radar" : "Radar (fleets sail after the end game)")
         let w = Float(([head] + rows).map { Font.width($0) }.max() ?? 40) * s + 8 * s
         let x = floor(L.W / 2 - w / 2), y = L.hotbarY0 - Float(rows.count + 1) * 10 * s - 30 * s
         var out = [HudLine(text: "", x: x, y: y - 3 * s, scale: s, bg: V4(0.02, 0.08, 0.04, 0.6), box: V2(w, Float(rows.count + 1) * 10 * s + 5 * s))]

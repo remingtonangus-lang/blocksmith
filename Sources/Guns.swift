@@ -124,7 +124,8 @@ enum Guns {
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism", "targeting_optic"], "gun_sniper"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "tnt", "firing_mechanism", "targeting_optic"], "gun_launcher"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "redstone", "redstone", "gold_ingot", "firing_mechanism", "targeting_optic"], "gun_arc"),
-         Recipes.shapeless(["radar_module", "compass", "steel_ingot", "steel_ingot", "redstone"], "radar_set")]
+         Recipes.shapeless(["radar_module", "compass", "steel_ingot", "steel_ingot", "redstone"], "radar_set"),
+         Recipes.shapeless(["radar_module", "copper_ingot", "copper_ingot", "redstone", "redstone"], Navy.pulseKey, 2)]
     }
 
     // Enchantment-adjusted numbers (Extended Magazine, Quick Reload, Stability); NPC guns carry no enchantments.

@@ -449,6 +449,9 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var shield: Float = 0, shieldMax: Float = 0   // an Aegis Marine's energy shield (Navy.swift)
+    var shieldIdle: Float = 0, shieldLock: Float = 0
+    var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
     var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
     var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
     var leash: V3?                  // a Greywall base's soldier: (centre x, centre z, half-size) it never leaves (GreywallAlarm.swift)
@@ -1361,6 +1364,8 @@ final class Mob {
         if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
+        // An Aegis Marine's energy shield soaks the hit first (Navy.swift).
+        if shieldMax > 0 && damage > 0 { damage = shieldHit(damage); if damage <= 0 { return } }
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
         if kind.brandOrder && damage > 0 && orderGuard(from: src, damage: &damage, knockback: &knockback) { return }
         if iframes && damage > 0 {

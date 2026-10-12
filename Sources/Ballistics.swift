@@ -25,6 +25,7 @@ struct Slug {
     var pierce: Int8 = 0          // Penetration: further mobs this round may pass on to (each at 70% damage)
     var incendiary = false        // Incendiary: hit mobs burn 4 s
     var pierced: [ObjectIdentifier] = []   // mobs this round already went through
+    var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
 }
 
 struct Beam {
@@ -236,7 +237,7 @@ final class Armory {
         // A Cinder Tank's plate turns rifle and pistol rounds (bring a launcher: docs/status/deep-balance.md).
         if m.kind == .ashTank && s.kind == .bullet { dmg *= 0.2 }
         // A soldier's segmented plate (TroopClasses.swift): the helmet, vest or greaves the round strikes.
-        if m.troop != 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: at.y), g) }
+        if m.troop != 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: at.y), g) }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
@@ -276,6 +277,7 @@ final class Armory {
     }
 
     func detonate(_ s: Slug, at: V3, _ g: Game) {
+        if s.pulse { g.pulseBurst(at: at); return }
         if s.fromPlayer {
             for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true; m.playerHurtAt = g.clock }
         }
@@ -301,6 +303,7 @@ final class Armory {
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
         if let m = mob {
             let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
+            if m.shield > 0 { m.shield = max(0.01, m.shield - damage * 2) }   // arc beams tear shields at triple (Navy.swift)
             m.hit(from: o, damage: Int(damage * (boss ? 0.35 : 1)), knockback: 0.4)
             if !m.spec.fireImmune { m.fire = max(m.fire, incendiary ? 4 : 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
