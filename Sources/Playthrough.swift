@@ -860,18 +860,19 @@ final class Playthrough {
         section("stronghold")
         // G20: on new ground the portal room holds a reliquary, not the Hollow's gate (the dais chunk generated alone).
         if let wg = world.gen as? WorldGen {
-            // The dais (stronghold anchor + 7 in z, chests 2 either side and a row behind) can straddle chunk edges: every
+            // The dais (about the stronghold anchor + 7 to + 9 in z, chests 2 either side and a row behind) can straddle chunk edges: every
             // chunk it touches is generated.
             let px = sh.anchor.x, pz = sh.anchor.z + 7
             let saved = G20Guard.overworld
             G20Guard.overworld = []
             let frame = Blocks.id("end_portal_frame"), chest = Blocks.id("chest")
             var frames = 0, chests = 0
-            for cz in floorDiv(pz - 4, CS)...floorDiv(pz + 2, CS) { for cx in floorDiv(px - 3, CS)...floorDiv(px + 3, CS) {
-                let b = wg.generate(cx: cx, cz: cz)
+            for cz in floorDiv(pz - 4, CS)...floorDiv(pz + 5, CS) { for cx in floorDiv(px - 3, CS)...floorDiv(px + 3, CS) {
+                var b = wg.generate(cx: cx, cz: cz)
+                _ = wg.structures?.place(into: &b, cx: cx, cz: cz)          // structures go on after the terrain, as World does
                 for i in b.indices {
                     let x = cx * CS + i % CS, z = cz * CS + (i / CS) % CS
-                    guard abs(x - px) <= 3, z >= pz - 4, z <= pz + 2 else { continue }
+                    guard abs(x - px) <= 3, z >= pz - 4, z <= pz + 5 else { continue }
                     if b[i] == frame || b[i] == frame + 1 { frames += 1 }
                     if Blocks.groupBase[Int(b[i])] == Blocks.groupBase[Int(chest)] { chests += 1 }
                 }
