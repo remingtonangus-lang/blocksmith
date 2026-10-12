@@ -304,7 +304,9 @@ final class QuestControls {
                 app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
             default: break
             }
-            magGrip = ev != .none || game.arms.magInHand || (lGrip && VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos)))
+            // Only a grip that took or slotted a magazine (P74, Oct 12 playtest: a hand resting at the side is "at the
+            // hip", so with a gun out and a full magazine every left grip was refused and the hotbar never stepped).
+            magGrip = ev == .grabbed || ev == .inserted || game.arms.magInHand
         } else if game.heldGun == nil { game.arms.magInHand = false }
         if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }

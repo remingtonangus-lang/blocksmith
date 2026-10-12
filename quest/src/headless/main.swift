@@ -169,6 +169,11 @@ if CommandLine.arguments.contains("--p11-only") {
     PlaytestOct11Tests.run(game, check)
     print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --p12-only: the Oct 12 AM Quest playtest fixes (Sources/PlaytestOct12Tests.swift, backlog P68-P97).
+if CommandLine.arguments.contains("--p12-only") {
+    PlaytestOct12Tests.run(game, check)
+    print(failures == 0 ? "p12: all checks passed" : "p12: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --greywall-only: the Greywall Command bases (Sources/GreywallTests.swift, backlog A1).
 if CommandLine.arguments.contains("--navy-only") {
     NavyTests.run(game: game, check: check)
@@ -1021,6 +1026,8 @@ check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\
 
 // The Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift).
 PlaytestOct11Tests.run(game, check)
+// The Oct 12 AM Quest playtest fixes (Sources/PlaytestOct12Tests.swift).
+leaves("p12") { PlaytestOct12Tests.run(game, check) }
 
 // Towns of people and shops (Sources/TownTests.swift).
 TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)

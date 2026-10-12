@@ -1048,6 +1048,13 @@ final class Game {
         // took the press first, so nobody could get on with a gun out).
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
            hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
+        // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
+        // gun's aim took the use press first, so nothing could be opened with a gun out.
+        if useNow && heldGun != nil && !(input.shift || p.b), let t = target,
+           simd_length(V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 - player.eye) < 4.5 {
+            if isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; mining = nil; return }
+            if isInteractive(t.hit) { openBlock(t.hit); mining = nil; return }
+        }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
