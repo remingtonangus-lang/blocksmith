@@ -131,10 +131,12 @@ final class BaseWatch {
     }
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
+    let radio = RadioState()                          // C6 radio spoofing (RadioSpoof.swift)
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
     func inAnyBase(_ p: V3) -> Bool { records.values.contains { $0.inside(p) } }
     static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
     let boreal = BorealAlarmState()                   // Boreal Station alarms (BorealAlarm.swift)
+    let greywall = GreywallAlarmState()               // Greywall Command alarms (GreywallAlarm.swift)
 
     // One watch per Game (the harness and the app each make one game).
     // Held by a weak reference, not an ObjectIdentifier: a new game allocated where a freed one lived got the old
@@ -185,6 +187,10 @@ extension Game {
     func basesTick(_ dt: Float) {
         let b = bases
         baseRouteTick(b)
+        greywallTurretsTick(dt)
+        radioTick(dt)                                  // C6 (RadioSpoof.swift)
+        grappleTick(dt)                                // C7 (SkyIsle.swift)
+        submarinesTick(dt)                             // C8 (Submarines.swift)
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer
@@ -197,6 +203,7 @@ extension Game {
         }
         guard world.dim == .overworld, let sc = world.gen.structures else { return }
         borealAlarmTick(b, step)
+        greywallAlarmTick(b, step)
         stationOpsTick(b, step)
         // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.
         for i in 0..<max(1, coop.seatCount) {

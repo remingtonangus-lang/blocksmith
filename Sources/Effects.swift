@@ -429,6 +429,10 @@ extension Game {
         if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
         if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
         if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
+        if !greywallAlarm.taken.isEmpty { d["greywallTaken"] = greywallAlarm.taken.sorted().joined(separator: ";") }
+        let rs = radio.saved
+        if !rs.0.isEmpty { d["radioSus"] = rs.0 }
+        if !rs.1.isEmpty { d["radioBurned"] = rs.1 }
         if !stationOps.isEmpty, let e = try? JSONEncoder().encode(Array(stationOps.values)), let str = String(data: e, encoding: .utf8) { d["stationOps"] = str }
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
@@ -487,6 +491,8 @@ extension Game {
             let v = l.split(separator: ",").compactMap { Float($0) }
             if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }
         }
+        greywallAlarm.taken = Set((d["greywallTaken"] ?? "").split(separator: ";").map(String.init))
+        radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")
         if let str = d["stationOps"], let data = str.data(using: .utf8), let ops = try? JSONDecoder().decode([StationOp].self, from: data) {
             for o in ops { stationOps[o.key] = o }
         }

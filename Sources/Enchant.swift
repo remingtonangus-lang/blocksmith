@@ -401,7 +401,8 @@ enum Enchant {
     static func repairMaterial(_ item: ItemID) -> String? {
         let k = Items.key(item)
         for (pre, mat) in [("wooden_", "oak_planks"), ("stone_", "cobblestone"), ("iron_", "iron_ingot"), ("golden_", "gold_ingot"),
-                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot"), ("copper_", "copper_ingot"), ("steel_", "steel_ingot")] where k.hasPrefix(pre) {
+                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot"), ("copper_", "copper_ingot"), ("steel_", "steel_ingot"),
+                           ("regular_", "steel_ingot"), ("specops_", "steel_ingot"), ("hannibal_", "steel_ingot")] where k.hasPrefix(pre) {
             return mat
         }
         if k == "turtle_helmet" { return "turtle_scute" }

@@ -15,8 +15,8 @@ import simd
 // and their fate rests on critical systems: the bridge helm and the drive engines.
 
 enum Faction: Int {
-    case none = 0, steelhold, stormwarden, ironback, ashguard, meridian
-    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy"][rawValue] }
+    case none = 0, steelhold, stormwarden, ironback, ashguard, meridian, greywall
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion", "The Ashguard", "Meridian Navy", "Greywall Command"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -93,6 +93,8 @@ final class CapitalState {
     var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
     var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
     var troopCD: Float = 12            // seconds until the next troop drop
+    var parties = 0, partyCD: Float = 8   // Meridian boarding parties down the winch line (Navy.swift)
+    var partyMobs: [Mob] = []
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
     var dropships: [Ship] = []         // frigate: dropships it has launched (at most two out at once)
@@ -921,7 +923,7 @@ extension ShipManager {
             }
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
-            if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g) }
+            if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); boardingParty(s, st, dt, g) }
             deployTroops(s, st, dt, g)
         }
     }

@@ -71,6 +71,19 @@ extension BlockRegistry {
         balloon.tex = ["ship_balloon"]; balloon.hardness = 0.8; balloon.tool = .shears; balloon.sound = .plant; balloon.flammable = true
         add(balloon)
 
+        // Ballast tank (C8): floods to dive and blows to surface; a hull with tanks under water is a submarine.
+        var ballast = BlockDef("ship_ballast", "Ballast Tank")
+        ballast.tex = ["ship_ballast_side", "ship_ballast_side", "ship_ballast_top", "ship_ballast_top", "ship_ballast_side", "ship_ballast_side"]
+        ballast.hardness = 3; ballast.tool = .pickaxe; ballast.requiresTool = true; ballast.sound = .stone
+        add(ballast)
+
+        // Sea mine (C8): a horned iron ball; a player or a moving vessel close by sets it off.
+        var mine = BlockDef("sea_mine", "Sea Mine")
+        mine.tex = ["sea_mine"]; mine.render = .model; mine.opaque = false; mine.hardness = 2; mine.tool = .pickaxe; mine.sound = .stone
+        mine.boxes = [Box(3, 3, 3, 13, 13, 13), Box(7, 13, 7, 9, 16, 9), Box(0, 7, 7, 3, 9, 9), Box(13, 7, 7, 16, 9, 9),
+                      Box(7, 7, 0, 9, 9, 3), Box(7, 7, 13, 9, 9, 16), Box(7, 0, 7, 9, 3, 9)]
+        add(mine)
+
         var wing = BlockDef("ship_wing", "Airfoil")
         wing.tex = ["ship_wing"]; wing.render = .model; wing.opaque = false; wing.hardness = 1.5; wing.tool = .axe; wing.sound = .wood
         wing.boxes = [Box(0, 6, 0, 16, 10, 16)]; wing.skyStop = true
@@ -193,6 +206,22 @@ extension TextureGen {
             let seam = x % 8 == 0 || y % 8 == 0
             return hex(0xEDE3C8, seam ? 0.78 : 0.92 + 0.08 * r(x, y, 2609))
         }
+        p["ship_ballast_side"] = { x, y in
+            if x == 0 || x == 15 || y == 0 || y == 15 { return hex(0x2E3338) }
+            if y == 5 || y == 10 { return hex(0x4A5056) }                // bands
+            if (x == 3 || x == 12) && y % 3 == 1 { return hex(0x8A9096) }  // rivets
+            return hex(0x5E676E, 0.9 + 0.1 * r(x, y, 2620))
+        }
+        p["ship_ballast_top"] = { x, y in
+            let dx = x - 8, dy = y - 8
+            if dx * dx + dy * dy < 10 { return hex(0xA8823A, dx * dx + dy * dy < 4 ? 0.7 : 1) }   // the valve wheel
+            return hex(0x535B62, 0.9 + 0.1 * r(x, y, 2621))
+        }
+        p["sea_mine"] = { x, y in
+            let rust = r(x, y, 2622)
+            if (x + y) % 9 == 0 { return hex(0x6A3E22, 0.8 + 0.3 * rust) }
+            return hex(0x3A3F44, 0.8 + 0.25 * rust)
+        }
         p["ship_wing"] = { x, y in
             if y % 8 == 0 { return hex(0x6E5434) }                   // ribs
             return hex(0xD8CDB0, 0.9 + 0.1 * r(x, y, 2610))
@@ -232,6 +261,11 @@ extension Recipes {
         r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
         r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))
         r.append(shaped(["BBB", "ECE", "BBB"], ["B": "iron_block", "E": "ship_engine", "C": "crafting_table"], VehicleWorks.key))   // P54
+        r.append(shaped(["BBB", "BHB", "PEP"], ["B": "ship_balloon", "H": "ship_helm", "P": "ship_propeller", "E": "ship_engine"], SkySkiff.key))   // A4
+        r.append(shaped(["  I", " S ", "S  "], ["I": "iron_ingot", "S": "string"], GrappleLine.key))      // C7
+        r.append(shaped(["IGI", "I I", "IBI"], ["I": "iron_ingot", "G": "glass", "B": "bucket"], "ship_ballast", 2))       // C8
+        r.append(shaped([" I ", "ITI", " I "], ["I": "iron_ingot", "T": "tnt"], Submarine.mineKey))       // C8
+        r.append(shaped(["IGI", "HEP", "BBB"], ["I": "iron_ingot", "G": "glass", "H": "ship_helm", "E": "ship_engine", "P": "ship_propeller", "B": "ship_ballast"], Submarine.kitKey))   // C8
         return r
     }
 }

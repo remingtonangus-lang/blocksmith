@@ -565,7 +565,7 @@ enum StructCheck {
                 if gap >= 2 { floating.append(IVec3(x, y0, z)) }
             }
         } }
-        if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island floats by design
+        if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre", "sky_isle"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island and the sky isles (C7) float by design
             // The first column top-down beside the bare terrain there (block now / generated without structures),
             // to tell a foundation that stopped early from terrain carved away under it.
             let fc = floating[0]

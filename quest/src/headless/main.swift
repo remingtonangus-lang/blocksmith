@@ -160,6 +160,44 @@ if CommandLine.arguments.contains("--p11-only") {
     PlaytestOct11Tests.run(game, check)
     print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --greywall-only: the Greywall Command bases (Sources/GreywallTests.swift, backlog A1).
+if CommandLine.arguments.contains("--navy-only") {
+    NavyTests.run(game: game, check: check)
+    print(failures == 0 ? "navy: all checks passed" : "navy: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
+if CommandLine.arguments.contains("--radio-only") {
+    RadioTests.run(game: game, check: check)
+    print(failures == 0 ? "radio: all checks passed" : "radio: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --mapfog-only: map fog of war and the compass strip (Sources/MapFogTests.swift, backlog A5).
+if CommandLine.arguments.contains("--mapfog-only") {
+    MapFogTests.run(game: game, check: check)
+    print(failures == 0 ? "mapfog: all checks passed" : "mapfog: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --skyisle-only: sky isles and the Grapple Line (Sources/SkyIsleTests.swift, backlog C7).
+if CommandLine.arguments.contains("--skyisle-only") {
+    SkyIsleTests.run(device: device, game: game, check: check)
+    print(failures == 0 ? "skyisle: all checks passed" : "skyisle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --submarine-only: submarines, mines and sonar (Sources/SubmarineTests.swift, backlog C8).
+if CommandLine.arguments.contains("--submarine-only") {
+    SubmarineTests.run(game: game, check: check)
+    print(failures == 0 ? "submarine: all checks passed" : "submarine: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --skiff-only: the Sky Skiff, the ready-made flyer (Sources/SkySkiffTests.swift, backlog A4).
+if CommandLine.arguments.contains("--skiff-only") {
+    SkySkiffTests.run(game: game, check: check)
+    print(failures == 0 ? "skiff: all checks passed" : "skiff: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--troopclasses-only") {
+    TroopTests.run(game: game, check: check)
+    print(failures == 0 ? "troopclasses: all checks passed" : "troopclasses: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--greywall-only") {
+    GreywallTests.run(device: device, game: game, check: check)
+    print(failures == 0 ? "greywall: all checks passed" : "greywall: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
     check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
@@ -737,6 +775,28 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+
+// Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
+// Each Lane A group must leave the player and world as it found them: a skiff check that left the player flying moved
+// every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
+func leaves(_ name: String, _ body: () -> Void) {
+    let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
+    let menu0 = game.menu
+    // Put it all back after the check, so one group's leftover fails that group, not every group after it.
+    defer { game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0 }
+    body()
+    let moved = simd_length(game.player.pos - pos)
+    check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu,
+          "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"))")
+}
+leaves("greywall") { if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) } }
+leaves("troopclasses") { TroopTests.run(game: game, check: check) }
+leaves("navy") { NavyTests.run(game: game, check: check) }
+leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
+leaves("mapfog") { MapFogTests.run(game: game, check: check) }
+leaves("radio") { RadioTests.run(game: game, check: check) }
+leaves("skyisle") { SkyIsleTests.run(device: device, game: game, check: check) }
+leaves("submarine") { SubmarineTests.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

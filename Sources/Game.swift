@@ -286,6 +286,7 @@ final class Game {
     var vrBow: (draw: Float, origin: V3, dir: V3)?
     // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
     var vrAim: (origin: V3, dir: V3)?
+    var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
@@ -1021,6 +1022,7 @@ final class Game {
         if useNow, let r = riding, stickBoost(r) { return }
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b), let t = target, greywallMapTableUse(t.hit) { swing = 1; return }
         // Riding a horse and aiming at it: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift).
         // Aimed anywhere else, use does what it always does (eat, place, flip a lever, brush a block).
         // Taming (an untamed horse under you): use with an empty hand pats it wherever you aim (aiming the laser down at
@@ -1134,6 +1136,7 @@ final class Game {
                 let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
                 let hp0 = m.health
                 Mob.playerMelee = true
+                Mob.meleeGame = self
                 Mob.playerMeleePower = charge * (swung ? swingPow : 1)
                 // A blade's hits skip the hurt invulnerability: QuestControls lets each mob take one hit per VRMelee.rehit.
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: !swung)
@@ -1371,7 +1374,7 @@ final class Game {
         guard let t = target else { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
-        if useNow && !(input.shift || p.b) && consoleUse(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b) && (radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return

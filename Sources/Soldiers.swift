@@ -239,6 +239,11 @@ extension Mob {
 
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
+        navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
+        let sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        return leash == nil ? sp : applyLeash(sp)
+    }
+    private func soldierAIStep(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         guard let r = Soldier.rank(kind) else { return 0 }
         let rank = Soldier.ranks[r]
         let b = soldierBrain
@@ -284,7 +289,7 @@ extension Mob {
             if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
                 aggro = true
                 b.react = rank.react
-                g.sfx(.soldier(Soldier.voice(r), .alert), 1.1, at: eye)
+                shout(g, .soldier(Soldier.voice(r), .alert), 1.1, at: eye)
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 if r == 4 { b.pointT = 1.4 }
                 alertGarrison(g, g.player.pos)
@@ -347,7 +352,7 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
@@ -394,14 +399,23 @@ extension Mob {
             }
             if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
-            // Rifle troopers swing round the target's side every few seconds.
-            if r == 1 && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
+            // Rifle troopers swing round the target's side every few seconds (Spec Ops flank wider and quietly, below).
+            let tc = troopClass
+            if r == 1 && tc != .specOps && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
                 b.flankTimer = Rand.float(in: 4...7)
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
-                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
+                if Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
             }
+            // Troop classes: Spec Ops swing wide round the target's flank, quietly; Hannibal troopers push in firing.
+            if tc == .specOps && r != 2 && b.flankTimer <= 0 && b.reload <= 0 {
+                b.flankTimer = Rand.float(in: 3...5)
+                let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+                let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+                b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+            }
+            if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
             let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
             // Marksmen move to a new spot after a shot now and then.
@@ -409,7 +423,7 @@ extension Mob {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
                 b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
-                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
+                if Rand.float(in: 0..<1) < 0.3 { shout(g, .soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
             }
         } else {
             b.aimTime = 0
@@ -421,7 +435,7 @@ extension Mob {
             if let ls = b.lastSeen, b.seenAgo < 14 {
                 // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
                 let d = simd_length(ls - pos)
-                if r == 1 && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
+                if (r == 1 || troop == 2) && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
                     throwGrenade(g, at: ls)
                     b.grenadeCD = Rand.float(in: 9...14)
                 }
@@ -442,7 +456,7 @@ extension Mob {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.4 { shout(g, .soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -497,15 +511,16 @@ extension Mob {
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
-        g.sfx(.gun(gs.sound), 1, at: muzzle)
-        if factionValue != .steelhold { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
+        let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
+        g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
+        if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
-        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : Rand.int(in: rank.burst) }
+        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)) }
         b.burst -= 1
         if b.burst <= 0 { b.spun = false }
         let rate: Float = enraged ? 0.6 : 1
@@ -536,7 +551,7 @@ extension Mob {
             b.shotTimer = 2.5
         }
         b.mag -= 1
-        g.sfx(.gun(gs.sound), 1, at: muzzle)
+        g.sfx(.gun(gs.sound), TroopClass.suppressed(self) ? 0.35 : 1, at: muzzle)
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)
     }
 
@@ -564,6 +579,11 @@ extension Mob {
         return nil
     }
 
+    // A soldier's callout; Spec Ops keep quiet (backlog A2: they flank and hunt without shouting).
+    func shout(_ g: Game, _ snd: Snd, _ v: Float, at p: V3) {
+        if troopClass != .specOps { g.sfx(snd, v, at: p) }
+    }
+
     private func throwGrenade(_ g: Game, at t: V3) {
         let from = eye + forward * 0.4
         var d = t - from
@@ -577,7 +597,7 @@ extension Mob {
                      shooter: ObjectIdentifier(self), by: spec.name, life: 2.6, gravity: grav)
         s.power = 2
         g.arms.spawn(s)
-        g.sfx(.soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
+        shout(g, .soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
         soldierBrain.throwT = 0.7
     }
 
@@ -670,7 +690,9 @@ extension Mob {
 extension Mob {
     // A live soldier posted at this deck gun (CapitalBases sends two per barbette, ~9 blocks behind it, as gunners).
     func deckGunCrewed(_ g: Game) -> Bool {
-        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && m.brain?.orderStation == .gunner {
+        // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
+        let grey = factionValue == .greywall
+        for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil && (m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall) {
             let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
             if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
         }
@@ -688,6 +710,7 @@ extension Game {
             sfx(.explode, 1.2, at: at)
             return
         }
+        m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
         let b = m.soldierBrain
         guard b.gun >= 0, b.gun < Guns.all.count else { return }
         let gs = Guns.all[b.gun]
@@ -800,8 +823,9 @@ func deckGunParts(_ m: Mob) -> [Part] {
 // (Soldier.rank: recruit, trooper, marksman, ironclad, officer, crew). The Ashguard renames its own (AshUnits.swift).
 extension Mob {
     static let crewNames: [Faction: [String]] = [
-        .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Meridian Heavy Marine", "Meridian Lieutenant", "Meridian Helmsman"],
+        .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Aegis Marine", "Meridian Lieutenant", "Meridian Helmsman"],
         .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
+        .greywall: ["Greywall Sentry", "Greywall Rifleman", "Greywall Marksman", "Greywall Heavy", "Greywall Officer", "Greywall Crewman"],
         .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],
     ]
 

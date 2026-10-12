@@ -449,6 +449,12 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var shield: Float = 0, shieldMax: Float = 0   // an Aegis Marine's energy shield (Navy.swift)
+    var shieldIdle: Float = 0, shieldLock: Float = 0
+    var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
+    var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
+    var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
+    var leash: V3?                  // a Greywall base's soldier: (centre x, centre z, half-size) it never leaves (GreywallAlarm.swift)
     var playerHurtAt: Double = -1e9 // game clock the player last hurt it (Honour: a murder needs a hit within 10 s)
 
     init(_ kind: MobKind, at p: V3) {
@@ -1358,6 +1364,8 @@ final class Mob {
         if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
+        // An Aegis Marine's energy shield soaks the hit first (Navy.swift).
+        if shieldMax > 0 && damage > 0 { damage = shieldHit(damage); if damage <= 0 { return } }
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
         if kind.brandOrder && damage > 0 && orderGuard(from: src, damage: &damage, knockback: &knockback) { return }
         if iframes && damage > 0 {
@@ -1373,6 +1381,11 @@ final class Mob {
             }
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        // A melee blow on a soldier lands on the vest (TroopClasses.swift; rounds pick their segment in Ballistics).
+        if Mob.playerMelee && damage > 0 && troop != 0 && Soldier.rank(kind) != nil {
+            let d = troopArmourHit(Float(damage), seg: 1, Mob.meleeGame)
+            damage = max(1, Int(d) + (Rand.float(in: 0..<1) < d - floorf(d) ? 1 : 0))
+        }
         damage = Difficulty.scaleHit(damage, self)                          // G19: Easy monsters are frailer, Hard tougher
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
         // the average holds, except that every hit does at least 1).
@@ -2261,7 +2274,7 @@ final class MobManager {
                 if let r = Soldier.rank(m.kind) {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
-                    game.sfx(.soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    m.shout(game, .soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 } else if MobVoice.profile(m.kind).family != .silent {
                     // Hissers and magma cubes only rustle / squelch faintly; everyone else calls at the usual level.
                     let quiet: Bool = m.kind == .creeper || m.kind == .magmaCube

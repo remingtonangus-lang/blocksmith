@@ -15,7 +15,9 @@ final class Shell {
     let owner: Int                   // firing ship (its turrets and parent are ignored)
     let power: Float
     var gravity: Float = 20
-    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 Tidebreaker slug (craters)
+    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile, 3 Tidebreaker slug (craters),
+                                     // 4 torpedo (a cannon fired under water), 5 depth charge (bursts at fuseY: Submarines.swift)
+    var fuseY: Float = -1000
     var life: Float = 10
     // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
     weak var seekShip: Ship?
@@ -71,6 +73,12 @@ extension ShipManager {
                 if t.gunScatter > 0 { dir = Guns.scatter(dir, t.gunScatter) }
                 let sh = Shell(pos: muzzle, vel: dir * t.gunSpeed + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower)
                 sh.gravity = t.gunGravity
+                // A cannon under water looses a torpedo: level, self-driven, no drop (C8, Submarines.swift).
+                if Blocks.fluidKind[Int(world.rawBlock(Int(floor(muzzle.x)), Int(floor(muzzle.y)), Int(floor(muzzle.z))))] == 1 {
+                    sh.kind = 4; sh.gravity = 0; sh.life = Submarine.torpedoLife
+                    sh.vel = horiz * Submarine.torpedoSpeed + t.velocity(at: muzzle)
+                    if let g = game { Submarine.lastShot = g.clock }
+                }
                 shells.append(sh)
                 fired += 1
                 if let g = game {
@@ -99,6 +107,10 @@ extension ShipManager {
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<4 { wr.cube(center: sh.pos - d * Float(k) * 0.9 - eye, half: 0.45 - Float(k) * 0.08, yaw: sh.age * 9, block: slug, light: 1) }
             case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
+            case 4:
+                let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
+                for k in 0..<3 { wr.cube(center: sh.pos - d * Float(k) * 0.3 - eye, half: 0.17, yaw: 0, block: dart, light: 1) }
+            case 5: wr.cube(center: sh.pos - eye, half: 0.3, yaw: sh.age * 3, block: b, light: 1)
             case 3:
                 // The Tidebreaker's slug: a long white-blue streak.
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
@@ -150,6 +162,14 @@ extension ShipManager {
                 }
             }
             sh.vel.y -= sh.gravity * dt
+            // Torpedoes run level under water and drop once out of it; depth charges sink slowly in it and burst at depth.
+            if sh.kind == 4 || sh.kind == 5 {
+                let wet = Blocks.fluidKind[Int(reader.get(Int(floor(start.x)), Int(floor(start.y)), Int(floor(start.z))))] == 1
+                if sh.kind == 4 && !wet { sh.vel.y -= 20 * dt }
+                if sh.kind == 5 { sh.vel.y = wet ? max(sh.vel.y - 8 * dt, -Submarine.chargeSink) : sh.vel.y - 20 * dt }
+                if wet, let g = game, Int(sh.age * 20) % 3 == 0 { g.particles.bubble(at: start) }
+                if sh.kind == 5 && start.y <= sh.fuseY { near = true }
+            }
             let end = start + sh.vel * dt
             let len = simd_length(end - start)
             let n = max(1, Int(ceil(len / 0.4)))

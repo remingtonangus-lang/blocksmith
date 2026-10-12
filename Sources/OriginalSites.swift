@@ -208,6 +208,16 @@ enum SunkenDreadnought {
         w.chest(mx - 2, y0 + 2, cz + 2, loot: "shipwreck_treasure", seed: rng.next(), facing: 0)
         w.chest(mx + 1, y0 + 2, cz + 2, loot: "steelhold_armory", seed: rng.next(), facing: 0)
         w.set(mx, y0 + 6, cz, lamp); w.set(cx + 18, y0 + 4, cz, lamp)
+        // A minefield moored round the hulk (C8, Submarines.swift): horned mines on chains off both sides.
+        if Blocks.has(Submarine.mineKey) {
+            let mine = Blocks.id(Submarine.mineKey)
+            for k in 0..<8 {
+                let x = cx - 28 + k * 8, z = cz + (k & 1 == 0 ? -8 : 8)
+                let y = min(SEA - 3, y0 + 9 + Int(rng.float() * 6))
+                w.set(x, y, z, mine)
+                w.pillarDown(x, y - 1, z, chain, minY: y0 - 12)
+            }
+        }
         // The drowned crew, through the decks and on the bridge.
         for k in 0..<6 {
             let x = cx + [-24, -12, -4, 9, 18, 25][k]

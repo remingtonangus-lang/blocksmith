@@ -185,6 +185,8 @@ final class MapCache {
         case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
         case "capital_city": return ("C", V4(0.92, 0.94, 0.97, 1), "Capital city")
         case "boreal_station": return ("N", V4(0.45, 0.72, 1, 1), "Boreal Station")
+        case "greywall_base": return ("G", V4(0.55, 0.62, 0.72, 1), "Greywall base")
+        case "sky_isle": return ("K", V4(0.6, 0.85, 1.0, 1), "Sky isle")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate", "vessel_capfrigate": return ("F", V4(0.55, 0.62, 0.4, 1), "Meridian frigate patrol")
         case "vessel_warfrigate", "vessel_battle": return ("S", V4(0.35, 0.5, 0.95, 1), "Stormwarden frigate patrol")
@@ -209,17 +211,19 @@ final class MapCache {
             saveMarks(g)
         }
         // Round every player (split screen: player 2 passing a citadel or village alone discovered nothing).
-        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos) }
+        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos); SkyIsle.discover(g, sc, at: g.coop.seatPlayer(i, g).pos) }
     }
 
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
         let px = Int(floor(at.x)), pz = Int(floor(at.z))
-        for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" || t.name == "boreal_station" {
+        for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" || t.name == "boreal_station" || t.name == Greywall.kind {
             for s in sc.startsNear(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
                 let dx = cx - px, dz = cz - pz
                 let r = t.name == "capital_city" ? 150 : 96
-                if dx * dx + dz * dz < r * r { discover(g, kind: t.name, x: cx, z: cz) }
+                if dx * dx + dz * dz < r * r {
+                    discover(g, kind: t.name, x: cx, z: cz, name: t.name == Greywall.kind ? Greywall.Tier.of(s).name : nil)
+                }
             }
         }
         // Vessel patrols (ShipVessels): their home point counts once you come within 200 blocks of it.
@@ -263,6 +267,7 @@ enum MapDraw {
 
     static func terrain(_ out: inout [HudLine], x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float) {
         let unknown: UInt32 = 0x1E2024
+        let fog = MapFog.shared
         let halfRows: Float = Float(rows) / 2, halfCols: Float = Float(cols) / 2, step: Float = Float(bpc)
         // A named function, not a trailing closure: the release type checker timed out on the closure body.
         func draw(_ lookup: (Int, Int) -> UInt32?) {
@@ -276,7 +281,8 @@ enum MapDraw {
                     var col: UInt32 = 0xFFFFFFFE
                     if c < cols {
                         let fx: Float = wx + (Float(c) - halfCols) * step
-                        col = lookup(Int(floor(fx)), bz) ?? unknown
+                        let bx = Int(floor(fx))
+                        col = fog.fogged(bx, bz) ? MapFog.dark : (lookup(bx, bz) ?? unknown)     // A5: unexplored ground stays dark
                     }
                     if col == runColor { continue }
                     if c > 0 && runColor != 0xFFFFFFFF {
@@ -357,7 +363,7 @@ enum Minimap {
     // The terrain rows only change when the player crosses a block or new cells arrive: rebuilt then, reused otherwise
     // (rebuilding read 1024 cells through the cache lock every frame: ~11% of the frame's CPU encode in the profile).
     // One entry per split-screen seat.
-    private struct TerrainKey: Equatable { var bx: Int, bz: Int, version: Int, x0: Float, y0: Float, px: Float }
+    private struct TerrainKey: Equatable { var bx: Int, bz: Int, version: Int, fog: Int, x0: Float, y0: Float, px: Float }
     private static var terrainKeys: [TerrainKey?] = [nil, nil]
     private static var terrainRows: [[HudLine]] = [[], []]
 
@@ -380,7 +386,7 @@ enum Minimap {
         let bpc = 4
         // Every sample is floor(wx) + a whole number of blocks, so the rows depend only on the block the player is in.
         let seat = min(1, g.coop.current)
-        let key = TerrainKey(bx: Int(floor(g.player.pos.x)), bz: Int(floor(g.player.pos.z)), version: MapCache.shared.version, x0: x0, y0: y0, px: px)
+        let key = TerrainKey(bx: Int(floor(g.player.pos.x)), bz: Int(floor(g.player.pos.z)), version: MapCache.shared.version, fog: MapFog.shared.version, x0: x0, y0: y0, px: px)
         if terrainKeys[seat] != key {
             terrainRows[seat].removeAll(keepingCapacity: true)
             MapDraw.terrain(&terrainRows[seat], x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
@@ -483,6 +489,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         let cols = 152, rows = 82
         MapDraw.terrain(&out, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
         Countries.mapBorders(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s)
+        WarFront.mapFronts(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc)
         MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: cx, wz: cz, bpc: bpc, s: s, labels: true)
         // Centre cross and what is under it.
         let mx = x0 + Float(cols) * px / 2, my = y0 + Float(rows) * px / 2

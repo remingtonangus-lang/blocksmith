@@ -7,6 +7,7 @@ import simd
 enum ShipTuning {
     static let g: Float = 12
     static let balloonLift: Float = 2.0         // tonnes held up by one lift balloon
+    static let ballastTrim: Float = 4.0         // tonnes one ballast tank can add or take off (flooded or blown)
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
     static let wheelAccel: Float = 7            // drive per wheel: its share of the weight times this (b/s^2)
@@ -463,6 +464,22 @@ extension ShipManager {
             let lvl = max(0, min(1, want / cap))
             s.liftLevel += max(-h * 1.5, min(h * 1.5, lvl - s.liftLevel))
             F.y += s.liftLevel * cap
+        }
+        // Ballast tanks (C8, Submarines.swift): under water they flood or blow to dive, hold a depth or surface.
+        if s.ballast > 0 && sub > 0.5 && s.balloons == 0 {
+            let cap = Float(s.ballast) * ShipTuning.ballastTrim * g
+            var vyTarget: Float
+            if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 2.5; s.depthY = s.pos.y }
+            else {
+                if s.depthY == nil { s.depthY = s.pos.y }
+                vyTarget = max(-1.5, min(1.5, (s.depthY! - s.pos.y) * 1.0))
+            }
+            let want: Float = s.mass * g - sub * g + s.mass * 2.5 * (vyTarget - s.vel.y)
+            let lvl = max(-1, min(1, want / cap))
+            s.ballastLevel += max(-h * 0.8, min(h * 0.8, lvl - s.ballastLevel))
+            F.y += s.ballastLevel * cap
+        } else if s.ballast > 0 {
+            s.depthY = nil
         }
 
         // Real flight model (FlightModel.swift): replaces the wing plates and the held attitude below.
