@@ -173,7 +173,8 @@ extension Game {
     // used, it puts the citadel's picture on the radar readout for 30 s: the nearest citadel and city, every Capital
     // patrol out in the field and how many soldiers still hold the walls. True when the block was a console.
     func consoleUse(_ p: IVec3) -> Bool {
-        guard Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))]) == "command_console" else { return false }
+        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        guard k == "command_console" || k == "greywall_terminal" else { return false }   // (P68 terminals too)
         consoleRadarUntil = clock + 30
         Game.radarCache.time = -1
         sfx(.click, 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))

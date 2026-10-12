@@ -128,6 +128,29 @@ extension Game {
         }
     }
 
+    // P100 (Remington, Oct 12: "third person when you take the controls, like GTA"): where the headset's chase view
+    // sits from the player while they drive something: behind it and above (a ship, frigate, Sky Skiff, crawler or drop
+    // craft at the helm: back by thirdPersonDistance; a boat 6 back), pulled in short of blocks between. Nil on foot.
+    var chaseOffset: V3? {
+        var fwd: V3, back: Float
+        if let s = world.ships.pilot {
+            fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
+        } else if let m = riding, m.kind == .boat {
+            fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
+        } else { return nil }
+        fwd.y = 0
+        fwd = simd_length(fwd) > 1e-3 ? simd_normalize(fwd) : V3(0, 0, -1)
+        let want = -fwd * back + V3(0, 2 + back * 0.35, 0)
+        let eye = player.eye, len = simd_length(want), dir = want / max(len, 1e-3)
+        var t: Float = 1
+        while t < len {
+            let q = eye + dir * t
+            if Blocks.opaque[Int(world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { return dir * max(0, t - 1) }
+            t += 0.5
+        }
+        return want
+    }
+
     // Third-person camera distance: farther back while steering, scaled to the ship.
     var thirdPersonDistance: Float {
         guard let s = world.ships.pilot else { return 4 }

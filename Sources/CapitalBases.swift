@@ -258,7 +258,7 @@ extension Game {
                     r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 0; r.crawlerT = 0
                     b.note("\(r.key) crawler out to \(Int(n.pos.x)),\(Int(n.pos.z))")
                 }
-                if r.patrol == nil {
+                if r.patrol == nil && !Reckoning.won {                 // (P98: at peace, no patrols come after the player)
                     r.patrol = PatrolRecord(target: [n.pos.x, n.pos.y, n.pos.z], phase: 0, t: 0, size: n.kind == .gunshot ? 4 : 6)
                     b.note("\(r.key) patrol out to \(Int(n.pos.x)),\(Int(n.pos.z)) (\(n.kind), \(Int(d)) blocks)")
                     if simd_length(player.pos - c) < 140 { onToast?("A Capital patrol sets out to investigate") }

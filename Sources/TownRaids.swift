@@ -18,7 +18,7 @@ enum TownRaids {
 
     // TownLaw.tick, once a second.
     static func tick(_ g: Game) {
-        guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, g.raid == nil, let town = TownLaw.inTown,
+        guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, g.raid == nil, !Reckoning.won, let town = TownLaw.inTown,   // (P98: peace)
               night(g.dayFraction), Honour.bounty(town) == 0, !Honour.isOutlaw else { return }
         let day = Int(g.time / DAY_LENGTH)
         if let d = TownLaw.state.raidDay?[town], day - d < cooldownDays { return }

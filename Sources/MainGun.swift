@@ -21,7 +21,10 @@ enum MainGun {
     static let aiReload: Float = 30
     static let slugSpeed: Float = 420
     static let craterRadius: Float = 13
-    static let craterCap = 9000             // blocks removed per shot at most (the remesh and fluid work it causes)
+    // P99 (Remington, Oct 12: "a crater at least 20 blocks deep"): the bowl reaches 26 down at its deepest (the
+    // ragged edge takes up to a fifth off, so never less than 20 under the impact); it was two thirds of the radius.
+    static let craterDepth = 26
+    static let craterCap = 12000            // blocks removed per shot at most (the remesh and fluid work it causes)
     static let shockRadius: Float = 48      // mobs inside are struck as the front passes
     static let shockFelt: Float = 200       // players feel the front (shake, haptics) out to here
     static let shockSpeed: Float = 64
@@ -30,6 +33,8 @@ enum MainGun {
     static let nearMiss: Float = 9          // a ground hit this close to a vessel's bounds still tears its side
     static let disableMiss: Float = 5       // ... and this close wrecks it
     static var disabled = 0                 // vessels the Tidebreaker knocked out (tests)
+    static var bombardMarks = 0             // frames the bombard warning was drawn (tests, P99)
+    static func bombardOffset(_ shots: Int) -> Float { max(3, 14 - 4 * Float(shots)) }   // P99: 14, 10, 6, then 3 off
     static let pendingCap = 16                          // off-world hits remembered (this session) to dig on arrival      // the front runs along the ground: a frigate's deck 40 up is spared
     // The last impact (tests, perf notes).
     private(set) static var impacts = 0
@@ -103,13 +108,26 @@ extension ShipManager {
             let warm = (byPlayer ? mainGunAimPoint(s, st, pitch: st.gunPitch) : st.target?.point) ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
             DispatchQueue.global(qos: .utility).async {
                 MainGunStrikes.prewarm(sc, at: warm)
-                _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)))   // (sorted once: the bowl's cells)
+                _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)), depth: MainGun.craterDepth)   // (sorted once: the bowl's cells)
             }
         }
         // Aimed at a player: a warning in words and in the hands, so the 2.6 s charge is a chance to get clear.
+        // P99 (Remington, Oct 12: "fires its main-gun slugs at the ground around him"): the crew shells the ground near
+        // the player rather than the player, the first shot a warning some 14 blocks off, each next one 4 nearer (3 at
+        // the closest, inside the bowl). The spot is marked on the ground for the whole charge (mainGunTick).
+        st.bombardAt = nil
+        if !byPlayer, let t = st.target, t.player {
+            let off = MainGun.bombardOffset(st.bombardShots)
+            let a = Rand.float(in: 0..<(2 * .pi))
+            let x = t.point.x + cosf(a) * off, z = t.point.z + sinf(a) * off
+            let bx = Int(floor(x)), bz = Int(floor(z))
+            let y: Float = world.isLoaded(bx, bz) ? Float(world.topY(bx, bz)) + 1 : t.point.y
+            st.bombardAt = V3(x, abs(y - t.point.y) < 24 ? y : t.point.y, z)
+            st.bombardShots += 1
+        }
         if !byPlayer, let t = st.target, t.player {
             g.coop.withSeat(t.seat, g) {
-                g.onToast?("The frigate is charging its main gun at you: get clear!")
+                g.onToast?("The frigate is charging its main gun at the ground near you: get clear!")
                 MainGun.feel(0.5, 0.25, sharpness: 0.3)
             }
             MainGun.warnings += 1
@@ -119,6 +137,7 @@ extension ShipManager {
     // Per frame for every Meridian frigate: the charge's light, sparks, shake and haptics; the shot when it is full.
     func mainGunTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         guard st.gunCharge >= 0 else { return }
+        if let b = st.bombardAt { bombardMark(b, charge: st.gunCharge / MainGun.chargeTime, dt: dt, game: g) }
         if s.wrecked || (!st.gunByPlayer && !st.driverAlive) { st.gunCharge = -1; return }
         if st.gunByPlayer && pilot === s { st.gunPitch = g.player.pitch }
         st.gunCharge += dt
@@ -174,11 +193,15 @@ extension ShipManager {
         var dir = md
         if st.gunByPlayer {
             dir = MainGun.helmDir(md, pitch: st.gunPitch)
+        } else if let b = st.bombardAt {
+            dir = simd_normalize(b - mw + V3(1e-5, 0, 0))                // the marked ground (P99)
+            if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
         } else if let t = st.target {
             let dist = simd_length(t.point - mw)
             dir = simd_normalize(t.point + t.vel * (dist / MainGun.slugSpeed) - mw + V3(1e-5, 0, 0))
             if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
         }
+        st.bombardAt = nil
         st.mainGunCD = st.gunByPlayer ? MainGun.playerReload : MainGun.aiReload
         fireMainGun(s, st, dir: dir, game: g)
     }
@@ -246,7 +269,7 @@ extension ShipManager {
         g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
         lap("noise")
         if craterGroundLoaded(p) {
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
         }
@@ -256,6 +279,19 @@ extension ShipManager {
         g.sfx(.mainGunRumble, 1, at: p)
         lap("sfx")
         for k in 1...3 { g.particles.explosion(at: p + V3(0, Float(k) * 4, 0), power: Float(8 - k)) }
+        // P99: debris: pieces of what was struck thrown high out of the bowl, falling back round it.
+        let bx = Int(floor(p.x)), by = Int(floor(p.y)), bz = Int(floor(p.z))
+        var struck = world.block(bx, by - 1, bz)
+        if struck == AIR || Blocks.isLiquid(struck) { struck = world.block(bx, by - 2, bz) }
+        if struck != AIR && !Blocks.isLiquid(struck) {
+            let layer = Int(Blocks.tex[Int(struck) * 6 + 2])
+            for _ in 0..<90 {
+                let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0.6...1.6), Rand.float(in: -1...1)))
+                g.particles.add(Particle(pos: p + V3(0, 1, 0) + d * 2, vel: d * Rand.float(in: 14...38), life: Rand.float(in: 2.5...4.5), maxLife: 4.5,
+                                         layer: layer, uv0: V2(Rand.float(in: 0..<0.5), Rand.float(in: 0..<0.5)), uvSize: 0.5,
+                                         size: Rand.float(in: 0.25...0.7), gravity: 18, color: V3(0.8, 0.78, 0.75), collide: true))
+            }
+        }
         mainGunFireball(at: p, game: g)
         g.addFlash(at: p + V3(0, 6, 0), color: V3(6, 6.5, 8), radius: 90, life: 1.1)
         lap("fx")
@@ -332,7 +368,7 @@ extension ShipManager {
             wave.r = MainGun.shockFelt                       // no front, no mobs struck, no shake, no smoke: just the bowl
             wave.age = 5
             wave.felt = ~0
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true, depth: MainGun.craterDepth)
             shockwaves.append(wave)
         }
     }
@@ -476,6 +512,28 @@ extension ShipManager {
         }
         g.particles.add(Particle(pos: c + V3(0, 1.5, 0), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
                                  uvSize: 1, size: size * 1.4, gravity: 0, color: col, collide: false, glow: true))
+    }
+
+    // P99: the struck ground marked while the crew's gun charges: a red ring the size of the bowl, pulsing faster as the
+    // charge fills, and a beam of light standing on its centre, so the player sees where to run from.
+    func bombardMark(_ c: V3, charge k: Float, dt: Float, game g: Game) {
+        let layer = Int(Tex.id("puff"))
+        let pulse = 0.6 + 0.4 * sinf(Float(g.clock.truncatingRemainder(dividingBy: 100)) * (6 + 18 * k))
+        let col = V3(1.0, 0.18, 0.1) * (0.6 + 0.8 * k) * pulse
+        let R = MainGun.craterRadius
+        for i in 0..<24 {
+            let a = Float(i) / 24 * 2 * .pi
+            let x = c.x + cosf(a) * R, z = c.z + sinf(a) * R
+            let bx = Int(floor(x)), bz = Int(floor(z))
+            let top: Float = world.isLoaded(bx, bz) ? Float(world.topY(bx, bz)) + 1.3 : c.y + 1
+            g.particles.add(Particle(pos: V3(x, abs(top - c.y) < 12 ? top : c.y + 1, z), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5,
+                                     layer: layer, uv0: V2(0, 0), uvSize: 1, size: 1.1, gravity: 0, color: col, collide: false, glow: true))
+        }
+        for j in 0..<8 {
+            g.particles.add(Particle(pos: c + V3(0, 1 + Float(j) * 3, 0), vel: .zero, life: dt * 1.5, maxLife: dt * 1.5, layer: layer, uv0: V2(0, 0),
+                                     uvSize: 1, size: 1.6 - Float(j) * 0.12, gravity: 0, color: col * 0.8, collide: false, glow: true))
+        }
+        MainGun.bombardMarks += 1
     }
 
     // The player at a commandeered Meridian frigate's helm: attack starts the Tidebreaker's charge when it is

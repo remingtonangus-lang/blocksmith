@@ -26,6 +26,8 @@ enum PlaytestOct12Tests {
         greywallKit(check)
         readOrders(game, check)
         navalGuns(game, check)
+        bombard(game, check)
+        chaseView(game, check)
     }
 
     // P88 (09:37): bounty hunters are a big deal: an outlaw draws four or more, two with six-irons, twice as tough; they
@@ -114,6 +116,50 @@ enum PlaytestOct12Tests {
         let crew = broken(false, a.fx - 8), player = broken(true, a.fx + 2)
         check(looks.count >= 3 && looks.values.allSatisfy { $0 <= 8 } && greyLook == .greywall && greyParts > 0 && player >= 20 && player > crew * 4,
               "P70 deck guns: looks over 12 Capital guns \(looks.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")), Greywall's own (\(greyLook)); one manned shell breaks \(player) blocks of Capital stone, the crew's \(crew)")
+    }
+
+    // P99: a frigate's Tidebreaker crater goes at least 20 blocks down under the impact (it was a bowl two thirds of its
+    // radius deep), its shots at a player walk in from a 14-block warning, and the struck ground is marked while it charges.
+    static func bombard(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        let pos0 = g.player.pos
+        let fx = Int(floor(pos0.x)) - 150, fz = Int(floor(pos0.z)) + 150      // (well clear of the other checks' ground)
+        _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 3)
+        let top = w.topY(fx, fz)
+        // A stone column under the impact, 30 deep, put back afterwards.
+        var saved: [(Int, BlockID)] = []
+        for y in (top - 30)...top { saved.append((y, w.block(fx, y, fz))); w.setBlock(fx, y, fz, STONE) }
+        defer { for (y, b) in saved { w.setBlock(fx, y, fz, b) } }
+        let removed = Explosion.crater(at: V3(Float(fx) + 0.5, Float(top + 1), Float(fz) + 0.5), radius: MainGun.craterRadius, cap: MainGun.craterCap,
+                                       game: g, depth: MainGun.craterDepth)
+        var deep = 0
+        for y in stride(from: top, through: top - 30, by: -1) { if w.block(fx, y, fz) == STONE { break }; deep += 1 }
+        let walk = (0..<5).map { MainGun.bombardOffset($0) }
+        let n0 = g.particles.list.count, m0 = MainGun.bombardMarks
+        w.ships.bombardMark(V3(Float(fx), Float(top + 1), Float(fz)), charge: 0.5, dt: 1.0 / 72, game: g)
+        let marked = g.particles.list.count - n0
+        g.drops.items.removeAll()
+        check(deep >= 20 && removed > 1000 && walk == [14, 10, 6, 3, 3] && marked >= 24 && MainGun.bombardMarks == m0 + 1,
+              "P99 bombardment: a Tidebreaker crater is \(deep) blocks deep under the impact (\(removed) blocks), shots walk in \(walk.map { Int($0) }), the struck ground is marked (\(marked) lights)")
+    }
+
+    // P100: the headset's chase view: none on foot; in a boat it sits behind the boat and above, pulled in short of a
+    // wall behind it.
+    static func chaseView(_ g: Game, _ check: (Bool, String) -> Void) {
+        let a = PlaytestOct12Tests.arena(g, dx: -60, dz: -60, r: 9)
+        let riding0 = g.riding, pos0 = g.player.pos, mobs0 = g.mobs.mobs
+        var wall: [IVec3] = []
+        defer { for q in wall { g.world.setBlock(q.x, q.y, q.z, AIR) }; g.riding = riding0; g.mobs.mobs = mobs0; g.player.pos = pos0; a.restore() }
+        g.riding = nil
+        g.player.pos = V3(Float(a.fx) + 0.5, Float(a.py + 1), Float(a.fz) + 0.5)
+        let foot = g.chaseOffset
+        let boat = Mob(.boat, at: g.player.pos); boat.yaw = 0            // facing -z
+        g.mobs.mobs.append(boat); g.riding = boat
+        let open = g.chaseOffset ?? .zero
+        for y in (a.py + 1)...(a.py + 5) { for x in (a.fx - 2)...(a.fx + 2) { g.world.setBlock(x, y, a.fz + 4, STONE); wall.append(IVec3(x, y, a.fz + 4)) } }
+        let walled = g.chaseOffset ?? .zero
+        check(foot == nil && open.z > 4 && open.y > 1 && simd_length(walled) < simd_length(open) - 1,
+              String(format: "P100 chase view: none on foot (%@); a boat's sits %.1f back and %.1f up, %.1f with a wall 4 behind", foot == nil ? "none" : "set", open.z, open.y, simd_length(walled)))
     }
 
     static func baseBanks(_ check: (Bool, String) -> Void) {
@@ -357,7 +403,7 @@ enum PlaytestOct12Tests {
             let cy = gen.groundY(ox, oz)
             guard cy >= SEA else { continue }
             let seed = UInt64(i) &* 0x9E3779B97F4A7C15
-            guard let wideT = Village.layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: .plains, frontier: true, townsGap: true, wide: true),
+            guard let wideT = Village.layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: .plains, frontier: true, townsGap: true, wide: true, streets: true),
                   let narrowT = Village.layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: .plains, frontier: true, townsGap: true, wide: false) else { continue }
             let m = Village.mats(.plains)
             got.append((width(wideT, ox, oz, m.path), width(narrowT, ox, oz, m.path)))

@@ -354,6 +354,14 @@ enum HudExtras {
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         var out = Tutorial.lines(g, L) + Goals.lines(g, L)
+        // P98: the Reckoning's counter (top right) while war bands hunt the player.
+        if Reckoning.stage == 2 && g.menu == nil && g.dim.dim == .overworld {
+            let s = L.s, n = Reckoning.groupsLeft
+            let t = "\(n) war band\(n == 1 ? "" : "s") hunting you" + (Reckoning.underground ? " (trail lost)" : "")
+            let w = Float(Font.width(t)) * s, x = L.W - L.insetX - w - 6 * s, y = L.insetY + 4 * s
+            out.append(HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(w + 8 * s, 14 * s)))
+            out.append(HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.6, 0.2, 1)))
+        }
         let bn = BugNotes.shared
         if bn.listening {
             // Bug Notes mic dot: grey = listening, red = recording a note (top-left, inside the safe area).

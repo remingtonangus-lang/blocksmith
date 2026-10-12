@@ -166,10 +166,11 @@ enum Greywall {
                 }
                 return y
             }
+            // P69's berth is decided once per region (every candidate inside its reach; verifier, PR #56).
+            let span = spacing - separation, apart = WorldRules.p69(gen, rx * spacing + span / 2, rz * spacing + span / 2, reach: span / 2 + 5)
             func crowded(_ cx: Int, _ cz: Int, _ t: Tier) -> Bool {
                 guard let sc = gen.structures else { return false }
                 let bx = cx * CS + 8, bz = cz * CS + 8
-                let apart = WorldRules.p69(gen, cx, cz, reach: 4)
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base",
                           "capital_city", "great_ruin", BorealStation.kind] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }

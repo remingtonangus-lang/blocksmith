@@ -260,10 +260,12 @@ enum BorealStation {
                 }
                 return y
             }
+            // P69's wider berth from Capital sites is decided once per region (every candidate inside its reach), so a
+            // fallback candidate next to saved ground can't pass under the old rules where the first one failed the new.
+            let apart = WorldRules.p69(gen, floorDiv(cx0, 28) * 28 + 10, floorDiv(cz0, 28) * 28 + 10, reach: 10 + 4)
             func crowded(_ cx: Int, _ cz: Int) -> Bool {
                 guard let sc = gen.structures else { return false }
                 let bx = cx * CS + 8, bz = cz * CS + 8
-                let apart = WorldRules.p69(gen, cx, cz, reach: 4)
                 for k in ["village", "temple", "pillager_outpost", "mansion", "ruined_portal", "trail_ruins", "military_base", "capital_city", "great_ruin"] {
                     guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
                     let m = BorealStation.yard + (apart && WorldRules.capitalKinds.contains(k) ? WorldRules.capitalApartP69 : 12)

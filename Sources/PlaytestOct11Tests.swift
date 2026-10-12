@@ -722,40 +722,79 @@ enum PlaytestOct11Tests {
         check(cupped >= 4, "P39 lava: \(cupped) cupped lava sources on cave floors (-50 to -8) in \(chunks) chunks")
     }
 
-    // P46: after the Ashguard falls, five waves close in on the player on the surface; a death sends the wave home and
-    // it comes again; the last one beaten pays out and stops Marauder patrols.
+    // P46 / P98: after the Ashguard falls, every faction's war bands set out at once from far off and hunt the player
+    // across the surface; underground they lose the trail; a death pushes them back; it ends only when every band is
+    // dead, and then the land is at peace (Marauder patrols, bounty hunters, town raids stop).
     static func reckoning(_ g: Game, _ check: (Bool, String) -> Void) {
         let mobs0 = g.mobs.mobs, victory0 = g.ashVictory, survival0 = g.survival, diff0 = g.difficulty, money0 = g.money
+        let pos0 = g.player.pos, fly0 = g.player.flying
         defer {
             g.mobs.mobs = mobs0; g.ashVictory = victory0; g.survival = survival0; g.difficulty = diff0; g.money = money0
-            g.alive = true; Reckoning.reset(); Reckoning.dropshipsOn = true
+            g.alive = true; Reckoning.reset(); g.player.pos = pos0; g.player.flying = fly0
         }
+        let w = g.world
+        _ = w.loadSync(center: pos0, radius: 5)
+        let px = Int(floor(pos0.x)), pz = Int(floor(pos0.z))
+        g.player.pos = V3(pos0.x, Float(w.topY(px, pz) + 1), pos0.z)
         g.mobs.mobs = []; g.ashVictory = true; g.survival = true; g.difficulty = 2; g.alive = true
-        Reckoning.stage = 0; Reckoning.inField = false; Reckoning.dropshipsOn = false
+        Reckoning.reset()
+        let p = V2(g.player.pos.x, g.player.pos.z)
+        func dists() -> [Float] { Reckoning.hunts.map { simd_length($0.pos - p) } }
         Reckoning.tick(g, 1)
         let warned = Reckoning.stage == 1 && Reckoning.timer == Reckoning.warning
         Reckoning.tick(g, Reckoning.warning + 1)
-        let first = Reckoning.members(g)
-        let close = first.allSatisfy { let d = simd_length($0.pos - g.player.pos); return d > 20 && d < 40 }
+        let sides = Set(Reckoning.hunts.map { $0.side })
+        let units = Reckoning.hunts.reduce(0) { $0 + $1.left }
+        let far = dists().allSatisfy { $0 >= Reckoning.start.lowerBound - 1 && $0 <= Reckoning.start.upperBound + 1 }
+        let begun = Reckoning.stage == 2 && sides.count == Reckoning.Side.allCases.count && units >= 80 && far
+        // They close in from every side at once, and come in out of sight, capped.
+        for _ in 0..<40 { Reckoning.tick(g, 10) }
+        let closing = dists().filter { $0 < Reckoning.near * 1.5 }.count
+        let inn = Reckoning.members(g)
+        let capped = !inn.isEmpty && inn.count <= Reckoning.liveCap
+        let hidden = inn.allSatisfy { simd_length(V2($0.pos.x, $0.pos.z) - p) > 30 } && inn.allSatisfy { $0.aggro }
+        // Underground (in the rock below the surface): the trail is lost, the units stand down.
+        g.player.pos.y = Float(w.topY(px, pz) - 12)
+        Reckoning.tick(g, 1)
+        let lostTrail = Reckoning.underground && Reckoning.hunts.allSatisfy { $0.trail != nil } && Reckoning.members(g).allSatisfy { !$0.aggro }
+        g.player.pos.y = Float(w.topY(px, pz) + 1)
+        Reckoning.tick(g, 1)
+        let back = !Reckoning.underground && Reckoning.hunts.allSatisfy { $0.trail == nil }
+        // They track the player: moved 400 blocks east, the bands not yet in turn after him.
+        let east = p + V2(400, 0)
+        let out = Reckoning.hunts.filter { $0.live.isEmpty }
+        let before = out.map { simd_length($0.pos - east) }
+        g.player.pos.x += 400
+        Reckoning.tick(g, 20)
+        let after = out.map { simd_length($0.pos - east) }
+        g.player.pos.x -= 400
+        let tracks = !out.isEmpty && zip(before, after).allSatisfy { $1 < $0 - 20 }
+        // A death sends the units back into their bands and pushes the bands out.
+        let left0 = Reckoning.hunts.reduce(0) { $0 + $1.left }
         g.alive = false
         Reckoning.tick(g, 1)
-        let home = Reckoning.members(g).isEmpty && !Reckoning.inField && Reckoning.wave == 0
         g.alive = true
-        var sizes: [Int] = []
-        for _ in 0..<Reckoning.waves.count {
-            Reckoning.tick(g, Reckoning.breather + 1)
-            sizes.append(Reckoning.members(g).count)
-            for m in Reckoning.members(g) { m.health = 0 }
-            Reckoning.tick(g, Reckoning.minWave + 1)
-        }
-        let won = Reckoning.won && g.money == money0 + Reckoning.reward
-        // A world saved mid-wave reloads with that wave still out (not sent again on top of its saved troops).
-        Reckoning.stage = 1; Reckoning.wave = 2; Reckoning.inField = true
+        let pushed = Reckoning.members(g).isEmpty && dists().allSatisfy { $0 >= Reckoning.deathPush - 1 }
+            && Reckoning.hunts.reduce(0) { $0 + $1.left } == left0
+        // Saved and loaded: the same bands with the same units.
         var d: [String: String] = [:]
         Reckoning.save(&d); Reckoning.load(d, game: g)
-        let rejoin = Reckoning.inField && Reckoning.age < 0 && Reckoning.wave == 2
-        check(warned && first.count >= 8 && close && home && sizes.count == 5 && sizes.allSatisfy { $0 >= 3 } && won && rejoin,
-              "P46 the Reckoning: a warning, then \(first.count) Marauders 20-40 blocks off (\(close)); a death sends them home (\(home)); waves of \(sizes); beaten: \(won); a reload mid-wave keeps it out (\(rejoin))")
+        let kept = Reckoning.stage == 2 && Reckoning.hunts.count == sides.count + 3 && Reckoning.hunts.reduce(0) { $0 + $1.left } == left0
+        // A P46 save mid-waves becomes the hunt; a won one stays won.
+        Reckoning.load(["reckoning": "1,2,0,1"], game: g)
+        let legacy = Reckoning.stage == 2 && Reckoning.hunts.count == 8
+        Reckoning.load(["reckoning": "2,4,0,0"], game: g)
+        let legacyWon = Reckoning.won
+        Reckoning.load(d, game: g)
+        // Every band dead: peace and the reward.
+        for h in Reckoning.hunts { h.waiting = []; for m in h.live { m.health = 0 } }
+        Reckoning.tick(g, 1)
+        let won = Reckoning.won && g.money == money0 + Reckoning.reward
+        check(warned && begun && closing >= 3 && capped && hidden && lostTrail && back && tracks && pushed && kept && legacy && legacyWon && won,
+              "P98 the Reckoning: a warning (\(warned)); \(Reckoning.Side.allCases.count) sides, \(units) units in bands 450-700 out (\(begun)); "
+              + "\(closing) bands closed in, \(inn.count) units in (cap \(Reckoning.liveCap), out of sight \(hidden)); underground loses the trail (\(lostTrail)), "
+              + "back up picks it up (\(back)); they track him (\(tracks)); a death pushes them out (\(pushed)); save keeps them (\(kept)); "
+              + "P46 saves (\(legacy), \(legacyWon)); all dead: peace and the reward (\(won))")
     }
 
     // P48: citadels on new ground get a row of shops below the gate; the garrison leaves a visitor there alone until a

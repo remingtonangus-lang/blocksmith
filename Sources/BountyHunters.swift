@@ -21,7 +21,7 @@ enum BountyHunters {
         Riders.tick(g)
         // Gunmen (hunters, posses) stay on you while they're out (townsfolk anger fades on its own).
         for m in g.mobs.mobs where m.posse == 3 && m.kind == .villager && simd_length(m.pos - g.player.pos) < SixIron.chase { m.town.anger = max(m.town.anger, 5) }
-        guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, wanted() else { return }
+        guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, !Reckoning.won, wanted() else { return }   // (P98: peace)
         let day = Int(g.time / DAY_LENGTH)
         guard (TownLaw.state.huntersDay ?? -99) < day, Rand.float(in: 0..<1) < chancePerSecond else { return }
         if send(g) > 0 { TownLaw.state.huntersDay = day }

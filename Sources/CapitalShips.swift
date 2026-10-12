@@ -57,6 +57,8 @@ final class CapitalState {
     var gunPitch: Float = 0            // the helm's view pitch, kept current while it charges
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
+    var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
+    var bombardShots = 0               // ... shots so far at that player (each lands nearer)
     var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)

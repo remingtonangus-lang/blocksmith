@@ -93,7 +93,10 @@ enum Village {
             let gap = frontier && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 7, guardSet: $0.legacyTownsGap) } ?? true)
             // P62 (Oct 11 evening playtest: buildings packed too tightly): roomier lots, on ground saved after P44 only.
             let wide = gap && WorldRules.p44 && !WorldRules.savedBeforeP44(gen, cx, cz, reach: 7)
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide)
+            // P71's wider streets only where no save had generated any of the town before them (a half-saved wide town
+            // keeps its old streets and lots: verifier, PR #56).
+            let streets = wide && WorldRules.p69(gen, cx, cz, reach: 7)
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets)
         }
     }
 
@@ -111,7 +114,7 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false) -> StructureStart? {
+                       wide: Bool = false, streets: Bool = false) -> StructureStart? {
         let gap = townsGap ?? frontier
         var rng = SRng(seed)
         let m = mats(style)
@@ -185,7 +188,7 @@ enum Village {
                 if abs(y - lastY) > 2 || y < SEA - 1 { if s < 5 { ok = false }; break }
                 lastY = y
                 for w in -1...1 { cols.append((x + (r.dz != 0 ? w : 0), z + (r.dx != 0 ? w : 0), y)) }
-                if wide {
+                if streets {
                     sh[IVec2Key(x, z)] = [-2, 2].compactMap { w -> (Int, Int, Int)? in
                         let sx = x + (r.dz != 0 ? w : 0), sz = z + (r.dx != 0 ? w : 0)
                         return abs(gen.groundY(sx, sz) - y) <= 1 ? (sx, sz, y) : nil
@@ -234,7 +237,7 @@ enum Village {
                     let nx = r.dz * side, nz = r.dx * side             // outward normal from road
                     let face: Int = nz == 1 ? 0 : (nz == -1 ? 1 : (nx == 1 ? 2 : 3))
                     let ux = face == 0 ? 1 : (face == 1 ? -1 : 0), uz = face == 2 ? -1 : (face == 3 ? 1 : 0)
-                    let off = wide ? 3 : 2                             // (P71: past the shoulder)
+                    let off = streets ? 3 : 2                          // (P71: past the shoulder)
                     let ax = px + nx * off - ux * (w / 2), az = pz + nz * off - uz * (w / 2)
                     let fx = ax + ux * (w - 1) + nx * (d - 1), fz = az + uz * (w - 1) + nz * (d - 1)
                     guard free(ax, az, fx, fz) else { continue }

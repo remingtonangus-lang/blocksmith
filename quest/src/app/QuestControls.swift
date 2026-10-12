@@ -516,6 +516,7 @@ final class QuestControls {
         carryYaw = ship?.yaw ?? 0
         carryRot = ship?.rot ?? simd_quatf()
         if let s = ship { carryLocal = s.toLocal(game.player.pos) }
+        rig.chaseTick(QuestSettings.chaseView && game.alive ? (game.chaseOffset ?? .zero) : .zero, dt: dt)      // P100
         rig.refresh(game: game)
         // Head inside a solid block (seated leaning, roomscale while flying, standing up under a low ceiling): the view
         // fades to black instead of showing the world from inside a wall (the usual VR answer: no x-ray, no disorienting
@@ -560,6 +561,7 @@ final class QuestControls {
                 if game.riding != nil { want = min(1, want + 0.2) }
             }
         }
+        want = max(want, min(0.8, rig.chaseSpeed * 0.08))      // the chase view easing out or back in (P100)
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))
