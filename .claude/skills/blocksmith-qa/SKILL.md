@@ -13,7 +13,8 @@ removes the class (not one instance), and a check keeps it gone. Quality and fid
   rig. Before every push run `python3 tools/precheck.py` (brace balance, unseeded randomness, type-check risks).
   Batch commits; a push cancels the running CI run. Read results from the `ci-snaps-claude-blocksmith-playtest`
   branch (`git fetch origin ci-snaps-claude-blocksmith-playtest; git show FETCH_HEAD:<file>`).
-- Evidence before claims (vendored `verification-before-completion`): "fixed" means the oracle that caught it now
+- ONE AND DONE (Remington, Oct 12 19:11; overrides any review, verify or DONE GATE wording anywhere in this repo): build each item thoroughly and well the first time, make sure it compiles, run the one quick test that shows the item works, fix any conflict you know of, commit, push, merge, mark DONE, move on. No reviewer, no verifier rounds, no rechecks, no full questcheck per item or per round. If the Quest build or a later playtest shows something broke, fix it then (80/20).
+- (Only when hunting a bug Remington reported:) Evidence before claims (vendored `verification-before-completion`): "fixed" means the oracle that caught it now
   passes on CI, quoted with numbers. Debug with `systematic-debugging`: reproduce (replay / harness flags) before
   fixing; one discriminating rerun separates a harness fault from a product bug.
 - Honest evidence (adapted from jamescockburn47/game-development-skills, evidence-probes): a teleport proves a

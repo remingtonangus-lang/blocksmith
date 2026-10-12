@@ -2,7 +2,8 @@
 
 How to use this file (cloud threads and the Mac worker):
 - Work top to bottom inside your lane. Claim an item by adding your thread name and the date next to it in a PR that only edits this file, or in your first PR for it. Skip items another thread has claimed.
-- Each item lists Remington's intent first, then the expanded objectives. Treat both as the spec. Write your own extra objectives too (OBJECTIVES FIRST), grade everything with the DONE GATE reviewer, and only then mark the item DONE here with the PR numbers.
+- Each item lists Remington's intent first, then the expanded objectives. Treat both as the spec. Write your own extra objectives too (OBJECTIVES FIRST), build to them, then mark the item DONE here with the PR numbers.
+- ONE AND DONE (Remington, Oct 12 19:11; overrides any review, verify or DONE GATE wording anywhere in this repo): build each item thoroughly and well the first time, make sure it compiles, run the one quick test that shows the item works, fix any conflict you know of, commit, push, merge, mark DONE, move on. No reviewer, no verifier rounds, no rechecks, no full questcheck per item or per round. If the Quest build or a later playtest shows something broke, fix it then (80/20).
 - Never stop while an unclaimed item remains in your lane. When your lane is empty, take the next unclaimed item from the other cloud lane that does not touch files another thread is editing.
 - IP: inspiration only. No coined names from Halo, GoldenEye, Red Dead, Minecraft or real military units in player-visible text (tools/namecheck.py --coined; add new banned words to tools/coined-terms.txt). The WW2 layer uses fictional names and a fictional emblem: no swastikas, SS runes, Iron Crosses or real unit insignia (store-safe; also required for sale in Germany).
 - Quest is the product: every feature must hold 72 fps on Quest 3 in its busiest scene, and be judged on QuestSim or the device.
