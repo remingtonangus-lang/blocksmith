@@ -77,6 +77,22 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         }
     }
+    // --scene waterstep: water spilling over a one-block step on a stone shelf in the air at --at, settled for 8 s
+    // of fluid ticks; seen from the side, 6 blocks off along +x (P18: "water moving down a block looks weird from the
+    // side"). --look still turns the view.
+    if arg("--scene") == "waterstep" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 5)...(bx + 5) { for z in (bz - 6)...(bz + 6) {
+            vw.setBlock(x, by, z, STONE)
+            if z <= bz { vw.setBlock(x, by + 1, z, STONE) }
+            for y in (by + (z <= bz ? 2 : 1))...(by + 6) { vw.setBlock(x, y, z, AIR) }
+        } }
+        for x in (bx - 1)...(bx + 1) { vw.setBlock(x, by + 2, bz - 2, WATER) }
+        vg.player.pos = V3(Float(bx + 7) + 0.5, Float(by + 2), Float(bz) + 0.5)
+        for _ in 0..<160 { vg.tick(0.05); vg.player.pos = V3(Float(bx + 7) + 0.5, Float(by + 2), Float(bz) + 0.5); vg.player.vel = .zero }
+        yaw += .pi / 2
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

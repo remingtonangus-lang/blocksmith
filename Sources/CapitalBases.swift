@@ -124,6 +124,11 @@ final class BaseWatch {
     var timer: Float = 0
     var intruded: [String: Float] = [:]              // seconds a player has been inside a citadel's walls (P33)
     var routes: [String: [IVec3]] = [:]              // a marching patrol's one long path, gate to noise (T4)
+    var routeSearch: [String: PathSearch] = [:]      // that path's search, run a slice an update until it ends
+    func dropRoute(_ k: String) {
+        routes[k] = nil
+        if let s = routeSearch.removeValue(forKey: k) { PathFinder.recycle(s) }
+    }
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
@@ -179,6 +184,7 @@ extension Game {
 
     func basesTick(_ dt: Float) {
         let b = bases
+        baseRouteTick(b)
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer

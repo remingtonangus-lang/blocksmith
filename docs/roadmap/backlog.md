@@ -96,12 +96,12 @@ Play by the rules until you have iron, ideally diamond. Then you can take a vill
 FROM THE OCT 11 AM PLAYTEST (Remington on the Quest, build 0.129; check each against current claude/quest-port first):
 G12. [capitals] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] Capitals are far too common (two within 500 blocks) and one sat at the player's spawn with a crawler; make capitals rare, never near spawn, and procedurally varied in size (a pool of capital buildings where only some spawn per city).
 G13. [frigate, with G1] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] The naval/main gun does far too little damage: against a crawler it should tear off a huge chunk or destroy it outright. Ships should not carry Capital soldiers: the frigates are their own navy faction (A3).
-G14. [towns] The jail is broken (find what is wrong in a town jail and fix it). Emerald-to-cash is undiscoverable: make the bank exchange obvious (signs, a tip, a notice board line) and make emeralds findable in survival (where they come from, documented in the recipe book or a tip).
-G15. [towns] Stealing a gun from a townsperson must be very hard before iron armour (the six-iron rule); verify the sheriff/deputies respond and the gun is guarded.
-G16. [mobs] The Powderwight is too hard to kill before it detonates, even with an iron sword; tune its health, fuse or telegraph so a prepared player can win.
-G17. [hell] Entering hell from above ends at a lava-pool cut-off; make the transition from the deep rock into hell gradual and readable. Hell mobs must be hell's own types everywhere (check B6 covers all spawns).
-G18. [looks] Plain grass looks barren: add more ground cover (tall grass tufts, short grass that rises slightly off the block, variety) within the Quest frame budget.
-G19. [new, Lane B] Difficulty levels: easy, medium, hard chosen when creating a world and locked afterwards; they change enemy speed, damage, health, hunger and spawn density. Document the table.
+G14. [done, Lane A, 639959b + G20 PR: two stone cells with iron doors, bunks and chains (check frontier: jail cell behind bars and an iron door); emerald tip, BANK signs and a town board line (check G14 emeralds)] [towns] The jail is broken (find what is wrong in a town jail and fix it). Emerald-to-cash is undiscoverable: make the bank exchange obvious (signs, a tip, a notice board line) and make emeralds findable in survival (where they come from, documented in the recipe book or a tip).
+G15. [done, Lane A, 639959b: check G15 sheriff] [towns] Stealing a gun from a townsperson must be very hard before iron armour (the six-iron rule); verify the sheriff/deputies respond and the gun is guarded.
+G16. [done, Lane A, 639959b + G20 PR: 16 health, 2.0 s fuse, 0.8 s setback a hit (check G16 Powderwight)] [mobs] The Powderwight is too hard to kill before it detonates, even with an iron sword; tune its health, fuse or telegraph so a prepared player can win.
+G17. [done, Lane A, 639959b: hell's rock rises through the deep layers, hell-only spawns (check deep G17)] [hell] Entering hell from above ends at a lava-pool cut-off; make the transition from the deep rock into hell gradual and readable. Hell mobs must be hell's own types everywhere (check B6 covers all spawns).
+G18. [done, Lane A, 639959b: grass in patches with tall tufts (check G18 grass patches, plants)] [looks] Plain grass looks barren: add more ground cover (tall grass tufts, short grass that rises slightly off the block, variety) within the Quest frame budget.
+G19. [done, Lane A, 639959b: docs/status/difficulty.md (check G19 difficulty)] [new, Lane B] Difficulty levels: easy, medium, hard chosen when creating a world and locked afterwards; they change enemy speed, damage, health, hunger and spawn density. Document the table.
 G20. [done, G20 PR: OriginalSites.swift; docs/status/ip-content-audit-oct11.md] [IP, from P19] Replace the remaining close copies of reference features with original designs (docs/status/ip-content-audit-oct11.md: the Hollow + Hollow Spire + Void Dragon, Cinder Fortress / Boarling Keep, Sea Temple, Forest Manor, Proving Halls). The murk depths, Buried Citadel and Deep Stalker summons are already out (P19).
 G21. [done, PR #50: VRScope.swift, a 4x zoomed eye view with a lens mask and the impact reticle; check vrScope] [guns, from P32] The Farsight rifle has no VR scope: raising it to the eye should show a magnified scope view (a render-to-texture lens on the scope, or a zoomed overlay on the eye nearest it), with the reticle matched to where the round lands.
 
@@ -244,7 +244,7 @@ C13. [B] Village size variety: village sizes span hamlet, village, town, large t
 C14. [A+B, last] Two-player co-op on Quest: a friend joins your world (host-authoritative), shares horses, vehicles and robberies. The biggest sales driver on Quest and the biggest job, so it goes last, after the single-player game is store-ready.
 
 ## FOR THE TOWNS LANE (from the Mac worker, task 25b4zxxxx, 2026-10-11)
-T1. Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~line 238 tests the centre distance
+T1. [done, Lane A, G20 PR: townsfolk swings at the player use Game.meleeGap (check T1 townsfolk melee)] Hostile townsfolk melee reaches the player's real body: Townsfolk.swift ~line 238 tests the centre distance
     (`dist < w.reach + 0.3`, feet height window 2.5) so an angry townsperson can't hit a player on a 2-block step and
     can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
     level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
@@ -288,12 +288,12 @@ Cloud-lane areas, worst first. Each line is a gap an independent reviewer found 
 G1. [frigate gun, FIRST] [DONE: Lane A thread, 2026-10-11, PR #48; docs/status/tidebreaker-gaps.md] The live helm shot never fires: `--questbugs --only maingun` fails 6 checks on fa79ef5e
     ("charges for 5.56 s", 0-block crater, 0 coil thumps, 0 shake). Tests that call mainGunTick directly pass; the
     g.tick path doesn't finish the charge. Also make FactionTests.swift:77 fire a real slug instead of Explosion.crater.
-G2. [the Deep] D2 vault pass never merged (garrison towns, rail, airfield + AA, mortar pits, foot patrols, saved
+G2. [DONE: merged as PR #47 (86427fd), 2026-10-11; rows D3b, D3c, D5, DE8-DE11 MET in docs/status/the-deep-expansion.md; checked by Lane A 2026-10-12] [the Deep] D2 vault pass never merged (garrison towns, rail, airfield + AA, mortar pits, foot patrols, saved
     vault-wide alarm, reinforcements, crew bail-out DE9, radio/story DE11). This is the "far under spec" part.
-G3. [the Deep] Quest perf in the vault: proxy ashvault route 12 hitches/min (max 45.6 ms); add a live-unit cap and
+G3. [DONE: PR #47: AshArmy.unitCap 64 near the player, extrasCap 24, far-AI LOD past 64 blocks, the `ash vault perf` biggest-battle number (DE14) and the draw side at render distance 10; the on-device proxy route is the Mac worker's; the debug-build perf line is load-sensitive, T3d] [the Deep] Quest perf in the vault: proxy ashvault route 12 hitches/min (max 45.6 ms); add a live-unit cap and
     soldier AI LOD, plus a questcheck "citadel at full alarm" number (DE14).
-G4. [the Deep] Playthrough.swift has no Deep stage (keep -> Sunderite -> charge -> seal -> citadel -> Marshal -> lift).
-G5. [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
+G4. [done, G20 PR: PlaythroughDeep.swift, `--playthrough --only deep` (questcheck or the Mac app): Ember Charge through the Wardstone, the hell band, the keep's Castellan, Sunderite to ingots in a blast furnace, pickaxe and charge, the seal, the vault, the Marshal, three waves, the Chancellor, the lift home] [the Deep] Playthrough.swift has no Deep stage (keep -> Sunderite -> charge -> seal -> citadel -> Marshal -> lift).
+G5. [part, G20 PR: battery shells already mark their landing (DE10); Ashguard sharpshooters now glint 1.1 s before the first shot at a target (check G5 sharpshooter glint); the sky blend and fog end are looks, left to the Mac worker] [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
     DE10); marksmen get a first-shot glint (an unarmoured arrival died 92 blocks out in 4 s); blend the vault sky over
     y 120-136 instead of the switch at 128; fog end 130 -> ~220 so the 138-tall vault reads as huge (check proxy p99).
 G6. [base / village] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] First citadel findability: radar and intercepted orders are base loot, so the first base means
@@ -303,7 +303,7 @@ G7. [towns] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-ga
 G8. [frigate] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
 G9. [horses] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
     neck/mane, add a Quest horse render to questcheck.
-G10. [towns] `--towntests` has 5 FAIL on fa79ef5e: wallet/honour HUD lines empty (HonourTests.swift:218,
+G10. [done, G20 PR: the five pass in questcheck --towns-only (same TownTests), and --towntests now gates snap.sh's checks shard] [towns] `--towntests` has 5 FAIL on fa79ef5e: wallet/honour HUD lines empty (HonourTests.swift:218,
     HonourGapTests.swift:263), "sheriff shoots an outlaw player", "3 bread for $0.90". Fix, then add --towntests to
     snap.sh's checks shard so they gate CI.
 G11. [frigate] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] No designed way to board the Meridian frigate 45 blocks up outside `/vessel frigate`: a boarding route

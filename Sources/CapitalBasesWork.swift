@@ -51,6 +51,17 @@ extension Game {
 
     // MARK: Patrol
 
+    // Every frame: a marching patrol's long path search runs on for up to 1 ms (one search at a time).
+    func baseRouteTick(_ b: BaseWatch) {
+        guard let e = b.routeSearch.first, world.dim == .overworld else { return }
+        let k = e.key, s = e.value
+        if PathFinder.run(s, world, deadline: CFAbsoluteTimeGetCurrent() + 0.001) {
+            b.routeSearch[k] = nil
+            b.routes[k] = s.result ?? []
+            PathFinder.recycle(s)
+        }
+    }
+
     func basePatrol(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
         guard var pt = r.patrol else { return }
         if r.cleared == true { r.patrol = nil; b.patrols[r.key] = nil; return }
@@ -62,12 +73,12 @@ extension Game {
             team = formPatrol(r, b, size: pt.size)
             if team!.isEmpty { r.patrol = nil; return }             // nobody left to send
             b.patrols[r.key] = team
-            b.routes[r.key] = nil
+            b.dropRoute(r.key)
             b.note("\(r.key) patrol formed: \(team!.map { $0.kind.key }.joined(separator: " "))")
         }
         var members = team!.filter { $0.health > 0 }
         if members.isEmpty {
-            b.routes[r.key] = nil
+            b.dropRoute(r.key)
             b.note("\(r.key) patrol lost")
             b.patrols[r.key] = nil
             r.patrol = nil
@@ -110,8 +121,10 @@ extension Game {
             // existed), taking the cell 12 along it from where it is; with no path, straight steps as before.
             let to = V3(target.x - leader.pos.x, 0, target.z - leader.pos.z)
             let dist = simd_length(to)
-            if b.routes[r.key] == nil {
-                b.routes[r.key] = PathFinder.find(world, from: leader.pos, to: target, profile: leader.pathProfile(self), maxNodes: 8000) ?? []
+            if b.routes[r.key] == nil && b.routeSearch[r.key] == nil {
+                // Searched a slice a frame (baseRouteTick): the whole 8,000-node search in one update was a 550 ms
+                // hitch (basetest "citadel update stays cheap"). Until it ends the leader takes the straight steps.
+                b.routeSearch[r.key] = PathFinder.begin(world, from: leader.pos, to: target, profile: leader.pathProfile(self), maxNodes: 8000)
             }
             let route = b.routes[r.key] ?? []
             var wp = dist < 18 ? target : leader.pos + to / dist * 18
@@ -132,10 +145,10 @@ extension Game {
             for (i, m) in members.enumerated() where i > 0 { m.soldierBrain.order = ground(leader.pos + slot(i)) }
             // No way on (a cliff, water, a wall; or the path ends short of the noise): after 12 s they search there.
             pt.blocked = leader.gaveUp(leader.soldierBrain.order ?? wp) || (routeEnd && dist >= 5) ? (pt.blocked ?? 0) + dt : 0
-            if dist < 5 { pt.phase = 2; pt.t = 0; b.routes[r.key] = nil; b.note("\(r.key) patrol reached the noise") }
+            if dist < 5 { pt.phase = 2; pt.t = 0; b.dropRoute(r.key); b.note("\(r.key) patrol reached the noise") }
             else if pt.t > 200 || (pt.blocked ?? 0) > 12 {
                 b.note("\(r.key) patrol stopped short (\(Int(dist)) blocks\((pt.blocked ?? 0) > 12 ? ", no way on" : ""))")
-                pt.phase = 2; pt.t = 0; pt.blocked = 0; b.routes[r.key] = nil
+                pt.phase = 2; pt.t = 0; pt.blocked = 0; b.dropRoute(r.key)
                 pt.target = [leader.pos.x, leader.pos.y, leader.pos.z]
             }
         case 2:

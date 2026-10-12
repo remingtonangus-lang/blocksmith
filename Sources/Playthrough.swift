@@ -362,6 +362,7 @@ final class Playthrough {
         if want("stronghold") { t.eyesAndStronghold() }
         if want("end") { t.theHollow() }
         if want("blight") { t.blight() }
+        if want("deep") { t.theDeep() }
         t.advancementsCheck(only.isEmpty)
         t.section("summary")
         t.info("deaths: \(t.deaths), damage healed by the test: \(t.damageTaken) half-hearts")

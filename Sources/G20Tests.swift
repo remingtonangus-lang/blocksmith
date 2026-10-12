@@ -74,4 +74,54 @@ extension G20Tests {
         check(firstAt >= 1.1 && firstAt < 1.4 && second && b.glinted,
               String(format: "G5 sharpshooter glint: the first shot after %.2f s of glint, the next with none (%@)", firstAt, second ? "fired" : "held"))
     }
+
+    // G16: a Powderwight that starts to swell is killed by an iron sword swung at its own pace before it
+    // goes off. G14: the first emerald carried says where it sells.
+    static func powderwightAndEmerald(_ g: Game, _ check: (Bool, String) -> Void) {
+        let m = Mob(.creeper, at: g.player.pos + V3(2, 0, 0))
+        let sword = Items.def(Items.id("iron_sword")), blow = sword.attack
+        var t: Float = 0, next: Float = 0, blows = 0
+        m.fuse = 0
+        while m.health > 0 && m.fuse < Mob.hisserFuse && t < 6 {
+            if t >= next { m.hit(from: g.player.pos, damage: Int(blow)); blows += 1; next += 1 / sword.attackSpeed }
+            m.fuse += 0.05                                      // swelling all the while (it never backs off)
+            t += 0.05
+        }
+        check(m.health <= 0 && m.fuse < Mob.hisserFuse,
+              String(format: "G16 Powderwight: %d iron-sword blows of %.0f kill it at %.2f s with its fuse at %.2f of %.2f s", blows, blow, t, m.fuse, Mob.hisserFuse))
+        let survival0 = g.survival, tip0 = TownLaw.state.emeraldTip, held0 = g.inventory.main[g.selected], toast0 = g.onToast
+        var said: [String] = []
+        g.onToast = { said.append($0) }
+        defer { g.survival = survival0; TownLaw.state.emeraldTip = tip0; g.inventory.main[g.selected] = held0; g.onToast = toast0 }
+        g.survival = true; TownLaw.state.emeraldTip = nil
+        g.inventory.main[g.selected] = ItemStack(Items.id("emerald"), 1)
+        TownLaw.emeraldTip(g); TownLaw.emeraldTip(g)
+        check(said.count == 1 && said[0].contains("bank") && said[0].contains(Money.format(Bank.sellEmerald)),
+              "G14 emeralds: the first one carried says a town bank buys them (\"\(said.first ?? "nothing")\"), once")
+    }
+
+    // T1: an angry townsperson's swing reaches the player's real body (Game.meleeGap) like a monster's: level ground and a
+    // one-block step yes; a player on a pillar over them or up a two-block step, no.
+    static func townsMelee(_ g: Game, _ check: (Bool, String) -> Void) {
+        let p0 = g.player.pos, alive0 = g.alive, survival0 = g.survival, health0 = g.health, mobs0 = g.mobs.mobs
+        let force0 = TownLaw.forceTown, head0 = g.vrHead, menu0 = g.menu
+        defer {
+            g.player.pos = p0; g.alive = alive0; g.survival = survival0; g.health = health0; g.mobs.mobs = mobs0
+            TownLaw.forceTown = force0; g.vrHead = head0; g.menu = menu0
+        }
+        g.alive = true; g.survival = true; g.vrHead = nil; TownLaw.forceTown = true
+        let base = V3(p0.x, p0.y + 30, p0.z)
+        let m = Mob(.villager, at: base); m.home = base
+        Townsfolk.setup(m, tag: "shop_blacksmith", game: g)
+        g.mobs.mobs = [m]
+        func swings(_ off: V3) -> Bool {
+            g.player.pos = base + off; g.health = 20
+            m.pos = base; m.attackCooldown = 0; m.town.anger = 5; m.town.foe = nil; m.town.think = 1
+            _ = m.townDefend(0.05, g)
+            return m.attackCooldown > 0
+        }
+        let level = swings(V3(1.6, 0, 0)), step1 = swings(V3(1.2, 1, 0)), pillar = swings(V3(0.3, 2.2, 0)), step2 = swings(V3(1.2, 2, 0))
+        check(m.townWeapon != .none && level && step1 && !pillar && !step2,
+              "T1 townsfolk melee: a \(m.townWeapon.name) swing reaches the player on level ground (\(level)) and a one-block step (\(step1)), not on a pillar over them (\(pillar)) or up a two-block step (\(step2))")
+    }
 }
