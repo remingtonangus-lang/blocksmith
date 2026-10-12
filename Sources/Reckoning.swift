@@ -38,20 +38,21 @@ enum Reckoning {
     static var age: Float = 0            // seconds the wave in the field has been out
     static var won: Bool { stage == 2 }
     static var dropshipsOn = true        // the host check turns the dropships off (they are checked in --ridecheck)
-    private static var worldID: ObjectIdentifier?   // the world this state belongs to (a new world starts clean)
+    private static var gameID: ObjectIdentifier?    // the game (save) this state belongs to (a new world starts clean;
+                                                    // not the World, which changes with every dimension)
 
     static func reset() { stage = 0; wave = 0; timer = 0; inField = false; age = 0 }
-    // Clears the state when the game moved to another world without a load (a new world in the same run).
+    // Clears the state when another game (a new world in the same run) ticks without a load.
     static func own(_ g: Game) {
-        let id = ObjectIdentifier(g.world)
-        if worldID != id { reset(); worldID = id }
+        let id = ObjectIdentifier(g)
+        if gameID != id { reset(); gameID = id }
     }
 
     static func save(_ d: inout [String: String]) {
         if stage > 0 { d["reckoning"] = "\(stage),\(wave),\(timer),\(inField ? 1 : 0)" }
     }
-    static func load(_ d: [String: String], world: World) {
-        worldID = ObjectIdentifier(world)
+    static func load(_ d: [String: String], game: Game) {
+        gameID = ObjectIdentifier(game)
         let p = (d["reckoning"] ?? "").split(separator: ",").map(String.init)
         stage = p.count > 0 ? max(0, min(2, Int(p[0]) ?? 0)) : 0
         wave = p.count > 1 ? max(0, min(waves.count - 1, Int(p[1]) ?? 0)) : 0

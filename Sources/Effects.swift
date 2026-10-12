@@ -444,7 +444,7 @@ extension Game {
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         money = d["money"].flatMap { Int($0) } ?? Money.start
         TownLaw.load(d, seed: world.seed)
-        Reckoning.load(d, world: world)
+        Reckoning.load(d, game: self)
         Hunting.load(d)
         Countries.load(d)
         deepVisited = d["deepVisited"] == "1"

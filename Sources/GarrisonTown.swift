@@ -92,7 +92,7 @@ enum GarrisonTown {
     static var away: Float = 0
     static var warned = false
     static var forceRow: Bool?           // the host check stands the player in a row
-    private static var worldID: ObjectIdentifier?   // a new world starts calm
+    private static var gameID: ObjectIdentifier?    // a new world (another game) starts calm; a portal trip keeps it
 
     static func weaponOut(_ g: Game) -> Bool {
         let k = Items.key(g.held.item)
@@ -101,8 +101,8 @@ enum GarrisonTown {
 
     // Once a second.
     static func tick(_ g: Game, _ dt: Float) {
-        let id = ObjectIdentifier(g.world)
-        if worldID != id { worldID = id; inRow = false; tense = 0; opened = false; away = 0; warned = false }
+        let id = ObjectIdentifier(g)
+        if gameID != id { gameID = id; inRow = false; tense = 0; opened = false; away = 0; warned = false }
         let p = g.player.pos
         inRow = g.survival && (forceRow ?? (citadel(g, x: Int(floor(p.x)), z: Int(floor(p.z))) != nil))
         guard inRow else {

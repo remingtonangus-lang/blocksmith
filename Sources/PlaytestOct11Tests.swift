@@ -744,7 +744,7 @@ enum PlaytestOct11Tests {
         // A world saved mid-wave reloads with that wave still out (not sent again on top of its saved troops).
         Reckoning.stage = 1; Reckoning.wave = 2; Reckoning.inField = true
         var d: [String: String] = [:]
-        Reckoning.save(&d); Reckoning.load(d, world: g.world)
+        Reckoning.save(&d); Reckoning.load(d, game: g)
         let rejoin = Reckoning.inField && Reckoning.age < 0 && Reckoning.wave == 2
         check(warned && first.count >= 8 && close && home && sizes.count == 5 && sizes.allSatisfy { $0 >= 3 } && won && rejoin,
               "P46 the Reckoning: a warning, then \(first.count) Marauders 20-40 blocks off (\(close)); a death sends them home (\(home)); waves of \(sizes); beaten: \(won); a reload mid-wave keeps it out (\(rejoin))")

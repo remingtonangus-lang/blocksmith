@@ -136,8 +136,8 @@ final class QuestRig {
         for i in 0..<2 {
             let (p, q) = xr.eyePose(i)
             var (l, r, u, d) = xr.fovTangents(i)
+            minL = min(minL, l); maxR = max(maxR, r); maxU = max(maxU, u); minD = min(minD, d)   // (culling: the unzoomed view)
             if zoom > 1.001 { l /= zoom; r /= zoom; u /= zoom; d /= zoom }
-            minL = min(minL, l); maxR = max(maxR, r); maxU = max(maxU, u); minD = min(minD, d)
             let proj = XRMath.projection(tanLeft: l, tanRight: r, tanUp: u, tanDown: d, near: 0.05, far: far)
             let rel = toWorld(p) - center + jolt
             vps.append(proj * XRMath.inversePose(toWorldRot(q), rel))

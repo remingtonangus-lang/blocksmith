@@ -46,8 +46,14 @@ enum Riders {
         guard let gen = g.world.gen as? WorldGen else { return }
         for m in g.mobs.mobs where isRider(m) && m.mount != nil {
             guard let goal = m.patrolGoal else { m.wanderGoal = nil; continue }
-            let road = forceRoad.map { f in (f.0, Roads.distance(f.0, V2(m.pos.x, m.pos.z))) }
-                ?? Roads.nearest(gen, to: m.pos, range: 10).map { n in (n.0, Roads.distance(n.0, V2(m.pos.x, m.pos.z))) }
+            // The rider's own road: the one ending at their goal (at a crossing the nearest road may be the other one).
+            let p2 = V2(m.pos.x, m.pos.z), g2 = V2(goal.x, goal.z)
+            let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+            let own = Roads.near(gen, x0: x - 10, z0: z - 10, x1: x + 10, z1: z + 10, pad: 10)
+                .first { min(simd_length($0.a - g2), simd_length($0.b - g2)) < 2 && Roads.distance($0, p2).0 < 10 }
+            let road = forceRoad.map { f in (f.0, Roads.distance(f.0, p2)) }
+                ?? own.map { s in (s, Roads.distance(s, p2)) }
+                ?? Roads.nearest(gen, to: m.pos, range: 10).map { n in (n.0, Roads.distance(n.0, p2)) }
             guard let (s, (d, t)) = road, d < 10 else { m.wanderGoal = nil; continue }
             let ab = s.b - s.a, len = max(1, simd_length(ab))
             let sign: Float = simd_dot(V2(goal.x - m.pos.x, goal.z - m.pos.z), ab) >= 0 ? 1 : -1
