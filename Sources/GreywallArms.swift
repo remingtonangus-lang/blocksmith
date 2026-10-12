@@ -7,13 +7,13 @@ import simd
 // invented names, on Slate Rounds (never sold or crafted: taken from Greywall troops and bases).
 //   Slatefall Carbine   squared receiver, top sensor rail, short shrouded barrel, skeleton stock (the line rifle)
 //   Longwatch Rifle     long fluted barrel, a big optic, a bipod folded under (the marksman's)
-//   Needle Pistol       slim slab-sided pistol, long magazine, light and soft (the crews')
-//   Breaker Magnum      a heavy top-break hand cannon on heavy rounds: hits like a rifle, kicks like a mule (officers)
+//   Wren Pistol         slim slab-sided pistol, long magazine, light and soft (the crews')
+//   Breaker Revolver    a heavy top-break hand cannon on heavy rounds: hits like a rifle, kicks like a mule (officers)
 //   Slate Repeater      box-fed light machine gun with a carry handle and a heat shield (heavy troopers)
 // Handling ladder, pistols: Needle (3, kick 0.014) < Capital Sidearm (4, 0.03) < Six-Iron (7, 0.065) < Breaker (12,
 // 0.14); rifles: Service Rifle / Sturmwind (~5, 0.013) < Slatefall (5.5, 0.02) < Kessel (16, 0.08) < Longwatch (20,
-// 0.085) < Farsight (24, 0.09). A soldier's aim opens up with each shot by its gun's kick (Soldier recoil), except a
-// Hannibal trooper's: the power suit takes it.
+// 0.085) < Farsight (24, 0.09). A soldier's aim is wider by its gun's kick on every shot (Mob.aimKick: recoil x 0.6),
+// except a Hannibal trooper's: the power suit takes it.
 enum GreywallArms {
     static let slate = V3(0.3, 0.34, 0.38), dark = V3(0.12, 0.13, 0.15), steel = V3(0.22, 0.23, 0.25)
     static let hazard = V3(0.85, 0.66, 0.12), lens = V3(0.2, 0.55, 0.75), bore = V3(0.02, 0.02, 0.02)
@@ -31,10 +31,10 @@ enum GreywallArms {
         GunSpec(key: "gun_longwatch", name: "Longwatch Rifle", ammo: ammo, mag: 6, interval: 1.1, auto: false, damage: 20, pellets: 1,
                 spread: 0.05, aimSpread: 0.0008, speed: 300, recoil: 0.085, reload: 2.6, range: 240, durability: 500, zoom: 0.3,
                 shot: .bullet, sound: 3, accent: V3(0.33, 0.37, 0.41)),
-        GunSpec(key: "gun_needle", name: "Needle Pistol", ammo: ammo, mag: 20, interval: 0.16, auto: false, damage: 3, pellets: 1,
+        GunSpec(key: "gun_needle", name: "Wren Pistol", ammo: ammo, mag: 20, interval: 0.16, auto: false, damage: 3, pellets: 1,
                 spread: 0.03, aimSpread: 0.01, speed: 150, recoil: 0.014, reload: 1.2, range: 50, durability: 1000, zoom: 0.9,
                 shot: .bullet, sound: 13, accent: V3(0.33, 0.37, 0.41)),
-        GunSpec(key: "gun_breaker", name: "Breaker Magnum", ammo: "heavy_rounds", mag: 6, interval: 0.55, auto: false, damage: 12, pellets: 1,
+        GunSpec(key: "gun_breaker", name: "Breaker Revolver", ammo: "heavy_rounds", mag: 6, interval: 0.55, auto: false, damage: 12, pellets: 1,
                 spread: 0.04, aimSpread: 0.005, speed: 200, recoil: 0.14, reload: 2.6, range: 90, durability: 600, zoom: 0.85,
                 shot: .bullet, sound: 13, accent: V3(0.85, 0.66, 0.12)),
         GunSpec(key: "gun_repeater", name: "Slate Repeater", ammo: ammo, mag: 90, interval: 0.06, auto: true, damage: 4, pellets: 1,
@@ -135,7 +135,7 @@ enum GreywallArms {
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 1.6), fore: V3(0, -0.6, -12), butt: V3(0, -0.2, 11.5),
                             muzzle: V3(0, 1.1, -22.1), magAt: V3(-2.0, -1.2, -5), bolt: V3(1.5, 0.8, -5), scale: 0.55)
         default:
-            // Needle Pistol: a slim slab slide, a long magazine below the grip.
+            // Wren Pistol: a slim slab slide, a long magazine below the grip.
             var p: [Part] = [
                 b(-0.55, 0.0, -6.8, 1.1, 1.2, 8.2, slate, pPoly),                 // slide
                 b(-0.5, -0.6, -6.2, 1.0, 0.6, 7.2, dark, pPoly),                  // frame

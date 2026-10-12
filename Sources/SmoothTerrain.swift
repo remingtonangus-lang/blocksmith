@@ -39,7 +39,7 @@ enum SmoothTerrain {
         "andesite", "diorite", "granite", "tuff", "calcite", "dripstone_block", "moss_block", "smooth_basalt",
         "terracotta", "netherrack", "soul_soil", "blackstone", "end_stone",
         // P106 ("some cave areas did not smooth"): the rest of what lines caves (the cave survey, SmoothRound2Tests).
-        "basalt", "magma_block", "amethyst_block", "budding_amethyst", "sculk", "obsidian", "packed_ice", "blue_ice",
+        "basalt", "magma_block", "amethyst_block", "budding_amethyst", "sculk", "packed_ice", "blue_ice",
         "infested_stone", "infested_deepslate", "soul_sand", "crimson_nylium", "warped_nylium",
     ]
     // Per block state: meshes as smooth ground.
@@ -64,7 +64,7 @@ enum SmoothTerrain {
     static let tiltLevels: [Float] = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1]
     // P106 surface relaxation (Mesher.smoothQuads): passes and how far each moves a vertex to its neighbours' mean.
     // BLOCKSMITH_RELAX=0 meshes the round-1 surface (side by side shots, cost).
-    static var relax: Int = min(maxRelax, Int(ProcessInfo.processInfo.environment["BLOCKSMITH_RELAX"] ?? "") ?? 4)
+    static var relax: Int = max(0, min(maxRelax, Int(ProcessInfo.processInfo.environment["BLOCKSMITH_RELAX"] ?? "") ?? 4))
     static let maxRelax = 4
     static let relaxRate: Float = 0.8
     static var vertexHook: ((Int, Int, Int, SIMD3<Float>) -> Void)?   // tests: every owned dual vertex after relaxing

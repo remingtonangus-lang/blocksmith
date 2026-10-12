@@ -36,12 +36,12 @@ enum SmoothRound2Tests {
 
     static func run(_ g: Game, check: (Bool, String) -> Void) {
         let s = caveSurvey()
-        let built: Set<String> = ["cobblestone", "mossy_cobblestone"]            // dungeons: built, cubes by design
+        let built: Set<String> = ["cobblestone", "mossy_cobblestone", "obsidian"]   // dungeons; obsidian stays cubic (portal frames)
         let wild = s.other.filter { !built.contains($0.key) }
         let total = s.natural + wild.values.reduce(0, +)
         let left = s.other.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         check(Float(wild.values.reduce(0, +)) < Float(total) * 0.002,
-              "P106 caves: \(s.natural) of \(total) natural cave-wall blocks mesh smooth; still cubes: \(left.isEmpty ? "none" : left) (dungeon cobble by design)")
+              "P106 caves: \(s.natural) of \(total) natural cave-wall blocks mesh smooth; still cubes: \(left.isEmpty ? "none" : left) (dungeon cobble and obsidian by design)")
 
         let w = g.world, was = SmoothTerrain.enabled, relax0 = SmoothTerrain.relax
         SmoothTerrain.enabled = true

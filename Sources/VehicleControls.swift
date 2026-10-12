@@ -103,6 +103,7 @@ final class Turrets {
     // beat apart; the full reload comes after the second.
     var loaded = 2                                   // barrels loaded (2 after a reload)
     static let beat: Float = 0.45                    // between the two barrels
+    weak var lastManned: Mob?
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
@@ -111,11 +112,12 @@ final class Turrets {
     var active: Bool { manned != nil }
 
     func mount(_ g: Game, _ m: Mob) {
+        let same = m === lastManned                  // back on the same gun: its reload and loaded barrel carry on
         manned = m
+        lastManned = m
         m.aggro = false
         m.persistent = true
-        reload = 0.5
-        loaded = 2
+        if !same { reload = 0.5; loaded = 2 }
         g.player.yaw = m.yaw
         g.player.pitch = m.soldierBrain.pitch
         g.player.flying = false
