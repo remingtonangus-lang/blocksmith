@@ -103,7 +103,7 @@ G17. [hell] Entering hell from above ends at a lava-pool cut-off; make the trans
 G18. [looks] Plain grass looks barren: add more ground cover (tall grass tufts, short grass that rises slightly off the block, variety) within the Quest frame budget.
 G19. [new, Lane B] Difficulty levels: easy, medium, hard chosen when creating a world and locked afterwards; they change enemy speed, damage, health, hunger and spawn density. Document the table.
 G20. [IP, from P19] Replace the remaining close copies of reference features with original designs (docs/status/ip-content-audit-oct11.md: the Hollow + Hollow Spire + Void Dragon, Cinder Fortress / Boarling Keep, Sea Temple, Forest Manor, Proving Halls). The murk depths, Buried Citadel and Deep Stalker summons are already out (P19).
-G21. [guns, from P32] The Farsight rifle has no VR scope: raising it to the eye should show a magnified scope view (a render-to-texture lens on the scope, or a zoomed overlay on the eye nearest it), with the reticle matched to where the round lands.
+G21. [done, PR #50: VRScope.swift, a 4x zoomed eye view with a lens mask and the impact reticle; check vrScope] [guns, from P32] The Farsight rifle has no VR scope: raising it to the eye should show a magnified scope view (a render-to-texture lens on the scope, or a zoomed overlay on the eye nearest it), with the reticle matched to where the round lands.
 
 ## LANE A (cloud thread A): factions, bases, navy, vehicles
 

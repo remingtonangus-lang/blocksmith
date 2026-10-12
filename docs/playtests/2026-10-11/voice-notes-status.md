@@ -37,7 +37,7 @@ unless another suite is named.
 | P29 prices | part | map $1.50, raw titanium $28, titanium ingot $40; the sheriff's revolver look is open (item art) | prices |
 | P30 armour vs guns | fixed | armour stops at most 12 of 25 points against a round (P45; was 15) and every round of 2+ does at least half a heart; the shotgun hits harder (4 a pellet, tighter) | P30 armour vs guns |
 | P31 hostages | fixed | townsfolk under threat from soldiers or monsters say raid lines, never "put that away" | towns hostage lines |
-| P32 guns | part | rounds leave the controller aim ray in VR, hip spread halved; reload says why it can't start; the Farsight scope is G21 | P32 VR gun aim |
+| P32 guns | fixed | rounds leave the controller aim ray in VR, hip spread halved; reload says why it can't start; G21: raising the Farsight to the eye zooms the view 4x inside a round lens, the dot where the round lands | P32 VR gun aim |
 | P33 capital assault | fixed | inside the walls the alarm sounds at once, lockdown after 10 s (reinforcements); tower floors 1, 2, 4, 6 get a ring corridor with spokes and doors | basetest alarm, structcheck military_base |
 | P34 capital food | fixed | Field Ration (fills 10 hunger, 16 saturation) in citadel supply and command chests | P34 ration |
 | P35 floating pillars | fixed | capital portico columns reach down to the ground | structcheck capital_city |

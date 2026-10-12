@@ -133,6 +133,12 @@ extension Game {
     func dismount() {
         guard let cart = riding else { return }
         riding = nil
+        // P49: a ridden horse is narrower than a loose one; left in a gap only the rider's width fits through, it
+        // would be stuck in the trunks, so it steps out to the nearest spot it fits.
+        if cart.gaited, cart.collides(cart.pos, world) {
+            let p = world.freeSpawn(cart.pos, wide: true)
+            if !cart.collides(p, world) { cart.pos = p }
+        }
         player.pos = cart.pos + V3(0, 1, 0)
         player.vel = .zero
         player.airPeak = player.pos.y

@@ -169,7 +169,7 @@ enum HorseTests {
             let bagsBefore = h.saddlebags
             h.addBond(1, g)
             let bags = h.saddlebags && MountMenu.opens(h) && g.packContainer(h).count == 9
-            check(!bagsBefore && bags && h.staminaMax == 115, "horse bond level 2: saddlebags (9 slots) and 115 stamina")
+            check(!bagsBefore && bags && h.staminaMax == HorseFeel.staminaMax[1], "horse bond level 2: saddlebags (9 slots) and \(Int(HorseFeel.staminaMax[1])) stamina")
             g.packContainer(h)[0] = ItemStack(Items.id("apple"), 3)
             let back = Mob.from(h.record)
             check(back?.hs.bondXP == HorseFeel.levelXP[1] && back?.saddlebags == true && back?.cargo?[0].count == 3,
@@ -265,7 +265,7 @@ enum HorseTests {
             let z = Mob(.zombie, at: h.pos + V3(1.6, 0, 0))
             g.mobs.mobs.append(z)
             ride(h, 0.6, push: 0)
-            let monster = h.hs.rear > 0
+            let monster = h.hs.spookCool > 0                      // P49: a short shy (gone in under half a second), not a rear
             g.mobs.mobs.removeAll { $0 === z }
             ride(h, 1.5, push: 0)
             h.hs.spookCool = 0

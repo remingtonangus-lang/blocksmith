@@ -456,9 +456,23 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
+    // G21: the Farsight raised to the eye (VRScope): eased 0...1, the views zoom with it.
+    private(set) var scopeT: Float = 0
+    private func scopeTick(_ dt: Float) {
+        let rig = app.rig
+        var up = false
+        if game.menu == nil && !game.paused, let aim = game.vrAim {
+            let fwd = rig.toWorldRot(rig.headRot).act(V3(0, 0, -1))
+            up = VRScope.raised(heldKey: Items.key(game.held.item), head: rig.headWorld, headForward: fwd, aimOrigin: aim.origin, aimDir: aim.dir)
+        }
+        scopeT = up ? min(1, scopeT + dt * 6) : max(0, scopeT - dt * 8)
+        rig.zoom = VRScope.zoom(scopeT)
+    }
+
     // After Game.tick: the camera follows the moved player; head-space audio; vignette from motion.
     func afterTick(dt: Float) {
         let rig = app.rig
+        scopeTick(dt)
         let ships = game.world.ships
         let ship = ships.pilot ?? ships.aboard
         // Ship riding: the deck turned under the player this tick (ShipPhysics carried the feet and the game's yaw);
@@ -1117,7 +1131,7 @@ final class QuestControls {
         if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
         guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
         let held = game.held
-        if held.isEmpty { return }
+        if held.isEmpty || scopeT > 0.5 { return }            // (G21: looking through the scope, the rifle is out of view)
         let rig = app.rig
         let pos = rig.toWorld(hd.aimPos) - eye
         let rot = rig.toWorldRot(hd.aimRot)
@@ -1300,7 +1314,8 @@ final class QuestControls {
         defer { giveVerts(v) }
         screenEffects(&v)
         let k = vignette * QuestSettings.vignette
-        if k > 0.02 { ring(&v, k, V3(0, 0, 0)) }
+        if k > 0.02 && scopeT < 0.5 { ring(&v, k, V3(0, 0, 0)) }
+        if scopeT > 0.02 { drawScope(&v) }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
     }
 
@@ -1321,6 +1336,37 @@ final class QuestControls {
             QuestControls.quad(&v, V4(p0.x - n2.x, p0.y - n2.y, 0, 2), V4(p0.x + n2.x, p0.y + n2.y, 0, 2),
                                V4(p1.x + n2.x, p1.y + n2.y, 0, 2), V4(p1.x - n2.x, p1.y - n2.y, 0, 2), c0, c0, c1, c1)
         }
+    }
+
+    // G21: the scope's lens: black all round a round clear lens centred where the round lands, a thin crosshair with
+    // an open centre and a red dot, fading in with scopeT.
+    private func drawScope(_ v: inout [SimpleVert]) {
+        var c = V2.zero
+        if let cam = app.rig.lastCam, let aim = game.vrAim {
+            var n = 0
+            for vp in cam.viewProj { if let r = VRScope.reticle(viewProj: vp, center: cam.center, aimOrigin: aim.origin, aimDir: aim.dir) { c += r; n += 1 } }
+            if n > 0 { c /= Float(n) }
+        }
+        c = simd_clamp(c, V2(repeating: -0.5), V2(repeating: 0.5))
+        let a = scopeT
+        let black = V4(0, 0, 0, a), edge = V4(0.02, 0.02, 0.02, a)
+        let R = VRScope.lensRadius, seg = 48
+        for i in 0..<seg {
+            let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
+            let d0 = V2(cosf(a0), sinf(a0)), d1 = V2(cosf(a1), sinf(a1))
+            // A soft rim (the tube's edge), then black out to well past the view's corners.
+            for (ra, rb, ca, cb) in [(R * 0.94, R, V4(0, 0, 0, 0), edge), (R, 4, black, black)] {
+                let p0 = c + d0 * ra, p1 = c + d1 * ra, p2 = c + d1 * rb, p3 = c + d0 * rb
+                QuestControls.quad(&v, V4(p0.x, p0.y, 0, 2), V4(p1.x, p1.y, 0, 2), V4(p2.x, p2.y, 0, 2), V4(p3.x, p3.y, 0, 2), ca, ca, cb, cb)
+            }
+        }
+        let line = V4(0, 0, 0, 0.85 * a), w: Float = 0.004, gap: Float = 0.05
+        func bar(_ x0: Float, _ y0: Float, _ x1: Float, _ y1: Float) {
+            QuestControls.quad(&v, V4(c.x + x0, c.y + y0, 0, 2), V4(c.x + x1, c.y + y0, 0, 2), V4(c.x + x1, c.y + y1, 0, 2), V4(c.x + x0, c.y + y1, 0, 2), line, line, line, line)
+        }
+        bar(-R, -w, -gap, w); bar(gap, -w, R, w); bar(-w, -R, w, -gap); bar(-w, gap, w, R)
+        let dot = V4(0.9, 0.08, 0.05, a), d: Float = 0.006
+        QuestControls.quad(&v, V4(c.x - d, c.y - d, 0, 2), V4(c.x + d, c.y - d, 0, 2), V4(c.x + d, c.y + d, 0, 2), V4(c.x - d, c.y + d, 0, 2), dot, dot, dot, dot)
     }
 
     // A ring in clip space (w = 2): clear in the middle, `color` at the edge; k 0...1 narrows the clear middle.

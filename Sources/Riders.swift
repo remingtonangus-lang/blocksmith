@@ -16,7 +16,8 @@ enum Riders {
     static var forceRoad: (Roads.Seg, Float)?       // the host check's road and spot
     static var along: ClosedRange<Float> = 50...80  // how far along the road from the player a rider turns up
 
-    static func isRider(_ m: Mob) -> Bool { m.posse == riding || m.posse == robbed }
+    // The traveller (not their horse, which carries posse 5 too while ridden).
+    static func isRider(_ m: Mob) -> Bool { m.kind == .villager && (m.posse == riding || m.posse == robbed) }
 
     // Once a second (TownLaw.tick's slot).
     static func tick(_ g: Game) {
@@ -28,12 +29,32 @@ enum Riders {
         g.mobs.mobs.removeAll { m in
             guard isRider(m) || (m.kind == .horse && m.posse == riding) else { return false }
             if simd_length(m.pos - p) > 160 { return true }
+            // Unhorsed or without a destination (a reload drops both): nowhere to ride, so they leave once out of the way.
+            if isRider(m) && (m.mount == nil || m.patrolGoal == nil) && simd_length(m.pos - p) > 40 { return true }
             if let goal = m.patrolGoal, simd_length(V2(goal.x - m.pos.x, goal.z - m.pos.z)) < 6, simd_length(m.pos - p) > 40 { return true }
             return false
         }
         guard Roads.on || forceRoad != nil, g.dim.dim == .overworld, g.difficulty > 0, TownLaw.inTown == nil,
-              !g.mobs.mobs.contains(where: { isRider($0) }), Rand.float(in: 0..<1) < chancePerSecond else { return }
+              !g.mobs.mobs.contains(where: { isRider($0) && $0.mount != nil }), Rand.float(in: 0..<1) < chancePerSecond else { steer(g); return }
         _ = send(g)
+        steer(g)
+    }
+
+    // Keeps mounted riders on the road's bends: a waypoint 10 blocks along it toward their goal (Mob.wanderGoal,
+    // which riders don't otherwise use); off any road they head straight for the goal.
+    static func steer(_ g: Game) {
+        guard let gen = g.world.gen as? WorldGen else { return }
+        for m in g.mobs.mobs where isRider(m) && m.mount != nil {
+            guard let goal = m.patrolGoal else { m.wanderGoal = nil; continue }
+            let road = forceRoad.map { f in (f.0, Roads.distance(f.0, V2(m.pos.x, m.pos.z))) }
+                ?? Roads.nearest(gen, to: m.pos, range: 10).map { n in (n.0, Roads.distance(n.0, V2(m.pos.x, m.pos.z))) }
+            guard let (s, (d, t)) = road, d < 10 else { m.wanderGoal = nil; continue }
+            let ab = s.b - s.a, len = max(1, simd_length(ab))
+            let sign: Float = simd_dot(V2(goal.x - m.pos.x, goal.z - m.pos.z), ab) >= 0 ? 1 : -1
+            let tw = max(0, min(1, t + sign * 10 / len))
+            let w = Roads.point(s, tw)
+            m.wanderGoal = (tw == 0 || tw == 1) ? nil : V3(w.x, m.pos.y, w.y)
+        }
     }
 
     // A rider on the nearest road 50-80 blocks along it from the player, heading for the end past the player.
@@ -88,17 +109,19 @@ enum Riders {
         if m.town.handsUp > 0 { return 0 }
         m.town.heldUp = max(0, m.town.heldUp - dt)
         guard let goal = m.patrolGoal else { return 0 }
-        // Follow the road toward the goal: aim a little ahead along the line.
-        m.face(goal)
+        // Follow the road toward the goal (the waypoint `steer` sets), else straight for it.
+        if let w = m.wanderGoal, simd_length(V2(w.x - m.pos.x, w.z - m.pos.z)) > 2 { m.face(w) } else { m.face(goal) }
         return m.posse == robbed ? 4.5 : 2.6                    // a trot; robbed riders gallop off
     }
 
     static func aimedAt(_ m: Mob, _ g: Game) -> Bool {
         guard g.alive, Guns.index(g.held.item) != nil else { return false }
-        let to = m.eye - g.player.eye
+        // The line the gun points along: the hand's ray in VR, the view on a screen.
+        let from = g.vrAim?.origin ?? g.player.eye, dir = simd_normalize(g.vrAim?.dir ?? g.player.look)
+        let to = m.eye - from
         let d = simd_length(to)
         guard d > 0.5, d < 16 else { return false }
-        return simd_dot(to / d, g.player.look) > 0.995 && g.world.canSee(g.player.eye, m.eye)
+        return simd_dot(to / d, dir) > 0.995 && g.world.canSee(from, m.eye)
     }
 
     static func rob(_ m: Mob, _ g: Game) {
@@ -113,7 +136,7 @@ enum Riders {
         TownVoice.speak(g, m, .handsup)
         g.onToast?("The rider throws down their satchel: \(Money.format(cash))")
         // Turn back the way they came.
-        if let goal = m.patrolGoal, let h = m.mount { m.patrolGoal = h.pos * 2 - goal }
+        if let goal = m.patrolGoal, let h = m.mount { m.patrolGoal = h.pos * 2 - goal; m.wanderGoal = nil }
         crime(g, at: m.pos, bounty: robBounty, honour: -10, why: "robbed a rider")
     }
 

@@ -12,7 +12,7 @@ enum VehicleWorks {
     // The bill: a ludicrous amount of iron on top of the parts.
     static let bill: [(String, Int)] = [("iron_ingot", 96), ("ship_engine", 2), ("ship_wheel", 8), ("ship_turret_ring", 1),
                                         ("ship_cannon", 1), ("ship_helm", 1)]
-    static let footprint = IVec3(11, 7, 14)         // the clear space it needs beside the Works (x, y, z)
+    static let footprint = IVec3(11, 7, 18)         // the clear space beside the Works (x, y, z): the hull, and the barrel past the bow
 
     // Field Tank, front toward -Z, wheels at y 0, centreline x 0.
     static func fieldTank() -> Blueprint {

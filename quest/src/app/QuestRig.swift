@@ -10,6 +10,8 @@ final class QuestRig {
     var bodyYaw: Float = 0
     var anchor = V3.zero
     var shake = V3.zero                         // eye jolt (Game.shakeVR: the Tidebreaker), set each frame by the app
+    var zoom: Float = 1                         // G21: the Farsight scope narrows both eyes' views (VRScope)
+    private(set) var lastCam: EyeCamera?        // the last frame's eye cameras (the scope's crosshair projects with them)
     var needsRecenter = true
     private(set) var recenters = 0              // counts recentres (panels re-place themselves after one)
     private(set) var heightOffset: Float = 1.62
@@ -133,7 +135,8 @@ final class QuestRig {
         var minL: Float = 0, maxR: Float = 0, maxU: Float = 0, minD: Float = 0
         for i in 0..<2 {
             let (p, q) = xr.eyePose(i)
-            let (l, r, u, d) = xr.fovTangents(i)
+            var (l, r, u, d) = xr.fovTangents(i)
+            if zoom > 1.001 { l /= zoom; r /= zoom; u /= zoom; d /= zoom }
             minL = min(minL, l); maxR = max(maxR, r); maxU = max(maxU, u); minD = min(minD, d)
             let proj = XRMath.projection(tanLeft: l, tanRight: r, tanUp: u, tanDown: d, near: 0.05, far: far)
             let rel = toWorld(p) - center + jolt
@@ -144,6 +147,8 @@ final class QuestRig {
         let back = hq.act(V3(0, 0, 0.1))
         let cullProj = XRMath.projection(tanLeft: minL * 1.05, tanRight: maxR * 1.05, tanUp: maxU * 1.05, tanDown: minD * 1.05, near: 0.05, far: far)
         let cull = cullProj * XRMath.inversePose(hq, back)
-        return EyeCamera(center: center, viewProj: vps, cullViewProj: cull, yaw: headYaw, pitch: headPitch, far: far)
+        let cam = EyeCamera(center: center, viewProj: vps, cullViewProj: cull, yaw: headYaw, pitch: headPitch, far: far)
+        lastCam = cam
+        return cam
     }
 }

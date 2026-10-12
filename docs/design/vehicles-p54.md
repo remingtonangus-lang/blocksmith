@@ -12,7 +12,7 @@ a special vehicle table; undecided, prototype one and note the trade-off".
   Use it with the bill of parts in your inventory and a **Field Tank** rolls out on the far side of the Works: an iron
   hull on eight wheels, two engines, a helm at the back and a turret with a cannon (VehicleWorks.swift). The bill is
   the "ludicrous" part: 96 iron ingots, 2 engines, 8 wheels, a turret ring, a cannon and a helm. Short of parts, it
-  names what is missing. It needs an 11 x 14 clear yard.
+  names what is missing. It needs an 11 x 18 clear yard (the barrel reaches past the bow).
 
 ## Trade-off
 

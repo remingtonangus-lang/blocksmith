@@ -16,6 +16,7 @@ enum Roads {
     struct Seg { let a: V2; let b: V2; let phase: Float }
 
     private static var cache: [Int64: Seg?] = [:]
+    private static var cacheGen: ObjectIdentifier?  // the generator the cache was filled for (another world clears it)
     private static let lock = NSLock()
     static var on: Bool { WorldRules.p44 }
 
@@ -29,7 +30,9 @@ enum Roads {
     // The road from region (rx, rz) to its neighbour (rx + dx, rz + dz), if one runs.
     static func segment(_ gen: WorldGen, _ rx: Int, _ rz: Int, _ dx: Int, _ dz: Int) -> Seg? {
         let key = (Int64(rx & 0xFFFFF) << 44) | (Int64(rz & 0xFFFFF) << 24) | Int64((dx + 1) * 3 + dz + 1)
+        let gid = ObjectIdentifier(gen)
         lock.lock()
+        if cacheGen != gid { cache.removeAll(); cacheGen = gid }
         if let c = cache[key] { lock.unlock(); return c }
         lock.unlock()
         var seg: Seg?
@@ -43,7 +46,7 @@ enum Roads {
             }
             if fresh { seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28) }
         }
-        lock.lock(); cache[key] = seg; if cache.count > 4096 { cache.removeAll() }; lock.unlock()
+        lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 4096 { cache.removeAll() }; lock.unlock()
         return seg
     }
 

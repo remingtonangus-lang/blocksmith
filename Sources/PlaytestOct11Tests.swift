@@ -40,6 +40,7 @@ enum PlaytestOct11Tests {
         roadsAndRiders(game, check)
         horseItems(game, check)
         vehicleWorks(game, check)
+        vrScope(check)
     }
 
     // A test basin in the air beside the player: a stone floor and rim round `size` x `size` water cells, one section.
@@ -603,8 +604,9 @@ enum PlaytestOct11Tests {
 
     // P60: two zombies standing in each other, and a voidwalker standing in the player, are eased apart within a second.
     static func noOverlap(_ game: Game, _ check: (Bool, String) -> Void) {
-        let saved = game.mobs.mobs
-        defer { game.mobs.mobs = saved }
+        let saved = game.mobs.mobs, alive0 = game.alive, riding0 = game.riding
+        defer { game.mobs.mobs = saved; game.alive = alive0; game.riding = riding0 }
+        game.alive = true; game.riding = nil                     // (the player shoves only while alive and on foot)
         let p = game.player.pos
         let at = V3(p.x + 4, p.y + 20, p.z)                       // in the air: nothing to push them into
         let a = Mob(.zombie, at: at), b = Mob(.zombie, at: at + V3(0.05, 0, 0)), e = Mob(.enderman, at: p + V3(0.1, 0, 0))
@@ -718,7 +720,7 @@ enum PlaytestOct11Tests {
         let mobs0 = g.mobs.mobs, victory0 = g.ashVictory, survival0 = g.survival, diff0 = g.difficulty, money0 = g.money
         defer {
             g.mobs.mobs = mobs0; g.ashVictory = victory0; g.survival = survival0; g.difficulty = diff0; g.money = money0
-            g.alive = true; Reckoning.stage = 0; Reckoning.inField = false; Reckoning.dropshipsOn = true
+            g.alive = true; Reckoning.reset(); Reckoning.dropshipsOn = true
         }
         g.mobs.mobs = []; g.ashVictory = true; g.survival = true; g.difficulty = 2; g.alive = true
         Reckoning.stage = 0; Reckoning.inField = false; Reckoning.dropshipsOn = false
@@ -739,8 +741,13 @@ enum PlaytestOct11Tests {
             Reckoning.tick(g, Reckoning.minWave + 1)
         }
         let won = Reckoning.won && g.money == money0 + Reckoning.reward
-        check(warned && first.count >= 8 && close && home && sizes.count == 5 && sizes.allSatisfy { $0 >= 3 } && won,
-              "P46 the Reckoning: a warning, then \(first.count) Marauders 20-40 blocks off (\(close)); a death sends them home (\(home)); waves of \(sizes); beaten: \(won)")
+        // A world saved mid-wave reloads with that wave still out (not sent again on top of its saved troops).
+        Reckoning.stage = 1; Reckoning.wave = 2; Reckoning.inField = true
+        var d: [String: String] = [:]
+        Reckoning.save(&d); Reckoning.load(d, world: g.world)
+        let rejoin = Reckoning.inField && Reckoning.age < 0 && Reckoning.wave == 2
+        check(warned && first.count >= 8 && close && home && sizes.count == 5 && sizes.allSatisfy { $0 >= 3 } && won && rejoin,
+              "P46 the Reckoning: a warning, then \(first.count) Marauders 20-40 blocks off (\(close)); a death sends them home (\(home)); waves of \(sizes); beaten: \(won); a reload mid-wave keeps it out (\(rejoin))")
     }
 
     // P48: citadels on new ground get a row of shops below the gate; the garrison leaves a visitor there alone until a
@@ -830,11 +837,14 @@ enum PlaytestOct11Tests {
         // A rider, held up.
         let mobs0 = g.mobs.mobs, money0 = g.money, held0 = g.inventory.held, honour0 = Honour.value, law0 = TownLaw.state
         let survival0 = g.survival, pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
+        let alive0 = g.alive, riding0 = g.riding, aim0 = g.vrAim
         defer {
+            g.alive = alive0; g.riding = riding0; g.vrAim = aim0
             g.mobs.mobs = mobs0; g.money = money0; g.inventory.held = held0; Honour.value = honour0; TownLaw.state = law0
             g.survival = survival0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0; Riders.forceRoad = nil; Riders.along = 50...80
         }
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
+        g.alive = true; g.riding = nil; g.vrAim = nil            // (whatever an earlier check left: on foot, aiming with the view)
         let p = g.player.pos
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
         Riders.along = 10...16                 // (inside the host check's loaded ground)
@@ -919,5 +929,19 @@ enum PlaytestOct11Tests {
         } }
         check(asked && made.count == 1 && rolled && wheelsDown,
               "P54 vehicle works: short of parts it says so (\(asked)); with them a Field Tank rolls out beside it (\(made.count), on the far side: \(rolled)), wheels on the ground (\(wheelsDown))")
+    }
+
+    // G21: the Farsight raised to the eye zooms 4x; the crosshair sits where the hand's ray (the round's line) meets
+    // the view.
+    static func vrScope(_ check: (Bool, String) -> Void) {
+        let head = V3(0, 1.6, 0), fwd = V3(0, 0, -1)
+        let atEye = VRScope.raised(heldKey: VRScope.gun, head: head, headForward: fwd, aimOrigin: head + V3(0.05, -0.08, 0.1), aimDir: fwd)
+        let atHip = VRScope.raised(heldKey: VRScope.gun, head: head, headForward: fwd, aimOrigin: head + V3(0.25, -0.6, -0.1), aimDir: fwd)
+        let rifle = VRScope.raised(heldKey: "gun_rifle", head: head, headForward: fwd, aimOrigin: head + V3(0.05, -0.08, 0.1), aimDir: fwd)
+        let vp = perspectiveRH(fovy: 1.6, aspect: 1, near: 0.05, far: 500)
+        let centre = VRScope.reticle(viewProj: vp, center: .zero, aimOrigin: .zero, aimDir: fwd) ?? V2(9, 9)
+        let right = VRScope.reticle(viewProj: vp, center: .zero, aimOrigin: .zero, aimDir: simd_normalize(V3(0.05, 0, -1))) ?? V2(-9, 0)
+        check(atEye && !atHip && !rifle && simd_length(centre) < 0.01 && right.x > 0.02 && VRScope.zoom(1) == 4 && VRScope.zoom(0) == 1,
+              String(format: "G21 VR scope: up at the eye %@, at the hip %@, another gun %@; crosshair on the round's line (%.3f, %.3f), right of it for a ray to the right (%.3f); zoom x%.0f", atEye ? "yes" : "no", atHip ? "yes" : "no", rifle ? "yes" : "no", centre.x, centre.y, right.x, VRScope.zoom(1)))
     }
 }

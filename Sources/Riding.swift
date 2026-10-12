@@ -372,7 +372,7 @@ extension Mob {
         let start = pos
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         if kind == .strider && Blocks.fluidKind[Int(feet)] == 2 { vel.y = max(vel.y, 2) }
-        else if Blocks.isLiquid(feet) { vel.y += 18 * dt; vel.y = min(vel.y, 1.6) }
+        else if Blocks.isLiquid(feet) { vel.y += 18 * dt; if vel.y < 3 { vel.y = min(vel.y, 1.6) } }   // (above 3: a leap out of the water, P49)
         else { vel.y -= 28 * dt }
         // P49: a swimming horse steps up onto a bank level with the water (its feet float below the surface, so the
         // 1.05 step fell short), and a ridden horse is a little narrower so it squeezes between close trunks.

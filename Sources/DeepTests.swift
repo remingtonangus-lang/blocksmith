@@ -268,7 +268,8 @@ enum DeepTests {
                     if y >= YOFF - 40 && v != Blocks.id("magma_block") && hellRock.contains(v) { hellMid += 1 }
                     if v == LAVA && y > YOFF - 55 {
                         lava += 1
-                        for o in [1, -1, CS, -CS, CSQ, -CSQ] where !(Blocks.opaque[Int(b[i + o])] || b[i + o] == LAVA) { leaky += 1 }
+                        let open = [1, -1, CS, -CS, CSQ, -CSQ].filter { !(Blocks.opaque[Int(b[i + $0])] || b[i + $0] == LAVA) }
+                        if open != [CSQ] || y < YOFF - 50 || y > YOFF - 8 { leaky += open.count }   // (P39: a cupped pool on a cave floor is open on top only)
                     }
                 }
                 for y in (YOFF - 8)..<YOFF where b[Chunk.index(lx, y, lz)] == EMBERSLATE { emberHigh += 1 }

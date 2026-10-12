@@ -69,7 +69,7 @@ enum BountyHunters {
     // P51: killed with hunters or a posse on you, they collect: every bounty is paid off and your purse is gone.
     static func claim(_ g: Game) {
         guard g.survival, g.mobs.mobs.contains(where: { $0.posse == 3 && $0.health > 0 && simd_length($0.pos - g.player.pos) < 48 }),
-              totalBounty > 0 || g.money > 0 else { return }
+              totalBounty > 0 || Honour.isOutlaw else { return }   // (nothing on your head: they have no claim)
         TownLaw.state.bounty = [:]
         g.money = 0
         g.onToast?("The hunters collect: your bounty is paid off with every cent you had")

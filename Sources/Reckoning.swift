@@ -28,6 +28,8 @@ enum Reckoning {
     static let breather: Float = 25      // between waves
     static let minWave: Float = 40       // a wave with dropships stays up at least this long (its troops are still flying in)
     static let reward = 25000            // $250
+    static let rejoin: Float = 20        // seconds a reloaded wave has for its troops to load back in
+    static let retry: Float = 5          // seconds before a wave that found no ground tries again
 
     static var stage = 0                 // 0 not begun, 1 under way, 2 won
     static var wave = 0                  // the wave to send next (stage 1), or the one in the field
@@ -36,24 +38,35 @@ enum Reckoning {
     static var age: Float = 0            // seconds the wave in the field has been out
     static var won: Bool { stage == 2 }
     static var dropshipsOn = true        // the host check turns the dropships off (they are checked in --ridecheck)
+    private static var worldID: ObjectIdentifier?   // the world this state belongs to (a new world starts clean)
+
+    static func reset() { stage = 0; wave = 0; timer = 0; inField = false; age = 0 }
+    // Clears the state when the game moved to another world without a load (a new world in the same run).
+    static func own(_ g: Game) {
+        let id = ObjectIdentifier(g.world)
+        if worldID != id { reset(); worldID = id }
+    }
 
     static func save(_ d: inout [String: String]) {
         if stage > 0 { d["reckoning"] = "\(stage),\(wave),\(timer),\(inField ? 1 : 0)" }
     }
-    static func load(_ d: [String: String]) {
+    static func load(_ d: [String: String], world: World) {
+        worldID = ObjectIdentifier(world)
         let p = (d["reckoning"] ?? "").split(separator: ",").map(String.init)
         stage = p.count > 0 ? max(0, min(2, Int(p[0]) ?? 0)) : 0
         wave = p.count > 1 ? max(0, min(waves.count - 1, Int(p[1]) ?? 0)) : 0
         timer = p.count > 2 ? Float(p[2]) ?? breather : 0
-        // A wave out when the world was saved comes again: its members are saved mobs, but its dropships are not.
-        if p.count > 3 && p[3] == "1" { timer = breather }
         inField = false; age = 0
+        // A wave out when the world was saved is still out: its ground troops are saved mobs (sending it again would
+        // double it). Its dropships are not saved, so it gets a grace while its chunks (and troops) load back in.
+        if p.count > 3 && p[3] == "1" { inField = true; age = -rejoin }
     }
 
     static func members(_ g: Game) -> [Mob] { g.mobs.mobs.filter { $0.posse == posse && $0.health > 0 } }
 
     // Once a second (Game.ashTick's slot).
     static func tick(_ g: Game, _ dt: Float, sync: Bool = false) {
+        own(g)
         guard g.ashVictory, stage < 2, g.survival, g.difficulty > 0 else { return }
         guard g.dim.dim == .overworld else { return }
         if !g.alive {
@@ -77,7 +90,7 @@ enum Reckoning {
             let troops = cur.dropships.contains { f in
                 g.mobs.mobs.contains { $0.factionValue == f && $0.posse == 0 && $0.health > 0 && $0.aggro && simd_length($0.pos - g.player.pos) < 64 }
             }
-            guard members(g).isEmpty, !troops, cur.dropships.isEmpty || age >= minWave else { return }
+            guard age >= 0, members(g).isEmpty, !troops, cur.dropships.isEmpty || age >= minWave else { return }
             inField = false
             if wave == waves.count - 1 {
                 stage = 2
@@ -129,6 +142,8 @@ enum Reckoning {
             let h = Float(max(w.gen.column(Int(fx), Int(fz)).height, SEA)) + 40
             g.world.ships.callDropship(faction: f, from: V3(fx, h, fz), to: g.player.pos, game: g, sync: sync)
         }
+        // Nowhere to stand and nothing flying in (in water, or the ground not loaded): try again shortly.
+        if placed == 0 && (cur.dropships.isEmpty || !dropshipsOn) { timer = retry; return 0 }
         inField = true; age = 0
         g.onToast?("\(cur.intro) (wave \(wave + 1) of \(waves.count))")
         g.sfx(.goatHorn, 0.8)
