@@ -405,6 +405,12 @@ final class Mob {
     var huntHits: UInt8 = 0         // the player's hits on it so far, and the worst weapon fit among them (Hunting.swift)
     var huntLoss: UInt8 = 0
     var legend: Int8 = -1           // a legendary animal's index in Hunting.legends, saved
+    // The hurt (red) or burning (orange) tint it is drawn with. Living mobs only: a corpse or a hunted carcass is never
+    // updated, so its last hurt stayed and it lay red on the ground (P78, Oct 12 playtest).
+    static func tint(_ m: Mob) -> V3 {
+        let living = m.deathT < 0 && !m.carcass
+        return m.hurt > 0 && living ? V3(1, 0.45, 0.45) : (m.fire > 0 && living ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
+    }
     var carcass = false             // a body waiting to be skinned (Hunting.bodies, never in the mob list), drawn on its side
     var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
@@ -2063,7 +2069,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
         bright = bright + (1 - bright) * amb
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
-        let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
+        let tint = Mob.tint(m)
         // Blade contact (Game.bladeFlash): a white-hot flash over the whole body for its first 0.14 s, distinct from the
         // red hurt tint that follows it.
         let flash: Float = min(1, m.hitFlash / Mob.hitFlashTime)
