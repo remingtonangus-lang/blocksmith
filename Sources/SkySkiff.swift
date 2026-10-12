@@ -6,7 +6,7 @@ import simd
 // in front of the player, hovering a step off the ground: a plank deck with a rail, a mast under a rounded envelope,
 // the helm and engine aft, three propellers at the stern. It is an ordinary vessel from then on (Ships.swift): take
 // the helm to fly it (climb and sink on the balloons, propellers for way), build on it, break it up, and it saves with
-// the world where it was left. Its envelope lifts about a hundred tonnes: load the deck with iron and it can't hold
+// the world where it was left. Its 68 balloons lift 136 t, about 90 t more than it weighs: load the deck with iron and it can't hold
 // height (weight matters, ShipPhysics).
 enum SkySkiff {
     static let key = "sky_skiff_kit"
@@ -21,10 +21,10 @@ enum SkySkiff {
         b.box(-2, 2, 0, 0, -4, 4, planks)
         for z in -4...4 { for x in -2...2 where abs(x) == 2 || abs(z) == 4 { b.set(x, 1, z, rail) } }
         for (x, z) in [(-2, -4), (2, -4), (-2, 4), (2, 4)] { b.box(x, x, 1, 3, z, z, post) }
-        b.box(0, 0, 1, 3, -1, -1, post)                                   // the mast
+        b.box(0, 0, 1, 4, -1, -1, post)                                   // the mast, up into the envelope
         // The envelope: an ellipsoid of lift balloons over the deck.
         for y in 4...8 { for z in -6...5 { for x in -3...3 {
-            let ex = Float(x) / 2.7, ey = (Float(y) - 6) / 2.3, ez = (Float(z) + 0.5) / 5.6
+            let ex = Float(x) / 2.2, ey = (Float(y) - 6) / 1.6, ez = (Float(z) + 0.5) / 4.4
             if ex * ex + ey * ey + ez * ez <= 1 { b.set(x, y, z, "ship_balloon") }
         } } }
         b.set(0, 1, 2, "ship_helm[south]")
