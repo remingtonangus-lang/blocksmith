@@ -38,7 +38,7 @@ enum BountyHunters {
         let n = Honour.isOutlaw ? (big ? 5 : 4) : (big ? 4 : 3)
         var placed = 0
         var from: V3?
-        for k in 0..<24 where placed < n {
+        for k in 0..<(n * 12) where placed < n {           // (12 tries a rider: the P88 ring is wider and has more water)
             let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 30...42)
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }
