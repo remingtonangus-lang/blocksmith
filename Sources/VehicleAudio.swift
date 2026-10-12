@@ -135,6 +135,18 @@ enum VehicleAudio {
             return Synth.mix(o, g.material(.metal, pitch: p * 0.6, scale: 1.2, gain: 0.4))
         case .shipSplash:
             return Synth.mix(g.burst(1.2, lp: 1100 * p, hp: 80, attack: 0.01, decay: 0.3, gain: 1.8), g.bubbles(1.0, count: 20, fLo: 300, fHi: 1400, len: 0.06, gain: 0.5))
+        case .trainWhistle:
+            // A steam whistle: three pipes a minor chord apart, breathy, a short rise into the note and a long release.
+            var o: [Float] = []
+            for (f, gn) in [(392 as Float, 0.22 as Float), (466, 0.18), (587, 0.14)] {
+                let t = g.tone(1.9, f0: f * 0.94 * p, f1: f * p, wave: .saw, attack: 0.12, release: 0.5, vib: 0.01, vibRate: 5, gain: gn)
+                o = o.isEmpty ? t : Synth.mix(o, t)
+            }
+            o = Synth.lowpass(o, 2600)
+            return Synth.mix(o, Synth.scaled(Synth.bandpass(g.wash(1.9, lp: 5000, hp: 900, wobble: 0.3, rate: 3, gain: 0.8), 1400 * p, q: 3), 0.5))
+        case .steamChuff:
+            // A chuff: a soft burst of exhaust steam with a low thump.
+            return Synth.mix(g.burst(0.32, lp: 1600 * p, hp: 120, attack: 0.004, decay: 0.09, gain: 1.1), g.rumble(0.25, f: 60 * p, attack: 0.002, decay: 0.07, gain: 0.8))
         case .helmTake:
             return Synth.mix(g.material(.wood, pitch: p * 1.1, scale: 0.6, gain: 0.5), g.modes(0.25, [(880 * p, 0.25, 0.08), (1320 * p, 0.15, 0.06)]), at: g.frames(0.05))
         default:   // engineStart: starter whirr, a few uneven catches, settling idle

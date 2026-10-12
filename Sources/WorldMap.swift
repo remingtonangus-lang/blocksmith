@@ -195,6 +195,7 @@ final class MapCache {
         case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
         case "legend": return ("L", V4(0.95, 0.5, 0.2, 1), "Legendary animal's den")
         case "border_post": return ("P", V4(0.75, 0.2, 0.2, 1), "Border post")
+        case "station": return ("R", V4(0.85, 0.55, 0.3, 1), "Railway station")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
         }
     }

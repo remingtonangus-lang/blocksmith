@@ -930,7 +930,7 @@ struct Synth {
             out = TerrainAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
-             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart:
+             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .trainWhistle, .steamChuff:
             out = VehicleAudio.render(&self, s, p: p)
         case .shipCannon:
             // Ship cannon: a big black-powder bang with a wooden hull shudder and a smoky tail.

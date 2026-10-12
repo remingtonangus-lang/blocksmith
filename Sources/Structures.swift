@@ -234,6 +234,7 @@ final class StructureCache {
     var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)
     var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
+    var legacyC1: Set<Int64> = []                 // ground saved before railways (C1, Railways.swift)
 
     // Q2 (scorecard "world gen: no structure overlaps", 138 piece overlaps in 50 seeds): a small start gives way to a
     // bigger one whose pieces it would cut into, so a ruined portal never stands in a village street or a citadel wall,

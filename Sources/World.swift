@@ -116,6 +116,7 @@ final class World {
             sc.legacyGreywall = save.structureGuard(file: "structure-guard-greywall.txt")  // Greywall.swift
             sc.legacySkyIsle = save.structureGuard(file: "structure-guard-skyisle.txt")    // SkyIsle.swift
             sc.legacyOverlap = save.structureGuard(file: "structure-guard-overlap.txt")    // StructureCache.yields
+            sc.legacyC1 = save.structureGuard(file: "structure-guard-c1.txt")              // Railways.swift
         }
         // G20 on the surface (strongholds, monuments, mansions, trial chambers): its own snapshot, taken the first time a save
         // loads under G20 (the P44 one was taken earlier, so ground generated between the two would get half a new design).

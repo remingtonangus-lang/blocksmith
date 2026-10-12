@@ -49,7 +49,7 @@ final class WorldGen: TerrainGenerator {
         }
         bands = bs
         structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalRail.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self), Greywall.type(self), SkyIsle.type(self)], fixed: Stronghold.starts(seed: seed))
-        structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz) }      // P51
+        structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz); Railways.draw(self, &w, cx, cz) }      // P51, C1
     }
 
     // MARK: Cave climate

@@ -161,6 +161,11 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
+if CommandLine.arguments.contains("--rail-only") {
+    RailwayTests.run(game, check: check)
+    print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the
 // rider's view through the Quest renderer (--horse-shots DIR keeps the PNGs).
 if CommandLine.arguments.contains("--horsecoats-only") {

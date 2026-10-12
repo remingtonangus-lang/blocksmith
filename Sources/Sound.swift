@@ -90,6 +90,7 @@ enum Snd: Hashable {
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
     case wingRushLoop, frigateDroneLoop, carriageTreadLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
+    case trainWhistle, steamChuff                   // C1 steam trains (VehicleAudio.swift)
     case shipCannon, turretTraverseLoop
     case mainGunCharge, mainGunFire, mainGunRumble   // the Meridian frigate's Tidebreaker (MainGun.swift)
     // Terrain and weather (TerrainAudio.swift): moving water, wind by landform, rain on leaves, snow, far thunder.
@@ -135,6 +136,7 @@ enum Snd: Hashable {
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
+             .trainWhistle, .steamChuff,
              .mainGunCharge, .mainGunFire, .mainGunRumble: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall, .volcanoRumble: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
@@ -154,7 +156,8 @@ enum Snd: Hashable {
         case .shipCannon: return 96
         case .mainGunCharge: return 192
         case .mainGunFire, .mainGunRumble: return 480
-        case .shipCollide, .engineStart, .engineIdleLoop, .propSlowLoop, .wheelRollLoop, .turretTraverseLoop, .airshipWindLoop: return 32
+        case .shipCollide, .engineStart, .engineIdleLoop, .propSlowLoop, .wheelRollLoop, .turretTraverseLoop, .airshipWindLoop, .steamChuff: return 32
+        case .trainWhistle: return 160
         case .engineFullLoop, .propFastLoop, .wingRushLoop, .rocketFlightLoop, .shellFlightLoop: return 48
         case .shellIncoming: return 64
         case .ashSiren: return 400
@@ -302,6 +305,7 @@ final class SoundBank {
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
               .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
+              .trainWhistle, .steamChuff,
               .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .mainGunCharge, .mainGunFire, .mainGunRumble]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall, .volcanoRumble]

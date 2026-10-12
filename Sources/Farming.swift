@@ -384,6 +384,7 @@ extension Game {
         let key = Items.key(held.item)
         if copperGolemUse(m) { return true }
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
+        if Trains.use(self, m) { return true }          // C1: a seat in the coach, the express car's strongbox
         if useCart(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }
