@@ -406,6 +406,15 @@ extension Mob {
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
             }
+            // Troop classes: Spec Ops swing wide round the target's flank, quietly; Hannibal troopers push in firing.
+            let tc = troopClass
+            if tc == .specOps && r != 2 && b.flankTimer <= 0 && b.reload <= 0 {
+                b.flankTimer = Rand.float(in: 3...5)
+                let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+                let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
+                b.flank = g.player.pos + simd_normalize(toMe * 0.4 + side * 1.6) * min(dist, (near + far) / 2)
+            }
+            if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
             let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
             // Marksmen move to a new spot after a shot now and then.
@@ -425,7 +434,7 @@ extension Mob {
             if let ls = b.lastSeen, b.seenAgo < 14 {
                 // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
                 let d = simd_length(ls - pos)
-                if r == 1 && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
+                if (r == 1 || troop == 2) && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
                     throwGrenade(g, at: ls)
                     b.grenadeCD = Rand.float(in: 9...14)
                 }
@@ -501,15 +510,16 @@ extension Mob {
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
-        g.sfx(.gun(gs.sound), 1, at: muzzle)
-        if factionValue != .steelhold { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
+        let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
+        g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
+        if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
-        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : Rand.int(in: rank.burst) }
+        if b.burst <= 0 { b.burst = b.gun == Guns.ashsaw ? Rand.int(in: 7...11) : (troop == 3 ? Rand.int(in: 6...10) : Rand.int(in: rank.burst)) }
         b.burst -= 1
         if b.burst <= 0 { b.spun = false }
         let rate: Float = enraged ? 0.6 : 1
@@ -694,6 +704,7 @@ extension Game {
             sfx(.explode, 1.2, at: at)
             return
         }
+        m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
         let b = m.soldierBrain
         guard b.gun >= 0, b.gun < Guns.all.count else { return }
         let gs = Guns.all[b.gun]

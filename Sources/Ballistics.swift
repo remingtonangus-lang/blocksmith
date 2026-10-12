@@ -235,6 +235,8 @@ final class Armory {
         if m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian { dmg *= 0.35 }
         // A Cinder Tank's plate turns rifle and pistol rounds (bring a launcher: docs/status/deep-balance.md).
         if m.kind == .ashTank && s.kind == .bullet { dmg *= 0.2 }
+        // A soldier's segmented plate (TroopClasses.swift): the helmet, vest or greaves the round strikes.
+        if m.troop != 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: at.y), g) }
         let whole = floorf(dmg)
         let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)

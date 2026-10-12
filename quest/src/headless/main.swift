@@ -161,6 +161,10 @@ if CommandLine.arguments.contains("--p11-only") {
     print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --greywall-only: the Greywall Command bases (Sources/GreywallTests.swift, backlog A1).
+if CommandLine.arguments.contains("--troopclasses-only") {
+    TroopTests.run(game: game, check: check)
+    print(failures == 0 ? "troopclasses: all checks passed" : "troopclasses: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--greywall-only") {
     GreywallTests.run(device: device, game: game, check: check)
     print(failures == 0 ? "greywall: all checks passed" : "greywall: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -745,6 +749,7 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
 if !CommandLine.arguments.contains("--no-greywall") { GreywallTests.run(device: device, game: game, check: check) }
+TroopTests.run(game: game, check: check)
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {

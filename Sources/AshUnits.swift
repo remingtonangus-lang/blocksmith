@@ -90,9 +90,9 @@ extension Mob {
         }
         var ash = false, deep = false
         if n.hasSuffix("@ash") { ash = true; n = n.dropLast(4) }
-        if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }
+        if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }       // a Brimstone Keep's monsters: Deep strength
         var grey = false
-        if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }       // a Greywall Command base's troops (Greywall.swift)       // a Brimstone Keep's monsters: Deep strength
+        if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }       // a Greywall Command base's troops (Greywall.swift)
         var tag = ""
         if let i = n.firstIndex(of: ":") { tag = String(n[n.index(after: i)...]); n = n[..<i] }
         guard let k0 = MobKind.named(String(n)) else { return nil }
@@ -101,6 +101,7 @@ extension Mob {
         if ash { m.ashSetup() }
         if grey { m.greySetup() }
         m.leash = leash
+        if grey { m.greyTroop(tier: leash.flatMap { l in Greywall.Tier.allCases.first { $0.half == Int(l.z) } } ?? .outpost, at: p) }
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }

@@ -449,6 +449,8 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
+    var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
     var leash: V3?                  // a Greywall base's soldier: (centre x, centre z, half-size) it never leaves (GreywallAlarm.swift)
     var playerHurtAt: Double = -1e9 // game clock the player last hurt it (Honour: a murder needs a hit within 10 s)
 
@@ -1374,6 +1376,11 @@ final class Mob {
             }
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        // A melee blow on a soldier lands on the vest (TroopClasses.swift; rounds pick their segment in Ballistics).
+        if Mob.playerMelee && damage > 0 && troop != 0 && Soldier.rank(kind) != nil {
+            let d = troopArmourHit(Float(damage), seg: 1, nil)
+            damage = max(1, Int(d) + (Rand.float(in: 0..<1) < d - floorf(d) ? 1 : 0))
+        }
         damage = Difficulty.scaleHit(damage, self)                          // G19: Easy monsters are frailer, Hard tougher
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
         // the average holds, except that every hit does at least 1).

@@ -86,6 +86,13 @@ struct Livery {
             l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
             l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)
         }
+        // Troop classes (TroopClasses.swift): Spec Ops blacked out with red lenses, Hannibal gunmetal plate with brass
+        // trim; a cracked vest goes dull.
+        if let c = m.troopClass {
+            if c == .specOps { l.cloth *= 0.42; l.legs *= 0.42; l.plate *= 0.45; l.glow = V3(2.2, 0.4, 0.3) }
+            if c == .hannibal { l.plate = l.plate * 0.55 + V3(0.12, 0.13, 0.14); l.trim = V3(0.78, 0.6, 0.22) }
+            if m.troopSeg.y < c.segMax.y * 0.5 { l.plate *= 0.68 }
+        }
         return l
     }
 }
@@ -877,6 +884,7 @@ enum SoldierRig {
             AshLook.head(m, lv, rank: r, full: full, mid: mid, hb: hb)
             return
         }
+        if m.troop > 0 && m.troopSeg.x <= 0 { return }               // the helmet was shot off (TroopClasses.swift)
         switch r {
         case 0:
             // Crested enamel helmet: dome, grey brow band, crest ridge, ear guards, chin strap, silver badge.
