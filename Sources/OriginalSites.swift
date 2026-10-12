@@ -217,10 +217,10 @@ enum SunkenDreadnought {
     }
 }
 
-// Ground a save generated before G20 in the Emberdeep and the Deep, and before P44 on the surface (World.init loads them): structures there keep
+// Ground a save generated before G20 in the Emberdeep, the Deep and on the surface (World.init loads them): structures there keep
 // their old design so no half-built one is left at the edge of explored land.
 enum G20Guard {
-    static var overworld: Set<Int64> = []        // the P44 guard (WorldRules.savedBeforeP44), for the fixed strongholds
+    static var overworld: Set<Int64> = []        // structure-guard-g20-overworld.txt
     static var nether: Set<Int64> = []
     static var deep: Set<Int64> = []
     static func legacy(_ set: Set<Int64>, _ cx: Int, _ cz: Int, reach: Int) -> Bool {

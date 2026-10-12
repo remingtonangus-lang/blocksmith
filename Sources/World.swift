@@ -113,7 +113,9 @@ final class World {
             sc.legacyG12 = save.structureGuard(file: "structure-guard-g12.txt")            // WorldRules.savedBeforeG12
             sc.legacyP44 = save.structureGuard(file: "structure-guard-p44.txt")            // WorldRules.savedBeforeP44
         }
-        if dim == .overworld { G20Guard.overworld = (gen as? WorldGen)?.structures?.legacyP44 ?? [] }   // (strongholds: OriginalSites.swift)
+        // G20 on the surface (strongholds, monuments, mansions, trial chambers): its own snapshot, taken the first time a save
+        // loads under G20 (the P44 one was taken earlier, so ground generated between the two would get half a new design).
+        if dim == .overworld { G20Guard.overworld = save?.structureGuard(file: "structure-guard-g20-overworld.txt") ?? [] }
         // G20: the Emberdeep's and the Deep's fortresses are Ash Foundries on ground no save generated before them.
         if dim == .nether { G20Guard.nether = save?.structureGuard(file: "structure-guard-g20.txt") ?? [] }
         if dim == .deep { G20Guard.deep = save?.structureGuard(file: "structure-guard-g20.txt") ?? [] }

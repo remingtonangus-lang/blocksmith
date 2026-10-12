@@ -87,7 +87,7 @@ P67. Sheriff jobs: the map marker for him works (keep).
 Praised, keep: guns against enemies, the Hunter Map, the Elk Gulch welcome, the horse staying near, the potion look improving.
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
-Q1. Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
+Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
 
 ## THE GAME'S SPINE (read first; every item serves this)

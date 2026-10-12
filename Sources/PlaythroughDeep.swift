@@ -125,7 +125,9 @@ extension Playthrough {
         check(Recipes.smelt(flux).map { !BlockEntity.allowed($0, flux, in: "furnace") && BlockEntity.allowed($0, flux, in: "blast_furnace") } ?? false,
               "deep: Sunderite Flux smelts only in a blast furnace")
         let pad = IVec3(Int(floor(yard.x)) + 3, Int(floor(yard.y)), Int(floor(yard.z)) + 3)
-        if let fp = place("blast_furnace", at: pad), let be = world.blockEntities[fp] {
+        // (A furnace's contents are made the first time it is opened, as Game.use does: open it once.)
+        if let fp = place("blast_furnace", at: pad), case let be = world.entity(fp, .furnace) {
+            be.mob = "blast_furnace"; world.blockEntities[fp] = be
             be.container[0] = ItemStack(flux, 4); inv.remove(flux, 4)
             if count("coal") < 2 { give("coal", 2, bulk: "fuel") }
             be.container[1] = ItemStack(id("coal"), 2); inv.remove(id("coal"), 2)
@@ -135,7 +137,7 @@ extension Playthrough {
                   String(format: "deep: the blast furnace makes %d Sunderite Ingots in %.0f s", be.container[2].count, simSeconds - st))
             game.inventory.add(be.container[2]); be.container[2] = .empty
         } else {
-            check(false, "deep: a blast furnace placed in the courtyard")
+            check(false, "deep: a blast furnace placed in the courtyard (at \(pad.x),\(pad.y),\(pad.z): \(key(pad)), under it \(key(pad + IVec3(0, -1, 0))); \(why()))")
         }
         if count("sunderite_ingot") < 4 { give("sunderite_ingot", 4 - count("sunderite_ingot"), bulk: "no blast furnace") }
         if count("tnt") == 0 { give("tnt", 1, bulk: "gunpowder and sand") }
@@ -162,10 +164,12 @@ extension Playthrough {
         game.player.flying = false
         game.player.pos = V3(Float(hx) + 0.5, Float(DeepSeal.top), Float(hz) + 0.5); game.player.vel = .zero
         aim(at: center(seal))
+        AimAssist.last = nil
         game.input.rightClicked = true
         frame()
-        let fell = tick(Double(DeepSeal.chargeFuse) + 20) { self.game.player.pos.y < Float(DeepSeal.bottom) - 1 }
-        check(fell && game.advancements.contains("adventure/break_seal"), "deep: the Sunder Charge blows a shaft through the seal and the player drops through")
+        let setWhy = why()
+        let fell = tick(Double(DeepSeal.chargeFuse) + 20) { self.game.player.pos.y < Float(DeepSeal.bottom) }     // (on the crust one under the seal)
+        check(fell && game.advancements.contains("adventure/break_seal"), "deep: the Sunder Charge blows a shaft through the seal and the player drops through (\(setWhy); feet at \(Int(game.player.pos.y)), seal \(DeepSeal.bottom)...\(DeepSeal.top - 1))")
         // Under the seal: the lower crust, dug through with the Sunderite Pickaxe's bluntest use (any pickaxe) down to the vault roof.
         _ = hold(DeepSeal.pickaxe)
         var crust = 0
@@ -225,7 +229,8 @@ extension Playthrough {
             if let foot = wave.filter({ !$0.kind.ashVehicle && $0.health > 0 }).min(by: { simd_length($0.pos - game.player.pos) < simd_length($1.pos - game.player.pos) }) {
                 var s = 0
                 while foot.health > 0 && game.mobs.mobs.contains(where: { $0 === foot }) && s < 40 { swing(at: foot); s += 1 }
-                info("wave \(n + 1): an Ashguard soldier fought hand to hand (\(s) swings, down \(foot.health <= 0))")
+                info(String(format: "wave %d: an Ashguard soldier fought hand to hand (%d swings, down %@, health left %.0f, %.1f blocks off)",
+                            n + 1, s, foot.health <= 0 ? "true" : "false", Float(foot.health), simd_length(foot.pos - game.player.pos)))
             }
             let left = game.lastWar.wave.filter { $0.health > 0 }
             kill(left)
@@ -247,6 +252,7 @@ extension Playthrough {
             check(false, "deep: the Ash Chancellor waits in his study"); return
         }
         let ct = simSeconds
+        let ch0 = ch.health
         swings = 0
         while ch.health > 0 && game.mobs.mobs.contains(where: { $0 === ch }) && swings < 260 {
             // His guard comes at his call: fought off as it arrives (bulk).
@@ -256,7 +262,8 @@ extension Playthrough {
             swings += 1
         }
         let chDown = ch.health <= 0 || !game.mobs.mobs.contains { $0 === ch }
-        check(chDown, String(format: "deep: the Ash Chancellor falls (%d swings, %.0f s)", swings, simSeconds - ct))
+        check(chDown, String(format: "deep: the Ash Chancellor falls (%d swings, %.0f s; health %.0f -> %.0f, %.1f blocks off; %@)",
+                                swings, simSeconds - ct, Float(ch0), Float(ch.health), simd_length(ch.pos - game.player.pos), why()))
         if !chDown { kill([ch]) }
         _ = tick(1)
         check(game.ashVictory && game.ashStage == 3 && game.creditsAsh && game.advancements.contains("adventure/ash_victory"),
@@ -292,6 +299,7 @@ extension Playthrough {
         game.player.flying = true
         game.player.pos = V3(Float(at.x) + 0.5, Float(at.y) + 1.5, Float(at.z) + 2.5); game.player.vel = .zero
         aim(at: V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5))
+        AimAssist.last = nil            // (the block assist would keep the last block mined highlighted)
         game.input.rightClicked = true
         frame(pin: game.player.pos)
         return Blocks.key(world.block(at.x, at.y, at.z)).hasSuffix(n) || baseKey(world.block(at.x, at.y, at.z)) == n ? at : nil

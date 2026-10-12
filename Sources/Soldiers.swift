@@ -457,11 +457,12 @@ extension Mob {
         // Marksmen hold a laser on the target before every shot. An Ashguard sharpshooter's scope glints for as long
         // before its first shot at a target (G5: an unarmoured arrival in the vault died 92 blocks out in 4 s with no
         // sign of where the shots came from).
+        var glintDone = false
         if b.gun == Guns.sniper || (kind == .soldierMarksman && !b.glinted && faction == Faction.ashguard.rawValue) {
             b.aimTime += dt
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
-            b.glinted = true
+            glintDone = true
         }
         let rank = Soldier.ranks[r]
         let enraged = r == 3 && health < spec.health / 2
@@ -470,6 +471,7 @@ extension Mob {
         // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
         // only): a wall, window, door or fence between the gun and the target holds the shot.
         guard g.world.clearShot(muzzle, target) else { b.aimTime = 0; return }
+        if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
         aimAt += g.player.vel * flight * 0.8

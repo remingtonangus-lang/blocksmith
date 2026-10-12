@@ -256,7 +256,9 @@ extension Game {
                     b.note("\(r.key) patrol out to \(Int(n.pos.x)),\(Int(n.pos.z)) (\(n.kind), \(Int(d)) blocks)")
                     if simd_length(player.pos - c) < 140 { onToast?("A Capital patrol sets out to investigate") }
                 } else if var pt = r.patrol, pt.phase < 3 {
-                    pt.target = [n.pos.x, n.pos.y, n.pos.z]         // a newer noise redirects it
+                    // A newer noise redirects it: a march path to the old spot is dropped (searched again from where it is).
+                    if simd_length(V3(pt.target[0], pt.target[1], pt.target[2]) - n.pos) > 6 { b.dropRoute(r.key) }
+                    pt.target = [n.pos.x, n.pos.y, n.pos.z]
                     r.patrol = pt
                 }
             }
@@ -316,7 +318,7 @@ extension Game {
         } || (b.patrols[r.key] ?? []).contains { $0.health > 0 } || (b.crews[r.key] ?? []).contains { $0.health > 0 }
         guard !alive else { return }
         r.cleared = true
-        r.patrol = nil; b.patrols[r.key] = nil
+        r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key)
         b.note("\(r.key) cleared")
         if simd_length(player.pos - r.centre) < 140 { onToast?("The citadel is cleared") }
     }

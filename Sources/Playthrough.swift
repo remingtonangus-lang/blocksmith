@@ -17,7 +17,14 @@ final class Playthrough {
     var simSeconds: Double = 0
     var damageTaken = 0          // health the player lost while the test kept topping it up
 
-    init(game: Game) { self.game = game }
+    init(game: Game) { self.game = game; game.onToast = { [weak self] t in self?.lastToast = t } }
+    // The last toast and the worst single-frame health loss since the last death: say why when a step goes red.
+    var lastToast = ""
+    var worstHit = 0
+    func why() -> String {
+        let t = game.target.map { "\(Blocks.key(world.block($0.hit.x, $0.hit.y, $0.hit.z))) at \($0.hit.x),\($0.hit.y),\($0.hit.z)" } ?? "none"
+        return "aim \(t), menu \(game.menu.map { "\(type(of: $0))" } ?? "none"), held \(Items.key(game.held.item)), toast '\(lastToast)'"
+    }
     var world: World { game.world }
     var inv: ItemContainer { game.inventory.main }
 
@@ -42,7 +49,7 @@ final class Playthrough {
             game.tick(0.05)
             simSeconds += 0.05
             if keepAlive {
-                if game.health < before { damageTaken += before - game.health }
+                if game.health < before { damageTaken += before - game.health; worstHit = max(worstHit, before - game.health) }
                 handleDeath()
                 game.health = max(game.health, 20)
                 game.hunger = 20
@@ -61,7 +68,7 @@ final class Playthrough {
         let before = game.health
         game.tick(0.05)
         simSeconds += 0.05
-        if game.health < before { damageTaken += before - game.health }
+        if game.health < before { damageTaken += before - game.health; worstHit = max(worstHit, before - game.health) }
         handleDeath()
         game.health = max(game.health, 20)
         if let p = pin { game.player.pos = p; game.player.vel = .zero }
@@ -83,7 +90,9 @@ final class Playthrough {
             exit(1)
         }
         let at = game.player.pos
-        info(String(format: "died (%@) at %.0f %.0f %.0f in %@", dm.message, at.x, at.y - Float(YOFF), at.z, game.dim.dim.rawValue))
+        info(String(format: "died (%@) at %.0f %.0f %.0f in %@; worst frame since the last death -%d, armour %d", dm.message, at.x, at.y - Float(YOFF), at.z,
+                    game.dim.dim.rawValue, worstHit, game.inventory.armorPoints))
+        worstHit = 0
         game.menu = nil
         game.alive = true
         game.health = 20
@@ -320,6 +329,10 @@ final class Playthrough {
     // Melee swing at a mob with a full attack charge (real interact attack path). Without `feet` the player
     // follows the mob at `offset` (chasing it) while the swing charges.
     func swing(at m: Mob, from feet: V3? = nil, offset: V3 = V3(2, 0, 0)) {
+        // Swing the best sword carried (picking up loot can leave something else in the hand).
+        if inv[game.selected].isEmpty || Items.def(inv[game.selected].item).tool != .sword {
+            for n in ["netherite_sword", "diamond_sword", "iron_sword", "stone_sword"] where hold(n) { break }
+        }
         let inp = game.input
         for _ in 0..<13 {
             frame(pin: feet ?? chaseSpot(m, offset))

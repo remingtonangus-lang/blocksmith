@@ -27,7 +27,7 @@ enum BigStructures {
             let y0 = SEA - 26
             // G20: the Sunken Dreadnought (OriginalSites.swift) in place of the reference's ocean monument, except on
             // ground a save had already generated with the temple.
-            if !WorldRules.savedBeforeP44(gen, cx, cz, reach: 3) {
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
                 return StructureStart(kind: "monument", pieces: [piece(x - 31, y0 - 14, z - 8, x + 31, SEA, z + 8) { w in SunkenDreadnought.build(&w, x, y0, z, seed) }],
                                       anchor: IVec3(x - 16, y0 + 2, z))
             }
@@ -92,7 +92,7 @@ enum BigStructures {
             guard y > SEA else { return nil }
             // G20: the Brigand Roost (OriginalSites.swift) in place of the reference's woodland mansion, except on ground a
             // save had already generated with the manor.
-            if !WorldRules.savedBeforeP44(gen, cx, cz, reach: 3) {
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
                 return StructureStart(kind: "mansion", pieces: [piece(x - 23, y - 8, z - 23, x + 23, y + 22, z + 23) { w in BrigandRoost.build(&w, x, y + 1, z, seed) }],
                                       anchor: IVec3(x, y + 1, z - BrigandRoost.r - 2))
             }
@@ -302,7 +302,7 @@ enum BigStructures {
             let y = YOFF - 40 + rng.int(21)
             // G20: the Sealed Armoury (OriginalSites.swift) in place of the reference's trial chambers, except on ground
             // a save had already generated with the old halls (half of one would be left).
-            if !WorldRules.savedBeforeP44(gen, cx, cz, reach: 3) {
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
                 return StructureStart(kind: "trial_chambers", pieces: [piece(x - 31, y - 2, z - 16, x + 31, y + 8, z + 16) { w in SealedArmoury.build(&w, x, y, z, seed) }],
                                       anchor: IVec3(x, y + 1, z))
             }

@@ -87,7 +87,8 @@ extension G20Tests {
             m.fuse += 0.05                                      // swelling all the while (it never backs off)
             t += 0.05
         }
-        check(m.health <= 0 && m.fuse < Mob.hisserFuse,
+        // (Each blow also sets its fuse back, so the fuse alone can't fail: the kill must come within one plain fuse.)
+        check(m.health <= 0 && m.fuse < Mob.hisserFuse && t < Mob.hisserFuse && blows <= 3,
               String(format: "G16 Powderwight: %d iron-sword blows of %.0f kill it at %.2f s with its fuse at %.2f of %.2f s", blows, blow, t, m.fuse, Mob.hisserFuse))
         let survival0 = g.survival, tip0 = TownLaw.state.emeraldTip, held0 = g.inventory.main[g.selected], toast0 = g.onToast
         var said: [String] = []

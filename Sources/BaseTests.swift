@@ -129,8 +129,14 @@ enum BaseTests {
                 look(at: target, from: from)
                 return finish(g, b, t0)
             }
-            let reach = sim(150) { (b.patrols[key] ?? []).contains { simd_length(V2($0.pos.x - shot.x, $0.pos.z - shot.z)) < 6 } }
+            var routed = 0
+            let reach = sim(150) {
+                routed = max(routed, b.routes[key]?.count ?? 0)
+                return (b.patrols[key] ?? []).contains { simd_length(V2($0.pos.x - shot.x, $0.pos.z - shot.z)) < 6 }
+            }
             check(reach != nil, "the patrol reaches the spot", String(format: "within %.0f s", reach ?? -1))
+            // T4: it marched on a searched path (the leader's own 48-block search limit no longer applies to the march).
+            check(routed > 0, "the patrol marches on a searched path", "\(routed) cells")
             if shotOnly {
                 let lead = (b.patrols[key] ?? team).first?.pos ?? shot
                 look(at: lead + V3(0, 1, 0), from: lead + V3(7, 4, 9))

@@ -64,7 +64,7 @@ extension Game {
 
     func basePatrol(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
         guard var pt = r.patrol else { return }
-        if r.cleared == true { r.patrol = nil; b.patrols[r.key] = nil; return }
+        if r.cleared == true { r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key); return }
         let target = V3(pt.target[0], pt.target[1], pt.target[2])
         pt.t += dt
         var team = b.patrols[r.key]
@@ -124,7 +124,10 @@ extension Game {
             if b.routes[r.key] == nil && b.routeSearch[r.key] == nil {
                 // Searched a slice a frame (baseRouteTick): the whole 8,000-node search in one update was a 550 ms
                 // hitch (basetest "citadel update stays cheap"). Until it ends the leader takes the straight steps.
-                b.routeSearch[r.key] = PathFinder.begin(world, from: leader.pos, to: target, profile: leader.pathProfile(self), maxNodes: 8000)
+                // (The soldier's own profile only tries goals within 48 blocks; a patrol marches up to ~120.)
+                var pr = leader.pathProfile(self)
+                pr.range = max(pr.range, 256)
+                b.routeSearch[r.key] = PathFinder.begin(world, from: leader.pos, to: target, profile: pr, maxNodes: 8000)
             }
             let route = b.routes[r.key] ?? []
             var wp = dist < 18 ? target : leader.pos + to / dist * 18
