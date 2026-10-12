@@ -279,6 +279,14 @@ T5. P18 water falling one block (Oct 11 playtest, "looks weird from the side"): 
     shallow rim's side faces reading as separate dashes along a diagonal edge. No defect pinned; needs a headset look
     (lane M) with the scene above to say what "weird" is.
 
+T10. PR #51 Mac heavy-lane leftovers after its 30-minute time-box (Lane A, 2026-10-12). Fixed in #51: the G20 stronghold
+    check (it read terrain without structures), the hollow gate stage (the open gate took the player through before
+    the frames were read; the trip back left a portal cooldown), the Deep death loop (armour worn out by the Blight
+    fight), the gun and ammo count. Left, each needing its own look on the Mac lane (Metal-only checks):
+    a. tours: `padtest` 6 fails on #51's run (not reproduced on Linux; compare with the base's tours run first).
+    b. shots: `towntests` line 69 newly gated on #51's run; the Linux towns slice is green on the same code.
+    The Blight fight (T3a) stays red as on claude/quest-port.
+
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
      panels, ship parts): list in docs/status/art-style-remaining.md. Needs Gemini sheets (Mac, CHROME=1).
