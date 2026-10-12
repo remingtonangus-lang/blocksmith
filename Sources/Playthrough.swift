@@ -98,7 +98,10 @@ final class Playthrough {
         game.health = 20
         damageTaken += 20
         collect(near: at, 16)
-        if game.inventory.armorPoints > 0 || count("diamond_chestplate") > 0 { wearArmor() }
+        // The armour back on: picked up where it fell, or (dropped among the enemies that killed the player, or burnt) a
+        // fresh set, as a player would fetch from a chest at home. Without it the Deep's last battle killed a bare
+        // player every few seconds (26 deaths, armour 0, PR #51's heavy play).
+        if game.inventory.armorPoints < 17 { wearArmor() }
     }
 
     // MARK: Inventory
@@ -857,14 +860,23 @@ final class Playthrough {
         section("stronghold")
         // G20: on new ground the portal room holds a reliquary, not the Hollow's gate (the dais chunk generated alone).
         if let wg = world.gen as? WorldGen {
+            // The dais (stronghold anchor + 7 in z, chests 2 either side and a row behind) can straddle chunk edges: every
+            // chunk it touches is generated.
             let px = sh.anchor.x, pz = sh.anchor.z + 7
             let saved = G20Guard.overworld
             G20Guard.overworld = []
-            let b = wg.generate(cx: floorDiv(px, CS), cz: floorDiv(pz, CS))
-            G20Guard.overworld = saved
             let frame = Blocks.id("end_portal_frame"), chest = Blocks.id("chest")
-            let frames = b.filter { $0 == frame || $0 == frame + 1 }.count
-            let chests = b.indices.filter { Blocks.groupBase[Int(b[$0])] == Blocks.groupBase[Int(chest)] }.count
+            var frames = 0, chests = 0
+            for cz in floorDiv(pz - 4, CS)...floorDiv(pz + 2, CS) { for cx in floorDiv(px - 3, CS)...floorDiv(px + 3, CS) {
+                let b = wg.generate(cx: cx, cz: cz)
+                for i in b.indices {
+                    let x = cx * CS + i % CS, z = cz * CS + (i / CS) % CS
+                    guard abs(x - px) <= 3, z >= pz - 4, z <= pz + 2 else { continue }
+                    if b[i] == frame || b[i] == frame + 1 { frames += 1 }
+                    if Blocks.groupBase[Int(b[i])] == Blocks.groupBase[Int(chest)] { chests += 1 }
+                }
+            } }
+            G20Guard.overworld = saved
             check(frames == 0 && chests >= 2, "stronghold G20: on new ground the dais holds a reliquary (\(chests) chests), no hollow gate frames (\(frames))")
         }
         // The rest plays an older save's stronghold, whose gate still leads to the Hollow.
@@ -895,7 +907,7 @@ final class Playthrough {
             _ = tick(0.1, pin: feet)
         }
         let filled = frames.filter { world.block($0.x, $0.y, $0.z) == base + 1 }.count
-        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks")
+        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.block($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
         let c = frames.reduce(V3(0, 0, 0)) { $0 + center($1) } / Float(max(1, frames.count))
         let pc = IVec3(Int(floor(c.x)), frames.first?.y ?? 0, Int(floor(c.z)))
         var portalBlocks = 0

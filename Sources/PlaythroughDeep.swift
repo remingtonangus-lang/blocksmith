@@ -283,6 +283,13 @@ extension Playthrough {
     // What a player brings down: Duskium tools, a sword, armour; the hell-band stage needs nothing else to start.
     func kitForDeep() {
         for n in ["netherite_pickaxe", "netherite_sword"] where count(n) == 0 { give(n, 1, bulk: "Duskium gear") }
+        // A fresh set, as a player re-armours before going down: after the Blight fight's ten minutes the old one is
+        // nearly worn through and broke in the keep (the full run died 24 times in the last battle, armour 0).
+        for (slot, n) in ["golden_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"].enumerated() {
+            let a = game.inventory.armor[slot]
+            if !a.isEmpty && Items.key(a.item) == n && a.damage == 0 { continue }
+            game.inventory.armor[slot] = .empty
+        }
         if game.inventory.armorPoints < 17 { wearArmor() }
     }
 
