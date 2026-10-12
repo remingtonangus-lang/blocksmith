@@ -168,7 +168,7 @@ extension Mob {
         return true
     }
 
-    private func wake(_ g: Game) {
+    func wake(_ g: Game) {
         if lying {
             pos.y += 0.1                // off the mattress, beside the pillow end
             // A bed whose head lies against a wall left the villager standing in the wall when it got up (Q2
@@ -185,7 +185,9 @@ extension Mob {
                     let x = b[0] + dx, z = b[2] + dz
                     let bed = VillageLife.isBed(w.block(x, b[1], z))
                     let p = V3(Float(x) + 0.5, Float(b[1]) + (bed ? 0.5625 : 0), Float(z) + 0.5)
-                    guard bed || Blocks.collide[Int(w.block(x, b[1] - 1, z))], free(p) else { continue }
+                    // (In sight of where it lay: never through the wall into the next room.)
+                    guard bed || Blocks.collide[Int(w.block(x, b[1] - 1, z))], free(p),
+                          w.clearShot(pos + V3(0, 1.2, 0), p + V3(0, 1.2, 0)) else { continue }
                     if best.map({ simd_length(p - pos) < simd_length($0 - pos) }) ?? true { best = p }
                 } }
                 if let p = best { pos = p }

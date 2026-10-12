@@ -212,8 +212,8 @@ enum BehaviorSim {
         // In a wall.
         let lo = V3(p.x - m.halfW + 0.05, p.y + 0.05, p.z - m.halfW + 0.05)
         let hi = V3(p.x + m.halfW - 0.05, p.y + m.height - 0.1, p.z + m.halfW - 0.05)
-        // (A villager lying in bed is laid along the mattress, not standing: its standing box would poke into the wall
-        // behind the pillow. Getting up is checked: it must stand somewhere free.)
+        // (A villager lying in bed is laid along the mattress, not standing: its standing box would poke out past the
+        // foot of the bed and up into a low ceiling. Getting up is checked: it must stand somewhere free.)
         if !m.lying && w.collides(lo, hi) {
             t.wallSeconds += 1
             if t.wallSeconds == 2 {
