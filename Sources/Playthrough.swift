@@ -17,7 +17,14 @@ final class Playthrough {
     var simSeconds: Double = 0
     var damageTaken = 0          // health the player lost while the test kept topping it up
 
-    init(game: Game) { self.game = game }
+    init(game: Game) { self.game = game; game.onToast = { [weak self] t in self?.lastToast = t } }
+    // The last toast and the worst single-frame health loss since the last death: say why when a step goes red.
+    var lastToast = ""
+    var worstHit = 0
+    func why() -> String {
+        let t = game.target.map { "\(Blocks.key(world.block($0.hit.x, $0.hit.y, $0.hit.z))) at \($0.hit.x),\($0.hit.y),\($0.hit.z)" } ?? "none"
+        return "aim \(t), menu \(game.menu.map { "\(type(of: $0))" } ?? "none"), held \(Items.key(game.held.item)), toast '\(lastToast)'"
+    }
     var world: World { game.world }
     var inv: ItemContainer { game.inventory.main }
 
@@ -42,7 +49,7 @@ final class Playthrough {
             game.tick(0.05)
             simSeconds += 0.05
             if keepAlive {
-                if game.health < before { damageTaken += before - game.health }
+                if game.health < before { damageTaken += before - game.health; worstHit = max(worstHit, before - game.health) }
                 handleDeath()
                 game.health = max(game.health, 20)
                 game.hunger = 20
@@ -61,7 +68,7 @@ final class Playthrough {
         let before = game.health
         game.tick(0.05)
         simSeconds += 0.05
-        if game.health < before { damageTaken += before - game.health }
+        if game.health < before { damageTaken += before - game.health; worstHit = max(worstHit, before - game.health) }
         handleDeath()
         game.health = max(game.health, 20)
         if let p = pin { game.player.pos = p; game.player.vel = .zero }
@@ -83,13 +90,18 @@ final class Playthrough {
             exit(1)
         }
         let at = game.player.pos
-        info(String(format: "died (%@) at %.0f %.0f %.0f in %@", dm.message, at.x, at.y - Float(YOFF), at.z, game.dim.dim.rawValue))
+        info(String(format: "died (%@) at %.0f %.0f %.0f in %@; worst frame since the last death -%d, armour %d", dm.message, at.x, at.y - Float(YOFF), at.z,
+                    game.dim.dim.rawValue, worstHit, game.inventory.armorPoints))
+        worstHit = 0
         game.menu = nil
         game.alive = true
         game.health = 20
         damageTaken += 20
         collect(near: at, 16)
-        if game.inventory.armorPoints > 0 || count("diamond_chestplate") > 0 { wearArmor() }
+        // The armour back on: picked up where it fell, or (dropped among the enemies that killed the player, or burnt) a
+        // fresh set, as a player would fetch from a chest at home. Without it the Deep's last battle killed a bare
+        // player every few seconds (26 deaths, armour 0, PR #51's heavy play).
+        if game.inventory.armorPoints < 17 { wearArmor() }
     }
 
     // MARK: Inventory
@@ -320,6 +332,10 @@ final class Playthrough {
     // Melee swing at a mob with a full attack charge (real interact attack path). Without `feet` the player
     // follows the mob at `offset` (chasing it) while the swing charges.
     func swing(at m: Mob, from feet: V3? = nil, offset: V3 = V3(2, 0, 0)) {
+        // Swing the best sword carried (picking up loot can leave something else in the hand).
+        if inv[game.selected].isEmpty || Items.def(inv[game.selected].item).tool != .sword {
+            for n in ["netherite_sword", "diamond_sword", "iron_sword", "stone_sword"] where hold(n) { break }
+        }
         let inp = game.input
         for _ in 0..<13 {
             frame(pin: feet ?? chaseSpot(m, offset))
@@ -362,6 +378,7 @@ final class Playthrough {
         if want("stronghold") { t.eyesAndStronghold() }
         if want("end") { t.theHollow() }
         if want("blight") { t.blight() }
+        if want("deep") { t.theDeep() }
         t.advancementsCheck(only.isEmpty)
         t.section("summary")
         t.info("deaths: \(t.deaths), damage healed by the test: \(t.damageTaken) half-hearts")
@@ -841,6 +858,30 @@ final class Playthrough {
         if count("ender_eye") < 12 { give("ender_eye", 12 - count("ender_eye"), bulk: "eye shattered") }
 
         section("stronghold")
+        // G20: on new ground the portal room holds a reliquary, not the Hollow's gate (the dais chunk generated alone).
+        if let wg = world.gen as? WorldGen {
+            // The dais (about the stronghold anchor + 7 to + 9 in z, chests 2 either side and a row behind) can straddle chunk edges: every
+            // chunk it touches is generated.
+            let px = sh.anchor.x, pz = sh.anchor.z + 7
+            let saved = G20Guard.overworld
+            G20Guard.overworld = []
+            let frame = Blocks.id("end_portal_frame"), chest = Blocks.id("chest")
+            var frames = 0, chests = 0
+            for cz in floorDiv(pz - 4, CS)...floorDiv(pz + 5, CS) { for cx in floorDiv(px - 3, CS)...floorDiv(px + 3, CS) {
+                var b = wg.generate(cx: cx, cz: cz)
+                _ = wg.structures?.place(into: &b, cx: cx, cz: cz)          // structures go on after the terrain, as World does
+                for i in b.indices {
+                    let x = cx * CS + i % CS, z = cz * CS + (i / CS) % CS
+                    guard abs(x - px) <= 3, z >= pz - 4, z <= pz + 5 else { continue }
+                    if b[i] == frame || b[i] == frame + 1 { frames += 1 }
+                    if Blocks.groupBase[Int(b[i])] == Blocks.groupBase[Int(chest)] { chests += 1 }
+                }
+            } }
+            G20Guard.overworld = saved
+            check(frames == 0 && chests >= 2, "stronghold G20: on new ground the dais holds a reliquary (\(chests) chests), no hollow gate frames (\(frames)); dais at \(px),\(pz), stronghold \(sh.min.x)...\(sh.max.x), \(sh.min.z)...\(sh.max.z)")
+        }
+        // The rest plays an older save's stronghold, whose gate still leads to the Hollow.
+        for z in floorDiv(sh.min.z, CS)...floorDiv(sh.max.z, CS) { for x in floorDiv(sh.min.x, CS)...floorDiv(sh.max.x, CS) { G20Guard.overworld.insert(StructureCache.key(x, z)) } }
         let sc = V3(Float(sh.anchor.x) + 0.5, Float(sh.anchor.y), Float(sh.anchor.z) + 0.5)
         _ = world.loadSync(center: sc, radius: 5)
         game.player.flying = true
@@ -865,9 +906,20 @@ final class Playthrough {
             _ = hold("ender_eye")
             game.input.rightClicked = true
             _ = tick(0.1, pin: feet)
+            if game.dim.dim != .overworld { break }
+        }
+        // The last eye opens the gate, and a player standing at the ring can be taken through at once: come back and read
+        // the frames on the surface.
+        if game.dim.dim != .overworld {
+            info("hollow gate: the open gate took the player through at the last frame; back to the surface to read it")
+            game.changeDimension(to: .overworld, at: sc)
+            _ = world.loadSync(center: sc, radius: 5)
+            game.player.flying = true
+            game.player.pos = sc
+            game.gateCooldown = 0; game.portalCooldown = 0         // the trip back is not a reason to refuse the next
         }
         let filled = frames.filter { world.block($0.x, $0.y, $0.z) == base + 1 }.count
-        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks")
+        check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.block($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
         let c = frames.reduce(V3(0, 0, 0)) { $0 + center($1) } / Float(max(1, frames.count))
         let pc = IVec3(Int(floor(c.x)), frames.first?.y ?? 0, Int(floor(c.z)))
         var portalBlocks = 0

@@ -20,6 +20,7 @@ final class SoldierBrain {
     var shotTimer: Float = 0
     var react: Float = 1
     var aimTime: Float = 0
+    var glinted = false            // an Ashguard sharpshooter has shown its scope's glint on this target (G5)
     var strafeTimer: Float = 0
     var strafeDir: Float = 1
     var lastSeen: V3?
@@ -312,7 +313,7 @@ extension Mob {
         // Turret crews stay at their guns whatever happens round them.
         if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
         guard aggro && canTarget else {
-            b.aimTime = 0
+            b.aimTime = 0; b.glinted = false
             if let sp = followOrder(g) { return sp }
             // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
             // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
@@ -453,11 +454,15 @@ extension Mob {
             g.sfx(.gun(14), 1.1, at: eye)
             return
         }
-        // Marksmen hold a laser on the target before every shot.
-        if b.gun == Guns.sniper {
+        // Marksmen hold a laser on the target before every shot. An Ashguard sharpshooter's scope glints for as long
+        // before its first shot at a target (G5: an unarmoured arrival in the vault died 92 blocks out in 4 s with no
+        // sign of where the shots came from).
+        var glintDone = false
+        if b.gun == Guns.sniper || (kind == .soldierMarksman && !b.glinted && faction == Faction.ashguard.rawValue) {
             b.aimTime += dt
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
+            glintDone = true
         }
         let rank = Soldier.ranks[r]
         let enraged = r == 3 && health < spec.health / 2
@@ -466,6 +471,7 @@ extension Mob {
         // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
         // only): a wall, window, door or fence between the gun and the target holds the shot.
         guard g.world.clearShot(muzzle, target) else { b.aimTime = 0; return }
+        if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
         aimAt += g.player.vel * flight * 0.8
@@ -700,6 +706,13 @@ extension Game {
             guard let b = m.brain, b.aimTime > 0 else { continue }
             let k = min(1, b.aimTime / 1.1)
             let from = SoldierRig.muzzleWorld(m)
+            if m.faction == Faction.ashguard.rawValue && b.gun != Guns.sniper {
+                // The scope's glint: a short bright flare at the sight, pulsing (G5), not a laser.
+                let d = simd_normalize(player.eye - from), side = simd_normalize(simd_cross(d, V3(0, 1, 0))) * 0.35 * (0.6 + 0.4 * sinf(b.aimTime * 18))
+                Armory.streak(&wr, eye, from - side, from + side, 0.05 + 0.05 * k, V4(3.2, 3.0, 2.4, 0.9))
+                Armory.streak(&wr, eye, from - V3(0, 0.25, 0), from + V3(0, 0.25, 0), 0.04 + 0.04 * k, V4(3.2, 3.0, 2.4, 0.9))
+                continue
+            }
             Armory.streak(&wr, eye, from, player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
         }
     }

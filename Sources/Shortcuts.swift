@@ -6,9 +6,9 @@ extension Game {
     static let shortcutList: [(String, String)] = [
         ("military_base", "Capital Citadel"), ("boreal_station", "Boreal Station"), ("capital_city", "Capital City"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"),
         ("warfrigate", "Stormwarden Frigate"), ("carriage", "Siege Carriage"), ("village", "Village"),
-        ("pillager_outpost", "Marauder Watchtower"), ("mansion", "Forest Manor"), ("monument", "Sea Temple"),
+        ("pillager_outpost", "Marauder Watchtower"), ("mansion", "Brigand Roost"), ("monument", "Sunken Dreadnought"),
         ("temple", "Temple"), ("great_ruin", "Ancient Spire"), ("ancient_city", "Buried Citadel"),
-        ("trial_chambers", "Proving Halls"), ("stronghold", "Stronghold")]
+        ("trial_chambers", "Sealed Armoury"), ("stronghold", "Stronghold")]
 
     // The nearest start of a shortcut target (x, z), nil if none is near.
     private func shortcutTarget(_ key: String) -> (Int, Int)? {

@@ -123,6 +123,12 @@ final class BaseWatch {
     private var ready: [String: [(IVec3, BlockID)]] = [:]
     var timer: Float = 0
     var intruded: [String: Float] = [:]              // seconds a player has been inside a citadel's walls (P33)
+    var routes: [String: [IVec3]] = [:]              // a marching patrol's one long path, gate to noise (T4)
+    var routeSearch: [String: PathSearch] = [:]      // that path's search, run a slice an update until it ends
+    func dropRoute(_ k: String) {
+        routes[k] = nil
+        if let s = routeSearch.removeValue(forKey: k) { PathFinder.recycle(s) }
+    }
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
@@ -178,6 +184,7 @@ extension Game {
 
     func basesTick(_ dt: Float) {
         let b = bases
+        baseRouteTick(b)
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer
@@ -249,7 +256,9 @@ extension Game {
                     b.note("\(r.key) patrol out to \(Int(n.pos.x)),\(Int(n.pos.z)) (\(n.kind), \(Int(d)) blocks)")
                     if simd_length(player.pos - c) < 140 { onToast?("A Capital patrol sets out to investigate") }
                 } else if var pt = r.patrol, pt.phase < 3 {
-                    pt.target = [n.pos.x, n.pos.y, n.pos.z]         // a newer noise redirects it
+                    // A newer noise redirects it: a march path to the old spot is dropped (searched again from where it is).
+                    if simd_length(V3(pt.target[0], pt.target[1], pt.target[2]) - n.pos) > 6 { b.dropRoute(r.key) }
+                    pt.target = [n.pos.x, n.pos.y, n.pos.z]
                     r.patrol = pt
                 }
             }
@@ -309,7 +318,7 @@ extension Game {
         } || (b.patrols[r.key] ?? []).contains { $0.health > 0 } || (b.crews[r.key] ?? []).contains { $0.health > 0 }
         guard !alive else { return }
         r.cleared = true
-        r.patrol = nil; b.patrols[r.key] = nil
+        r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key)
         b.note("\(r.key) cleared")
         if simd_length(player.pos - r.centre) < 140 { onToast?("The citadel is cleared") }
     }

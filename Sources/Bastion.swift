@@ -1,6 +1,7 @@
 import Foundation
 
-// Bastion remnants: big onyxstone ruins at y 33 sharing the fortress region grid (3 in 5 starts).
+// Bastion remnants (G20: built as Boarling Mounds, OriginalSites.swift; the four layouts below are the old Boarling Keep,
+// kept for ground a save generated with them): big onyxstone ruins at y 33 sharing the fortress region grid (3 in 5 starts).
 // Four layouts like the reference game's: housing units, tusker stables, treasure room and bridge.
 // Blocks mix bricks / cracked bricks / onyxstone / gilded onyxstone by a position hash so every
 // chunk agrees on the same ruin; boarlings, brutes and tuskers are placed when the chunk generates.
@@ -8,14 +9,20 @@ enum Bastion {
     static let type = StructureType(name: "bastion", spacing: 27, separation: 4, salt: 30084232, reach: 4) { seed, cx, cz in
         var rng = SRng(seed)
         if rng.int(5) < 2 { return nil }             // the other 2 in 5 are fortresses
-        return start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, y: YOFF + 33)
+        return start(&rng, ox: cx * CS + 8, oz: cz * CS + 8, y: YOFF + 33, mound: !G20Guard.legacy(G20Guard.nether, cx, cz, reach: 4))
     }
 
     // One of the four layouts at (ox, oz) with its floor level y (the Deep's hell band too: Bastion.deepType). Draws
     // from the caller's generator exactly as the Emberdeep always has, so its saved bastions keep their layouts.
-    static func start(_ rng: inout SRng, ox: Int, oz: Int, y: Int) -> StructureStart {
+    static func start(_ rng: inout SRng, ox: Int, oz: Int, y: Int, mound: Bool = true) -> StructureStart {
         let variant = rng.int(4)
         let s = rng.next()
+        // G20: the Boarling Mound (OriginalSites.swift) in place of the reference's four bastion layouts.
+        if mound {
+            let h = BoarlingMound.half
+            let piece = Piece(min: IVec3(ox - h, y - 40, oz - h), max: IVec3(ox + h, y + 30, oz + h)) { w in BoarlingMound.build(&w, ox: ox, oz: oz, y: y, seed: s) }
+            return StructureStart(kind: "bastion", pieces: [piece], anchor: IVec3(ox, y + 1, oz + BoarlingMound.half - 1))
+        }
         let anchorUp = [1, 13, 1, 11]                 // feet over the floor: courtyard, treasure platform, yard, bridge deck
         let half = variant == 3 ? 42 : 22          // the bridge reaches 14 more west for its stair
         let piece = Piece(min: IVec3(ox - half, y - 40, oz - half), max: IVec3(ox + half, y + 34, oz + half)) { w in

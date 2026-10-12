@@ -311,7 +311,7 @@ extension Bastion {
                 } }
                 if nearKeep { continue }
                 var brng = SRng(seed)
-                return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33)
+                return start(&brng, ox: bx * CS + 8, oz: bz * CS + 8, y: DeepGen.hellBase + 33, mound: !G20Guard.legacy(G20Guard.deep, bx, bz, reach: 4))
             }
             return nil
         }

@@ -47,7 +47,7 @@ enum Advancements {
         // Emberdeep
         Advancement(id: "nether/root", tab: 1, title: "The Other Side", desc: "Bring summer clothes", crit: .dim(.nether)),
         Advancement(id: "nether/return_to_sender", tab: 1, title: "Sent Back", desc: "Destroy a Wailer with a fireball", crit: .event("ghast_fireball"), challenge: true),
-        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into a Cinder Fortress", crit: .event("fortress")),
+        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into an Ash Foundry", crit: .event("fortress")),
         Advancement(id: "nether/obtain_blaze_rod", tab: 1, title: "Fire Walker", desc: "Relieve a Cinderwisp of its rod", crit: .item("blaze_rod")),
         Advancement(id: "nether/brew_potion", tab: 1, title: "Home Chemist", desc: "Brew a potion", crit: .event("brew")),
         Advancement(id: "nether/obtain_ancient_debris", tab: 1, title: "Deep Buried", desc: "Obtain Dusk Relic", crit: .item("ancient_debris")),
@@ -94,7 +94,7 @@ enum Advancements {
         Advancement(id: "adventure/adventuring_time", tab: 3, title: "Wanderer", desc: "Discover 40 biomes", crit: .event("biomes40"), challenge: true),
         Advancement(id: "adventure/sniper_duel", tab: 3, title: "Long Shot", desc: "Kill a Skeleton from at least 50 blocks away", crit: .event("sniper")),
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
-        Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
+        Advancement(id: "adventure/proving_run", tab: 3, title: "Under Lock", desc: "Step foot in a Sealed Armoury", crit: .event("trial_chambers")),
         // Steelhold fortresses (original content).
         Advancement(id: "adventure/steelhold", tab: 3, title: "Behind White Walls", desc: "Set foot inside a Capital citadel", crit: .event("steelhold")),
         Advancement(id: "adventure/steelhold_gun", tab: 3, title: "Locked and Loaded", desc: "Get your hands on a Steelhold gun",

@@ -25,6 +25,12 @@ enum BigStructures {
             // The 58x58 footprint must be ocean all round.
             for (dx, dz) in [(-29, -29), (29, -29), (-29, 29), (29, 29)] where !gen.column(x + dx, z + dz).biome.isOcean { return nil }
             let y0 = SEA - 26
+            // G20: the Sunken Dreadnought (OriginalSites.swift) in place of the reference's ocean monument, except on
+            // ground a save had already generated with the temple.
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
+                return StructureStart(kind: "monument", pieces: [piece(x - 31, y0 - 14, z - 8, x + 31, SEA, z + 8) { w in SunkenDreadnought.build(&w, x, y0, z, seed) }],
+                                      anchor: IVec3(x - 16, y0 + 2, z))
+            }
             return StructureStart(kind: "monument", pieces: [piece(x - 29, y0 - 4, z - 29, x + 29, SEA, z + 29) { w in buildMonument(&w, x, y0, z, seed) }],
                                   anchor: IVec3(x, y0 + 12, z - 8))
         }
@@ -84,6 +90,12 @@ enum BigStructures {
             guard gen.column(x, z).biome == .darkForest else { return nil }
             let y = gen.groundY(x, z)
             guard y > SEA else { return nil }
+            // G20: the Brigand Roost (OriginalSites.swift) in place of the reference's woodland mansion, except on ground a
+            // save had already generated with the manor.
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
+                return StructureStart(kind: "mansion", pieces: [piece(x - 23, y - 8, z - 23, x + 23, y + 22, z + 23) { w in BrigandRoost.build(&w, x, y + 1, z, seed) }],
+                                      anchor: IVec3(x, y + 1, z - BrigandRoost.r - 2))
+            }
             return StructureStart(kind: "mansion", pieces: [piece(x - 23, y - 6, z - 23, x + 23, y + 48, z + 23) { w in buildMansion(&w, x, y + 1, z, seed) }],
                                   anchor: IVec3(x, y + 2, z - 26))
         }
@@ -284,10 +296,16 @@ enum BigStructures {
     // MARK: Trial chambers
 
     static func trialChambers(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "trial_chambers", spacing: 51, separation: 18, salt: 94251327, reach: 3) { seed, cx, cz in
+        StructureType(name: "trial_chambers", spacing: 51, separation: 18, salt: 94251327, reach: 3) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             var rng = SRng(seed)
             let y = YOFF - 40 + rng.int(21)
+            // G20: the Sealed Armoury (OriginalSites.swift) in place of the reference's trial chambers, except on ground
+            // a save had already generated with the old halls (half of one would be left).
+            if !G20Guard.legacy(G20Guard.overworld, cx, cz, reach: 3) {
+                return StructureStart(kind: "trial_chambers", pieces: [piece(x - 31, y - 2, z - 16, x + 31, y + 8, z + 16) { w in SealedArmoury.build(&w, x, y, z, seed) }],
+                                      anchor: IVec3(x, y + 1, z))
+            }
             return StructureStart(kind: "trial_chambers", pieces: [piece(x - 30, y - 2, z - 30, x + 30, y + 16, z + 30) { w in buildTrialChambers(&w, x, y, z, seed) }],
                                   anchor: IVec3(x, y + 1, z))
         }

@@ -77,6 +77,24 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         }
     }
+    // --scene waterstep: water spilling over a one-block step on a stone shelf in the air at --at, settled for 8 s
+    // of fluid ticks; seen from the side, 12 blocks off along +x (P18: "water moving down a block looks weird from the
+    // side"). --look still turns the view.
+    if arg("--scene") == "waterstep" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        _ = vw.loadSync(center: V3(Float(bx), Float(by), Float(bz)), radius: vw.renderDistance)   // (fluids tick in loaded chunks only)
+        for x in (bx - 14)...(bx + 14) { for z in (bz - 14)...(bz + 14) {         // wide enough that the spread stays on it
+            vw.setBlock(x, by, z, STONE)
+            if z <= bz { vw.setBlock(x, by + 1, z, STONE) }
+            for y in (by + (z <= bz ? 2 : 1))...(by + 6) { vw.setBlock(x, y, z, AIR) }
+        } }
+        for x in (bx - 1)...(bx + 1) { vw.setBlock(x, by + 2, bz - 2, WATER) }
+        vg.player.pos = V3(Float(bx + 7) + 0.5, Float(by + 2), Float(bz) + 0.5)
+        for _ in 0..<32 { vw.fluidTick() }                  // 8 s of water steps (Game.tick pauses behind the title menu)
+        vg.player.pos = V3(Float(bx + 12) + 0.5, Float(by + 3), Float(bz) + 0.5); vg.player.vel = .zero
+        yaw += .pi / 2
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))
@@ -94,6 +112,9 @@ if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device
 // --gencheck [--seeds A,B --areas N]: the generated-world defect scan (Sources/GenCheck.swift: floating trunks and
 // plants, leaks, ...), as the Mac's `--gencheck` runs it.
 if CommandLine.arguments.contains("--gencheck") { exit(GenCheck.run(device: device)) }
+// --playthrough [--only overworld,emberdeep,stronghold,end,blight] [--seed N]: the Mac's scripted full-game run
+// (Sources/Playthrough.swift), so cloud threads can run it too.
+if CommandLine.arguments.contains("--playthrough") { exit(Playthrough.run()) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)

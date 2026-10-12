@@ -364,3 +364,37 @@ lily pond, volcano before/after, both drawn bows, Quest CI artifacts in ci/ and 
 | Perf gate p99 | MET | local: p99 > pin x 1.25 fails; CI: p99 > local pin x 2 fails; quads pinned at + 5% |
 | Wool/sculk steps, firefight peak | MET | audiolevels.py gate in the checks shard |
 | Swamps without open water | MET | 35% / 26% open water on 12345 / 777, pads on 14-15% of it |
+
+## Cloud lanes since Oct 11 (Q1, Lane A thread, 2026-10-12)
+
+Q1 (backlog "MOVED FROM THE MAC"): finish this audit for the work marked done after it was written. Graded against
+claude/quest-port with PR #50 on top, from the code, the status docs and one full host questcheck (Linux, lavapipe,
+32 px textures; run 51 of PR #50's head 520625f: 747 ok, 4 FAIL, all four accounted for below). Same rule as above:
+MET needs an automated check at the stated scale; "device" is the one shared gap (nothing here was felt on the
+headset; device-checklist.md section 3 is lane M's script). The cloud gap pass (#10-#22 against the objective docs,
+83 lines MET) is docs/status/cloud-gap-pass.md and is not repeated here.
+
+| Item | PR | Grade | Evidence (checks in the full questcheck) | Gap |
+|---|---|---|---|---|
+| B1 six-iron, iron rule, taking a town | #28 | MET | six-iron 31 checks (`revolver:`, armour tiers, surrender); docs/status/six-iron.md | device feel |
+| B2 townsfolk variety | #32 | MET | 17 `variety` checks (rolls by role and age, visible cues) | - |
+| B3 hunting | #35 | MET | 32 hunting/pelt/fishing checks, VR skinning on the left trigger | fishing fight and skinning feel on the device |
+| B4 countries and minerals | #39 | MET | 25 `countr` checks (borders, flags, tribute, capitals) | - |
+| B5 tool upgrades | #40 | MET | 20 `upgrade` checks; accents on the held model, old enchantments convert | - |
+| B6 hell's own mobs and the gate | #44 | MET | 34 `hell` checks (knight order, Searwing, Scorchling, Slagthrower, Wardstone, Ember Charges); G17 check | - |
+| B7 the last war | #46 | MET | 23 `lastwar` checks (lines, waves, bunker, Chancellor, ending); the G4 playthrough plays it | `ash vault perf` debug-build budget is load-sensitive (backlog T3d) |
+| D1 a huge open hell band | #33 | MET | `deep hell` band height and halls, the long-drop updraft | - |
+| D2 Ash Vault world and army | #47 | MET | 12 `ash vault` checks; unit caps and LOD (G2, G3) | `ash vault perf` as B7 |
+| D3 keep layouts, Castellan, Ember Gates | #41 | MET | 66 keep/gate checks over 3-5 seeds | - |
+| F Tidebreaker gap pass + G1 helm shot | #31, #48 | MET | 30 maingun checks (helm charge through Game.tick, crater, strikes) | `maingun: the impact itself is cheap` fx cost (T3d) |
+| R horse gap pass | #30 | MET | 70 horse checks (breeds, taming, stable, downed, saddlebag) | device feel; coat textures are G9 (lane M) |
+| Towns gap pass, honour gap pass | #27, #23 | MET | 88 town + 64 honour/bounty checks; --towntests gates snap.sh (G10) | - |
+| L1 look upgrade (sky, Powderwight, trees, mob animation) | #26, #29, #34, #36, #37 | PARTIAL | cloud pass compared with and without, tree shapes, Powderwight telegraph, mob poses (`posecheck`) | headset fps before/after (lane M); the vault sky blend and fog (G5 part, lane M) |
+| L2 redstone workshop | #38 | MET | 10 workshop checks: seven standard circuits against the reference | - |
+| L3 ground, perf overlay, world gen, VR combat feel | #42, #43, #45 | PARTIAL | 20 ground/ore checks, overlay and hysteresis, capitals apart over 50 seeds, eruptions, 8 VR combat checks | the 20-minute Quest soak and distinct haptics need the device (lane M) |
+| G1-G21 (done audit rows, Oct 11 spine) | #48, #49, #50, G20 PR | MET but G5 PARTIAL, G9 open | each row's check named in the backlog line; G4 is the Deep playthrough stage | G5's sky blend and fog end, G9 coat textures: lane M |
+| P1-P67 (Oct 11 playtests) | #50 | PARTIAL | docs/playtests/2026-10-11/voice-notes-status.md: 56 fixed, 5 part, 2 open (P18 water step, P41 Elk Gulch stairs), each with its check | P18 and P41 are being worked (Lane A); the five parts name what is lane M's |
+
+Reds in the run, all logged: `ash vault perf` and `maingun: the impact itself is cheap` (load-sensitive budgets, red on
+claude/quest-port too: T3d); `P51 roads and riders` and `P60 no overlap` (failed only in the full run: earlier checks
+left the player where the test could not work; both now set up their own open-air spot, PR #50).

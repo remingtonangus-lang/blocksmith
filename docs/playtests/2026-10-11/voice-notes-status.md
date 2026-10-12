@@ -23,7 +23,7 @@ unless another suite is named.
 | P15 22 fps at high render distance | fixed | the render-distance governor acts on a severe overrun even while chunks load | rdgovernor trace 5 |
 | P17 held sword | fixed | held items are one extruded mesh with texel walls | QuestSim P17 |
 | P18 lava at a border | fixed (part 1) | fluid against air across a chunk border starts flowing when the chunks meet | P18 lava at a chunk border |
-| P18 water falling one block | open | | |
+| P18 water falling one block | open (T5) | the waterstep scene now flows; renders match the reference, no defect pinned; needs a headset look | `--scene waterstep` |
 | P19 deep dark copy | fixed | murk depths, the Buried Citadel and the stalker summons removed; remaining close copies listed in docs/status/ip-content-audit-oct11.md (G20) | P19 no murk depths |
 | P20 through a wall | fixed | unstuck tries the nearest free spot before popping up | P20 unstuck |
 | P21 unclear objects | part | border posts carry signs at both ends; the 13:03 "eye" needs the voice shot (Mac worker, device checklist) | countries P21 border post |

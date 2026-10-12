@@ -128,3 +128,9 @@ Molasses, the Tortoise -> Ironhide, Water Breathing -> Gillwater, Healing -> Men
 Snakebite, Regeneration -> Second Wind, Strength -> Bull's Blood, Weakness -> Sapping, Slow Falling -> Featherfall,
 Luck -> Lucky Penny, Wind Charging -> Gale, Weaving -> Spinner's, Oozing -> Ooze, Infestation -> Swarm.
 Splash and lingering forms read "Splash Quickstep Tonic"; tipped arrows "Quickstep Arrow".
+
+## Oct 12 (G20): structures that copied a reference feature whole now have original designs
+Proving Halls -> Sealed Armoury (advancement "Proving Run" -> "Under Lock"), Forest Manor -> Brigand Roost (its explorer
+map too), Sea Temple -> Sunken Dreadnought (its explorer map: Dreadnought Explorer Map), Cinder Fortress -> Ash Foundry,
+Boarling Keep -> Boarling Mound. The Hollow is out of new worlds (strongholds there hold a reliquary). Designs and the
+old-save rule: docs/status/ip-content-audit-oct11.md.

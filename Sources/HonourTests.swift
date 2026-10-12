@@ -264,7 +264,7 @@ extension TownTests {
         w.renderDistance = 3
         guard let sc = w.gen.structures else { check(false, "frontier: structures"); return }
         var seen: [IVec3] = [], offices = 0, cells = 0, wanted = 0, walks = 0, fronts = 0, visited = 0
-        let bars = Blocks.id("iron_bars")
+        let bars = Blocks.id("iron_bars"), ironDoor = Blocks.groupBase[Int(Blocks.id("iron_door"))]
         for _ in 0..<3 {
             guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
             seen.append(s.anchor)
@@ -273,9 +273,13 @@ extension TownTests {
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
                 if be.lines.contains("Sheriff") {
                     offices += 1
-                    var n = 0
-                    for dy in -2...0 { for dz in -8...8 { for dx in -8...8 where w.block(p.x + dx, p.y + dy, p.z + dz) == bars { n += 1 } } }
-                    if n >= 6 { cells += 1 }
+                    var n = 0, doors = 0
+                    for dy in -2...0 { for dz in -8...8 { for dx in -8...8 {
+                        let b = w.block(p.x + dx, p.y + dy, p.z + dz)
+                        if b == bars { n += 1 } else if Blocks.groupBase[Int(b)] == ironDoor { doors += 1 }
+                    } } }
+                    // (G14: a front of bars with an iron door, not a barred stall)
+                    if n >= 6 && doors >= 2 { cells += 1 }
                 }
                 if be.lines.first == "WANTED" { wanted += 1 }
                 if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) {
@@ -286,7 +290,7 @@ extension TownTests {
             }
         }
         check(visited >= 2 && offices == visited && cells == offices && wanted == offices,
-              "frontier: \(visited) towns, \(offices) sheriff's offices, \(cells) with a jail cell, \(wanted) WANTED boards")
+              "frontier: \(visited) towns, \(offices) sheriff's offices, \(cells) with a jail cell behind bars and an iron door, \(wanted) WANTED boards")
         check(fronts > 0 && Float(walks) >= Float(fronts) * 0.75, "frontier: \(walks)/\(fronts) shop fronts have a plank boardwalk")
         // A town on ground a save already generated keeps its old lots.
         guard let first = seen.first else { return }

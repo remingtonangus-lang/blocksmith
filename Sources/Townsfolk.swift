@@ -261,7 +261,11 @@ extension Mob {
         face(at)
         moving = dist > w.reach * 0.8
         let st = townStats
-        if attackCooldown <= 0 && dist < w.reach + (town.foe?.halfW ?? 0.3) && abs(at.y - pos.y) < (w == .revolver ? 8 : 2.5) {
+        // A swing at the player reaches his real body (T1: Game.meleeGap, feet to headset, only the part level with the
+        // townsperson), as monsters' do: not a player on a 2-block step, and one on a pillar is out of reach.
+        let inReach = town.foe == nil && w != .revolver ? g.meleeGap(self) < w.reach + 0.3
+            : dist < w.reach + (town.foe?.halfW ?? 0.3) && abs(at.y - pos.y) < (w == .revolver ? 8 : 2.5)
+        if attackCooldown <= 0 && inReach {
             attackCooldown = w == .revolver ? w.cooldown : w.cooldown / st.rate        // TownStats: how fast they swing
             town.swing = 0.45
             if w == .revolver { TownLaw.shoot(self, g); return moving ? spec.speed * 1.35 : 0 }
