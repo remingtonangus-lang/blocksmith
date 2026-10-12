@@ -877,7 +877,7 @@ final class Playthrough {
                 }
             } }
             G20Guard.overworld = saved
-            check(frames == 0 && chests >= 2, "stronghold G20: on new ground the dais holds a reliquary (\(chests) chests), no hollow gate frames (\(frames))")
+            check(frames == 0 && chests >= 2, "stronghold G20: on new ground the dais holds a reliquary (\(chests) chests), no hollow gate frames (\(frames)); dais at \(px),\(pz), stronghold \(sh.min.x)...\(sh.max.x), \(sh.min.z)...\(sh.max.z)")
         }
         // The rest plays an older save's stronghold, whose gate still leads to the Hollow.
         for z in floorDiv(sh.min.z, CS)...floorDiv(sh.max.z, CS) { for x in floorDiv(sh.min.x, CS)...floorDiv(sh.max.x, CS) { G20Guard.overworld.insert(StructureCache.key(x, z)) } }
@@ -905,6 +905,16 @@ final class Playthrough {
             _ = hold("ender_eye")
             game.input.rightClicked = true
             _ = tick(0.1, pin: feet)
+            if game.dim.dim != .overworld { break }
+        }
+        // The last eye opens the gate, and a player standing at the ring can be taken through at once: come back and read
+        // the frames on the surface.
+        if game.dim.dim != .overworld {
+            info("hollow gate: the open gate took the player through at the last frame; back to the surface to read it")
+            game.changeDimension(to: .overworld, at: sc)
+            _ = world.loadSync(center: sc, radius: 5)
+            game.player.flying = true
+            game.player.pos = sc
         }
         let filled = frames.filter { world.block($0.x, $0.y, $0.z) == base + 1 }.count
         check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.block($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
