@@ -70,5 +70,7 @@ extension Game {
             }
             if m.kind == .villager { m.panic = 8; m.aiTimer = 0 }
         }
+        // C3: the bell of a town you hold calls its council.
+        if survival, let t = TownLaw.inTown, TownLaw.state.owned?[t] != nil { Nation.open(self, town: t) }
     }
 }
