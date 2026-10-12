@@ -52,6 +52,11 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --settings-phase P ROOT: one launch of the settings check (quest/src/headless/SettingsCheck.swift), before anything
+// else touches UserDefaults.
+if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {
+    exit(SettingsCheck.phase(CommandLine.arguments[i + 1], root: CommandLine.arguments[i + 2]))
+}
 // --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
 // spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
 if let out = arg("--view"), let ctx = vkctx {
@@ -193,6 +198,21 @@ if CommandLine.arguments.contains("--overlaps-only") {
 if CommandLine.arguments.contains("--musiclevels-only") {
     MusicLevelTests.run(check: check)
     print(failures == 0 ? "musiclevels: all checks passed" : "musiclevels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
+if CommandLine.arguments.contains("--settings-only") {
+    SettingsCheck.run(check: check)
+    print(failures == 0 ? "settings: all checks passed" : "settings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
+if CommandLine.arguments.contains("--latency-only") {
+    InputLatencyTests.run(game: game, check: check)
+    print(failures == 0 ? "latency: all checks passed" : "latency: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --firsthour-only: a next goal at every step of the story path (Sources/Goals.swift, GoalTests.swift, Q2).
+if CommandLine.arguments.contains("--firsthour-only") {
+    GoalTests.run(game: game, check: check)
+    print(failures == 0 ? "firsthour: all checks passed" : "firsthour: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --balance-only: combat time-to-kill duels against the night roster (Sources/BalanceTests.swift, Q2; --write-balance).
 if CommandLine.arguments.contains("--balance-only") {
@@ -825,6 +845,9 @@ leaves("savesoak") { SaveSoakTests.run(device: device, cycles: 5, check: check) 
 leaves("balance") { BalanceTests.run(game: game, check: check) }
 MusicLevelTests.run(check: check)
 OverlapTests.run(check: check)
+SettingsCheck.run(check: check)
+leaves("latency") { InputLatencyTests.run(game: game, check: check) }
+leaves("firsthour") { GoalTests.run(game: game, check: check) }
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.
 do {
