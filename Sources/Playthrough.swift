@@ -841,6 +841,20 @@ final class Playthrough {
         if count("ender_eye") < 12 { give("ender_eye", 12 - count("ender_eye"), bulk: "eye shattered") }
 
         section("stronghold")
+        // G20: on new ground the portal room holds a reliquary, not the Hollow's gate (the dais chunk generated alone).
+        if let wg = world.gen as? WorldGen {
+            let px = sh.anchor.x, pz = sh.anchor.z + 7
+            let saved = G20Guard.overworld
+            G20Guard.overworld = []
+            let b = wg.generate(cx: floorDiv(px, CS), cz: floorDiv(pz, CS))
+            G20Guard.overworld = saved
+            let frame = Blocks.id("end_portal_frame"), chest = Blocks.id("chest")
+            let frames = b.filter { $0 == frame || $0 == frame + 1 }.count
+            let chests = b.indices.filter { Blocks.groupBase[Int(b[$0])] == Blocks.groupBase[Int(chest)] }.count
+            check(frames == 0 && chests >= 2, "stronghold G20: on new ground the dais holds a reliquary (\(chests) chests), no hollow gate frames (\(frames))")
+        }
+        // The rest plays an older save's stronghold, whose gate still leads to the Hollow.
+        for z in floorDiv(sh.min.z, CS)...floorDiv(sh.max.z, CS) { for x in floorDiv(sh.min.x, CS)...floorDiv(sh.max.x, CS) { G20Guard.overworld.insert(StructureCache.key(x, z)) } }
         let sc = V3(Float(sh.anchor.x) + 0.5, Float(sh.anchor.y), Float(sh.anchor.z) + 0.5)
         _ = world.loadSync(center: sc, radius: 5)
         game.player.flying = true

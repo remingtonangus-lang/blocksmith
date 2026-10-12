@@ -1,6 +1,7 @@
 import Foundation
 
-// Emberdeep fortress: a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
+// Emberdeep fortress (G20: built as an Ash Foundry, OriginalSites.swift; this is the old Cinder Fortress style, kept for
+// ground a save generated with it): a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
 // support pillars down to the ground) lead from the start crossing to an enclosed "castle" part
 // (7-wide corridors with fence windows, chests). Leaves become cinderwisp spawner platforms (bridge) and
 // emberdeep wart rooms (castle). Fortresses and bastions share a 27-chunk grid (separation 4); a start
@@ -14,15 +15,15 @@ enum Fortress {
     static let type = StructureType(name: "fortress", spacing: 27, separation: 4, salt: 30084232, reach: 6) { seed, cx, cz in
         var rng = SRng(seed)
         if rng.int(5) >= 2 { return nil }            // 3 in 5: a bastion slot
-        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8)
+        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, foundry: !G20Guard.legacy(G20Guard.nether, cx, cz, reach: 6))
     }
     // The Deep's hell band (DeepGen): a fortress in every slot, its floor at internal y DeepGen.hellBase.
     static let deepType = StructureType(name: "fortress", spacing: 22, separation: 5, salt: 30084291, reach: 6) { seed, cx, cz in
         var rng = SRng(seed)
-        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase)
+        return layout(&rng, originX: cx * CS + 8, originZ: cz * CS + 8, base: DeepGen.hellBase, foundry: !G20Guard.legacy(G20Guard.deep, cx, cz, reach: 6))
     }
 
-    static func layout(_ rng: inout SRng, originX ox: Int, originZ oz: Int, base: Int = YOFF) -> StructureStart {
+    static func layout(_ rng: inout SRng, originX ox: Int, originZ oz: Int, base: Int = YOFF, foundry: Bool = true) -> StructureStart {
         var nodes: [IVec2Key: Node] = [:]
         let maxR = 5
         nodes[IVec2Key(0, 0)] = Node(kind: .bridge, links: [false, false, false, false])
@@ -62,7 +63,8 @@ enum Fortress {
             let r = 6
             let pseed = seed &+ UInt64(bitPattern: Int64(k.x &* 7919 &+ k.z &* 104729))
             pieces.append(Piece(min: IVec3(cxw - r, y - 60, czw - r), max: IVec3(cxw + r, y + 8, czw + r)) { w in
-                build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed, base: base)
+                if foundry { AshFoundry.build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed, base: base) }
+                else { build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed, base: base) }
             })
         }
         return StructureStart(kind: "fortress", pieces: pieces, anchor: IVec3(ox, y + 1, oz))

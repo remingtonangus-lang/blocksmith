@@ -3,13 +3,13 @@ import simd
 
 // Explorer maps (reference cartographer trades): a map that leads to the nearest structure of a kind.
 // Using one turns it into a filled map centred near the structure, 2 blocks per pixel, with the
-// coastline sketched in from the terrain generator and the destination marked. Sea Temple and Forest
-// Manor maps follow the reference; the Steelhold map is Blocksmith's own (master cartographers).
+// coastline sketched in from the terrain generator and the destination marked. The Dreadnought and Brigand
+// Roost maps (G20: the sites that replaced the Sea Temple and Forest Manor) and the Capital map (master cartographers).
 enum ExplorerMaps {
     struct Kind { let item: String; let name: String; let structure: String; let color: UInt32 }
     static let kinds: [Kind] = [
-        Kind(item: "sea_temple_explorer_map", name: "Sea Temple Explorer Map", structure: "monument", color: 0x3AA8A0),
-        Kind(item: "manor_explorer_map", name: "Forest Manor Explorer Map", structure: "mansion", color: 0x6A4A2A),
+        Kind(item: "sea_temple_explorer_map", name: "Dreadnought Explorer Map", structure: "monument", color: 0x3AA8A0),
+        Kind(item: "manor_explorer_map", name: "Brigand Roost Explorer Map", structure: "mansion", color: 0x6A4A2A),
         Kind(item: "steelhold_explorer_map", name: "Capital Explorer Map", structure: "military_base", color: 0xE0B020),
         // Sold in town (general store, saloon: Shops.swift): leads to the nearest buried treasure.
         Kind(item: "treasure_map", name: "Treasure Map", structure: "buried_treasure", color: 0xC03020),

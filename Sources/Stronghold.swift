@@ -3,7 +3,8 @@ import Foundation
 // Strongholds: 128 per world in eight rings around the origin (3, 6, 10, 15, 21, 28, 36, 9 — the
 // reference game's distribution; the first ring 1280–2816 blocks out). Each is a branching network of
 // stone-brick corridors on a 12-block grid: the spiral-stair start, crossings, libraries, prison cells,
-// chest corridors and exactly one portal room (the farthest leaf) with twelve hollow gate frames
+// chest corridors and exactly one portal room (the farthest leaf) with twelve hollow gate frames (G20: only on ground a
+// save generated with them; new ground has a reliquary there, the Hollow being out of new worlds)
 // (each 10% pre-filled with an eye) around a lava pool and a silverfish spawner.
 enum Stronghold {
     static let cell = 12
@@ -209,6 +210,24 @@ enum Stronghold {
             // the +z wall: reaching it, it walled off a doorway on that side (a room linked south was sealed: 1 of 9
             // strongholds reached only the portal room, 93 cells).
             w.fill(cx - 3, y + 1, pz - 3, cx + 3, y + 3, pz + 2, Blocks.id("stone_bricks"))
+            // G20: the Hollow (a copy of the reference's End) is out of new worlds: on ground no save generated with the
+            // gate, the dais holds the order's reliquary (a sealed stone coffer and its chests) instead of the frames.
+            if !G20Guard.legacy(G20Guard.overworld, floorDiv(cx, CS), floorDiv(cz, CS), reach: 1) {
+                let lid = Blocks.has("chiseled_stone_bricks") ? Blocks.id("chiseled_stone_bricks") : Blocks.id("stone_bricks")
+                w.fill(cx - 1, y + 4, pz - 1, cx + 1, y + 4, pz + 1, lid)
+                w.set(cx, y + 5, pz, Blocks.has("lantern") ? Blocks.id("lantern") : AIR)
+                w.chest(cx - 2, y + 4, pz + 1, loot: "stronghold_library", seed: rng.next(), facing: 0)
+                w.chest(cx + 2, y + 4, pz + 1, loot: "stronghold_corridor", seed: rng.next(), facing: 0)
+                let st = Blocks.id("stone_brick_stairs")
+                for (i, yy) in [(0, 1), (1, 2), (2, 3)] { w.fill(cx - 1, y + yy, pz - 6 + i, cx + 1, y + yy, pz - 6 + i, st + 1) }
+                w.spawner(cx, y + 4, pz - 3, mob: "silverfish")
+                for (tx, tz) in [(-4, -5), (4, -5), (-4, 5), (4, 5)] { w.set(cx + tx, y + 3, cz + tz, Blocks.id("torch") + BlockID(tx < 0 ? 4 : 3)) }
+                for z in stride(from: cz - 4, through: cz + 4, by: 2) {
+                    w.fill(cx - 5, y + 5, z, cx - 5, y + 6, z, Blocks.id("iron_bars"))
+                    w.fill(cx + 5, y + 5, z, cx + 5, y + 6, z, Blocks.id("iron_bars"))
+                }
+                return
+            }
             w.fill(cx - 1, y + 3, pz - 1, cx + 1, y + 3, pz + 1, LAVA)
             for i in -1...1 {
                 w.set(cx + i, y + 4, pz - 2, frame + (rng.chance(0.1) ? 1 : 0))
