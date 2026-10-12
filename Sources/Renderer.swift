@@ -1768,9 +1768,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             if Settings.shared.buttonHints {
                 // Control legend under the panel (controller glyphs or keys, following the last device used).
                 let legend = Prompt.menuLegend(m, game)
-                let lw = textWidth(legend, s), ly = min(H - 10 * s - ML.insetY, o.y + ph + 4 * s)
-                rect(floor((W - lw) / 2) - 3 * s, ly - 3 * s, lw + 6 * s, 13 * s, V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
-                text(legend, floor((W - lw) / 2), ly, s)
+                // A long legend steps down a text scale until it fits the screen (Q2: the creative legend ran 1386 px
+                // wide at 1280x800, off both edges).
+                var ls = s
+                while ls > 1 && textWidth(legend, ls) > W - 8 * ls { ls -= 1 }
+                let lw = textWidth(legend, ls), ly = min(H - 10 * s - ML.insetY, o.y + ph + 4 * s)
+                rect(floor((W - lw) / 2) - 3 * ls, ly - 3 * ls, lw + 6 * ls, 13 * ls, V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
+                text(legend, floor((W - lw) / 2), ly, ls)
             }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).

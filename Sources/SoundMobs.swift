@@ -7,7 +7,7 @@ import Foundation
 enum MobVoice {
     enum Family {
         case silent, grunt, moo, bleat, cluck, groan, rattle, hiss, warble, squish, wail, crackle, hum, growl, bark, meow, neigh, buzz, chirp, roar
-        case bubble, click, rumble, creak, trill, snort, wind, squeak, soldier, snow
+        case bubble, click, rumble, creak, trill, snort, wind, squeak, soldier, snow, engine
     }
     struct Profile { var family: Family; var f0: Float; var size: Float }
 
@@ -104,7 +104,13 @@ enum MobVoice {
         case .soldierIronclad: return Profile(family: .soldier, f0: 3, size: 1.2)
         case .soldierOfficer: return Profile(family: .soldier, f0: 1, size: 1)
         case .soldierCrew: return Profile(family: .soldier, f0: 0, size: 1)
-        case .deckGun, .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth: return Profile(family: .silent, f0: 0, size: 1)
+        // War machines (Q2, scorecard "Audio coverage"): f0 is the engine's idle firing rate; 0 = a gun mount, no engine.
+        case .ashTank: return Profile(family: .engine, f0: 34, size: 1.6)
+        case .ashHalftrack: return Profile(family: .engine, f0: 44, size: 1.3)
+        case .ashTruck: return Profile(family: .engine, f0: 52, size: 1.1)
+        case .ashBehemoth: return Profile(family: .engine, f0: 26, size: 2.2)
+        case .ashArtillery: return Profile(family: .engine, f0: 0, size: 1.2)
+        case .deckGun: return Profile(family: .engine, f0: 0, size: 1)
         case .ashChancellor: return Profile(family: .soldier, f0: 1, size: 1.05)
         case .ashMarshal: return Profile(family: .soldier, f0: 3, size: 1.15)
         case .brandSquire: return Profile(family: .hum, f0: 140, size: 1.15)
@@ -268,6 +274,24 @@ enum MobVoice {
             let n = s == .ambient ? 3 : (s == .hurt ? 2 : 6)
             out = g.repeated({ g in Synth.mix(g.modes(0.06, [(f, 0.4, 0.008), (f * 1.7, 0.2, 0.005)]), g.burst(0.03, lp: f * 1.5, hp: f * 0.4, decay: 0.005, gain: 0.7)) }, times: n, interval: 0.09 * sz, jitter: 0.3)
             if s == .death { out = Synth.mix(out, g.burst(0.3, lp: 1200, hp: 200, attack: 0.02, decay: 0.08, gain: 0.8)) }
+        case .engine:
+            // Ambient: a diesel idling (a low saw at the firing rate under a chug of pulses) or, for a gun mount, a
+            // traverse clank. Hurt: a round ringing off plate. Death: a blast and falling metal.
+            switch s {
+            case .ambient where f > 0:
+                let d: Float = 1.4
+                let hum = Synth.lowpass(g.tone(d, f0: f, f1: f * 0.97, wave: .saw, attack: 0.15, release: 0.3, vib: 0.02, vibRate: 3, gain: 0.5), 220 / sz)
+                let chug = g.repeated({ g in g.burst(0.05, lp: 260 / sz, hp: 30, attack: 0.004, decay: 0.03, gain: 0.9) }, times: Int(d * f / 4), interval: 4 / f, jitter: 0.08)
+                out = Synth.mix(hum, chug)
+            case .ambient:
+                out = g.repeated({ g in g.material(.metal, pitch: 0.6, scale: 0.8, gain: 0.35) }, times: 3, interval: 0.16 * sz, jitter: 0.2)
+            case .hurt:
+                out = Synth.mix(g.material(.metal, pitch: 1.1 / sz, scale: 1.3, gain: 0.8), g.modes(0.6, [(900 / sz, 0.3, 0.25), (1460 / sz, 0.2, 0.18)]))
+            case .death:
+                out = Synth.mix(g.burst(1.1 * sz, lp: 500 / sz, hp: 25, attack: 0.005, decay: 0.35 * sz, gain: 2.2),
+                                g.repeated({ g in g.material(.metal, pitch: 0.8, scale: 1.0, gain: 0.5) }, times: 4, interval: 0.22, jitter: 0.4))
+                return out
+            }
         case .rumble:
             let (d, a, _) = shape(s, dur: 0.5 * sz, f0: f, f1: f)
             out = Synth.mix(g.burst(d, lp: 300 * sz / 1.6, hp: 40, attack: 0.05, decay: d * 0.5, gain: 2), g.modes(d, [(a, 0.4, d * 0.4), (a * 1.55, 0.2, d * 0.3)]))

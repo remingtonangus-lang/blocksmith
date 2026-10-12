@@ -185,6 +185,16 @@ if CommandLine.arguments.contains("--overlaps-only") {
     OverlapTests.run(check: check)
     print(failures == 0 ? "overlaps: all checks passed" : "overlaps: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --musiclevels-only: every mood's music through the leveller, loudness and peaks (Sources/MusicLevelTests.swift, Q2).
+if CommandLine.arguments.contains("--musiclevels-only") {
+    MusicLevelTests.run(check: check)
+    print(failures == 0 ? "musiclevels: all checks passed" : "musiclevels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --balance-only: combat time-to-kill duels against the night roster (Sources/BalanceTests.swift, Q2; --write-balance).
+if CommandLine.arguments.contains("--balance-only") {
+    BalanceTests.run(game: game, check: check)
+    print(failures == 0 ? "balance: all checks passed" : "balance: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
 if CommandLine.arguments.contains("--savesoak-only") {
     SaveSoakTests.run(device: device, check: check)
@@ -808,6 +818,8 @@ leaves("radio") { RadioTests.run(game: game, check: check) }
 leaves("skyisle") { SkyIsleTests.run(device: device, game: game, check: check) }
 leaves("submarine") { SubmarineTests.run(game: game, check: check) }
 leaves("savesoak") { SaveSoakTests.run(device: device, cycles: 5, check: check) }     // the full 100 in --savesoak-only (about 9 s a cycle)
+leaves("balance") { BalanceTests.run(game: game, check: check) }
+MusicLevelTests.run(check: check)
 OverlapTests.run(check: check)
 
 // Path search cost (mob AI runs these on the frame thread): 60 searches between random points around the spawn.

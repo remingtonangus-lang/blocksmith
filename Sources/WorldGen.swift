@@ -603,19 +603,33 @@ final class WorldGen: TerrainGenerator {
     }
 
     // Single blocks the cave and ravine carvers left hanging with air on all six sides (gencheck floating_block: lone
-    // stone and ore cells in cave air). Chunk interior only (a neighbour across the border isn't known here).
+    // stone and ore cells in cave air).
+    static let isOre: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_ore") }
+
     private func clearIsolated(_ b: inout [BlockID], _ tops: [Int]) {
         let up = CSQ
-        for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+        // Q2 gencheck: every floating block left (7 in 288 chunks) sat on a chunk's edge row, which this pass skipped.
+        // An edge cell sees only its in-chunk neighbours: with all of those open it goes too (at worst it was a nub
+        // held on by one side in the next chunk). Each chunk decides from its own blocks, so the result is the same
+        // whichever chunk generates first.
+        for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
             guard top > 8 else { continue }
-            for y in 6..<(top - 1) {
+            // Up to the column's own top (a cave cut right under the surface left a lone grass block hanging over it,
+            // 3 blocks from seed 12345's spawn). Inside the chunk, ores go with one neighbour left too (5 open sides:
+            // the reference discards ore exposed to air the same way).
+            for y in 6...min(top, CH - 2) {
                 let i = Chunk.index(lx, y, lz)
                 let c = b[i]
-                if c == AIR || b[i - up] != AIR || b[i + up] != AIR { continue }
-                if b[i - 1] != AIR || b[i + 1] != AIR || b[i - CS] != AIR || b[i + CS] != AIR { continue }
-                if Blocks.isLiquid(c) { continue }
-                b[i] = AIR
+                if c == AIR || Blocks.isLiquid(c) { continue }
+                var open = 0, sides = 2
+                if b[i - up] == AIR { open += 1 }
+                if b[i + up] == AIR { open += 1 }
+                if lx > 0 { sides += 1; if b[i - 1] == AIR { open += 1 } }
+                if lx < CS - 1 { sides += 1; if b[i + 1] == AIR { open += 1 } }
+                if lz > 0 { sides += 1; if b[i - CS] == AIR { open += 1 } }
+                if lz < CS - 1 { sides += 1; if b[i + CS] == AIR { open += 1 } }
+                if open == sides || (sides == 6 && open == 5 && WorldGen.isOre[Int(c)]) { b[i] = AIR }
             }
         } }
     }
