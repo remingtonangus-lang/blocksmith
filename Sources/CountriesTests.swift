@@ -219,12 +219,20 @@ extension TownTests {
         let fp = mid - dir * 100
         Countries.state.towns[front] = [Int(fp.x), Int(fp.y)]
         Countries.state.townOwner = [:]
+        // C2 (WarFront): the front line moves; a town behind it changes hands. n is the stronger side here (the
+        // player's part: n helped, a weakened), so the line moves into a.
+        let wk = Countries.warKey(a.key, n.key)
+        Countries.state.wars[wk] = 1
+        Countries.state.fronts = [:]
+        Countries.state.might = [n.key: 60, a.key: -60]
         var took = false
         for h in 0..<64 {
-            Countries.fight(g, a, n, UInt64(h) &* 0x9E3779B97F4A7C15 | 0)
+            WarFront.day(g, a, n, UInt64(h) &* 0x9E3779B97F4A7C15)
             if Countries.ofKnown(g, town: front) == n { took = true; break }
         }
-        check(took && toasts.contains { $0.contains("took \(front) from \(a.name)") }, "countries: a war moves a frontier town to \(n.name)")
+        check(took && toasts.contains { $0.contains("took \(front) from \(a.name)") },
+              "countries: a war's front moves into \(a.name) (\(Int(WarFront.front(wk))) blocks) and the frontier town goes to \(n.name)")
+        WarFrontTests.run(g, a, n, town: front, check: check)
 
         // Saved and loaded.
         var d: [String: String] = [:]

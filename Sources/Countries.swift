@@ -20,8 +20,9 @@ import simd
 //   border posts    a flagged guard post where neighbouring countries meet, built when you first come near it. Crossing
 //                   there with minerals owes customs (`dutyPct` of their value): stop at the post to pay, or ride on
 //                   and it counts against you.
-//   wars            once a day neighbouring countries may declare war or make peace; each day of war one known frontier
-//                   town may change hands (news as a toast; prices and annexing follow the new owner).
+//   wars            once a day neighbouring countries may declare war or make peace; each day of war its front line
+//                   moves and the known towns behind it change hands (WarFront.swift, C2; news as a toast; prices and
+//                   annexing follow the new owner).
 
 enum Mineral: Int, CaseIterable, Codable {
     case coal, iron, copper, gold, lapis, titanium, emerald
@@ -214,6 +215,9 @@ enum Countries {
         var warDay: Int? = nil
         var seed: UInt64? = nil
         var learned: [String]? = nil             // countries whose riches a townsperson told you (P50)
+        var fronts: [String: Float]? = nil       // war key -> the front line's offset (C2, WarFront.swift)
+        var might: [String: Float]? = nil        // country -> the player's part in its strength (C2)
+        var battles: Int? = nil                  // days of war fought (C2)
     }
     static var state = Saved()
 
@@ -234,7 +238,7 @@ enum Countries {
     static func reset() {
         state = Saved(); lastTick = -10; lastKey = nil; lastTown = nil; owed = 0; owedTo = nil; owedPost = nil; paidPost = nil
         crossings = 0; smuggled = 0; warNews = 0; annexes = 0; capitals = [:]; postSpots = [:]; lastPos = nil
-        lastPostDistance = .infinity; hud = nil
+        lastPostDistance = .infinity; hud = nil; WarFront.nextGun = 0
     }
     static func save(_ d: inout [String: String]) {
         if let e = try? JSONEncoder().encode(state), let s = String(data: e, encoding: .utf8) { d["countries"] = s }
@@ -356,6 +360,7 @@ enum Countries {
     static func lawKilled(_ g: Game, town: String, at p: V3) {
         let c = of(g, town: town, near: p)
         change(g, c, -25, "you killed its law")
+        WarFront.lawKilled(c)
         for a in state.allies where a != c.key && state.wars[warKey(a, c.key)] != nil {
             if let ally = byKey(g, a) {
                 state.standing[a] = min(100, (state.standing[a] ?? 0) + 8)
@@ -368,6 +373,7 @@ enum Countries {
         guard g.dim.dim == .overworld else { return }
         let c = town.map { of(g, town: $0, near: p) } ?? at(g, p)
         if !isAnnexed(c) { state.standing[c.key] = min(100, standing(c) + 0.2) }
+        WarFront.traded(c)
     }
     // TownConquest.surrender: taking the capital annexes the country; any other town costs standing.
     static func townTaken(_ g: Game, _ town: String, at p: V3) {
@@ -384,6 +390,7 @@ enum Countries {
             g.onToast?("\(town) was \(c.name)'s capital: all of \(c.name) is yours now, its towns and its tribute")
         } else {
             change(g, c, -30, "you took \(town)")
+            WarFront.townTaken(c)
         }
     }
 
@@ -433,6 +440,7 @@ enum Countries {
         lastTown = TownLaw.inTown
         posts(g)
         wars(g)
+        WarFront.ambience(g)
         lastPos = p
         hud = makeHud(g)
     }
@@ -664,6 +672,7 @@ enum Countries {
         let block = [me] + neighbours(g, me)
         for a in block { for b in block where a.key < b.key && abs(a.cx - b.cx) + abs(a.cz - b.cz) == 1 { pairs.append((a, b)) } }
         let seed = g.world.seed
+        WarFront.fade()
         for (a, b) in pairs {
             let k = warKey(a.key, b.key)
             let h = Townsfolk.mix(a.cx * 7 + b.cx, a.cz * 7 + b.cz, seed ^ UInt64(bitPattern: Int64(day)) &* 0x2545F4914F6CDD1D)
@@ -676,7 +685,7 @@ enum Countries {
                     g.onToast?("\(a.name) and \(b.name) have made peace")
                     continue
                 }
-                fight(g, a, b, h >> 8)
+                WarFront.day(g, a, b, h >> 8)
             } else {
                 let rivals = Townsfolk.mix(a.cx + b.cx, a.cz + b.cz, seed ^ 0x2A11) % 3 == 0
                 if roll < (rivals ? 12 : 3) && state.wars.count < 3 {
@@ -686,29 +695,6 @@ enum Countries {
                 }
             }
         }
-    }
-
-    // One day of war: one known frontier town (within 600 blocks of their border, not a capital and not yours) may
-    // change hands.
-    static func fight(_ g: Game, _ a: Country, _ b: Country, _ h: UInt64) {
-        guard h % 2 == 0 else { return }
-        let winner = (h >> 1) % 2 == 0 ? a : b, loser = winner == a ? b : a
-        let mx = Float(a.seatX + b.seatX) / 2, mz = Float(a.seatZ + b.seatZ) / 2
-        var n = V2(Float(b.seatX - a.seatX), Float(b.seatZ - a.seatZ)); n = n / max(1, simd_length(n))
-        var cands: [String] = []
-        for (t, xz) in state.towns where xz.count == 2 {
-            guard let c = ofKnown(g, town: t), c == loser, !TownConquest.owns(t), !isCapital(g, town: t, of: loser) else { continue }
-            let d = abs((Float(xz[0]) - mx) * n.x + (Float(xz[1]) - mz) * n.y)
-            if d < 600 { cands.append(t) }
-        }
-        guard !cands.isEmpty else { return }
-        cands.sort()
-        let t = cands[Int((h >> 2) % UInt64(cands.count))]
-        let xz = state.towns[t]!
-        let home = at(g, x: xz[0], z: xz[1])
-        state.townOwner[t] = home == winner ? nil : winner.key
-        warNews += 1
-        g.onToast?("\(winner.name) took \(t) from \(loser.name)")
     }
 
     // MARK: HUD

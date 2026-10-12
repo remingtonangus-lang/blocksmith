@@ -190,6 +190,7 @@ extension Game {
         greywallTurretsTick(dt)
         radioTick(dt)                                  // C6 (RadioSpoof.swift)
         grappleTick(dt)                                // C7 (SkyIsle.swift)
+        submarinesTick(dt)                             // C8 (Submarines.swift)
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer

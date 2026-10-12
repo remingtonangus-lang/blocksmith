@@ -102,6 +102,13 @@ final class ParticleManager {
                      size: Rand.float(in: 0.08...0.18), gravity: -0.5, color: V3(g, g, g), collide: false))
     }
 
+    // A rising bubble (torpedo and depth-charge wakes, C8).
+    func bubble(at c: V3) {
+        add(Particle(pos: c, vel: V3(Rand.float(in: -0.2...0.2), Rand.float(in: 0.8...1.4), Rand.float(in: -0.2...0.2)),
+                     life: Rand.float(in: 0.4...0.9), maxLife: 0.9, layer: Int(Tex.id("puff")), uv0: V2(0, 0), uvSize: 1,
+                     size: Rand.float(in: 0.06...0.12), gravity: -0.6, color: V3(0.75, 0.88, 1), collide: false))
+    }
+
     func flame(at c: V3) {
         add(Particle(pos: c, vel: V3(Rand.float(in: -0.1...0.1), Rand.float(in: 0.1...0.4), Rand.float(in: -0.1...0.1)),
                      life: Rand.float(in: 0.3...0.6), maxLife: 0.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,

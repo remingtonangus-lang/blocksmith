@@ -45,29 +45,37 @@ enum SkyIsleTests {
               String(format: "skyisle placement: %d isles in %d regions (%.0f%%), %d within 800 of spawn, %d off the height band, %d near the ground",
                      isles, regions, share * 100, near, offBand, grounded))
 
-        // A real isle's chunk.
-        guard let (world, s, sh, cx, cz) = first, let wg = world.gen as? WorldGen else { check(false, "skyisle build: no isle to build"); return }
-        let blocks = wg.generate(cx: cx, cz: cz)
+        // A real isle's chunk: the one holding its shrine chest (one up from the floor, 3 behind the anchor), generated
+        // through the world's own path.
+        guard let (world, s, _, _, _) = first, let wg = world.gen as? WorldGen else { check(false, "skyisle build: no isle to build"); return }
+        let ch = IVec3(s.anchor.x, s.anchor.y + 1, s.anchor.z - 3)
+        let cx = floorDiv(ch.x, CS), cz = floorDiv(ch.z, CS)
+        var blocks = wg.generate(cx: cx, cz: cz)
+        _ = wg.structures?.place(into: &blocks, cx: cx, cz: cz)       // structures go on after the terrain, as World does
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
             let lx = x - cx * CS, lz = z - cz * CS
             guard lx >= 0, lx < CS, lz >= 0, lz < CS, y >= 0, y < CH else { return AIR }
             return blocks[Chunk.index(lx, y, lz)]
         }
         let chest = Blocks.groupBase[Int(Blocks.id("chest"))]
-        let hasChest = Blocks.groupBase[Int(at(sh.x, sh.top + 2, sh.z))] == chest
-        // Turf near the rim (one step in from the edge toward the centre, inside this chunk), rock in the core.
+        let hasChest = Blocks.groupBase[Int(at(ch.x, ch.y, ch.z))] == chest
+        // Every column of the chunk: the isle's blocks (40 down from the floor and up) are turf over rock with open
+        // air under the keel, far above the ground.
         var turf = 0, rock = 0, openBelow = true
-        for dz in -6...6 { for dx in -6...6 {
-            guard let c = sh.column(dx, dz) else { continue }
-            let x = sh.x + dx, z = sh.z + dz
-            guard x >= cx * CS, x < cx * CS + CS, z >= cz * CS, z < cz * CS + CS else { continue }
-            let k = Blocks.key(at(x, c.top, z))
-            if k == "grass_block" || k.hasSuffix("stone_bricks") || k == "oak_log" { turf += 1 }
-            if Blocks.key(at(x, c.bottom + 1, z)).contains("stone") || Blocks.key(at(x, c.bottom + 1, z)) == "andesite" || Blocks.key(at(x, c.bottom + 1, z)) == "cobblestone" { rock += 1 }
-            for y in (c.bottom - 8)..<c.bottom where at(x, y, z) != AIR { openBelow = false }
+        let lowY = s.anchor.y - 40
+        for lz in 0..<CS { for lx in 0..<CS {
+            let x = cx * CS + lx, z = cz * CS + lz
+            var top = -1, bottom = -1
+            for y in lowY..<min(CH, s.anchor.y + 12) where at(x, y, z) != AIR { if bottom < 0 { bottom = y }; top = y }
+            guard top >= 0 else { continue }
+            let k = Blocks.key(at(x, top, z))
+            if k == "grass_block" || k.hasSuffix("stone_bricks") || k.contains("oak") || k == "lantern" || k.contains("chest") { turf += 1 }
+            let r = Blocks.key(at(x, bottom, z))
+            if r.contains("stone") || r == "andesite" || r == "cobblestone" || r == "dirt" { rock += 1 }
+            for y in max(0, bottom - 8)..<bottom where at(x, y, z) != AIR { openBelow = false }
         } }
         check(hasChest && turf > 20 && rock > 20 && openBelow,
-              "skyisle build: an isle at \(sh.x),\(sh.top - YOFF),\(sh.z) (radius \(sh.r)) has its shrine chest (\(hasChest)), turf on \(turf) columns, rock under \(rock), open air under its keel (\(openBelow)); anchor y \(s.anchor.y - YOFF)")
+              "skyisle build: the isle at \(s.anchor.x),\(s.anchor.y - YOFF),\(s.anchor.z) has its shrine chest (\(hasChest)), turf on \(turf) columns of its chunk, rock under \(rock), open air under its keel (\(openBelow))")
         let box = ItemContainer(27)
         var rng = SRng(7)
         Loot.fill(box, table: SkyIsle.kind, rng: &rng)

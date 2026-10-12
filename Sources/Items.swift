@@ -450,6 +450,7 @@ final class ItemRegistry {
         registerNavyItems()
         registerSkySkiff()
         registerSkyIsleItems()                        // C7 (SkyIsle.swift)
+        registerSubmarineItems()                      // C8 (Submarines.swift)
         registerTroopArmour()
         registerDeepJournalItems()
         ExplorerMaps.register(self)
