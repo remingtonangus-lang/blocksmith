@@ -916,6 +916,7 @@ final class Playthrough {
             _ = world.loadSync(center: sc, radius: 5)
             game.player.flying = true
             game.player.pos = sc
+            game.gateCooldown = 0; game.portalCooldown = 0         // the trip back is not a reason to refuse the next
         }
         let filled = frames.filter { world.block($0.x, $0.y, $0.z) == base + 1 }.count
         check(filled == 12, "hollow gate: \(filled)/12 frames filled with right clicks" + (filled == 12 ? "" : "; last try: \(why()), frame \(frames.last.map { "\($0.x),\($0.y),\($0.z) under \(Blocks.key(world.block($0.x, $0.y + 1, $0.z)))" } ?? "none")"))
