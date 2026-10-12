@@ -896,7 +896,7 @@ final class Mob {
         case .ranged:
             aimHold = max(0, aimHold - dt)
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
-            if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
+            if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height / 3, 0)) {
                 face(v.pos)
                 aimHold = 0.8
                 let dv = simd_length(v.pos - pos)

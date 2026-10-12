@@ -52,7 +52,7 @@ enum OverlapTests {
             } }
         }
         let left = pairs.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-        check(yielding.isEmpty, "overlaps: \(starts) starts on \(n) seeds, \(total) piece overlaps left (\(left.isEmpty ? "none" : left)); a small kind inside a big one it gives way to: \(yielding.isEmpty ? "none" : yielding.joined(separator: "; "))")
+        check(yielding.isEmpty && total == 0, "overlaps: \(starts) starts on \(n) seeds, \(total) piece overlaps left (\(left.isEmpty ? "none" : left)); a small kind inside a big one it gives way to: \(yielding.isEmpty ? "none" : yielding.joined(separator: "; "))")
 
         // Saved ground keeps the start that now gives way.
         if let (seed, t, rx, rz) = gaveWay {

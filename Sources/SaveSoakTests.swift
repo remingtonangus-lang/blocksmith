@@ -6,7 +6,7 @@ import simd
 // count): a survival world is played, changed, saved and loaded back as the app loads it (SaveManager + World + Game +
 // apply(meta)) again and again, each cycle playing on in the loaded copy. Every cycle compares what was saved with what
 // came back: the player's place, health, hunger and time, every inventory slot, a chest's contents, every block changed
-// so far, the tamed animals. At the end: no mismatch, no World or Game left alive from earlier cycles (a leak would
+// so far. At the end: no mismatch, no World or Game left alive from earlier cycles (a leak would
 // keep their chunk memory), resident memory flat, and the save folder holds only changed chunks.
 enum SaveSoakTests {
     static func rssMB() -> Double? {

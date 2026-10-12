@@ -166,8 +166,8 @@ enum BalanceTests {
         print("balance: hisser blast at 1.5 blocks: \(blasts.map(String.init).joined(separator: " / ")) damage (early / iron / diamond)")
 
         let inf = Float.infinity
-        let unfair = rows.filter { ($0.toKill[1] ?? inf) < (common.contains($0.name) ? 4 : 2) || (common.contains($0.name) && ($0.toKill[0] ?? inf) < 2) }
-        check(unfair.isEmpty, "balance fair: with iron gear no common night mob kills the player in under 4 s (nothing in under 2 s), and none in under 2 s unarmoured\(unfair.isEmpty ? "" : ": " + unfair.map { "\($0.name) \(f($0.toKill[0])) / \(f($0.toKill[1]))" }.joined(separator: ", "))")
+        let unfair = rows.filter { (common.contains($0.name) && $0.toKill[0] == nil) || ($0.toKill[1] ?? inf) < (common.contains($0.name) ? 4 : 2) || (common.contains($0.name) && ($0.toKill[0] ?? inf) < 2) }
+        check(unfair.isEmpty, "balance fair: every common night mob can kill an unarmoured player within 60 s, none in under 2 s; with iron gear none in under 4 s (nothing in under 2 s)\(unfair.isEmpty ? "" : ": " + unfair.map { "\($0.name) \(f($0.toKill[0])) / \(f($0.toKill[1]))" }.joined(separator: ", "))")
         let lost = rows.filter { r in
             let early = common.contains(r.name) && (r.kills[0] ?? inf) >= (r.toKill[0] ?? inf)
             let dia = (r.kills[2] ?? inf) >= (r.toKill[2] ?? inf)

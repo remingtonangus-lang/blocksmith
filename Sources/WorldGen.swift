@@ -621,7 +621,7 @@ final class WorldGen: TerrainGenerator {
             for y in 6...min(top, CH - 2) {
                 let i = Chunk.index(lx, y, lz)
                 let c = b[i]
-                if c == AIR || Blocks.isLiquid(c) { continue }
+                if c == AIR || !Blocks.opaque[Int(c)] { continue }        // (lichen, vines, buds: held from the next chunk)
                 var open = 0, sides = 2
                 if b[i - up] == AIR { open += 1 }
                 if b[i + up] == AIR { open += 1 }
