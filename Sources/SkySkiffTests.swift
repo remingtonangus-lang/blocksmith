@@ -89,6 +89,8 @@ enum SkySkiffTests {
         defer { w.ships.remove(b) }
 
         // Weight: iron on every free deck cell and it can't hold height even climbing.
+        // (its flight can end over ground the harness never loaded, where a ship sleeps: load round it)
+        _ = w.loadSync(center: b.pos, radius: 3)
         let iron = Blocks.id("iron_block")
         var cargo = 0
         for y in 0..<(b.grid.sy - 1) { for z in 0..<b.grid.sz { for x in 0..<b.grid.sx {
@@ -100,8 +102,9 @@ enum SkySkiffTests {
         let h0 = b.pos.y
         run(3)
         let sank = b.pos.y - h0
+        let why = String(format: " [asleep %@, vel.y %.2f, lift %.2f, hoverY %.1f, kin %@]", b.asleep ? "y" : "n", b.vel.y, b.liftLevel, b.hoverY ?? -1, b.kinematic ? "y" : "n")
         b.autopilot = nil
         check(b.mass > Float(b.balloons) * ShipTuning.balloonLift && sank < -1,
-              String(format: "skiff: loaded with %d iron blocks (%.0f t over %.0f t of lift) it sinks %.1f in 3 s with the balloons full", cargo, b.mass, Float(b.balloons) * ShipTuning.balloonLift, -sank))
+              String(format: "skiff: loaded with %d iron blocks (%.0f t over %.0f t of lift) it sinks %.1f in 3 s with the balloons full", cargo, b.mass, Float(b.balloons) * ShipTuning.balloonLift, -sank) + why)
     }
 }
