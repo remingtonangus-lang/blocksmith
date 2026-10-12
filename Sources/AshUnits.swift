@@ -69,10 +69,11 @@ extension Mob {
         if !kind.ash, let r = Soldier.rank(kind) {
             spec.name = Mob.ashNames[r]
             power = 1.4
-            // The Deep expansion: a harder army than any surface garrison (DeepExpansionTests.army): veterans with 75 %
-            // more health (a loaded soldier keeps the health it was saved with) and heavier plate (steelholdArmor).
+            // The Deep expansion: a harder army than any surface garrison (DeepExpansionTests.army): veterans with twice
+            // the health (a loaded soldier keeps the health it was saved with) and heavier plate (steelholdArmor). Twice,
+            // not 7/4, since surface soldiers got class plate (TroopClasses, A2): deep balance keeps them a third harder.
             let old = spec.health
-            spec.health = old * 7 / 4
+            spec.health = old * 2
             if !loading && health >= old { health = spec.health }
         }
     }
