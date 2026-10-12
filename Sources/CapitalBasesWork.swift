@@ -62,10 +62,12 @@ extension Game {
             team = formPatrol(r, b, size: pt.size)
             if team!.isEmpty { r.patrol = nil; return }             // nobody left to send
             b.patrols[r.key] = team
+            b.routes[r.key] = nil
             b.note("\(r.key) patrol formed: \(team!.map { $0.kind.key }.joined(separator: " "))")
         }
         var members = team!.filter { $0.health > 0 }
         if members.isEmpty {
+            b.routes[r.key] = nil
             b.note("\(r.key) patrol lost")
             b.patrols[r.key] = nil
             r.patrol = nil
@@ -103,17 +105,37 @@ extension Game {
         case 1:
             // Out: the leader walks waypoint to waypoint (the path finder reaches about 48 blocks), the rest follow
             // in a wedge.
+            // T4: the leader follows one long path found when the march begins (8,000 nodes: the soldier's own
+            // search gave up on 18-block steps toward the noise at standY ground, stopping 36 blocks short where a way
+            // existed), taking the cell 12 along it from where it is; with no path, straight steps as before.
             let to = V3(target.x - leader.pos.x, 0, target.z - leader.pos.z)
             let dist = simd_length(to)
-            let wp = dist < 18 ? target : leader.pos + to / dist * 18
-            leader.soldierBrain.order = ground(wp)
+            if b.routes[r.key] == nil {
+                b.routes[r.key] = PathFinder.find(world, from: leader.pos, to: target, profile: leader.pathProfile(self), maxNodes: 8000) ?? []
+            }
+            let route = b.routes[r.key] ?? []
+            var wp = dist < 18 ? target : leader.pos + to / dist * 18
+            var routeEnd = false
+            if !route.isEmpty {
+                var best = 0, bd = Float.greatestFiniteMagnitude
+                for (i, c) in route.enumerated() {
+                    let d = simd_length_squared(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5) - leader.pos)
+                    if d < bd { bd = d; best = i }
+                }
+                let c = route[min(route.count - 1, best + 12)]
+                wp = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
+                routeEnd = best >= route.count - 2 && bd < 9
+                leader.soldierBrain.order = dist < 6 ? ground(target) : wp
+            } else {
+                leader.soldierBrain.order = ground(wp)
+            }
             for (i, m) in members.enumerated() where i > 0 { m.soldierBrain.order = ground(leader.pos + slot(i)) }
-            // No way on (a cliff, water, a wall): after 12 s they search where they stand.
-            pt.blocked = leader.gaveUp(leader.soldierBrain.order ?? wp) ? (pt.blocked ?? 0) + dt : 0
-            if dist < 5 { pt.phase = 2; pt.t = 0; b.note("\(r.key) patrol reached the noise") }
+            // No way on (a cliff, water, a wall; or the path ends short of the noise): after 12 s they search there.
+            pt.blocked = leader.gaveUp(leader.soldierBrain.order ?? wp) || (routeEnd && dist >= 5) ? (pt.blocked ?? 0) + dt : 0
+            if dist < 5 { pt.phase = 2; pt.t = 0; b.routes[r.key] = nil; b.note("\(r.key) patrol reached the noise") }
             else if pt.t > 200 || (pt.blocked ?? 0) > 12 {
                 b.note("\(r.key) patrol stopped short (\(Int(dist)) blocks\((pt.blocked ?? 0) > 12 ? ", no way on" : ""))")
-                pt.phase = 2; pt.t = 0; pt.blocked = 0
+                pt.phase = 2; pt.t = 0; pt.blocked = 0; b.routes[r.key] = nil
                 pt.target = [leader.pos.x, leader.pos.y, leader.pos.z]
             }
         case 2:

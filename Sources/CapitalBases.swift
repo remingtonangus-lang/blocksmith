@@ -123,6 +123,7 @@ final class BaseWatch {
     private var ready: [String: [(IVec3, BlockID)]] = [:]
     var timer: Float = 0
     var intruded: [String: Float] = [:]              // seconds a player has been inside a citadel's walls (P33)
+    var routes: [String: [IVec3]] = [:]              // a marching patrol's one long path, gate to noise (T4)
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
