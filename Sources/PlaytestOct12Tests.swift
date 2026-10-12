@@ -30,6 +30,7 @@ enum PlaytestOct12Tests {
         chaseView(game, check)
         trains(check)
         wrecks(game, check)
+        PlaytestOct12NoonTests.run(game, check)
     }
 
     // P88 (09:37): bounty hunters are a big deal: an outlaw draws four or more, two with six-irons, twice as tough; they
@@ -112,6 +113,7 @@ enum PlaytestOct12Tests {
             HeavyTurret.arm(&sl)
             if manned { sl.power = HeavyTurret.mannedPower; sl.breach = HeavyTurret.mannedBreach }
             g.arms.detonate(sl, at: V3(Float(ox) - 0.3, Float(a.py) + 3.5, Float(a.fz) + 0.5), g)
+            g.arms.breaches.removeAll()              // (the blast alone here; P103's breach has its own check)
             for z in (a.fz - 2)...(a.fz + 2) { for y in (a.py + 1)...(a.py + 5) { for x in ox...(ox + 4) where w.block(x, y, z) != stone { n += 1 } } }
             return n
         }

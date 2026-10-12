@@ -427,7 +427,7 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
-                    if smooth && natT[bi] && !(anyDmg && dmg[i] != nil) { continue }
+                    if smooth && natT[bi] { continue }                  // (chipped too: it shrinks in the smooth surface, P106)
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -930,17 +930,21 @@ final class MeshScratch {
     let stack = UnsafeMutablePointer<Int32>.allocate(capacity: 4096)
     let queue = GrowBuf<Int32>(1 << 16)
     let opq = GrowBuf<UInt32>(1 << 14), cut = GrowBuf<UInt32>(1 << 12), trn = GrowBuf<UInt32>(1 << 12)
-    // Smooth terrain (SmoothTerrain.swift): solid flags 20^3, density 18^3, dual vertices 17^3 (xyz, light | ao << 8).
-    let smS = UnsafeMutablePointer<UInt8>.allocate(capacity: 20 * 20 * 20)
-    let smD = UnsafeMutablePointer<Float>.allocate(capacity: 18 * 18 * 18)
-    let smV = UnsafeMutablePointer<Float>.allocate(capacity: 17 * 17 * 17 * 3)
-    let smL = UnsafeMutablePointer<Int32>.allocate(capacity: 17 * 17 * 17)
-    let smN = UnsafeMutablePointer<Float>.allocate(capacity: 17 * 17 * 17 * 3)
+    // Smooth terrain (SmoothTerrain.swift): solid flags, density, dual vertices (xyz, light | ao << 8, normal, pinned,
+    // relaxation scratch), each with SmoothTerrain.maxRelax blocks of ring past a section's own.
+    static let smN0 = 20 + 2 * SmoothTerrain.maxRelax, smM0 = 18 + 2 * SmoothTerrain.maxRelax, smK0 = 17 + 2 * SmoothTerrain.maxRelax
+    let smS = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
+    let smD = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smM0 * MeshScratch.smM0 * MeshScratch.smM0)
+    let smV = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
+    let smL = UnsafeMutablePointer<Int32>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)
+    let smN = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
+    let smQ = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)
+    let smR = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
-        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate()
     }
 
     static var current: MeshScratch {

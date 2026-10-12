@@ -33,6 +33,7 @@ final class SoldierBrain {
     var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
     var charge: Float = 0
     var kick: Float = 0             // deck gun barrel recoil 1 -> 0
+    var kickSide: Float = 0         // ... of the left (-1) or right (1) barrel only, or both (0)
     var turret: Float = 0           // Ashguard vehicles: turret / gun world yaw (AshUnits.swift)
     var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
     var ashCalls = 0                // ... and how often he has called his guard
@@ -141,7 +142,11 @@ enum Soldier {
     static func band(_ rank: Int, _ gun: Int) -> (Float, Float) {
         switch gun {
         case Guns.kessel: return rank == 2 ? (16, 40) : (12, 28)
-        case Guns.hagel: return (5, 11)
+        case Guns.hagel, Guns.needle: return (5, 11)
+        case Guns.slatefall: return (8, 20)
+        case Guns.repeater: return (10, 24)
+        case Guns.longwatch: return (16, 40)
+        case Guns.breaker: return (4, 12)
         case Guns.sturmwind: return (8, 18)
         case Guns.ashsaw: return (10, 26)
         case Guns.shotgun: return (2.5, 6)
@@ -428,7 +433,7 @@ extension Mob {
         } else {
             b.aimTime = 0
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
-            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || b.gun == Guns.sturmwind || b.gun == Guns.hagel || r == 3,
+            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || b.gun == Guns.sturmwind || b.gun == Guns.hagel || b.gun == Guns.slatefall || b.gun == Guns.repeater || r == 3,
                b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
                 suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
             }
@@ -499,7 +504,10 @@ extension Mob {
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1))
+                // P105: a gun's kick opens the aim (a heavy pistol or marksman's rifle more than a carbine), except for
+                // a Hannibal trooper: the power suit takes it.
+                let kick = aimKick(gs)
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1))
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -604,7 +612,8 @@ extension Mob {
     // MARK: Deck gun
 
     func updateDeckGun(_ dt: Float, _ g: Game) {
-        if Turrets.shared.manned === self { vel = .zero; return }      // the player has it (VehicleControls.swift)
+        NavalGuns.hurtEffects(self, dt, g)
+        if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
         let b = soldierBrain
         vel = .zero
         attackCooldown = max(attackCooldown, -1)
@@ -673,13 +682,10 @@ extension Mob {
                                  shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
                     HeavyTurret.arm(&s)
                     g.arms.spawn(s)
-                    for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
-                    g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
-                                             size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
-                    g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
+                    HeavyTurret.flash(g, muzzle, fwd, smoke: 6)
                 }
                 g.sfx(.gun(9), 2, at: pivot)
-                b.kick = 1
+                b.kick = 1; b.kickSide = 0
             }
         } else if !aligned {
             b.charge = max(0, b.charge - dt * 2)
@@ -708,6 +714,7 @@ extension Game {
         if m.kind == .deckGun {
             particles.explosion(at: m.pos + V3(0, 1, 0), power: 3)
             sfx(.explode, 1.2, at: at)
+            NavalGuns.wreck(m, self)                                    // P102: a wreck where it stood
             return
         }
         m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
@@ -776,6 +783,13 @@ enum HeavyTurret {
         let trunnion = m.pos + V3(0, trunnionY, 0) + flat * (-trunnionZ) + side * (sx * spacing)
         return trunnion + fwd * barrel
     }
+    // A muzzle flash at one barrel: a glow, a light and a smoke cloud.
+    static func flash(_ g: Game, _ muzzle: V3, _ fwd: V3, smoke: Int) {
+        for _ in 0..<smoke { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...2), dark: false) }
+        g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                 size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
+        g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
+    }
     // A heavy shell: bursts like TNT where it lands, breaking blocks and hurting everything near.
     static func arm(_ s: inout Slug) {
         s.power = power
@@ -801,10 +815,15 @@ func deckGunParts(_ m: Mob) -> [Part] {
     var grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
     if look == .greywall { grey = V3(0.33, 0.37, 0.41); mid = V3(0.25, 0.28, 0.31); dark = V3(0.12, 0.13, 0.15); deck = V3(0.22, 0.24, 0.26) }
     if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
+    // P102: a hurt gun's plate blackens (smoking, then burning: NavalGuns.state) and its right barrel droops.
+    let hurt = NavalGuns.state(m)
+    if hurt > 0 { let f: Float = hurt == 2 ? 0.5 : 0.78; grey *= f; mid *= f; deck *= f }
     let hazard = V3(0.85, 0.66, 0.12)
-    let pitch = m.brain?.pitch ?? 0
+    let pitch0 = m.brain?.pitch ?? 0
+    var pitch = pitch0
     let charge = m.brain?.charge ?? 0
-    let kick = (m.brain?.kick ?? 0) * 19                // 1.2 m recoil after a salvo
+    let kick0 = (m.brain?.kick ?? 0) * 19               // 1.2 m recoil after a salvo
+    let kickSide = m.brain?.kickSide ?? 0
     let tz: Float = HeavyTurret.trunnionZ * 16, ty: Float = HeavyTurret.trunnionY * 16
     var p: [Part] = [
         // Barbette ring skirt and the turret's rotating base.
@@ -873,6 +892,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     }
     for x: Float in [-36, 36] {
         let pv = V3(x, ty, tz)
+        pitch = hurt == 2 && x > 0 ? min(pitch0, -0.14) : pitch0
+        let kick = kickSide == 0 || (kickSide < 0) == (x < 0) ? kick0 : 0      // (P101: one barrel at a time when manned)
         // Gun port mantlet (moves with the gun), the barrel in three tapering sections, a muzzle ring.
         p.append(Part(mn: V3(x - 22, ty - 22, tz - 30), mx: V3(x + 22, ty + 22, tz + 4), pivot: pv, rotX: pitch, color: dark))
         p.append(Part(mn: V3(x - 13, ty - 13, tz - 140 + kick), mx: V3(x + 13, ty + 13, tz - 30 + kick), pivot: pv, rotX: pitch, color: mid))

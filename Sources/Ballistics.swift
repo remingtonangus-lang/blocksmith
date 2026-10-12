@@ -40,6 +40,7 @@ struct Beam {
 
 final class Armory {
     var slugs: [Slug] = []
+    var breaches: [CraterJob] = []      // manned naval shells' wall breaches being carved (NavalGuns.swift, P103)
     var beams: [Beam] = []
     // Player gun state.
     var cooldown: Float = 0
@@ -112,6 +113,7 @@ final class Armory {
 
     func update(_ dt: Float, _ g: Game) {
         let w = g.world
+        if g.coop.current == 0 || !g.coop.active { NavalGuns.stepBreaches(g) }
         for i in slugs.indices {
             // Split screen: a player's round flies in its shooter's turn (its hit marker, hits and the mob it provokes are
             // theirs); enemy rounds fly in the turn of the seat nearest them (so they can hit player 2 too, like arrows).
@@ -303,6 +305,7 @@ final class Armory {
         defer { g.ashQuiet = false; g.blastSpares = .none }
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
                           resistCap: s.breach)
+        NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
         g.bases.quiet = false
     }
 

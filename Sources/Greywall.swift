@@ -529,12 +529,12 @@ enum Greywall {
 
     static let loot: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
         "greywall_supply": (4...8, [("capital_ration", 2, 6, 14), ("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("iron_ingot", 2, 6, 10),
-                                    ("gunpowder", 2, 8, 10), ("capital_rounds", 8, 32, 14), ("coal", 4, 12, 8), ("compass", 1, 1, 2),
+                                    ("gunpowder", 2, 8, 10), ("greywall_rounds", 8, 32, 14), ("coal", 4, 12, 8), ("compass", 1, 1, 2),
                                     ("map", 1, 1, 2), ("golden_apple", 1, 1, 2)]),
-        "greywall_armory": (3...6, [("gun_rifle", 1, 1, 9), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
-                                    ("capital_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8),
+        "greywall_armory": (3...6, [("gun_slatefall", 1, 1, 9), ("gun_needle", 1, 1, 7), ("gun_repeater", 1, 1, 4), ("gun_longwatch", 1, 1, 3), ("gun_breaker", 1, 1, 2),
+                                    ("greywall_rounds", 16, 48, 22), ("heavy_rounds", 4, 12, 8),
                                     ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3), ("firing_mechanism", 1, 2, 6)]),
-        "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
+        "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_longwatch", 1, 1, 6), ("gun_launcher", 1, 1, 5),
                                      ("rocket_ammo", 2, 6, 6), ("heavy_rounds", 6, 15, 8), ("golden_apple", 1, 2, 5),
                                      ("experience_bottle", 3, 8, 6), ("targeting_optic", 1, 1, 5), ("radar_module", 1, 1, 4),
                                      ("diamond_chestplate@20-30", 1, 1, 3)]),

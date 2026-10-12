@@ -274,7 +274,9 @@ final class World {
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
         var sync: [(Chunk, Int)] = []
-        let r = SmoothTerrain.enabled ? 2 : 1       // smooth vertices move with blocks up to 2 away
+        // Smooth vertices move with blocks up to 2 away (relaxing carries it 1 more a pass: those sections remesh in the
+        // background with the rest below, so a Quest edit doesn't mesh the whole ring on the frame).
+        let r = SmoothTerrain.enabled ? 2 : 1
         for dz in -r...r {
             for dx in -r...r {
                 for dy in -r...r {
@@ -600,6 +602,18 @@ final class World {
         if cur == v { return }
         damage[p] = v
         remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
+        // A chipped block also dents the smooth surface round it (as far as the relaxation reaches): in the background.
+        if SmoothTerrain.enabled {
+            let r = 3 + SmoothTerrain.relax
+            for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
+                guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
+                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) {
+                    let near = cx >= floorDiv(p.x - 1, CS) && cx <= floorDiv(p.x + 1, CS) && cz >= floorDiv(p.z - 1, CS) && cz <= floorDiv(p.z + 1, CS)
+                        && sy >= (p.y - 1) >> 4 && sy <= (p.y + 1) >> 4
+                    if !near { c.sections[sy].version += 1 }
+                }
+            } }
+        }
     }
 
     private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {

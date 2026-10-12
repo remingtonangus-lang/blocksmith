@@ -1377,6 +1377,7 @@ final class Mob {
     // `iframes`: the reference 0.5 s after a hit in which only a bigger hit counts, and only by the difference, with no
     // knockback (player melee and arrows: fists and hoes hit 4 times a second, and all three Multishot arrows landed).
     // Off for guns, blasts and scripted hits, which have their own rates.
+    static var plateHit = false
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         Mob.onHit?(self, src, damage)
         if kind == .warden && emergeTime > 0 { return }
@@ -1449,8 +1450,8 @@ final class Mob {
             breakTimer = 1
             return
         }
-        // A closed sentry shell shrugs off most of a hit.
-        damage = armorReduced(damage)
+        // A closed sentry shell shrugs off most of a hit. (A heavy shell on a deck gun's plate goes past it: NavalGuns.)
+        if !Mob.plateHit { damage = armorReduced(damage) }
         // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
         if kind == .wolf && armorTier == 5 && damage > 0 {
             armorHP -= damage; damage = 0

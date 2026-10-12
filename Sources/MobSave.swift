@@ -150,6 +150,7 @@ extension Mob {
         if let c = d["tc"], c >= 1, c <= 3 { troop = Int8(c); troopSeg = SIMD3(d["ts0"] ?? 0, d["ts1"] ?? 0, d["ts2"] ?? 0) }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
         else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }
+        greyRearm()                                     // P104: Greywall's own arms (GreywallArms.swift)
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
         if let r = d["ashRole"] { ashTakeRole(Int(r)) }
         if (d["ashExtra"] ?? 0) > 0 {
