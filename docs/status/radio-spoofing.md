@@ -18,5 +18,4 @@ RadioTests.swift (`questcheck --radio-only`; every full run).
 - Saved per world: suspicion and the dead nets.
 
 Defaults picked (no questions): a truck convoy was left out (supplies come by drop, the same request); the strike
-grid
-is your nearest waypoint (the map's waypoint is the one grid a VR player can already set).
+grid is your nearest waypoint (the map's waypoint is the one grid a VR player can already set).
