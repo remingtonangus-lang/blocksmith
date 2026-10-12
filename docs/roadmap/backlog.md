@@ -272,6 +272,12 @@ T4. Citadel patrols give up where a path exists (PR #49 heavy shots red, `--base
     after ~4 blocks: basePatrol (CapitalBasesWork.swift) orders 18-block waypoints at `standY` ground and the soldier's
     own search gives up on them. Fix the class: a patrol follows one long path (or waypoints taken from it), and the
     test's "reaches the spot" passes at this citadel and the old one.
+T5. P18 water falling one block (Oct 11 playtest, "looks weird from the side"): time-boxed in the cloud (Lane A,
+    2026-10-12). `questcheck --view OUT.png --scene waterstep --at 0,230,0 --look 0,-15` now settles real water over a
+    one-block step (fluid steps run directly; the old scene never flowed). Seen from three angles the drop renders as
+    the reference does (the cell under the edge is full height, the spread slopes from it); the one oddity is the
+    shallow rim's side faces reading as separate dashes along a diagonal edge. No defect pinned; needs a headset look
+    (lane M) with the scene above to say what "weird" is.
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
