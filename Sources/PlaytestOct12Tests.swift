@@ -7,6 +7,45 @@ enum PlaytestOct12Tests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
         gunOpensDoors(game, check)
         horseBond(game, check)
+        tabHighlight(game, check)
+        hotbarHints(game, check)
+    }
+
+    // P85 (09:31): on the headset the grip / stick labels beside the hotbar go (a screen with a pad keeps them).
+    static func hotbarHints(_ g: Game, _ check: (Bool, String) -> Void) {
+        let st = Settings.shared
+        let style0 = st.glyphStyle, hints0 = st.buttonHints, secs0 = st.hintSeconds, en0 = HudExtras.enabled, head0 = g.vrHead, menu0 = g.menu
+        defer { st.glyphStyle = style0; st.buttonHints = hints0; st.hintSeconds = secs0; HudExtras.enabled = en0; g.vrHead = head0; g.menu = menu0 }
+        st.glyphStyle = 1; st.buttonHints = true; st.hintSeconds = 0; HudExtras.enabled = true; g.menu = nil
+        let L = HudLayout(1280, 720)
+        let lb = PadMap.glyph(.lb).s
+        func labelled() -> Bool { HudExtras.lines(g, L).contains { $0.text == lb && $0.x < L.hotbarX0 && abs($0.y - (L.hotbarY0 + L.slot / 2 - 4 * L.s)) < 1 } }
+        g.vrHead = nil
+        let tv = labelled()
+        g.vrHead = g.player.eye
+        let vr = labelled()
+        check(tv && !vr, "P85 hotbar: the bumper labels beside the hotbar show on a screen with a pad (\(tv)) and not on the headset (\(vr))")
+    }
+
+    // P72 (09:21): the open menu tab stayed grey ("I can only tell by haptic feedback"). The crafting book's open tab
+    // must stand apart from the others in brightness and colour, and the hover colour must differ from plain grey.
+    static func tabHighlight(_ g: Game, _ check: (Bool, String) -> Void) {
+        func luma(_ c: V4) -> Float { 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z }
+        func chroma(_ c: V4) -> Float { max(c.x, c.y, c.z) - min(c.x, c.y, c.z) }
+        let cb = CraftingBookMenu(game: g, size: 3)
+        cb.tab = .tools
+        let L = HudLayout(1280, 720)
+        let lines = cb.drawLines(L, V2(0, 0))
+        let tabs = cb.slots.filter { if case .button(let id) = $0.kind { return id >= CraftingBookMenu.tabBase && id < CraftingBookMenu.tabBase + CraftCategory.allCases.count } else { return false } }
+        func fill(_ sl: MenuSlot) -> V4? {
+            lines.first { $0.bg != nil && abs($0.x - Float(sl.x) * L.s) < 0.5 && abs($0.y - Float(sl.y) * L.s) < 0.5 }?.bg
+        }
+        let open = tabs.first { if case .button(let id) = $0.kind { return id == CraftingBookMenu.tabBase + CraftCategory.tools.rawValue } else { return false } }.flatMap(fill)
+        let other = tabs.first { if case .button(let id) = $0.kind { return id == CraftingBookMenu.tabBase } else { return false } }.flatMap(fill)
+        let grey = V4(0.42, 0.42, 0.46, 1)
+        let ok = open.map { o in other.map { abs(luma(o) - luma($0)) > 0.15 && chroma(o) > 0.5 } ?? false } ?? false
+        check(ok && chroma(MenuColors.hover) > 0.5 && abs(luma(MenuColors.hover) - luma(grey)) > 0.05,
+              "P72 menu tabs: the open tab is a clear colour against the others (open \(open.map { "\($0)" } ?? "none"), other \(other.map { "\($0)" } ?? "none")), hover is a strong blue")
     }
 
     // P81/P83 (09:28, a fresh horse "slow as anything"; stamina far too short; bond should raise health too): a full

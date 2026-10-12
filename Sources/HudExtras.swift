@@ -3,6 +3,13 @@ import simd
 
 // Extra HUD text for couch play and accessibility: sound subtitles, contextual button prompts and the
 // first-steps tutorial. Everything is laid out here as positioned text lines; the renderer only draws them.
+// Menus: the hovered control and the open tab, the same in every screen (P72, Oct 12 playtest: the old hover blue and
+// the light-grey open tab barely differed from grey on the headset).
+enum MenuColors {
+    static let hover = V4(0.26, 0.5, 0.98, 1)
+    static let selected = V4(0.98, 0.76, 0.24, 1)
+}
+
 struct HudLine {
     var text: String
     var x: Float
@@ -356,7 +363,8 @@ enum HudExtras {
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
-        if ContextPrompts.shown && Prompt.pad && g.menu == nil {
+        // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
+        if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
             let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)

@@ -373,7 +373,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             out.append(HudLine(text: "", x: o.x + Float(x) * s, y: o.y + Float(y) * s, scale: s, box: V2(Float(size) * s, Float(size) * s), item: st))
         }
         let ink = V4(0.18, 0.18, 0.2, 1)
-        let focus = V4(0.2, 0.32, 0.68, 1)
+        let focus = MenuColors.hover
         let cb = Settings.shared.colorblind
         let good = cb ? V4(0.35, 0.5, 0.75, 1) : V4(0.42, 0.62, 0.4, 1)
         let hover = game.menuHover
@@ -382,7 +382,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             guard case .button(let id) = sl.kind, id >= CraftingBookMenu.tabBase, id < CraftingBookMenu.tabBase + CraftCategory.allCases.count,
                   let t = CraftCategory(rawValue: id - CraftingBookMenu.tabBase) else { continue }
             let on = t == tab, hot = hover === sl
-            box(sl.x, sl.y, sl.w, sl.h, on ? V4(0.95, 0.95, 0.95, 1) : (hot ? V4(0.6, 0.66, 0.8, 1) : V4(0.5, 0.5, 0.52, 1)))
+            // The open tab gold, as in every menu (P72: light grey on grey didn't read on the headset).
+            box(sl.x, sl.y, sl.w, sl.h, on ? MenuColors.selected : (hot ? V4(0.62, 0.74, 1, 1) : V4(0.5, 0.5, 0.52, 1)))
             if on { box(sl.x, sl.y + sl.h - 2, sl.w, 2, focus) }
             if Items.has(t.icon) { icon(ItemStack(Items.id(t.icon), 1), sl.x + 2, sl.y + 2) }
         }

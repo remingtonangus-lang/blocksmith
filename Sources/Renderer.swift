@@ -1822,7 +1822,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text("to craft", o.x + 97 * s, o.y + 30 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
                 if let im = m as? InventoryMenu, let sb = im.slots.first(where: { if case .button(let i) = $0.kind { return i == InventoryMenu.searchBtn } else { return false } }) {
                     let x = o.x + Float(sb.x) * s, y = o.y + Float(sb.y) * s
-                    rect(x, y, Float(sb.w) * s, Float(sb.h) * s, game.menuHover === sb ? V4(0.2, 0.32, 0.68, 1) : (im.searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
+                    rect(x, y, Float(sb.w) * s, Float(sb.h) * s, game.menuHover === sb ? MenuColors.hover : (im.searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
                     let caret = im.searching && Int(game.clock * 2) % 2 == 0 ? "_" : ""
                     var t = im.query.isEmpty && !im.searching ? "Search..." : im.query + caret
                     while textWidth(t, s) > Float(sb.w - 4) * s && t.count > 1 { t.removeFirst() }
@@ -1927,7 +1927,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(t, o.x + 88 * s - textWidth(line, s) / 2, o.y + Float(26 + i * 12) * s, s, V4(0.08, 0.06, 0.04, 1), shadow: false)
                 }
                 let b = sm.slots[0]
-                rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
+                rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? MenuColors.hover : V4(0.36, 0.36, 0.4, 1))
                 text("Done", o.x + Float(b.x + 13) * s, o.y + Float(b.y + 4) * s, s)
             }
             if let bm = m as? BookMenu {
@@ -1958,7 +1958,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let label = [0: "<", 1: ">", 2: bm.signing ? "Sign" : "Done", 3: "Sign", 6: "Take"][i] ?? ""
                     if i == 3 && bm.signing { continue }
                     // Darker grey and the focus blue under white text (the hover grey measured 2.1:1: blind UI critic, book).
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? MenuColors.hover : V4(0.36, 0.36, 0.4, 1))
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
@@ -1998,7 +1998,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                             text(name, x, y - 10 * s, s)
                         }
                     } else {
-                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? MenuColors.hover : V4(0.36, 0.36, 0.4, 1))
                         let label = id == 491 ? "<" : (id == 492 ? ">" : (book.craftableOnly ? "Can" : "All"))
                         text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + 3 * s, s)
                     }
@@ -2016,7 +2016,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for (i, sl) in km.slots.enumerated() where i < km.keys.count {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.45, 0.45, 0.5, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? MenuColors.hover : V4(0.45, 0.45, 0.5, 1))
                     let label = km.keys[i]
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -2036,7 +2036,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let k = i - CommandMenu.suggestBase
                     guard k < sug.count else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.18, 0.18, 0.22, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? MenuColors.hover : V4(0.18, 0.18, 0.22, 1))
                     var t = sug[k]
                     while textWidth(t, s) > Float(sl.w - 4) * s && t.count > 2 { t = String(t.dropLast(2)) + "." }
                     text(t, x + 2 * s, y + 2 * s, s, k == 0 ? V4(1, 1, 0.6, 1) : V4(0.85, 0.85, 0.85, 1))
@@ -2069,7 +2069,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     guard case .button(let i) = sl.kind, i < CommandMenu.buttons.count else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? MenuColors.hover : V4(0.42, 0.42, 0.46, 1))
                     let label = CommandMenu.buttons[i]
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -2082,7 +2082,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for (i, sl) in dm.slots.enumerated() {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? MenuColors.hover : V4(0.42, 0.42, 0.46, 1))
                     let label = i == 0 ? "Respawn" : "Title Screen"
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -2111,7 +2111,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
                     let info = r.1 == "noop"
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1)))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? MenuColors.hover : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     let label = r.0
                     // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
@@ -2134,7 +2134,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let thumbH: Float = max(6 * s, trackH * Float(pm.slots.count) / Float(pm.rows.count))
                     let thumbY: Float = top + (trackH - thumbH) * Float(pm.scroll) / Float(max(1, n - 1))
                     rect(bx, top, 3 * s, trackH, V4(0.5, 0.5, 0.52, 1))
-                    rect(bx, thumbY, 3 * s, thumbH, V4(0.2, 0.32, 0.68, 1))
+                    rect(bx, thumbY, 3 * s, thumbH, MenuColors.hover)
                 }
                 // Help line: full size if it fits, else a little smaller, else two lines at word breaks (it was cut
                 // letter by letter at the panel edge: "...return to the title scree", blind UI critic).
@@ -2182,9 +2182,10 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let label = i < 100 ? Advancements.tabs[i] : (i == 100 ? "^" : "v")
                     let sel = i == am.tab
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? V4(0.35, 0.55, 0.35, 1) : (game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1)))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? MenuColors.selected : (game.menuHover === sl ? MenuColors.hover : V4(0.36, 0.36, 0.4, 1)))
                     let ts = min(s, (Float(sl.w) - 4) * s / max(1, textWidth(label, 1)))
-                    text(label, x + (Float(sl.w) * s - textWidth(label, ts)) / 2, y + (Float(sl.h) * s - 7 * ts) / 2, ts)
+                    text(label, x + (Float(sl.w) * s - textWidth(label, ts)) / 2, y + (Float(sl.h) * s - 7 * ts) / 2, ts,
+                         sel ? V4(0.12, 0.1, 0.05, 1) : V4(1, 1, 1, 1), shadow: !sel)
                 }
                 let list = am.list
                 let done = list.filter { game.advancements.contains($0.id) }.count
@@ -2338,9 +2339,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                     guard case .button(let i) = sl.kind, let t = CreativeMenu.Tab(rawValue: i - CreativeMenu.tabButton) else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let sel = t == c.tab, hot = game.menuHover === sl
-                    rect(x, y - (sel ? s : 0), Float(sl.w) * s, Float(sl.h) * s + (sel ? s : 0), V4(0.2, 0.2, 0.2, 1))
-                    rect(x + s, y + s - (sel ? s : 0), Float(sl.w - 2) * s, Float(sl.h - 2) * s + (sel ? s : 0),
-                         sel ? V4(0.93, 0.93, 0.93, 1) : (hot ? V4(0.7, 0.72, 0.85, 1) : V4(0.6, 0.6, 0.62, 1)))
+                    // The open tab is gold and raised two pixels (P72, Oct 12 playtest: light grey on grey read as no
+                    // change at all on the headset, only the haptic told him which tab he was on).
+                    let lift: Float = sel ? 2 * s : 0
+                    rect(x, y - lift, Float(sl.w) * s, Float(sl.h) * s + lift, sel ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.2, 1))
+                    rect(x + s, y + s - lift, Float(sl.w - 2) * s, Float(sl.h - 2) * s + lift,
+                         sel ? MenuColors.selected : (hot ? V4(0.62, 0.74, 1, 1) : V4(0.5, 0.5, 0.53, 1)))
                     if Items.has(t.icon) { itemIcon(ItemStack(Items.id(t.icon), 1), x + 3 * s, y + s, 14 * s, counts: false) }
                     else { text(String(t.short.prefix(2)), x + 4 * s, y + 5 * s, s, V4(0.2, 0.2, 0.2, 1), shadow: false) }
                 }
@@ -2601,8 +2605,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(first.0, x + 8 * s, y + 18 * s, s)
             }
         }
-        // Sprinting: a small tag left of the hotbar (VR has no FOV kick, so the speed change alone was easy to miss).
-        if game.player.sprinting && !game.player.flying && game.menu == nil {
+        // Sprinting: a small tag left of the hotbar on a screen. Not on the headset, where the edge streaks show it
+        // (QuestControls) and he wanted the tag gone (P85, Oct 12 playtest).
+        if game.player.sprinting && !game.player.flying && game.menu == nil && game.vrHead == nil {
             let tw = textWidth(">> SPRINT", s), tx = L.hotbarX0 - tw - 36 * s, ty = L.hotbarY0 + 6 * s
             rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0, 0, 0, 0.45))
             text(">> SPRINT", tx, ty, s, V4(0.55, 0.95, 1, 1))
