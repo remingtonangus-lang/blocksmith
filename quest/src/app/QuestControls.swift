@@ -150,7 +150,7 @@ final class QuestControls {
         hudHost = Renderer(game: game)
         game.bufferAttacks = true                       // trigger attacks wait for the cooldown: full-strength hits
         // TV-style HUD scale (bigger text) unless the player picked one: the panel is read at arm's length.
-        if UserDefaults.standard.object(forKey: "couchMode") == nil { HudLayout.couch = true }
+        QuestSettings.platformDefaults()
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
         self.panel = panel

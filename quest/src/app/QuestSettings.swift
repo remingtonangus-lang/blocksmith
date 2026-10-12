@@ -116,6 +116,32 @@ enum QuestSettings {
 }
 
 extension QuestSettings {
+    // Every Quest option with its value now (Reset Options and `questcheck --settings-only` walk this list: a new
+    // option goes here too). The tutorials-shown and voice-notes-asked flags are progress, not options.
+    static func snapshot() -> [(String, Any)] {
+        [("quest.refreshRate", refreshRate), ("renderDistance", renderDistance), ("quest.resolutionScale", resolutionScale),
+         ("quest.smoothTurn2", smoothTurn), ("quest.brightness", brightness), ("quest.pitchStep", pitchStep), ("quest.snapAngle", snapAngle),
+         ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle),
+         ("quest.blastShake", blastShake), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
+         ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.swingBeforeReclined", swingBeforeReclined),
+         ("quest.leftHanded", leftHanded), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
+         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop),
+         ("quest.foveation", foveation), ("quest.textureRes", textureRes)]
+    }
+    // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at
+    // arm's length, unless the player picked one.
+    static func platformDefaults() { if d.object(forKey: "couchMode") == nil { HudLayout.couch = true } }
+    // Options > Interface > Reset Options in the headset: the shared options (Settings.resetAll) and then every Quest
+    // option above back to its default, the render distance included; couch mode back to the headset's default (the
+    // shared reset turns it off, the Mac's default).
+    static func reset(_ g: Game) {
+        for (k, _) in snapshot() { d.removeObject(forKey: k) }
+        clearCache()
+        d.removeObject(forKey: "couchMode")
+        platformDefaults()
+        g.setRenderDistance(renderDistance)
+    }
+
     // Overrides from a text file (one `key = value` per line, keys as above without "quest.", e.g. `refreshRate = 90`),
     // read at start-up from the app's external files folder so options can be changed over adb without a rebuild:
     //   adb push quest-settings.txt /sdcard/Android/data/com.blocksmith.quest/files/

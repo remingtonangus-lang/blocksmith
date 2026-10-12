@@ -6,13 +6,22 @@ import Foundation
     private var value: T
     init(wrappedValue: T, _ key: String) {
         self.key = key
-        value = (UserDefaults.standard.object(forKey: key) as? T) ?? wrappedValue
+        let o = UserDefaults.standard.object(forKey: key)
+        // A Float comes back from the Linux/Android Foundation plist as a Double (an NSNumber that `as? Float` refuses),
+        // so every Float option was back at its default on each headset launch (questcheck --settings-only).
+        if let v = o as? T { value = v }
+        else if T.self == Float.self, let n = o as? NSNumber, let v = n.floatValue as? T { value = v }
+        else if T.self == Float.self, let d = o as? Double, let v = Float(d) as? T { value = v }
+        else { value = wrappedValue }
     }
     var wrappedValue: T {
         get { value }
         set { value = newValue; UserDefaults.standard.set(newValue, forKey: key) }
     }
 }
+// Any option, by key (the settings check walks every @Pref of Settings with Mirror).
+protocol AnyPref: PrefKeyed { var anyValue: Any { get } }
+extension Pref: AnyPref { var anyValue: Any { value } }
 
 // Couch / controller / accessibility options added for TV play. Older options (FOV, sensitivity,
 // invert Y, dead zone, volume...) still live on Game; GUI scale and couch mode on HudLayout.
@@ -90,6 +99,7 @@ final class Settings {
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
+        display = ""; smoothTerrain = false; chipping = true; bugNotes = 0   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
@@ -97,7 +107,10 @@ final class Settings {
         HudLayout.userScale = 0; HudLayout.couch = false
         KeyBinds.reset()
         PadMap.reset()
+        Settings.onReset?(g)
     }
+    // The platform's own options (the Quest's VR comfort page: QuestSettings.reset), reset with the rest.
+    static var onReset: ((Game) -> Void)?
 
     // Colour for "good / available" and "bad / unavailable" cues, colourblind-safe when asked.
     var goodColor: V4 { colorblind ? V4(0.35, 0.65, 1, 1) : V4(0.5, 1, 0.13, 1) }
