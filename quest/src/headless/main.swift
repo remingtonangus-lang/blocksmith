@@ -174,6 +174,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --nation-only: C3 your own nation (Sources/NationTests.swift).
+if CommandLine.arguments.contains("--nation-only") {
+    NationTests.run(game, check: check)
+    print(failures == 0 ? "nation: all checks passed" : "nation: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --towns-only: just the towns of people, law, honour and frontier town checks (Sources/TownTests.swift, HonourTests.swift).
 if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)

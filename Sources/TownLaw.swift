@@ -55,6 +55,7 @@ enum TownLaw {
         var raidDay: [String: Int]? = nil
         // TownConquest: the towns you took (town -> [anchor x, anchor z, day taken, day tribute last paid]).
         var owned: [String: [Int]]? = nil
+        var nation: Nation.Saved? = nil             // C3: your nation (Nation.swift)
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
         var emeraldTip: Bool? = nil                 // the one-time "emeralds sell at a bank" tip was shown (G14)
@@ -366,6 +367,7 @@ enum TownLaw {
 
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
+        Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         // Sheriffs draw after their challenge.
         if !pending.isEmpty {
             pending.removeAll { (m, t) in

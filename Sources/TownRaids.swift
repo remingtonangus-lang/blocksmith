@@ -22,7 +22,7 @@ enum TownRaids {
               night(g.dayFraction), Honour.bounty(town) == 0, !Honour.isOutlaw else { return }
         let day = Int(g.time / DAY_LENGTH)
         if let d = TownLaw.state.raidDay?[town], day - d < cooldownDays { return }
-        guard Rand.float(in: 0..<1) < chancePerSecond else { return }
+        guard Rand.float(in: 0..<1) < chancePerSecond * Nation.raidScale(town) else { return }   // C3: your towns are raided more
         start(g, town: town)
     }
 
@@ -54,6 +54,7 @@ enum TownRaids {
         g.money += purse
         Honour.earn(g, 5, source: "defence", "you defended \(town)")
         g.onToast?("\(town) thanks you: \(Money.format(purse)) from the town purse")
+        Nation.raidWon(town)
         wonCount += 1
     }
 }

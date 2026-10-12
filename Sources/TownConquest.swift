@@ -95,12 +95,13 @@ enum TownConquest {
             guard greetedVisit != here else { return }
             greetedVisit = here
             let days = min(tributeCap, day - o[3])
+            let perDay = Nation.tributePerDay(here)          // C3: taxes, laws and settlers
             if days > 0 {
                 o[3] = day
                 TownLaw.state.owned?[here] = o
-                g.money += days * tributePerDay
+                g.money += days * perDay
                 g.sfx(.xp, 0.5)
-                g.onToast?("Tribute from \(here): \(Money.format(days * tributePerDay)) (\(days) day\(days == 1 ? "" : "s"))")
+                g.onToast?("Tribute from \(here): \(Money.format(days * perDay)) (\(days) day\(days == 1 ? "" : "s"))")
                 tributes += 1
             } else {
                 g.onToast?("\(here) is yours.")
