@@ -1,7 +1,7 @@
 # C8: submarines, sea mines and sonar (Lane A, 2026-10-12)
 
 What a player sees: a Submarine Kit (iron, glass, a helm, an engine, a propeller, three ballast tanks) used at the
-water's edge floats a small riveted boat with ports along its sides and an open hatch on top. Climb in, take the helm:
+water's edge floats a small plank-hulled boat with ports along its sides and an open hatch on top. Climb in, take the helm:
 sneak-down dives, jump climbs, and let go of both and it holds its depth. Its bow cannon, under water, looses torpedoes
 that run level and fast. Horned sea mines on chains guard the Sunken Dreadnought wrecks and go off when a swimmer or a
 moving hull comes within two blocks. The navy's frigates listen: run fast (over 3 blocks a second) or fire within 140
@@ -20,3 +20,5 @@ heard.
 Defaults picked (no questions asked, per the standing rules):
 - Mines don't go off for creative players (vessels still set them off), so building near a wreck in creative is safe.
 - Sonar listens only to a piloted submarine; an empty boat parked under water is not hunted.
+- Leftovers (T13): enemy submarines to capture, the pinging frigate steering to the last ping, a Submarine Kit icon of
+  its own (it borrows the airship's), generated mines that sit in their own dry cell inside the water.

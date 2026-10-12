@@ -5,7 +5,7 @@ import simd
 // - Ballast tanks (ShipBlocks, ShipPhysics): under water a hull's tanks flood to dive and blow to surface, and hold a depth
 //   while nobody steers; any built hull with a helm, a propeller and enough tanks is a submarine.
 // - The Submarine Kit (iron, glass, a helm, an engine, a propeller, ballast): used at the water's edge it floats a small
-//   ready-made boat: a riveted hull with ports, ten tanks in its keel, the helm forward, an open hatch on top.
+//   ready-made boat: a plank hull with ports, seventeen tanks in its keel, the helm forward, an open hatch on top.
 // - Torpedoes: a ship's cannon under water looses a torpedo instead of a shell (ShipCombat: level, self-driven, 5 s).
 // - Sea mines: a horned iron ball on a chain. A player or a moving vessel within reach sets it off after a short tick.
 //   Craftable; generated round the Sunken Dreadnought wrecks (G20) as a field guarding the hulk.
@@ -101,15 +101,16 @@ extension Game {
 
     // A player or a moving vessel close to a sea mine sets it off.
     func minesCheck() {
-        guard Blocks.has(Submarine.mineKey) else { return }
+        guard Blocks.has(Submarine.mineKey), dim.dim == .overworld else { return }
         let mine = Blocks.id(Submarine.mineKey)
         var hot: [IVec3] = []
         func scan(_ lo: V3, _ hi: V3) {
             let r = Submarine.mineReach
             let x0 = Int(floor(lo.x - r)), x1 = Int(floor(hi.x + r)), y0 = Int(floor(lo.y - r)), y1 = Int(floor(hi.y + r))
             let z0 = Int(floor(lo.z - r)), z1 = Int(floor(hi.z + r))
-            guard (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) <= 8000 else { return }
-            for y in max(0, y0)...min(CH - 1, y1) { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine { hot.append(IVec3(x, y, z)) } } }
+            let ya = max(0, y0), yb = min(CH - 1, y1)       // a body below the world or above it has nothing to set off
+            guard ya <= yb, (x1 - x0 + 1) * (yb - ya + 1) * (z1 - z0 + 1) <= 8000 else { return }
+            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine { hot.append(IVec3(x, y, z)) } } }
         }
         if survival || !Submarine.creativeSafe {
             for i in 0..<max(1, coop.seatCount) { let p = coop.seatPlayer(i, self).pos; scan(p, p + V3(0, 1.8, 0)) }
@@ -119,11 +120,7 @@ extension Game {
             world.setBlock(q.x, q.y, q.z, AIR)
             let at = V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)
             sfx(.click, 1, at: at)
-            Explosion.explode(at: at, power: 4, game: self)
-            for s in world.ships.list where s.parent == nil && simd_length(simd_clamp(at, s.worldMin, s.worldMax) - at) < 2.5 {
-                world.ships.blast(at: at, power: 4, game: self)
-                break
-            }
+            Explosion.explode(at: at, power: 4, game: self)                 // (blasts any hull in reach too)
         }
     }
 
@@ -142,13 +139,18 @@ extension Game {
         }
     }
 
-    // Two charges from the frigate over the target, sinking to its depth.
+    // Two charges thrown from the frigate at the target, sinking to its depth. The throw is timed with the real flight
+    // (ShipCombat): a free fall through the air to the water's surface over the target, then a sink at chargeSink.
     func depthCharges(from f: Ship, at t: V3) {
         let top = V3(f.pos.x, max(f.worldMin.y, t.y + 4), f.pos.z)
+        let tx = Int(floor(t.x)), tz = Int(floor(t.z))
+        var wy = Int(floor(t.y))
+        while wy < CH - 1 && Blocks.fluidKind[Int(world.rawBlock(tx, wy + 1, tz))] == 1 { wy += 1 }
+        let surface = min(top.y, Float(wy + 1))
         for k in 0..<2 {
             let aim = t + V3(Float(k) * 3 - 1.5, 0, Float(k) * 2 - 1)
-            let h = max(1, top.y - aim.y)
-            let tf = (2 * h / 20).squareRoot() + 0.6
+            let air = max(0, top.y - surface), water = max(0, surface - (t.y + 0.5))
+            let tf = max(0.3, (2 * air / 20).squareRoot() + water / Submarine.chargeSink)
             let vel = V3((aim.x - top.x) / tf, 0, (aim.z - top.z) / tf)
             let sh = Shell(pos: top, vel: vel, owner: f.root.id, power: 3)
             sh.kind = 5; sh.gravity = 0; sh.fuseY = t.y + 0.5; sh.life = 14

@@ -12,6 +12,8 @@ final class MapFog {
     static let dark: UInt32 = 0x0C0D10
 
     private var tiles: [String: Set<Int64>] = [:]       // dimension -> explored tiles
+    private var cur: Set<Int64> = []                    // tiles[dim], kept apart so the map's per-cell test hashes no String
+    private var lastURL: URL?                           // the loaded world's file (saved before another world loads)
     private var dim = "overworld"
     private var world = ""
     private var dirty = false
@@ -20,7 +22,7 @@ final class MapFog {
     private(set) var version = 0                        // bumped when tiles are revealed (minimap redraw)
     var active = true                                   // false in creative (the whole map shows)
 
-    var exploredCount: Int { tiles[dim]?.count ?? 0 }
+    var exploredCount: Int { cur.count }
 
     @inline(__always) static func key(_ x: Int, _ z: Int) -> Int64 {
         MapCache.key(floorDiv(x, tile), floorDiv(z, tile))
@@ -28,21 +30,25 @@ final class MapFog {
 
     // True when the cell at (x, z) is still under the fog (the map draws it dark).
     @inline(__always) func fogged(_ x: Int, _ z: Int) -> Bool {
-        active && !(tiles[dim]?.contains(MapFog.key(x, z)) ?? false)
+        active && !cur.contains(MapFog.key(x, z))
     }
 
-    func seen(_ x: Int, _ z: Int) -> Bool { tiles[dim]?.contains(MapFog.key(x, z)) ?? false }
+    func seen(_ x: Int, _ z: Int) -> Bool { cur.contains(MapFog.key(x, z)) }
 
     private func url(_ g: Game) -> URL? { g.save?.dir.appendingPathComponent("mapfog.json") }
 
     private func load(_ g: Game) {
         let w = g.save?.dir.lastPathComponent ?? ""
         guard w != world else { return }
+        if dirty, let u = lastURL, let d = try? JSONEncoder().encode(tiles.mapValues { $0.sorted() }) { try? d.write(to: u, options: .atomic) }
+        dirty = false
         world = w
+        lastURL = url(g)
         tiles = [:]
         if let u = url(g), let d = try? Data(contentsOf: u), let t = try? JSONDecoder().decode([String: [Int64]].self, from: d) {
             for (k, v) in t { tiles[k] = Set(v) }
         }
+        cur = tiles[dim] ?? []
         version &+= 1
     }
 
@@ -57,8 +63,8 @@ final class MapFog {
     func tick(_ g: Game) {
         load(g)
         active = g.survival
-        let d = "\(g.dim.dim)"
-        if d != dim { dim = d; version &+= 1 }
+        let d = g.dim.dim.rawValue                       // (the case name: the keys saved before)
+        if d != dim { dim = d; cur = tiles[d] ?? []; version &+= 1 }
         guard g.clock - timer >= 1 else { return }
         timer = g.clock
         for i in 0..<max(1, g.coop.seatCount) { reveal(around: g.coop.seatPlayer(i, g).pos) }
@@ -79,7 +85,7 @@ final class MapFog {
             guard nx * nx + nz * nz <= MapFog.reveal * MapFog.reveal else { continue }
             if set.insert(MapCache.key(tx + dx, tz + dz)).inserted { added = true }
         } }
-        if added { tiles[dim] = set; dirty = true; version &+= 1 }
+        if added { tiles[dim] = set; cur = set; dirty = true; version &+= 1 }
     }
 
     // Harness: forget everything (temp world tests), or swap the explored tiles out and back.

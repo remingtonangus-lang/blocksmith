@@ -13,6 +13,7 @@ enum RadioNet {
     static let repeatWindow: Double = 60
     static let oddExtra: Float = 60           // a fire mission on their own base
     static let coolPerSecond: Float = 1.0 / 20
+    static let afterFoundOut: Float = 60         // where suspicion sits once the cover is blown (then cools as usual)
     static let dropDelay: Float = 8
     static let strikeDelay: Float = 6
     static let strikeReach: Float = 600       // waypoints farther than this from the console are out of the guns' range
@@ -119,6 +120,7 @@ extension Game {
     // Found out: the console's net is dead, the faction on alert, a hunter squad on its way.
     func radioFoundOut(_ n: RadioNet.Net) {
         radio.burned.insert(n.key)
+        radio.suspicion[n.faction.rawValue] = RadioNet.afterFoundOut   // cools from here: the next console isn't burnt on its first call
         radio.alertUntil[n.faction.rawValue] = clock + RadioNet.alertFor
         for k in bases.records.keys where n.faction == .steelhold {
             if let r = bases.records[k], simd_length(r.centre - player.pos) < 1500, r.alert.rawValue < BaseAlert.alert.rawValue { bases.records[k]?.alert = .alert }
@@ -147,7 +149,7 @@ extension Game {
 
     // Every frame (CapitalBases.basesTick): suspicion cools, crates land, shells fall (outside the Deep, which runs its own).
     func radioTick(_ dt: Float) {
-        for (k, v) in radio.suspicion where v > 0 && v < 100 { radio.suspicion[k] = max(0, v - RadioNet.coolPerSecond * dt) }
+        for k in 0...6 { if let v = radio.suspicion[k], v > 0, v < 100 { radio.suspicion[k] = max(0, v - RadioNet.coolPerSecond * dt) } }   // (no copy of the dictionary per frame)
         var i = 0
         while i < radio.drops.count {
             radio.drops[i].t -= dt

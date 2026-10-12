@@ -33,12 +33,13 @@ enum SubmarineTests {
         g.survival = true
         g.inventory.main[g.inventory.selected] = ItemStack(Items.id(Submarine.kitKey), 1)
 
-        // A pool 15 wide, 33 long and 11 deep, walled in stone, high over the ground.
+        // A pool 11 wide, 69 long and 11 deep, walled in stone, high over the ground (long enough for a depth charge
+        // thrown from 80 blocks off to come down in it).
         let fx = Int(floor(pos0.x)), fz = Int(floor(pos0.z))
         let py = min(CH - 40, w.topY(fx, fz) + 20)
-        _ = w.loadSync(center: V3(Float(fx), Float(py), Float(fz) - 12), radius: 3)
-        for z in (fz - 30)...(fz + 4) { for x in (fx - 8)...(fx + 8) { for y in py...(py + 12) {
-            let wall = x == fx - 8 || x == fx + 8 || z == fz - 30 || z == fz + 4 || y == py
+        _ = w.loadSync(center: V3(Float(fx), Float(py), Float(fz) - 30), radius: 6)
+        for z in (fz - 66)...(fz + 4) { for x in (fx - 6)...(fx + 6) { for y in py...(py + 12) {
+            let wall = x == fx - 6 || x == fx + 6 || z == fz - 66 || z == fz + 4 || y == py
             w.setBlock(x, y, z, wall ? STONE : (y <= py + 11 ? WATER : AIR)); placed.append(IVec3(x, y, z))
         } } }
         let surfaceY = Float(py + 12)                      // the top of the water
@@ -89,11 +90,11 @@ enum SubmarineTests {
                      torp?.kind ?? -1, ran, level))
         w.ships.shells.removeAll()
 
-        // Sonar: a frigate overhead hears a loud boat and not a quiet one.
+        // Sonar: a frigate 80 blocks off hears a loud boat and not a quiet one, and its charges come down on it.
         s.autopilot = V3(0, 0, -1); run(2.5); s.autopilot = nil; run(0.5)
         let fb = Blueprint()
         fb.box(-2, 2, 0, 1, -2, 2, "oak_planks")
-        let f = w.ships.spawn(fb, at: s.pos + V3(0, 22, 6), yaw: 0, name: "sonar frigate", role: "warfrigate")
+        let f = w.ships.spawn(fb, at: s.pos + V3(0, 22, -80), yaw: 0, name: "sonar frigate", role: "warfrigate")
         f.kinematic = true
         w.ships.pilot = s
         Submarine.lastPing = [:]; Submarine.lastShot = -100
@@ -120,15 +121,18 @@ enum SubmarineTests {
         w.ships.shells.removeAll()
 
         // A sea mine in the middle of the pool goes off when a player swims within reach.
-        let mine = IVec3(fx, py + 6, fz - 14)
+        let mine = IVec3(fx, py + 6, fz - 40)
         w.setBlock(mine.x, mine.y, mine.z, Blocks.id(Submarine.mineKey)); placed.append(mine)
-        g.player.pos = V3(Float(fx) + 0.5, Float(py + 6), Float(fz) - 20.5)
+        g.player.pos = V3(Float(fx) + 0.5, Float(py + 6), Float(fz) - 46.5)
         g.minesCheck()
         let calm = w.block(mine.x, mine.y, mine.z) == Blocks.id(Submarine.mineKey)
-        g.player.pos = V3(Float(fx) + 0.5, Float(py + 5), Float(fz) - 15.5)
+        g.player.pos = V3(Float(fx) + 0.5, Float(py + 5), Float(fz) - 41.5)
         g.health = 20
         g.minesCheck()
         let gone = w.block(mine.x, mine.y, mine.z) != Blocks.id(Submarine.mineKey)
+        // A body falling out of the world (or far above it) has nothing to set off, and doesn't stop the check.
+        g.player.pos = V3(Float(fx) + 0.5, -90, Float(fz) + 0.5); g.minesCheck()
+        g.player.pos = V3(Float(fx) + 0.5, Float(CH + 40), Float(fz) + 0.5); g.minesCheck()
         check(calm && gone && g.health < 20, String(format: "submarine: a sea mine waits for a swimmer 6 away (%@) and goes off at 2 (%@), health %d",
                                                    calm ? "yes" : "no", gone ? "yes" : "no", g.health))
     }

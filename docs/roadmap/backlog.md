@@ -107,7 +107,7 @@ G21. [done, PR #50: VRScope.swift, a 4x zoomed eye view with a lens mask and the
 
 ## LANE A (cloud thread A): factions, bases, navy, vehicles
 
-A1. [done, Lane A combined PR, docs/status/greywall.md; leftovers T6] Military bases as their own faction (separate from the Capital). Intent: castle-like fortified bases, confined to the base, tiers of bases like GoldenEye N64, very rare, naval guns and small turrets, ranked troops.
+A1. [done, Lane A PR #52, docs/status/greywall.md; leftovers T6] Military bases as their own faction (separate from the Capital). Intent: castle-like fortified bases, confined to the base, tiers of bases like GoldenEye N64, very rare, naval guns and small turrets, ranked troops.
 - 4+ base tiers: outpost, garrison, fortress, command fortress; each larger, rarer, better defended and better looted. Original layouts; the grey-concrete, blue-corner-light, metal-door feel of the Siberian levels is the art direction.
 - Walls, gatehouses, towers, bunkers, barracks, armoury, comms room, motor pool, vault. Alarms with red lights; reinforcements arrive while the alarm is up; alarm panels can be destroyed.
 - Turrets: small auto-turrets on walls and corridors, and coastal or naval guns (several calibres) at shore bases, all with readable telegraphs, line of sight and destructible states.
@@ -116,24 +116,24 @@ A1. [done, Lane A combined PR, docs/status/greywall.md; leftovers T6] Military b
 - Taking a base: kill or drive out the garrison, take the command room, the flag changes; it stays yours and can be used as a home, with respawn rules documented.
 - Rarity tuned so a walking player finds one in a long session; a frigate makes them reachable.
 
-A2. [done, Lane A combined PR, docs/status/troop-classes.md; leftovers T7] Troop classes. Intent: three classes, Regular, Spec Ops and Hannibal troops (unless that name is a problem; Hannibal is historical, check the coined list anyway), each with its own armour level that gets damaged over time, its own class of guns, and rarity rising with the level.
+A2. [done, Lane A PR #52, docs/status/troop-classes.md; leftovers T7] Troop classes. Intent: three classes, Regular, Spec Ops and Hannibal troops (unless that name is a problem; Hannibal is historical, check the coined list anyway), each with its own armour level that gets damaged over time, its own class of guns, and rarity rising with the level.
 - Armour as segmented durability (helmet, chest, legs) that visibly cracks and falls off; damaged armour lets more damage through; players can loot damaged sets and repair them.
 - Weapon classes per troop: regulars with rifles and SMGs, spec ops with suppressed and scoped weapons plus grenades, Hannibal troops with heavy weapons and the best armour. Loot rarity tiers (common, fine, rare, elite) with stat ranges.
 - Behaviour per class: regulars patrol and hold, spec ops flank and use stealth, Hannibal troops push and suppress. Mixed squads with an officer.
 - Balance against player gear tiers; write the time-to-kill table.
 
-A3. [done, Lane A combined PR, docs/status/navy.md; leftovers T8] The navy (the frigates' faction). Intent: frigates are the UNSC-like faction with super soldiers with shields, done without infringing.
+A3. [done, Lane A PR #52, docs/status/navy.md; leftovers T8] The navy (the frigates' faction). Intent: frigates are the UNSC-like faction with super soldiers with shields, done without infringing.
 - Rename everything player-visible to our own navy (keep the Meridian name if it is already ours). Super soldiers get an original name (not Spartan) and regenerating energy shields that flare, pop and recharge after a delay; shield breakers (EMP-like weapons) as counters.
 - Frigates patrol the seas, have radar, launch boarding parties and small craft, and bombard shore positions; frigates can be boarded and captured.
 - A captured frigate becomes the player's fast vehicle with radar that shows bases and ships in range.
 
-A4. [done, Lane A combined PR, docs/status/flyers-a4.md; leftovers T9] Vehicles that fly, and the crawler. Intent: ways to make vehicles that fly; the crawler needs to be perfected.
+A4. [flyers done, Lane A PR #52, docs/status/flyers-a4.md; the crawler still open: T9] Vehicles that fly, and the crawler. Intent: ways to make vehicles that fly; the crawler needs to be perfected.
 - Finish the free-moving block structures engine (old PR 8) so players can build aircraft from blocks: engines, lift surfaces, control seat; weight and thrust matter. Plus at least one craftable ready-made flyer for players who don't want to build.
 - VR comfort for flight: cockpit frame, vignette, horizon lock option, snap or smooth turning.
 - The crawler: smooth movement on all terrain, no clipping or jitter, sensible speed and weapons, boarding and exiting in VR, damage states, repair.
 - Vehicles persist in saves and are found where you left them.
 
-A5. [done, Lane A combined PR, docs/status/map-fog-a5.md] Radar and discovery. Bases reveal other bases; frigates have radar; a map and compass that show discovered sites, with fog of war.
+A5. [done, Lane A PR #52, docs/status/map-fog-a5.md] Radar and discovery. Bases reveal other bases; frigates have radar; a map and compass that show discovered sites, with fog of war.
 
 ## LANE B (cloud thread B): progression, law, hunting, hell, the Reich
 
@@ -229,13 +229,13 @@ NOTE (10-10 21:20): TOWNS items in this list now belong to the cloud lane (it sh
 
 ## OVERSEER'S FEATURES (Claude's list, trimmed by Remington Oct 10 21:52; lane in brackets)
 C1. [B] Railways (procedural, rare): rail lines generated with the world, linking several villages and towns, so finding one is a big find: it is fast travel to many places. Generation must be robust: lines follow terrain with cuttings, bridges and tunnels, stations only at real villages, never through structures, never floating; a worldgen check over 50 seeds proves it. Steam trains run the lines on a timetable; you can ride, and RDR-style train robberies (stop the train, crack the strongbox, outrun the posse) carry honour and bounty fallout. Armoured trains in the Ash Vault.
-C2. [A] [done, Lane A combined PR, docs/status/war-map.md; leftover T12] The living war map, procedural only: factions hold generated territory and front lines shift over in-game weeks from simulation, not hand-placed events; battles happen without you; your actions tip them; a war table in captured bases shows it. If it can't be made fully procedural and stable, drop it and say so.
+C2. [A] [done, Lane A PR #52, docs/status/war-map.md; leftover T12] The living war map, procedural only: factions hold generated territory and front lines shift over in-game weeks from simulation, not hand-placed events; battles happen without you; your actions tip them; a war table in captured bases shows it. If it can't be made fully procedural and stable, drop it and say so.
 C3. [B] Your own nation: villages and bases you take become provinces; settlers arrive, build and farm; you set taxes and laws; they need defending; your flag on the map; a capital you design.
 C4. [B] On-device AI villagers (placeholder): define a clean interface (VillagerMind) that a small language model can drive for dialogue, opinions and daily choices, running on the device's neural engine or NPU when available (Apple Foundation Models on Mac, the Quest's NPU later), with today's scripted behaviour as the fallback. Ship only the interface, the scripted implementation and a stub; no model yet.
 C5. [M] Physical VR crafting and guns: hammering blades on the anvil, sharpening, fitting gun parts, physical reloads (drop the mag, seat a new one, rack the slide), holstering on the body; always with a seated or Reclined shortcut.
-C6. [A] [done, Lane A combined PR, docs/status/radio-spoofing.md] Radio spoofing: at a military base's radio room (or a Capital comms post), pose as the garrison and request help. Other bases of the same faction actually send it: supply drops or a truck convoy (military), a frigate strike on a map grid (Capital or navy). It only works for a while: a suspicion meter rises with each request and with odd requests; when they find out, the faction goes on alert, sends a hunter squad and stops answering that radio.
-C7. [A] [done, Lane A combined PR, docs/status/sky-isles.md] Airships and a sky layer: the Capital's armoured airships patrol high above; board one with a flyer or a grapple; a small cloud-island layer mirroring the Deep below, with its own loot.
-C8. [A] [done, Lane A combined PR, docs/status/submarines.md] Submarines, wrecks and mines: build or capture a submarine; sunken warships and treasure wrecks to dive; naval mines and torpedoes; the navy hunts you with sonar.
+C6. [A] [done, Lane A PR #52, docs/status/radio-spoofing.md] Radio spoofing: at a military base's radio room (or a Capital comms post), pose as the garrison and request help. Other bases of the same faction actually send it: supply drops or a truck convoy (military), a frigate strike on a map grid (Capital or navy). It only works for a while: a suspicion meter rises with each request and with odd requests; when they find out, the faction goes on alert, sends a hunter squad and stops answering that radio.
+C7. [A] [done, Lane A PR #52, docs/status/sky-isles.md] Airships and a sky layer: the Capital's armoured airships patrol high above; board one with a flyer or a grapple; a small cloud-island layer mirroring the Deep below, with its own loot.
+C8. [A] [done, Lane A PR #52, docs/status/submarines.md; leftovers T13] Submarines, wrecks and mines: build or capture a submarine; sunken warships and treasure wrecks to dive; naval mines and torpedoes; the navy hunts you with sonar.
 C9. [B] Seasons: spring to winter over in-game weeks; lakes freeze, snow on trees, crops by season, animals migrate, hunting seasons, town festivals.
 C10. [B] Legendary weapons and armour: named one-off items from bosses, legendary animals and command fortresses, each with a story, a look and a unique perk; a gallery in your base.
 C11. [B] Jobs and contracts: notice boards in towns, bases and countries with procedural jobs (escort, delivery, bounty, clear a camp, defend a town) paying money and reputation.
@@ -312,6 +312,12 @@ cruise clearance, and a structcheck pass that walks an isle's top (the shrine fl
 T12. [C2 leftover, the war map] Battles you can join: soldiers of both countries meeting on the front line near you
 (today the battles are simulated, heard and seen as guns and smoke); the military factions (Capital, Greywall, navy)
 holding ground on the war map; wars far from the player keep going while away.
+
+T13. [C6/C8/A5 verifier leftovers, Lane A PR #52] C6: a truck convoy as the military answer (crates come by air), the
+fire mission from a real frigate (today the faction's artillery), the 10-minute alert and crates in flight saved over a
+quit. C8: enemy submarines you can capture, the pinging frigate steering to the last ping, the kit's own icon, generated
+mines sitting in a dry cell inside the water. A5: the map fog saved on quit (every 10 s today). C7: frigates over high
+ground keep clear of sky isles (with T11).
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
