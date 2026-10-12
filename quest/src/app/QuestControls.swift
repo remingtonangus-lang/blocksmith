@@ -147,6 +147,9 @@ final class QuestControls {
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1
 
+    // Forget held and latched buttons (the Touch matrix starts each cell clean).
+    func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
+
     init(app: QuestHost, game: Game, panel: HudPanel?) {
         self.app = app
         self.game = game
@@ -315,6 +318,8 @@ final class QuestControls {
         if !L.stickClick { clickSprint = false }
         prevStickClickL = L.stickClick
         let sneakClick = L.stickClick && !clickSprint
+        // Any seat that sneak leaves: a mount, a boat or cart, the ship's helm, a deck gun.
+        let seated = game.riding != nil || game.world.ships.pilot != nil || Turrets.shared.manned != nil
         p.a = R.button1
         // B: a tap is sneak / back (sent when it is let go); held, it drops the held item (the pad's D-pad down; keep
         // holding for the whole stack).
@@ -328,6 +333,8 @@ final class QuestControls {
                 if bHold > 0 && bHold <= 0.4 { bPulse = 3 }
                 bHold = 0
             }
+            // Taking a seat ends a latched sneak (it would leave the seat on the next tick).
+            if seated { sneakLatch = false }
             p.b = bPulse > 0 || sneakClick || sneakLatch      // sneak (Game reads the pad's B as sneak)
             if bPulse > 0 { bPulse -= 1 }
             p.down = bHold > 0.4
@@ -370,10 +377,10 @@ final class QuestControls {
         if inMenu {
             l3Hold = 0; sneakLatch = false
         } else {
-            if sneakClick { if l3Hold == 0 { l3Rode = game.riding != nil }; l3Hold += dt } else {
-                // A click that began on a mount was the sneak that got off (the held click already dismounts): it
-                // doesn't latch, or the player stayed sneaking on foot and the next horse threw them off at once
-                // (questcheck touch matrix, Q2).
+            if sneakClick { if l3Hold == 0 { l3Rode = seated }; l3Hold += dt } else {
+                // A click that began in a seat was the sneak that got off (the held click already leaves): it doesn't
+                // latch, or the player stayed sneaking on foot and the next horse threw them off at once, or the next
+                // use of the helm took the ship apart (questcheck touch matrix, Q2).
                 if l3Hold > 0 && l3Hold < 0.3 && !l3Rode { sneakLatch.toggle() }
                 l3Hold = 0
             }

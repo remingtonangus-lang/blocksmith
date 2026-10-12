@@ -4,15 +4,15 @@ import Metal
 import CVulkan
 
 // Input conflicts on the headset (scorecard "Input conflicts": Quest Touch bindings were not covered; the Mac's
-// --inputmatrix does the gamepad). In each context (on foot, riding a horse, swimming, flying in creative, the
+// --inputmatrix does the gamepad). In each context (on foot, riding a horse, in a boat, at a deck gun, swimming, flying in creative, the
 // inventory open) every Touch control is tapped and held through the real VR path (SimXR -> QuestRig ->
 // QuestControls -> Game.tick, as QuestSim), and the game state it changed is recorded (menu, pause, hotbar, camera,
-// mount, flight, sneak, jump, dropped items, swing). A press that changes two things at once is a conflict. Runs with
+// mount, flight, sneak, jump, dropped items). A press that changes two things at once is a conflict. Runs with
 // `questcheck --questsim` (lavapipe).
 enum QuestTouchMatrix {
     struct State {
         var menu = "", paused = false, selected = 0, camera = 0, riding = false, flying = false
-        var sneaking = false, items = 0, carried = 0, y: Float = 0, wheel = false
+        var sneaking = false, items = 0, carried = 0, y: Float = 0, wheel = false, gun = false
     }
     static func state(_ g: Game) -> State {
         var s = State()
@@ -25,6 +25,7 @@ enum QuestTouchMatrix {
         s.carried = g.inventory.main.slots.reduce(0) { $0 + ($1.isEmpty ? 0 : $1.count) }
         s.y = g.player.pos.y
         s.wheel = WeaponWheel.shared.open
+        s.gun = Turrets.shared.manned != nil
         return s
     }
     static func diff(_ a: State, _ b: State, swimming: Bool) -> [String] {
@@ -34,9 +35,9 @@ enum QuestTouchMatrix {
         if a.selected != b.selected { e.append("hotbar") }
         if a.camera != b.camera { e.append("camera") }
         if a.riding != b.riding { e.append(b.riding ? "mount" : "dismount") }
-        let dismounted = a.riding && !b.riding                 // (getting off is the sneak: one action)
+        if a.gun != b.gun { e.append(b.gun ? "man gun" : "leave gun") }
         if a.flying != b.flying { e.append("flight") }
-        if a.sneaking != b.sneaking && !swimming && !a.flying && !dismounted { e.append("sneak") }
+        if a.sneaking != b.sneaking && !swimming && !a.flying { e.append("sneak") }
         if b.items > a.items && b.carried < a.carried { e.append("drop item") }
         else if b.carried < a.carried { e.append("use item") }
         if b.wheel != a.wheel { e.append("weapon wheel") }
@@ -70,7 +71,7 @@ enum QuestTouchMatrix {
             g.riding = nil; g.paused = false; g.survival = keepSurvival; g.player.flying = false
             g.player.pos = keepPos; g.player.vel = .zero; g.selected = keepSel; g.inventory.main[0] = keep0
             for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
-            g.mobs.mobs.removeAll { $0.kind == .horse && $0.owner == true }
+            g.mobs.mobs.removeAll { $0.kind == .horse && $0.owner == true || $0.kind == .boat || $0.kind == .deckGun }; Turrets.shared.manned = nil
             PadManager.shared.touch = nil
             scene.waitIdle()
         }
@@ -98,21 +99,26 @@ enum QuestTouchMatrix {
         let bx = Int(floor(keepPos.x)) - 30, bz = Int(floor(keepPos.z)) - 30
         let py = min(CH - 12, w.topY(bx, bz) + 30)
         for z in (bz - 8)...(bz + 8) { for x in (bx - 8)...(bx + 8) {
-            let pool = x >= bx + 3 && z >= bz - 2 && z <= bz + 2
+            let pool = x >= bx + 3 && x <= bx + 7 && z >= bz - 2 && z <= bz + 2
+            let rim = !pool && x >= bx + 2 && z >= bz - 3 && z <= bz + 3      // (or the pool runs over the floor)
             put(x, py, z, STONE)
             for y in (py + 1)...(py + 5) { put(x, y, z, AIR) }
+            if rim { put(x, py + 1, z, STONE) }
             if pool { put(x, py, z, WATER); put(x, py - 1, z, STONE); put(x, py + 1, z, WATER) }
         } }
         let start = V3(Float(bx) + 0.5, Float(py + 1), Float(bz) + 0.5)
         let poolAt = V3(Float(bx + 5) + 0.5, Float(py) + 0.2, Float(bz) + 0.5)
-        var horse: Mob?
+        var horse: Mob?, gun: Mob?
         var why = "", toast = ""
         let toast0 = g.onToast
         g.onToast = { t in toast = t; toast0?(t) }
         defer { g.onToast = toast0 }
         func reset() {
+            qc.clearLatches()                  // (no latch or hold carried over from the last control)
             for _ in 0..<3 { if g.menu != nil { g.closeMenu() }; frame() }
             if let h = horse { h.health = 0; g.mobs.mobs.removeAll { $0 === h }; horse = nil }
+            Turrets.shared.manned = nil
+            if let gm = gun { g.mobs.mobs.removeAll { $0 === gm }; gun = nil }
             g.riding = nil; g.paused = false; g.cameraMode = 0; g.player.flying = false; g.player.sneaking = false
             g.survival = true
             g.inventory.main[0] = ItemStack(Items.id("cobblestone"), 16); g.selected = 0
@@ -131,6 +137,18 @@ enum QuestTouchMatrix {
                     if g.riding == nil { why = "thrown at frame \(i): pad b \(PadManager.shared.touch?.b ?? false), sneaking \(g.player.sneaking), toast '\(toast)'"; break }
                 }
                 return g.riding != nil
+            }),
+            ("in a boat", {
+                let m = Mob(.boat, at: poolAt + V3(0, 0.6, 0)); g.mobs.mobs.append(m); horse = m
+                g.riding = m; g.player.pos = m.pos + V3(0, 0.4, 0)
+                for _ in 0..<5 { frame() }
+                return g.riding === m
+            }),
+            ("at a deck gun", {
+                let m = Mob(.deckGun, at: start + V3(-4, 0, -4)); g.mobs.mobs.append(m); gun = m
+                Turrets.shared.mount(g, m)
+                for _ in 0..<5 { frame() }
+                return Turrets.shared.manned === m
             }),
             ("swimming", {
                 g.player.pos = poolAt

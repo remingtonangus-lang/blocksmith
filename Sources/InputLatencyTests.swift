@@ -92,8 +92,9 @@ enum InputLatencyTests {
             g.player.pitch = -0.7
             for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
         }, { $0.rt = 1 }) { mob.map { $0.health < h0 } ?? false })
-        // Melee reach (scorecard "Reach": melee ~3): a pig further off each try, aimed at its middle; the furthest gap from
-        // the eye to its near side that a blow still lands across.
+        // Melee reach (scorecard "Reach": melee ~3): a pig further off each try, aimed at its middle; the furthest level gap
+        // from the eye to its near side that a blow still lands across (0.25-block steps; the eye is above the pig, so the
+        // ray itself is a little longer).
         var reach: Float = 0, missed = false
         for i in 0..<16 {
             let d = 1.5 + Float(i) * 0.25
@@ -107,8 +108,8 @@ enum InputLatencyTests {
             if n != nil { reach = d - (mob?.halfW ?? 0) } else { missed = true; break }
         }
         mobAt = V3(0, 0, -1.2); aimPitch = -0.7
-        print(String(format: "melee reach: blows land up to %.2f blocks from the eye to the target's near side", reach))
-        check(missed && reach >= 2.9 && reach <= 4, String(format: "reach: melee lands to %.2f blocks (target about 3; the game allows 3.5 from the eye)", reach))
+        print(String(format: "melee reach: blows land up to %.2f blocks (level) from the eye to the target's near side", reach))
+        check(missed && reach >= 2.9 && reach <= 4, String(format: "reach: melee lands to %.2f blocks, level gap (target about 3; the game allows a 3.5 ray from the eye)", reach))
         print("input latency (frames to the first effect, 0 = the same tick): " + rows.joined(separator: ", "))
         check(late.isEmpty, "latency: every control answers in the frame that reads the press (\(rows.count) controls)"
               + (late.isEmpty ? "" : "; late: " + late.joined(separator: ", ")))
