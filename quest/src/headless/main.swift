@@ -161,6 +161,14 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the
+// rider's view through the Quest renderer (--horse-shots DIR keeps the PNGs).
+if CommandLine.arguments.contains("--horsecoats-only") {
+    if let ctx = vkctx {
+        do { try HorseCoatShots.run(game: game, ctx: ctx, dir: arg("--horse-shots"), check: check) } catch { check(false, "horsecoats render: \(error)") }
+    } else { HorseCoatShots.modelChecks(check) }
+    print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --towns-only: just the towns of people, law, honour and frontier town checks (Sources/TownTests.swift, HonourTests.swift).
 if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)

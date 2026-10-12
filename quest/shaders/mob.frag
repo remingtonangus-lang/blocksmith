@@ -1,7 +1,7 @@
 #version 450
 #include "common.glsl"
 // Port of the Mac mobFS (Sources/Shaders.swift): pattern detail in model space, emissive parts unshaded, and a sun
-// specular + rim on the glossy patterns (7 enamel, 8 metal, 10 leather, 11 smoked glass).
+// specular + rim on the glossy patterns (7 enamel, 8 metal, 10 leather, 11 smoked glass, 12-14 horse coats).
 layout(location = 0) in vec3 oColor;
 layout(location = 1) in float oShade;
 layout(location = 2) in vec3 oLocal;
@@ -44,6 +44,22 @@ vec3 mobPattern() {
         c *= 0.9 + 0.08 * hf + 0.04 * sin(p.y * 9.0 + p.x * 3.0);
     } else if (oPattern > 9.5 && oPattern < 10.5) {
         c *= 0.93 + 0.05 * hf;
+    } else if (oPattern > 11.5 && oPattern < 15.5) {
+        // G9 horse coats: 12 sleek hair, 13 dapple grey, 14 paint (white patches), 15 mane and tail hair.
+        float grain = vnoise(vec2(p.x * 2.1 + p.y * 0.9, p.z * 0.35)) * 0.6 + vnoise(vec2(p.y * 2.4 + 3.0, p.z * 0.5 + p.x)) * 0.4;
+        if (oPattern > 14.5) {
+            float strand = vnoise(vec2(p.x * 3.3 + p.z * 3.1, p.y * 0.22)) * 0.7 + vnoise(vec2(p.x * 7.0 - p.z * 6.0, p.y * 0.5)) * 0.3;
+            c *= 0.62 + 0.55 * strand + 0.05 * hf;
+        } else {
+            c *= 0.9 + 0.12 * grain + 0.03 * (hf - 0.5);
+            if (oPattern > 12.5 && oPattern < 13.5) {
+                float d = vnoise(p.xz * 0.62 + p.y * 0.41 + 2.0) * 0.6 + vnoise(p.zy * 0.7 + 9.0) * 0.4;
+                c *= 0.8 + 0.32 * smoothstep(0.5, 0.64, d);
+            } else if (oPattern > 13.5) {
+                float n = vnoise(p.xz * 0.16 + p.y * 0.13 + 5.0) * 0.7 + vnoise(p.zy * 0.21 + 1.0) * 0.3;
+                c = mix(c, vec3(0.93, 0.91, 0.87) * (0.92 + 0.08 * grain), smoothstep(0.55, 0.59, n));
+            }
+        }
     } else if (oPattern > 8.5) {
         // emissive (9) and smoked glass (11): flat
     } else {
@@ -56,8 +72,8 @@ vec3 mobSheen(vec3 n, vec3 rel, int pt, vec3 toLight, vec3 lightC) {
     if (dot(n, v) > 0.0) n = -n;
     vec3 l = normalize(toLight);
     vec3 hv = normalize(l - v);
-    float shin = pt == 8 ? 40.0 : (pt == 11 ? 90.0 : (pt == 10 ? 24.0 : 32.0));
-    float k = pt == 8 ? 0.5 : (pt == 11 ? 0.55 : (pt == 10 ? 0.22 : 0.28));
+    float shin = pt == 8 ? 40.0 : (pt == 11 ? 90.0 : (pt == 10 ? 24.0 : (pt >= 12 ? 18.0 : 32.0)));
+    float k = pt == 8 ? 0.5 : (pt == 11 ? 0.55 : (pt == 10 ? 0.22 : (pt >= 12 ? 0.12 : 0.28)));
     float s = pow(clamp(dot(n, hv), 0.0, 1.0), shin) * k * clamp(dot(n, l) * 4.0, 0.0, 1.0);
     float rim = pow(1.0 - clamp(dot(n, -v), 0.0, 1.0), 4.0) * (pt == 11 ? 0.12 : 0.06);
     return lightC * (s + rim);
@@ -67,7 +83,7 @@ void main() {
     int pt = int(oPattern + 0.5);
     if (pt == 9) { outColor = worldColor(vec4(applyFog(c, oDist), 1.0)); return; }
     vec3 col = c * oShade;
-    if (pt == 7 || pt == 8 || pt == 10 || pt == 11) {
+    if (pt == 7 || pt == 8 || pt == 10 || pt == 11 || (pt >= 12 && pt <= 14)) {
         vec3 n = normalize(cross(dFdx(oRel), dFdy(oRel)));
         col += mobSheen(n, oRel, pt, u.sunDir.xyz, vec3(u.params.y)) * clamp(oShade * 1.3, 0.0, 1.0);
     }

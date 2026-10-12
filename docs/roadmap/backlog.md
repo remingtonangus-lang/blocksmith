@@ -397,7 +397,7 @@ G6. [base / village] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tideb
 G7. [towns] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] Rename the Capital city "Meridian" (CapitalTown.swift:17): it clashes with the Meridian Navy. Add a
     capital_city structure shot and a street-level shot to snap.sh.
 G8. [frigate] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] Thrusters read as two small points at night: bigger glowing faces + a drive-glow sprite.
-G9. [horses] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
+G9. [horses] [DONE: Lane A thread, 2026-10-12: five coat patterns (sleek, dapple grey, paint) with hair grain and sheen, mane/tail hair pattern, socks, blazes, stars, flaxen manes; questcheck --horsecoats-only (model checks, lineup and rider's-view renders)] Horse coats are flat untextured colours; texture the coat per variant, check the rider's view of the
     neck/mane, add a Quest horse render to questcheck.
 G10. [done, G20 PR: the five pass in questcheck --towns-only (same TownTests), and --towntests now gates snap.sh's checks shard] [towns] `--towntests` has 5 FAIL on fa79ef5e: wallet/honour HUD lines empty (HonourTests.swift:218,
     HonourGapTests.swift:263), "sheriff shoots an outlaw player", "3 bread for $0.90". Fix, then add --towntests to
