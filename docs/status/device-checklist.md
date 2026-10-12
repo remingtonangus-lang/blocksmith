@@ -36,3 +36,10 @@ limit in step 4.
 - Townsfolk variety (B2, docs/status/townsfolk-variety.md): melee against varied townsfolk: do their swing rate and
   toughness read in VR (a slow heavy hitter vs a quick one).
 - Not merged yet (check when they land): flying vehicles and the crawler (A4), frigate radar (A5), VR melee vs knights (B6).
+
+## 4. Oct 11 playtest follow-ups that need the headset or the Mac worker (Lane A thread, 2026-10-11)
+
+- P21b: the 13:03 "eye" object he could not identify: open its voice shot, name the block, and give it a clearer look or label (mob/tree looks are the Mac worker's).
+- P26: the horse running animation looks wrong (mob looks, Mac worker). Also feel the new horse pace (8-17 m/s by breed), the call (hold B to whistle), and the taming bar ("Bucking: sit still" then "Pat it now").
+- P32: rounds now leave the VR controller's aim ray and the muzzle; check the sights line up and the reload toast reads.
+- P18 part 2: water falling one block looks wrong from the side (needs a look on device after the fluid seam fix).

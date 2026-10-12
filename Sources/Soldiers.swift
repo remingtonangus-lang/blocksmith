@@ -170,10 +170,10 @@ extension MobKind {
         switch self {
         case .soldierRecruit:
             return Spec(name: "Capital Trooper", halfW: 0.3, height: 1.9, health: 20, speed: 3.0, behavior: .monster,
-                        drops: [("rifle_rounds", 1, 4), ("iron_nugget", 0, 3)], xp: 8, call: .gun(11))
+                        drops: [("capital_rounds", 2, 6), ("iron_nugget", 0, 3)], xp: 8, call: .gun(11))
         case .soldierTrooper:
             return Spec(name: "Capital Vanguard", halfW: 0.32, height: 1.95, health: 30, speed: 3.2, behavior: .monster,
-                        drops: [("rifle_rounds", 0, 4), ("shotgun_shells", 0, 3), ("bread", 0, 1)], xp: 12, call: .gun(11))
+                        drops: [("capital_rounds", 1, 6), ("shotgun_shells", 0, 3), ("bread", 0, 1)], xp: 12, call: .gun(11))
         case .soldierMarksman:
             return Spec(name: "Capital Marksman", halfW: 0.3, height: 1.9, health: 26, speed: 2.8, behavior: .monster,
                         drops: [("heavy_rounds", 1, 3), ("iron_nugget", 0, 2)], xp: 14, call: .gun(11))
@@ -182,10 +182,10 @@ extension MobKind {
                         drops: [("iron_ingot", 1, 4), ("rocket_ammo", 0, 2), ("arc_cell", 0, 3)], xp: 30, call: .gun(11), fireImmune: true)
         case .soldierOfficer:
             return Spec(name: "Capital Officer", halfW: 0.3, height: 1.95, health: 28, speed: 3.0, behavior: .monster,
-                        drops: [("rifle_rounds", 1, 4), ("gold_nugget", 0, 3)], xp: 16, call: .gun(11))
+                        drops: [("capital_rounds", 2, 6), ("gold_nugget", 0, 3)], xp: 16, call: .gun(11))
         case .soldierCrew:
             return Spec(name: "Capital Pilot", halfW: 0.3, height: 1.9, health: 18, speed: 3.1, behavior: .monster,
-                        drops: [("rifle_rounds", 0, 3), ("iron_nugget", 0, 2)], xp: 8, call: .gun(11))
+                        drops: [("capital_rounds", 1, 4), ("iron_nugget", 0, 2)], xp: 8, call: .gun(11))
         default:
             // A true-scale twin 42 cm turret (HeavyTurret): 14 m wide, 5.5 m tall gunhouse on a barbette.
             return Spec(name: "Twin 42 cm Turret", halfW: 7, height: 5.5, health: 400, speed: 0, behavior: .monster,

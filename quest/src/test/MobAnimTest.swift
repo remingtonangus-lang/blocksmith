@@ -94,10 +94,14 @@ enum MobAnimTest {
         var finite = true
         for i in 0..<n where !(buf[i].pos.x.isFinite && buf[i].pos.y.isFinite && buf[i].pos.z.isFinite) { finite = false }
         check(n > 36 && finite, "mob anim: the falling body is drawn (\(n) vertices, all finite)")
-        let puffs0 = game.particles.list.count
         for _ in 0..<12 { game.mobs.update(0.05, game: game) }
-        check(game.mobs.corpses.isEmpty && game.particles.list.count > puffs0,
-              "mob anim: after its fall it goes in a puff (\(game.particles.list.count - puffs0) puff particles, \(game.mobs.corpses.count) corpses left)")
+        let stays = game.mobs.corpses.contains { $0 === z }
+        let pl0 = pl.pos
+        pl.pos = z.pos + V3(MobAnim.bodyLeaveDistance + 8, 0, 0)
+        game.mobs.update(0.05, game: game)
+        let leftGone = !game.mobs.corpses.contains { $0 === z }
+        pl.pos = pl0
+        check(stays && leftGone, "mob anim P57: after its fall the body stays on the ground (\(stays)) until the player leaves the area (gone: \(leftGone))")
         // Machines and armour stands never fall or breathe.
         let stand = Mob(.armorStand, at: at)
         check(MobAnim.pose(stand).still && !MobAnim.falls(Mob(.boat, at: at)), "mob anim: armour stands and boats keep still")

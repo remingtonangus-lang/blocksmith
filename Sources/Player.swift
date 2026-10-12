@@ -69,6 +69,21 @@ final class Player {
     var moveYaw: Float? = nil
     var wetGrace: Float = 0         // s since leaving water that the bank climb / step-up still apply (getting out over the edge)
 
+    // Block-centred spots within 2 blocks sideways, 1 down and 2 up, nearest first (ties: level, then up).
+    static let unstuckOffsets: [V3] = {
+        var o: [V3] = []
+        for dy in -1...2 { for dz in -2...2 { for dx in -2...2 where !(dx == 0 && dy == 0 && dz == 0) { o.append(V3(Float(dx), Float(dy), Float(dz))) } } }
+        return o.sorted { a, b in
+            let la = simd_length_squared(a) + (a.y < 0 ? 0.6 : 0), lb = simd_length_squared(b) + (b.y < 0 ? 0.6 : 0)
+            return la < lb
+        }
+    }()
+    static func nearestFree(_ p: V3, _ free: (V3) -> Bool) -> V3? {
+        let base = V3(floorf(p.x) + 0.5, floorf(p.y), floorf(p.z) + 0.5)
+        if free(base) { return base }
+        return unstuckOffsets.lazy.map { base + $0 }.first(where: free)
+    }
+
     func collides(at p: V3, _ w: World) -> Bool {
         w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
     }
@@ -147,6 +162,10 @@ final class Player {
                                 V3(0, 0.02, 0), V3(0.01, 0, 0), V3(-0.01, 0, 0), V3(0, 0, 0.01), V3(0, 0, -0.01), V3(0, 0.1, 0)]
             if let n = nudges.first(where: { !collides(at: pos + $0, w) }) { pos += n }
         }
+        // Still inside: the nearest free spot round the body (a cave beside it, the room it leaned out of) before popping
+        // up. Popping straight up carried a player embedded underground up through the rock to the next cave or the
+        // surface (Oct 11 playtest P20: "teleported through a bunch of blocks").
+        if collides(at: pos, w), let free = Player.nearestFree(pos, { !self.collides(at: $0, w) }) { pos = free }
         while collides(at: pos, w) && tries < 64 { pos.y += 1; tries += 1 }
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))

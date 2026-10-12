@@ -42,6 +42,9 @@ struct TownState {
     var warned = false
     var drawn: Float = 0            // > 0: the gun is out (his challenge, before the fight starts)
     var lastDuel: Double = -1000    // when he last duelled the player (a long calm brings the warning shot back)
+    var investigate: V3?            // where shooting was heard: walking over to look (P63)
+    var investigateT: Float = 0
+    var heldUp: Float = 0           // a rider with a gun on them: seconds held up (Riders, P51)
     // TownStats (the person's toughness, speed, strength and attack rate), cached with the role it was rolled for.
     var stats: TownStats?
     var statsRole = ""
@@ -138,10 +141,11 @@ enum Townsfolk {
         guard let v, !baby else { return .none }
         let look = v.look ?? 0
         switch v.role ?? "worker" {
-        case "deputy": return .sword
+        case "deputy": return .revolver                                 // P64: deputies carry six-irons too
         case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
-        case "elder", "child", "citizen", "banker": return .none     // citizens: the Capital's soldiers keep the streets
+        case "posse": return .revolver                                  // P51: posses and bounty hunters
+        case "elder", "child", "citizen", "banker", "rider": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer
@@ -286,8 +290,13 @@ extension Mob {
             let aim = simd_dot(simd_normalize(-to), g.player.look)
             if aim > 0.9975 && g.world.canSee(g.player.eye, eye) {
                 if town.handsUp <= 0 {
-                    if g.clock - Townsfolk.townLastLine > 2 { TownVoice.speak(g, self, .handsup) }
-                    if town.aimMemory <= 0 { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
+                    // With soldiers or monsters fighting nearby (a hostage taking, a raid) the gun is for them: no "put that
+                    // away" and no grudge (Oct 11 playtest P31: hostages scolded him while he shot their captors).
+                    let danger = g.mobs.mobs.contains { m in
+                        m.health > 0 && (m.kind.steelhold || (m.kind.hostile && m.aggro)) && simd_length_squared(m.pos - pos) < 24 * 24
+                    }
+                    if g.clock - Townsfolk.townLastLine > 2 { TownVoice.speak(g, self, danger ? .raid : .handsup) }
+                    if town.aimMemory <= 0 && !danger { v.addGossip(.minorNeg, 2); villager = v }   // once a minute per person
                     town.aimMemory = 60
                 }
                 town.handsUp = 2.5
@@ -343,6 +352,9 @@ extension Game {
         guard victim.kind == .villager else { return }
         if Townsfolk.townLastLine < clock - 1.5 { TownVoice.speak(self, victim, .hurt) }
         TownLaw.assault(self, victim)
+        // Lay hands on the sheriff and there is no warning shot: his first round is meant (G15, with the tougher sheriff
+        // above, so his six-iron can't be taken off him with a sword before iron armour).
+        if victim.villager?.role == "sheriff" { victim.town.warned = true; victim.town.lastDuel = clock }
         let yours = TownConquest.owns(TownLaw.town(of: victim, self))        // your own town backs away; nobody draws on you
         for o in mobs.mobs where o.kind == .villager && o.health > 0 && simd_length(o.pos - victim.pos) < 24 {
             guard o === victim || simd_length(o.pos - victim.pos) < 8 || world.canSee(o.eye, victim.eye) else { continue }

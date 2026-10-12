@@ -273,7 +273,7 @@ enum TownBoard {
 final class NoticeBoardMenu: ListMenu {
     let town: String
     let anchor: IVec3
-    enum Item { case poster(String, Int), job(Int), donate, name, log(Int) }
+    enum Item { case poster(String, Int), job(Int), donate, emeralds, name, log(Int) }
     var items: [Item] = []
 
     init(game: Game, town: String, anchor: IVec3) {
@@ -294,6 +294,7 @@ final class NoticeBoardMenu: ListMenu {
         if Honour.isOutlaw && g.survival { items.append(.poster("", 0)) }
         for i in 0..<2 { items.append(.job(i)) }
         items.append(.donate)
+        items.append(.emeralds)
         items.append(.name)
         for i in Honour.log.indices.reversed().prefix(4) { items.append(.log(i)) }
     }
@@ -317,6 +318,10 @@ final class NoticeBoardMenu: ListMenu {
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "Donate to the town fund",
                            detail: left > 0 ? "+2 honour (up to 6 a day)" : "The fund thanks you. Come back tomorrow",
                            value: Money.format(TownBoard.donation), enabled: left > 0 && g.money >= TownBoard.donation)
+            case .emeralds:
+                // (G14) The exchange spelled out where every town's news is read: what an emerald is worth and where they come from.
+                return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "The bank buys emeralds",
+                           detail: "Mined from mountain stone; found in chests and shop tills", value: Money.format(Bank.sellEmerald), enabled: false, good: true)
             case .name:
                 return Row(name: "Your name here: \(TownBoard.playerName)", detail: "Press to pick another")
             case .log(let i):

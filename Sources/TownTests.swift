@@ -306,7 +306,7 @@ enum TownTests {
         // Weapons by role.
         let kid = Mob(.villager, at: g.player.pos); kid.baby = true; Townsfolk.setup(kid, game: g)
         var elder = VillagerData(); elder.role = "elder"
-        check(farmer.townWeapon == .pitchfork && dep.townWeapon == .sword && shop.townWeapon == .cleaver && kid.townWeapon == .none
+        check(farmer.townWeapon == .pitchfork && dep.townWeapon == .revolver && shop.townWeapon == .cleaver && kid.townWeapon == .none
               && Townsfolk.weapon(elder, baby: false) == .none && keeper(g, .blacksmith, at: g.player.pos).townWeapon == .hammer,
               "people: farmers carry pitchforks, deputies swords, butchers cleavers, smiths hammers; children and elders nothing")
         // Models: every role and shop builds a body with a head, a weapon where armed, nothing NaN.
@@ -381,7 +381,12 @@ enum TownTests {
         let rep1 = deputy.villager?.reputation ?? 0
         check(rep1 == rep0, "defence: hitting a townsperson who is already fighting you costs no more standing (\(rep0) -> \(rep1))")
         g.health = 20
-        for _ in 0..<120 { deputy.update(0.05, game: g) }
+        // (P64: the deputy's six-iron kills a player without iron in one round: the test wears a full iron set, which
+        // takes 3, and stops at the first hit so the player lives for the checks below.)
+        let armour0 = g.inventory.armor.slots
+        for (i, k) in ["iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots"].enumerated() where Items.has(k) { g.inventory.armor[i] = ItemStack(Items.id(k), 1) }
+        for _ in 0..<120 where g.health >= 20 { deputy.update(0.05, game: g) }
+        g.inventory.armor.slots = armour0
         check(g.health < 20, "defence: the angry deputy hits the player (health \(g.health))")
         // A pointed gun: hands up.
         let p = Mob(.villager, at: base); p.home = base; Townsfolk.setup(p, game: g)
@@ -396,6 +401,19 @@ enum TownTests {
             _ = p.townReact(0.05, g)
             g.menu = menu
             check(p.town.handsUp > 0, "defence: a pointed gun puts their hands up")
+            // P31: a hostage among soldiers or monsters: hands up, but no scolding and no grudge (the gun is for them).
+            let h = Mob(.villager, at: base); h.home = base; Townsfolk.setup(h, game: g)
+            let z = Mob(.zombie, at: base + V3(5, 0, 0)); z.aggro = true
+            g.mobs.mobs = [h, z]
+            let rep0 = h.villager?.reputation ?? 0, said0 = Townsfolk.townLastLine
+            Townsfolk.townLastLine = -100
+            g.menu = nil
+            _ = h.townReact(0.05, g)
+            g.menu = menu
+            let rep1 = h.villager?.reputation ?? 0
+            check(h.town.handsUp > 0 && rep1 == rep0, "defence P31: a hostage with a monster beside them raises their hands and holds no grudge (\(rep0) -> \(rep1))")
+            Townsfolk.townLastLine = max(Townsfolk.townLastLine, said0)
+            g.mobs.mobs = [p]
         }
     }
 
@@ -406,6 +424,7 @@ enum TownTests {
         w.renderDistance = 3
         guard let sc = w.gen.structures else { check(false, "towns: structures"); return }
         var shopsFound: [ShopKind: Int] = [:], deputies = 0, signs = 0, visited = 0, blocked: [String] = []
+        var tills = 0, noTill: [String] = []
         var seen: [IVec3] = []
         for _ in 0..<3 {
             guard let s = sc.nearest("village", x: 0, z: 0, maxRegions: 12, accept: { st in !seen.contains { $0 == st.anchor } }) else { break }
@@ -420,7 +439,15 @@ enum TownTests {
                     || !w.collides(p + V3(-0.3, -0.2, -0.3), p + V3(0.3, -0.01, 0.3)) {
                     blocked.append("\(name) at \(Int(p.x)) \(Int(p.y)) \(Int(p.z))")
                 }
-                if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) { shopsFound[k, default: 0] += 1 }
+                if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) {
+                    shopsFound[k, default: 0] += 1
+                    // P24: a filled strongbox behind the keeper's counter, on the keeper's floor.
+                    let till = w.blockEntities.contains { (q, be) in
+                        be.kind == .chest && abs(q.y - Int(floor(p.y))) <= 0 && simd_length(V2(Float(q.x) + 0.5 - p.x, Float(q.z) + 0.5 - p.z)) < 5
+                            && be.container.slots.contains { $0.count > 0 }
+                    }
+                    if till { tills += 1 } else { noTill.append("\(k.rawValue) at \(Int(p.x)) \(Int(p.z))") }
+                }
             }
             for (p, be) in w.blockEntities where be.kind == .sign && abs(p.x - s.anchor.x) < 80 && abs(p.z - s.anchor.z) < 80 {
                 if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { signs += 1 }
@@ -431,6 +458,7 @@ enum TownTests {
               "towns: \(visited) towns hold \(all.count)/8 kinds of shop (\(shopsFound.map { "\($0.key.rawValue) \($0.value)" }.sorted().joined(separator: ", "))), \(deputies) deputies")
         let keepers = shopsFound.values.reduce(0, +)
         check(signs >= keepers && keepers > 0, "towns: every shop has its sign (\(signs) signs, \(keepers) shops)")
+        check(noTill.isEmpty && tills > 0, "towns P24: every shop keeps a filled till chest behind the counter (\(tills) tills)" + (noTill.isEmpty ? "" : ", none at " + noTill.prefix(6).joined(separator: ", ")))
         check(blocked.isEmpty, "towns: every townsperson and keeper spawns on a floor with head room" + (blocked.isEmpty ? "" : ": " + blocked.prefix(6).joined(separator: ", ")))
     }
 }

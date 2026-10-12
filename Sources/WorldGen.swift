@@ -49,6 +49,7 @@ final class WorldGen: TerrainGenerator {
         }
         bands = bs
         structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self)], fixed: Stronghold.starts(seed: seed))
+        structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz) }      // P51
     }
 
     // MARK: Cave climate
@@ -387,6 +388,7 @@ final class WorldGen: TerrainGenerator {
         mark(0)
         // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE, magma = Blocks.id("magma_block")
+        let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt")
         // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
         // each block only lerps along y and z: the same operations in the same order as Lattice.sample
         // (bit-identical, groundY relies on it) without 8 lattice loads per block.
@@ -418,7 +420,17 @@ final class WorldGen: TerrainGenerator {
                         // The deeper, the hotter: emberslate creeps into the deeprock below -24 and owns it below -56,
                         // with the odd magma block.
                         let h = hash3(wx, y, wz, s32 ^ 0xE5B)
-                        if Int(h % 32) < -24 - yd { b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue }
+                        if Int(h % 32) < -24 - yd {
+                            // The threshold (G17, Oct 11 playtest: the rock went from deeprock to a flat lava sea and the
+                            // Wardstone with nothing between): below -48 hell's own rock takes over a little more each
+                            // layer, blackstone and basalt bands and magma, a third of the rock at the floor.
+                            if yd < -48 {
+                                let r = Int(h >> 8 % 100), share = (-48 - yd) * 2      // 2% at -49 ... 32% at -64
+                                if r < share / 3 { b[i] = magma; continue }
+                                if r < share { b[i] = (y + Int(h % 2)) % 5 < 2 ? basalt : blackstone; continue }
+                            }
+                            b[i] = yd < -40 && h % 53 == 0 ? magma : EMBERSLATE; continue
+                        }
                     }
                     b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
                 }
@@ -518,6 +530,7 @@ final class WorldGen: TerrainGenerator {
         carveRavines(&b, bx, bz, tops, wls, &aquifer)
         drainAquifers(&b, aquifer)
         lavaPockets(&b, bx, bz)
+        floorLava(&b, bx, bz)
         supportFalling(&b, tops)
 
         mark(3)
@@ -833,6 +846,22 @@ final class WorldGen: TerrainGenerator {
         }
     }
 
+    // P39 (Oct 11 evening playtest: "I need lava"): single lava sources sunk into cave floors between -50 and -8, about
+    // one floor cell in 100 (1 in 500 left a 16-chunk sample with one): a cupped block (rock on four sides and below, open above) that a bucket takes and that
+    // never spills when the chunk loads.
+    private func floorLava(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let s32 = UInt32(truncatingIfNeeded: seed ^ 0x1A7A)
+        for y in max(2, YOFF - 50)..<(YOFF - 8) {
+            for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+                let i = Chunk.index(lx, y, lz)
+                guard b[i + CSQ] == AIR, Blocks.opaque[Int(b[i])], hash3(bx + lx, y, bz + lz, s32) % 100 == 0 else { continue }
+                var cupped = true
+                for o in [1, -1, CS, -CS, -CSQ] where !Blocks.opaque[Int(b[i + o])] { cupped = false; break }
+                if cupped { b[i] = LAVA }
+            } }
+        }
+    }
+
     // Aquifer water stays only where it is held: a cell with open air beside or below it (or the chunk edge, whose
     // far side isn't known here) drains to air, and so does everything that leaned on it. What is left are pools in
     // real basins: no flat 16-block water slabs cut off by rock plugs at chunk edges, no stone plates left under the
@@ -964,12 +993,13 @@ final class WorldGen: TerrainGenerator {
         for _ in 0..<14 { vein(&b, bx, bz, &rng, GRAVEL, GRAVEL, y: y(rng.range(-64, 320)), size: 33) }
         // 1.18+ ore distributions (count per chunk, height distribution, vein size).
         let coal = COAL_ORE, dCoal = g("deepslate_coal_ore")
-        for _ in 0..<30 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(rng.range(136, 320)), size: 17) }
-        for _ in 0..<20 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17) }
+        // P44 (Oct 11 evening, "iron ore and coal too common"): about 60% of the reference counts.
+        for _ in 0..<18 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(rng.range(136, 320)), size: 17) }
+        for _ in 0..<12 { vein(&b, bx, bz, &rng, coal, dCoal, y: y(triangle(&rng, 0, 192)), size: 17) }
         let iron = IRON_ORE, dIron = g("deepslate_iron_ore")
-        for _ in 0..<90 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, 80, 384)), size: 9) }
-        for _ in 0..<10 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, -24, 56)), size: 9) }
-        for _ in 0..<10 { vein(&b, bx, bz, &rng, iron, dIron, y: y(rng.range(-64, 72)), size: 4) }
+        for _ in 0..<54 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, 80, 384)), size: 9) }
+        for _ in 0..<6 { vein(&b, bx, bz, &rng, iron, dIron, y: y(triangle(&rng, -24, 56)), size: 9) }
+        for _ in 0..<6 { vein(&b, bx, bz, &rng, iron, dIron, y: y(rng.range(-64, 72)), size: 4) }
         let copper = g("copper_ore"), dCopper = g("deepslate_copper_ore")
         for _ in 0..<16 { vein(&b, bx, bz, &rng, copper, dCopper, y: y(triangle(&rng, -16, 112)), size: 10) }
         let gold = GOLD_ORE, dGold = g("deepslate_gold_ore")
@@ -1185,7 +1215,9 @@ final class WorldGen: TerrainGenerator {
         let id_spore_blossom = g("spore_blossom")
         for lz in 0..<CS { for lx in 0..<CS {
             let k = climates[lx + lz * CS]
-            let lush = k.h > 0.55, drip = k.c > 0.75, dark = k.e < -0.6
+            // No murk depths any more (Oct 11 playtest P19: a copy of the reference's deep dark with its stalker, never
+            // asked for; IP rule). Murk blocks stay registered for old saves and the creative menu.
+            let lush = k.h > 0.55, drip = k.c > 0.75, dark = false
             guard lush || drip || dark else { continue }
             for y in 8..<(SEA - 10) {
                 let i = Chunk.index(lx, y, lz)

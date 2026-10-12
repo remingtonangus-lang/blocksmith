@@ -26,35 +26,37 @@ enum Potions {
             if let l = long { add("long_" + k, d, [(e, l, 0)]) }
             if let s = strong { add("strong_" + k, d, [(e, s.0, s.1)]) }
         }
-        trio("night_vision", "Night Vision", .nightVision, 180, 480, nil)
-        trio("invisibility", "Invisibility", .invisibility, 180, 480, nil)
-        trio("leaping", "Leaping", .jumpBoost, 180, 480, (90, 1))
-        trio("fire_resistance", "Fire Resistance", .fireResistance, 180, 480, nil)
-        trio("swiftness", "Swiftness", .speed, 180, 480, (90, 1))
-        trio("slowness", "Slowness", .slowness, 90, 240, (20, 3))
-        add("turtle_master", "the Tortoise", [(.slowness, 20, 3), (.resistance, 20, 2)])
-        add("long_turtle_master", "the Tortoise", [(.slowness, 40, 3), (.resistance, 40, 2)])
-        add("strong_turtle_master", "the Tortoise", [(.slowness, 20, 5), (.resistance, 20, 3)])
-        trio("water_breathing", "Water Breathing", .waterBreathing, 180, 480, nil)
-        trio("healing", "Healing", .instantHealth, 0, nil, (0, 1))
-        trio("harming", "Harming", .instantDamage, 0, nil, (0, 1))
-        trio("poison", "Poison", .poison, 45, 90, (21.6, 1))
-        trio("regeneration", "Regeneration", .regeneration, 45, 90, (22.5, 1))
-        trio("strength", "Strength", .strength, 180, 480, (90, 1))
-        trio("weakness", "Weakness", .weakness, 90, 240, nil)
-        trio("slow_falling", "Slow Falling", .slowFalling, 90, 240, nil)
-        add("luck", "Luck", [(.luck, 300, 0)])
-        add("wind_charged", "Wind Charging", [(.windCharged, 180, 0)])
-        add("weaving", "Weaving", [(.weaving, 180, 0)])
-        add("oozing", "Oozing", [(.oozing, 180, 0)])
-        add("infested", "Infestation", [(.infested, 180, 0)])
+        trio("night_vision", "Owl-Eye", .nightVision, 180, 480, nil)
+        trio("invisibility", "Ghostwalk", .invisibility, 180, 480, nil)
+        trio("leaping", "Jackrabbit", .jumpBoost, 180, 480, (90, 1))
+        trio("fire_resistance", "Emberward", .fireResistance, 180, 480, nil)
+        trio("swiftness", "Quickstep", .speed, 180, 480, (90, 1))
+        trio("slowness", "Molasses", .slowness, 90, 240, (20, 3))
+        add("turtle_master", "Ironhide", [(.slowness, 20, 3), (.resistance, 20, 2)])
+        add("long_turtle_master", "Ironhide", [(.slowness, 40, 3), (.resistance, 40, 2)])
+        add("strong_turtle_master", "Ironhide", [(.slowness, 20, 5), (.resistance, 20, 3)])
+        trio("water_breathing", "Gillwater", .waterBreathing, 180, 480, nil)
+        trio("healing", "Mending", .instantHealth, 0, nil, (0, 1))
+        trio("harming", "Black Draught", .instantDamage, 0, nil, (0, 1))
+        trio("poison", "Snakebite", .poison, 45, 90, (21.6, 1))
+        trio("regeneration", "Second Wind", .regeneration, 45, 90, (22.5, 1))
+        trio("strength", "Bull's Blood", .strength, 180, 480, (90, 1))
+        trio("weakness", "Sapping", .weakness, 90, 240, nil)
+        trio("slow_falling", "Featherfall", .slowFalling, 90, 240, nil)
+        add("luck", "Lucky Penny", [(.luck, 300, 0)])
+        add("wind_charged", "Gale", [(.windCharged, 180, 0)])
+        add("weaving", "Spinner's", [(.weaving, 180, 0)])
+        add("oozing", "Ooze", [(.oozing, 180, 0)])
+        add("infested", "Swarm", [(.infested, 180, 0)])
         return t
     }()
     static let byKey: [String: Int] = Dictionary(uniqueKeysWithValues: types.enumerated().map { ($0.element.key, $0.offset) })
 
     // Item forms: (prefix, display pattern, duration factor)
-    static let forms: [(String, String, Float)] = [("potion", "Potion of %@", 1), ("splash_potion", "Splash Potion of %@", 1),
-                                                   ("lingering_potion", "Lingering Potion of %@", 0.25), ("tipped_arrow", "Arrow of %@", 0.125)]
+    // P42 (Oct 11 evening playtest): an original set of frontier tonics, named for what they do ("Quickstep Tonic",
+    // "Mending Tonic", "Black Draught"), in place of the reference "Potion of ..." names. Keys and effects are unchanged.
+    static let forms: [(String, String, Float)] = [("potion", "%@ Tonic", 1), ("splash_potion", "Splash %@ Tonic", 1),
+                                                   ("lingering_potion", "Lingering %@ Tonic", 0.25), ("tipped_arrow", "%@ Arrow", 0.125)]
 
     static func itemName(_ form: String, _ type: String) -> String { "\(form)_\(type)" }
 
@@ -77,6 +79,7 @@ enum Potions {
             return t.key == "water" ? f + "Water Bottle" : f + t.display
         }
         var name = String(format: forms[form].1, t.display)
+        if t.display.hasSuffix("Draught") { name = name.replacingOccurrences(of: " Tonic", with: "") }
         if t.key.hasPrefix("strong_") { name += " II" }
         return name
     }

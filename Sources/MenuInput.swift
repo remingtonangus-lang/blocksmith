@@ -173,7 +173,13 @@ extension Game {
             if p.menu && !q.menu { km.finish(); return }
         }
         if let s = menuHover {
-            if p.a && !q.a {
+            var counted = false
+            if p.a && !q.a && keyboard == nil && creative == nil && carried.isEmpty && !s.isButton && s.container != nil && s.stack.count > 1,
+               case .normal = s.kind {
+                stackHold = StackHold(slot: s)                  // a tap takes the stack on release; a hold counts it out
+                counted = true
+            }
+            if p.a && !q.a && !counted {
                 let wasText = m.capturesText
                 m.click(s, button: 0, shift: false)
                 // A pad user who just activated a text field (anvil name, creative search) gets the keyboard at once.
@@ -211,6 +217,26 @@ extension Game {
                     inventory.main[i] = a
                     m.changed()
                 }
+            }
+        }
+        // P61 (Oct 11 evening playtest): hold A on a stack and items count onto the cursor, one, then faster; let go at
+        // the number you want. A quick tap still picks up the whole stack, decided on release.
+        if var h = stackHold {
+            if !p.a {
+                if h.taken == 0 { m.click(h.slot, button: 0, shift: false) }
+                stackHold = nil
+            } else {
+                h.t += dt
+                while h.t >= h.next && h.slot.stack.count > 0 && (carried.isEmpty || carried.item == h.slot.stack.item) {
+                    if carried.isEmpty { carried = h.slot.stack.with(count: 1) } else { carried.count += 1 }
+                    h.slot.stack.count -= 1
+                    if h.slot.stack.count <= 0 { h.slot.stack = .empty }
+                    h.taken += 1
+                    h.next += max(0.04, 0.22 - Double(h.taken) * 0.015)
+                    m.changed()
+                    sfx(.click, 0.2)
+                }
+                stackHold = h
             }
         }
         // Keyboard-only: Enter presses the highlighted button (arrow keys move, left/right change settings).
@@ -270,4 +296,10 @@ extension Game {
         }
         if (input.tapped(KeyBinds.key(.inventory)) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
     }
+}
+
+// A held A on a stack (P61): `t` seconds held, `taken` items counted onto the cursor, the next one at `next`.
+struct StackHold {
+    let slot: MenuSlot
+    var t: Double = 0, taken = 0, next: Double = 0.35
 }

@@ -82,6 +82,7 @@ final class WorldRenderer {
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
+        if !underwater, hasSky, let cap = World.caveSight(caveK: caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
@@ -132,6 +133,9 @@ final class WorldRenderer {
         let (u, clear) = uniforms(cam)
         scene.maxSection = game.inVaultSky ? AshSky.cutSection : NSEC         // the vault's roof is left to the sky
         scene.fogCull = game.inVaultSky && !game.player.headInWater && !game.player.headInLava ? AshSky.fogEnd + 8 : 0
+        if game.dim.dim.hasSky, !game.player.headInWater, let cap = World.caveSight(caveK: caveK) {
+            scene.fogCull = scene.fogCull > 0 ? min(scene.fogCull, cap + 4) : cap + 4      // far sections past the cave fog
+        }
         scene.setUniforms(s, u)
         scene.resetScratch()
         let eye = cam.center

@@ -277,7 +277,8 @@ extension Game {
     // fields). Size = ceil(effective regional difficulty) + 1; the first one is the captain.
     func patrolTick(_ dt: Float) {
         specialSpawnersTick(dt)
-        guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5 else { return }
+        // P46: after the Reckoning the surface is the player's: no more Marauder patrols.
+        guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5, !Reckoning.won else { return }
         patrolTimer -= dt
         guard patrolTimer <= 0 else { return }
         patrolTimer = Rand.float(in: 600...660)
@@ -370,7 +371,7 @@ extension Mob {
     // Melee damage including a sharpened raid axe (+1 / +2).
     // Zombies add a held weapon's damage (an iron-sword zombie hits 3 + 5); illager and boarling specs already count
     // their weapon.
-    var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) + (isZombie ? weaponBonus : 0) }
+    var meleeDamage: Int { vary.hit(spec.attack) + heldEnchant(.sharpness) + (isZombie ? weaponBonus : 0) }
     // Reference shot cycles: bows draw 1 s then wait the attack interval (2 s, 1 s on Hard);
     // crossbows charge 1.25 s (-0.25 s per Quick Charge) then pause 1-2 s.
     var crossbowReload: Float {

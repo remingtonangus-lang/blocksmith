@@ -405,7 +405,12 @@ enum CapitalCity {
         box(bx0, bz0, bx1, bz1, L)
         // Portico: the roof carried three blocks out over the entrance side on slim white columns.
         for z in (bz0 - 3)...(bz0 - 1) { for x in (bx0 - 1)...(bx1 + 1) { w.set(x, L + 5, z, roofSlab) } }
-        for x in stride(from: bx0, through: bx1, by: 4) { for y in (L + 1)...(L + 4) { w.set(x, y, bz0 - 3, white) } }
+        // Each column stands on something: where the portico reaches past the terrace (over a ramp or the walkway's lower
+        // ground) it is carried down to the ground (Oct 11 playtest P35: "a few pillars are off the ground").
+        for x in stride(from: bx0, through: bx1, by: 4) {
+            for y in (L + 1)...(L + 4) { w.set(x, y, bz0 - 3, white) }
+            w.pillarDown(x, L, bz0 - 3, white, minY: L - 30)
+        }
         for x in (bx0 - 1)...(bx1 + 1) { w.set(x, L + 4, bz0 - 3, grey) }
         // Entrance: a 3-wide opening in the north (walkway) face, glass panels round it.
         let ex = (bx0 + bx1) / 2

@@ -197,6 +197,10 @@ extension TownTests {
             let flag = g.world.block(bx + 4, gy + 6, bz - 1)
             check(g.world.block(bx, gy, bz) == Blocks.id("stone_bricks") && Blocks.def(flag).name.hasSuffix("_wool"),
                   "countries: a border post builds its floor and flags (\(Blocks.def(flag).name))")
+            // P21: it says what it is (signs at both ends naming the country you enter).
+            let signs = [IVec3(bx, gy + 1, bz - 2), IVec3(bx, gy + 1, bz + 2)].compactMap { g.world.blockEntities[$0]?.lines }
+            check(signs.count == 2 && signs.allSatisfy { $0.first == "BORDER POST" } && signs[0][1] == "Entering \(n.name)",
+                  "P21 border post: signs at both ends (\(signs.map { $0.prefix(2).joined(separator: " / ") }))")
         } else {
             check(true, "countries: \(a.name) and \(n.name) have no post spot (water or a town on the line)")
         }

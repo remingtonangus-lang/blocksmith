@@ -31,9 +31,12 @@ struct MobPose {
 }
 
 enum MobAnim {
-    static let deathTime: Float = 1.0          // the fall, then the puff
+    static let deathTime: Float = 1.0          // the fall and settling
+    // P57 (Oct 11 evening): bodies stay where they fell until the player leaves the area (this far away) and comes back;
+    // the oldest go first past the cap.
+    static let bodyLeaveDistance: Float = 48
     static let fallTime: Float = 0.45
-    static let maxCorpses = 24
+    static let maxCorpses = 32
 
     static func headJoint(_ m: Mob) -> HeadJoint? {
         switch m.kind {
@@ -110,7 +113,7 @@ enum MobAnim {
             a = r * a
             b = piv - r * piv
             if !upright { b.y -= k * k * m.height * px * 0.3 }                          // the legs fold under it
-            let sink = max(0, m.deathT - 0.65) * 6                                       // settles into the ground
+            let sink = min(2.1, max(0, m.deathT - 0.65) * 6)                             // settles into the ground
             b.y -= sink
         }
         p.a = a; p.b = b
@@ -182,10 +185,8 @@ extension MobManager {
     func corpseTick(_ dt: Float, _ g: Game) {
         guard !corpses.isEmpty else { return }
         for c in corpses { c.deathT += dt; c.hitFlash = max(0, c.hitFlash - dt) }   // the killing hit's flash fades (Mob.update no longer runs)
-        for c in corpses where c.deathT >= MobAnim.deathTime {
-            let n = Int(4 + min(8, c.height * c.halfW * 8))
-            for _ in 0..<n { g.particles.deathPuff(at: c.pos + V3(Rand.float(in: -c.halfW...c.halfW), Rand.float(in: 0...max(0.2, c.height * 0.5)), Rand.float(in: -c.halfW...c.halfW))) }
-        }
-        corpses.removeAll { $0.deathT >= MobAnim.deathTime }
+        // P57: a body lies where it fell (no puff) until the player is out of the area; it is gone when they come back.
+        let p = g.player.pos, far = MobAnim.bodyLeaveDistance * MobAnim.bodyLeaveDistance
+        corpses.removeAll { $0.deathT >= MobAnim.deathTime && simd_length_squared($0.pos - p) > far }
     }
 }

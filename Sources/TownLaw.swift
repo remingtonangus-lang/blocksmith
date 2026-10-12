@@ -56,6 +56,7 @@ enum TownLaw {
         var owned: [String: [Int]]? = nil
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
+        var emeraldTip: Bool? = nil                 // the one-time "emeralds sell at a bank" tip was shown (G14)
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -77,7 +78,7 @@ enum TownLaw {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
-        offences = 0; lastTick = -1
+        offences = 0; lastTick = -1; sleptBeds = [:]
         TownConquest.reset(); TownConquest.wary = []
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
@@ -165,6 +166,40 @@ enum TownLaw {
                      "_table", "stand", "stonecutter", "grindstone", "anvil", "bricks", "wall", "pane", "bars", "flower_pot",
                      "jukebox", "iron_block", "stripped_", "smooth_stone", "chain"]
         return words.contains { k.contains($0) }
+    }
+
+    // P59: sleeping in a town bed that isn't yours (not one you placed, not a town you own) costs honour, once a night
+    // per bed; taking the bed is already an offence (property, broke()).
+    static var sleptBeds: [IVec3: Int] = [:]
+    static let bedHonour: Float = -3
+    static func sleptIn(_ g: Game, _ p: IVec3) {
+        let halves = [p, p + IVec3(1, 0, 0), p - IVec3(1, 0, 0), p + IVec3(0, 0, 1), p - IVec3(0, 0, 1)]
+        guard g.survival, !halves.contains(where: { placedSet.contains($0) }), isTownOwned(g, p) else { return }
+        guard !TownConquest.owns(Townsfolk.town(g, at: V3(Float(p.x), Float(p.y), Float(p.z)))) else { return }
+        let night = Int(g.time / DAY_LENGTH)
+        guard sleptBeds[p] != night else { return }
+        sleptBeds[p] = night
+        Honour.change(g, bedHonour, "you slept in someone else's bed")
+    }
+
+    // P63 (Oct 11 evening playtest): gunfire in a town draws people. The sheriff and deputies within 48 blocks, and the
+    // four nearest grown townsfolk within 32, walk over to where the shot came from and look about (law 20 s, others
+    // 12 s). Nobody already fighting, asleep or a child.
+    static var shotsHeard = 0
+    static func gunfire(_ g: Game, at p: V3) {
+        guard g.dim.dim == .overworld, isTownSpot(g, IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))) else { return }
+        var folk: [(Mob, Float)] = []
+        for m in g.mobs.mobs where isTownsperson(m) && !m.lying && !m.baby && m.town.anger <= 0 && m.villager?.role != "child" {
+            let d = simd_length(m.pos - p)
+            guard d > 3 else { continue }
+            if isLaw(m) {
+                if d < 48 { if m.town.investigate == nil { shotsHeard += 1 }; m.town.investigate = p; m.town.investigateT = 20 }
+            } else if d < 32 { folk.append((m, d)) }
+        }
+        for (m, _) in folk.sorted(by: { $0.1 < $1.1 }).prefix(4) {
+            if m.town.investigate == nil { shotsHeard += 1 }
+            m.town.investigate = p; m.town.investigateT = 12
+        }
     }
 
     // Game.breakBlock (the player broke b at p).
@@ -321,6 +356,13 @@ enum TownLaw {
 
     // MARK: Every frame (from HudExtras.tick); real work once a second.
 
+    // G14: the first emerald you carry in survival says what it is for (the exchange was undiscoverable).
+    static func emeraldTip(_ g: Game) {
+        guard g.survival, state.emeraldTip != true, Items.has("emerald"), g.inventory.main.countOf(Items.id("emerald")) > 0 else { return }
+        state.emeraldTip = true
+        g.onToast?("Emeralds: a town bank buys them at \(Money.format(Bank.sellEmerald)) each (the sign says BANK)")
+    }
+
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
         // Sheriffs draw after their challenge.
@@ -335,6 +377,7 @@ enum TownLaw {
         let dt = Float(lastTick < 0 ? 1 : min(5, g.clock - lastTick))
         lastTick = g.clock
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
+        emeraldTip(g)
         // Heat cools; hostility runs out.
         let cool = Honour.coolRate(Honour.value)
         for (t, h) in state.heat where !isHostile(t) {

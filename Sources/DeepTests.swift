@@ -254,6 +254,8 @@ enum DeepTests {
     static func depthZone(_ game: Game, _ check: (Bool, String) -> Void) {
         let gen = WorldGen(seed: 12345)
         var bedrock = 0, openBottom = 0, ember = 0, deepRock = 0, lava = 0, leaky = 0, emberHigh = 0
+        var hellLow = 0, rockLow = 0, hellMid = 0
+        let hellRock: Set<BlockID> = [Blocks.id("blackstone"), Blocks.id("basalt"), Blocks.id("magma_block")]
         for cx in 0..<6 { for cz in 0..<6 {
             let b = gen.generate(cx: cx * 7 - 20, cz: cz * 5 - 12)
             for i in 0..<(CSQ * 5) where b[i] == BEDROCK { bedrock += 1 }
@@ -262,9 +264,12 @@ enum DeepTests {
                 for y in 3..<(YOFF - 24) {
                     let i = Chunk.index(lx, y, lz), v = b[i]
                     if v == EMBERSLATE { ember += 1 } else if v == DEEPSLATE { deepRock += 1 }
+                    if y < 9 && Blocks.opaque[Int(v)] { rockLow += 1; if hellRock.contains(v) { hellLow += 1 } }
+                    if y >= YOFF - 40 && v != Blocks.id("magma_block") && hellRock.contains(v) { hellMid += 1 }
                     if v == LAVA && y > YOFF - 55 {
                         lava += 1
-                        for o in [1, -1, CS, -CS, CSQ, -CSQ] where !(Blocks.opaque[Int(b[i + o])] || b[i + o] == LAVA) { leaky += 1 }
+                        let open = [1, -1, CS, -CS, CSQ, -CSQ].filter { !(Blocks.opaque[Int(b[i + $0])] || b[i + $0] == LAVA) }
+                        if open != [CSQ] || y < YOFF - 50 || y > YOFF - 8 { leaky += open.count }   // (P39: a cupped pool on a cave floor is open on top only)
                     }
                 }
                 for y in (YOFF - 8)..<YOFF where b[Chunk.index(lx, y, lz)] == EMBERSLATE { emberHigh += 1 }
@@ -274,6 +279,8 @@ enum DeepTests {
         check(openBottom == 0, "deep: the bottom 3 layers are solid (\(openBottom) open)")
         check(ember > deepRock, "deep: emberslate outnumbers deeprock below y -24 (\(ember) vs \(deepRock))")
         check(emberHigh == 0, "deep: no emberslate above y -8 (\(emberHigh))")
+        let lowShare = Float(hellLow) / Float(max(1, rockLow))
+        check(lowShare > 0.12 && lowShare < 0.45 && hellMid == 0, String(format: "deep G17: hell's rock (blackstone, basalt, magma) is %.0f%% of the rock at y -61..-56, none of it above -40 (%d)", lowShare * 100, hellMid))
         check(lava > 200 && leaky == 0, "deep: sealed lava pockets above the lava sea (\(lava) lava, \(leaky) open faces)")
         // Tougher monsters deep down.
         let p0 = MobManager.depthPower(.overworld, Float(YOFF + 10)), p1 = MobManager.depthPower(.overworld, Float(YOFF - 60))

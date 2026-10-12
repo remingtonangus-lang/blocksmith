@@ -13,6 +13,15 @@ enum WorldRules {
     static let capitalMinSpawn: Float = 1200
     static let capitalKeep: Float = 0.5        // G12 (Oct 11 playtest "capitals are far too common"); 0.7 before
     static let capitalKeepBeforeG12: Float = 0.7
+    // P44 (Oct 11 evening): Capital cities and citadels about one per 4,000 x 4,000 blocks (a mansion's rarity), "the
+    // world should look normal almost everywhere". Regions are 896 (cities) and 640 (citadels) blocks square, 20 and 39
+    // of them to 4,000 x 4,000; about half of the kept regions find fit ground, so 1 in 10 and 1 in 20 keep. Ground saved
+    // before P44 keeps the G12 shares (savedBeforeP44), so nothing explored loses half a structure.
+    static let capitalKeepP44: Float = 0.1
+    // The host checks (questcheck, --questbugs) keep the G12 shares so their fixture seeds still hold the cities and
+    // citadels they test; the P44 check measures the real shares.
+    static var p44 = true
+    static let citadelKeepP44: Float = 0.05
     static let capitalMinApart: Float = 1200   // L3: no two Capital cities closer (checked over 50 seeds, --worldgencheck)
     static let citadelMinSpawn: Float = 640    // G12: "one sat at the player's spawn with a crawler" (320 before)
     static let citadelMinSpawnBeforeG12: Float = 320
@@ -62,6 +71,14 @@ enum WorldRules {
     static func capitalLegacy(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Bool {
         savedBeforeG12(gen, rx * 56 + 18, rz * 56 + 18, reach: capitalLegacyReach)
     }
+    static func capitalLegacyP44(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> Bool {
+        savedBeforeP44(gen, rx * 56 + 18, rz * 56 + 18, reach: capitalLegacyReach)
+    }
+    // Ground near (cx, cz) saved before P44 (the rarer cities and citadels).
+    static func savedBeforeP44(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
+        guard let sc = gen.structures else { return false }
+        return !sc.clear(cx: cx, cz: cz, reach: reach, guardSet: sc.legacyP44)
+    }
 
     // May a Capital city stand with its centre at chunk (cx, cz)?
     static func capitalAllowed(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Bool {
@@ -69,7 +86,7 @@ enum WorldRules {
         let c = spawnCentre(gen)
         if simd_length(V2(Float(cx * CS), Float(cz * CS)) - c) < capitalMinSpawn + margin { return false }
         let rx = floorDiv(cx, 56), rz = floorDiv(cz, 56)
-        let keep = capitalLegacy(gen, rx, rz) ? capitalKeepBeforeG12 : capitalKeep
+        let keep = capitalLegacy(gen, rx, rz) ? capitalKeepBeforeG12 : (!p44 || capitalLegacyP44(gen, rx, rz) ? capitalKeep : capitalKeepP44)
         return hashf(rx, 7351, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xCA91) < keep
     }
 
@@ -98,7 +115,8 @@ enum WorldRules {
         let d = simd_length(V2(Float(cx * CS + 8), Float(cz * CS + 8)) - spawnCentre(gen))   // the anchor sits up to ~60 off the centre chunk
         if savedBeforeG12(gen, cx, cz, reach: citadelLegacyReach) { return d >= citadelMinSpawnBeforeG12 + 2 * margin }
         let rx = floorDiv(cx, 40), rz = floorDiv(cz, 40)
-        return d >= citadelMinSpawn + 2 * margin && hashf(rx, 7361, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC17A) < citadelKeep
+        let keep = !p44 || savedBeforeP44(gen, cx, cz, reach: citadelLegacyReach) ? citadelKeep : citadelKeepP44
+        return d >= citadelMinSpawn + 2 * margin && hashf(rx, 7361, rz, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC17A) < keep
     }
 
     // G12: no two citadels within `citadelMinApart`, by region priority as capitalApart does (a citadel gives way to a

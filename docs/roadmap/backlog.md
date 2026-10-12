@@ -102,6 +102,8 @@ G16. [mobs] The Powderwight is too hard to kill before it detonates, even with a
 G17. [hell] Entering hell from above ends at a lava-pool cut-off; make the transition from the deep rock into hell gradual and readable. Hell mobs must be hell's own types everywhere (check B6 covers all spawns).
 G18. [looks] Plain grass looks barren: add more ground cover (tall grass tufts, short grass that rises slightly off the block, variety) within the Quest frame budget.
 G19. [new, Lane B] Difficulty levels: easy, medium, hard chosen when creating a world and locked afterwards; they change enemy speed, damage, health, hunger and spawn density. Document the table.
+G20. [IP, from P19] Replace the remaining close copies of reference features with original designs (docs/status/ip-content-audit-oct11.md: the Hollow + Hollow Spire + Void Dragon, Cinder Fortress / Boarling Keep, Sea Temple, Forest Manor, Proving Halls). The murk depths, Buried Citadel and Deep Stalker summons are already out (P19).
+G21. [done, PR #50: VRScope.swift, a 4x zoomed eye view with a lens mask and the impact reticle; check vrScope] [guns, from P32] The Farsight rifle has no VR scope: raising it to the eye should show a magnified scope view (a render-to-texture lens on the scope, or a zoomed overlay on the eye nearest it), with the reticle matched to where the round lands.
 
 ## LANE A (cloud thread A): factions, bases, navy, vehicles
 
@@ -258,6 +260,12 @@ T3. Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f1
     c. tours: ridecheck 3 FAILED (crew leave their posts / the disabled deck; bay troops inside a solid on the ramp,
        24.3,10.1,71.3 ship space), rulescheck "water heads for the drop 3 east and not west" (both ways), questbugs
        "VR trigger spam: zombie not dead in 6 s" and "aliased chunk blocks load as wardstone".
+    d. Quest host questcheck reds that come and go on claude/quest-port itself (Lane A, PR #50 full runs 50-52,
+       2026-10-12): `ash vault perf` (citadel Total War, Game.tick avg 12-14 ms against the 10 ms debug budget),
+       `maingun: the impact itself is cheap` (fx 15 ms of 17 on the frame thread), `lastwar: the last wave's units cost`
+       (whole tick 22 ms against 8.6 without them, under load), `deep: sealed lava pockets above the
+       lava sea`, `boreal 12345 ... birdCall`, `boreal ops: a roused soldier leaves the shut archive` (passes alone).
+       Load-dependent on a 4-core runner; each needs its own fix (the fx cost first), not a looser budget.
 T4. Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
     `questcheck --basetest-only patrol`). G12 moved seed 12345's nearest citadel to -456,920. A gunshot 40 blocks south of
     its gate: PathFinder.find (8,000 nodes) walks gate -> spot, but the patrol leader stops 36 blocks short ("no way on")

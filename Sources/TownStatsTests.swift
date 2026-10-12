@@ -70,7 +70,8 @@ extension TownTests {
         g.mobs.mobs = [target]
         let sb = blow(smith), fb = blow(farmer)
         let dep = person("deputy", 30), db = blow(dep)
-        check(sb.0 > fb.0 && db.1 < sb.1, "variety: a blacksmith's hammer hits for \(sb.0), a farmer's pitchfork \(fb.0); the deputy swings every \(String(format: "%.2f", db.1)) s, the smith every \(String(format: "%.2f", sb.1)) s")
+        // (P64: deputies carry six-irons now, so their pace is the gun's, not a sword's.)
+        check(sb.0 > fb.0 && dep.townWeapon == .revolver, "variety: a blacksmith's hammer hits for \(sb.0), a farmer's pitchfork \(fb.0); the deputy draws a six-iron (every \(String(format: "%.2f", db.1)) s)")
         // Walking pace in real frames.
         let quick = person("deputy", 40), slow = person("elder", 41)
         if var v = slow.villager { v.role = "elder"; slow.villager = v }

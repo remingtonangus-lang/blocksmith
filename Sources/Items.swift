@@ -296,6 +296,9 @@ final class ItemRegistry {
         food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])
         food("golden_apple", "Golden Apple", "apple_shape", 0xF2D23A, 4, 9.6, ["a": 0x5A3D1F])
         food("bread", "Bread", "bread", 0xC08A3E, 5, 6)
+        // The Capital's own food (Oct 11 playtest P34): a sealed field ration, more filling than a steak; found in citadel
+        // stores and command chests.
+        food("capital_ration", "Field Ration", "ration", 0xB8C4CC, 10, 16, ["a": 0x8A949C, "c": 0x2E5FA8], stack: 16)
         food("beef", "Raw Beef", "steak", 0xD43B3B, 3, 1.8, ["c": 0xF0E0D0])
         food("cooked_beef", "Steak", "steak", 0x7A4A2A, 8, 12.8, ["c": 0xF0E0D0])
         food("porkchop", "Raw Porkchop", "chop", 0xF08C8C, 3, 1.8, ["c": 0xF8D8D0])

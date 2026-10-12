@@ -18,6 +18,7 @@ extension BaseRecord {
 extension Game {
     // A launch: called by the citadel when it sends its Kestrel up (no-op while one is up).
     func baseCallAir(_ r: inout BaseRecord, _ b: BaseWatch, to goal: V3) {
+        guard r.cleared != true else { return }                               // nobody left to fly it (P23)
         guard r.air == nil else {
             if (r.airPhase ?? 0) <= 3 { r.air = [goal.x, goal.y, goal.z] }       // a newer noise redirects it
             return

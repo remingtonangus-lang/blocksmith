@@ -1803,6 +1803,8 @@ if let out = arg("--atlas") {
 }
 
 if let out = arg("--snapshot") {
+    WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep their cities and citadels
+    MobVary.on = false                                          // checks count exact blows (P55 turns it on itself)
     HudExtras.enabled = CommandLine.arguments.contains("--hints")
     let code = Snapshot.run(out)
     PrefsSandbox.end()

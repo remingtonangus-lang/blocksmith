@@ -292,6 +292,7 @@ enum QuestBugTests {
         PlaytestV78Tests.run(game, check)
         PlaytestPM9BTests.run(game, check)
         AuditGapTests.run(game, check)
+        PlaytestOct11Tests.run(game, check)
         print("questbugs: \(fails) failures")
         return fails
     }
@@ -498,7 +499,7 @@ enum QuestBugTests {
             game.inventory.main.slots = Array(repeating: .empty, count: 36)
             game.selected = 0
             game.inventory.held = big
-            for i in 1...3 { game.inventory.main[i] = ItemStack(Items.id("rifle_rounds"), 64) }
+            for i in 1...3 { game.inventory.main[i] = ItemStack(Items.id(Guns.all[gi].ammo), 64) }
             game.arms.reload = 0; game.arms.cooldown = 0; game.arms.heldGun = gi; game.arms.heldSlot = 0
             let pad = PadSnapshot()
             let started = game.startReload(gi)

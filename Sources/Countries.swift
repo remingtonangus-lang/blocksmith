@@ -213,6 +213,7 @@ enum Countries {
         var tributeDay: [String: Int] = [:]
         var warDay: Int? = nil
         var seed: UInt64? = nil
+        var learned: [String]? = nil             // countries whose riches a townsperson told you (P50)
     }
     static var state = Saved()
 
@@ -253,6 +254,19 @@ enum Countries {
             if let i = state.allies.firstIndex(of: c.key) { state.allies.remove(at: i) }
             g.onToast?("\(c.name) counts you its enemy\(why.map { ": " + $0 } ?? "")")
         }
+    }
+    // P50 (Oct 11 evening): what a country is rich in is earned knowledge: a townsperson tells a respected player
+    // (honour 20+) on a greeting, once per country; your annexed countries you know. Until then the map and the
+    // border toast give only the name.
+    static func knows(_ c: Country) -> Bool { isAnnexed(c) || (state.learned ?? []).contains(c.key) }
+    static func tellRiches(_ g: Game, _ m: Mob, town: String) -> Bool {
+        guard g.survival, Honour.value >= Honour.respected, !m.baby else { return false }
+        let c = of(g, town: town, near: m.pos)
+        guard !knows(c), !c.rich.isEmpty else { return false }
+        state.learned = (state.learned ?? []) + [c.key]
+        Townsfolk.say(g, m, "You've done right by folks, so here's something: \(c.name)'s hills are rich in \(c.richText).")
+        g.onToast?("Learned: \(c.name) is rich in \(c.richText) (on your map)")
+        return true
     }
     static func isAlly(_ c: Country) -> Bool { state.allies.contains(c.key) }
     static func isAnnexed(_ c: Country) -> Bool { state.annexed.contains(c.key) }
@@ -452,7 +466,7 @@ enum Countries {
             owed = 0; owedTo = nil
             return
         }
-        var t = "Entering \(c.name): rich in \(c.richText)"
+        var t = knows(c) ? "Entering \(c.name): rich in \(c.richText)" : "Entering \(c.name)"
         if isAnnexed(c) { t = "Entering \(c.name), your country" }
         else if isEnemy(c) { t += ". You are its enemy." }
         else if isAlly(c) { t += ". Your ally." }
@@ -621,6 +635,17 @@ enum Countries {
         let ca = dyes[a.flag.0].0, cb = dyes[a.flag.1].0, da = dyes[b.flag.0].0, db = dyes[b.flag.1].0
         w.setBlock(px, gy + 6, pz - 1, id(ca + "_wool", fill)); w.setBlock(px, gy + 5, pz - 1, id(cb + "_wool", fill))
         w.setBlock(px, gy + 6, pz + 1, id(da + "_wool", fill)); w.setBlock(px, gy + 5, pz + 1, id(db + "_wool", fill))
+        // Signs at both ends of the booth saying what it is (Oct 11 playtest P21: a bare booth and two flags read as
+        // "what the hell is this thing?"): one per direction, each naming the country you are entering.
+        if Blocks.has("spruce_sign") {
+            let sign = Blocks.id("spruce_sign")
+            for (z, facing, into, from) in [(z0, BlockID(0), b, a), (z0 + 4, BlockID(1), a, b)] {
+                w.setBlock(x0 + 2, gy + 1, z, sign + facing)
+                let be = BlockEntity(.sign)
+                be.lines = ["BORDER POST", "Entering \(into.name)", "from \(from.name)", "Customs: pay here"]
+                w.blockEntities[IVec3(x0 + 2, gy + 1, z)] = be
+            }
+        }
     }
 
     // MARK: Wars (once a day, around you)
@@ -736,7 +761,7 @@ enum Countries {
         for gz in gz0...gz1 { for gx in gx0...gx1 {
             let c = country(gx, gz, seed: g.world.seed)
             guard let p = MapDraw.project(Float(c.seatX), Float(c.seatZ), x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc) else { continue }
-            var name = c.name + ": " + c.rich.map { $0.name }.joined(separator: ", ")
+            var name = knows(c) ? c.name + ": " + c.rich.map { $0.name }.joined(separator: ", ") : c.name
             if isAnnexed(c) { name = c.name + " (yours)" }
             let w = Float(Font.width(name)) * s
             let yours = isAnnexed(c)            // your flag: gold over black

@@ -187,6 +187,7 @@ enum Honour {
     static func mobDied(_ g: Game, _ m: Mob) {
         TownBoard.mobDied(g, m)                                          // (any death: an outlaw drowned ends his job too)
         guard m.killedByPlayer, g.survival, g.dim.dim == .overworld else { return }
+        if Riders.isRider(m) { Riders.killed(g, m); return }             // P51: murder on the road
         if m.posse != 0 { return }                                       // hunters, an outlaw and his gang: no honour
         if m.kind == .villager, m.villager?.person != nil {
             // Only a killing the player did (hurt within 10 s: killedByPlayer is never cleared, so a punch long ago
@@ -319,6 +320,8 @@ extension Honour {
                 return true
             }
         }
+        // P50: what the country's hills are rich in is told to the respected, not shown up front.
+        if Countries.tellRiches(g, m, town: town) { return true }
         // The respected: a tip about something worth finding nearby.
         if Rand.float(in: 0..<1) < tipChance, let t = tip(g, from: m.pos) {
             Townsfolk.say(g, m, "Good to see you, \(name). " + t)

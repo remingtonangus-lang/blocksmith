@@ -102,6 +102,9 @@ final class CapitalState {
     var launchDir = V3(1, 0, 0)
     var phaseT: Float = 0
     var troopsLeft = 0
+    var fuel: Float = CapitalState.dropFuel            // a commandeered drop craft: seconds of thrust left (P66)
+    static let dropFuel: Float = 240
+    var fuelTold = 0
 }
 
 // Who stands at a capital vehicle's crew post. The vehicle is a machine: it drives while its driver lives and the
@@ -520,6 +523,11 @@ enum Capital {
         hb.fill(-1, 1, 1, 2, 1, 3, hull)                         // nose
         hb.fill(-1, 1, 3, 4, 1, 3, glass)                        // cockpit glazing
         hb.set(0, 3, 0, glass)
+        // P66 (Oct 11 evening playtest: "the pilot can hardly see"): the bulkhead between the helm and the glazing was
+        // solid hull at eye height. Open it into a cockpit, with side windows beside the helm.
+        hb.fill(-1, 1, 2, 3, 3, 5, AIR)
+        hb.fill(-1, 1, 3, 4, 2, 3, glass)
+        for sx in [-2, 2] { hb.set(sx, 3, 4, glass); hb.set(sx, 3, 5, glass); hb.set(sx, 3, 6, glass) }
         for sx in [-1, 1] {
             hb.fill(min(sx * 3, sx * 4), max(sx * 3, sx * 4), 3, 3, 9, 13, panel)     // stub wings
             hb.fill(sx * 5, sx * 5, 2, 3, 8, 14, hull)           // engine pods
@@ -1073,6 +1081,7 @@ extension ShipManager {
         let speed: Float = drop ? 24 : (meridian ? 42 : 16)
         var want = V3(fh.x, 0, fh.y) * (steered ? s.throttle * speed : 0)
         want.y = steered ? s.climb * (drop ? 8 : (meridian ? 10 : 5)) : 0
+        if drop && steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
         // Never into the ground: the keel keeps 2 blocks over the top block under the hull's centre.
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
         let top = Float(world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height)
@@ -1087,6 +1096,32 @@ extension ShipManager {
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
         for t in turrets(of: s) { t.aimAt = nil }
+    }
+
+    // P66: a commandeered drop craft burns fuel while it thrusts (four minutes on full tanks). Running dry, it takes
+    // coal, charcoal or blaze rods from the pilot's pack (a lump is 40 s, a rod 80 s); with none, it sinks gently
+    // to the ground. Returns false when there is no fuel.
+    static let fuelItems: [(String, Float)] = [("blaze_rod", 80), ("coal", 40), ("charcoal", 40), ("coal_block", 360)]
+    func dropFuel(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) -> Bool {
+        if abs(s.throttle) > 0.05 || abs(s.climb) > 0.05 { st.fuel -= dt }
+        if st.fuel <= 0 {
+            for (k, secs) in ShipManager.fuelItems where Items.has(k) {
+                let id = Items.id(k)
+                if g.inventory.main.remove(id, 1) == 1 {
+                    st.fuel += secs
+                    g.onToast?("Refuelled the \(s.name) with \(Items.def(id).display)")
+                    break
+                }
+            }
+        }
+        if st.fuel > 30 { st.fuelTold = 0 }
+        if st.fuel <= 30 && st.fuel > 0 && st.fuelTold == 0 { st.fuelTold = 1; g.onToast?("\(s.name): fuel low. Carry coal or blaze rods") }
+        if st.fuel <= 0 {
+            st.fuel = 0
+            if st.fuelTold < 2 { st.fuelTold = 2; g.onToast?("\(s.name): out of fuel. It settles to the ground") }
+            return false
+        }
+        return true
     }
 
     // The drive's glow (done audit 25b6, G8: "thrusters read as two small points at night"): a soft blue-white sprite
@@ -1250,7 +1285,8 @@ extension ShipManager {
         g.sfx(want ? .pistonContract : .pistonExtend, 1.2, at: s.toWorld(V3(Float(ox) + 0.5, 9, 78)))
     }
 
-    // Trees, plants, fences, glass and timber under the crawler's front give way (no drops).
+    // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
+    // masonry (P65).
     private func crush(_ s: Ship, _ st: CapitalState, _ dt: Float) {
         st.crushTimer -= dt
         guard st.crushTimer <= 0 else { return }
@@ -1285,7 +1321,10 @@ extension ShipManager {
                     let soft: Bool = key.hasSuffix("_leaves") || key.hasSuffix("_log") || key.hasSuffix("_planks") || key.hasSuffix("_fence")
                         || key.contains("glass") || key.hasSuffix("_wood") || key.contains("mushroom_block") || key == "cactus"
                         || key == "bamboo" || (!Blocks.collide[Int(b)] && hardness[Int(b)] >= 0)
-                    if !soft { continue }
+                    // P65: driving on, it breaks through buildings (walls, brick, stone work) instead of passing
+                    // through them; natural ground and unbreakable blocks stay.
+                    let built = !full && !ShipParts.natural[Int(b)] && hardness[Int(b)] >= 0
+                    if !soft && !built { continue }
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }
@@ -1551,6 +1590,20 @@ extension ShipManager {
         // Over loaded ground, the real top block (tree crowns too: hovering at terrain height put it in the canopy).
         let top: Int = world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height
         let ground = Float(max(top, SEA))
+        // P65 (Oct 11 evening playtest: dropships flew through Capital towers): in flight it clears the highest block
+        // under its whole hull and a hull length ahead, not just the column at its centre.
+        var clear = ground
+        if st.phase == 1 || st.phase >= 4 {
+            let lo = s.localMin, hi = s.localMax
+            let ahead = V3(s.vel.x, 0, s.vel.z) * 1.5
+            for c in [V3(lo.x, 0, lo.z), V3(hi.x, 0, lo.z), V3(lo.x, 0, hi.z), V3(hi.x, 0, hi.z), (lo + hi) * 0.5] {
+                for a in [V3(0, 0, 0), ahead] {
+                    let w = s.toWorld(c) + a
+                    let x = Int(floor(w.x)), z = Int(floor(w.z))
+                    if world.isLoaded(x, z) { clear = max(clear, Float(world.topY(x, z))) }
+                }
+            }
+        }
         let keelY = s.pos.y - keel
         if !s.wrecked && s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6 {
             s.wrecked = true
@@ -1586,7 +1639,7 @@ extension ShipManager {
             if st.phaseT > 3 { st.phase = 1; st.phaseT = 0 }
         case 1:
             let dir = toDrop / max(1, dd)
-            let cruise = ground + 22 + keel
+            let cruise = max(ground + 22, clear + 6) + keel
             want = V3(dir.x, 0, dir.y) * min(24, max(6, dd * 0.6)) + V3(0, max(-6, min(6, (cruise - s.pos.y) * 0.8)), 0)
             if dd < 10 || st.phaseT > 60 { st.phase = 2; st.phaseT = 0 }
         case 2:
@@ -1619,7 +1672,7 @@ extension ShipManager {
             let d = max(1, simd_length(to))
             let tangent = V2(-to.y, to.x) / d
             let h = simd_normalize(tangent + to / d * ((d - 30) / 20))
-            want = V3(h.x, 0, h.y) * 10 + V3(0, max(-4, min(4, (ground + 16 + keel - s.pos.y) * 0.6)), 0)
+            want = V3(h.x, 0, h.y) * 10 + V3(0, max(-4, min(4, (max(ground + 16, clear + 6) + keel - s.pos.y) * 0.6)), 0)
             if st.phaseT > 45 { st.phase = 5; st.phaseT = 0 }
         default:
             let away = simd_normalize(here - V2(g.player.pos.x, g.player.pos.z) + V2(1e-3, 0))

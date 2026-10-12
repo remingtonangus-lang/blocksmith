@@ -22,10 +22,11 @@ struct StructWriter {
     var entities: [(IVec3, BlockEntity)] = []
     var mobs: [(String, V3)] = []
     // Lowest solid block written per column of this chunk (for filling under a structure: StructureCache.place).
-    final class Low { var y = [Int](repeating: Int.max, count: CS * CS) }
+    // `off`: pieces built without the fill (the town row beside a citadel builds its own foundations, GarrisonTown).
+    final class Low { var y = [Int](repeating: Int.max, count: CS * CS); var off = false }
     let low = Low()
     @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if Blocks.collide[Int(b)] { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
+        if Blocks.collide[Int(b)] && !low.off { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
     }
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -167,6 +168,8 @@ final class StructureCache {
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
+    // Drawn into each chunk after its structures (the overworld's roads: Roads.swift).
+    var after: ((inout StructWriter, Int, Int) -> Void)?
     // Chunks a saved world had already generated before structures were added or moved (task 23: Capital cities,
     // denser citadels). New placements must keep clear of them, or they would appear cut off at the edge of explored
     // ground. Set once by World.init from SaveManager.structureGuard() before any chunk is generated.
@@ -191,6 +194,7 @@ final class StructureCache {
     // And when G12 made citadels and Capital cities rarer, kept citadels apart and gave each city its own size and
     // mix (2026-10-11, WorldRules.savedBeforeG12): ground saved before that keeps its citadels and cities as they were.
     var legacyG12: Set<Int64> = []
+    var legacyP44: Set<Int64> = []                // WorldRules.savedBeforeP44
     @inline(__always) static func key(_ cx: Int, _ cz: Int) -> Int64 { Int64(cx) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: cz))) }
     // True when no chunk within `reach` chunks of (cx, cz) was generated before the guard was taken.
     func clear(cx: Int, cz: Int, reach r: Int) -> Bool { clear(cx: cx, cz: cz, reach: r, guardSet: legacy) }
@@ -268,6 +272,7 @@ final class StructureCache {
             for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
                 for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
             }
+            after?(&w, cx, cz)
             ents = w.entities
             mobs = w.mobs
         }
@@ -355,6 +360,12 @@ enum Loot {
         "shipwreck_map": (1...3, [("paper", 1, 10, 20), ("feather", 1, 5, 10), ("book", 1, 5, 5), ("clock", 1, 1, 1), ("compass", 1, 1, 1),
                                   ("map", 1, 1, 1)]),
         "buried_treasure": (1...1, [("heart_of_the_sea", 1, 1, 1)]),
+        "sheriff_locker": (3...6, [("rifle_rounds", 4, 12, 10), ("shotgun_shells", 2, 6, 6), ("gold_nugget", 2, 8, 8), ("emerald", 1, 3, 6),
+                                   ("lead", 1, 2, 4), ("paper", 1, 4, 6), ("compass", 1, 1, 2), ("iron_ingot", 1, 3, 4)]),
+        "shop_register": (2...5, [("gold_nugget", 2, 9, 12), ("emerald", 1, 3, 8), ("iron_ingot", 1, 3, 6), ("gold_ingot", 1, 2, 4),
+                                  ("paper", 1, 4, 6), ("bread", 1, 3, 4), ("diamond", 1, 1, 1)]),
+        "shop_register_general": (3...6, [("gold_nugget", 3, 12, 12), ("emerald", 1, 5, 10), ("gold_ingot", 1, 3, 6), ("iron_ingot", 1, 4, 6),
+                                          ("paper", 2, 6, 6), ("compass", 1, 1, 2), ("diamond", 1, 2, 2)]),
         "village_house": (3...8, [("gold_nugget", 1, 3, 1), ("dandelion", 1, 1, 2), ("poppy", 1, 1, 1), ("potato", 1, 7, 10),
                                   ("bread", 1, 4, 10), ("apple", 1, 5, 10), ("book", 1, 1, 1), ("feather", 1, 1, 1), ("emerald", 1, 4, 2),
                                   ("oak_sapling", 1, 2, 5), ("wheat", 1, 7, 5), ("carrot", 1, 5, 5)]),
@@ -409,13 +420,13 @@ enum Loot {
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
         // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
         "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
-                                     ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
+                                     ("capital_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
                                      ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3),
                                      ("firing_mechanism", 1, 2, 7)]),
-        "steelhold_supply": (4...8, [("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
-                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
+        "steelhold_supply": (4...8, [("capital_ration", 2, 6, 14), ("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
+                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("capital_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
                                      ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),
-        "steelhold_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
+        "steelhold_command": (4...7, [("capital_ration", 2, 4, 6), ("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
                                       ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
                                       ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
                                       ("experience_bottle", 3, 8, 6), ("firing_mechanism", 1, 2, 6), ("targeting_optic", 1, 1, 5),

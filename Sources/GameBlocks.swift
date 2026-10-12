@@ -147,7 +147,8 @@ extension Game {
                     warningLevel += 1
                     sfx(.sculkShriek, 1.2, at: V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
                     applyEffect(.darkness, amp: 0, seconds: 12)
-                    if warningLevel >= 4 {
+                    // The 4th shriek no longer calls a deep stalker (the reference's warden; Oct 11 P19, IP rule).
+                    if warningLevel >= 4 && GameBlocks.stalkerCalls {
                         warningLevel = 0
                         if !mobs.mobs.contains(where: { $0.kind == .warden }) {
                             let a = Rand.float(in: 0..<(2 * .pi))
@@ -310,4 +311,9 @@ extension Game {
         default: break
         }
     }
+}
+
+enum GameBlocks {
+    // Murk shriekers calling a deep stalker: off (Oct 11 playtest P19: a copy of the reference's warden, never asked for).
+    static let stalkerCalls = false
 }

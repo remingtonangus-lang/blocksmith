@@ -22,7 +22,8 @@ struct TownStats: Equatable {
         case "elder": return TownStats(toughness: 0.65, speed: 0.7, strength: 0.55, rate: 0.75)
         case "farmer": return TownStats(toughness: 0.85, speed: 0.82, strength: 0.85, rate: 0.8)
         case "deputy": return TownStats(toughness: 1.25, speed: 1.3, strength: 1.1, rate: 1.25)
-        case "sheriff": return TownStats(toughness: 1.5, speed: 1.15, strength: 1.2, rate: 1)
+        // The sheriff takes about seven iron-sword blows (G15: his six-iron must be very hard to take before iron armour).
+        case "sheriff": return TownStats(toughness: 2.2, speed: 1.15, strength: 1.2, rate: 1)
         case "citizen": return TownStats(toughness: 0.95, speed: 1, strength: 0.9, rate: 1)
         case "craftsman":
             return ["armorer", "toolsmith", "weaponsmith", "mason"].contains(v.profession)

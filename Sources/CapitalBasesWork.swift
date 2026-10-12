@@ -53,12 +53,14 @@ extension Game {
 
     func basePatrol(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
         guard var pt = r.patrol else { return }
+        if r.cleared == true { r.patrol = nil; b.patrols[r.key] = nil; return }
         let target = V3(pt.target[0], pt.target[1], pt.target[2])
         pt.t += dt
         var team = b.patrols[r.key]
         if team == nil {
             if pt.phase >= 3 { r.patrol = nil; return }            // reloaded on the way home: they walk home anyway
             team = formPatrol(r, b, size: pt.size)
+            if team!.isEmpty { r.patrol = nil; return }             // nobody left to send
             b.patrols[r.key] = team
             b.note("\(r.key) patrol formed: \(team!.map { $0.kind.key }.joined(separator: " "))")
         }
@@ -176,7 +178,8 @@ extension Game {
         r.patrol = pt
     }
 
-    // An officer and the soldiers nearest the gate; fresh ones march out of the barracks if the garrison is thin.
+    // An officer and the soldiers nearest the gate. Only the garrison goes: no fresh troops march out of the barracks
+    // (they refilled a citadel the player had cleared, Oct 11 playtest P23); a thin garrison sends a thin patrol.
     private func formPatrol(_ r: BaseRecord, _ b: BaseWatch, size: Int) -> [Mob] {
         // Typed: `?? .none` / `== .none` read as Optional.none, so every soldier at StationPose.none failed the test and
         // patrols were always fresh troops from the barracks (compiler warning on the fast lane).
@@ -185,16 +188,6 @@ extension Game {
         var team: [Mob] = []
         if let i = gar.firstIndex(where: { $0.kind == .soldierOfficer }) { team.append(gar.remove(at: i)) }
         while team.count < size, !gar.isEmpty { team.append(gar.removeFirst()) }
-        if !team.contains(where: { $0.kind == .soldierOfficer }) || team.count < 3 {
-            let kinds: [MobKind] = team.contains(where: { $0.kind == .soldierOfficer }) ? [.soldierRecruit, .soldierTrooper] : [.soldierOfficer, .soldierRecruit, .soldierTrooper]
-            for k in kinds where team.count < max(3, min(size, 4)) || k == .soldierOfficer {
-                let m = Mob(k, at: world.freeSpawn(r.gate + V3(0, 0, -6)))
-                m.persistent = true
-                m.home = m.pos
-                mobs.mobs.append(m)
-                if k == .soldierOfficer { team.insert(m, at: 0) } else { team.append(m) }
-            }
-        }
         // The officer leads.
         if let i = team.firstIndex(where: { $0.kind == .soldierOfficer }), i != 0 { team.swapAt(0, i) }
         for m in team {
@@ -240,7 +233,9 @@ extension Game {
         }
         // Two pilots do the work; each sets about a block a second (time away from the citadel is caught up at once).
         var crew = (b.workers[r.key] ?? []).filter { $0.health > 0 }
-        while crew.count < 2 && !q.isEmpty {
+        // A cleared citadel stays a ruin: no new crew comes to rebuild it (P23).
+        if r.cleared == true && crew.isEmpty { dismissWorkers(r, b); return }
+        while crew.count < 2 && !q.isEmpty && r.cleared != true {
             let m = Mob(.soldierCrew, at: world.freeSpawn(r.gate + V3(Float(crew.count) * 1.5, 0, -4)))
             m.persistent = true
             m.variant = Guns.pistol

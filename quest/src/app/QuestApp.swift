@@ -420,7 +420,9 @@ final class FrameStats {
             let gen = g.world.perf.genChunks, saves = g.saveCount
             let newWorld = lastWorld !== g.world
             let genRate = newWorld || lastGen < 0 ? 0 : Double(gen - lastGen) / max(0.001, now - since)
-            let excused = busyFrames > 0 || newWorld || (lastSaves >= 0 && saves != lastSaves)
+            // A menu glance doesn't excuse the window (Oct 11 P15: map and pause menus every few seconds kept 22 fps at
+            // distance 22 from ever counting); a window mostly in menus does.
+            let excused = busyFrames * 2 > frames || newWorld || (lastSaves >= 0 && saves != lastSaves)
             lastGen = gen; lastSaves = saves; lastWorld = g.world
             if QuestSettings.autoRenderDistance, var gov = g.rdGovernor, target > 0 {
                 let w = RenderDistanceGovernor.Window(seconds: now - since, frames: frames, missed: missed, cpuMs: sumCPU / n,

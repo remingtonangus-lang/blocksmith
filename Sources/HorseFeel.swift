@@ -44,8 +44,14 @@ final class HorseState {
 
 enum HorseFeel {
     static let kinds: Set<MobKind> = [.horse, .donkey, .mule, .skeletonHorse, .zombieHorse]
-    static let levelXP: [Float] = [0, 100, 300, 700]
-    static let staminaMax: [Float] = [100, 115, 130, 150]
+    // Bond paced like the reference westerns (Oct 11 playtest P26, "the bonding level is too rapid"; level 4 came in a
+    // few minutes): about 13 min of riding to level 2, 40 to level 3, 90 to level 4, care adding a little on top.
+    static let levelXP: [Float] = [0, 200, 600, 1400]
+    static let ridePerPoint: Float = 40                            // blocks ridden per bond point (was 12)
+    static let patBond: Float = 2, patCool: Float = 60             // (was 4 every 15 s)
+    static let brushBond: Float = 10, brushCool: Float = 300       // (was 15 every 120 s)
+    static let treatBond: Float = 2, treatCool: Float = 60         // (was 3 every 10 s)
+    static let staminaMax: [Float] = [150, 170, 195, 225]          // P49 (Oct 11 evening): half as long again (100-150)
     static let drain: [Float] = [1, 0.9, 0.8, 0.7]
     static let regen: [Float] = [1, 1.15, 1.3, 1.5]
     static let throwChance: [Float] = [0.45, 0.2, 0.05, 0]
@@ -163,7 +169,7 @@ extension Mob {
         if h.monsterScan <= 0 {
             h.monsterScan = 0.5
             // (and predators within 6 blocks until bond level 3: HorseLife.predatorNear)
-            if predatorNear(g) { spook(g) }
+            if predatorNear(g) { shy(g) }
         }
         if h.rear > 0 {
             h.rear -= dt
@@ -215,7 +221,7 @@ extension Mob {
         }
         if tamed && bond != 0 {                          // any horse of yours (each keeps its own bond)
             h.rideAccum += simd_length(V2(moved.x, moved.z))
-            if h.rideAccum >= 12 { h.rideAccum -= 12; addBond(1, g) }
+            if h.rideAccum >= HorseFeel.ridePerPoint { h.rideAccum -= HorseFeel.ridePerPoint; addBond(1, g) }
         }
     }
 
@@ -266,6 +272,18 @@ extension Mob {
         g.onToast?(h.rearThrow ? "Your horse rears: \(Prompt.g(.use)) with an empty hand to calm it!" : "Your horse rears!")
     }
 
+    // P49 (Oct 11 evening playtest: "a mob hit makes the horse rear and locks the player", "a creeper killed his horse",
+    // "zombie hits stun the rider too much"): a monster beside the horse makes it shy, not rear in place: a short start
+    // (under half a second, never a throw) at most every 12 s, and none at a gallop, so the rider can always ride clear.
+    func shy(_ g: Game) {
+        let h = hs
+        guard h.spookCool <= 0, h.rear <= 0, h.gait != .gallop else { return }
+        h.spookCool = 12
+        rearUp(g, canThrow: false)
+        h.rear = 0.45
+        g.onToast?("Your horse shies: ride clear")
+    }
+
     func throwRider(_ g: Game) {
         hs.thrown += 1
         g.dismount()
@@ -314,7 +332,7 @@ extension Game {
     func horsePat(_ m: Mob) {
         let h = m.hs
         if h.rear > 0 && h.rearThrow { h.rearThrow = false; m.addBond(6, self); onToast?("You calm your horse") }
-        if h.patCool <= 0 { h.patCool = 15; m.addBond(4, self) }
+        if h.patCool <= 0 { h.patCool = HorseFeel.patCool; m.addBond(HorseFeel.patBond, self) }
         particles.hearts(at: m.pos + V3(0, m.height, 0))
         sfx(.mob(m.kind, .ambient), 0.4, at: m.pos)
     }
@@ -322,8 +340,8 @@ extension Game {
     func horseBrush(_ m: Mob) {
         let h = m.hs
         guard h.brushCool <= 0 else { onToast?("Your horse is already groomed"); return }
-        h.brushCool = 120
-        m.addBond(15, self)
+        h.brushCool = HorseFeel.brushCool
+        m.addBond(HorseFeel.brushBond, self)
         m.health = min(max(m.spec.health, 30), m.health + 2)
         particles.hearts(at: m.pos + V3(0, m.height, 0))
         damageHeld(1)
@@ -338,7 +356,7 @@ extension Game {
         guard hungry else { return false }
         m.stamina += s
         if m.stamina > m.staminaMax * 0.25 { h.spent = false }
-        if h.feedCool <= 0 { h.feedCool = 10; m.addBond(3, self) }
+        if h.feedCool <= 0 { h.feedCool = HorseFeel.treatCool; m.addBond(HorseFeel.treatBond, self) }
         return true
     }
 }

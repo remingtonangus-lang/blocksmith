@@ -133,14 +133,42 @@ extension Game {
     }
 
     // HUD while a radar is held: a small panel above the hotbar, refreshed twice a second.
+    // A citadel's command console (the blocks with the little radar screen, Oct 11 playtest P36: "they should have a use"):
+    // used, it puts the citadel's picture on the radar readout for 30 s: the nearest citadel and city, every Capital
+    // patrol out in the field and how many soldiers still hold the walls. True when the block was a console.
+    func consoleUse(_ p: IVec3) -> Bool {
+        guard Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))]) == "command_console" else { return false }
+        consoleRadarUntil = clock + 30
+        Game.radarCache.time = -1
+        sfx(.click, 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        onToast?("Console: patrols and Capital sites on your radar for 30 s")
+        return true
+    }
+
+    // Console contacts: patrols in the field (leader's position) and the garrison still inside the nearest citadel's walls.
+    func consoleContacts() -> [RadarContact] {
+        var out: [RadarContact] = []
+        for (_, team) in bases.patrols {
+            guard let lead = team.first(where: { $0.health > 0 }) else { continue }
+            let n = team.filter { $0.health > 0 }.count
+            out.append(RadarContact(name: "Patrol of \(n)", kind: "patrol", x: Int(lead.pos.x), z: Int(lead.pos.z)))
+        }
+        if let r = bases.records.values.min(by: { simd_length($0.centre - player.pos) < simd_length($1.centre - player.pos) }) {
+            let n = mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && r.inside($0.pos) }.count
+            out.append(RadarContact(name: r.cleared == true ? "Citadel (cleared)" : "Citadel garrison: \(n)", kind: "garrison", x: r.cx, z: r.cz))
+        }
+        return out
+    }
+
     func radarLines(_ L: HudLayout) -> [HudLine] {
-        guard holdingRadar, menu == nil else { return [] }
+        let console = clock < consoleRadarUntil
+        guard holdingRadar || console, menu == nil else { return [] }
         if clock - Game.radarCache.time > 0.5 || Game.radarCache.world !== world {
-            Game.radarCache = (clock, world, radarContacts())
+            Game.radarCache = (clock, world, radarContacts() + (console ? consoleContacts() : []))
         }
         let s = L.s
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }
-        let head = postGame ? "Radar" : "Radar (fleets sail after the end game)"
+        let head = console ? "Citadel console" : (postGame ? "Radar" : "Radar (fleets sail after the end game)")
         let w = Float(([head] + rows).map { Font.width($0) }.max() ?? 40) * s + 8 * s
         let x = floor(L.W / 2 - w / 2), y = L.hotbarY0 - Float(rows.count + 1) * 10 * s - 30 * s
         var out = [HudLine(text: "", x: x, y: y - 3 * s, scale: s, bg: V4(0.02, 0.08, 0.04, 0.6), box: V2(w, Float(rows.count + 1) * 10 * s + 5 * s))]

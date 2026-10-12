@@ -456,6 +456,7 @@ extension Game {
             return
         }
         sleeping = 0.001
+        TownLaw.sleptIn(self, p)
     }
 
     // Placing a bed: foot where clicked, head one block further in the look direction.

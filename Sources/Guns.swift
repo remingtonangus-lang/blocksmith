@@ -32,14 +32,16 @@ struct GunSpec {
 
 enum Guns {
     static let all: [GunSpec] = [
-        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "rifle_rounds", mag: 45, interval: 0.12, auto: true, damage: 5, pellets: 1,
+        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "capital_rounds", mag: 45, interval: 0.12, auto: true, damage: 5, pellets: 1,
                 spread: 0.022, aimSpread: 0.005, speed: 160, recoil: 0.013, reload: 2.0, range: 110, durability: 1200, zoom: 0.78,
                 shot: .bullet, sound: 0, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "rifle_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
+        GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "capital_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
                 spread: 0.045, aimSpread: 0.026, speed: 130, recoil: 0.009, reload: 1.6, range: 70, durability: 1500, zoom: 0.9,
                 shot: .bullet, sound: 1, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 3, pellets: 9,
-                spread: 0.09, aimSpread: 0.07, speed: 110, recoil: 0.07, reload: 2.6, range: 40, durability: 500, zoom: 0.9,
+        // Hits as hard as it looks (Oct 11 playtest P30: "way too powerful [looking] for what it actually is"): 4 a pellet
+        // (was 3) in a tighter pattern (most pellets missed past a few blocks).
+        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 4, pellets: 9,
+                spread: 0.065, aimSpread: 0.045, speed: 110, recoil: 0.07, reload: 2.6, range: 45, durability: 500, zoom: 0.9,
                 shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 8, interval: 1.3, auto: false, damage: 24, pellets: 1,
                 spread: 0.06, aimSpread: 0.0006, speed: 320, recoil: 0.09, reload: 2.8, range: 260, durability: 400, zoom: 0.22,
@@ -51,7 +53,7 @@ enum Guns {
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
-        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
+        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "capital_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
         // The six-iron: the six-shot frontier revolver every town sheriff carries (SixIron.swift); a killed sheriff drops
@@ -80,8 +82,10 @@ enum Guns {
     static let revolverKey = "gun_revolver"
     // Held in one hand on the march, two when aimed (soldier rig, pose checks).
     static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver }
+    // capital_rounds (P40): the Capital's service rifle, Chatter Gun and sidearm fire their own rounds, never sold (looted
+    // from Capital soldiers and citadels); rifle rounds are the frontier's (the six-iron, the Ashguard's arms).
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
-                                           ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell")]
+                                           ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell"), ("capital_rounds", "Capital Rounds")]
     static let rocketPower: Float = 2.5
 
     private(set) static var byItem: [ItemID: Int] = [:]
@@ -252,6 +256,9 @@ enum Guns {
         "rifle_rounds": ["................", "................", "................", "....b.....b.....", "...bbb...bbb....",
                          "...bbb...bbb..b.", "...yyy...yyy.bbb", "...yyy...yyy.bbb", "...yyy...yyy.yyy", "...yyy...yyy.yyy",
                          "...yyy...yyy.yyy", "...ddd...ddd.yyy", ".............yyy", ".............ddd", "................", "................"],
+        "capital_rounds": ["................", "................", "................", "....b.....b.....", "...bbb...bbb....",
+                         "...bbb...bbb..b.", "...www...www.bbb", "...www...www.bbb", "...www...www.www", "...www...www.www",
+                         "...www...www.www", "...ddd...ddd.www", ".............www", ".............ddd", "................", "................"],
         "shotgun_shells": ["................", "................", "................", "................", "...rrr...rrr....",
                            "...rrr...rrr....", "...rrr...rrr....", "...rrr...rrr....", "...rrr...rrr....", "...rrr...rrr....",
                            "...yyy...yyy....", "...yyy...yyy....", "................", "................", "................", "................"],
@@ -264,9 +271,11 @@ enum Guns {
         "gun_sidearm": ["................", "................", "................", "................", "................",
                         "...11111111111..", "...1dddddddddd1.", "...1aaaaaaaaaa1.", "...1aaa1m1111...", "...1aaa1.m1.....",
                         "..1aaa11.1......", "..1aaa1.........", "..1aaa1.........", "..11111.........", "................", "................"],
-        "gun_revolver": ["................", "................", "................", "................", "....1...........",
-                         "..111111111111..", "..1mmmmmmmmmm1..", "..111111ddd111..", "........dddd1...", ".......1aa1.1...",
-                         "......1aaa11....", ".....1aaa1......", ".....1aaa1......", "......111.......", "................", "................"],
+        // (Oct 11 playtest P29: the grip sloped toward the muzzle, so it read as a gun held backwards.) Muzzle right
+        // like the sidearm; the cylinder over the trigger; the grip raked back under the hammer.
+        "gun_revolver": ["................", "................", "................", "................", ".1............1.",
+                         "..111111111111..", ".1dd1mmmmmmmmm1.", ".1dddd11111111..", "..1dddd1.1......", "..1aa111m1......",
+                         ".1aaa1.11.......", ".1aaa1..........", "1aaa1...........", "1111............", "................", "................"],
         "arc_cell": ["................", "................", "......1111......", ".....1mmmm1.....", "....1111111.....",
                      "....1gggggg1....", "....1gddddg1....", "....1gggggg1....", "....1gddddg1....", "....1gggggg1....",
                      "....1gddddg1....", "....1gggggg1....", "....11111111....", "................", "................", "................"],
@@ -286,6 +295,7 @@ enum Guns {
                 case "a": return V4(accent.x * h, accent.y * h, accent.z * h, 1)
                 case "g": return V4(0.45, 0.95, 1, 1)
                 case "y": return V4(0.86 * h, 0.68 * h, 0.25 * h, 1)
+                case "w": return V4(0.8 * h, 0.83 * h, 0.88 * h, 1)              // the Capital's steel cases
                 case "b": return V4(0.72 * h, 0.5 * h, 0.3 * h, 1)
                 case "r": return V4(0.7 * h, 0.14 * h, 0.12 * h, 1)
                 default: return TextureGen.clear

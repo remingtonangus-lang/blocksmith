@@ -87,6 +87,9 @@ extension Renderer {
             let rings: [Float] = [1.35, 1.05, 0.85, 0.66, 0.5, 0.38, 0.28, v.crater / v.r]
             let rock = V3(0.2, 0.19, 0.19), foot = V3(0.3, 0.34, 0.26)
             let groundHaze: Float = 0.8 + 0.17 * Terrain.smooth(loaded, HorizonRing.range, dist)
+            // The ground mist is a far-view effect: close to a volcano (on its own flanks, the Oct 11 playtest P8 view from
+            // 200 blocks) it hazed every flank to the band colour and the cone read as a hollow dark outline.
+            let mistK: Float = Terrain.smooth(loaded + v.r * 0.5, max(loaded + v.r * 2, 450), dist)
             func ringPoint(_ t: Float, _ i: Int) -> V3 {
                 let a = Float(i) / Float(seg) * 2 * .pi
                 let rr = t * v.r
@@ -97,7 +100,7 @@ extension Renderer {
             func vcol(_ t: Float, _ w: V3, _ up: V3) -> V4 {
                 // Ground mist: the lower flanks thicken from the landmark haze to the ring ground's, so the foot melts into
                 // the haze band instead of standing on it with a hard dark edge (still a pale band at 650 blocks, Oct 11).
-                let mist: Float = Terrain.smooth(0.4, 1.05, t)
+                let mist: Float = Terrain.smooth(0.4, 1.05, t) * mistK
                 let rk: V3 = shade(t > 0.9 ? foot : rock * (t < 0.3 ? 0.85 : 1), up, haze: haze + (groundHaze - haze) * mist)
                 let f = Terrain.smooth(0.7, 1.3, t)
                 guard f > 0 else { return V4(rk, 1) }
@@ -106,7 +109,8 @@ extension Renderer {
                 let o = V2(w.x - v.x, w.z - v.z), ol = max(simd_length(o), 1)
                 let gx = v.x + o.x / ol * v.r * 1.75, gz = v.z + o.y / ol * v.r * 1.75
                 let g = horizonGround(gx, gz, sun: sun, day: day, hdrK: hdrK) ?? foot * (0.3 + 0.7 * day) * hdrK
-                let gh: V3 = g * (1 - groundHaze) + fog * groundHaze
+                let gHaze: Float = haze + (groundHaze - haze) * mistK
+                let gh: V3 = g * (1 - gHaze) + fog * gHaze
                 return V4(rk * (1 - f) + gh * f, 1)
             }
             for ri in 0..<(rings.count - 1) {

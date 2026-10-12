@@ -1059,6 +1059,7 @@ enum TextureGen {
         ashenPainters(&p)
         springPainters(&p)
         shipPainters(&p)
+        vehicleWorksPainters(&p)
         Guns.painters(&p)
         ExplorerMaps.painters(&p)
         militaryPainters(&p)

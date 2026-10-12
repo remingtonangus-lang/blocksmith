@@ -75,7 +75,7 @@ enum Economy {
         "pumpkin_seeds": 3, "melon_slice": 4, "melon_seeds": 3, "sugar_cane": 5, "sugar": 6, "egg": 5, "sweet_berries": 4,
         "glow_berries": 6, "cocoa_beans": 8, "apple": 20, "hay_block": 70, "honeycomb": 25, "honey_bottle": 60,
         // Food
-        "bread": 30, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
+        "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,
         "cooked_rabbit": 32, "cooked_cod": 28, "cooked_salmon": 33, "golden_carrot": 160, "golden_apple": 1300,
         "glistering_melon_slice": 160, "milk_bucket": 400, "dried_kelp": 3,
@@ -84,7 +84,7 @@ enum Economy {
         "leather": 50, "rabbit_hide": 12, "feather": 5, "bone": 6, "rotten_flesh": 2,
         // Materials, ores and gems
         "stick": 1, "coal": 12, "charcoal": 10, "iron_nugget": 10, "iron_ingot": 100, "raw_iron": 60, "gold_nugget": 25,
-        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 900, "diamond": 1500, "emerald": 100,
+        "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 2800, "diamond": 4000, "emerald": 100,   // titanium x2.7: an ingot sold for "five bucks" (P29)
         "lapis_lazuli": 40, "quartz": 30, "amethyst_shard": 20, "flint": 4, "string": 8, "gunpowder": 40, "slime_ball": 30,
         "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "spider_eye": 12, "ghast_tear": 300, "rabbit_foot": 150,
         "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 6, "book": 32, "ink_sac": 8,
@@ -96,7 +96,8 @@ enum Economy {
         "leather_helmet": 300, "leather_chestplate": 470, "leather_leggings": 410, "leather_boots": 260,
         "white_bed": 130, "red_bed": 140,
         // General goods
-        "torch": 4, "lantern": 110, "bucket": 330, "map": 520, "compass": 480, "clock": 1100, "shears": 220,
+        "torch": 4, "lantern": 110, "bucket": 330, "map": 150,      // a blank map: cheap (P29; $5.20 read as a treasure map)
+        "compass": 480, "clock": 1100, "shears": 220,
         "saddle_salve": 600, "brush": 150,
         "fishing_rod": 60, "lead": 60, "flint_and_steel": 120, "spyglass": 900, "name_tag": 800, "treasure_map": 2500,
         // Blacksmith
@@ -107,7 +108,7 @@ enum Economy {
         "shield": 230, "iron_bars": 22, "anvil": 3600,
         // Gunsmith
         "gun_sidearm": 4500, "gun_revolver": 9000, "gun_shotgun": 8500, "gun_rifle": 14000, "gun_sniper": 22000,
-        "rifle_rounds": 4, "shotgun_shells": 10, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
+        "rifle_rounds": 30, "capital_rounds": 60, "shotgun_shells": 40, "heavy_rounds": 25, "bow": 120, "arrow": 4, "crossbow": 220,
         // Stable
         "saddle": 600, "leather_horse_armor": 320, "iron_horse_armor": 900, "golden_horse_armor": 1500,
         "carrot_on_a_stick": 70,
@@ -136,8 +137,8 @@ enum Economy {
                    ("glass_bottle", 16), ("map", 2), ("compass", 1), ("clock", 1), ("paper", 32), ("book", 8),
                    ("shears", 2), ("fishing_rod", 2), ("lead", 4), ("flint_and_steel", 2), ("wheat_seeds", 32),
                    ("beetroot_seeds", 16), ("carrot", 16), ("potato", 16), ("treasure_map", 1), ("emerald", 12)],
-        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 180),
-                    ("shotgun_shells", 60), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
+        .gunsmith: [("gun_sidearm", 1), ("gun_shotgun", 1), ("gun_rifle", 1), ("gun_sniper", 1), ("rifle_rounds", 48),
+                    ("shotgun_shells", 24), ("heavy_rounds", 32), ("bow", 2), ("arrow", 64), ("crossbow", 1), ("spyglass", 1)],
         .butcher: [("beef", 12), ("porkchop", 12), ("chicken", 12), ("mutton", 12), ("cooked_beef", 16), ("cooked_porkchop", 16),
                    ("cooked_chicken", 16), ("cooked_mutton", 16), ("cooked_rabbit", 8), ("rabbit_stew", 6), ("leather", 8),
                    ("hunters_map", 1)],
@@ -163,7 +164,7 @@ enum Economy {
                    "feather", "flint", "paper", "ink_sac", "bone", "string", "diamond", "lapis_lazuli", "quartz",
                    "amethyst_shard", "cocoa_beans", "emerald"],
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
-                    "gun_rifle", "gun_sniper", "rifle_rounds", "shotgun_shells", "heavy_rounds"],
+                    "gun_rifle", "gun_sniper", "rifle_rounds", "capital_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
                    "bone", "rotten_flesh", "egg", "pufferfish", "tropical_fish"] + Hunting.buys,
         .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
@@ -182,6 +183,18 @@ enum Economy {
     static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
+    // P40: sold only by gunsmiths in a Capital city (their rounds, capital_rounds, are never sold: only looted).
+    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg"]
+    // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
+    // fixed per keeper), so finding one is worth the ride.
+    static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,
+                                        "splash_potion_healing": 0.5, "golden_apple": 0.25]
+    static func carries(_ key: String, keeper look: Int) -> Bool {
+        guard let p = rare[key] else { return true }
+        var h: UInt64 = 1469598103934665603 ^ UInt64(UInt32(truncatingIfNeeded: look))
+        for b in key.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
+        return Float(h % 10_000) / 10_000 < p
+    }
 
     // The catalogue with items this build has (index = position in VillagerData.stock).
     static func catalog(_ k: ShopKind) -> [(item: ItemID, perDay: Int)] {
@@ -330,7 +343,15 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         }
         // A country's capital: its general store draws up treaties (Countries.swift).
         let treaty: [Row] = kind == .general && mob.map { Countries.offersTreaty(game, $0) } == true ? [.service(.treaty)] : []
-        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) } + Economy.catalog(kind).indices.map { Row.item($0) }
+        // P40: the Capital's arms are sold only in the Capital's own towns.
+        let capital = mob.map { CapitalTown.city(game, x: Int(floorf($0.pos.x)), z: Int(floorf($0.pos.z))) != nil } ?? false
+        let cat = Economy.catalog(kind)
+        let look = mob?.villager?.look ?? 0
+        return treaty + (Economy.services[kind] ?? []).map { Row.service($0) }
+            + cat.indices.filter { i in
+                let k = Items.key(cat[i].item)
+                return (capital || !Economy.capitalOnly.contains(k)) && Economy.carries(k, keeper: look)
+            }.map { Row.item($0) }
     }
 
     func have(_ item: ItemID) -> Int {

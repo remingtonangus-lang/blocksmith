@@ -12,6 +12,9 @@ import Foundation
 // player's chosen distance. Hysteresis: the raise test (70% after scaling) sits well below the drop test (80%), every
 // step waits a settle time, and a drop soon after a raise doubles the hold (up to 5 min) so a scene on the edge does
 // not see-saw; five quiet minutes back at the chosen distance reset it.
+// Severe: a window whose busier side is over severeFrac of the budget (the Oct 11 playtest sat at 22-36 fps at
+// distance 22 for minutes: one step per 15 s never caught up, and every menu glance excused the window) drops at once,
+// loading or not, straight to the distance whose area fits 80% of the budget (cost scales with rd^2).
 // Only `chosen` is the player's setting (saved); `current` is session state and is never written anywhere.
 struct RenderDistanceGovernor {
     struct Window {
@@ -30,7 +33,7 @@ struct RenderDistanceGovernor {
     private(set) var current: Int
     let floor: Int
     // Tunables (seconds and budget fractions).
-    static let missFrac = 0.05, busyFrac = 0.8, raiseFrac = 0.7
+    static let missFrac = 0.05, busyFrac = 0.8, raiseFrac = 0.7, severeFrac = 1.6
     static let badToDrop = 2, settle = 10.0, baseHold = 20.0, maxHold = 300.0, failWindow = 60.0, calmReset = 300.0
     private(set) var hold = RenderDistanceGovernor.baseHold
     private var badStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
@@ -51,6 +54,12 @@ struct RenderDistanceGovernor {
     static func isBad(_ w: Window) -> Bool {
         w.frames > 0 && Double(w.missed) > Double(w.frames) * missFrac && max(w.cpuMs, w.gpuMs) > w.budgetMs * busyFrac
     }
+    static func isSevere(_ w: Window) -> Bool { isBad(w) && max(w.cpuMs, w.gpuMs) > w.budgetMs * severeFrac }
+    // The distance whose drawn area brings a severe window's frame back to 80% of the budget (at least one step down).
+    func severeTarget(_ w: Window) -> Int {
+        let k = (w.budgetMs * Self.busyFrac / max(w.cpuMs, w.gpuMs)).squareRoot()
+        return max(floor, min(current - 1, Int(Double(current) * k)))
+    }
     static func hasRoom(_ w: Window, at rd: Int) -> Bool {
         let grow = Double(rd + 1) / Double(max(1, rd))
         let need: Double = max(w.cpuMs, w.gpuMs) * grow * grow
@@ -63,6 +72,14 @@ struct RenderDistanceGovernor {
         sinceChange += w.seconds; sinceRaise += w.seconds; sinceDrop += w.seconds
         // Five minutes at the choice since the last step either way: forget the backoff.
         if current == chosen && sinceDrop > Self.calmReset && sinceRaise > Self.calmReset { hold = Self.baseHold }
+        if !w.excused && Self.isSevere(w) && sinceChange >= Self.settle * 0.5 && (current > floor || canLowerRate) {
+            good = 0; badStreak = 0
+            if canLowerRate { sinceChange = 0; return .lowerRate }
+            current = severeTarget(w)
+            if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
+            sinceChange = 0; sinceDrop = 0
+            return .lower(current)
+        }
         if w.excused || w.loading || sinceChange < Self.settle { return .none }
         if Self.isBad(w) {
             good = 0
@@ -171,6 +188,19 @@ enum RenderDistanceGovernorTest {
         check(g.current == 12 && g.chosen == 12, "a menu choice sets both the ceiling and the distance")
         for _ in 0..<60 { _ = g.observe(window(cost: 4)) }
         check(g.current == 12, "headroom never raises it above the chosen distance")
+        // 5. Oct 11 playtest P15: distance 22 at 22 fps (frame ~45 ms) while flying (loading) and glancing at menus:
+        // it drops to a fitting distance within 15 s, not one step per 15 s.
+        g = RenderDistanceGovernor(chosen: 22)
+        var t5: [Int] = []
+        for i in 0..<12 {
+            let c = cost(4, 41.0 / 484, g.current)
+            _ = g.observe(window(cost: c, loading: i % 2 == 0))
+            t5.append(g.current)
+        }
+        let fitAt = t5.firstIndex { cost(4, 41.0 / 484, $0) <= 1000.0 / 72 } ?? 99
+        log("trace 5 (distance 22 at 22 fps, flying): " + t5.map(String.init).joined(separator: " "))
+        check(fitAt <= 2, "a severe miss (22 fps) drops straight to a fitting distance (window \(fitAt): \(t5[min(fitAt, 11)]))")
+        check(t5.min() ?? 0 >= 8, "without overshooting far below it (min \(t5.min() ?? 0))")
         var f = RenderDistanceGovernor(chosen: 5)
         for _ in 0..<40 { _ = f.observe(window(cost: 30)) }
         check(f.current == 4, "never below the floor (4)")

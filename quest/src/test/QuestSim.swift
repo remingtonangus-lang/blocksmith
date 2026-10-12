@@ -188,9 +188,10 @@ enum QuestSim {
 
         let standPos = game.player.pos
         // 7. Inventory: holding Y (left upper button) opens it (a tap toggles flying); the panel sits in front; the laser drives the mouse.
-        frames(36) { _ in idleHands(); sim.hands[0].button2 = true }
+        // A quarter-second hold is enough (Oct 11 Quest playtest P9: 0.35 s felt slow).
+        frames(18) { _ in idleHands(); sim.hands[0].button2 = true }
         frames(3) { _ in idleHands() }
-        check(game.menu != nil, "VR inventory: Y hold opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
+        check(game.menu != nil, "VR inventory: a 0.25 s Y hold opened \(game.menu.map { String(describing: type(of: $0)) } ?? "nothing")")
         // Point the right ray at the panel centre (1.15 m ahead, 0.1 m down of the head when it opened).
         let haptics0 = sim.hapticCount
         var hitTarget = V3.zero
@@ -452,6 +453,16 @@ enum QuestSim {
                 sim.hands[1].aimRot = raised; sim.hands[1].gripRot = raised
             }
             try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_held.png"))
+            // P17: the sword is one closed, extruded model (both faces and a wall round every opaque texel), seen here
+            // edge-on as well.
+            check(controls.heldQuads >= 2 + 24, "P17 held sword: an extruded model of \(controls.heldQuads) quads (faces + texel walls), not 5 stacked sprites")
+            let edge = raised * simd_quatf(angle: 0.87, axis: V3(0, 0, 1))
+            frames(3) { _ in
+                idleHands()
+                sim.hands[1].aimPos = sim.headPos + V3(0.18, -0.22, -0.3); sim.hands[1].gripPos = sim.hands[1].aimPos
+                sim.hands[1].aimRot = edge; sim.hands[1].gripRot = edge
+            }
+            try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_held_edge.png"))
             // Natural carry pose (hand at the hip, pointing ahead): the sword and the rifle as a player sees them.
             for (key, name) in [("iron_sword", "_carry_sword.png"), ("gun_rifle", "_carry_gun.png")] {
                 game.inventory.held = ItemStack(Items.id(key), 1)
@@ -597,6 +608,34 @@ enum QuestSim {
         let fast = swingAcross(1.6, step: 0.3)                                   // ~20 m/s at the hand
         check(fast.0 > 0 && fast.1 == 1 && fast.2 > 0, "VR swing: a fast blade swing through a husk 1.6 ahead: \(fast.0) damage, \(fast.1) contact (want 1), haptics \(fast.2)")
         check(controls.trailPeak >= 2, "VR swing: the fast swing leaves a blade trail (\(controls.trailPeak) segments at most; \(trail0) before)")
+        // (c1) Oct 11 playtest P13/P16: every swing direction hits. An uppercut (the hand rising through a husk ahead), a
+        // downward chop at a low mob (a cave spider, 0.5 tall) and quick back-and-forth swings landing several hits.
+        func swingPath(_ kind: MobKind, dist: Float, from: V3, to: V3, rot: simd_quatf, frames n: Int, back: Bool = false) -> (Int, Int) {
+            frames(8) { _ in idleHands(); sim.hands[1].aimPos = sim.headPos + from; sim.hands[1].aimRot = rot }
+            let at = ahead(dist)
+            let z = Mob(kind, at: at)
+            z.equip = nil
+            game.mobs.mobs.append(z)
+            let h0 = z.health, c0 = controls.bladeContacts
+            frames(n + 1) { i in
+                z.pos = at; z.vel = .zero
+                var t = Float(i) / Float(n)
+                if back { t = Float(i % 8) / 4; if t > 1 { t = 2 - t } }          // there and back every 8 frames
+                idleHands()
+                sim.hands[1].aimPos = sim.headPos + from + (to - from) * t; sim.hands[1].aimRot = rot
+                sim.hands[1].gripPos = sim.hands[1].aimPos; sim.hands[1].gripRot = rot
+            }
+            let r = (h0 - z.health, controls.bladeContacts - c0)
+            remove(z)
+            frames(4) { _ in idleHands() }
+            return r
+        }
+        let level = simd_quatf(angle: -1.0, axis: V3(1, 0, 0))                // the blade pointing ahead
+        let upper = swingPath(.husk, dist: 1.4, from: V3(0, -1.0, -0.35), to: V3(0, 0.2, -0.35), rot: level, frames: 4)
+        let chop = swingPath(.caveSpider, dist: 1.3, from: V3(0, 0.1, -0.4), to: V3(0, -1.2, -0.4), rot: simd_quatf(angle: -1.4, axis: V3(1, 0, 0)), frames: 4)
+        let flurry = swingPath(.husk, dist: 1.5, from: V3(0.6, -0.35, -0.3), to: V3(-0.6, -0.35, -0.3), rot: tilt, frames: 72, back: true)
+        check(upper.0 > 0 && chop.0 > 0 && flurry.1 >= 4,
+              "VR swing P13/P16: an uppercut hits (\(upper.0) damage), a chop at a low cave spider hits (\(chop.0)), quick swings land \(flurry.1) hits in 1 s (\(flurry.0) damage, one fast swing \(fast.0))")
         // (c2) The same swing into a husk rearing back to strike: a parry (no damage, a clang), not a hit.
         let p0 = controls.parriesLanded, g0 = game.parries
         let parried = swingAcross(1.6, step: 0.3, windUp: true)

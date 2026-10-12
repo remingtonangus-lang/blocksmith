@@ -267,7 +267,8 @@ extension Mob {
     func bondedHorseAI(_ dt: Float, _ g: Game, dist: Float) -> Float? {
         guard bond != 0, tamed, g.riding !== self, g.alive else { return nil }
         let current = bond == g.horseBond
-        if current && g.horseCall > 0 && dist < 3 { g.horseCall = 0; stayAt = pos }
+        // Called, it pulls up beside you (it ran on to 3 blocks, centre to centre, and walked into him: P26).
+        if current && g.horseCall > 0 && dist < 4.5 { g.horseCall = 0; stayAt = pos; vel.x = 0; vel.z = 0 }
         if current && g.horseCall > 0 {
             let h = hs
             if simd_length(pos - h.callWas) > 2 { h.callWas = pos; h.callStuck = 0 } else { h.callStuck += dt }
@@ -338,9 +339,11 @@ extension Mob {
                 let base: Float = kind == .camel ? 3.8 : (kind == .donkey || kind == .mule ? 7.5 : horseSpeed)
                 speed = tamed && saddled ? base * max(-0.25, inp.forward) : 0          // (a wild horse goes its own way)
             }
-            // Hold jump to charge, release to leap (horses); camels dash.
+            // Hold jump to charge, release to leap (horses); camels dash. P49: a swimming horse can jump too (out of
+            // the water onto a bank).
+            let swimming = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z))))
             if inp.jump { jumpCharge = min(1, jumpCharge + dt) }
-            else if jumpCharge > 0.05 && onGround && tamed {
+            else if jumpCharge > 0.05 && (onGround || swimming) && tamed {
                 if kind == .camel {
                     vel.y = 6 + 8 * jumpCharge * horseJump
                 } else {
@@ -369,9 +372,24 @@ extension Mob {
         let start = pos
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         if kind == .strider && Blocks.fluidKind[Int(feet)] == 2 { vel.y = max(vel.y, 2) }
-        else if Blocks.isLiquid(feet) { vel.y += 18 * dt; vel.y = min(vel.y, 1.6) }
+        else if Blocks.isLiquid(feet) { if vel.y < 3 { vel.y += 18 * dt; vel.y = min(vel.y, 1.6) } else { vel.y -= 28 * dt } }   // (above 3: a leap out of the water, P49, falling off as a jump does)
         else { vel.y -= 28 * dt }
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 1.05, onGround: onGround)
+        // P49: a swimming horse steps up onto a bank level with the water (its feet float below the surface, so the
+        // 1.05 step fell short), and a ridden horse is a little narrower so it squeezes between close trunks.
+        let swim = Blocks.isLiquid(feet)
+        let bodyW = g.riding === self && gaited ? min(halfW, 0.45) : halfW
+        let hit = w.moveBody(&pos, halfW: bodyW, height: height, vel * dt, step: swim ? 1.6 : 1.05, onGround: onGround || swim)
+        // P49: riding into a canopy put the rider's eyes inside the leaves (a black screen): leaves at head height stop
+        // the horse like a wall.
+        if g.riding === self {
+            func leafy(_ p: V3) -> Bool {
+                let e = p + V3(0, height * 0.75 + 1.62, 0)
+                return CapitalBase.isLeaf(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
+            }
+            if leafy(pos) && !leafy(start) {             // (already in leaves: let it ride out)
+                pos.x = start.x; pos.z = start.z; vel.x = 0; vel.z = 0
+            }
+        }
         var landed = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
         if hit.x { vel.x = 0 }
@@ -396,7 +414,9 @@ extension Mob {
 
     // Per-horse speed and jump strength from its variant bits: 4.8-16 b/s (reference 4.8-14.5; the best rolls go past
     // it so a good horse is genuinely fast). Unridden horses wander and bolt in proportion (Mob.update).
-    var horseSpeed: Float { 4.8 + Float((variant >> 4) & 15) / 15 * 11.2 }
+    // 8 to 17 b/s (was 4.8 to 16: the slow rolls were slower than sprinting on foot, "his horse felt very slow",
+    // Oct 11 playtest P26).
+    var horseSpeed: Float { 8 + Float((variant >> 4) & 15) / 15 * 9 }
     var horseJump: Float { 0.4 + Float((variant >> 8) & 15) / 15 * 0.6 }
 }
 

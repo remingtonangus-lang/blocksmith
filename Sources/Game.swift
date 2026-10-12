@@ -77,6 +77,7 @@ final class Game {
     var inventoryOpen: Bool { menu != nil }
     var carried = ItemStack.empty
     var menuDrag: [MenuSlot] = []        // slots a mouse drag has passed over (MenuInput)
+    var stackHold: StackHold?            // A held on a stack: counting items onto the cursor (P61, MenuInput)
     var menuDragButton = 0
     var menuCursor = 0            // controller cursor (slot index)
     var menuHover: MenuSlot?      // slot under the mouse / controller cursor
@@ -285,6 +286,7 @@ final class Game {
     var vrBow: (draw: Float, origin: V3, dir: V3)?
     // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
     var vrAim: (origin: V3, dir: V3)?
+    var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
@@ -344,6 +346,8 @@ final class Game {
 
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
+    // The item a held use started with (-1: none). Holding use repeats only that item (P25).
+    var useRepeatItem = -1
     var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
     var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
@@ -730,6 +734,7 @@ final class Game {
 
     func openMenu(_ m: Menu) {
         menu = m
+        useRepeatItem = -1
         menuDrag = []
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
         // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
@@ -746,6 +751,7 @@ final class Game {
 
     func closeMenu() {
         menuDrag = []
+        stackHold = nil
         guard let m = menu, !(m is DeathMenu) else { return }
         sneakHeldFromMenu = true
         audioMenuClosed(m)
@@ -1008,11 +1014,18 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        // Hold-to-repeat use repeats only the item the press started with (Oct 11 playtest P25, 12:56: with the left
+        // trigger resting or stuck down, each block stepped to on the hotbar was placed at once, so cycling past a
+        // crafting table set it down). A menu opening ends the hold too (openMenu).
+        if useNow { useRepeatItem = Int(held.item) } else if !useHeld { useRepeatItem = -1 }
         if useNow, let r = riding, stickBoost(r) { return }
         // Boreal Station objectives (before held gear and guns): a control-room console or the generator (BorealOps.swift).
         if useNow && !(input.shift || p.b), let t = target, stationUse(t.hit) { swing = 1; return }
         // Riding a horse and aiming at it: an empty hand pats it, a brush grooms it, a treat feeds it (HorseFeel.swift).
         // Aimed anywhere else, use does what it always does (eat, place, flip a lever, brush a block).
+        // Taming (an untamed horse under you): use with an empty hand pats it wherever you aim (aiming the laser down at
+        // its neck was undiscoverable in VR, P26).
+        if useNow, let r = riding, r.gaited, !r.tamed, held.isEmpty, !(target.map { isInteractive($0.hit) } ?? false), horseUse(r) { return }
         if useNow, let r = riding, mobs.raycast(player.eye, player.look, maxDist: 4).map({ $0.0 === r }) ?? false, horseUse(r) { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && jetpackEquip() { return }
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
@@ -1028,6 +1041,10 @@ final class Game {
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
         if !swung && skinUse(useHeld, fdt) { mining = nil; return }
+        // P49: a gun in hand doesn't stop you mounting: the use press on a horse within reach mounts it (the gun's aim
+        // took the press first, so nobody could get on with a gun out).
+        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
+           hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if !swung && world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if !swung && shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
@@ -1085,7 +1102,8 @@ final class Game {
             if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
-                let charge = min(1, attackTimer * spd)       // swings too: swinging deals about what the trigger does
+                // Swings too (swinging deals about what the trigger does), but a quick re-swing still lands a weaker hit.
+                let charge = swung ? max(VRMelee.swingChargeFloor, min(1, attackTimer * spd)) : min(1, attackTimer * spd)
                 var base = held.isEmpty ? 1 : held.def.attack
                 base += 3 * Float(effects.level(.strength)) - 4 * Float(effects.level(.weakness))
                 var dmg = max(0, base) * (0.2 + 0.8 * charge * charge) * (swung ? swingPow : 1)
@@ -1117,7 +1135,8 @@ final class Game {
                 let hp0 = m.health
                 Mob.playerMelee = true
                 Mob.playerMeleePower = charge * (swung ? swingPow : 1)
-                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: true)
+                // A blade's hits skip the hurt invulnerability: QuestControls lets each mob take one hit per VRMelee.rehit.
+                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: !swung)
                 Mob.playerMelee = false
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
                 // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
@@ -1344,7 +1363,7 @@ final class Game {
             return
         }
         eatProgress = 0
-        guard useNow || (useHeld && placeCooldown <= 0) else { return }
+        guard useNow || (useHeld && placeCooldown <= 0 && useRepeatItem == Int(held.item)) else { return }
         placeCooldown = 0.2       // 4 ticks, like the reference's held right-click
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
         if useBucket() { return }
@@ -1352,6 +1371,7 @@ final class Game {
         guard let t = target else { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b) && consoleUse(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return
@@ -1540,7 +1560,7 @@ final class Game {
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
-        return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
+        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
@@ -1617,6 +1637,7 @@ final class Game {
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(UpgradeBenchMenu(game: self))           // the Upgrade Bench (Upgrades.swift)
         case "smithing_table": openMenu(SmithingMenu(game: self))
+        case VehicleWorks.key: VehicleWorks.use(self, p)                            // P54 (VehicleWorks.swift)
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))
@@ -2048,6 +2069,8 @@ final class Game {
             default: break
             }
             if let a = attacker { scaled *= a.power }
+            // P64 (Oct 11 evening playtest): bare skin takes more than the reference: a fifth more with no armour on.
+            if inventory.armorPoints == 0 { scaled *= 1.2 }
             let whole = floorf(scaled)
             amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
         }
@@ -2121,7 +2144,11 @@ final class Game {
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
-            let eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
+            var eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
+            // Gun rounds: armour stops at most 60% (full titanium stopped 80%, and the rounding left most rounds doing
+            // nothing: "I lost no health at all under gunfire", Oct 11 playtest P30). The wear below stays heavy. P45
+            // (Oct 11 evening, "with titanium armour it was too easy to collect these guns"): at most 48% now.
+            if bulletHit { eff = min(eff, 12) }
             dmg *= 1 - eff / 25
             // Only wearable armour wears: a carved pumpkin or a head (durability 0) vanished on the first hit, and
             // Glider Wings don't take damage from hits (reference).
@@ -2160,6 +2187,7 @@ final class Game {
         }
         hurtFlash = 0.35
         audioHurt(type)
+        if bulletHit && absorption <= 0 && amount >= 2 { dmg = max(dmg, 1) }      // a round that lands always hurts a little
         guard dmg >= 0.5 else { return }
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
@@ -2190,9 +2218,10 @@ final class Game {
         sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
-        // Drop everything where we died (plus up to 100 XP worth: 7 per level).
+        // Drop everything where we died. Experience is kept (P64, Oct 11 evening playtest: losing levels on death felt
+        // like losing hours; the reference dropped up to 100 XP as orbs and reset the rest).
         let at = player.pos + V3(0, 1, 0)
-        let lostXP = min(100, xpLevel * 7)
+        BountyHunters.claim(self)
         effects.clear()
         absorption = 0
         for c in [inventory.main, inventory.armor, inventory.offhand] {
@@ -2202,8 +2231,6 @@ final class Game {
                 c[i] = .empty
             }
         }
-        xpLevel = 0; xpPoints = 0
-        if lostXP > 0 { addXPOrbs(lostXP, at: at) }                // lies there as orbs (Game.xpOrbs)
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
@@ -2224,7 +2251,7 @@ final class Game {
                 let at = V3(Float(a.x) + 0.5, Float(a.y) + 1, Float(a.z) + 0.5)
                 if dim.dim != .nether { changeDimension(to: .nether, at: at) }
                 player.pos = at; player.vel = .zero; player.airPeak = at.y; player.pendingFall = 0
-                health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; xpLevel = 0; xpPoints = 0; timeSinceRest = 0
+                health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; timeSinceRest = 0
                 return
             }
             anchorSpawn = nil
@@ -2253,8 +2280,6 @@ final class Game {
         saturation = 5
         exhaustion = 0
         air = 15
-        xpLevel = 0
-        xpPoints = 0
         timeSinceRest = 0
     }
 
@@ -2340,9 +2365,11 @@ final class Game {
         if player.pos.y < -60 { die("fell out of the world"); return }
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
-        // Swimming 0.01 a metre, sprinting on the ground 0.1 (sprint-swimming counted as sprinting: 10x the hunger).
-        exhaustion += moved * (player.inWater ? 0.01 : (player.sprinting && player.onGround ? 0.1 : 0))
-        if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
+        // Swimming 0.01 a metre, sprinting on the ground HungerRates.sprint, walking nothing (HungerRates).
+        // G19: Easy drains hunger slower, Hard faster (Difficulty.rows), movement and jumps alike.
+        let hm = Difficulty.rows[max(0, min(3, difficulty))].hunger
+        exhaustion += moved * (player.inWater ? HungerRates.swim : (player.sprinting && player.onGround ? HungerRates.sprint : 0)) * hm
+        if player.jumped { exhaustion += (player.sprinting ? HungerRates.sprintJump : HungerRates.jump) * hm }
         while exhaustion >= 4 {
             exhaustion -= 4
             if saturation > 0 { saturation = max(0, saturation - 1) } else { hunger = max(0, hunger - 1) }
@@ -2357,12 +2384,12 @@ final class Game {
                 regenTimer = 0
                 let h: Float = min(saturation, 6) / 6
                 regenFrac += h
-                exhaustion += h * 6
+                exhaustion += h * HungerRates.heal
                 if regenFrac >= 1 { regenFrac -= 1; health += 1 }
             }
         } else if hunger >= 18 && health < maxHealth {
             regenTimer += dt
-            if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += 6 }
+            if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += HungerRates.heal }
         } else {
             regenTimer = 0
         }
@@ -2497,6 +2524,8 @@ final class Game {
             TickProf.mark("block second tick")
             ashTick()
             TickProf.mark("ash war")
+            Reckoning.tick(self, rt)
+            GarrisonTown.tick(self, rt)
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {
@@ -2605,4 +2634,18 @@ final class Game {
             }
         }
     }
+}
+
+// What costs food (exhaustion; 4 is one hunger point or one saturation point). The Oct 11 Quest playtest (P12, P38:
+// "hunger is still going down too fast", "fucking sprinting") wanted it to come mainly from sprinting, fighting and
+// jumping, very little from walking, and slower than the reference's rates (sprint 0.1 a block, sprint jump 0.2,
+// jump 0.05, 6 per half-heart healed): a VR player sprints with the stick far more than a desktop one.
+//   walking 0 | swimming 0.01 a block | sprinting 0.04 a block (1,000 blocks: 10 points) | jump 0.03, sprint jump 0.1
+//   attack 0.1 | hit taken 0.1 | healing half a heart 4
+enum HungerRates {
+    static let swim: Float = 0.01
+    static let sprint: Float = 0.04
+    static let jump: Float = 0.03
+    static let sprintJump: Float = 0.1
+    static let heal: Float = 4
 }

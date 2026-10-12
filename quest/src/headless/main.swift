@@ -14,6 +14,8 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
+WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
@@ -36,7 +38,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" }
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view")
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -46,6 +48,46 @@ if renderPath != nil {
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
 }
 let device = sharedSystemDevice
+// --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
+// spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
+if let out = arg("--view"), let ctx = vkctx {
+    let at = (arg("--at") ?? "0,100,0").split(separator: ",").compactMap { Float($0) }
+    let look = (arg("--look") ?? "0,-10").split(separator: ",").compactMap { Float($0) }
+    let vw = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: device, save: nil)
+    vw.renderDistance = Int(arg("--rd") ?? "") ?? 6
+    let vg = Game(world: vw, save: nil, persistent: false)
+    vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
+    vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true
+    _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
+    var yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
+    // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
+    if let want = arg("--sign"), let sc = vw.gen.structures,
+       let s = sc.nearest("village", x: Int(at[0]), z: Int(at[2]), maxRegions: 12, accept: { _ in true }) {
+        vg.player.pos = V3(Float(s.anchor.x), 140, Float(s.anchor.z))
+        _ = vw.loadSync(center: vg.player.pos, radius: max(3, vw.renderDistance))
+        let signs = vw.blockEntities.filter { $0.value.kind == .sign && $0.value.lines.contains(want) }.map { $0.key }
+        if let p = signs.min(by: { abs($0.x - s.anchor.x) + abs($0.z - s.anchor.z) < abs($1.x - s.anchor.x) + abs($1.z - s.anchor.z) }) {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.shape[Int(vw.block(p.x + dx, p.y - 2, p.z + dz))] == "door" {
+                let d = V3(Float(dx), 0, Float(dz))
+                vg.player.pos = V3(Float(p.x + dx) + 0.5, Float(p.y - 2), Float(p.z + dz) + 0.5) + d * Float(arg("--in").flatMap(Int.init) ?? 1)
+                yaw = atan2f(-d.x, -d.z) + look[0] * .pi / 180; pitch = look[1] * .pi / 180
+                print("view: \(want) sign at \(p.x) \(p.y) \(p.z), standing at \(vg.player.pos)")
+            }
+        }
+    }
+    // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
+    if let k = arg("--drop"), Items.has(k) {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw))
+        let e = ItemEntity(ItemStack(Items.id(k), 1), at: vg.player.eye + ahead * 1.6 - V3(0, 0.3, 0), vel: .zero, delay: 9)
+        vg.drops.items.append(e)
+    }
+    do {
+        try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: pitch)
+        print("view: wrote \(out)"); exit(0)
+    } catch { print("FAIL view: \(error)"); exit(1) }
+}
 // --structcheck [--seeds A,B --per N --kinds K,... --dims D --strict --out FILE]: the structure walkability check
 // (Sources/StructCheck.swift) on the Linux host, as the Mac's `--structcheck` runs it.
 if CommandLine.arguments.contains("--structcheck") { exit(StructCheck.run(device: device)) }
@@ -91,6 +133,11 @@ if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
 if CommandLine.arguments.contains("--factions-structures-only") {
     FactionTests.structures(check)
     print(failures == 0 ? "factions structures: all checks passed" : "factions structures: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --p11-only: the Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift, backlog P1-P38).
+if CommandLine.arguments.contains("--p11-only") {
+    PlaytestOct11Tests.run(game, check)
+    print(failures == 0 ? "p11: all checks passed" : "p11: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --posecheck-only: just the pose oracle (the full run does it last: it builds every model and draws random guns).
 if CommandLine.arguments.contains("--posecheck-only") {
@@ -314,6 +361,24 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 try RenderTest.render(game: vg, ctx: ctx, path: vp, yaw: atan2f(d.x, d.y), pitch: 0.02)
                 check(RenderTest.landmarkVerts > 0, "seed 135623 far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
             } else { check(false, "seed 135623: a volcano within 2600 blocks of x 1334 z 2060") }
+        }
+        // P8 (Oct 11 AM playtest, 08:47:53 "the volcano in the distance doesn't look great", build 0.129 from before the
+        // far-view fixes): his view on the Quest renderer with the terrain loaded, toward the nearest volcano.
+        do {
+            let vw = World(seed: 3931512493184456980, device: device, save: nil)
+            vw.renderDistance = World.lodNear
+            let vg = Game(world: vw, save: nil, persistent: false)
+            vg.time = 0.29 * DAY_LENGTH
+            let x: Float = 5800.9, z: Float = -5520.1
+            vg.player.pos = V3(x, Float(vw.gen.column(Int(x), Int(z)).height + 40), z)
+            vg.player.flying = true
+            _ = vw.loadSync(center: vg.player.pos, radius: World.lodNear)
+            if let wg = vw.gen as? WorldGen, let v = wg.terrain.volcanoes(near: x, z, reach: 2600)
+                .min(by: { simd_length(V2($0.x - x, $0.z - z)) < simd_length(V2($1.x - x, $1.z - z)) }) {
+                let d = simd_normalize(V2(x - v.x, z - v.z))
+                try RenderTest.render(game: vg, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_volcanoP8.png"), yaw: atan2f(d.x, d.y), pitch: -0.05)
+                check(RenderTest.landmarkVerts > 0, "P8 playtest far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
+            } else { check(false, "P8: a volcano within 2600 blocks of the playtest note") }
         }
         // Polygon terrain test (docs/status/polygon-test.md): the same seed 12345 views in Blocks and Smooth on the Quest
         // renderer, each from a fresh world loaded in that mode (the world option a new world is created with).
@@ -801,6 +866,9 @@ let texURL = TextureCache.url(dir: tmp.path + "/cache", size: 16, layers: 12)
 TextureCache.store(texLevels, texURL)
 let texBack = TextureCache.load(texURL)
 check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\(texLevels.count) levels, \(texLevels.map(\.count).reduce(0, +)) bytes)")
+
+// The Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift).
+PlaytestOct11Tests.run(game, check)
 
 // Towns of people and shops (Sources/TownTests.swift).
 TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)

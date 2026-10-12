@@ -33,7 +33,7 @@ enum HorseBreed: Int, CaseIterable {
         case .saddlebred: return "Saddlebred"
         }
     }
-    // Speed roll range (variant bits 4-7, 0...15: 4.8 + bits/15 x 11.2 b/s), stamina and jump multipliers, courage
+    // Speed roll range (variant bits 4-7, 0...15: 8 + bits/15 x 9 b/s), stamina and jump multipliers, courage
     // (frights: chance to rear at all, and the throw chance multiplier), coats (Animals.horseParts: 0 chestnut,
     // 1 grey, 2 dark bay, 3 dun, 4 black).
     var speedBits: ClosedRange<Int> {
@@ -228,6 +228,12 @@ extension Mob {
         if panic <= 0 && predatorNear(g) { panic = 3; HorseLife.bolted += 1 }
         let here = stayAt ?? pos
         if stayAt == nil { stayAt = pos }
+        // Never into the player: within 3.5 blocks it stands and faces you (a spare horse grazing round its spot kept
+        // walking into him, Oct 11 playtest P26).
+        if simd_length(V2(g.player.pos.x - pos.x, g.player.pos.z - pos.z)) < 3.5 && g.riding !== self {
+            vel.x = 0; vel.z = 0
+            return 0
+        }
         return stroll(around: here, 5, 0.35)
     }
 }

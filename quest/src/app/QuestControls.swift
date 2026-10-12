@@ -53,17 +53,30 @@ final class QuestControls {
     private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
     private var sprintHinted = false            // the click-to-sprint hint was shown
     private var prevGripL = false, prevGripR = false
+    // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
+    // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
+    private var hudSolid: Float = 0
+    private(set) var hudAlpha: Float = 0.95
+    static let hudRest: Float = 0.45
+    private func hudFadeTick(_ dt: Float) {
+        hudSolid = max(0, hudSolid - dt)
+        if game.hurtFlash > 0 || game.health <= 6 { hudSolid = max(hudSolid, 1) }
+        let want: Float = !QuestSettings.hudFade || hudSolid > 0 ? 0.95 : QuestControls.hudRest
+        hudAlpha += (want - hudAlpha) * min(1, dt * (want > hudAlpha ? 10 : 2))
+    }
     // Swing melee (swingContact): last frame's blade capsule (world), its tip relative to the head (tracking space), the
     // mobs this swing already hit, and the slow-touch buzz timer.
     private var bladeA = V3.zero, bladeB = V3.zero, bladeTipRel = V3.zero
     private var bladeValid = false
     private var bladeHits: [ObjectIdentifier] = []
+    private var bladeHitAt: [Double] = []               // when each bladeHits mob was hit (VRMelee.rehit)
     private var touchBuzz: Float = 0
     private var scrapeBuzz: Float = 0                  // the blade knocking into stone: haptic rate limit
     private var bladeTrail = BladeTrail()              // the fading ribbon behind a fast blade (VRCombatFeel.swift)
     private var tutorialSwing = true, tutorialStep = 99, tutorialNext: Double = 0   // the first-use tutorial toasts in progress
     private(set) var parriesLanded = 0                 // (harness)
     var trailPeak = 0                                  // (harness) most trail segments seen
+    var heldQuads = 0                                  // (harness) quads in the last held item model (P17)
     private(set) var bladeContacts = 0                 // (harness) hits landed by the blade
     private var lastHurtFlash: Float = 0
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
@@ -76,6 +89,9 @@ final class QuestControls {
     private var bowHinted = false
     private var hotbarHover: Int?
     private var yHold: Float = 0, yLong = false, yPulse = 0
+    // Holding Y this long opens the inventory (a tap calls the horse or toggles flying): 0.35 s felt slow on the headset
+    // (Oct 11 Quest playtest P9); 0.2 s still tells a tap from a hold.
+    static let inventoryHold: Float = 0.2
     private var menuHold: Float = 0, menuLong = false, menuPulse = 0
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var prevSelTrig = false
@@ -146,6 +162,13 @@ final class QuestControls {
             case .rt: return "R Trigger"
             case .lb: return "L Grip"
             case .rb: return "R Stick"
+            // The pad's D-pad and stick clicks are Touch buttons here (drawn as a D-pad they read as nothing: the
+            // horse's "<D-pad up> calls it" was blank to him, Oct 11 playtest P26).
+            case .dup: return "Y"
+            case .ddown: return "Hold B"
+            case .dright: return "Hold X"
+            case .y: return "Hold Y"
+            case .l3: return "L Stick"
             default: return nil
             }
         }
@@ -159,6 +182,7 @@ final class QuestControls {
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
+        hudFadeTick(dt)
         // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
         QuestControls.keyboardHook?(game.menu.map { $0.capturesText && !($0 is KeyboardMenu) } ?? false)
 
@@ -261,9 +285,25 @@ final class QuestControls {
                 break
             }
         }
-        if !inMenu && !bagGrip && game.world.ships.pilot == nil {
+        // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip
+        // doesn't step the hotbar.
+        var magGrip = false
+        if !inMenu && !bagGrip && game.heldGun != nil && L.gripValid && R.gripValid {
+            let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
+                                   grip: lGrip, gripWas: prevGripL)
+            switch ev {
+            case .grabbed: app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
+            case .inserted:
+                app.input.haptic(moveHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+                app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+            default: break
+            }
+            magGrip = ev != .none || game.arms.magInHand || (lGrip && VRReload.atHip(head: rig.headWorld, hand: rig.toWorld(L.gripPos)))
+        } else if game.heldGun == nil { game.arms.magInHand = false }
+        if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
+            if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         }
         prevGripL = lGrip; prevGripR = rGrip
         // A stick click with the stick pushed out is the push itself clicking (Touch sticks click when shoved forward):
@@ -314,7 +354,7 @@ final class QuestControls {
                 if yHold > 0 && !yLong { flyPulse = 3 }
                 yHold = 0; yLong = false
             }
-            if yHold > 0.35 && !yLong { yLong = true; yBlock = true; yPulse = 3 }
+            if yHold > QuestControls.inventoryHold && !yLong { yLong = true; yBlock = true; yPulse = 3 }
             p.up = flyPulse > 0
             if flyPulse > 0 { flyPulse -= 1 }
             p.y = yPulse > 0
@@ -416,9 +456,23 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
+    // G21: the Farsight raised to the eye (VRScope): eased 0...1, the views zoom with it.
+    private(set) var scopeT: Float = 0
+    private func scopeTick(_ dt: Float) {
+        let rig = app.rig
+        var up = false
+        if game.menu == nil && !game.paused, let aim = game.vrAim {
+            let fwd = rig.toWorldRot(rig.headRot).act(V3(0, 0, -1))
+            up = VRScope.raised(heldKey: Items.key(game.held.item), head: rig.headWorld, headForward: fwd, aimOrigin: aim.origin, aimDir: aim.dir)
+        }
+        scopeT = up ? min(1, scopeT + dt * 6) : max(0, scopeT - dt * 8)
+        rig.zoom = VRScope.zoom(scopeT)
+    }
+
     // After Game.tick: the camera follows the moved player; head-space audio; vignette from motion.
     func afterTick(dt: Float) {
         let rig = app.rig
+        scopeTick(dt)
         let ships = game.world.ships
         let ship = ships.pilot ?? ships.aboard
         // Ship riding: the deck turned under the player this tick (ShipPhysics carried the feet and the game's yaw);
@@ -828,7 +882,9 @@ final class QuestControls {
         let speed = simd_length(tipRel - prevRel) / dt
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
-        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true) }
+        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true) }
+        // Several hits a second: a mob can take the blade again VRMelee.rehit after its last hit.
+        while let t = bladeHitAt.first, game.clock - t >= VRMelee.rehit { bladeHits.removeFirst(); bladeHitAt.removeFirst() }
         // The blade knocking into stone or wood: a dull knock in the hand (blocks are never broken by a swing).
         scrapeBuzz = max(0, scrapeBuzz - dt)
         if speed >= VRMelee.minTipSpeed && scrapeBuzz <= 0
@@ -843,7 +899,7 @@ final class QuestControls {
             let along = simd_normalize(b1 - b0 + V3(0, 1e-4, 0))
             // Into a mob winding up, at its arms or weapon: a parry (no damage; it staggers back).
             if game.tryParry(m, at: point, along: along) {
-                bladeHits.append(ObjectIdentifier(m))
+                bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)
                 parriesLanded += 1
                 app.input.haptic(aimHand, amplitude: 1, seconds: 0.05, frequency: 340)
                 app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.05, frequency: 340)
@@ -852,7 +908,7 @@ final class QuestControls {
             let pow = VRMelee.power(speed)
             game.swingPower = pow
             game.swingMob = m
-            bladeHits.append(ObjectIdentifier(m))
+            bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)
             bladeContacts += 1
             game.swingPoint = point          // the contact flash and sparks there once the hit lands (Game.bladeFlash)
             game.swingDir = along
@@ -1023,9 +1079,11 @@ final class QuestControls {
             let pos = rig.toWorld(hd.gripPos) - eye
             let rot = rig.toWorldRot(hd.gripRot)
             let base = h == aimHand ? V3(0.25, 0.27, 0.32) : V3(0.3, 0.3, 0.34)
-            for pi in 0..<3 {
-                let (c, half) = QuestControls.controllerParts[pi]
-                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : V3(0.12, 0.12, 0.14))
+            // A magazine in the off hand (VRReload): a dark steel box under the grip.
+            let parts = h == moveHand && game.arms.magInHand ? 4 : 3
+            for pi in 0..<parts {
+                let (c, half) = pi < 3 ? QuestControls.controllerParts[pi] : (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
+                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : (pi == 2 ? V3(0.12, 0.12, 0.14) : V3(0.2, 0.2, 0.22)))
                 for f in 0..<6 {
                     for k in QuestControls.quadOrder {
                         let ci = (f * 4 + k) * 3
@@ -1073,7 +1131,7 @@ final class QuestControls {
         if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
         guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
         let held = game.held
-        if held.isEmpty { return }
+        if held.isEmpty || scopeT > 0.5 { return }            // (G21: looking through the scope, the rifle is out of view)
         let rig = app.rig
         let pos = rig.toWorld(hd.aimPos) - eye
         let rot = rig.toWorldRot(hd.aimRot)
@@ -1101,7 +1159,7 @@ final class QuestControls {
             return
         }
         if let bp = bowPose { drawBow(s, eye: eye, bp, light: light); return }
-        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 160, priority: true)
+        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 2400, priority: true)
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
         if let b = held.def.block, !Blocks.flatIcon(b) {
@@ -1127,11 +1185,9 @@ final class QuestControls {
             let (h, tool) = heldSize()
             let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
-            // Five stacked layers one texel (h/8) thick: a solid object from any angle, not a paper cut-out.
-            for i in 0..<5 {
-                let o = (Float(i) - 2) * h / 32
-                wr.sprite(center: c + side * o, half: h, right: r, up: up, layer: layer, light: light * (i == 0 || i == 4 ? 1 : 0.62))
-            }
+            // One texel (h/8) thick and closed: both faces plus a wall round every opaque texel (ItemExtrude.swift; the
+            // five stacked sprites it replaced read as five pieces and went see-through edge-on: Oct 11 playtest P17).
+            heldQuads = wr.extrudedItem(center: c, half: h, right: r, up: up, normal: side, thick: h / 8, layer: layer, light: light)
             // Upgrades show on the model (Upgrades.accents): a grip wrap, a band on the head, a line on the edge.
             Upgrades.writeAccents(&wr, held, center: c, half: h, right: r, up: up, normal: side, thick: h * 2.6 / 32, light: light)
         }
@@ -1236,7 +1292,7 @@ final class QuestControls {
             let c = panelCenter - eye
             let m = float4x4(columns: (V4(rx * panelSize.x, 0), V4(uy * panelSize.y, 0), V4(n, 0), V4(c, 1)))
             let inMenu = mode == .menu
-            panel.draw(s, model: m, alpha: inMenu ? 1 : 0.95, onTop: true)
+            panel.draw(s, model: m, alpha: inMenu ? 1 : hudAlpha, onTop: true)
         }
         if let hp = hintPanel, let h = hint, let hit = aimHit, game.menu == nil {
             // Beside the dot, a little above, facing the head; about 3 degrees tall wherever it is.
@@ -1258,7 +1314,8 @@ final class QuestControls {
         defer { giveVerts(v) }
         screenEffects(&v)
         let k = vignette * QuestSettings.vignette
-        if k > 0.02 { ring(&v, k, V3(0, 0, 0)) }
+        if k > 0.02 && scopeT < 0.5 { ring(&v, k, V3(0, 0, 0)) }
+        if scopeT > 0.02 { drawScope(&v) }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
     }
 
@@ -1279,6 +1336,37 @@ final class QuestControls {
             QuestControls.quad(&v, V4(p0.x - n2.x, p0.y - n2.y, 0, 2), V4(p0.x + n2.x, p0.y + n2.y, 0, 2),
                                V4(p1.x + n2.x, p1.y + n2.y, 0, 2), V4(p1.x - n2.x, p1.y - n2.y, 0, 2), c0, c0, c1, c1)
         }
+    }
+
+    // G21: the scope's lens: black all round a round clear lens centred where the round lands, a thin crosshair with
+    // an open centre and a red dot, fading in with scopeT.
+    private func drawScope(_ v: inout [SimpleVert]) {
+        var c = V2.zero
+        if let cam = app.rig.lastCam, let aim = game.vrAim {
+            var n = 0
+            for vp in cam.viewProj { if let r = VRScope.reticle(viewProj: vp, center: cam.center, aimOrigin: aim.origin, aimDir: aim.dir) { c += r; n += 1 } }
+            if n > 0 { c /= Float(n) }
+        }
+        c = simd_clamp(c, V2(repeating: -0.5), V2(repeating: 0.5))
+        let a = scopeT
+        let black = V4(0, 0, 0, a), edge = V4(0.02, 0.02, 0.02, a)
+        let R = VRScope.lensRadius, seg = 48
+        for i in 0..<seg {
+            let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
+            let d0 = V2(cosf(a0), sinf(a0)), d1 = V2(cosf(a1), sinf(a1))
+            // A soft rim (the tube's edge), then black out to well past the view's corners.
+            for (ra, rb, ca, cb) in [(R * 0.94, R, V4(0, 0, 0, 0), edge), (R, 4, black, black)] {
+                let p0 = c + d0 * ra, p1 = c + d1 * ra, p2 = c + d1 * rb, p3 = c + d0 * rb
+                QuestControls.quad(&v, V4(p0.x, p0.y, 0, 2), V4(p1.x, p1.y, 0, 2), V4(p2.x, p2.y, 0, 2), V4(p3.x, p3.y, 0, 2), ca, ca, cb, cb)
+            }
+        }
+        let line = V4(0, 0, 0, 0.85 * a), w: Float = 0.004, gap: Float = 0.05
+        func bar(_ x0: Float, _ y0: Float, _ x1: Float, _ y1: Float) {
+            QuestControls.quad(&v, V4(c.x + x0, c.y + y0, 0, 2), V4(c.x + x1, c.y + y0, 0, 2), V4(c.x + x1, c.y + y1, 0, 2), V4(c.x + x0, c.y + y1, 0, 2), line, line, line, line)
+        }
+        bar(-R, -w, -gap, w); bar(gap, -w, R, w); bar(-w, -R, w, -gap); bar(-w, gap, w, R)
+        let dot = V4(0.9, 0.08, 0.05, a), d: Float = 0.006
+        QuestControls.quad(&v, V4(c.x - d, c.y - d, 0, 2), V4(c.x + d, c.y - d, 0, 2), V4(c.x + d, c.y + d, 0, 2), V4(c.x - d, c.y + d, 0, 2), dot, dot, dot, dot)
     }
 
     // A ring in clip space (w = 2): clear in the middle, `color` at the edge; k 0...1 narrows the clear middle.

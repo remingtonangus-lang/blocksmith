@@ -8,6 +8,7 @@ import simd
 //     block dropped in the crater is left alone. Also: the bases record survives a save round trip, and the cost of
 //     the once-a-second citadel update (avg / worst ms).
 //  5. A gunshot outside the east wall: the Kestrel lifts off the tower pad, circles the spot, lands back on the pad.
+//  6. cleared (P23): with the whole garrison dead, the citadel never sends or receives troops again.
 // With a phase name it stops when that phase is on show (camera on it) for a shot.
 enum BaseTests {
     static var failures: [String] = []
@@ -301,6 +302,50 @@ enum BaseTests {
             lap("air")
         }
 
+        // P33 (run alone: `--basetest alarm`): a player walking in through the gate in survival sets off the alarm at once
+        // and locks the citadel down after 10 s inside.
+        if name == "alarm" {
+            g.survival = true
+            g.player.flying = false
+            let inside = rec().plaza + V3(0, 0.1, 6)
+            var first: Float? = nil
+            let locked = sim(14) {
+                g.player.pos = inside; g.player.vel = .zero; g.health = 20
+                if first == nil && rec().alert.rawValue >= BaseAlert.alert.rawValue { first = t }
+                return rec().alert == .lockdown
+            }
+            g.survival = false
+            check(first != nil && locked != nil, "P33 an intruder inside the walls sounds the alarm and brings a lockdown",
+                  String(format: "alarm %@, lockdown after %.0f s", first == nil ? "never" : "at once", locked ?? -1))
+            return finish(g, b, t0)
+        }
+
+        // 6. P23: kill the whole garrison; the citadel is cleared for good. Noises outside and a blast inside send no
+        // patrol, no Kestrel, no dropship, and no soldier appears inside the walls again.
+        if want("cleared") {
+            let r0 = rec()
+            func alive() -> [Mob] {
+                g.mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && r0.inside($0.pos) && $0.deck == nil }
+            }
+            let killed = alive().count
+            for m in alive() { m.health = 0 }
+            for m in (b.patrols[key] ?? []) + (b.crews[key] ?? []) { m.health = 0 }
+            let ex = Float(cx + CapitalBase.A + 6), ez = Float(cz)
+            g.baseNoise(at: V3(ex, g.standY(ex, ez, from: Float(y0 + 30)), ez), kind: .gunshot)
+            let cleared = sim(4) { rec().cleared == true }
+            check(cleared != nil, "P23 a citadel with every soldier dead is cleared", "\(killed) killed, alert \(rec().alert.name)")
+            let ships0 = w.ships.capitals.filter { $0.role == "dropship" }.count, calls0 = rec().dropships
+            g.baseNoise(at: V3(ex, g.standY(ex, ez, from: Float(y0 + 30)), ez + 4), kind: .gunshot)
+            Explosion.explode(at: rec().plaza + V3(9, 0.5, -6), power: 2.5, game: g)
+            var most = 0
+            _ = sim(100) { most = max(most, alive().count); return false }
+            let ships1 = w.ships.capitals.filter { $0.role == "dropship" }.count
+            check(most == 0 && rec().patrol == nil && b.patrols[key] == nil && rec().air == nil && rec().dropships == calls0 && ships1 <= ships0,
+                  "P23 a cleared citadel stays empty: no patrol, Kestrel, dropship or new soldier after noises and a blast",
+                  "\(most) soldiers inside at most, patrol \(rec().patrol != nil), Kestrel \(rec().air != nil), dropships \(calls0) -> \(rec().dropships)")
+            lap("cleared")
+        }
+
         // Saved state round trip.
         let saved = g.saveExtra()
         let data = saved["bases"]?.data(using: .utf8)
@@ -318,7 +363,8 @@ enum BaseTests {
         for line in b.log { print("basetest log: \(line)") }
         let avg = b.ticks > 0 ? b.tickMs / Double(b.ticks) : 0
         print(String(format: "basetest: citadel update %.3f ms avg, %.3f ms worst over %d updates", avg, b.tickWorstMs, b.ticks))
-        check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg))
+        // (A short phase, the alarm's few updates, is all first-update setup: the average needs a real run.)
+        if b.ticks >= 20 { check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg)) }
         for r in results { print(r) }                  // again at the end, where the CI log tail shows them
         print(String(format: "basetest: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))

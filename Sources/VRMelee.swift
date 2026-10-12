@@ -11,6 +11,7 @@ import simd
 enum VRMelee {
     static let minTipSpeed: Float = 2.0      // m/s relative to the head: slower is a touch (a light buzz), not a hit
     static let rearmSpeed: Float = 1.2       // the tip slowing below this ends the swing (each mob is hit once per swing)
+    static let rehit: Double = 0.16          // ... or this long after the hit: fast back-and-forth swings land several hits a second
     static let reach: Float = 3.0            // eyes to the contact point, blocks (the reference melee reach)
     static let bladeScale: Float = 1.3       // hit capsule length vs the drawn blade
     static let bladeRadius: Float = 0.25
@@ -24,9 +25,11 @@ enum VRMelee {
     static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: trigger attacks",
                             "Main trigger: mine / fire (both modes)", "Bow: off-hand trigger at string, pull"]
 
-    // Damage scale from the tip speed: 0.7 at the minimum, 1 at 4 m/s, at most 1.1 (on top of the normal attack
-    // charge, so swinging deals about what Reclined's trigger does).
-    static func power(_ tipSpeed: Float) -> Float { max(0.7, min(1.1, tipSpeed / 4)) }
+    // Damage scale from the tip speed: 0.6 at the minimum, 1 at 4.5 m/s, 1.4 from 7 m/s (Oct 11 playtest P16: damage
+    // should follow how hard you swing). On top of the attack charge, so swinging deals about what Reclined's trigger does.
+    static func power(_ tipSpeed: Float) -> Float { max(0.6, min(1.4, 0.6 + (tipSpeed - minTipSpeed) * 0.16)) }
+    // A swung hit's attack charge is at least this: quick re-swings land weaker hits instead of none (P13/P16).
+    static let swingChargeFloor: Float = 0.5
 
     // Real melee weapons, the only items that hit by blade contact in Swing melee (anything else, the fist included,
     // attacks with the trigger as in Reclined).
@@ -182,6 +185,8 @@ extension Game {
         guard sparks else { return }
         let c = point ?? (m.pos + V3(0, m.height * 0.6, 0) - V3(player.look.x, 0, player.look.z) * m.halfW)
         particles.bladeSpark(at: c, along: dir ?? player.look, power: min(1.3, max(0.3, power)))
+        // A red streak where the blade cut, along the swing (P16).
+        particles.slashMark(at: c, along: dir ?? player.look, toward: player.eye, power: min(1.4, max(0.5, power)))
     }
 
     // How far a mob's arms are from the player's body, for melee reach (Mob.update): the horizontal distance from the
@@ -222,7 +227,11 @@ extension Game {
             guard !except.contains(ObjectIdentifier(m)) else { continue }
             guard let p = VRMelee.sweepHit(a0: a0, b0: b0, a1: a1, b1: b1, radius: radius, mn: mn, mx: mx) else { continue }
             let d = simd_length(p - eye)
-            guard d <= VRMelee.reach, d < (best?.2 ?? .greatestFiniteMagnitude), world.canSee(eye, p) else { continue }
+            // Sight to the contact point on the mob itself: the grown box reaches below its feet, so an uppercut or a
+            // low target's contact point sat inside the floor and was never in sight (Oct 11 playtest P13/P16).
+            let onMob = simd_clamp(p, mn + V3(0.02, 0.1, 0.02), mx - V3(0.02, 0.02, 0.02))
+            guard d <= VRMelee.reach, d < (best?.2 ?? .greatestFiniteMagnitude),
+                  world.canSee(eye, onMob) || world.canSee(eye, m.pos + V3(0, m.height * 0.5, 0)) else { continue }
             best = (m, p, d)
         }
         return best.map { ($0.0, $0.1) }

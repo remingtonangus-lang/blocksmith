@@ -176,7 +176,8 @@ extension Game {
         if shieldBlocks(min(amount, 20), from: m.pos, type: .projectile, attacker: m) { return }
         bulletHit = true
         sfx(.bulletFlesh, 0.9)
-        let who = m.villager?.person.map { "Sheriff \($0)" } ?? "the sheriff"
+        let title = m.villager?.role == "deputy" ? "Deputy" : "Sheriff"
+        let who = m.villager?.person.map { "\(title) \($0)" } ?? "the \(title.lowercased())"
         if amount == SixIron.lethal {
             // Below iron: no enchantment, Resistance or golden hearts soften it; only a totem pulls you through.
             Game.onDamage?(health, "was shot by \(who)")

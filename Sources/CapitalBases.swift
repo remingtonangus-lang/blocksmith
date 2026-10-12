@@ -64,6 +64,7 @@ struct BaseRecord: Codable {
     var strikes: Int? = nil                 // Tidebreaker hits on the citadel (MainGunStrikes.swift)
     var lost: Int? = nil                    // garrison killed by them
     var broken: Bool? = nil                 // broken by the Tidebreaker: no reinforcements, its walls stay down
+    var cleared: Bool? = nil                // every soldier inside the walls killed: no new troops, ever (P23)
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
@@ -103,6 +104,7 @@ extension BaseRecord {
         strikes = (try? c.decodeIfPresent(Int.self, forKey: .strikes))
         lost = (try? c.decodeIfPresent(Int.self, forKey: .lost))
         broken = (try? c.decodeIfPresent(Bool.self, forKey: .broken))
+        cleared = (try? c.decodeIfPresent(Bool.self, forKey: .cleared))
     }
 }
 
@@ -120,6 +122,7 @@ final class BaseWatch {
     private let lock = NSLock()
     private var ready: [String: [(IVec3, BlockID)]] = [:]
     var timer: Float = 0
+    var intruded: [String: Float] = [:]              // seconds a player has been inside a citadel's walls (P33)
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
     var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
@@ -204,6 +207,7 @@ extension Game {
             let away = clock - r.lastTick
             r.lastTick = clock
             baseHear(&r, b)
+            baseCleared(&r, b)
             baseAlertStep(&r, b, step)
             if r.alert == .lockdown { baseLockdown(&r, b, step) } else { baseStandDown(&r, b) }
             basePatrol(&r, b, step)
@@ -250,6 +254,24 @@ extension Game {
                 }
             }
         }
+        // A player inside the walls (survival) sets off the alarm (Oct 11 playtest P33: "entering a capital base should
+        // trigger an alarm and send reinforcements"): alert at once, lockdown, with its dropships and Kestrel, after 10 s
+        // inside. A cleared citadel has nobody left to sound it.
+        if survival, r.cleared != true, (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) }) {
+            let was = b.intruded[r.key] ?? 0
+            let now = was + 1                                       // (this runs once a second)
+            b.intruded[r.key] = now
+            if was == 0 && r.alert.rawValue < BaseAlert.alert.rawValue {
+                b.note("\(r.key) alarm (intruder inside the walls)")
+                raise(&r, .alert, b)
+                sfx(.gun(10), 1.2, at: r.centre)
+                onToast?("Alarm! Intruder in the citadel")
+            }
+            if now >= 10 && r.alert != .lockdown { r.calm = 0; b.note("\(r.key) lockdown (intruder held out)"); raise(&r, .lockdown, b) }
+            r.calm = min(r.calm, 5)
+        } else {
+            b.intruded[r.key] = nil
+        }
         // A garrison soldier who can see the player inside the walls is an attack too.
         if survival, (0..<max(1, coop.seatCount)).contains(where: { r.inside(coop.seatPlayer($0, self).pos) }), r.alert != .lockdown {
             for m in mobs.mobs where m.kind.steelhold && m.kind != .deckGun && m.health > 0 && m.aggro && (m.brain?.sees ?? false) && r.inside(m.pos) {
@@ -265,12 +287,31 @@ extension Game {
         guard a.rawValue > r.alert.rawValue else { return }
         r.alert = a
         if a == .lockdown {
-            r.dropships = 0
-            r.dropshipCD = 4
+            // The two dropships are for the citadel's whole life, not per lockdown (every lockdown reset the count, so
+            // a fought-over citadel was refilled for ever, Oct 11 playtest P23).
+            r.dropshipCD = max(r.dropshipCD, 4)
             sfx(.gun(10), 1.4, at: r.centre)
             if simd_length(player.pos - r.centre) < 160 { onToast?("The citadel is on lockdown!") }
             baseCallAir(&r, b, to: r.centre)                         // air cover over the citadel
         }
+    }
+
+    // A citadel whose soldiers are all dead stays empty (P23): no patrols, dropships, Kestrel crews or rebuild crews.
+    // Judged only with the player close and the whole site loaded (soldiers in unloaded chunks aren't in the list).
+    func baseCleared(_ r: inout BaseRecord, _ b: BaseWatch) {
+        guard r.cleared != true, r.alert != .calm else { return }
+        let near = (0..<max(1, coop.seatCount)).contains { simd_length(coop.seatPlayer($0, self).pos - r.centre) < 90 }
+        guard near else { return }
+        let a = CapitalBase.A
+        for dz in stride(from: -a, through: a, by: CS) { for dx in stride(from: -a, through: a, by: CS) where !world.isLoaded(r.cx + dx, r.cz + dz) { return } }
+        let alive = mobs.mobs.contains { m in
+            m.kind.steelhold && m.kind != .deckGun && m.health > 0 && r.inside(m.pos) && m.deck == nil
+        } || (b.patrols[r.key] ?? []).contains { $0.health > 0 } || (b.crews[r.key] ?? []).contains { $0.health > 0 }
+        guard !alive else { return }
+        r.cleared = true
+        r.patrol = nil; b.patrols[r.key] = nil
+        b.note("\(r.key) cleared")
+        if simd_length(player.pos - r.centre) < 140 { onToast?("The citadel is cleared") }
     }
 
     // Stand down slowly: lockdown -> alert after 60 s of quiet, -> suspicious after 90, -> calm after 120.
@@ -339,7 +380,7 @@ extension Game {
         }
         b.crews[r.key] = crew
         // Reinforcements: up to two Capital dropships, the first a few seconds after the alarm.
-        if r.dropshipCD <= 0 && r.dropships < 2 && r.broken != true {
+        if r.dropshipCD <= 0 && r.dropships < 2 && r.broken != true && r.cleared != true {
             r.dropshipCD = 75
             let dir = simd_normalize(V3(r.centre.x - src.x, 0, r.centre.z - src.z) + V3(0.3, 0, 0.7))
             let from = r.centre + dir * 170 + V3(0, 60, 0)

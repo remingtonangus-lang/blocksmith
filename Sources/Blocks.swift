@@ -684,6 +684,7 @@ final class BlockRegistry {
         registerAshenGrove()
         registerSpringBlocks()
         registerShipBlocks()
+        registerVehicleWorks()
         registerMilitaryBlocks()
         registerCapitalBlocks()
         registerCapitalArchitecture()

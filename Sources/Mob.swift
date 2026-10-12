@@ -63,7 +63,7 @@ enum MobKind: Int, CaseIterable {
                                   burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .skeleton: return Spec(name: "Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                     burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
-        case .creeper: return Spec(name: "Powderwight", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
+        case .creeper: return Spec(name: "Powderwight", halfW: 0.3, height: 1.7, health: 16, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
         case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
                                   drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
@@ -257,6 +257,7 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
     let kind: MobKind
@@ -502,7 +503,9 @@ final class Mob {
         let cy = cosf(yaw), sy = sinf(yaw)
         return pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
     }
-    static let hisserFuse: Float = 1.75   // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra)
+    // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra; Oct 11 G16: 2.0 with 16 health and a
+    // 0.8 s setback per hit, so an iron sword's three blows always land before it goes off)
+    static let hisserFuse: Float = 2.0
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
     func intersects(_ b: IVec3) -> Bool {
@@ -682,7 +685,7 @@ final class Mob {
                 speed = spec.speed * 1.2
                 if g.meleeStrike(self, reach: halfW + 1.3) {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    g.hurtPlayer(vary.hit(spec.attack), from: pos, cause: "was slain by \(spec.name)", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ghast:
@@ -742,7 +745,7 @@ final class Mob {
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .animal: speed = bondedHorseAI(dt, g, dist: dist) ?? animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
             if kind == .horse { speed *= horseSpeed / 10.4 }            // a fast horse visibly trots and bolts faster
-        case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
+        case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater) * Difficulty.row.speed * vary.speed
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
             // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
@@ -793,6 +796,8 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            // P51: a rider on the road keeps to the road (Riders.swift).
+            if Riders.isRider(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
             if let s = townDefend(dt, g) {
@@ -917,7 +922,10 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: simd_normalize(d), speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
+                    // P55: each archer's own aim: a steady hand lands nearly every arrow, a shaky one sprays them.
+                    let a = vary.aim
+                    let dir = simd_normalize(simd_normalize(d) + V3(Rand.float(in: -a...a), Rand.float(in: -a...a) * 0.6, Rand.float(in: -a...a)))
+                    tipArrow(g.projectiles.shoot(from: bowMuzzle, dir: dir, speed: kind == .pillager ? 32 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))   // 1.6 a tick (reference)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -1345,7 +1353,9 @@ final class Mob {
     // Off for guns, blasts and scripted hits, which have their own rates.
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if kind == .warden && emergeTime > 0 { return }
-        if downed > 0 { return }                                    // a downed horse takes no more (HorseLife.swift)
+        // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
+        // struck his spare horse and it lay there for five minutes, "stuck in place": Oct 11 playtest P26).
+        if downed > 0 { if Mob.playerMelee && damage > 0 { downed = min(downed, 0.01) }; return }
         var damage = damage
         var knockback = knockback
         // The Brand Order's shields, parries and openings (HellMobs.swift): a blocked hit does nothing at all.
@@ -1363,6 +1373,7 @@ final class Mob {
             }
         }
         if power > 1 && damage > 0 { damage = max(1, Int((Float(damage) / power).rounded())) }
+        damage = Difficulty.scaleHit(damage, self)                          // G19: Easy monsters are frailer, Hard tougher
         // Townsfolk: tougher people take less of a hit, frailer ones more (TownStats; fractions round at random so
         // the average holds, except that every hit does at least 1).
         if kind == .villager && villager?.person != nil && damage > 0 {
@@ -1428,7 +1439,7 @@ final class Mob {
         if spec.flying { vel += V3(0, 1, 0); return }
         // A hit hisser flinches: its swell drops back 0.6 s and pauses 0.4 s, so steady melee (one swing per sword
         // cooldown) can finish it before it blows (playtest v78: it went off before enough hits landed).
-        if kind == .creeper && damage > 0 { fuse = max(0, fuse - 0.6); flinch = 0.4 }
+        if kind == .creeper && damage > 0 { fuse = max(0, fuse - 0.8); flinch = 0.4 }
         if kind == .enderman && Rand.float(in: 0..<1) < 0.5 { return }
         var away = pos - src
         away.y = 0
@@ -2114,6 +2125,58 @@ final class MobManager {
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
     func of(_ k: MobKind) -> [Mob] { kindIndex[k.rawValue] }
+    // P60 (Oct 11 evening playtest): bodies don't overlap. Mobs near the player that stand in one another (or in the
+    // player: a voidwalker blinking in on top of him was hard to hit) are eased apart sideways, a little each frame,
+    // never into a wall. Pairs within 48 blocks only; no allocation (a kept scratch list).
+    private var sepNear: [Mob] = []
+    static var separated = 0                        // pushes made (tests)
+    func separate(_ dt: Float, _ g: Game) {
+        let p = g.player.pos, w = g.world
+        sepNear.removeAll(keepingCapacity: true)
+        for m in mobs where m.health > 0 && m.downed <= 0 && m.deck == nil && g.riding !== m && !m.lying && !m.leashed && m.halfW < 1.6
+            && m.kind != .boat && m.kind != .minecart && m.kind != .enderDragon && m.kind != .endCrystal && m.kind != .shulker
+            && m.kind != .deckGun && m.kind != .armorStand && m.hitStop <= 0 {
+            let d = m.pos - p
+            if d.x * d.x + d.z * d.z < 48 * 48 { sepNear.append(m) }
+        }
+        let step = min(0.25, 4 * dt)
+        func nudge(_ m: Mob, _ dir: V2, _ by: Float) {
+            let q = m.pos + V3(dir.x, 0, dir.y) * min(step, by)
+            if !m.collides(q, w) { m.pos = q; MobManager.separated += 1 }
+        }
+        func dirOf(_ dx: Float, _ dz: Float) -> (V2, Float) {
+            let l = sqrtf(dx * dx + dz * dz)
+            if l < 1e-3 { let a = Rand.float(in: 0..<(2 * Float.pi)); return (V2(cosf(a), sinf(a)), 0) }
+            return (V2(dx / l, dz / l), l)
+        }
+        let n = sepNear.count
+        if g.alive && g.riding == nil {
+            for m in sepNear {
+                let dy = m.pos.y - p.y
+                guard dy > -m.height && dy < g.player.height else { continue }
+                let (dir, l) = dirOf(m.pos.x - p.x, m.pos.z - p.z), need = m.halfW + g.player.halfW
+                if l < need { nudge(m, dir, need - l) }
+            }
+        }
+        guard n > 1 else { return }
+        for i in 0..<(n - 1) {
+            let a = sepNear[i]
+            for j in (i + 1)..<n {
+                let b = sepNear[j]
+                let need = a.halfW + b.halfW
+                let dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z
+                guard abs(dx) < need && abs(dz) < need else { continue }
+                let dy = b.pos.y - a.pos.y
+                guard dy > -b.height && dy < a.height else { continue }
+                let (dir, l) = dirOf(dx, dz)
+                guard l < need else { continue }
+                let half = (need - l) * 0.5
+                nudge(b, dir, half)
+                nudge(a, -dir, half)
+            }
+        }
+    }
+
     func rebuildIndex() {
         for i in kindIndex.indices { kindIndex[i].removeAll(keepingCapacity: true) }
         for m in mobs where m.health > 0 { kindIndex[m.kind.rawValue].append(m) }
@@ -2138,8 +2201,9 @@ final class MobManager {
         let p = game.player.pos
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
+        Difficulty.level = game.difficulty
         let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
-        if !second { hiveTick(dt, game) }
+        if !second { hiveTick(dt, game); separate(dt, game) }
         for m in mobs where game.seatOwns(m.pos) {
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
             let before = m.pos, wasGround = m.onGround
@@ -2394,14 +2458,16 @@ final class MobManager {
         // Hell's own (HellMobs.swift): order patrols, Searwings, Scorchling packs, Slagthrowers.
         if !inFortress && hellOwnSpawn(game, at: spawnPos) { return }
         if inFortress {
-            list = [(.blaze, 10, 2, 3), (.zombifiedPiglin, 5, 4, 4), (.witherSkeleton, 8, 5, 5), (.skeleton, 2, 5, 5), (.magmaCube, 3, 4, 4)]
+            list = [(.blaze, 10, 2, 3), (.zombifiedPiglin, 5, 4, 4), (.witherSkeleton, 10, 5, 5), (.magmaCube, 3, 4, 4)]
         } else {
+            // Hell's own kinds only (G17): the surface's skeletons and Voidwalkers no longer wander in (Blight Skeletons
+            // take the skeletons' place in the soul valleys; the blue forests get magma cubes and wailers).
             switch w.gen.column(x, z).biome {
-            case .soulSandValley: list = [(.skeleton, 20, 5, 5), (.ghast, 50, 4, 4), (.enderman, 1, 4, 4)]
+            case .soulSandValley: list = [(.witherSkeleton, 20, 2, 4), (.ghast, 50, 4, 4)]
             case .basaltDeltas: list = [(.ghast, 40, 1, 1), (.magmaCube, 100, 2, 5)]
             case .crimsonForest: list = [(.zombifiedPiglin, 1, 2, 4), (.hoglin, 9, 3, 4), (.piglin, 5, 3, 4)]
-            case .warpedForest: list = [(.enderman, 1, 4, 4)]
-            default: list = [(.zombifiedPiglin, 100, 4, 4), (.ghast, 50, 4, 4), (.magmaCube, 2, 4, 4), (.enderman, 1, 4, 4), (.piglin, 15, 4, 4)]
+            case .warpedForest: list = [(.magmaCube, 10, 2, 4), (.ghast, 10, 1, 1)]
+            default: list = [(.zombifiedPiglin, 100, 4, 4), (.ghast, 50, 4, 4), (.magmaCube, 2, 4, 4), (.piglin, 15, 4, 4)]
             }
         }
         let total = list.reduce(0) { $0 + $1.1 }

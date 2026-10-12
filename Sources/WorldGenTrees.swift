@@ -560,6 +560,40 @@ enum TreePlacer {
 }
 
 extension WorldGen {
+    // A reef at a column: the nearest coral head (one per 9-block cell, three in four cells hold one), its species,
+    // height there (a dome with a rough top), an optional cap species, a branching finger, or the rim species when
+    // the column lies just outside a head. World coordinates only, so heads cross chunk borders whole.
+    func reef(_ wx: Int, _ wz: Int) -> (kind: Int, height: Int, cap: Int, finger: Int, rim: Int) {
+        let cell = 9
+        let gx = floorDiv(wx, cell), gz = floorDiv(wz, cell)
+        var best: (d: Float, r: Float, k: Int, cap: Int, tall: Float, hx: Int, hz: Int) = (1e9, 0, 0, -1, 0, 0, 0)
+        for dz in -1...1 { for dx in -1...1 {
+            let cx = gx + dx, cz = gz + dz
+            guard hashf(cx, 41, cz, s32 ^ 0x2EEF) < 0.78 else { continue }
+            let ox = Float(cx * cell) + 1.5 + hashf(cx, 42, cz, s32 ^ 0x2EEF) * Float(cell - 3)
+            let oz = Float(cz * cell) + 1.5 + hashf(cx, 43, cz, s32 ^ 0x2EEF) * Float(cell - 3)
+            let rad = 1.6 + hashf(cx, 44, cz, s32 ^ 0x2EEF) * 2.6
+            // Slightly oval heads: the distance is stretched along a per-head axis.
+            let ang = hashf(cx, 45, cz, s32 ^ 0x2EEF) * .pi
+            let ux = Float(wx) + 0.5 - ox, uz = Float(wz) + 0.5 - oz
+            let a = ux * cosf(ang) + uz * sinf(ang), bb = -ux * sinf(ang) + uz * cosf(ang)
+            let d = sqrtf(a * a * 0.7 + bb * bb * 1.3) / rad
+            if d < best.d {
+                let k = Int(hashf(cx, 46, cz, s32 ^ 0x2EEF) * 5) % 5
+                let capH = hashf(cx, 47, cz, s32 ^ 0x2EEF)
+                best = (d, rad, k, capH < 0.35 ? (k + 1 + Int(capH * 40) % 4) % 5 : -1, 1.5 + rad * 1.1, cx, cz)
+            }
+        } }
+        guard best.d < 1.45 else { return (0, 0, -1, 0, -1) }
+        if best.d >= 1 { return (best.k, 0, -1, 0, best.d < 1.3 ? best.k : (best.cap >= 0 ? best.cap : best.k)) }
+        let rough = hashf(wx, 48, wz, s32 ^ 0x2EEF)
+        let hgt = max(1, Int((best.tall * (1 - best.d * best.d) + rough * 1.2).rounded(.down)))
+        // Fingers on the branching kinds (tube 0, fire 3, horn 4), on about a third of a head's top columns.
+        let branching = best.k == 0 || best.k == 3 || best.k == 4
+        let finger = branching && rough > 0.62 && best.d < 0.8 ? 1 + Int(hashf(wx, 49, wz, s32 ^ 0x2EEF) * 3) : 0
+        return (best.k, hgt, best.cap, finger, -1)
+    }
+
     // Ground plants, flowers, sugar cane, cacti, water plants and icebergs, per column (own chunk only).
     func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil) {
         let g = Blocks.id
@@ -608,13 +642,28 @@ extension WorldGen {
                 let floor = b[Chunk.index(lx, fy, lz)]
                 guard floor == SAND || floor == GRAVEL || floor == DIRT || floor == clayID || floor == mudID else { continue }
                 if biome == .warmOcean && depth > 2 {
-                    if h < 0.25 {
-                        let c = ["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5]
-                        let reefH = 1 + Int(h * 12)
-                        for k in 1...min(reefH, depth - 2) { b[Chunk.index(lx, fy + k, lz)] = g("\(c)_coral_block") }
-                        b[Chunk.index(lx, fy + min(reefH, depth - 2) + 1, lz)] = g("\(c)_coral")
-                    } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g(["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5] + "_coral") }
-                    else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
+                    // Reefs (Oct 11 playtest P22, "the coral is very low effort": every column drew its own random
+                    // species and pillar height, a speckle of one-block posts). Now coral heads: domed mounds of one
+                    // species each, a second species capping some, branching fingers on the branching kinds, fans
+                    // round the rim, sand lanes and seagrass between the heads.
+                    let species = ["tube", "brain", "bubble", "fire", "horn"]
+                    let r = reef(wx, wz)
+                    let room = depth - 2
+                    if r.height > 0 && room > 0 {
+                        let hgt = min(r.height, room)
+                        for k in 1...hgt { b[Chunk.index(lx, fy + k, lz)] = g("\(species[k == hgt && r.cap >= 0 ? r.cap : r.kind])_coral_block") }
+                        var top = fy + hgt
+                        // Branching kinds (tube, horn, fire): thin fingers off the top of the head.
+                        if r.finger > 0 && top + r.finger <= fy + room {
+                            for k in 1...r.finger { b[Chunk.index(lx, top + k, lz)] = g("\(species[r.kind])_coral_block") }
+                            top += r.finger
+                        }
+                        if top + 1 <= fy + room + 1 && h < 0.55 { b[Chunk.index(lx, top + 1, lz)] = g("\(species[r.cap >= 0 && h < 0.3 ? r.cap : r.kind])_coral") }
+                    } else if r.rim >= 0 && h < 0.6 {
+                        b[Chunk.index(lx, fy + 1, lz)] = g("\(species[r.rim])_coral")              // fans round a head
+                    } else if h < 0.3 + 0.4 * max(0, flora.noise2(Float(wx) / 14 + 300, Float(wz) / 14 + 300)) {
+                        b[Chunk.index(lx, fy + 1, lz)] = seagrassID                               // meadows in the lanes
+                    }
                 } else if (biome.isOcean || biome.isRiver) && biome != .frozenOcean && biome != .deepFrozenOcean {
                     let kelpPatch = flora.noise2(Float(wx) / 18 + 700, Float(wz) / 18 + 700) > 0.2
                     if kelpPatch && h < 0.12 && depth > 3 && biome != .warmOcean && !biome.isRiver {
@@ -739,10 +788,20 @@ extension WorldGen {
             }
             // A calmer ground (playtest v78: "too noisy"): no tall grass, about a third of the short grass, half the
             // flowers and ferns (themed biomes keep their relative richness).
+            let rawGrass = grassP, rawTall = tallP
             grassP *= 0.35; flowerP *= 0.5; fernP *= 0.5; tallP = 0
             // PM9: short grass about 1/8 again (0.11: measured 0.10-0.12 over nine biomes), ferns ~1/3; flowers stay
             // (themed flower biomes a little calmer).
             grassP *= calm(0.11); fernP *= calm(0.35)
+            // G18 (Oct 11 playtest: "plain grass looks barren"): the calm speckle stays between them, but grass now grows
+            // in patches (a low-frequency noise): thick in a patch's heart, with a few tall tufts there, thinning to
+            // the calm ground at its edge. Clumps read as a meadow where the old uniform speckle read as noise (v78).
+            if !old && rawGrass > 0.05 {
+                let patch = flora.noise2(Float(wx) / 11 + 520, Float(wz) / 11 - 340)
+                let t = max(0, min(1, (patch - 0.02) / 0.28)), t2 = t * t
+                grassP += (t + t2) * rawGrass * 1.0
+                if t > 0.8 { tallP = max(rawTall, 0.03) * 0.5 }
+            }
             if biome == .flowerForest || biome == .cherryGrove || biome == .meadow { flowerP *= calm(0.7) }
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {
