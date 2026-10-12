@@ -160,7 +160,11 @@ final class Agent {
         let args = CommandLine.arguments
         var cargs: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) }
         cargs.append(nil)
+        #if os(Android)
+        return  // no re-exec on the headset; the agent runner is a desktop/CI tool
+        #else
         execv(args[0], &cargs)
+        #endif
         print("agent: could not re-exec with deterministic hashing; dictionary order may vary")
     }
 
