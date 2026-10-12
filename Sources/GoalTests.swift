@@ -29,33 +29,43 @@ enum GoalTests {
         for i in 0..<g.inventory.offhand.slots.count { g.inventory.offhand[i] = .empty }
 
         // Names and fit.
-        let raw = Goals.path.filter { $0.text.contains("_") }.map { $0.text }
-        check(raw.isEmpty, "first hour: every goal names things by their game names (\(Goals.path.count) goals)\(raw.isEmpty ? "" : "; raw keys: " + raw.joined(separator: " | "))")
+        let raw = Goals.all.filter { $0.text.contains("_") || $0.text.range(of: "\\b(a [AEIOU]|an [^AEIOUaeiou ])", options: .regularExpression) != nil }.map { $0.text }
+        check(raw.isEmpty, "first hour: every goal names things by their game names, with the right article (\(Goals.all.count) goals)\(raw.isEmpty ? "" : "; raw keys: " + raw.joined(separator: " | "))")
         var wide: [String] = []
         for (w, h) in [(Float(1024), Float(640)), (1280, 720), (1920, 1080)] {
             let L = HudLayout(w, h)
-            for goal in Goals.path where Float(Font.width(goal.text)) * L.s + 16 * L.s > L.W { wide.append("\(Int(w))x\(Int(h)): \(goal.text)") }
+            for goal in Goals.all where Float(Font.width(goal.text)) * L.s + 16 * L.s > L.W { wide.append("\(Int(w))x\(Int(h)): \(goal.text)") }
         }
         check(wide.isEmpty, "first hour: every goal fits the HUD (headset panel 1024x640, 1280x720, 1080p)\(wide.isEmpty ? "" : ": " + wide.prefix(4).joined(separator: " | "))")
-        let unknown = Goals.path.compactMap { goal -> String? in Advancements.index[goal.id] == nil && carry[goal.id] == nil ? goal.id : nil }
+        let unknown = Goals.all.compactMap { goal -> String? in Advancements.index[goal.id] == nil && carry[goal.id] == nil ? goal.id : nil }
         check(unknown.isEmpty, "first hour: every goal is met by an advancement or by carrying an item\(unknown.isEmpty ? "" : ": " + unknown.joined(separator: ", "))")
 
-        // Walk the path.
-        var order: [String] = [], stuck: [String] = [], back: [String] = []
-        for (i, goal) in Goals.path.enumerated() {
-            guard let n = Goals.next(g) else { stuck.append("no goal before \(goal.id)"); break }
-            order.append(n.id)
-            if n.id != goal.id { stuck.append("\(n.id) instead of \(goal.id)"); break }
-            if let k = carry[goal.id] { g.inventory.main[i % g.inventory.main.slots.count] = ItemStack(Items.id(k), 1) }
-            else { g.advancements.insert(goal.id) }
-            if let m = Goals.next(g), let j = Goals.path.firstIndex(where: { $0.id == m.id }), j <= i { back.append("\(goal.id) -> \(m.id)") }
+        // Walk the path, on new ground (no Hollow Gate since G20) and on ground saved with the gate.
+        let g20 = G20Guard.overworld
+        defer { G20Guard.overworld = g20 }
+        for legacy in [false, true] {
+            G20Guard.overworld = legacy ? [StructureCache.key(0, 0)] : []
+            g.advancements = []
+            for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
+            let path = Goals.path(g)
+            var order: [String] = [], stuck: [String] = [], back: [String] = []
+            for (i, goal) in path.enumerated() {
+                guard let n = Goals.next(g) else { stuck.append("no goal before \(goal.id)"); break }
+                order.append(n.id)
+                if n.id != goal.id { stuck.append("\(n.id) instead of \(goal.id)"); break }
+                if let k = carry[goal.id] { g.inventory.main[i % g.inventory.main.slots.count] = ItemStack(Items.id(k), 1) }
+                else { g.advancements.insert(goal.id) }
+                if let m = Goals.next(g), let j = path.firstIndex(where: { $0.id == m.id }), j <= i { back.append("\(goal.id) -> \(m.id)") }
+            }
+            let hollowSteps = path.filter { $0.hollow }.count
+            check(stuck.isEmpty && back.isEmpty && order.count == path.count && Goals.next(g) == nil && (legacy ? hollowSteps > 0 : hollowSteps == 0),
+                  "first hour (\(legacy ? "ground saved with the Hollow Gate" : "new ground, no Hollow")): a next goal at every step, each moves on once met (\(order.count)/\(path.count), \(hollowSteps) in the Hollow: \(order.first ?? "-") ... \(order.last ?? "-"), then none)"
+                  + (stuck.isEmpty ? "" : "; stuck: " + stuck.joined(separator: ", ")) + (back.isEmpty ? "" : "; went back: " + back.joined(separator: ", ")))
+            // Carried items dropped after the next advancement: no step comes back.
+            for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
+            if !legacy { check(Goals.next(g) == nil, "first hour: dropping the carried items later doesn't bring old goals back (next: \(Goals.next(g)?.id ?? "none"))") }
         }
-        check(stuck.isEmpty && back.isEmpty && order.count == Goals.path.count && Goals.next(g) == nil,
-              "first hour: a next goal at every step of the path, each moves on once met (\(order.count)/\(Goals.path.count): \(order.first ?? "-") ... \(order.last ?? "-"), then none)"
-              + (stuck.isEmpty ? "" : "; stuck: " + stuck.joined(separator: ", ")) + (back.isEmpty ? "" : "; went back: " + back.joined(separator: ", ")))
-        // Carried items dropped after the next advancement: no step comes back.
-        for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
-        check(Goals.next(g) == nil, "first hour: dropping the carried items later doesn't bring old goals back (next: \(Goals.next(g)?.id ?? "none"))")
+        G20Guard.overworld = g20
 
         // The banner and the inventory line.
         g.advancements = ["root"]

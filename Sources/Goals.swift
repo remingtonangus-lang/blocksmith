@@ -3,7 +3,8 @@ import simd
 
 // First hour (Q2, scorecard "First hour: a new player always knows a next goal"): once the controls tips are done, a
 // survival player always has one next goal, the first unmet step of the story path (wood, a workbench, tools, a night
-// in a bed, iron, titanium, the Emberdeep, the Hollow, the Blight). A new goal shows for a few seconds in the tips slot
+// in a bed, iron, titanium, the Emberdeep, the Stronghold, the Blight, the Deep and its war; the Hollow only on
+// ground saved with its gate). A new goal shows for a few seconds in the tips slot
 // and stays at the top of the inventory screen. Steps are met by the saved advancements, or by what is carried for the
 // first few; the goal is the step after the furthest one met, so it never goes backwards. Off with the tips (Options > Accessibility > Tutorial Hints) and in
 // creative. `questcheck --firsthour-only` and the scripted playthrough check the path (Sources/GoalTests.swift).
@@ -11,45 +12,70 @@ enum Goals {
     struct Goal {
         let id: String
         let text: String
+        var hollow = false                 // only where the world has the Hollow Gate (G20: saves made before it left)
         let done: (Game) -> Bool
+        init(id: String, text: String, hollow: Bool = false, done: @escaping (Game) -> Bool) { self.id = id; self.text = text; self.hollow = hollow; self.done = done }
     }
     static func carries(_ g: Game, _ f: (String) -> Bool) -> Bool {
-        for s in g.inventory.main.slots + g.inventory.armor.slots + g.inventory.offhand.slots where !s.isEmpty && f(Items.key(s.item)) { return true }
+        for c in [g.inventory.main, g.inventory.armor, g.inventory.offhand] {
+            for s in c.slots where !s.isEmpty && f(Items.key(s.item)) { return true }
+        }
         return false
     }
     static func adv(_ id: String) -> (Game) -> Bool { { $0.advancements.contains(id) } }
     static func name(_ k: String) -> String { Items.has(k) ? Items.def(Items.id(k)).display : k }
+    static func a(_ k: String) -> String { let n = name(k); return ("AEIOU".contains(n.first ?? "x") ? "an " : "a ") + n }
 
-    static let path: [Goal] = [
+    static let all: [Goal] = [
         Goal(id: "wood", text: "Break a tree trunk for wood") { g in g.advancements.contains("root") || carries(g) { $0.hasSuffix("_log") || $0.hasSuffix("_planks") || $0.hasSuffix("_stem") } },
         Goal(id: "root", text: "Turn the wood into planks and make a \(name("crafting_table"))", done: adv("root")),
-        Goal(id: "pickaxe", text: "Make a \(name("wooden_pickaxe")) at the \(name("crafting_table"))") { g in g.advancements.contains("mine_stone") || carries(g) { $0.hasSuffix("_pickaxe") } },
+        Goal(id: "pickaxe", text: "Make \(a("wooden_pickaxe")) at the \(name("crafting_table"))") { g in g.advancements.contains("mine_stone") || carries(g) { $0.hasSuffix("_pickaxe") } },
         Goal(id: "mine_stone", text: "Dig down to stone with the pickaxe", done: adv("mine_stone")),
-        Goal(id: "upgrade_tools", text: "Make a \(name("stone_pickaxe"))", done: adv("upgrade_tools")),
+        Goal(id: "upgrade_tools", text: "Make \(a("stone_pickaxe"))", done: adv("upgrade_tools")),
         Goal(id: "adventure/sleep_in_bed", text: "Before dark: make a bed from wool and planks and sleep in it", done: adv("adventure/sleep_in_bed")),
-        Goal(id: "furnace", text: "Make a \(name("furnace")) from eight \(name("cobblestone"))") { g in g.advancements.contains("smelt_iron") || carries(g) { $0 == "furnace" } },
+        Goal(id: "furnace", text: "Make \(a("furnace")) from eight \(name("cobblestone"))") { g in g.advancements.contains("smelt_iron") || carries(g) { $0 == "furnace" } },
         Goal(id: "smelt_iron", text: "Mine iron ore and smelt it in the \(name("furnace"))", done: adv("smelt_iron")),
-        Goal(id: "iron_tools", text: "Make an \(name("iron_pickaxe"))", done: adv("iron_tools")),
+        Goal(id: "iron_tools", text: "Make \(a("iron_pickaxe"))", done: adv("iron_tools")),
         Goal(id: "obtain_armor", text: "Make a piece of iron armour", done: adv("obtain_armor")),
         Goal(id: "mine_diamond", text: "Dig deep for \(name("diamond"))", done: adv("mine_diamond")),
         Goal(id: "form_obsidian", text: "Get \(name("obsidian")): water over still lava, then the \(name("diamond")) pickaxe", done: adv("form_obsidian")),
         Goal(id: "enter_the_nether", text: "Build an Ember Gate frame of \(name("obsidian")), light it and step through", done: adv("enter_the_nether")),
         Goal(id: "nether/find_fortress", text: "Find an Ash Foundry in the Emberdeep", done: adv("nether/find_fortress")),
-        Goal(id: "nether/obtain_blaze_rod", text: "Take a \(name("blaze_rod")) from a Cinderwisp", done: adv("nether/obtain_blaze_rod")),
-        Goal(id: "eyes", text: "Make an \(name("ender_eye")) from a \(name("ender_pearl")) and \(name("blaze_powder"))") { g in g.advancements.contains("follow_ender_eye") || carries(g) { $0 == "ender_eye" } },
+        Goal(id: "nether/obtain_blaze_rod", text: "Take \(a("blaze_rod")) from a Cinderwisp", done: adv("nether/obtain_blaze_rod")),
+        Goal(id: "eyes", text: "Make \(a("ender_eye")) from \(a("ender_pearl")) and \(name("blaze_powder"))") { g in g.advancements.contains("follow_ender_eye") || carries(g) { $0 == "ender_eye" } },
         Goal(id: "follow_ender_eye", text: "Throw the eye and follow it to the Stronghold", done: adv("follow_ender_eye")),
-        Goal(id: "enter_the_end", text: "Fill the Hollow Gate with eyes and step in", done: adv("enter_the_end")),
-        Goal(id: "end/kill_dragon", text: "Defeat the Hollow Wyrm", done: adv("end/kill_dragon")),
+        Goal(id: "enter_the_end", text: "Fill the Hollow Gate with eyes and step in", hollow: true, done: adv("enter_the_end")),
+        Goal(id: "end/kill_dragon", text: "Defeat the Hollow Wyrm", hollow: true, done: adv("end/kill_dragon")),
         Goal(id: "nether/summon_wither", text: "Summon the Blight, if you dare", done: adv("nether/summon_wither")),
+        Goal(id: "adventure/deep", text: "Dig through the bottom of the world into the Deep", done: adv("adventure/deep")),
+        Goal(id: "adventure/ash_vault", text: "Drop into the Ash Vault", done: adv("adventure/ash_vault")),
+        Goal(id: "adventure/ash_victory", text: "End the war below the world: defeat the Ash Chancellor", done: adv("adventure/ash_victory")),
     ]
+    // The path for this world: the Hollow's steps only where a gate can be found (a save with gate ground, or a player
+    // who has been there); new worlds go from the Stronghold to the Blight and the Deep.
+    static func path(_ g: Game) -> [Goal] {
+        let hollow = !G20Guard.overworld.isEmpty || g.advancements.contains("enter_the_end")
+        return hollow ? all : all.filter { !$0.hollow }
+    }
 
     static var on: Bool { HudExtras.enabled && Settings.shared.tutorialHints && Settings.shared.tutorialStep >= Tutorial.steps }
     // The next goal: the step after the furthest one met, so a skipped step (no night in a bed) never holds the goal
     // back once the player is past it (nil in creative or with the path walked).
     static func next(_ g: Game) -> Goal? {
         guard g.survival else { return nil }
-        let last = path.lastIndex { $0.done(g) } ?? -1
-        return last + 1 < path.count ? path[last + 1] : nil
+        let p = path(g)
+        let last = p.lastIndex { met($0, g) } ?? -1
+        return last + 1 < p.count ? p[last + 1] : nil
+    }
+
+    // A step met by carrying something (wood, the first pickaxe, a furnace, an eye) stays met once seen: a furnace
+    // set down or an eye thrown doesn't take the goal back (kept with the saved advancements as "goal/<id>").
+    static func met(_ goal: Goal, _ g: Game) -> Bool {
+        if Advancements.index[goal.id] != nil { return goal.done(g) }
+        if g.advancements.contains("goal/" + goal.id) { return true }
+        guard goal.done(g) else { return false }
+        g.advancements.insert("goal/" + goal.id)
+        return true
     }
 
     // The banner: a new goal (or the first one after the tips, or after loading a world) shows for 8 s.
@@ -58,6 +84,7 @@ enum Goals {
     static var lastCheck: Double = -100
     static var current: Goal?
     static weak var shownGame: Game?
+    static var bars = 0                    // boss / alarm bars on screen last frame (Renderer)
     static func tick(_ g: Game) {
         if g !== shownGame { shownGame = g; shownID = nil; current = nil; lastCheck = -100 }     // a world loaded: show it again
         guard on, g.clock - lastCheck >= 0.5 else { return }
@@ -72,9 +99,18 @@ enum Goals {
         guard on, Tutorial.ownSeat(g), let n = current, g.alive, !WeaponWheel.shared.open else { return [] }
         let inv = g.menu is InventoryMenu
         guard inv || (g.menu == nil && g.clock - shownAt < 8) else { return [] }
-        let s = L.s
+        // In the inventory: above its panel if there is room, else below it (the panel fills the headset's screen from
+        // the top); the banner sits under any boss and alarm bars (Renderer: 19 px a bar from insetY + 12).
+        let F = inv ? L.fitted(g.menu!) : L
+        let s = F.s
         let head = "Next goal", t = n.text
-        let y = inv ? L.insetY + 4 * s : L.insetY + 34 * s
+        var y = L.insetY + 34 * s + Float(bars) * 19 * s
+        if inv, let m = g.menu {
+            let top = floor((F.H - Float(m.height) * s) / 2), bottom = top + Float(m.height) * s
+            if top - 30 * s >= F.insetY { y = top - 28 * s }
+            else if bottom + 30 * s <= F.H - F.insetY { y = bottom + 8 * s }
+            else { return [] }
+        }
         let w = Float(max(Font.width(t), Font.width(head))) * s
         let x = floor((L.W - w) / 2)
         let a: Float = inv ? 1 : Float(min(1, (8 - (g.clock - shownAt)) * 2))

@@ -61,12 +61,13 @@ enum SettingsCheck {
             var lines: [String] = []
             for (k, v) in opts {
                 let o = other(v)
+                if desc(o) == desc(v) { bad.append("\(k): no off-default value for a \(type(of: v))") }
                 d.set(o, forKey: k)
                 lines.append("\(k)\t\(desc(v))\t\(desc(o))")
             }
             try? lines.joined(separator: "\n").write(toFile: file, atomically: true, encoding: .utf8)
             d.synchronize()
-            print("settings write: \(opts.count) options set off their defaults")
+            print((bad.isEmpty ? "ok   " : "FAIL ") + "settings: every option has an off-default value to test (\(opts.count))" + (bad.isEmpty ? "" : ": " + bad.joined(separator: ", ")))
         case "read", "verify":
             guard let text = try? String(contentsOfFile: file, encoding: .utf8) else { print("FAIL settings: no record from the write phase"); return 1 }
             let now = Dictionary(opts.map { ($0.0, desc($0.1)) }, uniquingKeysWith: { a, _ in a })

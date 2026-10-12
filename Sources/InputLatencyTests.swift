@@ -87,7 +87,7 @@ enum InputLatencyTests {
             g.mobs.mobs = [m]; mob = m; h0 = m.health
             g.player.pitch = -0.7
             for z in (fz - 2)...(fz - 1) { for y in (py + 1)...(py + 2) { if w.block(fx, y, z) != AIR { put(fx, y, z, AIR) } } }
-        }, { $0.rt = 1 }) { g.swing > 0 || (mob.map { $0.health < h0 } ?? false) })
+        }, { $0.rt = 1 }) { mob.map { $0.health < h0 } ?? false })
         print("input latency (frames to the first effect, 0 = the same tick): " + rows.joined(separator: ", "))
         check(late.isEmpty, "latency: every control answers in the frame that reads the press (\(rows.count) controls)"
               + (late.isEmpty ? "" : "; late: " + late.joined(separator: ", ")))
