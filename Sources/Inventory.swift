@@ -11,9 +11,10 @@ struct ItemStack: Codable, Equatable {
     var contents: [ItemStack]? = nil    // shell box items
     var pat: [Int]? = nil               // banner pattern layers (pattern * 16 + colour)
     var pages: [String]? = nil          // book text
+    var legend: String? = nil           // a legendary's key (Legendaries.swift, C10)
 
     // Saved by item name so registry changes never scramble inventories.
-    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t, c, p, g }
+    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t, c, p, g, lg }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .id)
@@ -27,6 +28,7 @@ struct ItemStack: Codable, Equatable {
         contents = try? c.decode([ItemStack].self, forKey: .c)
         pat = try? c.decode([Int].self, forKey: .p)
         pages = try? c.decode([String].self, forKey: .g)
+        legend = try? c.decode(String.self, forKey: .lg)
     }
     func encode(to enc: Encoder) throws {
         var c = enc.container(keyedBy: CodingKeys.self)
@@ -40,6 +42,7 @@ struct ItemStack: Codable, Equatable {
         if let k = contents { try c.encode(k, forKey: .c) }
         if let p = pat { try c.encode(p, forKey: .p) }
         if let g = pages { try c.encode(g, forKey: .g) }
+        if let k = legend { try c.encode(k, forKey: .lg) }
     }
 
     static let empty = ItemStack()
@@ -49,9 +52,9 @@ struct ItemStack: Codable, Equatable {
     var isEmpty: Bool { item == 0 || count <= 0 }
     var def: ItemDef { Items.def(item) }
     var maxStack: Int { Items.def(item).maxStack }
-    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && contents == nil && o.contents == nil && pat == o.pat && pages == nil && o.pages == nil && maxStack > 1 }
+    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && contents == nil && o.contents == nil && pat == o.pat && pages == nil && o.pages == nil && legend == nil && o.legend == nil && maxStack > 1 }
     func with(count n: Int) -> ItemStack { var s = self; s.count = n; return s }
-    var displayName: String { label ?? def.display }
+    var displayName: String { label ?? Legendaries.def(legend)?.name ?? def.display }
 }
 
 // A fixed-size list of slots (player inventory, chest, furnace, crafting grid...).

@@ -189,6 +189,7 @@ enum Hunting {
         for _ in 0..<24 where !Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] && y > 1 { y -= 1 }
         b.pos.y = Blocks.collide[Int(g.world.block(bx, Int(floor(y - 0.05)), bz))] ? floor(y - 0.05) + 1 : y
         if m.legend >= 0 {
+            Legendaries.animalDied(g, Int(m.legend), at: b.pos)      // C10
             legendsKilled += 1                               // gone for good once skinned (or its body's loot dropped)
             g.onToast?("You brought down \(legends[Int(m.legend)].name)")
             g.sfx(.goatHorn, 0.6, at: m.pos)

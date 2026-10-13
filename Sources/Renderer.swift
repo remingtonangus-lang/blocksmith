@@ -1704,7 +1704,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(x + size * (2 + 3.2 * Float(pi)) / 16, y + size * 0.5 / 16, size * 2.4 / 16, size * 2.4 / 16, V4(0, 0, 0, 0.85))
                     rect(x + size * (2.4 + 3.2 * Float(pi)) / 16, y + size * 0.9 / 16, size * 1.6 / 16, size * 1.6 / 16, V4(col, 1))
                 }
-                if (st.ench != 0 && pips.isEmpty) || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
+                if (st.ench != 0 && pips.isEmpty) || st.legend != nil || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
                     // Enchantment glint: a pulsing violet sheen over the sprite.
                     let a = 0.25 + 0.15 * sinf(Float(game.clock) * 3 + Float(x) * 0.01)
                     quad(pts, uvs, V4(0.75, 0.35, 1, a), Float(layer))
@@ -2366,7 +2366,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if !game.carried.isEmpty { itemIcon(game.carried, cursorPos.x - 8 * s, cursorPos.y - 8 * s, 16 * s) }
             else if let h = game.menuHover, !h.stack.isEmpty {
                 let st = h.stack
-                var lines: [(String, V4)] = [(st.displayName, st.ench != 0 ? V4(0.33, 1, 1, 1) : (st.label != nil ? V4(1, 1, 1, 1) : V4(1, 1, 1, 1)))]
+                var lines: [(String, V4)] = [(st.displayName, st.legend != nil ? Legendaries.gold : st.ench != 0 ? V4(0.33, 1, 1, 1) : (st.label != nil ? V4(1, 1, 1, 1) : V4(1, 1, 1, 1)))]
                 for (e, l) in Enchant.list(st) {
                     lines.append((Enchant.displayLine(e, l), Enchant.def(e).curse ? V4(1, 0.33, 0.33, 1) : V4(0.67, 0.67, 0.67, 1)))
                 }
@@ -2379,6 +2379,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 for l in Guns.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
+                for (i, l) in Legendaries.tooltip(st).enumerated() { lines.append((l, i < 2 ? Legendaries.gold : V4(0.67, 0.67, 0.67, 1))) }
                 if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))

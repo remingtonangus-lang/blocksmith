@@ -312,6 +312,7 @@ extension Game {
         st.log.append("\(key) taken")
         MapCache.shared.discover(self, kind: Greywall.kind, x: site.cx, z: site.cz, name: site.tier.name)
         onToast?("The \(site.tier.name) is yours: its yard is your respawn point, its map table reads the radar net")
+        Legendaries.fortressTaken(self, site.tier)            // C10
     }
 
     // The map table of a base the player holds marks every other Greywall base within 3,000 blocks on the map (the

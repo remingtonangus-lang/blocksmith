@@ -517,7 +517,7 @@ extension Game {
         case .bullet:
             for _ in 0..<gs.pellets {
                 let d = Guns.scatter(look, spread)
-                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player",
+                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * Legendaries.gunScale(st), fromPlayer: true, shooter: nil, by: "Player",
                              life: gs.range / gs.speed, gravity: 1.5)
                 s.pierce = pierce
                 s.incendiary = fiery
@@ -530,7 +530,7 @@ extension Game {
             s.power = Guns.rocketPower
             a.spawn(s)
         case .beam:
-            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage, fromPlayer: true, shooter: nil, by: "Player",
+            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage * Legendaries.gunScale(st), fromPlayer: true, shooter: nil, by: "Player",
                    incendiary: fiery)
         }
         var h = held
