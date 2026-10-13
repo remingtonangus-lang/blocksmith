@@ -329,7 +329,7 @@ T1. [done, Lane A, G20 PR: townsfolk swings at the player use Game.meleeGap (che
     (`dist < w.reach + 0.3`, feet height window 2.5) so an angry townsperson can't hit a player on a 2-block step and
     can hit one standing on a pillar. Monsters now use `Game.meleeGap(_:)` (VRMelee.swift: feet to headset, only the part
     level with the mob); use the same helper for townsfolk swings. Check: `--swingtest` covers the monster side.
-T2. questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
+T2. [DONE: questcheck --towns-only 309 of 309 ok on quest-port after C13; the 20 town reds no longer reproduce; the one new red (the law check took pieces.last as a lot, the C12 mine's head frame came last) fixed by putting the mine's pieces before the lots] questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
     $0.00 bounty), bounty (law never challenges, lapse day), honour HUD/meter/inventory, six-iron hit rate, countries
     ore. Towns-lane code; the Mac worker did not touch it. Reproduce: quest/tools/linux-check.sh then questcheck.
 T3. Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f14, still red on PR #49's run 940), left
