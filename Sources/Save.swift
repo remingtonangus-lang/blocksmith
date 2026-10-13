@@ -92,7 +92,7 @@ final class SaveManager {
     func loadMeta() -> WorldMeta? {
         SaveIO.flush()              // a background autosave of this world still writing (SaveIO.writeJSON)
         guard let d = try? Data(contentsOf: metaURL) else { return nil }
-        guard let m = try? JSONDecoder().decode(WorldMeta.self, from: d) else { return nil }
+        guard let m = try? SaveIO.decoder().decode(WorldMeta.self, from: d) else { return nil }
         if !backupChecked { backupChecked = true; SaveMigration.backupIfNeeded(dir: dir, meta: m) }
         return m
     }
@@ -102,7 +102,7 @@ final class SaveManager {
         var m = m0
         m.extra = (m.extra ?? [:]).merging(["format": String(SaveMigration.format)]) { _, n in n }
         if background { SaveIO.writeJSON(m, to: metaURL, pretty: true); return }
-        let enc = JSONEncoder()
+        let enc = SaveIO.encoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let d = try? enc.encode(m) { try? d.write(to: metaURL, options: .atomic) }
     }
@@ -242,9 +242,23 @@ enum SaveIO {
     // Encodes and writes a value snapshot (structs only: nothing the frame thread keeps mutating) on the save queue,
     // after any chunk writes already queued. The autosave's JSON encoding ran on the frame thread: the Oct 9 Quest
     // playtest logged a ~190 ms tick once a minute, every minute.
+    // P107 (Oct 12 PM, "a smooth world reloaded as blocks"): one infinite or NaN float (a position, the absorption) made
+    // JSONEncoder throw, so world.json was silently never written and the world reopened as a new one (no terrain
+    // option). Non-finite floats are written as strings and read back.
+    static func encoder() -> JSONEncoder {
+        let e = JSONEncoder()
+        e.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan")
+        return e
+    }
+    static func decoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.nonConformingFloatDecodingStrategy = .convertFromString(positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan")
+        return d
+    }
+
     static func writeJSON<T: Encodable>(_ value: T, to url: URL, pretty: Bool = false) {
         queue.async {
-            let enc = JSONEncoder()
+            let enc = encoder()
             if pretty { enc.outputFormatting = [.prettyPrinted, .sortedKeys] }
             if let d = try? enc.encode(value) { try? d.write(to: url, options: .atomic) }
         }

@@ -10,10 +10,16 @@ enum VRReload {
     enum Event { case none, grabbed, inserted, dropped, refused }
     static let wellReach: Float = 0.16          // m between the hands that counts as the magazine at the well
 
-    // Low beside the body: 0.4-1.2 m under the head and within 0.5 m of it sideways.
-    static func atHip(head: V3, hand: V3) -> Bool {
+    // Low beside the body: 0.4-1.2 m under the head and within 0.5 m of it sideways, and not out in front of the body
+    // (P109, Oct 12 PM: "still can't grip left when I'm holding a gun": a hand held at the waist in front, the usual
+    // pose for pressing a grip, counted as the hip, so with a gun not full every left grip took a magazine and the
+    // hotbar never stepped). `forward`: the way the body faces (level).
+    static let frontLimit: Float = 0.12
+    static func atHip(head: V3, hand: V3, forward: V3? = nil) -> Bool {
         let d = hand - head
-        return d.y < -0.4 && d.y > -1.2 && simd_length(V2(d.x, d.z)) < 0.5
+        guard d.y < -0.4 && d.y > -1.2 && simd_length(V2(d.x, d.z)) < 0.5 else { return false }
+        if let f = forward { return simd_dot(V2(d.x, d.z), simd_normalize(V2(f.x, f.z))) < frontLimit }
+        return true
     }
 
     static var grabs = 0, inserts = 0           // tests
@@ -32,7 +38,8 @@ enum VRReload {
             }
             return .none
         }
-        guard grip && !gripWas && atHip(head: head, hand: offHand) else { return .none }
+        let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+        guard grip && !gripWas && atHip(head: head, hand: offHand, forward: fwd) else { return .none }
         let gs = Guns.all[gi]
         // A full gun: the grip is the hotbar's (no toast; P74).
         if g.held.tag >= Guns.magSize(g.held) { return .none }

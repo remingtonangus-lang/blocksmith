@@ -65,6 +65,16 @@ final class WorldRenderer {
         caveK = caveK < 0 ? target : caveK + (target - caveK) * (1 - expf(-dt / 0.7))
     }
     var caveScale: Float { 0.08 + 0.92 * min(1, max(0, WorldRenderer.testCaveK ?? caveK) * 1.6) }
+    // Underground (P113, Oct 12 PM: "looking down a long cave, the sky shows at the far end"): rock well over the eye and
+    // little skylight round it. A tunnel running past the loaded ground, or past the cave fog's section cull, left a hole
+    // the sky pass filled with the blue sky dome (sun and clouds). Underground the sky pass draws only the dark fog
+    // colour and the fog closes before the cull at any skylight.
+    private(set) var underground = false
+    private func updateUnderground(_ eye: V3) {
+        guard game.dim.dim.hasSky, !game.player.headInWater else { underground = false; return }
+        let top = game.world.topY(Int(floor(eye.x)), Int(floor(eye.z)))
+        underground = top > Int(floor(eye.y)) + 6 && caveK < 0.45
+    }
     static var testCaveK: Float?           // SkyTest: a dark-cave eye without building a cave
 
     func uniforms(_ cam: EyeCamera) -> (FrameUniforms, V3) {
@@ -77,19 +87,19 @@ final class WorldRenderer {
         let uwSee: Float = 18 + 38 * game.daylight * caveScale
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
-        var fogColor = underwater ? game.underwaterFog : sky
+        var fogColor = underwater ? game.underwaterFog : (underground ? sky * min(1, 0.25 / max(caveScale, 0.25)) : sky)
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
-        if !underwater, hasSky, let cap = World.caveSight(caveK: caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
+        if !underwater, hasSky, let cap = World.caveSight(caveK: underground ? 0 : caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
         let sd = vaultSky ? AshSky.sunDir : game.sunDir
         let dusk = vaultSky ? 0 : max(0, 1 - abs(sd.y - 0.02) / 0.22)
         let skyGlow = vaultSky ? AshSky.glow : (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
-        let fogGlow: Float = (!underwater && hasSky && game.blindFog == nil) ? min(0.99, skyGlow) : 0
+        let fogGlow: Float = (!underwater && !underground && hasSky && game.blindFog == nil) ? min(0.99, skyGlow) : 0
         var u = FrameUniforms()
         u.viewProj = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
         u.invViewProj = (u.viewProj.0.inverse, u.viewProj.1.inverse)
@@ -99,7 +109,7 @@ final class WorldRenderer {
         u.sunDir = V4(sd, ambient)
         u.eye = V4(eye, fogGlow)
         u.zenith = V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi))
-        u.horizon = V4(sky, skyGlow)
+        u.horizon = V4(underground ? fogColor : sky, skyGlow)
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, game.starAlpha)                 // faint at sunset, full once the sun is well down
         // Clouds (clouds.frag, drawn over the stars, sun and moon): the eye in cloud space, cover and storm flashes.
@@ -108,7 +118,7 @@ final class WorldRenderer {
         u.clouds = V4(Float(cx), Float(cz), game.cloudCover, sk.flash)
         u.cloudFlash = V4(sk.flashDir, min(1, game.weather.rain * 0.55 + game.weather.thunder * 0.45))
         u.wind = V4(sk.wind.x, sk.wind.y, sk.haze, caveScale)
-        let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
+        let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
         let ek = simd_clamp((caveK - 0.3) / 0.6, 0, 1)
@@ -120,7 +130,7 @@ final class WorldRenderer {
         let eyeDark: Float = game.dim.dim.hasSky ? dark : 1
         MobLight.fill = (0.06 + 0.3 * QuestSettings.brightness) * 2 * eyeDark
         MobLight.nightVision = nv
-        let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : sky))
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : (underground ? fogColor : sky)))
         return (u, clear)
     }
 
@@ -130,10 +140,11 @@ final class WorldRenderer {
         var tm = t0
         func stage(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); stageSums[i] += n - tm; tm = n }
         updateCave(cam.center)
+        updateUnderground(cam.center)
         let (u, clear) = uniforms(cam)
         scene.maxSection = game.inVaultSky ? AshSky.cutSection : NSEC         // the vault's roof is left to the sky
         scene.fogCull = game.inVaultSky && !game.player.headInWater && !game.player.headInLava ? AshSky.fogEnd + 8 : 0
-        if game.dim.dim.hasSky, !game.player.headInWater, let cap = World.caveSight(caveK: caveK) {
+        if game.dim.dim.hasSky, !game.player.headInWater, let cap = World.caveSight(caveK: underground ? 0 : caveK) {
             scene.fogCull = scene.fogCull > 0 ? min(scene.fogCull, cap + 4) : cap + 4      // far sections past the cave fog
         }
         scene.setUniforms(s, u)

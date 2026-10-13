@@ -531,6 +531,7 @@ final class WorldGen: TerrainGenerator {
         drainAquifers(&b, aquifer)
         lavaPockets(&b, bx, bz)
         floorLava(&b, bx, bz)
+        floorWater(&b, bx, bz)
         supportFalling(&b, tops)
 
         mark(3)
@@ -872,6 +873,46 @@ final class WorldGen: TerrainGenerator {
                 var cupped = true
                 for o in [1, -1, CS, -CS, -CSQ] where !Blocks.opaque[Int(b[i + o])] { cupped = false; break }
                 if cupped { b[i] = LAVA }
+            } }
+        }
+    }
+
+    // P112 (Oct 12 PM: "still should be a little bit of water in the cave somewhere, just not as much"): small pools sunk
+    // into cave floors from -40 up to below sea level, about one floor cell in 140 starting one. A pool is the floor
+    // cells round its start (two blocks at most, one level) whose four neighbours are rock or pool and whose bed is rock:
+    // held on every side, so nothing spills when the chunk loads. Not in the chunk's edge cells (their far side is not
+    // known here) and never beside lava.
+    private func floorWater(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let s32 = UInt32(truncatingIfNeeded: seed ^ 0x3A7E)
+        func floor(_ i: Int) -> Bool { Blocks.opaque[Int(b[i])] && b[i + CSQ] == AIR && Blocks.opaque[Int(b[i - CSQ])] }
+        for y in max(3, YOFF - 40)..<(SEA - 10) {
+            for lz in 3..<(CS - 3) { for lx in 3..<(CS - 3) {
+                let i = Chunk.index(lx, y, lz)
+                guard hash3(bx + lx, y, bz + lz, s32) % 140 == 0, floor(i) else { continue }
+                var pool: [Int] = [], seen: Set<Int> = [i], stack = [i]
+                while let c = stack.popLast() {
+                    pool.append(c)
+                    let cx = c & 15, cz = (c >> 4) & 15
+                    for j in [c - 1, c + 1, c - CS, c + CS] where !seen.contains(j) {
+                        let jx = j & 15, jz = (j >> 4) & 15
+                        guard abs(jx - lx) + abs(jz - lz) <= 2, abs(jx - cx) + abs(jz - cz) == 1 else { continue }
+                        seen.insert(j)
+                        if floor(j) { stack.append(j) }
+                    }
+                }
+                let inPool = Set(pool)
+                // Held: every side of every pool cell rock (or pool), nothing hot round it.
+                var held = true
+                for c in pool {
+                    for o in [1, -1, CS, -CS] {
+                        let j = c + o
+                        if inPool.contains(j) { continue }
+                        if !Blocks.opaque[Int(b[j])] { held = false; break }
+                    }
+                    for o in [1, -1, CS, -CS, -CSQ] where b[c + o] == LAVA { held = false }
+                    if !held { break }
+                }
+                if held { for c in pool { b[c] = WATER } }
             } }
         }
     }

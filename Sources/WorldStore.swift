@@ -30,7 +30,7 @@ enum WorldStore {
             let date = ((try? fm.attributesOfItem(atPath: meta.path))?[.modificationDate] as? Date)
                 ?? ((try? fm.attributesOfItem(atPath: url(n).path))?[.modificationDate] as? Date) ?? .distantPast
             var survival: Bool?, seed: UInt64?, dim: String?, smooth = false
-            if let d = try? Data(contentsOf: meta), let m = try? JSONDecoder().decode(WorldMeta.self, from: d) {
+            if let d = try? Data(contentsOf: meta), let m = try? SaveIO.decoder().decode(WorldMeta.self, from: d) {
                 survival = m.survival ?? false
                 seed = m.seed
                 dim = m.dimension.map { "\($0)" }

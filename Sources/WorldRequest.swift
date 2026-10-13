@@ -34,5 +34,8 @@ struct WorldRequest {
             game.smoothTerrain = smooth ?? false
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
+        // P107: a new world's meta (seed, options, the terrain mode) is on disk from the start, so a world closed before
+        // its first autosave still reopens as itself.
+        if meta == nil && game.persistent { game.saveNow() }
     }
 }

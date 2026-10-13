@@ -2707,7 +2707,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Isometric block icon (grass/leaves tinted with default biome colours). Model and connecting blocks (stairs,
     // slabs, fences, walls, lanterns, anvils...) draw their real boxes: each box's three visible faces (+Y, +Z on
     // the left, +X on the right) projected with that face's texture sub-rect, back to front.
-    func icon(_ id: BlockID, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
+    func icon(_ id0: BlockID, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
+        let id = Blocks.iconState(id0)
         let tex = Blocks.tex
         let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
         let tintMode = Blocks.tint[Int(id)]
@@ -2741,6 +2742,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         var boxes: [Box] = []
         if r == RenderType.model.rawValue { boxes = Blocks.boxes[Int(id)] }
         else if r == RenderType.connect.rawValue { boxes = BlockRegistry.connectBoxes(ck, n: false, s: false, w: true, e: true, collision: false) }
+        // A bed is two blocks long (P110: "the bed looks weird in inventory": only the foot half was drawn, a stub with a
+        // footboard): the head half behind it, headboard and pillow at the back.
+        let bedKey = Blocks.key(Blocks.groupBase[Int(id)])
+        if bedKey.hasSuffix("_bed"), Blocks.has("\(bedKey)_head[south]") {
+            let head = Blocks.boxes[Int(Blocks.id("\(bedKey)_head[south]"))]
+            boxes = head + boxes.map { var b = $0; b.z0 += 16; b.z1 += 16; return b }
+        }
         if boxes.isEmpty { boxes = [Box(0, 0, 0, 16, 16, 16)] }
         // Small models (lanterns, candles, pots, buttons...) are scaled up round their own centre to fill the slot: drawn
         // at true size the lantern was a 10 px speck in a 28 px trade slot (blind UI critic, trade).
@@ -2748,7 +2756,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         for b in boxes { bmin = simd_min(bmin, b.minV); bmax = simd_max(bmax, b.maxV) }
         let ext: V3 = bmax - bmin
         let big: Float = max(ext.x, max(ext.y, ext.z))
-        let fit0: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
+        let fit0: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : (big > 1.05 ? 1.1 / big : 1)
         let mid0: V3 = fit0 == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
         func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
         let order0 = boxes.sorted { depth($0) < depth($1) }

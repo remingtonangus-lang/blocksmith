@@ -230,7 +230,12 @@ enum ContextPrompts {
         let list = items(g)
         let s = L.s
         var out: [HudLine] = []
-        let bottom = L.H - L.insetY - 6 * s
+        var bottom = L.H - L.insetY - 6 * s
+        // P108 (Oct 12 PM, "the UI on my right is still bleeding into the bar where all my items are"): at a bigger HUD
+        // scale (the headset panel at scale 3) the right-aligned prompts reached over the hotbar's right end; then the
+        // stack sits above the hotbar instead of beside it.
+        let widest = list.map { Float(Font.width($0)) * s }.max() ?? 0
+        if L.W - L.insetX - widest - 8 * s < L.hotbarX0 + L.slot * 9 + 4 * s { bottom = min(bottom, L.hotbarY0 - 4 * s) }
         for (i, t) in list.reversed().enumerated() {
             let w = Float(Font.width(t)) * s
             out.append(HudLine(text: t, x: L.W - L.insetX - w - 8 * s, y: bottom - Float(i + 1) * 12 * s, scale: s,

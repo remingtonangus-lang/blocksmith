@@ -61,10 +61,15 @@ extension TextureGen {
         p["comparator"] = diode(false, comparator: true)
         p["comparator_on"] = diode(true, comparator: true)
         let cob = p["cobblestone"]
+        // The observer's face (P110: "needs a new look"): a round glass lens in a copper ring, bolts in the corners.
         p["observer_front"] = { x, y in
-            if (y == 5 || y == 10) && x > 1 && x < 14 { return hex(0x2A2A2A) }
-            if (x == 3 || x == 12) && y > 4 && y < 11 { return hex(0x2A2A2A) }
-            return hex(0x5A5A5A, 0.85 + 0.2 * r(x, y, 709))
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if d < 3.2 { return (x == 6 && y == 6) || (x == 6 && y == 5) ? hex(0xBFE6F0) : hex(d < 1.6 ? 0x0E1A22 : 0x1E3A4A) }
+            if d < 4.6 { return hex(0xB87333, 0.85 + 0.25 * r(x, y, 713)) }
+            if d < 5.4 { return hex(0x262628) }
+            if (x == 2 || x == 13) && (y == 2 || y == 13) { return hex(0xC8884A) }
+            return hex(0x4A4A4C, 0.85 + 0.2 * r(x, y, 709))
         }
         p["observer_back"] = { x, y in
             if abs(x - 7) <= 1 && abs(y - 7) <= 1 { return hex(0x3A1A18) }
@@ -74,7 +79,10 @@ extension TextureGen {
             if abs(x - 7) <= 1 && abs(y - 7) <= 1 { return hex(0xF82A1A) }
             return hex(0x5A5A5A, 0.85 + 0.2 * r(x, y, 710))
         }
-        p["observer_side"] = { x, y in (y == 7 || y == 8) ? hex(0x7A7A7A) : hex(0x5A5A5A, 0.85 + 0.2 * r(x, y, 711)) }
+        p["observer_side"] = { x, y in
+            if y == 7 || y == 8 { return x % 4 == 1 ? hex(0x6A3A1A) : hex(y == 7 ? 0xC8884A : 0x9A5A2A) }
+            return hex(0x4A4A4C, 0.85 + 0.2 * r(x, y, 711))
+        }
         p["observer_top"] = { x, y in (x == 7 || x == 8) && y > 3 ? hex(0x9A2A1A) : hex(0x5A5A5A, 0.85 + 0.2 * r(x, y, 712)) }
         let planksC: UInt32 = 0xA2824E
         p["piston_top"] = { x, y in
