@@ -307,6 +307,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         case (.gunsmith, .gunsmith?): return "Upgrade"
         case (.saloon, .saloon?): return "Dice"
         case (.stable, .stable?): return "Horses"
+        case (.blacksmith, .blacksmith?): return "Repair"     // O4
         default: return nil
         }
     }
@@ -402,6 +403,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             game.sfx(.click, 0.4)
             if kind == .gunsmith, let m = mob { game.switchMenu(to: GunUpgradeMenu(game: game, keeper: m)) }
             else if kind == .stable, let m = mob { game.switchMenu(to: StableMenu(game: game, keeper: m)) }
+            else if kind == .blacksmith, let m = mob { game.switchMenu(to: RepairMenu(game: game, keeper: m)) }
             else if kind == .saloon { game.switchMenu(to: DiceMenu(game: game, keeper: mob)) }
         case ShopMenu.barter:
             guard let m = mob else { return }

@@ -509,6 +509,7 @@ extension Game {
             return true
         }
         guard a.cooldown <= 0 else { return true }
+        if gunJams(gi) { return true }                     // O4: a worn gun can jam
         fireHeldGun(gi)
         return true
     }
@@ -554,7 +555,7 @@ extension Game {
         inventory.held = h
         if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
-        let k = gs.recoil * (1 - 0.45 * a.aim) * steady
+        let k = gs.recoil * (1 - 0.45 * a.aim) * steady * Repairs.recoil(st)
         player.pitch = min(1.55, player.pitch + k)
         player.yaw += Rand.float(in: -0.4...0.4) * k
         a.recoilDebt += k * 0.65
