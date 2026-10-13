@@ -53,11 +53,15 @@ enum TroopTests {
             rows.append("\(t): \(seen[.regular] ?? 0) regular, \(s) spec ops, \(h) Hannibal")
         }
         check(ok, "troop classes by Greywall tier, with their guns: \(rows.joined(separator: "; "))")
-        let cap = Mob(.soldierIronclad, at: p), mk = Mob(.soldierMarksman, at: p), rec = Mob(.soldierRecruit, at: p)
+        // T7: Capital classes by post: Hannibal only on a ":heavy" post, about 15 % Spec Ops among the rest.
+        let cap = Mob(.soldierIronclad, at: p), heavy = Mob.structureMob("soldier_ironclad:heavy", at: p)
+        let rec = Mob(.soldierRecruit, at: p)
         let gun0 = rec.soldierBrain.gun
         let ash = Mob(.soldierTrooper, at: p); ash.faction = Faction.ashguard.rawValue
-        check(cap.troopClass == .hannibal && mk.troopClass == .specOps && rec.troopClass == .regular && rec.soldierBrain.gun == gun0 && ash.troopClass == nil,
-              "troop classes: Capital heavies are Hannibal, marksmen Spec Ops, recruits Regular (gun kept); the Ashguard have none")
+        var spec = 0
+        for i in 0..<200 { if Mob(.soldierMarksman, at: p + V3(Float(i) * 3, 0, Float(i % 7) * 5)).troopClass == .specOps { spec += 1 } }
+        check(cap.troopClass != .hannibal && heavy?.troopClass == .hannibal && rec.soldierBrain.gun == gun0 && ash.troopClass == nil && spec >= 15 && spec <= 50,
+              "troop classes: Capital heavies Hannibal only on heavy posts, \(spec) of 200 marksmen Spec Ops (gun kept); the Ashguard have none")
     }
 
     static func segments(_ g: Game, _ check: (Bool, String) -> Void) {

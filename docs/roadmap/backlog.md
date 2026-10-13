@@ -383,7 +383,7 @@ turrets at corridor corners; reinforcements by truck (they come on foot); the ne
 (sampled on 3); an end-to-end capture of a generated base in the harness (the scan of every generated tier is checked,
 the hold is checked on a stand-in); soldier alerts wake every faction near a base (Soldiers.alertGarrison, older than
 A1); wall turrets track the first split-screen player only.
-T7. [A2 leftover, troop classes] Gun rarity tiers (common, fine, rare, elite with stat ranges): ItemStack has no free
+T7. [DONE Oct 13: gun grades Common/Fine/Rare/Elite with damage, recoil and reload ranges (ItemStack.grade, saved as "q") from soldier drops by class and base chests; Capital classes by post (Hannibal only on the citadel's heavy posts, about 15 % Spec Ops); officer-led mixed dropship squads; Spec Ops crouch to shoot; plate takes arc beams and blasts; worn colours for the class pieces; the TTK table skipped as a test part] [A2 leftover, troop classes] Gun rarity tiers (common, fine, rare, elite with stat ranges): ItemStack has no free
 per-stack field for it (tag is the loaded rounds), so it needs a save-format addition; the armour pieces carry rarity
 through their durability meanwhile. Also from the A2 review: Capital troop classes by post (Hannibal only at
 fortresses, command fortresses and citadel vaults, about 15 % Spec Ops on Capital posts; today every Capital ironclad is

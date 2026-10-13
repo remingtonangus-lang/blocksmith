@@ -731,6 +731,7 @@ extension Game {
             var s = ItemStack(Items.id(gs.key), 1)
             s.damage = Rand.int(in: gs.durability / 4...gs.durability * 3 / 4)
             s.tag = max(0, b.mag)
+            s.grade = GunGrade.roll(GunGrade.soldierWeights[Int(m.troop)] ?? [74, 20, 5, 1], Rand.float(in: 0..<1), Rand.float(in: 0..<1))   // T7
             drops.spawn(s, at: at)
         }
     }

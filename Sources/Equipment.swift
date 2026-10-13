@@ -8,7 +8,8 @@ enum ArmorLook {
         let k = Items.key(item)
         let mats: [(String, V3)] = [("leather_", V3(0.55, 0.35, 0.2)), ("chainmail_", V3(0.55, 0.55, 0.58)), ("iron_", V3(0.86, 0.86, 0.86)),
                                     ("golden_", V3(0.95, 0.82, 0.25)), ("diamond_", V3(0.62, 0.68, 0.76)), ("netherite_", V3(0.3, 0.27, 0.28)),
-                                    ("turtle_", V3(0.3, 0.6, 0.25)), ("copper_", V3(0.78, 0.48, 0.33)), ("steel_", V3(0.40, 0.45, 0.52)), ("fur_", V3(0.54, 0.42, 0.29))]
+                                    ("turtle_", V3(0.3, 0.6, 0.25)), ("copper_", V3(0.78, 0.48, 0.33)), ("steel_", V3(0.40, 0.45, 0.52)), ("fur_", V3(0.54, 0.42, 0.29)),
+                                    ("regular_", V3(0.43, 0.48, 0.38)), ("specops_", V3(0.17, 0.18, 0.21)), ("hannibal_", V3(0.36, 0.38, 0.41))]   // troop class plate (T7)
         for (p, c) in mats where k.hasPrefix(p) { return c }
         if k == "carved_pumpkin" { return V3(0.9, 0.55, 0.1) }
         if k == "marshal_cap" { return V3(0.11, 0.11, 0.12) }

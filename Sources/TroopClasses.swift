@@ -39,12 +39,10 @@ extension Mob {
     func ensureTroop() {
         guard troop < 0 else { return }
         guard let r = Soldier.rank(kind), !kind.ash, faction != Faction.ashguard.rawValue, kind != .ashMarshal, kind != .ashChancellor else { troop = 0; return }
-        let c: TroopClass
-        switch r {
-        case 3: c = .hannibal
-        case 2, 4: c = .specOps
-        default: c = .regular
-        }
+        // T7: classes by post. Hannibal plate only where a post asks for it (the ":heavy" tag of the citadel's vault
+        // and tower heavies, Navy marines); about 15 % of the rest are Spec Ops, whatever their rank; the others Regulars.
+        let roll = hashf(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)), 8103)
+        let c: TroopClass = r != 3 && roll < 0.15 ? .specOps : .regular
         setTroop(c, rearm: false)                 // (a Capital soldier keeps the gun its rank carries)
     }
 
