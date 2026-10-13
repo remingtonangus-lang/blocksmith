@@ -1300,7 +1300,12 @@ final class WorldGen: TerrainGenerator {
                     } else if Blocks.opaque[Int(above)] && h < 0.12 {
                         var yy = y
                         let len = 1 + Int(h * 60)
-                        while yy > y - len && b[Chunk.index(lx, yy, lz)] == AIR { b[Chunk.index(lx, yy, lz)] = id_cave_vines; yy -= 1 }
+                        // About a third of the segments, and every tip, carry glowing pods (P125 lanternvine).
+                        while yy > y - len && b[Chunk.index(lx, yy, lz)] == AIR {
+                            let tip = yy == y - len + 1 || b[Chunk.index(lx, yy - 1, lz)] != AIR
+                            let pod = tip || hashf(bx + lx, yy, bz + lz, s32 ^ 0x9D5) < 0.3
+                            b[Chunk.index(lx, yy, lz)] = pod ? id_cave_vines + 1 : id_cave_vines; yy -= 1
+                        }
                     }
                 } else if !dark && y < SEA - 20 && (Blocks.opaque[Int(below)] || Blocks.opaque[Int(above)]) && h > 0.996 {
                     b[i] = id_glow_lichen

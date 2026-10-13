@@ -65,6 +65,8 @@ struct BaseRecord: Codable {
     var lost: Int? = nil                    // garrison killed by them
     var broken: Bool? = nil                 // broken by the Tidebreaker: no reinforcements, its walls stay down
     var cleared: Bool? = nil                // every soldier inside the walls killed: no new troops, ever (P23)
+    var missiles: Int? = nil                // small missiles left (P135; nil: a full load)
+    var missileCD: Float? = nil
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
@@ -105,6 +107,8 @@ extension BaseRecord {
         lost = (try? c.decodeIfPresent(Int.self, forKey: .lost))
         broken = (try? c.decodeIfPresent(Bool.self, forKey: .broken))
         cleared = (try? c.decodeIfPresent(Bool.self, forKey: .cleared))
+        missiles = (try? c.decodeIfPresent(Int.self, forKey: .missiles))
+        missileCD = (try? c.decodeIfPresent(Float.self, forKey: .missileCD))
     }
 }
 
@@ -187,10 +191,12 @@ extension Game {
     func basesTick(_ dt: Float) {
         let b = bases
         baseRouteTick(b)
+        TickProf.mark("bases: route")
         greywallTurretsTick(dt)
         radioTick(dt)                                  // C6 (RadioSpoof.swift)
         grappleTick(dt)                                // C7 (SkyIsle.swift)
         submarinesTick(dt)                             // C8 (Submarines.swift)
+        TickProf.mark("bases: turrets radio grapple subs")
         b.timer += dt
         guard b.timer >= 1 else { return }
         let step = b.timer
@@ -202,13 +208,18 @@ extension Game {
             b.noises.removeAll(keepingCapacity: true)
         }
         guard world.dim == .overworld, let sc = world.gen.structures else { return }
+        TickProf.mark("bases: gate")
         borealAlarmTick(b, step)
+        TickProf.mark("bases: boreal alarm")
         greywallAlarmTick(b, step)
+        TickProf.mark("bases: greywall alarm")
         stationOpsTick(b, step)
+        TickProf.mark("bases: station ops")
         // Citadels near a player (their centre chunk loaded; split screen: either player) plus any with work in hand.
         for i in 0..<max(1, coop.seatCount) {
             let pp = coop.seatPlayer(i, self).pos
-            guard let s = sc.nearest("military_base", x: Int(pp.x), z: Int(pp.z), maxRegions: 1) else { continue }
+            guard let s = sc.nearestIfReady("military_base", x: Int(pp.x), z: Int(pp.z)) else { TickProf.mark("bases: nearest citadel"); continue }
+            TickProf.mark("bases: nearest citadel")
             let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
             let key = "citadel:\(cx),\(cz)"
             if b.records[key] == nil && world.isLoaded(cx, cz) {
@@ -222,12 +233,19 @@ extension Game {
             r.lastTick = clock
             baseHear(&r, b)
             baseCleared(&r, b)
+            TickProf.mark("bases: hear+cleared")
             baseAlertStep(&r, b, step)
             if r.alert == .lockdown { baseLockdown(&r, b, step) } else { baseStandDown(&r, b) }
+            baseMissiles(&r, step)
+            TickProf.mark("bases: alert")
             basePatrol(&r, b, step)
+            TickProf.mark("bases: patrol")
             baseCrawler(&r, b, step)
+            TickProf.mark("bases: crawler")
             baseAir(&r, b, step)
+            TickProf.mark("bases: air")
             baseRebuild(&r, b, step, away: Float(away))
+            TickProf.mark("bases: rebuild")
             b.records[key] = r
         }
     }

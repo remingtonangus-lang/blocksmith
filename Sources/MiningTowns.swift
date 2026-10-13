@@ -177,6 +177,16 @@ enum MiningTowns {
                 if let p = powderAt { for h in 0...1 where w.inside(p.x, p.y + h, p.z) { w.set(p.x, p.y + h, p.z, g("tnt")) } }
             })
         }
+        // P132 (Oct 12 PM, "the railroads... connected to each other a lot better... through a mine shaft really quickly
+        // by putting down a mine cart"): on each level the two drifts' tracks join round the shaft's corner, so a cart
+        // runs from one face to the other without being carried across.
+        for (a, b) in [(mine.drifts[0], mine.drifts[1]), (mine.drifts[2], mine.drifts[3])] {
+            let cells = MiningTowns.link(a, b)
+            let xs = cells.map { $0.x }, zs = cells.map { $0.z }
+            pieces.append(Piece(min: IVec3(xs.min()!, a.level - 1, zs.min()!), max: IVec3(xs.max()!, a.level + 3, zs.max()!)) { w in
+                MiningTowns.layLink(&w, a, b, planks: planks)
+            })
+        }
         // Miners and carts (placed with the chunk they stand in).
         let miners = mine.miners, carts = mine.carts
         let spots = miners + carts
@@ -266,6 +276,39 @@ enum MiningTowns {
                 w.set(p.x, p.y, p.z, planks)
                 for h in 5...6 where w.inside(p.x, d.level + h, p.z) { w.set(p.x, d.level + h, p.z, GRAVEL) }
             }
+        }
+    }
+
+    // The track joining two drifts that leave the shaft at right angles on one level (P132): from the first drift's
+    // mouth (shaft + 2t) sideways to the corner past the shaft (shaft + 2t + 2p), then back along t into the second
+    // drift's mouth (shaft + 2p). Returned in order, both mouths included.
+    static func link(_ a: Mine.Drift, _ b: Mine.Drift) -> [IVec3] {
+        let t = IVec3(a.dx, 0, a.dz), p = IVec3(b.dx, 0, b.dz)
+        let a0 = IVec3(a.x, a.level, a.z), b0 = IVec3(b.x, b.level, b.z)
+        return [a0, a0 + p, a0 + p + p, b0 + t, b0]
+    }
+
+    // Rail shape (Rails.exits) joining two horizontal directions.
+    static func railShape(_ d0: IVec3, _ d1: IVec3) -> Int {
+        let ns = (d0.x == 0 ? 1 : 0) + (d1.x == 0 ? 1 : 0)
+        if ns == 2 { return 0 }
+        if ns == 0 { return 1 }
+        let z = d0.x == 0 ? d0.z : d1.z, x = d0.x == 0 ? d1.x : d0.x
+        if z > 0 { return x > 0 ? 6 : 7 }
+        return x < 0 ? 8 : 9
+    }
+
+    static func layLink(_ w: inout StructWriter, _ a: Mine.Drift, _ b: Mine.Drift, planks: BlockID) {
+        let cells = link(a, b)
+        let rail = Blocks.id("rail")
+        for c in cells where !(c == cells.first || c == cells.last) {
+            for h in -1...3 where w.inside(c.x, c.y + h, c.z) { w.set(c.x, c.y + h, c.z, h == -1 ? planks : AIR) }
+        }
+        // Each cell's shape from its two neighbours along the track (the mouths: the link and their own drift).
+        for (i, c) in cells.enumerated() where w.inside(c.x, c.y, c.z) {
+            let prev = i > 0 ? cells[i - 1] : c + IVec3(a.dx, 0, a.dz)
+            let next = i < cells.count - 1 ? cells[i + 1] : c + IVec3(b.dx, 0, b.dz)
+            w.set(c.x, c.y, c.z, rail + BlockID(railShape(prev - c, next - c)))
         }
     }
 

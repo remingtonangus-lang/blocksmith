@@ -59,6 +59,12 @@ enum Upgrades {
 
     static func isUpgrade(_ e: Ench) -> Bool { specs[e] != nil }
 
+    // P137 (Oct 12 PM, "repairing a weapon costs more material the more upgrades it has"): the units of its repair
+    // material a full repair takes at the anvil: 4, plus one per upgrade level fitted (a sword with Edge III and Head II
+    // takes 9 iron).
+    static func upgradeLevels(_ s: ItemStack) -> Int { Enchant.list(s).filter { isUpgrade($0.0) }.reduce(0) { $0 + $1.1 } }
+    static func repairUnits(_ s: ItemStack) -> Int { 4 + upgradeLevels(s) }
+
     // Old saves: the same storage, minus the curses (and anything that isn't an upgrade).
     static func convert(_ v: UInt64) -> UInt64 {
         guard v != 0 else { return 0 }
@@ -126,6 +132,7 @@ enum Upgrades {
         var s = c[i]
         guard !s.isEmpty, tree(s.item).contains(e) else { return ("That doesn't fit this item.", false) }
         if let why = blocker(s, e) { return (why + ".", false) }
+        if !Blueprints.knows(g, e) { return ("You need the \(Enchant.def(e).name) blueprint first: look in chests at camps, wrecks, towns and bases.", false) }
         let lv = Enchant.level(e, s) + 1
         let k = cost(s.item, e, level: lv)
         if g.survival {
@@ -302,6 +309,10 @@ final class UpgradeBenchMenu: ListMenu {
             let part = Upgrades.specs[e]?.part.name ?? ""
             if let why = Upgrades.blocker(s, e) {
                 out.append(Row(icon: .empty, name: lv > 0 ? Enchant.displayLine(e, lv) : Enchant.def(e).name, detail: "\(part): \(why)", value: "", enabled: false))
+                continue
+            }
+            if !Blueprints.knows(game, e) {                           // P138: found blueprints only
+                out.append(Row(icon: .empty, name: lv > 0 ? Enchant.displayLine(e, lv) : Enchant.def(e).name, detail: "\(part): blueprint not found yet", value: "", enabled: false))
                 continue
             }
             let k = Upgrades.cost(s.item, e, level: lv + 1)

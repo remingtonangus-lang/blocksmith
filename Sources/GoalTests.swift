@@ -6,7 +6,7 @@ import Foundation
 // banner shows a new goal and fades, the inventory screen keeps it, and creative or hints off show nothing.
 enum GoalTests {
     // What meets a step that isn't an advancement: carrying the thing.
-    static let carry: [String: String] = ["wood": "oak_log", "pickaxe": "wooden_pickaxe", "furnace": "furnace", "eyes": "ender_eye"]
+    static let carry: [String: String] = ["wood": "oak_log", "pickaxe": "wooden_pickaxe", "furnace": "furnace", "eyes": "ender_eye", "ember_charge": "ember_charge"]
 
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let st = Settings.shared

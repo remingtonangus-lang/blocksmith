@@ -97,13 +97,28 @@ extension Mob {
             } else if k == .activatorRail && on && riding {
                 g.dismount()
             }
+            var cap: Float = 8
             if riding {
                 // The rider can nudge the cart along its look direction.
                 let look = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
-                s += simd_dot(look, axis) * g.riderPush * 2 * dt
+                if variant == Carts.engine {
+                    // The engine cart drives (P132): throttle on the stick, burning fuel while it pulls.
+                    let along: Float = simd_dot(look, axis) >= 0 ? 1 : -1
+                    let throttle = g.riderPush
+                    if jobTimer > 0 && abs(throttle) > 0.1 {
+                        s += along * throttle * Carts.engineAccel * dt
+                        let wasFuelled = jobTimer > 0
+                        jobTimer = max(0, jobTimer - dt * abs(throttle))
+                        if wasFuelled && jobTimer <= 0 { g.onToast?("The engine is out of fuel") }
+                        if Rand.float(in: 0..<1) < dt * 10 { g.particles.smoke(at: pos + V3(0, 1.2, 0) - axis * 0.3, dark: true) }
+                    } else if abs(throttle) > 0.1 { s += along * throttle * 2 * dt }
+                    cap = shape >= 6 ? Carts.engineCurve : Carts.engineTop
+                } else {
+                    s += simd_dot(look, axis) * g.riderPush * 2 * dt
+                }
             }
             s *= powf(riding ? 0.997 : 0.96, dt * 20)
-            s = max(-8, min(8, s))
+            s = max(-cap, min(cap, s))
             var np = pos + axis * s * dt
             let t = simd_dot(np - A, axis)
             np = A + axis * t
@@ -122,6 +137,7 @@ extension Mob {
         }
         walkPhase += simd_length(vel) * dt
         if riding {
+            g.cartLayTrack(self)
             g.player.pos = pos + V3(0, 0.35, 0)
             g.player.vel = .zero
             g.player.airPeak = g.player.pos.y

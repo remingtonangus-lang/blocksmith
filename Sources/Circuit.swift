@@ -460,11 +460,13 @@ final class Circuit {
                 if powered { edge.insert(p) } else { edge.remove(p) }
                 let open = (s & 4) != 0
                 if open != powered {
-                    setQuiet(p, base(b) + BlockID(s ^ 4))
-                    if k == .door || k == .ironDoor {
+                    let door = k == .door || k == .ironDoor
+                    let h = door ? w.doorHingeFlip(p, s) : 0      // P128: a pair swings apart
+                    setQuiet(p, base(b) + BlockID(s ^ 4 ^ h))
+                    if door {
                         let o = p + IVec3(0, (s & 8) != 0 ? -1 : 1, 0)
                         let ob = block(o)
-                        if base(ob) == base(b) { setQuiet(o, base(b) + BlockID(st(ob) ^ 4)); edge.insert(o) }
+                        if base(ob) == base(b) { setQuiet(o, base(b) + BlockID(st(ob) ^ 4 ^ h)); edge.insert(o) }
                     }
                     let iron = k == .ironDoor || Blocks.key(base(b)).hasPrefix("iron")
                     game?.audioOpenable(shape: Blocks.shape[Int(b)], iron: iron, opening: powered, at: p)

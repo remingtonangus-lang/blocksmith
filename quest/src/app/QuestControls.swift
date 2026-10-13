@@ -70,6 +70,7 @@ final class QuestControls {
     // Swing melee (swingContact): last frame's blade capsule (world), its tip relative to the head (tracking space), the
     // mobs this swing already hit, and the slow-touch buzz timer.
     private var bladeA = V3.zero, bladeB = V3.zero, bladeTipRel = V3.zero
+    private var bladeTravel: Float = 0                 // the tip's path since this swing began (P136)
     private var bladeValid = false
     private var bladeHits: [ObjectIdentifier] = []
     private var bladeHitAt: [Double] = []               // when each bladeHits mob was hit (VRMelee.rehit)
@@ -757,9 +758,11 @@ final class QuestControls {
             return
         }
         let d = rig.trackingHead - rig.anchor
-        let delta = rig.toWorldDir(V3(d.x, 0, d.z))
+        var delta = rig.toWorldDir(V3(d.x, 0, d.z))
         if simd_length_squared(delta) > 1e-8, game.menu == nil {
             let pl = game.player
+            // Sneaking: a physical step doesn't carry the body off a ledge either (P126).
+            if pl.sneaking && pl.onGround && !pl.flying && game.riding == nil { delta = pl.edgeClamp(delta, game.world) }
             var pos = pl.pos
             if pl.flying || game.riding != nil || game.world.ships.aboard != nil {
                 if game.riding == nil { pos += delta }
@@ -899,7 +902,8 @@ final class QuestControls {
         let speed = simd_length(tipRel - prevRel) / dt
         bladeTrail.add(base: a1, tip: b1, speed: speed, now: game.clock)
         trailPeak = max(trailPeak, bladeTrail.segmentCount(now: game.clock))
-        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true) }
+        if speed < VRMelee.rearmSpeed { bladeHits.removeAll(keepingCapacity: true); bladeHitAt.removeAll(keepingCapacity: true); bladeTravel = 0 }
+        else { bladeTravel += simd_length(tipRel - prevRel) }
         // Several hits a second: a mob can take the blade again VRMelee.rehit after its last hit.
         while let t = bladeHitAt.first, game.clock - t >= VRMelee.rehit { bladeHits.removeFirst(); bladeHitAt.removeFirst() }
         // The blade knocking into stone or wood: a dull knock in the hand (blocks are never broken by a swing).
@@ -922,7 +926,7 @@ final class QuestControls {
                 app.input.haptic(moveHand, amplitude: 0.5, seconds: 0.05, frequency: 340)
                 return
             }
-            let pow = VRMelee.power(speed)
+            let pow = VRMelee.power(speed) * VRMelee.travelBonus(bladeTravel)
             game.swingPower = pow
             game.swingMob = m
             bladeHits.append(ObjectIdentifier(m)); bladeHitAt.append(game.clock)

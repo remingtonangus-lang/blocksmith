@@ -26,6 +26,7 @@ final class BlockEntity: Codable {
     var used = false     // vault: already opened by the player
     var lines: [String] = ["", "", "", ""]   // sign text
     var patterns: [Int] = []  // banner layers
+    var last: Double = 0      // furnace, brewing stand, campfire: the game time it last ran (P127 catch-up)
     lazy var container: ItemContainer = {
         let c = ItemContainer(items.count)
         c.slots = items
@@ -54,7 +55,7 @@ final class BlockEntity: Codable {
         if k == .frame { delay = 0 }
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks, xp }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat, cd, sp, cooks, xp, lt }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
@@ -85,6 +86,7 @@ final class BlockEntity: Codable {
         spawned = (try? c.decode(Int.self, forKey: .sp)) ?? 0
         if let k = try? c.decode([Int].self, forKey: .cooks), k.count == 4 { cooks = k }
         xp = (try? c.decode(Float.self, forKey: .xp)) ?? 0
+        last = (try? c.decode(Double.self, forKey: .lt)) ?? 0
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -106,6 +108,7 @@ final class BlockEntity: Codable {
         if spawned != 0 { try c.encode(spawned, forKey: .sp) }
         if kind == .campfire && cooks.contains(where: { $0 != 0 }) { try c.encode(cooks, forKey: .cooks) }
         if xp > 0 { try c.encode(xp, forKey: .xp) }
+        if last > 0 && last.isFinite { try c.encode(last, forKey: .lt) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.

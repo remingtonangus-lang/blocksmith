@@ -518,6 +518,7 @@ final class Mob {
     // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra; Oct 11 G16: 2.0 with 16 health and a
     // 0.8 s setback per hit, so an iron sword's three blows always land before it goes off)
     static let hisserFuse: Float = 2.0
+    static let powderRush: Float = 1.7           // P134: a Powderwight's run (4.25 blocks a second, about a player's walk)
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
     func intersects(_ b: IVec3) -> Bool {
@@ -978,7 +979,9 @@ final class Mob {
                     speed = 0
                 } else {
                     fuse = max(0, fuse - dt)
-                    speed = spec.speed
+                    // P134 ("the creeper replacements run at you... make them faster"): a Powderwight on your trail
+                    // breaks into a run inside 20 blocks.
+                    speed = spec.speed * (dist < 20 ? Mob.powderRush : 1)
                 }
                 if fuse >= Mob.hisserFuse {
                     Explosion.explode(at: pos + V3(0, 0.8, 0), power: charged ? 6 : 3, game: g)
@@ -1015,7 +1018,7 @@ final class Mob {
                 }
                 if g.meleeStrike(self, reach: 1.6) {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
+                    g.hurtPlayer(vary.hit(spec.attack), from: pos, cause: "was slain by Voidwalker", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.4 : 0 }
         case .slime:
@@ -1030,7 +1033,7 @@ final class Mob {
             if canTarget && (slimeSize > 1 || kind == .magmaCube) && g.meleeStrike(self, reach: halfW + 0.9) {
                 attackCooldown = 1
                 let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
-                g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                g.hurtPlayer(vary.hit(dmg), from: pos, cause: "was slain by \(spec.name)", attacker: self)
             }
         }
 

@@ -23,6 +23,18 @@ extension BlockRegistry {
     }
 
     // Thin panel on one side of the block: 0 -Z side, 1 +Z, 2 -X, 3 +X.
+    // Door states: facing (0-3) + open 4 + upper half 8 + hinge 16. P128 (Oct 12 PM, "if there's double doors, I don't
+    // get caught up running through the middle"): an open door's panel lay on one fixed side, so in a pair one panel
+    // swung into the middle of the doorway. The hinge bit mirrors where it swings; a door opening toward a neighbouring
+    // door of the same facing takes the other hinge (World.doorHingeFlip), so a pair opens outward to the posts.
+    static func doorSide(_ k: Int) -> Int {
+        let f = k & 3
+        if k & 4 == 0 { return [0, 1, 2, 3][f] }
+        return k & 16 != 0 ? [3, 2, 0, 1][f] : [2, 3, 1, 0][f]
+    }
+    static func doorBox(_ k: Int) -> Box { panel(doorSide(k)) }
+    static let sideDir: [IVec3] = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
+
     static func panel(_ side: Int, t: Int = 3) -> Box {
         switch side {
         case 0: return Box(0, 0, 0, 16, 16, t)
@@ -63,16 +75,15 @@ extension BlockRegistry {
         for w in BlockRegistry.doorWoods + metal.map({ $0.0 }) {
             let iron = w == "iron"
             let disp = iron ? "Iron" : BlockRegistry.woodName(w)
-            for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
-                let k = f + (open ? 4 : 0) + (upper ? 8 : 0)
+            for k in 0..<32 {
+                let upper = k & 8 != 0
                 var d = BlockDef(k == 0 ? "\(w)_door" : "\(w)_door[\(k)]", "\(disp) Door")
                 d.tex = [upper ? "\(w)_door_top" : "\(w)_door_bottom"]; d.render = .model; d.layer = .cutout; d.opaque = false
-                let side = open ? [2, 3, 1, 0][f] : [0, 1, 2, 3][f]
-                d.boxes = [BlockRegistry.panel(side)]
+                d.boxes = [BlockRegistry.doorBox(k)]
                 d.hardness = iron ? 5 : 3; d.tool = iron ? .pickaxe : .axe; d.requiresTool = iron; d.sound = iron ? .stone : .wood
                 d.group = "\(w)_door"; d.hidden = k != 0; d.shape = "door"; d.skyStop = false
                 add(d)
-            } } }
+            }
             for top in [false, true] { for open in [false, true] { for f in 0..<4 {
                 let k = f + (open ? 4 : 0) + (top ? 8 : 0)
                 var d = BlockDef(k == 0 ? "\(w)_trapdoor" : "\(w)_trapdoor[\(k)]", "\(disp) Trapdoor")

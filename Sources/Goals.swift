@@ -39,7 +39,12 @@ enum Goals {
         Goal(id: "obtain_armor", text: "Make a piece of iron armour", done: adv("obtain_armor")),
         Goal(id: "mine_diamond", text: "Dig deep for \(name("diamond"))", done: adv("mine_diamond")),
         Goal(id: "form_obsidian", text: "Get \(name("obsidian")): water over still lava, then the \(name("diamond")) pickaxe", done: adv("form_obsidian")),
-        Goal(id: "enter_the_nether", text: "Build an Ember Gate frame of \(name("obsidian")), light it and step through", done: adv("enter_the_nether")),
+        // P139 (Oct 12 PM, "I'm not entirely sure what I'm supposed to be doing here"): the gate and the floor of the world
+        // open only to an Ember Charge, and only Capital citadels keep them: the raid is a step of its own.
+        Goal(id: "ember_charge", text: "Raid a Capital citadel's command room for \(a("ember_charge"))") { g in
+            g.advancements.contains("enter_the_nether") || g.advancements.contains("adventure/break_ward") || carries(g) { $0 == "ember_charge" }
+        },
+        Goal(id: "enter_the_nether", text: "Build an Ember Gate of \(name("obsidian")) and wake it with the charge", done: adv("enter_the_nether")),
         Goal(id: "nether/find_fortress", text: "Find an Ash Foundry in the Emberdeep", done: adv("nether/find_fortress")),
         Goal(id: "nether/obtain_blaze_rod", text: "Take \(a("blaze_rod")) from a Cinderwisp", done: adv("nether/obtain_blaze_rod")),
         Goal(id: "eyes", text: "Make \(a("ender_eye")) from \(a("ender_pearl")) and \(name("blaze_powder"))") { g in g.advancements.contains("follow_ender_eye") || carries(g) { $0 == "ender_eye" } },
@@ -47,7 +52,7 @@ enum Goals {
         Goal(id: "enter_the_end", text: "Fill the Hollow Gate with eyes and step in", hollow: true, done: adv("enter_the_end")),
         Goal(id: "end/kill_dragon", text: "Defeat the Hollow Wyrm", hollow: true, done: adv("end/kill_dragon")),
         Goal(id: "nether/summon_wither", text: "Summon the Blight, if you dare", done: adv("nether/summon_wither")),
-        Goal(id: "adventure/deep", text: "Dig through the bottom of the world into the Deep", done: adv("adventure/deep")),
+        Goal(id: "adventure/deep", text: "Blast the Wardstone floor with \(a("ember_charge")) into the Deep", done: adv("adventure/deep")),
         Goal(id: "adventure/ash_vault", text: "Drop into the Ash Vault", done: adv("adventure/ash_vault")),
         Goal(id: "adventure/ash_victory", text: "End the war below the world: defeat the Ash Chancellor", done: adv("adventure/ash_victory")),
     ]

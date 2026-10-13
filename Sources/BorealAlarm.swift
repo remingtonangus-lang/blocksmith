@@ -31,7 +31,7 @@ extension Game {
         guard let sc = world.gen.structures else { return }
         for i in 0..<max(1, coop.seatCount) {
             let pp = coop.seatPlayer(i, self).pos
-            guard let s = sc.nearest(BorealStation.kind, x: Int(pp.x), z: Int(pp.z), maxRegions: 1) else { continue }
+            guard let s = sc.nearestIfReady(BorealStation.kind, x: Int(pp.x), z: Int(pp.z)) else { continue }  // (P124)
             let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
             let key = "boreal:\(cx),\(cz)"
             if st.sites[key] == nil, world.isLoaded(cx, cz), let lv = BorealStation.levels(world, s) {

@@ -306,11 +306,30 @@ enum MapDraw {
         return V2(x0 + cx * px, y0 + cz * px)
     }
 
+    // A world point off the map pulled onto its border along the line from the centre (the home marker's edge arrow).
+    static func projectEdge(_ x: Float, _ z: Float, x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int) -> V2? {
+        let dx = (x - wx) / Float(bpc), dz = (z - wz) / Float(bpc)
+        let hx = Float(cols) / 2 - 1, hz = Float(rows) / 2 - 1
+        let k = max(abs(dx) / hx, abs(dz) / hz)
+        guard k > 1 else { return nil }
+        return V2(x0 + (Float(cols) / 2 + dx / k) * px, y0 + (Float(rows) / 2 + dz / k) * px)
+    }
+
     static func markers(_ out: inout [HudLine], _ g: Game, x0: Float, y0: Float, cols: Int, rows: Int, px: Float, wx: Float, wz: Float, bpc: Int, s: Float, labels: Bool = false) {
         func at(_ x: Float, _ z: Float) -> V2? { project(x, z, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc) }
         if g.dim.dim == .overworld {
-            if let p = at(g.spawnPoint.x, g.spawnPoint.z) {
-                out.append(HudLine(text: "", x: p.x - 2 * s, y: p.y - 2 * s, scale: s, bg: V4(1, 1, 1, 0.9), box: V2(4 * s, 4 * s)))
+            // Home (P131): a house marker on the bed (or the world spawn); off the minimap it sits on the edge toward
+            // home, so the way back always shows.
+            let hp = g.spawnPoint
+            let edge = labels ? nil : projectEdge(hp.x, hp.z, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc)
+            if let p = at(hp.x, hp.z) ?? edge {
+                out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(8 * s, 8 * s)))
+                out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: HomeFinder.colour, box: V2(6 * s, 6 * s)))
+                out.append(HudLine(text: "H", x: p.x - 2 * s, y: p.y - 3 * s, scale: s * 0.85, color: V4(0.1, 0.05, 0, 1)))
+                if labels {
+                    let n = HomeFinder.name(g)
+                    out.append(HudLine(text: n, x: p.x + 6 * s, y: p.y - 3 * s, scale: s * 0.85, color: HomeFinder.colour, bg: V4(0, 0, 0, 0.6)))
+                }
             }
             for m in MapCache.shared.marks {
                 guard let p = at(Float(m.x), Float(m.z)) else { continue }
@@ -385,7 +404,8 @@ enum Minimap {
     // country line and the waypoint line.
     static func below(_ g: Game) -> Float {
         let pin = g.dim.dim == .overworld && MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) != nil
-        return 30 + (pin && Countries.hudLine(g) != nil ? 9 : 0)
+        let n = (pin ? 1 : 0) + (Countries.hudLine(g) != nil ? 1 : 0) + (HomeFinder.line(g) != nil ? 1 : 0)
+        return 30 + Float(max(0, n - 1)) * 9
     }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -430,6 +450,12 @@ enum Minimap {
             let t = dist < 3 ? "+ here" : "+ \(dist) \(dirs[i])"
             out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: V4(0.4, 0.9, 0.95, 0.95),
                                bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
+            under += 9
+        }
+        // Home (P131): the way back to your bed (or the world spawn), with a compass in hand or once far from it.
+        if let t = HomeFinder.line(g) {
+            out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: HomeFinder.colour,
+                               bg: V4(0, 0, 0, max(0.45, Settings.shared.textBackground))))
         }
         return out
     }

@@ -99,6 +99,21 @@ final class Player {
         collides(at: p - V3(0, 0.06, 0), w)
     }
 
+    // P126 (Oct 12 PM, "it's possible to fall even when you're crouching"): a sneaking move is backed off 0.05 at a time
+    // until the body still stands on something, each axis alone and then both together (the old per-axis test let a
+    // diagonal step past a corner: each axis alone kept a toe on the block, both together left nothing under the body).
+    // Also used for roomscale steps (QuestControls), which moved the body without the guard.
+    func edgeClamp(_ d: V3, _ w: World) -> V3 {
+        guard groundBelow(pos, w) else { return d }
+        let step: Float = 0.05
+        func shrink(_ v: Float) -> Float { abs(v) <= step ? 0 : v - (v > 0 ? step : -step) }
+        var dx = d.x, dz = d.z
+        while dx != 0 && !groundBelow(pos + V3(dx, 0, 0), w) { dx = shrink(dx) }
+        while dz != 0 && !groundBelow(pos + V3(0, 0, dz), w) { dz = shrink(dz) }
+        while dx != 0 && dz != 0 && !groundBelow(pos + V3(dx, 0, dz), w) { dx = shrink(dx); dz = shrink(dz) }
+        return V3(dx, d.y, dz)
+    }
+
     static var quarantined = 0
     static let vrSprintSpeed: Float = 4.317 * 1.6
     static let slimeID: BlockID = Blocks.has("slime_block") ? Blocks.id("slime_block") : AIR
@@ -287,12 +302,9 @@ final class Player {
         }
 
         // Sneak edge guard: don't let horizontal motion carry us off a ledge.
-        if onGround && sneaking {
-            for a in [0, 2] {
-                var p = pos
-                p[a] += vel[a] * dt
-                if !groundBelow(p, w) { vel[a] = 0 }
-            }
+        if onGround && sneaking && dt > 0 {
+            let c = edgeClamp(V3(vel.x * dt, 0, vel.z * dt), w)
+            vel.x = c.x / dt; vel.z = c.z / dt
         }
         // Step-up also works while swimming and just after (feet within 0.6 of a bank top walk straight out, as in the
         // reference, whose water check is the whole body box: it keeps pushing until the feet clear the surface).

@@ -15,6 +15,8 @@ setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
 WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
+Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.

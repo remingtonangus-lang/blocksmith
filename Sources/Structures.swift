@@ -198,6 +198,14 @@ struct StructureType {
 final class StructureCache {
     private struct StartKey: Hashable { let name: String; let rx: Int; let rz: Int }
     private var cache: [StartKey: StructureStart?] = [:]
+    // P124 (Oct 12 PM, "once in a while... it freezes for a second"): past 4096 starts the cache was emptied at once,
+    // and every start asked for on the frame thread after that (the citadel watch, the map's discoveries, railways,
+    // town law) was made again there: a citadel or a town plan each, 420 ms in one host tick (well over a second on the
+    // headset). Now the least recently used quarter goes and the starts round the player stay.
+    private var used: [StartKey: Int] = [:]
+    private var useClock = 0
+    static var cap = 4096
+    private(set) static var evictions = 0
     // Bench gen: time spent computing structure starts, per kind (ms).
     static var startMs: [String: Double] = [:]
     private let lock = NSLock()
@@ -301,7 +309,7 @@ final class StructureCache {
     func start(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> StructureStart? {
         let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
-        if let c = cache[key] { lock.unlock(); return c }
+        if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
         lock.unlock()
         let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         let (cx, cz) = candidate(t, rx, rz)
@@ -310,7 +318,12 @@ final class StructureCache {
            givesWay(st, t, rx, rz) { s = nil }
         lock.lock()
         cache[key] = s
-        if cache.count > 4096 { cache.removeAll() }
+        useClock += 1; used[key] = useClock
+        if cache.count > StructureCache.cap {
+            let old = used.sorted { $0.value < $1.value }.prefix(cache.count / 4)
+            for (k, _) in old { cache[k] = nil; used[k] = nil }
+            StructureCache.evictions += 1
+        }
         if WorldGen.timing {
             let ms: Double = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             WorldGen.timingLock.lock(); StructureCache.startMs[t.name, default: 0] += ms; WorldGen.timingLock.unlock()
@@ -320,6 +333,45 @@ final class StructureCache {
     }
 
     // The region's first candidate chunk (where a start always stood before task 23's alternates).
+    // Whether the region's start is already made (the P124 check).
+    // P124 (Oct 12 PM, "a freeze of about a second"): the per-second base ticks asked for the nearest Greywall base,
+    // Boreal Station and citadel on the frame thread, and a region nobody had looked at yet planned its start right
+    // there (a Greywall start tries up to seven sites, each checking ten other kinds' starts nearby: 520 ms caught by
+    // HitchProbe). `nearestIfReady` answers only from starts already made and has the missing ones made on a worker,
+    // so the base ticks pick the site up a second later instead. (Off in the host checks, whose fixtures expect the
+    // answer at once; HitchProbe turns it on.)
+    static var plansOffThread = true
+    private var planning = Set<StartKey>()
+    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1) -> StructureStart? {
+        guard StructureCache.plansOffThread, fixed.isEmpty || !fixed.contains(where: { $0.kind == kind }),
+              let t = types.first(where: { $0.name == kind }) else { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+        let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
+        var missing: [StartKey] = []
+        lock.lock()
+        for dz in -maxRegions...maxRegions { for dx in -maxRegions...maxRegions {
+            let k = StartKey(name: t.name, rx: rx + dx, rz: rz + dz)
+            if cache[k] == nil && !planning.contains(k) { missing.append(k); planning.insert(k) }
+            else if cache[k] == nil { missing.append(StartKey(name: "", rx: 0, rz: 0)) }      // (already on its way)
+        } }
+        lock.unlock()
+        if missing.isEmpty { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+        let todo = missing.filter { !$0.name.isEmpty }
+        if !todo.isEmpty {
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                guard let self = self else { return }
+                for k in todo { _ = self.start(t, regionX: k.rx, regionZ: k.rz) }
+                self.lock.lock(); for k in todo { self.planning.remove(k) }; StructureCache.offThreadPlans += todo.count; self.lock.unlock()
+            }
+        }
+        return nil
+    }
+    static var offThreadPlans = 0
+
+    func isCached(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return cache[StartKey(name: t.name, rx: rx, rz: rz)] != nil
+    }
+
     func candidate(_ t: StructureType, _ rx: Int, _ rz: Int) -> (Int, Int) {
         var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
         let span = t.spacing - t.separation
@@ -608,9 +660,12 @@ enum Loot {
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
+        if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
         guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
+        if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
+        Blueprints.addToChest(c, table: table, rng: &rng)                // P138
     }
 
     private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {

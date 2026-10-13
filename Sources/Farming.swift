@@ -122,6 +122,9 @@ extension Game {
             if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim.ultrawarm ? AIR : WATER); world.scheduleFluid(around: p) }
         case "snow":
             if world.lightAt(p.x, p.y, p.z).block > 11 { world.setBlockAsync(p.x, p.y, p.z, AIR) }
+        case "cave_vines":
+            // A plain lanternvine segment grows pods again (1 in 12 random ticks, P125).
+            if stage == 0 && Rand.int(in: 0..<12) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
         case "sweet_berry_bush":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if stage < 3 && max(l.sky, l.block) >= 9 && Rand.int(in: 0..<5) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
@@ -444,13 +447,24 @@ extension Game {
 
     // MARK: Beds
 
+    // P127 (Oct 12 PM, "I should be able to sleep right now. It's not letting me"): beds work from sunset (the sun on
+    // the horizon, 18:00 on the clock) until just before dawn. The reference's window opened at 18:32; at 18:16 with
+    // the sun down and the sky going dark the bed still refused.
+    static let sleepFrom = 0.497
+    static func canSleep(_ f: Double) -> Bool { f >= sleepFrom && f < 0.98 }
+
     func trySleep(at p: IVec3) {
-        let night = (dayFraction > 0.52 && dayFraction < 0.98) || weather.thunder > 0.5
+        let night = Game.canSleep(dayFraction) || weather.thunder > 0.5
         spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)     // y + 0.6 marks a bed spawn (respawn())
         anchorSpawn = nil                                    // the newest respawn point wins
         achieve("sleep")
         onToast?("Respawn point set")
-        guard night else { onToast?("You can only sleep at night"); return }
+        guard night else {
+            // How long until dusk, in in-game hours (DAY_LENGTH is one day).
+            let h = Int(((Game.sleepFrom - dayFraction + 1).truncatingRemainder(dividingBy: 1)) * 24 + 0.5)
+            onToast?(h <= 1 ? "You can sleep once the sun is down" : "You can only sleep at night (dusk in about \(h) hours)")
+            return
+        }
         // Monsters within 8 blocks across and 5 up or down of the bed (reference box; it was a sphere round the player).
         let bc = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)
         if mobs.mobs.contains(where: { $0.kind.hostile && $0.health > 0 && abs($0.pos.x - bc.x) <= 8 && abs($0.pos.y - bc.y) <= 5 && abs($0.pos.z - bc.z) <= 8 }) {

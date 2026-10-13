@@ -15,6 +15,7 @@ enum HellGate {
     static let chargeKey = "ember_charge"
     static let chargeFuse: Float = 3
     static var blasts = 0, lit = 0             // harness counters
+    static var wardHints = 0
 
     // A freshly generated surface chunk's floor (WorldGen.generate, after the caves and lava).
     static func floor(_ b: inout [BlockID]) {
@@ -128,13 +129,25 @@ extension Game {
     func coldFrameHint() {
         guard clock - hell.hintAt > 20 else { return }
         hell.hintAt = clock
-        onToast?("The frame stays cold. Only an Ember Charge wakes it: military bases keep them in their command rooms")
+        onToast?("The frame stays cold. Only an Ember Charge wakes it: Capital citadels keep them in their command rooms" + citadelPointer())
     }
 
+    // P139 (Oct 12 PM, 15:27 "I'm going to assume there's a certain ore type that I have to find... until I find it, I
+    // can't break through"): the hint says plainly that no ore or tool does it, and puts the nearest citadel on the map.
     func wardHint() {
         guard clock - hell.hintAt > 60 else { return }
         hell.hintAt = clock
-        onToast?("Wardstone: only an Ember Charge breaks it. Military bases keep them in their command rooms")
+        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Capital citadels keep them in their command rooms" + citadelPointer())
+        HellGate.wardHints += 1
+    }
+
+    // ". The nearest is marked on your map: 1,240 m NW" (the nearest Capital citadel, put on the map the first time).
+    func citadelPointer() -> String {
+        guard dim.dim == .overworld, let sc = world.gen.structures,
+              let s = sc.nearest("military_base", x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: 4) else { return "" }
+        let c = RadarContact(name: "Capital Citadel", kind: "military_base", x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2)
+        MapCache.shared.discover(self, kind: c.kind, x: c.x, z: c.z)
+        return ". The nearest is marked on your map: \(radarBearing(c))"
     }
 
     // Burns down placed charges (from hellTick).

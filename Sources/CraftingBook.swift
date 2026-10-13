@@ -165,6 +165,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     var pool: [ItemID: Int] = [:]
     var holdA: Double = 0, repeatT: Double = 0  // A held on a tile: repeat crafting
     var lastCraftMessage = ""
+    var openedAt: Double = 0                   // game clock when the book opened (P129)
     var query = ""                             // search: every recipe whose result matches, whatever the tab
     var searching = false
     override var capturesText: Bool { searching }
@@ -228,6 +229,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             slots.append(gb)
         }
         addPlayerInventory(y: 189, x: 8)
+        openedAt = game.clock
         refresh()
     }
 
@@ -290,7 +292,14 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         case CraftingBookMenu.tileBase..<(CraftingBookMenu.tileBase + CraftingBookMenu.perPage):
             guard let i = recipe(at: id - CraftingBookMenu.tileBase) else { return }
             let r = Recipes.all[i]
-            // Click: one. Shift-click / Y: a stack. Right-click / X: as many as possible.
+            // P129 (Oct 12 PM, "somehow I accidentally made stairs"): the headset's grip is the menu's right click, and
+            // a grip squeezed over a tile (the habit that steps the hotbar or reaches for a magazine) crafted as many
+            // stairs as the planks allowed. A mouse right click / grip now only selects the recipe (the Craft max
+            // button stays); the pad's X still makes the most. A click in the first moments after the book opens (the
+            // press that opened it) does nothing.
+            if game.clock - openedAt < CraftingBookMenu.openGuard { return }
+            if button == 1 && mouseClick { selected = i; game.sfx(.click, 0.3); return }
+            // Click: one. Shift-click / Y: a stack. X: as many as possible.
             craftTile(i, times: shift ? CraftBook.stackTimes(r) : (button == 1 ? 9999 : 1))
         default:
             buttonPressed(id)
@@ -336,8 +345,11 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     }
 
     // Pad: A held on a tile keeps crafting (after 0.4 s, then faster and faster).
+    static let openGuard = 0.35
+
+    // (Not in the headset, P129: there A is jump, and holding it over a tile kept crafting; the trigger crafts there.)
     func padHold(_ aHeld: Bool, _ dt: Double) {
-        guard aHeld, let h = game.menuHover, case .button(let id) = h.kind, id >= CraftingBookMenu.tileBase,
+        guard aHeld, game.vrHead == nil, game.clock - openedAt >= CraftingBookMenu.openGuard, let h = game.menuHover, case .button(let id) = h.kind, id >= CraftingBookMenu.tileBase,
               id < CraftingBookMenu.tileBase + CraftingBookMenu.perPage, let i = recipe(at: id - CraftingBookMenu.tileBase) else {
             holdA = 0; repeatT = 0; return
         }

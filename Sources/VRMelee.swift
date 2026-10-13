@@ -25,9 +25,24 @@ enum VRMelee {
     static let touchRows = ["Swing melee: swing the blade into mobs", "Reclined melee: trigger attacks",
                             "Main trigger: mine / fire (both modes)", "Bow: off-hand trigger at string, pull"]
 
-    // Damage scale from the tip speed: 0.6 at the minimum, 1 at 4.5 m/s, 1.4 from 7 m/s (Oct 11 playtest P16: damage
-    // should follow how hard you swing). On top of the attack charge, so swinging deals about what Reclined's trigger does.
-    static func power(_ tipSpeed: Float) -> Float { max(0.6, min(1.4, 0.6 + (tipSpeed - minTipSpeed) * 0.16)) }
+    // Damage scale from the tip speed, linear (Oct 12 PM P136, "damage in the sword should vary linearly with the speed"):
+    // tip speed / 4.5 m/s, so 0.45 at the minimum, 1 at 4.5 m/s, 2 at 9 m/s and over. On top of the attack charge, so a
+    // middling swing deals about what Reclined's trigger does.
+    static let powerAt1: Float = 4.5, powerMin: Float = 0.45, powerMax: Float = 2
+    static func power(_ tipSpeed: Float) -> Float { max(powerMin, min(powerMax, tipSpeed / powerAt1)) }
+    // ... times the wind-up (P136, "how much the sword moved before it hit"): the tip's path since this swing began, up to
+    // x1.4 for a full 1.4 m arc; a jab of a hand's width adds nothing.
+    static func travelBonus(_ metres: Float) -> Float { 1 + max(0, min(0.4, (metres - 0.3) * 0.36)) }
+    // Head hits (P136, "if you aim at their head with a sword, do more"): x1.5 where the blade lands on the head: the top
+    // fifth of an upright body, the front of a beast's upper half.
+    static let headMult: Float = 1.5
+    static var headHits = 0
+    static func headHit(_ m: Mob, at p: V3) -> Bool {
+        let rel = p - m.pos
+        if m.height >= m.halfW * 4.5 { return rel.y >= m.height * 0.8 }          // upright: zombies, Powderwights, people
+        let ahead = simd_dot(V3(rel.x, 0, rel.z), m.forward)
+        return rel.y >= m.height * 0.45 && ahead >= m.halfW * 0.35
+    }
     // A swung hit's attack charge is at least this: quick re-swings land weaker hits instead of none (P13/P16).
     static let swingChargeFloor: Float = 0.5
 
