@@ -43,6 +43,8 @@ generator's own fields; other dimensions keep the round-2 smoothing.
 - Water (T17): a still-water surface that steps down a level (a river's terraces) ramps down to the lower surface
   instead of standing as a box with a flat side (Mesher.stepDown: a top corner shared with an open column over still
   water drops to the block bottom, the lower surface's own corner height). Water blocks are unchanged.
+- Mobs within 48 blocks stand on the drawn ground too (Mob.easeStep springs viewDY toward World.smoothGroundOffset,
+  the 4 column heights cached per mob by cell), so they no longer float or sink up to half a block on smooth slopes.
 
 ## Next
-Smooth water shorelines if needed, mob feet on slopes, mesh cost on the device, then Smooth as the Quest default once Remington likes it.
+Smooth water shorelines if needed, mesh cost on the device, then Smooth as the Quest default once Remington likes it.

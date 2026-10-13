@@ -267,6 +267,8 @@ final class Mob {
     var yaw: Float
     var onGround = false
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn model (ViewStep.swift)
+    // P142: the drawn smooth ground under the feet (World.smoothGroundOffset), and its 4 column heights cached by cell.
+    var viewGround: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     var health: Int
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
@@ -2273,7 +2275,10 @@ final class MobManager {
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
             m.update(dt, game: game)
-            m.easeStep(fromY: before.y, wasGround: wasGround, dt)
+            // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it.
+            let gnd: Float = SmoothTerrain.enabled && m.onGround && simd_length_squared(m.pos - p) < 48 * 48
+                ? w.smoothGroundOffset(m.pos, key: &m.groundKey, heights: &m.groundH) : 0
+            m.easeStep(fromY: before.y, wasGround: wasGround, dt, ground: gnd)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
             // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
             let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
