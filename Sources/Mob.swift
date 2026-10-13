@@ -458,6 +458,8 @@ final class Mob {
     var shield: Float = 0, shieldMax: Float = 0   // an Aegis Marine's energy shield (Navy.swift)
     var shieldIdle: Float = 0, shieldLock: Float = 0
     var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
+    var hired = false               // a companion following the player (Companions.swift, O2)
+    weak var companionFoe: Mob?     // ... the threat it is firing on
     var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
     var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
     var leash: V3?                  // a Greywall base's soldier: (centre x, centre z, half-size) it never leaves (GreywallAlarm.swift)

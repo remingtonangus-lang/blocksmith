@@ -1050,6 +1050,7 @@ final class Game {
         if !swung && skinUse(useHeld, fdt) { mining = nil; return }
         // P49: a gun in hand doesn't stop you mounting: the use press on a horse within reach mounts it (the gun's aim
         // took the press first, so nobody could get on with a gun out).
+        if useNow && heldGun != nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5), hit.0.hired, companionUse(hit.0) { mining = nil; return }   // O2: a gun for a companion
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5),
            hit.0.horseLike && hit.0.kind != .traderLlama && !hit.0.baby, animalInteract(hit.0) { mining = nil; return }
         // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the

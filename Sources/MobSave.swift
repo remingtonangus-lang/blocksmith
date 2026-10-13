@@ -106,6 +106,7 @@ extension Mob {
         if power != 1 { d["power"] = power }
         if faction != 0 { d["fac"] = Float(faction) }      // (a navy's crew keep their colours and ranks through a save)
         if shieldMax > 0 { d["shm"] = shieldMax; d["sh"] = shield; d["shl"] = shieldLock }
+        if hired { d["hired"] = 1 }
         if troop > 0 { d["tc"] = Float(troop); d["ts0"] = troopSeg.x; d["ts1"] = troopSeg.y; d["ts2"] = troopSeg.z }
         if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }
         if warden { d["warden"] = 1 }
@@ -147,6 +148,7 @@ extension Mob {
         if let x = d["brushCd"] { hs.brushCool = x }
         if let x = d["lsx"], let z = d["lsz"], let h = d["lsh"] { leash = V3(x, z, h) }
         if let m = d["shm"] { shieldMax = m; shield = d["sh"] ?? m; shieldLock = d["shl"] ?? 0 }
+        if (d["hired"] ?? 0) > 0 { hired = true; persistent = true }
         if let c = d["tc"], c >= 1, c <= 3 { troop = Int8(c); troopSeg = SIMD3(d["ts0"] ?? 0, d["ts1"] ?? 0, d["ts2"] ?? 0) }
         if let f = d["fac"], Int(f) == Faction.ashguard.rawValue { faction = Int(f); ashSetup(loading: true) }
         else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }

@@ -302,6 +302,11 @@ if CommandLine.arguments.contains("--liberation-only") {
     LiberationTests.run(game, check: check)
     print(failures == 0 ? "liberation: all checks passed" : "liberation: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --companions-only: hired companions (Sources/CompanionTests.swift, backlog O2).
+if CommandLine.arguments.contains("--companions-only") {
+    CompanionTests.run(game, check: check)
+    print(failures == 0 ? "companions: all checks passed" : "companions: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)
