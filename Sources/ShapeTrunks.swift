@@ -133,8 +133,9 @@ enum ShapeTrunks {
         }
 
         // 3. Geometry for the owned logs.
-        let sides = ctx.lod == 1 ? 6 : (ctx.lod == 2 ? 8 : 10)
-        let limbSides = ctx.lod == 0 ? 7 : 5
+        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips (far ones draw cubes: Mesher).
+        let sides = ctx.lod == 0 ? 9 : 6
+        let limbSides = ctx.lod == 0 ? 6 : 5
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
@@ -221,10 +222,10 @@ enum ShapeTrunks {
         var prof: [(Float, Float)] = []              // (height, radius) from the bottom up
         if !below && living {
             // Root flare into the ground (the smooth ground covers its foot).
-            prof.append((y0 - 0.5, r * 2.0)); prof.append((y0 + 0.02, r * 1.6)); prof.append((y0 + 0.3, r * 1.25)); prof.append((y0 + 0.7, r * 1.04))
+            // (The flare is a fixed width past the trunk, so a wide 2x2 foot doesn't spread into a skirt.)
+            prof.append((y0 - 0.5, r + 0.3)); prof.append((y0 + 0.02, r + 0.19)); prof.append((y0 + 0.3, r + 0.09)); prof.append((y0 + 0.7, r + 0.02))
         } else {
             prof.append((y0, r0))
-            if living { prof.append((y0 + 0.5, r)) }
         }
         if above {
             prof.append((y1, r1))
@@ -234,6 +235,7 @@ enum ShapeTrunks {
             prof.append((y1, r0))
         }
         let roots = !below && living
+        let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
         var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {
             let c = lean(ctx, cx, cz, h, living: living)
@@ -244,7 +246,7 @@ enum ShapeTrunks {
                 var rad = rr
                 let wpt = SIMD3<Float>(c.x, h, c.y) + d * rr
                 rad *= 1 + (living ? 0.07 : 0.03) * ctx.noise(wpt, 2.1, 0xBA4C)
-                if roots && k < 3 { rad *= 1 + 0.4 * max(0, cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28)) * (k == 0 ? 1 : (k == 1 ? 0.7 : 0.3)) }
+                if roots && k < 4 { rad = r + (rad - r) * (1 + 1.6 * max(0, cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28))) }
                 ps.append(SIMD3(c.x, h, c.y) + d * rad)
                 ns.append(d)
             }
@@ -252,7 +254,7 @@ enum ShapeTrunks {
                 let (h0, rr0) = prof[k - 1]
                 let slope = (rr0 - rr) / max(0.05, h - h0)
                 for a in 0..<sides {
-                    let u0 = Float(a) / Float(sides) * max(1, (2 * .pi * rr).rounded()), u1 = Float(a + 1) / Float(sides) * max(1, (2 * .pi * rr).rounded())
+                    let u0 = Float(a) / Float(sides) * wrap, u1 = Float(a + 1) / Float(sides) * wrap
                     let n00 = simd_normalize(prevN[a] + SIMD3(0, slope, 0)), n01 = simd_normalize(prevN[a + 1] + SIMD3(0, slope, 0))
                     let n10 = simd_normalize(ns[a] + SIMD3(0, slope, 0)), n11 = simd_normalize(ns[a + 1] + SIMD3(0, slope, 0))
                     let top = h > y1 + 0.01 && !above
@@ -312,12 +314,13 @@ enum ShapeTrunks {
         let rb = s.rad[i]
         tube(ctx, a, b, ra, rb, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i))
         // Knuckle where limbs meet, so joints read as wood growing on, not pipes meeting.
+        if ctx.lod != 0 { return }
         if s.kids[i] > 0 { knob(ctx, b, rb * 1.05, bark: bark, sides: sides) }
         else if s.col[i] == 3 {
             // A root: it turns down into the ground.
             let d = simd_normalize(simd_normalize(b - a) + SIMD3(0, -1.3, 0))
             knob(ctx, b, rb * 1.02, bark: bark, sides: sides)
-            tube(ctx, b, b + d * 0.75, rb, 0.04, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x2007)
+            tube(ctx, b, b + d * 0.55, rb, rb * 0.5, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x2007)
         } else {
             // A tip: the limb runs on past the block's centre and tapers off.
             let d = simd_normalize(b - a)
@@ -349,7 +352,7 @@ enum ShapeTrunks {
 
     // A small rounded lump (an octahedron-ish ball) where limbs join.
     static func knob(_ ctx: DetailContext, _ c: SIMD3<Float>, _ r: Float, bark: Int, sides: Int) {
-        let rows = 3
+        let rows = 2
         for j in 0..<rows {
             let p0 = Float(j) / Float(rows) * .pi - .pi / 2, p1 = Float(j + 1) / Float(rows) * .pi - .pi / 2
             for k in 0..<sides {

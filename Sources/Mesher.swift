@@ -282,6 +282,9 @@ enum Mesher {
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
         let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
         let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
+        // Far sections (lod 1) draw those blocks as cubes again (the most sections, the least seen); the ground still
+        // treats them as open everywhere so its surface agrees across the lod rings.
+        let detailDraw = detail && !far
         // Realistic world: built blocks near the eye get a 1/16 chamfer on their exposed edges (Mesher.bevelT).
         let bevel = detail && lod == 0, bevelT = Mesher.bevelT
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }
@@ -388,7 +391,7 @@ enum Mesher {
         // block keeps its face against it (else sky shows through the gap); buried natural cells still hide faces.
         func smoothOpen(_ j: Int) -> Bool {
             if leafBlob && leafT[Int(R[j])] { return true }      // (a blob rounds away from a log or a built block)
-            if detail && detT[Int(R[j])] { return true }         // (a round trunk doesn't fill its block)
+            if detailDraw && detT[Int(R[j])] { return true }     // (a round trunk doesn't fill its block)
             guard smooth && natT[Int(R[j])] else { return false }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
             return false
@@ -595,7 +598,7 @@ enum Mesher {
                         continue
                     }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
-                    if detail && detT[bi] { continue }                  // (round shapes: the detail generators below)
+                    if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
@@ -1011,7 +1014,7 @@ enum Mesher {
         // (ShapeOrganic), into the detail stream.
         let det = sc.det, detCut = sc.detCut
         det.count = 0; detCut.count = 0
-        if detail {
+        if detailDraw {
             let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: (chunk?.x ?? site?.cx ?? 0) * CS, wy0: sy * 16, wz0: (chunk?.z ?? site?.cz ?? 0) * CS,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy)
             ShapeTrunks.emit(ctx)

@@ -138,22 +138,25 @@ if let out = arg("--view"), let ctx = vkctx {
     if CommandLine.arguments.contains("--meshbench") {
         let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
         let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)
-        for (name, on, fld) in [("blocks", false, false), ("round2", true, false), ("field", true, true)] {
-            SmoothTerrain.enabled = on; SmoothTerrain.fromField = fld
-            var ms = 0.0, quads = 0, secs = 0
+        let detailWas = Mesher.detailMeshes
+        for (name, on, fld, det) in [("blocks", false, false, false), ("round2", true, false, false), ("field", true, true, false),
+                                     ("realistic", true, true, true)] {
+            SmoothTerrain.enabled = on; SmoothTerrain.fromField = fld; Mesher.detailMeshes = det
+            var ms = 0.0, quads = 0, secs = 0, dq = 0
             for dz in -2...2 { for dx in -2...2 {
                 guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
                 for sy in 0..<NSEC {
                     let t0 = CFAbsoluteTimeGetCurrent()
-                    let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c))
+                    let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c), chunk: (c.cx, c.cz))
                     ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
                     if !m.opaque.isEmpty { secs += 1 }
-                    quads += m.opaque.count / 8
+                    quads += m.opaque.count / 8; dq += m.detail.count / DetailMesh.wordsPerQuad
                 }
             } }
-            print(String(format: "meshbench %@: %.1f ms, %d sections with geometry, %d quads", name, ms, secs, quads))
+            print(String(format: "meshbench %@: %.1f ms, %d sections with geometry, %d quads, %d detail quads", name, ms, secs, quads, dq))
         }
         (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
+        Mesher.detailMeshes = detailWas
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
     if let n = Int(arg("--dig") ?? "") {
