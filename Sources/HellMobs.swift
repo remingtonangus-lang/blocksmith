@@ -30,6 +30,7 @@ final class HellState {
     var called = false                            // the Commander's horn
     var raged = false
     var fx: FX = .none
+    var feint = false                             // P185: this wind-up is a feint (it breaks off and comes again)
 }
 
 // What's live in the world for these mobs and the gate (Game.hell).
@@ -44,7 +45,7 @@ struct HellWorld {
 
 // Harness counters (HellMobsTests).
 enum HellStats {
-    static var blocked = 0, guardBreaks = 0, parries = 0, dodged = 0, wallStuns = 0, chargeHits = 0
+    static var blocked = 0, guardBreaks = 0, parries = 0, dodged = 0, wallStuns = 0, chargeHits = 0, ripostes = 0, feints = 0
     static var dives = 0, diveHits = 0, lobs = 0, slagHits = 0, musters = 0, calls = 0
 }
 
@@ -81,16 +82,16 @@ extension MobKind {
     var hellSpec: Spec {
         switch self {
         case .brandSquire:
-            return Spec(name: "Brand Squire", halfW: 0.3, height: 1.95, health: 24, speed: 3.0, behavior: .monster, attack: 4,
+            return Spec(name: "Brand Squire", halfW: 0.3, height: 1.95, health: 40, speed: 3.0, behavior: .monster, attack: 5,
                         drops: [("gold_nugget", 1, 4), ("iron_nugget", 1, 3)], xp: 8, call: .mob(self, .ambient), fireImmune: true)
         case .brandKnight:
-            return Spec(name: "Brand Knight", halfW: 0.32, height: 1.98, health: 36, speed: 2.8, behavior: .monster, attack: 7,
+            return Spec(name: "Brand Knight", halfW: 0.32, height: 1.98, health: 64, speed: 2.8, behavior: .monster, attack: 9,
                         drops: [("gold_ingot", 0, 2), ("iron_ingot", 1, 2)], xp: 16, call: .mob(self, .ambient), fireImmune: true)
         case .brandChampion:
-            return Spec(name: "Brand Champion", halfW: 0.34, height: 2.05, health: 52, speed: 2.9, behavior: .monster, attack: 9,
+            return Spec(name: "Brand Champion", halfW: 0.34, height: 2.05, health: 90, speed: 2.9, behavior: .monster, attack: 11,
                         drops: [("gold_ingot", 1, 3), ("diamond", 0, 1)], xp: 30, call: .mob(self, .ambient), fireImmune: true)
         case .brandCommander:
-            return Spec(name: "Brand Commander", halfW: 0.38, height: 2.05, health: 280, speed: 3.0, behavior: .monster, attack: 12,
+            return Spec(name: "Brand Commander", halfW: 0.38, height: 2.05, health: 420, speed: 3.0, behavior: .monster, attack: 14,
                         drops: [("brand_greatsword", 1, 1), ("diamond", 2, 4), ("gold_ingot", 4, 8), ("netherite_scrap", 1, 2)], xp: 200,
                         call: .mob(self, .ambient), fireImmune: true)
         case .searwing:
@@ -122,7 +123,7 @@ extension Mob {
     }
 
     var orderGuardMax: Int {
-        if kind == .brandCommander { return hell?.raged == true ? 14 : 10 }
+        if kind == .brandCommander { return hell?.raged == true ? 16 : 12 }
         return HellMobs.guardMax[max(0, min(3, kind.orderRank))]
     }
 
@@ -137,6 +138,11 @@ extension Mob {
         let melee = Mob.playerMelee
         let firm = melee && Mob.playerMeleePower >= 0.6         // a charged blow, not a tap
         switch h.s {
+        case .windup where firm && h.feint:
+            // P185: swinging into a feint meets the knight's blade, and he answers at once.
+            h.feint = false; h.s = .windup; h.t = 0.3; h.fx = .clang
+            HellStats.blocked += 1
+            return true
         case .windup where firm:
             h.s = .stagger; h.t = 1.7; h.fx = .parry
             damage = damage * 3 / 2
@@ -157,7 +163,13 @@ extension Mob {
         if melee {
             h.guardLeft -= 1
             HellStats.blocked += 1
-            if h.guardLeft <= 0 { h.s = .stagger; h.t = 1.4; h.fx = .guardBreak; HellStats.guardBreaks += 1 } else { h.fx = .clang }
+            if h.guardLeft <= 0 { h.s = .stagger; h.t = 1.4; h.fx = .guardBreak; HellStats.guardBreaks += 1 } else {
+                h.fx = .clang
+                // P185: a blow taken on the guard can be answered with a quick riposte (more often the higher the rank).
+                if h.s == .idle && Rand.float(in: 0..<1) < HellMobs.riposte[max(0, min(3, kind.orderRank))] {
+                    h.s = .windup; h.t = 0.32; h.feint = false; HellStats.ripostes += 1
+                }
+            }
             return true
         }
         // Arrows and thrown things clang off; bullets and blasts lose most of theirs.
@@ -218,13 +230,21 @@ extension Mob {
         switch h.s {
         case .windup:
             guardTurn(player, dt)
+            // P185: a feint breaks off halfway and the real cut comes from the other side.
+            if h.feint && h.t < windup * 0.45 {
+                h.feint = false; h.side = -h.side; h.t = windup * 0.6; HellStats.feints += 1
+                g.sfx(.attackSweep, 0.5, at: pos)
+                return 0
+            }
             if h.t <= 0 {
                 g.sfx(.attackSweep, 1, at: pos)
                 if gap < reach + 0.4 {
                     g.hurtPlayer(spec.attack, from: pos, cause: "was cut down by a \(spec.name)", knockback: 1.2, attacker: self)
                 }
                 h.swings += 1
-                if rank >= 2 && h.swings < 2 && gap < reach + 1 { h.s = .windup; h.t = windup * 0.7 }       // a second cut
+                // P185 (Oct 13: "sword-duel knights, and much harder"): a combo of up to rank + 1 cuts, each wound up for
+                // a different time, so the rhythm can't be learnt; the recovery after it is the opening.
+                if h.swings <= rank && gap < reach + 1 { h.s = .windup; h.t = windup * Rand.float(in: 0.5...0.9); h.feint = false }
                 else { h.s = .recover; h.t = rank >= 2 ? 0.6 : 0.85; h.swings = 0 }
             }
             return 0
@@ -281,7 +301,8 @@ extension Mob {
                 return 0
             }
             if gap < reach && attackCooldown <= 0 {
-                h.s = .windup; h.t = windup
+                h.s = .windup; h.t = windup * Rand.float(in: 0.85...1.2)
+                h.feint = Rand.float(in: 0..<1) < HellMobs.feint[min(3, rank)]
                 attackCooldown = 1.4
                 g.sfx(.spyglass, 0.7, at: pos + V3(0, height, 0))      // the rising whine of the wind-up
                 return 0
@@ -451,7 +472,9 @@ extension Mob {
 enum HellMobs {
     static let slagGravity: Float = 20
     static let caps: [Int] = [6, 4, 2, 1, 4, 14, 3]             // by MobKind.hellIndex (the Commander comes with musters)
-    static let guardMax: [Int] = [3, 5, 6, 10]                   // by order rank
+    static let guardMax: [Int] = [4, 6, 8, 12]                   // by order rank (P185: harder)
+    static let riposte: [Float] = [0, 0.35, 0.5, 0.6]           // P185: a blocked blow answered at once (not squires)
+    static let feint: [Float] = [0, 0.2, 0.3, 0.4]              // P185: wind-ups that break off and come again
     static let windups: [Float] = [0.75, 0.62, 0.5, 0.55]
     static let chargeDamage: [Int] = [0, 8, 10, 13]
     static let chargeSpeed: [Float] = [0, 10, 11, 12]

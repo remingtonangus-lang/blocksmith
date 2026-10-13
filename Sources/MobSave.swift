@@ -110,6 +110,9 @@ extension Mob {
         if troop > 0 { d["tc"] = Float(troop); d["ts0"] = troopSeg.x; d["ts1"] = troopSeg.y; d["ts2"] = troopSeg.z }
         if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }
         if warden { d["warden"] = 1 }
+        if let b = brain, let g = b.gunPost, let f = b.orderFace {      // P194: a deck gun's gunner keeps his post
+            d["gpx"] = g.x; d["gpy"] = g.y; d["gpz"] = g.z; d["gfx"] = f.x; d["gfy"] = f.y; d["gfz"] = f.z
+        }
         if let b = brain, b.role != 0 { d["ashRole"] = Float(b.role) }
         if let b = brain, b.extra {
             d["ashExtra"] = 1
@@ -154,6 +157,9 @@ extension Mob {
         else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f) }
         greyRearm()                                     // P104: Greywall's own arms (GreywallArms.swift)
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
+        if let x = d["gpx"], let y = d["gpy"], let z = d["gpz"], let fx = d["gfx"], let fy = d["gfy"], let fz = d["gfz"] {
+            takeGunPost(V3(x, y, z), face: V3(fx, fy, fz))
+        }
         if let r = d["ashRole"] { ashTakeRole(Int(r)) }
         if (d["ashExtra"] ?? 0) > 0 {
             let b = soldierBrain

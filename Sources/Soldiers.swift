@@ -58,6 +58,10 @@ final class SoldierBrain {
     var orderStation = StationPose.none
     var orderRun = false
     var orderFace: V3?
+    // P194: a deck gun's own gunner: where it stands behind its gun (kept through a save, MobSave), and the gun's
+    // next look for a new one when the post is empty.
+    var gunPost: V3?
+    var gunnerCD: Float = 0
     var ready = false
     // The Ash Vault's squads (AshArmy.swift): a role (mortar crew, medic, MG gunner), whether this is a patrol or
     // reinforcement (an extra, counted against the unit cap), the far-AI tick accumulator, a medic's patient and a
@@ -684,6 +688,7 @@ extension Mob {
             b.losTimer = 0.4
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
+            if !b.crewed && factionValue != .greywall { claimGunner(g) }
         }
         if b.sees && canTarget {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
@@ -747,6 +752,52 @@ extension Mob {
 
 extension Mob {
     // A live soldier posted at this deck gun (CapitalBases sends two per barbette, ~9 blocks behind it, as gunners).
+    // P194 (Oct 13: "give each gun a seat under it with a gunner in it; kill him to take the gun"): an unmanned
+    // Capital deck gun calls the nearest rifleman of its garrison to its breech, on a floor just behind the gun (4.5,
+    // 6.5 or 9 blocks back, the first with standing room), where he stands at the gun's two handles. While he lives
+    // the gun is his: the player can't take it (Game.useMob) and it fires on its own; kill him and it is free until
+    // the next man is called (a look every 6 s, only soldiers already on that floor within 16 blocks).
+    func claimGunner(_ g: Game) {
+        let b = soldierBrain
+        b.gunnerCD -= 0.4
+        guard b.gunnerCD <= 0 else { return }
+        b.gunnerCD = 6
+        let back = V3(sinf(yaw), 0, cosf(yaw))
+        var spot: V3?
+        search: for k: Float in [4.5, 6.5, 9] {
+            let p = pos + back * k
+            let x = Int(floor(p.x)), z = Int(floor(p.z)), y0 = Int(floor(pos.y))
+            for dy in [0, -1, 1] {
+                let y = y0 + dy
+                let under = g.world.block(x, y - 1, z), a = g.world.block(x, y, z), c = g.world.block(x, y + 1, z)
+                if Blocks.collide[Int(under)] && !Blocks.isLiquid(under) && !Blocks.collide[Int(a)] && !Blocks.collide[Int(c)] && !Blocks.isLiquid(a) {
+                    spot = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5); break search
+                }
+            }
+        }
+        guard let s = spot else { return }
+        var best: Mob?, bd: Float = 16 * 16
+        for m in g.mobs.mobs where m !== self && m.health > 0 && m.faction == faction && m.deck == nil
+            && m.kind != .deckGun && m.kind != .soldierOfficer && m.kind != .soldierMarksman && Soldier.rank(m.kind) != nil {
+            let br = m.soldierBrain
+            guard br.orderStation == .none, abs(m.pos.y - s.y) < 2.5 else { continue }
+            let d = V2(m.pos.x - s.x, m.pos.z - s.z), d2 = simd_length_squared(d)
+            if d2 < bd { bd = d2; best = m }
+        }
+        guard let m = best else { return }
+        m.takeGunPost(s, face: pos)
+    }
+
+    func takeGunPost(_ s: V3, face: V3) {
+        let br = soldierBrain
+        br.gunPost = s
+        br.order = s
+        br.orderStation = .gunner
+        br.orderFace = face
+        br.orderRun = false
+        persistent = true
+    }
+
     func deckGunCrewed(_ g: Game) -> Bool {
         // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
         let grey = factionValue == .greywall

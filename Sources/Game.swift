@@ -1042,6 +1042,12 @@ final class Game {
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
+            // P194: a gun with its gunner at the breech is his until he is dealt with.
+            if survival, hit.0.deckGunCrewed(self) {
+                onToast?(hit.0.factionValue == .greywall ? "The tower's lookout holds this gun: take him out to take it"
+                                                          : "The gunner holds this gun: take him out to take it")
+                return
+            }
             Turrets.shared.mount(self, hit.0); return
         }
         // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,

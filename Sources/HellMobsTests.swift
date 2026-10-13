@@ -127,6 +127,7 @@ enum HellMobsTests {
             Mob.playerMelee = true
             k.hit(from: g.player.pos, damage: 6)
             let front = k.health
+            k.hellState.s = .idle                               // (a riposte it may have started, P185)
             k.hit(from: k.pos - k.forward * 2, damage: 6)
             let behind = k.health
             Mob.playerMelee = false
@@ -146,13 +147,13 @@ enum HellMobsTests {
             Mob.playerMelee = true
             Mob.playerMeleePower = 0.2
             for _ in 0..<5 { s.hit(from: g.player.pos, damage: 4) }        // taps: they clang off and don't wear it
-            let tapped = s.hellState.guardLeft == 3 && s.health == s.spec.health
+            let tapped = s.hellState.guardLeft == s.orderGuardMax && s.health == s.spec.health
             Mob.playerMeleePower = 1
-            for _ in 0..<3 { s.hit(from: g.player.pos, damage: 4) }
+            for _ in 0..<s.orderGuardMax { s.hit(from: g.player.pos, damage: 4) }
             let broke = s.hellState.s == .stagger, hp = s.health
             s.hit(from: g.player.pos, damage: 4)
             Mob.playerMelee = false
-            check(tapped && broke && hp == s.spec.health && s.health == hp - 6, "hell: taps clang off a squire's guard; it breaks after 3 full blows; the next hit lands for \(hp - s.health) of 4")
+            check(tapped && broke && hp == s.spec.health && s.health == hp - 6, "hell: taps clang off a squire's guard; it breaks after \(s.orderGuardMax) full blows; the next hit lands for \(hp - s.health) of 4")
         }
 
         // The parry: a knight winds up in reach (the blade high, shield aside); a blade then staggers it for half again.
@@ -161,6 +162,7 @@ enum HellMobsTests {
             let k = spawn(.brandKnight, V3(0, 0, -1.6)); facing(k)
             k.hellState.cool = 99
             let wound = tick(k, 3) { k.hellState.s == .windup }
+            k.hellState.feint = false                           // (P185: a feint is met by the blade instead)
             let parries = HellStats.parries
             let hp = k.health
             Mob.playerMelee = true
@@ -217,7 +219,7 @@ enum HellMobsTests {
             c.health = c.spec.health / 2 - 1
             tick(c, 0.05)
             let n1 = g.mobs.mobs.filter { $0.kind.brandOrder }.count
-            check(bar?.0 == "Brand Commander" && c.scale > 1.2 && n1 == n0 + 3 && c.hellState.raged && c.orderGuardMax == 14,
+            check(bar?.0 == "Brand Commander" && c.scale > 1.2 && n1 == n0 + 3 && c.hellState.raged && c.orderGuardMax == 16,
                   "hell: the Brand Commander (boss bar, \(c.spec.health) health) calls \(n1 - n0) of his order at half health and rages")
             // Saved past half: no second horn.
             let back = Mob.from(c.record)
