@@ -343,6 +343,40 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: rubble on \(Blocks.key(b)) at \(gx) \(gy) \(gz), \(vg.debris.count) pieces")
         vw.remeshArea(x0: gx - 3, z0: gz - 3, x1: gx + 3, z1: gz + 3, y0: gy - 3, y1: gy + 3)
     }
+    // --scene ragdoll [--mobs K,K,..] [--mobdist D]: creatures in a row D blocks ahead (default 5) killed by a blow from
+    // the camera, falling as ragdolls (realistic world: with --smooth), settled for --settle s (default 3).
+    if arg("--scene") == "ragdoll" {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+        let keys = (arg("--mobs") ?? "zombie,cow,villager,spider,chicken,skeleton,pig,wolf").split(separator: ",").map(String.init)
+        let d = Float(arg("--mobdist") ?? "") ?? 5
+        for (i, k) in keys.enumerated() {
+            guard let kind = MobKind.named(k) else { print("view: no mob \(k)"); continue }
+            let off = (Float(i) - Float(keys.count - 1) / 2) * 1.8
+            let at = vg.player.pos + ahead * d + right * off
+            let bx = Int(floor(at.x)), bz = Int(floor(at.z))
+            var gy = vw.topY(bx, bz)                                  // the ground, not a tree crown
+            while gy > 1 && !(Blocks.opaque[Int(vw.block(bx, gy, bz))] && SmoothTerrain.natural[Int(vw.block(bx, gy, bz))]) { gy -= 1 }
+            let m = Mob(kind, at: V3(at.x, Float(gy + 1), at.z))
+            m.yaw = yaw + .pi + Float(i) * 0.9
+            m.viewDY = vw.smoothGroundOffset(m.pos)
+            m.vel = ahead * 5.5 + V3(0, 5, 0)
+            m.health = 0
+            vg.mobs.addCorpse(m, vg)
+        }
+        let settle = Float(arg("--settle") ?? "") ?? 3
+        let rw = vg.debris.ragdolls
+        var t: Float = 0, steps = 0
+        let t0 = CFAbsoluteTimeGetCurrent()
+        while t < settle { vg.mobs.corpseTick(1 / 72, vg); vg.debris.tick(1 / 72, world: vw); t += 1 / 72; steps += 1 }
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000 / Double(max(1, steps))
+        for c in vg.mobs.corpses {
+            guard let r = c.ragdoll else { print("view: \(c.kind) no ragdoll"); continue }
+            let p = rw.pose(r.id, 0).position
+            print("view: \(c.kind) \(rw.boneCount(r.id)) bones, \(rw.isAwake(r.id) ? "awake" : "asleep"), body at "
+                  + String(format: "%.2f %.2f %.2f, joint gap %.3f", p.x, p.y, p.z, rw.jointGap(r.id)))
+        }
+        print(String(format: "view: ragdolls %d live, %d awake, %.3f ms a step (%d steps)", rw.liveCount, rw.awakeCount, ms, steps))
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

@@ -44,6 +44,17 @@ enum Explosion {
         } } } }
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
+        // Realistic world: bodies lying round (ragdolls, MobRagdoll.swift) are thrown too.
+        if World.realistic && g.mobs.corpses.contains(where: { $0.ragdoll != nil }) {
+            let rw = g.debris.ragdolls, reach = power * 2.5
+            for d in g.mobs.corpses {
+                guard let r = d.ragdoll, rw.isLive(r.id) else { continue }
+                let at = rw.pose(r.id, 0).position, away = at - c, dl = simd_length(away)
+                guard dl < reach else { continue }
+                let dir = dl > 1e-3 ? away / dl : V3(0, 1, 0)
+                rw.push(r.id, at: at, impulse: (dir * (power * 3) + V3(0, power, 0)) * (1 - dl / reach))
+            }
+        }
         // Realistic world: the blocks it breaks split on the spot and fly out as pieces (the nearest ones, within the
         // debris budget: 16 blocks of 4 pieces), and pieces already lying round fly again.
         if World.realistic && !destroyed.isEmpty {

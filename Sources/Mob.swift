@@ -271,6 +271,7 @@ final class Mob {
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn model (ViewStep.swift)
     // P142: the drawn smooth ground under the feet (World.smoothGroundOffset), and its 4 column heights cached by cell.
     var viewGround: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
+    var ragdoll: MobRagdoll?        // realistic world: a dead body falling as a ragdoll (MobRagdoll.swift)
     var health: Int
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
     var scale: Float = 1            // babies 0.5
@@ -2089,7 +2090,7 @@ enum MobOrder { static var list: [Mob] = [] }
 
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil,
-                      maxDist: Float = .greatestFiniteMagnitude, corpses: [Mob] = []) -> Int {
+                      maxDist: Float = .greatestFiniteMagnitude, corpses: [Mob] = [], ragdolls: RagdollWorld? = nil) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     var n = 0
@@ -2131,7 +2132,16 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { MobDrawStats.culled += 1; continue }
             }
         }
-        let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
+        // A ragdoll (MobRagdoll.swift): every part rides on its bone, lit where the body lies now.
+        var rag: MobRagdoll? = nil
+        if let r = m.ragdoll, let rw = ragdolls, r.prepare(rw, eye: eye) { rag = r }
+        let hj = rag != nil ? MobAnim.headJoint(m) : nil
+        let lc = rag != nil ? ragdolls!.pose(rag!.id, 0).position : m.pos + V3(0, m.height * 0.5, 0)
+        var l = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)), Int(floor(lc.z)))
+        if rag != nil {                       // (a body lying on smooth ground can have its centre in the block under it)
+            let up = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)) + 1, Int(floor(lc.z)))
+            if Int(up.sky) + Int(up.block) > Int(l.sky) + Int(l.block) { l = up }
+        }
         let base = m.pos + V3(0, m.viewDY, 0) - eye
         // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
         let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
@@ -2159,7 +2169,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
         // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
-        let cullBack = (m.kind.steelhold || heavy) && simd_length_squared(base) > 16 * 16
+        let cullBack = rag == nil && (m.kind.steelhold || heavy) && simd_length_squared(base) > 16 * 16
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2167,6 +2177,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             if far && max(size.x, max(size.y, size.z)) < tiny { continue }
             let rot = p.rotation
             let isHead = pose.joint?.holds(p) ?? false
+            let bi = rag?.bone(p, hj) ?? 0
             let pc: V3 = simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
             var ctr = V3.zero
             if cullBack {
@@ -2176,6 +2187,13 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 ctr = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
             }
             for f in 0..<6 {
+                // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).
+                var fs = faceShade[f]
+                if rag != nil {
+                    let a = rot * MobRagdoll.faceNormals[f]
+                    let n = MobRagdoll.turn[bi] * V3(cy * a.x + sy * a.z, a.y, -sy * a.x + cy * a.z)
+                    fs = n.x * n.x * 0.8 + n.z * n.z * 0.68 + n.y * n.y * (n.y > 0 ? 1 : 0.55)
+                }
                 // The face's four corners, then its two triangles (0 1 2, 0 2 3) in place.
                 for k in 0..<4 {
                     let ci = (f * 4 + k) * 3
@@ -2192,9 +2210,10 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     let t = min(1, max(0, q.y * 0.1))
                     let ground: Float = glow ? 1 : 0.72 + 0.28 * t * t * (3 - 2 * t)
                     let ao = ground * (CT[ci + 1] == 0 ? 0.9 : 1)
-                    let sh: Float = faceShade[f] * lit * ao
+                    let sh: Float = fs * lit * ao
                     q *= scale / 16
-                    let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
+                    var r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
+                    r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
                     out[n + k] = MobVert(pos: V4(r, p.pattern), color: V4(pc, sh + (1.15 - sh) * flash), local: V4(lp, 0))
                 }
                 if cullBack {
