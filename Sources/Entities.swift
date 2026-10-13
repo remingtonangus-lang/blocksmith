@@ -68,6 +68,8 @@ final class ItemEntity {
     var onGround = false
     var deliberate = false          // dropped by a block the player broke: picked up even if junk
     var hover: Float = 0            // seconds the player has stood over it (junk pickup)
+    // P142: drawn this far up or down onto the smooth ground it rests on (World.smoothGroundOffset), eased.
+    var viewDY: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     let spin = Rand.float(in: 0..<(2 * .pi))
 
     init(_ s: ItemStack, at p: V3, vel v: V3, delay: Float = 0.5) {
@@ -103,6 +105,10 @@ final class ItemEntity {
         if !hit.y && w.ships.solid(at: pos) { pos = V3(pos.x, before.y, pos.z); if w.ships.solid(at: pos) { pos = before }; onGround = vel.y < 0; vel = .zero }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
+        // Resting on smooth ground it lies on the drawn surface, not the block top under it (up to 0.6 off); in the air
+        // it drifts back to its box.
+        let target = onGround ? w.smoothGroundOffset(pos, key: &groundKey, heights: &groundH) : 0
+        viewDY += (target - viewDY) * min(1, dt * (onGround ? 10 : 3))
     }
 }
 
@@ -234,7 +240,7 @@ final class ItemEntityManager {
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, time: Float) {
         for e in items {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
-            let c = e.pos + V3(0, bob, 0) - eye
+            let c = e.pos + V3(0, bob + e.viewDY, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
             // The cave fill (Shaders.caveFill): an item on a dark cave floor shows like the floor around it.
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))

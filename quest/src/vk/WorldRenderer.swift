@@ -260,11 +260,12 @@ final class WorldRenderer {
     private func drawMobs(_ s: SceneRenderer.Slot, _ eye: V3, _ frustum: Frustum) {
         let tp = game.cameraMode != 0
         let others = game.coop.active || game.netGuest != nil          // C14: the other player's body
-        guard !game.mobs.mobs.isEmpty || tp || others else { return }
+        guard !game.mobs.mobs.isEmpty || !game.mobs.corpses.isEmpty || tp || others else { return }
         let (ptr, off, cap) = scene.reserve(s, MobVert.self)
         guard cap > 36 else { return }
         var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.renderDaylight, world: game.world, into: ptr, capacity: cap,
-                                 cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses)
+                                 cull: frustum, maxDist: mobMaxDist, corpses: game.mobs.corpses,
+                                 ragdolls: World.realistic ? game.debris.ragdolls : nil)
         if tp { n += writePlayerModel(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n) }
         if others {
             n += game.coop.writeOthers(game, eye: eye, daylight: game.renderDaylight, into: ptr + n, capacity: cap - n)

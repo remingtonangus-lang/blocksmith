@@ -97,7 +97,7 @@ enum MobAnim {
         let breathe = 1 + 0.018 * sinf(m.animT * 2.3) * (1 - min(1, m.walkAmount * 2)) * (m.deathT < 0 ? 1 : 0)
         var a = rx(-0.16 * strike + (0.12 * rock + 0.24 * rear) * (m.deathT < 0 ? 1 : 0)) * simd_float3x3(diagonal: V3(1, breathe, 1))
         var b = V3.zero
-        if m.deathT >= 0 {
+        if m.deathT >= 0 && m.ragdoll == nil {             // (a ragdoll falls by itself: MobRagdoll.swift)
             // Not the genre's sideways flip: an upright body buckles and falls back onto its back (about the back edge
             // of its footprint, away from what killed it); a four-legged one folds its legs and slumps down, leaning
             // a little onto its side. Eased in like a fall.
@@ -183,11 +183,12 @@ extension MobManager {
         guard m.health > -1000, MobAnim.falls(m), m.deck == nil, m.deathT < 0 else { return }
         // A game animal you brought down already lies there as its body to skin (Hunting.died): no second fall.
         if Hunting.bodies.contains(where: { $0.mob.kind == m.kind && abs($0.mob.pos.x - m.pos.x) < 0.01 && abs($0.mob.pos.z - m.pos.z) < 0.01 }) { return }
-        if corpses.count >= MobAnim.maxCorpses { corpses.removeFirst() }
+        if corpses.count >= MobAnim.maxCorpses, let r = corpses.removeFirst().ragdoll { g.debris.ragdolls.remove(r.id) }
         m.deathT = 0
         m.onGround = m.onGround && m.vel.y <= 0
         m.hurt = 0.3
         m.strikeT = 0                                       // no frozen lunge in the fall
+        if World.realistic { MobRagdolls.start(m, in: g.debris.ragdolls) }
         corpses.append(m)
     }
 
@@ -198,7 +199,7 @@ extension MobManager {
         // ledge or lying on a slope's edge, it drops under gravity, slides off with what is left of its knockback and
         // comes to rest on the ground (a low body box, so it settles under overhangs too).
         let w = g.world
-        for c in corpses where !(c.onGround && c.vel.y <= 0 && c.vel.x * c.vel.x + c.vel.z * c.vel.z < 0.01) {
+        for c in corpses where c.ragdoll == nil && !(c.onGround && c.vel.y <= 0 && c.vel.x * c.vel.x + c.vel.z * c.vel.z < 0.01) {
             c.vel.y = max(-40, c.vel.y - 28 * dt)
             let drag: Float = expf(-(c.onGround ? 8 : 0.6) * dt)
             c.vel.x *= drag; c.vel.z *= drag
@@ -212,6 +213,10 @@ extension MobManager {
         }
         // P57: a body lies where it fell (no puff) until the player is out of the area; it is gone when they come back.
         let p = g.player.pos, far = MobAnim.bodyLeaveDistance * MobAnim.bodyLeaveDistance
-        corpses.removeAll { $0.deathT >= MobAnim.deathTime && simd_length_squared($0.pos - p) > far }
+        corpses.removeAll { c in
+            guard c.deathT >= MobAnim.deathTime && simd_length_squared(c.pos - p) > far else { return false }
+            if let r = c.ragdoll { g.debris.ragdolls.remove(r.id) }
+            return true
+        }
     }
 }

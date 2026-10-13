@@ -14,6 +14,8 @@ final class DebrisField {
     private var meshes: [[Fracture.MeshVertex]]
     private var blockOf: [BlockID]
     private var ground: WorldGround?
+    // Dead creatures falling as ragdolls (MobRagdoll.swift), on the same ground: one slot per corpse (MobAnim.maxCorpses).
+    let ragdolls = RagdollWorld(capacity: MobAnim.maxCorpses)
 
     init() {
         var cfg = DebrisWorld.Config()
@@ -114,17 +116,21 @@ final class DebrisField {
     // A block changed (removed or placed): sleeping pieces round it fall or get pushed out.
     func blockChanged(_ p: IVec3) {
         ground?.forget()
-        if bodies.count > 0 { bodies.wake(centre: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5, radius: 1.2) }
+        let c = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+        if bodies.count > 0 { bodies.wake(centre: c, radius: 1.2) }
+        ragdolls.wake(near: c, radius: 2.5)
     }
 
-    func clear() { bodies.clear() }
+    func clear() { bodies.clear(); ragdolls.removeAll() }
 
     func tick(_ dt: Float, world: World) {
-        guard bodies.count > 0 else { return }
+        let limp = ragdolls.awakeCount > 0
+        guard bodies.count > 0 || limp else { return }
         if ground == nil || ground!.world !== world { ground = WorldGround(world) }
         let g = ground!
         g.newFrame()
-        bodies.step(dt: dt, ground: g)
+        if bodies.count > 0 { bodies.step(dt: dt, ground: g) }
+        if limp { ragdolls.step(dt: dt, ground: g) }
     }
 
     // The pieces as lit, textured quads in the entity pass (positions relative to the eye). A fading piece shrinks away.
