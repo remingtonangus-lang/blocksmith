@@ -124,6 +124,17 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     // --meshbench: mesh the 5x5 chunks round the eye three ways (blocks, round-2 smooth, field smooth) and print the time
     // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
+    // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.
+    if CommandLine.arguments.contains("--groundline") {
+        var out: [String] = []
+        for k in 1...12 {
+            let x = vg.player.pos.x - sinf(yaw) * Float(k) * 0.5, z = vg.player.pos.z - cosf(yaw) * Float(k) * 0.5
+            var y = Int(vg.player.pos.y) + 4
+            while y > 1 && !Blocks.opaque[Int(vw.block(Int(floor(x)), y, Int(floor(z))))] { y -= 1 }
+            out.append(String(format: "%.2f", vw.smoothGroundOffset(V3(x, Float(y + 1), z))))
+        }
+        print("groundline: " + out.joined(separator: " "))
+    }
     if CommandLine.arguments.contains("--meshbench") {
         let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
         let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)

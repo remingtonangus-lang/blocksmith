@@ -22,6 +22,7 @@ final class Player {
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
     var steadyV: Float = 0, steadyLast: Float = 0   // its eased climb rate and the saddle height last tick
     var viewLastY: Float?, viewLastGround = false
+    var viewGround: Float = 0                       // P142: eased height of the smooth ground over the block top under the feet
     var inWater = false             // water only (lava is inLava; QA: lava used to count as water)
     var inLava = false
     var headInLava = false
