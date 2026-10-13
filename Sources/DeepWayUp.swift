@@ -81,9 +81,11 @@ extension Game {
 }
 
 enum DeepJournals {
-    struct Journal { let title: String; let pages: [String] }
+    struct Journal { let title: String; let pages: [String]; var tint: Int = 0 }
     static var read = 0
-    static let all: [String: Journal] = [
+    // Every readable book item: the Deep's journals and the overworld's logs, notes and pamphlets (Readables.swift).
+    static let all: [String: Journal] = deep.merging(Readables.all) { a, _ in a }
+    static let deep: [String: Journal] = [
         "keepers_journal": Journal(title: "Keeper's Journal", pages: [
             "Third week under the fire.\n\nThe floor of this place is not rock. Picks skate off it, powder only blackens it. The old hands call it Sealrock and say nothing made by smiths will bite it.",
             "Sunderite does. Red crystal, warm to the touch, grown only in the walls of the Brimstone Keeps: black castles standing over the lava sea, one every few hundred paces. A compass down here turns to the nearest.",
@@ -106,7 +108,7 @@ extension ItemRegistry {
     func registerDeepJournalItems() {
         for (k, j) in DeepJournals.all where !has(k) {
             var d = ItemDef(k, j.title)
-            d.sprite = Sprite(mask: "book", base: k == "keepers_journal" ? 0x6A2A1A : 0x26262A, extras: [:])
+            d.sprite = Sprite(mask: "book", base: j.tint != 0 ? UInt32(j.tint) : (k == "keepers_journal" ? 0x6A2A1A : 0x26262A), extras: [:])
             d.maxStack = 1
             add(d)
         }
