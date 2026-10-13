@@ -295,6 +295,7 @@ final class Game {
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
     var journalLast: Double = 0
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
+    var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
     var steadySaddle = false           // VR comfort: the view eases over a ridden horse's jumps and bucks (ViewStep.swift)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
     var mineProgress: Float = 0       // 0...1
@@ -629,7 +630,7 @@ final class Game {
         if inVaultSky { return AshSky.zenith }
         let c = skyColor
         // A hazy biome (desert) washes the zenith toward the horizon; a cold one keeps it deep.
-        let deep = simd_mix(V3(0.36, 0.55, 0.86), V3(0.6, 0.68, 0.84), V3(repeating: sky.haze))
+        let deep = simd_mix(V3(0.48, 0.64, 0.9), V3(0.6, 0.68, 0.84), V3(repeating: sky.haze))   // P174: a less inky zenith
         return simd_mix(c * deep, c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
 
@@ -900,8 +901,11 @@ final class Game {
         if (eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0) && !(riding.map { $0.gaited && $0.tamed } ?? false) { mi.forward *= 0.2; mi.strafe *= 0.2 }       // reference: input x 0.2 while using an item
 
         if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
+            // P156 (Oct 13: "remove the glider wings: the jetpack replaces them"): a pair of wings worn from an old world
+            // becomes a jetpack; wings no longer glide.
+            if !inventory.armor[1].isEmpty && Items.key(inventory.armor[1].item) == "elytra" { inventory.armor[1] = ItemStack(Items.id("jetpack"), 1) }
             let chest = inventory.armor[1]
-            let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra" && chest.damage < chest.def.durability - 1
+            let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra"      // (never now: converted above)
             if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
                 player.gliding = true
             } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }

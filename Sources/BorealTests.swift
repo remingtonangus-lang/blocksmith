@@ -336,7 +336,7 @@ enum BorealTests {
         let rewarded = sniperCount(g) == inv0 + 1 && g.money == money0 + 25000
         check(planted && op?.stage == 2 && op?.silent == true && rewarded && g.advancements.contains("adventure/station_silent") && g.advancements.contains("adventure/station_op")
               && (g.stationOpBar()?.0 ?? "").hasSuffix("silent"),
-              "boreal ops: charge set, out past the fence on the lowest side (ground \(low.1 - S) from the yard): complete and silent, Farsight Rifle and $250, both advancements (stage \(op?.stage ?? -1), bar \"\(g.stationOpBar()?.0 ?? "none")\")")
+              "boreal ops: charge set, out past the fence on the lowest side (ground \(low.1 - S) from the yard): complete and silent, Fernblick Rifle and $250, both advancements (stage \(op?.stage ?? -1), bar \"\(g.stationOpBar()?.0 ?? "none")\")")
         var steel0 = 0, steel1 = 0
         func countGen() -> Int {
             var n = 0

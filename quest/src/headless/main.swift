@@ -413,6 +413,12 @@ if CommandLine.arguments.contains("--oct13-only") {
     PlaytestOct13Tests.run(game, check: check)
     print(failures == 0 ? "oct13: all checks passed" : "oct13: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--tower-only") { PlaytestOct13Tests.towers(game); exit(0) }
+// --freeze-only: the P169 gallop probe (Sources/PlaytestOct13Tests.swift).
+if CommandLine.arguments.contains("--freeze-only") {
+    PlaytestOct13Tests.freezes(game, check: check)
+    print(failures == 0 ? "freeze: all checks passed" : "freeze: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --batch-only: batched terrain draws (P146): the same frame drawn per section and batched: far fewer draw calls,
 // the same quads and the same picture.
 if CommandLine.arguments.contains("--batch-only"), let ctx = vkctx {

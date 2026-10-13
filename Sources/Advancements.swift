@@ -68,7 +68,7 @@ enum Advancements {
         Advancement(id: "end/respawn_dragon", tab: 2, title: "Once More", desc: "Respawn the Hollow Wyrm", crit: .event("respawn_dragon"), challenge: true),
         Advancement(id: "end/dragon_breath", tab: 2, title: "Bottled Breath", desc: "Collect Wyrm's Breath in a Glass Bottle", crit: .item("dragon_breath")),
         Advancement(id: "end/find_end_city", tab: 2, title: "Distant Towers", desc: "Go on in, what could happen?", crit: .event("end_city")),
-        Advancement(id: "end/elytra", tab: 2, title: "Wings", desc: "Find Glider Wings", crit: .item("elytra")),
+        Advancement(id: "end/elytra", tab: 2, title: "Wings", desc: "Find a Jetpack", crit: .item("jetpack")),
         Advancement(id: "end/levitate", tab: 2, title: "Lifted", desc: "Levitate up 50 blocks from the attacks of a Shellsentry", crit: .event("levitate50"), challenge: true),
         // Adventure
         Advancement(id: "adventure/root", tab: 3, title: "Out There", desc: "Adventure, exploration and combat", crit: .event("kill_any")),

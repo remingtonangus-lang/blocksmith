@@ -72,7 +72,8 @@ extension Village {
         let (x, z) = world(l, l.w / 2, cv + 1)
         w.mob("villager:shop_\(k.rawValue)", V3(Float(x) + 0.5, Float(l.y), Float(z) + 0.5))
         // A townsperson or two about the place (customers by day, sleeping in town at night).
-        if saloon { villager(&w, b, u: l.w / 2, v: 3) }      // between the two tables
+        // P149: a saloon has patrons at its tables (three, plus one at the bar).
+        if saloon { for (u, v) in [(2, 3), (l.w - 3, 3), (4, 6), (l.w / 2 + 1, cv - 1)] { villager(&w, b, u: u, v: v) } }
     }
 
     static func bandColor(_ k: ShopKind) -> String {
@@ -123,7 +124,7 @@ extension Village {
             // A long bar is the counter; tables (a fence post and a plate) with stools in the front room; a piano.
             let table = blk(Blocks.key(m.fence), m.planks), top = blk("oak_pressure_plate", AIR)
             let stool = blk("\(Blocks.key(m.slab))", m.planks)
-            for (u, v) in [(3, 2), (l.w - 4, 2)] where v < cv {
+            for (u, v) in [(3, 2), (l.w - 4, 2), (3, 5), (l.w - 4, 5), (l.w / 2, 3)] where v < cv - 1 {
                 b.set(&w, u, 0, v, table); b.set(&w, u, 1, v, top)
                 b.set(&w, u - 1, 0, v, stool); b.set(&w, u + 1, 0, v, stool)
             }

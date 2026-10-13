@@ -70,7 +70,7 @@ enum Village {
         case .library: return (9, 7)
         case .temple: return (5, 9)
         case .shop: return (9, 7)
-        case .saloon: return (11, 9)
+        case .saloon: return (15, 11)               // P149 (Oct 12): bigger, with room for patrons (was 11 x 9)
         }
     }
 

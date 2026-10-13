@@ -1682,7 +1682,7 @@ private func parts(_ m: Mob) -> [Part] {
         case .husk: skin = V3(0.62, 0.55, 0.38); shirt = V3(0.55, 0.45, 0.3); pants = V3(0.42, 0.36, 0.25)
         case .stray: skin = V3(0.7, 0.76, 0.78); shirt = V3(0.45, 0.52, 0.55); pants = shirt
         case .parched: skin = V3(0.86, 0.78, 0.6); shirt = V3(0.72, 0.6, 0.42); pants = shirt
-        case .drowned: skin = V3(0.3, 0.55, 0.55); shirt = V3(0.25, 0.45, 0.4); pants = V3(0.3, 0.35, 0.45)
+        case .drowned: skin = V3(0.46, 0.55, 0.52); shirt = V3(0.13, 0.17, 0.27); pants = V3(0.24, 0.25, 0.27)   // P151: a drowned sailor
         case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
         case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)
         case .witch: skin = V3(0.6, 0.55, 0.45); shirt = V3(0.3, 0.2, 0.35); pants = shirt
@@ -1724,7 +1724,28 @@ private func parts(_ m: Mob) -> [Part] {
                       Part(mn: V3(3.9, armB, -limb / 2 - 0.12), mx: V3(4 + limb + 0.12, armB + 3, limb / 2 + 0.12),
                            pivot: V3(4 + limb / 2, bodyY + 10, 0), rotX: armAngle, color: skin, pattern: 4),
                       box(-3, bodyY, -2.12, 2.5, 1.4, 0.12, pants * 0.85), box(1.2, bodyY + 5.5, -2.12, 1.6, 2, 0.12, skin, 4)]
-                if m.kind != .drowned {
+                if m.kind == .drowned {
+                    // P151 (Oct 12: "the drowned look bad"): the Sunken as a drowned sailor: a waterlogged navy pea coat
+                    // with two rows of green-tarnished buttons and a torn collar, ragged trouser ends, a slack jaw,
+                    // barnacle crusts on the cheek and shoulder, kelp hanging from the scalp and the shoulders, and
+                    // a rope belt (original design; was a recoloured zombie).
+                    let kelp = V3(0.2, 0.36, 0.15), kelpD = V3(0.13, 0.25, 0.1), brass = V3(0.42, 0.55, 0.38)
+                    let barn = V3(0.72, 0.7, 0.62), rope = V3(0.55, 0.47, 0.32)
+                    for k in 0..<3 {
+                        let y = bodyY + 8.5 - Float(k) * 3
+                        p += [box(-2.6, y, -2.2, 0.9, 0.9, 0.2, brass), box(1.7, y, -2.2, 0.9, 0.9, 0.2, brass)]
+                    }
+                    p += [box(-4.2, bodyY + 10.5, -2.3, 3.2, 1.8, 0.4, shirt * 1.3), box(1.0, bodyY + 10.5, -2.3, 3.2, 1.8, 0.4, shirt * 1.3),   // collar
+                          box(-4.1, bodyY + 1.5, -2.2, 8.2, 0.9, 4.4, rope),                                                       // rope belt
+                          box(-4.1, hy + 0.2, -4.3, 8.2, 1.2, 0.3, skin * 0.45),                                                   // slack jaw
+                          box(2.2, hy + 1.8, -4.25, 1.6, 1.4, 0.25, barn, 5), box(4.0, bodyY + 11, -1.5, 1.6, 1.2, 2.6, barn, 5),   // barnacles
+                          box(-4.3, hy + 7.4, -4.3, 8.6, 1.0, 8.6, kelpD, 4),                                                       // matted weed cap
+                          box(-4.4, hy + 1.5, 2.0, 1.0, 6.4, 1.2, kelp, 4), box(3.4, hy + 0.5, 1.0, 1.0, 7.4, 1.2, kelp, 4),       // strands
+                          box(-1.5, hy + 4.0, 4.1, 1.2, 4.0, 0.4, kelpD, 4), box(1.0, hy + 2.5, 4.1, 1.0, 5.5, 0.4, kelp, 4),
+                          box(-4.6, bodyY + 6, -0.6, 0.6, 6.5, 1.2, kelp, 4), box(4.0, bodyY + 4.5, 0.2, 0.6, 7.5, 1.0, kelpD, 4),
+                          Part(mn: V3(-limb - 0.1, 0, -limb / 2 - 0.1), mx: V3(-0.05, 2.2, limb / 2 + 0.1), pivot: V3(-limb / 2, legH, 0), rotX: swing, color: pants * 0.7, pattern: 4),
+                          Part(mn: V3(0.05, 0, -limb / 2 - 0.1), mx: V3(limb + 0.1, 2.2, limb / 2 + 0.1), pivot: V3(limb / 2, legH, 0), rotX: -swing, color: pants * 0.7, pattern: 4)]
+                } else {
                     let shoe = m.kind == .husk ? V3(0.3, 0.24, 0.17) : V3(0.2, 0.18, 0.21)
                     p += [Part(mn: V3(-limb - 0.13, 0, -limb / 2 - 0.13), mx: V3(-0.03, 2, limb / 2 + 0.13), pivot: V3(-limb / 2, legH, 0), rotX: swing, color: shoe),
                           Part(mn: V3(0.03, 0, -limb / 2 - 0.13), mx: V3(limb + 0.13, 2, limb / 2 + 0.13), pivot: V3(limb / 2, legH, 0), rotX: -swing, color: shoe)]
@@ -2267,6 +2288,9 @@ final class MobManager {
         PathFinder.spent = 0
         let w = game.world
         let p = game.player.pos
+        // P155 (Oct 13: "no iron golems in villages: a lookalike"): golems a village summoned or an old world saved are
+        // gone; only one the player builds himself stays.
+        if !TownLaw.golemsAllowed, mobs.contains(where: { $0.kind == .ironGolem && !$0.playerBuilt }) { mobs.removeAll { $0.kind == .ironGolem && !$0.playerBuilt } }
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
         Difficulty.level = game.difficulty

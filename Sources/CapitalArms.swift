@@ -232,18 +232,24 @@ enum CapitalArms {
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -2.4, 0.3), fore: V3(0, -1.4, -12), butt: V3(0, 0.4, 7),
                             muzzle: V3(0, 0.5, -22.2), magAt: V3(0, -2.6, -1.8), bolt: V3(-1.6, 0.5, -4), scale: 0.66)
         default:
-            // Capital Sidearm: graphite slide over an enamel frame, grey grip panel, silver sights.
+            // Falke Pistol (P157, Oct 13: "the pistol looks too futuristic"): a classic service automatic: a blued slide
+            // with a stepped muzzle and rear serrations, a blued frame, an exposed hammer, a lanyard ring and walnut
+            // grip panels over the magazine well (original design; was white enamel and silver).
+            let oil = V3(0.12, 0.13, 0.16)
             var p: [Part] = [
-                b(-0.7, 0.0, -6.5, 1.4, 1.4, 8, graphite, pMetal),                 // slide
-                b(-0.65, -0.65, -6, 1.3, 0.7, 7.2, enamel, pEnamel),               // frame
-                b(-0.3, 0.4, -6.62, 0.6, 0.6, 0.12, V3(0.02, 0.02, 0.02), 0),      // bore
-                b(-0.15, 1.4, -6, 0.3, 0.3, 0.3, silver, pMetal), b(-0.4, 1.4, 0.8, 0.8, 0.3, 0.4, silver, pMetal),
-                b(-0.25, -1.4, -2.2, 0.5, 0.3, 1.8, graphite, pMetal),             // trigger guard
-                b(0.66, -2.5, 0.2, 0.08, 1.6, 1.2, grey, pEnamel),                 // grip panel
+                b(-0.7, 0.0, -6.0, 1.4, 1.3, 7.5, blued, pMetal),                  // slide
+                b(-0.5, 0.15, -6.6, 1.0, 0.95, 0.6, oil, pMetal),                  // stepped muzzle end
+                b(-0.65, -0.7, -5.4, 1.3, 0.7, 6.6, oil, pMetal),                  // frame
+                b(-0.25, 0.35, -6.68, 0.5, 0.5, 0.12, V3(0.02, 0.02, 0.02), 0),    // bore
+                b(-0.15, 1.3, -5.6, 0.3, 0.3, 0.35, blued, pMetal), b(-0.4, 1.3, 0.9, 0.8, 0.3, 0.4, blued, pMetal),   // sights
+                b(-0.2, 0.6, 1.5, 0.4, 0.75, 0.5, oil, pMetal),                    // hammer
+                b(-0.25, -1.4, -2.2, 0.5, 0.3, 1.8, oil, pMetal),                  // trigger guard
+                b(0.66, -2.5, -0.1, 0.1, 1.9, 1.5, walnut, 10),                    // grip panels
+                b(-0.76, -2.5, -0.1, 0.1, 1.9, 1.5, walnut, 10),
             ]
-            p += [b(-0.65, -2.4, -0.1, 1.3, 1.8, 1.6, enamel, pEnamel)]
+            p += [b(-0.65, -2.4, -0.1, 1.3, 1.8, 1.6, oil, pMetal), b(-0.15, -2.6, 1.5, 0.3, 0.4, 0.4, silver, pMetal)]   // grip, lanyard ring
             let m = p.count
-            p += [b(-0.6, -3.6, 0.3, 1.2, 1.3, 1.5, enamel, pEnamel)]
+            p += [b(-0.6, -3.6, 0.3, 1.2, 1.3, 1.5, oil, pMetal)]                // magazine
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.5, 0.6), fore: V3(-0.4, -2.4, 0.9), butt: V3(0, -1.5, 0.6),
                             muzzle: V3(0, 0.7, -6.7), magAt: V3(0, -3.4, 0.9), bolt: V3(0, 0.7, -1), scale: 0.68, shouldered: false)
         }

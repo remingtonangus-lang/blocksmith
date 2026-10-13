@@ -362,6 +362,9 @@ enum Recipes {
         r.append(shaped(["LLL", "LIL"], ["L": "leather", "I": "iron_ingot"], "saddle", 1))      // newer reference recipe
         r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
         r.append(shaped(["C C", "CCC", "C C"], ["C": "copper_ingot"], "copper_horse_armor"))
+        // P154: iron and gold barding can be made at a crafting table too (were loot and the stable shop only).
+        r.append(shaped(["I I", "III", "I I"], ["I": "iron_ingot"], "iron_horse_armor"))
+        r.append(shaped(["G G", "GGG", "G G"], ["G": "gold_ingot"], "golden_horse_armor"))
         r.append(shaped(["D#D", "DND", "DDD"], ["D": "diamond", "#": "netherite_upgrade_smithing_template", "N": "netherrack"], "netherite_upgrade_smithing_template", 2))
         for t in Smithing.trims {
             let tpl = "\(t)_armor_trim_smithing_template"

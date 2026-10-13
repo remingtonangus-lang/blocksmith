@@ -32,33 +32,33 @@ struct GunSpec {
 
 enum Guns {
     static let all: [GunSpec] = [
-        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "capital_rounds", mag: 45, interval: 0.12, auto: true, damage: 5, pellets: 1,
+        GunSpec(key: "gun_rifle", name: "Donnerkeil Service Rifle", ammo: "capital_rounds", mag: 45, interval: 0.12, auto: true, damage: 5, pellets: 1,
                 spread: 0.022, aimSpread: 0.005, speed: 160, recoil: 0.013, reload: 2.0, range: 110, durability: 1200, zoom: 0.78,
                 shot: .bullet, sound: 0, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "capital_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
+        GunSpec(key: "gun_smg", name: "Hummel Machine Gun", ammo: "capital_rounds", mag: 60, interval: 0.07, auto: true, damage: 3, pellets: 1,
                 spread: 0.045, aimSpread: 0.026, speed: 130, recoil: 0.009, reload: 1.6, range: 70, durability: 1500, zoom: 0.9,
                 shot: .bullet, sound: 1, accent: V3(0.9, 0.9, 0.88)),
         // Hits as hard as it looks (Oct 11 playtest P30: "way too powerful [looking] for what it actually is"): 4 a pellet
         // (was 3) in a tighter pattern (most pellets missed past a few blocks).
-        GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 4, pellets: 9,
+        GunSpec(key: "gun_shotgun", name: "Brecher Shotgun", ammo: "shotgun_shells", mag: 10, interval: 0.85, auto: false, damage: 4, pellets: 9,
                 spread: 0.065, aimSpread: 0.045, speed: 110, recoil: 0.07, reload: 2.6, range: 45, durability: 500, zoom: 0.9,
                 shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 8, interval: 1.3, auto: false, damage: 24, pellets: 1,
+        GunSpec(key: "gun_sniper", name: "Fernblick Rifle", ammo: "heavy_rounds", mag: 8, interval: 1.3, auto: false, damage: 24, pellets: 1,
                 spread: 0.06, aimSpread: 0.0006, speed: 320, recoil: 0.09, reload: 2.8, range: 260, durability: 400, zoom: 0.22,
                 shot: .bullet, sound: 3, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_launcher", name: "Skybreaker Launcher", ammo: "rocket_ammo", mag: 2, interval: 1.0, auto: false, damage: 0, pellets: 1,
+        GunSpec(key: "gun_launcher", name: "Himmelsturm Launcher", ammo: "rocket_ammo", mag: 2, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.02, aimSpread: 0.008, speed: 34, recoil: 0.12, reload: 2.6, range: 160, durability: 150, zoom: 0.85,
                 shot: .rocket, sound: 4, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_arc", name: "Arc Lance", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 14, pellets: 1,
+        GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 14, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
-        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "capital_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
+        GunSpec(key: "gun_sidearm", name: "Falke Pistol", ammo: "capital_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
                 shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
         // The six-iron: the six-shot frontier revolver every town sheriff carries (SixIron.swift); a killed sheriff drops
         // it a quarter of the time (Honour.sheriffDrops). Never sold, so it's a trophy. Slow, heavy single shots.
-        GunSpec(key: "gun_revolver", name: "Six-Iron", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
+        GunSpec(key: "gun_revolver", name: "Sechser Revolver", ammo: "rifle_rounds", mag: 6, interval: 0.42, auto: false, damage: 7, pellets: 1,
                 spread: 0.026, aimSpread: 0.006, speed: 150, recoil: 0.065, reload: 2.4, range: 70, durability: 700, zoom: 0.86,
                 shot: .bullet, sound: 13, accent: V3(0.36, 0.2, 0.1)),
         // The Ashguard's period-style arms (backlog B7, AshArms.swift): walnut and blued steel, carried by the army in
@@ -72,7 +72,7 @@ enum Guns {
         GunSpec(key: "gun_sturmwind", name: "Sturmwind Carbine", ammo: "rifle_rounds", mag: 30, interval: 0.13, auto: true, damage: 4.5, pellets: 1,
                 spread: 0.032, aimSpread: 0.008, speed: 150, recoil: 0.014, reload: 2.2, range: 100, durability: 1100, zoom: 0.8,
                 shot: .bullet, sound: 18, accent: V3(0.4, 0.22, 0.11)),
-        GunSpec(key: "gun_ashsaw", name: "Ashsaw Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
+        GunSpec(key: "gun_ashsaw", name: "Kettensturm Machine Gun", ammo: "rifle_rounds", mag: 75, interval: 0.055, auto: true, damage: 3.5, pellets: 1,
                 spread: 0.075, aimSpread: 0.016, speed: 150, recoil: 0.011, reload: 4.2, range: 110, durability: 1600, zoom: 0.85,
                 shot: .bullet, sound: 19, accent: V3(0.2, 0.2, 0.22)),
     ] + GreywallArms.specs                   // (appended: soldiers keep their gun as an index)
@@ -145,12 +145,24 @@ enum Guns {
     static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) * GunGrade.reload(s) }
     static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) * GunGrade.recoil(s) }
 
+    // P158 (Oct 13: "he could not tell what the machine gun fires"): where each kind of round comes from.
+    static func ammoSource(_ key: String) -> String {
+        switch key {
+        case "rifle_rounds": return "any town gunsmith; Ashguard soldiers"
+        case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
+        case "capital_rounds": return "Capital soldiers and citadel crates (never sold)"
+        case "rocket_ammo", "arc_cell": return "military base and citadel crates"
+        case GreywallArms.ammo: return "Greywall soldiers and their armouries"
+        default: return "military crates"
+        }
+    }
+
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
     static func tooltip(_ s: ItemStack) -> [String] {
         guard let gi = index(s.item) else { return [] }
         let g = all[gi]
         let ammoName = Items.has(g.ammo) ? Items.def(Items.id(g.ammo)).display : g.ammo
-        var out = ["Loaded: \(s.tag) / \(magSize(s))", "Ammo: \(ammoName)"]
+        var out = ["Loaded: \(s.tag) / \(magSize(s))", "Takes: \(ammoName)", "Get it: " + ammoSource(g.ammo)]
         switch g.shot {
         case .bullet:
             let dmg = g.pellets > 1 ? "\(Int(g.damage)) x \(g.pellets)" : "\(Int(g.damage))"

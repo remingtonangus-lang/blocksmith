@@ -177,35 +177,35 @@ P144. [DONE Oct 13: first-time hints near a wreck and on a hull with no drive, b
 P145. [DONE Oct 13: hull floor above the waterline, rocking chop, quicker steering, pointed bow and raised stern] [21:00] Boats: water shows inside the hull; he cannot see himself in the boat (with P100 third person); the boat model does not match its inventory icon; turning is too sensitive (soften); the boat does not ride the waves; he has seen no storms (with any storm item in this backlog).
 P146. [DONE Oct 13: terrain draws batched with indirect draws, one per vertex slab (121 -> 39 draws in the test view; at distance 23 about 3300 section draws become a few dozen); device numbers still to measure] [21:02] Performance work to raise render distance beyond 16 on the Quest.
 P147. [DONE Oct 13: a galloping horse follows the ground down one-block steps instead of falling and thumping, eased like steps up] [21:04] Horse gallop still feels like a one-cylinder engine (jerky bounce); smooth the riding motion and animation (with P83).
-P148. [21:07] Townsfolk all repeat the same few lines; write many more lines per type and situation.
-P149. [21:08] Saloons: bigger, with people inside; maybe a simple game (cards) later.
+P148. [DONE Oct 13: many more lines for every townsperson type (folk, shopkeeper, cook, farmer, elder, child, deputy, sheriff), plus weather and reputation greetings] [21:07] Townsfolk all repeat the same few lines; write many more lines per type and situation.
+P149. [DONE Oct 13: saloons are 15x11 with five tables and four patrons inside] [21:08] Saloons: bigger, with people inside; maybe a simple game (cards) later.
 P150. [DONE Oct 13: rounds the player did not fire himself pass through livestock] [21:10] Something shot the cattle with rifle rounds; soldiers and townsfolk must not shoot livestock.
-P151. [21:11] The drowned look bad: new model and texture.
-P152. [21:11] The four white bars on the left are still unexplained (P123; check it on the newest build).
+P151. [DONE Oct 13: the drowned are now drowned sailors: navy coat, tarnished buttons, rope belt, slack jaw, barnacles and kelp] [21:11] The drowned look bad: new model and texture.
+P152. [DONE Oct 13: they are the labelled bars from P123; he recognised them on Oct 12 21:12] [21:11] The four white bars on the left are still unexplained (P123; check it on the newest build).
 P153. [DONE Oct 13: horses take drops of up to 4 blocks] [21:15] Horses refuse drops they took earlier; raise the drop height a horse will take.
-P154. [20:54] Horse armour.
+P154. [DONE Oct 13: horse barding with trim, cloth skirt, rivets, neck plates, face plate and plume; iron and golden horse armour can be crafted] [20:54] Horse armour.
 
 Oct 13 morning playtest (Remington, 09:40-10:13, on the 09:22 build 40ac7d81; check each against claude/quest-port first). Notes: docs/playtests/2026-10-13/voice-notes.md. Keep: potions, rain and weather, the marshal cap, treasure maps, the Wren pistol.
-P155. [09:41] No iron golems (or anything like them) in villages: Minecraft lookalike.
-P156. [09:41] Remove the glider wings: the jetpack replaces them.
-P157. [09:41, 09:44, 09:48] Guns: upgrade how the gun models look; the pistol looks too futuristic; give every gun a German-sounding (fictional) name, like the Sturmwind.
-P158. [09:42] Make it clear what rounds each gun takes and where to get them (he could not tell what the machine gun fires).
-P159. [09:43] Two-handed aiming: put the left hand on the gun's front grip and hold the left trigger to aim it like a real gun.
+P155. [DONE Oct 13: village iron golems no longer spawn or stay (only ones the player builds)] [09:41] No iron golems (or anything like them) in villages: Minecraft lookalike.
+P156. [DONE Oct 13: glider wings worn now fly as a jetpack; End ship loot gives a jetpack] [09:41] Remove the glider wings: the jetpack replaces them.
+P157. [DONE Oct 13: every gun has a German-sounding fictional name (Donnerkeil, Hummel, Brecher, Fernblick, Himmelsturm, Blitzlanze, Falke, Sechser, Kettensturm); the pistol is now a classic blued steel and walnut sidearm] [09:41, 09:44, 09:48] Guns: upgrade how the gun models look; the pistol looks too futuristic; give every gun a German-sounding (fictional) name, like the Sturmwind.
+P158. [DONE Oct 13: tooltips say which rounds a gun takes and where to get them; the load prompt and out-of-ammo messages name the round] [09:42] Make it clear what rounds each gun takes and where to get them (he could not tell what the machine gun fires).
+P159. [DONE Oct 13: left hand on the barrel plus left trigger aims the gun two-handed, with half the recoil] [09:43] Two-handed aiming: put the left hand on the gun's front grip and hold the left trigger to aim it like a real gun.
 P160. [DONE Oct 13: fire, aim and hold hints removed; only "Load" shows with an empty gun] [09:43] The right-hand control hints are still there: remove fire, aim and hold-weapon hints (a load hint may stay). Same as P143; do both together.
-P161. [09:46] Loading a magazine into a gun is too hard; make the reload gesture easy and forgiving.
-P162. [09:48] While reloading, the left grip cannot step the hotbar left.
-P163. [09:48] Two hostile bases side by side were not fighting each other: rival factions must attack each other.
+P161. [DONE Oct 13: the magazine well catches the magazine anywhere along the barrel and the magazine stays in hand without squeezing] [09:46] Loading a magazine into a gun is too hard; make the reload gesture easy and forgiving.
+P162. [DONE Oct 13: the left grip only grabs or inserts a magazine, so it steps the hotbar again] [09:48] While reloading, the left grip cannot step the hotbar left.
+P163. [DONE Oct 13: rival factions spot each other from much farther and advance to fight] [09:48] Two hostile bases side by side were not fighting each other: rival factions must attack each other.
 P164. [DONE Oct 13: 4-block drops, 1-block gaps, the rider ducks under 2-high overhangs, low bushes trampled at a canter] [09:50-09:58, 10:11] Horses (with P153): willingly jump down 2-3 blocks (only refuse real pits); squeeze through 1-block-wide gaps; duck under 2-block-high overhangs while ridden; run through small prickly bushes without stopping.
-P165. [09:52] Axes cut through leaves visibly too fast.
+P165. [DONE Oct 13: leaves take 0.75 s to break by hand or with an axe; shears, hoe and sword stay fast] [09:52] Axes cut through leaves visibly too fast.
 P166. [DONE Oct 13: with P147] [09:55] The gallop still jerks like a whipper snipper (P147, still broken).
-P167. [09:57] Fire looks better but still has an odd flame piece on top.
-P168. [09:58] Orders and messages must stay readable afterwards (with the journal, P116).
-P169. [09:59, 10:03, 10:11, 10:12] Repeated short freezes while playing (P124 still present on the 09:22 build); one was big at 10:11.
-P170. [09:59] The sword still strobes when swung (P77 regression).
-P171. [10:02] Ragdolls: dead bodies must fall (one hung in the air after dying on a hill); ragdoll physics for all bodies.
-P172. [10:08] Dark patches appear where he digs (lighting not updated).
-P173. [10:10] Remove the odd tower seen in the distance from World376 (seed 3931512493184456980) near 9110 67 -13846, looking south; find what structure it is and drop it.
-P174. [10:10] The sky needs work (the rain is good).
+P167. [DONE Oct 13: the flame sheets no longer show a solid top piece] [09:57] Fire looks better but still has an odd flame piece on top.
+P168. [DONE Oct 13: decoded orders are kept as an Intercepted Orders book] [09:58] Orders and messages must stay readable afterwards (with the journal, P116).
+P169. [DONE Oct 13: trampling and dug blocks no longer remesh on the spot; a 60 s gallop over new ground at distance 10 had one tick over 40 ms (80 ms)] [09:59, 10:03, 10:11, 10:12] Repeated short freezes while playing (P124 still present on the 09:22 build); one was big at 10:11.
+P170. [DONE Oct 13: the blade trail is no longer drawn] [09:59] The sword still strobes when swung (P77 regression).
+P171. [DONE Oct 13: dead bodies fall and slide down slopes] [10:02] Ragdolls: dead bodies must fall (one hung in the air after dying on a hill); ragdoll physics for all bodies.
+P172. [DONE Oct 13: digging relights the sections between the old and new ground heights] [10:08] Dark patches appear where he digs (lighting not updated).
+P173. [DONE Oct 13: it was the Ancient Spire (great_ruin, 183 blocks tall, about 1000 blocks south-east); it no longer generates] [10:10] Remove the odd tower seen in the distance from World376 (seed 3931512493184456980) near 9110 67 -13846, looking south; find what structure it is and drop it.
+P174. [DONE Oct 13: a softer, less inky zenith, a milky haze band above the horizon and crisper, whiter cumulus that fade before the horizon] [10:10] The sky needs work (the rain is good).
 
 Oct 13 midday playtest (Remington, 13:02-13:57, on the 12:54 build 448c3de6 with polygon round 3; check each against claude/quest-port first). Notes: docs/playtests/2026-10-13/voice-notes.md. Keep: the caves in polygon worlds ("terrific", the winner), cave water, barrels with stock, the base raid ("that was a lot of fun").
 P175. [CLAIMED by the polygon thread; PARTLY DONE Oct 13: plants sit on the smooth ground and water meets shores naturally (objectives docs/objectives/polygon-round5.md, status docs/status/polygon-ground-up.md); the rest goes to the new polygon thread] [13:02-13:21] Polygon round 5. His verdict: it does not yet feel built from the ground up. (1) Everything takes its real shape: round trunks with real branches, round pumpkins, and so on. (2) Procedural fracture: when a tool or a bullet hits something, polygon pieces are generated on the spot where it hit and break off (chiselling), unpredictable but realistic, not pre-made block pieces. (3) In polygon worlds the pickaxe mines only what it actually touches. (4) Water still follows block shapes. (5) Floating grass. (6) Animals hover: everything must walk on the polygons (with ragdolls, P171). (7) Lag: it barely holds render distance 16. (8) Some blocks still do not blend into the smooth style.

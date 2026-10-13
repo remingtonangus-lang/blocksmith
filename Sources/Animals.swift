@@ -649,6 +649,26 @@ func horseParts(_ m: Mob) -> [Part] {
         p.append(box(-4.9, bot + 3, 4.2, 9.8, top - bot - 3.4, 7.2, ac, 8))
         p.append(Part(mn: V3(-2.5, nP.y - 0.5, nP.z - 3.6), mx: V3(2.5, nP.y + nL - 1, nP.z + 2.2), pivot: nP, rotX: nA, color: ac, pattern: 8))
         p.append(hb(-2.5, 0.2, -6, 2.5, 2.4, 1.3, ac, 8))                                  // headpiece
+        // P154 (Oct 12: horse armour): proper barding over the plain plates: a darker trim along every edge, rivet rows
+        // on the flanks, three overlapping crinet plates down the neck, a chanfron down the face with eye guards, and a
+        // cloth plume and a skirt under the plates (cloth red; gold armour gets blue).
+        let trim = ac * 0.62, rivet = ac * 1.18, cloth = m.armorTier == 3 ? V3(0.16, 0.24, 0.58) : V3(0.58, 0.12, 0.1)
+        p.append(box(-5.0, bot + 1.6, -11.5, 10, 0.6, 9.2, trim)); p.append(box(-5.0, bot + 2.6, 4.1, 10, 0.6, 7.4, trim))
+        p.append(box(-5.0, top - 1.2, -11.5, 10, 0.5, 9.2, trim))
+        p.append(box(-5.15, bot + 0.6, -11.2, 10.3, 1.2, 15.6, cloth, 4)); p.append(box(-5.15, bot + 1.6, 4.4, 10.3, 1.2, 6.8, cloth, 4))
+        for k in 0..<4 {
+            let z: Float = -10.5 + Float(k) * 2.2
+            p.append(box(-5.05, bot + 4, z, 0.2, 0.8, 0.8, rivet)); p.append(box(4.85, bot + 4, z, 0.2, 0.8, 0.8, rivet))
+            let zr: Float = 5 + Float(k) * 1.6
+            p.append(box(-5.05, bot + 5, zr, 0.2, 0.8, 0.8, rivet)); p.append(box(4.85, bot + 5, zr, 0.2, 0.8, 0.8, rivet))
+        }
+        for k in 0..<3 {
+            let y0: Float = nP.y + 1 + Float(k) * (nL - 2) / 3
+            p.append(Part(mn: V3(-2.7, y0, nP.z - 3.9), mx: V3(2.7, y0 + 1.1, nP.z + 2.5), pivot: nP, rotX: nA, color: trim, pattern: 8))
+        }
+        p.append(hb(-1.95, 0.85, -11.0, 1.95, 1.25, -4.5, ac, 8))                           // chanfron down the face
+        p.append(hb(-2.6, -0.3, -5.0, -2.35, 1.6, -2.2, trim)); p.append(hb(2.35, -0.3, -5.0, 2.6, 1.6, -2.2, trim))   // eye guards
+        p.append(hb(-0.5, 2.4, -4.4, 0.5, 5.2, -3.2, cloth, 4))                             // plume
     }
     return p
 }
