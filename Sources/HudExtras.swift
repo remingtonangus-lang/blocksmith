@@ -181,7 +181,13 @@ enum ContextPrompts {
                     Settings.shared.gunLesson = true
                     g.onToast?("Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Right stick: weapon wheel")
                 }
-                if held.tag <= 0 && Guns.all[gi].mag > 0 { return [Prompt.g(.reload) + " Load: bring a magazine to the gun"] }
+                if held.tag <= 0 && Guns.all[gi].mag > 0 {
+                    // P158: which rounds it takes, and (with none on you) where they come from.
+                    let a = Guns.all[gi].ammo
+                    let name = Items.has(a) ? Items.def(Items.id(a)).display : a
+                    let have = Items.has(a) && g.inventory.main.countOf(Items.id(a)) > 0
+                    return [Prompt.g(.reload) + " Load: bring \(name) to the gun" + (have ? "" : " (none on you: " + Guns.ammoSource(a) + ")")]
+                }
                 return []
             }
             if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }

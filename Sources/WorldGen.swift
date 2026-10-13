@@ -48,7 +48,9 @@ final class WorldGen: TerrainGenerator {
             i += 2
         }
         bands = bs
-        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalRail.type(self), CapitalCity.type(self), AncientSpire.type(self), BorealStation.type(self), Greywall.type(self), SkyIsle.type(self)], fixed: Stronghold.starts(seed: seed))
+        // P173: the Ancient Spire (great_ruin) no longer generates; its 183-block shaft read as an odd tower on the
+        // skyline. Lookups by name (locate, landmark impostors) find no type and skip it.
+        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalRail.type(self), CapitalCity.type(self), BorealStation.type(self), Greywall.type(self), SkyIsle.type(self)], fixed: Stronghold.starts(seed: seed))
         structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz); Railways.draw(self, &w, cx, cz) }      // P51, C1
     }
 

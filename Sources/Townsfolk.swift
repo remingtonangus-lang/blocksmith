@@ -195,20 +195,36 @@ enum Townsfolk {
         let h = UInt64(v.look ?? 0) &+ UInt64(Int(g.clock / 7))
         if rep <= -60 { return pick(["You've got some nerve showing your face here.", "Keep walking.", "We don't want trouble."], h) }
         if g.raid != nil { return pick(["Get inside! They're coming!", "Grab whatever you can swing!"], h) }
-        if f > 0.5 { return pick(["Late to be out.", "Mind the dark out there.", "Evening."], h) }
-        var lines = f < 0.12 ? ["Morning.", "Early start, stranger?", "Fine morning."] : ["Afternoon.", "Hot one today.", "Howdy."]
-        if rep >= 40 { lines += ["Good to see you again, friend.", "Always welcome here."] }
+        // P148 (Oct 12: "townsfolk all repeat the same few lines"): many more per time of day, weather, standing and role.
+        if f > 0.5 { return pick(["Late to be out.", "Mind the dark out there.", "Evening.", "Lamps are lit. Best get indoors.",
+                                  "Things howl out there after dark.", "Bar your door tonight, friend.", "Cold night coming."], h) }
+        var lines = f < 0.12 ? ["Morning.", "Early start, stranger?", "Fine morning.", "Mornin'. Coffee's on at the saloon.",
+                                "Sun's barely up and you're already about.", "Dew's heavy today."]
+            : ["Afternoon.", "Hot one today.", "Howdy.", "Afternoon. Passing through?", "Don't think I've seen you before.",
+               "You look like you've ridden a long way.", "Well, howdy do.", "Watch the mud by the trough."]
+        if g.weather.rain > 0.3 { lines += ["Wet one, isn't it?", "Rain's good for the crops, bad for the boots.", "Get under a roof, friend."] }
+        if rep <= -20 { lines += ["Hmm.", "I've heard about you.", "Keep your hands where I can see them."] }
+        if rep >= 40 { lines += ["Good to see you again, friend.", "Always welcome here.", "There's our favourite traveller!",
+                                 "Folks still talk about what you did for us.", "Supper's on me next time."] }
         switch v.role ?? "" {
-        case "deputy": lines += ["Keep the peace and we'll get along.", "Quiet day. I like it quiet."]
-        case "farmer": lines += ["Crops are coming in nice.", "Rain'd do the fields good."]
+        case "deputy": lines += ["Keep the peace and we'll get along.", "Quiet day. I like it quiet.", "Keep your iron holstered on Main Street.",
+                                 "Caught a chicken thief last week.", "The jail's empty. Let's keep it that way."]
+        case "farmer": lines += ["Crops are coming in nice.", "Rain'd do the fields good.", "The cows got out again last night.",
+                                 "Frost came early on the north field.", "My mule won't budge before noon.", "Pumpkins came in big this season."]
         case "shopkeeper": lines += ["Come on in, the \(v.shopKind?.name.lowercased() ?? "shop") is open.", "Take a look, I've got good stock."]
-        case "elder": lines += ["When I was young this was all prairie.", "Don't let them sell you nothing you don't need."]
-        case "child": lines = ["Hi!", "Are you a cowpoke?", "Watch this!"]
+        case "elder": lines += ["When I was young this was all prairie.", "Don't let them sell you nothing you don't need.",
+                                "Had a horse once could outrun a train.", "The river moved, you know. Used to run by the church.",
+                                "Never trust a man with clean boots.", "Mornin', youngster."]
+        case "child": lines = ["Hi!", "Are you a cowpoke?", "Watch this!", "Is that a real gun?", "Wanna see my frog?",
+                               "I'm gonna be a sheriff when I grow up.", "I saw a ghost by the old mine. Honest!"]
         case "citizen":
             lines += ["Lovely day for the gardens.", "Have you tried the café by the fountain?", "Busy day at the office.",
                       "The soldiers keep it quiet here.", "Mind the ramps, they're steeper than they look."]
             if let t = v.town { lines.append("Welcome to \(t).") }
-        default: lines += ["Work never ends.", "You new around here?"]
+        default: lines += ["Work never ends.", "You new around here?", "Price of flour went up again.",
+                           "My cousin says there's silver up in the hills.", "They say the train's coming through here one day.",
+                           "Saw smoke out past the ridge last night.", "Saturday's the dance. Everybody comes.",
+                           "If you're heading north, take a coat."]
         }
         return pick(lines, h)
     }
@@ -216,7 +232,9 @@ enum Townsfolk {
     static func shopGreeting(_ v: VillagerData, _ g: Game) -> String {
         if v.reputation < -100 { return "\(first(v)): I won't serve you." }
         if v.reputation >= 40 { return "\(first(v)): Good to see you. Friends get a fair price." }
-        let lines = ["What'll it be?", "Have a look around.", "Prices are fair, I promise."]
+        let lines = ["What'll it be?", "Have a look around.", "Prices are fair, I promise.", "If I haven't got it, you don't need it.",
+                     "Fresh stock came in on the wagon.", "Take your time, friend.", "Looking for anything in particular?",
+                     "I keep the good stuff behind the counter.", "Cash on the barrel, no credit."]
         return "\(first(v)): " + pick(lines, UInt64(v.look ?? 0) &+ UInt64(Int(g.clock)))
     }
 }

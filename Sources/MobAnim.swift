@@ -177,6 +177,7 @@ extension MobManager {
         if Hunting.bodies.contains(where: { $0.mob.kind == m.kind && abs($0.mob.pos.x - m.pos.x) < 0.01 && abs($0.mob.pos.z - m.pos.z) < 0.01 }) { return }
         if corpses.count >= MobAnim.maxCorpses { corpses.removeFirst() }
         m.deathT = 0
+        m.onGround = m.onGround && m.vel.y <= 0
         m.hurt = 0.3
         m.strikeT = 0                                       // no frozen lunge in the fall
         corpses.append(m)
@@ -185,6 +186,22 @@ extension MobManager {
     func corpseTick(_ dt: Float, _ g: Game) {
         guard !corpses.isEmpty else { return }
         for c in corpses { c.deathT += dt; c.hitFlash = max(0, c.hitFlash - dt) }   // the killing hit's flash fades (Mob.update no longer runs)
+        // P171 (Oct 13: "one hung in the air after dying on a hill"): a body falls. Killed in the air, knocked off a
+        // ledge or lying on a slope's edge, it drops under gravity, slides off with what is left of its knockback and
+        // comes to rest on the ground (a low body box, so it settles under overhangs too).
+        let w = g.world
+        for c in corpses where !(c.onGround && c.vel.y <= 0 && c.vel.x * c.vel.x + c.vel.z * c.vel.z < 0.01) {
+            c.vel.y = max(-40, c.vel.y - 28 * dt)
+            let drag: Float = expf(-(c.onGround ? 8 : 0.6) * dt)
+            c.vel.x *= drag; c.vel.z *= drag
+            let falling = c.vel.y < 0
+            let hit = w.moveBody(&c.pos, halfW: min(c.halfW, 0.45), height: min(c.height, 0.5), c.vel * dt, step: 0, onGround: false)
+            if hit.x { c.vel.x = 0 }
+            if hit.z { c.vel.z = 0 }
+            if hit.y { c.vel.y = 0 }
+            c.onGround = hit.y && falling
+            if c.pos.y < -80 { c.deathT = MobAnim.deathTime; c.pos.y = -80; c.vel = .zero; c.onGround = true }
+        }
         // P57: a body lies where it fell (no puff) until the player is out of the area; it is gone when they come back.
         let p = g.player.pos, far = MobAnim.bodyLeaveDistance * MobAnim.bodyLeaveDistance
         corpses.removeAll { $0.deathT >= MobAnim.deathTime && simd_length_squared($0.pos - p) > far }

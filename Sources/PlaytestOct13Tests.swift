@@ -131,4 +131,36 @@ enum PlaytestOct13Tests {
             g.riding = nil
         }
     }
+
+    // P169 (Oct 13: short freezes while galloping across new ground, one big at 10:11): his world's seed, from where
+    // he rode, at a gallop's speed and a mid render distance; every tick over 40 ms with its stages (TickProf).
+    static func freezes(_ g: Game, check: (Bool, String) -> Void) {
+        let r = HitchProbe.run(device: g.world.device, seed: 3931512493184456980, walk: 60, stand: 20, speed: 15, over: 40, rd: 10,
+                               start: V2(9768, -13387))
+        for s in r.slow.prefix(6) { print(String(format: "freeze: %.0f ms at %.1f s: %@", s.ms, s.at, s.stages)) }
+        let worst = r.slow.first?.ms ?? 0
+        check(worst < 150, String(format: "P169: a 60 s gallop over new ground at distance 10: %d ticks over 40 ms, worst %.0f ms (of %d ticks)",
+                                  r.slow.count, worst, r.ticks))
+    }
+
+    // P173: what stands south of World376's 9110 -13846 within 1800 blocks (the "odd tower in the distance"): every
+    // structure start of every type, with its height above the ground.
+    static func towers(_ g: Game) {
+        let w = World(seed: 3931512493184456980, device: g.world.device, save: nil)
+        guard let sc = (w.gen as? WorldGen)?.structures else { print("tower: no structures"); return }
+        let x = 9110, z = -13846
+        for t in sc.types {
+            let span = t.spacing * CS
+            let n = 1800 / span + 1
+            let rx0 = floorDiv(x, span), rz0 = floorDiv(z, span)
+            for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+                guard let st = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+                let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2
+                let d = simd_length(V2(Float(cx - x), Float(cz - z)))
+                guard d < 1800, cz > z - 200 else { continue }
+                print("tower: \(st.kind) at \(cx) \(cz), \(Int(d)) blocks, y \(st.min.y)-\(st.max.y) (\(st.max.y - st.min.y) tall)")
+            } }
+        }
+    }
+
 }

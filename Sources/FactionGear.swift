@@ -133,13 +133,15 @@ extension Game {
             MapCache.shared.discover(self, kind: t.kind, x: t.x, z: t.z)
             onToast?("\(text): \(radarBearing(t)). Marked on your map.")
             sfx(.pageTurn, 0.8, at: player.pos)
-            // P68 (playtest 09:18, "pull them out and read it"): the orders open as a document to read.
-            if menu == nil {
-                var doc = ItemStack(Items.id("written_book"), 1)
-                doc.pages = ordersPages(t)
-                doc.label = "Intercepted Orders"
-                openMenu(BookMenu(game: self, stack: doc, source: .hand(inventory.selected)))
-            }
+            // P68 (playtest 09:18, "pull them out and read it"): the orders open as a document to read. P168 (Oct 13:
+            // "I'd like to still be able to read those, not just one and done"): the decoded orders stay with you as a
+            // book (in the hand they came from, or the pack) to reread any time; the Journal keeps them too.
+            var doc = ItemStack(Items.id("written_book"), 1)
+            doc.pages = ordersPages(t)
+            doc.label = "Intercepted Orders"
+            if inventory.main[inventory.selected].isEmpty { inventory.main[inventory.selected] = doc }
+            else { let rest = inventory.add(doc); if !rest.isEmpty { dropItem(rest) } }
+            if menu == nil { openMenu(BookMenu(game: self, stack: doc, source: .hand(inventory.selected))) }
             return true
         }
         return false

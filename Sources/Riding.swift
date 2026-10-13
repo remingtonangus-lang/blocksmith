@@ -452,7 +452,7 @@ extension Mob {
                 var tree = false
                 for d in 0...3 where CapitalBase.isLog(w.block(x, y - d, z)) || CapitalBase.isLog(w.block(x, y + d, z)) { tree = true; break }
                 if tree || CapitalBase.isLeaf(w.block(x, base + 3, z)) { continue }      // a canopy reaching down, not a bush
-                w.setBlock(x, y, z, AIR)
+                w.setBlockAsync(x, y, z, AIR)                   // (remeshed off the frame: a gallop through a hedge must not hitch, P169)
                 g.particles.blockBreak(b, at: IVec3(x, y, z))
                 hs.trampled += 1
             }

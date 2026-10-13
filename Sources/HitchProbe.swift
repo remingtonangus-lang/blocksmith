@@ -10,7 +10,7 @@ enum HitchProbe {
     // Walks `walk` seconds at `speed` (m/s) along +x from the spawn, then stands `stand` seconds; returns every tick
     // over `over` ms (slowest first) and the worst main-thread autosave.
     static func run(device: MTLDevice, seed: UInt64, walk: Double, stand: Double, speed: Float = 7, over: Double = 40,
-                    rd: Int = 6) -> (slow: [Slow], ticks: Int, save: Double) {
+                    rd: Int = 6, start: V2? = nil) -> (slow: [Slow], ticks: Int, save: Double) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("p124-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         try? FileManager.default.removeItem(at: root)
         let off0 = StructureCache.plansOffThread
@@ -22,6 +22,7 @@ enum HitchProbe {
         let g = Game(world: w, save: save, persistent: true)
         g.saveNow()
         var p = g.spawnPoint
+        if let s = start { p = V3(s.x, Float(w.gen.column(Int(s.x), Int(s.y)).height + 3), s.y) }
         g.player.pos = p
         g.survival = true; g.paused = false; g.player.flying = true
         _ = w.loadSync(center: p, radius: 4)

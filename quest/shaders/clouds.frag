@@ -44,19 +44,19 @@ void main() {
     float w0 = 1.0 - smoothstep(0.3, 0.6, fp), w1 = 1.0 - smoothstep(0.3, 0.6, fp * 2.13);
     float w2 = 1.0 - smoothstep(0.3, 0.6, fp * 4.71), w3 = 1.0 - smoothstep(0.3, 0.6, fp * 9.9);
     float n0 = mix(0.5, vnoise(p), w0);
-    float n = n0 * 0.52 + mix(0.5, vnoise(p1), w1) * 0.28 + mix(0.5, vnoise(p2), w2) * 0.13 + mix(0.5, vnoise(p3), w3) * 0.07;
+    float n = n0 * 0.47 + mix(0.5, vnoise(p1), w1) * 0.27 + mix(0.5, vnoise(p2), w2) * 0.16 + mix(0.5, vnoise(p3), w3) * 0.10;   // P174: more billow
     float thr = mix(0.64, 0.2, cover);
-    float dens = smoothstep(thr, thr + 0.1 + min(0.3, fp * 0.5), n);
+    float dens = smoothstep(thr, thr + 0.06 + min(0.3, fp * 0.5), n);   // P174: crisper rims
     float thick = smoothstep(thr + 0.05, thr + 0.42, n);
     // Self-shadow: denser toward the sun means the near side is in shade; sunlit edges and tops brighten.
     float ns = mix(0.5, vnoise(p + normalize(sd.xz + vec2(1e-4)) * 0.3), w0);
     float lit = clamp(0.58 + (n0 - ns) * 2.4 - thick * 0.35, 0.0, 1.0);
-    vec3 cc = mix(ambC * 0.78, lightC * 1.08 + ambC * 0.18, lit);
-    cc *= 1.0 - 0.4 * thick * (0.35 + storm);
+    vec3 cc = mix(ambC * 0.82, lightC * 1.14 + ambC * 0.16, lit);
+    cc *= 1.0 - 0.4 * thick * (0.25 + storm);
     cc += sunC * sv * (1.0 - thick) * (0.8 + 0.8 * (1.0 - g));    // silver lining round clouds near the sun
     cc += flashC * (0.25 + 0.75 * thick);
     cc = mix(cc, u.horizon.rgb, smoothstep(0.0, 0.85, far));       // reaches the horizon colour before it fades out
-    float ac = dens * (1.0 - smoothstep(0.5, 0.95, far)) * smoothstep(0.015, 0.1, d.y) * (0.9 + 0.1 * thick);
+    float ac = dens * (1.0 - smoothstep(0.35, 0.8, far)) * smoothstep(0.015, 0.1, d.y) * (0.9 + 0.1 * thick);
 
     // Cirrus: streaks stretched along the wind, moving at 0.6 of the cumulus drift; thinned under an overcast deck.
     float t2 = (CIRRUS_Y - u.eye.y) / d.y;
@@ -67,7 +67,7 @@ void main() {
     float fq = length(fwidth(r1));
     float m = vnoise(r0) * 0.6 + mix(0.5, vnoise(r1), 1.0 - smoothstep(0.3, 0.6, fq)) * 0.4;
     float far2 = 1.0 - exp(-t2 / 16000.0);
-    float ai = smoothstep(0.58, 0.9, m) * 0.32 * (1.0 - 0.8 * cover) * (1.0 - smoothstep(0.5, 0.85, far2)) * smoothstep(0.015, 0.1, d.y);
+    float ai = smoothstep(0.58, 0.9, m) * 0.22 * (1.0 - 0.8 * cover) * (1.0 - smoothstep(0.5, 0.85, far2)) * smoothstep(0.015, 0.1, d.y);
     vec3 ci = mix(ambC, lightC * 1.15 + ambC * 0.15, 0.75) + sunC * sv * 0.5 + flashC * 0.3;
     ci = mix(ci, u.horizon.rgb, far2 * 0.7);
 

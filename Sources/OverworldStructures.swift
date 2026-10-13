@@ -444,7 +444,7 @@ enum OverworldStructures {
         w.mob("pillager", V3(Float(cx) + 2.5, Float(top + 1), Float(cz) - 1.5))
     }
 
-    // Camp pieces round an outpost: 0 cage (captive golem), 1 tent, 2 log pile, 3 archery targets.
+    // Camp pieces round an outpost: 0 cage (a captive villager), 1 tent, 2 log pile, 3 archery targets.
     static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
         let pl = Blocks.id("dark_oak_planks"), fence = Blocks.id("dark_oak_fence"), log = Blocks.id("dark_oak_log")
         switch kind {
@@ -455,7 +455,7 @@ enum OverworldStructures {
                 for yy in y...(y + 2) { w.set(x, yy, z, edge ? fence : AIR) }
                 w.set(x, y + 3, z, pl)
             } }
-            w.mob("iron_golem", V3(Float(cx) + 0.5, Float(y), Float(cz) + 0.5))
+            w.mob("villager", V3(Float(cx) + 0.5, Float(y), Float(cz) + 0.5))      // a captive (P155: no golems)
         case 1:
             let wool = Blocks.id("white_wool")
             for z in (cz - 2)...(cz + 2) {

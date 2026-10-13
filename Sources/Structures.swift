@@ -477,7 +477,7 @@ enum Loot {
                                         ("diamond_boots@20-39", 1, 1, 3), ("diamond_shovel@20-39", 1, 1, 3), ("iron_sword@20-39", 1, 1, 3),
                                         ("iron_pickaxe@20-39", 1, 1, 3), ("iron_helmet@20-39", 1, 1, 3), ("iron_chestplate@20-39", 1, 1, 3),
                                         ("iron_leggings@20-39", 1, 1, 3), ("iron_boots@20-39", 1, 1, 3), ("iron_shovel@20-39", 1, 1, 3)]),
-        "end_ship_elytra": (1...1, [("elytra", 1, 1, 1)]),
+        "end_ship_elytra": (1...1, [("jetpack", 1, 1, 1)]),          // P156: the jetpack replaces the glider wings
         "jungle_temple": (2...6, [("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 2),
                                   ("bone", 4, 6, 20), ("rotten_flesh", 3, 7, 16), ("saddle", 1, 1, 3), ("bamboo", 1, 3, 15),
                                   ("enchanted_book@30", 1, 1, 1), ("wild_armor_trim_smithing_template", 1, 1, 7)]),

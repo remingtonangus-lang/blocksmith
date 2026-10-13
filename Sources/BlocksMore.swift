@@ -91,9 +91,12 @@ extension BlockRegistry {
                 var logs = [Box(1, 0, 0, 5, 4, 16), Box(11, 0, 0, 15, 4, 16), Box(0, 3, 1, 16, 7, 5), Box(0, 3, 11, 16, 7, 15)]
                 // The flames: two thin crossed sheets (P97: one fire-textured cube "looks weird"; its six faces showed
                 // as a box of fire).
+                // P167 (Oct 13: "a flame thing on top that looks weird"): each sheet is 2/16 thick, and its top and end
+                // faces drew the flame texture as a little strip on top; only the broad faces show fire now.
                 if lit {
-                    var f1 = Box(2, 1, 7, 14, 15, 9); f1.tex = t6(fire); logs.append(f1)
-                    var f2 = Box(7, 1, 2, 9, 15, 14); f2.tex = t6(fire); logs.append(f2)
+                    let f = Tex.id(fire), c = Tex.id("campfire_clear")
+                    var f1 = Box(2, 1, 7, 14, 15, 9); f1.tex = [c, c, c, c, f, f]; logs.append(f1)
+                    var f2 = Box(7, 1, 2, 9, 15, 14); f2.tex = [f, f, c, c, c, c]; logs.append(f2)
                 }
                 d.boxes = logs
                 add(d)
@@ -233,6 +236,7 @@ extension TextureGen {
         p["scaffolding_side"] = { x, y in hex(0xC8A050, 0.9 + 0.1 * r(x, y, 948)) }
         p["chain"] = { x, y in (x == 7 || x == 8) && (y % 4 != 3) ? hex(0x3A3E48) : clear }
         p["campfire_log"] = { x, y in (y % 5 == 0) ? hex(0x4A3A22) : hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 949)) }
+        p["campfire_clear"] = { _, _ in clear }
         p["campfire_fire"] = { x, y in
             let h = 16 - Int(r(x, 0, 950) * 10) - 3
             return y > h ? V4(1, 0.55 + 0.4 * Float(16 - y) / 16, 0.1, 1) : clear

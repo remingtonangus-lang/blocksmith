@@ -22,6 +22,9 @@ void main() {
     h = sqrt(h) * h + (1.0 - h) * h * h;
     vec3 col = mix(u.horizon.rgb, u.zenith.rgb, h);
     if (d.y < 0.0) { col = u.horizon.rgb; }
+    // P174: a bright, slightly milky band in the last few degrees above the horizon (air seen edge-on), by day only.
+    float milk = exp(-max(d.y, 0.0) * 14.0) * clamp(u.params.y * 1.4 - 0.3, 0.0, 1.0);
+    col = mix(col, min(u.horizon.rgb * 1.12 + 0.05, vec3(1.0)), milk * 0.45);
     float sd = clamp(dot(d, u.sunDir.xyz), 0.0, 1.0);
     float band = 1.0 - clamp(abs(d.y) * 3.0, 0.0, 1.0);
     col += vec3(1.0, 0.55, 0.25) * pow(sd, 5.0) * u.horizon.w * (0.35 + 0.65 * band);

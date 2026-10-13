@@ -284,7 +284,7 @@ extension Game {
         sfx(.levelUp, 1)
         achieve("station_op")
         if silent { achieve("station_silent") }
-        onToast?(silent ? "Operation complete, silent: Farsight Rifle, rounds and $250" : "Operation complete, loud: rounds and $100")
+        onToast?(silent ? "Operation complete, silent: Fernblick Rifle, rounds and $250" : "Operation complete, loud: rounds and $100")
     }
 
     // The HUD bar (Renderer boss-bar row): the next objective, the copy, or the fuse; red while the alarm sounds.

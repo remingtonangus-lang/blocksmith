@@ -53,6 +53,9 @@ enum Mining {
             if eff > 0 { speed += Float(eff * eff + 1) }
         }
         else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
+        // P165 (Oct 13: "the axe slices through leaves really quick"): leaves take a deliberate hack, 0.8 s by hand or
+        // with an axe, pick or shovel (0.3 s before); shears, a hoe and a sword keep their speed.
+        else if key.hasSuffix("leaves") { speed = 0.4 }
         speed *= mul
         if inWater { speed /= 5 }
         if !onGround { speed /= 5 }

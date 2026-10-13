@@ -239,6 +239,13 @@ final class QuestControls {
             aimOrigin = rig.headWorld
             aimDir = simd_normalize(rig.toWorldDir(rig.headRot.act(V3(0, 0, -1))))
         }
+        // P159: a long gun braced with the other hand on its front grip and that trigger held aims between the hands.
+        game.vrTwoHanded = false
+        if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count,
+           let d = VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: rig.toWorld(L.gripPos), frontTrigger: L.trigger,
+                                    shouldered: CapitalArms.models[gi].shouldered) {
+            aimDir = d; game.vrTwoHanded = true
+        }
 
         // Pad for the game.
         var p = PadSnapshot()
@@ -297,7 +304,7 @@ final class QuestControls {
         var magGrip = false
         if !inMenu && !bagGrip && game.heldGun != nil && L.gripValid && R.gripValid {
             let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
-                                   grip: lGrip, gripWas: prevGripL)
+                                   grip: lGrip, gripWas: prevGripL, gunForward: aimDir)
             switch ev {
             case .grabbed: app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.03, frequency: 220)
             case .inserted:
@@ -307,7 +314,9 @@ final class QuestControls {
             }
             // Only a grip that took or slotted a magazine (P74, Oct 12 playtest: a hand resting at the side is "at the
             // hip", so with a gun out and a full magazine every left grip was refused and the hotbar never stepped).
-            magGrip = ev == .grabbed || ev == .inserted || game.arms.magInHand
+            // P162 (Oct 13: "while reloading, the left grip can't step the hotbar"): only the press that took or seated a
+            // magazine is the reload's; holding one no longer swallows the next press (that press puts it back and steps).
+            magGrip = ev == .grabbed || ev == .inserted
         } else if game.heldGun == nil { game.arms.magInHand = false }
         if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
@@ -1263,8 +1272,11 @@ final class QuestControls {
     }
 
     // The blade trail (BladeTrail): a pale ribbon from base to tip over the last few fast frames, fading with age.
+    // P170 (Oct 13: "the sword still strobes when swung", after P77 smoothed and dimmed it): the ribbon is off; a swing
+    // reads from the blade itself, its sound and the haptics. (BladeTrail still tracks the swing for the tests.)
+    static var bladeTrailShown = false
     private func drawBladeTrail(_ s: SceneRenderer.Slot, eye: V3) {
-        guard bladeValid, game.menu == nil else { return }
+        guard QuestControls.bladeTrailShown, bladeValid, game.menu == nil else { return }
         var v = takeVerts()
         defer { giveVerts(v) }
         bladeTrail.segments(now: game.clock) { a0, b0, a1, b1, al0, al1 in

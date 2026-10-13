@@ -511,7 +511,7 @@ extension Game {
             }
             if !startReload(gi) && firePressed {
                 sfx(.gun(7), 0.8)
-                onToast?("No \(Items.def(Items.id(gs.ammo)).display)")
+                onToast?("No \(Items.def(Items.id(gs.ammo)).display): " + Guns.ammoSource(gs.ammo))
             }
             return true
         }
@@ -562,7 +562,7 @@ extension Game {
         inventory.held = h
         if h.tag == 0 { sfx(.gun(15), 0.75) }           // the last round: the bolt locks open with a ping
         damageHeld(1)
-        let k = gs.recoil * (1 - 0.45 * a.aim) * steady * Repairs.recoil(st)
+        let k = gs.recoil * (1 - 0.45 * a.aim) * steady * Repairs.recoil(st) * twoHandRecoil
         player.pitch = min(1.55, player.pitch + k)
         player.yaw += Rand.float(in: -0.4...0.4) * k
         a.recoilDebt += k * 0.65
@@ -634,7 +634,7 @@ extension Game {
         let n = held.tag
         if n == 0 {
             let how = PadManager.shared.usingPad ? "X" : KeyBinds.name(KeyBinds.key(.reload))
-            return (reserve == 0 ? "EMPTY - no ammo" : "EMPTY - reload (\(how))", V4(1, 0.3, 0.25, 1))
+            return (reserve == 0 ? "EMPTY - no " + (Items.has(gs.ammo) ? Items.def(Items.id(gs.ammo)).display : "ammo") : "EMPTY - reload (\(how))", V4(1, 0.3, 0.25, 1))
         }
         let text = "LOADED \(n) / \(reserve < 0 ? "--" : "\(reserve)")"
         return (text, n * 4 <= Guns.magSize(held) ? V4(1, 0.75, 0.3, 1) : V4(0.6, 1, 0.75, 1))

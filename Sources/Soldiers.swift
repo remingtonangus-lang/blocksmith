@@ -284,10 +284,13 @@ extension Mob {
         }
         let sees = b.sees && canTarget
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
-        if !sees, let foe = w.ships.nearestFoe(of: factionValue, near: pos, range: rank.sight * 1.5, game: g), foe.ship != nil || foe.mob != nil {
+        // P163 (Oct 13: "two different bases beside each other, and they're not attacking each other"): rival soldiers
+        // are noticed out to 64 blocks (was 1.5 x the rank's sight, 30-45); one beyond firing range is advanced on.
+        if !sees, let foe = w.ships.nearestFoe(of: factionValue, near: pos, range: max(rank.sight * 1.5, 64), game: g), foe.ship != nil || foe.mob != nil {
             aggro = true
             b.react -= dt
             face(foe.point)
+            if foe.mob != nil && simd_length(foe.point - eye) > rank.sight * 0.9 { return spec.speed * 0.85 }
             let tp = foe.point - eye
             b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
             soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)

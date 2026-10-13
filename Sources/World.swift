@@ -341,11 +341,18 @@ final class World {
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
+        let oldH = Int(c.height[lx + lz * CS])
         c.recomputeHeight(lx, lz)
+        let newH = Int(c.height[lx + lz * CS])
+        // P172 (Oct 13: "dark patches where he digs"): the sky light below a column whose top moved changes all the way
+        // between the old and the new top, as setBlock already remeshed; this only covered 16 blocks round the edit, so
+        // a flow or fall that opened or closed a column left the sections further down lit as before (dark or bright
+        // patches until something else touched them).
+        let lo = max(0, (min(y, oldH, newH) - 16) >> 4), hi = min(NSEC - 1, (max(y, oldH, newH) + 16) >> 4)
         for dz in -1...1 {
             for dx in -1...1 {
                 guard let n = chunkAt(x + dx * 16, z + dz * 16) else { continue }
-                for sy in max(0, (y - 16) >> 4)...min(NSEC - 1, (y + 16) >> 4) { n.sections[sy].version += 1 }
+                for sy in lo...hi { n.sections[sy].version += 1 }
             }
         }
         return true
