@@ -1711,6 +1711,7 @@ final class Game {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
         TownLaw.broke(self, p, b)
+        MiningTowns.broke(self, p, b)                // C12: a mine support knocked out
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)

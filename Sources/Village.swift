@@ -371,7 +371,12 @@ enum Village {
                 buildLot(&w, lot, m, styleV)
             })
         }
-        return StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
+        // C12: the bigger towns on new ground work a mine past the end of a street (MiningTowns.swift).
+        let mine = gap ? MiningTowns.add(gen, ox: ox, oz: oz, lots: lots.count, ends: ends, occupied: &occupied, pieces: &pieces,
+                                         seed: rng.next(), town: Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)) : nil
+        let start = StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
+        start.plan = mine
+        return start
     }
 
     // Cave pockets just under the ground round a house, filled with dirt (two villagers spent the whole behaviour sim
