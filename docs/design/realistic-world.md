@@ -178,6 +178,22 @@ terrain-field-only `World.smoothGroundOffset`), so everything stands on the poly
 3. Physics: debris bodies, ragdolls, everything on the drawn surface.
 4. Performance: far-ring terrain level, detail rings, budgets measured on the meshbench.
 
+## Status (slice 1, Oct 13)
+Shipped on the Quest (Polygons (Smooth) worlds; the Mac compiles and keeps cubes):
+- Shape classes for all 5090 block states (1063 names), from the definitions plus a census of generated chunks
+  (`ShapeClass`, cached as natural-census.txt beside the worlds): none 1, liquid 18, plant 87, foliage 9, trunk 139,
+  terrain 84, organic 35, built 464, model 4253 (stairs, slabs, doors and other models keep their boxes for now).
+- Detail mesh stream (16-byte vertices, `chunk_detail.vert`, batched with the terrain passes).
+- Round trunks (`ShapeTrunks`): full-height columns read across the 3x3 chunks so taper and lean agree between sections;
+  living trunks flare into lobed roots that sink into the smooth ground and close in a dome; branches and roots are
+  tubes from the parent's centre; cut timber, posts and stumps are crisp round logs with end rings. 2x2 trunks are one.
+- Rounded organic objects (`ShapeOrganic`): one soft-box primitive, rounded where exposed and flat where the same block
+  continues or rests on the ground: ribbed gourds, hay drums, domed mushroom caps, lumpy blobs (wart, sponge, glow).
+- Bevelled built blocks (1/16 chamfers on exposed convex edges, near ring only), lumpy leaf masses, water sheets that
+  thin to the ground at their edges.
+- Cost (optimized questcheck, x86, dark forest, 25 chunks): meshing +33% over smooth terrain without detail; far ring
+  (beyond 5 chunks) draws cubes for trunks and objects, so render distance 12-16 pays only for the near rings.
+
 ## Decisions taken (defaults, noted per Remington's autonomy rule)
 - The block grid stays the save and gameplay truth; nothing new is saved.
 - Detail meshes are Quest-only; the Mac keeps cubes for these shapes and must only compile.

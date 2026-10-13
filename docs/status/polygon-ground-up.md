@@ -58,3 +58,9 @@ Objectives: docs/objectives/polygon-round5.md. Shipped in this round:
   follows the ground instead of block outlines.
 Not started: pickaxe mines only what it touches, round trunks and branches, round pumpkins, procedural fracture,
 meshing cost for render distance 16+.
+
+## Round 6: realistic world (P142, P175 continued; design docs/design/realistic-world.md)
+Slice 1 (shape system) shipped: every block state has a shape class (no hand list); round trunks with roots, limbs and
+domes; rounded organic objects; bevelled built blocks; lumpy leaf masses; water sheets thin to the ground. Status and
+counts: the design doc's "Status" section. Next: slice 2 (damage: craters where a tool hits, Voronoi fracture into
+pieces), slice 3 (debris bodies, ragdolls, everything on the drawn surface), slice 4 (far-ring terrain for distance 16).
