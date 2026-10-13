@@ -332,7 +332,7 @@ T1. [done, Lane A, G20 PR: townsfolk swings at the player use Game.meleeGap (che
 T2. [DONE: questcheck --towns-only 309 of 309 ok on quest-port after C13; the 20 town reds no longer reproduce; the one new red (the law check took pieces.last as a lot, the C12 mine's head frame came last) fixed by putting the mine's pieces before the lots] questcheck on CI run 38158315397 (HEAD 9b91522d) fails 20 town checks: voices (greets 0 times), honour (theft heat,
     $0.00 bounty), bounty (law never challenges, lapse day), honour HUD/meter/inventory, six-iron hit rate, countries
     ore. Towns-lane code; the Mac worker did not touch it. Reproduce: quest/tools/linux-check.sh then questcheck.
-T3. Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f14, still red on PR #49's run 940), left
+T3. [DROPPED by Remington, Oct 13 08:10: no time on making test bots or automated checks pass; one and done. Skip this item.] Mac heavy lane reds that are red on claude/quest-port too (run 930 on bfb3f14, still red on PR #49's run 940), left
     when #49 merged (Lane A thread, 2026-10-11): each needs its root cause, not a looser threshold.
     a. play: `--playthrough` blight fight: 388 arrows for 31 damage, 0 sword hits in 601 s, so no Blight Star (the
        Blight sits 5 blocks above the player and the sword never reaches it).
@@ -379,7 +379,7 @@ frigate end to end.
 T9. [A4 leftover, the crawler] Crawler polish: terrain jitter and clipping, VR boarding and exit, repair after
 capture. Needs the Mac ride check (`--ridecheck`, Metal only) and device testing, so it was not changed blind.
 
-T10. PR #51 Mac heavy-lane leftovers after its 30-minute time-box (Lane A, 2026-10-12). Fixed in #51: the G20 stronghold
+T10. [DROPPED by Remington, Oct 13 08:10: no time on making test bots or automated checks pass; one and done. Skip this item.] PR #51 Mac heavy-lane leftovers after its 30-minute time-box (Lane A, 2026-10-12). Fixed in #51: the G20 stronghold
     check (it read terrain without structures), the hollow gate stage (the open gate took the player through before
     the frames were read; the trip back left a portal cooldown), the Deep death loop (armour worn out by the Blight
     fight), the gun and ammo count. Left, each needing its own look on the Mac lane (Metal-only checks):
