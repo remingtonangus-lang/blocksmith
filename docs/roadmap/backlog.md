@@ -462,7 +462,7 @@ T12. [C2 leftover, the war map] Battles you can join: soldiers of both countries
 (today the battles are simulated, heard and seen as guns and smoke); the military factions (Capital, Greywall, navy)
 holding ground on the war map; wars far from the player keep going while away.
 
-T13. [Gameplay parts only; skip every test/check/verifier part] [C6/C8/A5 verifier leftovers, Lane A PR #52] C6: a truck convoy as the military answer (crates come by air), the
+T13. [DONE Oct 13: a blown radio cover sends the hunters by a two-truck convoy (on foot where no road reaches you); a fire mission goes to a frigate of the faction in range when there is one (three missiles, red smoke); the alert and crates still in the air are saved over a quit; navy submarines hunt over deep water with torpedoes and surface to be claimed when holed; a pinging frigate runs to the last ping; the kit has its own icon; moored mines sit in water (waterlogged); the map fog is saved with every quit or pause save. C7 rode with T11. Test parts skipped] [Gameplay parts only; skip every test/check/verifier part] [C6/C8/A5 verifier leftovers, Lane A PR #52] C6: a truck convoy as the military answer (crates come by air), the
 fire mission from a real frigate (today the faction's artillery), the 10-minute alert and crates in flight saved over a
 quit. C8: enemy submarines you can capture, the pinging frigate steering to the last ping, the kit's own icon, generated
 mines sitting in a dry cell inside the water. A5: the map fog saved on quit (every 10 s today). C7: frigates over high

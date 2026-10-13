@@ -210,7 +210,8 @@ enum SunkenDreadnought {
         w.set(mx, y0 + 6, cz, lamp); w.set(cx + 18, y0 + 4, cz, lamp)
         // A minefield moored round the hulk (C8, Submarines.swift): horned mines on chains off both sides.
         if Blocks.has(Submarine.mineKey) {
-            let mine = Blocks.id(Submarine.mineKey)
+            let dry = Blocks.id(Submarine.mineKey), wet = Blocks.wet[Int(dry)]
+            let mine = wet != AIR ? wet : dry                                  // in the water, not a dry cell in it
             for k in 0..<8 {
                 let x = cx - 28 + k * 8, z = cz + (k & 1 == 0 ? -8 : 8)
                 let y = min(SEA - 3, y0 + 9 + Int(rng.float() * 6))

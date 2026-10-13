@@ -439,6 +439,9 @@ extension Game {
         let rs = radio.saved
         if !rs.0.isEmpty { d["radioSus"] = rs.0 }
         if !rs.1.isEmpty { d["radioBurned"] = rs.1 }
+        let rf = radio.savedFlight(clock)
+        if !rf.0.isEmpty { d["radioAlert"] = rf.0 }
+        if !rf.1.isEmpty { d["radioDrops"] = rf.1 }
         if !stationOps.isEmpty, let e = try? JSONEncoder().encode(Array(stationOps.values)), let str = String(data: e, encoding: .utf8) { d["stationOps"] = str }
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
@@ -511,6 +514,7 @@ extension Game {
         FactionRaids.decode(d["factionRaids"] ?? "")
         Trophies.decode(d["trophies"] ?? "")
         radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")
+        radio.loadFlight(d["radioAlert"] ?? "", d["radioDrops"] ?? "", clock: clock)
         if let str = d["stationOps"], let data = str.data(using: .utf8), let ops = try? JSONDecoder().decode([StationOp].self, from: data) {
             for o in ops { stationOps[o.key] = o }
         }

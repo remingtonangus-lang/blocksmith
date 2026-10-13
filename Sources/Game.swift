@@ -523,6 +523,7 @@ final class Game {
         mobs.save(to: world.save, background: background)
         drops.save(to: world.save, background: background)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
+        if !background { MapFog.shared.save(self) }       // A5: the explored ground survives a quit (not only the 10 s save)
         // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
         let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
         let orbURL = s.dir.appendingPathComponent("xporbs.json")

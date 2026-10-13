@@ -61,6 +61,8 @@ final class CapitalState {
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
     var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
+    var pingAt: V3?                    // C8: where its sonar last heard a submarine (it steers there while nothing is in sight)
+    var pingT: Float = 0               // ... seconds since that ping (it gives up after 60)
     var bombardShots = 0               // ... shots so far at that player (each lands nearer)
     var aimTimer: Float = 0            // seconds to the next aim prediction (10 a second)
     var missileCD: Float = 5
@@ -1128,6 +1130,14 @@ extension ShipManager {
                 want = simd_normalize(tangent + dir * ((d - 160) / 80))
                 speed = 6 * fast
             }
+        } else if let ping = st.pingAt, st.pingT < 60 {
+            // C8: the sonar heard a submarine: run to the last ping and circle over it, ready to drop charges.
+            st.pingT += dt
+            let to = V2(ping.x - s.pos.x, ping.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            let dir = to / d
+            if d > 40 { want = dir; speed = 9 * fast }
+            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * 0.3); speed = 4 * fast }
         } else if let isle = st.isles?.first {
             // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
             // cruise clearance over its turf (the altitude below counts the isle as ground).
