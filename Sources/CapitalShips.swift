@@ -1107,6 +1107,7 @@ extension ShipManager {
             levelUp(s, dt)
             return
         }
+        if g.stormGrounds { st.target = nil }                      // O7: grounded by the storm: break off and hold over home
         let home = s.home ?? s.pos
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
@@ -1683,6 +1684,7 @@ extension ShipManager {
     // The hull is built on a worker thread (about 20 ms on the main thread) and joins the world on a later frame.
     @discardableResult
     func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false, troops: Int = 4) -> Bool {
+        if g.stormGrounds { return false }                          // O7: a storm grounds flyers (WeatherWar.swift)
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
             let hb = Capital.dropship()

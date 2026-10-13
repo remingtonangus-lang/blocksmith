@@ -403,6 +403,11 @@ if CommandLine.arguments.contains("--trophies-only") {
     TrophiesTests.run(game, check: check)
     print(failures == 0 ? "trophies: all checks passed" : "trophies: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --weather-only: weather that matters (Sources/WeatherWarTests.swift, backlog O7).
+if CommandLine.arguments.contains("--weather-only") {
+    WeatherWarTests.run(game, check: check)
+    print(failures == 0 ? "weather: all checks passed" : "weather: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)

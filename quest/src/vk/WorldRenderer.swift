@@ -92,6 +92,10 @@ final class WorldRenderer {
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
         if vaultSky { fogStart = AshSky.fogStart; fogEnd = min(fogEnd, AshSky.fogEnd) }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
+        if !underwater, hasSky, let wf = game.weatherFogEnd, wf < fogEnd {      // O7: fog banks (WeatherWar.swift)
+            fogEnd = wf; fogStart = wf * 0.2
+            fogColor = fogColor * (1 - 0.5 * WeatherWar.fog) + V3(0.6, 0.62, 0.64) * (0.5 * WeatherWar.fog * game.daylight)
+        }
         if !underwater, hasSky, let cap = World.caveSight(caveK: underground ? 0 : caveK), cap < fogEnd { fogEnd = cap; fogStart = min(fogStart, cap * 0.55) }
         let daylight = game.renderDaylight
         let nv = game.nightVision

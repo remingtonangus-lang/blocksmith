@@ -280,7 +280,7 @@ extension Mob {
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
-            b.sees = canTarget && dist < rank.sight && w.canSee(eye, g.player.eye)
+            b.sees = canTarget && dist < rank.sight * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
         }
         let sees = b.sees && canTarget
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
