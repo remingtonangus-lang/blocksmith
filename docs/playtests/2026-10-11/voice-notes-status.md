@@ -49,7 +49,7 @@ unless another suite is named.
 | P41 Elk Gulch stairs | fixed (town rework) | the note's spot is solid rock in the current generator (the town moved); Oct 13 audit: town builders place stairs only as roofs and the sheriff's chair, none at walking height in streets or doorways | |
 | P42 potions | part | an original set of frontier tonics ("Quickstep Tonic", "Mending Tonic", "Black Draught"; docs/status/ip-renames.md); the doctor's rarer tonics turn up in only some shops; bottle art unchanged (he called the shop look "not bad") | P42 tonics |
 | P43 gun accuracy | fixed | every gun but the shotgun hits exactly where the sights point | P32/P43 VR gun aim |
-| P44 rarity | part | coal and iron rarer; Capital cities and citadels about one per 4,000 x 4,000 blocks on new ground; surface water unchanged (the lakes graph would seam saved worlds) | P44 rarity |
+| P44 rarity | fixed | coal and iron rarer; Capital cities and citadels about one per 4,000 x 4,000 blocks on new ground; surface water: worlds made since Oct 13 have about 60% of the lakes and river reaches (saved worlds keep theirs: the lakes graph would seam their ground) | P44 rarity |
 | P45 guns too easy in titanium | fixed | armour caps at 12 of 25 against a round | P30 armour vs guns |
 | P46 endgame hordes | fixed | the Reckoning: back on the surface after the Ashguard falls, five waves (Marauder clans, the Capital, the Stormwarden Fleet with dropships, the dead, then every banner) close in from out of sight; a death sends the wave home to come again; winning pays $250 and ends Marauder patrols | P46 the Reckoning |
 | P47 gunpowder upside down | fixed | dropped item icons drew upside down on both renderers | view --drop gunpowder |

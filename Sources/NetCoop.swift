@@ -26,7 +26,7 @@ enum NetMsg {
     // shared rides, vessels and robberies (NetShare.swift)
     static let shipFull: UInt8 = 13, shipPoses: UInt8 = 14, shipGone: UInt8 = 15, useResult: UInt8 = 16
     static let ride: UInt8 = 107, crime: UInt8 = 108, gunfire: UInt8 = 109, useMob: UInt8 = 110
-    static let version: UInt16 = 2
+    static let version: UInt16 = 3
 }
 
 // A player's pose as the other side draws it.
@@ -329,6 +329,7 @@ final class NetHost {
             var o = NetOut()
             o.u64(g.world.seed); o.bool(g.survival); o.u8(UInt8(g.difficulty)); o.bool(g.smoothTerrain)
             o.f64(g.time); o.v3(spawn); o.str(g.save?.dir.lastPathComponent ?? "World")
+            o.bool((g.world.gen as? WorldGen)?.terrain.fewerLakes ?? false)
             link?.send(NetMsg.welcome, o.b)
             g.onToast?("\(guestName) joined your world")
         case NetMsg.pose:
@@ -410,6 +411,7 @@ final class NetGuest {
     private(set) var time: Double = 0
     private(set) var spawn = V3(0, 100, 0)
     private(set) var worldName = "a friend's world"
+    private(set) var fewerLakes = false
     var hostPose: NetPose?
     private let cacheLock = NSCondition()
     private var cache: [ChunkKey: ([BlockID], [(IVec3, BlockEntity)])] = [:]
@@ -455,6 +457,7 @@ final class NetGuest {
         case NetMsg.welcome:
             seed = r.u64(); survival = r.bool(); difficulty = Int(r.u8()); smooth = r.bool()
             time = r.f64(); spawn = r.v3(); worldName = r.str()
+            fewerLakes = r.bool()
             connected = true
         case NetMsg.refuse:
             refused = r.str()

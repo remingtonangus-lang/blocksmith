@@ -569,6 +569,11 @@ if CommandLine.arguments.contains("--oct13-only") {
     PlaytestOct13Tests.run(game, check: check)
     print(failures == 0 ? "oct13: all checks passed" : "oct13: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --water-only: P44 surface water in new worlds (Sources/NetTests.swift WaterTests).
+if CommandLine.arguments.contains("--water-only") {
+    WaterTests.run(check: check)
+    print(failures == 0 ? "water: all checks passed" : "water: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --net-only: C14 Play Together over loopback (Sources/NetTests.swift).
 if CommandLine.arguments.contains("--net-only") {
     NetTests.run(game, device: device, check: check)

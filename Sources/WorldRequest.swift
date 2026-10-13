@@ -9,7 +9,9 @@ struct WorldRequest {
 
     // A guest's world from the host's welcome: the host's seed and rules, a game that never saves.
     static func guestGame(_ gu: NetGuest, device: MTLDevice, renderDistance: Int) -> Game {
+        World.fewerLakesUnsaved = gu.fewerLakes             // the host's terrain (P44 water), set before World.init
         let world = World(seed: gu.seed, device: device, save: nil)
+        World.fewerLakesUnsaved = false
         world.renderDistance = renderDistance
         let game = Game(world: world, save: nil, persistent: false)
         game.survival = gu.survival
