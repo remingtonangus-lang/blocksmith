@@ -40,6 +40,9 @@ generator's own fields; other dimensions keep the round-2 smoothing.
   so the ground under a bush shows; logs and built blocks keep their faces against a blob. Trunks stay square (look
   work on trees is the Mac lane's). Leaves are still blocks: breaking, decay, shears and collision unchanged.
   `BLOCKSMITH_LEAFBLOB=0` keeps leaf cubes. Cost: a forest's meshing about 14% more than field without blobs (debug).
+- Water (T17): a still-water surface that steps down a level (a river's terraces) ramps down to the lower surface
+  instead of standing as a box with a flat side (Mesher.stepDown: a top corner shared with an open column over still
+  water drops to the block bottom, the lower surface's own corner height). Water blocks are unchanged.
 
 ## Next
-Smooth water (T17), mob feet on slopes, mesh cost on the device, then Smooth as the Quest default once Remington likes it.
+Smooth water shorelines if needed, mob feet on slopes, mesh cost on the device, then Smooth as the Quest default once Remington likes it.

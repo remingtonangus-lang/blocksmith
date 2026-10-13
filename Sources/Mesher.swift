@@ -388,6 +388,20 @@ enum Mesher {
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1) } else if curCut { cut.append(w0); cut.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
+        // T17 smooth water (field worlds): does a column sharing this top corner step down a level (open at y, still water
+        // under it)? Then the corner drops to the lower surface, so a river's steps ramp down instead of standing as boxes.
+        let smoothWater = smooth && site != nil
+        func stepDown(_ cx: Int, _ y: Int, _ cz: Int) -> Bool {
+            for dz in -1...0 {
+                for dx in -1...0 {
+                    let cell = Int(at(cx + dx, y, cz + dz))
+                    if fkT[cell] != 0 || collideT[cell] { continue }
+                    let under = at(cx + dx, y - 1, cz + dz)
+                    if fkT[Int(under)] == 1 && levelT[Int(under)] == 0 { return true }
+                }
+            }
+            return false
+        }
         // Water surface drop (eighths) at a corner: highest of the up-to-4 liquid cells sharing it.
         func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int, _ kind: UInt8) -> Int {
             var best = 7
@@ -778,7 +792,10 @@ enum Mesher {
                             let ci = (f * 4 + c) * 3
                             let px = CT[ci] * 16, pz = CT[ci + 2] * 16
                             var py = CT[ci + 1] * 16
-                            if liquidTop && py == 16 { py = 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk) }
+                            if liquidTop && py == 16 {
+                                py = smoothWater && fk == 1 && stepDown(x + CT[ci], y, z + CT[ci + 2]) ? 0
+                                    : 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk)
+                            }
                             let (u, v) = faceUV(f, px, py, pz)
                             let shadeIdx = isLiquid && fk == 2 ? 7 : f      // 7 = lava (flat bright, animated)
                             vert(isTrans, bx16 + px, by16 + py, bz16 + pz, shadeIdx, isLiquid ? (fk == 1 ? 3 : 0) : tintF, u, v, layer, aos[c], lit[c], overlay)
