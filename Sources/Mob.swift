@@ -148,6 +148,8 @@ enum MobKind: Int, CaseIterable {
         }
     }
     var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
+    // Farm animals and other peaceful creatures: nobody but the player shoots them (P150).
+    var livestock: Bool { spec.behavior == .passive || spec.behavior == .animal }
     // Save / command keys: fixed forever so saves survive display-name changes.
     var key: String { MobKind.keys[self] ?? "\(self)" }
     static let keys: [MobKind: String] = [

@@ -27,6 +27,8 @@ final class HorseState {
     var patCool: Float = 0, brushCool: Float = 0, feedCool: Float = 0
     var idle: Float = 0              // s the stick has been back in the middle (a spurred gait drops after 0.25 s)
     var refused: Float = 0           // s since the horse last refused a drop (toast once per refusal)
+    var duck: Float = 0              // blocks the rider leans down under a low overhang (P164)
+    var trampled = 0                 // bushes ridden through (P164, tests)
     var spurCount = 0                // spurs taken (HorseTests)
     var spurred = false              // the gait is above the stick's own (a spur), kept while the stick stays pushed
     var stumbles = 0
@@ -60,7 +62,7 @@ enum HorseFeel {
     static let accelBase: Float = 3, accelPerTop: Float = 0.4      // b/s^2 = 3 + 0.4 x top speed
     static let brake: Float = 12                                   // b/s^2 with the stick let go
     static let ease: Float = 6                                     // b/s^2 slowing to a lower gait
-    static let refuseDrop = 4                                      // blocks: a drop this deep or more is refused
+    static let refuseDrop = 5                                      // blocks: a drop this deep or more is refused
     static let crashSpeed: Float = 11                              // b/s into a wall: a stumble
     static var controlWas = false                                  // the keyboard sprint key last tick (spur = a fresh press)
     // Treats: stamina they give (also bond, at most every 10 s).

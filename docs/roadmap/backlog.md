@@ -175,14 +175,14 @@ P142. [CLAIMED by the polygon thread (branch claude/polygon-ground-up), Oct 13 0
 P143. [DONE Oct 13: in the headset the right-hand hints are gone; a one-time toast teaches the gun controls] [20:55] The right-hand control hints (R trigger, L trigger, reload, R stick) must go from the HUD; teach them in the tutorial instead (with P85/P108).
 P144. [DONE Oct 13: first-time hints near a wreck and on a hull with no drive, both explaining masts and sails] [20:56] Boats: first-time hints on repairing a wreck, and a clear way to make a mast.
 P145. [DONE Oct 13: hull floor above the waterline, rocking chop, quicker steering, pointed bow and raised stern] [21:00] Boats: water shows inside the hull; he cannot see himself in the boat (with P100 third person); the boat model does not match its inventory icon; turning is too sensitive (soften); the boat does not ride the waves; he has seen no storms (with any storm item in this backlog).
-P146. [21:02] Performance work to raise render distance beyond 16 on the Quest.
-P147. [21:04] Horse gallop still feels like a one-cylinder engine (jerky bounce); smooth the riding motion and animation (with P83).
+P146. [DONE Oct 13: terrain draws batched with indirect draws, one per vertex slab (121 -> 39 draws in the test view; at distance 23 about 3300 section draws become a few dozen); device numbers still to measure] [21:02] Performance work to raise render distance beyond 16 on the Quest.
+P147. [DONE Oct 13: a galloping horse follows the ground down one-block steps instead of falling and thumping, eased like steps up] [21:04] Horse gallop still feels like a one-cylinder engine (jerky bounce); smooth the riding motion and animation (with P83).
 P148. [21:07] Townsfolk all repeat the same few lines; write many more lines per type and situation.
 P149. [21:08] Saloons: bigger, with people inside; maybe a simple game (cards) later.
-P150. [21:10] Something shot the cattle with rifle rounds; soldiers and townsfolk must not shoot livestock.
+P150. [DONE Oct 13: rounds the player did not fire himself pass through livestock] [21:10] Something shot the cattle with rifle rounds; soldiers and townsfolk must not shoot livestock.
 P151. [21:11] The drowned look bad: new model and texture.
 P152. [21:11] The four white bars on the left are still unexplained (P123; check it on the newest build).
-P153. [21:15] Horses refuse drops they took earlier; raise the drop height a horse will take.
+P153. [DONE Oct 13: horses take drops of up to 4 blocks] [21:15] Horses refuse drops they took earlier; raise the drop height a horse will take.
 P154. [20:54] Horse armour.
 
 Oct 13 morning playtest (Remington, 09:40-10:13, on the 09:22 build 40ac7d81; check each against claude/quest-port first). Notes: docs/playtests/2026-10-13/voice-notes.md. Keep: potions, rain and weather, the marshal cap, treasure maps, the Wren pistol.
@@ -195,9 +195,9 @@ P160. [DONE Oct 13: fire, aim and hold hints removed; only "Load" shows with an 
 P161. [09:46] Loading a magazine into a gun is too hard; make the reload gesture easy and forgiving.
 P162. [09:48] While reloading, the left grip cannot step the hotbar left.
 P163. [09:48] Two hostile bases side by side were not fighting each other: rival factions must attack each other.
-P164. [09:50-09:58, 10:11] Horses (with P153): willingly jump down 2-3 blocks (only refuse real pits); squeeze through 1-block-wide gaps; duck under 2-block-high overhangs while ridden; run through small prickly bushes without stopping.
+P164. [DONE Oct 13: 4-block drops, 1-block gaps, the rider ducks under 2-high overhangs, low bushes trampled at a canter] [09:50-09:58, 10:11] Horses (with P153): willingly jump down 2-3 blocks (only refuse real pits); squeeze through 1-block-wide gaps; duck under 2-block-high overhangs while ridden; run through small prickly bushes without stopping.
 P165. [09:52] Axes cut through leaves visibly too fast.
-P166. [09:55] The gallop still jerks like a whipper snipper (P147, still broken).
+P166. [DONE Oct 13: with P147] [09:55] The gallop still jerks like a whipper snipper (P147, still broken).
 P167. [09:57] Fire looks better but still has an odd flame piece on top.
 P168. [09:58] Orders and messages must stay readable afterwards (with the journal, P116).
 P169. [09:59, 10:03, 10:11, 10:12] Repeated short freezes while playing (P124 still present on the 09:22 build); one was big at 10:11.

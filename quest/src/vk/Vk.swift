@@ -128,6 +128,9 @@ final class VkContext {
         vkGetPhysicalDeviceFeatures(pd, &have)
         var feats = VkPhysicalDeviceFeatures()
         feats.samplerAnisotropy = have.samplerAnisotropy
+        // P146: batched terrain draws (SceneRenderer.drawOpaque: one indirect draw per vertex slab).
+        feats.multiDrawIndirect = have.multiDrawIndirect
+        feats.drawIndirectFirstInstance = have.drawIndirectFirstInstance
         var ci = VkDeviceCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
         if fdm {
