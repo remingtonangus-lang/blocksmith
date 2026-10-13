@@ -23,6 +23,23 @@ enum Wrecks {
         return cells.reduce(0) { $0 + (w.rawBlock($1.x, $1.y, $1.z) == r ? 1 : 0) }
     }
 
+    // T15: a broken wreck lost her bow above the hold, and she won't float with it open. A hull in a shipwreck
+    // structure is "open" while two or more slices across her length rise less than four blocks over the keel
+    // (the hatches midships still have decked sides; the snapped bow has nothing above its lowest planks).
+    static func openBow(_ w: World, _ cells: [IVec3]) -> Bool {
+        guard let c0 = cells.first, w.dim == .overworld, let sc = w.gen.structures,
+              let st = sc.nearest("shipwreck", x: c0.x, z: c0.z, maxRegions: 1), st.contains(c0.x, c0.y, c0.z) else { return false }
+        var lo = c0, hi = c0
+        for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+        let alongX = hi.x - lo.x >= hi.z - lo.z
+        var top: [Int: Int] = [:]                          // slice -> highest cell
+        for c in cells {
+            let k = alongX ? c.x : c.z
+            top[k] = max(top[k] ?? Int.min, c.y)
+        }
+        return top.values.filter { $0 < lo.y + 4 }.count >= 2
+    }
+
     // Survival: a ship's guns fire only with cannonballs in the pilot's pack, one each.
     static func cannonballs(_ g: Game) -> Int {
         guard Items.has(cannonball) else { return 0 }
@@ -100,11 +117,13 @@ enum AutoTurrets {
 
     // Once a frame (cheap: a handful of sites, each looked at every `reload` seconds).
     static func tick(_ g: Game, _ dt: Float) {
-        guard !sites.isEmpty, g.dim.dim == .overworld else { return }
+        guard g.dim.dim == .overworld else { return }
         clock += dt
         guard clock >= 0.25 else { return }
         let step = clock
         clock = 0
+        if !g.world.ships.isEmpty { shipTick(g, step) }
+        guard !sites.isEmpty else { return }
         let w = g.world
         var gone: [IVec3] = []
         for c in sites {
@@ -130,14 +149,53 @@ enum AutoTurrets {
         for c in gone { sites.remove(c); cool[c] = nil }
     }
 
+    // T15: on a ship too. A cannon of a hull next to a computer of the same hull is an auto-turret that rides with
+    // her (the hull's own crew and passengers are never its targets).
+    static var shipCool: [Int: Float] = [:]           // ship id * 256 + cannon index
+    static var shipKnown: Set<Int> = []
+    static var shipShots = 0
+    static func shipTick(_ g: Game, _ step: Float) {
+        for s in g.world.ships.list where !s.cannons.isEmpty && !s.kinematic && !s.wrecked {
+            if s.role != nil && !s.captured { continue }   // a faction's vessel: its own gunners work the guns
+            for (i, (p, _)) in s.cannons.enumerated() {
+                let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                guard around.contains(where: { isComputer(s.grid.get(c.x + $0.x, c.y + $0.y, c.z + $0.z)) }) else { continue }
+                let key = s.id &* 256 &+ i
+                if !shipKnown.contains(key) {
+                    shipKnown.insert(key)
+                    if simd_length(s.pos - g.player.pos) < 64 { g.onToast?("Ship auto-turret online: the computer aims the cannon at hostiles within \(Int(range)) blocks") }
+                }
+                let left = (shipCool[key] ?? 0) - step
+                shipCool[key] = left
+                guard left <= 0 else { continue }
+                let muzzle = s.toWorld(p + V3(0, 0.2, 0))
+                let root = s.root
+                var best: (Mob, Float)?
+                for m in g.mobs.mobs where hostile(m, g) {
+                    let aim = m.pos + V3(0, m.height * 0.5, 0)
+                    let d = simd_length(aim - muzzle)
+                    guard d < range, d > 2, best == nil || d < best!.1 else { continue }
+                    guard simd_length(m.pos - g.player.pos) > 5 else { continue }
+                    if g.world.ships.standing(on: m.pos)?.root === root { continue }
+                    guard g.world.canSee(muzzle + simd_normalize(aim - muzzle) * 0.9, aim) else { continue }
+                    best = (m, d)
+                }
+                guard let (m, d) = best else { continue }
+                fire(g, from: muzzle, at: m.pos + V3(0, m.height * 0.5, 0) + m.vel * (d / 40), dist: d, owner: root.id)
+                shipCool[key] = reload
+                shipShots += 1
+            }
+        }
+    }
+
     // A shell on a lobbed line to the target (40 blocks a second, gravity 20, aimed high by the drop).
-    static func fire(_ g: Game, from muzzle: V3, at aim: V3, dist: Float) {
+    static func fire(_ g: Game, from muzzle: V3, at aim: V3, dist: Float, owner: Int = -7) {
         let speed: Float = 40, grav: Float = 20
         let t = dist / speed
         var dir = aim - muzzle
         dir.y += 0.5 * grav * t * t
         let start = muzzle + simd_normalize(dir) * 0.9
-        let sh = Shell(pos: start, vel: simd_normalize(dir) * speed, owner: -7, power: power)
+        let sh = Shell(pos: start, vel: simd_normalize(dir) * speed, owner: owner, power: power)
         sh.gravity = grav
         sh.gentle = true
         g.world.ships.shells.append(sh)

@@ -210,7 +210,7 @@ enum Vessels {
 }
 
 extension Ship {
-    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" }
+    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" || role == "sloop" }
 }
 
 extension ShipManager {
@@ -258,10 +258,16 @@ extension ShipManager {
     }
 
     @discardableResult
-    func spawnVessel(_ kind: String, home: IVec3, game g: Game?) -> Ship {
+    func spawnVessel(_ kind: String, home: IVec3, game g: Game?, yaw: Float? = nil) -> Ship {
         let homeV = V3(Float(home.x) + 0.5, Float(home.y), Float(home.z) + 0.5)
         let s: Ship
-        if kind == "frigate" {
+        if kind == "sloop" {
+            // T15: afloat with her keel a block under the surface (home.y is the block over the water).
+            s = spawn(Corsairs.sloop(), at: homeV + V3(0, 2, 0), yaw: yaw ?? 0, name: Corsairs.sloopName, role: kind)
+            s.pos.y += Float(home.y) - 1.6 - s.toWorld(V3(0, s.localMin.y, 0)).y
+            s.prevPos = s.pos
+            s.updateBounds()
+        } else if kind == "frigate" {
             s = spawn(Vessels.frigate(), at: homeV + V3(0, 6, 0), yaw: Float(home.x % 7), name: "Skyward Frigate", role: kind)
             s.hoverY = s.pos.y
         } else {
@@ -281,11 +287,13 @@ extension ShipManager {
             // Steelhold soldiers crew the vessels (they hold their stations aboard, Animals.swift): marksmen and troopers
             // on the frigate's decks, a trooper and an ironclad on the carriage.
             let ranks: [MobKind] = kind == "frigate" ? [.soldierMarksman, .soldierTrooper, .soldierTrooper, .soldierMarksman]
-                                                     : [.soldierTrooper, .soldierIronclad]
+                                 : kind == "sloop" ? [.soldierTrooper, .soldierMarksman, .soldierTrooper]
+                                                   : [.soldierTrooper, .soldierIronclad]
             for (i, st) in s.crewStations.enumerated() {
                 let m = Mob(ranks[i % ranks.count], at: s.toWorld(st + V3(0, 0.1, 0)))
                 if m.kind == .soldierTrooper { m.variant = Guns.rifle }      // stations fight at range: no shotguns
                 if m.kind == .soldierIronclad { m.variant = Guns.arc }       // no rockets bursting on their own rails
+                if kind == "sloop" { Corsairs.dress(m) }
                 m.persistent = true
                 g.mobs.mobs.append(m)
             }
@@ -341,7 +349,7 @@ extension ShipManager {
             let f = s.dirToWorld(s.fwd)
             let fh = simd_normalize(V2(f.x, f.z) + V2(1e-5, 0))
             // Circle the home point (steer toward a point ahead on the circle).
-            let r: Float = s.role == "frigate" ? 70 : 30
+            let r: Float = s.role == "frigate" ? 70 : (s.role == "sloop" ? 12 : 30)
             let dist = simd_length(toHome)
             let tangent = V2(-toHome.y, toHome.x) / max(1, dist)
             let pull: Float = (dist - r) / (r * max(1, dist))
@@ -354,6 +362,8 @@ extension ShipManager {
                 let top = world.topY(ax, az)
                 if s.role == "frigate", let base = s.home?.y {
                     s.hoverY = max(base + 6, Float(top) + 25)        // never below its spawn altitude (home + 6)
+                } else if s.role == "sloop" && !Blocks.isLiquid(world.rawBlock(ax, top, az)) {
+                    cross = cross >= 0 ? 1 : -1                     // land ahead: put the helm hard over
                 } else if s.role == "carriage" && Blocks.isLiquid(world.rawBlock(ax, top, az)) {
                     let back = simd_normalize(toHome + V2(1e-3, 0))
                     cross = fh.x * back.y - fh.y * back.x + (cross >= 0 ? 0.5 : -0.5)

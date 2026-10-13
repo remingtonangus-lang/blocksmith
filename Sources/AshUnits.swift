@@ -92,8 +92,9 @@ extension Mob {
         var ash = false, deep = false
         if n.hasSuffix("@ash") { ash = true; n = n.dropLast(4) }
         if n.hasSuffix("@deep") { deep = true; n = n.dropLast(5) }       // a Brimstone Keep's monsters: Deep strength
-        var grey = false
-        if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }       // a Greywall Command base's troops (Greywall.swift)
+        var grey = false, corsair = false
+        if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }
+        if n.hasSuffix("@corsair") { corsair = true; n = n.dropLast(8) }   // T15: a corsair camp's crew (Pirates.swift)       // a Greywall Command base's troops (Greywall.swift)
         var tag = ""
         if let i = n.firstIndex(of: ":") { tag = String(n[n.index(after: i)...]); n = n[..<i] }
         guard let k0 = MobKind.named(String(n)) else { return nil }
@@ -101,6 +102,7 @@ extension Mob {
         m.persistent = true
         if ash { m.ashSetup() }
         if grey { m.greySetup() }
+        if corsair { Corsairs.dress(m) }
         m.leash = leash
         if grey { m.greyTroop(tier: leash.flatMap { l in Greywall.Tier.allCases.first { $0.half == Int(l.z) } } ?? .outpost, at: p) }
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
