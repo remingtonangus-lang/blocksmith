@@ -46,6 +46,7 @@ enum TownLaw {
         var outlawAt: [Float]? = nil                // P96: (x, z) of the last deed that kept you an outlaw (Honour.outlawKnown)
         var jobs: [String: TownJob]? = nil
         var huntersDay: Int? = nil
+        var trackers: [Float]? = nil                // O8: a hunting party out after you [x, z, seconds left] (BountyHunters)
         var gifts: [String]? = nil
         var playerName: String? = nil
         // Town services (TownServices.swift): the bank balance (cents) and the day interest was last paid; the day of

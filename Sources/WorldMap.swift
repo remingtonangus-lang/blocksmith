@@ -361,6 +361,15 @@ enum MapDraw {
             out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - s / 2, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(6 * s, s)))
             out.append(HudLine(text: "", x: p.x - s / 2, y: p.y - 3 * s, scale: s, bg: V4(1, 0.2, 0.15, 1), box: V2(s, 6 * s)))
         }
+        // O8: the bounty hunters' party on your trail, as a red ring (on the edge of the minimap toward them when off it).
+        if let tp = BountyHunters.party, g.dim.dim == .overworld,
+           let p = at(tp.x, tp.y) ?? (labels ? nil : projectEdge(tp.x, tp.y, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: wx, wz: wz, bpc: bpc)) {
+            let red = V4(1, 0.2, 0.15, 1)
+            out.append(HudLine(text: "", x: p.x - 5 * s, y: p.y - 5 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(10 * s, 10 * s)))
+            out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: red, box: V2(8 * s, 8 * s)))
+            out.append(HudLine(text: "", x: p.x - 2 * s, y: p.y - 2 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(4 * s, 4 * s)))
+            if labels { out.append(HudLine(text: "Bounty hunters", x: p.x + 7 * s, y: p.y - 3 * s, scale: s * 0.85, color: red, bg: V4(0, 0, 0, 0.6))) }
+        }
         // P98: the war bands hunting you (the Reckoning), as orange squares.
         for h in Reckoning.hunts where h.left > 0 {
             guard let p = at(h.pos.x, h.pos.y) else { continue }

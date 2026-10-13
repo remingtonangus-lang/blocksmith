@@ -220,14 +220,33 @@ enum PlaytestOct12PMTests {
         g.player.pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
         Rand.seed(4242)
         BountyHunters.tick(g)
-        let n = g.mobs.mobs.filter { $0.customName == BountyHunters.name }.count
+        // O8: the first tick sets a party on the trail far off (no one appears yet); it rides closer each second.
+        let set = BountyHunters.party, nobodyYet = !g.mobs.mobs.contains { $0.customName == BountyHunters.name }
+        let p0 = V2(g.player.pos.x, g.player.pos.z)
+        let d0 = set.map { simd_length($0 - p0) } ?? 0
+        for _ in 0..<10 { BountyHunters.tick(g) }
+        let d1 = BountyHunters.party.map { simd_length($0 - p0) } ?? 0
+        // Close to 48 blocks: the posse rides in from their side and the party is spent.
+        TownLaw.state.trackers = [p0.x + 50, p0.y, 600]
+        BountyHunters.tick(g)
+        let hunters = g.mobs.mobs.filter { $0.customName == BountyHunters.name }
+        let n = hunters.count
+        let east = hunters.filter { $0.pos.x > p0.x }.count
+        let spent = BountyHunters.party == nil
         g.mobs.mobs = []
         let day = Int(g.time / DAY_LENGTH)
         TownLaw.state.huntersDay = day - 2
         BountyHunters.tick(g)
-        let wait = g.mobs.mobs.isEmpty
-        check(none && n >= 5 && wait && chance0 <= 1.0 / 600,
-              "P115 bounty hunters: none sent underground \(none); on the surface \(n) ride in for an outlaw; not again two days later \(wait); chance a second 1/\(Int(1 / chance0))")
+        let wait = g.mobs.mobs.isEmpty && BountyHunters.party == nil
+        // Underground the party loses the trail and waits.
+        TownLaw.state.trackers = [p0.x + 300, p0.y, 600]
+        g.player.pos = V3(Float(x) + 0.5, Float(top - 20), Float(z) + 0.5)
+        BountyHunters.tick(g)
+        let held = BountyHunters.party.map { abs($0.x - (p0.x + 300)) < 0.01 } ?? false
+        TownLaw.state.trackers = nil
+        check(none && set != nil && nobodyYet && d0 >= 440 && abs(d0 - d1 - 60) < 2 && n >= 5 && east >= n - 1 && spent && wait && held && chance0 <= 1.0 / 600,
+              String(format: "P115/O8 bounty hunters: none sent underground %@; on the surface a party sets out %.0f blocks off and tracks in (%.0f after 10 s); at 50 blocks %d ride in (%d from their side); not again two days later %@; underground the party waits %@",
+                     "\(none)", d0, d1, n, east, "\(wait)", "\(held)"))
     }
 
     // P117: the bonded horse doesn't come when called from underground.
