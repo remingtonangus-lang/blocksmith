@@ -350,6 +350,7 @@ enum HudExtras {
         Narrator.shared.tick(g)
         BugNotes.shared.tick(g)
         MapCache.shared.tick(g)
+        g.liberationTick()                                           // O1: outlaw camps freed
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
         TownLaw.tick(g)
         Hunting.tick(g)

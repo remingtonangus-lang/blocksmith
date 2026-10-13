@@ -297,6 +297,11 @@ if CommandLine.arguments.contains("--navy-only") {
     NavyTests.run(game: game, check: check)
     print(failures == 0 ? "navy: all checks passed" : "navy: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --liberation-only: outlaw camps freed, their trader and fast travel (Sources/LiberationTests.swift, backlog O1).
+if CommandLine.arguments.contains("--liberation-only") {
+    LiberationTests.run(game, check: check)
+    print(failures == 0 ? "liberation: all checks passed" : "liberation: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)

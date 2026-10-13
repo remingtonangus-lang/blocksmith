@@ -459,7 +459,7 @@ G11. [frigate] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker
     (drop ladder, or hail-and-board when it flies low) plus a ride-check bot that reaches the helm from the ground.
 
 ## SMALLER IDEAS (take when a lane is empty)
-O1. Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
+O1. [DONE Oct 13: outlaw camps are freed once their outlaws are gone and you stand in them (a $25 reward, a general store keeper sets up, an O mark on the map); a freed camp's fire is a fast-travel post to the other freed camps (use to see the offer, use again within 6 s to ride there); Liberation.swift, questcheck --liberation-only] Outposts and liberation (Far Cry style): small enemy camps on the map that you clear to unlock fast travel and shops.
 O2. Hired companions: pay or recruit townsfolk and troops to follow and fight; gear them with your looted armour.
 O3. Faction reputation: towns, the Capital, the military, the navy and the countries each remember you; bounties and allies follow.
 O4. Armour and weapon repair benches and a gunsmith tier, so damaged loot matters.
