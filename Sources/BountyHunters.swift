@@ -26,15 +26,73 @@ enum BountyHunters {
         let lost = below(g)
         for m in g.mobs.mobs where m.posse == 3 && m.customName == name && lost { m.lockTime = 0; m.aggro = false; m.target = nil }
         for m in g.mobs.mobs where m.posse == 3 && m.kind == .villager && simd_length(m.pos - g.player.pos) < SixIron.chase && !lost { m.town.anger = max(m.town.anger, 5) }
+        track(g)
         guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, !Reckoning.won, wanted() else { return }   // (P98: peace)
         let day = Int(g.time / DAY_LENGTH)
-        guard day - (TownLaw.state.huntersDay ?? -99) >= daysBetween, !below(g), Rand.float(in: 0..<1) < chancePerSecond else { return }
-        if send(g) > 0 { TownLaw.state.huntersDay = day }
+        guard TownLaw.state.trackers == nil, day - (TownLaw.state.huntersDay ?? -99) >= daysBetween, !below(g),
+              Rand.float(in: 0..<1) < chancePerSecond else { return }
+        setOut(g)
+        TownLaw.state.huntersDay = day
+    }
+
+    // O8: hunters track you across the map. When a posse is due it no longer appears out of nowhere: a party sets out
+    // 450-600 blocks off and rides toward wherever you are at a canter (6 blocks a second: a galloping horse outruns
+    // them, walking does not). They show on the map and minimap as a red ring, and when they close to 48 blocks the
+    // posse rides in from their side. Underground they lose your trail and wait; in a town they wait outside it;
+    // after twenty minutes out they give up. Pay your bounty and they turn back. Saved in TownLaw.state.trackers.
+    static let trackSpeed: Float = 6
+    static let trackSeconds: Float = 1200
+    static let arriveAt: Float = 48
+
+    static func setOut(_ g: Game) {
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 450...600)
+        let x = g.player.pos.x + sinf(a) * r, z = g.player.pos.z + cosf(a) * r
+        TownLaw.state.trackers = [x, z, trackSeconds]
+        let dir = TownBoard.direction(x - g.player.pos.x, z - g.player.pos.z)
+        g.onToast?("Bounty hunters have picked up your trail \(Int(r)) blocks to the \(dir). They're on the map. Outride them, or go to ground")
+        g.sfx(.goatHorn, 0.35)
+    }
+
+    // Where the party is (x, z), if one is out.
+    static var party: V2? {
+        guard let t = TownLaw.state.trackers, t.count >= 3 else { return nil }
+        return V2(t[0], t[1])
+    }
+
+    // Once a second: the party rides on, waits or gives up; close enough, the posse comes.
+    static func track(_ g: Game) {
+        guard var t = TownLaw.state.trackers, t.count >= 3 else { return }
+        if !wanted() || !g.survival || g.difficulty == 0 || Reckoning.won {
+            TownLaw.state.trackers = nil
+            return
+        }
+        guard g.dim.dim == .overworld else { return }          // they wait for you to come back
+        t[2] -= 1
+        if t[2] <= 0 {
+            TownLaw.state.trackers = nil
+            g.onToast?("The bounty hunters have lost your trail")
+            return
+        }
+        let p = V2(g.player.pos.x, g.player.pos.z)
+        var at = V2(t[0], t[1])
+        let off = p - at, d = simd_length(off)
+        let hidden = below(g)
+        if !hidden {
+            // In a town they hold off at its edge (a posse never rides into one).
+            let stop: Float = TownLaw.inTown != nil ? 96 : 0
+            if d > stop { at += off / max(d, 1e-3) * min(trackSpeed, d - stop) }
+        }
+        t[0] = at.x; t[1] = at.y
+        TownLaw.state.trackers = t
+        let near = simd_length(p - at)
+        if !hidden && near <= arriveAt && TownLaw.inTown == nil {
+            if send(g, toward: at) > 0 { TownLaw.state.trackers = nil }
+        }
     }
 
     // Spawns the posse; returns how many came.
     @discardableResult
-    static func send(_ g: Game) -> Int {
+    static func send(_ g: Game, toward: V2? = nil) -> Int {
         let w = g.world
         // P88 (Oct 12 AM, "bounty hunters must be a big deal, like RDR2"): a bigger, harder posse (three, four at $50 or
         // as an outlaw, five as an outlaw with $50 on you), two of them with six-irons, all tougher; they ride in from
@@ -45,7 +103,9 @@ enum BountyHunters {
         var placed = 0
         var from: V3?
         for k in 0..<(n * 12) where placed < n {           // (12 tries a rider: the P88 ring is wider and has more water)
-            let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 30...42)
+            // O8: from the trackers' side when they ride in (a spread of +-35 degrees round it).
+            let base = toward.map { atan2f($0.x - g.player.pos.x, $0.y - g.player.pos.z) }
+            let a = base.map { $0 + Rand.float(in: -0.6...0.6) } ?? Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 30...42)
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }
             let y = w.topY(x, z) + 1
