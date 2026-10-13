@@ -48,3 +48,13 @@ generator's own fields; other dimensions keep the round-2 smoothing.
 
 ## Next
 Smooth water shorelines if needed, mesh cost on the device, then Smooth as the Quest default once Remington likes it.
+
+## Round 5 (P175), started; handed to a new thread
+Objectives: docs/objectives/polygon-round5.md. Shipped in this round:
+- Plants (crosses, stacked cane) stand on the drawn smooth ground: the ground pass now runs before the cube loop and
+  Mesher.smoothGroundTop reads the surface vertices at the plant's block corners (no more floating or buried grass).
+- Water meets the shore naturally in field worlds: the water plane carries on over natural ground beside a water
+  surface (under the ground's smooth surface), and water side faces against natural ground are gone, so the waterline
+  follows the ground instead of block outlines.
+Not started: pickaxe mines only what it touches, round trunks and branches, round pumpkins, procedural fracture,
+meshing cost for render distance 16+.
