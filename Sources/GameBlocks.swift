@@ -4,10 +4,9 @@ import simd
 // Behaviour for the newer blocks: campfires, beehives, rebirth anchors, sea pickles, turtle eggs,
 // frogspawn, frosted ice, cocoa, conduits, lightning rods, murk shriekers (deep stalker) and catalysts.
 extension Game {
-    static var restedAt: Double = -100
     func restByFire(_ c: V3) -> Bool {
-        guard clock - Game.restedAt >= 60 else { onToast?("You've rested by the fire a while. Move on, or wait a bit."); return true }
-        Game.restedAt = clock
+        guard clock - restedAt >= 60 else { onToast?("You've rested by the fire a while. Move on, or wait a bit."); return true }
+        restedAt = clock
         applyEffect(.regeneration, amp: 0, seconds: 12)
         sfx(.plantBrush, 0.4, at: c)
         onToast?("You rest by the fire. Your wounds mend.")

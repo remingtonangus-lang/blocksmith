@@ -272,12 +272,15 @@ extension Game {
             } else {
                 let level: BaseAlert = d < 70 || n.kind != .gunshot ? .alert : .suspicious
                 raise(&r, level, b)
-                // The Kestrel goes up for noises it can reach over loaded ground (the crawler takes the far ones).
+                // The Kestrel goes up for noises it can reach over loaded ground (a dropship takes the far ones).
                 if level == .alert && r.alert != .lockdown && d < 110 { baseCallAir(&r, b, to: n.pos) }
-                // Heavy noise far out: the crawler goes too.
-                if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil {
-                    r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 0; r.crawlerT = 0
-                    b.note("\(r.key) crawler out to \(Int(n.pos.x)),\(Int(n.pos.z))")
+                // Heavy noise far out: a Capital dropship with a squad goes too. (T14, P69: "crawlers aren't Capital
+                // either": it was the Ironback crawler, rolled out of the citadel's motor pool as a Capital vehicle.
+                // Crawlers belong to the Ironback Legion alone; phase 9 marks the dropship's two-minute call.)
+                if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil,
+                   world.ships.callDropship(faction: .steelhold, from: c, to: n.pos, game: self) {
+                    r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 9; r.crawlerT = 0
+                    b.note("\(r.key) dropship out to \(Int(n.pos.x)),\(Int(n.pos.z))")
                 }
                 if r.patrol == nil && !Reckoning.won {                 // (P98: at peace, no patrols come after the player)
                     r.patrol = PatrolRecord(target: [n.pos.x, n.pos.y, n.pos.z], phase: 0, t: 0, size: n.kind == .gunshot ? 4 : 6)
