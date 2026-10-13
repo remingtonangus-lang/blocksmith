@@ -194,6 +194,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --rules-only: the Mac --rulescheck world rules (Sources/RulesCheck.swift) beside the questcheck player.
+if CommandLine.arguments.contains("--rules-only") {
+    let n = RulesCheck.run(game)
+    print(n == 0 ? "rules: all checks passed" : "rules: \(n) FAILED"); exit(n == 0 ? 0 : 1)
+}
 // --sizes-only: C13 town sizes (Sources/TownSizesTests.swift).
 if CommandLine.arguments.contains("--sizes-only") {
     TownSizesTests.run(game, check: check)

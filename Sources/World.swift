@@ -1366,15 +1366,20 @@ final class World {
             // Reference spread: only toward the nearest drop within 4 blocks (lava 2, 4 in the Emberdeep); every side
             // when none is in reach. It went all four ways, so channels and farms flooded sideways.
             let reach = lava && !dim.ultrawarm ? 2 : 4
-            var openMask = 0
-            for (i, d) in World.sideDirs.enumerated() where fluidCanEnter(block(p.x + d.x, p.y, p.z + d.z), level: next, kind: kind) {
-                openMask |= 1 << i
+            // Sides it may run to: open ones, and ones its own flow already fills. The nearest drop is picked among
+            // both (T3: once the flow toward the drop filled the side, that side no longer counted, the drop search
+            // ran over the others and the spring spread every way: rulescheck "water heads for the drop").
+            var openMask = 0, wayMask = 0
+            for (i, d) in World.sideDirs.enumerated() {
+                let nb = block(p.x + d.x, p.y, p.z + d.z)
+                if fluidCanEnter(nb, level: next, kind: kind) { openMask |= 1 << i; wayMask |= 1 << i }
+                else if fkT[Int(nb)] == kind && Int(lvT[Int(nb)]) >= next && lvT[Int(nb)] < 8 { wayMask |= 1 << i }   // (downstream: not the cell it came from)
             }
             if openMask == 0 { continue }
-            // With more than one open side, keep only those nearest a drop (one open side needs no search).
-            if openMask.nonzeroBitCount > 1 {
+            // With more than one way, keep only the open sides nearest a drop (one way needs no search).
+            if wayMask.nonzeroBitCount > 1 {
                 var dist = [Int](repeating: Int.max, count: 4)
-                for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                for (i, d) in World.sideDirs.enumerated() where wayMask & (1 << i) != 0 {
                     dist[i] = dropDistance(from: IVec3(p.x + d.x, p.y, p.z + d.z), origin: p, reach: reach, kind: kind)
                 }
                 let best = dist.min() ?? Int.max
