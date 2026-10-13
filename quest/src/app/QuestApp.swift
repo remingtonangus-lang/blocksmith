@@ -21,7 +21,8 @@ final class QuestApp {
     private var loadThread: Thread?
     private var hudPanel: HudPanel?
     private let loadLock = NSLock()
-    private var loaded: (Game, SaveManager, [[UInt8]])?
+    private var loaded: (Game, SaveManager?, [[UInt8]])?
+    private var joinFailed: String?
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
     private var loadStart = CFAbsoluteTimeGetCurrent()
@@ -85,6 +86,21 @@ final class QuestApp {
             status("Painting textures", 0.05)
             TextureGen.registerAll()
             tex = TextureCache.mipChain(dir: QuestPaths.root + "/cache")
+        }
+        if let ip = req.join {
+            status("Joining \(ip)", 0.4)
+            if let gu = NetGuest(ip: ip, name: "Quest player"), gu.waitWelcome(seconds: 6) {
+                let game = WorldRequest.guestGame(gu, device: device, renderDistance: min(QuestSettings.renderDistance, 8))
+                Game.oceanSwellDrawn = true
+                game.rdGovernor = RenderDistanceGovernor(chosen: game.world.renderDistance)
+                status("Receiving \(gu.worldName)", 0.55)
+                _ = game.world.loadSync(center: game.player.pos, radius: min(2, game.world.renderDistance))
+                HorizonRing.shared.request(game, eye: game.player.eye)
+                status("Ready", 1)
+                loadLock.lock(); loaded = (game, nil, tex); loadLock.unlock()
+                return
+            }
+            joinFailed = "Couldn't join \(ip): is the host's world open with hosting on?"
         }
         status("Opening the world", 0.4)
         let name = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World"
@@ -176,6 +192,7 @@ final class QuestApp {
             self.xr.haptic(1, amplitude: k, seconds: secs, frequency: f)
         }
         game.appAction = { [weak self] id in self?.appAction(id) }
+        if let why = joinFailed { joinFailed = nil; game.onToast?(why) }
         rig.needsRecenter = true
         rig.bodyYaw = game.player.yaw
         print(String(format: "load: world ready in %.1f s (seed %llu, render distance %d)", CFAbsoluteTimeGetCurrent() - loadStart,
@@ -192,6 +209,11 @@ final class QuestApp {
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: game?.smoothTerrain))
+        case _ where id.hasPrefix("netjoin:"):
+            switchWorld(WorldRequest(join: String(id.dropFirst(8))))
+        case "netleave":
+            if let g = game, let gu = g.netGuest { gu.detach(g); gu.clearMirrors(g); g.netGuest = nil }
+            switchWorld(WorldRequest())
         case "workshop":
             switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 1))
         case _ where id.hasPrefix("create:"):
@@ -202,8 +224,9 @@ final class QuestApp {
 
     // Saves and closes the current world, then loads another behind the loading scene.
     private func switchWorld(_ req: WorldRequest) {
-        print("world: switching to \(req.name ?? "?")")
+        print("world: switching to \(req.name ?? req.join ?? "?")")
         saveNow()
+        if let g = game { g.netHost?.stop(g); g.netHost = nil; if let gu = g.netGuest { gu.detach(g); g.netGuest = nil } }
         scene.waitIdle()
         game?.sound?.stopAll()
         QuestAudioOutput.shared.stop()

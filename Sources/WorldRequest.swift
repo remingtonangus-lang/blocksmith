@@ -1,9 +1,28 @@
 import Foundation
+import Metal
 
 // A world to open or create, from a menu action (QuestApp.appAction; the Mac's AppDelegate parses the same action).
 // Shared so questcheck tests the exact create path the headset runs.
 struct WorldRequest {
     var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int?; var smooth: Bool? = nil
+    var join: String? = nil          // C14: a host's address (Play Together); the world is the host's, nothing is saved
+
+    // A guest's world from the host's welcome: the host's seed and rules, a game that never saves.
+    static func guestGame(_ gu: NetGuest, device: MTLDevice, renderDistance: Int) -> Game {
+        let world = World(seed: gu.seed, device: device, save: nil)
+        world.renderDistance = renderDistance
+        let game = Game(world: world, save: nil, persistent: false)
+        game.survival = gu.survival
+        game.difficulty = gu.difficulty
+        game.smoothTerrain = gu.smooth
+        SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
+        game.time = gu.time
+        game.player.pos = gu.spawn
+        game.spawnPoint = gu.spawn
+        gu.attach(game)
+        game.netGuest = gu
+        return game
+    }
 
     // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text> (PauseMenu's Create New World).
     static func create(action id: String) -> WorldRequest? {

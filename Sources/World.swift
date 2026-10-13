@@ -15,6 +15,11 @@ final class World {
     let save: SaveManager?
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
+    // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
+    // World.netQuiet), and a guest's chunks come from the host instead of the generator.
+    var netEdit: ((Int, Int, Int, BlockID) -> Void)?
+    var remoteChunk: ((ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)])?)?
+    static var netQuiet = false
     var pendingMobs: [(String, V3)] = []
     var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires
     var gravityQueue: [IVec3] = []                  // cells to check for sand/gravel/anvils that should fall
@@ -273,6 +278,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
+        if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
@@ -974,7 +980,8 @@ final class World {
         var blocks: [BlockID]
         var ents: [(IVec3, BlockEntity)] = []
         var mobs: [(String, V3)] = []
-        if let saved = save?.loadChunk(k) { blocks = saved; fromDisk = true }
+        if let r = remoteChunk, let got = r(k) { blocks = got.0; ents = got.1 }        // a co-op guest: the host's chunk
+        else if let saved = save?.loadChunk(k) { blocks = saved; fromDisk = true }
         else {
             blocks = gen.generate(cx: k.x, cz: k.z)
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
@@ -985,6 +992,12 @@ final class World {
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
                         emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(blocks, k, heights))
+    }
+
+    // A chunk for a co-op guest (NetCoop.swift, any thread): from disk or generated, with its containers.
+    func produceForNet(_ k: ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)]) {
+        let p = produce(k)
+        return (p.blocks, p.entities)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.

@@ -42,6 +42,8 @@ final class Game {
         }
     }
     var appAction: ((String) -> Void)?
+    var netHost: NetHost?                 // C14: hosting a co-op guest over the network (NetCoop.swift)
+    var netGuest: NetGuest?               // C14: this game is a guest in another headset's world
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
     // Graphics: Fancy (sky gradient, water reflections, extra effects) or Fast (the plain renderer). Default Fancy.
     // Fancy only: the 3D world renders at this fraction of the window size and is upscaled (HUD stays sharp).
@@ -767,6 +769,7 @@ final class Game {
         audioMenuClosed(m)
         TownLaw.closed(self, m)
         m.onClose()
+        if netHost != nil || netGuest != nil { NetCoop.menuClosed(self, m) }     // C14: a chest's contents to the other player
         if !carried.isEmpty {
             let rest = inventory.add(carried)
             if !rest.isEmpty { dropItem(rest) }
@@ -784,7 +787,10 @@ final class Game {
     // MARK: Tick
 
     func tick(_ rawDt: Double) {
-        coop.pollJoin(self, Float(min(rawDt, 0.05)))
+        let ndt = Float(min(rawDt, 0.05))
+        netHost?.tick(self, ndt)                             // C14: co-op over the network (NetCoop.swift)
+        netGuest?.tick(self, ndt)
+        if netGuest == nil { coop.pollJoin(self, ndt) }
         if coop.active { coopTick(rawDt); return }
         tickSeat(rawDt)
     }
@@ -793,6 +799,7 @@ final class Game {
     func tickSeat(_ rawDt: Double) {
         let dt = min(rawDt, 0.05)
         let seat = coop.current
+        if let ns = coop.netSeat, seat == ns, let h = netHost { h.seatTick(self, dt); return }     // the guest's body (NetCoop)
         if seat == 0 {
             TickProf.begin()
             clock += dt
@@ -2149,8 +2156,17 @@ final class Game {
     }
 
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
+    // Runs body with another body standing in for the player (C14: the network friend drawn with the player model).
+    func withStandIn(_ p: Player, _ body: () -> Void) {
+        let me = player
+        player = p
+        body()
+        player = me
+    }
+
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount, from: src, cause: cause, knockback: knockback, type: type); return }
         CombatHUD.shared.hurt(self, from: src, amount: amount)
         if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
@@ -2222,6 +2238,7 @@ final class Game {
 
     func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount0 > 0 else { return }
+        if let ns = coop.netSeat, coop.current == ns, let h = netHost { h.hurt(amount0, from: player.pos, cause: cause, knockback: 0, type: type); return }
         Game.onDamage?(amount0, cause)
         if type == .fire && effects.has(.fireResistance) { return }
         // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
@@ -2523,6 +2540,7 @@ final class Game {
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
         if coop.current > 0 { coopAdvance(dt); return }       // a second seat: only its own share (Coop.swift)
+        if netGuest != nil { netGuestAdvance(dt); return }    // a co-op guest: the host runs the world (NetCoop.swift)
         world.ships.update(Float(dt), game: self)              // (docking writes blocks back: stays synchronous, no hole)
         TickProf.mark("ships")
         // The world's own changes from here on remesh on the workers (World.deferRemesh), not on the frame thread.
