@@ -185,6 +185,28 @@ P152. [21:11] The four white bars on the left are still unexplained (P123; check
 P153. [21:15] Horses refuse drops they took earlier; raise the drop height a horse will take.
 P154. [20:54] Horse armour.
 
+Oct 13 morning playtest (Remington, 09:40-10:13, on the 09:22 build 40ac7d81; check each against claude/quest-port first). Notes: docs/playtests/2026-10-13/voice-notes.md. Keep: potions, rain and weather, the marshal cap, treasure maps, the Wren pistol.
+P155. [09:41] No iron golems (or anything like them) in villages: Minecraft lookalike.
+P156. [09:41] Remove the glider wings: the jetpack replaces them.
+P157. [09:41, 09:44, 09:48] Guns: upgrade how the gun models look; the pistol looks too futuristic; give every gun a German-sounding (fictional) name, like the Sturmwind.
+P158. [09:42] Make it clear what rounds each gun takes and where to get them (he could not tell what the machine gun fires).
+P159. [09:43] Two-handed aiming: put the left hand on the gun's front grip and hold the left trigger to aim it like a real gun.
+P160. [09:43] The right-hand control hints are still there: remove fire, aim and hold-weapon hints (a load hint may stay). Same as P143; do both together.
+P161. [09:46] Loading a magazine into a gun is too hard; make the reload gesture easy and forgiving.
+P162. [09:48] While reloading, the left grip cannot step the hotbar left.
+P163. [09:48] Two hostile bases side by side were not fighting each other: rival factions must attack each other.
+P164. [09:50-09:58, 10:11] Horses (with P153): willingly jump down 2-3 blocks (only refuse real pits); squeeze through 1-block-wide gaps; duck under 2-block-high overhangs while ridden; run through small prickly bushes without stopping.
+P165. [09:52] Axes cut through leaves visibly too fast.
+P166. [09:55] The gallop still jerks like a whipper snipper (P147, still broken).
+P167. [09:57] Fire looks better but still has an odd flame piece on top.
+P168. [09:58] Orders and messages must stay readable afterwards (with the journal, P116).
+P169. [09:59, 10:03, 10:11, 10:12] Repeated short freezes while playing (P124 still present on the 09:22 build); one was big at 10:11.
+P170. [09:59] The sword still strobes when swung (P77 regression).
+P171. [10:02] Ragdolls: dead bodies must fall (one hung in the air after dying on a hill); ragdoll physics for all bodies.
+P172. [10:08] Dark patches appear where he digs (lighting not updated).
+P173. [10:10] Remove the odd tower seen in the distance from World376 (seed 3931512493184456980) near 9110 67 -13846, looking south; find what structure it is and drop it.
+P174. [10:10] The sky needs work (the rain is good).
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] Polish loop, only when every gameplay item is DONE: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
