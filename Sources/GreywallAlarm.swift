@@ -437,6 +437,7 @@ extension Game {
         st.log.append("\(key) taken")
         MapCache.shared.discover(self, kind: Greywall.kind, x: site.cx, z: site.cz, name: site.tier.name)
         onToast?("The \(site.tier.name) is yours: its yard is your respawn point, its map table reads the radar net")
+        if Items.has("greywall_flag") { _ = inventory.add(ItemStack(Items.id("greywall_flag"), 1)) }   // O6: its flag, a trophy
         Legendaries.fortressTaken(self, site.tier)            // C10
     }
 

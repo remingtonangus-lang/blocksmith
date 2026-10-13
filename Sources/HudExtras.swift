@@ -353,6 +353,7 @@ enum HudExtras {
         g.liberationTick()                                           // O1: outlaw camps freed
         g.repHuntersTick()                                           // O3: hunters for a hunted player
         g.factionRaidsTick()                                         // O5: raids on your places
+        g.trophiesTick()                                             // O6: trophy room and museum
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
         TownLaw.tick(g)
         Hunting.tick(g)

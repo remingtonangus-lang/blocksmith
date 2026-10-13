@@ -398,6 +398,11 @@ if CommandLine.arguments.contains("--raids-only") {
     FactionRaidsTests.run(game, check: check)
     print(failures == 0 ? "raids: all checks passed" : "raids: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --trophies-only: trophy room and museum (Sources/TrophiesTests.swift, backlog O6).
+if CommandLine.arguments.contains("--trophies-only") {
+    TrophiesTests.run(game, check: check)
+    print(failures == 0 ? "trophies: all checks passed" : "trophies: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)
