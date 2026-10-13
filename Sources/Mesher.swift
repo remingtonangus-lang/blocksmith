@@ -263,7 +263,9 @@ enum Mesher {
         for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
         let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
-        if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy)) { return SectionMesh(opaque: [], trans: [], light: nil) }
+        // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
+        let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
+        if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
         // All scratch memory is per worker thread and reused (allocating and zeroing three 110K-cell arrays
@@ -366,6 +368,7 @@ enum Mesher {
         // Smooth terrain: a natural neighbour near the surface rounds away from a cubic block (or liquid), so the
         // block keeps its face against it (else sky shows through the gap); buried natural cells still hide faces.
         func smoothOpen(_ j: Int) -> Bool {
+            if leafBlob && leafT[Int(R[j])] { return true }      // (a blob rounds away from a log or a built block)
             guard smooth && natT[Int(R[j])] else { return false }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
             return false
@@ -428,6 +431,7 @@ enum Mesher {
                     let rt = renderT[bi]
                     if rt == rNone { continue }
                     if smooth && natT[bi] { continue }                  // (chipped too: it shrinks in the smooth surface, P106)
+                    if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
@@ -784,10 +788,16 @@ enum Mesher {
             }
         }
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+            }
+            if leafBlob {
+                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                    curCut = true
+                    vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+                }
             }
         }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
