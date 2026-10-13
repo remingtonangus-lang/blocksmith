@@ -47,7 +47,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") ? "" : nil)
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -407,6 +407,28 @@ if CommandLine.arguments.contains("--trophies-only") {
 if CommandLine.arguments.contains("--weather-only") {
     WeatherWarTests.run(game, check: check)
     print(failures == 0 ? "weather: all checks passed" : "weather: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --oct13-only: Oct 13 playtest items (Sources/PlaytestOct13Tests.swift, backlog P146-P174).
+if CommandLine.arguments.contains("--oct13-only") {
+    PlaytestOct13Tests.run(game, check: check)
+    print(failures == 0 ? "oct13: all checks passed" : "oct13: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --batch-only: batched terrain draws (P146): the same frame drawn per section and batched: far fewer draw calls,
+// the same quads and the same picture.
+if CommandLine.arguments.contains("--batch-only"), let ctx = vkctx {
+    var runs: [(Int, Int, Double, [UInt8])] = []
+    for on in [false, true] {
+        SceneRenderer.batchDraws = on
+        do { try RenderTest.render(game: game, ctx: ctx, path: tmp.appendingPathComponent("batch_\(on).png").path, width: 320, height: 320, yaw: 0.6, pitch: -0.25) }
+        catch { check(false, "batch render: \(error)") }
+        runs.append((RenderTest.lastStats.draws, RenderTest.drawnQuads, RenderTest.recordMs, RenderTest.lastRGBA))
+    }
+    let a = runs[0].3, b = runs[1].3
+    let differ = a.count == b.count ? zip(a, b).reduce(0) { $0 + (abs(Int($1.0) - Int($1.1)) > 6 ? 1 : 0) } : -1
+    check(runs[1].0 * 3 < runs[0].0 && runs[1].1 == runs[0].1 && differ >= 0 && differ * 500 < a.count,
+          String(format: "P146: batched terrain: %d draws instead of %d, %d quads both ways, %d of %d channels differ; record %.2f -> %.2f ms",
+                 runs[1].0, runs[0].0, runs[1].1, differ, a.count, runs[0].2, runs[1].2))
+    print(failures == 0 ? "batch: all checks passed" : "batch: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {

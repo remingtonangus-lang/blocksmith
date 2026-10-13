@@ -386,7 +386,12 @@ extension Mob {
         // P49: a swimming horse steps up onto a bank level with the water (its feet float below the surface, so the
         // 1.05 step fell short), and a ridden horse is a little narrower so it squeezes between close trunks.
         let swim = Blocks.isLiquid(feet)
-        let bodyW = g.riding === self && gaited ? min(halfW, 0.45) : halfW
+        // P164 (Oct 13): a ridden horse squeezes through a 1-block gap (0.35 each side, was 0.45).
+        let bodyW = g.riding === self && gaited ? min(halfW, 0.35) : halfW
+        let groundedBefore = onGround
+        // P164: at a canter or faster it runs straight through low bushes (leaf blocks within two blocks of the
+        // ground, no log among them) instead of stopping at them: they are trampled.
+        if gaitedRide && self.hs.speed > 3 { trampleBushes(g, bodyW) }
         let hit = w.moveBody(&pos, halfW: bodyW, height: height, vel * dt, step: swim ? 1.6 : 1.05, onGround: onGround || swim)
         // P49: riding into a canopy put the rider's eyes inside the leaves (a black screen): leaves at head height stop
         // the horse like a wall.
@@ -404,13 +409,54 @@ extension Mob {
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
+        // P147/P166 (the gallop "like a one-cylinder engine"): running off a one-block step it left the ground and fell
+        // for a quarter of a second, then thumped down, every step down a hillside. A ridden horse follows the ground
+        // down a step of up to 1.1 blocks instead (not a jump, not swimming); the drawn horse and the view ease the
+        // drop like a step up (ViewStep), so the ride stays level.
+        if gaitedRide && groundedBefore && !onGround && vel.y <= 0 && !swim {
+            var p = pos
+            let down = w.moveBody(&p, halfW: bodyW, height: height, V3(0, -1.1, 0), step: 0, onGround: false)
+            if down.y { pos = p; vel.y = 0; onGround = true }
+        }
         if gaitedRide { gaitAfterMove(g, moved: pos - start, hitWall: hit.x || hit.z, dt: dt) }
         let hs = simd_length(V2(vel.x, vel.z))
         walkPhase += hs * dt * 3
         walkAmount += (min(1, hs / 2) - walkAmount) * min(1, dt * 8)
-        g.player.pos = pos + V3(0, height * 0.75, 0)
+        // P164: under a low overhang (a 2-block-high passage) the rider leans down over the neck instead of putting
+        // their head into the block above.
+        if gaited {
+            let headY = pos.y + height * 0.75 + 1.62 + 0.15
+            var want: Float = 0
+            for dy: Float in [0, -0.5, -1.0] where Blocks.collide[Int(w.block(Int(floor(pos.x)), Int(floor(headY + dy)), Int(floor(pos.z))))] {
+                want = min(1.2, headY - floor(headY + dy) + 0.05); break
+            }
+            self.hs.duck += (want - self.hs.duck) * min(1, dt * (want > self.hs.duck ? 14 : 4))
+        }
+        g.player.pos = pos + V3(0, height * 0.75 - (gaited ? self.hs.duck : 0), 0)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
+    }
+
+    // Leaf blocks just ahead at the horse's legs and chest (feet level and one up): a bush, not a tree (no log in
+    // that column within three blocks down). Trampled: removed with a rustle, no drops.
+    func trampleBushes(_ g: Game, _ bodyW: Float) {
+        let w = g.world
+        let f = forward
+        let base = Int(floor(pos.y + 0.01))
+        for side: Float in [-1, 0, 1] {
+            let p = pos + f * (bodyW + 0.45) + V3(-f.z, 0, f.x) * (side * bodyW * 0.9)
+            let x = Int(floor(p.x)), z = Int(floor(p.z))
+            for y in base...(base + 1) {
+                let b = w.block(x, y, z)
+                guard CapitalBase.isLeaf(b) else { continue }
+                var tree = false
+                for d in 0...3 where CapitalBase.isLog(w.block(x, y - d, z)) || CapitalBase.isLog(w.block(x, y + d, z)) { tree = true; break }
+                if tree || CapitalBase.isLeaf(w.block(x, base + 3, z)) { continue }      // a canopy reaching down, not a bush
+                w.setBlock(x, y, z, AIR)
+                g.particles.blockBreak(b, at: IVec3(x, y, z))
+                hs.trampled += 1
+            }
+        }
     }
 
     // A stick boost's speed factor (reference: 1 + 1.15 sin(pi t / total) over 7-49 s), then it ends.

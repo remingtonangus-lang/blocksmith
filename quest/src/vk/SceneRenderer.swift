@@ -77,6 +77,7 @@ final class SceneRenderer {
         var ubo: VkBuf!
         var records: VkBuf!            // section records (instance data)
         var scratch: VkBuf!            // per-frame vertices (stars, sun/moon, mobs, entities, lines)
+        var indirect: VkBuf!           // terrain draw commands (P146 batching)
         var set0: VkDescriptorSet!
         var cmd: VkCommandBuffer!
         var fence: VkFence!
@@ -578,6 +579,10 @@ final class SceneRenderer {
         s.ubo = try VkBuf(ctx, size: MemoryLayout<FrameUniforms>.stride, usage: VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT.rawValue, host: true)
         s.records = try VkBuf(ctx, size: SceneRenderer.recordCap * 16, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
         s.scratch = try VkBuf(ctx, size: SceneRenderer.scratchSize, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+        if batchable {
+            s.indirect = try VkBuf(ctx, size: SceneRenderer.recordCap * 2 * MemoryLayout<VkDrawIndexedIndirectCommand>.stride,
+                                   usage: VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT.rawValue, host: true)
+        }
         s.set0 = try allocSet(set0Layout)
         var ai = VkCommandBufferAllocateInfo()
         ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
@@ -915,10 +920,84 @@ final class SceneRenderer {
         boundVerts = nil; boundTints = nil
     }
 
+    // P146 (raise the render distance past 16 on the Quest): at distance 23 the Oct 9 logs recorded 1669 sections, and
+    // command recording (one vkCmdDrawIndexed per section per pass) took 11.9 ms of the frame. With multiDrawIndirect
+    // the opaque passes write every section's draw into a buffer and issue one indirect draw per vertex slab and tint
+    // slab pair (a few dozen in all), near to far within each. Water stays one draw per section (its far-to-near
+    // blending order matters). `batchDraws` off (or a device without the features) keeps the per-section draws.
+    static var batchDraws = true
+    private lazy var batchable: Bool = ctx.features.multiDrawIndirect != 0 && ctx.features.drawIndirectFirstInstance != 0
+    private(set) var batchedSections = 0
+    private var batchKeys: [(QuestBuffer, QuestBuffer)] = []
+    private var batchCount: [Int] = []
+    private var batchStart: [Int] = []
+    private var pendingDraws: [(Int, VkDrawIndexedIndirectCommand)] = []
+
+    private func drawOpaqueBatched(_ s: Slot) {
+        let stride = MemoryLayout<VkDrawIndexedIndirectCommand>.stride
+        let cap = s.indirect.size / stride
+        let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
+        let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
+        var used = 0
+        for pass in 0..<2 {
+            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(pass == 0 ? "solid" : "cut"))
+            batchKeys.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true)
+            pendingDraws.removeAll(keepingCapacity: true)
+            for i in 0..<nRec {
+                let (c, sy, _) = visible[i]
+                let sec = c.sections[sy]
+                guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf,
+                      let vb = buf.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { continue }
+                let total = min(sec.opaqueQuads, SceneRenderer.maxQuads), solid = min(sec.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                var k = 0
+                while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
+                if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0) }
+                batchCount[k] += 1
+                pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(count * 6), instanceCount: 1, firstIndex: UInt32(first * 6),
+                                                                     vertexOffset: Int32(buf.offset / 8), firstInstance: UInt32(i))))
+                drawnQuads += count
+            }
+            guard used + pendingDraws.count <= cap else { break }
+            // Each group's commands side by side (stable: near to far within a group).
+            batchStart.removeAll(keepingCapacity: true)
+            var at = used
+            for n in batchCount { batchStart.append(at); at += n }
+            for (k, cmd) in pendingDraws { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
+            var start = used
+            for k in 0..<batchKeys.count {
+                let (vb, tbuf) = batchKeys[k]
+                if tbuf !== boundTints, let set = tintSet(tbuf) {
+                    var ss: VkDescriptorSet? = set
+                    vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 1, 1, &ss, 0, nil)
+                    boundTints = tbuf
+                }
+                if vb !== boundVerts {
+                    var b: VkBuffer? = vb.vkBuffer
+                    var o: VkDeviceSize = 0
+                    vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+                    boundVerts = vb
+                }
+                var left = batchCount[k], off = start
+                while left > 0 {
+                    let n = min(left, maxPer)
+                    vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * stride), UInt32(n), UInt32(stride))
+                    drawCalls += 1
+                    left -= n; off += n
+                }
+                start += batchCount[k]
+            }
+            batchedSections += pendingDraws.count
+            used = at
+        }
+    }
+
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0
+        drawCalls = 0; drawnQuads = 0; batchedSections = 0
         bindTerrainBuffers(s)
+        if SceneRenderer.batchDraws && batchable && s.indirect != nil { drawOpaqueBatched(s); return }
         for pass in 0..<2 {
             vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(pass == 0 ? "solid" : "cut"))
             for i in 0..<nRec {

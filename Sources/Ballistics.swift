@@ -69,16 +69,23 @@ final class Armory {
     }
 
     // The first mob along a segment (skipping the shooter, and soldiers' own side for their rounds).
-    static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool, skip: [ObjectIdentifier] = []) -> (Mob, Float)? {
+    // P150 (Oct 12 playtest: "something shot the cattle with rifle rounds"): rounds the player didn't fire himself
+    // (soldiers, townsfolk, companions, wall turrets, trains) pass through livestock and other peaceful animals.
+    static func mobHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, shooter: ObjectIdentifier?, friendly: Bool, skip: [ObjectIdentifier] = [],
+                       spareStock: Bool = false) -> (Mob, Float)? {
         var best: (Mob, Float)?
         for m in g.mobs.mobs where m.health > 0 && m !== g.riding {
             if !skip.isEmpty && skip.contains(ObjectIdentifier(m)) { continue }
             if let sh = shooter, ObjectIdentifier(m) == sh { continue }
             if friendly && (m.kind.steelhold || m.kind.ash) { continue }
+            if spareStock && m.kind.livestock { continue }
             if let t = m.rayHit(o, d, maxDist: len), t < (best?.1 ?? .greatestFiniteMagnitude) { best = (m, t) }
         }
         return best
     }
+
+    // A round the player fired himself (his own gun, not a companion's or a wall turret's).
+    static func playersOwn(_ s: Slug) -> Bool { s.fromPlayer && s.shooter == nil && s.by.hasPrefix("Player") }
 
     // Exact distance to the first block along a segment, with the block and face normal.
     // Rounds pass through plants and other blocks without collision.
@@ -141,7 +148,7 @@ final class Armory {
             var player = false
             if s.kind != .grenade {
                 if !s.fromPlayer, let t = Armory.playerHit(g, s.pos, dir, len, pad: s.kind == .bullet ? 0 : 0.2) { hitT = t; player = true }
-                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
+                if let h = Armory.mobHit(g, s.pos, dir, len, shooter: s.shooter, friendly: !s.fromPlayer, skip: s.pierced, spareStock: !Armory.playersOwn(s)), h.1 < hitT { hitT = h.1; mob = h.0; player = false }
             }
             // Shells and rockets burst on ship hulls (they flew through them); the shooter's own deck aside.
             if s.kind == .shell || s.kind == .rocket {
@@ -317,7 +324,7 @@ final class Armory {
         if let b = Armory.blockHit(g.world, o, dir, range) { end = b.0 }
         var mob: Mob?
         var player = false
-        if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer) { end = h.1; mob = h.0 }
+        if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil) { end = h.1; mob = h.0 }
         if !fromPlayer, let t = Armory.playerHit(g, o, dir, end) { end = t; player = true; mob = nil }
         let hit = o + dir * end
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
