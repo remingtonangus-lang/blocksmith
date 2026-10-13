@@ -87,6 +87,9 @@ final class Settings {
     @Pref("audio_subtitles") var subtitles = false
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
+    @Pref("wreckHint") var wreckHint = false        // P144: first wreck seen
+    @Pref("mastHint") var mastHint = false          // P144: first hull steered with no drive
+    @Pref("gunLesson") var gunLesson = false        // P143: the headset's one-time gun lesson was given
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
     @Pref("bugNotes") var bugNotes = 0               // voice bug notes: 0 off, 1 always listening, 2 push-to-talk (BugNotes.swift)
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts

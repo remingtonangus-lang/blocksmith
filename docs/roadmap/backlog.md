@@ -169,12 +169,12 @@ P138. [DONE: upgrade lines need a found blueprint; one chest in four holds one] 
 P139. [DONE: a goal step for the citadel raid; the Wardstone hint marks the nearest citadel] [15:27-15:29] Progression was unclear underground (which ore breaks the barrier, what to do next) until he worked out the base raid: make the next step clearer.
 
 Oct 12 evening playtest (Remington, 20:49-21:16, on the 20:45 build 664e3d10; check each against claude/quest-port first). Notes: docs/playtests/2026-10-12/voice-notes.md. Keep: roads, the home finder, wind high up, treasure maps, robbable buildings, Saddle Salve, horse jumping and momentum ("so fun to ride").
-P140. [20:49] Create New World menu: he cannot tell which button the pointer is on; make the hovered/selected button obvious.
-P141. [20:51] The smooth (polygon) world still shows the checkered look on hillsides.
+P140. [DONE Oct 13: the hovered button turns bright blue with a gold frame and arrows] [20:49] Create New World menu: he cannot tell which button the pointer is on; make the hovered/selected button obvious.
+P141. [DONE Oct 13: covered by the polygon thread, PR #81] [20:51] The smooth (polygon) world still shows the checkered look on hillsides.
 P142. [CLAIMED by the polygon thread (branch claude/polygon-ground-up), Oct 13 09:25: other threads skip it] [FIRST VERSION: PR #81, Oct 13: overworld Smooth worlds mesh the generator's own terrain and cave fields (no checkered hills, P141), materials blend, snow on slopes, dug pits dent; docs/status/polygon-ground-up.md. PR #83: the view follows the smooth ground. Tree canopies: rounded leaf blobs (T17). River steps ramp (T17 water). Mobs stand on the drawn ground. Next: device cost, then Quest default] [BIG, go-ahead given 20:51-20:53] Polygon terrain from the ground up: instead of smoothing block terrain, build a separate experimental version designed smooth from the start (its own branch and world type, not replacing blocks), so it can be judged on its own. Everything nice and smooth; keep block-style digging and destruction underneath.
-P143. [20:55] The right-hand control hints (R trigger, L trigger, reload, R stick) must go from the HUD; teach them in the tutorial instead (with P85/P108).
-P144. [20:56] Boats: first-time hints on repairing a wreck, and a clear way to make a mast.
-P145. [21:00] Boats: water shows inside the hull; he cannot see himself in the boat (with P100 third person); the boat model does not match its inventory icon; turning is too sensitive (soften); the boat does not ride the waves; he has seen no storms (with any storm item in this backlog).
+P143. [DONE Oct 13: in the headset the right-hand hints are gone; a one-time toast teaches the gun controls] [20:55] The right-hand control hints (R trigger, L trigger, reload, R stick) must go from the HUD; teach them in the tutorial instead (with P85/P108).
+P144. [DONE Oct 13: first-time hints near a wreck and on a hull with no drive, both explaining masts and sails] [20:56] Boats: first-time hints on repairing a wreck, and a clear way to make a mast.
+P145. [DONE Oct 13: hull floor above the waterline, rocking chop, quicker steering, pointed bow and raised stern] [21:00] Boats: water shows inside the hull; he cannot see himself in the boat (with P100 third person); the boat model does not match its inventory icon; turning is too sensitive (soften); the boat does not ride the waves; he has seen no storms (with any storm item in this backlog).
 P146. [21:02] Performance work to raise render distance beyond 16 on the Quest.
 P147. [21:04] Horse gallop still feels like a one-cylinder engine (jerky bounce); smooth the riding motion and animation (with P83).
 P148. [21:07] Townsfolk all repeat the same few lines; write many more lines per type and situation.
@@ -191,7 +191,7 @@ P156. [09:41] Remove the glider wings: the jetpack replaces them.
 P157. [09:41, 09:44, 09:48] Guns: upgrade how the gun models look; the pistol looks too futuristic; give every gun a German-sounding (fictional) name, like the Sturmwind.
 P158. [09:42] Make it clear what rounds each gun takes and where to get them (he could not tell what the machine gun fires).
 P159. [09:43] Two-handed aiming: put the left hand on the gun's front grip and hold the left trigger to aim it like a real gun.
-P160. [09:43] The right-hand control hints are still there: remove fire, aim and hold-weapon hints (a load hint may stay). Same as P143; do both together.
+P160. [DONE Oct 13: fire, aim and hold hints removed; only "Load" shows with an empty gun] [09:43] The right-hand control hints are still there: remove fire, aim and hold-weapon hints (a load hint may stay). Same as P143; do both together.
 P161. [09:46] Loading a magazine into a gun is too hard; make the reload gesture easy and forgiving.
 P162. [09:48] While reloading, the left grip cannot step the hotbar left.
 P163. [09:48] Two hostile bases side by side were not fighting each other: rival factions must attack each other.
