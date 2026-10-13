@@ -242,6 +242,29 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         vg.mobs.rebuildIndex()
     }
+    // --scene shapes: the realistic world's shape classes side by side on a lawn in the air at --at (organic objects,
+    // cut timber, a log wall, a post), seen from --dist blocks off (8).
+    if arg("--scene") == "shapes" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 9)...(bx + 9) { for z in (bz - 8)...(bz + 3) {
+            vw.setBlock(x, by, z, Blocks.id("grass_block"))
+            for y in (by + 1)...(by + 6) { vw.setBlock(x, y, z, AIR) }
+        } }
+        func put(_ x: Int, _ y: Int, _ z: Int, _ k: String) { if Blocks.has(k) { vw.setBlock(bx + x, by + y, bz + z, Blocks.id(k)) } }
+        put(-7, 1, -2, "pumpkin"); put(-5, 1, -1, "carved_pumpkin[south]"); put(-3, 1, -2, "melon"); put(-6, 1, -4, "jack_o_lantern[south]")
+        put(-1, 1, -2, "hay_block"); put(-1, 2, -2, "hay_block"); put(0, 1, -2, "hay_block[x]"); put(1, 1, -2, "hay_block[x]")
+        for x in 3...5 { for z in -5...(-3) { put(x, 4, z, "red_mushroom_block") } }
+        for y in 1...3 { put(4, y, -4, "mushroom_stem") }
+        put(7, 1, -2, "glowstone"); put(7, 2, -2, "glowstone"); put(8, 1, -2, "glowstone"); put(7, 1, -3, "nether_wart_block")
+        put(6, 1, 0, "sponge"); put(-8, 1, 0, "dried_kelp_block")
+        for x in -4...(-1) { put(x, 1, -7, "oak_log[x]"); put(x, 2, -7, "oak_log[x]") }      // a log wall
+        put(0, 1, -7, "spruce_log"); put(0, 2, -7, "spruce_log")                            // a post
+        put(2, 1, -6, "oak_log")                                                            // a stump
+        let dist = Float(arg("--dist") ?? "") ?? 8
+        vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 2), Float(bz - 2) + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 12, z0: bz - 12, x1: bx + 12, z1: bz + 6, y0: by - 4, y1: by + 8)
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

@@ -32,19 +32,22 @@ enum ShapeClass {
     // Words that mark a worked material (dressed, fired, cut or cast by people): never the natural ground.
     static let worked = ["brick", "polished", "cut_", "chiseled", "tile", "concrete", "glazed", "pillar", "cobble", "smooth_stone",
                          "lamp", "planks", "carved", "lantern", "shelf", "table", "bench", "crate", "barrel", "plating", "panel",
-                         "reinforced", "lit_", "chest", "furnace", "spawner", "trapdoor"]
+                         "reinforced", "lit_", "chest", "furnace", "spawner", "trapdoor", "mosaic", "ship_", "wool", "tnt"]
 
-    // Block group names a crafting recipe makes (shaped or shapeless; smelting not counted: stone and terracotta come
-    // out of a furnace and are still natural ground).
+    // Block group names a crafting recipe makes from more than one kind of ingredient (a note block from planks and
+    // redstone): made things. A block packed from one produce (a melon from slices, hay from wheat) is still that produce.
     static let crafted: Set<String> = {
         var s = Set<String>()
         for r in Recipes.all {
             let d = Items.defs[Int(r.result.item)]
             guard let b = d.block else { continue }
-            s.insert(group(b))
+            let kinds = Set(r.shapeless.isEmpty ? r.cells.compactMap { $0 } : r.shapeless)
+            if kinds.count > 1 { s.insert(group(b)) }
         }
         return s
     }()
+    // Living matter an object can be made of (the organic fallback for natural objects the census samples missed).
+    static let produce: Set<SoundMat> = [.wood, .plant, .slime, .bone]
 
     // The ground the polygon worlds smoothed before the census (the round-2 cave survey): kept so caves stay exactly as
     // they are even where the census samples miss a rare biome (badlands, mushroom fields, frozen peaks).
@@ -88,6 +91,8 @@ enum ShapeClass {
         guard rt == .cube && Blocks.opaque[i] else { return .model }
         let n = Blocks.key(b)
         if isPillar(b) && d.sound == .wood && d.tool == .axe { return .trunk }   // logs, wood, stems (cut ones too)
+        if n.hasSuffix("_stem") && d.sound == .wood && d.tool == .axe { return .trunk }   // a huge mushroom's stalk
+        if legacyGround[i] { return .terrain }                                   // (the ground the caves were tuned on)
         // Natural: the generators lay it down themselves (NaturalCensus), and it is not a worked material (a dungeon's
         // cobblestone, a road's polished stone).
         if NaturalCensus.natural[i] && !isWorked(n) || legacyGround[i] {
@@ -97,6 +102,9 @@ enum ShapeClass {
         }
         // Made from a natural object and still looking like it from above (a carved or lit pumpkin): the same form.
         if organicTops.contains(Blocks.tex[i * 6 + 2]) { return .organic }
+        // Produce nobody builds with: living matter, not worked, not made from mixed ingredients (melons, mushroom caps,
+        // hay, dried kelp, slime) - natural objects too rare for the census's sample chunks.
+        if produce.contains(d.sound) && !isWorked(n) && !crafted.contains(group(b)) { return .organic }
         return .built
     }
 

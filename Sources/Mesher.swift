@@ -46,7 +46,7 @@ enum Mesher {
     static var detailMeshes = ProcessInfo.processInfo.environment["BLOCKSMITH_DETAIL"] != "0"
     #endif
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
-    static let detailT: [Bool] = ShapeClass.kind.map { $0 == .trunk }
+    static let detailT: [Bool] = ShapeClass.kind.map { $0 == .trunk || $0 == .organic }
 
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
     static let dark = [UInt8](repeating: 0, count: 4096)
@@ -896,13 +896,15 @@ enum Mesher {
                 }
             }
         }
-        // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks), into the detail stream.
+        // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
+        // (ShapeOrganic), into the detail stream.
         let det = sc.det, detCut = sc.detCut
         det.count = 0; detCut.count = 0
         if detail {
             let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: (chunk?.x ?? site?.cx ?? 0) * CS, wy0: sy * 16, wz0: (chunk?.z ?? site?.cz ?? 0) * CS,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy)
             ShapeTrunks.emit(ctx)
+            ShapeOrganic.emit(ctx)
         }
         if smooth {
             if leafBlob {

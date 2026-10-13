@@ -82,15 +82,15 @@ enum ShapeTrunks {
                 let grounded = !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
                 let vertical = axisOf[Int(ctx.column(x, bot, z))] == 1
                 var kind: UInt8 = 0
-                if grounded && vertical {
+                if grounded {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).
                     var crown = false
-                    if H >= 3 {
+                    if H >= 3 && vertical {
                         scan: for dy in -2...6 { for dz in -4...4 { for dx in -4...4 where leafT[Int(ctx.column(x + dx, top + dy, z + dz))] { crown = true; break scan } } }
                     }
                     if crown { kind = 1 }
-                    else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root flare log beside a trunk's foot
-                    else if H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }     // part of a log lying on the ground
+                    else if H <= 2 && rootBeside(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
+                    else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else { kind = 2 }                                               // a stump, a post
                     if kind != 0 {
                         let rb: Float = kind == 1 ? min(0.44, 0.25 + 0.016 * Float(min(H, 12))) : 0.45
