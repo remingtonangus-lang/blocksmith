@@ -155,6 +155,7 @@ extension Game {
 
     // Item frames: right-click puts the held item in (or rotates it); punching takes it out.
     func useItemFrame(_ p: IVec3) -> Bool {
+        if player.sneaking { openTrophyLedger(); return true }          // O6: the trophy ledger (Trophies.swift)
         let be = world.entity(p, .frame)
         world.blockEntities[p] = be
         if be.container[0].isEmpty {
