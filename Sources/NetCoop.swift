@@ -23,7 +23,10 @@ enum NetMsg {
     // guest -> host
     static let hello: UInt8 = 101, pose: UInt8 = 102, wantChunk: UInt8 = 103, setBlocks: UInt8 = 104, hitMob: UInt8 = 105
     static let guestEntity: UInt8 = 106
-    static let version: UInt16 = 1
+    // shared rides, vessels and robberies (NetShare.swift)
+    static let shipFull: UInt8 = 13, shipPoses: UInt8 = 14, shipGone: UInt8 = 15, useResult: UInt8 = 16
+    static let ride: UInt8 = 107, crime: UInt8 = 108, gunfire: UInt8 = 109, useMob: UInt8 = 110
+    static let version: UInt16 = 2
 }
 
 // A player's pose as the other side draws it.
@@ -140,6 +143,9 @@ final class NetHost {
     private(set) var joined = false
     var pose = NetPose()
     private var edits: [(Int, Int, Int, BlockID)] = []
+    var shipSent: [Int: (sig: Int, at: Double)] = [:]     // NetShare: vessels the guest has, by id
+    var shipT: Float = 0
+    weak var ridden: Mob?                                  // the host's mob the guest rides
     private var chunkQueue: [ChunkKey] = []
     private var chunkJobs = 0
     private let chunkLock = NSLock()
@@ -186,6 +192,8 @@ final class NetHost {
         link?.close()
         link = nil
         mobIDs = [:]
+        ridden?.netRiddenUntil = -1e9; ridden = nil
+        shipSent = [:]
         g.world.extraCenter = nil
         if let w = why { g.onToast?(w) }
     }
@@ -241,6 +249,8 @@ final class NetHost {
             l.send(NetMsg.hostPose, o.b)
         }
         if mobT <= 0 { mobT = 0.1; sendMobs(g, l) }
+        shipT -= dt
+        if shipT <= 0 { shipT = 0.05; sendShips(g, l) }
         if clockT <= 0 {
             clockT = 1
             var o = NetOut()
@@ -256,6 +266,8 @@ final class NetHost {
         link?.send(NetMsg.chunk, o.b)
         sentChunks += 1
     }
+
+    func mob(id: UInt32, _ g: Game) -> Mob? { g.mobs.mobs.first { mobIDs[ObjectIdentifier($0)] == id } }
 
     func mobID(_ m: Mob) -> UInt32 {
         let k = ObjectIdentifier(m)
@@ -346,6 +358,8 @@ final class NetHost {
             }
         case NetMsg.guestEntity:
             NetCoop.applyEntity(g, &r)
+        case NetMsg.ride, NetMsg.crime, NetMsg.gunfire, NetMsg.useMob:
+            handleShared(g, type, &r)
         default: break
         }
     }
@@ -403,6 +417,12 @@ final class NetGuest {
     private var edits: [(Int, Int, Int, BlockID)] = []
     private struct Mirror { let mob: Mob; var to: V3; var yaw: Float; var seen: Double }
     private var mirrors: [UInt32: Mirror] = [:]
+    struct ShipTarget { var pos: V3; var rot: Quat; var vel: V3; var angVel: V3; var turretYaw: Float; var age: Float }
+    var shipTargets: [Int: ShipTarget] = [:]               // NetShare: the host's vessels, last reported
+    var pilotWarned = false
+    var ridingID: UInt32 = 0
+    func mirrorID(_ m: Mob) -> UInt32? { mirrors.first { $0.value.mob === m }?.key }
+    func isMirror(_ m: Mob) -> Bool { mirrorID(m) != nil }
     private var poseT: Float = 0
     private(set) var chunksIn = 0
 
@@ -533,6 +553,7 @@ final class NetGuest {
         let k = min(1, dt * 12)
         for (_, mi) in mirrors {
             let m = mi.mob
+            if m === g.riding { continue }                   // the guest's own mount: its headset moves it
             let before = m.pos
             m.pos += (mi.to - m.pos) * k
             m.yaw += wrapAngle(mi.yaw - m.yaw) * k
@@ -542,6 +563,7 @@ final class NetGuest {
             m.animT += dt
             m.hurt = max(0, m.hurt - dt)
         }
+        sharedTick(g, dt)
     }
 
     private func apply(_ g: Game, _ type: UInt8, _ body: [UInt8]) {
@@ -616,12 +638,15 @@ final class NetGuest {
             g.onToast?(r.str())
         case NetMsg.entity:
             NetCoop.applyEntity(g, &r)
+        case NetMsg.shipFull, NetMsg.shipPoses, NetMsg.shipGone, NetMsg.useResult:
+            applyShared(g, type, &r)
         default: break
         }
     }
 
     // Leaving: the mirrors go with the link.
     func clearMirrors(_ g: Game) {
+        if let r = g.riding, isMirror(r) { g.dismount() }
         for (_, mi) in mirrors { mi.mob.health = -2000 }
         mirrors = [:]
         g.mobs.mobs.removeAll { $0.health == -2000 }
@@ -662,6 +687,7 @@ extension Game {
         world.rainLevel = wetWorld ? weather.rain : 0
         if survival { timeSinceRest += f }
         time += dt
-        if !world.pendingMobs.isEmpty { world.pendingMobs.removeAll() }   // the host's mobs arrive as mirrors
+        if !world.pendingMobs.isEmpty { world.pendingMobs.removeAll() }
+        if let r = riding, r.kind != .minecart { r.update(f, game: self) }   // the mount this headset rides (NetShare)   // the host's mobs arrive as mirrors
     }
 }

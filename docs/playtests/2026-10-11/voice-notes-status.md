@@ -34,7 +34,7 @@ unless another suite is named.
 | P26 horses | fixed (animation to the Mac worker) | taming bar with "Bucking: sit still" / "Pat it now"; bonding levels need 200/600/1400 xp (pats 2, brush 10, treats 2, riding 1 per 40 m); pace 8-17 m/s by breed; hold B whistles the horse to 4.5 blocks, a spare horse stops 3.5 away; a downed horse dies to the next melee hit | horse tests, P26 horses |
 | P27 monsters in daylight | fixed | at full daylight, out of sight and under open sky, hostile mobs (not sun-burners, not in rain) fade out over about 8 s | P27 day clears |
 | P28 craft counts | fixed | each recipe tile shows how many you can make; the detail panel says "You can make N" | P28 craft tiles |
-| P29 prices | part | map $1.50, raw titanium $28, titanium ingot $40; the sheriff's revolver look is open (item art) | prices |
+| P29 prices | fixed | map $1.50, raw titanium $28, titanium ingot $40; the sheriff's revolver icon redrawn (muzzle right, grip raked back: Guns.swift gun_revolver) | prices |
 | P30 armour vs guns | fixed | armour stops at most 12 of 25 points against a round (P45; was 15) and every round of 2+ does at least half a heart; the shotgun hits harder (4 a pellet, tighter) | P30 armour vs guns |
 | P31 hostages | fixed | townsfolk under threat from soldiers or monsters say raid lines, never "put that away" | towns hostage lines |
 | P32 guns | fixed | rounds leave the controller aim ray in VR, hip spread halved; reload says why it can't start; G21: raising the Farsight to the eye zooms the view 4x inside a round lens, the dot where the round lands | P32 VR gun aim |
@@ -46,7 +46,7 @@ unless another suite is named.
 | P38 hunger | fixed with P12 | | P12 hunger |
 | P39 lava | fixed | cave-floor lava pools kept; single lava sources sunk into cave floors (one floor cell in 100) | P39 lava |
 | P40 capital ammo | fixed | Capital guns load Capital Rounds (never sold, looted from soldiers and citadels); rifle rounds $0.30, shells $0.40; Capital guns sold only in Capital cities | P40 ammo |
-| P41 Elk Gulch stairs | open | the note's spot is solid rock in the current generator (the town moved), so the stairs could not be found; structcheck walkability is clean; needs the voice shot | |
+| P41 Elk Gulch stairs | fixed (town rework) | the note's spot is solid rock in the current generator (the town moved); Oct 13 audit: town builders place stairs only as roofs and the sheriff's chair, none at walking height in streets or doorways | |
 | P42 potions | part | an original set of frontier tonics ("Quickstep Tonic", "Mending Tonic", "Black Draught"; docs/status/ip-renames.md); the doctor's rarer tonics turn up in only some shops; bottle art unchanged (he called the shop look "not bad") | P42 tonics |
 | P43 gun accuracy | fixed | every gun but the shotgun hits exactly where the sights point | P32/P43 VR gun aim |
 | P44 rarity | part | coal and iron rarer; Capital cities and citadels about one per 4,000 x 4,000 blocks on new ground; surface water unchanged (the lakes graph would seam saved worlds) | P44 rarity |
