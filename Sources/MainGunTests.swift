@@ -457,6 +457,21 @@ enum MainGunTests {
             let torn = blocks0 - hull()
             check(MainGun.shipHits == hits0 + 1 && e.wrecked && torn >= (near ? 150 : 400),
                   "maingun: a \(near ? "near miss 3 blocks off" : "direct hit on") an Ironback Crawler wrecks it (\(est.disabledWhy)) and tears out \(torn) of its \(blocks0) blocks")
+            // T9: with its driver dead the wreck can be taken; ingots rebuild its lost wheels and it drives again.
+            if near {
+                est.crewDone = Set(est.crewRoles.indices)
+                let takeable = w.ships.canCommandeer(e)
+                e.captured = true; e.wrecked = false
+                let lost0 = est.wheelsLost
+                var rebuilt = 0
+                while rebuilt < 40, w.ships.repairVehicle(e, near: IVec3(Int(e.com.x), Int(e.com.y), Int(e.com.z))) != nil { rebuilt += 1 }
+                w.ships.pilot = e; e.throttle = 1
+                for _ in 0..<144 { w.ships.capitalTick(1.0 / 72, game: g) }
+                let v = simd_length(V2(e.vel.x, e.vel.z))
+                w.ships.pilot = nil; e.throttle = 0
+                check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2,
+                      String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v))
+            }
         }
 
         // 8. The frigates carry their own navy, not Capital soldiers: a Meridian crewman goes by the navy's ranks.

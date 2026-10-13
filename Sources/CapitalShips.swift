@@ -47,6 +47,7 @@ final class CapitalState {
 
     var region: String?
     var engines0 = 0
+    var engineCells: [(IVec3, BlockID)] = []   // T9: a crawler's drive engine cells as built (rebuilt with ingots)
     var mainGunCD: Float = 8           // seconds until the spinal gun can fire
     var missiles = -1                  // small missiles left (P135; -1: not loaded yet)
     var smallCD: Float = 4             // ... seconds to the next launch from a hull with no pods
@@ -124,6 +125,7 @@ struct VehicleWheel {
     var lo: IVec3, hi: IVec3
     var n0: Int
     var n: Int
+    var orig: [BlockID] = []   // the part's cells as built (T9: a repair puts the missing ones back)
     var lost: Bool { n * 2 < n0 }
 }
 
@@ -187,7 +189,7 @@ enum Capital {
     static func vehicleWheels(_ s: Ship) -> [VehicleWheel] {
         s.wheelParts.enumerated().map { (i, p) -> VehicleWheel in
             let n = p.blocks.filter { $0 != AIR }.count
-            return VehicleWheel(part: i, lo: p.lo, hi: IVec3(p.lo.x + p.size.x - 1, p.lo.y + p.size.y - 1, p.lo.z + p.size.z - 1), n0: n, n: n)
+            return VehicleWheel(part: i, lo: p.lo, hi: IVec3(p.lo.x + p.size.x - 1, p.lo.y + p.size.y - 1, p.lo.z + p.size.z - 1), n0: n, n: n, orig: p.blocks)
         }
     }
 
@@ -684,6 +686,13 @@ extension ShipManager {
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
+            if !frigate {
+                let kinds = ShipParts.kinds, gr = s.grid
+                for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx {
+                    let b = gr.get(x, y, z)
+                    if kinds[Int(b)] == .engine { st.engineCells.append((IVec3(x, y, z), b)) }
+                } } }
+            }
             st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
             st.sight = cap ? 260 : (frigate ? 300 : 210)
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
@@ -769,6 +778,57 @@ extension ShipManager {
 
     // Wheel components: recount each wheel's blocks twice a second; a wheel at under half is lost (it stops
     // turning and drawing the cells that are gone).
+    // T9: a captured land vehicle is repaired a wheel at a time: an ingot of steel (or iron) used on it rebuilds the
+    // damaged wheel nearest the struck cell, and once fewer than half its wheels are lost it can drive again.
+    // Returns a toast, nil when there is nothing to repair.
+    func repairVehicle(_ s: Ship, near cell: IVec3) -> String? {
+        guard s.captured, let st = capState[s.id], !st.wheels.isEmpty else { return nil }
+        let at = V3(Float(cell.x), Float(cell.y), Float(cell.z))
+        var best = -1, bd = Float.greatestFiniteMagnitude
+        for (k, w) in st.wheels.enumerated() where w.n < w.n0 && !w.orig.isEmpty {
+            let c = (V3(Float(w.lo.x), Float(w.lo.y), Float(w.lo.z)) + V3(Float(w.hi.x), Float(w.hi.y), Float(w.hi.z))) * 0.5
+            let d = simd_length(c - at)
+            if d < bd { bd = d; best = k }
+        }
+        var what = ""
+        if best >= 0 {
+            let w = st.wheels[best]
+            let sx = w.hi.x - w.lo.x + 1, sz = w.hi.z - w.lo.z + 1
+            for y in w.lo.y...w.hi.y { for z in w.lo.z...w.hi.z { for x in w.lo.x...w.hi.x {
+                let i = (x - w.lo.x) + (z - w.lo.z) * sx + (y - w.lo.y) * sx * sz
+                guard i < w.orig.count, w.orig[i] != AIR, s.grid.get(x, y, z) == AIR else { continue }
+                setBlock(s, IVec3(x, y, z), w.orig[i])
+            } } }
+            if w.part < s.wheelParts.count, s.wheelParts[w.part].blocks.count == w.orig.count { s.wheelParts[w.part].blocks = w.orig }
+            st.wheels[best].n = w.n0
+            s.wheelGen += 1
+            st.wheelTimer = 0
+            what = "Wheel rebuilt (\(st.wheels.count - st.wheelsLost)/\(st.wheels.count) wheels)"
+        } else {
+            // The drive engines: knocked out by a shock (the main gun) with their blocks still in place, an ingot gets
+            // them running again; else up to eight missing engine blocks an ingot, nearest the struck cell first.
+            let kinds = ShipParts.kinds
+            let present = st.engineCells.filter { kinds[Int(s.grid.get($0.0.x, $0.0.y, $0.0.z))] == .engine }.count
+            if s.engines < present {
+                s.engines = present
+                what = "Engines restarted (\(s.engines)/\(st.engines0) engine blocks)"
+            }
+            let missing = st.engineCells.filter { s.grid.get($0.0.x, $0.0.y, $0.0.z) == AIR }
+                .sorted { simd_length(V3(Float($0.0.x), Float($0.0.y), Float($0.0.z)) - at) < simd_length(V3(Float($1.0.x), Float($1.0.y), Float($1.0.z)) - at) }
+            if what.isEmpty {
+                guard !missing.isEmpty else { return nil }
+                for (c, b) in missing.prefix(8) { setBlock(s, c, b) }
+                what = "Engine rebuilt (\(s.engines)/\(st.engines0) engine blocks)"
+            }
+        }
+        let drives = st.wheelsLost * 2 < st.wheels.count && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
+        if drives && !st.disabledWhy.isEmpty {
+            st.disabledWhy = ""; st.grind = -1; st.sag = V2(0, 0)
+            return what + ": the \(s.name) can drive again"
+        }
+        return what
+    }
+
     func trackWheels(_ s: Ship, _ st: CapitalState, _ dt: Float) {
         st.wheelTimer -= dt
         guard st.wheelTimer <= 0 else { return }
@@ -848,6 +908,7 @@ extension ShipManager {
                 continue
             }
             if s.captured && !s.wrecked && (s.role == "dropship" || s.isFlyingCapital) { commandeeredTick(s, st, dt, g); continue }
+            if s.captured && s.role == "crawler" { capturedCrawlerTick(s, st, dt, g); continue }
             if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             if !st.announced && pd < 420 {
                 st.announced = true
@@ -1106,7 +1167,30 @@ extension ShipManager {
     // Capital fliers the player can take command of from the helm (Quest round 4: the frigate's helm was locked and a
     // dropship had none). Crawlers stay locked.
     func canCommandeer(_ s: Ship) -> Bool {
-        s.kinematic && s.parent == nil && !s.wrecked && s.helm != nil && (s.role == "dropship" || s.isFlyingCapital)
+        // T9: a crawler whose driver is dead can be taken too, wrecked or not (its wheels are rebuilt with ingots).
+        if s.kinematic && s.parent == nil && s.helm != nil && s.role == "crawler" { return capState[s.id].map { !$0.driverAlive } ?? false }
+        return s.kinematic && s.parent == nil && !s.wrecked && s.helm != nil && (s.role == "dropship" || s.isFlyingCapital)
+    }
+
+    // T9: a captured crawler driven from its helm: throttle forward and back, steer turns it; it follows the ground as
+    // under its own crew. With half its wheels lost it won't move until they are rebuilt (ShipManager.repairVehicle).
+    private func capturedCrawlerTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        trackWheels(s, st, dt)
+        let steered = pilot === s
+        let lost = st.wheels.isEmpty ? 0 : Float(st.wheelsLost) / Float(st.wheels.count)
+        let drives = lost < 0.5 && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
+        if steered && !drives && abs(s.throttle) > 0.1 && !st.winchTold {
+            st.winchTold = true
+            g.onToast?("The \(s.name) is too damaged to drive: use steel or iron ingots on it to rebuild its wheels and engines")
+        }
+        if drives { st.winchTold = false }
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+        let a = steered ? -s.steer * 0.7 : 0
+        let want = V2(fh.x * cosf(a) - fh.y * sinf(a), fh.x * sinf(a) + fh.y * cosf(a))
+        let speed = steered && drives ? s.throttle * 9 * (1 - lost) : 0
+        st.wantSpeed = abs(speed)
+        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0)
     }
 
     // A commandeered Capital flier, flown straight from the helm's throttle, steer and climb (kinematic, as its AI

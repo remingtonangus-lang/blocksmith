@@ -421,6 +421,15 @@ extension Game {
         guard useNow else { return true }
         swing = 1
 
+        // T9: an ingot of steel (or iron) used on a captured land vehicle rebuilds a damaged wheel.
+        if s.root.kinematic && s.root.captured, ["steel_ingot", "iron_ingot"].contains(Items.key(held.item)),
+           let msg = ships.repairVehicle(s.root, near: s === s.root ? cell : IVec3(Int(floor(s.root.toLocal(centre).x)), Int(floor(s.root.toLocal(centre).y)), Int(floor(s.root.toLocal(centre).z)))) {
+            if survival { consumeHeld() }
+            sfx(.anvil, 0.7, at: centre)
+            onToast?(msg)
+            return true
+        }
+
         // Using: a labelled name tag names the ship; the helm steers (sneak: docks the ship); containers open.
         if ShipParts.kinds[Int(b)] == .helm && s.helm == cell && Items.key(held.item) == "name_tag", let label = held.label, !label.isEmpty {
             s.name = label
