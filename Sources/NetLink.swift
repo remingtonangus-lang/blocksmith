@@ -102,7 +102,7 @@ enum NetSock {
     static func beacon(_ fd: Int32, _ text: String) {
         var a = addr(0xFFFF_FFFF, beaconPort)
         let bytes = Array(text.utf8)
-        _ = bytes.withUnsafeBytes { b in withSockaddr(&a) { sendto(fd, b.baseAddress, b.count, 0, $0, $1) } }
+        _ = bytes.withUnsafeBytes { b in withSockaddr(&a) { sendto(fd, b.baseAddress!, b.count, 0, $0, $1) } }
     }
 
     // Listens for beacons for up to `seconds`: (host ip, game port, world name) of each host heard.
@@ -122,7 +122,7 @@ enum NetSock {
             var len = socklen_t(MemoryLayout<sockaddr_in>.size)
             let n = buf.withUnsafeMutableBytes { b in
                 withUnsafeMutablePointer(to: &from) { p in
-                    p.withMemoryRebound(to: sockaddr.self, capacity: 1) { recvfrom(fd, b.baseAddress, b.count, 0, $0, &len) }
+                    p.withMemoryRebound(to: sockaddr.self, capacity: 1) { recvfrom(fd, b.baseAddress!, b.count, 0, $0, &len) }
                 }
             }
             guard n > 0 else { continue }
