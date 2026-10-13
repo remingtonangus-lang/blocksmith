@@ -247,6 +247,7 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         if hired { return companionAI(dt, g) }                       // O2: a companion (Companions.swift)
+        let canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
         var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
         if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
@@ -716,6 +717,7 @@ extension Game {
     // Guns and ammo from a fallen soldier; deck guns burst into smoke and scrap.
     func soldierDied(_ m: Mob) {
         guard m.kind.steelhold else { return }
+        repSoldierKilled(m)                                            // O3: the faction remembers (FactionRep.swift)
         let at = m.pos + V3(0, 0.6, 0)
         if m.kind == .deckGun {
             particles.explosion(at: m.pos + V3(0, 1, 0), power: 3)
