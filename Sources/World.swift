@@ -7,6 +7,7 @@ import simd
 // copy-on-write values, so handing snapshots to worker threads is safe.
 final class World {
     var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
+    var bites: [IVec3: [Bite]] = [:]      // realistic world: where blows struck a block (Craters.swift; biteList)
     let gen: TerrainGenerator
     let dim: Dim
     let seed: UInt64
@@ -266,6 +267,7 @@ final class World {
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
+        if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
@@ -334,6 +336,7 @@ final class World {
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
+        if !bites.isEmpty { bites.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
@@ -367,7 +370,7 @@ final class World {
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
             // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
-            if !damage.isEmpty, let dv = damage[IVec3(x, y, z)] {
+            if !damage.isEmpty && !World.realistic, let dv = damage[IVec3(x, y, z)] {
                 let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
                 out.append((o + mn, o + mx)); return
             }
@@ -565,7 +568,7 @@ final class World {
 
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), site: smoothSite(c), chunk: (c.cx, c.cz)), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), site: smoothSite(c), chunk: (c.cx, c.cz)), to: c, sy: sy, version: c.sections[sy].version)
     }
 
     // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
@@ -592,6 +595,44 @@ final class World {
         return out
     }
 
+    // Realistic world (docs/design/realistic-world.md 2): Polygons (Smooth) worlds on the Quest draw blows as craters
+    // (bites) instead of chipped sub-cubes, and the block keeps its whole box for walking until it breaks.
+    static var realistic: Bool { SmoothTerrain.enabled && Mesher.detailMeshes }
+
+    // The bites a chunk's sections need (its own and one chunk round), relative to its corner.
+    func biteList(_ c: Chunk) -> [(Int, Int, Int, Bite)] {
+        if bites.isEmpty { return [] }
+        let bx = c.cx * CS, bz = c.cz * CS
+        var out: [(Int, Int, Int, Bite)] = []
+        for (p, list) in bites {
+            let dx = p.x - bx, dz = p.z - bz
+            if dx >= -16 && dx < 32 && dz >= -16 && dz < 32 { for b in list { out.append((dx, p.y, dz, b)) } }
+        }
+        return out
+    }
+
+    // A blow struck block p at world point `at`, coming out of the block along `axis`: a bowl of rim radius r and depth d
+    // is carved there (8 bites a block at most: the oldest goes; 4096 bitten blocks in all). sync remeshes now (the
+    // player's own pickaxe), else in the background (bullets, blasts).
+    func addBite(_ p: IVec3, at: V3, axis: V3, radius: Float, depth: Float, seed: UInt32, sync: Bool) {
+        guard p.y >= 0 && p.y < CH else { return }
+        if bites[p] == nil && bites.count >= 4096 { return }
+        let c = SIMD3<Float>(at.x - Float(p.x), at.y - Float(p.y), at.z - Float(p.z))
+        var list = bites[p] ?? []
+        if list.count >= 8 { list.removeFirst() }
+        list.append(Bite(c: simd_clamp(c, SIMD3<Float>(repeating: -0.5), SIMD3<Float>(repeating: 1.5)), n: axis, r: radius, d: depth, seed: seed))
+        bites[p] = list
+        let r = Int(ceil(radius * 1.4)) + 1
+        if sync {
+            remeshArea(x0: p.x - r, z0: p.z - r, x1: p.x + r, z1: p.z + r, y0: p.y - r, y1: p.y + r)
+        } else {
+            for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
+                guard let ch = chunks[ChunkKey(x: cx, z: cz)] else { continue }
+                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) { ch.sections[sy].version += 1 }
+            } }
+        }
+    }
+
     // The same without the immediate remesh (explosions chip dozens at once): the sections remesh in the background.
     func chipAsync(_ p: IVec3, level: Int, face: Int) {
         let cur = damage[p]
@@ -607,7 +648,8 @@ final class World {
     }
 
     // Chips a block to `level` (keeps the face of the first hit); remeshes around it now.
-    func chip(_ p: IVec3, level: Int, face: Int) {
+    // remesh false only records the level (the realistic world draws the blow as a bite instead: addBite).
+    func chip(_ p: IVec3, level: Int, face: Int, remesh: Bool = true) {
         guard p.y >= 0 && p.y < CH else { return }             // as chipAsync (the harness chipped above the world top)
         let cur = damage[p]
         let lv = max(level, Int((cur ?? 0) & 31))
@@ -617,6 +659,7 @@ final class World {
         let v = UInt8((f & 7) << 5 | min(7, lv))
         if cur == v { return }
         damage[p] = v
+        if !remesh { return }
         remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
         // A chipped block also dents the smooth surface round it (as far as the relaxation reaches): in the background.
         if SmoothTerrain.enabled {
@@ -835,7 +878,7 @@ final class World {
         let (n9, h9) = nb
         let todo = dirtySections(c)
         let lod = c.lod
-        let dl = damageList(c)
+        let dl = damageList(c), bl = biteList(c)
         let site = smoothSite(c)
         c.meshInFlight = true
         jobs += 1
@@ -844,7 +887,7 @@ final class World {
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, site: site, chunk: (k.x, k.z)))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, site: site, chunk: (k.x, k.z)))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1017,13 +1060,13 @@ final class World {
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
-        let dls = toMesh.map { damageList($0.0) }
+        let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }
         let sites = toMesh.map { smoothSite($0.0) }
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], site: sites[i], chunk: (t.0.cx, t.0.cz)))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], site: sites[i], chunk: (t.0.cx, t.0.cz)))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)

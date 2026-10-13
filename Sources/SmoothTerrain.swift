@@ -144,6 +144,7 @@ extension Mesher {
     // `leafHoles`: the ground pass treats leaves as open (their blobs mesh apart and the ground under a bush shows).
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil, sy: Int = 0,
                             leaves: Bool = false, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
+                            crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -468,6 +469,29 @@ extension Mesher {
                 let a0 = Int(VL[corner[0]]) >> 8, a1 = Int(VL[corner[1]]) >> 8
                 let a2 = Int(VL[corner[2]]) >> 8, a3 = Int(VL[corner[3]]) >> 8
                 let flip = a0 + a2 < a1 + a3
+                // Realistic world: a quad a blow struck is subdivided and carved into a crater (Craters.swift), drawn from
+                // the detail stream instead.
+                if !leaves, let cr = crater, let co = carveOut, cr.touches(pts) {
+                    var cp = pts, cn = pts, cl = [0, 0, 0, 0], ct = cl, cv = cl, ca = cl
+                    for k in 0..<4 {
+                        let cc = flip ? (k + 1) & 3 : k
+                        let vi = corner[cc]
+                        var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
+                        vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
+                        var lay = layer, tnt = tint
+                        if blendQuad, case let m = Int(VM[vi]), m >= 0 {
+                            let tb = Int(tintT[m]), tf = tb == 3 ? (vn.y > 0.2 ? 2 : 3) : f
+                            lay = Int(texT[m * 6 + tf]); tnt = tb == 3 ? (tf == 2 ? 1 : 0) : tb
+                        }
+                        let v = Int(VL[vi])
+                        // (On the section vertices' 1/16 grid, so the carved quad meets its uncarved neighbours exactly.)
+                        cp[k] = (pts[cc] * 16).rounded(.toNearestOrAwayFromZero) / 16; cn[k] = vn; cl[k] = lay; ct[k] = tnt; cv[k] = v & 255; ca[k] = v >> 8
+                    }
+                    let tb = Int(tintT[blockID])
+                    cr.carve(co, cp, cn, layers: cl, tints: ct, light: cv, ao: ca,
+                             inner: (layer: Int(texT[blockID * 6 + 3]), tint: tb == 3 ? 0 : tb), face: f, grid: cr.ticks(cp, base: 4))
+                    continue
+                }
                 for k in 0..<4 {
                     let cc = flip ? (k + 1) & 3 : k
                     let v = Int(VL[corner[cc]])

@@ -295,6 +295,7 @@ final class WorldRenderer {
         game.writeArms(&wr, eye: eye)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
+        if World.realistic { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }
         game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
         let nItems = wr.n
         game.writeShadows(&wr, eye: eye)

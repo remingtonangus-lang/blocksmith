@@ -55,5 +55,6 @@ final class DimensionState {
     let drops = ItemEntityManager()
     let projectiles = ProjectileManager()
     let tnts = TNTManager()
+    lazy var debris = DebrisField()          // realistic world: fracture pieces (made on first use)
     init(dim: Dim, world: World) { self.dim = dim; self.world = world; mobs.load(from: world.save); drops.load(from: world.save); MobManager.warmTables() }
 }

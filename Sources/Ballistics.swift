@@ -240,6 +240,16 @@ final class Armory {
             return
         }
         if s.fromPlayer && g.greywallBlockShot(b, id, at: at) { return }      // wall turrets and alarm panels (GreywallAlarm.swift)
+        // Realistic world: a round leaves its hole (a small bite, kept until the block changes) and knocks chips off.
+        if World.realistic && Blocks.render[Int(id)] == RenderType.cube.rawValue && Blocks.collide[Int(id)] {
+            let nv = V3(Float(n.x), Float(n.y), Float(n.z))
+            let vl = simd_length(s.vel)
+            let dir = vl > 1e-4 ? s.vel / vl : -nv
+            let seed = hash3(b.x &+ Int(at.x * 64), b.y &+ Int(at.y * 64), b.z &+ Int(at.z * 64), 0xB011)
+            let big: Float = s.kind == .bullet ? 1 : 1.6
+            w.addBite(b, at: at, axis: SmoothTerrain.natural[Int(id)] ? -dir : nv, radius: 0.08 * big, depth: 0.06 * big, seed: seed, sync: false)
+            g.debris.chips(id, cell: b, at: at, normal: nv, blow: dir, radius: 0.1 * big, seed: seed)
+        }
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))
