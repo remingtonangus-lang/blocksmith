@@ -27,6 +27,7 @@ final class Player {
     var inLava = false
     var headInLava = false
     var headInWater = false
+    var headAt: V3?                // the headset's eye in the world (VR), for headInWater (P188)
     var sneaking = false
     var sprinting = false
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
@@ -165,6 +166,14 @@ final class Player {
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
         func fits(_ h: Float) -> Bool { !w.collides(V3(pos.x - halfW, pos.y, pos.z - halfW), V3(pos.x + halfW, pos.y + h, pos.z + halfW)) }
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
+        // P179 (Oct 13: "crouching down should make it so I can get through caves easier"): sneaking into a gap too low
+        // to sneak through (under 1.5 but at least 0.6 high) drops to a crawl at its mouth, so it can be entered.
+        if !crawling && sneaking && !flying && !swimming && !gliding && onGround && input.forward > 0 {
+            let f = V3(-sinf(yaw), 0, -cosf(yaw)) * 0.45
+            let q = pos + f
+            func fitsAhead(_ h: Float) -> Bool { !w.collides(V3(q.x - halfW, q.y, q.z - halfW), V3(q.x + halfW, q.y + h, q.z + halfW)) }
+            if fitsAhead(0.6) && !fitsAhead(1.5) { crawling = true }
+        }
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
 
         // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
@@ -188,8 +197,14 @@ final class Player {
         let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
         inWater = Blocks.fluidKind[Int(feet)] == 1 || Blocks.fluidKind[Int(body)] == 1
         inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
-        let e = eye
-        let headKind = Blocks.fluidKind[Int(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
+        // P188 (Oct 13: "the underwater look only goes away once I'm completely out of the water"): on the headset the
+        // real head (headAt, Game.vrHead) is tested, against the water's surface rather than its whole block: the top
+        // cell of a pool counts only below its surface (0.85 up the cell).
+        let e = headAt.map { simd_length($0 - eye) < 2.5 ? $0 : eye } ?? eye
+        let hb = w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z)))
+        var headKind = Blocks.fluidKind[Int(hb)]
+        if headKind == 1 && Blocks.fluidKind[Int(w.block(Int(floor(e.x)), Int(floor(e.y)) + 1, Int(floor(e.z))))] != 1
+            && e.y - floor(e.y) > 0.85 { headKind = 0 }
         headInWater = headKind == 1
         headInLava = headKind == 2
         // Movement treats both fluids alike (lava is slower and heavier below); views, air and swimming are water only.

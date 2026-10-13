@@ -37,7 +37,7 @@ extension BlockRegistry {
         if !has("corner_lamp") {
             var d = BlockDef("corner_lamp", "Corner Lamp")
             d.tex = ["corner_lamp_side"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.skyStop = false
-            d.collide = false; d.noCollideBoxes = true; d.hardness = 1; d.sound = .glass; d.emit = 12
+            d.collide = false; d.noCollideBoxes = true; d.hardness = 1; d.sound = .glass; d.emit = 15   // P193: was 12 (dim bases)
             let lens: [Box] = [Box(5, 11, 13, 11, 16, 16), Box(5, 11, 0, 11, 16, 3), Box(13, 11, 5, 16, 16, 11), Box(0, 11, 5, 3, 16, 11)]
             addFacing(d, front: "corner_lamp", boxesFor: { k in [lens[k]] })
         }

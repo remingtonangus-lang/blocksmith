@@ -235,7 +235,16 @@ extension Game {
                         let lum = 0.35 + 0.65 * daylight
                         let uv = EntityWriter.fullUV
                         let top = V3(0, len, 0)
-                        wr.quad4(c3 - r, c3 + r, c3 + r + top, c3 - r + top, uv.0, uv.1, uv.2, uv.3, layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
+                        // P183 (Oct 13: "in the boat there's a line of rain in the middle of my vision at the horizon"):
+                        // every streak ended hard at the water plane, and from a boat those ends lined up just under eye
+                        // level. Streaks fade out over their last 1.5 blocks above the ground or water and toward the
+                        // edge of the rain disc.
+                        let flat: Float = (Float(dx * dx + dz * dz)).squareRoot()
+                        let fadeLo: Float = simd_clamp((y - yLo) / 1.5, 0, 1)
+                        let fadeR: Float = 1 - simd_clamp((flat - 6) / 4, 0, 1)
+                        let aa: Float = a * fadeLo * fadeLo * fadeR
+                        if aa < 0.01 { continue }
+                        wr.quad4(c3 - r, c3 + r, c3 + r + top, c3 - r + top, uv.0, uv.1, uv.2, uv.3, layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, aa))
                     }
                 }
             } }

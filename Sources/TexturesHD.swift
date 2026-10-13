@@ -272,22 +272,37 @@ enum HDTex {
 
     // Snow: soft blue-shaded drifts with sparkles.
     static func snow(_ n: Int, _ s: Int) -> Img {
-        let sh = fbm(n, n / 2, 5, s)
+        // P182 (Oct 13: "the snow doesn't look realistic enough"): bright snow with soft blue hollows instead of
+        // blue-grey blotches, wind ripples running across it, a fine grain and scattered glints. Every term tiles
+        // (integer frequencies, tiling value noise). Kept a touch below pure white for the tone curve (run 395).
+        let drift = fbm(n, max(2, n / 3), 4, s)
+        let warp = vnoise(n, max(2, n / 8), s &+ 3)
         let fine = vnoise(n, max(1, n / 64), s &+ 1)
+        let grain = vnoise(n, 1, s &+ 4)
         let sp = vnoise(n, 1, s &+ 2)
-        // A touch below pure white: lit by the sun plus the sky, 0.96 snow ran past the tone curve's shoulder and every
-        // snow face came out the same flat white (blind critic, run 395 tour_peaks).
-        let a = col(0xADBBD2), b = col(0xE6ECF7)
+        let hollow = col(0xC4CFE3), lit = col(0xE9EEF6), crest = col(0xF5F7FB)
         var img = Img(n)
         var hh = [Float](repeating: 0, count: n * n)
-        for i in 0..<(n * n) {
-            let t: Float = cl((sh[i] - 0.3) * 1.4)
-            let c: V3 = a * (1 - t) + b * t
-            hh[i] = sh[i] * 0.6 + fine[i] * 0.08
+        let fn = Float(n), tau = 2 * Float.pi
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let fx = Float(x) / fn, fy = Float(y) / fn
+            let phase: Float = 6 * fy + fx + 1.4 * warp[i]
+            let ripple: Float = sinf(phase * tau) * 0.5 + 0.5
+            let t: Float = cl((drift[i] - 0.28) * 1.7 + (ripple - 0.5) * 0.25)
+            var c: V3 = hollow * (1 - t) + lit * t
+            let r2: Float = ripple * ripple
+            c = c + (crest - c) * (r2 * r2 * 0.35 * t)
+            let g: Float = 1 + (grain[i] - 0.5) * 0.035
+            c = c * g
+            hh[i] = drift[i] * 0.55 + ripple * 0.1 + fine[i] * 0.05
             img.px[i] = V4(c.x, c.y, c.z, 1)
+        } }
+        shade(&img, hh, 0.65)
+        for i in 0..<(n * n) {
+            if sp[i] > 0.993 { img.px[i] = V4(1, 1, 1, 1) }
+            else if sp[i] > 0.986 { let c = img.px[i]; img.px[i] = V4(min(1, c.x + 0.05), min(1, c.y + 0.06), min(1, c.z + 0.08), 1) }
         }
-        shade(&img, hh, 0.9)
-        for i in 0..<(n * n) where sp[i] > 0.995 { img.px[i] = V4(1, 1, 1, 1) }
         return img
     }
 

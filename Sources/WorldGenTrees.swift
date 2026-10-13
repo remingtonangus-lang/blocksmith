@@ -220,14 +220,20 @@ enum TreePlacer {
         }
         // Root flare: a few logs hugging the trunk's foot, only where the ground under them is solid in this chunk
         // (never a root over a drop).
+        // P187 (Oct 13: "a bunch of blocks around a stump"): upright logs ringing the foot read as stray blocks, so a
+        // root lies on its side pointing away from the trunk (bark along it, the cut end outward) and only the ancient
+        // oak's wide foot keeps a few raised ones.
         func roots(_ log: BlockID, wide: Bool = false, chance: Float = 0.55) {
             let span = wide ? 1 : 0
-            for (dx, dz) in [(-1, 0), (1 + span, 0), (0, -1), (0, 1 + span)] where rng.chance(chance) {
+            let key = Blocks.key(log)
+            let alongX = Blocks.has(key + "[x]") ? Blocks.id(key + "[x]") : log
+            let alongZ = Blocks.has(key + "[z]") ? Blocks.id(key + "[z]") : log
+            for (dx, dz) in [(-1, 0), (1 + span, 0), (0, -1), (0, 1 + span)] where rng.chance(chance * (wide ? 1 : 0.6)) {
                 for o in 0...span {
                     let rx = x + dx + (dz != 0 ? o : 0), rz = z + dz + (dx != 0 ? o : 0)
                     let tall = wide && rng.chance(0.4)        // drawn before the chunk-local test: every chunk's rng agrees
                     guard w.inside(rx, y - 1, rz), Blocks.opaque[Int(w.get(rx, y - 1, rz))], !Mesher.leafT[Int(w.get(rx, y - 1, rz))] else { continue }
-                    w.log(rx, y, rz, log)
+                    w.log(rx, y, rz, tall ? log : (dx != 0 ? alongX : alongZ))
                     if tall { w.log(rx, y + 1, rz, log) }
                 }
             }
@@ -511,9 +517,12 @@ enum TreePlacer {
             roots(log, chance: 0.3)
         case .stumpOak, .stumpSpruce, .stumpBirch:
             let log = kind == .stumpOak ? LOG : (kind == .stumpSpruce ? SPRUCE_LOG : BIRCH_LOG)
-            let h = rng.range(1, 2)
+            // P187: a stump is one log high (a 2-high lone log read as a stray pillar) with a root or two beside it.
+            let h = 1
+            _ = rng.range(1, 2)                              // (kept: the rng sequence after it stays as it was)
             trunk(h, log)
             if rng.chance(0.5) { w.leaf(x, y + h, z, g("moss_carpet")) }
+            roots(log, chance: 0.5)
         case .fallenOak:
             // A fallen trunk of bark-all-round wood along the ground (each length only where the ground under it is solid
             // and it lies in air; decided per block, so both chunks of a trunk on a border agree), a stump at its root.

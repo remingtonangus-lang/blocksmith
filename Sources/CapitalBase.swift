@@ -241,7 +241,7 @@ enum CapitalBase {
                 } else { w.set(x, y, z, AIR) }
             }
             w.set(x, P2, z, wall ? grey : white)
-            if !wall && (dx % 6 == 0 && dz % 6 == 0) { w.set(x, P2 - 1, z, L) }
+            if !wall && (dx % 3 == 0 && dz % 3 == 0) { w.set(x, P2 - 1, z, L) }      // P193: every 3 (was 6: a dim hall)
         }
         // Doorways: south (foyer), east and west, north.
         w.fill(X(-2), P1 + 1, Z(HA - 1), X(2), P1 + 4, Z(HA), AIR)

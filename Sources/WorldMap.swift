@@ -415,7 +415,7 @@ enum Minimap {
     static func below(_ g: Game) -> Float {
         let pin = g.dim.dim == .overworld && MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) != nil
         let n = (pin ? 1 : 0) + (Countries.hudLine(g) != nil ? 1 : 0) + (HomeFinder.line(g) != nil ? 1 : 0)
-        return 30 + Float(max(0, n - 1)) * 9
+        return 30 + Float(max(0, n - 1)) * 13           // (P191: 13 apart, as below)
     }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -444,11 +444,13 @@ enum Minimap {
         out.append(HudLine(text: coords, x: x0 + size - Float(Font.width(coords)) * s, y: y0 + size + 4 * s, scale: s, color: V4(0.9, 0.9, 0.9, 0.9),
                            bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
         // The country you're in, in its flag colour, under the coordinates (Countries.swift).
-        var under: Float = 13
+        // P191 (Oct 13: "the home and distance indicator overlaps the location indicator"): each line's background is
+        // 13 tall, so the lines are 13 apart (they were 9: every box covered the foot of the line above).
+        var under: Float = 17
         if let (t, c) = Countries.hudLine(g) {
             out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: c,
                                bg: V4(0, 0, 0, max(0.45, Settings.shared.textBackground))))
-            under += 9
+            under += 13
         }
         // Nearest waypoint: distance and compass direction under the coordinates.
         if g.dim.dim == .overworld, let pin = MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) {
@@ -460,7 +462,7 @@ enum Minimap {
             let t = dist < 3 ? "+ here" : "+ \(dist) \(dirs[i])"
             out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + under * s, scale: s, color: V4(0.4, 0.9, 0.95, 0.95),
                                bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
-            under += 9
+            under += 13
         }
         // Home (P131): the way back to your bed (or the world spawn), with a compass in hand or once far from it.
         if let t = HomeFinder.line(g) {
@@ -529,11 +531,14 @@ final class MapMenu: Menu, CustomDrawnMenu {
             if let f = dragFrom {
                 let d = (mouse - f) / (2 * L.s) * Float(bpc)
                 cx -= d.x; cz -= d.y
-                dragged += simd_length(mouse - f)
+                // P195 (Oct 13: "I can't place a pin on the map"): a tap is judged by how far the pointer got from the
+                // press, not by the path it wandered (the headset laser shakes a few pixels every frame, which summed past
+                // the old 2-pixel limit before the trigger came up).
+                if let at = pressAt { dragged = max(dragged, simd_length(mouse - at)) }
             } else { pressAt = mouse; dragged = 0 }
             dragFrom = mouse
         } else {
-            if let at = pressAt, dragged < 2 * L.s, let w = world(at: at, L) { pin(w.0, w.1) }
+            if let at = pressAt, dragged < 8 * L.s, let w = world(at: at, L) { pin(w.0, w.1) }
             dragFrom = nil; pressAt = nil
         }
         if g.input.tapped(KeyBinds.key(.map)) { g.closeMenu() }

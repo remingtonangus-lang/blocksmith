@@ -78,7 +78,7 @@ void main() {
     oOverlay = (smoothV || face == 6u) ? 0.0 : float((w1 >> 30) & 1u);
     oAnim = face == 7u ? 1.0 : (face == 2u && tintMode == 1u ? 2.0 : 0.0);     // 1 lava, 2 a grass top (turned per block)
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
-    vec3 skyTint = mix(vec3(0.6, 0.7, 1.0), vec3(1.0), smoothstep(0.26, 0.6, u.params.y));
+    vec3 skyTint = mix(vec3(0.6, 0.7, 1.0), vec3(1.0), smoothstep(0.30, 0.62, u.params.y));
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);

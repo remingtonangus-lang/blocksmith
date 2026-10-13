@@ -152,7 +152,7 @@ enum Guns {
         case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
         case "capital_rounds": return "Capital soldiers and citadel crates (never sold)"
         case "rocket_ammo", "arc_cell": return "military base and citadel crates"
-        case GreywallArms.ammo: return "Greywall soldiers and their armouries"
+        case GreywallArms.ammo: return "any town gunsmith; Greywall soldiers and their armouries"
         default: return "military crates"
         }
     }

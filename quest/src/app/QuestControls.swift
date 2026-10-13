@@ -1050,6 +1050,7 @@ final class QuestControls {
     }
 
     // The laser on the menu panel drives the game's mouse.
+    private var lastLaser = V2(-100, -100)
     private func menuPointer(_ R: XRHand) {
         let (rx, uy, n) = panelAxes()
         let denom = simd_dot(aimDir, n)
@@ -1068,8 +1069,18 @@ final class QuestControls {
         let trig = R.trigger > 0.6, grip = R.squeeze > 0.6
         if let uv {
             let mx = uv.x * Float(QuestControls.panelW), my = uv.y * Float(QuestControls.panelH)
-            if abs(mx - input.mouseX) + abs(my - input.mouseY) > 0.5 { input.mouseMoved = true }
-            input.mouseX = mx; input.mouseY = my
+            // P176 (Oct 13: "I'm not able to use the left slider still"): the left stick moves the menu cursor and
+            // parks the mouse at -1; comparing the laser with that every frame counted as a laser move and snapped the
+            // cursor straight back under the laser. Only the laser itself moving (2 px) takes the cursor back.
+            let laserMoved = abs(mx - lastLaser.x) + abs(my - lastLaser.y) > 2
+            lastLaser = V2(mx, my)
+            if laserMoved || (input.mouseX >= 0 && trig && !prevTrigger) {
+                if abs(mx - input.mouseX) + abs(my - input.mouseY) > 0.5 { input.mouseMoved = true }
+                input.mouseX = mx; input.mouseY = my
+            } else if input.mouseX >= 0 {
+                input.mouseX = mx; input.mouseY = my
+            }
+            if trig && !prevTrigger && input.mouseX < 0 { input.mouseX = mx; input.mouseY = my; input.mouseMoved = true }
             if trig && !prevTrigger { input.leftClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
             if grip && !prevGrip { input.rightClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
             input.leftDown = trig
