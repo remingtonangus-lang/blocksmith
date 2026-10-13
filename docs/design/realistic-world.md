@@ -194,6 +194,19 @@ Shipped on the Quest (Polygons (Smooth) worlds; the Mac compiles and keeps cubes
 - Cost (optimized questcheck, x86, dark forest, 25 chunks): meshing +33% over smooth terrain without detail; far ring
   (beyond 5 chunks) draws cubes for trunks and objects, so render distance 12-16 pays only for the near rings.
 
+## Status (slice 2, Oct 13)
+- Bites (`World.bites`, `Craters.swift`): a pickaxe step (each eighth of mining progress), a round or a blast leaves a
+  rough bowl where it struck: on smooth ground along the swing (so it lands on the drawn surface), on cube faces along
+  the face. The mesher subdivides only the quads a bowl reaches, with grid lines clustered round each bite, into the
+  detail stream; the bowl shows the struck block's own material, darker in the deep part. 8 bites a block, 4096 blocks.
+- Chips (`Fracture.bite`) fly from where the tool touched; a mined-through block splits into 5 Voronoi pieces that
+  slump into a pile; a blast splits its 16 nearest broken blocks into 4 pieces each and throws them, and kicks pieces
+  already lying round.
+- Debris (`DebrisWorld`, `DebrisField`): rigid bodies on the drawn ground (`WorldGround`: the field's crossing over
+  natural ground, collision boxes elsewhere), sleeping when still, fading after 8 s at rest. 160 live pieces, 64 new a
+  frame. Step cost (optimized host build, 27 pieces): 0.4 ms mean, 0.7 ms worst.
+- Mining times, drops and collision are unchanged (a bitten block keeps its whole box until it breaks).
+
 ## Decisions taken (defaults, noted per Remington's autonomy rule)
 - The block grid stays the save and gameplay truth; nothing new is saved.
 - Detail meshes are Quest-only; the Mac keeps cubes for these shapes and must only compile.
