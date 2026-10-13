@@ -125,15 +125,23 @@ enum NavyTests {
         g.player.pos = V3(a.x + 20, Float(w.topY(Int(floor(a.x + 20)), Int(floor(a.z))) + 1), a.z)
         g.mobs.mobs = []
         st.target = CapTarget(point: g.player.pos, vel: .zero, player: true)
+        // T8: never over open water: a player swimming gets no party. On a dry pad the parties come by launch (the
+        // troop-drop path); two, then no more.
+        st.partyCD = 0
+        w.ships.boardingParty(s, st, 0.05, g)
+        let wet = st.parties
+        let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z)), ty = w.topY(px, pz)
+        let overWater = Blocks.isLiquid(w.block(px, ty, pz))
+        for dz in -8...8 { for dx in -8...8 { w.setBlock(px + dx, ty, pz + dz, STONE) } }
+        g.player.pos.y = Float(ty + 1)
+        st.parties = 0
         var counts: [Int] = []
         for _ in 0..<3 {
             st.partyCD = 0
             w.ships.boardingParty(s, st, 0.05, g)
-            counts.append(g.mobs.mobs.count)
+            counts.append(st.parties)
         }
-        let aegis = g.mobs.mobs.filter { $0.isAegis }
-        let grounded = g.mobs.mobs.allSatisfy { abs($0.pos.y - g.player.pos.y) < 12 }
-        check(counts == [3, 6, 6] && aegis.count == 2 && aegis.allSatisfy { $0.shield == Navy.shieldMax } && grounded,
-              "navy boarding: a hunting frigate lowers two parties of three (\(counts)), each led by a shielded Aegis Marine, then no more")
+        check((!overWater || wet == 0) && counts == [1, 2, 2],
+              "navy boarding: none over open water (\(overWater ? "\(wet) sent to a swimmer" : "dry fixture")); on dry ground two boarding launches (\(counts)), then no more")
     }
 }

@@ -625,6 +625,7 @@ final class ShipManager {
     // Capital ships (CapitalShips.swift): built on a worker thread, handed over here; per-ship AI state.
     let capitalLock = NSLock()
     var capitalReady: [([Ship], CapitalState)] = []
+    var navyParties: [String: Int] = [:]          // T8: boarding parties a region's frigate has sent (navyparties.json)
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
 
@@ -971,6 +972,9 @@ final class ShipManager {
         if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions.subtracting(afloat)).sorted()) {
             try? d.write(to: r, options: .atomic)
         }
+        if let r = world.save?.dir.appendingPathComponent("navyparties.json"), !navyParties.isEmpty, let d = try? JSONEncoder().encode(navyParties) {
+            try? d.write(to: r, options: .atomic)
+        }
         guard let d = encode() else {
             if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
             return
@@ -981,6 +985,8 @@ final class ShipManager {
     private func load() {
         if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? Data(contentsOf: r),
            let a = try? JSONDecoder().decode([String].self, from: d) { spawnedRegions = Set(a) }
+        if let r = world.save?.dir.appendingPathComponent("navyparties.json"), let d = try? Data(contentsOf: r),
+           let a = try? JSONDecoder().decode([String: Int].self, from: d) { navyParties = a }
         guard let url, let d = try? Data(contentsOf: url) else { return }
         decode(d)
     }
