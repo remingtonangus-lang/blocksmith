@@ -441,6 +441,7 @@ enum Countries {
         posts(g)
         wars(g)
         WarFront.ambience(g)
+        g.frontBattleTick()                                     // T12: battles you can join (FrontBattles.swift)
         lastPos = p
         hud = makeHud(g)
     }
@@ -673,6 +674,13 @@ enum Countries {
         for a in block { for b in block where a.key < b.key && abs(a.cx - b.cx) + abs(a.cz - b.cz) == 1 { pairs.append((a, b)) } }
         let seed = g.world.seed
         WarFront.fade()
+        // T12: wars elsewhere on the map keep going while you are away (their fronts move, towns change hands; the
+        // news only reaches you near them, WarFront.day). Each war is fought once a day, near you or not.
+        let nearKeys = Set(pairs.map { warKey($0.0.key, $0.1.key) })
+        for k in state.wars.keys.sorted() where !nearKeys.contains(k) {
+            let ks = k.split(separator: "|").map(String.init)
+            if ks.count == 2, let a = byKey(g, ks[0]), let b = byKey(g, ks[1]) { pairs.append((a, b)) }
+        }
         for (a, b) in pairs {
             let k = warKey(a.key, b.key)
             let h = Townsfolk.mix(a.cx * 7 + b.cx, a.cz * 7 + b.cz, seed ^ UInt64(bitPattern: Int64(day)) &* 0x2545F4914F6CDD1D)

@@ -629,6 +629,13 @@ enum OverworldStructures {
         w.chest(supply.0, supply.1, supply.2, loot: "shipwreck_supply", seed: rng.next(), facing: 2)
         w.chest(treasure.0, treasure.1, treasure.2, loot: "shipwreck_treasure", seed: rng.next(), facing: 3)
         w.chest(map.0, map.1, map.2, loot: "shipwreck_map", seed: rng.next(), facing: 0)
+        // T15: a wreck run aground with her deck out of the sea is often a corsair camp (a hash, not the rng: every
+        // other block of the wreck stays as it was).
+        if y + 5 > SEA && hashf(cx, cz, 0xC0A5, UInt32(truncatingIfNeeded: seed)) < 0.45 {
+            for (k, (a, b)) in [(-5, 1), (0, -1), (4, 1)].enumerated() where !(broken && a >= 4) {
+                w.mob(k == 1 ? "soldier_marksman@corsair" : "soldier_trooper@corsair", V3(Float(cx + a * dir) + 0.5, Float(y + 5), Float(cz + b) + 0.5))
+            }
+        }
     }
 
     static func WATER_IF_BELOW_SEA(_ y: Int) -> BlockID { y <= SEA ? WATER : AIR }

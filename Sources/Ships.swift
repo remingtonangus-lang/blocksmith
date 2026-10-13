@@ -766,6 +766,7 @@ final class ShipManager {
         // P93: a wreck's rotten planks hold it to the seabed until they're replaced.
         let rot = Wrecks.rottenCount(w, main)
         if rot > 0 { return (nil, "This hull is rotten in \(rot) place\(rot == 1 ? "" : "s"): replace the rotten planks with any planks to raise it") }
+        if Wrecks.openBow(w, main) { return (nil, "Her bow is open to the sea: build it back up with planks to the deck so she holds air, then raise her") }
         var taken = Set(main)
         var turrets: [(IVec3, [IVec3])] = []
         for c in main where kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring {

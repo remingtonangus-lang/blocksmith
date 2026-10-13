@@ -50,6 +50,7 @@ extension Game {
 
     // A soldier the player killed (Game.soldierDied).
     func repSoldierKilled(_ m: Mob) {
+        if frontBattleKilled(m) { return }                             // T12: a country's soldier on the front
         guard m.killedByPlayer, !m.hired else { return }
         let f = m.factionValue
         guard FactionRep.tracked.contains(f) else { return }
@@ -59,6 +60,8 @@ extension Game {
 
     // An ally's soldier holds fire unless the player hurt one of them in the last minute.
     func repAllied(_ m: Mob) -> Bool {
+        // T12: soldiers in a front battle hold fire at you until you hurt their side (FrontBattles.swift).
+        if let i = FrontBattle.side(m) { return !(FrontBattle.current?.angered.contains(i) ?? false) && clock - m.playerHurtAt > 60 }
         let f = m.factionValue
         guard FactionRep.tracked.contains(f), FactionRep.of(f) >= FactionRep.allyAt else { return false }
         return clock - m.playerHurtAt > 60
