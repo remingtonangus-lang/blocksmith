@@ -7,6 +7,9 @@ struct SectionMesh {
     var vis: UInt64 = ~0    // face-to-face connectivity through open cells (bit a*6+b), for cave culling
     var solidQuads = 0      // opaque = solid quads first (no alpha test: keeps the GPU's hidden-surface removal), then cutout
     var leafy = true        // has faces between leaf blocks (false: lod 0 and 2 mesh the same, no remesh across that ring)
+    // Realistic world (DetailMesh): round shapes in 16-byte vertices, solid quads first, then alpha-tested ones.
+    var detail: [UInt32] = []
+    var detailSolid = 0
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -34,6 +37,16 @@ enum Mesher {
     #else
     static var plantSway = true
     #endif
+    // Realistic world (docs/design/realistic-world.md): in polygon worlds trunks, limbs and organic objects are drawn as
+    // round shapes in the section's detail stream (DetailMesh) instead of cubes. Quest only: the Mac's renderer has no
+    // detail pipeline, so its sections keep the cubes. BLOCKSMITH_DETAIL=0 keeps the cubes (side by side shots).
+    #if os(macOS)
+    static var detailMeshes = false
+    #else
+    static var detailMeshes = ProcessInfo.processInfo.environment["BLOCKSMITH_DETAIL"] != "0"
+    #endif
+    // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
+    static let detailT: [Bool] = ShapeClass.kind.map { $0 == .trunk }
 
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
     static let dark = [UInt8](repeating: 0, count: 4096)
@@ -234,7 +247,7 @@ enum Mesher {
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             smoothOK: Bool = true, site: SmoothSite? = nil) -> SectionMesh {
+                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -265,6 +278,7 @@ enum Mesher {
         let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
         let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
+        let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
@@ -369,6 +383,7 @@ enum Mesher {
         // block keeps its face against it (else sky shows through the gap); buried natural cells still hide faces.
         func smoothOpen(_ j: Int) -> Bool {
             if leafBlob && leafT[Int(R[j])] { return true }      // (a blob rounds away from a log or a built block)
+            if detail && detT[Int(R[j])] { return true }         // (a round trunk doesn't fill its block)
             guard smooth && natT[Int(R[j])] else { return false }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
             return false
@@ -476,7 +491,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
@@ -497,6 +512,7 @@ enum Mesher {
                         continue
                     }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
+                    if detail && detT[bi] { continue }                  // (round shapes: the detail generators below)
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
@@ -880,6 +896,14 @@ enum Mesher {
                 }
             }
         }
+        // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks), into the detail stream.
+        let det = sc.det, detCut = sc.detCut
+        det.count = 0; detCut.count = 0
+        if detail {
+            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: (chunk?.x ?? site?.cx ?? 0) * CS, wy0: sy * 16, wz0: (chunk?.z ?? site?.cz ?? 0) * CS,
+                                    lod: lod, sc: sc, srcs: srcs, sy: sy)
+            ShapeTrunks.emit(ctx)
+        }
         if smooth {
             if leafBlob {
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
@@ -964,7 +988,14 @@ enum Mesher {
         opaqueOut.reserveCapacity(opq.count + cut.count)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: opq.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
-        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy)
+        var detailOut = [UInt32]()
+        if det.count + detCut.count > 0 {
+            detailOut.reserveCapacity(det.count + detCut.count)
+            detailOut.append(contentsOf: UnsafeBufferPointer(start: det.ptr, count: det.count))
+            detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
+        }
+        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1066,6 +1097,7 @@ final class MeshScratch {
     let stack = UnsafeMutablePointer<Int32>.allocate(capacity: 4096)
     let queue = GrowBuf<Int32>(1 << 16)
     let opq = GrowBuf<UInt32>(1 << 14), cut = GrowBuf<UInt32>(1 << 12), trn = GrowBuf<UInt32>(1 << 12)
+    let det = GrowBuf<UInt32>(1 << 12), detCut = GrowBuf<UInt32>(1 << 10)     // realistic world: DetailMesh vertices
     // Smooth terrain (SmoothTerrain.swift): solid flags, density, dual vertices (xyz, light | ao << 8, normal, pinned,
     // relaxation scratch), each with SmoothTerrain.maxRelax blocks of ring past a section's own.
     static let smN0 = 20 + 2 * SmoothTerrain.maxRelax, smM0 = 18 + 2 * SmoothTerrain.maxRelax, smK0 = 17 + 2 * SmoothTerrain.maxRelax

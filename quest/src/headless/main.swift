@@ -383,6 +383,8 @@ if CommandLine.arguments.contains("--p12-only") {
     print(failures == 0 ? "p12: all checks passed" : "p12: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --smooth2-only: polygon terrain round 2 (Sources/SmoothRound2Tests.swift, backlog P106).
+// --shapecensus: the realistic world's shape class of every block (Sources/ShapeClass.swift).
+if CommandLine.arguments.contains("--shapecensus") { print(ShapeClass.census()); exit(0) }
 if CommandLine.arguments.contains("--smooth2-only") {
     SmoothRound2Tests.run(game, check: check)
     print(failures == 0 ? "smooth2: all checks passed" : "smooth2: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

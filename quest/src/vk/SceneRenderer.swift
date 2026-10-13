@@ -303,7 +303,7 @@ final class SceneRenderer {
         renderPass = rp!
     }
 
-    enum Input { case none, chunk, ship, simple, mob, entity, hud }
+    enum Input { case none, chunk, detail, ship, simple, mob, entity, hud }
     struct PipeDesc {
         var vert: String, frag: String
         var input: Input = .none
@@ -345,6 +345,13 @@ final class SceneRenderer {
             bindings = [VkVertexInputBindingDescription(binding: 0, stride: 8, inputRate: vtx),
                         VkVertexInputBindingDescription(binding: 1, stride: 16, inputRate: inst)]
             attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: VK_FORMAT_R32G32_UINT, offset: 0),
+                     VkVertexInputAttributeDescription(location: 1, binding: 1, format: VK_FORMAT_R32G32B32_SFLOAT, offset: 0),
+                     VkVertexInputAttributeDescription(location: 2, binding: 1, format: VK_FORMAT_R32_UINT, offset: 12)]
+        case .detail:
+            // Realistic world: round shapes (DetailMesh, 16-byte vertices) with the same section records.
+            bindings = [VkVertexInputBindingDescription(binding: 0, stride: 16, inputRate: vtx),
+                        VkVertexInputBindingDescription(binding: 1, stride: 16, inputRate: inst)]
+            attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: VK_FORMAT_R32G32B32A32_UINT, offset: 0),
                      VkVertexInputAttributeDescription(location: 1, binding: 1, format: VK_FORMAT_R32G32B32_SFLOAT, offset: 0),
                      VkVertexInputAttributeDescription(location: 2, binding: 1, format: VK_FORMAT_R32_UINT, offset: 12)]
         case .ship:
@@ -439,6 +446,8 @@ final class SceneRenderer {
         let defs: [String: PipeDesc] = [
             "solid": PipeDesc(vert: "chunk.vert", frag: "chunk_solid.frag", input: .chunk),
             "cut": PipeDesc(vert: "chunk.vert", frag: "chunk_cut.frag", input: .chunk),
+            "detail": PipeDesc(vert: "chunk_detail.vert", frag: "chunk_solid.frag", input: .detail),
+            "detailCut": PipeDesc(vert: "chunk_detail.vert", frag: "chunk_cut.frag", input: .detail, cull: none),
             // Translucent faces cull their backs from above the water: with no depth write and no per-face sorting, the
             // inner side faces of a pool's edge, a drop-off or a waterfall blended over the surface in front of them (the
             // "see-through glitch" at water edges, Quest v63). Under water the surface is seen from below: no culling.
@@ -895,7 +904,7 @@ final class SceneRenderer {
 
     private var boundVerts: QuestBuffer?
     private var boundTints: QuestBuffer?
-    private func drawSection(_ s: Slot, _ i: Int, _ slice: MeshSlice, _ tb: MeshSlice, first: Int, count: Int) {
+    private func drawSection(_ s: Slot, _ i: Int, _ slice: MeshSlice, _ tb: MeshSlice, first: Int, count: Int, stride: Int = 8) {
         guard let vb = slice.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { return }
         drawCalls += 1; drawnQuads += count
         if tbuf !== boundTints, let set = tintSet(tbuf) {
@@ -909,7 +918,7 @@ final class SceneRenderer {
             vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
             boundVerts = vb
         }
-        vkCmdDrawIndexed(s.cmd, UInt32(count * 6), 1, UInt32(first * 6), Int32(slice.offset / 8), UInt32(i))
+        vkCmdDrawIndexed(s.cmd, UInt32(count * 6), 1, UInt32(first * 6), Int32(slice.offset / stride), UInt32(i))
     }
 
     private func bindTerrainBuffers(_ s: Slot) {
@@ -939,27 +948,33 @@ final class SceneRenderer {
         let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
         let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
         var used = 0
-        for pass in 0..<2 {
-            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(pass == 0 ? "solid" : "cut"))
+        for pass in 0..<4 {
+            // Passes: terrain solid, terrain cutout, then the realistic world's round shapes (16-byte vertices) solid and cutout.
+            let detail = pass >= 2
+            if detail && !anyDetail { break }
             batchKeys.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true)
             pendingDraws.removeAll(keepingCapacity: true)
             for i in 0..<nRec {
                 let (c, sy, _) = visible[i]
                 let sec = c.sections[sy]
-                guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf,
+                let quads = detail ? sec.detailQuads : sec.opaqueQuads
+                guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf,
                       let vb = buf.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { continue }
-                let total = min(sec.opaqueQuads, SceneRenderer.maxQuads), solid = min(sec.solidQuads, total)
-                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
+                let first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
                 if count <= 0 { continue }
                 var k = 0
                 while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
                 if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0) }
                 batchCount[k] += 1
                 pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(count * 6), instanceCount: 1, firstIndex: UInt32(first * 6),
-                                                                     vertexOffset: Int32(buf.offset / 8), firstInstance: UInt32(i))))
+                                                                     vertexOffset: Int32(buf.offset / (detail ? 16 : 8)), firstInstance: UInt32(i))))
                 drawnQuads += count
             }
+            if pendingDraws.isEmpty { continue }
             guard used + pendingDraws.count <= cap else { break }
+            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][pass]))
+
             // Each group's commands side by side (stable: near to far within a group).
             batchStart.removeAll(keepingCapacity: true)
             var at = used
@@ -997,20 +1012,26 @@ final class SceneRenderer {
     func drawOpaque(_ s: Slot) {
         drawCalls = 0; drawnQuads = 0; batchedSections = 0
         bindTerrainBuffers(s)
+        anyDetail = false
+        for i in 0..<nRec { let (c, sy, _) = visible[i]; if c.sections[sy].detailQuads > 0 { anyDetail = true; break } }
         if SceneRenderer.batchDraws && batchable && s.indirect != nil { drawOpaqueBatched(s); return }
-        for pass in 0..<2 {
-            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(pass == 0 ? "solid" : "cut"))
+        for pass in 0..<4 {
+            let detail = pass >= 2
+            if detail && !anyDetail { break }
+            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][pass]))
             for i in 0..<nRec {
                 let (c, sy, _) = visible[i]
                 let sec = c.sections[sy]
-                guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
-                let total = min(sec.opaqueQuads, SceneRenderer.maxQuads), solid = min(sec.solidQuads, total)
-                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                let quads = detail ? sec.detailQuads : sec.opaqueQuads
+                guard quads > 0, let buf = detail ? sec.detailBuf : sec.opaqueBuf, let tb = c.tintBuf else { continue }
+                let total = min(quads, SceneRenderer.maxQuads), solid = min(detail ? sec.detailSolid : sec.solidQuads, total)
+                let first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
                 if count <= 0 { continue }
-                drawSection(s, i, buf, tb, first: first, count: count)
+                drawSection(s, i, buf, tb, first: first, count: count, stride: detail ? 16 : 8)
             }
         }
     }
+    private var anyDetail = false
 
     // Water and other translucent faces, far to near.
     func drawTranslucent(_ s: Slot, underwater: Bool = false) {

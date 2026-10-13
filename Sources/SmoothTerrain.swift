@@ -33,23 +33,9 @@ enum SmoothTerrain {
     // The world's own choice (Game.smoothTerrain), unless the command line forces a mode.
     static func use(world on: Bool, world w: World?) { set(forced ?? on, world: w) }
 
-    static let naturalNames: Set<String> = [
-        "stone", "dirt", "grass_block", "snowy_grass_block", "coarse_dirt", "rooted_dirt", "podzol", "mycelium", "mud",
-        "clay", "sand", "red_sand", "gravel", "sandstone", "red_sandstone", "snow_block", "deepslate", "emberslate",
-        "andesite", "diorite", "granite", "tuff", "calcite", "dripstone_block", "moss_block", "smooth_basalt",
-        "terracotta", "netherrack", "soul_soil", "blackstone", "end_stone",
-        // P106 ("some cave areas did not smooth"): the rest of what lines caves (the cave survey, SmoothRound2Tests).
-        "basalt", "magma_block", "amethyst_block", "budding_amethyst", "sculk", "packed_ice", "blue_ice",
-        "infested_stone", "infested_deepslate", "soul_sand", "crimson_nylium", "warped_nylium",
-    ]
-    // Per block state: meshes as smooth ground.
-    static let natural: [Bool] = (0..<Blocks.count).map { i in
-        let id = BlockID(i)
-        guard Blocks.opaque[i] && Blocks.render[i] == RenderType.cube.rawValue else { return false }
-        let n = Blocks.key(id)
-        if naturalNames.contains(n) || n.hasSuffix("_ore") { return true }
-        return n.hasSuffix("_terracotta") && !n.contains("glazed")
-    }
+    // Per block state: meshes as smooth ground: the realistic world's terrain class (ShapeClass: natural ground and rock
+    // the generators lay down, ores, plus the round-2 cave survey's list).
+    static let natural: [Bool] = ShapeClass.kind.map { $0 == .terrain }
 
     // Per block state: a built shape the ground must meet exactly (crafted solids, paths, farmland, fences, logs...).
     // Surface vertices touching one sit on the block corner instead of rounding, so no notch opens under its edge.
@@ -58,6 +44,8 @@ enum SmoothTerrain {
         if natural[i] || n == "snow" || n.hasSuffix("_leaves") { return false }
         return Blocks.opaque[i] || Blocks.collide[i]
     }
+    // ...with the realistic world's round shapes (Mesher.detailT) open: the ground runs under a trunk's root flare.
+    static let pinsDetail: [Bool] = (0..<Blocks.count).map { pins[$0] && !Mesher.detailT[$0] }
 
     // Common rock the smooth mesher shows as the majority round a block (P142): never ores, magma or soil.
     static let rockIDs: [Int] = ["stone", "deepslate", "emberslate", "blackstone", "basalt", "smooth_basalt", "tuff", "andesite",
@@ -155,11 +143,12 @@ extension Mesher {
     // outer shell and a darker one 0.45 block inside it, so the leaf texture's holes show leaves behind, not the sky.
     // `leafHoles`: the ground pass treats leaves as open (their blobs mesh apart and the ground under a bush shows).
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil, sy: Int = 0,
-                            leaves: Bool = false, leafHoles: Bool = false,
+                            leaves: Bool = false, leafHoles: Bool = false, detailHoles: Bool = false,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
-        let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
+        let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
+        let detT = Mesher.detailT
         let skyL = sc.sky, blkL = sc.blk
         func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
 
@@ -175,7 +164,7 @@ extension Mesher {
         let S = sc.smS
         for y in 0..<N { for z in 0..<N { for x in 0..<N {
             let b = Int(R[ri(x - SO, y - SO, z - SO)])
-            S[x + z * N + y * NN] = (leaves ? leafT[b] : opaqueT[b] && !(leafHoles && leafT[b])) ? 1 : 0
+            S[x + z * N + y * NN] = (leaves ? leafT[b] : opaqueT[b] && !(leafHoles && leafT[b]) && !(detailHoles && detT[b])) ? 1 : 0
         } } }
         // P142: the generator's fields over the same box (SmoothField). A sample is "on field" when its block is what the
         // fields alone make there (and not being dug); only edges between two on-field samples take the field's crossing.
