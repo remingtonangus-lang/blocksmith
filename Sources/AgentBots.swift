@@ -521,7 +521,18 @@ final class LifeBot: AgentBot {
             }
             let c = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
             let d: Float = simd_length(V2(c.x - s.pos.x, c.z - s.pos.z))
-            if d > 2.0 { if sleepDetail != "walking to the bed" { sleepDetail = "walking to the bed"; bedTicks = 0 }; return walk(s, a, to: c) }
+            // There means in reach of it: on its floor with nothing between (2 blocks off through a wall, or a storey
+            // down, the bot stood and clicked the wall).
+            let eye = s.pos + V3(0, 1.62, 0), aimAt = c + V3(0, 0.3, 0)
+            let seen: Bool = d <= 2.0 && abs(c.y - s.pos.y) < 1.2
+                && a.world.raycast(eye, simd_normalize(aimAt - eye), maxDist: simd_length(aimAt - eye) + 0.5).map { h in h.hit.y == b.y && abs(h.hit.x - b.x) + abs(h.hit.z - b.z) <= 1
+                    && Blocks.key(Blocks.groupBase[Int(a.world.block(h.hit.x, h.hit.y, h.hit.z))]).hasSuffix("_bed") } == true
+            // Not from a doorway: there the click lands on the open door the bot stands in (seed 12345: every use
+            // at Ezra Ashby's room hit the spruce door). Step on into the room toward the bed.
+            let fx = Int(floor(s.pos.x)), fy = Int(floor(s.pos.y + 0.1)), fz = Int(floor(s.pos.z))
+            let inDoor = [fy, fy + 1].contains { Blocks.shape[Int(a.world.block(fx, $0, fz))] == "door" }
+            if seen && inDoor { return Steer.toward(s, a, c) }
+            if !seen { if sleepDetail != "walking to the bed" { sleepDetail = "walking to the bed"; bedTicks = 0 }; return walk(s, a, to: c) }
             if sleepDetail != "at the bed" { sleepDetail = "at the bed"; bedTicks = 0 }
             // At the bed: wait for night, then use it.
             if aim(s, c + V3(0, 0.3, 0), into: &act) && s.timeOfDay > 0.525 && s.timeOfDay < 0.95 {

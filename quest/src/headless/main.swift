@@ -199,6 +199,11 @@ if CommandLine.arguments.contains("--rules-only") {
     let n = RulesCheck.run(game)
     print(n == 0 ? "rules: all checks passed" : "rules: \(n) FAILED"); exit(n == 0 ? 0 : 1)
 }
+// --trigger-only: the Mac --questbugs VR trigger spam check (Sources/TriggerSpamCheck.swift).
+if CommandLine.arguments.contains("--trigger-only") {
+    TriggerSpamCheck.run(game, check: check)
+    print(failures == 0 ? "trigger: all checks passed" : "trigger: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --sizes-only: C13 town sizes (Sources/TownSizesTests.swift).
 if CommandLine.arguments.contains("--sizes-only") {
     TownSizesTests.run(game, check: check)
