@@ -1192,6 +1192,25 @@ enum ItemArt {
             "................",
             "................",
         ],
+        // C8 Submarine Kit (Submarines.swift): a cigar hull with its tower and screw, low in the waves.
+        "submarine": [
+            "................",
+            "................",
+            "................",
+            "......dd........",
+            "......cd........",
+            ".....cccd.......",
+            ".....cccd.......",
+            "..ccccccccccc...",
+            ".ccccccccccccce.",
+            "cceccecceccccc.e",
+            ".cccccccccccce.e",
+            "..1111111111e...",
+            "fggffggffggffggf",
+            "gffggffggffggffg",
+            "................",
+            "................",
+        ],
         // A4 Sky Skiff Kit (SkySkiff.swift): a folded envelope over a little gondola.
         "airship": [
             "................",

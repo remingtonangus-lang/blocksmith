@@ -764,7 +764,7 @@ final class BlockRegistry {
             let d0 = defs[i]
             let shp = d0.shape
             let ok = i == base && fluidLevel[i] < 0 && (shp == "stairs" || shp == "slab" || shp == "ladder" || shp == "lantern"
-                || d0.render == .connect)
+                || d0.render == .connect || d0.name == "sea_mine")       // (C8: a mine moored in water holds the water round it)
             if ok {
                 let gk = (d0.group ?? d0.name) + "~wl"
                 for s in i..<end {

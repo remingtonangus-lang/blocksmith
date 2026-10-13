@@ -53,7 +53,7 @@ final class MapFog {
     }
 
     func save(_ g: Game) {
-        guard dirty, let u = url(g) else { return }
+        guard dirty, let u = url(g), g.save?.dir.lastPathComponent == world else { return }   // (only this world's own fog)
         dirty = false
         let out = tiles.mapValues { $0.sorted() }
         if let d = try? JSONEncoder().encode(out) { try? d.write(to: u, options: .atomic) }

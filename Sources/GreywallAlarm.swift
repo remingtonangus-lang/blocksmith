@@ -26,7 +26,7 @@ final class GreywallAlarmState {
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
     }
     // A truck bringing a squad (in memory: a reload finds the road empty).
-    struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var t: Float = 0; var unloaded = false }
+    struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
     var trucks: [Truck] = []
     var taken: Set<String> = []                     // bases the player has taken (saved: Effects.swift "greywallTaken")
     static let holdFor: Float = 10
@@ -305,7 +305,11 @@ extension Game {
             var t = st.trucks[i]
             let m = t.mob
             if m.health <= 0 || !mobs.mobs.contains(where: { $0 === m }) {
-                if !t.unloaded {
+                if !t.unloaded, let f = t.hunters {
+                    t.unloaded = true
+                    let at = m.pos
+                    radioTruckSquad(f, t.squad, at: { k in at + V3(Float(k - 1) * 1.2, 0, 2) })
+                } else if !t.unloaded {
                     t.unloaded = true
                     let at = m.pos
                     greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
@@ -321,6 +325,12 @@ extension Game {
                 // At the stop: three soldiers jump down from the tailgate (behind the truck: +z from it).
                 t.unloaded = true; t.t = 0
                 let at = m.pos
+                if let f = t.hunters {
+                    let back = V3(sinf(m.yaw), 0, cosf(m.yaw)) * 3.2, side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+                    radioTruckSquad(f, t.squad, at: { k in at + back + side * (Float(k) - 1.5) * 1.2 })
+                    sfx(.gun(12), 0.6, at: at)
+                    st.trucks[i] = t; continue
+                }
                 greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
                                     at: { k in V3(at.x + Float(k - 1) * 1.3, at.y, at.z + 3.2) })
                 sfx(.gun(12), 0.6, at: at)

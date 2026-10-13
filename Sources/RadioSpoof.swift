@@ -48,8 +48,27 @@ final class RadioState {
     var burned: Set<String> = []               // consoles whose net never answers again
     var alertUntil: [Int: Double] = [:]        // faction -> clock its bases stay on alert until
     var drops: [(at: V3, t: Float, table: String)] = []
+    var convoys = 0, frigateMissions = 0       // counters (harness)
 
     func alerted(_ f: Faction, _ clock: Double) -> Bool { (alertUntil[f.rawValue] ?? -1) > clock }
+
+    // The alert's time left and the crates still in the air, over a quit (Effects "radioAlert", "radioDrops").
+    func savedFlight(_ clock: Double) -> (String, String) {
+        (alertUntil.filter { $0.value > clock }.sorted { $0.key < $1.key }.map { "\($0.key):\(Int($0.value - clock))" }.joined(separator: ";"),
+         drops.map { "\($0.at.x),\($0.at.y),\($0.at.z),\($0.t),\($0.table)" }.joined(separator: ";"))
+    }
+    func loadFlight(_ alert: String, _ inAir: String, clock: Double) {
+        alertUntil = [:]
+        for part in alert.split(separator: ";") {
+            let kv = part.split(separator: ":")
+            if kv.count == 2, let k = Int(kv[0]), let v = Double(kv[1]) { alertUntil[k] = clock + v }
+        }
+        drops = []
+        for part in inAir.split(separator: ";") {
+            let f = part.split(separator: ",").map(String.init)
+            if f.count == 5, let x = Float(f[0]), let y = Float(f[1]), let z = Float(f[2]), let t = Float(f[3]) { drops.append((V3(x, y, z), t, f[4])) }
+        }
+    }
 
     // Effects save/load (strings in the world's extra dictionary).
     var saved: (String, String) {
@@ -103,6 +122,10 @@ extension Game {
         let sus = min(100, (radio.suspicion[f] ?? 0) + add)
         radio.suspicion[f] = sus
         if sus >= 100 { radioFoundOut(n); return (false, "\"Station, authenticate.\" They know. Hunters are coming.") }
+        if strike, let f = radioFrigate(n.faction, near: target) {
+            let eta = radioFrigateStrike(f, at: target)
+            return (true, "\"Fire mission received, \(f.name) firing for effect.\" Missiles on your waypoint in \(Int(eta)) s")
+        }
         if strike {
             for k in 0..<3 {
                 let off = V3(Rand.float(in: -4...4), 0, Rand.float(in: -4...4))
@@ -117,6 +140,39 @@ extension Game {
         return (true, "\"Copy, a crate is on its way to your yard.\"")
     }
 
+    // A frigate of the net's faction that can fire the mission: in the air or afloat, crewed, within the guns' reach.
+    func radioFrigate(_ f: Faction, near t: V3) -> Ship? {
+        var best: Ship?, bd = RadioNet.strikeReach
+        for s in world.ships.capitals where s.factionValue == f && !s.wrecked && !s.captured && s.role != "crawler" {
+            let d = simd_length(V2(s.pos.x - t.x, s.pos.z - t.z))
+            if d < bd { bd = d; best = s }
+        }
+        return best
+    }
+
+    // Three missiles from the frigate's hull, steered onto the grid (ShipCombat kind 2), the red smoke on the ground
+    // until they arrive. Returns the seconds until the first lands.
+    @discardableResult
+    func radioFrigateStrike(_ s: Ship, at target: V3) -> Float {
+        let speed: Float = 45
+        let top = V3(s.pos.x, s.worldMax.y + 2, s.pos.z)
+        let eta = simd_length(target - top) / speed + 1
+        for k in 0..<3 {
+            let aim = target + V3(Rand.float(in: -4...4), 0, Rand.float(in: -4...4))
+            let sh = Shell(pos: top + V3(Float(k - 1) * 2, 0, 0), vel: V3(0, speed, 0) + s.vel, owner: s.id, power: 4)
+            sh.kind = 2
+            sh.gravity = 0
+            sh.life = eta + 8
+            sh.age = -Float(k) * 0.4
+            sh.seekPoint = aim
+            world.ships.shells.append(sh)
+            ashStrikes.append(AshStrike(at: aim, t: eta + Float(k) * 0.4, power: 0, from: nil, by: s.name, shell: false))
+        }
+        sfx(.fireworkLaunch, 1, at: top)
+        radio.frigateMissions += 1
+        return eta
+    }
+
     // Found out: the console's net is dead, the faction on alert, a hunter squad on its way.
     func radioFoundOut(_ n: RadioNet.Net) {
         radio.burned.insert(n.key)
@@ -127,24 +183,85 @@ extension Game {
         }
         let a = Rand.float(in: 0..<(2 * .pi))
         let c = player.pos + V3(cosf(a), 0, sinf(a)) * RadioNet.hunterRange
-        let tag = n.faction == .greywall ? "@grey" : ""
-        for (i, k) in ["soldier_officer", "soldier_trooper", "soldier_trooper", "soldier_marksman"].enumerated() {
-            let x = Int(floor(c.x)) + i - 2, z = Int(floor(c.z)) + (i % 2)
-            let y = world.isLoaded(x, z) ? Float(world.topY(x, z) + 1) : player.pos.y
-            guard let m = Mob.structureMob(k + tag, at: V3(Float(x) + 0.5, y, Float(z) + 0.5)) else { continue }
-            if n.faction == .steelhold { m.faction = Faction.steelhold.rawValue }
+        if radioConvoy(n.faction) {
+            onToast?("Your radio cover is blown: a truck convoy of hunters is coming for you")
+            sfx(.gun(10), 1, at: player.pos)
+            return
+        }
+        radioHunters(n.faction, kinds: ["soldier_officer", "soldier_trooper", "soldier_trooper", "soldier_marksman"], lead: true,
+                     at: { i in
+                         let x = Int(floor(c.x)) + i - 2, z = Int(floor(c.z)) + (i % 2)
+                         let y = self.world.isLoaded(x, z) ? Float(self.world.topY(x, z) + 1) : self.player.pos.y
+                         return V3(Float(x) + 0.5, y, Float(z) + 0.5) })
+        onToast?("Your radio cover is blown: a hunter squad is coming for you")
+        sfx(.gun(10), 1, at: player.pos)
+    }
+
+    // The hunter squad: soldiers of the faction who know where the player is (the lead a Spec Ops trooper).
+    func radioHunters(_ f: Faction, kinds: [String], lead: Bool, at: (Int) -> V3) {
+        let tag = f == .greywall ? "@grey" : ""
+        for (i, k) in kinds.enumerated() {
+            guard let m = Mob.structureMob(k + tag, at: at(i)) else { continue }
+
+            if f == .steelhold { m.faction = Faction.steelhold.rawValue }
             m.leash = nil
-            if i == 0 { m.setTroop(.specOps, rearm: true) }
+            if i == 0 && lead { m.setTroop(.specOps, rearm: true) }
             m.persistent = false
             m.aggro = true
             m.soldierBrain.ready = true
             m.soldierBrain.lastSeen = player.pos; m.soldierBrain.seenAgo = 0
             m.lockTime = 60
-            m.customName = i == 0 ? "Hunter Lead" : nil
+            m.customName = i == 0 && lead ? "Hunter Lead" : nil
             mobs.mobs.append(m)
         }
-        onToast?("Your radio cover is blown: a hunter squad is coming for you")
-        sfx(.gun(10), 1, at: player.pos)
+    }
+
+    // A convoy truck's squad: the hunter squad off the first, three more off the second.
+    func radioTruckSquad(_ f: Faction, _ k: Int, at: (Int) -> V3) {
+        radioHunters(f, kinds: k == 0 ? ["soldier_officer", "soldier_trooper", "soldier_trooper", "soldier_marksman"]
+                                      : ["soldier_trooper", "soldier_trooper", "soldier_marksman"], lead: k == 0, at: at)
+    }
+
+    // C6: the military answer comes by road. Two trucks drive in along the ground from 60 blocks out (the first with
+    // the hunter squad, the second 10 blocks behind with three more), stop 14 short of the player and unload; a truck
+    // shot up on the way unloads where it dies (GreywallAlarm.greywallTrucksTick drives them). False where no
+    // loaded, drivable road reaches the player (the squad comes on foot).
+    func radioConvoy(_ f: Faction) -> Bool {
+        let p = player.pos
+        let a0 = Rand.float(in: 0..<(2 * .pi))
+        for k in 0..<8 {
+            let a = a0 + Float(k) * .pi / 4
+            let dir = V2(cosf(a), sinf(a))
+            // The road out: the ground may climb or drop two blocks a step, no water, 60 blocks.
+            var y = world.isLoaded(Int(floor(p.x)), Int(floor(p.z))) ? world.topY(Int(floor(p.x)), Int(floor(p.z))) : -1
+            var ok = y >= 0
+            var r: Float = 14
+            while ok && r <= 72 {
+                let x = Int(floor(p.x + dir.x * r)), z = Int(floor(p.z + dir.y * r))
+                guard world.isLoaded(x, z) else { ok = false; break }
+                let ny = world.topY(x, z)
+                if abs(ny - y) > 2 || Blocks.isLiquid(world.rawBlock(x, ny, z)) { ok = false; break }
+                y = ny; r += 2
+            }
+            guard ok else { continue }
+            for t in 0..<2 {
+                let back = Float(t) * 10
+                let s2 = V2(p.x, p.z) + dir * (14 + back), o2 = V2(p.x, p.z) + dir * (60 + back)
+                func at(_ q: V2) -> V3 { V3(q.x, Float(world.topY(Int(floor(q.x)), Int(floor(q.y))) + 1), q.y) }
+                let truck = Mob(.ashTruck, at: at(o2))
+                truck.variant = 2
+                truck.customName = f == .greywall ? "Greywall Truck" : "Capital Truck"
+                if f != .greywall { truck.faction = Faction.steelhold.rawValue }
+                truck.persistent = true
+                truck.yaw = atan2f(dir.x, dir.y)                     // facing the player (-dir)
+                mobs.mobs.append(truck)
+                greywallAlarm.trucks.append(GreywallAlarmState.Truck(mob: truck, stop: at(s2), out: at(o2), squad: t, leash: "", src: p,
+                                                                     hunters: f))
+            }
+            radio.convoys += 1
+            return true
+        }
+        return false
     }
 
     // Every frame (CapitalBases.basesTick): suspicion cools, crates land, shells fall (outside the Deep, which runs its own).

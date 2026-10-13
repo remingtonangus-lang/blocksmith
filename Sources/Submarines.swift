@@ -97,12 +97,13 @@ extension Game {
         Submarine.mineTimer += Double(dt)
         if Submarine.mineTimer >= 0.2 { Submarine.mineTimer = 0; minesCheck() }
         sonarTick()
+        enemySubTick(dt)
     }
 
     // A player or a moving vessel close to a sea mine sets it off.
     func minesCheck() {
         guard Blocks.has(Submarine.mineKey), dim.dim == .overworld else { return }
-        let mine = Blocks.id(Submarine.mineKey)
+        let mine = Blocks.id(Submarine.mineKey), wetMine = Blocks.wet[Int(mine)]
         var hot: [IVec3] = []
         func scan(_ lo: V3, _ hi: V3) {
             let r = Submarine.mineReach
@@ -110,14 +111,14 @@ extension Game {
             let z0 = Int(floor(lo.z - r)), z1 = Int(floor(hi.z + r))
             let ya = max(0, y0), yb = min(CH - 1, y1)       // a body below the world or above it has nothing to set off
             guard ya <= yb, (x1 - x0 + 1) * (yb - ya + 1) * (z1 - z0 + 1) <= 8000 else { return }
-            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine { hot.append(IVec3(x, y, z)) } } }
+            for y in ya...yb { for z in z0...z1 { for x in x0...x1 where world.rawBlock(x, y, z) == mine || (wetMine != AIR && world.rawBlock(x, y, z) == wetMine) { hot.append(IVec3(x, y, z)) } } }
         }
         if survival || !Submarine.creativeSafe {
             for i in 0..<max(1, coop.seatCount) { let p = coop.seatPlayer(i, self).pos; scan(p, p + V3(0, 1.8, 0)) }
         }
         for s in world.ships.list where s.parent == nil && !s.asleep && !s.kinematic && simd_length(s.vel) > 0.3 { scan(s.worldMin, s.worldMax) }
         for q in Set(hot) {
-            world.setBlock(q.x, q.y, q.z, AIR)
+            world.setBlock(q.x, q.y, q.z, world.rawBlock(q.x, q.y, q.z) == mine ? AIR : WATER)
             let at = V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)
             sfx(.click, 1, at: at)
             Explosion.explode(at: at, power: 4, game: self)                 // (blasts any hull in reach too)
@@ -133,6 +134,7 @@ extension Game {
             guard simd_length(f.pos - sub.pos) < Submarine.sonarRange else { continue }
             if clock - (Submarine.lastPing[f.id] ?? -100) < Submarine.sonarEvery { continue }
             Submarine.lastPing[f.id] = clock
+            if let st = world.ships.capState[f.id] { st.pingAt = sub.pos; st.pingT = 0 }     // she steers to the ping
             sfx(.click, 1.3, at: sub.pos)
             onToast?("Sonar ping: the navy has heard you")
             depthCharges(from: f, at: sub.pos)
@@ -170,7 +172,7 @@ extension ItemRegistry {
     func registerSubmarineItems() {
         guard !has(Submarine.kitKey) else { return }
         var d = ItemDef(Submarine.kitKey, "Submarine Kit")
-        d.sprite = Sprite(mask: "airship", base: 0x4E565E, extras: ["c": 0x2E3338, "d": 0x8A9096, "e": 0xA8823A])
+        d.sprite = Sprite(mask: "submarine", base: 0x4E565E, extras: ["c": 0x2E3338, "d": 0x8A9096, "e": 0xA8823A, "f": 0x2F5F96, "g": 0x5A8CC4])
         d.maxStack = 1
         add(d)
     }
