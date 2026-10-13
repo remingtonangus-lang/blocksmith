@@ -393,6 +393,11 @@ if CommandLine.arguments.contains("--repair-only") {
     RepairTests.run(game, check: check)
     print(failures == 0 ? "repair: all checks passed" : "repair: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --raids-only: faction raids (Sources/FactionRaidsTests.swift, backlog O5).
+if CommandLine.arguments.contains("--raids-only") {
+    FactionRaidsTests.run(game, check: check)
+    print(failures == 0 ? "raids: all checks passed" : "raids: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)

@@ -433,6 +433,7 @@ extension Game {
         if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
         if !greywallAlarm.taken.isEmpty { d["greywallTaken"] = greywallAlarm.taken.sorted().joined(separator: ";") }
         d["factionRep"] = FactionRep.encode()                                       // O3 (FactionRep.swift)
+        d["factionRaids"] = FactionRaids.encode()                                   // O5 (FactionRaids.swift)
         let rs = radio.saved
         if !rs.0.isEmpty { d["radioSus"] = rs.0 }
         if !rs.1.isEmpty { d["radioBurned"] = rs.1 }
@@ -504,6 +505,7 @@ extension Game {
         }
         greywallAlarm.taken = Set((d["greywallTaken"] ?? "").split(separator: ";").map(String.init))
         FactionRep.decode(d["factionRep"] ?? "")
+        FactionRaids.decode(d["factionRaids"] ?? "")
         radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")
         if let str = d["stationOps"], let data = str.data(using: .utf8), let ops = try? JSONDecoder().decode([StationOp].self, from: data) {
             for o in ops { stationOps[o.key] = o }
