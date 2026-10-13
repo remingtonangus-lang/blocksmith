@@ -36,13 +36,19 @@ extension World {
     // blended by position. A column whose top block is not what the field made there (dug, placed, built) counts as
     // its block top. 0 outside smooth field worlds or off natural ground.
     func smoothGroundOffset(_ pos: V3) -> Float {
+        var key = Int.min, h = SIMD4<Float>(repeating: 0)
+        return smoothGroundOffset(pos, key: &key, heights: &h)
+    }
+
+    // The same with the 4 column heights cached by the caller (mobs): recomputed only when the cell changes.
+    func smoothGroundOffset(_ pos: V3, key: inout Int, heights h: inout SIMD4<Float>) -> Float {
         guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
         let fy = Int(floor(pos.y - 0.01))
         guard SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))] else { return 0 }
         let bx = floor(pos.x - 0.5), bz = floor(pos.z - 0.5)
         let tx = pos.x - 0.5 - bx, tz = pos.z - 0.5 - bz
-        var h = SIMD4<Float>(repeating: 0)
-        for k in 0..<4 {
+        let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40)
+        if ck != key { key = ck; for k in 0..<4 {
             let x = Int(bx) + (k & 1), z = Int(bz) + (k >> 1)
             var top = Float(fy + 1)
             for y in (fy - 1)...(fy + 1) where Blocks.opaque[Int(block(x, y, z))] && !Blocks.opaque[Int(block(x, y + 1, z))] {
@@ -53,7 +59,7 @@ extension World {
                 }
             }
             h[k] = top
-        }
+        } }
         let s = (h[0] * (1 - tx) + h[1] * tx) * (1 - tz) + (h[2] * (1 - tx) + h[3] * tx) * tz
         return max(-0.6, min(0.6, s - Float(fy + 1)))
     }

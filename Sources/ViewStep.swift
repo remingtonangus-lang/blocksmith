@@ -33,7 +33,11 @@ enum ViewStep {
 
 extension Mob {
     // After the mob's update (MobManager.update): a grounded jump in height is a step; the drawn model eases it.
-    func easeStep(fromY y0: Float, wasGround: Bool, _ dt: Float) {
+    // `ground` (P142): the smooth ground's offset under the feet; the model springs toward it like the player's view.
+    func easeStep(fromY y0: Float, wasGround: Bool, _ dt: Float, ground g: Float = 0) {
+        viewDY -= viewGround
+        viewGround += (g - viewGround) * min(1, dt * 10)
+        defer { viewDY += viewGround }
         let d = pos.y - y0
         ViewStep.decay(&viewDY, &viewDV, dt)
         if wasGround && onGround && ViewStep.absorbs(d) { viewDY -= d }
