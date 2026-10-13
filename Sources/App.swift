@@ -129,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             game.smoothTerrain = smooth ?? false
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
+        if meta == nil { game.saveNow() }                     // P107: a new world's meta on disk from the start
         game.sound = soundEngine
         game.sound?.volume = game.volumeSetting
         _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))

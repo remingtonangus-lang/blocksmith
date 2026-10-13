@@ -2042,14 +2042,26 @@ enum HDTex {
                     let fk: Float = 0.9 + 0.2 * fine[i]
                     switch kind {
                     case "observer_front":
-                        // The face: a recessed slot frame with two dark eye slits.
-                        let rows: Bool = (ly == 5 || ly == 10) && lx > 1 && lx < 14
-                        let cols: Bool = (lx == 3 || lx == 12) && ly > 4 && ly < 11
-                        let frame: Bool = rows || cols
-                        let eyeX: Bool = (lx >= 5 && lx <= 6) || (lx >= 9 && lx <= 10)
-                        let eye: Bool = ly >= 7 && ly <= 8 && eyeX
-                        if frame { put(&img, x, y, V3(0.13, 0.13, 0.14) * fk) }
-                        if eye { put(&img, x, y, V3(0.05, 0.05, 0.06) * fk) }
+                        // The face (P110: "the observer needs a new look"): a round glass lens set in a copper ring
+                        // with a dark gasket, a pale glint on the glass, and four copper bolts in the corners.
+                        let dx: Float = (Float(x) + 0.5 - fn / 2) / Float(u), dy: Float = (Float(y) + 0.5 - fn / 2) / Float(u)
+                        let d: Float = (dx * dx + dy * dy).squareRoot()
+                        if d < 3.4 {
+                            let depth: Float = cl(1 - d / 3.4)
+                            var c: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)) + col(0x0A1218) * depth
+                            let gx: Float = dx + 1.3, gy: Float = dy + 1.3
+                            let glint: Float = cl(1 - (gx * gx + gy * gy).squareRoot() / 0.9)
+                            c = c + (col(0xD8F0F8) - c) * (glint * glint)
+                            put(&img, x, y, c)
+                        } else if d < 4.8 {
+                            let bevel: Float = 0.8 + 0.4 * cl((dy * -1 + 4.8) / 9.6)
+                            put(&img, x, y, col(0xB87333) * (bevel * fk))
+                        } else if d < 5.5 {
+                            put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
+                        } else {
+                            let bx: Float = abs(abs(dx) - 5.6), by: Float = abs(abs(dy) - 5.6)
+                            if bx * bx + by * by < 0.5 { put(&img, x, y, col(0xC8884A) * (by < 0.2 && dy < 0 ? 1.2 : 0.95)) }
+                        }
                     case "observer_back", "observer_back_on":
                         let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
                         let d: Float = (dx * dx + dy * dy).squareRoot() / Float(u)
@@ -2062,10 +2074,11 @@ enum HDTex {
                             put(&img, x, y, c)
                         } else if d < 2.8 { put(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
                     case "observer_side":
+                        // A copper signal strip with notches (it carried a plain grey bar).
                         if ly == 7 || ly == 8 {
                             var top: Float = 1
                             if ly == 7 && y % u == 0 { top = 1.25 } else if ly == 8 && y % u == u - 1 { top = 0.7 }
-                            put(&img, x, y, col(0x7A7A7A) * (top * fk))
+                            put(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
                         }
                     default:
                         // Top: a red arrow pointing toward the face.

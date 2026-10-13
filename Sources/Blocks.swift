@@ -291,6 +291,26 @@ final class BlockRegistry {
     func def(_ id: BlockID) -> BlockDef { defs[Int(id)] }
 
     @inline(__always) func isPlant(_ id: BlockID) -> Bool { render[Int(id)] == RenderType.cross.rawValue }
+    // The state an inventory icon draws (P110, Oct 12 PM: "furnace in the inventory looks weird", "the dropper and
+    // dispenser weren't given a texture"): a block item is its group's first state, which faces north (or down), so the
+    // isometric icon showed only the plain sides and top. The icon draws the state whose front looks at the viewer
+    // (+Z, the icon's left face) instead.
+    private static let iconFronts = ["dispenser": "dispenser_front", "dropper": "dropper_front", "observer": "observer_front"]
+    private var iconStates: [BlockID: BlockID] = [:]
+    func iconState(_ id: BlockID) -> BlockID {
+        if let s = iconStates[id] { return s }
+        let k = key(id)
+        var s = id
+        if let i = byName["\(k)[south]"] { s = i }
+        else if let front = Self.iconFronts[k] {
+            let t = Tex.id(front)
+            var j = Int(id)
+            while j < defs.count && groupBase[j] == id { if tex[j * 6 + 4] == t { s = BlockID(j); break }; j += 1 }
+        }
+        iconStates[id] = s
+        return s
+    }
+
     // Drawn as a flat sprite in the HUD rather than an isometric cube.
     func flatIcon(_ id: BlockID) -> Bool { isPlant(id) || shape[Int(id)] == "torch" }
     @inline(__always) func isLiquid(_ id: BlockID) -> Bool { fluidLevel[Int(id)] >= 0 }

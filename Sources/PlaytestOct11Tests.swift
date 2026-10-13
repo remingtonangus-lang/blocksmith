@@ -688,9 +688,10 @@ enum PlaytestOct11Tests {
 
     // P56: VR manual reload: the off hand at the hip takes a magazine, the gun hand's grip takes it in and the gun is full.
     static func vrReload(_ game: Game, _ check: (Bool, String) -> Void) {
-        let held0 = game.inventory.held, inv = game.inventory.main.slots, surv = game.survival
-        defer { game.inventory.main.slots = inv; game.inventory.held = held0; game.survival = surv; game.arms.magInHand = false }
+        let held0 = game.inventory.held, inv = game.inventory.main.slots, surv = game.survival, yaw0 = game.player.yaw
+        defer { game.inventory.main.slots = inv; game.inventory.held = held0; game.survival = surv; game.arms.magInHand = false; game.player.yaw = yaw0 }
         game.survival = true
+        game.player.yaw = 0
         var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = 0
         game.inventory.held = gun
         let slot = (0..<36).first { $0 != game.selected && game.inventory.main[$0].isEmpty } ?? 20

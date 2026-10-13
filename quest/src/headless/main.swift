@@ -58,6 +58,23 @@ let device = sharedSystemDevice
 if let i = CommandLine.arguments.firstIndex(of: "--settings-phase"), i + 2 < CommandLine.arguments.count {
     exit(SettingsCheck.phase(CommandLine.arguments[i + 1], root: CommandLine.arguments[i + 2]))
 }
+// --texdump OUT.png a,b,c [--size N]: the named texture layers side by side at N px (128), for looks work in a thread
+// (BLOCKSMITH_PAINTED=a,b shows the painters' version of a layer that has imported art).
+if let out = arg("--texdump"), let i = CommandLine.arguments.firstIndex(of: "--texdump"), i + 2 < CommandLine.arguments.count {
+    if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
+    TextureGen.registerAll()
+    let names = CommandLine.arguments[i + 2].split(separator: ",").map(String.init)
+    let n = Int(arg("--size") ?? "") ?? 128
+    var sheet = [UInt8](repeating: 0, count: n * n * 4 * names.count)
+    for (k, name) in names.enumerated() {
+        let l = Tex.id(name)
+        let px = TextureGen.base(size: n, layers: Int(l)..<(Int(l) + 1))
+        for y in 0..<n { for x in 0..<n { for c in 0..<4 { sheet[((y * names.count * n) + k * n + x) * 4 + c] = px[(y * n + x) * 4 + c] } } }
+    }
+    try? PNG.encode(rgba: sheet, width: n * names.count, height: n).write(to: URL(fileURLWithPath: out))
+    print("texdump: \(names.count) layers -> \(out)")
+    exit(0)
+}
 // --view OUT.png --seed S --at X,Y,Z [--look YAW,PITCH] [--time FRAC] [--rd N]: one frame of the Quest renderer at a
 // spot (a voice note's repro line: yaw in degrees as the note gives it, pitch in degrees), for looks work in a thread.
 if let out = arg("--view"), let ctx = vkctx {
@@ -234,6 +251,12 @@ if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
 if CommandLine.arguments.contains("--factions-structures-only") {
     FactionTests.structures(check)
     print(failures == 0 ? "factions structures: all checks passed" : "factions structures: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --p12pm-only [P1xx]: the Oct 12 afternoon playtest fixes (Sources/PlaytestOct12PMTests.swift, backlog P107-P139).
+if let i = CommandLine.arguments.firstIndex(of: "--p12pm-only") {
+    let only = i + 1 < CommandLine.arguments.count && CommandLine.arguments[i + 1].hasPrefix("P") ? CommandLine.arguments[i + 1] : nil
+    PlaytestOct12PMTests.run(game, only: only, check: check)
+    print(failures == 0 ? "p12pm: all checks passed" : "p12pm: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --p11-only: the Oct 11 Quest playtest fixes (Sources/PlaytestOct11Tests.swift, backlog P1-P38).
 if CommandLine.arguments.contains("--p11-only") {
