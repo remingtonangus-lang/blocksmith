@@ -75,7 +75,7 @@ enum Village {
     }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 6) { [unowned gen] seed, cx, cz in
+        StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [unowned gen] seed, cx, cz in
             let ox = cx * CS + 8, oz = cz * CS + 8
             guard let style = style(gen.column(ox, oz).biome) else { return nil }
             let cy = gen.groundY(ox, oz)
@@ -96,7 +96,11 @@ enum Village {
             // P71's wider streets only where no save had generated any of the town before them (a half-saved wide town
             // keeps its old streets and lots: verifier, PR #56).
             let streets = wide && WorldRules.p69(gen, cx, cz, reach: 7)
-            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets)
+            // C13: a size (hamlet to city) on ground no save had generated before sizes (TownSizes.swift).
+            let size = gap && TownSizes.on && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyC13) } ?? true)
+                ? TownSizes.size(ox, oz, seed: gen.seed) : nil
+            return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
+                          townSize: size)
         }
     }
 
@@ -114,7 +118,9 @@ enum Village {
     static var planLog: ((Int, Int, Style, Int, Int) -> Void)?
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
-                       wide: Bool = false, streets: Bool = false) -> StructureStart? {
+                       wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil) -> StructureStart? {
+        let sz = townSize.map { TownSizes.spec[$0.rawValue] }
+        func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
         var rng = SRng(seed)
         let m = mats(style)
@@ -138,31 +144,33 @@ enum Village {
         let (ax, az) = Village.planAxis(ox, oz, seed)               // the main street's axis (plans 1 and 2)
         switch plan {
         case 1:
-            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: rng.range(34, 48), main: true)) }
+            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: scaled(rng.range(34, 48)), main: true)) }
         case 2:
-            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: rng.range(26, 36), main: true)) }
+            for sgn in [1, -1] { roads.append(Road(x: ox + ax * sgn * 5, z: oz + az * sgn * 5, dx: ax * sgn, dz: az * sgn, len: scaled(rng.range(26, 36)), main: true)) }
             for sgn in [1, -1] {
                 let (px, pz) = (az * sgn, ax * sgn)                   // across the main street
                 roads.append(Road(x: ox + px * 5, z: oz + pz * 5, dx: px, dz: pz, len: 13, main: true))
                 for dir in [1, -1] {
-                    roads.append(Road(x: ox + px * 16, z: oz + pz * 16, dx: ax * dir, dz: az * dir, len: rng.range(18, 28), own: true))
+                    roads.append(Road(x: ox + px * 16, z: oz + pz * 16, dx: ax * dir, dz: az * dir, len: scaled(rng.range(18, 28)), own: true))
                 }
             }
         default:
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where rng.chance(0.85) {
-                let len = rng.range(18, 40)
+                let len = scaled(rng.range(18, 40))
                 roads.append(Road(x: ox + dx * 5, z: oz + dz * 5, dx: dx, dz: dz, len: len, main: true))
             }
         }
-        let branch: Float = plan == 1 ? 0.85 : (plan == 2 ? 0.2 : 0.55)
+        let branch: Float = min(0.95, (plan == 1 ? 0.85 : (plan == 2 ? 0.2 : 0.55)) * (sz?.branch ?? 1))
+        let roadCap = (plan == 1 ? 14 : 12) + (sz?.extraRoads ?? 0)
+        if let sz, roads.count > sz.firstRoads { roads = Array(roads.prefix(sz.firstRoads)) }
         var i = 0
-        while i < roads.count && roads.count < (plan == 1 ? 14 : 12) {
+        while i < roads.count && roads.count < roadCap {
             let r = roads[i]
             if r.len > 14 {
                 for at in stride(from: 8, to: r.len - 4, by: plan == 1 ? 10 : 12) where rng.chance(branch) {
                     let side = rng.chance(0.5) ? 1 : -1
                     let (bdx, bdz) = (r.dz * side, r.dx * side)
-                    roads.append(Road(x: r.x + r.dx * at + bdx * 2, z: r.z + r.dz * at + bdz * 2, dx: bdx, dz: bdz, len: rng.range(10, 22)))
+                    roads.append(Road(x: r.x + r.dx * at + bdx * 2, z: r.z + r.dz * at + bdz * 2, dx: bdx, dz: bdz, len: scaled(rng.range(10, 22))))
                 }
             }
             i += 1
@@ -221,6 +229,7 @@ enum Village {
         // Shops line the main streets nearest the square (TownBuildings.swift): the general store and the saloon
         // first, then the rest in a per-town order. A lot that doesn't fit leaves its shop for the next one.
         var shopQueue = Village.shopOrder(&rng)
+        if let sz { shopQueue = Array(shopQueue.prefix(sz.shops)) }          // C13: more shops in bigger places
         for r in goodRoads {
             var s = 2
             while s < r.len - 3 {
@@ -266,14 +275,14 @@ enum Village {
                 s += wide ? rng.range(9, 13) : rng.range(7, 10)
             }
         }
-        guard lots.count >= 6 else { return nil }
-        if frontier { frontierLots(&lots, ox: ox, oz: oz, bank: gap) }
+        guard lots.count >= (sz?.minLots ?? 6) else { return nil }
+        if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
         let styleV = style
         pieces.append(Piece(min: IVec3(ox - 5, plaza - 6, oz - 5), max: IVec3(ox + 5, plaza + 8, oz + 5)) { w in
-            meetingPoint(&w, ox, plaza, oz, m, styleV)
+            meetingPoint(&w, ox, plaza, oz, m, styleV, deputies: sz?.deputies ?? 1)
         })
         // Roads as one piece per road (bounding box of its columns).
         var colsByRoad: [[(Int, Int, Int)]] = []
@@ -358,7 +367,7 @@ enum Village {
                         w.set(sx, gy + 2, sz, sign + BlockID(f))
                         w.set(sx, gy + 3, sz, AIR)
                         let be = BlockEntity(.sign)
-                        be.lines = ["Welcome to", ShopMenu.fit(name, 88), "", ""]
+                        be.lines = ["Welcome to", ShopMenu.fit(name, 88), townSize.map { "(\(TownSizes.names[$0.rawValue]))" } ?? "", ""]
                         w.entities.append((IVec3(sx, gy + 2, sz), be))
                     })
                 }
@@ -372,10 +381,15 @@ enum Village {
             })
         }
         // C12: the bigger towns on new ground work a mine past the end of a street (MiningTowns.swift).
-        let mine = gap ? MiningTowns.add(gen, ox: ox, oz: oz, lots: lots.count, ends: ends, occupied: &occupied, pieces: &pieces,
-                                         seed: rng.next(), town: Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)) : nil
+        // (C13: a sized town works one from a town up, whatever its lot count.)
+        let mineOK = sz.map { $0.mine } ?? (lots.count >= MiningTowns.minLots)
+        let mine = gap && mineOK ? MiningTowns.add(gen, ox: ox, oz: oz, lots: lots.count, ends: ends, occupied: &occupied, pieces: &pieces,
+                                                   seed: rng.next(), town: Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)) : nil
         let start = StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
         start.plan = mine
+        start.info = ["lots": lots.count, "shops": lots.filter { $0.kind == .shop || $0.kind == .saloon }.count,
+                      "deputies": sz?.deputies ?? 1, "office": lots.contains { $0.kind == .office } ? 1 : 0]
+        if let townSize { start.info["size"] = townSize.rawValue }
         return start
     }
 
@@ -665,7 +679,7 @@ enum Village {
         }
     }
 
-    static func meetingPoint(_ w: inout StructWriter, _ ox: Int, _ y: Int, _ oz: Int, _ m: Mats, _ style: Style) {
+    static func meetingPoint(_ w: inout StructWriter, _ ox: Int, _ y: Int, _ oz: Int, _ m: Mats, _ style: Style, deputies: Int = 1) {
         // Plaza of path blocks with a well in the middle and a bell beside it.
         for dz in -4...4 { for dx in -4...4 {
             w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 24)
@@ -684,7 +698,10 @@ enum Village {
             w.set(ox + dx, y + 4, oz + dz, m.slab)
         } }
         w.set(ox + 3, y + 1, oz - 3, Blocks.id("bell"))
-        w.mob("villager:deputy", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) + 3.5))
+        // Deputies by the town's size (C13; one before sizes): a hamlet has only the sheriff.
+        for (dx, dz) in [(3.5, 3.5), (-3.5, 0.5), (0.5, -3.5), (0.5, 3.5)].prefix(deputies) {
+            w.mob("villager:deputy", V3(Float(ox) + Float(dx), Float(y + 1), Float(oz) + Float(dz)))
+        }
         w.mob("villager:sheriff", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) - 3.5))       // the sheriff, not a golem (TownLaw.swift)
         // Village animals (reference): a stray cat on the plaza; desert villages keep a camel.
         w.mob("cat", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) + 3.5))

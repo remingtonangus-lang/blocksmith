@@ -15,6 +15,7 @@ setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
 WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
@@ -173,6 +174,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
         do { try HorseCoatShots.run(game: game, ctx: ctx, dir: arg("--horse-shots"), check: check) } catch { check(false, "horsecoats render: \(error)") }
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --sizes-only: C13 town sizes (Sources/TownSizesTests.swift).
+if CommandLine.arguments.contains("--sizes-only") {
+    TownSizesTests.run(game, check: check)
+    print(failures == 0 ? "sizes: all checks passed" : "sizes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --mines-only: C12 mining towns (Sources/MiningTownsTests.swift).
 if CommandLine.arguments.contains("--mines-only") {

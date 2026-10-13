@@ -118,6 +118,7 @@ final class World {
             sc.legacyOverlap = save.structureGuard(file: "structure-guard-overlap.txt")    // StructureCache.yields
             sc.legacyC1 = save.structureGuard(file: "structure-guard-c1.txt")              // Railways.swift
             sc.legacyC12 = save.structureGuard(file: "structure-guard-c12.txt")            // MiningTowns.swift
+            sc.legacyC13 = save.structureGuard(file: "structure-guard-c13.txt")            // TownSizes.swift
         }
         // G20 on the surface (strongholds, monuments, mansions, trial chambers): its own snapshot, taken the first time a save
         // loads under G20 (the P44 one was taken earlier, so ground generated between the two would get half a new design).

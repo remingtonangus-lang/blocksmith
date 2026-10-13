@@ -26,7 +26,7 @@ enum Railways {
     static let southGap = 5                // the track, blocks south of the town's box
     static var on = true                   // (the host checks turn lines off to compare)
 
-    struct Station { let name: String; let index: Int; let x: Int; let z: Int }
+    struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false }   // halt: a hamlet's (C13)
     final class Line {
         let id: Int64                      // row and stretch
         let name: String
@@ -128,7 +128,7 @@ enum Railways {
         return false
     }
 
-    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3 }
+    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false }
 
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
@@ -137,7 +137,9 @@ enum Railways {
         for rx in (s * stretch)..<((s + 1) * stretch) {
             guard let v = sc.start(vt, regionX: rx, regionZ: row) else { continue }
             if v.max.y < SEA { continue }
-            towns.append(Town(name: Townsfolk.townName(v.anchor.x, v.anchor.z, seed: gen.seed), box: (v.min, v.max), sq: v.anchor))
+            // C13: a hamlet gets a halt (a short platform and a name board), villages and up a station.
+            towns.append(Town(name: Townsfolk.townName(v.anchor.x, v.anchor.z, seed: gen.seed), box: (v.min, v.max), sq: v.anchor,
+                              halt: v.info["size"] == TownSize.hamlet.rawValue))
         }
         guard towns.count >= minStations else { return nil }
         // Ground saved before railways: no line (checked along the whole run below).
@@ -185,7 +187,7 @@ enum Railways {
             }
             let i0 = cur.count
             for x in xa...xb { cur.append(IVec3(x, 0, z)) }
-            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z))
+            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z, halt: t.halt))
             prevEnd = (xb, z)
             if ti == towns.count - 1 { flush() }
         }
@@ -346,7 +348,8 @@ enum Railways {
         for st in l.stations {
             let c = l.cells[st.index], y = c.y
             guard inChunk(c.x, c.z, pad: 12) else { continue }
-            for dx in -8...8 {
+            let half = st.halt ? 4 : 8
+            for dx in -half...half {
                 let i = st.index + dx
                 guard i >= 0 && i < n else { continue }
                 let x = l.cells[i].x, yy = l.cells[i].y
@@ -356,6 +359,11 @@ enum Railways {
                     w.pillarDown(x, yy - 2, c.z - dz, plat, minY: yy - 24)
                 }
                 if dx % 6 == 0 && w.inside(x, yy, c.z - 3) { w.set(x, yy, c.z - 3, post); w.set(x, yy + 1, c.z - 3, post); w.set(x, yy + 2, c.z - 3, lamp) }
+            }
+            if st.halt {
+                // A hamlet's halt: the platform and a name board on it, no station house.
+                if w.inside(c.x, y, c.z - 3) { AshWar.sign(&w, c.x, y, c.z - 3, facing: (0, 1), ["", "\(st.name)", "Halt", ""]) }
+                continue
             }
             // The station house: 7 x 5 south of the track, its door and windows facing the track.
             let hx0 = c.x - 3, hz0 = c.z + 3

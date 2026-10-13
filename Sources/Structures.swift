@@ -168,6 +168,7 @@ final class StructureStart {
     let max: IVec3
     let anchor: IVec3                     // a representative walkable spot (start piece floor)
     var plan: AnyObject?                  // the layout a kind keeps for later queries (CapitalCity.Plan)
+    var info: [String: Int] = [:]         // a few numbers a kind keeps (towns: size, lots, shops, deputies: TownSizes)
     init(kind: String, pieces: [Piece], anchor: IVec3) {
         self.kind = kind
         self.anchor = anchor
@@ -236,6 +237,7 @@ final class StructureCache {
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
     var legacyC1: Set<Int64> = []                 // ground saved before railways (C1, Railways.swift)
     var legacyC12: Set<Int64> = []                // ground saved before mining towns (C12, MiningTowns.swift)
+    var legacyC13: Set<Int64> = []                // ground saved before town sizes (C13, TownSizes.swift)
 
     // Q2 (scorecard "world gen: no structure overlaps", 138 piece overlaps in 50 seeds): a small start gives way to a
     // bigger one whose pieces it would cut into, so a ruined portal never stands in a village street or a citadel wall,
