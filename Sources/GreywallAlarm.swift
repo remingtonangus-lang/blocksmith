@@ -328,7 +328,7 @@ extension Game {
         }
         let n = greywallRadarNet(from: cx, cz)
         onToast?(n.isEmpty ? "The radar net shows no other Greywall base within 3,000 blocks" : "The radar net marks \(n.count) Greywall bases on your map")
-        WarFront.openReport(self)                  // the war table (C2): the fronts near this base
+        openMenu(BaseContractsMenu(game: self, board: "greywall:\(cx),\(cz)", at: IVec3(cx, p.y, cz)))   // C11: contracts; its last row the war report (C2)
         return true
     }
 

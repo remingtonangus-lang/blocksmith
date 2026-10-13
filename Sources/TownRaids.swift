@@ -55,6 +55,7 @@ enum TownRaids {
         Honour.earn(g, 5, source: "defence", "you defended \(town)")
         g.onToast?("\(town) thanks you: \(Money.format(purse)) from the town purse")
         Nation.raidWon(town)
+        Contracts.raidWon(g, town)                          // C11
         wonCount += 1
     }
 }

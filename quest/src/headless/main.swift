@@ -174,6 +174,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --contracts-only: C11 jobs and contracts (Sources/ContractsTests.swift).
+if CommandLine.arguments.contains("--contracts-only") {
+    ContractsTests.run(game, check: check)
+    print(failures == 0 ? "contracts: all checks passed" : "contracts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --legends-only: C10 legendary weapons and armour (Sources/LegendariesTests.swift).
 if CommandLine.arguments.contains("--legends-only") {
     LegendariesTests.run(game, check: check)
