@@ -373,6 +373,7 @@ enum Village {
                 }
             }
         }
+        let lotPieces = pieces.count                  // (the mine's pieces go in before the lots: T2, pieces.last is a lot)
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
             pieces.append(Piece(min: IVec3(x0 - 3, lot.y - 12, z0 - 3), max: IVec3(x1 + 3, lot.y + 14, z1 + 3)) { w in
@@ -383,8 +384,10 @@ enum Village {
         // C12: the bigger towns on new ground work a mine past the end of a street (MiningTowns.swift).
         // (C13: a sized town works one from a town up, whatever its lot count.)
         let mineOK = sz.map { $0.mine } ?? (lots.count >= MiningTowns.minLots)
-        let mine = gap && mineOK ? MiningTowns.add(gen, ox: ox, oz: oz, lots: lots.count, ends: ends, occupied: &occupied, pieces: &pieces,
+        var minePieces: [Piece] = []
+        let mine = gap && mineOK ? MiningTowns.add(gen, ox: ox, oz: oz, lots: lots.count, ends: ends, occupied: &occupied, pieces: &minePieces,
                                                    seed: rng.next(), town: Townsfolk.townName(ox + 6, oz + 6, seed: gen.seed)) : nil
+        pieces.insert(contentsOf: minePieces, at: lotPieces)
         let start = StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
         start.plan = mine
         start.info = ["lots": lots.count, "shops": lots.filter { $0.kind == .shop || $0.kind == .saloon }.count,
