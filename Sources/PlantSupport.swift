@@ -8,7 +8,8 @@ import simd
 // World.setBlock queues the changed cell and its neighbours; Game.gravityTick checks them here.
 enum PlantSupport {
     // Per block state: 0 needs nothing, 1 stands on something, 2 hangs from something, 3 a water plant (stands on
-    // something, leaves water behind), 4 a vine (a solid side or a vine above).
+    // something, leaves water behind), 4 a vine (a solid side or a vine above), 5 an amethyst bud or cluster (any solid
+    // face next to it: P121, Oct 12 PM "floating amethysts").
     static var rule: [UInt8] = []
 
     static func build() {
@@ -34,6 +35,7 @@ enum PlantSupport {
             // Not plants, but they stand on a block the same way and pop with it in the reference game: carpets, snow
             // layers, pressure plates, rails, sparkstone dust, repeaters, comparators, flower pots.
             if sits.contains(k) || k.hasSuffix("_carpet") || k.hasSuffix("_pressure_plate") || k.hasPrefix("potted_") { r[i] = 1; continue }
+            if k.hasSuffix("amethyst_bud") || k == "amethyst_cluster" { r[i] = 5; continue }
             if free.contains(k) || k.contains("amethyst") || k.hasSuffix("_bud") || k.contains("coral") { continue }
             if Blocks.isPlant(BlockID(i)) { r[i] = 1 }
         }
@@ -77,9 +79,42 @@ enum PlantSupport {
                 if Blocks.collide[Int(o)] && Blocks.opaque[Int(o)] { return true }
             }
             return false
+        case 5:
+            for d in World.allDirs {
+                let o = w.block(p.x + d.x, p.y + d.y, p.z + d.z)
+                if Blocks.collide[Int(o)] && Blocks.opaque[Int(o)] { return true }
+            }
+            return false
         default:
             return true
         }
+    }
+
+    // P121 (Oct 12 PM: "a rail floating in the air", "floating amethysts"): a chunk as it is generated or loaded loses
+    // rails with nothing under them and amethyst buds and clusters touching no solid block (a cave carved under a
+    // mine track, a geode cut open). Cells at the chunk's sides count their unseen neighbour as holding.
+    static func dropFloating(_ b: inout [BlockID]) -> Int {
+        if rule.isEmpty { build() }
+        var n = 0
+        let op = Blocks.opaque, co = Blocks.collide
+        b.withUnsafeMutableBufferPointer { p in
+            for y in 1..<(CH - 1) { for z in 0..<CS { for x in 0..<CS {
+                let i = Chunk.index(x, y, z)
+                let id = Int(p[i])
+                guard id != 0, id < rule.count else { continue }
+                let r = rule[id]
+                if r == 1 && Blocks.shape[id] == "rail" || r == 1 && Blocks.key(Blocks.groupBase[id]).hasSuffix("rail") {
+                    if !co[Int(p[i - CSQ])] { p[i] = AIR; n += 1 }
+                } else if r == 5 {
+                    var held = x == 0 || x == CS - 1 || z == 0 || z == CS - 1
+                    if !held {
+                        for o in [1, -1, CS, -CS, CSQ, -CSQ] where co[Int(p[i + o])] && op[Int(p[i + o])] { held = true; break }
+                    }
+                    if !held { p[i] = AIR; n += 1 }
+                }
+            } } }
+        }
+        return n
     }
 }
 

@@ -140,16 +140,16 @@ P110. [DONE: icons show the front of furnaces, dispensers, droppers, observers a
 P111. [DONE: cobweb and amethyst block painted again; granite (and diorite, andesite) sharpened; stone given the deepslate rock look, ores rebased on it] [15:10, 17:13, 17:17, 17:21] Textures: granite looks good but soft (sharpen); amethyst looks bad; spider webs looked better before (regression); he likes the deepslate look much more than plain stone.
 P112. [DONE: small held pools sunk into cave floors from -40 to below sea level] [15:12, 15:32] Caves need a little water here and there (some exists, too little).
 P113. [DONE: underground the sky dome is replaced by dark cave fog and the fog closes before the far sections are cut] [15:14] Looking down a long cave, the sky shows at the far end (it should not in the cave layers).
-P114. [15:22, 17:13, 17:15, 17:28] Lava: flows only sometimes; blocks can usually not be placed into lava (Minecraft allows it; works only sometimes); thrown items should burn in lava; a burning overlay when the player is on fire; making obsidian takes far too long.
-P115. [15:24, 17:19, 17:51] Bounty hunters: they must not find him underground; much rarer, but when they come they are many and a real problem (with P88).
-P116. [15:25] A journal/log to reread notes and messages he has received.
-P117. [15:30] The horse (Ginger) must not come when called from underground.
-P118. [15:32] Hitting gravel still sounds like hitting water.
-P119. [15:34] Ammo: craft loose rounds into magazines (less inventory space); reloading is done by taking a magazine from the hip only; remove the reload button.
-P120. [17:11, 17:47] He wants to craft capital rounds (his favourite ammo); today he cannot. Allow it at a fitting cost.
-P121. [17:22, 17:32] Floating pieces: a rail floating in the air; floating amethyst.
-P122. [17:22] Allow placing blocks while jumping.
-P123. [17:23] He does not know what the four bars on his left are: label them or remove them.
+P114. [DONE: lava flows steadily near the player, blocks place into lava, items burn in it] [15:22, 17:13, 17:15, 17:28] Lava: flows only sometimes; blocks can usually not be placed into lava (Minecraft allows it; works only sometimes); thrown items should burn in lava; a burning overlay when the player is on fire; making obsidian takes far too long.
+P115. [DONE: hunters never find him underground, a posse every 3+ days at 1 in 900 a second, 5 to 8 riders] [15:24, 17:19, 17:51] Bounty hunters: they must not find him underground; much rarer, but when they come they are many and a real problem (with P88).
+P116. [DONE: Journal in the pause menu keeps every message and document] [15:25] A journal/log to reread notes and messages he has received.
+P117. [DONE: the horse won't come when called from underground] [15:30] The horse (Ginger) must not come when called from underground.
+P118. [DONE: gravel hits are a knock and pebble clicks] [15:32] Hitting gravel still sounds like hitting water.
+P119. [DONE: magazines crafted from rounds; in VR, reload only by a magazine from the hip] [15:34] Ammo: craft loose rounds into magazines (less inventory space); reloading is done by taking a magazine from the hip only; remove the reload button.
+P120. [DONE: Capital rounds craft from steel, copper and gunpowder] [17:11, 17:47] He wants to craft capital rounds (his favourite ammo); today he cannot. Allow it at a fitting cost.
+P121. [DONE: rails over air and unattached amethyst are dropped at generation] [17:22, 17:32] Floating pieces: a rail floating in the air; floating amethyst.
+P122. [DONE: blocks place while jumping, lifting the player onto them] [17:22] Allow placing blocks while jumping.
+P123. [DONE: the armour bars show piece icons and an Armour heading] [17:23] He does not know what the four bars on his left are: label them or remove them.
 P124. [17:24] Occasional frame drop with a freeze of about a second: find the hitch.
 P125. [17:25] Glow lights on cave vines (like glow berries), but not a near copy of Minecraft (IP: make it our own).
 P126. [17:30] He fell off an edge while crouching: sneaking must stop at edges.

@@ -920,6 +920,7 @@ final class World {
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
             ents += World.orphanEntities(blocks, k, have: ents)
         }
+        _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
@@ -1196,6 +1197,8 @@ final class World {
     // Water ticks every 0.2 s; lava every 1.5 s (0.5 s in the Emberdeep) and reaches 3 blocks in the
     // Surface (7 in the Emberdeep). Only cells near a change are simulated.
 
+    // The player's block (Game.tick sets it): fluid cells within 24 blocks of it tick first (FluidQueue).
+    static var focus: IVec3?
     private(set) var fluidPending = FluidQueue()
     private(set) var lavaPending = FluidQueue()
     private var fluidDone = 512, lavaDone = 512        // cells the last fluid tick got through (timed batch size)
@@ -1479,15 +1482,32 @@ final class World {
 // the M1 (linear-probing clusters from always emptying the table's front), more than the Quest's 2 ms fluid budget:
 // the --quest bench's most frequent tick spike. A cell rescheduled while still queued may run twice (harmless).
 struct FluidQueue {
+    // P114 (Oct 12 PM: "lava flows only sometimes", "it takes forever to make obsidian"): cells near the player (World.focus)
+    // jump the queue. Streamed-in chunks queue every spring of a cave's lava lake; a round of tens of thousands of far
+    // cells, a few hundred per 1.5 s lava tick on the Quest, held back the lava he had just let out or poured water on.
+    private var urgent = Set<IVec3>()
     private var incoming = Set<IVec3>()
     private var queue: [IVec3] = []
     private var head = 0
-    var count: Int { incoming.count + queue.count - head }
+    var count: Int { urgent.count + incoming.count + queue.count - head }
     var isEmpty: Bool { count == 0 }
-    mutating func insert(_ p: IVec3) { incoming.insert(p) }
-    mutating func removeAll() { incoming.removeAll(); queue.removeAll(); head = 0 }
-    // Up to `limit` cells, oldest round first.
+    var urgentCount: Int { urgent.count }
+    mutating func insert(_ p: IVec3) {
+        if let f = World.focus, abs(p.x - f.x) <= 24 && abs(p.z - f.z) <= 24 && abs(p.y - f.y) <= 24 { urgent.insert(p) } else { incoming.insert(p) }
+    }
+    mutating func removeAll() { urgent.removeAll(); incoming.removeAll(); queue.removeAll(); head = 0; urgentTaken = 0 }
+    private var urgentBatch: [IVec3] = []
+    private(set) var urgentTaken = 0                 // cells the last take() handed out from the urgent set
+    // Up to `limit` cells: the urgent ones first, then the oldest round.
     mutating func take(_ limit: Int) -> ArraySlice<IVec3> {
+        if !urgent.isEmpty {
+            urgentBatch.removeAll(keepingCapacity: true)
+            for p in urgent { if urgentBatch.count >= limit { break }; urgentBatch.append(p) }
+            for p in urgentBatch { urgent.remove(p) }
+            urgentTaken = urgentBatch.count
+            return urgentBatch[...]
+        }
+        urgentTaken = 0
         if head >= queue.count {
             queue.removeAll(keepingCapacity: true); head = 0
             queue.append(contentsOf: incoming)
@@ -1499,5 +1519,8 @@ struct FluidQueue {
         return queue[head..<end]
     }
     // The last `n` cells taken go back to the front (out of time).
-    mutating func giveBack(_ n: Int) { head -= n }
+    mutating func giveBack(_ n: Int) {
+        if urgentTaken > 0 { for p in urgentBatch.suffix(n) { urgent.insert(p) }; return }
+        head -= n
+    }
 }

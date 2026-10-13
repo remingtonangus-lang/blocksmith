@@ -220,6 +220,14 @@ extension Game {
     func callHorse() -> Bool {
         guard horseBond != 0 else { return false }
         if riding?.bond == horseBond { return true }
+        // P117 (Oct 12 PM: "the horse must not come when called from underground"): below ground the call doesn't
+        // carry; a call already answered is dropped too (bondedHorseAI).
+        if BountyHunters.below(self) {
+            let nm = mobs.mobs.first { $0.bond == horseBond }?.customName ?? "Your horse"
+            onToast?("\(nm) can't hear you down here")
+            horseCall = 0
+            return true
+        }
         var horse = mobs.mobs.first { $0.bond == horseBond && $0.health > 0 }
         if horse == nil {
             for (k, list) in mobs.stored {
@@ -269,6 +277,7 @@ extension Mob {
         let current = bond == g.horseBond
         // Called, it pulls up beside you (it ran on to 3 blocks, centre to centre, and walked into him: P26).
         if current && g.horseCall > 0 && dist < 4.5 { g.horseCall = 0; stayAt = pos; vel.x = 0; vel.z = 0 }
+        if current && g.horseCall > 0 && BountyHunters.below(g) { g.horseCall = 0; stayAt = pos }       // P117
         if current && g.horseCall > 0 {
             let h = hs
             if simd_length(pos - h.callWas) > 2 { h.callWas = pos; h.callStuck = 0 } else { h.callStuck += dt }

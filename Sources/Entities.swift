@@ -157,6 +157,12 @@ final class ItemEntityManager {
     }
     private var junkHinted = false
 
+    private(set) var burned = 0                    // items burnt up in lava or fire (tests)
+    static func burns(_ s: ItemStack) -> Bool {
+        let k = s.def.name
+        return !(k.hasPrefix("netherite") || k == "ancient_debris" || k == "nether_star")
+    }
+
     // Returns the stacks picked up this frame (for sound/feedback).
     @discardableResult
     func update(_ dt: Float, game: Game) -> Int {
@@ -191,6 +197,16 @@ final class ItemEntityManager {
             }
         }
         if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
+        // P114 (Oct 12 PM: "items should burn when they're thrown into lava"): a dropped item in lava or fire burns up
+        // with a hiss and a puff of smoke (Duskium gear and the Emberdeep's star survive, as in the reference).
+        for e in items where !e.stack.isEmpty && ItemEntityManager.burns(e.stack) {
+            let b = w.block(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.1)), Int(floor(e.pos.z)))
+            guard Blocks.fluidKind[Int(b)] == 2 || b == FIRE else { continue }
+            e.stack = ItemStack()
+            burned += 1
+            for _ in 0..<4 { game.particles.smoke(at: e.pos + V3(0, 0.2, 0)) }
+            game.sfx(.fizz, 0.5, at: e.pos)
+        }
         items.removeAll { $0.stack.isEmpty || $0.age > 300 || $0.pos.y < -64 }
         // Merge nearby identical stacks now and then.
         mergeTimer -= dt

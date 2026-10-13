@@ -317,6 +317,21 @@ extension Synth {
         var g = f
         g.thump *= 0.4; g.squelch *= 0.5; g.swish *= 0.6; g.click *= 0.6
         if m != .metal && m != .amethyst { g.modes = f.modes.map { ($0.f * 0.85, $0.decay * 0.5, $0.amp * 0.4) }; g.tex *= 1.4 }
+        if m == .gravel {
+            // P118 (Oct 12 PM: "hitting gravel still sounds like hitting water"): the dense grain hiss over a low thump read
+            // as a splash. A pick in gravel is a few loose pebbles knocking: separate sharp clicks, each with a short
+            // stony ring, over a dull little knock. No hiss.
+            var out = [Float](repeating: 0, count: frames(0.14))
+            Synth.resonate(Synth.contactPulse(0.003), f: f.bodyF * p, decay: 0.01, amp: 0.4, into: &out)
+            for _ in 0..<5 {
+                var peb = burst(0.012, lp: 7500, hp: 1600, attack: 0.0002, decay: 0.0012, gain: rnd(0.5, 0.9))
+                Synth.resonate(Synth.contactPulse(0.0004), f: rnd(1800, 4200) * p, decay: 0.004, amp: rnd(0.15, 0.3), into: &peb)
+                out = Synth.mix(out, peb, at: frames(rnd(0, 0.1)))
+            }
+            out = Array(out.prefix(frames(0.14)))
+            Synth.fadeOut(&out, 0.03)
+            return out
+        }
         var tap = foleyContact(g, p: p * 0.95, force: 0.7, ring: 0.3, texLen: 0.035, texScale: 0.6)
         // A short knock of the block's mass (no ring: taps overlap at 4 a second).
         Synth.resonate(Synth.contactPulse(0.003), f: f.bodyF * p, decay: 0.014, amp: f.body * 1.2, into: &tap)

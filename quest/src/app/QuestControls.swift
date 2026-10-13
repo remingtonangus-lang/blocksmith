@@ -1403,6 +1403,28 @@ final class QuestControls {
         }
     }
 
+    // Burning (P114, Oct 12 PM: "a fire burning animation, that way I know when I fall in lava"): flame tongues licking
+    // up from the bottom of the view, each flickering on its own, orange at the root and yellow, fading, at the tip.
+    private func flames(_ v: inout [SimpleVert], _ t: Float, _ fx: Float) {
+        let n = 16
+        for i in 0..<n {
+            let h = hashf(i, 3, 17, 0xF1A3)
+            let x: Float = -1.35 + 2.7 * (Float(i) + 0.5) / Float(n) + (h - 0.5) * 0.08
+            let lick: Float = 0.5 + 0.5 * sinf(t * (7 + 5 * h) + h * 11)
+            let tall: Float = (0.32 + 0.38 * h) * (0.7 + 0.45 * lick)
+            let half: Float = 0.11 + 0.05 * h
+            let sway: Float = 0.06 * sinf(t * 5.3 + h * 7)
+            let y0: Float = -1.35, y1: Float = y0 + tall
+            let a: Float = 0.75 * max(0.3, fx)
+            let root = V4(1, 0.38, 0.04, a), mid = V4(1, 0.62, 0.1, a * 0.85), tip = V4(1, 0.9, 0.35, 0)
+            let ym: Float = y0 + tall * 0.45
+            QuestControls.quad(&v, V4(x - half, y0, 0, 2), V4(x + half, y0, 0, 2), V4(x + half * 0.7 + sway * 0.5, ym, 0, 2),
+                               V4(x - half * 0.7 + sway * 0.5, ym, 0, 2), root, root, mid, mid)
+            QuestControls.quad(&v, V4(x - half * 0.7 + sway * 0.5, ym, 0, 2), V4(x + half * 0.7 + sway * 0.5, ym, 0, 2),
+                               V4(x + sway + 0.004, y1, 0, 2), V4(x + sway - 0.004, y1, 0, 2), mid, mid, tip, tip)
+        }
+    }
+
     // The Mac HUD's full-screen effects, over the whole view instead of the HUD panel (extract_hud.py turns them off
     // there): water, lava, sleep and portal tints; getting hurt, burning and freezing as edge glows (a full-view red
     // flash is harsh in a headset).
@@ -1421,6 +1443,7 @@ final class QuestControls {
         if g.onFire > 0 && g.menu == nil {
             let flicker = 0.75 + 0.25 * sinf(Float(g.clock) * 9)
             ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: 0.5)
+            flames(&v, Float(g.clock), fx)
         }
     }
 }

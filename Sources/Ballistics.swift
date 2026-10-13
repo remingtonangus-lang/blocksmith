@@ -409,7 +409,7 @@ extension Game {
         var n = 0
         for i in 0..<inventory.main.count where inventory.main[i].item == id { n += inventory.main[i].count }
         if inventory.offhand[0].item == id { n += inventory.offhand[0].count }
-        return n
+        return n + magazineRounds(name)
     }
 
     func takeAmmo(_ name: String, _ count: Int) {
@@ -426,6 +426,7 @@ extension Game {
             let k = min(left, s.count); s.count -= k; left -= k
             inventory.main[i] = s
         }
+        takeMagazineRounds(name, left)          // P119: then from magazines
     }
 
     // Fills the held gun's magazine from the pack (a finished timed reload, or a VR magazine slotted in by hand).
@@ -473,7 +474,10 @@ extension Game {
             if a.reload <= 0 { loadMagazine(gi) }
             return true
         }
-        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) {                                   // R (rebindable) or pad X
+        // P119 (Oct 12 PM: "reloading is done by taking a magazine from the hip only; remove the reload button"): in the
+        // headset the button and the empty-trigger reload are gone; the off hand at the hip is the reload (VRReload).
+        let vr = vrAim != nil
+        if !vr && (input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x)) {                                   // R (rebindable) or pad X
             // A reload that can't start says why (a full magazine or no rounds did nothing at all: "the reload button
             // still doesn't work", Oct 11 playtest P32).
             if !startReload(gi) {
@@ -486,6 +490,13 @@ extension Game {
         guard trigger else { return true }
         if held.tag <= 0 {
             // Empty: pulling the trigger reloads (or clicks dry without ammunition).
+            if vr {
+                if firePressed {
+                    sfx(.gun(7), 0.8)
+                    onToast?(ammoCount(gs.ammo) > 0 ? "Empty: reach to your hip for a magazine" : "No \(Items.def(Items.id(gs.ammo)).display)")
+                }
+                return true
+            }
             if !startReload(gi) && firePressed {
                 sfx(.gun(7), 0.8)
                 onToast?("No \(Items.def(Items.id(gs.ammo)).display)")
