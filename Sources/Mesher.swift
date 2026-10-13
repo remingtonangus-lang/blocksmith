@@ -262,7 +262,7 @@ enum Mesher {
         var anyBlock = false
         for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
         // Smooth terrain: an empty section still owns the quads against its +x/+y/+z neighbours' first row.
-        let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural
+        let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
@@ -428,6 +428,9 @@ enum Mesher {
                     let rt = renderT[bi]
                     if rt == rNone { continue }
                     if smooth && natT[bi] { continue }                  // (chipped too: it shrinks in the smooth surface, P106)
+                    // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
+                    // white sawtooth of block steps over every snowy slope (P142).
+                    if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -942,12 +945,13 @@ final class MeshScratch {
     let smR = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
     // P142: which samples agree with the generator's fields (0 unknown, 1 yes, 2 no), and the fields themselves.
     let smF = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
+    let smM = UnsafeMutablePointer<Int32>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)   // vertex material
     lazy var field = SmoothField()
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
-        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate(); smM.deallocate()
     }
 
     static var current: MeshScratch {

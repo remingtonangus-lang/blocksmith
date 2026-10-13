@@ -20,9 +20,17 @@ generator's own fields; other dimensions keep the round-2 smoothing.
 - Dirt facing up under a neighbour's turf shows the turf (hillsides no longer stripe grass/dirt per block row).
 - Rock mixed block by block (deeprock/stone, emberslate/blackstone/basalt, tuff, granite...) shows as the commonest rock
   round each face, so cave walls read as patches instead of a grid of single blocks; ores keep their own look.
+- Material blending: every smooth vertex carries its own ground (the commonest of its 8 blocks; turf where the ground
+  faces up, snow under a snow layer) and the Quest chunk shader blends a quad's corners (chunk.vert slots by vertex index
+  mod 4, chunk_solid.frag: one texture read where a quad is one material). Grass fades into dirt, stone and sand; ores,
+  magma, geodes and sculk stay crisp. The Mac shows each quad's first corner (no blend).
+- Snow layers on smooth ground are no longer drawn as slabs (they made a white sawtooth on every snowy slope); the
+  ground under them shows snow. They still exist as blocks.
+- Cost (optimized questcheck, x86, 5x5 chunks): 2.0 ms a section with geometry (round 2 1.5, blocks 0.7), all on the
+  mesh workers.
 - `BLOCKSMITH_FIELD=0` meshes the round-2 way (side by side). Headless views: `questcheck --view OUT.png --smooth
   --find BIOME --up N --cave --dig N --dig-eye DX,DY,DZ --meshbench`.
 
 ## Next
-Material blending in the shader (soft borders between grass, dirt, stone, sand), smooth trees and water (T17), a
+Smooth trees and water (T17), a
 slope-following foot height, mesh cost on the device, then Smooth as the Quest default once Remington likes it.

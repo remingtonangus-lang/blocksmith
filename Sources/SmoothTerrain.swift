@@ -63,6 +63,13 @@ enum SmoothTerrain {
     static let rockIDs: [Int] = ["stone", "deepslate", "emberslate", "blackstone", "basalt", "smooth_basalt", "tuff", "andesite",
                                  "diorite", "granite", "netherrack"].map { Int(Blocks.id($0)) }.filter { natural[$0] }
     static let rockSlot: [Int8] = (0..<Blocks.count).map { i in Int8(rockIDs.firstIndex(of: i) ?? -1) }
+    // Ground the smooth mesher blends at its borders (P142): natural blocks except ores and the few that must read on
+    // their own (magma burns, geodes and sculk are finds).
+    static let blend: [Bool] = (0..<Blocks.count).map { i in
+        let n = Blocks.key(BlockID(i))
+        return natural[i] && !n.hasSuffix("_ore") && !["magma_block", "amethyst_block", "budding_amethyst", "sculk"].contains(n)
+    }
+    static let snowLayer = Int(Blocks.id("snow"))
     // The blocks a rock face polls: the 3x3x3 round it.
     static let voteProbe: [(Int, Int, Int)] = {
         var r: [(Int, Int, Int)] = []
@@ -147,13 +154,12 @@ extension Mesher {
         } } }
         // P142: the generator's fields over the same box (SmoothField). A sample is "on field" when its block is what the
         // fields alone make there (and not being dug); only edges between two on-field samples take the field's crossing.
-        var field: SmoothField? = nil
         let FO = sc.smF
-        if let site {
+        let field: SmoothField? = site.map { site in
             let F = sc.field
             F.prepare(site.gen, x0: site.cx * CS - SO, y0: sy * 16 - SO, z0: site.cz * CS - SO)
             FO.initialize(repeating: 0, count: N * NN)
-            field = F
+            return F
         }
         func onField(_ i: Int) -> Bool {
             let o = FO[i]
@@ -192,7 +198,8 @@ extension Mesher {
         // Dual cell vertices -KO...16+KO (index +KO): position (blocks, section-local), light, ao. The ring past
         // 0...16 feeds the relaxation, so a vertex comes out the same in every section that meshes it.
         let K = 17 + 2 * KO, KK = K * K
-        let VP = sc.smV, VL = sc.smL, VN = sc.smN, VQ = sc.smQ
+        let VP = sc.smV, VL = sc.smL, VN = sc.smN, VQ = sc.smQ, VM = sc.smM
+        let blendT = SmoothTerrain.blend, snowL = SmoothTerrain.snowLayer, snowB = Int(SNOW)
         let dW: [Float] = [-0.5, -1, 1, 0.5], tW: [Float] = [0.5, 1, 1, 0.5]   // normal stencil: blocks c-1...c+2
         for ky in 0..<K { for kz in 0..<K { for kx in 0..<K {
             let cx = kx - KO, cy = ky - KO, cz = kz - KO
@@ -277,6 +284,22 @@ extension Mesher {
                     cnt += Int(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
                 } } }
                 ao = 3 - min(3, max(0, (cnt - 42) / 5))
+                // The vertex's own material (P142 blending: the shader blends a quad's corners): snow under a snow layer and
+                // turf where the ground faces up, else the commonest ground among its 8 blocks; -1 keeps the quad's own.
+                let up = -g.y / max(1e-6, simd_length(g))
+                var m = -1, mn = 0, turf = -1, snow = false
+                for c in 0..<8 {
+                    let b = Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])
+                    if b == snowL { snow = true; continue }
+                    guard blendT[b] else { continue }
+                    if tintT[b] == 3 { turf = b }
+                    if b == m { mn += 1; continue }
+                    var n = 0
+                    for c2 in 0..<8 where Int(R[ri(cx + (c2 & 1), cy + ((c2 >> 1) & 1), cz + (c2 >> 2))]) == b { n += 1 }
+                    if n > mn { m = b; mn = n }
+                }
+                if snow && up > 0.3 { m = snowB } else if turf >= 0 && up > 0.35 { m = turf }
+                VM[vi] = Int32(m)
             }
             VL[vi] = Int32(l | ao << 8)
         } } }
@@ -406,6 +429,7 @@ extension Mesher {
                 let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
                 let layer = Int(texT[id * 6 + texF])
                 let tint = tintB == 3 ? (texF == 2 ? 1 : 0) : tintB
+                let blendQuad = field != nil && blendT[id]
                 let a0 = Int(VL[corner[0]]) >> 8, a1 = Int(VL[corner[1]]) >> 8
                 let a2 = Int(VL[corner[2]]) >> 8, a3 = Int(VL[corner[3]]) >> 8
                 let flip = a0 + a2 < a1 + a3
@@ -416,7 +440,12 @@ extension Mesher {
                     let vi = corner[cc]
                     var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
                     vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
-                    emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, v >> 8, v & 255,
+                    var lay = layer, tnt = tint
+                    if blendQuad, case let m = Int(VM[vi]), m >= 0 {
+                        let tb = Int(tintT[m]), tf = tb == 3 ? (vn.y > 0.2 ? 2 : 3) : f
+                        lay = Int(texT[m * 6 + tf]); tnt = tb == 3 ? (tf == 2 ? 1 : 0) : tb
+                    }
+                    emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, v >> 8, v & 255,
                          SmoothTerrain.normalCode(vn, face: f))
                 }
             }

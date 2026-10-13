@@ -24,24 +24,28 @@ final class SmoothField {
     static let NN = N * N
     static let NNN = N * N * N
     // Sample box origin (world x, internal y, world z of sample 0).
-    private(set) var ox = 0, oy = 0, oz = 0
-    private(set) var gen: WorldGen?
+    // (Unchecked: the field is per thread, and the dynamic exclusivity checks on these were a third of its cost.)
+    @exclusivity(unchecked) private(set) var ox = 0
+    @exclusivity(unchecked) private(set) var oy = 0
+    @exclusivity(unchecked) private(set) var oz = 0
+    @exclusivity(unchecked) private(set) var gen: WorldGen?
 
     // Block samples: terrain density (> 0 solid) and the three carve fields (> 0 carved). NaN = not yet computed.
     private let sT = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NNN)
     private let sK = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NNN * 3)
     private let spagT = UnsafeMutablePointer<Float>.allocate(capacity: SmoothField.NN)       // per column
 
-    // Terrain lattice nodes round the box: x/z every 4 blocks, y every 8.
-    private static let TX = N / 4 + 3, TY = N / 8 + 3
+    // Terrain lattice nodes round the box, the whole height (kept while the next section is in the same chunk: a mesh
+    // job meshes a chunk's sections one after another, and their boxes overlap): x/z every 4 blocks, y every 8.
+    private static let TX = N / 4 + 3, TY = CH / 8 + 2
     private let tNode = UnsafeMutablePointer<Float>.allocate(capacity: TX * TX * TY)
     private let tCol = UnsafeMutablePointer<WorldGen.Col>.allocate(capacity: TX * TX)
     private let tColSet = UnsafeMutablePointer<Bool>.allocate(capacity: TX * TX)
-    private var tgx0 = 0, tgz0 = 0, tgy0 = 0
+    @exclusivity(unchecked) private var tgx0 = 0
+    @exclusivity(unchecked) private var tgz0 = 0
     // Cave lattice nodes: every 4 blocks on all axes, five noises.
-    private static let KX = N / 4 + 3
-    private let kNode = UnsafeMutablePointer<Float>.allocate(capacity: KX * KX * KX * 5)
-    private var kgy0 = 0
+    private static let KX = N / 4 + 3, KY = CH / 4 + 2
+    private let kNode = UnsafeMutablePointer<Float>.allocate(capacity: KX * KX * KY * 5)
 
     deinit {
         sT.deallocate(); sK.deallocate(); spagT.deallocate()
@@ -50,17 +54,18 @@ final class SmoothField {
 
     // Starts a section: sample (ix, iy, iz) is world block (x0 + ix, y0 + iy, z0 + iz).
     func prepare(_ g: WorldGen, x0: Int, y0: Int, z0: Int) {
+        let nan = Float.nan
+        if g !== gen || x0 != ox || z0 != oz {
+            spagT.initialize(repeating: nan, count: SmoothField.NN)
+            tgx0 = floorDiv(x0, 4); tgz0 = floorDiv(z0, 4)
+            tNode.initialize(repeating: nan, count: SmoothField.TX * SmoothField.TX * SmoothField.TY)
+            tColSet.initialize(repeating: false, count: SmoothField.TX * SmoothField.TX)
+            kNode.initialize(repeating: nan, count: SmoothField.KX * SmoothField.KX * SmoothField.KY * 5)
+        }
         gen = g
         ox = x0; oy = y0; oz = z0
-        let nan = Float.nan
         sT.initialize(repeating: nan, count: SmoothField.NNN)
         sK.initialize(repeating: nan, count: SmoothField.NNN * 3)
-        spagT.initialize(repeating: nan, count: SmoothField.NN)
-        tgx0 = floorDiv(x0, 4); tgz0 = floorDiv(z0, 4); tgy0 = max(0, y0 >> 3)
-        tNode.initialize(repeating: nan, count: SmoothField.TX * SmoothField.TX * SmoothField.TY)
-        tColSet.initialize(repeating: false, count: SmoothField.TX * SmoothField.TX)
-        kgy0 = max(0, y0 >> 2)
-        kNode.initialize(repeating: nan, count: SmoothField.KX * SmoothField.KX * SmoothField.KX * 5)
     }
 
     // Inside the world's height range (the field says nothing outside it).
@@ -74,7 +79,7 @@ final class SmoothField {
     private static let latNY = CH / 8 + 1           // WorldGen.Lattice.ny
 
     @inline(__always) private func tNodeAt(_ gx: Int, _ gy: Int, _ gz: Int) -> Float {
-        let ix = gx - tgx0, iz = gz - tgz0, iy = gy - tgy0
+        let ix = gx - tgx0, iz = gz - tgz0, iy = gy
         let k = (ix * SmoothField.TX + iz) * SmoothField.TY + iy
         let v = tNode[k]
         if !v.isNaN { return v }
@@ -91,7 +96,7 @@ final class SmoothField {
         let v = sT[i]
         if !v.isNaN { return v }
         let ix = i % SmoothField.N, iz = (i / SmoothField.N) % SmoothField.N, iy = i / SmoothField.NN
-        let x = ox + ix, y = oy + iy, z = oz + iz
+        let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz      // (callers stay in the world; clamped for safety)
         let gx = floorDiv(x, 4), gz = floorDiv(z, 4), gy = min(SmoothField.latNY - 2, y >> 3)
         let fx = Float(x & 3) / 4, fz = Float(z & 3) / 4, fy = Float(y - gy * 8) / 8
         let c000 = tNodeAt(gx, gy, gz), c100 = tNodeAt(gx + 1, gy, gz)
@@ -112,8 +117,8 @@ final class SmoothField {
 
     // Cave noise f (0 cheese, 1-2 spaghetti, 3-4 noodles) at node (gx, gy, gz).
     @inline(__always) private func kNodeAt(_ f: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float {
-        let ix = gx - tgx0, iz = gz - tgz0, iy = gy - kgy0
-        let k = (((ix * SmoothField.KX + iz) * SmoothField.KX) + iy) * 5 + f
+        let ix = gx - tgx0, iz = gz - tgz0, iy = gy
+        let k = (((ix * SmoothField.KX + iz) * SmoothField.KY) + iy) * 5 + f
         let v = kNode[k]
         if !v.isNaN { return v }
         let g = gen!
@@ -149,11 +154,13 @@ final class SmoothField {
         let v = sK[i * 3 + k]
         if !v.isNaN { return v }
         let ix = i % SmoothField.N, iz = (i / SmoothField.N) % SmoothField.N, iy = i / SmoothField.NN
-        let x = ox + ix, y = oy + iy, z = oz + iz
+        let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz
         let yd = y - YOFF
         let r: Float
         switch k {
         case 0:
+            // The cheese noise stays under 1, and fades 1/90 a block above 30: nothing carves above about 93.
+            if yd > 95 { r = -1; break }
             r = caveSample(0, x, y, z) + (yd < 30 ? 0 : -Float(yd - 30) / 90) - 0.3
         case 1:
             let ci = ix + iz * SmoothField.N

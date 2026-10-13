@@ -17,6 +17,11 @@ layout(location = 6) out float oDist;
 layout(location = 7) out vec3 oRel;
 layout(location = 8) flat out float oFace;
 layout(location = 9) out float oWDepth;     // water.frag: metres of water under a top corner, -1 not water
+// Smooth terrain material blending (P142): each quad corner carries its own material layer. Corner k (its vertex index
+// mod 4: a quad's 4 vertices are consecutive) writes its layer into slot k times a one-hot weight; interpolated, the slot
+// holds layer x barycentric weight, and oLW the weight, so the fragment recovers every corner's layer and how near it is.
+layout(location = 10) out vec4 oLayers;
+layout(location = 11) out vec4 oLW;
 
 const float faceShade[8] = float[](0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00);
 const float aoCurve[4] = float[](0.42, 0.62, 0.81, 1.0);
@@ -99,6 +104,9 @@ void main() {
     float fs = faceShade[face];
     if (smoothV) { nrm = smoothNormal(face, vv + 31u * ((w1 >> 30) & 1u)); fs = smoothShade(nrm); }
     oShade = lit * sunShadeN(nrm, fs, sw, u.sunDir.xyz) * ((water || sway) ? 1.0 : aoCurve[ao]);
+    oLW = vec4(0.0);
+    if (smoothV) { oLW[uint(gl_VertexIndex) & 3u] = 1.0; }
+    oLayers = oLW * float(layer);
     oDist = length(rel);
     oRel = rel;
     oFace = float(face);
