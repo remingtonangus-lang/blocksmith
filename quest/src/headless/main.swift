@@ -138,22 +138,25 @@ if let out = arg("--view"), let ctx = vkctx {
     if CommandLine.arguments.contains("--meshbench") {
         let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
         let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)
-        for (name, on, fld) in [("blocks", false, false), ("round2", true, false), ("field", true, true)] {
-            SmoothTerrain.enabled = on; SmoothTerrain.fromField = fld
-            var ms = 0.0, quads = 0, secs = 0
+        let detailWas = Mesher.detailMeshes
+        for (name, on, fld, det) in [("blocks", false, false, false), ("round2", true, false, false), ("field", true, true, false),
+                                     ("realistic", true, true, true)] {
+            SmoothTerrain.enabled = on; SmoothTerrain.fromField = fld; Mesher.detailMeshes = det
+            var ms = 0.0, quads = 0, secs = 0, dq = 0
             for dz in -2...2 { for dx in -2...2 {
                 guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
                 for sy in 0..<NSEC {
                     let t0 = CFAbsoluteTimeGetCurrent()
-                    let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c))
+                    let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c), chunk: (c.cx, c.cz))
                     ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
                     if !m.opaque.isEmpty { secs += 1 }
-                    quads += m.opaque.count / 8
+                    quads += m.opaque.count / 8; dq += m.detail.count / DetailMesh.wordsPerQuad
                 }
             } }
-            print(String(format: "meshbench %@: %.1f ms, %d sections with geometry, %d quads", name, ms, secs, quads))
+            print(String(format: "meshbench %@: %.1f ms, %d sections with geometry, %d quads, %d detail quads", name, ms, secs, quads, dq))
         }
         (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
+        Mesher.detailMeshes = detailWas
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
     if let n = Int(arg("--dig") ?? "") {
@@ -241,6 +244,31 @@ if let out = arg("--view"), let ctx = vkctx {
             vg.mobs.mobs.append(m)
         }
         vg.mobs.rebuildIndex()
+    }
+    // --scene shapes: the realistic world's shape classes side by side on a lawn in the air at --at (organic objects,
+    // cut timber, a log wall, a post), seen from --dist blocks off (8).
+    if arg("--scene") == "shapes" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 9)...(bx + 9) { for z in (bz - 8)...(bz + 3) {
+            vw.setBlock(x, by, z, Blocks.id("grass_block"))
+            for y in (by + 1)...(by + 6) { vw.setBlock(x, y, z, AIR) }
+        } }
+        func put(_ x: Int, _ y: Int, _ z: Int, _ k: String) { if Blocks.has(k) { vw.setBlock(bx + x, by + y, bz + z, Blocks.id(k)) } }
+        put(-7, 1, -2, "pumpkin"); put(-5, 1, -1, "carved_pumpkin[south]"); put(-3, 1, -2, "melon"); put(-6, 1, -4, "jack_o_lantern[south]")
+        put(-1, 1, -2, "hay_block"); put(-1, 2, -2, "hay_block"); put(0, 1, -2, "hay_block[x]"); put(1, 1, -2, "hay_block[x]")
+        for x in 3...5 { for z in -5...(-3) { put(x, 4, z, "red_mushroom_block") } }
+        for y in 1...3 { put(4, y, -4, "mushroom_stem") }
+        put(7, 1, -2, "glowstone"); put(7, 2, -2, "glowstone"); put(8, 1, -2, "glowstone"); put(7, 1, -3, "nether_wart_block")
+        put(6, 1, 0, "sponge"); put(-8, 1, 0, "dried_kelp_block")
+        for x in -4...(-1) { put(x, 1, -7, "oak_log[x]"); put(x, 2, -7, "oak_log[x]") }      // a log wall
+        put(0, 1, -7, "spruce_log"); put(0, 2, -7, "spruce_log")                            // a post
+        put(2, 1, -6, "oak_log")                                                            // a stump
+        for x in -8...(-6) { for y in 1...2 { put(x, y, -6, "bricks") } }; put(-8, 3, -6, "bricks")   // built blocks
+        for y in 1...3 { put(5, y, -6, "oak_planks") }; put(6, 1, -6, "stone_bricks"); put(8, 1, -5, "iron_block")
+        let dist = Float(arg("--dist") ?? "") ?? 8
+        vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 2), Float(bz - 2) + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 12, z0: bz - 12, x1: bx + 12, z1: bz + 6, y0: by - 4, y1: by + 8)
     }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
@@ -383,6 +411,8 @@ if CommandLine.arguments.contains("--p12-only") {
     print(failures == 0 ? "p12: all checks passed" : "p12: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --smooth2-only: polygon terrain round 2 (Sources/SmoothRound2Tests.swift, backlog P106).
+// --shapecensus: the realistic world's shape class of every block (Sources/ShapeClass.swift).
+if CommandLine.arguments.contains("--shapecensus") { print(ShapeClass.census()); exit(0) }
 if CommandLine.arguments.contains("--smooth2-only") {
     SmoothRound2Tests.run(game, check: check)
     print(failures == 0 ? "smooth2: all checks passed" : "smooth2: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 struct SectionMesh {
     var opaque: [UInt32]
@@ -7,6 +8,9 @@ struct SectionMesh {
     var vis: UInt64 = ~0    // face-to-face connectivity through open cells (bit a*6+b), for cave culling
     var solidQuads = 0      // opaque = solid quads first (no alpha test: keeps the GPU's hidden-surface removal), then cutout
     var leafy = true        // has faces between leaf blocks (false: lod 0 and 2 mesh the same, no remesh across that ring)
+    // Realistic world (DetailMesh): round shapes in 16-byte vertices, solid quads first, then alpha-tested ones.
+    var detail: [UInt32] = []
+    var detailSolid = 0
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -34,6 +38,18 @@ enum Mesher {
     #else
     static var plantSway = true
     #endif
+    // Realistic world (docs/design/realistic-world.md): in polygon worlds trunks, limbs and organic objects are drawn as
+    // round shapes in the section's detail stream (DetailMesh) instead of cubes. Quest only: the Mac's renderer has no
+    // detail pipeline, so its sections keep the cubes. BLOCKSMITH_DETAIL=0 keeps the cubes (side by side shots).
+    #if os(macOS)
+    static var detailMeshes = false
+    #else
+    static var detailMeshes = ProcessInfo.processInfo.environment["BLOCKSMITH_DETAIL"] != "0"
+    #endif
+    // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
+    static let detailT: [Bool] = ShapeClass.kind.map { $0 == .trunk || $0 == .organic }
+    // Built cubes (planks, bricks, metal, concrete...): crisp, but no knife edges (realistic world 1.6).
+    static let bevelT: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .built && Blocks.tint[$0] != 3 }
 
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
     static let dark = [UInt8](repeating: 0, count: 4096)
@@ -234,7 +250,7 @@ enum Mesher {
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             smoothOK: Bool = true, site: SmoothSite? = nil) -> SectionMesh {
+                             smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -265,6 +281,12 @@ enum Mesher {
         let smooth = SmoothTerrain.enabled && smoothOK, natT = SmoothTerrain.natural, snowLayerID = SmoothTerrain.snowLayer
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
         let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
+        let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
+        // Far sections (lod 1) draw those blocks as cubes again (the most sections, the least seen); the ground still
+        // treats them as open everywhere so its surface agrees across the lod rings.
+        let detailDraw = detail && !far
+        // Realistic world: built blocks near the eye get a 1/16 chamfer on their exposed edges (Mesher.bevelT).
+        let bevel = detail && lod == 0, bevelT = Mesher.bevelT
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
@@ -369,6 +391,7 @@ enum Mesher {
         // block keeps its face against it (else sky shows through the gap); buried natural cells still hide faces.
         func smoothOpen(_ j: Int) -> Bool {
             if leafBlob && leafT[Int(R[j])] { return true }      // (a blob rounds away from a log or a built block)
+            if detailDraw && detT[Int(R[j])] { return true }     // (a round trunk doesn't fill its block)
             guard smooth && natT[Int(R[j])] else { return false }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
             return false
@@ -388,6 +411,67 @@ enum Mesher {
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1) } else if curCut { cut.append(w0); cut.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
+        // Realistic world (built blocks): face f drawn 1/16 short of each edge it shares with another exposed side `ex`,
+        // the 45-degree strip across each such edge (drawn by the lower-numbered face) and a corner triangle where three
+        // exposed sides meet (drawn by the lowest). Strips carry a tilted normal (u = 31, projected texture).
+        func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool) {
+            let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
+            let base = SIMD3<Int>(bx16, by16, bz16)
+            func put(_ q: SIMD3<Int>, _ n: SIMD3<Float>, _ l: Int, _ ao: Int) {
+                let code = SmoothTerrain.normalCode(simd_normalize(n), face: f)
+                vert(isTrans, base.x + q.x, base.y + q.y, base.z + q.z, f, tint, 31, code % 31, layer, ao, l, code >= 31)
+            }
+            // The face, inset where its edges are chamfered (texture from the face's own UVs, cropped the same way).
+            for k in 0..<4 {
+                let c = flip ? (k + 1) & 3 : k
+                let ci = (f * 4 + c) * 3
+                var q = SIMD3<Int>(CT[ci] * 16, CT[ci + 1] * 16, CT[ci + 2] * 16)
+                for t in [(a + 1) % 3, (a + 2) % 3] {
+                    if q[t] == 0 && ex & (1 << (t * 2 + 1)) != 0 { q[t] = 1 }
+                    if q[t] == 16 && ex & (1 << (t * 2)) != 0 { q[t] = 15 }
+                }
+                let (u, v) = faceUV(f, q.x, q.y, q.z)
+                vert(isTrans, base.x + q.x, base.y + q.y, base.z + q.z, f, tint, u, v, layer, aos[c], lit[c], false)
+            }
+            var nf = SIMD3<Float>(0, 0, 0); nf[a] = Float(sa)
+            // Strips to the exposed sides with a higher index.
+            for g in (f + 1)..<6 where g >> 1 != a && ex & (1 << g) != 0 {
+                let b = g >> 1, sb = g & 1 == 0 ? 1 : -1, pb = sb > 0 ? 16 : 0
+                let c3 = 3 - a - b
+                let c0 = ex & (1 << (c3 * 2 + 1)) != 0 ? 1 : 0, c1 = ex & (1 << (c3 * 2)) != 0 ? 15 : 16
+                var ng = SIMD3<Float>(0, 0, 0); ng[b] = Float(sb)
+                var pts = [SIMD3<Int>](repeating: .zero, count: 4)
+                for (k, (onF, cc)) in [(true, c0), (true, c1), (false, c1), (false, c0)].enumerated() {
+                    var q = SIMD3<Int>(0, 0, 0)
+                    q[c3] = cc
+                    if onF { q[a] = pa; q[b] = pb - sb } else { q[b] = pb; q[a] = pa - sa }
+                    pts[k] = q
+                }
+                let n = nf + ng
+                let e1 = SIMD3<Float>(pts[1] &- pts[0]), e2 = SIMD3<Float>(pts[2] &- pts[0])
+                if simd_dot(simd_cross(e1, e2), n) < 0 { pts.reverse() }
+                for q in pts { put(q, n, flat, 3) }
+            }
+            // Corner triangles (three exposed sides meet; drawn when f is the lowest of them).
+            for c in 0..<4 {
+                let ci = (f * 4 + c) * 3
+                let corner = SIMD3<Int>(CT[ci], CT[ci + 1], CT[ci + 2])
+                let b = (a + 1) % 3, c3 = (a + 2) % 3
+                let g = b * 2 + (corner[b] == 1 ? 0 : 1), h = c3 * 2 + (corner[c3] == 1 ? 0 : 1)
+                guard g > f && h > f && ex & (1 << g) != 0 && ex & (1 << h) != 0 else { continue }
+                let sb = corner[b] == 1 ? 1 : -1, sc = corner[c3] == 1 ? 1 : -1
+                let pb = corner[b] * 16, pc = corner[c3] * 16
+                var p0 = SIMD3<Int>(0, 0, 0), p1 = p0, p2 = p0
+                p0[a] = pa; p0[b] = pb - sb; p0[c3] = pc - sc
+                p1[b] = pb; p1[a] = pa - sa; p1[c3] = pc - sc
+                p2[c3] = pc; p2[a] = pa - sa; p2[b] = pb - sb
+                var n = nf; n[b] += Float(sb); n[c3] += Float(sc)
+                var tri = [p0, p1, p2]
+                if simd_dot(simd_cross(SIMD3<Float>(p1 &- p0), SIMD3<Float>(p2 &- p0)), n) < 0 { tri = [p0, p2, p1] }
+                for q in tri { put(q, n, flat, 3) }
+                put(tri[2], n, flat, 3)
+            }
+        }
         // T17 smooth water (field worlds): does a column sharing this top corner step down a level (open at y, still water
         // under it)? Then the corner drops to the lower surface, so a river's steps ramp down instead of standing as boxes.
         let smoothWater = smooth && site != nil
@@ -401,6 +485,23 @@ enum Mesher {
                 }
             }
             return false
+        }
+        // Realistic world: is this top corner on the edge of a spilled sheet (a cell sharing it is open, holds no liquid
+        // and has solid ground right under it)? Then the surface comes down to the ground there.
+        func thinEdge(_ cx: Int, _ y: Int, _ cz: Int, _ kind: UInt8) -> Bool {
+            var dry = false
+            for dz in -1...0 {
+                for dx in -1...0 {
+                    let cell = Int(at(cx + dx, y, cz + dz))
+                    if fkT[cell] == kind {
+                        if fkT[Int(at(cx + dx, y + 1, cz + dz))] == kind { return false }    // full column: no edge
+                        continue
+                    }
+                    if collideT[cell] || fkT[cell] != 0 { continue }
+                    if collideT[Int(at(cx + dx, y - 1, cz + dz))] { dry = true }
+                }
+            }
+            return dry
         }
         // Water surface drop (eighths) at a corner: highest of the up-to-4 liquid cells sharing it.
         func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int, _ kind: UInt8) -> Int {
@@ -476,7 +577,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
@@ -497,6 +598,7 @@ enum Mesher {
                         continue
                     }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
+                    if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
@@ -850,6 +952,22 @@ enum Mesher {
                         }
                         let overlay = tintB == 3 && f != 2 && f != 3
                         let tintF = (tintB == 3 && f == 3) ? 0 : tintV
+                        if bevel && bevelT[bi] && rt == rCube {
+                            // Exposed sides of this block (the faces the loop draws); an edge between two of them is chamfered.
+                            var ex = 0
+                            for g in 0..<6 {
+                                let j = i + offs[g]
+                                let nb = Int(R[j])
+                                // (Natural ground counts as contact here: a wall standing on it has no chamfer at its foot.)
+                                if (!opaqueT[nb] || detT[nb] || leafBlob && leafT[nb]) && !(cullSameT[bi] && R[j] == b) { ex |= 1 << g }
+                            }
+                            let a = f >> 1, t1 = (a + 1) % 3, t2 = (a + 2) % 3
+                            let sideMask = (3 << (t1 * 2)) | (3 << (t2 * 2))
+                            if ex & sideMask != 0 {
+                                bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans)
+                                continue
+                            }
+                        }
                         if !isLiquid && rt == rCube && aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3]
                             && lit[0] == lit[1] && lit[1] == lit[2] && lit[2] == lit[3] {
                             // Slice along the face axis; a, bb = the next two axes (x->y,z  y->z,x  z->x,y).
@@ -863,15 +981,27 @@ enum Mesher {
                             mask[(f * 16 + sl) * 256 + a + bb * 16] = Int32(key + 1)
                             continue
                         }
+                        // Realistic world: a liquid sheet thins out to the ground at its edge (no block-high wall round
+                        // spilled water); a side face left under a 1/16 sliver is dropped.
+                        var pys = (0, 0, 0, 0)
+                        var sliver = isLiquid && liquidTop && f != 2 && f != 3
+                        for k in 0..<4 {
+                            let ci = (f * 4 + k) * 3
+                            var py = CT[ci + 1] * 16
+                            if liquidTop && py == 16 {
+                                py = smoothWater && fk == 1 && stepDown(x + CT[ci], y, z + CT[ci + 2]) ? 0
+                                    : (detail && thinEdge(x + CT[ci], y, z + CT[ci + 2], fk) ? 1
+                                       : 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk))
+                            }
+                            if py > 1 { sliver = false }
+                            switch k { case 0: pys.0 = py; case 1: pys.1 = py; case 2: pys.2 = py; default: pys.3 = py }
+                        }
+                        if sliver && detail { continue }
                         for k in 0..<4 {
                             let c = flip ? (k + 1) & 3 : k
                             let ci = (f * 4 + c) * 3
                             let px = CT[ci] * 16, pz = CT[ci + 2] * 16
-                            var py = CT[ci + 1] * 16
-                            if liquidTop && py == 16 {
-                                py = smoothWater && fk == 1 && stepDown(x + CT[ci], y, z + CT[ci + 2]) ? 0
-                                    : 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk)
-                            }
+                            let py = c == 0 ? pys.0 : (c == 1 ? pys.1 : (c == 2 ? pys.2 : pys.3))
                             let (u, v) = faceUV(f, px, py, pz)
                             let shadeIdx = isLiquid && fk == 2 ? 7 : f      // 7 = lava (flat bright, animated)
                             vert(isTrans, bx16 + px, by16 + py, bz16 + pz, shadeIdx, isLiquid ? (fk == 1 ? 3 : 0) : tintF, u, v, layer, aos[c], lit[c], overlay)
@@ -880,9 +1010,20 @@ enum Mesher {
                 }
             }
         }
+        // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
+        // (ShapeOrganic), into the detail stream.
+        let det = sc.det, detCut = sc.detCut
+        det.count = 0; detCut.count = 0
+        if detailDraw {
+            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: (chunk?.x ?? site?.cx ?? 0) * CS, wy0: sy * 16, wz0: (chunk?.z ?? site?.cz ?? 0) * CS,
+                                    lod: lod, sc: sc, srcs: srcs, sy: sy)
+            ShapeTrunks.emit(ctx)
+            ShapeOrganic.emit(ctx)
+        }
         if smooth {
             if leafBlob {
-                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                let wo = detail ? SIMD3<Int>((chunk?.x ?? site?.cx ?? 0) * CS, sy * 16, (chunk?.z ?? site?.cz ?? 0) * CS) : nil
+                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = true
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
@@ -964,7 +1105,14 @@ enum Mesher {
         opaqueOut.reserveCapacity(opq.count + cut.count)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: opq.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
-        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy)
+        var detailOut = [UInt32]()
+        if det.count + detCut.count > 0 {
+            detailOut.reserveCapacity(det.count + detCut.count)
+            detailOut.append(contentsOf: UnsafeBufferPointer(start: det.ptr, count: det.count))
+            detailOut.append(contentsOf: UnsafeBufferPointer(start: detCut.ptr, count: detCut.count))
+        }
+        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
+                           detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -1066,6 +1214,7 @@ final class MeshScratch {
     let stack = UnsafeMutablePointer<Int32>.allocate(capacity: 4096)
     let queue = GrowBuf<Int32>(1 << 16)
     let opq = GrowBuf<UInt32>(1 << 14), cut = GrowBuf<UInt32>(1 << 12), trn = GrowBuf<UInt32>(1 << 12)
+    let det = GrowBuf<UInt32>(1 << 12), detCut = GrowBuf<UInt32>(1 << 10)     // realistic world: DetailMesh vertices
     // Smooth terrain (SmoothTerrain.swift): solid flags, density, dual vertices (xyz, light | ao << 8, normal, pinned,
     // relaxation scratch), each with SmoothTerrain.maxRelax blocks of ring past a section's own.
     static let smN0 = 20 + 2 * SmoothTerrain.maxRelax, smM0 = 18 + 2 * SmoothTerrain.maxRelax, smK0 = 17 + 2 * SmoothTerrain.maxRelax

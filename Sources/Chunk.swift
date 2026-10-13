@@ -25,6 +25,9 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var transBuf: MeshSlice?
     var transQuads = 0
+    var detailBuf: MeshSlice?   // realistic world: round shapes (DetailMesh, 16-byte vertices), solid quads first
+    var detailQuads = 0
+    var detailSolid = 0
     var version = 0 {           // bumped when the section (or light around it) changes
         didSet {
             MeshEpoch.value &+= 1
@@ -38,7 +41,7 @@ final class Section {
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var leafy = true             // its mesh has faces between leaf blocks (SectionMesh.leafy)
     var needsMesh: Bool { meshedVersion != version }
-    var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
+    var empty: Bool { opaqueQuads == 0 && transQuads == 0 && detailQuads == 0 }
 }
 
 // A chunk's blocks (index x + z*16 + y*256) stored only up to the highest section holding anything but
