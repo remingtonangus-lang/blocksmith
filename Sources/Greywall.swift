@@ -365,7 +365,7 @@ enum Greywall {
             for y in (W + 1)...(W + 2) { put(c.x - 3 * sx, y, c.z + sz, AIR); put(c.x + sx, y, c.z - 3 * sz, AIR) }
             wallLamp(alarmPanel, c.x - 2 * sx, 2, c.z + 2 * sz, wall: sz > 0 ? 1 : 0)
             wallLamp(alarm, c.x, R - 1, c.z + 4 * sz, wall: sz < 0 ? 1 : 0)
-            if t.deckGuns { w.mob("deck_gun@grey", V3(Float(cx + c.x) + 0.5, Float(S + R + 1), Float(cz + c.z) + 0.5)) }
+            if t.deckGuns { w.mob("deck_gun:light@grey", V3(Float(cx + c.x) + 0.5, Float(S + R + 1), Float(cz + c.z) + 0.5)) }   // (P210)
         }
 
         // MARK: Keep
@@ -535,7 +535,7 @@ enum Greywall {
             if !t.deckGuns {
                 for (sx, sz) in t.towers where (k == 0 && sz < 0) || (k == 1 && sz > 0) || (k == 2 && sx < 0) || (k == 3 && sx > 0) {
                     let c = tower(t, sx, sz)
-                    w.mob("deck_gun@grey^\(headings[k])", V3(Float(cx + c.x) + 0.5, Float(S + W + 6), Float(cz + c.z) + 0.5))
+                    w.mob("deck_gun:light@grey^\(headings[k])", V3(Float(cx + c.x) + 0.5, Float(S + W + 6), Float(cz + c.z) + 0.5))   // (P210)
                 }
             }
         }

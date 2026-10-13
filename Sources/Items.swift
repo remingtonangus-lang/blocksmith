@@ -435,6 +435,7 @@ final class ItemRegistry {
         item("intercepted_orders", "Intercepted Orders", "orders", 0xE8E0C8, ["c": 0xA02A20, "d": 0x3A3A3A], stack: 16)
         item("upgrade_blueprint", "Blueprint", "paper", 0x3A6AB8, [:], stack: 16)                 // P138 (Blueprints.swift)
         for s in BaseSundries.all { item(s.key, s.name, s.mask, s.color, s.extras, stack: s.key == "spent_casings" ? 64 : 16) }   // P133
+        item("greywall_codebook", "Greywall Code Book", "book", 0x4A5560, [:], stack: 1)              // P206
         // The gap pass (HorseLife.swift): brings a downed horse of yours back to its feet. Sold by stables and doctors.
         item("saddle_salve", "Saddle Salve", "bottle", 0xD0DCF0, ["c": 0xD8542A], stack: 16)
         // Durability / combat numbers for the weapon items above.

@@ -14,7 +14,13 @@ import simd
 // The next raid time is saved with the world extras ("factionRaids").
 enum FactionRaids {
     static let angeredAt: Float = -45
-    static let every: Double = 600
+    // P215 (Oct 13 18:53-19:01, "raiding parties and bounty hunters came round after round"): one dropship a raid,
+    // forty minutes apart, and never within 25 minutes of any other assault (another faction's raid, a hunters'
+    // dropship): `lastAssault` is shared with FactionRep's hunters.
+    static let every: Double = 2400
+    static let quiet: Double = 1500
+    static let rocketeerName = "Raid Rocketeer"
+    static var lastAssault: Double = -1e9
     static let reach: Float = 120
     static let landAt: Float = 24
     static let maxTime: Double = 300
@@ -87,7 +93,7 @@ extension Game {
             return
         }
         if FactionRaids.next == 0 { FactionRaids.next = clock + FactionRaids.every; return }
-        guard clock >= FactionRaids.next, let f = FactionRaids.angered() else { return }
+        guard clock >= FactionRaids.next, clock - FactionRaids.lastAssault > FactionRaids.quiet, let f = FactionRaids.angered() else { return }
         guard let place = raidPlaces().first(where: { simd_length($0.0 - player.pos) < FactionRaids.reach }), world.ships.pilot == nil else { return }
         FactionRaids.next = clock + FactionRaids.every
         startRaid(f, at: place.0, place: place.1)
@@ -96,7 +102,7 @@ extension Game {
     @discardableResult
     func startRaid(_ f: Faction, at c: V3, place: String, sync: Bool = false) -> Int {
         var landed = 0
-        for k in 0..<8 where landed < 2 {
+        for k in 0..<8 where landed < 1 {
             let a = Float(k) * .pi / 4 + 0.4, d = FactionRaids.landAt + Float(k % 3) * 3
             let x = c.x + cosf(a) * d, z = c.z + sinf(a) * d
             let ix = Int(floor(x)), iz = Int(floor(z))
@@ -105,9 +111,10 @@ extension Game {
             guard y > 0, !Blocks.isLiquid(world.block(ix, y, iz)) else { continue }
             let land = V3(x, Float(y + 1), z)
             let from = land + V3(cosf(a) * 240, 70, sinf(a) * 240)
-            if world.ships.callDropship(faction: f, from: from, to: land, game: self, sync: sync, troops: 4) { landed += 1 }
+            if world.ships.callDropship(faction: f, from: from, to: land, game: self, sync: sync, troops: 5, rocketeer: true) { landed += 1 }
         }
         guard landed > 0 else { return 0 }
+        FactionRaids.lastAssault = clock
         FactionRaids.active = FactionRaids.Raid(faction: f, target: c, place: place, started: clock, turrets: raidTurrets(around: c), scanAt: clock + 20)
         onToast?("\(f.name) is raiding \(place)! Hold it.")
         sfx(.raidHorn, 1)

@@ -29,6 +29,10 @@ final class GreywallAlarmState {
     struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
     var trucks: [Truck] = []
     var taken: Set<String> = []                     // bases the player has taken (saved: Effects.swift "greywallTaken")
+    // P203 (Oct 13 18:38-18:47, "guards respawn faster than I can kill them and the trucks never stop"): squads a base
+    // has called in, for good (saved: "greywallSquads"). A base has its garrison plus at most `squadBudget` squads over
+    // the whole game; a fresh alarm, a reload or walking off and back gives it no more.
+    var squadsSent: [String: Int] = [:]
     static let holdFor: Float = 10
     var sites: [String: Site] = [:]
     struct Gun { var windup: Float = 0, shots = 0, gap: Float = 0, cool: Float = 0, look: Float = 0, sees = false, hits = 0, seat = 0 }
@@ -40,6 +44,7 @@ final class GreywallAlarmState {
     static let standDown: Float = 45
     static let squadEvery: Float = 45
     static let maxSquads = 4
+    static func squadBudget(_ t: Greywall.Tier) -> Int { t.rawValue >= 3 ? 3 : 2 }
     static let leashPad: Float = 4
     static let turretIds: (BlockID, BlockID) = (Blocks.id("wall_turret"), Blocks.id("wall_turret_damaged"))
     static let turretDirs = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
@@ -226,12 +231,15 @@ extension Game {
                     onToast?("Every alarm panel is down: the \(site.tier.name) can't call for help")
                 }
                 // (and never past the base's own strength plus 12: squads stay, so alarm after alarm can't pile them up)
+                let sent = st.squadsSent[key] ?? 0
                 if site.tier.rawValue >= 2 && standing > 0 && site.squads < GreywallAlarmState.maxSquads
-                    && greywallStrength(site) < site.tier.troops + 12 {
+                    && sent < GreywallAlarmState.squadBudget(site.tier) && greywallStrength(site) < site.tier.troops + 6 {
                     site.squadT -= dt
                     if site.squadT <= 0 {
                         site.squadT = GreywallAlarmState.squadEvery
                         site.squads += 1
+                        st.squadsSent[key] = sent + 1
+                        if sent + 1 == GreywallAlarmState.squadBudget(site.tier) { onToast?("That was the \(site.tier.name)'s last reinforcements") }
                         greywallSquad(site)
                         st.log.append("\(key) squad \(site.squads)")
                     }
@@ -463,8 +471,10 @@ extension Game {
         guard world.dim == .overworld, let sc = world.gen.structures,
               let s = sc.nearest(Greywall.kind, x: p.x, z: p.z, maxRegions: 1), s.contains(p.x, p.y, p.z) else { return true }
         let (cx, cz) = Greywall.centre(s)
-        guard greywallAlarm.taken.contains("greywall:\(cx),\(cz)") else {
-            onToast?("The table's charts are locked to Greywall codes: take the base first")
+        let codes = inventory.main.slots.contains { !$0.isEmpty && Items.key($0.item) == "greywall_codebook" }
+        guard greywallAlarm.taken.contains("greywall:\(cx),\(cz)") || codes else {
+            // P206: say where the key is.
+            onToast?("Locked to Greywall codes: the base's officer carries the code book (or take the base: clear it and hold a command console 10 s)")
             return true
         }
         let n = greywallRadarNet(from: cx, cz)

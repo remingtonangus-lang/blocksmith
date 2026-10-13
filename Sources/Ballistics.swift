@@ -258,6 +258,12 @@ final class Armory {
     }
 
     private func impactMob(_ s: Slug, _ m: Mob, at: V3, dir: V3, _ g: Game) {
+        // P219 (Oct 13 19:08, "a direct rocket hit should kill a soldier outright"): the body a rocket strikes takes the
+        // whole warhead, whatever its plate (a deck gun or a tank's armour still only takes the blast).
+        if s.kind == .rocket, Soldier.rank(m.kind) != nil, m.kind != .deckGun, m.health > 0 {
+            if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
+            m.hit(from: at - dir * 2, damage: m.health + 1000, knockback: 1.2)
+        }
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         if m.kind == .enderman && s.fromPlayer { m.teleport(g.world); return }
         var dmg = s.damage

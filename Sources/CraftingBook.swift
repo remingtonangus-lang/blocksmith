@@ -421,9 +421,11 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             // How many you can make, on the tile (Oct 11 playtest P28: it only showed that you could, "show 6 chests").
             if ok {
                 let times = CraftBook.maxCrafts(r, pool, cap: 99)            // (capped: 15 tiles a frame)
-                let t = "\(times * r.result.count)\(times >= 99 ? "+" : "")"
-                box(sl.x + sl.w - Font.width(t) - 3, sl.y + sl.h - 9, Font.width(t) + 2, 8, V4(0, 0, 0, 0.6))
-                label(t, sl.x + sl.w - Font.width(t) - 2, sl.y + sl.h - 8)
+                // P213 (Oct 13 18:51, "the craftable count overlaps the item's own number"): the item's stack size keeps
+                // the bottom-right corner; how many you can make sits top left as "x6" on a dark green tag.
+                let t = "x\(times * r.result.count)\(times >= 99 ? "+" : "")"
+                box(sl.x, sl.y, Font.width(t) + 2, 8, V4(0.05, 0.25, 0.08, 0.85))
+                label(t, sl.x + 1, sl.y + 1)
             }
             let since = Float(game.clock - CraftBook.flashAt)
             if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }

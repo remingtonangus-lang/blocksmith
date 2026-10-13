@@ -26,9 +26,14 @@ extension Game {
     }
 
     // The fog's reach for the renderers (nil: no fog).
+    // P211 (Oct 13 18:47-18:50, "fog banks keep rolling in and blinding me, especially high up"): fog is a weather
+    // of its own now (rarer, announced), and it lies low: it thins above the valleys and is gone 60 blocks up.
     var weatherFogEnd: Float? {
         guard WeatherWar.fog > 0.02, dim.dim == .overworld else { return nil }
-        return WeatherWar.fogSee + (1 - WeatherWar.fog) * (1 - WeatherWar.fog) * 220
+        let up = simd_clamp((player.pos.y - Float(YOFF) - 90) / 60, 0, 1)
+        let f = WeatherWar.fog * (1 - up)
+        guard f > 0.02 else { return nil }
+        return WeatherWar.fogSee + (1 - f) * (1 - f) * 220
     }
 
     // Once a second (the HUD tick).
@@ -41,7 +46,8 @@ extension Game {
                 WeatherWar.fogTimer = Double(Rand.float(in: 900...4000))
             } else {
                 let dawn = dayFraction > 0.95 || dayFraction < 0.1
-                WeatherWar.fogOn = over && weather.rain < 0.5 && Rand.float(in: 0..<1) < (dawn ? 0.8 : 0.35)
+                WeatherWar.fogOn = over && weather.rain < 0.5 && Rand.float(in: 0..<1) < (dawn ? 0.2 : 0.05)   // (P211: was 0.8 / 0.35)
+                if WeatherWar.fogOn { onToast?("Fog is rolling in") }
                 WeatherWar.fogTimer = WeatherWar.fogOn ? Double(Rand.float(in: 240...600)) : Double(Rand.float(in: 600...2400))
             }
         }

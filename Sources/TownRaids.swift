@@ -11,7 +11,7 @@ import simd
 enum TownRaids {
     static var chancePerSecond: Float = 1.0 / 600      // about once in ten minutes of night spent in a town
     static let cooldownDays = 3
-    static let waves = 2
+    static let waves = 1                              // P215: one wave an event (was 2)
     static var started = 0, wonCount = 0
 
     static func night(_ f: Double) -> Bool { f > 0.55 && f < 0.92 }
@@ -22,7 +22,8 @@ enum TownRaids {
               night(g.dayFraction), Honour.bounty(town) == 0, !Honour.isOutlaw else { return }
         let day = Int(g.time / DAY_LENGTH)
         if let d = TownLaw.state.raidDay?[town], day - d < cooldownDays { return }
-        guard Rand.float(in: 0..<1) < chancePerSecond * Nation.raidScale(town) else { return }   // C3: your towns are raided more
+        guard Rand.float(in: 0..<1) < chancePerSecond * Nation.raidScale(town), g.clock - FactionRaids.lastAssault > FactionRaids.quiet else { return }   // C3: your towns are raided more
+        FactionRaids.lastAssault = g.clock                // (P215: no other assault for 25 minutes)
         start(g, town: town)
     }
 

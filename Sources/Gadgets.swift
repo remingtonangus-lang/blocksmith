@@ -27,6 +27,7 @@ extension Game {
     func useGadget(useHeld: Bool, useNow: Bool) -> Bool {
         let k = Items.key(held.item)
         if k == "spyglass" && useHeld { scoping = true; return true }
+        if useNow && wearTroopSet() { return true }                      // P204
         if k == "goat_horn" && useNow {
             guard clock - lastHorn > 7 else { return true }
             lastHorn = clock

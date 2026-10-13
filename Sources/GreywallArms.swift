@@ -28,7 +28,7 @@ enum GreywallArms {
         GunSpec(key: "gun_slatefall", name: "Slatefall Carbine", ammo: ammo, mag: 30, interval: 0.1, auto: true, damage: 5.5, pellets: 1,
                 spread: 0.028, aimSpread: 0.006, speed: 170, recoil: 0.02, reload: 2.1, range: 120, durability: 1200, zoom: 0.78,
                 shot: .bullet, sound: 18, accent: V3(0.33, 0.37, 0.41)),
-        GunSpec(key: "gun_longwatch", name: "Longwatch Rifle", ammo: ammo, mag: 6, interval: 1.1, auto: false, damage: 20, pellets: 1,
+        GunSpec(key: "gun_longwatch", name: "Longwatch Rifle", ammo: "heavy_rounds", mag: 6, interval: 1.1, auto: false, damage: 20, pellets: 1,
                 spread: 0.05, aimSpread: 0.0008, speed: 300, recoil: 0.085, reload: 2.6, range: 240, durability: 500, zoom: 0.3,
                 shot: .bullet, sound: 3, accent: V3(0.33, 0.37, 0.41)),
         GunSpec(key: "gun_needle", name: "Wren Pistol", ammo: ammo, mag: 20, interval: 0.16, auto: false, damage: 3, pellets: 1,
@@ -46,11 +46,14 @@ enum GreywallArms {
     static func pickGun(_ c: TroopClass, _ k: MobKind, roll r: Float) -> Int {
         switch k {
         case .soldierOfficer: return Guns.breaker
-        case .soldierCrew: return Guns.needle
+        // P216 (Oct 13 19:01, "nothing fires arc cells or heavy rounds, shotguns are rare, everything takes slate"):
+        // the crews' sidearm is the Breaker (heavy rounds), the marksmen's Longwatch takes heavy rounds, a third of
+        // the heavies carry the arc gun, and troopers carry shotguns too.
+        case .soldierCrew: return Guns.breaker
         case .soldierMarksman: return c == .regular && r < 0.4 ? Guns.slatefall : Guns.longwatch
-        case .soldierIronclad: return Guns.repeater
-        case .soldierTrooper: return c == .regular && r < 0.25 ? Guns.repeater : Guns.slatefall
-        default: return r < 0.85 ? Guns.slatefall : Guns.needle
+        case .soldierIronclad: return r < 0.35 ? Guns.arc : Guns.repeater
+        case .soldierTrooper: return c == .regular && r < 0.2 ? Guns.repeater : (r > 0.7 ? Guns.shotgun : Guns.slatefall)
+        default: return r < 0.7 ? Guns.slatefall : Guns.shotgun
         }
     }
 

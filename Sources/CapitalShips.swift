@@ -113,6 +113,7 @@ final class CapitalState {
     var launchDir = V3(1, 0, 0)
     var phaseT: Float = 0
     var troopsLeft = 0
+    var rocketeer = false                               // P215: a raid's last trooper carries a rocket launcher
     var fuel: Float = CapitalState.dropFuel            // a commandeered drop craft: seconds of thrust left (P66)
     static let dropFuel: Float = 240
     var fuelTold = 0
@@ -953,7 +954,13 @@ extension ShipManager {
                     m.deck = s
                     m.crewPost = post
                     if s.wrecked { m.crewFree = true }
-                    if m.kind == .soldierIronclad { m.variant = Guns.arc }        // no rockets bursting inside their own hull
+                    if m.kind == .soldierIronclad { m.variant = Guns.arc }
+                    if st.rocketeer && st.troopsLeft == 1 {
+                        // P215 (Oct 13 18:57, "a rocket launcher that blows holes in houses, I liked that").
+                        m.variant = Guns.launcher
+                        m.soldierBrain.gun = Guns.launcher; m.soldierBrain.mag = Guns.all[Guns.launcher].mag
+                        m.customName = FactionRaids.rocketeerName
+                    }        // no rockets bursting inside their own hull
                     g.mobs.mobs.append(m)
                     st.crewMobs[i] = m
                 }
@@ -1694,7 +1701,7 @@ extension ShipManager {
     // reinforcements (CapitalBases.swift). Same flight as a frigate's dropship from the transit phase on.
     // The hull is built on a worker thread (about 20 ms on the main thread) and joins the world on a later frame.
     @discardableResult
-    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false, troops: Int = 4) -> Bool {
+    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false, troops: Int = 4, rocketeer: Bool = false) -> Bool {
         if g.stormGrounds { return false }                          // O7: a storm grounds flyers (WeatherWar.swift)
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
@@ -1717,6 +1724,7 @@ extension ShipManager {
             ds.dropPoint = p
             ds.launchDir = simd_normalize(V3(p.x - at.x, 0, p.z - at.z) + V3(1e-4, 0, 0))
             ds.troopsLeft = troops
+            ds.rocketeer = rocketeer
             ds.phase = 1                                              // already airborne: straight to the transit
             ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
             ds.groundOffset = d.com.y - d.localMin.y

@@ -157,10 +157,17 @@ final class WeaponWheel {
     // True when RB belongs to the wheel (the player has a gun somewhere), so the hotbar waits for the release.
     func ownsRB(_ g: Game) -> Bool { holding && viaPad }
 
+    // P208 (Oct 13 18:43, "the weapon wheel does not work"): on the headset the right stick had to be held pressed in
+    // while it was tilted, which Touch sticks don't do (the click lets go as the stick tips). There a click opens the
+    // wheel, the stick points at a gun, and letting the stick spring back (or clicking again) takes it; B closes it.
+    static var clickToOpen = false
+    private var flicked = false
+
     // Per frame before look/hotbar handling; returns true while the wheel is open (it takes the look input).
     func tick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot, _ dt: Float) -> Bool {
         let key = KeyBinds.key(.weapons)
         if g.world.ships.pilot != nil || Turrets.shared.active { holding = false; open = false; return false }
+        if WeaponWheel.clickToOpen { return tickClick(g, p, q) }
         if !holding {
             let has = !WeaponWheel.guns(g).isEmpty
             if has && p.rb && !q.rb { holding = true; viaPad = true; holdTime = 0 }
@@ -205,6 +212,36 @@ final class WeaponWheel {
         // Quick tap.
         if viaPad { g.select(g.selected + 1) } else { nextGun(g) }
         return false
+    }
+
+    private func tickClick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot) -> Bool {
+        let click = p.rb && !q.rb
+        if !open {
+            guard click else { return false }
+            entries = WeaponWheel.guns(g)
+            guard !entries.isEmpty else { g.onToast?("No guns to pick from"); return false }
+            open = true; holding = true; viaPad = true; flicked = false
+            choice = entries.firstIndex(of: g.selected) ?? -1
+            g.sfx(.click, 0.5)
+            return true
+        }
+        if p.b && !q.b { open = false; holding = false; return false }
+        let v = V2(p.rx, p.ry)
+        if simd_length(v) > 0.55 {
+            let n = Float(entries.count)
+            var a = atan2f(v.x, v.y)
+            if a < 0 { a += 2 * .pi }
+            let i = Int((a / (2 * .pi / n)).rounded()) % entries.count
+            if i != choice { choice = i; g.sfx(.click, 0.3); PadManager.shared.rumble(0.12, 0.03, sharpness: 0.9) }
+            flicked = true
+            return true
+        }
+        if (flicked && simd_length(v) < 0.25) || click {
+            open = false; holding = false
+            if choice >= 0 && choice < entries.count { equip(g, entries[choice]) }
+            return false
+        }
+        return true
     }
 
     // Harness (--padview combat): the wheel open with entry `pick` highlighted.

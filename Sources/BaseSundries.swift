@@ -63,3 +63,40 @@ extension Game {
         return true
     }
 }
+
+extension Game {
+    // P205: a death's belongings in one or two chests side by side at the nearest open spot by `p` (up to 6 blocks
+    // around, out of liquids), with a map pin. Returns false when no spot was found (the items drop as before).
+    func deathChests(_ items: [ItemStack], near p: V3) -> Bool {
+        guard netGuest == nil, Blocks.has("chest") else { return false }
+        let chest = Blocks.id("chest")
+        let need = (items.count + 26) / 27
+        let bx = Int(floor(p.x)), by = max(-60, min(CH - YOFF - 3, Int(floor(p.y)))), bz = Int(floor(p.z))
+        func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            guard world.isLoaded(x, z) else { return false }
+            let b = world.block(x, y, z)
+            return (b == AIR || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b))) && !Blocks.isLiquid(world.block(x, y - 1, z))
+        }
+        var spot: IVec3?
+        search: for r in 0...6 {
+            for dy in [0, 1, -1, 2, 3, 4, 5, 6] {
+                for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                    let x = bx + dx, y = by + dy, z = bz + dz
+                    if open(x, y, z) && (need == 1 || open(x + 1, y, z)) { spot = IVec3(x, y, z); break search }
+                } }
+            }
+        }
+        guard let at = spot else { return false }
+        var left = items[...]
+        for k in 0..<need {
+            let q = IVec3(at.x + k, at.y, at.z)
+            world.setBlock(q.x, q.y, q.z, chest)
+            let be = BlockEntity(.chest)
+            for i in 0..<min(27, be.container.count) { guard let st = left.popFirst() else { break }; be.container[i] = st }
+            world.blockEntities[q] = be
+        }
+        MapCache.shared.pinDeath(self, x: at.x, z: at.z)
+        onToast?("Your things are in a chest where you fell (pinned on the map)")
+        return true
+    }
+}

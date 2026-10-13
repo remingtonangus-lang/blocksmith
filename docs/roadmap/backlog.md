@@ -237,26 +237,26 @@ P200. [DONE Oct 13: wall turrets you place shoot hostiles that come in front of 
 
 ## PLAYTEST Oct 13 evening (P201-P220): top priority with the R items
 He played the OLD 14:34 build (e25ee2bf) 18:32-19:15, so check each against claude/quest-port first; notes with repro lines in docs/playtests/2026-10-13/voice-notes.md (after 18:32). Several repeat R items (noted). His main complaint: the cool new base and raid content has no limits, so it never ends.
-P201. [18:33] Create New World: on the third page nothing shows which button is selected (no blue, no yellow); elsewhere a doubled blue-and-yellow highlight shows. One clear highlight on every menu page (with R3).
-P202. [18:34] The moon is visible through the ground.
-P203. [18:38, 18:42, 18:46-18:47] Base guards respawn constantly, faster than he can kill them, and reinforcement trucks never stop. A base must be clearable: a fixed garrison, a capped number of reinforcement waves (trucks are fine), then no more. Killed guards stay dead.
-P204. [18:39] Armour dropped by troops is one set item that fills all four armour slots when worn, instead of four pieces clogging the inventory.
-P205. [18:40] After dying at the base his stuff was missing (no boots, only some tools). Every item must land in the death drop and be easy to find.
-P206. [18:42] The Greywall computer on the second floor needs a key he never found: make the key's location findable (a note, a guard who carries it, a marked desk).
-P207. [18:43] Journal: he could not find how to open it. Give it an obvious entry (pause menu tab and a wrist or hip control) and tell the player once.
-P208. [18:43] The weapon wheel does not work. Make it work on the headset, or remove it if the toolbar does the job.
-P209. [18:44] Text in the base (logs, codes, panels) is cut off and cannot be read in full.
-P210. [18:46] Base tower guns sit displaced off their towers and are far too big for the base. Use smaller guns sized and mounted to fit the towers.
-P211. [18:47-18:50] Fog banks keep rolling in and blinding him, especially when high up. No fog unless it is foggy weather; otherwise he wants to see a very long way (with F4).
-P212. [18:49] Jumping over gaps: the jump button overrides the horse's refusal, like RDR2.
-P213. [18:51] On a crafting tile the craftable count overlaps the item's own number.
-P214. [18:52, repeat of 13:15] Nights slightly brighter, enough to see a gap before falling in.
-P215. [18:53-19:01] Raiding parties and bounty hunters came in round after round. One wave per event, much rarer; another base must not send raids right after. Raiders may carry a rocket launcher that blows holes in houses (he liked that).
-P216. [18:50, 19:01-19:02, repeat of R8] Ammo mismatch: he has piles of arc cells and heavy rounds but nothing he owns fires them; shotguns are rare; nearly everything takes slate rounds. Spread ammo types across the guns and make loot match.
-P217. [18:35, 19:02-19:03, with R9] Guns: the held model does not match the inventory icon, and several guns look identical. Frontier guns look like their real-world counterparts. Capital guns are white with no blue accents. Cut the roster to fewer, clearly different guns (keep the Slate Repeater and the Service Rifle).
-P218. [19:04] Sleep is allowed once the sun starts touching the horizon.
-P219. [19:08] A direct rocket hit should kill a soldier outright.
-P220. [19:08-19:14] Ship repair: the engine block and light panel requirements are unclear. The repair UI shows each missing part, its recipe and where it goes.
+P201. [DONE] [18:33] Create New World: on the third page nothing shows which button is selected (no blue, no yellow); elsewhere a doubled blue-and-yellow highlight shows. One clear highlight on every menu page (with R3).
+P202. [DONE] [18:34] The moon is visible through the ground.
+P203. [DONE] [18:38, 18:42, 18:46-18:47] Base guards respawn constantly, faster than he can kill them, and reinforcement trucks never stop. A base must be clearable: a fixed garrison, a capped number of reinforcement waves (trucks are fine), then no more. Killed guards stay dead.
+P204. [DONE] [18:39] Armour dropped by troops is one set item that fills all four armour slots when worn, instead of four pieces clogging the inventory.
+P205. [DONE] [18:40] After dying at the base his stuff was missing (no boots, only some tools). Every item must land in the death drop and be easy to find.
+P206. [DONE] [18:42] The Greywall computer on the second floor needs a key he never found: make the key's location findable (a note, a guard who carries it, a marked desk).
+P207. [DONE] [18:43] Journal: he could not find how to open it. Give it an obvious entry (pause menu tab and a wrist or hip control) and tell the player once.
+P208. [DONE] [18:43] The weapon wheel does not work. Make it work on the headset, or remove it if the toolbar does the job.
+P209. [DONE] [18:44] Text in the base (logs, codes, panels) is cut off and cannot be read in full.
+P210. [DONE] [18:46] Base tower guns sit displaced off their towers and are far too big for the base. Use smaller guns sized and mounted to fit the towers.
+P211. [DONE] [18:47-18:50] Fog banks keep rolling in and blinding him, especially when high up. No fog unless it is foggy weather; otherwise he wants to see a very long way (with F4).
+P212. [DONE] [18:49] Jumping over gaps: the jump button overrides the horse's refusal, like RDR2.
+P213. [DONE] [18:51] On a crafting tile the craftable count overlaps the item's own number.
+P214. [DONE] [18:52, repeat of 13:15] Nights slightly brighter, enough to see a gap before falling in.
+P215. [DONE] [18:53-19:01] Raiding parties and bounty hunters came in round after round. One wave per event, much rarer; another base must not send raids right after. Raiders may carry a rocket launcher that blows holes in houses (he liked that).
+P216. [DONE] [18:50, 19:01-19:02, repeat of R8] Ammo mismatch: he has piles of arc cells and heavy rounds but nothing he owns fires them; shotguns are rare; nearly everything takes slate rounds. Spread ammo types across the guns and make loot match.
+P217. [DONE] [18:35, 19:02-19:03, with R9] Guns: the held model does not match the inventory icon, and several guns look identical. Frontier guns look like their real-world counterparts. Capital guns are white with no blue accents. Cut the roster to fewer, clearly different guns (keep the Slate Repeater and the Service Rifle).
+P218. [DONE] [19:04] Sleep is allowed once the sun starts touching the horizon.
+P219. [DONE] [19:08] A direct rocket hit should kill a soldier outright.
+P220. [DONE] [19:08-19:14] Ship repair: the engine block and light panel requirements are unclear. The repair UI shows each missing part, its recipe and where it goes.
 Repeats in this session: R1 (left grip with a gun, 19:06; he also wants grip-left to scroll the toolbar past weapons, 19:14) and F1 (freezes at 18:48, 19:11). Praise, keep: Capital raids are exciting, the alarm panel, the Breach shotgun, the Capital Service Rifle, the stone look.
 
 ## NEXT BATCH (Remington, Oct 13 18:25): take after any open P item, in this order: R, F, S, Y, U, SND, SH, IMG, W, H, D

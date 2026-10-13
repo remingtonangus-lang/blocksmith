@@ -964,6 +964,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let ptr = (scratch.contents() + bodyOff).bindMemory(to: EntityVert.self, capacity: 12)
                 var bw = EntityWriter(out: ptr, capacity: 12)
                 func body(_ dir: V3, _ size: Float, _ layer: Int, _ color: V4) {
+                    // P202 (Oct 13 18:34, "the moon is visible through the ground"): the bodies sit on the far plane, so past
+                    // the drawn terrain (high up, far valleys, the horizon band) nothing hid one below the horizon. They
+                    // fade out as they set and are not drawn under it.
+                    let vis = simd_clamp((dir.y + 0.07) / 0.1, 0, 1)
+                    guard vis > 0 else { return }
+                    var color = color; color.w *= vis
                     let c = dir * 90
                     let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
                     let up = simd_normalize(simd_cross(r, dir)) * size
@@ -1523,7 +1529,19 @@ final class Renderer: NSObject, MTKViewDelegate {
                 cx += adv * scale
             }
         }
-        func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
+        // Word-wrapped lines no wider than maxW (P209); a last line that would overflow is cut with an ellipsis.
+    func wrapLines(_ t: String, maxW: Float, _ s: Float, maxLines: Int) -> [String] {
+        if textWidth(t, s) <= maxW { return [t] }
+        var out: [String] = [], cur = ""
+        for w in t.split(separator: " ") {
+            let cand = cur.isEmpty ? String(w) : cur + " " + w
+            if textWidth(cand, s) <= maxW || cur.isEmpty { cur = cand } else { out.append(cur); cur = String(w) }
+        }
+        if !cur.isEmpty { out.append(cur) }
+        if out.count > maxLines { out = Array(out.prefix(maxLines)); out[maxLines - 1] += "..." }
+        return out
+    }
+    func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
         if let t = HudExtras.loading {
             // Loading screen: dirt-dark backdrop, big title, the world name.
@@ -2118,15 +2136,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let hot = game.menuHover === sl
                     let info = r.1 == "noop"
                     // P140 (Oct 12 20:49, "I can't tell one button being touched from the next"): the hovered button is
-                    // unmistakable: a bright fill, a thick gold outline outside a white one, and pointers at both ends.
+                    // unmistakable. P201 (Oct 13 18:33: a "doubled blue-and-yellow highlight"): one highlight only, a
+                    // bright blue fill inside a thick white border, with pointers at both ends.
                     if hot && !info {
-                        rect(x - 3 * s, y - 3 * s, Float(sl.w) * s + 6 * s, Float(sl.h) * s + 6 * s, V4(1, 0.8, 0.2, 1))
+                        rect(x - 2 * s, y - 2 * s, Float(sl.w) * s + 4 * s, Float(sl.h) * s + 4 * s, V4(1, 1, 1, 1))
                     }
                     rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.16, 0.48, 1, 1) : V4(0.36, 0.36, 0.4, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     if hot && !info && !PauseMenu.isValue(r.1) {
-                        text(">", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 0.9, 0.3, 1))
-                        text("<", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 0.9, 0.3, 1))
+                        text(">", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 1, 1))
+                        text("<", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 1, 1))
                     }
                     let label = r.0
                     // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
@@ -2630,15 +2649,23 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         // Toast (item names, messages) above the hotbar, fading out.
         let since = game.clock - game.toastTime
-        if since < 2.2 && !game.toastText.isEmpty {
-            let a = Float(min(1, (2.2 - since) / 0.5))
+        // P209 (Oct 13 18:44, "text is getting blocked off, I can't read all the text"): a long message ran off both
+        // sides of the HUD on one line and was gone in 2.2 s. It wraps at word breaks (up to four lines) and stays up
+        // longer the more there is to read.
+        let toastLife = Game.toastLife(game.toastText)
+        if since < toastLife && !game.toastText.isEmpty {
+            let a = Float(min(1, (toastLife - since) / 0.5))
             // Above the survival rows: hearts and hunger, and the armour (left) or air-bubble (right) row above them
             // (the name sat in the bubble row beside the bubbles: run 362 survival shot).
             let armourRow: Float = game.survival && (game.inventory.armorPoints > 0 || game.air < 15) ? 10 : 0
-            let ty = L.hotbarY0 - ((game.survival ? 26 : 14) + armourRow) * s
+            let lines = wrapLines(game.toastText, maxW: min(W - 24 * s, 300 * s), s, maxLines: 4)
+            let ty0 = L.hotbarY0 - ((game.survival ? 26 : 14) + armourRow) * s - Float(lines.count - 1) * 10 * s
             let tb = Settings.shared.textBackground
-            if tb > 0 { let tw = textWidth(game.toastText, s); rect(floor((W - tw) / 2) - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0, 0, 0, tb * a)) }
-            text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
+            for (i, ln) in lines.enumerated() {
+                let ty = ty0 + Float(i) * 10 * s, tw = textWidth(ln, s)
+                if tb > 0 { rect(floor((W - tw) / 2) - 3 * s, ty - 3 * s, tw + 6 * s, (i == lines.count - 1 ? 13 : 10) * s, V4(0, 0, 0, tb * a)) }
+                text(ln, floor((W - tw) / 2), ty, s, V4(1, 1, 1, a))
+            }
         }
         // Gun: ammo readout, hit marker and the farsight scope.
         if game.menu == nil, let g = game.gunHUD {

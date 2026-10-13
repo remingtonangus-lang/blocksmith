@@ -266,7 +266,7 @@ enum CapitalBase {
         for dz in stride(from: -12, through: 8, by: 5) { w.fill(X(22), P1 + 1, Z(dz), X(23), P1 + 2, Z(dz + 1), Cr) }
         for (i, dz) in [-10, -2, 6].enumerated() { w.chest(X(16), P1 + 1, Z(dz), loot: "steelhold_armory", seed: rng.next(), facing: i % 2 == 0 ? 2 : 3) }
         for dz in stride(from: -8, through: 8, by: 2) where rng.chance(0.7) {
-            let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper]
+            let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]   // (P217)
             let gun = Guns.all[rack[rng.int(6)]]
             if Items.has(gun.key) { w.frame(X(27), P1 + 3, Z(dz), state: 2, item: ItemStack(Items.id(gun.key), 1)) }
         }

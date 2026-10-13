@@ -179,7 +179,7 @@ enum ContextPrompts {
             if let gi = g.heldGun {
                 if !Settings.shared.gunLesson {
                     Settings.shared.gunLesson = true
-                    g.onToast?("Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Right stick: weapon wheel")
+                    g.onToast?("Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel")
                 }
                 if held.tag <= 0 && Guns.all[gi].mag > 0 {
                     // P158: which rounds it takes, and (with none on you) where they come from.

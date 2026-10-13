@@ -76,7 +76,7 @@ extension Mob {
     func ashTakeRole(_ r: Int) {
         let b = soldierBrain
         b.role = r
-        if r == AshArmy.mg { b.gun = Guns.smg; b.mag = AshArmy.beltMag }
+        if r == AshArmy.mg { b.gun = Guns.sturmwind; b.mag = AshArmy.beltMag }
     }
 
     // Role behaviour before the ordinary soldier AI; nil = carry on as an ordinary soldier.
