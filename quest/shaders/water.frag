@@ -55,8 +55,9 @@ void main() {
     if (top) {
         vec2 w1 = wp.xz * 0.8 + vec2(t * 0.55, t * 0.3);
         vec2 w2 = wp.xz * 2.1 - vec2(t * 0.35, -t * 0.6);
-        vec2 g = vec2(cos(w1.x + w1.y * 0.6), sin(w1.y - w1.x * 0.45)) * 0.045
-               + (vec2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11;
+        vec2 g = vec2(cos(w1.x + w1.y * 0.6), sin(w1.y - w1.x * 0.45)) * 0.045;
+        // P184 (Oct 13: "render distance struggles over water"): the fine noise ripples only where they still show.
+        if (oDist < 128.0) { g += (vec2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11; }
         g *= 0.85 + 0.1 * u.waves.x;                                       // choppier as the sea gets up
         // Ripples a pixel can't resolve alias into contour bands on far water: fade them.
         g *= 1.0 - 0.8 * smoothstep(32.0, 128.0, oDist);
@@ -110,17 +111,22 @@ void main() {
         pm = refl * fres + deep * (1.0 - fres) * (1.0 - T);
         // Shoreline foam: where the water thins out over the bed, a broken white band drifting with the waves.
         float shore = 1.0 - smoothstep(0.0, 0.8, oWDepth);
-        float fn = vnoise(wp.xz * 2.6 + vec2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
-        float foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15) * 0.5;
+        float foam = 0.0;
+        if (shore > 0.0 && oDist < 96.0) {             // (P184: open water, the most of the view, skips the noise)
+            float fn = vnoise(wp.xz * 2.6 + vec2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
+            foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15) * 0.5;
+        }
         vec3 foamC = vec3(0.92, 0.95, 0.97) * (lit * 0.85 + 0.05);
         pm = mix(pm, foamC, foam);
         A = mix(A, 1.0, foam);
         // Sun glint: a tight HDR core and a soft sheen.
-        vec3 hv = normalize(u.sunDir.xyz - v);
-        float nh = clamp(dot(n, hv), 0.0, 1.0);
-        vec3 sp = sunC * (pow(nh, 500.0) * 7.0 + pow(nh, 70.0) * 0.18) * sunVis * (1.0 - foam);
-        pm += sp;
-        A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
+        if (sunVis > 0.0) {
+            vec3 hv = normalize(u.sunDir.xyz - v);
+            float nh = clamp(dot(n, hv), 0.0, 1.0);
+            vec3 sp = sunC * (pow(nh, 500.0) * 7.0 + pow(nh, 70.0) * 0.18) * sunVis * (1.0 - foam);
+            pm += sp;
+            A = max(A, min(1.0, max(sp.r, max(sp.g, sp.b))));
+        }
     } else {
         // Side faces (water spilling down a step, falls): tumbling water with white streaks, a weak reflection.
         float across = abs(v.x) > abs(v.z) ? wp.z : wp.x;

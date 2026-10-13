@@ -585,6 +585,7 @@ final class Mob {
                 if kind == .turtle && Items.has("turtle_scute") { g.drops.spawn(ItemStack(Items.id("turtle_scute"), 1), at: pos + V3(0, 0.3, 0)) }
             }
         }
+        if HandGrab.holds(self) { vel = .zero; return }              // P177: lifted in a hand (HandGrab.swift)
         if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
         if kind == .armorStand { updateArmorStand(dt, g); return }
