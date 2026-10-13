@@ -98,7 +98,9 @@ enum Greywall {
         p.append(("soldier_trooper", 3, 1, kc + kz + 2))
         if let c = room("comms") { let m = mid(c); p.append(("soldier_officer", m.0, 1, m.1)) }
         p.append(("soldier_trooper", -3, 1, kc))
-        if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 6, c.z - tw.1)) }
+        // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
+        // deck gun takes up.
+        if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
         // Garrison and up: the walls, the rooms, the yard.
         p.append(("soldier_marksman", 0, W + 1, -(H - 1)))
         if let b = room("barracks") { let m = mid(b); p.append(("soldier_recruit", m.0, 1, m.1)) }
@@ -106,7 +108,7 @@ enum Greywall {
         if let m0 = room("mess") { p.append(("soldier_recruit", m0.x1, 1, m0.z1)) }
         p.append(("soldier_marksman", H - 1, W + 1, 0)); p.append(("soldier_marksman", -(H - 1), W + 1, 0))
         p.append(("soldier_trooper", -(kx + 3), 1, kc + kz + 3)); p.append(("soldier_trooper", kx + 3, 1, kc - kz - 2))
-        for tw in t.towers.dropFirst() { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 6, c.z - tw.1)) }
+        for tw in t.towers.dropFirst() { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
         // Fortress and up: heavy troops at the gates, the vault's guard, the command hall.
         p.append(("soldier_ironclad", -2, 1, H - 6)); p.append(("soldier_ironclad", 2, 1, H - 6))
         if let v = room("vault") { let m = mid(v); p.append(("soldier_ironclad", m.0, 1, m.1)) }

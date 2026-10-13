@@ -209,31 +209,31 @@ P174. [DONE Oct 13: a softer, less inky zenith, a milky haze band above the hori
 
 Oct 13 midday playtest (Remington, 13:02-13:57, on the 12:54 build 448c3de6 with polygon round 3; check each against claude/quest-port first). Notes: docs/playtests/2026-10-13/voice-notes.md. Keep: the caves in polygon worlds ("terrific", the winner), cave water, barrels with stock, the base raid ("that was a lot of fun").
 P175. [CLAIMED by the polygon thread; PARTLY DONE Oct 13: plants sit on the smooth ground and water meets shores naturally (objectives docs/objectives/polygon-round5.md, status docs/status/polygon-ground-up.md); the rest goes to the new polygon thread] [13:02-13:21] Polygon round 5. His verdict: it does not yet feel built from the ground up. (1) Everything takes its real shape: round trunks with real branches, round pumpkins, and so on. (2) Procedural fracture: when a tool or a bullet hits something, polygon pieces are generated on the spot where it hit and break off (chiselling), unpredictable but realistic, not pre-made block pieces. (3) In polygon worlds the pickaxe mines only what it actually touches. (4) Water still follows block shapes. (5) Floating grass. (6) Animals hover: everything must walk on the polygons (with ragdolls, P171). (7) Lag: it barely holds render distance 16. (8) Some blocks still do not blend into the smooth style.
-P176. [13:02, 13:08] On the headset the gold menu-tab highlight still does not show, and the left grip/left stick still does not work (P72, P109).
+P176. [DONE Oct 13: the headset laser no longer drags the menu cursor back each frame, so the left stick moves it and the gold hover shows] [13:02, 13:08] On the headset the gold menu-tab highlight still does not show, and the left grip/left stick still does not work (P72, P109).
 P177. [13:07-13:09] Hands that grab: drag a body, pick up an animal and throw it (a chicken), move things around.
-P178. [13:08] Killed cows do not fall over (ragdolls, P171).
-P179. [13:10] Crouching should let him fit through low cave gaps.
-P180. [13:12] The six iron does not look like a six iron (he mentioned it before).
-P181. [13:15] Nights slightly brighter.
-P182. [13:18] Snow should look more realistic.
-P183. [13:19] In a boat, a horizontal line of rain sits across the middle of the view at the horizon.
+P178. [DONE Oct 13: big four-legged animals tip over onto their side when they die] [13:08] Killed cows do not fall over (ragdolls, P171).
+P179. [DONE Oct 13: sneaking forward into a gap lower than you are tall drops you into a crawl] [13:10] Crouching should let him fit through low cave gaps.
+P180. [DONE Oct 13: new six-iron model: octagon fluted cylinder, top strap, ejector rod, hammer spur, brass guard, raked walnut grip] [13:12] The six iron does not look like a six iron (he mentioned it before).
+P181. [DONE Oct 13: nights a little lighter (sky floor 0.30)] [13:15] Nights slightly brighter.
+P182. [DONE Oct 13: snow repainted: soft drifts, wind ripples, blue-grey hollows and glints] [13:18] Snow should look more realistic.
+P183. [DONE Oct 13: rain streaks fade out near the ground and at the edge of the rain column, so no streaks show through roofs and walls] [13:19] In a boat, a horizontal line of rain sits across the middle of the view at the horizon.
 P184. [13:20] Render distance struggles over water, where it should be cheapest.
 P185. [13:21] Zombies and the other enemies: less Minecraft, scarier. The burgundy knights in hell should be sword-duel knights like the spider replacement, and much harder.
-P186. [13:23] Cook food on a campfire.
-P187. [13:23] Tree generation: mutant merged trees and stumps ringed by stray blocks.
-P188. [13:24] The underwater tint must clear as soon as his head is above water, not only once fully out.
+P186. [DONE Oct 13: cookable food used on a lit campfire goes on the fire instead of being eaten] [13:23] Cook food on a campfire.
+P187. [DONE Oct 13: tree roots are lying logs (fewer of them), stumps 1 high with roots] [13:23] Tree generation: mutant merged trees and stumps ringed by stray blocks.
+P188. [DONE Oct 13: in the headset the water check uses your real head, and the top of the water cell counts as air] [13:24] The underwater tint must clear as soon as his head is above water, not only once fully out.
 P189. [13:25] A journal that collects everything he reads: Capital logs, pamphlets, orders, notes (with P116, P168).
-P190. [13:26] Ships far too common: about 8 times rarer.
-P191. [13:27] The home/distance indicator overlaps the location indicator.
-P192. [13:27] Power armour fires blasts from the hands; Hannibal troops can fly.
-P193. [13:33] Lights inside bases so he can see.
-P194. [13:35, 13:40] Base guns: getting out of a gun drops him outside the base in mid-air. Give each gun a seat under it with a gunner in it (kill him to take the gun); build the gun from blocks so it is destroyed block by block, not as an entity (with P102).
-P195. [13:36] Pointing and pulling the trigger on the map does not set a waypoint (P73).
-P196. [13:43] A base soldier still carried Capital rounds (P104).
-P197. [13:48, 13:54] Base troops spin in circles and bunch up at the front: spread them through the base and have them hunt the raider the whole time.
-P198. [13:48, 13:56] Nearly every gun takes slate rounds and he ran dry: balance ammo types and supply.
-P199. [13:49] A soldier spawned inside a gun.
-P200. [13:50] A wall turret he places must be on his side and shoot his enemies.
+P190. [DONE Oct 13: shipwrecks are an eighth as common] [13:26] Ships far too common: about 8 times rarer.
+P191. [DONE Oct 13: lines under the minimap are spaced 13 apart and no longer overlap] [13:27] The home/distance indicator overlaps the location indicator.
+P192. [DONE Oct 13: Hannibal troopers fly on jump jets in a fight; wearing the full Hannibal suit, punching with an empty hand fires an arc blast] [13:27] Power armour fires blasts from the hands; Hannibal troops can fly.
+P193. [DONE Oct 13: Capital hall lights doubled, station lamps brighter] [13:33] Lights inside bases so he can see.
+P194. [PART Oct 13: getting out of a gun now sets you on the nearest floor beside it (or its roof); gunner seat and block-built gun next] [13:35, 13:40] Base guns: getting out of a gun drops him outside the base in mid-air. Give each gun a seat under it with a gunner in it (kill him to take the gun); build the gun from blocks so it is destroyed block by block, not as an entity (with P102).
+P195. [DONE Oct 13: a tap on the map places a pin even when the laser shakes] [13:36] Pointing and pulling the trigger on the map does not set a waypoint (P73).
+P196. [DONE Oct 13: Greywall soldiers drop Greywall rounds] [13:43] A base soldier still carried Capital rounds (P104).
+P197. [DONE Oct 13: soldiers who lose you search around where you were instead of standing still; a fresh alarm spreads them out] [13:48, 13:54] Base troops spin in circles and bunch up at the front: spread them through the base and have them hunt the raider the whole time.
+P198. [DONE Oct 13: town gunsmiths sell Greywall rounds] [13:48, 13:56] Nearly every gun takes slate rounds and he ran dry: balance ammo types and supply.
+P199. [DONE Oct 13: Greywall tower lookouts stand inside the tower] [13:49] A soldier spawned inside a gun.
+P200. [DONE Oct 13: wall turrets you place shoot hostiles that come in front of them] [13:50] A wall turret he places must be on his side and shoot his enemies.
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.

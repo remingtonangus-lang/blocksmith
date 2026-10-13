@@ -251,8 +251,39 @@ extension Mob {
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
         var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
         if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
+        if troop == Int8(TroopClass.hannibal.rawValue) { sp = hannibalJets(dt, g, dist: dist, canTarget: canTarget, speed: sp) }
         return leash == nil ? sp : applyLeash(sp)
     }
+    // P192 (Oct 13: "make it so the Hannibal troops can fly"): a Hannibal trooper in a fight lifts off on the jump
+    // jets in its power suit when the player is above it, out of its sight or well off: it climbs 3-6 blocks over
+    // the higher of the two, hovers and closes in firing for three to five seconds, then drops back down; 8-14 s
+    // between lifts. Flame from the two back nozzles and a roar while they burn.
+    func hannibalJets(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, speed: Float) -> Float {
+        jetCD -= dt
+        let b = soldierBrain
+        if jet <= 0 && jetCD <= 0 && aggro && canTarget && onGround && !Blocks.isLiquid(g.world.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))) && dist < 48 && b.reload <= 0 {
+            let above = g.player.pos.y - pos.y > 2.5
+            if above || dist > 16 || (!b.sees && dist < 32) {
+                jet = Rand.float(in: 3...5)
+                jetY = max(pos.y, g.player.pos.y) + Rand.float(in: 3...6)
+                jetCD = Rand.float(in: 8...14)
+                vel.y = 4
+                onGround = false
+                g.sfx(.fireworkLaunch, 0.9, at: eye)
+            }
+        }
+        guard jet > 0 else { return speed }
+        let back = V3(sinf(yaw), 0, cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+        for side: Float in [-1, 1] where Rand.float(in: 0..<1) < dt * 40 {
+            let n = pos + back * 0.35 + right * (0.18 * side) + V3(0, 0.9, 0)
+            g.particles.add(Particle(pos: n, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: -5 ... -3), Rand.float(in: -0.3...0.3)),
+                                     life: Rand.float(in: 0.12...0.25), maxLife: 0.25, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                     size: Rand.float(in: 0.1...0.16), gravity: 0, color: V3(1, 0.6, 0.18), collide: false, glow: true))
+        }
+        // In the air it closes to its firing band instead of standing off.
+        return dist > 10 ? max(speed, spec.speed * 1.2) : speed
+    }
+
     private func soldierAIStep(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         guard let r = Soldier.rank(kind) else { return 0 }
         let rank = Soldier.ranks[r]
@@ -455,6 +486,17 @@ extension Mob {
                 face(ls)
                 speed = d > 2 ? spec.speed : 0
                 if d <= 2 { b.lastSeen = nil }
+            } else if lockTime > 0 && dist < 64 && canTarget {
+                // P197 (Oct 13: "the men are just spinning around... bunched at the front"): an alerted garrison
+                // hunts the raider the whole time instead of milling round the last sighting: each soldier heads for
+                // its own spot a few blocks round where the player is now (spread by who it is), then the next.
+                let h = ObjectIdentifier(self).hashValue
+                let a = Float(h & 1023) / 1023 * 2 * .pi + Float(b.clock / 9).rounded(.down)
+                let rr: Float = 3 + Float((h >> 10) & 7)
+                b.lastSeen = g.player.pos + V3(cosf(a) * rr, 0, sinf(a) * rr)
+                b.seenAgo = max(b.seenAgo, 5)
+                face(b.lastSeen!)
+                speed = spec.speed * 0.9
             } else {
                 wander()
                 speed = moving ? spec.speed * 0.5 : 0

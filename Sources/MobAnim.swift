@@ -69,6 +69,9 @@ enum MobAnim {
         .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish, .skeletonHorse, .zombieHorse, .phantom, .guardian,
         .elderGuardian, .endermite, .silverfish, .slime, .magmaCube, .ghast, .happyGhast, .nautilus, .zombieNautilus, .shulker,
         .creeper]
+    // Big four-legged bodies that go over onto their side when they die (P178).
+    static let tipsOver: Set<MobKind> = [.cow, .mooshroom, .sheep, .pig, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .camelHusk,
+        .goat, .hoglin, .zoglin, .polarBear, .wolf, .fox, .panda, .sniffer, .ravager, .skeletonHorse, .zombieHorse]
     static func upright(_ m: Mob) -> Bool { !fourLegged.contains(m.kind) && m.height >= m.halfW * 2.5 }
 
     static func rx(_ a: Float) -> simd_float3x3 { simd_float3x3(V3(1, 0, 0), V3(0, cosf(a), sinf(a)), V3(0, -sinf(a), cosf(a))) }
@@ -106,13 +109,18 @@ enum MobAnim {
             if upright {
                 r = rx(k * k * (.pi / 2) * 0.94)
                 piv = V3(0, 0, m.halfW * px)
+            } else if MobAnim.tipsOver.contains(m.kind) {
+                // P178 (Oct 13: "the cows aren't falling over like they should"): a big four-legged body goes over
+                // onto its side, legs out, about the edge of its footprint.
+                r = rz(-k * k * (.pi / 2) * 0.9)
+                piv = V3(m.halfW * px, 0, 0)
             } else {
                 r = rz(-k * 0.3)
                 piv = V3(m.halfW * px, 0, 0)
             }
             a = r * a
             b = piv - r * piv
-            if !upright { b.y -= k * k * m.height * px * 0.3 }                          // the legs fold under it
+            if !upright && !MobAnim.tipsOver.contains(m.kind) { b.y -= k * k * m.height * px * 0.3 }   // the legs fold under it
             let sink = min(2.1, max(0, m.deathT - 0.65) * 6)                             // settles into the ground
             b.y -= sink
         }

@@ -536,6 +536,9 @@ enum OverworldStructures {
 
     static func shipwreck(_ gen: WorldGen) -> StructureType {
         StructureType(name: "shipwreck", spacing: 24, separation: 4, salt: 165745295, reach: 2) { [unowned gen] seed, cx, cz in
+            // P190 (Oct 13: "too many ships popping up, make those about eight times as rare"): one start in eight
+            // stays (the others' places are unchanged, so a wreck already found is still there).
+            guard hashf(cx, cz, 0x5E1C, UInt32(truncatingIfNeeded: seed)) < 0.125 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
             let biome = gen.column(x, z).biome
             guard biome.isOcean || biome.isBeach else { return nil }

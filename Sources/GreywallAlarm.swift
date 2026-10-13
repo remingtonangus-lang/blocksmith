@@ -201,7 +201,12 @@ extension Game {
                     let br = m.soldierBrain
                     br.ready = true
                     if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
-                    if fresh && !br.sees { br.lastSeen = site.src; br.seenAgo = min(br.seenAgo, 2) }
+                    // P197: spread round the alarm's source (each soldier its own spot), not all on the one point.
+                    if fresh && !br.sees {
+                        let h = ObjectIdentifier(m).hashValue
+                        let a = Float(h & 1023) / 1023 * 2 * .pi, rr: Float = 2 + Float((h >> 10) & 7)
+                        br.lastSeen = site.src + V3(cosf(a) * rr, 0, sinf(a) * rr); br.seenAgo = min(br.seenAgo, 2)
+                    }
                     m.lockTime = max(m.lockTime, 20)
                 }
                 // The klaxon from the keep or the gate, whichever is nearer a player.
@@ -492,7 +497,7 @@ extension Game {
         let gun = GreywallAlarmState.turretIds.0, hurt = GreywallAlarmState.turretIds.1
         let dirs = GreywallAlarmState.turretDirs
         for (key, site) in st.sites where !st.taken.contains(key) {
-            for p in site.turrets {
+            for p in site.turrets where !PlayerTurrets.sites.contains(p) {      // P200: the player's own are on their side
                 guard world.isLoaded(p.x, p.z) else { continue }
                 let b = world.block(p.x, p.y, p.z)
                 let damaged = b >= hurt && b < hurt + 4

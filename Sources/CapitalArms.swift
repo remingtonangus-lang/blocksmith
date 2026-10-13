@@ -62,8 +62,7 @@ enum CapitalArms {
         case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
             p += GreywallArms.details(i)
         case Guns.revolver:
-            for k in 0..<3 { p.append(b(-0.9, -0.2 + Float(k) * 0.5, -2.2, 0.06, 0.25, 1.6, blued * 0.6, pMetal)) }   // cylinder flutes
-            p.append(b(-0.06, -0.2, -8.2, 0.12, 0.2, 5.4, silver, pMetal))                                // barrel seam
+            break                                                                                         // (P180: all in the model)
         default:
             for k in 0..<3 {                                                                              // slide serrations
                 p.append(b(0.7, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
@@ -87,23 +86,44 @@ enum CapitalArms {
         case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
             return GreywallArms.model(i)
         case Guns.revolver:
-            // The six-iron: a long blued barrel over its ejector rod, a fluted cylinder, a brass trigger guard
-            // and a walnut grip with a rounded butt (original design).
+            // The six-iron (P180, Oct 13: "doesn't look at all like a six iron"): a frontier single-action revolver.
+            // A long round barrel with a blade front sight and the ejector rod under it, a fat fluted cylinder, a
+            // case-hardened frame with a top strap, a spurred hammer, a brass trigger-guard loop and the plow-handle
+            // walnut grip raked well back with a brass backstrap (original design).
+            let cased = V3(0.36, 0.31, 0.28), black = V3(0.02, 0.02, 0.02)
             let p: [Part] = [
-                b(-0.45, 0.3, -8.5, 0.9, 0.9, 6, blued, pMetal),                  // barrel
-                b(-0.3, -0.25, -7, 0.6, 0.5, 4.5, blued, pMetal),                 // ejector rod housing
-                b(-0.85, -0.5, -2.5, 1.7, 1.7, 2.2, V3(0.3, 0.32, 0.36), pMetal),  // cylinder
-                b(-0.6, -0.7, -0.3, 1.2, 1.9, 1.6, blued, pMetal),               // frame
-                b(-0.2, 1.0, 0.9, 0.4, 0.6, 0.7, blued, pMetal),                  // hammer
-                b(-0.1, 1.2, -8.3, 0.2, 0.3, 0.4, silver, pMetal),                // front sight
-                b(-0.2, 0.55, -8.62, 0.4, 0.4, 0.12, V3(0.02, 0.02, 0.02), 0),    // bore
-                b(-0.25, -1.4, -1.6, 0.5, 0.3, 1.6, brass, pMetal),               // trigger guard
-                b(-0.55, -2.4, 0.4, 1.1, 1.8, 1.4, walnut, 10),                   // grip
-                b(-0.55, -3.7, 0.9, 1.1, 1.4, 1.4, walnut, 10),                   // butt
-                b(-0.6, -3.9, 1.0, 1.2, 0.25, 1.3, brass, pMetal),                // butt cap
+                b(-0.42, 0.35, -8.6, 0.84, 0.84, 6.1, blued, pMetal),             // barrel
+                b(-0.32, 0.25, -8.6, 0.64, 1.04, 6.1, blued, pMetal),             // (its rounded flanks)
+                b(-0.45, 0.32, -8.72, 0.9, 0.9, 0.14, blued * 0.7, pMetal),       // muzzle crown
+                b(-0.2, 0.57, -8.76, 0.4, 0.4, 0.1, black, 0),                    // bore
+                b(-0.08, 1.19, -8.3, 0.16, 0.4, 0.6, blued, pMetal),              // front sight blade
+                b(-0.28, -0.3, -7.2, 0.56, 0.56, 4.6, blued, pMetal),             // ejector rod housing
+                b(-0.3, -0.32, -7.45, 0.6, 0.6, 0.25, silver, pMetal),            // ejector head
+                b(-0.95, -0.55, -2.6, 1.9, 1.5, 2.3, cased, pMetal),              // cylinder (an octagon of two boxes)
+                b(-0.75, -0.75, -2.6, 1.5, 1.9, 2.3, cased, pMetal),
+                b(-0.99, -0.2, -2.4, 0.06, 0.5, 1.9, cased * 0.55, pMetal),      // flutes
+                b(0.93, -0.2, -2.4, 0.06, 0.5, 1.9, cased * 0.55, pMetal),
+                b(-0.2, -0.79, -2.4, 0.4, 0.06, 1.9, cased * 0.55, pMetal),
+                b(-0.4, 0.95, -2.7, 0.8, 0.3, 2.6, blued, pMetal),                // top strap
+                b(-0.08, 1.2, -0.35, 0.16, 0.06, 0.3, black, 0),                  // rear sight groove
+                b(-0.55, -0.85, -0.4, 1.1, 2.0, 1.3, cased, pMetal),              // frame
+                b(0.55, -0.45, -0.35, 0.08, 0.7, 0.5, cased * 0.8, pMetal),       // loading gate
+                b(-0.18, 0.9, -0.15, 0.36, 0.7, 0.45, blued, pMetal),             // hammer
+                b(-0.18, 1.45, 0.15, 0.36, 0.25, 0.75, blued, pMetal),            // hammer spur
+                b(-0.15, -1.75, -1.95, 0.3, 0.22, 1.75, brass, pMetal),           // trigger-guard loop
+                b(-0.15, -1.6, -2.05, 0.3, 0.8, 0.22, brass, pMetal),
+                b(-0.1, -1.45, -1.05, 0.2, 0.65, 0.22, silver, pMetal),           // trigger
+                b(-0.55, -1.9, -0.2, 1.1, 1.2, 1.4, walnut, 10),                  // grip, raked back
+                b(-0.55, -2.9, 0.25, 1.1, 1.1, 1.4, walnut, 10),
+                b(-0.55, -3.8, 0.75, 1.1, 1.0, 1.35, walnut, 10),
+                b(-0.5, -4.3, 1.15, 1.0, 0.55, 1.1, walnut, 10),                  // rounded butt
+                b(-0.25, -1.6, 1.15, 0.5, 0.9, 0.25, brass, pMetal),              // brass backstrap
+                b(-0.25, -2.6, 1.6, 0.5, 1.0, 0.25, brass, pMetal),
+                b(-0.25, -3.6, 2.05, 0.5, 0.9, 0.25, brass, pMetal),
+                b(-0.6, -2.6, 0.8, 1.2, 0.18, 0.18, silver, pMetal),              // grip screw
             ]
-            return GunModel(parts: p, mag: [], grip: V3(0, -1.6, 0.9), fore: V3(-0.4, -2.6, 1.2), butt: V3(0, -1.6, 0.9),
-                            muzzle: V3(0, 0.75, -8.7), magAt: V3(0, -0.4, -1.4), bolt: V3(0, 1.3, 1.2), scale: 0.68, shouldered: false)
+            return GunModel(parts: p, mag: [], grip: V3(0, -2.2, 0.9), fore: V3(-0.4, -3.0, 1.3), butt: V3(0, -2.2, 0.9),
+                            muzzle: V3(0, 0.77, -8.8), magAt: V3(0, -0.4, -1.4), bolt: V3(0, 1.5, 1.2), scale: 0.68, shouldered: false)
         case Guns.rifle:
             // Capital Service Rifle: long enamel receiver with a grey band, top rail and a short optic.
             var p: [Part] = [

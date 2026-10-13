@@ -129,8 +129,33 @@ final class Turrets {
         guard let m = manned else { return }
         manned = nil
         let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
-        g.player.pos = m.pos - fwd * 11                 // behind the gunhouse's rear overhang (the model has no collision)
+        g.player.pos = Turrets.exitSpot(g.world, m, fwd: fwd)
         g.player.vel = .zero
+        g.player.airPeak = g.player.pos.y
+    }
+
+    // P194 (Oct 13: "exiting the gun deposits you outside the base, in mid-air"): the nearest standing spot behind or
+    // beside the gunhouse (solid floor, two clear blocks, within 2 up or down of the gun's base), nearest first, out to
+    // 11 blocks; with none (a gun on a small tower roof), back on the gunhouse roof.
+    static func exitSpot(_ w: World, _ m: Mob, fwd: V3) -> V3 {
+        let right = V3(-fwd.z, 0, fwd.x)
+        let dirs: [V3] = [-fwd, right, -right, simd_normalize(-fwd + right), simd_normalize(-fwd - right), fwd]
+        for k in 3...11 {
+            for d in dirs {
+                let p = m.pos + d * Float(k)
+                let x = Int(floor(p.x)), z = Int(floor(p.z)), y0 = Int(floor(m.pos.y))
+                for dy in [0, 1, -1, 2, -2] {
+                    let y = y0 + dy
+                    let under = w.block(x, y - 1, z)
+                    guard Blocks.collide[Int(under)] && !Blocks.isLiquid(under) else { continue }
+                    let a = w.block(x, y, z), b = w.block(x, y + 1, z)
+                    if !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) {
+                        return V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+                    }
+                }
+            }
+        }
+        return m.pos - fwd * 2.5 + V3(0, Turrets.roofY, 0)
     }
 
     // Per frame while manning (from Game.tick before movement): true = the gun has the controls this frame.

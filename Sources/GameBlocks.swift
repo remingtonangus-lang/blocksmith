@@ -38,6 +38,8 @@ extension Game {
                 if let i = (0..<4).first(where: { be.container[$0].isEmpty }) {
                     be.container[i] = ItemStack(held.item, 1)
                     be.cooks[i] = 600
+                    onToast?("\(held.def.display) is cooking on the fire: ready in 30 s")
+                    sfx(.fireExtinguish, 0.25, at: c)          // (the sizzle)
                     consumeHeld()
                     return true
                 }

@@ -598,7 +598,7 @@ final class Game {
 
     // Daylight as the renderers light the world: at night it stops at 0.26 instead of 0.12 (Remington, v61: nights were
     // too dark to play), still dim and moon-blue. Gameplay (spawning, sleeping, sensors) keeps `daylight`.
-    var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.26) : daylight }
+    var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.30) : daylight }   // P181: nights a touch brighter (was 0.26)
 
     // Star brightness: follows the sun's height (reference: faint at sunset, full once the sun is well down) and
     // clouds hide them. Was keyed off daylight, which put near-full stars in a bright orange sunset sky.
@@ -1097,6 +1097,8 @@ final class Game {
             }
         }
         if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
+        // P192: the Hannibal power suit's palm blast (PowerSuit.swift): empty hand, no block in reach targeted.
+        if breakNow && held.isEmpty && target == nil && PowerSuit.worn(self) { PowerSuit.blast(self); return }
         // Punching a filled item frame takes the item out first.
         if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit],
            be.kind == .frame, be.container.count > 0, !be.container[0].isEmpty {
@@ -1387,7 +1389,13 @@ final class Game {
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
-        if (canEat || canDrink) && useHeld && target.map({ !isInteractive($0.hit) }) ?? true {
+        // P186 (Oct 13: "shouldn't I be able to cook stuff on the fire?"): raw food aimed at a lit campfire goes on
+        // the fire (GameBlocks.useNewBlock) instead of being eaten.
+        let onFire = target.map { t -> Bool in
+            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            return Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("campfire") && b - Blocks.groupBase[Int(b)] == 1 && Recipes.smelt(h.item) != nil
+        } ?? false
+        if (canEat || canDrink) && useHeld && !onFire && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
             if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(h.def.drink || hk.hasSuffix("_bottle") || hk.hasSuffix("_stew") || hk.hasSuffix("_soup") ? .drink : .eat, 0.5) }
             if eatProgress >= 1.61 {
@@ -1577,6 +1585,7 @@ final class Game {
             if key.hasSuffix("lightning_rod") { lightningRods.append(at) }
             placedReactions(at)
             AutoTurrets.placed(self, at)                                  // P93: a cannon by a computer
+            PlayerTurrets.placed(self, at)                                // P200: a wall turret on your side
             world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
@@ -1925,7 +1934,9 @@ final class Game {
             // Drops with reference rules of their own are rolled below (and skipped here).
             let custom: Set<MobKind> = [.shulker, .witch, .polarBear, .pillager]
             let pkOnly = (m.kind == .vindicator || m.kind == .evoker) ? "emerald" : (m.kind == .phantom ? "phantom_membrane" : "")
-            for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) && !custom.contains(m.kind) {
+            for (n0, lo, hi) in m.spec.drops where Items.has(n0) && !(m.kind == .minecart && m.variant > 0) && !custom.contains(m.kind) {
+                // P196 (Oct 13: "why does one of the guys have Capital rounds?"): a Greywall soldier carries slate rounds.
+                let n = n0 == "capital_rounds" && m.factionValue == .greywall ? GreywallArms.ammo : n0
                 if m.kind == .slime && m.sized && m.slimeSize > 1 { break }               // only the smallest slimes drop balls
                 if n == "copper_ingot" && m.kind == .drowned { continue }                 // a chance drop below
                 if n == pkOnly && !m.killedByPlayer { continue }                          // player kills only

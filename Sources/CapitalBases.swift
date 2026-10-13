@@ -193,6 +193,7 @@ extension Game {
         baseRouteTick(b)
         TickProf.mark("bases: route")
         greywallTurretsTick(dt)
+        PlayerTurrets.tick(self, dt)                                  // P200
         playerTurretsTick(dt)                          // O5 (FactionRaids.swift)
         greywallTrucksTick(dt)
         radioTick(dt)                                  // C6 (RadioSpoof.swift)

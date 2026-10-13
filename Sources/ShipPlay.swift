@@ -19,6 +19,7 @@ extension Game {
         if ships.isEmpty {
             ships.aboard = nil
             ships.riderShip = nil
+            player.headAt = vrHead
             player.update(dt: dt, input: mi, world: world)
             return
         }
@@ -34,6 +35,7 @@ extension Game {
         guard let s = cand else {
             ships.aboard = nil
             ships.riderShip = nil
+            player.headAt = vrHead
             player.update(dt: dt, input: mi, world: world)
             return
         }

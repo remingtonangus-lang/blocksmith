@@ -340,6 +340,9 @@ final class Mob {
     var height: Float { spec.height * (sized ? Float(slimeSize) : scale) }
     var admire: Float = 0           // boarling: seconds left inspecting a gold ingot before bartering
     var flyTarget: V3?              // wailer / cinderwisp hover target
+    var jet: Float = 0              // P192: a Hannibal trooper's jump jets: seconds of thrust left, the height it
+    var jetY: Float = 0             // climbs to and holds, and the wait before the next lift (Soldiers.hannibalJets)
+    var jetCD: Float = 0
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
     // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
@@ -1131,6 +1134,15 @@ final class Mob {
             vel.y += 18 * dt
             vel.y = min(vel.y, 1.6)
             vel.y *= expf(-2 * dt)
+        } else if jet > 0 {
+            // P192: on its jets: climbs to jetY and holds there, then settles back down when they cut out.
+            jet -= dt
+            vel.y += ((jetY - pos.y) * 2.2 - vel.y) * min(1, dt * 3)
+            vel.y = max(-3, min(6, vel.y))
+            let side = V3(cosf(yaw), 0, -sinf(yaw)) * strafe
+            let want = forward * speed + side
+            vel.x += (want.x - vel.x) * min(1, dt * 5)
+            vel.z += (want.z - vel.z) * min(1, dt * 5)
         } else {
             vel.y -= 28 * dt
             if kind == .chicken { vel.y = max(vel.y, -3.5) }
