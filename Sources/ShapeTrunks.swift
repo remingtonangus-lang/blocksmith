@@ -221,7 +221,7 @@ enum ShapeTrunks {
         var prof: [(Float, Float)] = []              // (height, radius) from the bottom up
         if !below && living {
             // Root flare into the ground (the smooth ground covers its foot).
-            prof.append((y0 - 0.45, r * 1.85)); prof.append((y0 - 0.1, r * 1.45)); prof.append((y0 + 0.35, r * 1.08))
+            prof.append((y0 - 0.5, r * 2.0)); prof.append((y0 + 0.02, r * 1.6)); prof.append((y0 + 0.3, r * 1.25)); prof.append((y0 + 0.7, r * 1.04))
         } else {
             prof.append((y0, r0))
             if living { prof.append((y0 + 0.5, r)) }
@@ -244,7 +244,7 @@ enum ShapeTrunks {
                 var rad = rr
                 let wpt = SIMD3<Float>(c.x, h, c.y) + d * rr
                 rad *= 1 + (living ? 0.07 : 0.03) * ctx.noise(wpt, 2.1, 0xBA4C)
-                if roots && k < 2 { rad *= 1 + 0.35 * max(0, cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28)) * (k == 0 ? 1 : 0.5) }
+                if roots && k < 3 { rad *= 1 + 0.4 * max(0, cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28)) * (k == 0 ? 1 : (k == 1 ? 0.7 : 0.3)) }
                 ps.append(SIMD3(c.x, h, c.y) + d * rad)
                 ns.append(d)
             }

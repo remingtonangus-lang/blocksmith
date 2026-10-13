@@ -260,6 +260,8 @@ if let out = arg("--view"), let ctx = vkctx {
         for x in -4...(-1) { put(x, 1, -7, "oak_log[x]"); put(x, 2, -7, "oak_log[x]") }      // a log wall
         put(0, 1, -7, "spruce_log"); put(0, 2, -7, "spruce_log")                            // a post
         put(2, 1, -6, "oak_log")                                                            // a stump
+        for x in -8...(-6) { for y in 1...2 { put(x, y, -6, "bricks") } }; put(-8, 3, -6, "bricks")   // built blocks
+        for y in 1...3 { put(5, y, -6, "oak_planks") }; put(6, 1, -6, "stone_bricks"); put(8, 1, -5, "iron_block")
         let dist = Float(arg("--dist") ?? "") ?? 8
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 2), Float(bz - 2) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)

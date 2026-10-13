@@ -38,6 +38,19 @@ enum DetailMesh {
     @inline(__always) static func snorm8(_ f: Float) -> UInt32 { UInt32(UInt8(bitPattern: Int8(max(-127, min(127, (f * 127).rounded()))))) }
     @inline(__always) static func pos16(_ f: Float) -> UInt32 { UInt32(UInt16(bitPattern: Int16(max(-32767, min(32767, (f * 256).rounded()))))) }
 
+    // World-stable value noise in -1...1 at a world point (lattice 1 block / `scale`).
+    static func noise(_ w: SIMD3<Float>, _ scale: Float, _ salt: UInt32) -> Float {
+        let q = w * scale
+        let f = floor(q), t = q - f
+        let s = t * t * (3 - 2 * t)
+        let ix = Int(f.x), iy = Int(f.y), iz = Int(f.z)
+        @inline(__always) func h(_ dx: Int, _ dy: Int, _ dz: Int) -> Float { hashf(ix + dx, iy + dy, iz + dz, salt) * 2 - 1 }
+        let x00 = h(0, 0, 0) + (h(1, 0, 0) - h(0, 0, 0)) * s.x, x10 = h(0, 1, 0) + (h(1, 1, 0) - h(0, 1, 0)) * s.x
+        let x01 = h(0, 0, 1) + (h(1, 0, 1) - h(0, 0, 1)) * s.x, x11 = h(0, 1, 1) + (h(1, 1, 1) - h(0, 1, 1)) * s.x
+        let y0 = x00 + (x10 - x00) * s.y, y1 = x01 + (x11 - x01) * s.y
+        return y0 + (y1 - y0) * s.z
+    }
+
     // Appends one vertex. p: section-local position in blocks; n: unit normal; light: sky | block << 4.
     @inline(__always) static func vertex(_ out: GrowBuf<UInt32>, _ p: SIMD3<Float>, _ n: SIMD3<Float>, _ uv: SIMD2<Float>,
                                          layer: Int, tint: Int = 0, ao: Int = 3, light: Int, cut: Bool = false) {
@@ -115,15 +128,7 @@ struct DetailContext {
     }
     // World-stable value noise in -1...1 (lattice 1 block / `scale`), the same in every section that asks.
     func noise(_ p: SIMD3<Float>, _ scale: Float, _ salt: UInt32) -> Float {
-        let q = (p + SIMD3<Float>(Float(wx0), Float(wy0), Float(wz0))) * scale
-        let f = floor(q), t = q - f
-        let s = t * t * (3 - 2 * t)
-        let ix = Int(f.x), iy = Int(f.y), iz = Int(f.z)
-        func h(_ dx: Int, _ dy: Int, _ dz: Int) -> Float { hashf(ix + dx, iy + dy, iz + dz, salt) * 2 - 1 }
-        let x00 = h(0, 0, 0) + (h(1, 0, 0) - h(0, 0, 0)) * s.x, x10 = h(0, 1, 0) + (h(1, 1, 0) - h(0, 1, 0)) * s.x
-        let x01 = h(0, 0, 1) + (h(1, 0, 1) - h(0, 0, 1)) * s.x, x11 = h(0, 1, 1) + (h(1, 1, 1) - h(0, 1, 1)) * s.x
-        let y0 = x00 + (x10 - x00) * s.y, y1 = x01 + (x11 - x01) * s.y
-        return y0 + (y1 - y0) * s.z
+        DetailMesh.noise(p + SIMD3<Float>(Float(wx0), Float(wy0), Float(wz0)), scale, salt)
     }
     // World-stable hash of a block (0...1).
     func hash(_ x: Int, _ y: Int, _ z: Int, _ salt: UInt32) -> Float { hashf(wx0 + x, wy0 + y, wz0 + z, salt) }

@@ -143,7 +143,7 @@ extension Mesher {
     // outer shell and a darker one 0.45 block inside it, so the leaf texture's holes show leaves behind, not the sky.
     // `leafHoles`: the ground pass treats leaves as open (their blobs mesh apart and the ground under a bush shows).
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil, sy: Int = 0,
-                            leaves: Bool = false, leafHoles: Bool = false, detailHoles: Bool = false,
+                            leaves: Bool = false, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let leafT = Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
@@ -371,6 +371,26 @@ extension Mesher {
                     p += (SIMD3<Float>(Float(bx) + 0.5, Float(by) + 0.5, Float(bz) + 0.5) + into - p) * (0.7 * lv)
                 }
                 VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
+            } } }
+        }
+
+        // Realistic world: leaf masses, not boxes. Every leaf surface vertex moves along its normal by world-stable noise
+        // (two octaves, up to ~0.4 block), so a canopy's outline bulges and dips into clumps; the same vertex moves the same
+        // way in every section that meshes it.
+        if leaves, let w = world {
+            let wo = SIMD3<Float>(Float(w.x), Float(w.y), Float(w.z))
+            for ky in KO...(KO + 16) { for kz in KO...(KO + 16) { for kx in KO...(KO + 16) {
+                let vi = kx + kz * K + ky * KK
+                guard VL[vi] >= 0 else { continue }
+                let p = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
+                var n = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
+                let l = simd_length(n)
+                guard l > 1e-5 else { continue }
+                n /= l
+                let wp = p + wo
+                let d = 0.3 * DetailMesh.noise(wp, 0.38, 0x1EAF) + 0.14 * DetailMesh.noise(wp, 1.1, 0x1EB0) + 0.05
+                let q = simd_clamp(p + n * d, SIMD3<Float>(repeating: 0.05), SIMD3<Float>(repeating: 31.9))
+                VP[vi * 3] = q.x; VP[vi * 3 + 1] = q.y; VP[vi * 3 + 2] = q.z
             } } }
         }
 
