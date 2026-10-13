@@ -157,7 +157,8 @@ enum GreywallTests {
               "\(tag): \(chests) chests (\(tables.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))")
         check(lamps >= [8, 14, 22, 28][t.rawValue] && panels >= 1 + t.towers.count && maps >= 1,
               "\(tag): \(lamps) alarm lamps, \(panels) alarm panels, \(maps) map tables")
-        check(turrets == Greywall.turrets(t).count && flags == 4, "\(tag): \(turrets) wall turrets (\(Greywall.turrets(t).count) planned), the flag on the keep (\(flags) cells)")
+        let planned = Greywall.turrets(t).count + Greywall.corridorTurrets(t).count
+        check(turrets == planned && flags == 4, "\(tag): \(turrets) wall and corridor turrets (\(planned) planned), the flag on the keep (\(flags) cells)")
         // What the alarm, the capture and the turrets will find on this generated base (Greywall.scan, as in play): a
         // command console to hold above all (an outpost had none: it could never be taken, A1 verifier).
         var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: S, tier: t)
@@ -205,11 +206,19 @@ enum GreywallTests {
         check(on && lit == 3 && guardMob.aggro && said.contains { $0.contains("alarm") },
               "greywall alarm: a shot inside the walls sets it off: \(lit)/3 lamps lit, the garrison stands to (\(guardMob.aggro)), \"\(said.first ?? "")\"")
         for _ in 0..<30 { g.greywallAlarmTick(g.bases, 1) }
+        // T6: the squad comes by truck up the approach: drive it in, unload, and away.
+        let trucked = !g.greywallAlarm.trucks.isEmpty
+        var truckTime: Float = 0
+        while !g.greywallAlarm.trucks.isEmpty && truckTime < 60 { g.greywallTrucksTick(0.05); truckTime += 0.05 }
         let squads = g.greywallAlarm.sites[key]?.squads ?? 0
         let arrived = g.mobs.mobs.filter { $0 !== guardMob && $0.factionValue == .greywall }
         let leashed = arrived.allSatisfy { $0.leash != nil }
         check(squads >= 1 && arrived.count == 3 * squads && leashed,
               "greywall alarm: the fortress calls a squad in at the gate (\(squads) squads, \(arrived.count) soldiers, leashed \(leashed))")
+        check(trucked && g.greywallAlarm.trucks.isEmpty && !g.mobs.mobs.contains { $0.kind == .ashTruck }
+              && arrived.allSatisfy { simd_length(V2($0.pos.x - Float(cx), $0.pos.z - Float(cz + t.half + 6))) < 8 },
+              String(format: "greywall alarm: the squad comes by truck to the gate, jumps down and the truck drives off (%.1f s; squad at %@, gate stop %ld,%ld)", truckTime,
+                     arrived.map { String(format: "%.0f,%.0f,%.0f", $0.pos.x, $0.pos.y, $0.pos.z) }.joined(separator: " "), cx, cz + t.half + 6))
         for q in site.panels { g.world.setBlock(q.x, q.y, q.z, AIR) }
         for _ in 0..<50 { g.greywallAlarmTick(g.bases, 1) }
         let after = g.greywallAlarm.sites[key]?.squads ?? 0

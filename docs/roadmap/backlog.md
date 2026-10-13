@@ -378,7 +378,7 @@ T5. [Left for lane M: needs a headset look, nothing for the cloud lane to build.
     shallow rim's side faces reading as separate dashes along a diagonal edge. No defect pinned; needs a headset look
     (lane M) with the scene above to say what "weird" is.
 
-T6. [CLAIMED by the backlog thread, Oct 13] [A1 leftovers, Greywall Command] Coastal guns of two calibres at shore bases (the tower deck guns stand in);
+T6. [DONE Oct 13: alerts wake only their own faction, turrets aim at every split-screen seat, squads arrive by truck on the road, two corridor turrets in fortress and up, shore bases mount light quick-firers on each sea wall (and heavy tower guns below fortress); the distance statistic and capture harness skipped as test parts] [A1 leftovers, Greywall Command] Coastal guns of two calibres at shore bases (the tower deck guns stand in);
 turrets at corridor corners; reinforcements by truck (they come on foot); the nearest-outpost distance over 20 seeds
 (sampled on 3); an end-to-end capture of a generated base in the harness (the scan of every generated tier is checked,
 the hold is checked on a stand-in); soldier alerts wake every faction near a base (Soldiers.alertGarrison, older than

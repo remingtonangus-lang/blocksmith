@@ -106,6 +106,7 @@ extension Mob {
         if deep { m.power = MobManager.depthPower(.deep, p.y) }
         if let h = heading { m.yaw = -h * .pi / 180; m.soldierBrain.turret = m.yaw }
         if tag == "fuel" { m.variant = 1 }
+        if tag == "light" && k0 == .deckGun { m.variant = HeavyTurret.lightVariant }     // T6: a light coastal gun
         if k0 == .minecart { CapitalRail.setupCar(m, tag: tag) }                // P92 trains
         if tag == "warden" { m.makeKeepWarden() }
         if ash, let r = AshArmy.role(tag) { m.ashTakeRole(r) }
@@ -651,7 +652,13 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         p.append(box(-14, 8, -42, 28, 18, 16, black, 7))                               // cab
         p.append(box(-12, 19, -42.6, 24, 5, 1, V3(0.08, 0.09, 0.1), 11))
         p.append(box(-9, 9, -50.8, 18, 8, 1, dark))
-        if m.variant == 1 {
+        if m.variant == 2 {
+            // Greywall Command's truck (T6): field-grey tilt over the bed, a pale band, no red.
+            let grey = V3(0.3, 0.32, 0.31), band = V3(0.62, 0.63, 0.6)
+            p.append(box(-14, 10, -24, 28, 4, 62, plate, 7))
+            p.append(box(-14, 14, -24, 28, 22, 60, grey, 6))
+            p.append(box(-14.4, 28, -18, 28.8, 3, 48, band, 6))
+        } else if m.variant == 1 {
             p.append(box(-12, 10, -24, 24, 20, 60, black, 7))
             p.append(box(-12.4, 22, -20, 24.8, 2, 52, red)); p.append(box(-12.4, 14, -20, 24.8, 2, 52, red))
             p.append(box(-4, 14, 36.2, 8, 8, 0.6, red))
