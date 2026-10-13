@@ -174,6 +174,11 @@ if CommandLine.arguments.contains("--horsecoats-only") {
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --mines-only: C12 mining towns (Sources/MiningTownsTests.swift).
+if CommandLine.arguments.contains("--mines-only") {
+    MiningTownsTests.run(game, check: check)
+    print(failures == 0 ? "mines: all checks passed" : "mines: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --contracts-only: C11 jobs and contracts (Sources/ContractsTests.swift).
 if CommandLine.arguments.contains("--contracts-only") {
     ContractsTests.run(game, check: check)

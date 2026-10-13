@@ -214,6 +214,7 @@ extension Mob {
         if let k = villager?.shopKind { return Float(f) >= k.hours.0 && Float(f) <= k.hours.1 ? .work : .idle }
         if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
         if villager?.role == "banker" { return BankMenu.open(f) ? .work : .idle }       // behind the teller's counter
+        if villager?.role == "miner" { return .work }                                    // C12: at the face, shifts round the clock
         let prof = villager?.profession ?? "none"
         if Seasons.festival && villager?.town != nil && t >= 2000 && t < 12000 { return .meet }   // C9: the town festival at the bell
         if t >= 5600 && t < 6600 { return .eat }

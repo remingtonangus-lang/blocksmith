@@ -235,6 +235,7 @@ final class StructureCache {
     var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
     var legacyC1: Set<Int64> = []                 // ground saved before railways (C1, Railways.swift)
+    var legacyC12: Set<Int64> = []                // ground saved before mining towns (C12, MiningTowns.swift)
 
     // Q2 (scorecard "world gen: no structure overlaps", 138 piece overlaps in 50 seeds): a small start gives way to a
     // bigger one whose pieces it would cut into, so a ruined portal never stands in a village street or a citadel wall,
@@ -605,7 +606,7 @@ enum Loot {
     ]
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
     }

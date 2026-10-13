@@ -122,6 +122,11 @@ enum Townsfolk {
             v.role = "camper"; v.locked = true; v.profession = "none"
             let p = m.pos
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]
+        } else if tag == "miner" {
+            // A mining town's miner (MiningTowns, C12): works the face where they stand, day and night.
+            v.role = "miner"; v.locked = true; v.profession = "none"
+            let p = m.pos
+            v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
         } else if tag.hasPrefix("citizen") {
@@ -149,6 +154,7 @@ enum Townsfolk {
         case "deputy": return .revolver                                 // P64: deputies carry six-irons too
         case "sheriff": return .revolver                                // every sheriff carries the six-iron (SixIron)
         case "farmer": return .pitchfork
+        case "miner": return .shovel
         case "posse": return .revolver                                  // P51: posses and bounty hunters
         case "elder", "child", "citizen", "banker", "rider": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":

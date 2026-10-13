@@ -57,6 +57,7 @@ enum TownLaw {
         var owned: [String: [Int]]? = nil
         var contracts: [String: Contract]? = nil    // C11: contracts on the boards (Contracts.swift)
         var nation: Nation.Saved? = nil             // C3: your nation (Nation.swift)
+        var minesSpent: [String]? = nil             // C12: gas pockets that have gone up (MiningTowns.swift)
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
         var emeraldTip: Bool? = nil                 // the one-time "emeralds sell at a bank" tip was shown (G14)
@@ -126,6 +127,7 @@ enum TownLaw {
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
               let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1),
               abs(s.anchor.x - p.x) < 200 && abs(s.anchor.z - p.z) < 200 else { return false }
+        if let m = s.plan as? Mine, m.underground(p) { return false }          // C12: the mine's workings are company ground
         return s.pieces.contains { pc in
             p.x >= pc.min.x && p.x <= pc.max.x && p.z >= pc.min.z && p.z <= pc.max.z
                 && p.y <= pc.max.y && p.y >= max(pc.min.y, pc.max.y - 18)
@@ -190,6 +192,7 @@ enum TownLaw {
     // 12 s). Nobody already fighting, asleep or a child.
     static var shotsHeard = 0
     static func gunfire(_ g: Game, at p: V3) {
+        MiningTowns.spark(g, at: p)                                            // C12: a muzzle flash in mine gas
         guard g.dim.dim == .overworld, isTownSpot(g, IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))) else { return }
         var folk: [(Mob, Float)] = []
         for m in g.mobs.mobs where isTownsperson(m) && !m.lying && !m.baby && m.town.anger <= 0 && m.villager?.role != "child" {
@@ -405,6 +408,7 @@ enum TownLaw {
         guard g.dim.dim == .overworld, g.alive else { inTown = nil; return }
         TownBoard.tick(g)
         Contracts.tick(g)                                // C11
+        MiningTowns.tick(g)                              // C12: mine gas
         BountyHunters.tick(g)
         TownRaids.tick(g)                                  // night raids (TownRaids.swift)
         var nearest: Mob?

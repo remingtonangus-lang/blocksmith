@@ -648,6 +648,9 @@ enum OverworldStructures {
     static func mineshaft(_ gen: WorldGen) -> StructureType {
         StructureType(name: "mineshaft", spacing: 16, separation: 1, salt: 30084233, reach: 4) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
+            // C12: abandoned mineshafts are retired on new ground; the mining towns work real mines instead
+            // (MiningTowns.swift). Ground a save had generated before keeps its shafts.
+            if let sc = gen.structures, sc.clear(cx: cx, cz: cz, reach: 4, guardSet: sc.legacyC12) { return nil }
             let badlands = gen.column(x, z).biome.isBadlands
             var rng = SRng(seed)
             let y = badlands ? gen.groundY(x, z) - 4 : YOFF + rng.range(-40, 30)
