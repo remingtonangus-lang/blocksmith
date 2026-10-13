@@ -439,6 +439,7 @@ extension Game {
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
+        if !journal.isEmpty, let e = try? JSONEncoder().encode(journal), let str = String(data: e, encoding: .utf8) { d["journal"] = str }
         if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
         return d
     }
@@ -446,6 +447,7 @@ extension Game {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
         horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
+        journal = d["journal"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode([JournalEntry].self, from: $0) } ?? []
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
         money = d["money"].flatMap { Int($0) } ?? Money.start

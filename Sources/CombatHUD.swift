@@ -47,14 +47,22 @@ final class CombatHUD {
                 }
             }
         }
-        // Armour wear: one bar per worn piece, left of the hotbar (survival).
+        // Armour wear: one bar per worn piece, left of the hotbar (survival). P123 (Oct 12 PM: "I don't understand what
+        // those four bars to my left are"): each bar has its piece's icon beside it and the column is headed "Armour".
         if g.survival {
             var row = 0
-            for i in 0..<4 {
+            let pieces = (0..<4).compactMap { i -> ItemStack? in
                 let st = g.inventory.armor[i]
-                guard !st.isEmpty, st.def.durability > 0, Items.key(st.item) != "jetpack" else { continue }
+                return !st.isEmpty && st.def.durability > 0 && Items.key(st.item) != "jetpack" ? st : nil
+            }
+            let y0 = L.hotbarY0 - 3 * s
+            if !pieces.isEmpty {
+                out.append(HudLine(text: "Armour", x: L.hotbarX0 - 40 * s, y: y0 - 10 * s, scale: s, color: V4(0.85, 0.88, 0.92, 0.9)))
+            }
+            for st in pieces {
                 let f = max(0, 1 - Float(st.damage) / Float(st.def.durability))
-                let x = L.hotbarX0 - 30 * s, y = L.hotbarY0 + Float(row) * 5 * s + 1 * s
+                let x = L.hotbarX0 - 30 * s, y = y0 + Float(row) * 7 * s
+                out.append(HudLine(text: "", x: x - 10 * s, y: y - 1.5 * s, scale: s, box: V2(6 * s, 6 * s), item: st))
                 out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(22 * s, 3 * s)))
                 let c = f < 0.2 ? Settings.shared.badColor : (Settings.shared.colorblind ? V4(0.6, 0.8, 1, 1) : V4(0.75, 0.85, 0.95, 1))
                 out.append(HudLine(text: "", x: x + s * 0.5, y: y + s * 0.5, scale: s, bg: c, box: V2(21 * s * f, 2 * s)))

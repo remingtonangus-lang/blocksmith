@@ -53,6 +53,8 @@ final class BookMenu: Menu {
         width = 192; height = 200
         showInventoryLabel = false
         if case .lectern(let be) = source { page = max(0, min(pg.count - 1, Int(be.delay))) }
+        // Documents read go into the journal (P116); the journal itself doesn't.
+        if !editable, stack.label != "Journal" { game.logDocument(stack.label ?? "Written Book", pg) }
         func button(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ i: Int) {
             let b = MenuSlot(x, y, nil, 0, .button(i)); b.w = w; b.h = h; slots.append(b)
         }

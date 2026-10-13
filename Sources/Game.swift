@@ -292,6 +292,8 @@ final class Game {
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
+    var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
+    var journalLast: Double = 0
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var steadySaddle = false           // VR comfort: the view eases over a ridden horse's jumps and bucks (ViewStep.swift)
     var swingPower: Float = 0          // Quest Swing melee: the blade hit swingMob this frame (VRMelee.power 0.6 ... 1.3); consumed by interact
@@ -374,6 +376,7 @@ final class Game {
             guard let self else { return }
             self.toastText = s
             self.toastTime = self.clock
+            self.logMessage(s)
         }
         giveCreativeStarter()
         hookWorld(world)
@@ -1382,7 +1385,7 @@ final class Game {
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
         if useBucket() { return }
         if useNow && placeBoat() { return }
-        guard let t = target else { return }
+        guard let t = target else { if useNow { placeIntoLava() }; return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && (radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net
@@ -1525,6 +1528,11 @@ final class Game {
         let solid = Blocks.collide[Int(id)]
         // Placed into a water source, a waterloggable block holds the water (reference).
         if existing == WATER && Blocks.wet[Int(id)] != AIR { id = Blocks.wet[Int(id)] }
+        // P122 (Oct 12 PM: "I'm not able to place blocks when I'm jumping"): a block put under your feet in the air (the
+        // cell your feet are still in, the lower 0.75 of it) lifts you onto it, so jumping and placing pillars up at any
+        // point of the jump, not only at its very top.
+        if supported && solid && !player.onGround && !player.flying && player.intersectsBlock(at), at.y == Int(floor(player.pos.y)),
+           player.pos.y > Float(at.y) + 0.25, liftOnto(at) {}
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
@@ -2488,6 +2496,7 @@ final class Game {
         if fluidTimer >= 0.25 { fluidTimer = 0; world.fluidTick() }        // water: 5 ticks a step (reference)
         TickProf.mark("water")
         lavaTimer += dt
+        World.focus = IVec3(Int(floor(player.pos.x)), Int(floor(player.pos.y)), Int(floor(player.pos.z)))
         if lavaTimer >= (dim.dim.ultrawarm ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
         TickProf.mark("lava")
         fireTimer += dt

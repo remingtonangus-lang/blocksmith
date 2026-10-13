@@ -115,6 +115,9 @@ enum Guns {
     // Ammunition is crafted; guns need components looted at Capital citadels.
     static func recipes() -> [Recipe?] {
         [Recipes.shapeless(["iron_ingot", "copper_ingot", "gunpowder"], "rifle_rounds", 16),
+         // P120 (Oct 12 PM: "I'm gonna make some capital rounds, this is my favourite... I can't make them"): steel cases,
+         // so dearer than rifle rounds.
+         Recipes.shapeless(["steel_ingot", "copper_ingot", "gunpowder", "gunpowder"], "capital_rounds", 12),
          Recipes.shapeless(["paper", "gunpowder", "iron_nugget", "iron_nugget"], "shotgun_shells", 6),
          Recipes.shapeless(["iron_ingot", "iron_ingot", "gunpowder", "gunpowder"], "heavy_rounds", 5),
          Recipes.shaped([" I ", "ITI", "IGI"], ["I": "iron_ingot", "T": "tnt", "G": "gunpowder"], "rocket_ammo", 2),

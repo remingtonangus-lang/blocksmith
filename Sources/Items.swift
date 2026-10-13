@@ -444,6 +444,7 @@ final class ItemRegistry {
         Potions.register(self)
         SpawnEggs.register(self)
         Guns.register(self)
+        Magazines.register(self)
         registerDeepExpansionItems()
         registerDeepGateItems()
         registerHellItems()

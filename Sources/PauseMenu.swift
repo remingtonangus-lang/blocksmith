@@ -193,7 +193,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Journal", "journal"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -523,6 +523,7 @@ final class PauseMenu: Menu {
             page = .title
             resetCursor = true
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
+        case "journal": g.closeMenu(); g.openJournal()
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
         case "coop":

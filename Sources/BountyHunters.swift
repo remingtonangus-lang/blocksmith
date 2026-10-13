@@ -9,7 +9,10 @@ import simd
 // removed) once you're no longer wanted, or when they've been out five minutes and are far from you. Never on Peaceful.
 enum BountyHunters {
     static let name = "Bounty Hunter"
-    static var chancePerSecond: Float = 1.0 / 240      // about once every four minutes out in the wild while wanted
+    // P115 (Oct 12 PM: "much rarer, but when they come they are many and a real problem"): about once every quarter
+    // hour out in the wild while wanted, at most once every three in-game days, and never while you're underground.
+    static var chancePerSecond: Float = 1.0 / 900
+    static let daysBetween = 3
     static let minBounty = 2500
 
     static var totalBounty: Int { (TownLaw.state.bounty ?? [:]).values.reduce(0, +) }
@@ -20,10 +23,12 @@ enum BountyHunters {
         leave(g)
         Riders.tick(g)
         // Gunmen (hunters, posses) stay on you while they're out (townsfolk anger fades on its own).
-        for m in g.mobs.mobs where m.posse == 3 && m.kind == .villager && simd_length(m.pos - g.player.pos) < SixIron.chase { m.town.anger = max(m.town.anger, 5) }
+        let lost = below(g)
+        for m in g.mobs.mobs where m.posse == 3 && m.customName == name && lost { m.lockTime = 0; m.aggro = false; m.target = nil }
+        for m in g.mobs.mobs where m.posse == 3 && m.kind == .villager && simd_length(m.pos - g.player.pos) < SixIron.chase && !lost { m.town.anger = max(m.town.anger, 5) }
         guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, !Reckoning.won, wanted() else { return }   // (P98: peace)
         let day = Int(g.time / DAY_LENGTH)
-        guard (TownLaw.state.huntersDay ?? -99) < day, Rand.float(in: 0..<1) < chancePerSecond else { return }
+        guard day - (TownLaw.state.huntersDay ?? -99) >= daysBetween, !below(g), Rand.float(in: 0..<1) < chancePerSecond else { return }
         if send(g) > 0 { TownLaw.state.huntersDay = day }
     }
 
@@ -34,8 +39,9 @@ enum BountyHunters {
         // P88 (Oct 12 AM, "bounty hunters must be a big deal, like RDR2"): a bigger, harder posse (three, four at $50 or
         // as an outlaw, five as an outlaw with $50 on you), two of them with six-irons, all tougher; they ride in from
         // further off, show on the map and minimap (MapDraw.markers) and the music turns (Game.combatTick).
+        // P115: rarer, so a real crowd: five to eight, four of them with six-irons.
         let big = totalBounty >= 5000
-        let n = Honour.isOutlaw ? (big ? 5 : 4) : (big ? 4 : 3)
+        let n = Honour.isOutlaw ? (big ? 8 : 7) : (big ? 6 : 5)
         var placed = 0
         var from: V3?
         for k in 0..<(n * 12) where placed < n {           // (12 tries a rider: the P88 ring is wider and has more water)
@@ -49,7 +55,7 @@ enum BountyHunters {
             if k < 16 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
             // P51: the first hunter carries a six-iron (an armed townsperson, Riders.gunman); the others are Brigands.
             let m: Mob
-            if placed < 2 { m = Riders.gunman(g, at: w.freeSpawn(at), role: "posse", name: name); m.health = m.spec.health * 2 }
+            if placed < 4 { m = Riders.gunman(g, at: w.freeSpawn(at), role: "posse", name: name); m.health = m.spec.health * 2 }
             else {
                 m = Mob(placed % 2 == 0 ? .pillager : .vindicator, at: w.freeSpawn(at))
                 m.customName = name
@@ -71,6 +77,14 @@ enum BountyHunters {
         return placed
     }
     static var sent = 0
+
+    // Below ground (P115: "they must not find him underground"): rock 4+ blocks over the head, or no daylight reaching
+    // him. No posse sets out then, and one already out loses him: it stops coming on (lockTime 0) until he's back up.
+    static func below(_ g: Game) -> Bool {
+        let p = g.player.pos, x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
+        guard g.world.isLoaded(x, z) else { return false }
+        return g.world.topY(x, z) >= y + 4 || g.world.lightAt(x, y + 1, z).sky < 8
+    }
     static func isHunter(_ m: Mob) -> Bool { m.posse == 3 && m.health > 0 && m.customName == name }
     static let lifetime: Double = 300
 

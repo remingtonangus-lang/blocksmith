@@ -173,7 +173,7 @@ enum ContextPrompts {
         if g.riding != nil { out.append((.sneak, "Dismount")) }
         let held = g.held
         if let gi = g.heldGun {
-            out = [(.attack, "Fire"), (.use, "Aim"), (.reload, "Reload")]
+            out = g.vrAim != nil ? [(.attack, "Fire"), (.use, "Aim")] : [(.attack, "Fire"), (.use, "Aim"), (.reload, "Reload")]
             if Guns.all[gi].auto { out[0].1 = "Fire (hold)" }
             out.append((.wheel, "Weapons"))
             return out.map { Prompt.g($0.0) + " " + $0.1 }

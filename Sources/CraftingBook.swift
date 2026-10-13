@@ -181,7 +181,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         var out: [CraftCategory: [Int]] = [:]
         var seen = Set<ItemID>()
         for (i, r) in Recipes.all.enumerated() {
-            let fits = r.shapeless.isEmpty ? (r.w <= size && r.h <= size) : r.shapeless.count <= size * size
+            // (Magazines are packed straight from the inventory: more rounds than a grid holds, P119.)
+            let fits = r.shapeless.isEmpty ? (r.w <= size && r.h <= size) : (r.shapeless.count <= size * size || Magazines.isMagazine(Items.key(r.result.item)))
             guard fits, !seen.contains(r.result.item) else { continue }
             seen.insert(r.result.item)
             out[CraftCategory.of(r.result.item), default: []].append(i)
@@ -436,7 +437,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
             label(have > 0 ? "You can make \(have * r.result.count)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
             // Ingredient grid (3x3 or 2x2) with each cell's item; red where you have none.
-            let g = max(r.w, 1), cells: [String?] = r.shapeless.isEmpty ? r.cells : r.shapeless.map { Optional($0) }
+            var uniq: [String] = []
+            for s in r.shapeless where !uniq.contains(s) { uniq.append(s) }
+            let g = max(r.w, 1), cells: [String?] = r.shapeless.isEmpty ? r.cells : (r.shapeless.count > 9 ? uniq : r.shapeless).map { Optional($0) }
             let cw = r.shapeless.isEmpty ? g : min(3, r.shapeless.count)
             for (c, ing) in cells.enumerated() {
                 let cx = 198 + (c % max(1, cw)) * 19, cy = 84 + (c / max(1, cw)) * 19
