@@ -44,6 +44,7 @@ extension Game {
             }
             // P97 (Oct 12 AM, "I can't use the campfire"): anything else but a block, at a lit fire, rests you by it a
             // while: health mends (regeneration), once a minute.
+            if lit && (held.isEmpty || held.def.block == nil) && campTravelUse(p) { return true }   // O1: a freed camp's fire
             if lit && (held.isEmpty || held.def.block == nil) { return restByFire(c) }
         case "bee_nest", "beehive":
             guard st == 5 else { return false }
