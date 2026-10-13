@@ -386,6 +386,7 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if companionUse(m) { return true }                            // O2: hire, gear or part with a companion
         if copperGolemUse(m) { return true }
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
         if Trains.use(self, m) { return true }          // C1: a seat in the coach, the express car's strongbox
