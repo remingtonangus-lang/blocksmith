@@ -365,20 +365,20 @@ T3. [DROPPED by Remington, Oct 13 08:10: no time on making test bots or automate
        (whole tick 22 ms against 8.6 without them, under load), `deep: sealed lava pockets above the
        lava sea`, `boreal 12345 ... birdCall`, `boreal ops: a roused soldier leaves the shut archive` (passes alone).
        Load-dependent on a 4-core runner; each needs its own fix (the fx cost first), not a looser budget.
-T4. [Fix the gameplay: patrols follow paths that exist. Do not chase the test.] Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
+T4. [DONE: the patrol marches on one searched path (77 cells) and reaches the spot 40 blocks out at -456,920 in 58 s, then returns (`questcheck --basetest-only patrol`, Oct 13). Fix the gameplay: patrols follow paths that exist. Do not chase the test.] Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
     `questcheck --basetest-only patrol`). G12 moved seed 12345's nearest citadel to -456,920. A gunshot 40 blocks south of
     its gate: PathFinder.find (8,000 nodes) walks gate -> spot, but the patrol leader stops 36 blocks short ("no way on")
     after ~4 blocks: basePatrol (CapitalBasesWork.swift) orders 18-block waypoints at `standY` ground and the soldier's
     own search gives up on them. Fix the class: a patrol follows one long path (or waypoints taken from it), and the
     test's "reaches the spot" passes at this citadel and the old one.
-T5. P18 water falling one block (Oct 11 playtest, "looks weird from the side"): time-boxed in the cloud (Lane A,
+T5. [Left for lane M: needs a headset look, nothing for the cloud lane to build.] P18 water falling one block (Oct 11 playtest, "looks weird from the side"): time-boxed in the cloud (Lane A,
     2026-10-12). `questcheck --view OUT.png --scene waterstep --at 0,230,0 --look 0,-15` now settles real water over a
     one-block step (fluid steps run directly; the old scene never flowed). Seen from three angles the drop renders as
     the reference does (the cell under the edge is full height, the spread slopes from it); the one oddity is the
     shallow rim's side faces reading as separate dashes along a diagonal edge. No defect pinned; needs a headset look
     (lane M) with the scene above to say what "weird" is.
 
-T6. [A1 leftovers, Greywall Command] Coastal guns of two calibres at shore bases (the tower deck guns stand in);
+T6. [CLAIMED by the backlog thread, Oct 13] [A1 leftovers, Greywall Command] Coastal guns of two calibres at shore bases (the tower deck guns stand in);
 turrets at corridor corners; reinforcements by truck (they come on foot); the nearest-outpost distance over 20 seeds
 (sampled on 3); an end-to-end capture of a generated base in the harness (the scan of every generated tier is checked,
 the hold is checked on a stand-in); soldier alerts wake every faction near a base (Soldiers.alertGarrison, older than
