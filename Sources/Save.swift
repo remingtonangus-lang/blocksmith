@@ -145,8 +145,15 @@ final class SaveManager {
     // Thread-safe: called from world worker threads.
     func loadChunk(_ k: ChunkKey) -> [BlockID]? {
         if let queued = SaveIO.pending(chunkURL(k).path) { return queued }     // written in the background, not on disk yet
-        guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
-        guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
+        guard let d = try? Data(contentsOf: chunkURL(k)), var out = SaveManager.decodeBlocks([UInt8](d)) else { return nil }
+        if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
+        if deepSeal { DeepSeal.stamp(&out); AshFinal.stamp(&out, cx: k.x, cz: k.z) }
+        return out
+    }
+
+    // The chunk file's bytes (also the co-op wire format, NetCoop.swift) to blocks, or nil.
+    static func decodeBlocks(_ d: [UInt8]) -> [BlockID]? {
+        guard let raw = try? (Data(d) as NSData).decompressed(using: .lzfse) as Data else { return nil }
         let bytes = [UInt8](raw)
         var p = 0
         func u16() -> Int { defer { p += 2 }; return p + 1 < bytes.count ? Int(bytes[p]) | Int(bytes[p + 1]) << 8 : 0 }
@@ -168,8 +175,6 @@ final class SaveManager {
             p += 2
             out[i] = idx < palette.count ? palette[idx] : AIR
         }
-        if overworldFloor { SaveManager.stripBedrockFloor(&out); HellGate.stamp(&out) }
-        if deepSeal { DeepSeal.stamp(&out); AshFinal.stamp(&out, cx: k.x, cz: k.z) }
         return out
     }
 
@@ -184,6 +189,11 @@ final class SaveManager {
     }
 
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
+        guard let c = SaveManager.encodeBlocks(blocks) else { return }
+        try? Data(c).write(to: chunkURL(k), options: .atomic)
+    }
+
+    static func encodeBlocks(_ blocks: [BlockID]) -> [UInt8]? {
         // Palette through a flat table (block id -> palette index + 1) instead of a dictionary per block.
         var map = [UInt16](repeating: 0, count: max(Blocks.count, 1) + 1)
         var names: [String] = []
@@ -205,8 +215,8 @@ final class SaveManager {
             d.append(contentsOf: u)
         }
         idx.withUnsafeBytes { d.append(contentsOf: $0) }
-        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return }
-        try? c.write(to: chunkURL(k), options: .atomic)
+        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
+        return [UInt8](c)
     }
 }
 

@@ -56,6 +56,7 @@ final class KeyboardMenu: Menu {
             switch pm.editing {
             case 0?: return ("World name", pm.newName)
             case 1?: return ("Seed", pm.newSeed)
+            case 3?: return ("Host address", pm.netAddr)
             default: return ("New name", pm.renameText)
             }
         case let sm as SignMenu: return ("Sign line \(sm.line + 1)", sm.line < sm.be.lines.count ? sm.be.lines[sm.line] : "")

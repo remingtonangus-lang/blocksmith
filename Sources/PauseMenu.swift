@@ -9,7 +9,7 @@ final class PauseMenu: Menu {
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
     static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
-    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts }
+    enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename, shortcuts, net }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
         // distance setting" - it sat on page 3 behind the input pages).
@@ -31,7 +31,11 @@ final class PauseMenu: Menu {
     var newSurvival = true
     var newDifficulty = 2
     var newSmooth = Settings.shared.smoothTerrain   // Terrain: Smooth (test); the last choice is remembered
-    var editing: Int? = nil        // 0 name, 1 seed, 2 rename
+    var editing: Int? = nil        // 0 name, 1 seed, 2 rename, 3 host address
+    var netAddr = ""                // C14 Play Together: a host typed by address
+    static var found: [(ip: String, port: UInt16, world: String)] = []
+    static var searching = false
+    static let foundLock = NSLock()
     var selWorld = ""              // world picked on the worlds page
     var renameText = ""
     var worlds: [WorldStore.Info] = []
@@ -105,6 +109,7 @@ final class PauseMenu: Menu {
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
         "coop": "Split screen: a second controller joins (or press Menu on it while playing); player 2 leaves from their pause menu.",
+        "netmenu": "Play together over Wi-Fi: host this world for a friend, or join theirs.",
         "photo": "A free camera with the HUD hidden: keyframe paths and depth of field (F6).",
         "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
@@ -197,6 +202,7 @@ final class PauseMenu: Menu {
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
+                    ("Play Together (network)...", "netmenu"),
                     ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
@@ -316,6 +322,27 @@ final class PauseMenu: Menu {
             title = "Rename World"
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
             rows = [("Name: \(renameText)\(editing == 2 ? caret : "")", "edit_rename"), ("Save", "w_rename_yes"), ("Cancel", "back")]
+        case .net:
+            title = "Play Together"
+            let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
+            if let gu = g.netGuest {
+                subtitle = "In \(gu.worldName): the host's world"
+                rows = [("Leave and go back to my world", "net_leave"), ("Back", "back")]
+            } else {
+                if let h = g.netHost {
+                    subtitle = "Hosting at \(NetSock.localIP() ?? "?"): \(h.joined ? "your friend is here" : "waiting for a friend")"
+                    rows = [("Stop Hosting", "net_stop")]
+                } else {
+                    subtitle = "A friend on the same Wi-Fi can join this world"
+                    rows = [("Host This World", "net_host")]
+                }
+                PauseMenu.foundLock.lock()
+                let found = PauseMenu.found, searching = PauseMenu.searching
+                PauseMenu.foundLock.unlock()
+                rows.append((searching ? "Searching the network..." : "Search for Friends' Worlds", "net_search"))
+                rows += found.map { ("Join \($0.world) (\($0.ip))", "net_join:\($0.ip)") }
+                rows += [("Address: \(netAddr)\(editing == 3 ? caret : "")", "edit_addr"), ("Join Address", "net_addr"), ("Back", "back")]
+            }
         case .create:
             title = "Create New World"
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
@@ -471,6 +498,31 @@ final class PauseMenu: Menu {
             scroll = 0
             resetCursor = true
         case "create": go(.create); editing = nil; resetCursor = true
+        case "netmenu": go(.net); resetCursor = true
+        case "net_host":
+            if g.coop.active { g.onToast?("End split screen first"); break }
+            if let h = NetHost(g) { g.netHost = h; g.onToast?("Hosting: a friend can join at \(NetSock.localIP() ?? "this headset")") }
+            else { g.onToast?("Couldn't open the network port") }
+        case "net_stop": g.netHost?.stop(g); g.netHost = nil; g.onToast?("Stopped hosting")
+        case "net_search":
+            PauseMenu.foundLock.lock()
+            let busy = PauseMenu.searching
+            PauseMenu.searching = true
+            PauseMenu.foundLock.unlock()
+            guard !busy else { break }
+            DispatchQueue.global().async {
+                let f = NetSock.discover(seconds: 2.5)
+                PauseMenu.foundLock.lock(); PauseMenu.found = f; PauseMenu.searching = false; PauseMenu.foundLock.unlock()
+            }
+        case _ where id.hasPrefix("net_join:"): g.appAction?("netjoin:" + String(id.dropFirst(9)))
+        case "edit_addr":
+            editing = 3
+            if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
+        case "net_addr":
+            editing = nil
+            let a = netAddr.trimmingCharacters(in: .whitespaces)
+            if a.isEmpty { g.onToast?("Type the host's address first") } else { g.appAction?("netjoin:" + a) }
+        case "net_leave": g.appAction?("netleave")
         case "newworld": g.appAction?("newworld")
         case "workshop": g.appAction?("workshop")
         case "edit_name", "edit_seed", "edit_rename":
@@ -632,10 +684,15 @@ final class PauseMenu: Menu {
         }
     }
 
-    override var capturesText: Bool { ((page == .create || page == .rename) && editing != nil) || binding != nil }
+    override var capturesText: Bool { ((page == .create || page == .rename || page == .net) && editing != nil) || binding != nil }
     override func typed(_ str: String) {
         guard let e = editing else { return }
         for c in str {
+            if e == 3 {
+                if c == "\u{8}" { if !netAddr.isEmpty { netAddr.removeLast() } }
+                else if netAddr.count < 40 && (c.isNumber || c == "." || c.isLetter || c == "-") { netAddr.append(c) }
+                continue
+            }
             if c == "\u{8}" {
                 if e == 0 { if !newName.isEmpty { newName.removeLast() } }
                 else if e == 1 { if !newSeed.isEmpty { newSeed.removeLast() } }

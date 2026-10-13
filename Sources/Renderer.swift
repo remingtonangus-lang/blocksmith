@@ -339,7 +339,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
         adjustResolution(view)
-        if game.coop.active && view.framebufferOnly { view.framebufferOnly = false }    // split screen copies views in
+        if game.coop.split && view.framebufferOnly { view.framebufferOnly = false }    // split screen copies views in
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
         if game.screenshotRequested {
@@ -483,9 +483,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         let pe = game.player.pos
         for m in game.mobs.mobs where simd_length_squared(m.pos - pe) < 32 * 32 { MobDrawStats.near += 1 }
         MobDrawStats.written = 0; MobDrawStats.drawn = 0; MobDrawStats.culled = 0; MobDrawStats.dropped = 0; MobDrawStats.path = "none"
-        HudLayout.splitFullH = game.coop.active ? Float(height) : 0
-        HudLayout.splitFullW = game.coop.active ? Float(width) : 0
-        if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
+        HudLayout.splitFullH = game.coop.split ? Float(height) : 0
+        HudLayout.splitFullW = game.coop.split ? Float(width) : 0
+        if game.coop.split { renderSplit(cmd, final: final, width: width, height: height); return }
         renderView(cmd, final: final, width: width, height: height)
     }
 
@@ -651,7 +651,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // dozen filled the old 4 MB and the rest, the mobs beside the player among them, went undrawn (playtest 2026-10-05).
     private var mobBufBytes = 1 << 22
     func writeMobBuffer(eye: V3, daylight: Float, cull: Frustum) -> (buf: MTLBuffer, count: Int)? {
-        let want = game.coop.active ? 6 : 3           // split screen draws two views a frame
+        let want = game.coop.split ? 6 : 3           // split screen draws two views a frame
         while mobBufs.count < want {
             guard let b = device.makeBuffer(length: mobBufBytes, options: .storageModeShared) else { break }
             mobBufs.append(b)
@@ -666,6 +666,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                                  cull: cull, maxDist: mobMaxDist, corpses: game.mobs.corpses)
         if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
         n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
+        n += NetCoop.writeRemote(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
         MobDrawStats.written += n
         if MobDrawStats.dropped > droppedBefore && mobBufBytes < 1 << 24 {
             mobBufBytes <<= 1
@@ -678,7 +679,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active,
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active || game.netGuest != nil,
            let pre = writeMobBuffer(eye: eye, daylight: game.renderDaylight, cull: mobCullFrustum(width, height)) {
             mobPre = pre
             n = pre.count
@@ -1149,7 +1150,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
             }
-        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
+        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active || game.netGuest != nil {
             // Fast: the same buffers (the frame's scratch ring shares its 4 MB with everything else).
             if let pre = writeMobBuffer(eye: eye, daylight: daylight, cull: frustum) {
                 MobDrawStats.path = hdrActive ? "Fancy (no shadow pass)" : "Fast buffer"

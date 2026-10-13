@@ -176,6 +176,10 @@ final class Coop {
     private(set) var slots: [SeatState?] = [nil]
     private(set) var current = 0
     var active: Bool { slots.count > 1 }
+    // A seat played from another headset over the network (NetCoop.swift): its body comes from there, and the screen
+    // doesn't split for it.
+    var netSeat: Int?
+    var split: Bool { active && netSeat == nil }
     var seatCount: Int { slots.count }
     private var pads: [Int: GCController] = [:]       // the controller each seat > 0 plays with
     var simulated: [Int: PadSnapshot] = [:]            // harness input for seats > 0
@@ -261,7 +265,7 @@ final class Coop {
         slots.append(s)
         if let c = controller { pads[slots.count - 1] = c }
         lastDim = g.dim.dim
-        g.onToast?("Player 2 joined: split screen")
+        if netSeat == nil { g.onToast?("Player 2 joined: split screen") }
     }
 
     // Player 2 leaves (their state is kept for this session in case they rejoin).
@@ -280,7 +284,7 @@ final class Coop {
         simulated[1] = nil
         g.world.extraCenter = nil
         if !g.paused && g.menu is PauseMenu { g.menu = nil }        // the shared pause ended with player 2's choice
-        g.onToast?("Player 2 left")
+        if netSeat == nil { g.onToast?("Player 2 left") }
     }
 
     var secondPadAvailable: Bool {
