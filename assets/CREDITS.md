@@ -1,5 +1,8 @@
 # Asset credits
 
+Rule (AR7, 2026-10-13): every new Gemini sheet record below quotes its prompt verbatim, as sent, next to the sheet's
+file name and its cell list (the s23-s28 / p03 / i20 records only kept the cells).
+
 ## Block textures (Resources/Textures)
 Art direction: "stylised realism" (docs/art/style-options/3-stylised-realism.png, picked by Remington 2026-10-09).
 
