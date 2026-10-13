@@ -67,6 +67,18 @@ final class SaveManager {
     // The chunks this world had generated when it first loaded with task 23's structures (Capital cities, denser
     // citadels): taken once from the chunk folder and kept in structure-guard.txt ("x,z" per line), so the set never
     // grows with chunks generated afterwards (those already have the new structures). A new world's guard is empty.
+    // A terrain change for new worlds only (P44 water): true for a world made with it (the marker is written when
+    // the world is new: no meta and no chunks yet), false for one made before.
+    func newTerrain(_ marker: String) -> Bool {
+        let url = dir.appendingPathComponent(marker)
+        if FileManager.default.fileExists(atPath: url.path) { return true }
+        let chunks = ((try? FileManager.default.contentsOfDirectory(atPath: chunkDir.path)) ?? []).contains { $0.hasPrefix("c.") }
+        if FileManager.default.fileExists(atPath: metaURL.path) || chunks { return false }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? "new terrain since Oct 13 (P44 water)\n".write(to: url, atomically: true, encoding: .utf8)
+        return true
+    }
+
     func structureGuard(file: String = "structure-guard.txt") -> Set<Int64> {
         let url = dir.appendingPathComponent(file)
         var out = Set<Int64>()

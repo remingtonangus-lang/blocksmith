@@ -19,6 +19,7 @@ final class World {
     // World.netQuiet), and a guest's chunks come from the host instead of the generator.
     var netEdit: ((Int, Int, Int, BlockID) -> Void)?
     var remoteChunk: ((ChunkKey) -> ([BlockID], [(IVec3, BlockEntity)])?)?
+    static var fewerLakesUnsaved = false     // P44 water for worlds with no save (harness; a co-op guest takes the host's)
     static var netQuiet = false
     var pendingMobs: [(String, V3)] = []
     var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires
@@ -103,6 +104,7 @@ final class World {
         }
         self.device = device
         self.save = save
+        if let wg = gen as? WorldGen { wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved }
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
         workQueue.maxConcurrentOperationCount = maxJobs
         rebuildOffsets()

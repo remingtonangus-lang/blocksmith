@@ -97,6 +97,11 @@ final class Terrain {
     static let latPeriod: Float = 9000      // blocks along z for one hot -> cold -> hot cycle
     static let rs = 128                     // river node spacing
     static let accMin: Float = 3            // rain-weighted upstream nodes before a river shows
+    // P44 (Oct 11 evening playtest: "less surface water"): worlds made since keep about 60% of the lakes (only basins
+    // fed by 3+ nodes) and 60% of the river reaches (rivers start at 4.5 nodes). Worlds made before keep the old water
+    // (World.init: SaveManager.newTerrain), since the graph would seam their saved ground.
+    var fewerLakes = false
+    var riverAccMin: Float { fewerLakes ? 4.5 : Terrain.accMin }
 
     private let macroCache: GridCache<Macro>
     private let nodeCache: GridCache<Node>
@@ -437,6 +442,7 @@ final class Terrain {
             let n = rbase(i, j)
             let a = racc(i, j)
             guard !n.ocean && a >= 2 else { return Lake() }
+            if fewerLakes { guard a >= 3 else { return Lake() } }
             let r2 = min(130, 22 + 11 * a.squareRoot())
             var ring: Float = 1e9
             for k in 0..<24 {
@@ -469,14 +475,14 @@ final class Terrain {
                     }
                     let di = i + Terrain.dirs[d].0, dj = j + Terrain.dirs[d].1
                     let m = rbase(di, dj)
-                    if a < Terrain.accMin {
+                    if a < riverAccMin {
                         // Dry washes: in arid country small drainage lines cut narrow canyons without water.
                         if a >= 1.1 && n.rain < 0.4 && !m.ocean {
                             set.segs.append(Seg(ax: n.x, az: n.z, bx: m.x, bz: m.z, la: n.p - 1, lb: m.p - 1, hw: 1.5, depth: 0, mouth: false, dry: true))
                         }
                         continue
                     }
-                    let hw = 1.8 + 1.5 * (a - Terrain.accMin + 1).squareRoot()
+                    let hw = 1.8 + 1.5 * (a - riverAccMin + 1).squareRoot()
                     set.segs.append(Seg(ax: n.x, az: n.z, bx: m.x, bz: m.z, la: rlevel(i, j), lb: rlevel(di, dj),
                                         hw: hw, depth: min(7, 1.6 + hw * 0.4), mouth: m.ocean))
                 }
