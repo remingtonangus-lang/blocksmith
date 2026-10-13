@@ -156,7 +156,11 @@ extension Mob {
         if let s = surface {
             let swell: Float = ocean && Game.oceanSwellDrawn
                 ? OceanSwell.height(pos.x, pos.z, Float(g.time.truncatingRemainder(dividingBy: 1000))) * g.weather.swell : 0
-            let target = s - 0.35 + swell
+            // P145 (Oct 12 21:00): the hull sits higher, so the water line is under its floor boards (water showed
+            // inside the boat), and it rocks on a little chop even where the swell isn't drawn (it "doesn't ride the
+            // waves"), more in rough weather.
+            let chop: Float = sinf(Float(g.clock) * 1.7 + pos.x * 0.35) * 0.05 + sinf(Float(g.clock) * 1.1 + pos.z * 0.29) * 0.04
+            let target = s - 0.15 + swell + chop * (1 + 2 * sea)
             let under = target - pos.y
             if under > 0.6 {
                 // Deep under water: bob up (reference: boats pop up; a submerged ridden boat ejects the rider).
@@ -173,7 +177,9 @@ extension Mob {
         // Paddling: reference acceleration 0.04 b/tick forward, 0.005 backward, turn 1 deg/tick with 0.9 decay.
         if ridden {
             let inp = g.rideInput
-            if abs(inp.strafe) > 0.2 { spin += (inp.strafe > 0 ? -1 : 1) * 20 * dt }
+            // P145: softer steering, proportional to the stick and capped (it turned too sharply).
+            if abs(inp.strafe) > 0.2 { spin -= inp.strafe * 12 * dt }
+            spin = max(-2.2, min(2.2, spin))
             var push: Float = 0
             if inp.forward > 0.2 { push += 0.04 }
             if inp.forward < -0.2 { push -= 0.005 }
@@ -211,6 +217,9 @@ func boatParts(_ m: Mob) -> [Part] {
         box(-8, 0, -14, 16, 3, 28, dark),
         box(-9, 3, -14, 1, 6, 28, c), box(8, 3, -14, 1, 6, 28, c),
         box(-8, 3, -15, 16, 6, 1, c), box(-8, 3, 14, 16, 6, 1, c),
+        // P145: a pointed bow and a raised stern, like the inventory icon (it was a plain box).
+        box(-6, 1, -18, 12, 7, 3, c), box(-3, 2, -20, 6, 7, 2, c), box(-1, 3, -21, 2, 7, 1, dark),
+        box(-8, 3, 15, 16, 7, 1, dark),
     ]
     let row = sinf(m.walkPhase) * 0.6
     for s: Float in [-1, 1] {

@@ -172,6 +172,21 @@ enum ContextPrompts {
         var out: [(Prompt.Act, String)] = []
         if g.riding != nil { out.append((.sneak, "Dismount")) }
         let held = g.held
+        // P143/P160 (Oct 12 20:55, Oct 13 09:43): in the headset the right-hand hints (fire, aim, hold, wheel) are gone
+        // from the HUD; a one-time lesson teaches them the first time a gun is in hand, and only an empty gun still
+        // says how to load it. The other control hints are taught by the tips and the lesson, not shown all the time.
+        if g.vrHead != nil {
+            if let gi = g.heldGun {
+                if !Settings.shared.gunLesson {
+                    Settings.shared.gunLesson = true
+                    g.onToast?("Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Right stick: weapon wheel")
+                }
+                if held.tag <= 0 && Guns.all[gi].mag > 0 { return [Prompt.g(.reload) + " Load: bring a magazine to the gun"] }
+                return []
+            }
+            if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }
+            return g.riding != nil ? [Prompt.g(.sneak) + " Dismount"] : []
+        }
         if let gi = g.heldGun {
             out = g.vrAim != nil ? [(.attack, "Fire"), (.use, "Aim")] : [(.attack, "Fire"), (.use, "Aim"), (.reload, "Reload")]
             if Guns.all[gi].auto { out[0].1 = "Fire (hold)" }
@@ -355,6 +370,7 @@ enum HudExtras {
         g.factionRaidsTick()                                         // O5: raids on your places
         g.trophiesTick()                                             // O6: trophy room and museum
         g.weatherWarTick()                                           // O7: weather that matters
+        Wrecks.hintTick(g)                                           // P144: wreck and mast hints
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
         TownLaw.tick(g)
         Hunting.tick(g)

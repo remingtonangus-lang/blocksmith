@@ -156,3 +156,25 @@ extension ItemRegistry {
         }
     }
 }
+
+// P144 (Oct 12 20:56, "directions on how to repair them if it's your first time, or some way to make a mast"): the
+// first time the player comes up to a raisable wreck, and the first time they steer a hull with nothing to drive it,
+// a toast says what to do. Once a second (the HUD tick).
+extension Wrecks {
+    static let mastHow = "A mast: stand logs or fences upright on deck and hang wool on them - wool sails catch the wind while you steer (or fit a propeller and an engine)"
+    static func hintTick(_ g: Game) {
+        let st = Settings.shared
+        if !st.mastHint, let s = g.world.ships.pilot, s.parent == nil, s.sails == 0, s.props.isEmpty, s.wheels.isEmpty, s.balloons == 0, s.flight == nil {
+            st.mastHint = true
+            g.onToast?("This hull has nothing to drive it. " + mastHow)
+        }
+        guard !st.wreckHint, g.dim.dim == .overworld, rottenID != AIR else { return }
+        let p = g.player.pos, px = Int(floor(p.x)), py = Int(floor(p.y)), pz = Int(floor(p.z))
+        let r = rottenID
+        for y in (py - 6)...(py + 4) { for z in (pz - 6)...(pz + 6) { for x in (px - 6)...(px + 6) where g.world.rawBlock(x, y, z) == r {
+            st.wreckHint = true
+            g.onToast?("A wreck you can raise: replace its Rotten Planks with any planks, then place a Ship Helm on deck. " + mastHow)
+            return
+        } } }
+    }
+}

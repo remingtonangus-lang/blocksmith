@@ -2115,8 +2115,17 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
                     let info = r.1 == "noop"
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? MenuColors.hover : V4(0.42, 0.42, 0.46, 1)))
+                    // P140 (Oct 12 20:49, "I can't tell one button being touched from the next"): the hovered button is
+                    // unmistakable: a bright fill, a thick gold outline outside a white one, and pointers at both ends.
+                    if hot && !info {
+                        rect(x - 3 * s, y - 3 * s, Float(sl.w) * s + 6 * s, Float(sl.h) * s + 6 * s, V4(1, 0.8, 0.2, 1))
+                    }
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.16, 0.48, 1, 1) : V4(0.36, 0.36, 0.4, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
+                    if hot && !info && !PauseMenu.isValue(r.1) {
+                        text(">", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 0.9, 0.3, 1))
+                        text("<", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 0.9, 0.3, 1))
+                    }
                     let label = r.0
                     // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
                     let ls = min(s, (Float(sl.w) - 20) * s / max(1, textWidth(label, s)) * s)
