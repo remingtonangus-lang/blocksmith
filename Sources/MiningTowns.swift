@@ -179,7 +179,9 @@ enum MiningTowns {
         }
         // Miners and carts (placed with the chunk they stand in).
         let miners = mine.miners, carts = mine.carts
-        pieces.append(Piece(min: IVec3(sx - 40, l2, sz - 40), max: IVec3(sx + 40, l1 + 1, sz + 40)) { w in
+        let spots = miners + carts
+        pieces.append(Piece(min: IVec3(Int(floor(spots.map { $0.x }.min()!)), l2, Int(floor(spots.map { $0.z }.min()!))),
+                            max: IVec3(Int(floor(spots.map { $0.x }.max()!)), l1 + 1, Int(floor(spots.map { $0.z }.max()!)))) { w in
             for p in miners { w.mob("villager:miner", p) }
             for p in carts { w.mob("minecart", p + V3(0, 0.1, 0)) }
         })
