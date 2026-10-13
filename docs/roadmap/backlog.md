@@ -423,14 +423,14 @@ T16. [Gameplay parts only (e.g. dropships and navy in the Reckoning); skip the T
 T17. [Cloud: smooth trees and smooth water only; Quest fps measurement is the Mac's] [P106 leftovers, Lane A, 2026-10-12] Polygon terrain: measure fps against block terrain on the Quest (Mac worker, device); smooth trees (Mac worker, tree looks); water as a smooth surface; relaxation costs about 40% more mesh time a section in the debug build, worth a look if streaming stalls on the device.
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
-AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
+AR1. [BLOCKED in cloud threads, Oct 13: the cloud Gemini key is on the free tier, which allows no image generation (HTTP 429, quota 0); needs the Mac with CHROME=1 as noted, or billing on the key] 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
      panels, ship parts): list in docs/status/art-style-remaining.md. Needs Gemini sheets (Mac, CHROME=1).
-AR2. cave_vines, weeping_vines, twisting_vines and the torch_top/torch_bottom variants are still procedural.
+AR2. [BLOCKED in cloud threads, Oct 13: same Gemini free-tier block as AR1. Checked: the torch_top/torch_bottom variants are all in Resources/Textures now; cave_vines, cave_vines_lit, weeping_vines and twisting_vines are the four still procedural] cave_vines, weeping_vines, twisting_vines and the torch_top/torch_bottom variants are still procedural.
 AR3. [DROPPED, Oct 13: evidence snaps are test work; skip] Add a snap with XP set so the xp_bar fill is seen in evidence; check its stripes read as a tube at 3 px tall.
 AR4. [Mac/headset only: cloud threads skip] Beds read as a thin flat slab in the Mac family gallery; check them at play distance on Quest.
-AR5. Close-up tiled shot of nether_quartz_ore / deepslate_diamond_ore to confirm the seam blend.
-AR6. texpack.bin grew 12.9 -> 18.6 MB; weigh it for the repo and Quest download (ASTC is Remington's call).
-AR7. Save each Gemini prompt verbatim in assets/CREDITS.md going forward (s23-s28/p03/i20 record pattern + cells only).
+AR5. [SKIPPED Oct 13: an evidence shot (test work) and Metal-only] Close-up tiled shot of nether_quartz_ore / deepslate_diamond_ore to confirm the seam blend.
+AR6. [DONE Oct 13: weighed in docs/status/texpack-size.md: 17 copies cost 88 MB of git history; build it at Quest build time instead, and ASTC 6x6 would cut GPU memory 80 -> 9 MB; both Remington's call] texpack.bin grew 12.9 -> 18.6 MB; weigh it for the repo and Quest download (ASTC is Remington's call).
+AR7. [DONE Oct 13: the rule heads assets/CREDITS.md] Save each Gemini prompt verbatim in assets/CREDITS.md going forward (s23-s28/p03/i20 record pattern + cells only).
 
 ## FROM THE DONE AUDIT (task 25b6, 2026-10-11; items G1-G11, renamed from A1-A11 so they are not confused with Lane A; full tables in docs/status/done-audit.md). Whichever cloud thread is free takes these FIRST, before new lane items.
 Cloud-lane areas, worst first. Each line is a gap an independent reviewer found against a task already marked done.
@@ -442,7 +442,7 @@ G2. [DONE: merged as PR #47 (86427fd), 2026-10-11; rows D3b, D3c, D5, DE8-DE11 M
 G3. [DONE: PR #47: AshArmy.unitCap 64 near the player, extrasCap 24, far-AI LOD past 64 blocks, the `ash vault perf` biggest-battle number (DE14) and the draw side at render distance 10; the on-device proxy route is the Mac worker's; the debug-build perf line is load-sensitive, T3d] [the Deep] Quest perf in the vault: proxy ashvault route 12 hitches/min (max 45.6 ms); add a live-unit cap and
     soldier AI LOD, plus a questcheck "citadel at full alarm" number (DE14).
 G4. [done, G20 PR: PlaythroughDeep.swift, `--playthrough --only deep` (questcheck or the Mac app): Ember Charge through the Wardstone, the hell band, the keep's Castellan, Sunderite to ingots in a blast furnace, pickaxe and charge, the seal, the vault, the Marshal, three waves, the Chancellor, the lift home] [the Deep] Playthrough.swift has no Deep stage (keep -> Sunderite -> charge -> seal -> citadel -> Marshal -> lift).
-G5. [part, G20 PR: battery shells already mark their landing (DE10); Ashguard sharpshooters now glint 1.1 s before the first shot at a target (check G5 sharpshooter glint); the sky blend and fog end are looks, left to the Mac worker] [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
+G5. [DONE Oct 13: checked, nothing left for cloud threads: battery and field-gun shells mark their landing with red smoke and a whistle (AshArmy.ashShellTick), sharpshooters glint; the sky blend and fog end are looks for the Mac worker] [part, G20 PR: battery shells already mark their landing (DE10); Ashguard sharpshooters now glint 1.1 s before the first shot at a target (check G5 sharpshooter glint); the sky blend and fog end are looks, left to the Mac worker] [the Deep, small] battery shells get the Marshal's red flare warning (AshUnits.swift ashArtillery -> g.ashStrikes,
     DE10); marksmen get a first-shot glint (an unarmoured arrival died 92 blocks out in 4 s); blend the vault sky over
     y 120-136 instead of the switch at 128; fog end 130 -> ~220 so the 138-tall vault reads as huge (check proxy p99).
 G6. [base / village] [DONE: Lane A thread, 2026-10-11, PR #49; docs/status/tidebreaker-gaps.md] First citadel findability: radar and intercepted orders are base loot, so the first base means
