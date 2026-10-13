@@ -168,6 +168,23 @@ P137. [DONE: a full repair takes 4 units plus one per upgrade level] [17:51] Rep
 P138. [DONE: upgrade lines need a found blueprint; one chest in four holds one] [17:55] Upgrades need a found recipe or blueprint first, found in chests at camps, boats and similar places.
 P139. [DONE: a goal step for the citadel raid; the Wardstone hint marks the nearest citadel] [15:27-15:29] Progression was unclear underground (which ore breaks the barrier, what to do next) until he worked out the base raid: make the next step clearer.
 
+Oct 12 evening playtest (Remington, 20:49-21:16, on the 20:45 build 664e3d10; check each against claude/quest-port first). Notes: docs/playtests/2026-10-12/voice-notes.md. Keep: roads, the home finder, wind high up, treasure maps, robbable buildings, Saddle Salve, horse jumping and momentum ("so fun to ride").
+P140. [20:49] Create New World menu: he cannot tell which button the pointer is on; make the hovered/selected button obvious.
+P141. [20:51] The smooth (polygon) world still shows the checkered look on hillsides.
+P142. [BIG, go-ahead given 20:51-20:53] Polygon terrain from the ground up: instead of smoothing block terrain, build a separate experimental version designed smooth from the start (its own branch and world type, not replacing blocks), so it can be judged on its own. Everything nice and smooth; keep block-style digging and destruction underneath.
+P143. [20:55] The right-hand control hints (R trigger, L trigger, reload, R stick) must go from the HUD; teach them in the tutorial instead (with P85/P108).
+P144. [20:56] Boats: first-time hints on repairing a wreck, and a clear way to make a mast.
+P145. [21:00] Boats: water shows inside the hull; he cannot see himself in the boat (with P100 third person); the boat model does not match its inventory icon; turning is too sensitive (soften); the boat does not ride the waves; he has seen no storms (with any storm item in this backlog).
+P146. [21:02] Performance work to raise render distance beyond 16 on the Quest.
+P147. [21:04] Horse gallop still feels like a one-cylinder engine (jerky bounce); smooth the riding motion and animation (with P83).
+P148. [21:07] Townsfolk all repeat the same few lines; write many more lines per type and situation.
+P149. [21:08] Saloons: bigger, with people inside; maybe a simple game (cards) later.
+P150. [21:10] Something shot the cattle with rifle rounds; soldiers and townsfolk must not shoot livestock.
+P151. [21:11] The drowned look bad: new model and texture.
+P152. [21:11] The four white bars on the left are still unexplained (P123; check it on the newest build).
+P153. [21:15] Horses refuse drops they took earlier; raise the drop height a horse will take.
+P154. [20:54] Horse armour.
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] Polish loop, only when every gameplay item is DONE: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
