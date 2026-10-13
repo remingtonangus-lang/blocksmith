@@ -199,7 +199,7 @@ enum ContextPrompts {
             out.append((.wheel, "Weapons"))
             return out.map { Prompt.g($0.0) + " " + $0.1 }
         }
-        if let hit = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4), Turrets.canMan(hit.0) {
+        if let hit = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4), Turrets.canMan(hit.0), !(g.survival && hit.0.soldierBrain.crewed) {
             out.append((.use, "Man the gun"))
         }
         if let st = g.world.ships.target {

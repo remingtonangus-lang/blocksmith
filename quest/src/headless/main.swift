@@ -224,6 +224,24 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 7) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
+    // P185); --aggro shows them hostile.
+    if let ks = arg("--mob") {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+        let keys = ks.split(separator: ",").map(String.init)
+        let d = Float(arg("--mobdist") ?? "") ?? 3
+        for (i, k) in keys.enumerated() {
+            guard let kind = MobKind.named(k) else { continue }
+            let off = (Float(i) - Float(keys.count - 1) / 2) * 1.6
+            let at = vg.player.pos + ahead * d + right * off
+            let m = Mob(kind, at: V3(at.x, Float(vw.topY(Int(floor(at.x)), Int(floor(at.z))) + 1), at.z))
+            m.yaw = yaw + .pi
+            m.aggro = CommandLine.arguments.contains("--aggro")
+            m.persistent = true
+            vg.mobs.mobs.append(m)
+        }
+        vg.mobs.rebuildIndex()
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

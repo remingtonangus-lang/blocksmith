@@ -46,6 +46,22 @@ enum PlaytestOct13Tests {
             g.journal = was
         }
 
+        // P194: an unmanned deck gun calls the nearest rifleman to its breech; while he lives the gun is his.
+        do {
+            g.survival = false
+            let gun = Mob(.deckGun, at: lane0 + V3(0, 0, -20)), man = Mob(.soldierTrooper, at: lane0 + V3(0, 0, -12))
+            gun.yaw = 0; gun.persistent = true; man.persistent = true
+            g.mobs.mobs = [gun, man]; g.mobs.rebuildIndex()
+            for _ in 0..<72 { gun.update(1.0 / 72, game: g) }
+            let posted = man.brain?.gunPost, crewed = gun.deckGunCrewed(g)
+            if posted == nil { print("P194 debug: gun at \(gun.pos) fac \(gun.faction)/\(man.faction) cd \(gun.soldierBrain.gunnerCD) crewed \(gun.soldierBrain.crewed) under \(Blocks.key(w.block(Int(floor(gun.pos.x)), Int(floor(gun.pos.y)) - 1, Int(floor(gun.pos.z) + 4))))") }
+            man.health = 0
+            let free = !gun.deckGunCrewed(g)
+            let back = posted.map { simd_length($0 - gun.pos) } ?? -1
+            check(posted != nil && crewed && free, "P194: the gun posts its gunner \(String(format: "%.1f", back)) blocks behind it (crewed \(crewed)); with him dead it is free (\(free))")
+            g.mobs.mobs = []; g.mobs.rebuildIndex()
+        }
+
         // P150: livestock.
         do {
             let cow = Mob(.cow, at: lane0 + V3(0, 0, -6))

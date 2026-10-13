@@ -375,6 +375,7 @@ extension Game {
         return mobs.mobs.filter { m in
             m.kind.steelhold && m.kind != .deckGun && m.health > 0 && r.inside(m.pos) && !busy.contains(ObjectIdentifier(m))
                 && (m.faction == 0 || m.faction == Faction.steelhold.rawValue) && m.deck == nil
+                && m.brain?.gunPost == nil                      // P194: a gun's own gunner stays at his gun
         }
     }
 

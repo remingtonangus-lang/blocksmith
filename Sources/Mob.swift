@@ -1684,7 +1684,9 @@ private func parts(_ m: Mob) -> [Part] {
         return hellParts(m, swing: swing)
     case .copperGolem:
         return copperGolemParts(m, swing: swing)
-    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
+    case .zombie, .husk:
+        return walkerParts(m, swing: swing)                  // P185: gaunt, hunched dead men (WalkerModel.swift)
+    case .skeleton, .enderman, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
