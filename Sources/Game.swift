@@ -1124,6 +1124,7 @@ final class Game {
                     && !Player.climbable(feetB) && !effects.has(.blindness) && riding == nil
                 if crit { dmg *= 1.5 }
                 dmg += Enchant.damageBonus(held, against: m) * charge
+                dmg *= Legendaries.meleeScale(self, m)               // C10
                 // Mace smash: bonus damage from the fall, which is then cancelled.
                 let fallen = player.airPeak - player.pos.y
                 if Items.key(held.item) == "mace" && fallen > 1.5 && !player.onGround {
@@ -1142,7 +1143,7 @@ final class Game {
                 attackTimer = 0
                 let kb = Float(Enchant.level(.knockback, held))
                 // Knockback: each Knockback level and a charged sprint hit add 1.25x the base (reference 0.5 on 0.4).
-                let kbLevels: Float = kb + (player.sprinting && charge > 0.9 ? 1 : 0)
+                let kbLevels: Float = (kb + (player.sprinting && charge > 0.9 ? 1 : 0)) * Legendaries.knockbackScale(self)
                 let hp0 = m.health
                 Mob.playerMelee = true
                 Mob.meleeGame = self
@@ -1159,6 +1160,7 @@ final class Game {
                 }
                 m.provoke(self)
                 m.killedByPlayer = true
+                Legendaries.meleeHit(self, m)                           // C10
                 m.lootingLevel = Enchant.level(.looting, held)
                 let fa = Enchant.level(.fireAspect, held)
                 if fa > 0 && !m.spec.fireImmune { m.fire = max(m.fire, Float(4 * fa)) }
@@ -1878,6 +1880,7 @@ final class Game {
         // needs a baby, so behind a plain !baby it could never drop.)
         // Game you killed leaves its body to skin instead of loot (Hunting.swift).
         let body = Hunting.died(self, m)
+        Legendaries.bossDied(self, m)                          // C10
         if (!m.baby || m.isZombie) && !body {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             // Drops with reference rules of their own are rolled below (and skipped here).
@@ -2089,6 +2092,7 @@ final class Game {
             let whole = floorf(scaled)
             amount = Int(whole) + (Rand.float(in: 0..<1) < scaled - whole ? 1 : 0)
         }
+        amount = Legendaries.taken(self, amount, type, attacker: attacker)   // C10: legendary armour
         damage(amount, cause, type: type, attacker: attacker)
         if knockback > 0 {
             var d = player.pos - src

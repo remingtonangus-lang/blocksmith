@@ -367,8 +367,6 @@ enum TownLaw {
 
     static func tick(_ g: Game) {
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
-        Seasons.tick(g)                                  // C9: the season, herds and festival nights
-        Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         // Sheriffs draw after their challenge.
         if !pending.isEmpty {
             pending.removeAll { (m, t) in
@@ -380,6 +378,10 @@ enum TownLaw {
         guard g.clock - lastTick >= 1 || lastTick < 0 else { return }
         let dt = Float(lastTick < 0 ? 1 : min(5, g.clock - lastTick))
         lastTick = g.clock
+        // Once a second:
+        Legendaries.tick(g)                              // C10: worn and held perks, the gallery
+        Seasons.tick(g)                                  // C9: the season, herds and festival nights
+        Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
         // Heat cools; hostility runs out.

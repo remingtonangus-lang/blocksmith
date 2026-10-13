@@ -140,7 +140,7 @@ enum Guns {
         return max(base + 1, Int((Float(base) * (1 + 0.25 * Float(l))).rounded(.up)))
     }
     static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) }
-    static func steadiness(_ s: ItemStack) -> Float { 1 - 0.18 * Float(Enchant.level(.stability, s)) }
+    static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) }
 
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
     static func tooltip(_ s: ItemStack) -> [String] {

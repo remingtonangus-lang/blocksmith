@@ -411,6 +411,7 @@ extension Game {
         Reckoning.save(&d)
         AutoTurrets.save(&d)
         Hunting.save(&d)
+        Legendaries.save(&d)
         Countries.save(&d)
         if deepVisited { d["deepVisited"] = "1" }
         if smoothTerrain { d["terrain"] = "smooth" }
@@ -452,6 +453,7 @@ extension Game {
         Reckoning.load(d, game: self)
         AutoTurrets.load(d)
         Hunting.load(d)
+        Legendaries.load(d)
         Countries.load(d)
         deepVisited = d["deepVisited"] == "1"
         smoothTerrain = d["terrain"] == "smooth"
