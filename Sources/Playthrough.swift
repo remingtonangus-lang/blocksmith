@@ -1348,7 +1348,20 @@ final class Playthrough {
             if b.health > 150 {
                 // Bow while it's unarmoured.
                 let h0 = b.health
-                let here = game.player.pos
+                // It hovers over its target: an arrow loosed from right under it starts inside its reach and never
+                // lands (T3: 388 arrows for 35 damage). Step back to a clear shot 8 blocks off, inside the arena.
+                var here = game.player.pos
+                let off = V2(here.x - b.pos.x, here.z - b.pos.z)
+                if simd_length(off) < 5 {
+                    let dir = simd_length(off) > 0.1 ? simd_normalize(off) : V2(0, 1)
+                    var spot = V2(b.pos.x, b.pos.z) + dir * 8
+                    if abs(spot.x - Float(ax) - 0.5) > 10 || abs(spot.y - Float(az) - 0.5) > 10 { spot = V2(b.pos.x, b.pos.z) - dir * 8 }
+                    spot.x = min(max(spot.x, Float(ax - 10) + 0.5), Float(ax + 10) + 0.5)
+                    spot.y = min(max(spot.y, Float(az - 10) + 0.5), Float(az + 10) + 0.5)
+                    here = V3(spot.x, Float(gy), spot.y)
+                    game.player.pos = here
+                    game.player.vel = .zero
+                }
                 shoot(at: b, from: here)
                 _ = tick(0.4, pin: here)
                 arrows += 1
