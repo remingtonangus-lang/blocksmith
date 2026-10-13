@@ -360,13 +360,10 @@ extension Game {
         let pool = r.motorPool
         let ships = world.ships
         let mine = ships.capitals.first { $0.role == "crawler" && $0.faction == Faction.steelhold.rawValue && simd_length(V2(($0.home ?? $0.pos).x - pool.x, ($0.home ?? $0.pos).z - pool.z)) < 4 }
-        if r.crawlerPhase == 0 {
-            guard world.isLoaded(Int(pool.x), Int(pool.z)) else { return }
-            let yaw = atan2f(-(goal.x - pool.x), -(goal.z - pool.z))
-            ships.spawnCapital("crawler", home: IVec3(Int(floor(pool.x)), 0, Int(floor(pool.z))), yaw: yaw, region: nil, faction: .steelhold)
-            r.crawlerPhase = 1; r.crawlerT = 0
-            return
-        }
+        // T14: the far-noise call is a dropship now (phase 9: two minutes before the citadel answers another); a call
+        // saved before (phase 0, not yet rolled out) is dropped rather than rolling a Capital crawler out.
+        if r.crawlerPhase == 9 { if r.crawlerT > 120 { r.crawlerGoal = nil }; return }
+        if r.crawlerPhase == 0 { r.crawlerGoal = nil; return }
         guard let s = mine, let st = ships.capState[s.id] else {
             if r.crawlerT > 30 { b.note("\(r.key) crawler lost"); r.crawlerGoal = nil }      // never built, or destroyed
             return

@@ -294,6 +294,7 @@ final class Game {
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
     var journalLast: Double = 0
+    var restedAt: Double = -100          // last rest by a campfire (GameBlocks; T14: per world, was shared by every world)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
     var steadySaddle = false           // VR comfort: the view eases over a ridden horse's jumps and bucks (ViewStep.swift)

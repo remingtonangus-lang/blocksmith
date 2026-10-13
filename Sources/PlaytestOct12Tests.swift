@@ -242,9 +242,9 @@ enum PlaytestOct12Tests {
             }
         }
         let a = PlaytestOct12Tests.arena(g, dx: -50, dz: 50)
-        let held0 = g.inventory.held, surv0 = g.survival, rested0 = Game.restedAt
-        defer { g.world.blockEntities[IVec3(a.fx, a.py + 1, a.fz)] = nil; a.restore(); g.inventory.held = held0; g.survival = surv0; Game.restedAt = rested0; g.effects.remove(.regeneration) }
-        g.survival = true; g.effects.remove(.regeneration); Game.restedAt = -100
+        let held0 = g.inventory.held, surv0 = g.survival, rested0 = g.restedAt
+        defer { g.world.blockEntities[IVec3(a.fx, a.py + 1, a.fz)] = nil; a.restore(); g.inventory.held = held0; g.survival = surv0; g.restedAt = rested0; g.effects.remove(.regeneration) }
+        g.survival = true; g.effects.remove(.regeneration); g.restedAt = -100
         let fire = IVec3(a.fx, a.py + 1, a.fz)
         g.world.setBlock(fire.x, fire.y, fire.z, Blocks.id("campfire"))
         var gun = ItemStack(Items.id("gun_rifle"), 1); gun.tag = Guns.magSize(gun)

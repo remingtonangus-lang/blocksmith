@@ -45,6 +45,8 @@ enum Reckoning {
         var trail: V2?                  // where it lost the player (underground): it waits there
         var tries = 0                   // spawn spots refused for being in plain sight
         var nextTry: Double = 0         // ... and when it may try again (g.clock)
+        var landed = false              // T16: its dropship squad has been flown in (soldier bands)
+        var warship = false             // T16: the Stormwarden band's frigate has come over
         init(side: Side, pos: V2, waiting: [String]) { self.side = side; self.pos = pos; self.waiting = waiting }
         var left: Int { waiting.count + live.filter { $0.health > 0 }.count }
     }
@@ -187,6 +189,30 @@ enum Reckoning {
                 if down { m.aggro = false; m.lockTime = 0; continue }
                 m.aggro = true; m.lockTime = max(m.lockTime, 10)
                 if m.kind.key.hasPrefix("soldier_") { m.soldierBrain.lastSeen = g.player.eye; m.soldierBrain.seenAgo = min(m.soldierBrain.seenAgo, 1) }
+            }
+        }
+        // T16 (P98 leftover: "no dropship arrivals or navy ships in the Reckoning"): a soldier band closing in flies its
+        // first squad in by dropship (up to six of its waiting troops land beside the player, as a base alarm's do),
+        // and the Stormwarden band brings its warship: a frigate set over the band, hunting the player from the air.
+        if !down {
+            for h in hunts where h.side.faction != .none {
+                let d = simd_length(h.pos - p)
+                if !h.landed && d < near * 2.2 && h.waiting.count >= 4 {
+                    let n = min(6, h.waiting.count - 2)
+                    let from = V3(h.pos.x, g.player.pos.y + 40, h.pos.y)
+                    if g.world.ships.callDropship(faction: h.side.faction, from: from, to: g.player.pos, game: g, troops: n) {
+                        h.landed = true
+                        h.waiting.removeLast(n)
+                        g.onToast?("A \(h.side == .greywall ? "Greywall" : h.side == .capital ? "Capital" : "Stormwarden") dropship is coming in with a squad")
+                    } else { h.landed = g.stormGrounds ? false : true }          // (a storm: it tries again when it clears)
+                }
+                if h.side == .stormwarden && !h.warship && d < 260 {
+                    h.warship = true
+                    let at = h.pos + simd_normalize(h.pos - p + V2(0.01, 0)) * 60
+                    g.world.ships.spawnCapital("warfrigate", home: IVec3(Int(at.x), 0, Int(at.y)), yaw: atan2f(-(p.x - at.x), -(p.y - at.y)),
+                                               region: nil, faction: .stormwarden)
+                    g.onToast?("A Stormwarden warship joins the hunt")
+                }
             }
         }
         // Bring units in, nearest groups first, while the player is on the surface.
