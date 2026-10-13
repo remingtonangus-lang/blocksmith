@@ -505,7 +505,7 @@ extension Mob {
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget && !GarrisonTown.shelters(g, self))   // P48
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.
             if !g.world.ships.isEmpty, g.world.ships.standing(on: pos) != nil { strafe = 0; return 0 }
-            return sp
+            return sp * g.troopWeatherSpeed(self)                       // O7: snow slows troops
         default:
             wander(); return moving ? spec.speed * 0.5 : 0
         }
