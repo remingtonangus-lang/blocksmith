@@ -269,8 +269,16 @@ extension HorseLife {
     static func hoof(_ g: inout Synth, surface s: Int, p: Float) -> [Float] {
         switch s {
         case 0:
-            return Synth.mix(g.burst(0.06, lp: 3800 * p, hp: 300, attack: 0.0008, decay: 0.012, gain: 1.4),
-                             g.modes(0.12, [(1150 * p, 0.5, 0.03), (2350 * p, 0.25, 0.02), (3500 * p, 0.12, 0.015)]))
+            // Oct 11 playtest P49 ("the horse on Capital brick sounds too cheap": one thin tick). Now a shod hoof on
+            // paving: the weight landing (a low thump), the hoof wall's knock, the iron shoe's short ring, a little
+            // grit, and the slap back off the paving and walls.
+            let thump = g.tone(0.07, f0: 125 * p, f1: 70 * p, attack: 0.001, release: 0.05, gain: 0.55)
+            let knock = Synth.mix(g.burst(0.05, lp: 2400 * p, hp: 160, attack: 0.0006, decay: 0.014, gain: 1.25),
+                                  g.modes(0.08, [(390 * p, 0.5, 0.03), (760 * p, 0.32, 0.022), (1240 * p, 0.2, 0.016)]))
+            let shoe = g.modes(0.16, [(2650 * p, 0.16, 0.055), (4120 * p, 0.09, 0.04), (5870 * p, 0.05, 0.028)])
+            let grit = g.grains(5, spread: 0.018, lp: 7500, hp: 2600, decay: 0.003, gain: 0.12)
+            let dry = Synth.mix(Synth.mix(thump, knock), Synth.mix(shoe, grit))
+            return Synth.echo(dry, delay: 0.027, feedback: 0.18, mix: 0.22, tail: 0.12)
         case 1:
             return Synth.mix(g.burst(0.07, lp: 2200 * p, hp: 120, attack: 0.001, decay: 0.016, gain: 1.3),
                              g.modes(0.18, [(210 * p, 0.6, 0.07), (470 * p, 0.35, 0.05), (900 * p, 0.12, 0.03)]))
