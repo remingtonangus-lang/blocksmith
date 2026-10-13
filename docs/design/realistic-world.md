@@ -207,6 +207,22 @@ Shipped on the Quest (Polygons (Smooth) worlds; the Mac compiles and keeps cubes
   frame. Step cost (optimized host build, 27 pieces): 0.4 ms mean, 0.7 ms worst.
 - Mining times, drops and collision are unchanged (a bitten block keeps its whole box until it breaks).
 
+## Status (slice 3, Oct 13)
+- Ragdolls (`Ragdoll.swift`, `MobRagdoll.swift`): every creature that dies in a realistic world falls as a ragdoll built
+  from its own model, with no list: the parts turning about one pivot are one bone (legs, arms, tails, wings,
+  tentacles), the head joint's parts another, the biggest group the body; a second segment hangs from the bone nearest
+  its pivot (knee or elbow hinge). Rigid boxes (XPBD, 8 sub-steps) with cone and twist limits measured from the pose it
+  died in, thrown by the killing blow's knockback (high on the body, so it goes over), on the drawn ground
+  (`WorldGround`, shared with the debris). They sleep when still, wake when a block near them changes, and blasts throw
+  them again. Drawn by carrying each part with its bone's motion since death; faces shaded by where they face now.
+  32 bodies (the corpse cap). Step cost (optimized host build, 8 bodies falling): 0.28 ms.
+- Instead of 3.3's points and distance constraints: rigid bones are exactly the boxes the game draws, so no frame
+  fitting, and limits are angles.
+- Dropped items rest on the drawn smooth ground (eased like the mobs' step, `ItemEntity.viewDY`); mobs, the view,
+  debris and ragdolls already did. `SurfaceQuery` (3.1) was not needed: `WorldGround` answers from the same fields.
+- Bodies now draw when no live creature is near (the Quest's mob pass returned early).
+- `questcheck --view OUT --smooth --scene ragdoll [--mobs K,..] [--mobdist D] [--settle S]`.
+
 ## Decisions taken (defaults, noted per Remington's autonomy rule)
 - The block grid stays the save and gameplay truth; nothing new is saved.
 - Detail meshes are Quest-only; the Mac keeps cubes for these shapes and must only compile.
