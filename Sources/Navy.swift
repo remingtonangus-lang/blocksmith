@@ -9,8 +9,11 @@ import simd
 //                  hit it recharges at 10 a second with a rising tone.
 //   shield breakers the Pulse Charge (copper, redstone, a radar module; thrown) pops every shield within 5 blocks and
 //                  holds it down 8 s; arc-gun beams do triple damage to a shield.
-//   boarding       an AI Meridian frigate hunting the player within 70 blocks lowers a boarding party down its
-//                  winch line: an Aegis Marine and two marines, at most two parties a frigate.
+//   boarding       an AI Meridian frigate hunting the player within 60 blocks sends a boarding party in a launch (the
+//                  troop-drop path, CapitalShips.callDropship): an Aegis Marine and two marines set down on dry ground
+//                  by the player, never over open water; at most two parties a frigate, the count saved with its
+//                  region (navyparties.json) so a reload does not hand it fresh ones.
+//   Aegis Marines  stand a fifth taller than a trooper and move a third faster.
 //   frigate radar  the pilot of a captured warship reads a radar: Greywall bases, Capital citadels and cities and
 //                  enemy warships within 1,500 blocks, with bearings, marked on the map.
 enum Navy {
@@ -20,7 +23,7 @@ enum Navy {
     static let pulseRadius: Float = 5
     static let pulseLock: Float = 8
     static let radarRange: Float = 1500
-    static let partyReach: Float = 70
+    static let partyReach: Float = 60
     static let maxParties = 2
     static let pulseKey = "pulse_charge"
 }
@@ -35,6 +38,7 @@ extension Mob {
             guard isAegis else { return }
             shieldMax = Navy.shieldMax; shield = Navy.shieldMax
             if troop <= 0 { setTroop(.hannibal, rearm: false) }
+            scale = 1.2                                                  // T8: a fifth taller than a trooper
         }
         shieldLock = max(0, shieldLock - dt)
         shieldIdle += dt
@@ -57,7 +61,7 @@ extension Mob {
         }
         shieldFx = 0
         if shield < shieldMax && shieldIdle >= Navy.rechargeDelay && shieldLock <= 0 {
-            if shield <= 0 { g.sfx(.click, 0.9, at: body) }               // the recharge starts with a rising tone
+            if shield <= 0 { g.sfx(.click, 0.9, at: body); g.sfx(.beaconActivate, 0.5, at: body) }   // the recharge starts with a rising tone
             shield = min(shieldMax, shield + Navy.rechargeRate * dt)
         }
     }
@@ -156,25 +160,24 @@ extension ShipManager {
         let top = FrigateBoarding.anchor(s)
         let pp = g.player.pos
         guard simd_length(V2(pp.x - top.x, pp.z - top.z)) < Navy.partyReach, pp.y < top.y else { return }
-        let gx = Int(floor(top.x)), gz = Int(floor(top.z))
-        guard world.isLoaded(gx, gz) else { return }
-        let ground = Float(world.topY(gx, gz) + 1)
+        // A landing spot on dry ground a few blocks from the player (never open water: the launch would set its marines
+        // down in the sea).
+        var spot: V3?
+        for k in 0..<8 {
+            let a = Float(k) * .pi / 4, r: Float = 6
+            let x = pp.x + cosf(a) * r, z = pp.z + sinf(a) * r
+            let ix = Int(floor(x)), iz = Int(floor(z))
+            guard world.isLoaded(ix, iz) else { continue }
+            let y = world.topY(ix, iz)
+            guard y > 0, !Blocks.isLiquid(world.block(ix, y, iz)), !Blocks.isLiquid(world.block(ix, y + 1, iz)) else { continue }
+            spot = V3(x, Float(y + 1), z); break
+        }
+        guard let land = spot else { st.partyCD = 3; return }
         st.partyCD = 30
         st.parties += 1
-        for (i, k) in [MobKind.soldierIronclad, .soldierTrooper, .soldierTrooper].enumerated() {
-            let at = V3(top.x + Float(i - 1) * 1.2, ground, top.z + Float(i % 2))
-            let m = Mob(k, at: at)
-            m.faction = Faction.meridian.rawValue
-            m.persistent = true
-            m.aggro = true
-            m.soldierBrain.ready = true
-            m.soldierBrain.lastSeen = pp; m.soldierBrain.seenAgo = 0
-            m.navyTick(0, g)                                              // the Aegis Marine's shield is up as it lands
-            g.mobs.mobs.append(m)
-            st.partyMobs.append(m)
-        }
-        g.particles.explosion(at: V3(top.x, ground + 0.5, top.z), power: 0.4)
-        g.onToast?("A Meridian boarding party is coming down the line!")
+        if let r = st.region { navyParties[r] = st.parties }
+        callDropship(faction: .meridian, from: top + V3(0, 2, 0), to: land, game: g, troops: 3)
+        g.onToast?("A Meridian launch is bringing a boarding party!")
     }
 }
 

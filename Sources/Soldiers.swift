@@ -247,7 +247,8 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
-        let sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
         return leash == nil ? sp : applyLeash(sp)
     }
     private func soldierAIStep(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {

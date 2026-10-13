@@ -390,7 +390,7 @@ fortresses, command fortresses and citadel vaults, about 15 % Spec Ops on Capita
 Hannibal and every marksman and officer Spec Ops), officer-led mixed reinforcement squads, a crouch pose for Spec Ops,
 the time-to-kill table measured through Mob.hit with the real items (class x gear) in docs/status/troop-classes-ttk.md,
 plate on arc beams and explosions, worn colours for the class armour pieces, helmets shot off leaving a face.
-T8. [A3 leftovers, the navy] Frigates bombarding shore positions and launching small craft (boarding parties are in).
+T8. [DONE Oct 13: Meridian and Stormwarden warships over the sea with nothing in sight shell the nearest Greywall base or Capital citadel; boarding parties come by launch (the troop-drop path) at 60 blocks, only onto dry ground, their count saved per region; Aegis Marines a fifth taller and a third faster; a rising tone on the shield recharge; the radar check skipped as a test part] [A3 leftovers, the navy] Frigates bombarding shore positions and launching small craft (boarding parties are in).
 From the A3 review: boarding parties through the troop-drop path, never over open water, at 60 blocks, their count
 saved; Aegis Marines bigger and faster than troopers; a rising recharge tone; a radar check that pilots a captured
 frigate end to end.

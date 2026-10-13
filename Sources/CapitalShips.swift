@@ -77,6 +77,7 @@ final class CapitalState {
     var wreckFx: Float = 0
     var settled = false
     var announced = false
+    var shelling = false               // T8: has told the player it is shelling a shore position
     var engaged = false
     var sight: Float = 250
     var crew: [V3] = []                // crew posts (ship space); soldiers of the ship's faction appear there once
@@ -133,6 +134,7 @@ struct CapTarget {
     weak var mob: Mob?
     var player = false
     var seat = 0                      // split screen: which player (frigates engaged only player 1)
+    var fixed = false                 // T8: a shore position under bombardment (a base's keep, no mob or ship)
 }
 
 // Dense hull builder (a dictionary blueprint of 200 000 cells was too slow): grid coordinates are x + ox, y, z.
@@ -731,7 +733,7 @@ extension ShipManager {
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
         }
         if let s = ships.first { capState[s.id] = st }
-        if let r = st.region { capitalPending.remove(r) }
+        if let r = st.region { capitalPending.remove(r); st.parties = max(st.parties, navyParties[r] ?? 0) }
     }
 
     var capitals: [Ship] { list.filter { $0.kinematic && $0.parent == nil } }
@@ -943,7 +945,7 @@ extension ShipManager {
         }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
         if let m = t.mob { return m.health > 0 && !(spareBases && g.bases.inAnyBase(m.pos)) }
-        return false
+        return t.fixed
     }
 
     private func refresh(_ t: inout CapTarget, _ g: Game) {
@@ -985,12 +987,41 @@ extension ShipManager {
             if dc < bd * 1.3 && dc < st.sight { return cur }
             _ = b
         }
+        if best == nil, let shore = shoreTarget(s, st, g) { best = shore }      // T8: nothing in sight: shell a shore base
         if let b = best, b.player, !st.engaged {
             st.engaged = true
             g.onToast?("The \(s.name)'s crew has spotted you!")
             g.sfx(.gun(10), 1.5, at: g.player.pos)
         }
         return best
+    }
+
+    // T8: a non-Capital warship over the sea with nothing in sight bombards the nearest enemy shore position within its
+    // sight: a Greywall base's keep or a Capital citadel's tower (Meridian and Stormwarden ships alike).
+    private func shoreTarget(_ s: Ship, _ st: CapitalState, _ g: Game) -> CapTarget? {
+        guard s.isFlyingCapital, !s.captured, s.factionValue != .steelhold else { return nil }
+        let ix = Int(floor(s.pos.x)), iz = Int(floor(s.pos.z))
+        let top = world.topY(ix, iz)
+        guard top > 0, Blocks.isLiquid(world.block(ix, top, iz)) || Blocks.isLiquid(world.block(ix, top - 1, iz)) else { return nil }
+        var best: V3?, bd = st.sight + 60
+        if s.factionValue != .greywall {
+            for site in g.bases.greywall.sites.values {
+                let p = V3(Float(site.cx) + 0.5, Float(site.S + site.tier.wallH + 6), Float(site.cz) + 0.5)
+                let d = simd_length(V2(p.x - s.pos.x, p.z - s.pos.z))
+                if d < bd { bd = d; best = p }
+            }
+        }
+        for r in g.bases.records.values where r.cleared != true {
+            let p = r.centre + V3(0, 20, 0)
+            let d = simd_length(V2(p.x - s.pos.x, p.z - s.pos.z))
+            if d < bd { bd = d; best = p }
+        }
+        guard let p = best else { return nil }
+        if !st.shelling && simd_length(p - g.player.pos) < 200 {
+            st.shelling = true
+            g.onToast?("The \(s.name) is shelling the shore!")
+        }
+        return CapTarget(point: p, vel: V3(0, 0, 0), ship: nil, mob: nil, player: false, fixed: true)
     }
 
     // Yaw rate toward a wanted heading, limited (heavy hulls turn slowly).
@@ -1554,11 +1585,11 @@ extension ShipManager {
     // reinforcements (CapitalBases.swift). Same flight as a frigate's dropship from the transit phase on.
     // The hull is built on a worker thread (about 20 ms on the main thread) and joins the world on a later frame.
     @discardableResult
-    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false) -> Bool {
+    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false, troops: Int = 4) -> Bool {
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
             let hb = Capital.dropship()
-            let name = faction == .steelhold ? "Capital Dropship" : "Stormwarden Dropship"
+            let name = faction == .steelhold ? "Capital Dropship" : faction == .meridian ? "Meridian Launch" : "Stormwarden Dropship"
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: "dropship", faction: faction)
             let d = ships[0]
             d.pos = at
@@ -1575,7 +1606,7 @@ extension ShipManager {
             ds.sight = 140
             ds.dropPoint = p
             ds.launchDir = simd_normalize(V3(p.x - at.x, 0, p.z - at.z) + V3(1e-4, 0, 0))
-            ds.troopsLeft = 4
+            ds.troopsLeft = troops
             ds.phase = 1                                              // already airborne: straight to the transit
             ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
             ds.groundOffset = d.com.y - d.localMin.y
