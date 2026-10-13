@@ -81,6 +81,16 @@ enum Guns {
     static func isAshArm(_ gi: Int) -> Bool { gi >= kessel && gi <= ashsaw }
     static let slatefall = 12, longwatch = 13, needle = 14, breaker = 15, repeater = 16      // Greywall's (GreywallArms.swift)
     static func isGreyArm(_ gi: Int) -> Bool { gi >= slatefall && gi <= repeater }
+    // P217 (Oct 13 19:02, "several guns look identical; cut the roster to fewer, clearly different guns"): the
+    // Hummel (a second Capital rifle), the Wren (a second pistol), the Hagel (a second machine pistol) and the
+    // Kettensturm (a second machine gun) are retired: no soldier, chest, shop or recipe hands them out. Ones already
+    // owned still work (their item keys are save IDs). One ammunition each, spread so every type has a use:
+    //   capital rounds: Service Rifle, Falke Pistol          slate rounds: Slatefall Carbine, Slate Repeater
+    //   heavy rounds: Fernblick, Longwatch, Kessel, Breaker  rifle rounds: Six-Iron, Sturmwind Carbine
+    //   shotgun shells: Brecher Shotgun                      arc cells: Blitzlanze Arc Gun     rockets: launcher
+    static let retired: [Int: Int] = [smg: rifle, needle: breaker, hagel: sturmwind, ashsaw: sturmwind]
+    static func current(_ gi: Int) -> Int { retired[gi] ?? gi }
+    static let retiredKeys: [String: String] = ["gun_smg": "gun_rifle", "gun_needle": "gun_breaker", "gun_hagel": "gun_sturmwind", "gun_ashsaw": "gun_sturmwind"]
     static let revolverKey = "gun_revolver"
     // Held in one hand on the march, two when aimed (soldier rig, pose checks).
     static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver || gi == needle || gi == breaker }
@@ -125,7 +135,6 @@ enum Guns {
          // Guns (task 23): only with components from Capital citadels (FactionGear.swift).
          Recipes.shapeless(["steel_ingot", "steel_ingot", "firing_mechanism"], "gun_sidearm"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism"], "gun_rifle"),
-         Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "copper_ingot", "firing_mechanism"], "gun_smg"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "iron_ingot", "iron_ingot", "firing_mechanism"], "gun_shotgun"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "firing_mechanism", "targeting_optic"], "gun_sniper"),
          Recipes.shapeless(["steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "steel_ingot", "tnt", "firing_mechanism", "targeting_optic"], "gun_launcher"),
@@ -301,8 +310,46 @@ enum Guns {
                      "....1gddddg1....", "....1gggggg1....", "....11111111....", "................", "................", "................"],
     ]
 
+    // P217 (Oct 13 18:35, "the gun in my hand doesn't match its icon"): a gun's icon is drawn from its own model,
+    // side on (barrel to the left), each box in its colour with the near side over the far, and a dark outline. The
+    // hand-drawn masks stay for ammunition.
+    static func modelIcon(_ gi: Int) -> [[V4]] {
+        let parts = models[gi]
+        var lo = V2(1e9, 1e9), hi = V2(-1e9, -1e9)
+        for q in parts { lo = simd_min(lo, V2(q.mn.z, q.mn.y)); hi = simd_max(hi, V2(q.mx.z, q.mx.y)) }
+        var img = [[V4]](repeating: [V4](repeating: V4(0, 0, 0, 0), count: 16), count: 16)
+        guard hi.x > lo.x, hi.y > lo.y else { return img }
+        let k: Float = 14 / max(hi.x - lo.x, hi.y - lo.y)
+        let ox: Float = (16 - (hi.x - lo.x) * k) / 2, oy: Float = (16 - (hi.y - lo.y) * k) / 2
+        for q in parts.sorted(by: { $0.mn.x > $1.mn.x }) {       // (seen from -x: barrel left, the -x side nearest)
+            let x0 = Int(floor((q.mn.z - lo.x) * k + ox)), x1 = max(x0, Int(ceil((q.mx.z - lo.x) * k + ox)) - 1)
+            let y0 = Int(floor((hi.y - q.mx.y) * k + oy)), y1 = max(y0, Int(ceil((hi.y - q.mn.y) * k + oy)) - 1)
+            let c = simd_min(q.color, V3(1, 1, 1))
+            for y in max(0, y0)...min(15, max(0, y1)) { for x in max(0, x0)...min(15, max(0, x1)) {
+                let top: Float = y == y0 ? 1.12 : 1                        // a lit top edge on each part
+                img[y][x] = V4(simd_min(c * top, V3(1, 1, 1)), 1)
+            } }
+        }
+        let filled = img.map { $0.map { $0.w > 0 } }
+        for y in 0..<16 { for x in 0..<16 where !filled[y][x] {
+            let n = (x > 0 && filled[y][x - 1]) || (x < 15 && filled[y][x + 1]) || (y > 0 && filled[y - 1][x]) || (y < 15 && filled[y + 1][x])
+            if n { img[y][x] = V4(0.06, 0.06, 0.07, 1) }
+        } }
+        return img
+    }
+
     static func painters(_ p: inout [String: TextureGen.Painter]) {
-        for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }).merging(GreywallArms.icons, uniquingKeysWith: { a, _ in a }) {
+        for (gi, g) in all.enumerated() {
+            let img = modelIcon(gi)
+            p["item_" + g.key] = { x, y in
+                guard y >= 0, y < 16, x >= 0, x < 16, img[y][x].w > 0 else { return TextureGen.clear }
+                let h = 0.94 + 0.06 * hashf(x, y, 31, 4242)
+                let c = img[y][x]
+                return V4(c.x * h, c.y * h, c.z * h, 1)
+            }
+        }
+        for (k, rows) in icons.merging(AshArms.icons, uniquingKeysWith: { a, _ in a }).merging(GreywallArms.icons, uniquingKeysWith: { a, _ in a })
+            where !all.contains(where: { $0.key == k }) {
             let accent = all.first { $0.key == k }?.accent ?? V3(0.35, 0.4, 0.25)
             let grid = rows.map { Array($0) }
             p["item_" + k] = { x, y in

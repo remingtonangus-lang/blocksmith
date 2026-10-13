@@ -219,12 +219,65 @@ extension ItemRegistry {
 // first time the player comes up to a raisable wreck, and the first time they steer a hull with nothing to drive it,
 // a toast says what to do. Once a second (the HUD tick).
 extension Wrecks {
+    static var guided: Set<Int> = []
+
+    // "3 Iron Ingot, 1 Furnace, 3 Cobblestone" for the first recipe that makes `key`.
+    static func recipeText(_ key: String) -> String {
+        guard let r = Recipes.all.first(where: { Items.key($0.result.item) == key }) else { return "found, not crafted" }
+        var n: [String: Int] = [:], order: [String] = []
+        for c in (r.shapeless.isEmpty ? r.cells.compactMap { $0 } : r.shapeless) {
+            if n[c] == nil { order.append(c) }
+            n[c, default: 0] += 1
+        }
+        func name(_ k: String) -> String {
+            if k.hasPrefix("#") { return "any " + k.dropFirst().replacingOccurrences(of: "_", with: " ") }
+            return Items.has(k) ? Items.name(Items.id(k)) : k.replacingOccurrences(of: "_", with: " ")
+        }
+        return order.map { "\(n[$0]!) \(name($0))" }.joined(separator: ", ") + (r.shapeless.isEmpty ? " (crafting table)" : "")
+    }
+
+    // The guide's pages, or nil when the hull already has what it needs to move.
+    static func guide(_ s: Ship) -> [String]? {
+        let flier = s.name.contains("Dropship") || s.name.contains("Launch") || s.name.contains("Skiff") || s.balloons > 0 || !s.rotors.isEmpty || !s.wings.isEmpty
+        let tonnes = s.mass                                       // (ship mass is in tonnes, ShipPhysics)
+        let lift = Int((tonnes / ShipTuning.balloonLift).rounded(.up))
+        var lines: [(String, String, Int, Int, String)] = []        // key, label, have, need, where
+        let driven = !s.props.isEmpty || !s.rotors.isEmpty
+        if s.helm == nil { lines.append(("ship_helm", "Ship Helm", 0, 1, "on deck, where you stand to steer; it faces the bow")) }
+        if !driven && s.sails == 0 && s.wheels.isEmpty {
+            lines.append(("ship_propeller", "Propeller", 0, 1, "on the stern (the back face), behind the hull: it pushes the ship forward"))
+        }
+        if (driven || s.sails == 0) && s.engines == 0 && s.wheels.isEmpty {
+            lines.append(("ship_engine", "Engine", 0, 1, "anywhere in the hull, touching it: one engine drives every propeller and rotor"))
+        }
+        if flier && s.rotors.isEmpty && s.flight == nil && s.balloons < lift {
+            lines.append(("ship_balloon", "Lift Balloon", s.balloons, lift,
+                          "on the deck or the roof; each holds up \(Int(ShipTuning.balloonLift)) tonnes and this hull weighs \(Int(tonnes.rounded())) tonnes"))
+        }
+        guard !lines.isEmpty else { return nil }
+        var pages = ["\(s.name.uppercased())\n\nThis hull can't \(flier ? "fly" : "move") yet. It needs:\n\n"
+                     + lines.map { "- \($0.1): \($0.2) of \($0.3)" }.joined(separator: "\n")
+                     + "\n\nNext pages: each part, its recipe and where it goes. Then take the helm again."]
+        for l in lines {
+            pages.append("\(l.1.uppercased())\n\nNeeded: \(l.3 - l.2) more\n\nRecipe: \(recipeText(l.0))\n\nWhere: \(l.4)")
+        }
+        if !flier { pages.append("OR SAILS\n\n" + mastHow) }
+        return pages
+    }
+
     static let mastHow = "A mast: stand logs or fences upright on deck and hang wool on them - wool sails catch the wind while you steer (or fit a propeller and an engine)"
     static func hintTick(_ g: Game) {
         let st = Settings.shared
-        if !st.mastHint, let s = g.world.ships.pilot, s.parent == nil, s.sails == 0, s.props.isEmpty, s.wheels.isEmpty, s.balloons == 0, s.flight == nil {
+        // P220 (Oct 13 19:08-19:14, "the engine block and light panel requirements are unclear"): taking the helm of a
+        // hull that can't go (no drive, or propellers with no engine, or too few balloons to lift a flier) opens the
+        // repair guide: each missing part, how many, its recipe and where it goes. Once per hull a session.
+        if let s = g.world.ships.pilot, s.parent == nil, g.menu == nil, !guided.contains(s.id), let pages = guide(s) {
+            guided.insert(s.id)
             st.mastHint = true
-            g.onToast?("This hull has nothing to drive it. " + mastHow)
+            var book = ItemStack(Items.id("written_book"), 1)
+            book.label = "Repairs: \(s.name)"
+            book.pages = pages
+            g.openMenu(BookMenu(game: g, stack: book, source: .hand(-1)))
         }
         guard !st.wreckHint, g.dim.dim == .overworld, rottenID != AIR else { return }
         let p = g.player.pos, px = Int(floor(p.x)), py = Int(floor(p.y)), pz = Int(floor(p.z))

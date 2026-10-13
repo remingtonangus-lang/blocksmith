@@ -207,6 +207,13 @@ class Menu {
         if button == 1 && !shift && bundleClick(slot, carried: &carried) { return }
         if shift {
             if slot.stack.isEmpty { return }
+            // P204: a soldier's armour set, quick-moved from the pack, is put on whole.
+            if slot.isPlayerInv, TroopClass.ofSet(Items.key(slot.stack.item)) != nil {
+                let set = slot.stack
+                slot.stack = .empty
+                _ = game.wearTroopSet(set, fromHeld: false)
+                return
+            }
             slot.stack = moveInto(slot.stack, quickMoveTargets(from: slot))
             return
         }

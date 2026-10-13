@@ -29,6 +29,9 @@ enum TroopClass: Int, CaseIterable {
 
     // The armour item for a segment, e.g. "specops_vest".
     func item(_ seg: Int) -> String { "\(key)_\(TroopClass.segNames[seg])" }
+    var bootsItem: String { "\(key)_boots" }
+    var setItem: String { "\(key)_armour_set" }
+    static func ofSet(_ itemKey: String) -> TroopClass? { allCases.first { $0.setItem == itemKey } }
 }
 
 extension Mob {
@@ -95,30 +98,25 @@ extension Mob {
                 for _ in 0..<5 { g.particles.dust(STONE, at: at, count: 1, spread: 0.2) }
             }
             if now <= 0 {
-                // The piece falls off: a cracked piece to loot (a tenth of its life left).
+                // The piece falls off, wrecked (P204: no loose broken pieces to clog the pack; the set drops on death).
                 g.sfx(.bulletImpact(.metal), 1.1, at: at)
                 g.particles.explosion(at: at, power: 0.3)
-                if Items.has(c.item(seg)) {
-                    var s = ItemStack(Items.id(c.item(seg)), 1)
-                    let dur = Items.def(s.item).durability
-                    s.damage = dur - max(1, dur / 10)
-                    g.drops.spawn(s, at: at)
-                }
             }
         }
         return dmg - soak
     }
 
-    // A fallen soldier's surviving pieces (35 % each, the player's kill only), with the life they had left.
+    // P204 (Oct 13 18:39, "four pieces clogging the inventory"): a fallen soldier drops its armour as one set (35 %,
+    // the player's kill only, while any piece still holds), worn with one use: it fills all four armour slots. The
+    // set remembers the life its pieces had left (tag: helmet, vest, greaves as percent, 7 bits each).
     func troopLoot(_ g: Game) {
-        guard killedByPlayer, let c = troopClass else { return }
-        for seg in 0..<3 where troopSeg[seg] > 0 && Items.has(c.item(seg)) && Rand.float(in: 0..<1) < 0.35 {
-            var s = ItemStack(Items.id(c.item(seg)), 1)
-            let dur = Items.def(s.item).durability
-            let frac = troopSeg[seg] / c.segMax[seg]
-            s.damage = min(dur - 1, Int(Float(dur) * (1 - frac)))
-            g.drops.spawn(s, at: pos + V3(0, 0.6, 0))
-        }
+        guard killedByPlayer, let c = troopClass, Items.has(c.setItem) else { return }
+        guard (0..<3).contains(where: { troopSeg[$0] > 0 }), Rand.float(in: 0..<1) < 0.35 else { return }
+        var s = ItemStack(Items.id(c.setItem), 1)
+        var tag = 0
+        for seg in 0..<3 { tag |= Int(max(0, min(100, troopSeg[seg] / c.segMax[seg] * 100)).rounded()) << (7 * seg) }
+        s.tag = tag
+        g.drops.spawn(s, at: pos + V3(0, 0.6, 0))
     }
 }
 
@@ -128,13 +126,13 @@ extension TroopClass {
         switch c {
         case .regular:
             if k == .soldierOfficer || k == .soldierCrew { return Guns.pistol }
-            if k == .soldierTrooper { return r < 0.5 ? Guns.shotgun : Guns.rifle }
-            return r < 0.6 ? Guns.rifle : Guns.smg
+            if k == .soldierTrooper { return r < 0.4 ? Guns.shotgun : Guns.rifle }
+            return r < 0.75 ? Guns.rifle : Guns.shotgun
         case .specOps:
             if k == .soldierMarksman { return Guns.sniper }
-            return r < 0.7 ? Guns.smg : Guns.rifle
+            return r < 0.6 ? Guns.rifle : Guns.shotgun
         case .hannibal:
-            return r < 0.45 ? Guns.ashsaw : (r < 0.8 ? Guns.launcher : Guns.arc)
+            return r < 0.5 ? Guns.arc : Guns.launcher             // (P217: the Kettensturm is retired)
         }
     }
     // Spec Ops SMGs and rifles are suppressed: quiet, and their shots don't carry to a base as noise.
@@ -149,6 +147,18 @@ extension ItemRegistry {
         ]
         let slots: [(ArmorSlot, String, Int)] = [(.head, "helmet", 11), (.chest, "chestplate", 16), (.legs, "leggings", 15)]
         for (c, armor, tough, mult, colour) in stats {
+            if !has(c.bootsItem) {
+                var d = ItemDef(c.bootsItem, "\(c.name) Boots")
+                d.sprite = Sprite(mask: "boots", base: colour, extras: [:])
+                d.maxStack = 1; d.armorSlot = .feet; d.armor = armor[0]; d.toughness = tough; d.durability = 13 * mult
+                add(d)
+            }
+            if !has(c.setItem) {
+                var d = ItemDef(c.setItem, "\(c.name) Armour Set")
+                d.sprite = Sprite(mask: "chestplate", base: colour, extras: [:])
+                d.maxStack = 1
+                add(d)
+            }
             for seg in 0..<3 where !has(c.item(seg)) {
                 var d = ItemDef(c.item(seg), "\(c.name) \(TroopClass.segLabels[seg])")
                 d.sprite = Sprite(mask: slots[seg].1, base: colour, extras: [:])
@@ -160,5 +170,31 @@ extension ItemRegistry {
                 add(d)
             }
         }
+    }
+}
+
+extension Game {
+    // P204: a held armour set, used: its helmet, vest, greaves and boots go on (anything worn in those slots goes to the
+    // pack, or drops when it is full). Returns true when the held item was a set.
+    func wearTroopSet(_ slot: ItemStack? = nil, fromHeld: Bool = true) -> Bool {
+        let st = slot ?? held
+        guard !st.isEmpty, let c = TroopClass.ofSet(Items.key(st.item)) else { return false }
+        let pieces = [c.item(0), c.item(1), c.item(2), c.bootsItem]
+        let slots = [ArmorSlot.head, .chest, .legs, .feet]
+        for (i, k) in pieces.enumerated() where Items.has(k) {
+            var p = ItemStack(Items.id(k), 1)
+            let dur = Items.def(p.item).durability
+            let pct = i < 3 ? (st.tag >> (7 * i)) & 127 : max((st.tag & 127), (st.tag >> 7) & 127, (st.tag >> 14) & 127)
+            let frac = st.tag == 0 ? 1 : Float(max(1, min(100, pct))) / 100
+            p.damage = min(dur - 1, Int(Float(dur) * (1 - frac)))
+            let a = slots[i].rawValue
+            let old = inventory.armor[a]
+            inventory.armor[a] = p
+            if !old.isEmpty { let rest = inventory.add(old); if !rest.isEmpty { dropItem(rest) } }
+        }
+        if fromHeld { inventory.held = .empty }
+        sfx(.click, 0.6, at: player.eye)
+        onToast?("\(c.name) armour on")
+        return true
     }
 }

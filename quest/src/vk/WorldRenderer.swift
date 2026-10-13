@@ -86,7 +86,7 @@ final class WorldRenderer {
         let hasSky = game.dim.dim.hasSky
         let uwSee: Float = 18 + 38 * game.daylight * caveScale
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
-        var fogStart: Float = underwater ? 1 : fogEnd * 0.62
+        var fogStart: Float = underwater ? 1 : fogEnd * 0.8       // P211: clear air out to the last fifth (was 0.62)
         var fogColor = underwater ? game.underwaterFog : (underground ? sky * min(1, 0.25 / max(caveScale, 0.25)) : sky)
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
@@ -224,6 +224,12 @@ final class WorldRenderer {
             guard cap >= 12 else { return }
             var bw = EntityWriter(out: ptr, capacity: 12)
             func body(_ dir: V3, _ size: Float, _ layer: Int, _ color: V4) {
+                // P202 (Oct 13 18:34, "the moon is visible through the ground"): the bodies sit on the far plane, so past
+                // the drawn terrain (high up, far valleys, the horizon band) nothing hid one below the horizon. They
+                // fade out as they set and are not drawn under it.
+                let vis = simd_clamp((dir.y + 0.07) / 0.1, 0, 1)
+                guard vis > 0 else { return }
+                var color = color; color.w *= vis
                 let c = dir * 90
                 let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
                 let up = simd_normalize(simd_cross(r, dir)) * size

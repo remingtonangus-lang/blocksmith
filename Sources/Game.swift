@@ -297,6 +297,7 @@ final class Game {
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
     var journalLast: Double = 0
+    var journalTold = false             // P207: the one tip saying where the journal is (saved)
     var restedAt: Double = -100          // last rest by a campfire (GameBlocks; T14: per world, was shared by every world)
     var horseCall: Float = 0           // seconds left of a call: the bonded horse gallops to the player
     var vrTwoHanded = false            // VR: a long gun braced with both hands (VRTwoHand.swift)
@@ -361,6 +362,7 @@ final class Game {
     private var lastSpaceTap: Double = -1
     var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
     var toastText = ""
+    static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it
     var toastTime: Double = -100
     private var prevPad = PadSnapshot()
     private var autosaveTimer: Double = 0
@@ -603,7 +605,7 @@ final class Game {
 
     // Daylight as the renderers light the world: at night it stops at 0.26 instead of 0.12 (Remington, v61: nights were
     // too dark to play), still dim and moon-blue. Gameplay (spawning, sleeping, sensors) keeps `daylight`.
-    var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.30) : daylight }   // P181: nights a touch brighter (was 0.26)
+    var renderDaylight: Float { dim.dim.hasSky ? max(daylight, 0.36) : daylight }   // P181 0.26 -> 0.30; P214 (Oct 13 18:52, "enough to see a gap before I fall in") 0.36
 
     // Star brightness: follows the sun's height (reference: faint at sunset, full once the sun is well down) and
     // clouds hide them. Was keyed off daylight, which put near-full stars in a bright orange sunset sky.
@@ -2340,12 +2342,18 @@ final class Game {
         BountyHunters.claim(self)
         effects.clear()
         absorption = 0
-        for c in [inventory.main, inventory.armor, inventory.offhand] {
+        var lost: [ItemStack] = []
+        for c in [inventory.armor, inventory.main, inventory.offhand] {
             for i in 0..<c.count where !c[i].isEmpty {
-                if Enchant.level(.vanishingCurse, c[i]) > 0 { c[i] = .empty; continue }
-                drops.spawn(c[i], at: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), delay: 1)
+                if Enchant.level(.vanishingCurse, c[i]) == 0 { lost.append(c[i]) }
                 c[i] = .empty
             }
+        }
+        // P205 (Oct 13 18:40, "after dying at the base my stuff was missing, no boots"): scattered drops burnt in fire
+        // and lava, fell off walls, were picked up and worn by mobs, and vanished after five minutes. Everything goes
+        // into chests at the spot instead (they never despawn and are saved with the world), pinned on the map.
+        if !lost.isEmpty && !deathChests(lost, near: player.pos) {
+            for st in lost { drops.spawn(st, at: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), delay: 1) }
         }
         if menu != nil { closeMenu() }
         riding = nil

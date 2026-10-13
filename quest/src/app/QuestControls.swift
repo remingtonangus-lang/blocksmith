@@ -193,8 +193,9 @@ final class QuestControls {
         // Text boxes (command console, signs, world names) bring up the system keyboard (Android hook; nil in the sim).
         QuestControls.keyboardHook?(game.menu.map { $0.capturesText && !($0 is KeyboardMenu) } ?? false)
 
-        // The weapon wheel (hold the right stick click) takes the right stick to pick a gun: no turning meanwhile.
-        let wheel = !inMenu && (R.stickClick || WeaponWheel.shared.open)
+        // The weapon wheel (a right stick click opens it) takes the right stick to pick a gun: no turning meanwhile.
+        WeaponWheel.clickToOpen = true                     // P208: click to open, flick to pick (CombatHUD.swift)
+        let wheel = !inMenu && WeaponWheel.shared.open
         // Turning (never inside a menu: the panel stays put).
         if !inMenu && !wheel {
             let tx = R.stick.x
@@ -309,6 +310,17 @@ final class QuestControls {
                 HorseLife.bagReaches += 1
                 bagGrip = true
                 break
+            }
+        }
+        // P207: the right hand on the chest pocket (left breast, under the collar) and gripped opens the journal.
+        if !inMenu && !bagGrip && !handGrab && rGrip && !prevGripR && R.gripValid && game.alive {
+            let hw = rig.headWorld, yaw = rig.headYaw
+            let fwd = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+            let pocket = hw + V3(0, -0.32, 0) + fwd * 0.12 - right * 0.11
+            if simd_length(rig.toWorld(R.gripPos) - pocket) < 0.13 {
+                game.openJournal()
+                app.input.haptic(aimHand, amplitude: 0.4, seconds: 0.04, frequency: 200)
+                bagGrip = true
             }
         }
         // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip

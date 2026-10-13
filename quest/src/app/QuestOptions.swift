@@ -113,7 +113,7 @@ enum QuestOptions {
         "X: pick block; hold: offhand",
         "Y: fly on / off; hold: inventory",
         "(World map: pause menu)",
-        "Hold R stick click: weapon wheel",
+        "Click R stick: weapon wheel (flick at a gun to take it)",
         "Menu: pause; hold: recenter view",
     ]
 

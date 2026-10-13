@@ -21,8 +21,10 @@ struct GunModel {
 enum CapitalArms {
     // Finish colours and their shading patterns (Part.pattern).
     // Pale grey enamel and a dark band so a weapon still reads against the white uniforms.
-    static let enamel = V3(0.8, 0.81, 0.82), grey = V3(0.42, 0.45, 0.49), graphite = V3(0.14, 0.15, 0.17)
-    static let silver = V3(0.78, 0.8, 0.84), glass = V3(0.1, 0.13, 0.17), glow = V3(0.55, 1.55, 1.95)
+    // P217 (Oct 13 19:03, "Capital guns white, no blue"): whiter enamel, neutral greys and steel, smoked glass, and
+    // the energy parts glow warm white instead of cyan.
+    static let enamel = V3(0.9, 0.9, 0.89), grey = V3(0.46, 0.46, 0.46), graphite = V3(0.15, 0.15, 0.15)
+    static let silver = V3(0.82, 0.82, 0.8), glass = V3(0.12, 0.12, 0.12), glow = V3(1.7, 1.6, 1.35)
     static let pEnamel: Float = 7, pMetal: Float = 8, pGlow: Float = 9, pGlass: Float = 11
 
     static func b(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float) -> Part {

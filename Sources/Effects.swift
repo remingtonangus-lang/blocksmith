@@ -433,6 +433,7 @@ extension Game {
         if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
         if !bases.records.isEmpty, let e = try? JSONEncoder().encode(Array(bases.records.values)), let str = String(data: e, encoding: .utf8) { d["bases"] = str }
         if !greywallAlarm.taken.isEmpty { d["greywallTaken"] = greywallAlarm.taken.sorted().joined(separator: ";") }
+        if !greywallAlarm.squadsSent.isEmpty { d["greywallSquads"] = greywallAlarm.squadsSent.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";") }   // P203
         d["factionRep"] = FactionRep.encode()                                       // O3 (FactionRep.swift)
         d["factionRaids"] = FactionRaids.encode()                                   // O5 (FactionRaids.swift)
         d["trophies"] = Trophies.encode()                                           // O6 (Trophies.swift)
@@ -446,6 +447,7 @@ extension Game {
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
+        if journalTold { d["journalTold"] = "1" }
         if !journal.isEmpty, let e = try? JSONEncoder().encode(journal), let str = String(data: e, encoding: .utf8) { d["journal"] = str }
         if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
         if Blueprints.seedPending { Blueprints.seed(self) }
@@ -458,6 +460,7 @@ extension Game {
         horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
         if let b = d["blueprints"] { Blueprints.known = Set(b.split(separator: ",").map(String.init)); Blueprints.seedPending = false }
         else { Blueprints.known = []; Blueprints.seedPending = true }         // saved before blueprints (P138)
+        journalTold = d["journalTold"] == "1"
         journal = d["journal"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode([JournalEntry].self, from: $0) } ?? []
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
@@ -510,6 +513,11 @@ extension Game {
             if v.count == 3, v.allSatisfy({ $0.isFinite }) { lastDeath = V3(v[0], v[1], v[2]) }
         }
         greywallAlarm.taken = Set((d["greywallTaken"] ?? "").split(separator: ";").map(String.init))
+        greywallAlarm.squadsSent = [:]
+        for e in (d["greywallSquads"] ?? "").split(separator: ";") {
+            let kv = e.split(separator: "=")
+            if kv.count == 2, let n = Int(kv[1]) { greywallAlarm.squadsSent[String(kv[0])] = n }
+        }
         FactionRep.decode(d["factionRep"] ?? "")
         FactionRaids.decode(d["factionRaids"] ?? "")
         Trophies.decode(d["trophies"] ?? "")

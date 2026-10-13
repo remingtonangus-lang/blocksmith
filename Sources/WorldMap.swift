@@ -167,6 +167,14 @@ final class MapCache {
         return true
     }
 
+    // P205: the last death's chests as a named pin (the one before it is replaced).
+    func pinDeath(_ g: Game, x: Int, z: Int) {
+        loadMarks(g)
+        marks.removeAll { $0.kind == "pin" && $0.name == "Your things" }
+        marks.append(Mark(kind: "pin", x: x, z: z, name: "Your things"))
+        saveMarks(g)
+    }
+
     // Nearest waypoint to a point (for the HUD distance line).
     func nearestPin(_ x: Float, _ z: Float) -> Mark? {
         var best: Mark?

@@ -41,6 +41,12 @@ extension Game {
         let mins = Int(((f * 24 + 6).truncatingRemainder(dividingBy: 24)) * 60)
         journal.append(JournalEntry(day: Int(time / DAY_LENGTH) + 1, hour: mins / 60, minute: mins % 60, text: "Read: \(title)", title: title, pages: pages))
         if journal.count > Journal.maxEntries { journal.removeFirst(journal.count - Journal.maxEntries) }
+        // P207 (Oct 13 18:43, "I couldn't find how to open the journal"): told once, the first time something is kept.
+        if !journalTold {
+            journalTold = true
+            onToast?(vrHead != nil ? "Kept in your Journal: touch your chest pocket with your right hand and grip, or Menu > Journal"
+                                   : "Kept in your Journal: pause menu > Journal")
+        }
     }
 
     // The journal as book pages (P189, Oct 13: "a journal that collects everything I read"): a contents page of the

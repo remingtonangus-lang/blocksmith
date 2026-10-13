@@ -666,7 +666,26 @@ enum Loot {
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
         Blueprints.addToChest(c, table: table, rng: &rng)                // P138
+        Loot.matchGuns(c, rng: &rng)                                     // P216/P217
         GunGrade.gradeChest(c, table: table, rng: &rng)                  // T7
+    }
+
+    // P216/P217: retired guns in a table come out as their replacement, and a chest with a gun in it also holds a
+    // magazine or two of that gun's ammunition (loot that matches the guns found with it).
+    static func matchGuns(_ c: ItemContainer, rng: inout SRng) {
+        var need: [String] = []
+        for i in 0..<c.count where !c[i].isEmpty {
+            let k = Items.key(c[i].item)
+            if let r = Guns.retiredKeys[k], Items.has(r) { var s = c[i]; s.item = Items.id(r); c[i] = s }
+            if let gi = Guns.index(c[i].item) { need.append(Guns.all[gi].ammo) }
+        }
+        for a in Set(need) where Items.has(a) {
+            guard !(0..<c.count).contains(where: { Items.key(c[$0].item) == a }) else { continue }
+            guard let slot = (0..<c.count).first(where: { c[$0].isEmpty }) else { return }
+            let gi = Guns.all.firstIndex { $0.ammo == a } ?? 0
+            let mag = Guns.all[gi].mag
+            c[slot] = ItemStack(Items.id(a), min(Items.def(Items.id(a)).maxStack, max(2, mag * rng.range(1, 2))))
+        }
     }
 
     private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {

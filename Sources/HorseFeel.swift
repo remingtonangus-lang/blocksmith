@@ -190,7 +190,10 @@ extension Mob {
             let backing = target < 0 || h.speed < 0
             let sp = abs(h.speed)
             let look = halfW + 1.2 + sp * sp / (2 * HorseFeel.brake)
-            if let dh = hazardAhead(g.world, maxDist: look, dir: backing ? -forward : forward) {
+            // P212 (Oct 13 18:49, "the jump button should override the horse refusing, like RDR2"): with the jump held
+            // (or charging) going forward, a drop or a gap is the rider's call; only lava and fire are still refused.
+            let leap = !backing && (inp.jump || jumpCharge > 0.05)
+            if let dh = hazardAhead(g.world, maxDist: look, dir: backing ? -forward : forward, ignoreDrops: leap) {
                 let room = max(0, dh - halfW - 0.35)
                 let vmax = sqrtf(2 * HorseFeel.brake * room)
                 if backing {
@@ -236,7 +239,7 @@ extension Mob {
 
     // The first spot ahead (distance from the horse's centre) where the ground drops `refuseDrop`+ blocks below the
     // ground before it, or is lava / fire. Walls end the search (collision handles them). Water is ground.
-    func hazardAhead(_ w: World, maxDist: Float, dir: V3? = nil) -> Float? {
+    func hazardAhead(_ w: World, maxDist: Float, dir: V3? = nil, ignoreDrops: Bool = false) -> Float? {
         var ground = Int(floor(pos.y + 0.01)) - 1
         var s: Float = halfW + 0.3
         let f = dir ?? forward
@@ -251,7 +254,10 @@ extension Mob {
                 if Blocks.collide[i] || Blocks.isLiquid(b) { found = y; break }
                 y -= 1
             }
-            guard let gy = found else { return s }
+            guard let gy = found else {
+                if ignoreDrops { s += 0.5; continue }
+                return s
+            }
             if gy > ground + 1 { return nil }
             ground = gy
             s += 0.5

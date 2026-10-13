@@ -13,7 +13,7 @@ import simd
 // Deck guns traverse slowly, solve a ballistic arc, glow while charging, then fire twin shells.
 
 final class SoldierBrain {
-    var gun: Int
+    var gun: Int { didSet { let g = Guns.current(gun); if g != gun { gun = g; mag = min(mag, Guns.all[g].mag) } } }   // (P217: retired guns swap)
     var mag: Int
     var reload: Float = 0
     var burst = 0
@@ -74,7 +74,7 @@ final class SoldierBrain {
     weak var patient: Mob?
     var leg: (V3, V3)?
     var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first)
-    init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
+    init(gun: Int) { let g = Guns.current(gun); self.gun = g; mag = g >= 0 ? Guns.all[g].mag : 0 }
 }
 
 enum Soldier {
@@ -121,8 +121,8 @@ enum Soldier {
         case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
         case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
         case .soldierOfficer: return Guns.pistol
-        case .ashMarshal: return Guns.smg
-        case .ashChancellor: return Guns.hagel
+        case .ashMarshal: return Guns.sturmwind
+        case .ashChancellor: return Guns.sturmwind
         case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
         default: return r < 0.5 ? Guns.launcher : Guns.arc
         }
@@ -135,10 +135,10 @@ enum Soldier {
         case .soldierRecruit: return r < 0.6 ? Guns.kessel : Guns.sturmwind
         case .soldierTrooper: return r < 0.55 ? Guns.sturmwind : Guns.hagel
         case .soldierMarksman: return Guns.kessel
-        case .soldierIronclad: return Guns.ashsaw
+        case .soldierIronclad: return Guns.kessel
         case .ashMarshal: return Guns.sturmwind
-        case .ashChancellor: return Guns.hagel
-        default: return Guns.hagel
+        case .ashChancellor: return Guns.sturmwind
+        default: return Guns.sturmwind
         }
     }
 
@@ -569,6 +569,7 @@ extension Mob {
             var s = Slug(pos: muzzle + dir * 0.5, vel: Guns.scatter(dir, rank.spread) * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
                          shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
             s.power = 1.8
+            s.breaks = customName == FactionRaids.rocketeerName              // P215: a raider's rockets hole houses
             g.arms.spawn(s)
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
@@ -674,6 +675,8 @@ extension Mob {
         if fire > 0 { fire -= dt }
         b.reload -= dt
         b.kick = max(0, b.kick - dt * 1.5)
+        // P210: a Greywall base's guns placed before the small tower gun are swapped for it.
+        if factionValue == .greywall && variant != HeavyTurret.lightVariant { variant = HeavyTurret.lightVariant }
         let light = HeavyTurret.scale(self) != 1
         let pivot = pos + V3(0, HeavyTurret.trunnionY * HeavyTurret.scale(self), 0)
         let player = g.player.eye - V3(0, 0.6, 0)
@@ -822,6 +825,11 @@ extension Game {
             return
         }
         m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
+        // P206 (Oct 13 18:42, "I never found the key to unlock the computer on the second floor"): a Greywall base's
+        // officer carries its code book, which opens the keep's map table without taking the base.
+        if m.factionValue == .greywall && m.kind == .soldierOfficer && m.leash != nil && Items.has("greywall_codebook") {
+            drops.spawn(ItemStack(Items.id("greywall_codebook"), 1), at: at)
+        }
         let b = m.soldierBrain
         guard b.gun >= 0, b.gun < Guns.all.count else { return }
         let gs = Guns.all[b.gun]
@@ -883,7 +891,13 @@ enum HeavyTurret {
     // Two calibres (T6, Greywall's shore bases): the heavy gun, and a light quick-firer (deck_gun variant 9) built at
     // 0.4 scale that fires small shells four times as often and turns four times as fast.
     static let lightVariant = 9
-    static func scale(_ m: Mob) -> Float { m.kind == .deckGun && m.variant == lightVariant ? 0.4 : 1 }
+    // P210 (Oct 13 18:46, "the tower guns sit off their towers and are far too big for the base"): Greywall's light
+    // guns are smaller still (0.26: a 3.3-block gunhouse with 5.5-block barrels), sized for a 7-block tower roof and
+    // the wall walk; every Greywall tower carries one of those instead of the 13-block battleship turret.
+    static func scale(_ m: Mob) -> Float {
+        guard m.kind == .deckGun && m.variant == lightVariant else { return 1 }
+        return m.factionValue == .greywall ? 0.26 : 0.4
+    }
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
         let k = scale(m)

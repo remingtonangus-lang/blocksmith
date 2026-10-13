@@ -44,6 +44,11 @@ extension Game {
         guard clock >= FrontBattle.next, dim.dim == .overworld, alive, !Countries.state.wars.isEmpty else { return }
         FrontBattle.next = clock + 60
         let p = player.pos
+        // P203: no battle squads at a Greywall base (they read as its guards coming back after it was cleared).
+        if let sc = world.gen.structures, let gs = sc.nearestIfReady(Greywall.kind, x: Int(p.x), z: Int(p.z)) {
+            let (gx, gz) = Greywall.centre(gs)
+            if simd_length(V2(p.x - Float(gx), p.z - Float(gz))) < 260 { return }
+        }
         let here = Countries.at(self, p)
         for n in Countries.neighbours(self, here) {
             let k = Countries.warKey(here.key, n.key)

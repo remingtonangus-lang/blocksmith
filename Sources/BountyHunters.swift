@@ -30,9 +30,10 @@ enum BountyHunters {
         guard g.survival, g.difficulty > 0, g.dim.dim == .overworld, TownLaw.inTown == nil, !Reckoning.won, wanted() else { return }   // (P98: peace)
         let day = Int(g.time / DAY_LENGTH)
         guard TownLaw.state.trackers == nil, day - (TownLaw.state.huntersDay ?? -99) >= daysBetween, !below(g),
-              Rand.float(in: 0..<1) < chancePerSecond else { return }
+              Rand.float(in: 0..<1) < chancePerSecond, g.clock - FactionRaids.lastAssault > FactionRaids.quiet else { return }   // (P215)
         setOut(g)
         TownLaw.state.huntersDay = day
+        FactionRaids.lastAssault = g.clock
     }
 
     // O8: hunters track you across the map. When a posse is due it no longer appears out of nowhere: a party sets out

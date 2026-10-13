@@ -454,7 +454,7 @@ extension Game {
     // P127 (Oct 12 PM, "I should be able to sleep right now. It's not letting me"): beds work from sunset (the sun on
     // the horizon, 18:00 on the clock) until just before dawn. The reference's window opened at 18:32; at 18:16 with
     // the sun down and the sky going dark the bed still refused.
-    static let sleepFrom = 0.497
+    static let sleepFrom = 0.486       // P218 (Oct 13 19:04): once the sun's disc touches the horizon (was 0.497, fully set)
     static func canSleep(_ f: Double) -> Bool { f >= sleepFrom && f < 0.98 }
 
     func trySleep(at p: IVec3) {
@@ -466,7 +466,7 @@ extension Game {
         guard night else {
             // How long until dusk, in in-game hours (DAY_LENGTH is one day).
             let h = Int(((Game.sleepFrom - dayFraction + 1).truncatingRemainder(dividingBy: 1)) * 24 + 0.5)
-            onToast?(h <= 1 ? "You can sleep once the sun is down" : "You can only sleep at night (dusk in about \(h) hours)")
+            onToast?(h <= 1 ? "You can sleep once the sun touches the horizon" : "You can only sleep at night (dusk in about \(h) hours)")
             return
         }
         // Monsters within 8 blocks across and 5 up or down of the bed (reference box; it was a sphere round the player).

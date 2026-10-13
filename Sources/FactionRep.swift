@@ -16,7 +16,7 @@ enum FactionRep {
     static let tracked: [Faction] = [.steelhold, .greywall, .meridian, .stormwarden, .ironback]
     static let start: Float = -30
     static let allyAt: Float = 30, huntedAt: Float = -60
-    static let hunterEvery: Double = 480
+    static let hunterEvery: Double = 2400              // P215: was 480 (eight minutes)
     static var rep: [Int: Float] = [:]
     static var nextHunters: Double = 0
 
@@ -71,7 +71,7 @@ extension Game {
     func repHuntersTick() {
         guard survival, alive, dim.dim == .overworld, !Reckoning.won else { return }
         if FactionRep.nextHunters == 0 { FactionRep.nextHunters = clock + FactionRep.hunterEvery; return }
-        guard clock >= FactionRep.nextHunters else { return }
+        guard clock >= FactionRep.nextHunters, clock - FactionRaids.lastAssault > FactionRaids.quiet else { return }
         FactionRep.nextHunters = clock + FactionRep.hunterEvery
         guard let f = FactionRep.tracked.filter({ FactionRep.of($0) <= FactionRep.huntedAt }).min(by: { FactionRep.of($0) < FactionRep.of($1) }) else { return }
         let pp = player.pos
@@ -88,7 +88,8 @@ extension Game {
         }
         guard let land = spot else { return }
         let from = pp + V3(260, 70, 120)
-        world.ships.callDropship(faction: f, from: from, to: land, game: self, troops: 4)
+        guard world.ships.callDropship(faction: f, from: from, to: land, game: self, troops: 4) else { return }
+        FactionRaids.lastAssault = clock
         onToast?("\(f.name) has put a price on you: a dropship of hunters is coming!")
     }
 }

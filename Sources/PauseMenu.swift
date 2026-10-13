@@ -32,6 +32,7 @@ final class PauseMenu: Menu {
     var newDifficulty = 2
     var newSmooth = Settings.shared.smoothTerrain   // Terrain: Smooth (test); the last choice is remembered
     var editing: Int? = nil        // 0 name, 1 seed, 2 rename, 3 host address
+    private var slotsKept: [MenuSlot] = []   // the last layout's buttons (P201)
     var netAddr = ""                // C14 Play Together: a host typed by address
     static var found: [(ip: String, port: UInt16, world: String)] = []
     static var searching = false
@@ -198,7 +199,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Journal", "journal"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -361,10 +362,16 @@ final class PauseMenu: Menu {
     func layout() {
         let n = min(rows.count, PauseMenu.visible)
         scroll = max(0, min(scroll, rows.count - n))
-        slots = []
         let top = subtitle.isEmpty ? 22 : 32
         width = 244
         height = top + n * 21 + 22 + (rows.count > n ? 4 : 0)   // + help line
+        // P201 (Oct 13 18:33, "on the Create New World page nothing shows which button is selected"): the create,
+        // rename and controller pages rebuild every frame (blinking caret, live battery), and fresh slot objects left
+        // the hovered one (game.menuHover) pointing at a slot no longer on the page, so nothing drew as hovered.
+        // The same number of rows in the same places keep their slots.
+        if slotsKept.count == n && slotsKept.first?.y == top { slots = slotsKept; return }
+        defer { slotsKept = slots }
+        slots = []
         for i in 0..<n {
             let b = MenuSlot(10, top + i * 21, nil, 0, .button(i))
             b.w = 224; b.h = 18
