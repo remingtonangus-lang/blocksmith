@@ -44,6 +44,23 @@ enum Explosion {
         } } } }
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
+        // Realistic world: the blocks it breaks split on the spot and fly out as pieces (the nearest ones, within the
+        // debris budget: 16 blocks of 4 pieces), and pieces already lying round fly again.
+        if World.realistic && !destroyed.isEmpty {
+            g.debris.blast(at: c, radius: power * 2.5, speed: power * 3)
+            let near = destroyed.sorted { simd_length_squared(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5 - c)
+                                          < simd_length_squared(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c) }
+            for b in near.prefix(16) {
+                let id = w.block(b.x, b.y, b.z)
+                guard id != tntID, Blocks.render[Int(id)] == RenderType.cube.rawValue, Blocks.collide[Int(id)] else { continue }
+                let mid = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                let away = mid - c
+                let dl = simd_length(away)
+                let k = max(0.2, 1 - dl / (power * 2))
+                g.debris.shatter(id, cell: b, impact: c, direction: dl > 1e-3 ? away / dl : V3(0, 1, 0), count: 4,
+                                 speed: power * 2.2 * k + 1, seed: hash3(b.x, b.y, b.z, 0xB1A5), crowding: 0.3)
+            }
+        }
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
@@ -69,6 +86,15 @@ enum Explosion {
                 let ad = simd_abs(d)
                 let face = ad.x >= ad.y && ad.x >= ad.z ? (d.x > 0 ? 0 : 1) : (ad.y >= ad.z ? (d.y > 0 ? 2 : 3) : (d.z > 0 ? 4 : 5))
                 w.chipAsync(b, level: max(1, min(6, Int(share * 7))), face: face)
+                if World.realistic {
+                    // A bowl blown out of the side facing the blast (where the line to it leaves the block).
+                    let mid = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                    let dl = simd_length(d)
+                    let toC = dl > 1e-3 ? d / dl : V3(0, 1, 0)
+                    let at = mid + toC * (0.5 / max(abs(toC.x), max(abs(toC.y), abs(toC.z))))
+                    w.addBite(b, at: at, axis: toC, radius: 0.25 + 0.25 * min(1, share), depth: 0.1 + 0.3 * min(1, share),
+                              seed: hash3(b.x, b.y, b.z, 0xC4A7), sync: false)
+                }
                 bits += 1
                 if bits <= 30 {
                     let nrm = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 1, 0), V3(0, -1, 0), V3(0, 0, 1), V3(0, 0, -1)][face]

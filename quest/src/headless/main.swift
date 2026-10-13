@@ -270,6 +270,79 @@ if let out = arg("--view"), let ctx = vkctx {
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
         vw.remeshArea(x0: bx - 12, z0: bz - 12, x1: bx + 12, z1: bz + 6, y0: by - 4, y1: by + 8)
     }
+    // --scene damage: the realistic world's blows at --at (with --smooth): craters in a stone wall (one hit seven times),
+    // bullet holes in bricks, a pit in the ground, chips and a broken block's pieces simulated for --settle seconds
+    // (default 0.5: some still in the air).
+    if arg("--scene") == "damage" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 9)...(bx + 9) { for z in (bz - 8)...(bz + 3) {
+            vw.setBlock(x, by, z, Blocks.id("grass_block"))
+            for y in (by + 1)...(by + 6) { vw.setBlock(x, y, z, AIR) }
+        } }
+        let wz = bz - 6
+        for x in -6...(-2) { for y in 1...3 { vw.setBlock(bx + x, by + y, wz, STONE) } }
+        for x in 1...4 { for y in 1...3 { vw.setBlock(bx + x, by + y, wz, Blocks.id("bricks")) } }
+        func bite(_ x: Int, _ y: Int, _ z: Int, _ c: V3, _ n: V3, _ r: Float, _ d: Float, _ k: UInt32) {
+            vw.addBite(IVec3(bx + x, by + y, z), at: V3(Float(bx + x), Float(by + y), Float(z)) + c, axis: n, radius: r, depth: d, seed: hash3(x, y, z, k), sync: false)
+        }
+        let front = V3(0, 0, 1)
+        for lv in 1...7 { bite(-4, 2, wz, V3(0.5, 0.45, 1), front, 0.22 + 0.025 * Float(lv), 0.1, UInt32(lv)) }   // mined almost through
+        for lv in 1...3 { bite(-2, 1, wz, V3(0.7, 0.6, 1), front, 0.25, 0.1, UInt32(10 + lv)) }                // started
+        bite(-6, 3, wz, V3(0.95, 0.3, 1), front, 0.3, 0.14, 21); bite(-5, 3, wz, V3(0.05, 0.3, 1), front, 0.3, 0.14, 22)  // across a seam
+        var k: UInt32 = 40
+        for (x, y) in [(1, 1), (1, 2), (2, 2), (2, 3), (3, 1), (3, 2), (4, 3), (4, 1)] {                     // a burst of rounds
+            for _ in 0..<2 { k += 1; let h = hash3(x, y, Int(k), 7); bite(x, y, wz, V3(0.2 + 0.6 * Float(h & 255) / 255, 0.2 + 0.6 * Float((h >> 8) & 255) / 255, 1), front, 0.08, 0.06, k) }
+        }
+        for lv in 1...5 { bite(0, 0, bz - 3, V3(0.5, 1, 0.5), V3(0, 1, 0.3), 0.24 + 0.03 * Float(lv), 0.1, UInt32(60 + lv)) }   // a pit in the turf
+        let settle = Float(arg("--settle") ?? "") ?? 0.5
+        vg.debris.shatter(STONE, cell: IVec3(bx - 3, by + 1, wz + 1), impact: V3(Float(bx - 3) + 0.5, Float(by + 1) + 0.6, Float(wz + 2)),
+                          direction: V3(0, 0, -1), count: 6, speed: 1.2, seed: 99)
+        for i in 0..<4 {
+            let c = V3(Float(bx - 4) + 0.5, Float(by + 2) + 0.45, Float(wz + 1))
+            vg.debris.chips(STONE, cell: IVec3(bx - 4, by + 2, wz), at: c, normal: front, blow: V3(0, 0, -1), radius: 0.26, seed: UInt32(200 + i))
+        }
+        vg.debris.shatter(Blocks.id("bricks"), cell: IVec3(bx + 2, by + 4, wz), impact: V3(Float(bx + 2) + 0.5, Float(by + 4) + 0.5, Float(wz) + 0.5),
+                          direction: V3(0, 1, 1), count: 8, speed: 4, seed: 7, crowding: 0.3)
+        var t: Float = 0, worst = 0.0, sum = 0.0, n = 0
+        while t < settle {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            vg.debris.tick(1 / 72, world: vw); t += 1 / 72
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worst = max(worst, ms); sum += ms; n += 1
+        }
+        print(String(format: "view: %d debris pieces after %.1f s, step %.3f ms mean, %.3f ms worst", vg.debris.count, settle, sum / Double(max(1, n)), worst))
+        let st = vg.debris.bodies.stats
+        print("view: debris last step: awake \(st.awake), substeps \(st.substeps), ground queries \(st.groundQueries), fixed contacts \(st.fixedContacts), pairs \(st.pairs), iterations \(st.iterations)")
+        let dist = Float(arg("--dist") ?? "") ?? 7
+        vg.player.pos = V3(Float(bx) + 0.5 + (Float(arg("--dx") ?? "") ?? 0), Float(by + 1), Float(bz - 2) + dist); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 12, z0: bz - 12, x1: bx + 12, z1: bz + 6, y0: by - 4, y1: by + 8)
+    }
+    // --scene rubble: on the natural ground 4 blocks ahead (with --find/--up), a block of the ground there mined from above
+    // (a bowl dug along the look) and two blocks' worth of broken pieces dropped onto the slope, settled for --settle s
+    // (default 4): do they lie on the drawn surface?
+    if arg("--scene") == "rubble" {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw))
+        let gx = Int(floor(vg.player.pos.x + ahead.x * 4)), gz = Int(floor(vg.player.pos.z + ahead.z * 4))
+        var gy = Int(vg.player.pos.y) + 6
+        while gy > 1 && !Blocks.opaque[Int(vw.block(gx, gy, gz))] { gy -= 1 }
+        let b = vw.block(gx, gy, gz)
+        let look = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+        for lv in 1...6 {
+            vw.addBite(IVec3(gx, gy, gz), at: V3(Float(gx) + 0.5, Float(gy) + 1, Float(gz) + 0.5), axis: -look,
+                       radius: 0.22 + 0.025 * Float(lv), depth: 0.1, seed: UInt32(lv), sync: false)
+        }
+        for (k, dx) in [-1, 1].enumerated() {
+            let c = IVec3(gx + dx, gy + 2, gz)
+            vg.debris.shatter(b, cell: c, impact: V3(Float(c.x) + 0.5, Float(c.y) + 1, Float(c.z) + 0.5), direction: V3(0, -1, 0),
+                              count: 6, speed: 1.2, seed: UInt32(31 + k))
+        }
+        let settle = Float(arg("--settle") ?? "") ?? 4
+        var t: Float = 0
+        while t < settle { vg.debris.tick(1 / 72, world: vw); t += 1 / 72 }
+        print("view: rubble on \(Blocks.key(b)) at \(gx) \(gy) \(gz), \(vg.debris.count) pieces")
+        vw.remeshArea(x0: gx - 3, z0: gz - 3, x1: gx + 3, z1: gz + 3, y0: gy - 3, y1: gy + 3)
+    }
     // --drop KEY: a dropped stack of that item 1.6 blocks ahead, floating at eye height (how drops draw, P47).
     if let k = arg("--drop"), Items.has(k) {
         let ahead = V3(-sinf(yaw), 0, -cosf(yaw))

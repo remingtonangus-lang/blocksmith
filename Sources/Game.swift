@@ -12,6 +12,7 @@ final class Game {
     var drops: ItemEntityManager { dim.drops }
     var projectiles: ProjectileManager { dim.projectiles }
     var tnts: TNTManager { dim.tnts }
+    var debris: DebrisField { dim.debris }
     private(set) var player = Player()      // seat-swapped in split-screen co-op (Coop.swift)
     private(set) var input = InputState()
     let particles = ParticleManager()
@@ -1261,16 +1262,36 @@ final class Game {
                     if Settings.shared.chipping && secs >= MineSteady.chipMin && level > before && level >= 1 && level < 8 && Blocks.render[Int(b)] == RenderType.cube.rawValue {
                         let n = t.normal
                         let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
-                        world.chip(t.hit, level: level, face: face)
+                        let nv = V3(Float(n.x), Float(n.y), Float(n.z))
                         swing = 1                                     // a full strike as each piece comes away
-                        let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.45
-                        particles.chipBits(b, at: c, normal: V3(Float(n.x), Float(n.y), Float(n.z)), face: face, count: 6)
-                        particles.dust(b, at: c, count: 3, spread: 0.3)
-                        sfx(.hit(soundMat(b)), 0.7, at: c)
+                        if World.realistic {
+                            // Realistic world: the tool takes out what it touched. A bowl where it struck (on smooth ground,
+                            // along the swing, so it lands where the drawn surface is), and the chips it knocked off fly as
+                            // pieces cut from the block there (Craters.swift, DebrisField).
+                            world.chip(t.hit, level: level, face: face, remesh: false)
+                            let hp = hitPoint(t)
+                            let seed = hash3(t.hit.x, t.hit.y &+ level &* 977, t.hit.z, UInt32(truncatingIfNeeded: Int(clock * 60)))
+                            let axis = SmoothTerrain.natural[Int(b)] ? -player.look : nv
+                            world.addBite(t.hit, at: hp, axis: axis, radius: 0.22 + 0.025 * Float(level), depth: 0.1, seed: seed, sync: true)
+                            debris.chips(b, cell: t.hit, at: hp, normal: nv, blow: player.look, radius: 0.26, seed: seed)
+                            particles.dust(b, at: hp + nv * 0.05, count: 3, spread: 0.2)
+                            sfx(.hit(soundMat(b)), 0.7, at: hp)
+                        } else {
+                            world.chip(t.hit, level: level, face: face)
+                            let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + nv * 0.45
+                            particles.chipBits(b, at: c, normal: nv, face: face, count: 6)
+                            particles.dust(b, at: c, count: 3, spread: 0.3)
+                            sfx(.hit(soundMat(b)), 0.7, at: c)
+                        }
                     }
                     mineSoundTimer -= fdt
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
+                        // Realistic world: what was left of the block splits on the spot and falls as pieces.
+                        if World.realistic && Blocks.render[Int(b)] == RenderType.cube.rawValue && Blocks.fullCollide[Int(b)] {
+                            let seed = hash3(t.hit.x, t.hit.y, t.hit.z, UInt32(truncatingIfNeeded: Int(clock * 60)) ^ 0xB4EA)
+                            debris.shatter(b, cell: t.hit, impact: hitPoint(t), direction: player.look, count: 5, speed: 1.2, seed: seed)
+                        }
                         breakBlock(t.hit, b, drop: true)
                         if b == SEALROCK {
                             achieve("break_seal")
@@ -1769,6 +1790,7 @@ final class Game {
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
+        if World.realistic { debris.blockChanged(p) }
         // Ice broken without Silk Touch over something solid or liquid leaves water (reference; not in the Emberdeep).
         if drop && b == Game.iceID && !world.dim.ultrawarm && Enchant.level(.silkTouch, held) == 0 {
             let under = world.block(p.x, p.y - 1, p.z)
@@ -2519,6 +2541,7 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
+        if World.realistic { debris.tick(Float(dt), world: world) }
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))

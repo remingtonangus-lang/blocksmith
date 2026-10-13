@@ -249,7 +249,9 @@ enum Mesher {
     // `damage`: chipped blocks around this section (World.damage): x and z relative to the centre chunk's corner
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
+    // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
+                             bites: [(Int, Int, Int, Bite)] = [],
                              smoothOK: Bool = true, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
@@ -568,16 +570,29 @@ enum Mesher {
         mask.initialize(repeating: 0, count: 6 * 16 * 256)
         // Chipped blocks in the region (progressive block damage): region index -> packed damage.
         var dmg: [Int: UInt8] = [:]
-        for (dx, wy, dz, v) in damage {
+        // (Realistic world: blows are drawn as craters, below; the chipped sub-cubes and dents are the block worlds'.)
+        for (dx, wy, dz, v) in damage where !detail {
             let rx = dx + C0, rz = dz + C0, ry = wy - y0
             if rx < 0 || rz < 0 || ry < 0 || rx >= RW || rz >= RW || ry >= RH { continue }
             dmg[rx + rz * RW + ry * RL] = v
         }
         let anyDmg = !dmg.isEmpty
+        // Realistic world: craters where blows struck (Craters.swift), carved into the detail stream by the ground pass and
+        // the struck cubes below.
+        let det = sc.det, detCut = sc.detCut
+        det.count = 0; detCut.count = 0
+        let wox = (chunk?.x ?? site?.cx ?? 0) * CS, woz = (chunk?.z ?? site?.cz ?? 0) * CS
+        let crater: CraterSet? = detailDraw && !bites.isEmpty
+            ? CraterSet(bites, sy: sy, wo: SIMD3<Float>(Float(wox), Float(sy * 16), Float(woz))) { x, y, z in
+                let rx = x + C0, ry = y + C0, rz = z + C0
+                return rx >= 0 && ry >= 0 && rz >= 0 && rx < RW && ry < RH && rz < RW ? rx + rz * RW + ry * RL : nil }
+            : nil
+        let craters = crater.flatMap { $0.isEmpty ? nil : $0 }
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob, detailHoles: detail) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob, detailHoles: detail,
+                        crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
@@ -599,6 +614,33 @@ enum Mesher {
                     }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     if detailDraw && detT[bi] { continue }              // (round shapes: the detail generators below)
+                    // A struck cube (realistic world): its open faces subdivided and carved where the blows landed.
+                    if let cr = craters, rt == rCube, cr.regionIndex.contains(i) {
+                        let tb = Int(tintT[bi]), inner = (layer: Int(texT[bi * 6 + 3]), tint: tb == 3 ? 0 : tb)
+                        for f in 0..<6 {
+                            let j = i + offs[f]
+                            if opaqueT[Int(R[j])] && !smoothOpen(j) { continue }
+                            if cullSameT[bi] && R[j] == b { continue }
+                            let lv = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
+                            var ps = [SIMD3<Float>](repeating: .zero, count: 4)
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                ps[k] = SIMD3<Float>(Float(x - C0 + Int(CT[ci])), Float(ly + Int(CT[ci + 1])), Float(z - C0 + Int(CT[ci + 2])))
+                            }
+                            let fn = SIMD3<Float>(Float(NT[f * 3]), Float(NT[f * 3 + 1]), Float(NT[f * 3 + 2]))
+                            let lay = Int(texT[bi * 6 + f]), tn = tb == 3 ? (f == 2 ? 1 : 0) : tb
+                            if cr.touches(ps) {
+                                cr.carve(det, ps, [fn, fn, fn, fn], layers: [lay, lay, lay, lay], tints: [tn, tn, tn, tn],
+                                         light: [lv, lv, lv, lv], ao: [3, 3, 3, 3], inner: inner, face: f, grid: cr.ticks(ps, base: 6))
+                            } else {
+                                for k in 0..<4 {
+                                    let q = ps[k]
+                                    DetailMesh.vertex(det, q, fn, Craters.faceUV(f, q), layer: lay, tint: tn, ao: 3, light: lv)
+                                }
+                            }
+                        }
+                        continue
+                    }
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && site != nil && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
@@ -1012,10 +1054,8 @@ enum Mesher {
         }
         // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
         // (ShapeOrganic), into the detail stream.
-        let det = sc.det, detCut = sc.detCut
-        det.count = 0; detCut.count = 0
         if detailDraw {
-            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: (chunk?.x ?? site?.cx ?? 0) * CS, wy0: sy * 16, wz0: (chunk?.z ?? site?.cz ?? 0) * CS,
+            let ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy)
             ShapeTrunks.emit(ctx)
             ShapeOrganic.emit(ctx)
