@@ -134,3 +134,5 @@ Proving Halls -> Sealed Armoury (advancement "Proving Run" -> "Under Lock"), For
 map too), Sea Temple -> Sunken Dreadnought (its explorer map: Dreadnought Explorer Map), Cinder Fortress -> Ash Foundry,
 Boarling Keep -> Boarling Mound. The Hollow is out of new worlds (strongholds there hold a reliquary). Designs and the
 old-save rule: docs/status/ip-content-audit-oct11.md.
+
+## Oct 13 (P125): Glow Berries -> Lumen Pods, Cave Vines -> Lanternvine (teal pods, picked by hand, regrow)

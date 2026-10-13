@@ -441,12 +441,16 @@ extension Game {
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
         if !journal.isEmpty, let e = try? JSONEncoder().encode(journal), let str = String(data: e, encoding: .utf8) { d["journal"] = str }
         if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
+        if Blueprints.seedPending { Blueprints.seed(self) }
+        d["blueprints"] = Blueprints.known.sorted().joined(separator: ",")         // P138
         return d
     }
     func loadExtra(_ d: [String: String]) {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
         horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
+        if let b = d["blueprints"] { Blueprints.known = Set(b.split(separator: ",").map(String.init)); Blueprints.seedPending = false }
+        else { Blueprints.known = []; Blueprints.seedPending = true }         // saved before blueprints (P138)
         journal = d["journal"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode([JournalEntry].self, from: $0) } ?? []
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }

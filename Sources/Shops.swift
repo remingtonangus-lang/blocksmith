@@ -75,6 +75,9 @@ enum Economy {
         "pumpkin_seeds": 3, "melon_slice": 4, "melon_seeds": 3, "sugar_cane": 5, "sugar": 6, "egg": 5, "sweet_berries": 4,
         "glow_berries": 6, "cocoa_beans": 8, "apple": 20, "hay_block": 70, "honeycomb": 25, "honey_bottle": 60,
         // Food
+        "requisition_form": 2, "duty_roster": 2, "boot_polish": 4, "radio_valve": 6, "typewriter_ribbon": 3, "rubber_stamp": 5,
+        "empty_sandbag": 3, "tent_pegs": 2, "mess_tin": 5, "spent_casings": 1,                       // P133 base sundries
+        "upgrade_blueprint": 150,                                                                      // P138
         "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,
         "cooked_rabbit": 32, "cooked_cod": 28, "cooked_salmon": 33, "golden_carrot": 160, "golden_apple": 1300,

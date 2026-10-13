@@ -2830,6 +2830,30 @@ enum HDTex {
                     for oy in wraps { for ox in wraps { leafBlob(&img, cx + ox, cy + oy, fn / 9, ang, lc) } }
                 }
                 return img
+            case "cave_vines_lit":
+                // P125 lanternvine pods: two slender seed capsules hanging off the strands, a dark teal husk split down
+                // the front over a pale mint light (our own look: no round orange berries).
+                var img = strandHD(0x3F6E3A, nubs: 0x4E7E3C, salt: 471)(n, s)
+                let fn = Float(n)
+                for (k, (px, py)) in [(Float(0.3), Float(0.34)), (Float(0.7), Float(0.7))].enumerated() {
+                    let cx = px * fn, cy = py * fn, rw = fn * 0.085, rh = fn * 0.17
+                    for y in Int(cy - rh - 1)...Int(cy + rh + 1) { for x in Int(cx - rw - 1)...Int(cx + rw + 1) {
+                        let dx: Float = (Float(x) + 0.5 - cx) / rw
+                        let t: Float = (Float(y) + 0.5 - (cy - rh)) / (2 * rh)          // 0 top (stem) .. 1 tip
+                        guard t >= 0 && t <= 1 else { continue }
+                        let width: Float = sinf(t * Float.pi * 0.92 + 0.12) * (0.65 + 0.35 * t)
+                        guard abs(dx) <= width else { continue }
+                        let edge: Float = abs(dx) / max(0.01, width)
+                        let husk: V3 = col(0x1F5A55) * (0.85 + 0.3 * h2(x, y &+ k, s))
+                        let glow: V3 = col(0xC8FFE6) * (1.0 - 0.25 * edge) + col(0x5FE0B8) * (0.25 * edge)
+                        // The husk closes over the outer third; the light shows through the split down the middle.
+                        let open: Bool = edge < 0.55 && t > 0.18 && t < 0.92
+                        plot(&img, x, y, open ? glow : husk)
+                    } }
+                    // A short stalk up to the strand.
+                    for y in Int(cy - rh - fn / 16)...Int(cy - rh) { plot(&img, Int(cx), y, col(0x3F6E3A)) }
+                }
+                return img
             default:  // cave_vines
                 return strandHD(0x4A7A2A, nubs: 0x5A8A30, salt: 471)(n, s)
             }
@@ -5894,6 +5918,7 @@ enum HDTex {
         "azalea_top": oddFace("azalea_top"),
         "azalea_side": oddFace("azalea_side"),
         "cave_vines": oddFace("cave_vines"),
+        "cave_vines_lit": oddFace("cave_vines_lit"),
         "gilded_blackstone": mineralFace("gilded_blackstone"),
         "reinforced_deepslate": mineralFace("reinforced_deepslate"),
         "budding_amethyst": mineralFace("budding_amethyst"),

@@ -345,11 +345,14 @@ enum Enchant {
             let rk = Items.key(right.item)
             let isBook = rk == "enchanted_book"
             if ld.durability > 0, let mat = repairMaterial(left.item), rk == mat, left.damage > 0 {
-                // Material repair: 25% of max durability per unit.
+                // Material repair: 25% of max durability per unit, less the more upgrades the item carries (P137:
+                // a full repair takes 4 units plus one per upgrade level).
                 var dmg = left.damage
                 var used = 0
+                let units = Upgrades.repairUnits(left)
+                let per = max(1, (ld.durability + units - 1) / units)
                 while dmg > 0 && used < right.count {
-                    dmg = max(0, dmg - ld.durability / 4)
+                    dmg = max(0, dmg - per)
                     used += 1
                     cost += 1
                 }

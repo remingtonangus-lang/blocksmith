@@ -50,15 +50,15 @@ extension BlockRegistry {
         }
         // Bulkhead door: grey steel, opens by hand like a wooden door (states as the other doors: facing + open*4 + upper*8).
         if !has("bulkhead_door") {
-            for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
-                let k = f + (open ? 4 : 0) + (upper ? 8 : 0)
+            for k in 0..<32 {
+                let upper = k & 8 != 0
                 var d = BlockDef(k == 0 ? "bulkhead_door" : "bulkhead_door[\(k)]", "Bulkhead Door")
                 d.tex = [upper ? "bulkhead_door_top" : "bulkhead_door_bottom"]; d.render = .model; d.layer = .cutout; d.opaque = false
-                d.boxes = [BlockRegistry.panel(open ? [2, 3, 1, 0][f] : [0, 1, 2, 3][f])]
+                d.boxes = [BlockRegistry.doorBox(k)]
                 d.hardness = 5; d.resistance = 30; d.tool = .pickaxe; d.requiresTool = true; d.sound = .stone
                 d.group = "bulkhead_door"; d.hidden = k != 0; d.shape = "door"; d.skyStop = false
                 add(d)
-            } } }
+            }
         }
     }
 }
@@ -540,7 +540,7 @@ enum BorealStation {
         for dz in stride(from: 14, through: 18, by: 2) { put(18, F + 3, dz, panel); put(21, F + 3, dz, panel) }
         for dx in 19...20 { put(dx, F + 3, 13, panel); put(dx, F + 3, 19, panel) }
         for (dx, dz) in [(18, 13), (21, 13), (18, 19), (21, 19)] { put(dx, F + 5, dz, chain); put(dx, F + 6, dz, chain) }
-        for dz in 10...12 { put(23, F + 1, dz, barrel) }
+        for dz in 10...12 { w.sundryBarrel(cx + 23, F + 1, cz + dz, seed: seed) }              // P133
         w.chest(X(16), F + 1, Z(22), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 3)
 
         // MARK: Mess (south-west): two long tables with slab benches, the galley along the south wall
@@ -550,7 +550,7 @@ enum BorealStation {
                 put(tx - 1, F + 1, dz, g("bunker_concrete_slab", con)); put(tx + 1, F + 1, dz, g("bunker_concrete_slab", con))
             }
         }
-        for dx in (-23)...(-17) { put(dx, F + 1, 23, dx % 2 == 0 ? g("smoker", barrel) : barrel) }
+        for dx in (-23)...(-17) { if dx % 2 == 0 { put(dx, F + 1, 23, g("smoker", barrel)) } else { w.sundryBarrel(cx + dx, F + 1, cz + 23, seed: seed) } }
         w.chest(X(-16), F + 1, Z(23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 0)
 
         // MARK: Barracks (north-west): bunks along both walls, lockers on the north wall
@@ -690,7 +690,7 @@ enum BorealStation {
             put(dx, S + 5, dz, back ? con : steel)
             if !back { put(dx, S, dz, con) }
         } }
-        for dz in stride(from: 6, through: 12, by: 3) { put(23, S + 1, dz, crate); put(23, S + 2, dz, crate); put(22, S + 1, dz, barrel) }
+        for dz in stride(from: 6, through: 12, by: 3) { put(23, S + 1, dz, crate); put(23, S + 2, dz, crate); w.sundryBarrel(cx + 22, S + 1, cz + dz, seed: seed) }
         put(19, S + 4, 9, panel)
 
         // MARK: Snow: a layer on every open top (the plowed road keeps less), drifts banked against walls

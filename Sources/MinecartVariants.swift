@@ -1,11 +1,29 @@
 import Foundation
 import simd
 
-// Minecart variants (variant: 0 plain, 1 chest, 2 hopper, 3 TNT, 4 furnace).
+// Minecart variants (variant: 0 plain, 1 chest, 2 hopper, 3 TNT, 4 furnace, 5 engine).
 enum Carts {
-    static let items = ["minecart", "chest_minecart", "hopper_minecart", "tnt_minecart", "furnace_minecart"]
-    static let blocks = ["", "chest", "hopper", "tnt", "furnace"]
+    static let items = ["minecart", "chest_minecart", "hopper_minecart", "tnt_minecart", "furnace_minecart", "engine_cart"]
+    static let blocks = ["", "chest", "hopper", "tnt", "furnace", ""]
     static func variant(of key: String) -> Int? { items.firstIndex(of: key) }
+
+    // P132 (Oct 12 PM, "minecarts where you can... put an engine on them... it requires a power source"): the engine
+    // cart. You ride it; push the stick (or W) to drive along the track, back to brake and reverse, up to 14 blocks a
+    // second on straights and 7 through curves. It runs on fuel put into it: coal or charcoal 2 minutes, a block of coal
+    // 18, a blaze rod 3, a Copper Battery 10 (the power source); fuel burns only while it drives. With rails in hand
+    // and use held, any cart you ride lays track ahead of itself where the line runs out (Game.cartLayTrack).
+    static let engine = 5
+    static let engineTop: Float = 14, engineCurve: Float = 7, engineAccel: Float = 9
+    static let fuelCap: Float = 1800
+    static func fuelSeconds(_ key: String) -> Float? {
+        switch key {
+        case "coal", "charcoal": return 120
+        case "coal_block": return 1080
+        case "blaze_rod": return 180
+        case "redstone_block": return 600
+        default: return nil
+        }
+    }
 }
 
 extension Mob {
@@ -56,6 +74,12 @@ func cartTop(_ m: Mob) -> [Part] {
         let lit = m.fuse > 0 && Int(m.fuse * 8) % 2 == 0
         return [box(-6, 4, -6, 12, 12, 12, lit ? V3(1, 1, 1) : V3(0.8, 0.2, 0.15)), box(-6.1, 8, -6.1, 12.2, 4, 12.2, V3(0.85, 0.85, 0.8))]
     case 4: return [box(-6, 4, -6, 12, 12, 12, V3(0.45, 0.45, 0.45)), box(-3, 6, -6.3, 6, 4, 0.4, m.jobTimer > 0 ? V3(1, 0.6, 0.2) : V3(0.1, 0.1, 0.1))]
+    case Carts.engine:
+        // The engine at the front: a copper-banded firebox, its stack and a lamp; the seat stays open behind it.
+        let fire = m.jobTimer > 0 ? V3(1, 0.55, 0.15) : V3(0.12, 0.1, 0.1)
+        return [box(-6, 4, -7, 12, 8, 5, V3(0.24, 0.24, 0.26)), box(-6.2, 6, -7.2, 12.4, 1.2, 5.4, V3(0.78, 0.45, 0.25)),
+                box(-2.5, 5, -7.4, 5, 3, 0.4, fire), box(-1.5, 12, -6, 3, 6, 3, V3(0.16, 0.16, 0.17)),
+                box(-1, 9, -7.6, 2, 2, 0.4, V3(1, 0.95, 0.7))]
     default: return []
     }
 }
@@ -87,10 +111,43 @@ extension Game {
             }
             return true
         case 3: return true
+        case Carts.engine:
+            let k = Items.key(held.item)
+            if let secs = Carts.fuelSeconds(k) {
+                guard m.jobTimer < Carts.fuelCap - 1 else { onToast?("The engine's bunker is full"); return true }
+                m.jobTimer = min(Carts.fuelCap, m.jobTimer + secs)
+                if survival { consumeHeld() }
+                sfx(.place(.stone), 0.5, at: m.pos)
+                onToast?("Engine fuel: \(Int(m.jobTimer / 60)) min \(Int(m.jobTimer.truncatingRemainder(dividingBy: 60))) s")
+                return true
+            }
+            return false                                  // anything else: climb in (Game.interactMob)
         default: return false
         }
     }
+
+    // Riding a cart with rails in hand and use held: a rail goes down on the next cell ahead where the track ends
+    // (with something solid under it), and the track shapes itself (P132).
+    func cartLayTrack(_ cart: Mob, use: Bool? = nil) {
+        guard riding === cart, Items.key(held.item) == "rail", use ?? (input.rightDown || (seatPad?.lt ?? 0) > 0.5) else { return }
+        let fwd = simd_length(V2(cart.vel.x, cart.vel.z)) > 0.2 ? simd_normalize(V2(cart.vel.x, cart.vel.z))
+                                                                  : V2(-sinf(player.yaw), -cosf(player.yaw))
+        let step = abs(fwd.x) > abs(fwd.y) ? IVec3(fwd.x > 0 ? 1 : -1, 0, 0) : IVec3(0, 0, fwd.y > 0 ? 1 : -1)
+        let cell = IVec3(Int(floor(cart.pos.x)), Int(floor(cart.pos.y + 0.1)), Int(floor(cart.pos.z)))
+        // The cell ahead of the cart's own: a rail goes down there when the line runs out (and something solid is below).
+        guard Rails.isRail(world.block(cell.x, cell.y, cell.z)) else { return }
+        let n = cell + step
+        guard !Rails.isRail(world.block(n.x, n.y, n.z)), !Rails.isRail(world.block(n.x, n.y - 1, n.z)),
+              Blocks.replaceable[Int(world.block(n.x, n.y, n.z))], Blocks.collide[Int(world.block(n.x, n.y - 1, n.z))] else { return }
+        world.setBlock(n.x, n.y, n.z, Blocks.id("rail"))
+        Rails.autoShape(world, n)
+        if survival { consumeHeld() }
+        sfx(.place(.stone), 0.5, at: V3(Float(n.x) + 0.5, Float(n.y), Float(n.z) + 0.5))
+        CartTrack.laid += 1
+    }
 }
+
+enum CartTrack { static var laid = 0 }
 
 // Goats ramming a log, stone, ore or packed ice drop a goat horn (two per goat; tag = horn variant).
 enum GoatHorns {

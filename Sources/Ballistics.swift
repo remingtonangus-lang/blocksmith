@@ -28,6 +28,7 @@ struct Slug {
     var pierced: [ObjectIdentifier] = []   // mobs this round already went through
     var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
     var side: Faction?            // the shooter's side, taken on its first tick (its blast spares that side after the shooter dies)
+    var homing: Float = 0         // a small missile's turn toward the player, radians a second (SmallMissiles.swift)
 }
 
 struct Beam {
@@ -129,6 +130,7 @@ final class Armory {
                 s.dead = true; slugs[i] = s; continue
             }
             s.vel.y -= s.gravity * dt
+            if s.homing > 0 { SmallMissiles.steer(&s, dt, g) }
             if s.kind == .grenade { s.vel *= expf(-0.4 * dt) }
             let step = s.vel * dt
             let len = simd_length(step)

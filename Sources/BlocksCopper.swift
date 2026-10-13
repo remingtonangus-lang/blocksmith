@@ -108,15 +108,15 @@ extension BlockRegistry {
                 add(rod)
                 // Copper door and trapdoor: open by hand like wooden ones.
                 let dn = Copper.name("copper_door", stage: s, waxed: waxed), tn = Copper.name("copper_trapdoor", stage: s, waxed: waxed)
-                for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
-                    let k = f + (open ? 4 : 0) + (upper ? 8 : 0)
+                for k in 0..<32 {
+                    let upper = k & 8 != 0
                     var d = BlockDef(k == 0 ? dn : "\(dn)[\(k)]", "\(w)\(st.disp)Copper Door")
                     d.tex = [upper ? "\(st.prefix)copper_door_top" : "\(st.prefix)copper_door_bottom"]; d.render = .model; d.layer = .cutout; d.opaque = false
-                    d.boxes = [BlockRegistry.panel(open ? [2, 3, 1, 0][f] : [0, 1, 2, 3][f])]
+                    d.boxes = [BlockRegistry.doorBox(k)]
                     d.hardness = 3; d.tool = .pickaxe; d.group = dn; d.hidden = k != 0; d.shape = "door"; d.skyStop = false
                     d.randomTicks = !waxed && s < 3
                     add(d)
-                } } }
+                }
                 for top in [false, true] { for open in [false, true] { for f in 0..<4 {
                     let k = f + (open ? 4 : 0) + (top ? 8 : 0)
                     var d = BlockDef(k == 0 ? tn : "\(tn)[\(k)]", "\(w)\(st.disp)Copper Trapdoor")

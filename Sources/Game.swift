@@ -372,6 +372,7 @@ final class Game {
         dims[world.dim] = dim
         self.save = save
         self.persistent = persistent
+        if persistent { Blueprints.known = []; Blueprints.seedPending = false }      // a new world knows none (P138; a load sets them)
         onToast = { [weak self] s in
             guard let self else { return }
             self.toastText = s
@@ -1126,6 +1127,15 @@ final class Game {
                 let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround && !player.sprinting && !player.inWater
                     && !Player.climbable(feetB) && !effects.has(.blindness) && riding == nil
                 if crit { dmg *= 1.5 }
+                // P136: a head hit (the blade's contact point, or where the aim meets the body) does half again.
+                let e0 = player.eye, lk = player.look * 4
+                let hitAt: V3? = swung ? swingAt : VRMelee.segmentBox(e0, e0 + lk, m.pos - V3(m.halfW, 0, m.halfW),
+                                                                     m.pos + V3(m.halfW, m.height, m.halfW)).map { e0 + lk * $0 }
+                if let at = hitAt, VRMelee.headHit(m, at: at) {
+                    dmg *= VRMelee.headMult
+                    VRMelee.headHits += 1
+                    if !crit { particles.crit(at: at) }
+                }
                 dmg += Enchant.damageBonus(held, against: m) * charge
                 dmg *= Legendaries.meleeScale(self, m)               // C10
                 // Mace smash: bonus damage from the fall, which is then cancelled.
@@ -1207,8 +1217,14 @@ final class Game {
                     breakCooldown = 0.3
                 }
             } else {
-                // A block chipped earlier picks up where it was left (progressive block damage).
-                if mining != t.hit { mining = t.hit; mineProgress = Float(world.damageLevel(t.hit)) / 8 }
+                // A block chipped earlier picks up where it was left (progressive block damage); one the aim slipped off
+                // for a moment keeps its exact progress (P130: a laser wobbling across a block edge restarted it).
+                if mining != t.hit {
+                    let back = MineSteady.recall(t.hit, now: clock)
+                    if let m = mining, mineProgress > 0 { MineSteady.remember(m, mineProgress, now: clock) }
+                    mining = t.hit
+                    mineProgress = max(Float(world.damageLevel(t.hit)) / 8, back)
+                }
                 let aqua = Enchant.level(.aquaAffinity, inventory.armor[0]) > 0
                 let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua,
                                                mul: miningSpeedMul)
@@ -1218,11 +1234,17 @@ final class Game {
                     if b == WARDSTONE { wardHint() }
                 } else {
                     let before = Int(mineProgress * 8)
-                    mineProgress += secs <= 0 ? 1 : fdt / secs
+                    // P130 (Oct 12 PM, shovel "breaks in groups"): the next block starts after the pause that follows a
+                    // break (the reference's 5-tick destroy delay), not during it. Progress used to run on through the
+                    // pause, so a quick block cracked at once, sat finished, then popped on the pause's last frame: a
+                    // stop-go rhythm. Now every block takes pause + its own break time, evenly.
+                    if breakCooldown <= 0 { mineProgress += secs <= 0 ? 1 : fdt / secs }
                     swing = max(swing, 0.5)
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
-                    if Settings.shared.chipping && level > before && level >= 1 && level < 8 && Blocks.render[Int(b)] == RenderType.cube.rawValue {
+                    // (No chips on a block that gives way in under a third of a second: seven remeshes in a tenth of a
+                    // second stalled the frames round each break, P130.)
+                    if Settings.shared.chipping && secs >= MineSteady.chipMin && level > before && level >= 1 && level < 8 && Blocks.render[Int(b)] == RenderType.cube.rawValue {
                         let n = t.normal
                         let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
                         world.chip(t.hit, level: level, face: face)
@@ -1247,7 +1269,7 @@ final class Game {
                         if tl != .none && (Blocks.hardness[Int(b)] > 0 || tl == .shears) { damageHeld(tl == .sword ? 2 : 1) }
                         mining = nil
                         mineProgress = 0
-                        breakCooldown = secs <= 0 ? 0 : 0.3
+                        breakCooldown = secs <= 0 ? 0 : MineSteady.pause
                     }
                 }
             }
@@ -1586,6 +1608,7 @@ final class Game {
         return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
+            || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
     }
 
@@ -1595,12 +1618,13 @@ final class Game {
         let base = Blocks.groupBase[Int(b)]
         let st = Int(b - base)
         let shape = Blocks.shape[Int(b)]
-        let flipped = BlockID(st ^ 4)
+        let h = shape == "door" ? world.doorHingeFlip(p, st) : 0       // P128: a pair swings apart
+        let flipped = BlockID(st ^ 4 ^ h)
         world.setBlock(p.x, p.y, p.z, base + flipped)
         if shape == "door" {
             let other = IVec3(p.x, p.y + (st & 8 != 0 ? -1 : 1), p.z)
             let ob = world.block(other.x, other.y, other.z)
-            if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4)) }
+            if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4 ^ h)) }
         }
         audioOpenable(shape: shape, base: base, opening: (flipped & 4) != 0, at: p)
     }
@@ -1610,6 +1634,7 @@ final class Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
         switch k {
+        case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
         case "furnace", "lit_furnace":
             let be = world.entity(p, .furnace)
@@ -2555,8 +2580,11 @@ final class Game {
             TickProf.mark("ash war")
             Reckoning.tick(self, rt)
             GarrisonTown.tick(self, rt)
+            TickProf.mark("reckoning+garrison")
             Trains.tick(self)                       // C1: trains near the player built and taken away
+            TickProf.mark("trains")
             Trains.discover(self)
+            TickProf.mark("rail discover")
             raidTimer = 0
         }
         if !world.pendingMobs.isEmpty {
@@ -2639,6 +2667,8 @@ final class Game {
         world.redstone.detectorCheck(carts)
         for (p, be) in world.blockEntities where be.kind == .brewing {
             if be.brewTime > 0 && be.brewIngredient == 0, !be.container[3].isEmpty { be.brewIngredient = be.container[3].item }
+            let missed = be.missedTicks(time)                  // P127: the time slept through or spent away first
+            if missed > 0 { be.catchUpBrewing(missed) }
             if be.tickBrewing() {
                 sfx(.brew, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 if be.bottleOut { be.bottleOut = false; drops.spawn(ItemStack(Items.id("glass_bottle"), 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1.1, Float(p.z) + 0.5)) }
@@ -2652,6 +2682,13 @@ final class Game {
             if Int(b - base) != m { world.setBlock(p.x, p.y, p.z, base + BlockID(m)) }
         }
         for (p, be) in world.blockEntities where be.kind == .furnace {
+            let missed = be.missedTicks(time)                  // P127: the time slept through or spent away first
+            if missed > 0 && be.catchUpFurnace(missed) > 0 && be.mob.isEmpty {
+                let b = world.block(p.x, p.y, p.z), base = Blocks.groupBase[Int(b)], key = Blocks.key(base)
+                if (key == "furnace" || key == "lit_furnace") && b - base < 4 && (key == "lit_furnace") != (be.burn > 0) {
+                    world.setBlock(p.x, p.y, p.z, Blocks.id(be.burn > 0 ? "lit_furnace" : "furnace") + (b - base))
+                }
+            }
             if be.tickFurnace() && be.mob.isEmpty {
                 // Swap between furnace and lit furnace, keeping the facing.
                 let b = world.block(p.x, p.y, p.z)

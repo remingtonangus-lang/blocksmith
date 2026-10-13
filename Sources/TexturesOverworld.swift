@@ -237,8 +237,20 @@ extension TextureGen {
         p["azalea_side"] = { x, y in y < 8 ? hex(0x6A8A2A, 0.85 + 0.25 * r(x, y, 470)) : ((x == 7 || x == 8) ? hex(0x6A5030) : clear) }
         p["cave_vines"] = { x, y in
             if (x == 7 || x == 8) { return hex(0x4A7A2A, 0.85 + 0.25 * r(x, y, 471)) }
-            if r(x, y, 472) < 0.12 && y % 5 == 3 { return hex(0xF5A83A) }
             if abs(x - 7) < 3 && r(x, y, 473) < 0.3 { return hex(0x5A8A30) }
+            return clear
+        }
+        // P125 lanternvine: a split teal pod with a pale mint light inside, hanging off the strand.
+        p["cave_vines_lit"] = { x, y in
+            for (cx, cy) in [(4, 4), (11, 10)] {
+                let dx = x - cx, dy = y - cy
+                if dy >= -2 && dy <= 3 && abs(dx) <= (dy == -2 || dy == 3 ? 0 : 1) {
+                    return dx == 0 && dy > -2 && dy < 3 ? hex(0xD2FFEA) : hex(0x1F5A55)
+                }
+                if dx == 0 && dy == -3 { return hex(0x3F6E3A) }
+            }
+            if (x == 7 || x == 8) { return hex(0x3F6E3A, 0.85 + 0.25 * r(x, y, 471)) }
+            if abs(x - 7) < 3 && r(x, y, 473) < 0.3 { return hex(0x4E7E3C) }
             return clear
         }
         p["seagrass"] = { x, y in

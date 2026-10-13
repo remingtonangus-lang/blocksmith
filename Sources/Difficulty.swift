@@ -33,8 +33,22 @@ struct MobVary {
     static let plain = MobVary()
     // Off in the headless checks (their fixtures count exact blows and steps); the P55 check turns it on.
     static var on = true
+    // P134 (Oct 12 PM, "make them vary greatly in speed and damage"): a monster is one of three builds. Most are
+    // middling (speed x0.8-1.25, hits x0.7-1.4); one in five is a runner (x1.35-1.7 fast, x0.5-0.8 hits) and one in
+    // five a brute (x0.6-0.8 slow, x1.4-2 hits and tougher), so a pack mixes ones that run you down with ones that hurt.
+    enum Build: Int { case middling, runner, brute }
+    var build = Build.middling
     static func roll(_ m: Mob) -> MobVary {
         guard on, m.kind.hostile, m.kind.category == .monster else { return .plain }
+        let u = Rand.float(in: 0..<1)
+        if u < 0.2 {
+            return MobVary(speed: Rand.float(in: 1.35...1.7), damage: Rand.float(in: 0.5...0.8), tough: Rand.float(in: 0.7...1.0),
+                           aim: Rand.float(in: 0.04...0.14), build: .runner)
+        }
+        if u < 0.4 {
+            return MobVary(speed: Rand.float(in: 0.6...0.8), damage: Rand.float(in: 1.4...2.0), tough: Rand.float(in: 1.2...1.5),
+                           aim: Rand.float(in: 0...0.08), build: .brute)
+        }
         return MobVary(speed: Rand.float(in: 0.8...1.25), damage: Rand.float(in: 0.7...1.4), tough: Rand.float(in: 0.75...1.35),
                        aim: Rand.float(in: 0...0.12))
     }

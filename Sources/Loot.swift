@@ -174,7 +174,8 @@ enum Mining {
         case "creaking_heart": return one("resin_clump", rnd(1, 3))
         case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))
         case "sweet_berry_bush_3": return one("sweet_berries", rnd(2, 3))
-        case "budding_amethyst", "reinforced_deepslate", "cave_vines", "sculk_shrieker": return key == "cave_vines" ? one("glow_berries") : []
+        case "cave_vines": return stage == 1 ? one("glow_berries") : []          // lanternvine: only a podded one (P125)
+        case "budding_amethyst", "reinforced_deepslate", "sculk_shrieker": return []
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
         case "snow": return one("snowball", 1)

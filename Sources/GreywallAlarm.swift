@@ -63,6 +63,42 @@ extension Greywall {
         // (every chunk of the footprint, not just the corners: a middle one not in yet would read as air)
         for cz in floorDiv(site.cz - e, CS)...floorDiv(site.cz + e, CS) { for cx in floorDiv(site.cx - e, CS)...floorDiv(site.cx + e, CS)
             where !world.isLoaded(cx * CS, cz * CS) { return false } }
+        // P124 (Oct 12 PM, "it freezes for about a second"): this ran world.block() for every cell of the base's box (a
+        // big base: ~600,000 lookups, 620 ms in one host tick, well over a second on the headset) the moment a player
+        // came within 160 blocks. Now chunk by chunk through the stored blocks with one table lookup a cell.
+        let kind = scanKinds
+        let y0 = site.S - 8, y1 = site.S + site.tier.wallH + 12
+        world.forEachBlock(around: IVec3(site.cx, (y0 + y1) / 2, site.cz), r: e, ry: (y1 - y0 + 1) / 2) { b, x, y, z in
+            switch kind[Int(b)] {
+            case 0: return
+            case 1: site.lamps.append(IVec3(x, y, z))
+            case 2: site.panels.append(IVec3(x, y, z))
+            case 3: site.consoles.append(IVec3(x, y, z))
+            case 4: site.turrets.append(IVec3(x, y, z))
+            default: site.flags.append(IVec3(x, y, z))
+            }
+        }
+        return true
+    }
+
+    // Per block state: 0 nothing, 1 alarm lamp, 2 alarm panel, 3 console or terminal, 4 wall turret, 5 flag.
+    static let scanKinds: [UInt8] = {
+        var t = [UInt8](repeating: 0, count: Blocks.count)
+        func mark(_ key: String, _ v: UInt8, group: Bool = true) {
+            guard Blocks.has(key) else { return }
+            let id = Blocks.id(key)
+            if !group { t[Int(id)] = v; return }
+            let g = Blocks.groupBase[Int(id)]
+            for i in 0..<Blocks.count where Blocks.groupBase[i] == g { t[i] = v }
+        }
+        mark("alarm_lamp", 1); mark("alarm_lamp_lit", 1); mark("alarm_panel", 2)
+        mark("command_console", 3); mark("greywall_terminal", 3)                      // (P68)
+        mark("wall_turret", 4); mark("wall_turret_damaged", 4)
+        mark("greywall_flag", 5, group: false); mark("taken_flag", 5, group: false)
+        return t
+    }()
+    static func scanOld(_ world: World, _ site: inout GreywallAlarmState.Site) -> Bool {
+        let e = site.tier.half + 2
         let lampOff = Blocks.groupBase[Int(Blocks.id("alarm_lamp"))], lampOn = Blocks.groupBase[Int(Blocks.id("alarm_lamp_lit"))]
         let panel = Blocks.groupBase[Int(Blocks.id("alarm_panel"))]
         let console = Blocks.has("command_console") ? Blocks.groupBase[Int(Blocks.id("command_console"))] : BlockID.max
@@ -105,7 +141,7 @@ extension Game {
         guard let sc = world.gen.structures else { return }
         let players = (0..<max(1, coop.seatCount)).map { coop.seatPlayer($0, self).pos }
         for pp in players {
-            guard let s = sc.nearest(Greywall.kind, x: Int(pp.x), z: Int(pp.z), maxRegions: 1) else { continue }
+            guard let s = sc.nearestIfReady(Greywall.kind, x: Int(pp.x), z: Int(pp.z)) else { continue }       // (P124: never planned here)
             let (cx, cz) = Greywall.centre(s)
             let key = "greywall:\(cx),\(cz)"
             guard st.sites[key] == nil, simd_length(V2(pp.x - Float(cx), pp.z - Float(cz))) < 160 else { continue }

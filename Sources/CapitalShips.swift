@@ -48,6 +48,8 @@ final class CapitalState {
     var region: String?
     var engines0 = 0
     var mainGunCD: Float = 8           // seconds until the spinal gun can fire
+    var missiles = -1                  // small missiles left (P135; -1: not loaded yet)
+    var smallCD: Float = 4             // ... seconds to the next launch from a hull with no pods
     var mainGunMuzzle = V3(0, 0, 0)    // ship space (grid coordinates)
     var mainGunDir = V3(0, 0, -1)
     var mainCharge: Float = 0
@@ -926,6 +928,7 @@ extension ShipManager {
             }
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
+            shipMissiles(s, st, dt, g)
             if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); boardingParty(s, st, dt, g) }
             deployTroops(s, st, dt, g)
         }
@@ -1405,12 +1408,16 @@ extension ShipManager {
             st.mainCharge = 0
         }
         // Missile salvo.
-        if st.driverAlive && st.missileCD <= 0 && !st.pods.isEmpty && boundsDistance(s, t.point) < 320 {
+        // P135: small missiles from a limited load (three salvos' worth), each a small blast.
+        if st.missiles < 0 { st.missiles = st.pods.count * SmallMissiles.podSalvos }
+        if st.driverAlive && st.missileCD <= 0 && !st.pods.isEmpty && st.missiles > 0 && boundsDistance(s, t.point) < 320 {
             st.missileCD = s.isFlyingCapital ? 7 : 10
-            for (k, (p, d)) in st.pods.enumerated() {
+            for (k, (p, d)) in st.pods.enumerated() where st.missiles > 0 {
+                st.missiles -= 1
+                SmallMissiles.launched += 1
                 let at = s.toWorld(p)
                 let dir = s.dirToWorld(d)
-                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: 2.5)
+                let sh = Shell(pos: at + dir, vel: dir * 30 + s.vel, owner: s.id, power: SmallMissiles.power)
                 sh.kind = 2
                 sh.gravity = 0
                 sh.life = 12

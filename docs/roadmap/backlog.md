@@ -150,22 +150,22 @@ P120. [DONE: Capital rounds craft from steel, copper and gunpowder] [17:11, 17:4
 P121. [DONE: rails over air and unattached amethyst are dropped at generation] [17:22, 17:32] Floating pieces: a rail floating in the air; floating amethyst.
 P122. [DONE: blocks place while jumping, lifting the player onto them] [17:22] Allow placing blocks while jumping.
 P123. [DONE: the armour bars show piece icons and an Armour heading] [17:23] He does not know what the four bars on his left are: label them or remove them.
-P124. [17:24] Occasional frame drop with a freeze of about a second: find the hitch.
-P125. [17:25] Glow lights on cave vines (like glow berries), but not a near copy of Minecraft (IP: make it our own).
-P126. [17:30] He fell off an edge while crouching: sneaking must stop at edges.
-P127. [17:49] Sleep was refused when it should be allowed. Sleeping through the night (and time away from a loaded area) should advance furnaces and other timed work by the time passed.
-P128. [17:51] Running through double doors snags in the middle.
-P129. [17:53] He made stairs without meaning to (crafted or placed): find the input that did it.
-P130. [17:54] Shovel digging breaks blocks in uneven bursts: make it smooth and steady.
-P131. [15:06] Home finder: a way to find home (bed or respawn point) when lost, such as a compass needle or map marker.
-P132. [15:13] Railways (with C1): connect the lines into a real network for fast travel; let him lay rails himself; minecarts with an engine that need fuel or power.
-P133. [15:19] Base barrels also hold flavour items useful to a base but useless to the player.
-P134. [17:18, 17:33] Mobs vary a lot in speed and damage; the creeper replacement runs at you, faster.
-P135. [17:26] Small missiles: crawlers, bases and frigates can fire small missiles (not big ones), with a limited supply.
-P136. [17:29, 17:35] Sword damage scales with swing speed and/or how far the blade travelled before the hit; head hits do more.
-P137. [17:51] Repairing a weapon costs more material the more upgrades it has.
-P138. [17:55] Upgrades need a found recipe or blueprint first, found in chests at camps, boats and similar places.
-P139. [15:27-15:29] Progression was unclear underground (which ore breaks the barrier, what to do next) until he worked out the base raid: make the next step clearer.
+P124. [DONE: base ticks planned Greywall/station/citadel starts on the frame thread (520 ms); now planned on a worker] [17:24] Occasional frame drop with a freeze of about a second: find the hitch.
+P125. [DONE: Lanternvine with teal Lumen Pods, picked and regrowing] [17:25] Glow lights on cave vines (like glow berries), but not a near copy of Minecraft (IP: make it our own).
+P126. [DONE: sneaking stops at edges on foot and in room-scale] [17:30] He fell off an edge while crouching: sneaking must stop at edges.
+P127. [DONE: sleep from dusk; furnaces, brewing stands and campfires catch up on missed time] [17:49] Sleep was refused when it should be allowed. Sleeping through the night (and time away from a loaded area) should advance furnaces and other timed work by the time passed.
+P128. [DONE: doors pair their hinges, so double doors open to the sides] [17:51] Running through double doors snags in the middle.
+P129. [DONE: the crafting book ignores the opening click and grip only selects] [17:53] He made stairs without meaning to (crafted or placed): find the input that did it.
+P130. [DONE: shovel digging is steady, with progress kept when you look back] [17:54] Shovel digging breaks blocks in uneven bursts: make it smooth and steady.
+P131. [DONE: a home marker on the map and minimap with distance and direction] [15:06] Home finder: a way to find home (bed or respawn point) when lost, such as a compass needle or map marker.
+P132. [DONE: engine carts on fuel, laying track from a cart, tickets to found stations on other lines, linked mine drifts] [15:13] Railways (with C1): connect the lines into a real network for fast travel; let him lay rails himself; minecarts with an engine that need fuel or power.
+P133. [DONE: ten base sundries in supply chests and now-filled base barrels] [15:19] Base barrels also hold flavour items useful to a base but useless to the player.
+P134. [DONE: monsters roll runner, middling or brute builds; Powderwights run at you] [17:18, 17:33] Mobs vary a lot in speed and damage; the creeper replacement runs at you, faster.
+P135. [DONE: small missiles with limited loads from crawlers, frigates and citadels] [17:26] Small missiles: crawlers, bases and frigates can fire small missiles (not big ones), with a limited supply.
+P136. [DONE: swing damage linear in tip speed, a wind-up bonus, head hits x1.5] [17:29, 17:35] Sword damage scales with swing speed and/or how far the blade travelled before the hit; head hits do more.
+P137. [DONE: a full repair takes 4 units plus one per upgrade level] [17:51] Repairing a weapon costs more material the more upgrades it has.
+P138. [DONE: upgrade lines need a found blueprint; one chest in four holds one] [17:55] Upgrades need a found recipe or blueprint first, found in chests at camps, boats and similar places.
+P139. [DONE: a goal step for the citadel raid; the Wardstone hint marks the nearest citadel] [15:27-15:29] Progression was unclear underground (which ore breaks the barrier, what to do next) until he worked out the base raid: make the next step clearer.
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.

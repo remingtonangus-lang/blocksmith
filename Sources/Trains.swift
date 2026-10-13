@@ -406,6 +406,41 @@ enum Trains {
     }
     static var journeys = 0
 
+    // The network (P132): found stations on other lines, nearest first (twelve at most).
+    static func networkStops(_ g: Game, line l: Railways.Line, from a: Railways.Station) -> [MapCache.Mark] {
+        let own = Set(l.stations.map { "\($0.x),\($0.z)" })
+        let marks = MapCache.shared.marks.filter { m in m.kind == "station" && !own.contains("\(m.x),\(m.z)")
+            && !l.stations.contains(where: { s in abs(s.x - m.x) < 24 && abs(s.z - m.z) < 24 }) }
+        return Array(marks.sorted { crowFlies(a, $0) < crowFlies(a, $1) }.prefix(12))
+    }
+    static func crowFlies(_ a: Railways.Station, _ m: MapCache.Mark) -> Int {
+        let dx = Float(m.x - a.x), dz = Float(m.z - a.z)
+        return Int((dx * dx + dz * dz).squareRoot())
+    }
+    static let changeFare = 300
+    static func networkFare(_ blocks: Int) -> Int { max(100, blocks * fareCentsPerBlock * 5 / 4) + changeFare }
+
+    static func travelNetwork(_ g: Game, from a: Railways.Station, to m: MapCache.Mark) -> (String, Bool) {
+        guard let gen = g.world.gen as? WorldGen,
+              let (l, b) = Railways.station(gen, near: V3(Float(m.x), 64, Float(m.z)), within: 24) else {
+            return ("That line isn't running.", false)
+        }
+        let d = crowFlies(a, m), cost = networkFare(d)
+        guard g.money >= cost || !g.survival else { return ("You need \(Money.format(cost)) for that fare.", false) }
+        if g.survival { g.money -= cost }
+        if g.riding != nil { g.dismount() }
+        let c = l.cells[b.index]
+        g.time += Double(d) * 1.3 / Double(speed * 1.6)            // the trip, with the wait for the connection
+        g.player.pos = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z - 2) + 0.5)
+        g.player.vel = .zero
+        g.player.airPeak = g.player.pos.y
+        g.sfx(.trainWhistle, 0.8)
+        g.closeMenu()
+        Trains.journeys += 1
+        g.onToast?("You change trains and arrive at \(b.name) Station")
+        return ("", true)
+    }
+
     // Finding a station puts the whole line on the map (once a second).
     static func discover(_ g: Game) {
         guard g.dim.dim == .overworld, let gen = g.world.gen as? WorldGen, let (l, _) = Railways.station(gen, near: g.player.pos, within: 40) else { return }
@@ -506,26 +541,44 @@ enum Trains {
 final class TicketMenu: ListMenu {
     let line: Railways.Line
     let from: Railways.Station
+    // P132: the network. Stations you have found on other lines (the map's station marks) are sold too, priced by the
+    // distance as the crow flies plus a change of trains; the trip runs to the far line's station.
+    let network: [MapCache.Mark]
     init(game g: Game, line l: Railways.Line, from st: Railways.Station) {
         line = l; from = st
+        network = Trains.networkStops(g, line: l, from: st)
         super.init(l.name, game: g)
         subtitle = "\(st.name) Station: tickets"
-        say("Pick a station. The trip passes on the train.", good: true)
+        say(network.isEmpty ? "Pick a station. The trip passes on the train."
+                            : "Pick a station. Stations on other lines you have found are sold too, with a change.", good: true)
     }
     var others: [Railways.Station] { line.stations.filter { $0.index != from.index } }
     override var rows: [Row] {
         corner = "Wallet " + Money.format(game.money)
-        return others.map { s in
+        let icon = Items.has("rail") ? ItemStack(Items.id("rail"), 1) : .empty
+        let own = others.map { s -> Row in
             let f = Trains.fare(from, s)
             let km = abs(s.index - from.index)
-            return Row(icon: Items.has("rail") ? ItemStack(Items.id("rail"), 1) : .empty, name: "\(s.name) Station",
+            return Row(icon: icon, name: "\(s.name) Station",
                        detail: "\(km) blocks of track", value: Money.format(f), enabled: !game.survival || game.money >= f)
         }
+        let far = network.map { m -> Row in
+            let d = Trains.crowFlies(from, m), f = Trains.networkFare(d)
+            return Row(icon: icon, name: m.name ?? "Station", detail: "\(d) blocks away, change trains", value: Money.format(f),
+                       enabled: !game.survival || game.money >= f)
+        }
+        return own + far
     }
     override func pressed(_ i: Int) {
         let o = others
-        guard i < o.count else { return }
-        let r = Trains.travel(game, line: line, from: from, to: o[i])
+        if i < o.count {
+            let r = Trains.travel(game, line: line, from: from, to: o[i])
+            if !r.1 { say(r.0, good: false) }
+            return
+        }
+        let j = i - o.count
+        guard j < network.count else { return }
+        let r = Trains.travelNetwork(game, from: from, to: network[j])
         if !r.1 { say(r.0, good: false) }
     }
 }

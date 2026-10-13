@@ -4,7 +4,7 @@ import Foundation
 // StaticString names). The frame loops (Quest perf line, the bench) read the slowest stage of the slowest tick, so a
 // device log names the cause of a hitch instead of just "tick 60 ms".
 enum TickProf {
-    static let cap = 96
+    static let cap = 160
     private(set) static var names = [StaticString](repeating: "", count: cap)
     private(set) static var times = [Double](repeating: 0, count: cap)
     private(set) static var count = 0

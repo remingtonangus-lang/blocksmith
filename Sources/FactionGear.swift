@@ -88,6 +88,8 @@ extension Game {
         if skySkiffUse() { return true }               // A4 (SkySkiff.swift)
         if grappleUse() { return true }                // C7 (SkyIsle.swift)
         if submarineUse() { return true }              // C8 (Submarines.swift)
+        if sundryUse() { return true }                 // P133 (BaseSundries.swift)
+        if blueprintUse() { return true }              // P138 (Blueprints.swift)
         let k = Items.key(held.item)
         if k == "radar_set" {
             let cs = radarContacts()

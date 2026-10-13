@@ -188,6 +188,7 @@ final class ItemRegistry {
         item("hopper_minecart", "Minecart with Hopper", "minecart", 0x8A8A90, ["c": 0x3A3A3A], stack: 1)
         item("tnt_minecart", "Minecart with TNT", "minecart", 0x8A8A90, ["c": 0xC83A2A], stack: 1)
         item("furnace_minecart", "Minecart with Furnace", "minecart", 0x8A8A90, ["c": 0x6A6A6A], stack: 1)
+        item("engine_cart", "Engine Cart", "minecart", 0x8A8A90, ["c": 0xC8743A], stack: 1)
         for (i, w) in Boats.woods.enumerated() {
             let raft = w.0 == "bamboo"
             item(Boats.itemKey(i, chest: false), raft ? "Bamboo Raft" : "\(w.1) Boat", "boat", w.2, stack: 1, fuel: 1200)
@@ -326,7 +327,7 @@ final class ItemRegistry {
         food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
         food("dried_kelp", "Dried Kelp", "kelp", 0x3A4A2A, 1, 0.6)
-        food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
+        food("glow_berries", "Lumen Pods", "berries", 0x9EF0D0, 2, 0.4, ["a": 0x1F5A55])
         food("chorus_fruit", "Spiral Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
         food("enchanted_golden_apple", "Radiant Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
@@ -432,6 +433,8 @@ final class ItemRegistry {
         item("radar_module", "Radar Module", "module", 0x2F6A3E, ["c": 0xD8C66A, "d": 0x16181A])
         item("radar_set", "Radar Set", "radar", 0x6A7078, ["c": 0x58E07A, "d": 0x0C1A10], stack: 1)
         item("intercepted_orders", "Intercepted Orders", "orders", 0xE8E0C8, ["c": 0xA02A20, "d": 0x3A3A3A], stack: 16)
+        item("upgrade_blueprint", "Blueprint", "paper", 0x3A6AB8, [:], stack: 16)                 // P138 (Blueprints.swift)
+        for s in BaseSundries.all { item(s.key, s.name, s.mask, s.color, s.extras, stack: s.key == "spent_casings" ? 64 : 16) }   // P133
         // The gap pass (HorseLife.swift): brings a downed horse of yours back to its feet. Sold by stables and doctors.
         item("saddle_salve", "Saddle Salve", "bottle", 0xD0DCF0, ["c": 0xD8542A], stack: 16)
         // Durability / combat numbers for the weapon items above.

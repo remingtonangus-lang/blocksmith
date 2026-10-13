@@ -414,7 +414,7 @@ enum Greywall {
                     put(dx, 1, tz, steelSlabTop)
                     if tz + 1 <= r.z1 { put(dx, 1, tz + 1, slab) }
                 }
-                put(r.x0, 1, r.z1, barrel)
+                w.sundryBarrel(cx + r.x0, S + 1, cz + r.z1, seed: seed)                   // P133
                 w.chest(cx + r.x0, S + 1, cz + r.z0, loot: "greywall_supply", seed: rng.next(), facing: 3)
             case "comms":
                 // The map table in the middle, consoles and data cabinets on the back wall, the command chest.
@@ -511,12 +511,12 @@ enum Greywall {
                 for y in 1...4 { put(dx, y, dz, post ? steel : AIR) }
                 put(dx, 5, dz, (dx + dz) % 4 == 0 ? panel : grate)
             } }
-            for dz in stride(from: -5, through: 5, by: 5) { put(x1, 1, dz, crate); put(x1, 2, dz, crate); put(x1 - 1, 1, dz, barrel) }
+            for dz in stride(from: -5, through: 5, by: 5) { put(x1, 1, dz, crate); put(x1, 2, dz, crate); w.sundryBarrel(cx + x1 - 1, S + 1, cz + dz, seed: seed) }
         }
         for (sx, sz) in [(-1, -1), (1, 1)] {
             let x = sx * (H - 4), z = sz * (H - 5)
             if t.towers.contains(where: { $0.0 == sx && $0.1 == sz }) { continue }
-            put(x, 1, z, crate); put(x + sx, 1, z, barrel); put(x, 2, z, crate)
+            put(x, 1, z, crate); w.sundryBarrel(cx + x + sx, S + 1, cz + z, seed: seed); put(x, 2, z, crate)
         }
         for k in [-(H / 2), H / 2] { put(k, 1, H - 3, steel); put(k, 2, H - 3, steel); put(k, 3, H - 3, panel) }
 

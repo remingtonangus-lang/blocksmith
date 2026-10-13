@@ -154,10 +154,15 @@ extension BlockRegistry {
         azalea.render = .model; azalea.layer = .cutout; azalea.opaque = false; azalea.hardness = 0; azalea.sound = .plant
         azalea.boxes = [Box(0, 8, 0, 16, 16, 16), Box(7, 0, 7, 9, 8, 9)]; azalea.skyStop = false
         add(azalea)
-        var berries = BlockDef("cave_vines", "Cave Vines")
-        berries.tex = ["cave_vines"]; berries.render = .cross; berries.layer = .cutout; berries.opaque = false; berries.collide = false
-        berries.hardness = 0; berries.sound = .plant; berries.emit = 14; berries.skyStop = false
-        add(berries)
+        // Lanternvine (key cave_vines; P125, Oct 12 PM: lights on the vines, made our own). Plain strands give no light;
+        // the podded state carries split seed pods that glow a pale mint (emit 12) and can be picked (Lumen Pods).
+        for podded in [false, true] {
+            var v = BlockDef(podded ? "cave_vines[1]" : "cave_vines", "Lanternvine")
+            v.tex = [podded ? "cave_vines_lit" : "cave_vines"]; v.render = .cross; v.layer = .cutout; v.opaque = false; v.collide = false
+            v.hardness = 0; v.sound = .plant; v.emit = podded ? 12 : 0; v.skyStop = false; v.randomTicks = !podded
+            v.group = "cave_vines"; v.hidden = podded
+            add(v)
+        }
 
         // Water plants (they count as water for swimming and flow).
         plant("seagrass", "Seagrass", water: true)
