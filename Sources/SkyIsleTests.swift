@@ -48,6 +48,11 @@ enum SkyIsleTests {
         // A real isle's chunk: the one holding its shrine chest (one up from the floor, 3 behind the anchor), generated
         // through the world's own path.
         guard let (world, s, _, _, _) = first, let wg = world.gen as? WorldGen else { check(false, "skyisle build: no isle to build"); return }
+        // T11: a frigate based 300 blocks off finds the isle for its patrol circle, its turf top as cruise ground.
+        let found = SkyIsle.near(wg, x: Float(s.anchor.x + 300), z: Float(s.anchor.z), range: 700)
+        let mine = found.first { simd_length($0.c - V2(Float(s.anchor.x) + 0.5, Float(s.anchor.z - 3) + 0.5)) < 1 }
+        check(mine.map { abs($0.top - Float(s.anchor.y + 1)) < 0.5 && $0.r > 10 } ?? false,
+              "skyisle patrol: a frigate based 300 blocks off finds the isle to circle (\(found.count) found, top \(mine.map { Int($0.top) } ?? -1), radius \(mine.map { Int($0.r) } ?? -1))")
         let ch = IVec3(s.anchor.x, s.anchor.y + 1, s.anchor.z - 3)
         let cx = floorDiv(ch.x, CS), cz = floorDiv(ch.z, CS)
         var blocks = wg.generate(cx: cx, cz: cz)

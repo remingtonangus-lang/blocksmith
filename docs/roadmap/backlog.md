@@ -405,7 +405,7 @@ T10. [DROPPED by Remington, Oct 13 08:10: no time on making test bots or automat
     b. shots: `towntests` line 69 newly gated on #51's run; the Linux towns slice is green on the same code.
     The Blight fight (T3a) stays red as on claude/quest-port.
 
-T11. [C7 leftover, sky isles] The Capital's airships keep their own routes: a frigate patrol that circles a sky isle at
+T11. [DONE Oct 13: a frigate with a sky isle within 700 blocks of its home circles the isle instead of home, and every frigate counts an isle under or ahead of it as ground for its cruise clearance; the structcheck pass skipped as a test part] [C7 leftover, sky isles] The Capital's airships keep their own routes: a frigate patrol that circles a sky isle at
 cruise clearance, and a structcheck pass that walks an isle's top (the shrine floor and the turf rim).
 
 T12. [C2 leftover, the war map] Battles you can join: soldiers of both countries meeting on the front line near you
