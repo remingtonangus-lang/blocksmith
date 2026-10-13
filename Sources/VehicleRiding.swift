@@ -23,6 +23,22 @@ extension ShipManager {
         return AIR
     }
 
+    // Something of the ship below the footprint within `depth` cells (a body in the air over the hull, not beside it).
+    // T3 ridecheck: a troop hopping off the crawler's ramp foot kept the hull's frame while it fell, where the world's
+    // ground is only sampled a cell at a time (half a block off the hull's grid), and landed 0.38 into the ground.
+    func overHull(_ s: Ship, _ l: V3, halfW: Float, depth: Int = 3) -> Bool {
+        let y0 = Int(floor(l.y - 0.08))
+        let r = halfW * 0.95
+        for (dx, dz) in [(Float(0), Float(0)), (-r, -r), (r, -r), (-r, r), (r, r)] {
+            let x = Int(floor(l.x + dx)), z = Int(floor(l.z + dz))
+            for y in stride(from: y0, through: y0 - depth, by: -1) {
+                let b = shipCell(s, x, y, z)
+                if b != AIR && Blocks.collide[Int(b)] { return true }
+            }
+        }
+        return false
+    }
+
     // Feet at l (ship space) rest on the ship: a collidable ship block under a corner or the middle of the footprint.
     func holdsRider(_ s: Ship, _ l: V3, halfW: Float) -> Bool {
         let y = Int(floor(l.y - 0.08))

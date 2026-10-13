@@ -97,8 +97,11 @@ extension ShipManager {
             // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
             // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
             for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
+                // (In the air it stays aboard only over the hull or at one of its ladders: off the ramp's foot it
+                // falls in the world, onto the world's exact ground.)
                 if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
-                   !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)) {
+                   !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)),
+                   m.onGround || overHull(d, d.toLocal(m.pos), halfW: m.halfW) || atShipLadder(d, d.toLocal(m.pos), halfW: m.halfW) {
                     mobRiders.append((m, d))
                 } else if let s = boardShip(for: m) {
                     if m.deck !== s {
@@ -183,11 +186,7 @@ extension ShipManager {
             // up to free space, as Mob.update does for a rider that starts its step inside a block.
             var l = s.toLocal(m.pos)
             world.frame = s
-            if m.collides(l, world) {
-                var up: Float = 0.1
-                while up <= 1.01 && m.collides(l + V3(0, up, 0), world) { up += 0.1 }
-                if up <= 1.01 { l.y += up; m.pos = s.toWorld(l) }
-            }
+            if m.collides(l, world), let f = m.freeSpot(l, world) { l = f; m.pos = s.toWorld(l) }
             world.frame = nil
         }
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {

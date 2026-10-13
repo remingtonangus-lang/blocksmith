@@ -604,6 +604,35 @@ enum RideCheck {
                             let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
                             firstInside = String(format: "t %.1f s: %.2f,%.2f,%.2f ship space (block %@ there, %@ under), route %ld left, ramp %@", t, l.x, l.y, l.z,
                                                  Blocks.key(s.grid.get(c.x, c.y, c.z)), Blocks.key(s.grid.get(c.x, c.y - 1, c.z)), m.crewRoute.count, st.rampDown ? "down" : "up")
+                            // What the body overlaps (the cell under it is only part of the story).
+                            var near: [String] = []
+                            w.frame = s
+                            for y in c.y...(c.y + 2) { for z in (c.z - 1)...(c.z + 1) { for x in (c.x - 1)...(c.x + 1) {
+                                let b = w.block(x, y, z)
+                                if b != AIR && Blocks.collide[Int(b)] && w.collides(V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y + 1), Float(z + 1)))
+                                    && m.collides(l + V3(0, 0.05, 0), w) {
+                                    for bx in Blocks.collBoxes[Int(b)] {
+                                        let lo = V3(Float(x) + Float(bx.x0) / 16, Float(y) + Float(bx.y0) / 16, Float(z) + Float(bx.z0) / 16)
+                                        let hi = V3(Float(x) + Float(bx.x1) / 16, Float(y) + Float(bx.y1) / 16, Float(z) + Float(bx.z1) / 16)
+                                        let ml = l + V3(-m.halfW, 0.05, -m.halfW), mh = l + V3(m.halfW, 0.05 + m.height, m.halfW)
+                                        if ml.x < hi.x && mh.x > lo.x && ml.y < hi.y && mh.y > lo.y && ml.z < hi.z && mh.z > lo.z { near.append("\(Blocks.key(b)) at \(x),\(y),\(z)") }
+                                    }
+                                }
+                            } } }
+                            w.frame = nil
+                            if near.isEmpty {
+                                w.frame = s
+                                let ml = l + V3(-m.halfW, 0.05, -m.halfW), mh = l + V3(m.halfW, 0.05 + m.height, m.halfW)
+                                for y in Int(floor(ml.y))...Int(floor(mh.y)) { for z in Int(floor(ml.z))...Int(floor(mh.z)) { for x in Int(floor(ml.x))...Int(floor(mh.x)) {
+                                    var bs: [(V3, V3)] = []
+                                    w.collisionBoxes(x, y, z, &bs)
+                                    for (a, b) in bs where a.x < mh.x && b.x > ml.x && a.y < mh.y && b.y > ml.y && a.z < mh.z && b.z > ml.z {
+                                        near.append("\(Blocks.key(w.block(x, y, z))) at \(x),\(y),\(z) box \(a)-\(b)")
+                                    }
+                                } } }
+                                w.frame = nil
+                            }
+                            firstInside += "; overlaps " + (near.isEmpty ? "nothing in the grid (world or turret)" : near.joined(separator: ", ")) + String(format: " (halfW %.2f, height %.2f)", m.halfW, m.height)
                         }
                     }
                     w.frame = nil

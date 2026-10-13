@@ -1156,9 +1156,7 @@ final class Mob {
             if collides(l, w) {
                 // Carried into a block (the hull settling onto a rider at the ramp's foot, ground beside it): step up
                 // to the first free height within a block, as a walker would, instead of being shoved out sideways.
-                var up: Float = 0.1
-                while up <= 1.01 && collides(l + V3(0, up, 0), w) { up += 0.1 }
-                if up <= 1.01 { l.y += up; pos = s.toWorld(l) }
+                if let f = freeSpot(l, w) { l = f; pos = s.toWorld(l) }
             }
             // A length test, not `!= 0`: a crew member's velocity decays geometrically into subnormal floats at its post,
             // and normalizing those gave NaN, which trapped in the collision test (Int(floor(NaN)); level frigate decks).
@@ -1166,7 +1164,12 @@ final class Mob {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
                 let h = simd_normalize(V2(lv.x, lv.z))
                 let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
-                if !w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+                // Off the hull's edge onto the world's ground is a ledge too for crew at their posts or fighting from
+                // aboard (T3 ridecheck: with the port wheels shot away a marksman stepped down off the deck onto the
+                // ground); only troops on their way out by the ramp step down onto the ground.
+                let floorBelow = crewRoute.isEmpty ? w.ships.overHull(s, a + V3(0, 0.05, 0), halfW: 0.2)
+                    : w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2))
+                if !floorBelow { lv.x = 0; lv.z = 0 }
             }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil
@@ -1252,6 +1255,19 @@ final class Mob {
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         strafe = simd_dot(dir, right) * sp
         return simd_dot(dir, forward) * sp
+    }
+
+    // The nearest free spot for a body carried into a block: up to a block up (a walker's step), else a nudge of up
+    // to a fifth of a block sideways (T3 ridecheck: a crawler's sway pressed a troop 0.01 into the corner of an engine
+    // block three high at the bay's turn, where no step up frees it). nil: nothing near is free.
+    func freeSpot(_ l: V3, _ w: World) -> V3? {
+        var up: Float = 0.1
+        while up <= 1.01 { if !collides(l + V3(0, up, 0), w) { return l + V3(0, up, 0) }; up += 0.1 }
+        for d: Float in [0.02, 0.05, 0.1, 0.2] {
+            for o in [V3(d, 0, 0), V3(-d, 0, 0), V3(0, 0, d), V3(0, 0, -d), V3(d, 0, d), V3(-d, 0, d), V3(d, 0, -d), V3(-d, 0, -d)]
+            where !collides(l + o, w) { return l + o }
+        }
+        return nil
     }
 
     func collides(_ p: V3, _ w: World) -> Bool {

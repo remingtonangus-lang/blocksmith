@@ -17,7 +17,6 @@ ShipTest.swift
 Smoke.swift
 CustomMusic.swift
 MobRenderCheck.swift
-RideCheck.swift
 QuestBugTests.swift
 StructScan.swift
 VoiceNoteTests.swift
