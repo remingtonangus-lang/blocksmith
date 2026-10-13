@@ -418,6 +418,44 @@ enum Mesher {
             return best
         }
 
+        // Water depth at a top corner in the AO bits (mean depth of the up-to-4 columns sharing it; see the liquid faces).
+        func depthAO(_ cx: Int, _ y: Int, _ cz: Int) -> Int {
+            var sum = 0
+            for dz in -1...0 {
+                for dx in -1...0 {
+                    var k = 0
+                    while k < 9 && fkT[Int(at(cx + dx, y - k, cz + dz))] == 1 { k += 1 }
+                    sum += k
+                }
+            }
+            return sum <= 3 ? 3 : (sum < 8 ? 2 : (sum < 20 ? 1 : 0))
+        }
+        // P175 (polygon worlds): the water plane carries on over natural ground beside a water surface, under the ground's
+        // smooth surface, so the waterline is wherever the ground crosses the water level (a curve), not a block outline.
+        func shoreWater(_ i: Int, _ ly: Int) {
+            if fkT[Int(R[i + RL])] == 1 { return }
+            var src = -1
+            for o in [1, -1, RW, -RW, 1 + RW, 1 - RW, -1 + RW, -1 - RW] {
+                let j = i + o
+                if fkT[Int(R[j])] == 1 && fkT[Int(R[j + RL])] != 1 { src = j; break }
+            }
+            guard src >= 0 else { return }
+            let x = i % RW, z = (i / RW) % RW, y = ly + C0
+            let lx = x - C0, lz = z - C0
+            let l = max(0, light(src % RW, y, (src / RW) % RW))
+            let layer = Int(texT[Int(R[src]) * 6 + 2])
+            for k in 0..<4 {
+                let ci = (2 * 4 + k) * 3
+                let px = CT[ci] * 16, pz = CT[ci + 2] * 16
+                var d = cornerDrop(x + CT[ci], y, z + CT[ci + 2], 1)
+                if d == 7 { d = 1 }
+                let py = 16 - 2 * d
+                let (u, v) = faceUV(2, px, py, pz)
+                vert(true, lx * 16 + px, ly * 16 + py, lz * 16 + pz, 2, 3, u, v, layer,
+                     Mesher.waterDepthAO ? depthAO(x + CT[ci], y, z + CT[ci + 2]) : 3, l, false)
+            }
+        }
+
         let lit = sc.lit, aos = sc.aos
         lit.initialize(repeating: 0, count: 4)
         aos.initialize(repeating: 3, count: 4)
@@ -434,6 +472,15 @@ enum Mesher {
             dmg[rx + rz * RW + ry * RL] = v
         }
         let anyDmg = !dmg.isEmpty
+        // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
+        sc.smValid = false
+        if smooth {
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                curCut = false
+                // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
+                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+            }
+        }
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -444,7 +491,10 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
-                    if smooth && natT[bi] { continue }                  // (chipped too: it shrinks in the smooth surface, P106)
+                    if smooth && natT[bi] {                             // (chipped too: it shrinks in the smooth surface, P106)
+                        if smoothWater { shoreWater(i, ly) }
+                        continue
+                    }
                     if leafBlob && leafT[bi] { continue }               // (T17: the leaf blobs below)
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
@@ -513,6 +563,16 @@ enum Mesher {
                     if far && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                        // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
+                        // block top it was rounded from (grass floated over every dip).
+                        var dy16 = 0
+                        if sc.smValid {
+                            var g = ly - 1, j = i - RL
+                            while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
+                            if natT[Int(R[j])], let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
+                                dy16 = max(-by16, max(-12, min(12, Int(((top - Float(g + 1)) * 16).rounded()))))
+                            }
+                        }
                         let layer = Int(texT[bi * 6 + 2])
                         let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                         let sway = swayOn && swayT[bi]
@@ -532,7 +592,7 @@ enum Mesher {
                         for q in 0..<4 {
                             for k in 0..<4 {
                                 let ci = (q * 4 + k) * 3
-                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                                vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + dy16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
                                      6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway)
                             }
                         }
@@ -687,6 +747,8 @@ enum Mesher {
                         if opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
+                            // P175: no water walls against natural ground (the shore plane above carries the water on).
+                            if smoothWater && fk == 1 && NT[f * 3 + 1] == 0 && natT[Int(nb)] { continue }
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
                             // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
                             // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).
@@ -805,11 +867,6 @@ enum Mesher {
             }
         }
         if smooth {
-            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy, leafHoles: leafBlob) { x16, y16, z16, f, tint, layer, ao, l, ncode in
-                curCut = false
-                // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
-                vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
-            }
             if leafBlob {
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = true
@@ -974,6 +1031,7 @@ final class MeshScratch {
     let smF = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
     let smM = UnsafeMutablePointer<Int32>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)   // vertex material
     lazy var field = SmoothField()
+    var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()

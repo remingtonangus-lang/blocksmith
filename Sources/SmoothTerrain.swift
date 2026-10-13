@@ -114,6 +114,22 @@ enum SmoothTerrain {
 }
 
 extension Mesher {
+    // P175: the drawn ground height (section-local blocks) over the top of block (x, gy, z) (section-local), the mean of
+    // the smooth surface vertices at its 4 top corners as the last ground pass left them in `sc`; nil if none.
+    static func smoothGroundTop(_ sc: MeshScratch, _ x: Int, _ gy: Int, _ z: Int) -> Float? {
+        let KO = SmoothTerrain.maxRelax, K = 17 + 2 * KO, KK = K * K
+        let cy = gy + KO
+        guard cy >= 0 && cy < K else { return nil }
+        var sum: Float = 0, n: Float = 0
+        for dz in -1...0 { for dx in -1...0 {
+            let cx = x + dx + KO, cz = z + dz + KO
+            guard cx >= 0 && cx < K && cz >= 0 && cz < K else { continue }
+            let vi = cx + cz * K + cy * KK
+            if sc.smL[vi] >= 0 { sum += sc.smV[vi * 3 + 1]; n += 1 }
+        } }
+        return n > 0 ? sum / n : nil
+    }
+
     // Does the +x / +z / +y boundary row of an all-air section's 17^3 block range hold natural ground? Then the
     // section still owns smooth quads there.
     static func smoothEdgeNatural(_ srcs: [[BlockID]], sy: Int, leaves: Bool = false) -> Bool {
@@ -375,6 +391,7 @@ extension Mesher {
                 if VL[vi] >= 0 { hook(kx - KO, ky - KO, kz - KO, SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])) }
             } } }
         }
+        if !leaves { sc.smValid = true }
         // Quads: block p and its +axis neighbour q, one solid (natural) and one open.
         var corner = [Int](repeating: 0, count: 4)
         var pts = [SIMD3<Float>](repeating: .zero, count: 4)
