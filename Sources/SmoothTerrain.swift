@@ -90,6 +90,9 @@ enum SmoothTerrain {
     // the blocks as round 2 did (side by side shots).
     static var fromField = ProcessInfo.processInfo.environment["BLOCKSMITH_FIELD"] != "0"
     static let relaxRate: Float = 0.8
+    // T17: in field worlds leaf canopies mesh as rounded blobs (Mesher.smoothQuads leaves pass) instead of leaf cubes;
+    // BLOCKSMITH_LEAFBLOB=0 keeps the cubes (side by side shots).
+    static var leafBlobs = ProcessInfo.processInfo.environment["BLOCKSMITH_LEAFBLOB"] != "0"
     static var vertexHook: ((Int, Int, Int, SIMD3<Float>) -> Void)?   // tests: every owned dual vertex after relaxing
     static func normalCode(_ n: SIMD3<Float>, face f: Int) -> Int {
         let a = f / 2, sgn: Float = f & 1 == 0 ? 1 : -1
@@ -113,8 +116,8 @@ enum SmoothTerrain {
 extension Mesher {
     // Does the +x / +z / +y boundary row of an all-air section's 17^3 block range hold natural ground? Then the
     // section still owns smooth quads there.
-    static func smoothEdgeNatural(_ srcs: [[BlockID]], sy: Int) -> Bool {
-        let nat = SmoothTerrain.natural
+    static func smoothEdgeNatural(_ srcs: [[BlockID]], sy: Int, leaves: Bool = false) -> Bool {
+        let nat = SmoothTerrain.natural, leafT = Mesher.leafT
         for ly in 0...16 {
             let wy = sy * 16 + ly
             if wy >= CH { break }
@@ -122,7 +125,7 @@ extension Mesher {
                 for lx in 0...16 where lx == 16 || lz == 16 || ly == 16 {
                     let src = srcs[(lx == 16 ? 2 : 1) + (lz == 16 ? 2 : 1) * 3]
                     let si = (lx & 15) + (lz & 15) * CS + wy * CSQ
-                    if si < src.count && nat[Int(src[si])] { return true }
+                    if si < src.count && (nat[Int(src[si])] || leaves && leafT[Int(src[si])]) { return true }
                 }
             }
         }
@@ -132,9 +135,14 @@ extension Mesher {
     // Smooth quads for the section whose local 0 is region (C0, C0, C0). `emit` takes position (1/16 block,
     // section-local), face, tint, layer, ao, packed light, overlay.
     // `site` (P142): the section's chunk in a world whose generator has fields; nil meshes round the blocks (round 2).
+    // `leaves` (T17): mesh the leaf blocks instead, as rounded blobs (round-2 rounding, no pins), each quad twice: the
+    // outer shell and a darker one 0.45 block inside it, so the leaf texture's holes show leaves behind, not the sky.
+    // `leafHoles`: the ground pass treats leaves as open (their blobs mesh apart and the ground under a bush shows).
     static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil, sy: Int = 0,
+                            leaves: Bool = false, leafHoles: Bool = false,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
-        let nat = SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
+        let leafT = Mesher.leafT
+        let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
         let skyL = sc.sky, blkL = sc.blk
         func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
@@ -150,7 +158,8 @@ extension Mesher {
         let N = 20 + 2 * KO, NN = N * N, SO = KO + 1
         let S = sc.smS
         for y in 0..<N { for z in 0..<N { for x in 0..<N {
-            S[x + z * N + y * NN] = opaqueT[Int(R[ri(x - SO, y - SO, z - SO)])] ? 1 : 0
+            let b = Int(R[ri(x - SO, y - SO, z - SO)])
+            S[x + z * N + y * NN] = (leaves ? leafT[b] : opaqueT[b] && !(leafHoles && leafT[b])) ? 1 : 0
         } } }
         // P142: the generator's fields over the same box (SmoothField). A sample is "on field" when its block is what the
         // fields alone make there (and not being dug); only edges between two on-field samples take the field's crossing.
@@ -243,7 +252,7 @@ extension Mesher {
                 }
             }
             var pinned = false
-            for c in 0..<8 where pinT[Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])] { pinned = true; break }
+            for c in 0..<8 where !leaves && pinT[Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])] { pinned = true; break }
             let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
                 : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
@@ -447,6 +456,18 @@ extension Mesher {
                     }
                     emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, v >> 8, v & 255,
                          SmoothTerrain.normalCode(vn, face: f))
+                }
+                if leaves {
+                    for k in 0..<4 {
+                        let cc = flip ? (k + 1) & 3 : k
+                        let v = Int(VL[corner[cc]])
+                        let vi = corner[cc]
+                        var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
+                        vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
+                        let pt = simd_clamp((pts[cc] - vn * 0.45) * 16, SIMD3<Float>(repeating: 0), SIMD3<Float>(repeating: 511))
+                        emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, max(0, (v >> 8) - 2), v & 255,
+                             SmoothTerrain.normalCode(vn, face: f))
+                    }
                 }
             }
         } } }

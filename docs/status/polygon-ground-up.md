@@ -31,6 +31,15 @@ generator's own fields; other dimensions keep the round-2 smoothing.
 - `BLOCKSMITH_FIELD=0` meshes the round-2 way (side by side). Headless views: `questcheck --view OUT.png --smooth
   --find BIOME --up N --cave --dig N --dig-eye DX,DY,DZ --meshbench`.
 
+## Round 4: view height and trees
+- The eye follows the drawn ground under the feet (ViewStep: World.smoothGroundOffset springs viewDY toward the field's
+  crossing round the feet, +-0.6), so walking a smooth slope no longer bobs up a block step at a time.
+- Tree canopies (T17): in field worlds leaf blocks mesh as rounded blobs (a second smoothQuads pass over the leaves,
+  round-2 rounding, no pins, cutout buffer) instead of leaf cubes. Each quad is drawn twice, the outer shell and a darker
+  one 0.45 block inside, so the leaf texture's holes show leaves behind, not sky. The ground pass treats leaves as open,
+  so the ground under a bush shows; logs and built blocks keep their faces against a blob. Trunks stay square (look
+  work on trees is the Mac lane's). Leaves are still blocks: breaking, decay, shears and collision unchanged.
+  `BLOCKSMITH_LEAFBLOB=0` keeps leaf cubes. Cost: a forest's meshing about 14% more than field without blobs (debug).
+
 ## Next
-Smooth trees and water (T17), a
-slope-following foot height, mesh cost on the device, then Smooth as the Quest default once Remington likes it.
+Smooth water (T17), mob feet on slopes, mesh cost on the device, then Smooth as the Quest default once Remington likes it.
