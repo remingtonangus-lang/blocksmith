@@ -182,6 +182,7 @@ enum TownBoard {
 
     // Hunts and outlaws: kills by the player (Honour.mobDied).
     static func mobDied(_ g: Game, _ m: Mob) {
+        Contracts.mobDied(g, m)                          // C11: camp bandits
         guard var all = TownLaw.state.jobs else { return }
         var changed = false
         for (k, var j) in all where j.taken && !j.done {
@@ -274,7 +275,7 @@ enum TownBoard {
 final class NoticeBoardMenu: ListMenu {
     let town: String
     let anchor: IVec3
-    enum Item { case poster(String, Int), job(Int), donate, emeralds, name, log(Int) }
+    enum Item { case poster(String, Int), job(Int), contract(Int), donate, emeralds, name, log(Int) }
     var items: [Item] = []
 
     init(game: Game, town: String, anchor: IVec3) {
@@ -294,6 +295,7 @@ final class NoticeBoardMenu: ListMenu {
         for (t, c) in (TownLaw.state.bounty ?? [:]).sorted(by: { $0.key < $1.key }) where c > 0 { items.append(.poster(t, c)) }
         if Honour.isOutlaw && g.survival { items.append(.poster("", 0)) }
         for i in 0..<2 { items.append(.job(i)) }
+        for i in 0..<Contracts.slots { items.append(.contract(i)) }      // C11
         items.append(.donate)
         items.append(.emeralds)
         items.append(.name)
@@ -302,6 +304,7 @@ final class NoticeBoardMenu: ListMenu {
 
     override var rows: [Row] {
         let jobs = TownBoard.jobs(g, town, anchor: anchor)
+        let contracts = Contracts.contracts(g, board: town, at: anchor)
         let log = Honour.log
         return items.map { it in
             switch it {
@@ -314,6 +317,11 @@ final class NoticeBoardMenu: ListMenu {
                 let icon = j.kind == "deliver" ? (Items.has(j.item ?? "") ? ItemStack(Items.id(j.item!), 1) : .empty)
                     : ItemStack(Items.id(j.kind == "hunt" ? "iron_sword" : Guns.revolverKey), 1)
                 return Row(icon: icon, name: name, detail: detail, value: Money.format(j.pay), enabled: !j.paid)
+            case .contract(let i):
+                let c = contracts[i]
+                let (name, detail) = Contracts.describe(g, c)
+                let icon = Items.has(c.kind == "courier" ? "paper" : "iron_sword") ? ItemStack(Items.id(c.kind == "courier" ? "paper" : "iron_sword"), 1) : .empty
+                return Row(icon: icon, name: name, detail: detail, value: Money.format(c.pay), enabled: !c.paid && !c.failed)
             case .donate:
                 let left = Honour.capLeft(g, "donation")
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "Donate to the town fund",
@@ -337,6 +345,9 @@ final class NoticeBoardMenu: ListMenu {
         switch items[index] {
         case .job(let i):
             let r = TownBoard.use(g, town, i, anchor: anchor)
+            say(r.0, good: r.1)
+        case .contract(let i):
+            let r = Contracts.use(g, board: town, at: anchor, i)
             say(r.0, good: r.1)
         case .donate:
             guard g.money >= TownBoard.donation else { say("You can't spare it.", good: false); return }

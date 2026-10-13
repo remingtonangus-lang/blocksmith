@@ -55,6 +55,7 @@ enum TownLaw {
         var raidDay: [String: Int]? = nil
         // TownConquest: the towns you took (town -> [anchor x, anchor z, day taken, day tribute last paid]).
         var owned: [String: [Int]]? = nil
+        var contracts: [String: Contract]? = nil    // C11: contracts on the boards (Contracts.swift)
         var nation: Nation.Saved? = nil             // C3: your nation (Nation.swift)
         var stabled: [StabledHorse]? = nil          // horses kept in town stables (HorseStable.swift)
         var horseSold: [String: Int]? = nil         // town -> the day its stable last bought a horse from you
@@ -403,6 +404,7 @@ enum TownLaw {
         // Which town the player is in.
         guard g.dim.dim == .overworld, g.alive else { inTown = nil; return }
         TownBoard.tick(g)
+        Contracts.tick(g)                                // C11
         BountyHunters.tick(g)
         TownRaids.tick(g)                                  // night raids (TownRaids.swift)
         var nearest: Mob?
