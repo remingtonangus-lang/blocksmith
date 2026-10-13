@@ -307,6 +307,11 @@ if CommandLine.arguments.contains("--companions-only") {
     CompanionTests.run(game, check: check)
     print(failures == 0 ? "companions: all checks passed" : "companions: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --factionrep-only: faction reputation (Sources/FactionRepTests.swift, backlog O3).
+if CommandLine.arguments.contains("--factionrep-only") {
+    FactionRepTests.run(game, check: check)
+    print(failures == 0 ? "factionrep: all checks passed" : "factionrep: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --radio-only: radio spoofing at a base's console (Sources/RadioTests.swift, backlog C6).
 if CommandLine.arguments.contains("--radio-only") {
     RadioTests.run(game: game, check: check)

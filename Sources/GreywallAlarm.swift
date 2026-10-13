@@ -423,6 +423,7 @@ extension Game {
     func greywallTake(_ site: inout GreywallAlarmState.Site, _ key: String) {
         let st = greywallAlarm
         st.taken.insert(key)
+        changeRep(.greywall, -30)                                    // O3: Greywall Command remembers (FactionRep.swift)
         site.on = false; site.hold = 0
         if site.lampsLit { greywallLamps(&site, lit: false) }
         // Its guns stand down (dismounted), its alarm is silent for good.

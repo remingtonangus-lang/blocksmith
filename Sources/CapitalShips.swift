@@ -1686,7 +1686,7 @@ extension ShipManager {
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
             let hb = Capital.dropship()
-            let name = faction == .steelhold ? "Capital Dropship" : faction == .meridian ? "Meridian Launch" : "Stormwarden Dropship"
+            let name = faction == .steelhold ? "Capital Dropship" : faction == .meridian ? "Meridian Launch" : faction == .greywall ? "Greywall Dropship" : faction == .ironback ? "Ironback Dropship" : "Stormwarden Dropship"
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: "dropship", faction: faction)
             let d = ships[0]
             d.pos = at
