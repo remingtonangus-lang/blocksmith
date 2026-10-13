@@ -250,6 +250,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     do {
         try RenderTest.render(game: vg, ctx: ctx, path: out, yaw: yaw, pitch: pitch)
+        if Mesher.mergedWater > 0 { print("view: \(Mesher.mergedWater) far water cells drawn in merged quads (P184)") }
         print("view: wrote \(out)"); exit(0)
     } catch { print("FAIL view: \(error)"); exit(1) }
 }

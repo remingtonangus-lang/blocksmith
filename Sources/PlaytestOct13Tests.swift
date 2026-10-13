@@ -77,6 +77,39 @@ enum PlaytestOct13Tests {
             g.mobs.mobs = []; g.mobs.rebuildIndex()
         }
 
+        // P177: a hand grips a chicken, lifts it, flicks forward and lets go: it flies; a grip on a carcass drags it
+        // along the ground.
+        do {
+            let dt: Float = 1.0 / 72
+            HandGrab.held = [nil, nil]
+            let hen = Mob(.chicken, at: lane0 + V3(0, 0, -4))
+            g.mobs.mobs = [hen]; g.mobs.rebuildIndex()
+            var hand = hen.pos + V3(0.15, hen.height * 0.5, 0)
+            let took = HandGrab.tick(g, hand: 1, at: hand, grip: true, gripWas: false, empty: true, dt: dt)
+            for _ in 0..<30 { hand += V3(0, 0.02, 0); _ = HandGrab.tick(g, hand: 1, at: hand, grip: true, gripWas: true, empty: true, dt: dt); hen.update(dt, game: g) }
+            let lifted = abs(hen.pos.y + hen.height * hen.scale * 0.5 - hand.y) < 0.05
+            let z0 = hen.pos.z
+            for _ in 0..<6 { hand += V3(0, 0.01, -8 * dt); _ = HandGrab.tick(g, hand: 1, at: hand, grip: true, gripWas: true, empty: true, dt: dt) }
+            _ = HandGrab.tick(g, hand: 1, at: hand, grip: false, gripWas: true, empty: true, dt: dt)
+            let flung = hen.vel.z
+            for _ in 0..<90 { hen.update(dt, game: g) }
+            let flew = z0 - hen.pos.z
+            // The carcass: a cow's body dragged 4 blocks along the lane.
+            let cow = Mob(.cow, at: lane0 + V3(0, 0, -10))
+            let keepBodies = Hunting.bodies
+            Hunting.bodies = [Hunting.Body(mob: cow, quality: 0, legend: -1, until: g.clock + 999, dim: g.world.dim)]
+            var h2 = cow.pos + V3(0.3, 0.4, 0)
+            let grabbed = HandGrab.tick(g, hand: 0, at: h2, grip: true, gripWas: false, empty: true, dt: dt)
+            for _ in 0..<80 { h2 += V3(0, 0, -0.05); _ = HandGrab.tick(g, hand: 0, at: h2, grip: true, gripWas: true, empty: true, dt: dt) }
+            _ = HandGrab.tick(g, hand: 0, at: h2, grip: false, gripWas: true, empty: true, dt: dt)
+            let dragged = (lane0.z - 10) - cow.pos.z, onGround = abs(cow.pos.y - Float(Y + 1)) < 0.01
+            Hunting.bodies = keepBodies
+            check(took && lifted && flung < -5 && flew > 1.5 && grabbed && dragged > 3 && onGround,
+                  "P177 (took \(took) flung \(String(format: "%.1f", flung)) grabbed \(grabbed) ground \(onGround) y \(cow.pos.y) of \(Y + 1)): a hand lifts a chicken (\(lifted)) and flings it \(String(format: "%.1f", flew)) blocks; a cow's carcass is dragged \(String(format: "%.1f", dragged)) blocks along the ground")
+            HandGrab.held = [nil, nil]
+            g.mobs.mobs = []; g.mobs.rebuildIndex()
+        }
+
         func horse() -> Mob {
             let h = Mob(.horse, at: lane0)
             h.variant = (15 << 4) | (8 << 8)

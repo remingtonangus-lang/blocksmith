@@ -456,6 +456,7 @@ enum Mesher {
             }
         }
 
+        var waterMask: [Int32] = []                    // P184: far still-water tops to merge (allocated on first use)
         let lit = sc.lit, aos = sc.aos
         lit.initialize(repeating: 0, count: 4)
         aos.initialize(repeating: 3, count: 4)
@@ -834,6 +835,19 @@ enum Mesher {
                         }
                         let flip = aos[0] + aos[2] < aos[1] + aos[3]
                         let layer = Int(texT[bi * 6 + f])
+                        // P184 (Oct 13: "render distance struggles over water, where it should be cheapest"): far (LOD 1)
+                        // still water tops whose four corners match (a source surface, same depth band and light) are
+                        // collected and merged into big quads below, like the flat-lit cube faces: open sea was one quad
+                        // per block out to the edge of the view.
+                        if far && Mesher.mergeFarWater && isLiquid && fk == 1 && f == 2 && liquidTop && !smoothWater
+                            && aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3]
+                            && lit[0] == lit[1] && lit[1] == lit[2] && lit[2] == lit[3]
+                            && cornerDrop(x, y, z, 1) == 1 && cornerDrop(x + 1, y, z, 1) == 1
+                            && cornerDrop(x, y, z + 1, 1) == 1 && cornerDrop(x + 1, y, z + 1, 1) == 1 {
+                            if waterMask.isEmpty { waterMask = [Int32](repeating: 0, count: 16 * 256) }
+                            waterMask[ly * 256 + lx + lz * 16] = Int32(1 + (aos[0] | ((lit[0] & 255) << 2) | (layer << 10)))
+                            continue
+                        }
                         let overlay = tintB == 3 && f != 2 && f != 3
                         let tintF = (tintB == 3 && f == 3) ? 0 : tintV
                         if !isLiquid && rt == rCube && aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3]
@@ -913,6 +927,38 @@ enum Mesher {
                 }
             }
         }
+        // P184: the far still-water tops, merged per layer into rectangles 14/16 up their cells (the swell in chunk.vert
+        // still moves their corners; projected UVs, u = v = 31).
+        if !waterMask.isEmpty {
+            curCut = false
+            for ly in 0..<16 {
+                let base = ly * 256
+                for bb in 0..<16 {
+                    var a = 0
+                    while a < 16 {
+                        let k = waterMask[base + a + bb * 16]
+                        if k == 0 { a += 1; continue }
+                        var w = 1
+                        while a + w < 16 && waterMask[base + a + w + bb * 16] == k { w += 1 }
+                        var h = 1
+                        grow: while bb + h < 16 {
+                            for t in 0..<w where waterMask[base + a + t + (bb + h) * 16] != k { break grow }
+                            h += 1
+                        }
+                        for hh in 0..<h { for t in 0..<w { waterMask[base + a + t + (bb + hh) * 16] = 0 } }
+                        let key = Int(k) - 1
+                        let ao = key & 3, l = (key >> 2) & 255, layer = key >> 10
+                        for c in 0..<4 {
+                            let ci = (2 * 4 + c) * 3
+                            let px = (CT[ci] == 1 ? a + w : a) * 16, pz = (CT[ci + 2] == 1 ? bb + h : bb) * 16
+                            vert(true, px, ly * 16 + 14, pz, 2, 3, 31, 31, layer, ao, l, false)
+                        }
+                        Mesher.mergedWater += w * h
+                        a += w
+                    }
+                }
+            }
+        }
         let solid = opq.count / 8
         var opaqueOut = [UInt32]()
         opaqueOut.reserveCapacity(opq.count + cut.count)
@@ -929,6 +975,9 @@ enum Mesher {
         return v == 0 ? dark : fullSky
     }
 
+    // P184: merge far still-water tops (environment BS_WATERMERGE=0 turns it off, for before/after measurements).
+    static var mergeFarWater = ProcessInfo.processInfo.environment["BS_WATERMERGE"] != "0"
+    static var mergedWater = 0                     // cells drawn inside merged water quads (counter; racy, a measure only)
     static let lilyPad: BlockID = Blocks.has("lily_pad") ? Blocks.id("lily_pad") : BlockID.max
     // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
     // (environment BS_FARLEAF=0 turns it off, for before/after measurements).

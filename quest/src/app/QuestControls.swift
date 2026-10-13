@@ -286,10 +286,22 @@ final class QuestControls {
         lastHurtFlash = game.hurtFlash
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = L.squeeze > 0.6, rGrip = R.squeeze > 0.6
+        // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
+        // (HandGrab.swift). Those grips don't step the hotbar.
+        var handGrab = false
+        if !inMenu {
+            if L.gripValid, HandGrab.tick(game, hand: 0, at: rig.toWorld(L.gripPos), grip: lGrip, gripWas: prevGripL, empty: true, dt: dt) {
+                handGrab = true
+            } else if !L.gripValid { HandGrab.held[0] = nil }
+            if R.gripValid, HandGrab.tick(game, hand: 1, at: rig.toWorld(R.gripPos), grip: rGrip, gripWas: prevGripR, empty: game.held.isEmpty, dt: dt) {
+                handGrab = true
+            } else if !R.gripValid { HandGrab.held[1] = nil }
+            if handGrab && ((lGrip && !prevGripL) || (rGrip && !prevGripR)) { app.input.haptic(lGrip && !prevGripL ? moveHand : aimHand, amplitude: 0.45, seconds: 0.05, frequency: 140) }
+        }
         // Riding: a hand reaching down to the horse's flank behind the saddle and gripping opens the saddlebags
         // (HorseLife.reachesSaddlebag) instead of stepping the hotbar.
         var bagGrip = false
-        if !inMenu, let h = game.riding, MountMenu.opens(h), h.tamed {
+        if !inMenu, !handGrab, let h = game.riding, MountMenu.opens(h), h.tamed {
             for (hd, now, was, i) in [(L, lGrip, prevGripL, moveHand), (R, rGrip, prevGripR, aimHand)]
                 where now && !was && hd.gripValid && HorseLife.reachesSaddlebag(h, hand: rig.toWorld(hd.gripPos)) {
                 game.openMenu(MountMenu(game: game, mob: h))
@@ -302,7 +314,7 @@ final class QuestControls {
         // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip
         // doesn't step the hotbar.
         var magGrip = false
-        if !inMenu && !bagGrip && game.heldGun != nil && L.gripValid && R.gripValid {
+        if !inMenu && !bagGrip && !handGrab && game.heldGun != nil && L.gripValid && R.gripValid {
             let ev = VRReload.tick(game, offHand: rig.toWorld(L.gripPos), gunHand: rig.toWorld(R.gripPos), head: rig.headWorld,
                                    grip: lGrip, gripWas: prevGripL, gunForward: aimDir)
             switch ev {
@@ -318,7 +330,7 @@ final class QuestControls {
             // magazine is the reload's; holding one no longer swallows the next press (that press puts it back and steps).
             magGrip = ev == .grabbed || ev == .inserted
         } else if game.heldGun == nil { game.arms.magInHand = false }
-        if !inMenu && !bagGrip && !magGrip && game.world.ships.pilot == nil {
+        if !inMenu && !bagGrip && !magGrip && !handGrab && game.world.ships.pilot == nil {
             if lGrip && !prevGripL { game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
