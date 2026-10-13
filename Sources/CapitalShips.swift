@@ -72,6 +72,7 @@ final class CapitalState {
     var groundOffset: Float = 0        // centre of mass above the lowest wheel (crawlers)
     var groundTimer: Float = 0
     var groundMax: Float = 0           // highest terrain under and ahead of a frigate (sampled twice a second)
+    var isles: [(c: V2, top: Float, r: Float)]? = nil   // T11: sky isles near a frigate's home (found once)
     var crushTimer: Float = 0
     var crushedAll = false
     var sinkSpeed: Float = 0
@@ -1126,6 +1127,14 @@ extension ShipManager {
                 want = simd_normalize(tangent + dir * ((d - 160) / 80))
                 speed = 6 * fast
             }
+        } else if let isle = st.isles?.first {
+            // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
+            // cruise clearance over its turf (the altitude below counts the isle as ground).
+            let toIsle = isle.c - V2(s.pos.x, s.pos.z)
+            let dist = max(1, simd_length(toIsle))
+            let r = isle.r + (s.role == "capfrigate" ? 110 : 90)
+            let tangent = V2(-toIsle.y, toIsle.x) / dist * st.orbitDir
+            want = simd_normalize(tangent + toIsle * ((dist - r) / (r * dist)) + V2(1e-4, 0))
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))
@@ -1143,13 +1152,17 @@ extension ShipManager {
         st.groundTimer -= dt
         if st.groundTimer <= 0 {
             st.groundTimer = 0.5
+            if st.isles == nil { st.isles = SkyIsle.near(world.gen, x: home.x, z: home.z, range: 700) }
             var top = 0
+            var isleTop: Float = 0
             let side = V2(-fh.y, fh.x)
             for k in -4...6 { for j in -1...1 {
                 let p = V2(s.pos.x, s.pos.z) + fh * Float(k * 50) + side * Float(j * 40)
                 top = max(top, world.gen.column(Int(floor(p.x)), Int(floor(p.y))).height)
+                // A sky isle under or ahead of the hull counts as ground (its turf, plus the hull's half width).
+                for i in st.isles ?? [] where simd_length(p - i.c) < i.r + 40 { isleTop = max(isleTop, i.top) }
             } }
-            st.groundMax = Float(max(top, SEA))
+            st.groundMax = max(Float(max(top, SEA)), isleTop)
         }
         let keel = s.com.y - s.localMin.y
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)

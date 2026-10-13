@@ -124,6 +124,21 @@ enum SkyIsle {
 
     // MARK: Discovery (WorldMap: from 160 blocks, any height)
 
+    // T11: the isles within `range` of (x, z): centre, turf top (array y) and outline radius plus a margin.
+    static func near(_ gen: TerrainGenerator, x: Float, z: Float, range: Float) -> [(c: V2, top: Float, r: Float)] {
+        guard let sc = gen.structures, let t = sc.types.first(where: { $0.name == kind }) else { return [] }
+        let span = spacing * CS
+        let rx0 = floorDiv(Int(x), span), rz0 = floorDiv(Int(z), span)
+        var out: [(c: V2, top: Float, r: Float)] = []
+        for rz in (rz0 - 1)...(rz0 + 1) { for rx in (rx0 - 1)...(rx0 + 1) {
+            guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+            let c = V2(Float(s.anchor.x) + 0.5, Float(s.anchor.z - 3) + 0.5)
+            guard simd_length(c - V2(x, z)) < range else { continue }
+            out.append((c, Float(s.anchor.y + 1), Float(s.max.x - s.min.x) / 2))
+        } }
+        return out.sorted { simd_length($0.c - V2(x, z)) < simd_length($1.c - V2(x, z)) }
+    }
+
     static func discover(_ g: Game, _ sc: StructureCache, at p: V3) {
         guard let t = sc.types.first(where: { $0.name == kind }) else { return }
         let span = spacing * CS
