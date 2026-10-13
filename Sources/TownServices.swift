@@ -185,7 +185,16 @@ final class GunUpgradeMenu: ListMenu {
     override var rows: [Row] {
         corner = "Wallet " + Money.format(game.money)
         offers = GunUpgrades.offers(game)
-        return offers.map { o in
+        // O4: grade lifts and gun repairs come first.
+        let lifts = Repairs.gradeOffers(game).map { o -> Row in
+            let s = game.inventory.main[o.slot]
+            return Row(icon: s, name: "Rework to \(GunGrade.names[GunGrade.tier(s) + 1])", detail: s.displayName, value: Money.format(o.cost), enabled: game.money >= o.cost)
+        }
+        let mends = Repairs.jobs(game, gunsOnly: true).map { j -> Row in
+            let s = Repairs.stack(game, j.at)
+            return Row(icon: s, name: "Repair", detail: "\(s.displayName), \(Repairs.describe(s))", value: Money.format(j.cost), enabled: game.money >= j.cost)
+        }
+        return mends + lifts + offers.map { o in
             let s = game.inventory.main[o.slot]
             let gun = Guns.index(s.item).map { Guns.all[$0].name } ?? s.def.display
             return Row(icon: s, name: "\(Enchant.def(o.ench).name) \(GunUpgrades.roman(o.level))", detail: gun,
@@ -197,9 +206,12 @@ final class GunUpgradeMenu: ListMenu {
         if TownServices.keeperGone(game, keeper) { game.closeMenu() }
     }
     override func pressed(_ i: Int) {
-        let os = GunUpgrades.offers(game)
-        guard i < os.count else { return }
-        let r = GunUpgrades.apply(game, os[i])
+        let js = Repairs.jobs(game, gunsOnly: true), ls = Repairs.gradeOffers(game), os = GunUpgrades.offers(game)
+        let r: (String, Bool)
+        if i < js.count { r = Repairs.mend(game, js[i]) }
+        else if i - js.count < ls.count { let o = ls[i - js.count]; r = Repairs.lift(game, slot: o.slot, cost: o.cost) }
+        else if i - js.count - ls.count < os.count { r = GunUpgrades.apply(game, os[i - js.count - ls.count]) }
+        else { return }
         say(r.0, good: r.1)
     }
 }
