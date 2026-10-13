@@ -368,6 +368,7 @@ final class Mob {
     var villager: VillagerData?     // profession, level, trades
     var town = TownState()          // townsperson: anger, reactions, swings (Townsfolk.swift; not saved)
     var customName: String?         // name tag
+    var netRiddenUntil: Double = -1e9   // C14: a co-op guest rides it (the guest's headset moves it; no AI here)
     var netHitAt: Double = -1e9     // C14: the game clock a co-op guest last hit it (its loot drops on the guest's side)
     var posse = 0                   // TownBoard/BountyHunters: 1 a wanted outlaw, 2 his gang, 3 a bounty hunter (saved)
     var posseSince: Double = -1     // the game clock when a hunter rode in (not saved: reloaded hunters leave when far)
@@ -558,6 +559,7 @@ final class Mob {
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         hitFlash = max(0, hitFlash - dt)     // before the dead-mob return: the death fall doesn't stay white
         if health <= 0 && kind != .enderDragon { return }
+        if netRiddenUntil > g.clock { vel = .zero; animTick(dt, g); return }   // C14: the guest's mount, moved by the link
         animTick(dt, g)
         if downed > 0 { downedTick(dt, g); return }                 // an injured horse lies still (HorseLife.swift)
         if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }

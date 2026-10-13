@@ -61,6 +61,43 @@ enum NetTests {
         check(gg.mobs.mobs.contains { $0.kind == .cow && simd_length($0.pos - cow.pos) < 2 },
               "C14: the host's cow is mirrored on the guest (\(gg.mobs.mobs.count) mobs)")
         g.world.setBlock(bx + 2, top + 1, bz, AIR)
+        // Part 2 (NetShare.swift): a vessel of the host's appears for the guest and follows its pose.
+        let planks = Blocks.id("oak_planks")
+        let ship = Ship(id: g.world.ships.newId(), grid: ShipGrid(sx: 3, sy: 1, sz: 3, blocks: [BlockID](repeating: planks, count: 9)))
+        ship.rebuild()
+        ship.pos = gu.spawn + V3(6, 6, 0)
+        ship.prevPos = ship.pos
+        ship.updateBounds()
+        g.world.ships.add(ship)
+        defer { g.world.ships.remove(ship) }
+        func frames(_ n: Int) {
+            for _ in 0..<n {
+                gu.tick(gg, 0.05); host.tick(g, 0.05)
+                Thread.sleep(forTimeInterval: 0.01)
+                gu.tick(gg, 0.05)
+            }
+        }
+        frames(10)
+        ship.pos += V3(4, 0, 0)
+        frames(30)
+        let mirror = gg.world.ships.list.first { $0.id == ship.id }
+        check(mirror != nil && simd_length(mirror!.pos - ship.pos) < 0.5,
+              "C14: the host's vessel is mirrored on the guest and follows it (\(mirror.map { simd_length($0.pos - ship.pos) } ?? -1) off)")
+        // The guest rides a mirrored horse: the host's horse goes where the guest takes it, its AI resting.
+        let horse = Mob(.horse, at: V3(gu.spawn.x - 3, gu.spawn.y, gu.spawn.z))
+        g.mobs.mobs.append(horse)
+        defer { g.mobs.mobs.removeAll { $0 === horse } }
+        frames(5)
+        if let mh = gg.mobs.mobs.first(where: { $0.kind == .horse }) {
+            gg.riding = mh
+            mh.pos += V3(0, 0, 5)
+            frames(5)
+            check(horse.netRiddenUntil > g.clock && simd_length(horse.pos - mh.pos) < 0.5,
+                  "C14: the guest's ride moves the host's horse (\(simd_length(horse.pos - mh.pos)) off)")
+            gg.riding = nil
+            frames(3)
+            check(horse.netRiddenUntil < g.clock, "C14: the horse is the host's again when the guest gets off")
+        } else { check(false, "C14: the host's horse never reached the guest") }
         gu.detach(gg); gu.clearMirrors(gg)
     }
 }
