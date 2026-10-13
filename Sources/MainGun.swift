@@ -279,6 +279,7 @@ extension ShipManager {
         g.sfx(.mainGunRumble, 1, at: p)
         lap("sfx")
         for k in 1...3 { g.particles.explosion(at: p + V3(0, Float(k) * 4, 0), power: Float(8 - k)) }
+        lap("puffs")
         // P99: debris: pieces of what was struck thrown high out of the bowl, falling back round it.
         let bx = Int(floor(p.x)), by = Int(floor(p.y)), bz = Int(floor(p.z))
         var struck = world.block(bx, by - 1, bz)
@@ -292,9 +293,11 @@ extension ShipManager {
                                          size: Rand.float(in: 0.25...0.7), gravity: 18, color: V3(0.8, 0.78, 0.75), collide: true))
             }
         }
+        lap("debris")
         mainGunFireball(at: p, game: g)
+        lap("fireball")
         g.addFlash(at: p + V3(0, 6, 0), color: V3(6, 6.5, 8), radius: 90, life: 1.1)
-        lap("fx")
+        lap("flash")
         MainGun.impactCost = cost.joined(separator: ", ")
         MainGun.impactMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         // The flash and the first jolt arrive at once; the ground shake comes with the wave (updateShockwaves).

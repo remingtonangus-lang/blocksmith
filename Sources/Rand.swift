@@ -9,10 +9,15 @@ enum Rand {
 
     static func seed(_ s: UInt64) { state = s &+ 0x9E3779B97F4A7C15; deterministic = true }
 
+    // Normal play on the main thread: its own SplitMix64 stream, seeded once from the system. The system generator is
+    // a getrandom() syscall per draw on Linux and Android: a main gun impact's ~3,000 particle draws cost 10 ms of the
+    // frame (T3: "the impact itself is cheap", puffs 9.8 ms of 13.2).
+    private static var fast: UInt64 = { var g = SystemRandomNumberGenerator(); return g.next() }()
+
     @inline(__always) static func next() -> UInt64 {
-        if deterministic && Thread.isMainThread {
-            state &+= 0x9E3779B97F4A7C15
-            var z = state
+        if Thread.isMainThread {
+            var z: UInt64
+            if deterministic { state &+= 0x9E3779B97F4A7C15; z = state } else { fast &+= 0x9E3779B97F4A7C15; z = fast }
             z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
             z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
             return z ^ (z >> 31)

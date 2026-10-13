@@ -389,6 +389,8 @@ final class LifeBot: AgentBot {
     weak var trader: Mob?
     var tried: [ObjectIdentifier] = []
     var bed: IVec3?
+    var triedBeds: [IVec3] = []
+    var bedTicks = 0
     init(village v: StructureStart) { village = v }
 
     func aim(_ s: AgentState, _ p: V3, into act: inout AgentAction) -> Bool {
@@ -437,7 +439,11 @@ final class LifeBot: AgentBot {
         switch phase {
         case 0:
             if let m = s.menu {
-                if m.contains("Merchant") { traded = true; tradeDetail = "trade screen opened after \(phaseTicks / 60) s" }
+                // Craftsfolk in a town open their counter (ShopMenu, with the barter behind its button); both are trade
+                // screens (T3: the bot closed every counter and gave up, 1 unmet goal on seeds 12345 and 777).
+                if m.contains("Merchant") || m.contains("ShopMenu") {
+                    traded = true; tradeDetail = "trade screen (\(m)) opened after \(phaseTicks / 60) s"
+                }
                 act.key = Key.esc
                 if traded { phase = 1; phaseTicks = 0; path = [] }
                 return act
@@ -470,17 +476,39 @@ final class LifeBot: AgentBot {
         case 1:
             if s.menu != nil { act.key = Key.esc; return act }
             if bed == nil {
-                // The nearest bed in the village (foot half), searched once.
+                // The nearest free bed in the village: one nobody lies in, an unclaimed one first (a townsperson's
+                // own bed, its claimed head and the foot beside it, fills at nightfall). T3: on seed 12345 the bot
+                // stood at Ezra Ashby's bed and every use talked to the sleeper. A bed it tried and couldn't use is
+                // skipped too.
+                var claimed: [IVec3] = [], sleepers: [V3] = []
+                for m in a.game.mobs.of(.villager) {
+                    if let h = m.villager?.bed, h.count == 3 { claimed.append(IVec3(h[0], h[1], h[2])) }
+                    if m.lying || m.bedWalk != nil { sleepers.append(m.bedWalk ?? m.pos) }
+                }
                 var best = Int.max
                 for y in max(1, village.min.y)...min(CH - 3, village.max.y) { for z in village.min.z...village.max.z { for x in village.min.x...village.max.x {
                     let k = Blocks.key(Blocks.groupBase[Int(a.world.block(x, y, z))])
                     guard k.hasSuffix("_bed") else { continue }
-                    let d = abs(x - Int(s.pos.x)) + abs(z - Int(s.pos.z)) + abs(y - Int(s.pos.y))
-                    if d < best { best = d; bed = IVec3(x, y, z) }
+                    let p = IVec3(x, y, z)
+                    if triedBeds.contains(where: { $0.y == y && abs($0.x - x) + abs($0.z - z) <= 1 }) { continue }
+                    let c = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+                    if sleepers.contains(where: { simd_length($0 - c) < 2.5 }) { continue }
+                    let owned = claimed.contains(where: { $0.y == y && abs($0.x - x) + abs($0.z - z) <= 1 })
+                    let d = abs(x - Int(s.pos.x)) + abs(z - Int(s.pos.z)) + abs(y - Int(s.pos.y)) + (owned ? 400 : 0)
+                    if d < best { best = d; bed = p }
                 } } }
-                guard bed != nil else { sleepDetail = "no bed in the village"; phase = 3; return act }
+                guard bed != nil else { sleepDetail = triedBeds.isEmpty ? "no free bed in the village" : sleepDetail; phase = 3; return act }
+                bedTicks = 0
             }
             guard let b = bed else { return act }
+            bedTicks += 1
+            // Not there after 30 s, or there 15 s into the night without sleeping: try the next free bed.
+            let refused = lastToast.hasSuffix(" is asleep.")          // the bed's owner got there first
+            if refused { lastToast = "" }
+            if !s.sleeping && (refused || bedTicks > 60 * 30 && sleepDetail == "walking to the bed" || bedTicks > 60 * 15 && s.timeOfDay > 0.6 && sleepDetail == "at the bed") && triedBeds.count < 6 {
+                triedBeds.append(b); bed = nil; path = []; uses = 0
+                return act
+            }
             if s.sleeping { slept = true; sleepDetail = String(format: "asleep at day time %.2f", s.timeOfDay); phase = 2; phaseTicks = 0; return act }
             if phaseTicks > 60 * 100 {      // 70 s ran out at day time 0.53, the moment the bot first tried (seed 12345)
                 // Where the bot got to and what the game last said (run 634: only the last toast, a frigate's arrival).
@@ -493,7 +521,19 @@ final class LifeBot: AgentBot {
             }
             let c = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
             let d: Float = simd_length(V2(c.x - s.pos.x, c.z - s.pos.z))
-            if d > 2.0 { sleepDetail = "walking to the bed"; return walk(s, a, to: c) }
+            // There means in reach of it: on its floor with nothing between (2 blocks off through a wall, or a storey
+            // down, the bot stood and clicked the wall).
+            let eye = s.pos + V3(0, 1.62, 0), aimAt = c + V3(0, 0.3, 0)
+            let seen: Bool = d <= 2.0 && abs(c.y - s.pos.y) < 1.2
+                && a.world.raycast(eye, simd_normalize(aimAt - eye), maxDist: simd_length(aimAt - eye) + 0.5).map { h in h.hit.y == b.y && abs(h.hit.x - b.x) + abs(h.hit.z - b.z) <= 1
+                    && Blocks.key(Blocks.groupBase[Int(a.world.block(h.hit.x, h.hit.y, h.hit.z))]).hasSuffix("_bed") } == true
+            // Not from a doorway: there the click lands on the open door the bot stands in (seed 12345: every use
+            // at Ezra Ashby's room hit the spruce door). Step on into the room toward the bed.
+            let fx = Int(floor(s.pos.x)), fy = Int(floor(s.pos.y + 0.1)), fz = Int(floor(s.pos.z))
+            let inDoor = [fy, fy + 1].contains { Blocks.shape[Int(a.world.block(fx, $0, fz))] == "door" }
+            if seen && inDoor { return Steer.toward(s, a, c) }
+            if !seen { if sleepDetail != "walking to the bed" { sleepDetail = "walking to the bed"; bedTicks = 0 }; return walk(s, a, to: c) }
+            if sleepDetail != "at the bed" { sleepDetail = "at the bed"; bedTicks = 0 }
             // At the bed: wait for night, then use it.
             if aim(s, c + V3(0, 0.3, 0), into: &act) && s.timeOfDay > 0.525 && s.timeOfDay < 0.95 {
                 uses += 1
@@ -514,7 +554,8 @@ final class LifeBot: AgentBot {
 
     func goals() -> [(String, Bool, String)] {
         [("open a villager's trade screen", traded, tradeDetail),
-         ("sleep in a village bed at night", slept, sleepDetail),
+         ("sleep in a village bed at night", slept,
+          slept || toasts.isEmpty ? sleepDetail : sleepDetail + " (beds tried \(triedBeds.count); last toasts: " + toasts.map { "\"\($0)\"" }.joined(separator: ", ") + ")"),
          ("the night passes while asleep", morning, morningDetail)]
     }
 }

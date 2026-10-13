@@ -199,38 +199,8 @@ enum QuestBugTests {
         let aimParts = mobModelParts(sk)
         check(idle >= 13 && aimParts.contains { abs($0.rotX - 1.45) < 0.01 && $0.color.x > 0.8 && $0.mx.z - $0.mn.z > 13 },
               "skeleton: \(idle) parts, bow string raised while aiming")
-        // VR trigger attacks (Game.bufferAttacks): clicking every 0.25 s, each click waits for the cooldown and lands at
-        // full strength, so an iron sword kills a 20 HP zombie in 4 hits (v63: ~8 weak, half-charged hits).
-        do {
-            let save = (game.inventory.held, p.yaw, p.pitch, game.paused, p.pos, p.flying)
-            p.pos.y += 60; p.flying = true; p.vel = .zero                  // open air: nothing between the player and it
-            game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
-            game.bufferAttacks = true
-            game.paused = false
-            let zp = p.pos + V3(0, 0, -1.6)
-            let z = Mob(.husk, at: zp)                              // a zombie that does not burn in the sun
-            z.equip = nil
-            game.mobs.mobs.append(z)
-            var hits = 0, last = z.health, t: Float = 0, sinceClick: Float = 1
-            while z.health > 0 && t < 6 {
-                p.yaw = 0; p.pitch = -0.4
-                p.pos = save.4 + V3(0, 60, 0); p.vel = .zero
-                z.pos = zp; z.vel = .zero
-                sinceClick += 1.0 / 60
-                if sinceClick >= 0.25 { game.input.leftClicked = true; sinceClick = 0 }
-                game.tick(1.0 / 60)
-                if z.health < last {
-                    hits += 1; last = z.health
-                    if CommandLine.arguments.contains("--verbose") { print(String(format: "questbugs:   hit %d at %.2f s: zombie %d HP", hits, t, z.health)) }
-                }
-                t += 1.0 / 60
-            }
-            check(z.health <= 0 && hits == 4, String(format: "VR trigger spam (iron sword, a click every 0.25 s): zombie dead %@ in %d hits, %.1f s (want 4)",
-                                                   z.health <= 0 ? "yes" : "no", hits, t))
-            game.mobs.mobs.removeAll { $0 === z }
-            game.bufferAttacks = false
-            (game.inventory.held, p.yaw, p.pitch, game.paused, p.pos, p.flying) = save
-        }
+        // VR trigger attacks (Game.bufferAttacks): TriggerSpamCheck.swift (also `questcheck --trigger-only`).
+        TriggerSpamCheck.run(game, check: check)
         // Round 2 (v63): a bed's head half drops the bed; a saddled horse drops its saddle; the mount screen takes the
         // saddle off; a villager asleep lies on its bed.
         check(Mining.drops(Blocks.id("red_bed_head"), .empty).contains { Items.key($0.item) == "red_bed" }, "bed head drops the bed")
@@ -317,7 +287,10 @@ enum QuestBugTests {
             bytes += [UInt8(names.count), 0, 0, 0]
             for n in names { let u = Array(n.utf8); bytes += [UInt8(u.count & 255), UInt8(u.count >> 8)] + u }
             var idx = [UInt16](repeating: 0, count: CSQ * CH)
-            idx[0] = 1; idx[1] = 2
+            // Above the warded floor: loading stamps wardstone into an overworld chunk's bottom layers (HellGate.stamp),
+            // so blocks 0 and 1 came back as wardstone (T3).
+            let at = CSQ * HellGate.floorTop
+            idx[at] = 1; idx[at + 1] = 2
             for v in idx { bytes += [UInt8(v & 255), UInt8(v >> 8)] }
             let comp = try? (Data(bytes) as NSData).compressed(using: .lzfse) as Data
             try? comp?.write(to: sm.chunkURL(ChunkKey(x: 0, z: 0)))
@@ -331,7 +304,7 @@ enum QuestBugTests {
             check(backups.count == 1 && backups[0].hasPrefix("Old World-before-r3-") && listed == ["Old World"],
                   "pre-round-3 backup made once outside the world list (\(backups), worlds \(listed))")
             let blocks = sm.loadChunk(ChunkKey(x: 0, z: 0)) ?? []
-            let k0 = blocks.isEmpty ? "-" : Blocks.key(blocks[0]), k1 = blocks.count < 2 ? "-" : Blocks.key(blocks[1])
+            let k0 = blocks.count <= at ? "-" : Blocks.key(blocks[at]), k1 = blocks.count <= at + 1 ? "-" : Blocks.key(blocks[at + 1])
             check(k0 == "cobblestone" && k1 == stateKey, "aliased chunk blocks load as \(k0), \(k1) (want cobblestone, \(stateKey))")
             let st = try? JSONDecoder().decode([ItemStack].self, from: Data(#"[{"id":"old_test_gem","n":5},{"id":"stick","n":2}]"#.utf8))
             let ok = st?.count == 2 && Items.key(st![0].item) == "diamond" && st![0].count == 5 && Items.key(st![1].item) == "stick"

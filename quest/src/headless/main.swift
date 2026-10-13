@@ -24,6 +24,8 @@ if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run())
 // --agent BOT / --behaviorsim: the bots and the mob behaviour sim, shared with the Mac (Sources/Agent*.swift,
 // Sources/BehaviorSim.swift), on the Linux host too (Q2: scorecard "Behaviour" measured off the Mac).
 if arg("--agent") != nil { exit(AgentRun.run()) }
+// --ridecheck [--scenes A,B --seed N --scale F --out DIR]: bots riding the capital vehicles (Sources/RideCheck.swift).
+if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 // --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
 if let secs = Double(arg("--xr") ?? "") {
@@ -193,6 +195,21 @@ if CommandLine.arguments.contains("--horsecoats-only") {
         do { try HorseCoatShots.run(game: game, ctx: ctx, dir: arg("--horse-shots"), check: check) } catch { check(false, "horsecoats render: \(error)") }
     } else { HorseCoatShots.modelChecks(check) }
     print(failures == 0 ? "horsecoats: all checks passed" : "horsecoats: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --maingun-quick: just the Tidebreaker checks (Sources/MainGunTests.swift), without the run --maingun-only sits behind.
+if CommandLine.arguments.contains("--maingun-quick") {
+    MainGunTests.run(game, check, render: nil)
+    print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --rules-only: the Mac --rulescheck world rules (Sources/RulesCheck.swift) beside the questcheck player.
+if CommandLine.arguments.contains("--rules-only") {
+    let n = RulesCheck.run(game)
+    print(n == 0 ? "rules: all checks passed" : "rules: \(n) FAILED"); exit(n == 0 ? 0 : 1)
+}
+// --trigger-only: the Mac --questbugs VR trigger spam check (Sources/TriggerSpamCheck.swift).
+if CommandLine.arguments.contains("--trigger-only") {
+    TriggerSpamCheck.run(game, check: check)
+    print(failures == 0 ? "trigger: all checks passed" : "trigger: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --sizes-only: C13 town sizes (Sources/TownSizesTests.swift).
 if CommandLine.arguments.contains("--sizes-only") {
