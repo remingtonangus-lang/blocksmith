@@ -222,7 +222,7 @@ P185. [13:21] Zombies and the other enemies: less Minecraft, scarier. The burgun
 P186. [DONE Oct 13: cookable food used on a lit campfire goes on the fire instead of being eaten] [13:23] Cook food on a campfire.
 P187. [DONE Oct 13: tree roots are lying logs (fewer of them), stumps 1 high with roots] [13:23] Tree generation: mutant merged trees and stumps ringed by stray blocks.
 P188. [DONE Oct 13: in the headset the water check uses your real head, and the top of the water cell counts as air] [13:24] The underwater tint must clear as soon as his head is above water, not only once fully out.
-P189. [13:25] A journal that collects everything he reads: Capital logs, pamphlets, orders, notes (with P116, P168).
+P189. [DONE Oct 13: Capital duty and signal-room logs, Greywall field notes and town and recruiting pamphlets turn up in chests; the Journal opens on a contents page and keeps every document read whole, page for page] [13:25] A journal that collects everything he reads: Capital logs, pamphlets, orders, notes (with P116, P168).
 P190. [DONE Oct 13: shipwrecks are an eighth as common] [13:26] Ships far too common: about 8 times rarer.
 P191. [DONE Oct 13: lines under the minimap are spaced 13 apart and no longer overlap] [13:27] The home/distance indicator overlaps the location indicator.
 P192. [DONE Oct 13: Hannibal troopers fly on jump jets in a fight; wearing the full Hannibal suit, punching with an empty hand fires an arc blast] [13:27] Power armour fires blasts from the hands; Hannibal troops can fly.

@@ -32,6 +32,20 @@ enum PlaytestOct13Tests {
         defer { w.deferRemesh = true; for z in z1...z0 { for x in sx - 3...sx + 3 { for y in Y - 8...Y + 6 { w.setBlock(x, y, z, AIR) } } }; w.deferRemesh = false }
         let lane0 = V3(Float(sx) + 0.5, Float(Y + 1), Float(z0) - 1.5)
 
+        // P189: a document found and read is kept whole in the journal, listed on its contents page.
+        do {
+            let was = g.journal
+            g.journal = []
+            let j = DeepJournals.all["capital_duty_log"]
+            if let j { g.logDocument(j.title, j.pages); g.logDocument(j.title, j.pages) }
+            g.logMessage("A test message")
+            let pages = g.journalPages
+            check(j != nil && Items.has("town_pamphlet") && g.journal.count == 2 && pages.first?.contains("2. Capital Duty Log") == true
+                  && Array(pages.dropFirst().prefix(j?.pages.count ?? 0)) == j?.pages && pages.last?.contains("A test message") == true,
+                  "P189: a Capital Duty Log read is kept whole in the journal (contents page, its \(j?.pages.count ?? 0) pages, then messages)")
+            g.journal = was
+        }
+
         // P150: livestock.
         do {
             let cow = Mob(.cow, at: lane0 + V3(0, 0, -6))
