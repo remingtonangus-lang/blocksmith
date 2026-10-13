@@ -14,6 +14,51 @@ import simd
 //
 // Lazy: nodes and block samples are computed on first use (the mesher asks only round the surface), per mesh worker
 // thread (MeshScratch.field), for one section's sample box of N^3 blocks.
+extension WorldGen {
+    // The terrain density at one world block (the stone fill's value; SmoothField's per-section path, unbatched).
+    func terrainDensity(_ x: Int, _ y: Int, _ z: Int) -> Float {
+        let y = max(0, min(CH - 1, y))
+        let gx = floorDiv(x, 4), gz = floorDiv(z, 4), gy = min(CH / 8 - 1, y >> 3)
+        let fx = Float(x & 3) / 4, fz = Float(z & 3) / 4, fy = Float(y - gy * 8) / 8
+        func n(_ ax: Int, _ ay: Int, _ az: Int) -> Float { density(colInfo(ax * 4, az * 4), ax * 4, ay * 8, az * 4) }
+        let c000 = n(gx, gy, gz), c100 = n(gx + 1, gy, gz), c010 = n(gx, gy + 1, gz), c110 = n(gx + 1, gy + 1, gz)
+        let c001 = n(gx, gy, gz + 1), c101 = n(gx + 1, gy, gz + 1), c011 = n(gx, gy + 1, gz + 1), c111 = n(gx + 1, gy + 1, gz + 1)
+        let x00 = c000 + (c100 - c000) * fx, x10 = c010 + (c110 - c010) * fx
+        let x01 = c001 + (c101 - c001) * fx, x11 = c011 + (c111 - c011) * fx
+        let y0 = x00 + (x10 - x00) * fy, y1 = x01 + (x11 - x01) * fy
+        return y0 + (y1 - y0) * fz
+    }
+}
+
+extension World {
+    // P142: how far the drawn smooth ground at a standing spot is above (+) or below (-) the block top the feet stand
+    // on: the field's surface height in the four columns round the spot (block centres, as the mesher samples them),
+    // blended by position. A column whose top block is not what the field made there (dug, placed, built) counts as
+    // its block top. 0 outside smooth field worlds or off natural ground.
+    func smoothGroundOffset(_ pos: V3) -> Float {
+        guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
+        let fy = Int(floor(pos.y - 0.01))
+        guard SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))] else { return 0 }
+        let bx = floor(pos.x - 0.5), bz = floor(pos.z - 0.5)
+        let tx = pos.x - 0.5 - bx, tz = pos.z - 0.5 - bz
+        var h = SIMD4<Float>(repeating: 0)
+        for k in 0..<4 {
+            let x = Int(bx) + (k & 1), z = Int(bz) + (k >> 1)
+            var top = Float(fy + 1)
+            for y in (fy - 1)...(fy + 1) where Blocks.opaque[Int(block(x, y, z))] && !Blocks.opaque[Int(block(x, y + 1, z))] {
+                top = Float(y + 1)
+                if SmoothTerrain.natural[Int(block(x, y, z))] {
+                    let a = g.terrainDensity(x, y, z), b = g.terrainDensity(x, y + 1, z)
+                    if a > 0 && b <= 0 { top = Float(y) + 0.5 + a / (a - b) }
+                }
+            }
+            h[k] = top
+        }
+        let s = (h[0] * (1 - tx) + h[1] * tx) * (1 - tz) + (h[2] * (1 - tx) + h[3] * tx) * tz
+        return max(-0.6, min(0.6, s - Float(fy + 1)))
+    }
+}
+
 struct SmoothSite {
     let gen: WorldGen
     let cx: Int, cz: Int

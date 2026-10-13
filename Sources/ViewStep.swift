@@ -77,6 +77,12 @@ extension Game {
             return
         }
         p.steadyY = nil
+        // P142: in a smooth world the drawn ground under the feet sits up to half a block above or below the block top
+        // physics stands on; the view follows the drawn ground (eased), so feet neither float over a slope nor sink in.
+        let g = p.onGround && !p.flying && world.ships.aboard == nil ? world.smoothGroundOffset(p.pos) : 0
+        p.viewDY -= p.viewGround
+        p.viewGround += (g - p.viewGround) * min(1, dt * 10)
+        defer { p.viewDY += p.viewGround }
         ViewStep.decay(&p.viewDY, &p.viewDV, dt)
         guard let ly = p.viewLastY, !p.flying else { return }
         var d = y - ly
