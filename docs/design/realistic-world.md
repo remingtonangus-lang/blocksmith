@@ -1,6 +1,8 @@
 # Realistic world: shape, damage and physics layer (design)
 
-Owner: the realistic-world thread (backlog P142, P175 and the polygon notes P106, P107, P141, T17). Started Oct 13.
+Owner: the realistic-world thread (backlog P142, P175 and the polygon notes P106, P107, P141, T17), Oct 13; slices 1-3
+shipped. Stopped by Remington on Oct 13 before slice 4: the rest belongs to the main thread as backlog U1 (see
+"Handover" at the end).
 World option: **Create New World > Terrain: Polygons (Smooth)** (and Options > Video > Polygon Terrain for an open world).
 It becomes the Quest default only after Remington approves it on the headset.
 
@@ -222,6 +224,61 @@ Shipped on the Quest (Polygons (Smooth) worlds; the Mac compiles and keeps cubes
   debris and ragdolls already did. `SurfaceQuery` (3.1) was not needed: `WorldGround` answers from the same fields.
 - Bodies now draw when no live creature is near (the Quest's mob pass returned early).
 - `questcheck --view OUT --smooth --scene ragdoll [--mobs K,..] [--mobdist D] [--settle S]`.
+
+## Handover to the main thread (Oct 13, backlog U1)
+Remington stopped this thread after slice 3 ("do not start slice 4"). Shipped in quest-port: slice 1 (PR #97), slice 2
+(PR #102), slice 3 (PR #106). The Quest APK built clean after each, the last time from quest-port at dd835c6.
+
+Left to do, most important first:
+1. **Try it on the headset.** Nothing of this track has been seen on a Quest yet: the shapes, craters, debris and
+   ragdolls were checked only in headless Quest renders. Polygons (Smooth) becomes the Quest default only once Remington
+   approves it there.
+2. **Performance at distance 12-16 (slice 4, not built).** Measured on the optimized host build at render distance 16,
+   with the Quest far boundary (`--lodnear 5`), in a forest from 25 blocks up: smooth 636k quads against 225k for blocks.
+   The near ring (5 chunks) is 83k against 61k; the rest is the far ring, where the smooth ground and leaf masses are
+   meshed at full resolution and can't merge faces as blocks do.
+   - A prototype that was **not merged** is at `/mnt/project-files/realistic-world/slice4-far-level-unmerged.patch`
+     (applies cleanly to quest-port at dd835c6). It brought the same view to 297k quads:
+     - Far sections merge the smooth surface's dual vertices in 2x2x2 clusters (`smoothQuads coarse`). Every vertex on a
+       plane shared with a neighbouring section stays unmerged, so seams meet exactly at any mix of levels.
+     - Far leaf masses drop their inner shell.
+     - Fracture runs on a worker queue.
+     - Ragdolls take 6 sub-steps while more than 12 fall at once.
+   - The prototype was checked only in headless renders, with no cracks left after the seam rule. Measure on the device
+     before taking it.
+3. **Hovering (U1: "animals walk on the drawn surface").** Living mobs follow the drawn ground only within 48 blocks,
+   only over natural ground in field worlds, and only within +-0.6 (`Mob.easeStep`, `World.smoothGroundOffset`). They
+   still float or sink in four places:
+   - on organic shapes (pumpkins, hay, mushrooms), which keep block collision;
+   - on bevelled built blocks;
+   - beyond 48 blocks;
+   - in other dimensions (round-2 smoothing, no field).
+   Debris and ragdolls already stand on `WorldGround` (`DebrisField.swift`), which answers from the same fields and
+   the collision boxes. Moving mobs onto it as well is the general fix.
+4. **Ragdolls in block worlds too (backlog R15).** `MobRagdolls.start` runs only when `World.realistic`.
+   `WorldGround` already works on block worlds (it falls back to collision boxes). The remaining work: start ragdolls
+   for every world, pass `game.debris.ragdolls` to the writers unconditionally, and step `debris.tick` outside the
+   `World.realistic` guard in `Game.tick`.
+5. **Trees (U1: "real round branches").** Trunks, roots, limbs and domes are round (`ShapeTrunks`). Diagonal branches
+   still read as ladders. The likely cause (not confirmed) is that each log block emits its own tube from its parent's
+   centre; a branch needs one path through all its blocks.
+6. **The pickaxe only mines what it touches (U1).**
+   - Today this is cosmetic: each blow leaves a crater (`World.bites`, `Craters.swift`, 8 a block, not saved) and
+     chips fly off.
+   - Mining time, drops and collision are unchanged: a bitten block keeps its whole box until it breaks.
+   - Real partial removal needs sub-block volume stored per block, with collision and saving to match.
+7. **Blocks that refuse to smooth (U1).** `ShapeClass` sorts every state:
+   - The 4253 states of the model class (stairs, slabs, doors and the other models) keep their boxes.
+   - Built blocks stay crisp cubes with bevels, by design.
+   - A block Remington expects to be round and isn't is either in the wrong class there or needs a new family rule.
+     `natural-census.txt` beside the worlds lists the natural ones.
+8. **Smaller known issues:**
+   - Carved crater quads use one material per small quad, so they lose the corner blend.
+   - A stone wall a player builds out of natural stone smooths into a blob (natural blocks smooth wherever they are).
+   - Far rings draw trunks and organic objects as cubes.
+   - The Mac draws cubes for all detail shapes; it only has to compile.
+   - Ragdoll limbs don't collide with each other.
+   - About 5% of bodies with knees or elbows keep moving until 6 s.
 
 ## Decisions taken (defaults, noted per Remington's autonomy rule)
 - The block grid stays the save and gameplay truth; nothing new is saved.
