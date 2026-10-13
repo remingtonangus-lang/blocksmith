@@ -25,10 +25,13 @@ final class GreywallAlarmState {
         var consoles: [IVec3] = [], turrets: [IVec3] = [], flags: [IVec3] = []
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
     }
+    // A truck bringing a squad (in memory: a reload finds the road empty).
+    struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var t: Float = 0; var unloaded = false }
+    var trucks: [Truck] = []
     var taken: Set<String> = []                     // bases the player has taken (saved: Effects.swift "greywallTaken")
     static let holdFor: Float = 10
     var sites: [String: Site] = [:]
-    struct Gun { var windup: Float = 0, shots = 0, gap: Float = 0, cool: Float = 0, look: Float = 0, sees = false, hits = 0 }
+    struct Gun { var windup: Float = 0, shots = 0, gap: Float = 0, cool: Float = 0, look: Float = 0, sees = false, hits = 0, seat = 0 }
     var guns: [IVec3: Gun] = [:]                    // wall turrets near a player (in memory: a reload repairs no damage, the block keeps it)
     var panelHits: [IVec3: Int] = [:]
     static let turretRange: Float = 40, turretWind: Float = 0.9, turretBurst = 3, turretCool: Float = 1.6, turretHits = 6
@@ -233,21 +236,106 @@ extension Game {
         }
     }
 
-    // Three soldiers march in through the gate (from just outside it) and join the fight.
+    // A squad comes by truck (T6): a Greywall truck drives up the approach to the gate from up to 48 blocks out, stops,
+    // and three soldiers jump down and join the fight; the truck turns back and leaves. Where the approach isn't
+    // loaded or the truck can't be placed, the squad marches in at the gate as before.
     func greywallSquad(_ site: GreywallAlarmState.Site) {
         let H = site.tier.half
-        let kinds = ["soldier_trooper", "soldier_trooper", site.squadsKind]
+        // The road out: from the stop outward while the ground climbs or drops at most two blocks a step, up to 48
+        // blocks (a steep bank or a cliff ends it; under 12 blocks of road the squad walks).
+        let fx = site.cx, sz = site.cz + H + 6
+        var fz = sz
+        if world.isLoaded(fx, sz) {
+            var y = world.topY(fx, sz)
+            for z in (sz + 1)...(sz + 42) {
+                guard world.isLoaded(fx, z) else { break }
+                let ny = world.topY(fx, z)
+                if abs(ny - y) > 2 { break }
+                y = ny; fz = z
+            }
+        }
+        if fz - sz >= 12 {
+            let stop = V3(Float(fx) + 0.5, Float(world.topY(fx, sz) + 1), Float(sz) + 0.5)
+            let from = V3(Float(fx) + 0.5, Float(world.topY(fx, fz) + 1), Float(fz) + 0.5)
+            let t = Mob(.ashTruck, at: from)
+            t.variant = 2
+            t.customName = "Greywall Truck"
+            t.persistent = true
+            t.yaw = 0                                            // facing -z, toward the gate
+            mobs.mobs.append(t)
+            greywallAlarm.trucks.append(GreywallAlarmState.Truck(mob: t, stop: stop, out: from, squad: site.squads,
+                                                                 leash: Greywall.leashTag(site.cx, site.cz, site.tier), src: site.src))
+            greywallAlarm.log.append("truck from \(fx),\(fz)")
+            if let p = players().first, simd_length(p - V3(Float(site.cx), p.y, Float(site.cz))) < 120 {
+                onToast?("A Greywall truck is bringing reinforcements")
+            }
+            return
+        }
+        greywallSquadOnFoot(site.squadsKind, leash: Greywall.leashTag(site.cx, site.cz, site.tier), src: site.src,
+                            at: { i in V3(Float(site.cx + i - 1) + 0.5, Float(site.S + 1), Float(site.cz + H + 2) + 0.5) })
+        if let p = players().first, simd_length(p - V3(Float(site.cx), p.y, Float(site.cz))) < 120 {
+            onToast?("Greywall reinforcements at the gate")
+        }
+    }
+
+    func greywallSquadOnFoot(_ third: String, leash: String, src: V3, at: (Int) -> V3) {
+        let kinds = ["soldier_trooper", "soldier_trooper", third]
         for (i, k) in kinds.enumerated() {
-            let p = V3(Float(site.cx + i - 1) + 0.5, Float(site.S + 1), Float(site.cz + H + 2) + 0.5)
-            guard let m = Mob.structureMob("\(k)@grey\(Greywall.leashTag(site.cx, site.cz, site.tier))", at: p) else { continue }
+            let p = at(i)
+            guard let m = Mob.structureMob("\(k)@grey\(leash)", at: p) else { continue }
             m.aggro = true
             m.soldierBrain.ready = true
-            m.soldierBrain.lastSeen = site.src; m.soldierBrain.seenAgo = 0
+            m.soldierBrain.lastSeen = src; m.soldierBrain.seenAgo = 0
             m.lockTime = 20
             mobs.mobs.append(m)
         }
-        if let p = players().first, simd_length(p - V3(Float(site.cx), p.y, Float(site.cz))) < 120 {
-            onToast?("Greywall reinforcements at the gate")
+    }
+
+    // Trucks on the road: in at 7 b/s along the ground, unload at the stop, back out and gone 60 blocks off (or
+    // wrecked: a burning truck stays where it stopped and its squad climbs out of the wreck).
+    func greywallTrucksTick(_ dt: Float) {
+        let st = greywallAlarm
+        guard !st.trucks.isEmpty else { return }
+        for i in st.trucks.indices.reversed() {
+            var t = st.trucks[i]
+            let m = t.mob
+            if m.health <= 0 || !mobs.mobs.contains(where: { $0 === m }) {
+                if !t.unloaded {
+                    t.unloaded = true
+                    let at = m.pos
+                    greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
+                                        at: { k in at + V3(Float(k - 1) * 1.2, 0, 2) })
+                }
+                st.trucks.remove(at: i); continue
+            }
+            t.t += dt
+            let goal = t.unloaded ? t.out : t.stop
+            let to = V2(goal.x - m.pos.x, goal.z - m.pos.z)
+            let d = simd_length(to)
+            if !t.unloaded && (d < 1 || t.t > 40) {
+                // At the stop: three soldiers jump down from the tailgate (behind the truck: +z from it).
+                t.unloaded = true; t.t = 0
+                let at = m.pos
+                greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
+                                    at: { k in V3(at.x + Float(k - 1) * 1.3, at.y, at.z + 3.2) })
+                sfx(.gun(12), 0.6, at: at)
+            } else if t.unloaded && t.t > 2.5 && d < 2 {
+                m.health = -2000; mobs.mobs.removeAll { $0 === m }   // out of sight down the road
+                st.trucks.remove(at: i); continue
+            } else if !t.unloaded || t.t > 2.5 {
+                let step = min(d, 7 * dt)
+                let dir = to / max(d, 0.001)
+                let nx = m.pos.x + dir.x * step, nz = m.pos.z + dir.y * step
+                let gy = Float(world.topY(Int(floor(nx)), Int(floor(nz))) + 1)
+                // Over a rise up to two blocks, or down any slope; a wall stops it (it unloads there).
+                if gy - m.pos.y > 2.1 && !t.unloaded { t.t = 40 } else {
+                    m.pos = V3(nx, m.pos.y + max(-1.2, min(1.2, gy - m.pos.y)) * min(1, dt * 8), nz)
+                    m.vel = .zero
+                }
+                let want = atan2f(-dir.x, -dir.y)
+                m.yaw += wrapAngle(want - m.yaw) * min(1, dt * 3)
+            }
+            st.trucks[i] = t
         }
     }
 
@@ -396,7 +484,9 @@ extension Game {
     func greywallTurretsTick(_ dt: Float) {
         let st = greywallAlarm
         guard survival, alive, !st.sites.isEmpty else { return }
-        let eye = player.eye
+        // Every split-screen seat is a target (T6: only player 1 was tracked): each turret picks the nearest seat it
+        // can see on its look, and fires at that one.
+        let seats = max(1, coop.seatCount)
         let gun = GreywallAlarmState.turretIds.0, hurt = GreywallAlarmState.turretIds.1
         let dirs = GreywallAlarmState.turretDirs
         for (key, site) in st.sites where !st.taken.contains(key) {
@@ -408,16 +498,23 @@ extension Game {
                 let f = Int(b - (damaged ? hurt : gun))
                 let centre = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
                 let muzzle = centre + dirs[f] * 0.6
-                let to = eye - muzzle
-                let d = simd_length(to)
                 var gs = st.guns[p] ?? GreywallAlarmState.Gun()
                 gs.cool = max(0, gs.cool - dt)
                 gs.look -= dt
                 if gs.look <= 0 {
                     gs.look = 0.3
-                    gs.sees = d < GreywallAlarmState.turretRange && simd_dot(to / max(d, 0.01), dirs[f]) > -0.05
-                        && world.canSee(muzzle + dirs[f] * 0.5, eye)
+                    gs.sees = false
+                    var best = GreywallAlarmState.turretRange
+                    for i in 0..<seats {
+                        let e = seats == 1 ? player.eye : coop.seatPlayer(i, self).eye
+                        let v = e - muzzle, dd = simd_length(v)
+                        guard dd < best, simd_dot(v / max(dd, 0.01), dirs[f]) > -0.05, world.canSee(muzzle + dirs[f] * 0.5, e) else { continue }
+                        best = dd; gs.sees = true; gs.seat = i
+                    }
                 }
+                let eye = seats == 1 || gs.seat >= seats ? player.eye : coop.seatPlayer(gs.seat, self).eye
+                let to = eye - muzzle
+                let d = simd_length(to)
                 let wind = damaged ? GreywallAlarmState.turretWind * 1.55 : GreywallAlarmState.turretWind
                 if gs.shots > 0 {
                     gs.gap -= dt

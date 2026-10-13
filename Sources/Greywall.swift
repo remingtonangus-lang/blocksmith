@@ -137,6 +137,15 @@ enum Greywall {
         return out
     }
 
+    // Corridor turrets (T6, fortress and up): one at each end of the keep's ground-floor corridor, under the ceiling,
+    // looking down its length: (dx, y, dz, facing). The west end's alarm lamp is on row kc, so the turret takes kc+1;
+    // the east end the other way round.
+    static func corridorTurrets(_ t: Tier) -> [(Int, Int, Int, Int)] {
+        guard t.rawValue >= 2 else { return [] }
+        let kx = t.keepX, kc = t.keepC
+        return [(-(kx - 1), 4, kc + 1, 3), (kx - 1, 4, kc, 2)]
+    }
+
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
@@ -198,8 +207,22 @@ enum Greywall {
             let x = cx * CS + 8, z = cz * CS + 8
             let e = t.half + margin
             let bank = WorldRules.p69(gen, cx, cz, reach: 4)          // P91 banks, on ground first generated with them
+            // T6: a shore base (sea within 40 blocks beyond a wall) mounts coastal guns on its sea walls.
+            var shore: [Int] = []
+            if t.rawValue >= 1 {
+                for (k, d) in [(0, (0, -1)), (1, (0, 1)), (2, (-1, 0)), (3, (1, 0))] {
+                    for out in stride(from: t.half + 12, through: t.half + 40, by: 7) {
+                        var sea = 0
+                        for side in [-8, 0, 8] {
+                            let px = x + d.0 * out + (d.0 == 0 ? side : 0), pz = z + d.1 * out + (d.1 == 0 ? side : 0)
+                            if gen.column(px, pz).biome.isOcean { sea += 1 }
+                        }
+                        if sea >= 2 { shore.append(k); break }
+                    }
+                }
+            }
             let piece = Piece(min: IVec3(x - e, S - 12, z - e), max: IVec3(x + e, S + t.wallH + 16, z + e),
-                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank) })
+                              build: { w in Greywall.build(&w, x, S, z, t, seed, bank: bank, shore: shore) })
             return StructureStart(kind: kind, pieces: [piece], anchor: IVec3(x, S + 1, z + t.half + 3))
         }
     }
@@ -210,7 +233,7 @@ enum Greywall {
 
     // MARK: Build
 
-    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false) {
+    static func build(_ w: inout StructWriter, _ cx: Int, _ S: Int, _ cz: Int, _ t: Tier, _ seed: UInt64, bank: Bool = false, shore: [Int] = []) {
         // (`bank`: ground first generated with the Oct 12 rules: the earth bank, P91, and Greywall's own equipment, P68)
         var rng = SRng(seed)
         func g(_ n: String, _ f: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
@@ -497,6 +520,23 @@ enum Greywall {
         // MARK: Wall turrets (garrison and up) in merlon gaps on the outer ring, facing out; the flag on the keep roof
         let turret = g("wall_turret", con)
         for (dx, dz, f) in turrets(t) { put(dx, W + 1, dz, turret + BlockID(f)) }
+        for (dx, y, dz, f) in corridorTurrets(t) { put(dx, y, dz, turret + BlockID(f)) }
+        // Coastal guns (T6) on each sea wall: two light quick-firers on the walkway, looking out to sea, and where the
+        // towers carry no deck guns, a heavy gun on each tower roof of that side.
+        let headings = [0, -180, -90, 90]
+        for k in shore {
+            for along in [-(H / 3), H / 3] {
+                let (dx, dz) = k == 0 ? (along, -(H - 1)) : k == 1 ? (along, H - 1) : k == 2 ? (-(H - 1), along) : (H - 1, along)
+                if k == 1 && abs(dx) <= 4 { continue }               // (never over the gate)
+                w.mob("deck_gun:light@grey^\(headings[k])", V3(Float(cx + dx) + 0.5, Float(S + W + 1), Float(cz + dz) + 0.5))
+            }
+            if !t.deckGuns {
+                for (sx, sz) in t.towers where (k == 0 && sz < 0) || (k == 1 && sz > 0) || (k == 2 && sx < 0) || (k == 3 && sx > 0) {
+                    let c = tower(t, sx, sz)
+                    w.mob("deck_gun@grey^\(headings[k])", V3(Float(cx + c.x) + 0.5, Float(S + W + 6), Float(cz + c.z) + 0.5))
+                }
+            }
+        }
         let flag = g("greywall_flag", wool)
         let fx = kx - 1, fz = kz0 + 1
         for y in (floorsH + 1)...(floorsH + 6) { put(fx, y, fz, rail) }

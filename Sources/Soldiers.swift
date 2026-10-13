@@ -233,7 +233,9 @@ extension Mob {
 
     // Wakes every soldier within `r` and tells them where the player was.
     func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 24) {
-        for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && simd_length(m.pos - pos) < r {
+        // Only its own side wakes (T6: a Greywall alert roused every faction's soldiers near the base, the Capital's
+        // crawler crew and the navy's marines alike).
+        for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && m.faction == faction && simd_length(m.pos - pos) < r {
             let b = m.soldierBrain
             if !m.aggro { m.aggro = true; b.react = max(b.react, 0.6) }
             if kind == .soldierOfficer { b.react = min(b.react, 0.35) }      // an officer's call: quicker to fire
@@ -620,7 +622,8 @@ extension Mob {
         if fire > 0 { fire -= dt }
         b.reload -= dt
         b.kick = max(0, b.kick - dt * 1.5)
-        let pivot = pos + V3(0, HeavyTurret.trunnionY, 0)
+        let light = HeavyTurret.scale(self) != 1
+        let pivot = pos + V3(0, HeavyTurret.trunnionY * HeavyTurret.scale(self), 0)
         let player = g.player.eye - V3(0, 0.6, 0)
         let to = player - pivot
         let dist = simd_length(to)
@@ -664,7 +667,7 @@ extension Mob {
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
-        let turn: Float = HeavyTurret.traverse * dt               // a 1,000-tonne gunhouse traverses slowly
+        let turn: Float = HeavyTurret.traverse * dt * (light ? 4 : 1)   // a 1,000-tonne gunhouse traverses slowly
         yaw += max(-turn, min(turn, dyaw))
         b.pitch += max(-0.15 * dt, min(0.15 * dt, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
@@ -672,17 +675,18 @@ extension Mob {
         if aligned && b.reload <= 0 {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
-            if b.charge >= 1.2 {
+            if b.charge >= (light ? 0.4 : 1.2) {
                 b.charge = 0
-                b.reload = g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload
+                b.reload = (g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload) * (light ? 0.25 : 1)
                 let fwd = V3(-sinf(yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(yaw) * cosf(b.pitch))
                 for sx: Float in [-1, 1] {
                     let muzzle = HeavyTurret.muzzle(self, sx)
                     var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
                                  shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
                     HeavyTurret.arm(&s)
+                    if light { s.power = 1.1 }
                     g.arms.spawn(s)
-                    HeavyTurret.flash(g, muzzle, fwd, smoke: 6)
+                    HeavyTurret.flash(g, muzzle, fwd, smoke: light ? 2 : 6)
                 }
                 g.sfx(.gun(9), 2, at: pivot)
                 b.kick = 1; b.kickSide = 0
@@ -775,13 +779,18 @@ enum HeavyTurret {
     // resistance: Capital stone is 9), and a ship hull hit tears like a power-11 charge.
     static let mannedPower: Float = 5, mannedBreach: Float = 3, mannedShipPower: Float = 11
 
+    // Two calibres (T6, Greywall's shore bases): the heavy gun, and a light quick-firer (deck_gun variant 9) built at
+    // 0.4 scale that fires small shells four times as often and turns four times as fast.
+    static let lightVariant = 9
+    static func scale(_ m: Mob) -> Float { m.kind == .deckGun && m.variant == lightVariant ? 0.4 : 1 }
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
+        let k = scale(m)
         let fwd = V3(-sinf(m.yaw) * cosf(p), sinf(p), -cosf(m.yaw) * cosf(p))
         let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
         let flat = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
-        let trunnion = m.pos + V3(0, trunnionY, 0) + flat * (-trunnionZ) + side * (sx * spacing)
-        return trunnion + fwd * barrel
+        let trunnion = m.pos + V3(0, trunnionY * k, 0) + flat * (-trunnionZ * k) + side * (sx * spacing * k)
+        return trunnion + fwd * (barrel * k)
     }
     // A muzzle flash at one barrel: a glow, a light and a smoke cloud.
     static func flash(_ g: Game, _ muzzle: V3, _ fwd: V3, smoke: Int) {
@@ -916,6 +925,9 @@ func deckGunParts(_ m: Mob) -> [Part] {
             p.append(Part(mn: V3(x - 5, ty - 5, tz - 341), mx: V3(x + 5, ty + 5, tz - 340.6), pivot: pv, rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
         }
     }
+    // A light coastal gun (T6) is the same gun built at 0.4 scale.
+    let k = HeavyTurret.scale(m)
+    if k != 1 { for i in p.indices { p[i].mn *= k; p[i].mx *= k; p[i].pivot *= k } }
     return p
 }
 
