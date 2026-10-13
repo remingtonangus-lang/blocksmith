@@ -60,7 +60,13 @@ Not started: pickaxe mines only what it touches, round trunks and branches, roun
 meshing cost for render distance 16+.
 
 ## Round 6: realistic world (P142, P175 continued; design docs/design/realistic-world.md)
-Slice 1 (shape system) shipped: every block state has a shape class (no hand list); round trunks with roots, limbs and
-domes; rounded organic objects; bevelled built blocks; lumpy leaf masses; water sheets thin to the ground. Status and
-counts: the design doc's "Status" section. Next: slice 2 (damage: craters where a tool hits, Voronoi fracture into
-pieces), slice 3 (debris bodies, ragdolls, everything on the drawn surface), slice 4 (far-ring terrain for distance 16).
+Shipped:
+- Slice 1, shape system: every block state has a shape class, with no hand list. Trunks are round with roots, limbs
+  and domes; organic objects are rounded; built blocks are bevelled; leaf masses are lumpy; water sheets thin out to
+  the ground.
+- Slice 2, damage: craters where a blow lands; Voronoi fracture pieces become rigid-body debris.
+- Slice 3, physics: creatures die into ragdolls; dropped items rest on the drawn ground.
+
+The thread was stopped by Remington before slice 4 (far-ring performance for distance 16). What is left, the
+measurements and an unmerged far-level prototype are in the design doc's "Handover to the main thread" section. The
+main thread owns these as backlog U1.
