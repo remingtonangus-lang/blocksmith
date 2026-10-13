@@ -235,6 +235,149 @@ P198. [DONE Oct 13: town gunsmiths sell Greywall rounds] [13:48, 13:56] Nearly e
 P199. [DONE Oct 13: Greywall tower lookouts stand inside the tower] [13:49] A soldier spawned inside a gun.
 P200. [DONE Oct 13: wall turrets you place shoot hostiles that come in front of them] [13:50] A wall turret he places must be on his side and shoot his enemies.
 
+## NEXT BATCH (Remington, Oct 13 18:25): take after any open P item, in this order: R, F, S, Y, U, SND, SH, IMG, W, H, D
+Remington accepted this list (S10 German and D53 online co-op left out). The realistic-world (ultracode) thread is stopped; its leftovers are U1 here and the main thread owns them. OBJECTIVES FIRST still applies: write your own fuller objectives for each item before building, and build the full version, not the literal minimum. ONE AND DONE and NO TEST WORK still apply.
+R items are complaints he made two or more times after an item was marked DONE. Treat each as NOT fixed: find the real cause on the Quest path (QuestInput/OpenXR, the Quest renderer), not only the Mac or headless path, and rebuild it properly instead of tweaking a number. Note in the DONE line what was actually wrong.
+
+R1. Left grip / left stick dead while holding a gun (claimed by P74, P109, P162, P176).
+R2. Right-side control-hint UI still shows (P53, P85, P108, P143, P160): remove it entirely in play; the hints live in the tutorial (S6).
+R3. On the headset he cannot tell which menu tab or button is selected (P72, P140, P176).
+R4. Point the controller at the map and pull the trigger to set a waypoint (P73, P195).
+R5. Accidental crafts and misclicks (P10, P129); the thumbsticks must move the selection through inventory, crafting and menus.
+R6. Two-handed aiming (left hand on the gun, hold left trigger, aim like real life) and the Farsight scope on the device (P32, G21, P159, P82).
+R7. Loading a magazine from the hip is too hard: a forgiving snap zone at the magazine well, clear haptic/audio click.
+R8. Ammo: Greywall troops must not carry Capital rounds (P104, P196); loot and shop ammo match the guns each faction and town actually uses; he keeps running dry while "everything takes slate rounds".
+R9. Gun models: the six-iron looks nothing like one, and every gun model needs an upgrade (procedural geometry, period-correct, not futuristic).
+R10. Naval guns: a distinct gun per mount instead of one copy-pasted model, and real damage against crawlers and the Capital tower.
+R11. Melee: hits from every angle including bottom-up and targets below; several hits per second when swinging fast; damage from swing speed; the red hit mark stays on the target.
+R12. The sword strobes when swung (P77, P170).
+R13. Horse gallop feels like "a one-cylinder whipper snipper" (five playtests): rebuild the gallop gait, body/camera motion and hoof timing to RDR2 smoothness.
+R14. Horses: drop down two or more blocks, squeeze through 1-wide gaps and under 2-high gaps while mounted, push through small bushes, climb out of water onto equal-height land.
+R15. Ragdolls for every creature and person in the block world too (the realistic-world slice 3 covers the drawn ground); no body or animal ever hovers.
+R16. Mob variety much wider in speed, damage and toughness ("a lot more").
+R17. Water: one-block falls, water that conforms to block shapes, water spreading both ways instead of toward the drop. Lava: flows reliably, blocks can be placed into lava, items burn in lava, an on-fire overlay on the Quest, obsidian forms quickly.
+R18. Sky and far trees visible from underground (P4, P113).
+R19. Footsteps sound like mud; gravel sounds like punching water (P14, P118) (with SND).
+R20. Towns: wider paths for the house spacing, far more townsfolk lines that fit time of day and situation, an obvious emerald-to-cash exchange, a jail that looks and works like one.
+R21. Bounty hunters: much rarer, never underground, and a real fight when they come.
+R22. Structure rarity everywhere (ships 8x rarer was P190; check all) and a sweep for floating generation: pillars, rails, amethyst, grass, Capital trim over a void, citadels built over pyramids.
+R23. Factions kept apart and fighting each other; base troops spread through the base and actively hunting him instead of spinning in place.
+R24. Journal: every order, Capital log, note and pamphlet is kept and readable later.
+R25. The Blight boss hovers out of sword reach (old T3a, wrongly dropped as test work): it is a gameplay bug.
+R26. His existing world loaded without smooth terrain after being smooth; the polygon setting must stick per world.
+
+F1. The ~1 s freezes: the 60 s autosave encodes the whole world's block entities, maps (16,384 UInt32 as JSON), ships, populated and hives on the frame thread. Snapshot values and encode on SaveIO.queue, store map pixels in binary, unload block entities with their chunks. Log any frame over 250 ms with its stage to a file on the device so it can be matched to his notes.
+F2. MapFog writes mapfog.json every 10 s on the frame thread and grows forever: background, deltas or binary.
+F3. Pause/quit shows "Saving..." instead of a frozen frame while SaveIO flushes.
+F4. Far rendering (his idea): full chunks out to 20, then cheap rings out to 40 or more: merged low-poly heightmap meshes with baked colour, no entities or block detail, blended into the fog so the horizon looks great. Must hold 72 fps on Quest 3.
+F5. Over open ocean the view must be the cheapest case (he saw the render distance struggle on the water).
+
+S1. A chunk or world file that will not decode is renamed .corrupt and kept, never replaced by a regenerated chunk or an empty chest/mob list on the next save; tell the player.
+S2. Save errors (full disk, encode failure) are shown to the player, not swallowed by try?.
+S3. Rolling autosave snapshots (keep the last 3), fsync before rename, so a dead battery cannot corrupt a world.
+S4. Crash handling: a log file, and on launch "last session crashed, restore the last backup?".
+S5. Paid-app entitlement check (Meta Platform SDK); code in place, switched on once the store app ID exists.
+S6. VR first launch: standing / seated / reclined, comfort preset, dominant hand, height; then short in-world lessons for guns, horses, honour and law, money and shops, contracts. Replaces the flat-screen tips.
+S7. Touch controller presets and a left-handed swap in the headset.
+S8. Boundary appearing, recenter and tracking loss handled; the game saves on pause, headset off and Quit.
+S9. Draft docs: privacy policy, IARC age-rating answers, store listing text, comfort rating, credits and licences (docs/store/).
+
+Y1. The Goals path follows THE GAME'S SPINE: iron, take a village, Greywall bases, the navy, hell, the Reich. Remove the leftover reference chain (Ember Gate, Foundry, blaze rods, eyes, Stronghold) from the main path.
+Y2. Each stage hands over the key to the next: taking a town gives base intel; Greywall's top tier gives what opens the navy; the navy gives the hell key (the Ember Charge is only in Capital vaults today).
+Y3. The navy comes before hell (FactionGear.swift: warships sail only after the end game today).
+Y4. Make it obvious which military force is the progression stage (Greywall) and which is the enemy over everything (the Capital).
+Y5. Saved worlds get new content in unexplored ground: roads, base towns, railways, Greywall and wide streets currently skip old worlds, so his world never shows them.
+Y6. Hook the side systems to the spine: money, contracts, the war map, legendaries and countries lead toward the next stage.
+
+U1. Realistic world leftovers from the stopped ultracode thread (read its design/status doc): animals walk on the drawn surface instead of hovering, blocks that refuse to smooth, polygon trees with real round branches, the pickaxe in the polygon world only mines what it touches. T17 is folded into this.
+
+SND1. Sound list: write docs/audio/sound-list.md, every sound event in the game (footsteps per surface, each gun, reloads, horses, every mob, weather, water, UI, vehicles, ships, ambience per biome), one line each on what it should sound like, and mark the 40 worst current synthesized sounds. All ~1,000 sounds today are synthesized in code; real recordings will replace them, so keep file names stable.
+SND2. Drop-in pipeline: any file placed under Resources/Sounds/real/<name> overrides the synthesized one by name, loudness-normalised to the levels in audio_levels.md, with random pitch/volume variation and 3-5 variants per event where it repeats (footsteps, gunshots, hits).
+
+SH1. A prettier shader pass inside the 72 fps budget, each piece switchable: grass, leaves and crops waving in the vertex shader; water with Fresnel sky reflection, sun glint and shoreline foam; warm sun and cool sky ambient with sunrise/sunset tint; fog with sun glow (in-scattering) and low valley fog; blob contact shadows under mobs, players and items; emissive glow halos for torches, lava, lamps and ores; colour grading per biome and time of day; specular sheen on metal, ice and wet surfaces. Look at what good Quest 3 titles and Minecraft shader packs (BSL, Complementary) do first. No real-time shadow maps unless a near-field one fits the budget.
+
+IMG1. Image request list: write docs/art/image-requests.md listing every image the game still wants (the 268 AR1 block layers, AR2 items, icons, paintings, posters, signs, UI art, the Upgrade Bench), one line each: file name and path, size, what it shows, a ready-to-paste prompt and the style reference. Remington's Gemini account will generate them; the Mac drops results in. Do not try to generate images in the cloud thread.
+
+W1. Circuit state is never saved: pending ticks, edges, burn, hopper cooldown and comparator output reset on reload, so buttons stay pressed, powered observers stay on, and bulbs/dispensers/droppers/crafters fire falsely. Save it per chunk or keep POWERED/TRIGGERED in the block state.
+W2. Copper doors and trapdoors respond to power; both door halves age, wax and scrape together; an axe opens them unless sneaking.
+W3. Lightning rods: rebuilt on load and pruned on break, nearest rod within 128, signal 15 for 8 ticks when struck, no fire on top, can face 6 ways.
+W4. Comparator readings: crafter (filled or disabled slots), double chests as one 54-slot inventory (hoppers too), cauldron, beehive/nest, chiseled bookshelf, decorated pot.
+W5. Pistons with a 2-tick moving block so flying machines, piston doors and block spitting work; pistons push item entities; slime bounces, honey slows; glazed terracotta does not stick; copper doors break when pushed; world height limits respected.
+W6. Rails: powered T-junction switching, connected rails keep their shape, junction priority; hopper minecart pulls from containers above and empties into hoppers below; activator rails disable hopper carts and eject riders.
+W7. Crafter: disabled-slot toggling, hoppers fill slots evenly, output into any container, bottle and bucket leftovers.
+W8. Dispenser behaviours: fireworks, tipped/spectral arrows, waxing copper, golem building, armour stands, saddles and horse armour, respawn-anchor charging, fish and powder-snow buckets, every minecart type.
+W9. Sensor (sculk equivalent): vibration frequencies, the calibrated sensor, wool blocking, comparator frequency output.
+
+H1. Cave mobs spawn about 10 blocks farther away.
+H2. Ravines and more cave styles.
+H3. Titanium needs a blast furnace.
+H4. Salvage the frigate's gun.
+H5. A Capital weapon printer built from parts taken at several bases.
+H6. City buildings with a readable purpose; copper and power in cities.
+H7. The shock weapon is as strong as it looks.
+H8. Less surface water.
+H9. Boats: see yourself in the boat, the boat model matches its icon, storms at sea.
+H10. Horse bonding raises stamina and health, with RDR2-style cores in the UI.
+H11. Vehicle damage physics.
+H12. Hands can grab and move anything physical, not only small animals and carcasses.
+H13. Base guns built of blocks, with a gunner already seated under the gun (kill him to take the seat), destroyed block by block; leaving the seat never drops you outside the base.
+H14. Townsfolk have homes and beds.
+H15. Snowballs clogging the inventory.
+
+D1. Lasso: catch wild horses, rope outlaws.
+D2. Wild horse herds, rare coats, a legendary horse.
+D3. Hitching posts in towns.
+D4. Wagons and stagecoaches: escort contracts and robberies.
+D5. Melee from the saddle.
+D6. Holsters on the body; draw from hip or chest.
+D7. Working levers, bolts and revolver hammers; shotguns loaded shell by shell (unblocks C5 in the cloud).
+D8. Dual-wield revolvers.
+D9. Suppressor attachment and gun cleaning at camp.
+D10. Bandits and soldiers who block and parry; an off-hand kick or shove to break guards.
+D11. Throwing knife and tomahawk.
+D12. Silent knife takedowns from behind.
+D13. Fist brawls in the saloon (non-lethal knockouts).
+D14. Frontier predators: cougars, rattlesnakes, alligators.
+D15. Monsters hear gunshots and investigate; night hordes that stalk and surround.
+D16. Bandit gangs that use cover and flank.
+D17. Saloon bartender with drinks (mild, comfort-safe) and a piano player.
+D18. The knife-between-the-fingers game and poker.
+D19. Hotel rooms: paid save, heal, bath.
+D20. Stranger side stories with recurring characters.
+D21. Townsfolk react to his deeds and how he looks (bloody, armoured).
+D22. Bandana mask: masked crimes cannot be pinned on him.
+D23. Catch a fleeing witness before they reach the sheriff.
+D24. Bring bounties in alive (lasso, hogtie) for double pay.
+D25. Arrest, jail time and an escape option.
+D26. Named gang leaders with hideouts.
+D27. A fence for stolen goods; shops refuse flagged items.
+D28. Buy a homestead or a town house.
+D29. Mail-order catalog for rare items.
+D30. Late-game money sinks tied to the spine: vehicle presets, base upgrades, hired crews.
+D31. Gunsmith bench that assembles guns from parts (receiver, barrel, stock tiers).
+D32. Upgrades that change behaviour (ricochet rounds, serrated bleed), not just stats.
+D33. Wearable faction armour sets (Greywall, Capital, Ashguard).
+D34. Base objectives: destroy the comms array, steal the plans, free a prisoner, for bonus loot or intel.
+D35. Keycards, locked doors and security cameras.
+D36. Bodies found raise the alarm; stealth plays differently from going loud.
+D37. Disguise in a looted uniform to pass through base towns.
+D38. Lost bases counter-attack; alarm state survives a reload.
+D39. Naval ports and dockyards to raid; buy and repair hulls there.
+D40. Hire a crew to man ship guns.
+D41. Broadside battles and boarding by grapple.
+D42. Aim the Field Tank turret from the helm.
+D43. Vehicle presets unlocked by blueprints per stage.
+D44. Fuel depots; recall or garage a vehicle.
+D45. Deer, elk, bison herds and boar.
+D46. Bait and wind, tracks and blood trails, snares.
+D47. Vault side objectives, the armoured train robbery, a boss bar on the Quest HUD.
+D48. Landmarks: canyons, ghost towns, homesteads; biome-specific settlements.
+D49. Blizzards and sandstorms that cut visibility, body temperature, lightning risk to riders.
+D50. Ride train roofs and climb between cars; defend against holdups.
+D51. Track one objective with a HUD marker and an in-world beacon; contract and bounty markers; horse, ship and vehicle markers; notes stamped on the map.
+D52. Co-op: share a horse or vehicle with gun seats, shared contracts and bounties, revive a downed partner.
+
+
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
 Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] Polish loop, only when every gameplay item is DONE: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
@@ -470,7 +613,7 @@ ground keep clear of sky isles (with T11).
 T14. [DONE Oct 13: heavy far noise at a Capital citadel now sends a dropship, no crawler rolls out; the rest cooldown is per world (Game.restedAt). Test-only parts skipped] [Gameplay parts only (e.g. crawlers no longer fight for the Capital); skip every 'no test of' part] [PR #56 verifier leftovers, Lane A, 2026-10-12] P69: crawlers still fight for the Capital ("crawlers aren't Capital either"); P87: only the rider chance went up, nothing checks roads near villages in World376; P91: no test of berm seams across chunks; Game.restedAt is static (the rest cooldown carries across worlds in one session).
 T15. [DONE Oct 13: the Corsairs, a sea faction (Pirates.swift): beached wrecks are often corsair camps, a Corsair Sloop (cannon forward, three corsairs, a treasure chest) raids the coast near you and puts a party ashore; a ship cannon beside a computer of the same hull is an auto-turret; a broken wreck will not raise until her open bow is built back up to the deck] [P93 leftovers, Lane A, 2026-10-12] Pirates as a sea faction (crewed wrecks, raids from the water); an auto-turret on a ship (cannon + computer aboard); patching a wreck's open bow so it floats (today only rotten planks gate raising).
 T16. [DONE Oct 13: Reckoning soldier bands near the player come down by dropship (up to six), the Stormwarden band brings a warfrigate. Test parts skipped] [Gameplay parts only (e.g. dropships and navy in the Reckoning); skip the Tests part] [PR #56 verifier round 2 leftovers, Lane A, 2026-10-12] P98: no dropship arrivals or navy ships in the Reckoning; Greywall alarms still sound after peace (by design: you broke in). Tests: the trains test uses p44 off as "old ground" (not a real legacyP95 guard) and accepts any solid bed; the wrecks test raises a raft, not a generated wreck, and calls useCannonballs directly; the reckoning test buries the player in rock for "underground" and checks peace as a flag, not that hunters, raids and patrols stop.
-T17. [Cloud: smooth trees and smooth water only; Quest fps measurement is the Mac's] [P106 leftovers, Lane A, 2026-10-12] Polygon terrain: measure fps against block terrain on the Quest (Mac worker, device); smooth trees (Mac worker, tree looks); water as a smooth surface; relaxation costs about 40% more mesh time a section in the debug build, worth a look if streaming stalls on the device.
+T17. [FOLDED into U1, Oct 13] [Cloud: smooth trees and smooth water only; Quest fps measurement is the Mac's] [P106 leftovers, Lane A, 2026-10-12] Polygon terrain: measure fps against block terrain on the Quest (Mac worker, device); smooth trees (Mac worker, tree looks); water as a smooth surface; relaxation costs about 40% more mesh time a section in the debug build, worth a look if streaming stalls on the device.
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. [BLOCKED in cloud threads, Oct 13: the cloud Gemini key is on the free tier, which allows no image generation (HTTP 429, quota 0); needs the Mac with CHROME=1 as noted, or billing on the key] 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
