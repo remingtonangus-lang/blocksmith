@@ -89,9 +89,74 @@ if let out = arg("--view"), let ctx = vkctx {
     let vg = Game(world: vw, save: nil, persistent: false)
     vg.time = (Double(arg("--time") ?? "") ?? 0.25) * DAY_LENGTH
     vg.player.pos = V3(at[0], at[1], at[2]); vg.player.flying = true
+    // --find BIOME: spiral out from --at in 48-block steps to a column of that biome (looks work: hills, peaks, beaches).
+    if let want = arg("--find") {
+        var x = 0, z = 0, dx = 0, dz = -1
+        for _ in 0..<20000 {
+            let wx = Int(at[0]) + x * 48, wz = Int(at[2]) + z * 48
+            if vw.gen.column(wx, wz).biome.name == want { vg.player.pos = V3(Float(wx) + 0.5, at[1], Float(wz) + 0.5); print("view: \(want) at \(wx) \(wz)"); break }
+            if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+            x += dx; z += dz
+        }
+    }
+    // --up N: the eye N blocks over the ground (or the sea) under it.
+    if let up = Float(arg("--up") ?? "") {
+        let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
+        vg.player.pos.y = Float(max(h, SEA) + 1) + up
+    }
     _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
     var yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
+    if CommandLine.arguments.contains("--cave") {
+        let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
+        func room(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            for dy in -1...1 { for dz in -2...2 { for dx in -2...2 where vw.block(x + dx, y + dy, z + dz) != AIR { return false } } }
+            return true
+        }
+        search: for r in stride(from: 0, through: 64, by: 4) { for dz in stride(from: -r, through: r, by: 4) { for dx in stride(from: -r, through: r, by: 4) where max(abs(dx), abs(dz)) == r {
+            _ = vw.loadSync(center: V3(Float(px + dx), 80, Float(pz + dz)), radius: 1)
+            let top = vw.gen.column(px + dx, pz + dz).height
+            var y = top - 8
+            while y > 20 { if room(px + dx, y, pz + dz) { vg.player.pos = V3(Float(px + dx) + 0.5, Float(y), Float(pz + dz) + 0.5); print("view: cave at \(px + dx) \(y) \(pz + dz)"); break search }; y -= 1 }
+        } } }
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+    }
+    // --meshbench: mesh the 5x5 chunks round the eye three ways (blocks, round-2 smooth, field smooth) and print the time
+    // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
+    if CommandLine.arguments.contains("--meshbench") {
+        let pcx = floorDiv(Int(floor(vg.player.pos.x)), CS), pcz = floorDiv(Int(floor(vg.player.pos.z)), CS)
+        let was = (SmoothTerrain.enabled, SmoothTerrain.fromField)
+        for (name, on, fld) in [("blocks", false, false), ("round2", true, false), ("field", true, true)] {
+            SmoothTerrain.enabled = on; SmoothTerrain.fromField = fld
+            var ms = 0.0, quads = 0, secs = 0
+            for dz in -2...2 { for dx in -2...2 {
+                guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
+                for sy in 0..<NSEC {
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c))
+                    ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                    if !m.opaque.isEmpty { secs += 1 }
+                    quads += m.opaque.count / 8
+                }
+            } }
+            print(String(format: "meshbench %@: %.1f ms, %d sections with geometry, %d quads", name, ms, secs, quads))
+        }
+        (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
+    }
+    // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
+    if let n = Int(arg("--dig") ?? "") {
+        let gx = Int(floor(vg.player.pos.x - sinf(yaw) * 6)), gz = Int(floor(vg.player.pos.z - cosf(yaw) * 6))
+        var gy = Int(vg.player.pos.y)
+        while gy > 1 && !Blocks.opaque[Int(vw.block(gx, gy, gz))] { gy -= 1 }
+        for (ox, oz) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] { for d in 0..<n { vw.setBlock(gx + ox, gy - d, gz + oz, AIR) } }
+        vw.setBlock(gx + 3, gy + 1, gz, Blocks.id("dirt"))          // and a placed block on the ground beside it
+        print("view: dug \(n) at \(gx) \(gy) \(gz)")
+        vw.remeshArea(x0: gx - 8, z0: gz - 8, x1: gx + 8, z1: gz + 8, y0: gy - 8, y1: gy + 8)    // (the game remeshes the ring in the background)
+        if let p = arg("--dig-eye").map({ $0.split(separator: ",").compactMap { Float($0) } }), p.count == 3 {
+            vg.player.pos = V3(Float(gx) + 0.5 + p[0], Float(gy) + p[1], Float(gz) + 0.5 + p[2])
+        }
+    }
     // --sign TEXT: stand just inside the door under the nearest street sign with that line (the town nearest --at),
     // looking in (the generator moves towns between builds, so a note's position may no longer hold the building).
     if let want = arg("--sign"), let sc = vw.gen.structures,

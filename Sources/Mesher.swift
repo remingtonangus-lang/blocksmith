@@ -234,7 +234,7 @@ enum Mesher {
     // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             smoothOK: Bool = true) -> SectionMesh {
+                             smoothOK: Bool = true, site: SmoothSite? = nil) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -781,7 +781,7 @@ enum Mesher {
             }
         }
         if smooth {
-            smoothQuads(R, sc, dmg: dmg) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+            smoothQuads(R, sc, dmg: dmg, site: site, sy: sy) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
@@ -940,11 +940,14 @@ final class MeshScratch {
     let smN = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
     let smQ = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0)
     let smR = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)
+    // P142: which samples agree with the generator's fields (0 unknown, 1 yes, 2 no), and the fields themselves.
+    let smF = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
+    lazy var field = SmoothField()
 
     deinit {
         region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
         lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
-        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate()
+        smS.deallocate(); smD.deallocate(); smV.deallocate(); smL.deallocate(); smN.deallocate(); smQ.deallocate(); smR.deallocate(); smF.deallocate()
     }
 
     static var current: MeshScratch {

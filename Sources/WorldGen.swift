@@ -82,9 +82,9 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Density
 
-    private struct Col { var h: Float; var amp: Float; var s: Float }
+    struct Col { var h: Float; var amp: Float; var s: Float }      // (SmoothField reads these too)
 
-    private func colInfo(_ n: Terrain.Node) -> Col {
+    func colInfo(_ n: Terrain.Node) -> Col {
         let ocean = n.h < SEA_D - 1 && n.wl <= SEA_D
         let wet = n.rv < 3 || n.wl > SEA_D + 0.01
         var amp: Float = ocean ? 0.15 : 0.2 + n.u * 0.35
@@ -92,10 +92,10 @@ final class WorldGen: TerrainGenerator {
         return Col(h: n.h, amp: amp, s: 7 + n.u * 14)
     }
 
-    private func colInfo(_ x: Int, _ z: Int) -> Col { colInfo(terrain.node(floorDiv(x, 4), floorDiv(z, 4))) }
+    func colInfo(_ x: Int, _ z: Int) -> Col { colInfo(terrain.node(floorDiv(x, 4), floorDiv(z, 4))) }
 
     // Density at a lattice point (world x, internal y, world z): > 0 is solid.
-    private func density(_ col: Col, _ x: Int, _ y: Int, _ z: Int) -> Float {
+    func density(_ col: Col, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let yd = Float(y - YOFF)
         let base = (col.h - yd) / col.s
         if base > 2.5 { return base }

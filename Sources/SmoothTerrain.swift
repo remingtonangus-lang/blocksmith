@@ -59,6 +59,19 @@ enum SmoothTerrain {
         return Blocks.opaque[i] || Blocks.collide[i]
     }
 
+    // Common rock the smooth mesher shows as the majority round a block (P142): never ores, magma or soil.
+    static let rockIDs: [Int] = ["stone", "deepslate", "emberslate", "blackstone", "basalt", "smooth_basalt", "tuff", "andesite",
+                                 "diorite", "granite", "netherrack"].map { Int(Blocks.id($0)) }.filter { natural[$0] }
+    static let rockSlot: [Int8] = (0..<Blocks.count).map { i in Int8(rockIDs.firstIndex(of: i) ?? -1) }
+    // The blocks a rock face polls: the 3x3x3 round it.
+    static let voteProbe: [(Int, Int, Int)] = {
+        var r: [(Int, Int, Int)] = []
+        for dy in -1...1 { for dz in -1...1 { for dx in -1...1 { r.append((dx, dy, dz)) } } }
+        return r
+    }()
+    // Where a dirt block facing up looks for the turf it lies under: above it, then beside it and beside-above.
+    static let turfProbe: [(Int, Int, Int)] = [(0, 1, 0), (0, 2, 0), (1, 1, 0), (-1, 1, 0), (0, 1, 1), (0, 1, -1),
+                                               (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, 3, 0)]
     // Vertex normal code: tilt levels toward the face's tangent axes (axis+1, axis+2), finer near flat ground.
     // The shaders hold the same table (smoothNormal in chunk.vert / Shaders.swift / VibrantShaders / ship shaders).
     static let tiltLevels: [Float] = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1]
@@ -66,6 +79,9 @@ enum SmoothTerrain {
     // BLOCKSMITH_RELAX=0 meshes the round-1 surface (side by side shots, cost).
     static var relax: Int = max(0, min(maxRelax, Int(ProcessInfo.processInfo.environment["BLOCKSMITH_RELAX"] ?? "") ?? 4))
     static let maxRelax = 4
+    // P142: overworld sections mesh the generator's continuous fields (SmoothField); BLOCKSMITH_FIELD=0 meshes round
+    // the blocks as round 2 did (side by side shots).
+    static var fromField = ProcessInfo.processInfo.environment["BLOCKSMITH_FIELD"] != "0"
     static let relaxRate: Float = 0.8
     static var vertexHook: ((Int, Int, Int, SIMD3<Float>) -> Void)?   // tests: every owned dual vertex after relaxing
     static func normalCode(_ n: SIMD3<Float>, face f: Int) -> Int {
@@ -108,10 +124,11 @@ extension Mesher {
 
     // Smooth quads for the section whose local 0 is region (C0, C0, C0). `emit` takes position (1/16 block,
     // section-local), face, tint, layer, ao, packed light, overlay.
-    static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8],
+    // `site` (P142): the section's chunk in a world whose generator has fields; nil meshes round the blocks (round 2).
+    static func smoothQuads(_ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, dmg: [Int: UInt8], site: SmoothSite? = nil, sy: Int = 0,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let nat = SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
-        let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins
+        let texT = Blocks.tex, tintT = Blocks.tint, pinT = SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
         let skyL = sc.sky, blkL = sc.blk
         func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + C0) + (z + C0) * RW + (y + C0) * RL }
 
@@ -128,12 +145,36 @@ extension Mesher {
         for y in 0..<N { for z in 0..<N { for x in 0..<N {
             S[x + z * N + y * NN] = opaqueT[Int(R[ri(x - SO, y - SO, z - SO)])] ? 1 : 0
         } } }
+        // P142: the generator's fields over the same box (SmoothField). A sample is "on field" when its block is what the
+        // fields alone make there (and not being dug); only edges between two on-field samples take the field's crossing.
+        var field: SmoothField? = nil
+        let FO = sc.smF
+        if let site {
+            let F = sc.field
+            F.prepare(site.gen, x0: site.cx * CS - SO, y0: sy * 16 - SO, z0: site.cz * CS - SO)
+            FO.initialize(repeating: 0, count: N * NN)
+            field = F
+        }
+        func onField(_ i: Int) -> Bool {
+            let o = FO[i]
+            if o != 0 { return o == 1 }
+            guard let F = field else { return false }
+            var on = F.inWorld(i) && (S[i] != 0) == F.solid(i)
+            if on && S[i] != 0 && !dmg.isEmpty {
+                let bx = i % N - SO, bz = (i / N) % N - SO, by = i / NN - SO
+                if dmg[ri(bx, by, bz)] != nil { on = false }
+            }
+            FO[i] = on ? 1 : 2
+            return on
+        }
+        var anyLoose = field == nil
+
         // Density for blocks -KO...KO+17 (index +KO): half the block, half its 3x3x3 mean. A chipped natural
         // block (being dug, P106) keeps its smooth surface but shrinks toward its centre as the chips come off (its
         // solid density falls toward the 0.5 threshold), instead of turning back into a cube of sub-cubes.
         let M = 18 + 2 * KO, MM = M * M, DO = KO
         let D = sc.smD
-        for y in 0..<M { for z in 0..<M { for x in 0..<M {
+        if field == nil { for y in 0..<M { for z in 0..<M { for x in 0..<M {
             var s = 0
             for dy in 0...2 { for dz in 0...2 {
                 let row = x + (z + dz) * N + (y + dy) * NN
@@ -146,7 +187,7 @@ extension Mesher {
                 d = 0.5 + max(0.012, (d - 0.5) * (1 - 0.92 * lv))
             }
             D[x + z * M + y * MM] = d
-        } } }
+        } } } }
 
         // Dual cell vertices -KO...16+KO (index +KO): position (blocks, section-local), light, ao. The ring past
         // 0...16 feeds the relaxation, so a vertex comes out the same in every section that meshes it.
@@ -161,14 +202,33 @@ extension Mesher {
             if mask == 0 || mask == 255 { VL[vi] = -1; continue }
             var sum = SIMD3<Float>(0, 0, 0)
             var n: Float = 0
+            // P142: the field's own crossings, and its outward direction per field that made one (0 terrain, 1-3 caves).
+            var loose = false
+            var fn = SIMD3<Float>(0, 0, 0)
+            var fnSeen = 0
+            let cell0 = (cx + SO) + (cz + SO) * N + (cy + SO) * NN
             for c in 0..<8 {
                 for sh in 0..<3 where (c >> sh) & 1 == 0 {
                     let bit = 1 << sh
                     let c2 = c | bit
                     if (mask >> c & 1) == (mask >> c2 & 1) { continue }
-                    let d1 = D[(cx + DO + (c & 1)) + (cz + DO + (c >> 2)) * M + (cy + DO + ((c >> 1) & 1)) * MM]
-                    let d2 = D[(cx + DO + (c2 & 1)) + (cz + DO + (c2 >> 2)) * M + (cy + DO + ((c2 >> 1) & 1)) * MM]
-                    let t = max(0, min(1, (d1 - 0.5) / (d1 - d2)))
+                    let t: Float
+                    if let F = field {
+                        let i1 = cell0 + (c & 1) + (c >> 2) * N + ((c >> 1) & 1) * NN
+                        let i2 = cell0 + (c2 & 1) + (c2 >> 2) * N + ((c2 >> 1) & 1) * NN
+                        let s1 = (mask >> c) & 1 == 1
+                        let a = s1 ? i1 : i2, b = s1 ? i2 : i1
+                        if onField(a) && onField(b), let (tt, which) = F.crossing(a, b) {
+                            t = s1 ? tt : 1 - tt
+                            if fnSeen & (1 << which) == 0 { fnSeen |= 1 << which; fn += F.outward(which, cell0) }
+                        } else {
+                            t = 0.5; loose = true
+                        }
+                    } else {
+                        let d1 = D[(cx + DO + (c & 1)) + (cz + DO + (c >> 2)) * M + (cy + DO + ((c >> 1) & 1)) * MM]
+                        let d2 = D[(cx + DO + (c2 & 1)) + (cz + DO + (c2 >> 2)) * M + (cy + DO + ((c2 >> 1) & 1)) * MM]
+                        t = max(0, min(1, (d1 - 0.5) / (d1 - d2)))
+                    }
                     let p1 = SIMD3<Float>(Float(c & 1), Float((c >> 1) & 1), Float(c >> 2))
                     let p2 = SIMD3<Float>(Float(c2 & 1), Float((c2 >> 1) & 1), Float(c2 >> 2))
                     sum += p1 + (p2 - p1) * t
@@ -180,18 +240,22 @@ extension Mesher {
             let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
                 : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z
-            VQ[vi] = pinned ? 1 : 0
+            // 0 relaxes (round 2, and P142 vertices with an off-field edge), 1 pinned to a built block, 2 on the field (fixed).
+            VQ[vi] = pinned ? 1 : (field != nil && !loose ? 2 : 0)
+            if loose { anyLoose = true }
             // The ring only feeds the relaxation: its normals and light are never drawn.
             if cx < 0 || cy < 0 || cz < 0 || cx > 16 || cy > 16 || cz > 16 { VL[vi] = 0; continue }
             // Normal: minus the gradient of solidity over the 4x4x4 blocks around the vertex (S index = block + 3).
-            var g = SIMD3<Float>(0, 0, 0)
-            for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
+            // P142: on the field, the field's own outward direction instead.
+            let fieldN = field != nil && !loose && fnSeen != 0
+            var g = fieldN ? -fn : SIMD3<Float>(0, 0, 0)
+            if !fieldN { for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
                 let sv = Float(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
                 if sv == 0 { continue }
                 g.x += sv * dW[i] * tW[j] * tW[k]
                 g.y += sv * tW[i] * dW[j] * tW[k]
                 g.z += sv * tW[i] * tW[j] * dW[k]
-            } } }
+            } } } }
             VN[vi * 3] = -g.x; VN[vi * 3 + 1] = -g.y; VN[vi * 3 + 2] = -g.z
             // Light: mean over the open corners; ao from how many corners occlude.
             var sky = 0, blk = 0, open = 0, occ = 0
@@ -203,17 +267,31 @@ extension Mesher {
                 sky += Int(skyL[i]); blk += Int(blkL[i]); open += 1
             }
             let l = open == 0 ? 0 : ((sky + open / 2) / open) | (((blk + open / 2) / open) << 4)
-            let ao = max(0, 3 - max(0, occ - 4))
+            var ao = max(0, 3 - max(0, occ - 4))
+            // P142: on smooth land the 8 blocks round a vertex are the block steps the field was rounded to, and their ao
+            // drew a dark contour line at every step of a hillside (the terraced look). Occlusion from the 4x4x4 blocks
+            // round the vertex instead: about half solid on any even slope, more in a hollow or under an overhang.
+            if field != nil {
+                var cnt = 0
+                for j in 0..<4 { for k in 0..<4 { for i in 0..<4 {
+                    cnt += Int(S[(cx + SO - 1 + i) + (cz + SO - 1 + k) * N + (cy + SO - 1 + j) * NN])
+                } } }
+                ao = 3 - min(3, max(0, (cnt - 42) / 5))
+            }
             VL[vi] = Int32(l | ao << 8)
         } } }
         // P106 ("you can still tell it used to be blocks"): relax the surface. Each free vertex moves `relaxRate` of the
         // way to the mean of its surface neighbours, `relax` times, kept inside its own dual cell (so no quad folds over). Steps and
         // ledges become slopes and rounded shelves; flat ground and pinned joins to built blocks don't move.
-        if SmoothTerrain.relax > 0 {
+        // P142: on field land only off-field vertices (edits, structure ground) relax, one gentle pass: more pulled a dug pit's
+        // floor up to the ground round it and flattened a placed block into a sliver.
+        let passes = field != nil ? min(1, SmoothTerrain.relax) : SmoothTerrain.relax
+        let rate: Float = field != nil ? 0.4 : SmoothTerrain.relaxRate
+        if passes > 0 && anyLoose {
             let VR = sc.smR
             let nbo = [1, -1, K, -K, KK, -KK]
-            for it in 0..<min(KO, SmoothTerrain.relax) {
-                let lo = KO - min(KO, SmoothTerrain.relax) + it + 1, hi = K - 1 - lo   // ring by ring, inward
+            for it in 0..<min(KO, passes) {
+                let lo = KO - min(KO, passes) + it + 1, hi = K - 1 - lo   // ring by ring, inward
                 for ky in lo...hi { for kz in lo...hi { for kx in lo...hi {
                     let vi = kx + kz * K + ky * KK
                     VR[vi * 3] = VP[vi * 3]; VR[vi * 3 + 1] = VP[vi * 3 + 1]; VR[vi * 3 + 2] = VP[vi * 3 + 2]
@@ -225,7 +303,7 @@ extension Mesher {
                     guard c > 0 else { continue }
                     let cur = SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])
                     let lo3 = SIMD3<Float>(Float(kx - KO) + 0.5, Float(ky - KO) + 0.5, Float(kz - KO) + 0.5)
-                    let r = simd_clamp(cur + (m / c - cur) * SmoothTerrain.relaxRate, lo3 + 0.02, lo3 + 0.98)
+                    let r = simd_clamp(cur + (m / c - cur) * rate, lo3 + 0.02, lo3 + 0.98)
                     VR[vi * 3] = r.x; VR[vi * 3 + 1] = r.y; VR[vi * 3 + 2] = r.z
                 } } }
                 for ky in lo...hi { for kz in lo...hi { for kx in lo...hi {
@@ -280,8 +358,8 @@ extension Mesher {
                 if sp == sq { continue }
                 let s = sp ? p : q
                 let si = ri(s[0], s[1], s[2])
-                let id = Int(R[si])
-                if !nat[id] { continue }
+                let blockID = Int(R[si])
+                if !nat[blockID] { continue }
                 // Dual cells around the edge, counter-clockwise seen from the open side.
                 for k in 0..<4 {
                     var d = p
@@ -302,6 +380,28 @@ extension Mesher {
                 else { f = nrm.z > 0 ? 4 : 5 }
                 // Grass (side overlay blocks): grass wherever the ground faces up at all, dirt under overhangs; the side
                 // texture's fringe would draw a band at every block row on a slope.
+                // P141/P142: dirt facing up under a neighbour's turf shows the turf (on a hillside every block row exposes the
+                // dirt under the row above's grass, which striped slopes grass/dirt/grass: the checkered look).
+                var id = blockID
+                if id == Int(DIRT) && nrm.y > 0.35 * len {
+                    turf: for (dx, dy, dz) in SmoothTerrain.turfProbe {
+                        let t = Int(R[ri(s[0] + dx, s[1] + dy, s[2] + dz)])
+                        if nat[t] && tintT[t] == 3 { id = t; break turf }
+                    }
+                }
+                // P142 material blending, first step: the rock a generator mixes block by block (deeprock with stone above 0,
+                // emberslate with blackstone, basalt and magma below) shows as the commonest rock round the block, so a smooth
+                // wall reads as patches and strata instead of a grid of single blocks. Ores and everything else keep their own look.
+                if field != nil && rockSlot[id] >= 0 {
+                    var counts = SIMD16<Int32>(repeating: 0)
+                    for (dx, dy, dz) in SmoothTerrain.voteProbe {
+                        let k = Int(rockSlot[Int(R[ri(s[0] + dx, s[1] + dy, s[2] + dz)])])
+                        if k >= 0 { counts[k] += 1 }
+                    }
+                    var bestK = Int(rockSlot[id])
+                    for k in 0..<SmoothTerrain.rockIDs.count where counts[k] > counts[bestK] { bestK = k }
+                    id = SmoothTerrain.rockIDs[bestK]
+                }
                 let tintB = Int(tintT[id])
                 let texF = tintB == 3 ? (nrm.y > 0.2 * len ? 2 : 3) : f
                 let layer = Int(texT[id * 6 + texF])

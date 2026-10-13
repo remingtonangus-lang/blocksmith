@@ -545,7 +545,7 @@ final class World {
     func lodQuads(_ c: Chunk, _ sy: Int) -> [(Int, Int)] {
         guard let nb = neighbourhood(c) else { return [] }
         return [0, 1].map { lod in
-            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod)
+            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod, site: smoothSite(c))
             let q = m.opaque.count / 8
             return (m.solidQuads, q - m.solidQuads)
         }
@@ -558,7 +558,13 @@ final class World {
 
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c)), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), site: smoothSite(c)), to: c, sy: sy, version: c.sections[sy].version)
+    }
+
+    // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
+    func smoothSite(_ c: Chunk) -> SmoothSite? {
+        guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return nil }
+        return SmoothSite(gen: g, cx: c.cx, cz: c.cz)
     }
 
     // MARK: Progressive block damage
@@ -820,6 +826,7 @@ final class World {
         let todo = dirtySections(c)
         let lod = c.lod
         let dl = damageList(c)
+        let site = smoothSite(c)
         c.meshInFlight = true
         jobs += 1
         // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
@@ -827,7 +834,7 @@ final class World {
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var out: [(Int, Int, SectionMesh)] = []
-            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, site: site))) }
             let el = CFAbsoluteTimeGetCurrent() - t0
             self.lock.lock()
             self.meshResults.append((k, out))
@@ -1001,11 +1008,12 @@ final class World {
             }
         } }
         let dls = toMesh.map { damageList($0.0) }
+        let sites = toMesh.map { smoothSite($0.0) }
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i]))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], site: sites[i]))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)
