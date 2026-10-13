@@ -90,15 +90,15 @@ enum CapitalBase {
                 ("soldier_marksman", -30, 1, 22), ("soldier_marksman", 30, 1, 22)]
         // Hall: foyer, barracks (west), armory (east), mess (north).
         out += [("soldier_trooper", 0, 1, 22), ("soldier_recruit", -4, 1, 20), ("soldier_recruit", -20, 1, -4), ("soldier_recruit", -18, 1, 8),
-                ("soldier_trooper", 20, 1, -6), ("soldier_trooper", 18, 1, 8), ("soldier_recruit", 0, 1, -22), ("soldier_ironclad", 12, 1, 14)]
+                ("soldier_trooper", 20, 1, -6), ("soldier_trooper", 18, 1, 8), ("soldier_recruit", 0, 1, -22), ("soldier_ironclad:heavy", 12, 1, 14)]
         // Roof garden, tower floors, skyways, setback terrace and pad, side towers.
         out += [("soldier_marksman", -14, 8, 14), ("soldier_marksman", 14, 8, -14), ("soldier_trooper", 0, 8, 16),
-                ("soldier_trooper", 1, 14, -2), ("soldier_recruit", -3, 20, -3), ("soldier_ironclad", 2, 26, -3), ("soldier_marksman", 18, 26, 0),
+                ("soldier_trooper", 1, 14, -2), ("soldier_recruit", -3, 20, -3), ("soldier_ironclad:heavy", 2, 26, -3), ("soldier_marksman", 18, 26, 0),
                 ("soldier_marksman", -18, 26, 0), ("soldier_trooper", -2, 32, 0), ("soldier_marksman", 0, 38, -17), ("soldier_trooper", 1, 39, 8),
-                ("soldier_ironclad", 0, 50, 2), ("soldier_marksman", 36, 39, 0), ("soldier_marksman", -36, 39, 0),
+                ("soldier_ironclad:heavy", 0, 50, 2), ("soldier_marksman", 36, 39, 0), ("soldier_marksman", -36, 39, 0),
                 ("soldier_recruit", 36, 1, 2), ("soldier_recruit", -36, 1, -2)]
         // Vault under the hall.
-        out += [("soldier_ironclad", 2, -4, 16)]
+        out += [("soldier_ironclad:heavy", 2, -4, 16)]
         return out
     }
 

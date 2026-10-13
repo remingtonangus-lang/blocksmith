@@ -142,8 +142,8 @@ enum Guns {
         guard l > 0 else { return base }
         return max(base + 1, Int((Float(base) * (1 + 0.25 * Float(l))).rounded(.up)))
     }
-    static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) }
-    static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) }
+    static func reloadTime(_ s: ItemStack, _ gi: Int) -> Float { all[gi].reload * (1 - 0.18 * Float(Enchant.level(.quickReload, s))) * GunGrade.reload(s) }
+    static func steadiness(_ s: ItemStack) -> Float { (1 - 0.18 * Float(Enchant.level(.stability, s))) * Legendaries.recoilScale(s) * GunGrade.recoil(s) }
 
     // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
     static func tooltip(_ s: ItemStack) -> [String] {
@@ -159,6 +159,7 @@ enum Guns {
         case .beam: out.append("Damage: \(Int(g.damage)), ignites")
         }
         out.append(g.auto ? String(format: "Automatic, %.0f rounds/s", 1 / g.interval) : String(format: "%.1f shots/s", 1 / g.interval))
+        if let q = GunGrade.tooltip(s) { out.append(q) }
         return out
     }
 

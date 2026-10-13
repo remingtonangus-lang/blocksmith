@@ -106,7 +106,10 @@ enum Explosion {
             && !(g.blastSpares != .none && m.factionValue == g.blastSpares) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
-                m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)
+                var dmg = ((k * k + k) / 2 * 7 * radius + 1).rounded()
+                // A soldier's vest takes the blast first (TroopClasses.swift, T7): its plate soaks a share and wears.
+                if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: 1, g).rounded() }
+                m.hit(from: c, damage: Int(dmg), knockback: 0)
                 m.vel += dir * k * 12
             }
         }

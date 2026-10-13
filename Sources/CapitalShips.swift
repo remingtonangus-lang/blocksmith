@@ -1597,6 +1597,14 @@ extension ShipManager {
     // then it circles the fight with its autocannon and finally climbs away. Shot to pieces it falls and blows up.
     private func dropshipTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.phaseT += dt
+        // T7: the squad keeps round its officer and takes up the fight the officer has seen.
+        if let lead = st.troops.first(where: { $0.kind == .soldierOfficer && $0.health > 0 }) {
+            for (i, m) in st.troops.enumerated() where m !== lead && m.health > 0 {
+                let a = Float(i) * 2.1
+                m.home = lead.pos + V3(cosf(a) * 2.5, 0, sinf(a) * 2.5)
+                if lead.aggro && !m.aggro, let seen = lead.brain?.lastSeen { m.aggro = true; m.soldierBrain.lastSeen = seen }
+            }
+        }
         let keel = st.groundOffset
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
         // Over loaded ground, the real top block (tree crowns too: hovering at terrain height put it in the canopy).
@@ -1665,12 +1673,14 @@ extension ShipManager {
                 let foot = s.toWorld(st.ramp)
                 let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
                 if world.isLoaded(ix, iz) {
-                    let ranks: [MobKind] = s.faction == Faction.steelhold.rawValue ? [.soldierRecruit, .soldierOfficer, .soldierTrooper, .soldierRecruit]
+                    // T7: an officer first down the ramp, then a trooper, a Spec Ops marksman and a recruit.
+                    let ranks: [MobKind] = s.faction == Faction.steelhold.rawValue ? [.soldierOfficer, .soldierRecruit, .soldierMarksman, .soldierTrooper]
                         : [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
                     let m = Mob(ranks[st.troopsLeft % ranks.count], at: V3(foot.x, Float(world.topY(ix, iz) + 1), foot.z))
                     m.faction = s.faction
                     m.aggro = true
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }
+                    if m.kind == .soldierMarksman && s.faction == Faction.steelhold.rawValue { m.setTroop(.specOps, rearm: true) }
                     g.mobs.mobs.append(m)
                     st.troops.append(m)
                     if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A \(s.name) is landing troops!") }

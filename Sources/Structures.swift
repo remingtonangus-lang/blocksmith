@@ -666,6 +666,7 @@ enum Loot {
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
         Blueprints.addToChest(c, table: table, rng: &rng)                // P138
+        GunGrade.gradeChest(c, table: table, rng: &rng)                  // T7
     }
 
     private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {

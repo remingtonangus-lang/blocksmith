@@ -324,7 +324,10 @@ final class Armory {
         if let m = mob {
             let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
             if m.shield > 0 { m.shield = max(0.01, m.shield - damage * 2) }   // arc beams tear shields at triple (Navy.swift)
-            m.hit(from: o, damage: Int(damage * (boss ? 0.35 : 1)), knockback: 0.4)
+            var dmg = damage * (boss ? 0.35 : 1)
+            // A soldier's plate takes the beam where it strikes (TroopClasses.swift, T7).
+            if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: m.troopSegment(at: hit.y), g) }
+            m.hit(from: o, damage: Int(dmg), knockback: 0.4)
             if !m.spec.fireImmune { m.fire = max(m.fire, incendiary ? 4 : 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
         } else if player {
@@ -530,7 +533,7 @@ extension Game {
         case .bullet:
             for _ in 0..<gs.pellets {
                 let d = Guns.scatter(look, spread)
-                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * Legendaries.gunScale(st), fromPlayer: true, shooter: nil, by: "Player",
+                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * Legendaries.gunScale(st) * GunGrade.damage(st), fromPlayer: true, shooter: nil, by: "Player",
                              life: gs.range / gs.speed, gravity: 1.5)
                 s.pierce = pierce
                 s.incendiary = fiery
@@ -543,7 +546,7 @@ extension Game {
             s.power = Guns.rocketPower
             a.spawn(s)
         case .beam:
-            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage * Legendaries.gunScale(st), fromPlayer: true, shooter: nil, by: "Player",
+            a.beam(self, from: muzzle, dir: Guns.scatter(look, spread), range: gs.range, damage: gs.damage * Legendaries.gunScale(st) * GunGrade.damage(st), fromPlayer: true, shooter: nil, by: "Player",
                    incendiary: fiery)
         }
         var h = held

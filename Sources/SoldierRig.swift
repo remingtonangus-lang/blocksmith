@@ -503,6 +503,17 @@ enum SoldierRig {
 
         // 4. Aiming (firing kicks the weapon), shuffling while they shoot.
         if !parade && aiming {
+            // T7: Spec Ops drop to a crouch to shoot when they stand still.
+            if m.troop == 2 && !moving {
+                p.hipY = 9.4
+                let th: Float = 0.96
+                p.thighL = th; p.thighR = th * 0.8; p.kneeL = -th; p.kneeR = -th * 1.05
+                p.spreadL = -0.14; p.spreadR = 0.12
+                p.lean = 0.16
+                p.headPitch = aimPitch * 0.85 + (gi == Guns.sniper ? 0.2 : 0.12)
+                shoulder(pitch: aimPitch, low: false)
+                return p
+            }
             p.lean = 0.1
             p.headPitch = aimPitch * 0.85 + (gi == Guns.sniper ? 0.2 : 0.12)
             shoulder(pitch: aimPitch, low: false)
