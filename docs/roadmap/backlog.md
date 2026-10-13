@@ -4,6 +4,7 @@ How to use this file (cloud threads and the Mac worker):
 - Work top to bottom inside your lane. Claim an item by adding your thread name and the date next to it in a PR that only edits this file, or in your first PR for it. Skip items another thread has claimed.
 - Each item lists Remington's intent first, then the expanded objectives. Treat both as the spec. Write your own extra objectives too (OBJECTIVES FIRST), build to them, then mark the item DONE here with the PR numbers.
 - ONE AND DONE (Remington, Oct 12 19:11; overrides any review, verify or DONE GATE wording anywhere in this repo): build each item thoroughly and well the first time, make sure it compiles, run the one quick test that shows the item works, fix any conflict you know of, commit, push, merge, mark DONE, move on. No reviewer, no verifier rounds, no rechecks, no full questcheck per item or per round. If the Quest build or a later playtest shows something broke, fix it then (80/20).
+- NO TEST WORK (Remington, Oct 13 08:15): never take an item, or part of an item, whose goal is making tests, bots, CI runs, checks, scorecards, benchmarks, evidence snaps or verifier notes pass or exist. If an item mixes gameplay and test work, do only the gameplay. Anything that needs the headset or the Mac (device checks, Quest fps) is skipped by cloud threads. If you notice yourself spending more than 30 minutes on a test or tool instead of the game, stop and move to the next gameplay item.
 - Never stop while an unclaimed item remains in your lane. When your lane is empty, take the next unclaimed item from the other cloud lane that does not touch files another thread is editing.
 - IP: inspiration only. No coined names from Halo, GoldenEye, Red Dead, Minecraft or real military units in player-visible text (tools/namecheck.py --coined; add new banned words to tools/coined-terms.txt). The WW2 layer uses fictional names and a fictional emblem: no swastikas, SS runes, Iron Crosses or real unit insignia (store-safe; also required for sale in Germany).
 - Quest is the product: every feature must hold 72 fps on Quest 3 in its busiest scene, and be judged on QuestSim or the device.
@@ -169,7 +170,7 @@ P139. [DONE: a goal step for the citadel raid; the Wardstone hint marks the near
 
 ## MOVED FROM THE MAC (Oct 11): take after the P and G items
 Q1. [DONE: Lane A thread, 2026-10-12, PRs #50 and #51; docs/status/done-audit.md covers every done task since Oct 8 with MET/PARTIAL/MISSING, small gaps fixed, the rest as G items.] Finish the done audit (Mac task 25b6, unfinished): complete docs/status/done-audit.md for every task marked done since Oct 8 (MET / PARTIAL / MISSING per requirement, scale words count), fix small gaps directly, add big gaps here as G items.
-Q2. Quality loop (standing, when nothing else is open): docs/STORE_QUALITY.md and docs/status/scorecard.md; pick the reddest high-impact objectives, expand each into what finished looks like, fix, re-measure, independent verifier; never declare the game store-ready.
+Q2. [REWRITTEN by Remington, Oct 13: no measuring, no scorecard, no verifier] Polish loop, only when every gameplay item is DONE: pick the thing a player would notice most (looks, feel, sound, clarity), improve it in one pass, push, merge, next.
 
 ## THE GAME'S SPINE (read first; every item serves this)
 Play by the rules until you have iron, ideally diamond. Then you can take a village. Then the military bases (rare, tiered, GoldenEye-style), then the navy and its frigates, then hell, then the Reich below hell. Killing the Reich's leader beats the game. Gear tiers, tool upgrades and vehicles are the keys between stages.
@@ -250,7 +251,7 @@ B7. The Reich below hell. [DONE: Lane B thread, 2026-10-11, PR #46; docs/status/
 
 M1. Polygon terrain test. [DONE: Mac queue, 2026-10-11; docs/status/polygon-test.md; device walk in device-checklist.md section 2] Intent: a test of the polygon idea to see how it turns out. Build on the smooth-terrain prototype (task 25b3) and make it playable as an option on Quest so Remington can walk around in it; screenshots and fps compared with blocks.
 M2. (moved to lane C as L2)
-M3. [Checklist written 2026-10-11: device-checklist.md section 3; needs the headset] Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
+M3. [Mac/headset only: cloud threads skip] [Checklist written 2026-10-11: device-checklist.md section 3; needs the headset] Device feel for the lanes above: flying, crawler, frigate radar and VR melee against knights, checked on the Quest.
 
 ## LANE C (optional third cloud thread): looks, redstone, polish
 Moved from the Mac queue on Oct 10 21:52 (Quest is the product; judge on QuestSim, Mac renderer only where shared code forces it).
@@ -347,7 +348,7 @@ T3. [DROPPED by Remington, Oct 13 08:10: no time on making test bots or automate
        (whole tick 22 ms against 8.6 without them, under load), `deep: sealed lava pockets above the
        lava sea`, `boreal 12345 ... birdCall`, `boreal ops: a roused soldier leaves the shut archive` (passes alone).
        Load-dependent on a 4-core runner; each needs its own fix (the fx cost first), not a looser budget.
-T4. Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
+T4. [Fix the gameplay: patrols follow paths that exist. Do not chase the test.] Citadel patrols give up where a path exists (PR #49 heavy shots red, `--basetest patrol`; Linux repro:
     `questcheck --basetest-only patrol`). G12 moved seed 12345's nearest citadel to -456,920. A gunshot 40 blocks south of
     its gate: PathFinder.find (8,000 nodes) walks gate -> spot, but the patrol leader stops 36 blocks short ("no way on")
     after ~4 blocks: basePatrol (CapitalBasesWork.swift) orders 18-block waypoints at `standY` ground and the soldier's
@@ -394,22 +395,22 @@ T12. [C2 leftover, the war map] Battles you can join: soldiers of both countries
 (today the battles are simulated, heard and seen as guns and smoke); the military factions (Capital, Greywall, navy)
 holding ground on the war map; wars far from the player keep going while away.
 
-T13. [C6/C8/A5 verifier leftovers, Lane A PR #52] C6: a truck convoy as the military answer (crates come by air), the
+T13. [Gameplay parts only; skip every test/check/verifier part] [C6/C8/A5 verifier leftovers, Lane A PR #52] C6: a truck convoy as the military answer (crates come by air), the
 fire mission from a real frigate (today the faction's artillery), the 10-minute alert and crates in flight saved over a
 quit. C8: enemy submarines you can capture, the pinging frigate steering to the last ping, the kit's own icon, generated
 mines sitting in a dry cell inside the water. A5: the map fog saved on quit (every 10 s today). C7: frigates over high
 ground keep clear of sky isles (with T11).
-T14. [PR #56 verifier leftovers, Lane A, 2026-10-12] P69: crawlers still fight for the Capital ("crawlers aren't Capital either"); P87: only the rider chance went up, nothing checks roads near villages in World376; P91: no test of berm seams across chunks; Game.restedAt is static (the rest cooldown carries across worlds in one session).
+T14. [Gameplay parts only (e.g. crawlers no longer fight for the Capital); skip every 'no test of' part] [PR #56 verifier leftovers, Lane A, 2026-10-12] P69: crawlers still fight for the Capital ("crawlers aren't Capital either"); P87: only the rider chance went up, nothing checks roads near villages in World376; P91: no test of berm seams across chunks; Game.restedAt is static (the rest cooldown carries across worlds in one session).
 T15. [P93 leftovers, Lane A, 2026-10-12] Pirates as a sea faction (crewed wrecks, raids from the water); an auto-turret on a ship (cannon + computer aboard); patching a wreck's open bow so it floats (today only rotten planks gate raising).
-T16. [PR #56 verifier round 2 leftovers, Lane A, 2026-10-12] P98: no dropship arrivals or navy ships in the Reckoning; Greywall alarms still sound after peace (by design: you broke in). Tests: the trains test uses p44 off as "old ground" (not a real legacyP95 guard) and accepts any solid bed; the wrecks test raises a raft, not a generated wreck, and calls useCannonballs directly; the reckoning test buries the player in rock for "underground" and checks peace as a flag, not that hunters, raids and patrols stop.
-T17. [P106 leftovers, Lane A, 2026-10-12] Polygon terrain: measure fps against block terrain on the Quest (Mac worker, device); smooth trees (Mac worker, tree looks); water as a smooth surface; relaxation costs about 40% more mesh time a section in the debug build, worth a look if streaming stalls on the device.
+T16. [Gameplay parts only (e.g. dropships and navy in the Reckoning); skip the Tests part] [PR #56 verifier round 2 leftovers, Lane A, 2026-10-12] P98: no dropship arrivals or navy ships in the Reckoning; Greywall alarms still sound after peace (by design: you broke in). Tests: the trains test uses p44 off as "old ground" (not a real legacyP95 guard) and accepts any solid bed; the wrecks test raises a raft, not a generated wreck, and calls useCannonballs directly; the reckoning test buries the player in rock for "underground" and checks peace as a flag, not that hunters, raids and patrols stop.
+T17. [Cloud: smooth trees and smooth water only; Quest fps measurement is the Mac's] [P106 leftovers, Lane A, 2026-10-12] Polygon terrain: measure fps against block terrain on the Quest (Mac worker, device); smooth trees (Mac worker, tree looks); water as a smooth surface; relaxation costs about 40% more mesh time a section in the debug build, worth a look if streaming stalls on the device.
 
 ## ART LONG TAIL (non-blocking notes from the 25b4zzz art-gaps done gate, 2026-10-11)
 AR1. 268 block layers still procedural (workblocks, sculk, copper bulbs/chests, coral, Steelhold/capital/frigate
      panels, ship parts): list in docs/status/art-style-remaining.md. Needs Gemini sheets (Mac, CHROME=1).
 AR2. cave_vines, weeping_vines, twisting_vines and the torch_top/torch_bottom variants are still procedural.
-AR3. Add a snap with XP set so the xp_bar fill is seen in evidence; check its stripes read as a tube at 3 px tall.
-AR4. Beds read as a thin flat slab in the Mac family gallery; check them at play distance on Quest.
+AR3. [DROPPED, Oct 13: evidence snaps are test work; skip] Add a snap with XP set so the xp_bar fill is seen in evidence; check its stripes read as a tube at 3 px tall.
+AR4. [Mac/headset only: cloud threads skip] Beds read as a thin flat slab in the Mac family gallery; check them at play distance on Quest.
 AR5. Close-up tiled shot of nether_quartz_ore / deepslate_diamond_ore to confirm the seam blend.
 AR6. texpack.bin grew 12.9 -> 18.6 MB; weigh it for the repo and Quest download (ASTC is Remington's call).
 AR7. Save each Gemini prompt verbatim in assets/CREDITS.md going forward (s23-s28/p03/i20 record pattern + cells only).

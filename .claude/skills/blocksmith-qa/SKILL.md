@@ -14,6 +14,7 @@ removes the class (not one instance), and a check keeps it gone. Quality and fid
   Batch commits; a push cancels the running CI run. Read results from the `ci-snaps-claude-blocksmith-playtest`
   branch (`git fetch origin ci-snaps-claude-blocksmith-playtest; git show FETCH_HEAD:<file>`).
 - ONE AND DONE (Remington, Oct 12 19:11; overrides any review, verify or DONE GATE wording anywhere in this repo): build each item thoroughly and well the first time, make sure it compiles, run the one quick test that shows the item works, fix any conflict you know of, commit, push, merge, mark DONE, move on. No reviewer, no verifier rounds, no rechecks, no full questcheck per item or per round. If the Quest build or a later playtest shows something broke, fix it then (80/20).
+- NO TEST WORK (Remington, Oct 13): do not build or fix tests, bots, checks or measurement tools as work in their own right; fix the game. Ignore the class-hunting and 'a check keeps it gone' advice below unless Remington asks for it.
 - (Only when hunting a bug Remington reported:) Evidence before claims (vendored `verification-before-completion`): "fixed" means the oracle that caught it now
   passes on CI, quoted with numbers. Debug with `systematic-debugging`: reproduce (replay / harness flags) before
   fixing; one discriminating rerun separates a harness fault from a product bug.
