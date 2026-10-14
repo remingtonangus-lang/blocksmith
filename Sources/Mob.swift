@@ -403,6 +403,7 @@ final class Mob {
     var armorHP = 0                 // wolf armour durability
     var chested = false
     var guardUp: Float = 0, guardAge: Float = 0, guardCD: Float = 0, guardBroken: Float = 0   // D10 (Guards.swift)
+    var gangCover: V3?, gangT: Float = 0        // D16 (GangTactics.swift)
     var coach: UInt8 = 0            // D4: a horse drawing a stagecoach (1) or freight wagon (2) (Stagecoach.swift)
     var cargo: ItemContainer?      // chest boat / pack animal inventory
     var spin: Float = 0            // boat turn rate (deg per tick)
@@ -911,6 +912,7 @@ final class Mob {
             }
         case .melee, .spider:
             if hordeSlot >= 0, let hs = Horde.step(self, dt, g) { speed = hs; break }      // D15: stalking in a night horde
+            if let gs = GangTactics.step(self, dt, g, dist: dist, canTarget: canTarget) { speed = gs; break }   // D16: flanks
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             // Spiders: hostile below raw light 12 (block light or darkened sky); a spider already after you gives up in
             // the light only 1 time in 100 a tick (reference; any shade at all turned them, and light dropped the chase).
@@ -955,6 +957,7 @@ final class Mob {
         case .ranged:
             aimHold = max(0, aimHold - dt)
             if hordeSlot >= 0, let hs = Horde.step(self, dt, g) { speed = hs; break }      // D15
+            if let gs = GangTactics.step(self, dt, g, dist: dist, canTarget: canTarget) { speed = gs; break }   // D16: cover
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height / 3, 0)) {
                 face(v.pos)
