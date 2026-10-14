@@ -190,6 +190,7 @@ extension Game {
         }
         guard let (_, hook) = best else { onToast?("Nothing within reach of the line"); return true }
         grapple = hook
+        if let s = hook.ship { Broadsides.hooked(self, s) }          // D41: boarding by grapple
         sfx(.crossbowShoot, 0.7, at: player.pos)
         return true
     }

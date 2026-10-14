@@ -53,6 +53,8 @@ enum Corsairs {
         b.set(0, 3, 4, "ship_helm[south]")
         b.clear(0, 3, 6)
         b.set(0, 0, 7, "ship_propeller[south]")
+        // D41: two guns a side for broadsides.
+        for z in [0, 2] { b.set(2, 3, z, "ship_cannon[west]"); b.set(-2, 3, z, "ship_cannon[east]") }
         b.set(1, 3, 5, "chest")
         b.chests.append((IVec3(1, 3, 5), "shipwreck_treasure"))
         b.clear(0, 3, -5)

@@ -344,6 +344,7 @@ extension ShipManager {
         for s in list where s.isVessel && !s.kinematic && s !== pilot && s.parent == nil {
             // A vessel the player has taken (steered) keeps no crew orders.
             if s.captured { s.autopilot = nil; continue }
+            if lashedTick(s, dt, game: g) { continue }               // D41: grappled alongside
             // Lose the helm or most of the hull and the vessel founders: the crew gives up, guns fall silent.
             if !s.wrecked && (s.helm == nil || s.blockCount * 100 < s.initialBlocks * 45) {
                 s.wrecked = true
@@ -393,6 +394,7 @@ extension ShipManager {
                 pp = foe.point
                 seen = true
             }
+            if seen, let st = broadsideSteer(s, target: pp) { s.autopilot = V3(0.6, st, 0) }   // D41: bring her guns abeam
             for t in turrets(of: s) {
                 t.aimAt = seen ? pp : nil
                 if !seen { t.aimYaw = 0; t.gunPitch *= max(0, 1 - dt) }
@@ -416,6 +418,7 @@ extension ShipManager {
                     let aimErr = acosf(max(-1, min(1, simd_dot(simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))))))
                     if volley && aimErr < 0.15 { fire(t, pitch: elev, game: g) }
                 }
+                if volley { broadside(s, target: pp, game: g) }                         // D41
             }
         }
     }
