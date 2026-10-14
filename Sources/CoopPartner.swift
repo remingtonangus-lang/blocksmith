@@ -124,8 +124,9 @@ enum Partner {
         guard let p = at, g.player.sneaking, simd_length(p - g.player.pos) < reviveReach else {
             reviving[s] = max(0, (reviving[s] ?? 0) - dt); return
         }
-        let v = (reviving[s] ?? 0) + dt
+        let v0 = reviving[s] ?? 0, v = v0 + dt
         reviving[s] = v
+        if Int(v / 0.75) != Int(v0 / 0.75) || v0 == 0 { g.sfx(.armorEquip(0), 0.35, at: p) }   // Q2: you hear the work
         if v >= reviveTime {
             reviving[s] = nil
             send?()
