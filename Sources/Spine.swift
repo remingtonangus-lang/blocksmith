@@ -21,7 +21,7 @@ import simd
 // (Spine.lead), the saloon sells a dispatch, the world map carries a "Next objective" marker (MapCache.setObjective)
 // and the goal banner a bearing to it.
 enum Spine {
-    static let stages = ["Iron", "Take a town", "Greywall Command", "The Meridian fleet", "Hell", "The Capital"]
+    static let stages = ["Iron", "Take a town", "Greywall Command", "The Meridian fleet", "The Fire Band", "The Capital"]
     static var paused = false                       // (GoalTests: the walk sets advancements by hand)
     static func active(_ g: Game) -> Bool { HudExtras.enabled && !paused && g.survival }
 

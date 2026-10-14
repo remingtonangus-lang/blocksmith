@@ -64,8 +64,8 @@ enum Goals {
         // 5. Hell, down to the war below the world.
         Goal(id: "adventure/break_ward", stage: 4, text: "Near the world's centre, press the charge on the Wardstone at the world's floor",
              done: any(["adventure/break_ward", "adventure/deep", "enter_the_nether"])),
-        Goal(id: "adventure/deep_hell", stage: 4, text: "Dig down through the Deep to its hell band", done: adv("adventure/deep_hell")),
-        Goal(id: "adventure/keep_warden", stage: 4, text: "Defeat a Brimstone Keep's Castellan in the hell band", done: adv("adventure/keep_warden")),
+        Goal(id: "adventure/deep_hell", stage: 4, text: "Dig down through the Deep to its fire band", done: adv("adventure/deep_hell")),
+        Goal(id: "adventure/keep_warden", stage: 4, text: "Defeat a Brimstone Keep's Castellan in the fire band", done: adv("adventure/keep_warden")),
         Goal(id: "adventure/break_seal", stage: 4, text: "Forge the keep's Sunderite into \(a("sunder_charge")): blast the Sealrock",
              done: adv("adventure/break_seal")),
         Goal(id: "adventure/ash_vault", stage: 4, text: "Drop into the Ash Vault", done: adv("adventure/ash_vault")),
