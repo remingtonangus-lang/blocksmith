@@ -25,6 +25,7 @@ enum TownWeapon: Int, CaseIterable {
 // Per-mob townsperson state that isn't saved (anger, reactions, animation timers).
 struct TownState {
     var anger: Float = 0            // > 0: fighting the player (seconds left)
+    var brawl: Float = 0, punch: Float = 0, out: Float = 0   // D13: a saloon fist fight; knocked out (Brawls.swift)
     var handsUp: Float = 0          // > 0: hands raised (a gun pointed at them)
     var greetCooldown: Float = 0
     var swing: Float = 0            // > 0: a weapon swing in progress (seconds left)
@@ -388,6 +389,7 @@ extension Game {
     // player for 30 s, the rest run.
     func townAlarm(_ victim: Mob) {
         guard victim.kind == .villager else { return }
+        if Brawls.start(self, victim) { return }                        // D13: a punch in a saloon is a brawl
         if Townsfolk.townLastLine < clock - 1.5 { TownVoice.speak(self, victim, .hurt) }
         TownLaw.assault(self, victim)
         // Lay hands on the sheriff and there is no warning shot: his first round is meant (G15, with the tougher sheriff
