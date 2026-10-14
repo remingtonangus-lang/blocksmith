@@ -757,7 +757,7 @@ enum PadTest {
             CombatHUD.shared.hurt(g, from: g.player.pos + r * 4, amount: 4)
             CombatHUD.shared.hurt(g, from: g.player.pos - f * 4 - r * 2, amount: 2)
             if name == "combat" {
-                for (i, n) in ["gun_rifle", "gun_shotgun", "gun_smg", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
+                for (i, n) in ["gun_rifle", "gun_shotgun", "gun_kessel", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
                     g.inventory.main[[0, 1, 12, 20, 30][i]] = ItemStack(Items.id(n), 1)
                 }
                 g.select(0)

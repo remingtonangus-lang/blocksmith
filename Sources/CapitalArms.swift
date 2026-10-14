@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-// The Capital's weapons as models: white enamel furniture, graphite metal, silver fittings, pale-cyan optics and
-// energy cells (original designs). Gun pixels, barrel toward -Z, y up; the hand anchors drive the soldier rig
+// The Capital's weapons as models: white enamel furniture, graphite metal, silver fittings, smoked optics and warm
+// white energy cells (original designs). Gun pixels, barrel toward -Z, y up; the hand anchors drive the soldier rig
 // (SoldierRig.swift) and the first-person view draws the same boxes (Guns.models). No part carries its own
 // rotation: a model is placed as one rigid body.
 struct GunModel {
@@ -31,7 +31,9 @@ enum CapitalArms {
         Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
     }
 
-    static let models: [GunModel] = (0..<Guns.all.count).map { i in
+    // (A retired gun's index draws its replacement: P217.)
+    static let models: [GunModel] = (0..<Guns.all.count).map { i0 in
+        let i = Guns.current(i0)
         var g = model(i)
         g.parts += details(i)                    // appended after the magazine parts: their indices stay put
         return g
@@ -41,14 +43,11 @@ enum CapitalArms {
     // barrel vents, slide serrations, muzzle devices.
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
-        if i != Guns.launcher && i != Guns.revolver { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
+        if i != Guns.launcher && i != Guns.revolver && i != Guns.slatefall { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
         switch i {
         case Guns.rifle:
             for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
             p.append(b(-0.2, -0.55, -13.2, 0.4, 0.5, 0.5, silver, pMetal))                               // sling loop
-        case Guns.smg:
-            p.append(b(-0.55, 0.75, -13.1, 1.1, 0.9, 1.2, graphite, pMetal))                              // flash hider
-            p.append(b(-0.65, 0.5, -10.4, 1.3, 0.25, 3.0, grey, pMetal))                                   // shroud slots
         case Guns.shotgun:
             for k in 0..<4 { p.append(b(-0.4, 2.4, -16.5 + Float(k) * 2.6, 0.8, 0.18, 1.1, grey, pMetal)) } // rib vents
         case Guns.sniper:
@@ -59,17 +58,14 @@ enum CapitalArms {
             p.append(b(-0.7, 3.8, 4, 1.4, 0.9, 0.3, graphite, pMetal))                                    // rear sight
         case Guns.arc:
             p.append(b(-1.4, 1.6, -4, 0.1, 0.5, 6, glow * 0.6, pGlow))                                    // charge strip
-        case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw:
+        case Guns.kessel, Guns.sturmwind:
             p += AshArms.details(i)
-        case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
+        case Guns.slatefall, Guns.repeater:
             p += GreywallArms.details(i)
         case Guns.revolver:
             break                                                                                         // (P180: all in the model)
         default:
-            for k in 0..<3 {                                                                              // slide serrations
-                p.append(b(0.7, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
-                p.append(b(-0.76, 0.35, 0.9 - Float(k) * 0.45, 0.06, 0.8, 0.2, grey, pMetal))
-            }
+            break                                                                                         // (the Falke's are in its model)
         }
         return p
     }
@@ -83,9 +79,9 @@ enum CapitalArms {
 
     static func model(_ i: Int) -> GunModel {
         switch i {
-        case Guns.kessel, Guns.hagel, Guns.sturmwind, Guns.ashsaw:
+        case Guns.kessel, Guns.sturmwind:
             return AshArms.model(i)
-        case Guns.slatefall, Guns.longwatch, Guns.needle, Guns.breaker, Guns.repeater:
+        case Guns.slatefall, Guns.repeater:
             return GreywallArms.model(i)
         case Guns.revolver:
             // The six-iron (P180, Oct 13: "doesn't look at all like a six iron"): a frontier single-action revolver.
@@ -161,25 +157,6 @@ enum CapitalArms {
             p += [b(-0.7, -4.6, -5.3, 1.4, 4.4, 2.2, graphite, pMetal), b(-0.75, -4.9, -5.4, 1.5, 0.5, 2.4, silver, pMetal)]
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -1.6, 0.3), fore: V3(0, -0.2, -11), butt: V3(0, 0.6, 10.4),
                             muzzle: V3(0, 1.3, -19.9), magAt: V3(0, -2.4, -4.2), bolt: V3(-1.4, 2, -2), scale: 0.64)
-        case Guns.smg:
-            // Chatter Gun: compact carbine, long straight magazine, vertical fore grip, folding stock.
-            var p: [Part] = [
-                b(-1.1, -0.3, -6, 2.2, 3.2, 9, enamel, pEnamel),
-                b(-1.15, 1.2, -5.5, 2.3, 0.4, 8, grey, pEnamel),
-                b(-0.6, 2.9, -5, 1.2, 0.45, 6.5, graphite, pMetal),
-                b(-0.7, 3.35, -2.6, 1.4, 1.3, 1.8, graphite, pMetal),
-                b(-0.45, 3.55, -2.7, 0.9, 0.9, 0.12, glow * 0.7, pGlow),
-                b(-0.8, 0.3, -10, 1.6, 1.8, 4, graphite, pMetal),                  // shroud
-                b(-0.4, 0.8, -12, 0.8, 0.8, 2, silver, pMetal),                    // barrel
-                b(-0.5, -3, -8.6, 1.0, 3.0, 1.2, graphite, pMetal),                // fore grip
-                b(-0.4, 0.2, 3, 0.8, 0.8, 3.8, silver, pMetal),                    // stock rod
-                b(-0.8, -1.0, 6.6, 1.6, 2.6, 0.6, graphite, pMetal),               // butt plate
-            ]
-            p += grip(-0.7, 1.4, top: -0.3, graphite)
-            let m = p.count
-            p += [b(-0.6, -5.6, -4.3, 1.2, 5.4, 1.6, graphite, pMetal)]
-            return GunModel(parts: p, mag: [m], grip: V3(0, -1.6, 0.3), fore: V3(0, -1.8, -8), butt: V3(0, 0.3, 7.2),
-                            muzzle: V3(0, 1.2, -12.1), magAt: V3(0, -2.6, -3.5), bolt: V3(-1.4, 1.8, -1), scale: 0.66)
         case Guns.shotgun:
             // Breach Shotgun: barrel over the magazine tube, enamel pump with grey grooves, bead sight.
             var p: [Part] = [
@@ -265,26 +242,38 @@ enum CapitalArms {
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -2.4, 0.3), fore: V3(0, -1.4, -12), butt: V3(0, 0.4, 7),
                             muzzle: V3(0, 0.5, -22.2), magAt: V3(0, -2.6, -1.8), bolt: V3(-1.6, 0.5, -4), scale: 0.66)
         default:
-            // Falke Pistol (P157, Oct 13: "the pistol looks too futuristic"): a classic service automatic: a blued slide
-            // with a stepped muzzle and rear serrations, a blued frame, an exposed hammer, a lanyard ring and walnut
-            // grip panels over the magazine well (original design; was white enamel and silver).
-            let oil = V3(0.12, 0.13, 0.16)
+            // Falke Pistol (P157, Oct 13: "the pistol looks too futuristic"; P217 redo, Oct 14: "Capital guns are white
+            // with no blue"): the classic service automatic's lines (the real-world 1911 pattern): a long flat slide
+            // with rear cocking serrations and a stepped muzzle bushing, a dust cover over the frame, a beavertail and a
+            // spur hammer, a slide stop on the left, a squared trigger guard and a grip raked back over a flush
+            // magazine. In the Capital's finish: a white enamel slide and frame, graphite controls and grip panels.
             var p: [Part] = [
-                b(-0.7, 0.0, -6.0, 1.4, 1.3, 7.5, blued, pMetal),                  // slide
-                b(-0.5, 0.15, -6.6, 1.0, 0.95, 0.6, oil, pMetal),                  // stepped muzzle end
-                b(-0.65, -0.7, -5.4, 1.3, 0.7, 6.6, oil, pMetal),                  // frame
-                b(-0.25, 0.35, -6.68, 0.5, 0.5, 0.12, V3(0.02, 0.02, 0.02), 0),    // bore
-                b(-0.15, 1.3, -5.6, 0.3, 0.3, 0.35, blued, pMetal), b(-0.4, 1.3, 0.9, 0.8, 0.3, 0.4, blued, pMetal),   // sights
-                b(-0.2, 0.6, 1.5, 0.4, 0.75, 0.5, oil, pMetal),                    // hammer
-                b(-0.25, -1.4, -2.2, 0.5, 0.3, 1.8, oil, pMetal),                  // trigger guard
-                b(0.66, -2.5, -0.1, 0.1, 1.9, 1.5, walnut, 10),                    // grip panels
-                b(-0.76, -2.5, -0.1, 0.1, 1.9, 1.5, walnut, 10),
+                b(-0.65, 0.0, -6.0, 1.3, 1.25, 7.6, enamel, pEnamel),             // slide
+                b(-0.45, 0.12, -6.55, 0.9, 0.95, 0.55, graphite, pMetal),          // muzzle bushing
+                b(-0.22, 0.38, -6.62, 0.44, 0.44, 0.1, V3(0.02, 0.02, 0.02), 0),   // bore
+                b(-0.6, -0.65, -5.6, 1.2, 0.65, 6.6, enamel * 0.94, pEnamel),      // frame and dust cover
+                b(0.66, 0.35, -3.2, 0.06, 0.7, 2.2, graphite, pMetal),             // ejection port (right)
+                b(-0.75, -0.35, -3.0, 0.12, 0.4, 1.6, graphite, pMetal),           // slide stop (left)
+                b(-0.12, 1.25, -5.6, 0.24, 0.3, 0.3, graphite, pMetal),            // front sight
+                b(-0.35, 1.25, 1.0, 0.7, 0.3, 0.4, graphite, pMetal),              // rear sight
+                b(-0.2, 0.55, 1.6, 0.4, 0.7, 0.45, graphite, pMetal),              // spur hammer
+                b(-0.5, -0.3, 1.35, 1.0, 0.45, 0.9, enamel * 0.94, pEnamel),       // beavertail
+                b(-0.25, -1.5, -2.6, 0.5, 0.25, 2.2, enamel * 0.94, pEnamel),      // trigger guard (squared)
+                b(-0.25, -1.45, -2.65, 0.5, 0.95, 0.25, enamel * 0.94, pEnamel),
+                b(-0.6, -1.9, -0.6, 1.2, 1.3, 1.9, enamel * 0.94, pEnamel),        // grip, raked back
+                b(-0.6, -3.1, -0.2, 1.2, 1.3, 1.9, enamel * 0.94, pEnamel),
+                b(0.6, -3.0, -0.3, 0.1, 2.3, 1.6, graphite, pEnamel),              // grip panels
+                b(-0.7, -3.0, -0.3, 0.1, 2.3, 1.6, graphite, pEnamel),
+                b(-0.75, -1.15, -0.85, 0.15, 0.3, 0.4, graphite, pMetal),          // magazine release
             ]
-            p += [b(-0.65, -2.4, -0.1, 1.3, 1.8, 1.6, oil, pMetal), b(-0.15, -2.6, 1.5, 0.3, 0.4, 0.4, silver, pMetal)]   // grip, lanyard ring
+            for k in 0..<4 {                                                       // rear cocking serrations
+                p.append(b(0.65, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
+                p.append(b(-0.71, 0.2, -0.6 + Float(k) * 0.4, 0.06, 0.85, 0.18, graphite, pMetal))
+            }
             let m = p.count
-            p += [b(-0.6, -3.6, 0.3, 1.2, 1.3, 1.5, oil, pMetal)]                // magazine
-            return GunModel(parts: p, mag: [m], grip: V3(0, -1.5, 0.6), fore: V3(-0.4, -2.4, 0.9), butt: V3(0, -1.5, 0.6),
-                            muzzle: V3(0, 0.7, -6.7), magAt: V3(0, -3.4, 0.9), bolt: V3(0, 0.7, -1), scale: 0.68, shouldered: false)
+            p += [b(-0.5, -3.55, 0.2, 1.0, 0.45, 1.6, graphite, pMetal)]          // magazine base
+            return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 0.5), fore: V3(-0.4, -2.6, 0.8), butt: V3(0, -1.9, 0.5),
+                            muzzle: V3(0, 0.6, -6.6), magAt: V3(0, -3.3, 0.9), bolt: V3(0, 0.7, -0.6), scale: 0.68, shouldered: false)
         }
     }
 }
