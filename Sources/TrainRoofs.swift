@@ -17,6 +17,8 @@ extension Trains {
     static let raidReward = 1500
     static let robberName = "Train Robber"
     static var raidsBeaten = 0, raidsLost = 0, roofSnaps = 0       // (harness)
+    static var roofShift = V2(0, 0)                                 // Q2: the cars' carry this frame (footsteps leave it out)
+    static var roofAt: Double = -1e9                                // Q2: last frame the player stood on a roof
 
     // The car whose roof the player stands on (at the cars' poses `poses`, (pos, yaw)), and that roof's height.
     static func roofUnder(_ g: Game, _ tr: Train, _ poses: [(V3, Float)]) -> (Int, Float)? {
@@ -45,6 +47,8 @@ extension Trains {
         let turned = V3(rel.x * cs + rel.z * sn, rel.y, -rel.x * sn + rel.z * cs)
         var np = car.pos + turned
         np.y = car.pos.y + (roofHeight[car.variant] ?? 2)
+        roofShift += V2(np.x - g.player.pos.x, np.z - g.player.pos.z)
+        roofAt = g.clock
         g.player.pos = np
         if g.player.vel.y < 0 { g.player.vel.y = 0 }
         g.player.onGround = true
