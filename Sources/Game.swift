@@ -2382,7 +2382,7 @@ final class Game {
         audioHurt(type)
         if bulletHit && absorption <= 0 && amount >= 2 { dmg = max(dmg, 1) }      // a round that lands always hurts a little
         guard dmg >= 0.5 else { return }
-        if Partner.isDowned(self) { return }                            // D52: down and out of the fight
+        if Partner.isDowned(self) { Partner.hitWhileDown(self, type); return }   // D52: down and out of the fight
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
         if health <= 0 && Partner.goDown(self, cause) { return }        // D52: a partner can get you up

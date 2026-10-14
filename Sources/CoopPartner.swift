@@ -11,7 +11,8 @@ import simd
 //               network it is sent across; on a split screen the wallet is already one).
 //   downed      with a partner up and about, a blow that would kill you puts you down instead: 40 seconds on the
 //               ground, slowed to a crawl and out of the fight. Your partner crouches beside you for three seconds
-//               to get you up (8 health); nobody comes and you die as usual. Works over the network as well.
+//               to get you up (8 health); nobody comes and you die as usual. Each blow taken while down takes 4 s
+//               off the clock. Works over the network as well.
 enum Partner {
     static let downTime: Double = 40
     static let reviveTime: Float = 3
@@ -58,6 +59,15 @@ enum Partner {
         g.sfx(.hurt, 1)
         g.onToast?("You're down! Your partner can crouch beside you to get you up")
         return true
+    }
+
+    // Q2: a blow while you're down bleeds you out faster (4 s off the clock), and the void still takes you, so a downed
+    // player isn't safe bait in the middle of a fight.
+    static func hitWhileDown(_ g: Game, _ type: DamageType) {
+        let s = seat(g)
+        guard let until = downedUntil[s] else { return }
+        if type == .void { downedUntil[s] = g.clock; return }
+        downedUntil[s] = until - 4
     }
 
     // Every frame for the live seat (Game.tick).
