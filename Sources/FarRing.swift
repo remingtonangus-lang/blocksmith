@@ -81,7 +81,7 @@ final class FarRing {
             let t0 = CFAbsoluteTimeGetCurrent()
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
             var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n)
-            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo)
+            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: !SmoothTerrain.enabled)
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             self.lock.lock()
             // A build for a world left meanwhile is dropped (the next request starts the new world's).
@@ -119,7 +119,10 @@ final class FarRing {
 
     // The quads, band by band (squares round the centre, 8 / 16 / 32 blocks apart), cut to a disc of `outer` and with
     // the cells deep inside the loaded disc (whatever the player's offset from the centre within the cell) left out.
-    static func build(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, memo: inout [Int64: Sample]) -> [SimpleVert] {
+    // P229 (Oct 13 21:44, "the far chunks must still look like blocks from a distance"): in a block world each cell is a
+    // flat-topped column at a whole-block height with straight sides down to its lower neighbours, a terraced, blocky
+    // skyline; Polygons (Smooth) worlds keep the smooth height field.
+    static func build(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, memo: inout [Int64: Sample], blocky: Bool = false) -> [SimpleVert] {
         func a32(_ v: Float) -> Int { (Int(v.rounded(.up)) + 31) / 32 * 32 }
         let e0 = a32(rin + 64)
         let e1 = max(e0 + 128, a32(rin + 320), 640)
@@ -136,7 +139,40 @@ final class FarRing {
             return s
         }
         var out: [SimpleVert] = []
-        out.reserveCapacity(64_000)
+        out.reserveCapacity(blocky ? 160_000 : 64_000)
+        let up: Float = 512 + 512 * 1024                                   // normal (0, 1, 0)
+        func nq(_ nx: Float, _ nz: Float) -> Float { ((nx * 0.5 + 0.5) * 1023).rounded() + ((nz * 0.5 + 0.5) * 1023).rounded() * 1024 }
+        // A cell's column top: the sample at its centre, floored to a whole block (water and lava keep their surface).
+        func top(_ x: Int, _ z: Int, _ s: Int) -> Sample {
+            var smp = S(cx + x + s / 2, cz + z + s / 2)
+            if smp.kind == 0 { smp.y = smp.y.rounded(.down) }
+            return smp
+        }
+        func column(_ x0: Int, _ z0: Int, _ s: Int, _ out: inout [SimpleVert]) {
+            let t = top(x0, z0, s)
+            let fx0 = Float(x0), fz0 = Float(z0), fx1 = Float(x0 + s), fz1 = Float(z0 + s)
+            let c = V4(t.c, t.kind)
+            out.append(SimpleVert(pos: V4(fx0, t.y, fz0, up), color: c)); out.append(SimpleVert(pos: V4(fx1, t.y, fz0, up), color: c))
+            out.append(SimpleVert(pos: V4(fx1, t.y, fz1, up), color: c)); out.append(SimpleVert(pos: V4(fx0, t.y, fz1, up), color: c))
+            guard t.kind == 0 else { return }
+            // Sides down to each lower neighbour (2 blocks further, so a coarser neighbour never leaves a slit).
+            let side = V4(t.c * 0.92, 0)
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let nb = top(x0 + dx * s, z0 + dz * s, s)
+                guard nb.y < t.y else { continue }
+                let lo = nb.y - 2
+                let q = nq(Float(dx), Float(dz))
+                let (ax, az, bx, bz): (Float, Float, Float, Float)
+                switch (dx, dz) {
+                case (1, 0): (ax, az, bx, bz) = (fx1, fz1, fx1, fz0)
+                case (-1, 0): (ax, az, bx, bz) = (fx0, fz0, fx0, fz1)
+                case (0, 1): (ax, az, bx, bz) = (fx0, fz1, fx1, fz1)
+                default: (ax, az, bx, bz) = (fx1, fz0, fx0, fz0)
+                }
+                out.append(SimpleVert(pos: V4(ax, t.y, az, q), color: side)); out.append(SimpleVert(pos: V4(bx, t.y, bz, q), color: side))
+                out.append(SimpleVert(pos: V4(bx, lo, bz, q), color: side)); out.append(SimpleVert(pos: V4(ax, lo, az, q), color: side))
+            }
+        }
         for (band, s) in spacings.enumerated() {
             let e = edges[band], ein = band == 0 ? 0 : edges[band - 1]
             let n = e / s
@@ -181,7 +217,11 @@ final class FarRing {
                         let fx: Float = max(abs(Float(x0)), abs(Float(x1))), fz: Float = max(abs(Float(z0)), abs(Float(z1)))
                         if (fx * fx + fz * fz).squareRoot() < skip { continue }
                     }
-                    out.append(vert(x0, z0)); out.append(vert(x1, z0)); out.append(vert(x1, z1)); out.append(vert(x0, z1))
+                    if blocky {
+                        column(x0, z0, s, &out)
+                    } else {
+                        out.append(vert(x0, z0)); out.append(vert(x1, z0)); out.append(vert(x1, z1)); out.append(vert(x0, z1))
+                    }
                 }
             }
         }
