@@ -179,14 +179,32 @@ final class FarRing {
             let coarse = 2 * s
             // Height at a band vertex: on the band's outer square edge, a vertex between two of the next band's
             // vertices takes the mean of its neighbours along the edge, so it lies on the coarser band's edge (no cracks).
-            func height(_ ox: Int, _ oz: Int) -> Sample {
+            // PG3: the real silhouette. A coarse vertex alone misses a peak or ridge between vertices, so the far
+            // skyline sagged; a vertex is pulled most of the way up to the highest ground on the 8-block grid within
+            // half its spacing. Vertices on a band's inner or outer square (shared with the next band) look only 8
+            // blocks round, the same from both bands, so the seams still meet.
+            func peaked(_ ox: Int, _ oz: Int, _ r: Int) -> Sample {
                 var smp = S(cx + ox, cz + oz)
+                guard !blocky && smp.kind == 0 else { return smp }
+                var peak = smp.y
+                for dz in stride(from: -r, through: r, by: 8) { for dx in stride(from: -r, through: r, by: 8) where dx != 0 || dz != 0 {
+                    let q = S(cx + ox + dx, cz + oz + dz)
+                    if q.kind == 0 { peak = max(peak, q.y) }
+                } }
+                smp.y += (peak - smp.y) * 0.6
+                return smp
+            }
+            let rWide = max(8, s / 2)
+            func ring(_ ox: Int, _ oz: Int) -> Bool { abs(ox) == e || abs(oz) == e || (band > 0 && (abs(ox) == ein || abs(oz) == ein)) }
+            func height(_ ox: Int, _ oz: Int) -> Sample {
+                let edge = ring(ox, oz)
+                var smp = peaked(ox, oz, edge ? 8 : rWide)
                 guard band < spacings.count - 1 else { return smp }
                 if abs(ox) == e && oz % coarse != 0 {
-                    let a = S(cx + ox, cz + oz - s), b = S(cx + ox, cz + oz + s)
+                    let a = peaked(ox, oz - s, 8), b = peaked(ox, oz + s, 8)
                     smp.y = (a.y + b.y) * 0.5
                 } else if abs(oz) == e && ox % coarse != 0 {
-                    let a = S(cx + ox - s, cz + oz), b = S(cx + ox + s, cz + oz)
+                    let a = peaked(ox - s, oz, 8), b = peaked(ox + s, oz, 8)
                     smp.y = (a.y + b.y) * 0.5
                 }
                 return smp
