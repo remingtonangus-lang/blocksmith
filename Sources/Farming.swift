@@ -71,6 +71,8 @@ extension Game {
 
     func randomTick(_ p: IVec3, _ b: BlockID) {
         if b == GRASS || b == MYCELIUM { grassTick(p, b); return }        // the commonest tick: no string key
+        if b == SNOWY_GRASS { grassTick(p, GRASS); return }
+        if b == DIRT { dirtTick(p); return }
         let key = Blocks.key(Blocks.groupBase[Int(b)])
         if Copper.index[key] != nil { copperAge(p, b); return }
         if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop", "dried_ghast"].contains(key) { newBlockRandomTick(p, b, key); return }
@@ -145,6 +147,23 @@ extension Game {
     // Grass and mycelium (reference spread rules; grass had no random ticks, so it never spread or died): under an
     // opaque block or water they turn to dirt; with light 9+ above, each tick tries 4 spots within 3x5x3 and covers
     // dirt whose top is open and lit 4+.
+    // P235 (Oct 13 21:49, "dirt blocks should grow grass if they're in contact with it"): bare dirt in the light with
+    // grass (or snowy grass) within a block across and one up or three down turns to grass by itself too, not only
+    // when the grass block happens to be ticked, so patched ground greens over in a few minutes.
+    func dirtTick(_ p: IVec3) {
+        let up = world.block(p.x, p.y + 1, p.z)
+        guard !Blocks.opaque[Int(up)], !Blocks.isLiquid(up) else { return }
+        let l = world.lightAt(p.x, p.y + 1, p.z)
+        guard max(l.sky, l.block) >= 4 else { return }
+        for dy in -1...3 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 || dy != 0 {
+            let n = world.block(p.x + dx, p.y + dy, p.z + dz)
+            if n == GRASS || n == SNOWY_GRASS {
+                world.setBlockAsync(p.x, p.y, p.z, Blocks.key(up) == "snow" ? SNOWY_GRASS : GRASS)
+                return
+            }
+        } } }
+    }
+
     func grassTick(_ p: IVec3, _ b: BlockID) {
         let above = world.block(p.x, p.y + 1, p.z)
         if Blocks.opaque[Int(above)] || Blocks.fluidKind[Int(above)] == 1 { world.setBlockAsync(p.x, p.y, p.z, DIRT); return }
