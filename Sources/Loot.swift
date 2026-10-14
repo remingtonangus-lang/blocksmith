@@ -167,7 +167,9 @@ enum Mining {
         case "clay": return one("clay_ball", 4)
         // H15: snow gives snowballs only to a shovel, as in the reference (digging through a snowfield with a pick or
         // bare hands filled the pack with snowballs).
-        case "snow_block": return shovel ? one("snowball", 4) : []
+        // P237 (Oct 13 21:51, "shovelling snow fills the inventory"): clearing snow with a shovel no longer showers
+        // snowballs: a snow layer gives none, a snow block one (Silk Touch still keeps the block).
+        case "snow_block": return shovel ? one("snowball", 1) : []
         case "glass", "spawner", "glass_pane": return []
         case "sealrock": return one("sealrock_shard", 1)            // the seal's trophy (DeepGates.swift)
         case "sunderite_ore": return one("raw_sunderite", 1)
@@ -187,7 +189,7 @@ enum Mining {
         case "budding_amethyst", "reinforced_deepslate", "sculk_shrieker": return []
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
-        case "snow": return shovel ? one("snowball", 1) : []
+        case "snow": return []
         case "brown_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("brown_mushroom", n) : []     // reference: 0-2, 1/9 each
         case "red_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("red_mushroom", n) : []
         case _ where key.hasPrefix("redstone_wire"): return one("redstone")
