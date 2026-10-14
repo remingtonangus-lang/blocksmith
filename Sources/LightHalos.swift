@@ -14,9 +14,15 @@ final class LightHalos {
     private weak var world: World?
 
     // Per block state: the glow colour (warm flame by default; soul fire blue, lava orange, circuit red, sea light cyan).
+    // P255 (Oct 14 12:05, "a little gleam from the lights there, that doesn't look very good"): flat electric lights (the
+    // bases' ceiling and wall panels, lamps, floodlights, bulbs) get no halo: a warm disc floating off a flat panel
+    // read as a smear on the lens. Flames, lanterns, glowing rock and ores keep theirs.
     static let color: [V3] = (0..<Blocks.count).map { i in
         guard Blocks.emit[i] > 0 else { return .zero }
         let k = Blocks.key(Blocks.groupBase[i])
+        if k.contains("panel") || k.contains("lamp") || k.contains("floodlight") || k.contains("bulb") || k.hasPrefix("light")
+            || k.contains("console") || k.contains("terminal") || k.contains("server") || k.contains("map_table") || k.contains("screen")
+            || k.contains("beacon") { return .zero }
         if k.contains("soul") { return V3(0.45, 0.8, 1.0) }
         if k.contains("lava") || k.contains("magma") || k.contains("fire") { return V3(1.0, 0.5, 0.18) }
         if k.contains("redstone") || k.contains("signal") { return V3(1.0, 0.25, 0.15) }
@@ -36,7 +42,7 @@ final class LightHalos {
                 for y in (sy * 16)..<(sy * 16 + 16) { for lz in 0..<CS { for lx in 0..<CS {
                     let b = Int(c.blocks[Chunk.index(lx, y, lz)])
                     let e = emit[b]
-                    guard e > 0 else { continue }
+                    guard e > 0, col[b] != .zero else { continue }
                     let p = V3(Float(cx * CS + lx) + 0.5, Float(y) + 0.5, Float(cz * CS + lz) + 0.5)
                     let d2 = simd_length_squared(p - eye)
                     guard d2 < Float(r * r) else { continue }

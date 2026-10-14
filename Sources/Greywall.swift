@@ -4,7 +4,7 @@ import simd
 // The Greywall Command (backlog A1): a military power of its own, apart from the Capital, that holds walled bases in
 // the wilds. Grey cast concrete, steel doors, blue corner lamps and red alarm lamps (the Boreal Station kit). Four
 // tiers, each larger, rarer, better held and better stocked:
-//   outpost           a walled blockhouse: a curtain wall, one corner tower, a one-storey keep (6 troops)
+//   outpost           a walled blockhouse: a curtain wall, one corner tower, a two-storey keep (8 troops; P255)
 //   garrison          a higher wall, two towers, a gatehouse, a bigger keep with barracks, armoury, mess, comms (14)
 //   fortress          a double wall, four towers with deck guns, a two-storey keep with a vault and a command hall,
 //                     a motor pool (24)
@@ -19,19 +19,23 @@ enum Greywall {
     static let display = "Greywall Command"
     static let spacing = 64, separation = 16
     static let presence: Float = 0.7
+    // P255 (Oct 14 12:05-12:09, "keep the little base as a variant, as long as it's not replacing the big ones"): the big
+    // bases (garrison and up) keep their regions; outposts are extra, in a share of the regions that had none.
+    static let outpostShare: Float = 0.2
 
     enum Tier: Int, CaseIterable {
         case outpost = 0, garrison, fortress, command
         var name: String { ["Greywall Outpost", "Greywall Garrison", "Greywall Fortress", "Greywall Command Fortress"][rawValue] }
-        var half: Int { [14, 22, 30, 38][rawValue] }             // outer wall half-size (outer face)
-        var wallH: Int { [5, 7, 9, 10][rawValue] }               // wall height above the yard
-        var troops: Int { [6, 14, 24, 36][rawValue] }
-        var minDist: Int { [600, 900, 1500, 3000][rawValue] }    // blocks from spawn
-        var weight: Float { [0.60, 0.25, 0.11, 0.04][rawValue] }
-        var keepX: Int { [6, 8, 11, 13][rawValue] }              // keep half-sizes (outer walls)
-        var keepZ: Int { [6, 6, 8, 10][rawValue] }
+        // P255: an outpost a little bigger (half 14 -> 18, its keep 13 -> 15 wide, walls 5 -> 6) with two floors.
+        var half: Int { [18, 22, 30, 38][rawValue] }             // outer wall half-size (outer face)
+        var wallH: Int { [6, 7, 9, 10][rawValue] }               // wall height above the yard
+        var troops: Int { [8, 14, 24, 36][rawValue] }
+        var minDist: Int { [600, 600, 1500, 3000][rawValue] }    // blocks from spawn
+        var weight: Float { [0, 0.6, 0.3, 0.1][rawValue] }       // (outposts come in regions of their own: outpostShare)
+        var keepX: Int { [7, 8, 11, 13][rawValue] }              // keep half-sizes (outer walls)
+        var keepZ: Int { [7, 6, 8, 10][rawValue] }
         var keepC: Int { [-2, -3, -2, -3][rawValue] }            // keep centre (dz)
-        var floors: Int { rawValue >= 2 ? 2 : 1 }
+        var floors: Int { rawValue == 1 ? 1 : 2 }                // (P255: the outpost's keep has an upper floor)
         var towers: [(Int, Int)] {                               // corner signs (sx, sz)
             switch self {
             case .outpost: return [(1, -1)]
@@ -43,7 +47,7 @@ enum Greywall {
         var inner: Int { half - 9 }                              // inner wall half-size (fortress and up)
         var gatehouse: Bool { rawValue >= 1 }
         var bunker: Bool { self == .command }
-        var deckGuns: Bool { rawValue >= 2 }
+        var deckGuns: Bool { true }                              // P255: a gun on every tower (was fortress and up)
         // The tier a base's footprint says it is (the start's bounds: half + margin each side).
         static func of(_ s: StructureStart) -> Tier {
             let span = (s.max.x - s.min.x) / 2 - margin
@@ -53,12 +57,13 @@ enum Greywall {
     static let margin = 8
 
     // The tier rolled for a region, capped by how far it lies from spawn (nil: no base there).
+    // P255: a big base's region rolls garrison, fortress or command (stepping down by distance, never to an outpost).
     static func tier(roll: Float, dist: Int) -> Tier? {
         var acc: Float = 0
-        var t = Tier.outpost
-        for c in Tier.allCases { acc += c.weight; if roll < acc { t = c; break }; t = c }
+        var t = Tier.garrison
+        for c in Tier.allCases where c.weight > 0 { acc += c.weight; if roll < acc { t = c; break }; t = c }
         while dist < t.minDist {
-            guard let lower = Tier(rawValue: t.rawValue - 1) else { return nil }
+            guard let lower = Tier(rawValue: t.rawValue - 1), lower != .outpost else { return nil }
             t = lower
         }
         return t
@@ -97,7 +102,7 @@ enum Greywall {
         p.append(("soldier_recruit", -2, 1, H - 4)); p.append(("soldier_recruit", 2, 1, H - 4))
         p.append(("soldier_trooper", 3, 1, kc + kz + 2))
         if let c = room("comms") { let m = mid(c); p.append(("soldier_officer", m.0, 1, m.1)) }
-        p.append(("soldier_trooper", -3, 1, kc))
+        p.append(("soldier_trooper", t.floors > 1 && t.keepX < 10 ? 3 : -3, 1, kc))      // (P255: off the outpost's stair)
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
@@ -154,7 +159,9 @@ enum Greywall {
         StructureType(name: kind, spacing: spacing, separation: separation, salt: 77310491, reach: 4) { [unowned gen] seed, cx0, cz0 in
             let rx = floorDiv(cx0, spacing), rz = floorDiv(cz0, spacing)
             let s32 = UInt32(truncatingIfNeeded: gen.seed)
-            guard hashf(rx, rz, 9100, s32) < presence else { return nil }
+            let pres = hashf(rx, rz, 9100, s32)
+            guard pres < presence + outpostShare else { return nil }
+            let outpostRegion = pres >= presence                              // P255: an outpost of its own
             guard WorldRules.keepP95(gen, WorldRules.greywallKeepP95, rx: rx, rz: rz, salt: 9150,
                                      centre: (rx * spacing + (spacing - separation) / 2, rz * spacing + (spacing - separation) / 2),
                                      reach: (spacing - separation) / 2 + 8) else { return nil }
@@ -191,7 +198,7 @@ enum Greywall {
                 return false
             }
             func usable(_ cx: Int, _ cz: Int) -> (Int, Tier)? {
-                guard let t = tier(roll: roll, dist: dist(cx, cz)) else { return nil }
+                guard let t = outpostRegion ? (dist(cx, cz) >= Tier.outpost.minDist ? .outpost : nil) : tier(roll: roll, dist: dist(cx, cz)) else { return nil }
                 if let sc = gen.structures, !sc.clear(cx: cx, cz: cz, reach: 4, guardSet: sc.legacyGreywall) { return nil }
                 guard let y = site(cx, cz, t), !crowded(cx, cz, t) else { return nil }
                 return (y, t)
@@ -458,7 +465,7 @@ enum Greywall {
             }
         }
 
-        // MARK: Upper floor (fortress and up): the command hall, up a stair at the corridor's west end
+        // MARK: Upper floor (fortress and up, and the outpost: P255): up a stair at the corridor's west end
         if t.floors > 1 {
             for k in 1...4 {
                 let dx = -(kx - 1) + k
@@ -472,12 +479,20 @@ enum Greywall {
             // A rail round the stairwell on the upper floor (two high on the open side).
             for k in 1...5 { put(-(kx - 1) + k, 6, kc - 1, rail); put(-(kx - 1) + k, 6, kc + 2, rail) }
             for dz in kc...(kc + 1) { put(-(kx - 1) + 5, 6, dz, rail) }
-            // Command hall: the command console and map table at the north wall, officers' bunks, the command chests.
             let nz = kz0 + 1
-            for dx in -3...3 { put(dx, 6, nz, dx == 0 ? term + BlockID(tf) : rack + 1) }
-            put(0, 6, nz + 2, mapTable)
-            w.chest(cx + 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
-            w.chest(cx - 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
+            if t.rawValue >= 2 {
+                // Command hall: the command console and map table at the north wall, officers' bunks, the command chests.
+                for dx in -3...3 { put(dx, 6, nz, dx == 0 ? term + BlockID(tf) : rack + 1) }
+                put(0, 6, nz + 2, mapTable)
+                w.chest(cx + 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
+                w.chest(cx - 5, S + 6, cz + nz, loot: "greywall_command", seed: rng.next(), facing: 1)
+            } else {
+                // P255: the outpost's upper floor: a watch room with a radio console and racks at the north wall, a
+                // supply chest, a store barrel and the sentries' bunks.
+                for dx in -2...2 { put(dx, 6, nz, dx == 0 ? term + BlockID(tf) : rack + 1) }
+                w.chest(cx + 4, S + 6, cz + nz, loot: "greywall_supply", seed: rng.next(), facing: 1)
+                w.materials(cx - 3, S + 6, cz + nz, seed: seed)
+            }
             for x in stride(from: kx - 5, through: kx - 2, by: 3) {
                 put(x, 6, kz1 - 1, wool); put(x + 1, 6, kz1 - 1, wool)
             }
