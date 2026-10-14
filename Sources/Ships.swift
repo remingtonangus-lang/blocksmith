@@ -201,6 +201,7 @@ final class Ship {
     var blockCount = 0
     var fwd = V3(0, 0, -1)           // ship-space forward (from the helm)
     var helm: IVec3?
+    var breech: (V3, V3)?            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
     // Wheel parts (connected wheel cells, e.g. a 5x5 disc) drawn rolling about their own centres.
@@ -373,6 +374,8 @@ final class Ship {
         let woolT = ShipParts.wool
         var lo = V3(Float(sx), Float(sy), Float(sz)), hi = V3(0, 0, 0)
         helm = nil
+        breech = nil
+        let breechID = Blocks.has("tidebreaker_breech") ? Blocks.id("tidebreaker_breech") : AIR
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
             let b = g.blocks[g.index(x, y, z)]
             if b == AIR { continue }
@@ -383,6 +386,7 @@ final class Ship {
             c += p * bm
             lo = simd_min(lo, p - 0.5); hi = simd_max(hi, p + 0.5)
             if woolT[Int(b)] { sails += 1 }
+            if breechID != AIR && Blocks.groupBase[Int(b)] == breechID && breech == nil { breech = (p, -ShipParts.facingDir[ShipParts.facing(b)]) }
             switch kinds[Int(b)] {
             case .helm:
                 if helm == nil { helm = IVec3(x, y, z); fwd = -ShipParts.facingDir[ShipParts.facing(b)] }
@@ -631,6 +635,7 @@ final class ShipManager {
     var navyParties: [String: Int] = [:]          // T8: boarding parties a region's frigate has sent (navyparties.json)
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
+    var salvagedGuns: [Int: CapitalState] = [:]     // H4: the main gun of each ship carrying a Tidebreaker breech
 
     init(world: World) {
         self.world = world

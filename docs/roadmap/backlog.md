@@ -379,7 +379,7 @@ W9. [DONE] Sensor (sculk equivalent): vibration frequencies, the calibrated sens
 H1. [DONE] Cave mobs spawn about 10 blocks farther away.
 H2. [DONE] Ravines and more cave styles.
 H3. [DONE] Titanium needs a blast furnace.
-H4. Salvage the frigate's gun.
+H4. [DONE] Salvage the frigate's gun.
 H5. A Capital weapon printer built from parts taken at several bases.
 H6. City buildings with a readable purpose; copper and power in cities.
 H7. [DONE] The shock weapon is as strong as it looks.
