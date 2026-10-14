@@ -17,8 +17,11 @@ enum FactionRaids {
     // P215 (Oct 13 18:53-19:01, "raiding parties and bounty hunters came round after round"): one dropship a raid,
     // forty minutes apart, and never within 25 minutes of any other assault (another faction's raid, a hunters'
     // dropship): `lastAssault` is shared with FactionRep's hunters.
-    static let every: Double = 2400
-    static let quiet: Double = 1500
+    // P231 (Oct 13 21:46, "ultra rare: something you see after a long time and go wow"): one rarity pass over every
+    // random encounter (faction raids, hunters, bounty posses, town raids, corsair sloops). Two hours between raids of
+    // a faction, and 90 minutes of play with no other random encounter before any of them (`lastAssault`).
+    static let every: Double = 7200
+    static let quiet: Double = 5400
     static let rocketeerName = "Raid Rocketeer"
     static var lastAssault: Double = -1e9
     static let reach: Float = 120

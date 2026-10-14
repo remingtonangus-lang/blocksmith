@@ -16,7 +16,7 @@ enum FactionRep {
     static let tracked: [Faction] = [.steelhold, .greywall, .meridian, .stormwarden, .ironback]
     static let start: Float = -30
     static let allyAt: Float = 30, huntedAt: Float = -60
-    static let hunterEvery: Double = 2400              // P215: was 480 (eight minutes)
+    static let hunterEvery: Double = 7200              // P215: was 480 (eight minutes); P231: two hours
     static var rep: [Int: Float] = [:]
     static var nextHunters: Double = 0
 

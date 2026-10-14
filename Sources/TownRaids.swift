@@ -9,8 +9,8 @@ import simd
 // (+5, from the "defence" allowance) and a purse from the town ($5 a wave). A town is raided at most once every three
 // days (TownLaw.Saved.raidDay); a raid already running anywhere blocks another.
 enum TownRaids {
-    static var chancePerSecond: Float = 1.0 / 600      // about once in ten minutes of night spent in a town
-    static let cooldownDays = 3
+    static var chancePerSecond: Float = 1.0 / 3600     // P231: about once in an hour of night spent in a town
+    static let cooldownDays = 7
     static let waves = 1                              // P215: one wave an event (was 2)
     static var started = 0, wonCount = 0
 

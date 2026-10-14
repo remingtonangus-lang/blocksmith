@@ -27,11 +27,11 @@ import simd
 //     bounty poster, cash and ammunition.
 enum BountyHunters {
     static let name = "Bounty Hunter"
-    static var chancePerSecond: Float = 1.0 / 2400
+    static var chancePerSecond: Float = 1.0 / 10800      // P231: about once in three hours of play
     static let daysBetween = 6
     static let minBounty = 2500                     // wanted: hunters already out stay on you
     static let huntBounty = 7500                    // worth a posse setting out ($75)
-    static let cooldown: Double = 3600              // seconds of play after a posse before the next sets out
+    static let cooldown: Double = 10800             // seconds of play after a posse before the next sets out
     static var lastPosse: Double = -1e9
     static var holdOff = false                      // the player is below ground: the posse holds on the surface
     static var shouted = false                      // this posse has called out its challenge

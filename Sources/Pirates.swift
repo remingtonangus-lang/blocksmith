@@ -13,10 +13,10 @@ import simd
 enum Corsairs {
     static let sloopName = "Corsair Sloop"
     static let checkEvery: Double = 30
-    static let cooldown: Double = 420
+    static let cooldown: Double = 7200          // P231: two hours (was seven minutes)
     static let landReach: Float = 30            // the sloop puts her party ashore within this of her raid point
     static var nextCheck: Double = 0
-    static var nextRaid: Double = 240           // (not in a session's first four minutes)
+    static var nextRaid: Double = 2400          // (not in a session's first 40 minutes)
     static var landed: Set<Int> = []
     static var raids = 0, parties = 0           // counters (harness)
 
@@ -113,7 +113,7 @@ extension Game {
         guard live == 0, clock >= Corsairs.nextCheck else { return }
         Corsairs.nextCheck = clock + Corsairs.checkEvery
         guard clock >= Corsairs.nextRaid, survival, difficulty > 0, alive, !Reckoning.won else { return }
-        guard Rand.float(in: 0..<1) < 0.3 else { return }
+        guard Rand.float(in: 0..<1) < 0.08, clock - FactionRaids.lastAssault > FactionRaids.quiet else { return }   // P231
         let p = player.pos
         let a0 = Rand.float(in: 0..<(2 * .pi))
         for k in 0..<12 {
@@ -124,6 +124,7 @@ extension Game {
             s.home = shore
             Corsairs.raids += 1
             Corsairs.nextRaid = clock + Corsairs.cooldown
+            FactionRaids.lastAssault = clock
             onToast?("A corsair sloop is closing on the shore: pirates are coming")
             sfx(.bell, 0.8, at: p)
             return
