@@ -398,6 +398,7 @@ final class WorldRenderer {
         game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
         let nItems = wr.n
         game.writeShadows(&wr, eye: eye)
+        game.writeHalos(&wr, eye: eye, right: right, up: -up)          // SH1 light halos
         game.writeWeather(&wr, eye: eye)
         if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0 {
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
