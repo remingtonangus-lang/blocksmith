@@ -427,6 +427,7 @@ enum CapitalCity {
             w.chest(bx1 - 1, L + 1, bz1 - 1, loot: "capital_city", seed: rng.next(), facing: 0)
             bench(&w, bx0 + 2, L, bz1 - 2, alongX: true, dir: "south")
             CapitalTown.desks(&w, fp, L)
+            CityPurpose.furnish(&w, fp, L)                           // H6 (CityPurpose.swift)
         }
         if storeys == 2 {
             // Upper storey set back two from the south and east sides; the lower roof around it is a terrace with
@@ -475,7 +476,7 @@ enum CapitalCity {
         if let plan { CapitalTown.square(&w, plan, cx, cz, L, civic: fountain) }   // the bell townsfolk meet at, the city's name
         for (dx, dz) in [(-11, -11), (11, -11), (-11, 11), (11, 11)] {      // light posts in the corners (off the ramps)
             for y in (L + 1)...(L + 3) { w.set(cx + dx, y, cz + dz, white) }
-            w.set(cx + dx, L + 4, cz + dz, light)
+            CityPurpose.lamp(&w, cx + dx, L + 4, cz + dz, fallback: light)
         }
     }
 
