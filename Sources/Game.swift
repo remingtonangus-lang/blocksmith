@@ -2525,7 +2525,9 @@ final class Game {
             if under != AIR { particles.dust(under, at: p.pos, count: 1, spread: 0.25) }
         }
         // Walking through plants (L3): a rustle every ~1.2 blocks moved inside grass, flowers or bushes (feet or head).
-        let moved = simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
+        // (Q2: on a train roof the cars' own carry is left out: standing still on a running train makes no steps.)
+        let moved = simd_length(V2(p.pos.x - before.x, p.pos.z - before.z) - Trains.roofShift)
+        Trains.roofShift = V2(0, 0)
         let px = Int(floor(p.pos.x)), pz = Int(floor(p.pos.z)), py = Int(floor(p.pos.y + 0.1))
         let plant = Blocks.sway[Int(world.block(px, py, pz))] || Blocks.sway[Int(world.block(px, py + 1, pz))]
         if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
@@ -2538,6 +2540,7 @@ final class Game {
             stepDist = 0
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.35 : 0.9) }
+            else if clock - Trains.roofAt < 0.3 { sfx(.step(.wood), p.sneaking ? 0.35 : 0.9) }   // Q2: a car's roof boards
         }
     }
 
