@@ -265,7 +265,10 @@ extension World {
     // solidity flips are written through the block layer (so the game sees them open or filled); a fill takes
     // `material` (or the commonest ground round it). Sections touched are remeshed by the caller's setBlock or here.
     @discardableResult
-    func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, remesh: Bool = false) -> [IVec3] {
+    // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
+    // back, so nothing is removed without its drop.
+    func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
+                     remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
@@ -279,9 +282,12 @@ extension World {
                     let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                     let d0 = FieldTerrain.f(c.blocks.density(i))
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
-                    let q = FieldTerrain.q(d1)
+                    var q = FieldTerrain.q(d1)
+                    let was = d0 > 0
+                    if carve && was && Blocks.hardness[Int(FieldMat.blocks[Int(c.blocks.material(i))])] < 0 { continue }   // (bedrock)
+                    if keepSolid && was != (q > 0) { q = was ? 1 : -1 }
                     if q == c.blocks.density(i) { continue }
-                    let was = d0 > 0, now = q > 0
+                    let now = q > 0
                     if let k = keepCell, k.x == x && k.y == y && k.z == z && was != now { continue }   // (setBlock decided it)
                     if was != now {
                         if now && c.blocks.raw(i) != AIR { continue }      // a fill never swallows a built block
@@ -450,5 +456,34 @@ extension World {
         let x = Int(floor(p.x)), y = Int(floor(p.y - 0.3)), z = Int(floor(p.z))
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
         return fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
+
+    // MARK: Carving (PG1 rewrite: digging, blasts and rounds subtract shapes from the field)
+
+    // World.carve in a field world: a ball subtracted from the field. .dig takes every ground cell whose centre the ball
+    // reaches (`remove` sees each first: drops, debris), .shape and .dent only move the surface inside the cells (a
+    // blast's bowl after its rays broke what they broke; a round's mark). Returns the cells removed.
+    func fieldCarve(at c: V3, radius r: Float, mode: CarveMode, remove: ((IVec3, BlockID) -> Void)?) -> Int {
+        guard r > 0.05 else { return 0 }
+        if mode == .dig, let remove {
+            let reach = Int(ceil(r))
+            let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
+            for y in max(0, cy - reach)...min(CH - 1, cy + reach) { for z in (cz - reach)...(cz + reach) { for x in (cx - reach)...(cx + reach) {
+                let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                guard let ch = chunkAt(x, z) else { continue }
+                let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+                guard ch.blocks.ground(i), simd_length(p - c) < r else { continue }
+                let b = ch.blocks[i]
+                if Blocks.hardness[Int(b)] < 0 { continue }
+                remove(IVec3(x, y, z), b)
+            } } }
+        }
+        let flipped = fieldSphere(c, radius: mode == .dent ? r * 0.8 : r, carve: true, material: nil, keepSolid: mode != .dig)
+        for p in flipped {
+            if !damage.isEmpty { damage.removeValue(forKey: p) }
+            queueSupportChecks(p.x, p.y, p.z, STONE, AIR)
+            scheduleFluid(around: p)
+        }
+        return flipped.count
     }
 }

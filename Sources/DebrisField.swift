@@ -205,10 +205,45 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
     private var topVal = [Float](repeating: 0, count: 4096)
     private var boxes: [(V3, V3)] = []
 
+    // PG1 rewrite: a field world's ground is its density field: pieces meet the field's surface (the density about the
+    // signed distance, pushed out along its gradient) and built blocks by their boxes.
+    private let fieldW: Bool
+
     init(_ w: World) {
         world = w
-        smooth = SmoothTerrain.enabled && SmoothTerrain.fromField
+        fieldW = w.fieldTerrain
+        smooth = SmoothTerrain.enabled && SmoothTerrain.fromField && !fieldW
         gen = w.gen as? WorldGen
+    }
+
+    @inline(__always) private func density(_ x: Int, _ y: Int, _ z: Int) -> Float {
+        if y < 0 { return 4 }
+        if y >= CH { return -4 }
+        let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
+        if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
+        guard let c = lastChunk else { return 4 }               // (unloaded: solid, pieces wait there)
+        return FieldTerrain.f(c.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS))))
+    }
+    private func density(at p: SIMD3<Float>) -> Float {
+        let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
+        let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
+        let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
+        let a0 = density(x0, y0, z0) * (1 - tx) + density(x0 + 1, y0, z0) * tx
+        let b0 = density(x0, y0 + 1, z0) * (1 - tx) + density(x0 + 1, y0 + 1, z0) * tx
+        let a1 = density(x0, y0, z0 + 1) * (1 - tx) + density(x0 + 1, y0, z0 + 1) * tx
+        let b1 = density(x0, y0 + 1, z0 + 1) * (1 - tx) + density(x0 + 1, y0 + 1, z0 + 1) * tx
+        let e0 = a0 * (1 - ty) + b0 * ty, e1 = a1 * (1 - ty) + b1 * ty
+        return e0 * (1 - tz) + e1 * tz
+    }
+    private func fieldContact(_ p: SIMD3<Float>) -> (depth: Float, normal: SIMD3<Float>)? {
+        let d = density(at: p)
+        guard d > 0 else { return nil }
+        let h: Float = 0.2
+        let g = SIMD3<Float>(density(at: p + SIMD3(h, 0, 0)) - density(at: p - SIMD3(h, 0, 0)),
+                             density(at: p + SIMD3(0, h, 0)) - density(at: p - SIMD3(0, h, 0)),
+                             density(at: p + SIMD3(0, 0, h)) - density(at: p - SIMD3(0, 0, h)))
+        let l = simd_length(g)
+        return (min(d, 1.5), l > 1e-5 ? -g / l : SIMD3(0, 1, 0))
     }
 
     func forget() { for i in 0..<topKey.count { topKey[i] = Int.min } }
@@ -220,7 +255,8 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
         if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
         guard let c = lastChunk else { return BEDROCK }          // (unloaded: solid, pieces wait there)
-        return c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
+        let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+        return fieldW ? c.blocks.raw(i) : c.blocks[i]          // (field worlds: the built layer; the ground is the field)
     }
 
     // The drawn top of column (x, z) at or near y: the block top, or the field's crossing over natural ground.
@@ -238,6 +274,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
     }
 
     func contact(_ p: SIMD3<Float>) -> (depth: Float, normal: SIMD3<Float>)? {
+        if fieldW, let f = fieldContact(p) { return f }
         let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
         let b = block(x, y, z)
         let nat = SmoothTerrain.natural
@@ -267,7 +304,9 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
             return push(p, lo: o, hi: o + 1, x, y, z)
         }
         boxes.removeAll(keepingCapacity: true)
+        world.fieldSplit = fieldW                              // (field worlds: the built block's own boxes here)
         world.collisionBoxes(x, y, z, &boxes)
+        world.fieldSplit = false; world.fieldSink.removeAll(keepingCapacity: true)
         var best: (depth: Float, normal: SIMD3<Float>)?
         for (lo, hi) in boxes where p.x > lo.x && p.y > lo.y && p.z > lo.z && p.x < hi.x && p.y < hi.y && p.z < hi.z {
             if let c = push(p, lo: lo, hi: hi, x, y, z), c.depth < (best?.depth ?? .greatestFiniteMagnitude) { best = c }
@@ -301,6 +340,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         let z0 = Int(floor(c.z - r)), z1 = Int(floor(c.z + r))
         if (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) > 27 { return false }
         for yy in y0...y1 { for zz in z0...z1 { for xx in x0...x1 where Blocks.collide[Int(block(xx, yy, zz))] { return false } } }
+        if fieldW && density(at: c) > -r { return false }
         return true
     }
 }
