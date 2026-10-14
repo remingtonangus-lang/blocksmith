@@ -289,7 +289,7 @@ P234. [DONE] [21:49] The titanium shovel digs faster (efficiency like a top-tier
 P235. [DONE] [21:49] Dirt next to grass grows grass over time.
 P236. [DONE] [21:50] Retaliation: after killing pirates at sea, a 50% chance they raid his home once; after robbing a base, a 1-in-8 chance it retaliates once. Only once each.
 P237. [DONE] [21:51, H15] Shovelling snow must not fill the inventory with snowballs.
-P238. [21:52] Villagers walk on water.
+P238. [DONE] [21:52] Villagers walk on water.
 P239. [21:52, with SH1] Ice looks beautiful: mirror-like reflections.
 P240. [21:52] Input lag and general lag at render distance 17: performance must improve (with F1-F5).
 P241. [21:53] Rockets: he could not find how to make them; the crafting book shows rockets and their ammo clearly.
