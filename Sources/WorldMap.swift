@@ -167,6 +167,14 @@ final class MapCache {
         return true
     }
 
+    // P242: a named pin (a base the radar station found); one already within 16 blocks is kept as it is.
+    func pinNamed(_ g: Game, x: Int, z: Int, name: String) {
+        loadMarks(g)
+        guard !marks.contains(where: { abs($0.x - x) <= 16 && abs($0.z - z) <= 16 }) else { return }
+        marks.append(Mark(kind: "pin", x: x, z: z, name: name))
+        saveMarks(g)
+    }
+
     // P205: the last death's chests as a named pin (the one before it is replaced).
     func pinDeath(_ g: Game, x: Int, z: Int) {
         loadMarks(g)
