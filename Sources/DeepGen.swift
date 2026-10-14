@@ -57,6 +57,25 @@ final class DeepGen: TerrainGenerator {
     }
 
     // Rock pillars from floor to roof: one per 96-block cell (most cells), never on an army site or road.
+    // PG1 rewrite: how far inside a pillar (x, z) is (blocks, > 0 inside), the same circles `pillar` tests.
+    func pillarDistance(_ x: Int, _ z: Int) -> Float {
+        let gx = floorDiv(x, 96), gz = floorDiv(z, 96)
+        var best: Float = -99
+        for oz in -1...1 { for ox in -1...1 {
+            let h = hash3(gx + ox, 77, gz + oz, s32 ^ 0x9111)
+            if h % 5 == 0 { continue }
+            let px = (gx + ox) * 96 + 20 + Int(h >> 3 & 55), pz = (gz + oz) * 96 + 20 + Int(h >> 9 & 55)
+            let r = 4 + Float(h >> 15 & 7)
+            let dx = Float(x - px), dz = Float(z - pz)
+            let rr: Float = dx * dx + dz * dz
+            if rr > (r * 1.5 + 4) * (r * 1.5 + 4) { continue }
+            let wob = 1 + 0.25 * matN.noise2(Float(x) / 6, Float(z) / 6)
+            guard AshWar.clearance(px, pz) > r + 24 else { continue }
+            best = max(best, r * wob - rr.squareRoot())
+        } }
+        return best
+    }
+
     func pillar(_ x: Int, _ z: Int) -> Bool {
         let gx = floorDiv(x, 96), gz = floorDiv(z, 96)
         for oz in -1...1 { for ox in -1...1 {
@@ -82,27 +101,58 @@ final class DeepGen: TerrainGenerator {
 
     // PG1 rewrite: the Ash Vault's ground continuous: blocks over the floor's surface and under the roof's (the same
     // noise as floorY / ceilingY before rounding), the hell band's lattice; pillars and the seal rounded (NaN).
+    // The lava core under it (open) and the Sealrock band over it (solid) as flat layers, the pillars as their circles,
+    // the crust over the hell band solid, the sealed lava pockets in the crusts by their own noise (crustPockets).
     func groundField(cx: Int, cz: Int) -> [Float]? {
         var g = [Float](repeating: .nan, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS
+        let core = Float(DeepGen.coreTop + 1), sealLo = Float(DeepSeal.bottom), sealHi = Float(DeepSeal.top)
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
-            if pillar(wx, wz) { continue }
+            let pd = pillarDistance(wx, wz)
             let rough = max(0.15, min(1, (AshWar.clearance(wx, wz) - 12) / 90))
             let n = floorN.fbm2(Float(wx) / 140, Float(wz) / 140, 3) * 9 + floorN.noise2(Float(wx) / 37, Float(wz) / 37) * 2.5
             var f = Float(DeepGen.floorBase) + n * rough
             if lavaRiver(wx, wz) { f -= 2 }
             let c = Float(DeepGen.ceilingBase) + ceilN.fbm2(Float(wx) / 90, Float(wz) / 90, 3) * 14
-            for y in (DeepGen.coreTop + 1)..<DeepGen.hellBase where !DeepSeal.inBand(y) {
-                let yc = Float(y)
-                g[Chunk.index(lx, y, lz)] = max(f + 0.5 - yc, yc - c + 0.5)     // (surfaces at f + 1 and c, as rounded)
+            for y in 0..<DeepGen.hellBase {
+                let yc = Float(y), i = Chunk.index(lx, y, lz)
+                if y <= DeepGen.coreTop { g[i] = yc + 0.5 - core; continue }
+                if DeepSeal.inBand(y) { g[i] = min(yc + 0.5 - sealLo, sealHi - yc - 0.5); continue }
+                // (surfaces at f + 1 and c, as rounded)
+                g[i] = min(max(f + 0.5 - yc, yc - c + 0.5, pd), yc + 0.5 - core)
             }
+            for y in DeepGen.crustTop..<CH { g[Chunk.index(lx, y, lz)] = Float(y - DeepGen.crustTop) + 1.5 }
         } }
         ember.bandField(&g, cx: cx, cz: cz)
+        // Sealed lava pockets: open where crustPockets' noise passes its threshold (its distance by the noise's gradient).
+        let ranges = [(DeepGen.ceilingBase - 10, DeepGen.hellBase + 4), (DeepGen.crustTop, CH - 4)]
+        for (y0, y1) in ranges {
+            for y in y0..<y1 where !DeepSeal.inBand(y) {
+                let t: Float = y < DeepGen.hellBase ? 0.42 : 0.5
+                for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+                    let i = Chunk.index(lx, y, lz)
+                    let wx = Float(bx + lx), wz = Float(bz + lz), fy = Float(y)
+                    guard !g[i].isNaN, fy > Float(ceilingY(bx + lx, bz + lz)) + 1 else { continue }
+                    let v = pocketN.noise3(wx / 9, fy / 6, wz / 9)
+                    guard v > t - 0.3 else { continue }
+                    let gx = pocketN.noise3((wx + 0.5) / 9, fy / 6, wz / 9) - pocketN.noise3((wx - 0.5) / 9, fy / 6, wz / 9)
+                    let gy = pocketN.noise3(wx / 9, (fy + 0.5) / 6, wz / 9) - pocketN.noise3(wx / 9, (fy - 0.5) / 6, wz / 9)
+                    let gz = pocketN.noise3(wx / 9, fy / 6, (wz + 0.5) / 9) - pocketN.noise3(wx / 9, fy / 6, (wz - 0.5) / 9)
+                    let l = (gx * gx + gy * gy + gz * gz).squareRoot()
+                    let dist: Float = l > 1e-5 ? (t - v) / l : (v > t ? -1 : 1)
+                    g[i] = min(g[i], max(-1.5, min(1.5, dist)))
+                } }
+            }
+        }
         return g
     }
 
-    func generate(cx: Int, cz: Int) -> [BlockID] {
+    func generate(cx: Int, cz: Int) -> [BlockID] { generate(cx: cx, cz: cz, field: false) }
+    // PG1 rewrite: a field world's chunk: the hell band's caps continuous (EmberGen.fieldBlocks).
+    func fieldBlocks(cx: Int, cz: Int) -> [BlockID] { generate(cx: cx, cz: cz, field: true) }
+
+    private func generate(cx: Int, cz: Int, field: Bool) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS
         let rock = EMBERSLATE, lava = LAVA, glow = LAMP
@@ -150,7 +200,7 @@ final class DeepGen: TerrainGenerator {
                 b[i] = v
             }
         } }
-        ember.fill(&b, cx: cx, cz: cz)
+        ember.fill(&b, cx: cx, cz: cz, smoothCaps: field)
         crustPockets(&b, bx, bz, floors, ceils)
         // The Ashguard's lines (teeth, wire, trench) where they cross this chunk.
         for lz in 0..<CS { for lx in 0..<CS {

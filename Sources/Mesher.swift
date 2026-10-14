@@ -583,27 +583,35 @@ enum Mesher {
         }
         // P175 (polygon worlds): the water plane carries on over natural ground beside a water surface, under the ground's
         // smooth surface, so the waterline is wherever the ground crosses the water level (a curve), not a block outline.
+        // Lava does the same (PG1 rewrite: a lava pool's edge was a sawtooth of cell squares against the smooth ground).
         func shoreWater(_ i: Int, _ ly: Int) {
-            if fkT[Int(R[i + RL])] == 1 { return }
+            let up = fkT[Int(R[i + RL])]
             var src = -1
             for o in [1, -1, RW, -RW, 1 + RW, 1 - RW, -1 + RW, -1 - RW] {
                 let j = i + o
-                if fkT[Int(R[j])] == 1 && fkT[Int(R[j + RL])] != 1 { src = j; break }
+                let k = fkT[Int(R[j])]
+                if k != 0 && k != up && fkT[Int(R[j + RL])] != k { src = j; break }
             }
             guard src >= 0 else { return }
+            let fk = fkT[Int(R[src])]
             let x = i % RW, z = (i / RW) % RW, y = ly + C0
             let lx = x - C0, lz = z - C0
             let l = max(0, light(src % RW, y, (src / RW) % RW))
             let layer = Int(texT[Int(R[src]) * 6 + 2])
+            let lavaTrans = layerT[Int(R[src])] == translucent
             for k in 0..<4 {
                 let ci = (2 * 4 + k) * 3
                 let px = CT[ci] * 16, pz = CT[ci + 2] * 16
-                var d = cornerDrop(x + CT[ci], y, z + CT[ci + 2], 1)
+                var d = cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk)
                 if d == 7 { d = 1 }
                 let py = 16 - 2 * d
                 let (u, v) = faceUV(2, px, py, pz)
-                vert(true, lx * 16 + px, ly * 16 + py, lz * 16 + pz, 2, 3, u, v, layer,
-                     Mesher.waterDepthAO ? depthAO(x + CT[ci], y, z + CT[ci + 2]) : 3, l, false)
+                if fk == 1 {
+                    vert(true, lx * 16 + px, ly * 16 + py, lz * 16 + pz, 2, 3, u, v, layer,
+                         Mesher.waterDepthAO ? depthAO(x + CT[ci], y, z + CT[ci + 2]) : 3, l, false)
+                } else {
+                    vert(lavaTrans, lx * 16 + px, ly * 16 + py, lz * 16 + pz, 7, 0, u, v, layer, 3, l, false)
+                }
             }
         }
 
@@ -944,8 +952,8 @@ enum Mesher {
                         if opaqueT[Int(nb)] && !smoothOpen(i + offs[f]) && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
-                            // P175: no water walls against natural ground (the shore plane above carries the water on).
-                            if smoothWater && fk == 1 && NT[f * 3 + 1] == 0 && natAt(i + offs[f]) { continue }
+                            // P175: no water (or lava) walls against natural ground (the shore plane above carries it on).
+                            if smoothWater && fk != 0 && NT[f * 3 + 1] == 0 && natAt(i + offs[f]) { continue }
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
                             // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
                             // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).

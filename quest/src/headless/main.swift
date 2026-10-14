@@ -479,7 +479,26 @@ if CommandLine.arguments.contains("--fieldsave") {
     }
     print("fieldsave: field world \(w1.fieldTerrain) -> \(w2.fieldTerrain); \(dug.count) cells dug, \(added.count) added; \(chunks) saved chunks, \(cells) cells compared, \(bad) differ")
     try? FileManager.default.removeItem(at: dir)
-    exit(bad == 0 && w2.fieldTerrain && chunks > 0 && dug.count > 0 && added.count > 0 ? 0 : 1)
+    // A world saved before the field (no terrain-field.txt) opens as the block world it was, block for block.
+    let dirB = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blocksave-\(getpid())")
+    try? FileManager.default.removeItem(at: dirB)
+    let b1 = World(seed: 4242, device: device, save: SaveManager(dir: dirB))
+    _ = b1.loadSync(center: V3(8, 150, 8), radius: 2)
+    b1.setBlock(14, b1.topY(14, 14) + 1, 14, Blocks.id("cobblestone"))
+    b1.setBlock(9, b1.topY(9, 9), 9, AIR)
+    b1.saveAll(); SaveIO.flush()
+    let b2 = World(seed: 4242, device: device, save: SaveManager(dir: dirB))
+    _ = b2.loadSync(center: V3(8, 150, 8), radius: 2)
+    var bCells = 0, bBad = 0, bField = 0
+    for (k, c1) in b1.chunks {
+        guard let c2 = b2.chunks[k] else { continue }
+        if c1.blocks.isField || c2.blocks.isField { bField += 1 }
+        for i in 0..<(CSQ * CH) { bCells += 1; if c1.blocks[i] != c2.blocks[i] { bBad += 1 } }
+    }
+    print("fieldsave: block world \(b1.fieldTerrain) -> \(b2.fieldTerrain); \(bCells) cells compared, \(bBad) differ, \(bField) chunks with a field")
+    try? FileManager.default.removeItem(at: dirB)
+    exit(bad == 0 && w2.fieldTerrain && chunks > 0 && dug.count > 0 && added.count > 0 && !b1.fieldTerrain && !b2.fieldTerrain
+         && bBad == 0 && bField == 0 && bCells > 0 ? 0 : 1)
 }
 // --playthrough [--only overworld,emberdeep,stronghold,end,blight] [--seed N]: the Mac's scripted full-game run
 // (Sources/Playthrough.swift), so cloud threads can run it too.

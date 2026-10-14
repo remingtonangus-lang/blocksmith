@@ -70,8 +70,25 @@ final class EmberGen: TerrainGenerator {
         return b
     }
 
+    // PG1 rewrite: a field world's chunk (TerrainGenerator.generateField): the same band with continuous caps.
+    func fieldBlocks(cx: Int, cz: Int) -> [BlockID] {
+        var b = [BlockID](repeating: AIR, count: CSQ * CH)
+        fill(&b, cx: cx, cz: cz, smoothCaps: true)
+        return b
+    }
+
+    // PG1 rewrite (field worlds): the floor and roof caps as continuous shapes, solid up to capFloor and down from capRoof
+    // (a cell by its centre, band y + 0.5), 1 to 5 cells thick like the cells picked one by one in a block world, whose
+    // speckle the field world's cave roofs were rounded from.
+    @inline(__always) func capFloor(_ wx: Int, _ wz: Int) -> Float {
+        0.6 + 3.9 * max(0, min(1, 0.5 + 0.7 * deco.noise2(Float(wx) / 7 + 311, Float(wz) / 7 - 97)))
+    }
+    @inline(__always) func capRoof(_ wx: Int, _ wz: Int) -> Float {
+        Float(height) - 0.6 - 3.9 * max(0, min(1, 0.5 + 0.7 * deco.noise2(Float(wx) / 7 - 211, Float(wz) / 7 + 53)))
+    }
+
     // Writes the band (base ... base + height - 1) into a chunk array.
-    func fill(_ b: inout [BlockID], cx: Int, cz: Int) {
+    func fill(_ b: inout [BlockID], cx: Int, cz: Int, smoothCaps: Bool = false) {
         let bx = cx * CS, bz = cz * CS
         // Density on a 4 x 8 x 4 lattice, trilinearly interpolated (fast and smooth).
         let H = height
@@ -97,7 +114,13 @@ final class EmberGen: TerrainGenerator {
                     let d = c0 + (c1 - c0) * fz
                     let wx = bx + x, wz = bz + z
                     var id: BlockID = AIR
-                    if y < 5 && (y == 0 || hash3(wx, y, wz, s32) % 5 < UInt32(5 - y)) { id = bedrock }
+                    if smoothCaps {
+                        let yc = Float(y) + 0.5
+                        if yc <= capFloor(wx, wz) || yc >= capRoof(wx, wz) { id = bedrock }
+                        else if d > 0 { id = netherrack }
+                        else if y <= EmberGen.lavaLevel { id = lava }
+                    }
+                    else if y < 5 && (y == 0 || hash3(wx, y, wz, s32) % 5 < UInt32(5 - y)) { id = bedrock }
                     else if y > H - 6 && (y == H - 1 || hash3(wx, y, wz, s32 ^ 1) % 5 < UInt32(y - (H - 6))) { id = bedrock }
                     else if d > 0 { id = netherrack }
                     else if y <= EmberGen.lavaLevel { id = lava }
@@ -136,7 +159,16 @@ final class EmberGen: TerrainGenerator {
                 let c11 = L(i0, j0 + 1, k0 + 1) + (L(i0 + 1, j0 + 1, k0 + 1) - L(i0, j0 + 1, k0 + 1)) * fx
                 let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
                 let d = c0 + (c1 - c0) * fz
-                g[Chunk.index(x, base + y, z)] = (y < 5 || y > H - 6) ? .nan : d       // (the ragged caps: rounded)
+                // The caps (fieldBlocks): solid below capFloor and above capRoof, in blocks.
+                let yc = Float(y) + 0.5, wx = bx + x, wz = bz + z
+                let capD: Float = y < 6 ? capFloor(wx, wz) - yc : (y > H - 7 ? yc - capRoof(wx, wz) : -9)
+                g[Chunk.index(x, base + y, z)] = max(d, capD)
+            }
+            // Just outside the band (open, unless the generator round it set those rows: the Deep's seal and crust), so
+            // the caps' outer faces are flat planes too.
+            for (y, v) in [(-2, -1.5), (-1, -0.5), (H, -0.5), (H + 1, -1.5)] as [(Int, Float)] where base + y >= 0 && base + y < CH {
+                let i = Chunk.index(x, base + y, z)
+                if g[i].isNaN { g[i] = v }
             }
         } }
     }
@@ -263,6 +295,9 @@ final class HollowGen: TerrainGenerator {
     private(set) var structures: StructureCache? = nil
     struct Spike { let x: Int; let z: Int; let radius: Int; let height: Int; let guarded: Bool }
     let spikes: [Spike]
+    // A field world's islands (PG1): the outer islands' tops round like the central island's, so the top block is
+    // the cell the continuous top passes through (block worlds keep their old truncated tops).
+    var fieldTops = false
 
     init(seed: UInt64) {
         self.seed = seed
@@ -289,7 +324,7 @@ final class HollowGen: TerrainGenerator {
     // Island top (internal y) at a column, nil over the void; `depth` is how far the island hangs down.
     func island(_ x: Int, _ z: Int) -> (top: Int, depth: Int)? {
         guard let f = islandF(x, z) else { return nil }
-        return (YOFF + 58 + (f.outer ? Int(f.top) : Int(f.top.rounded())), Int(f.depth))
+        return (YOFF + 58 + (f.outer && !fieldTops ? Int(f.top) : Int(f.top.rounded())), Int(f.depth))
     }
 
     // The island's top over YOFF + 58 before rounding, and its depth (PG1 rewrite: the continuous ground).
@@ -316,26 +351,61 @@ final class HollowGen: TerrainGenerator {
 
     func surface(_ x: Int, _ z: Int) -> Int? { island(x, z)?.top }
 
-    // PG1 rewrite: the islands' ground as heights (blocks over or under the top and the underside) and, for the main
-    // island, the distance in from its rim.
+    // PG1 rewrite: one column of the islands as continuous surfaces (internal y): the top block's upper face, the
+    // lowest block's underside, and the distance in from the island's rim, negative out over the void (so the ground
+    // beside an island's edge is a field too). nil when no island is within a few blocks.
+    func islandSurfaces(_ x: Int, _ z: Int) -> (top: Float, bottom: Float, rim: Float)? {
+        let wx = Float(x), wz = Float(z)
+        let d = (wx * wx + wz * wz).squareRoot()
+        let base = Float(YOFF + 58)
+        if d < 130 {
+            let edge = 92 + n.noise2(wx / 30, wz / 30) * 10
+            let rim = edge - d
+            if rim < -3 { return nil }
+            let k = max(0, 1 - d / edge)
+            let bump = n.noise2(wx / 40, wz / 40) * 2.5 + n.noise2(wx / 13, wz / 13) * 1.2
+            let top = bump + min(1, k * 6) * 3 - 3
+            let depth: Float = k * k * 50 + 3
+            return (base + top + 1, base + top - depth, rim)
+        }
+        if d < 990 { return nil }
+        func v(_ a: Float, _ b: Float) -> Float { isl.fbm2(a / 180, b / 180, 3) + isl.noise2(a / 45, b / 45) * 0.25 }
+        let t: Float = 0.22
+        let c = v(wx, wz)
+        if c < t - 0.06 { return nil }
+        let gx = (v(wx + 1, wz) - v(wx - 1, wz)) * 0.5, gz = (v(wx, wz + 1) - v(wx, wz - 1)) * 0.5
+        let gl = max(1e-3, (gx * gx + gz * gz).squareRoot())
+        let rim = min((c - t) / gl, d - 1000)
+        if rim < -3 { return nil }
+        let k = max(0, min(1, (c - t) * 4))
+        let top = n.noise2(wx / 60, wz / 60) * 6 + k * 6
+        let depth: Float = k * 30 + 2
+        return (base + top + 1, base + top - depth, rim)
+    }
+
+    // The islands' ground for a chunk as distances (blocks; positive inside): under the top, over the underside and
+    // in from the rim, on every row from just under the underside to just over the top.
     func groundField(cx: Int, cz: Int) -> [Float]? {
         var g = [Float](repeating: .nan, count: CSQ * CH)
-        for z in -1...CS { for x in -1...CS where x >= 0 && x < CS && z >= 0 && z < CS {
-            let wx = cx * CS + x, wz = cz * CS + z
-            guard let i = island(wx, wz), let f = islandF(wx, wz) else { continue }
-            let topF = Float(YOFF + 58) + f.top
-            let fx = Float(wx), fz = Float(wz)
-            let r = (fx * fx + fz * fz).squareRoot()
-            var rim: Float = 4
-            if r < 130 { rim = (92 + n.noise2(fx / 30, fz / 30) * 10) - r }
-            let lo = max(0, i.top - i.depth - 2), hi = min(CH - 1, i.top + 2)
+        for z in 0..<CS { for x in 0..<CS {
+            guard let s = islandSurfaces(cx * CS + x, cz * CS + z) else { continue }
+            let lo = max(0, Int(floor(s.bottom)) - 2), hi = min(CH - 1, Int(floor(s.top)) + 2)
+            guard lo <= hi else { continue }
             for y in lo...hi {
-                let yc = Float(y)
-                let v = min(topF + 0.5 - yc, yc - Float(i.top - i.depth) + 0.5, rim)
-                g[Chunk.index(x, y, z)] = v
+                let yc = Float(y) + 0.5
+                g[Chunk.index(x, y, z)] = min(s.top - yc, yc - s.bottom, s.rim)
             }
         } }
         return g
+    }
+
+    // A field world's chunk: the end stone is exactly the cells inside the field, then the spiral plants.
+    func fieldBlocks(cx: Int, cz: Int) -> [BlockID] {
+        var b = [BlockID](repeating: AIR, count: CSQ * CH)
+        let endStone = Blocks.id("end_stone")
+        if let g = groundField(cx: cx, cz: cz) { for i in 0..<g.count where g[i] > 0 { b[i] = endStone } }
+        spirals(&b, cx: cx, cz: cz)
+        return b
     }
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
@@ -347,7 +417,12 @@ final class HollowGen: TerrainGenerator {
                 for y in max(0, i.top - i.depth)...i.top { b[Chunk.index(x, y, z)] = endStone }
             }
         }
-        // Spiral plants on the outer islands.
+        spirals(&b, cx: cx, cz: cz)
+        return b
+    }
+
+    // Spiral plants on the outer islands.
+    func spirals(_ b: inout [BlockID], cx: Int, cz: Int) {
         let d2 = (cx * CS) * (cx * CS) + (cz * CS) * (cz * CS)
         if d2 > 1000 * 1000 {
             for k in 0..<3 {
@@ -357,7 +432,6 @@ final class HollowGen: TerrainGenerator {
                 HollowGen.chorus(&b, x, i.top + 1, z, hash3(cx, k, cz, 0xC3))
             }
         }
-        return b
     }
 
     // A small branching spiral tree (plant stems with a flower on top), kept inside the chunk.

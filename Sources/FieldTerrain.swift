@@ -42,9 +42,10 @@ enum FieldTerrain {
     @inline(__always) static func q(_ d: Float) -> Int8 { Int8(max(-127, min(127, (d * scale).rounded()))) }
     @inline(__always) static func f(_ v: Int8) -> Float { Float(v) / scale }
 
-    // New worlds are field worlds (written as a marker in the save: terrain-field.txt).
-    // (Off until collision runs against the field: `--field` makes new worlds field worlds meanwhile.)
-    static var newWorlds = CommandLine.arguments.contains("--field")
+    // New Polygons worlds are field worlds (written as a marker in the save: terrain-field.txt); a new world made with
+    // block terrain, and every world saved before the field (no marker), stays a block world. `--blockworlds` (tests,
+    // before/after measurements) makes new Polygons worlds the old way.
+    static var newWorlds = !CommandLine.arguments.contains("--blockworlds")
     // Worlds with no save (harness, tests): `--field` makes them field worlds; a co-op guest takes the host's choice.
     static var unsaved = CommandLine.arguments.contains("--field")
 
@@ -56,15 +57,18 @@ enum FieldTerrain {
     // The cells rounded from cells, by what made them (harness): beside water, beside lava, ground the generator's field
     // calls open (added: banks, fills), open where it calls ground (carved: ravines, sinkholes, ponds), the rest.
     static var why = [Int](repeating: 0, count: 5)
+    // ...and by what the generator's field said there and the cell's block (the commonest are printed).
+    static var whyKeys: [String: Int] = [:]
     static func statsLine() -> String {
         statsLock.lock(); defer { statsLock.unlock() }
         let t = max(1, stats.reduce(0, +))
         let r = max(1, why.reduce(0, +))
         func pc(_ k: Int) -> Double { Double(why[k]) * 100 / Double(r) }
+        let top = whyKeys.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \(Int(Double($0.value) * 100 / Double(r)))%" }
         return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells"
                       + " (of those: %.0f%% by water, %.0f%% by lava, %.0f%% added ground, %.0f%% carved, %.0f%% other)",
                       t, Double(stats[0]) * 100 / Double(t), Double(stats[1]) * 100 / Double(t), Double(stats[2]) * 100 / Double(t),
-                      pc(0), pc(1), pc(2), pc(3), pc(4))
+                      pc(0), pc(1), pc(2), pc(3), pc(4)) + "\nfieldstats: rounded cells by cause: " + top.joined(separator: ", ")
     }
 
     // Loose ground (soil, sand, gravel, mud): what a structure lays of it shapes the ground (a garden, a levelled yard, a
@@ -216,7 +220,10 @@ enum FieldTerrain {
                         if near({ Blocks.fluidKind[Int($0)] == 1 }) { k = 0 }
                         else if near({ Blocks.fluidKind[Int($0)] == 2 }) { k = 1 }
                         else if F != nil { k = s ? 2 : 3 }
-                        statsLock.lock(); why[k] += 1; statsLock.unlock()
+                        let gv = G?[i] ?? .nan
+                        let src = F != nil ? "gen" : (G == nil ? "nofield" : gv.isNaN ? "cap" : (gv > 0) == s ? "flat" : "sign")
+                        let tag = src + (s ? " ground " + Blocks.key(FieldMat.blocks[Int(fm[i])]) : " open " + Blocks.key(b[i]))
+                        statsLock.lock(); why[k] += 1; whyKeys[tag, default: 0] += 1; statsLock.unlock()
                     }
                     var cnt = 0, tot = 0
                     for dy in -1...1 { let yy = y + dy; guard yy >= 0 && yy < CH else { continue }
@@ -338,7 +345,7 @@ extension TerrainGenerator {
             var cd = [Float](repeating: .nan, count: CSQ * CH)
             b = cd.withUnsafeMutableBufferPointer { wg.generate(cx: cx, cz: cz, carved: $0.baseAddress) }
             carved = cd
-        } else { b = generate(cx: cx, cz: cz) }
+        } else { b = fieldBlocks(cx: cx, cz: cz) }
         var mark = [UInt8](repeating: 0, count: b.count)
         var ents: [(IVec3, BlockEntity)] = [], mobs: [(String, V3)] = []
         if let st = structures {

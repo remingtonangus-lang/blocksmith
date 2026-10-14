@@ -74,6 +74,18 @@ extension World {
 
 extension World {
     // The field's surface under a point, from the point (-0.5...0.25 blocks; 0 where none is that near).
+    // PG2 rewrite: the height a small body at `p` comes to rest on, falling from `up` over it at most `up + depth`: the
+    // same sweep bodies fall with (built blocks' boxes and the field's surface), for the few things that are set down
+    // rather than moved (a downed animal, a dragged one, a bobber). nil: it starts inside something or nothing is there.
+    func restHeight(_ p: V3, halfW: Float = 0.1, up: Float = 0.6, depth: Float) -> Float? {
+        let y0 = p.y + up
+        let mn = V3(p.x - halfW, y0, p.z - halfW), mx = V3(p.x + halfW, y0 + 0.2, p.z + halfW)
+        if collides(mn, mx) { return nil }
+        let reach = up + depth
+        let d = sweep(mn, mx, axis: 1, -reach)
+        return d > -reach + 1e-4 ? y0 + d : nil
+    }
+
     func fieldSurfaceOffset(_ pos: V3) -> Float {
         var y = pos.y + 0.25, prev = fieldDensity(at: V3(pos.x, y, pos.z))
         if prev > 0 { return 0 }

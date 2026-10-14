@@ -46,11 +46,15 @@ protocol TerrainGenerator: AnyObject {
     // > 0 in the ground, in any units (FieldTerrain.split turns it into distances by its gradient); NaN where the
     // generator has no continuous shape there (the split rounds the cells there). nil: none at all.
     func groundField(cx: Int, cz: Int) -> [Float]?
+    // PG1 rewrite: the chunk a field world starts from (generateField), where a generator lays some natural shapes out
+    // continuously instead of cell by cell; the block chunk otherwise.
+    func fieldBlocks(cx: Int, cz: Int) -> [BlockID]
 }
 
 extension TerrainGenerator {
     var structures: StructureCache? { nil }
     func groundField(cx: Int, cz: Int) -> [Float]? { nil }
+    func fieldBlocks(cx: Int, cz: Int) -> [BlockID] { generate(cx: cx, cz: cz) }
 }
 
 final class DimensionState {
