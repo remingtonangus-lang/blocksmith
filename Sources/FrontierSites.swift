@@ -10,6 +10,7 @@ import simd
 //   homestead     farm country: a family's log cabin (the wood of the land: spruce in the north, acacia on the savanna,
 //                 birch in birch woods), a fenced paddock of cows, sheep and chickens, a watered wheat field, a hay
 //                 lean-to and the homesteader at the porch, who sells bread, milk and meat to a passing rider.
+//                 (Talk to the folk of a stilt hamlet for smoked fish, of a pueblo for pots and fired brick, $3.)
 //   stilt_hamlet  swamps and mangroves: three huts on log stilts over the water, joined by plank walks with ladders down,
 //                 lanterns on posts, lily pads; two fishers live there.
 //   pueblo        badlands: stacked terracotta houses in three tiers stepping back, ladders up the faces, flat roofs,
@@ -365,21 +366,31 @@ enum FrontierSites {
         }
     }
 
-    // Townsfolk.talkToTownsperson: a homesteader sells food to a rider passing by.
+    // Townsfolk.talkToTownsperson: the folk of a homestead, a stilt hamlet or a pueblo deal with a passing rider, each
+    // in what their land gives.
     static let farePrice = 300
+    static let wares: [String: (sell: [(String, Int)], ask: String, lines: [String])] = [
+        "homestead": ([("bread", 3), ("cooked_beef", 2), ("milk_bucket", 1)], "Bread, milk and a cut of beef",
+                      ["Fresh this morning. Safe riding.", "Take it, it's a long way to town.", "The cow's been generous."]),
+        "stilt_hamlet": ([("cooked_cod", 4), ("cooked_salmon", 2), ("lily_pad", 2)], "Smoked fish off the line",
+                         ["Mind the planks, they're slick.", "The water's high this year. Keeps the dead off us.", "Caught at first light."]),
+        "pueblo": ([("flower_pot", 2), ("brick", 8), ("bread", 2)], "Pots and fired brick",
+                   ["Fired in our own kiln.", "The mesa keeps us cool. Sit a while.", "Good clay comes from the river bend."]),
+    ]
     static func talk(_ g: Game, _ m: Mob) -> Bool {
         guard m.villager?.role == "camper",
-              let s = sites(g, near: m.pos).first(where: { $0.kind == "homestead" && simd_length(V3(Float($0.anchor.x), Float($0.anchor.y), Float($0.anchor.z)) - m.pos) < 24 })
+              let s = sites(g, near: m.pos).first(where: { wares[$0.kind] != nil && simd_length(V3(Float($0.anchor.x), Float($0.anchor.y), Float($0.anchor.z)) - m.pos) < 26 }),
+              let w = wares[s.kind]
         else { return false }
-        _ = s
         if g.survival && g.money < farePrice {
-            Townsfolk.say(g, m, "Bread, milk and a cut of beef for \(Money.format(farePrice)), when you've the money."); return true
+            Townsfolk.say(g, m, "\(w.ask) for \(Money.format(farePrice)), when you've the money."); return true
         }
         if g.survival { g.money -= farePrice }
-        for (k, n) in [("bread", 3), ("cooked_beef", 2), ("milk_bucket", 1)] where Items.has(k) {
+        for (k, n) in w.sell where Items.has(k) {
             g.drops.spawn(ItemStack(Items.id(k), n), at: g.player.pos + V3(0, 0.5, 0))
         }
-        Townsfolk.say(g, m, ["Fresh this morning. Safe riding.", "Take it, it's a long way to town.", "The cow's been generous."][Int(g.clock) % 3])
+        g.sfx(.villagerTrade, 0.6, at: m.pos)
+        Townsfolk.say(g, m, w.lines[Int(g.clock) % w.lines.count])
         return true
     }
 }
