@@ -386,7 +386,7 @@ H7. [DONE] The shock weapon is as strong as it looks.
 H8. [DONE] Less surface water.
 H9. [DONE] Boats: see yourself in the boat, the boat model matches its icon, storms at sea.
 H10. [DONE] Horse bonding raises stamina and health, with RDR2-style cores in the UI.
-H11. Vehicle damage physics.
+H11. [DONE] Vehicle damage physics.
 H12. Hands can grab and move anything physical, not only small animals and carcasses.
 H13. Base guns built of blocks, with a gunner already seated under the gun (kill him to take the seat), destroyed block by block; leaving the seat never drops you outside the base.
 H14. Townsfolk have homes and beds.
