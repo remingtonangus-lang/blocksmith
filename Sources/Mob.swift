@@ -398,6 +398,7 @@ final class Mob {
     var armorTier = 0               // horse / wolf armour
     var armorHP = 0                 // wolf armour durability
     var chested = false
+    var guardUp: Float = 0, guardAge: Float = 0, guardCD: Float = 0, guardBroken: Float = 0   // D10 (Guards.swift)
     var coach: UInt8 = 0            // D4: a horse drawing a stagecoach (1) or freight wagon (2) (Stagecoach.swift)
     var cargo: ItemContainer?      // chest boat / pack animal inventory
     var spin: Float = 0            // boat turn rate (deg per tick)

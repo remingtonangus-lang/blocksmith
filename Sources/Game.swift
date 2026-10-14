@@ -1022,6 +1022,7 @@ final class Game {
 
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
+        Guards.tick(self, dt: fdt)                                       // D10
         // Quest Swing melee: a blade that physically touched a mob this frame (VRMelee). It only ever hits that mob:
         // hand movement alone never mines, places, uses or fires anything (Remington, Oct 10 playtest).
         let touchedMob = swingMob.flatMap { $0 === riding || $0.health <= 0 ? nil : $0 }
@@ -1145,6 +1146,14 @@ final class Game {
             if bufferAttacks && !swung {
                 if breakNow && !ready { attackQueued = 0.7; attackNow = false }
                 else if attackQueued > 0 && ready { attackQueued = 0; attackNow = true }
+            }
+            // D10: a raised guard glances or parries the blow; sneaking kicks it open (Guards.swift).
+            if attackNow, Guards.meet(self, m, kick: input.shift || p.b,
+                                      damage: (held.isEmpty ? 1 : held.def.attack) * min(1, attackTimer * (held.isEmpty ? 4 : held.def.attackSpeed))) == true {
+                attackTimer = 0
+                if Guards.stagger { Guards.stagger = false; attackTimer = -0.4 }
+                swing = 1
+                return
             }
             if attackNow {
                 // Attack cooldown: damage scales with how charged the swing is.
