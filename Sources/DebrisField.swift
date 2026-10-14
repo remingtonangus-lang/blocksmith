@@ -87,6 +87,21 @@ final class DebrisField {
         }
     }
 
+    // P247: a small box of block b's material (a bone a blade broke off) centred at `c`, split into `count` pieces
+    // that fly along `direction`.
+    func bits(_ b: BlockID, at c: V3, size: SIMD3<Float>, direction: V3, count: Int, speed: Float, seed: UInt32) {
+        let o = c - size * 0.5
+        scratch.removeAll(keepingCapacity: true)
+        Fracture.shatter(min: .zero, max: size, impact: size * 0.5, direction: direction, count: count, seed: seed,
+                         workspace: ws, into: &scratch)
+        var r = seed ^ 0xB0E5
+        for p in scratch {
+            r = r &* 1664525 &+ 1013904223
+            let jitter = V3(Float(r & 0xFF) / 255 - 0.5, Float((r >> 8) & 0xFF) / 255, Float((r >> 16) & 0xFF) / 255 - 0.5)
+            add(p, b, origin: o, velocity: direction * speed + jitter * 2 + V3(0, 1.5, 0), spin: jitter * 12)
+        }
+    }
+
     private func add(_ p: Fracture.Poly, _ b: BlockID, origin o: V3, velocity: V3, spin: V3) {
         guard p.mass.volume > 0, p.verts.count >= 4 else { return }
         let c = p.mass.centroid

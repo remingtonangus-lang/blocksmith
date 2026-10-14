@@ -368,6 +368,7 @@ final class Mob {
     var phaseTime: Float = 0
     var circleAngle: Float = 0
     var aimHold: Float = 0          // bow mobs: > 0 while drawing on a target (arms raised, bow up)
+    var lostBones: UInt8 = 0        // P247 skeletons: bones a blade broke off (SkeletonBreak.swift: 1 left arm, 2 right, 4/8 legs)
     weak var healTarget: Mob?       // hollow crystal currently healing the dragon
     var sitDamage = 0               // damage the wyrm has taken during this perch
     var sideHeads: [Float] = [1, 1.5]   // Blight side heads: seconds until each fires again
@@ -671,7 +672,8 @@ final class Mob {
         if wasHit { wasHit = false; rallyPack(g) }
         let fleeFrom = panic > 0 ? nil : threat(g)
 
-        switch spec.behavior {
+        // P247: a skeleton without both arms can't draw its bow; it closes in and claws.
+        switch spec.behavior == .ranged && lostBones & 3 != 0 ? .melee : spec.behavior {
         case _ where fleeFrom != nil:
             // Avoid-entity goal: run to a spot 8 blocks away from the threat, re-aimed about once a second (a point
             // re-aimed every tick moved with the mob and replanned its path each time: behaviour sim, fleeing rabbits).
@@ -1091,6 +1093,7 @@ final class Mob {
             }
             mount = nil
         }
+        if lostBones & 12 != 0 { speed *= lostBones & 12 == 12 ? 0.22 : 0.5 }     // P247: hobbling on one leg, dragging itself
         // Walking towards something: follow a path around obstacles instead of straight at it.
         var onPath = false
         if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {

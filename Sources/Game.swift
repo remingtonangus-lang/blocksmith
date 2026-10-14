@@ -1196,6 +1196,7 @@ final class Game {
                 // A blade's hits skip the hurt invulnerability: QuestControls lets each mob take one hit per VRMelee.rehit.
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: 1 + 1.25 * kbLevels, iframes: !swung)
                 Mob.playerMelee = false
+                if m.health < hp0 { skeletonBlow(m, at: hitAt, power: Mob.playerMeleePower, blade: !held.isEmpty) }   // P247
                 // The contact flash (VRMelee.swift) only when the hit did damage (not into hurt invulnerability or an
                 // emerging Warden); sparks from weapons only, at the Quest blade's contact point when it swung.
                 if m.health < hp0 {
