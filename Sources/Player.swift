@@ -81,6 +81,11 @@ final class Player {
             return la < lb
         }
     }()
+    static let fieldNudgeRadii: [Float] = [0.06, 0.12, 0.2, 0.3, 0.45, 0.6, 0.75]
+    // (Up first: feet a hair into the floor; down: a head into a rounded ceiling's corners; then sideways and slanting.)
+    static let fieldNudgeDirs: [V3] = [V3(0, 1, 0), V3(0, -1, 0)] + (0..<8).map { k in V3(cosf(Float(k) * .pi / 4), 0, sinf(Float(k) * .pi / 4)) }
+        + (0..<4).map { k in simd_normalize(V3(cosf(Float(k) * .pi / 2 + .pi / 4), 1, sinf(Float(k) * .pi / 2 + .pi / 4))) }
+        + (0..<4).map { k in simd_normalize(V3(cosf(Float(k) * .pi / 2 + .pi / 4), -1, sinf(Float(k) * .pi / 2 + .pi / 4))) }
     static func nearestFree(_ p: V3, _ free: (V3) -> Bool) -> V3? {
         let base = V3(floorf(p.x) + 0.5, floorf(p.y), floorf(p.z) + 0.5)
         if free(base) { return base }
@@ -190,6 +195,15 @@ final class Player {
             let nudges: [V3] = [V3(0, 0.002, 0), V3(0.002, 0, 0), V3(-0.002, 0, 0), V3(0, 0, 0.002), V3(0, 0, -0.002),
                                 V3(0, 0.02, 0), V3(0.01, 0, 0), V3(-0.01, 0, 0), V3(0, 0, 0.01), V3(0, 0, -0.01), V3(0, 0.1, 0)]
             if let n = nudges.first(where: { !collides(at: pos + $0, w) }) { pos += n }
+        }
+        // PG2 rewrite: in a field world the ground's rounded walls can press a body that fitted a moment ago (a hole dug a
+        // cell at a time, ground a blast reshaped): the nearest free spot within three quarters of a block first. The
+        // block-centred spots below missed the middle of a one-cell shaft and popped the body up through 40 blocks of
+        // rock to the surface (field playthrough, mining at the foot of a shaft).
+        if w.fieldTerrain && collides(at: pos, w) {
+            search: for r in Player.fieldNudgeRadii {
+                for o in Player.fieldNudgeDirs where !collides(at: pos + o * r, w) { pos += o * r; break search }
+            }
         }
         // Still inside: the nearest free spot round the body (a cave beside it, the room it leaned out of) before popping
         // up. Popping straight up carried a player embedded underground up through the rock to the next cave or the

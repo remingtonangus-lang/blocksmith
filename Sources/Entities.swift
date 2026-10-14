@@ -97,7 +97,12 @@ final class ItemEntity {
             vel.y = max(vel.y, -40)
         }
         if onGround { let f = expf(-10 * dt); vel.x *= f; vel.z *= f }
-        if w.collides(V3(pos.x - 0.125, pos.y, pos.z - 0.125), V3(pos.x + 0.125, pos.y + 0.25, pos.z + 0.125)) { pos.y += 0.3; vel.y = 0 }
+        if w.collides(V3(pos.x - 0.125, pos.y, pos.z - 0.125), V3(pos.x + 0.125, pos.y + 0.25, pos.z + 0.125)) {
+            // PG2 rewrite: inside a field world's ground (dropped from a dug cell into its rounded wall) it is pushed out
+            // along the ground's normal to the surface; popped up 0.3 a tick, a buried item rose through a hillside to
+            // its top (45 blocks in 5 s, --fieldbodies) and ore mined from a wall was never seen again.
+            if !(w.fieldTerrain && pushOutOfField(w)) { pos.y += 0.3; vel.y = 0 }
+        }
         let before = pos
         let hit = w.moveBody(&pos, halfW: 0.125, height: 0.25, vel * dt, step: 0, onGround: onGround)
         if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
@@ -110,6 +115,23 @@ final class ItemEntity {
         // it drifts back to its box.
         let target = onGround ? w.smoothGroundOffset(pos, key: &groundKey, heights: &groundH) : 0
         viewDY += (target - viewDY) * min(1, dt * (onGround ? 10 : 3))
+    }
+
+    // Out of the field's ground the shortest way: along its outward normal, a little past the surface. false: not the
+    // field that holds it (a built block), or nothing free within a block that way.
+    func pushOutOfField(_ w: World) -> Bool {
+        let c = pos + V3(0, 0.125, 0)
+        let d = w.fieldDensity(at: c)
+        guard d > -0.3 else { return false }
+        let g = w.fieldGradient(c)
+        let l = simd_length(g)
+        guard l > 1e-4 else { return false }
+        let out = -g / l
+        for extra: Float in [0.2, 0.45, 0.8] {
+            let q = pos + out * (max(0, d) + extra)
+            if !w.collides(V3(q.x - 0.125, q.y, q.z - 0.125), V3(q.x + 0.125, q.y + 0.25, q.z + 0.125)) { pos = q; vel = .zero; return true }
+        }
+        return false
     }
 }
 

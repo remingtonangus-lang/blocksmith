@@ -351,7 +351,13 @@ final class WorldGen: TerrainGenerator {
     static let timingLock = NSLock()          // other worlds' workers may generate while the bench times (also startMs)
     static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants", "starts"]
 
-    func generate(cx: Int, cz: Int) -> [BlockID] {
+    func generate(cx: Int, cz: Int) -> [BlockID] { generate(cx: cx, cz: cz, carved: nil) }
+
+    // `carved` (PG1 rewrite, field worlds: TerrainGenerator.generateField): one distance per cell (blocks, + on the rock
+    // side, NaN where none) to the shapes the carvers cut that the generator's terrain and cave fields don't know (lava
+    // pockets, ravines, sinkholes, cupped floor lava), so the split shapes the field round them, not round their cells.
+    // The carvers' rough edges come from world-stable smooth noise there instead of per-cell hashes.
+    func generate(cx: Int, cz: Int, carved cd: UnsafeMutablePointer<Float>?) -> [BlockID] {
         var tp: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         func mark(_ k: Int) {
             guard WorldGen.timing else { return }
@@ -488,8 +494,31 @@ final class WorldGen: TerrainGenerator {
                 return nwl == wl
             }
             guard level else { continue }
-            let p = flora.noise2(Float(wx) / 19 + 311, Float(wz) / 19 - 207) + 0.35 * flora.noise2(Float(wx) / 6 - 51, Float(wz) / 6 + 93)
+            func pondNoise(_ x: Float, _ z: Float) -> Float { flora.noise2(x / 19 + 311, z / 19 - 207) + 0.35 * flora.noise2(x / 6 - 51, z / 6 + 93) }
+            let p = pondNoise(Float(wx), Float(wz))
             let thr: Float = 0.02
+            // PG1 rewrite (field worlds): one surface from the grass down to the deepest bed, its height from the pond's
+            // noise (water level at the shore, 2 under at the deepest), not 1-block steps; its distance for the split.
+            if let cd {
+                let wlF = Float(wl), hTop = Float(top + 1)
+                let raw = wlF + 1 - (p - thr) / 0.15
+                let H = min(hTop, max(wlF - 2, raw))
+                guard H < hTop - 0.02 else { continue }
+                var slope: Float = 0
+                if raw > wlF - 2 && raw < hTop {
+                    let gx = (pondNoise(Float(wx) + 0.5, Float(wz)) - pondNoise(Float(wx) - 0.5, Float(wz))) / 0.15
+                    let gz = (pondNoise(Float(wx), Float(wz) + 0.5) - pondNoise(Float(wx), Float(wz) - 0.5)) / 0.15
+                    slope = gx * gx + gz * gz
+                }
+                let scale = 1 / (1 + slope).squareRoot()
+                let yg = Int(ceilf(H - 0.5)) - 1                      // the highest cell whose centre is under the surface
+                let surf = b[Chunk.index(lx, top, lz)]
+                if yg < top { for y in (yg + 1)...top { b[Chunk.index(lx, y, lz)] = y <= wl ? WATER : AIR } }
+                b[Chunk.index(lx, yg, lz)] = yg < wl ? (hash3(wx, yg, wz, 0x5A3F) % 5 == 0 ? clayB : mudB) : surf
+                for y in max(1, yg - 1)...min(CH - 1, yg + 2) { FieldTerrain.carveMin(cd, Chunk.index(lx, y, lz), (H - (Float(y) + 0.5)) * scale) }
+                tops[k] = yg
+                continue
+            }
             // Banks: the ground round a pond comes down to the water in 1-block steps (water level, then one above), so
             // a pond lies flush in the grass instead of sunk in a square-cut pit (pond shots, seeds 12345/777).
             if p <= thr {
@@ -514,9 +543,18 @@ final class WorldGen: TerrainGenerator {
             let biome = biomes[lx + lz * CS]
             guard biome == .swamp || biome == .mangroveSwamp else { continue }
             let top = tops[lx + lz * CS]
-            guard top >= wls[lx + lz * CS], flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11) > 0.02 else { continue }   // more standing water (a swamp shot read as dry grass: critic, run 385)
+            let q = flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11)
+            guard top >= wls[lx + lz * CS], q > 0.02 else { continue }   // more standing water (a swamp shot read as dry grass: critic, run 385)
             let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
-            if held { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
+            guard held else { continue }
+            // Field worlds: a dip that deepens with the noise (a cell of water once it is half a block deep), not a cell.
+            if let cd {
+                let H = Float(top + 1) - min(1, (q - 0.02) / 0.08)
+                if H < Float(top) + 0.5 { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
+                for y in (top - 1)...(top + 1) { FieldTerrain.carveMin(cd, Chunk.index(lx, y, lz), H - (Float(y) + 0.5)) }
+                continue
+            }
+            b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1
         } }
 
         // River steps and lake edges: water filled per column to its own level stood as a one-block wall beside a
@@ -529,11 +567,11 @@ final class WorldGen: TerrainGenerator {
         let caves = caveLattice(bx, bz, maxY: maxTop)
         var aquifer: [Int32] = []
         carveCaves(&b, caves, bx, bz, tops, wls, cols, &aquifer)
-        carveRavines(&b, bx, bz, tops, wls, &aquifer)
-        if terrain.lessWater { carveSinkholes(&b, bx, bz, tops, wls) }
+        carveRavines(&b, bx, bz, tops, wls, &aquifer, cd)
+        if terrain.lessWater { carveSinkholes(&b, bx, bz, tops, wls, cd) }
         drainAquifers(&b, aquifer)
-        lavaPockets(&b, bx, bz)
-        floorLava(&b, bx, bz)
+        lavaPockets(&b, bx, bz, cd)
+        floorLava(&b, bx, bz, cd)
         floorWater(&b, bx, bz)
         supportFalling(&b, tops)
 
@@ -843,16 +881,32 @@ final class WorldGen: TerrainGenerator {
 
     // Sealed lava pockets in the hot rock below -30, more of them deeper: rock that is solid on all six sides (never
     // beside a cave or the chunk edge, so nothing spills when the chunk loads) turns to lava. Mining into one lets it out.
-    private func lavaPockets(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+    private func lavaPockets(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ cd: UnsafeMutablePointer<Float>? = nil) {
         let top = YOFF - 30
         for y in 4..<top {
             let yd = y - YOFF
             let t: Float = 0.62 - Float(-30 - yd) * 0.006          // 0.62 at -30 ... 0.42 at -64
-            for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+            let edge = cd != nil ? 0 : 1                            // (field worlds: the edge rows get their distance too)
+            for lz in edge..<(CS - edge) { for lx in edge..<(CS - edge) {
                 let i = Chunk.index(lx, y, lz)
                 guard b[i] == EMBERSLATE || b[i] == DEEPSLATE else { continue }
                 let wx = bx + lx, wz = bz + lz
-                guard pocketNoise.noise3(Float(wx) / 9, Float(y) / 6, Float(wz) / 9) > t else { continue }
+                let n = pocketNoise.noise3(Float(wx) / 9, Float(y) / 6, Float(wz) / 9)
+                if let cd, abs(n - t) < 0.3 {
+                    // The pocket's distance: how far the noise is from its threshold over its gradient (per block).
+                    let fx = Float(wx) / 9, fy = Float(y) / 6, fz = Float(wz) / 9
+                    let gx = pocketNoise.noise3(fx + 0.5 / 9, fy, fz) - pocketNoise.noise3(fx - 0.5 / 9, fy, fz)
+                    let gy = pocketNoise.noise3(fx, fy + 0.5 / 6, fz) - pocketNoise.noise3(fx, fy - 0.5 / 6, fz)
+                    let gz = pocketNoise.noise3(fx, fy, fz + 0.5 / 9) - pocketNoise.noise3(fx, fy, fz - 0.5 / 9)
+                    let l = (gx * gx + gy * gy + gz * gz).squareRoot()
+                    if n <= t { FieldTerrain.carveMin(cd, i, (t - n) / max(l, 1e-4)) }
+                    else if lx > 0 && lx < CS - 1 && lz > 0 && lz < CS - 1 && WorldGen.sealedPocket(b, i) {
+                        b[i] = LAVA; FieldTerrain.carveMin(cd, i, (t - n) / max(l, 1e-4))
+                    }
+                    continue
+                }
+                guard n > t, lx > 0 && lx < CS - 1 && lz > 0 && lz < CS - 1 else { continue }
+                if cd != nil { if WorldGen.sealedPocket(b, i) { b[i] = LAVA; FieldTerrain.carveMin(cd!, i, -1.5) }; continue }
                 var sealed = true
                 for o in [1, -1, CS, -CS, CSQ, -CSQ] {
                     let n = b[i + o]
@@ -864,10 +918,19 @@ final class WorldGen: TerrainGenerator {
         }
     }
 
+    // Rock (or lava) on all six sides of cell i.
+    @inline(__always) static func sealedPocket(_ b: [BlockID], _ i: Int) -> Bool {
+        for o in [1, -1, CS, -CS, CSQ, -CSQ] {
+            let n = b[i + o]
+            if !(Blocks.opaque[Int(n)] || n == LAVA) { return false }
+        }
+        return true
+    }
+
     // P39 (Oct 11 evening playtest: "I need lava"): single lava sources sunk into cave floors between -50 and -8, about
     // one floor cell in 100 (1 in 500 left a 16-chunk sample with one): a cupped block (rock on four sides and below, open above) that a bucket takes and that
     // never spills when the chunk loads.
-    private func floorLava(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+    private func floorLava(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ cd: UnsafeMutablePointer<Float>? = nil) {
         let s32 = UInt32(truncatingIfNeeded: seed ^ 0x1A7A)
         for y in max(2, YOFF - 50)..<(YOFF - 8) {
             for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
@@ -875,7 +938,15 @@ final class WorldGen: TerrainGenerator {
                 guard b[i + CSQ] == AIR, Blocks.opaque[Int(b[i])], hash3(bx + lx, y, bz + lz, s32) % 100 == 0 else { continue }
                 var cupped = true
                 for o in [1, -1, CS, -CS, -CSQ] where !Blocks.opaque[Int(b[i + o])] { cupped = false; break }
-                if cupped { b[i] = LAVA }
+                if cupped {
+                    b[i] = LAVA
+                    // Field worlds: a round cup (a ball 0.8 across its middle, 0.3 above the cell's centre).
+                    if let cd {
+                        FieldTerrain.carveMin(cd, i, -0.5)
+                        for o in [1, -1, CS, -CS] { FieldTerrain.carveMin(cd, i + o, 0.24) }
+                        FieldTerrain.carveMin(cd, i - CSQ, 0.5)
+                    }
+                }
             } }
         }
     }
@@ -954,7 +1025,8 @@ final class WorldGen: TerrainGenerator {
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
     // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
-    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ aquifer: inout [Int32]) {
+    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ aquifer: inout [Int32],
+                              _ cd: UnsafeMutablePointer<Float>? = nil) {
         let rsz = 112
         let lavaLevel = YOFF - 55
         for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
@@ -991,7 +1063,8 @@ final class WorldGen: TerrainGenerator {
                     let ir = Int(r) + 1
                     let cx = Int(floorf(px)), cz = Int(floorf(pz))
                     if cx + ir < bx || cx - ir >= bx + CS || cz + ir < bz || cz - ir >= bz + CS { continue }
-                    let y0 = max(6, Int(py - hh)), y1 = min(CH - 2, Int(py + hh))
+                    let ext = cd != nil ? 1 : 0                 // (field worlds: the rock just past the ends gets its distance)
+                    let y0 = max(6, Int(py - hh) - ext), y1 = min(CH - 2, Int(py + hh) + ext)
                     guard y0 <= y1 else { continue }
                     for z in max(bz, cz - ir)...min(bz + CS - 1, cz + ir) {
                         for x in max(bx, cx - ir)...min(bx + CS - 1, cx + ir) {
@@ -1002,9 +1075,17 @@ final class WorldGen: TerrainGenerator {
                             for y in y0...y1 {
                                 if wet && y > top - 5 { break }
                                 let dy = (Float(y) + 0.5 - py) / hh
-                                let jag = (hashf(x, y, z, s32 ^ 0x5A5B) - 0.5) * 0.3
-                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
+                                let jag = cd != nil ? FieldTerrain.roughEdge(x, y, z, s32 ^ 0x5A5B) * 0.3
+                                    : (hashf(x, y, z, s32 ^ 0x5A5B) - 0.5) * 0.3
+                                let e = (dx * dx + dz * dz) / (r * r) + dy * dy
                                 let i = Chunk.index(lx, y, lz)
+                                if let cd {
+                                    let cur = b[i]
+                                    let skip = cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) || (y + 1 < CH && Blocks.isLiquid(b[i + CSQ]))
+                                    let d = FieldTerrain.ellipsoidDistance(dx, Float(y) + 0.5 - py, dz, r, hh, 1 + jag)
+                                    if d > 0 || !skip { FieldTerrain.carveMin(cd, i, d) }
+                                }
+                                if e > 1 + jag { continue }
                                 let cur = b[i]
                                 if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
                                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
@@ -1022,7 +1103,7 @@ final class WorldGen: TerrainGenerator {
 
     // H2: sinkholes, a second cave style you meet on the surface. One 96-block region in five drops a round shaft
     // (3-6 blocks across, wandering a little) 25-55 blocks down into a domed chamber. Path from the region only.
-    private func carveSinkholes(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int]) {
+    private func carveSinkholes(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cd: UnsafeMutablePointer<Float>? = nil) {
         let rsz = 96
         let lavaLevel = YOFF - 55
         for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
@@ -1057,11 +1138,20 @@ final class WorldGen: TerrainGenerator {
                             let lx = x - bx, lz = z - bz
                             if tops[lx + lz * CS] < wls[lx + lz * CS] + 2 { continue }      // never under water
                             let dx = Float(x) + 0.5 - cx, dz = Float(z) + 0.5 - cz
-                            let jag = (hashf(x, Int(cy), z, s32 ^ 0x3C3D) - 0.5) * 0.35
+                            let jag0 = (hashf(x, Int(cy), z, s32 ^ 0x3C3D) - 0.5) * 0.35
                             for yy in y0...y1 {
+                                let jag = cd != nil ? FieldTerrain.roughEdge(x, yy, z, s32 ^ 0x3C3D) * 0.35 : jag0
                                 let dy = dome ? (Float(yy) + 0.5 - cy) / (r * 0.7) : 0
-                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
                                 let i = Chunk.index(lx, yy, lz)
+                                if let cd {
+                                    let cur = b[i]
+                                    let skip = cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) || (yy + 1 < CH && Blocks.isLiquid(b[i + CSQ]))
+                                    // The dome an ellipsoid; the shaft a stack of discs (its distance across).
+                                    let d = dome ? FieldTerrain.ellipsoidDistance(dx, Float(yy) + 0.5 - cy, dz, r, r * 0.7, 1 + jag)
+                                        : (dx * dx + dz * dz).squareRoot() - r * (1 + jag).squareRoot()
+                                    if d > 0 || !skip { FieldTerrain.carveMin(cd, i, d) }
+                                }
+                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
                                 let cur = b[i]
                                 if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
                                 if yy + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }

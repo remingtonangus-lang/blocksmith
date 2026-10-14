@@ -227,6 +227,8 @@ final class Playthrough {
         for d in dirs where pick == nil { let n = p + d; if carvable(n) && carvable(n + IVec3(0, -1, 0)) { pick = n } }
         let n = pick ?? p + IVec3(1, 0, 0)
         for q in [n, n + IVec3(0, -1, 0)] where !clear(q) { world.setBlock(q.x, q.y, q.z, AIR) }
+        // A field world's open cell can be mostly ground (the surface runs through it): room for the body there.
+        if world.fieldTerrain { for q in [n, n + IVec3(0, -1, 0)] { world.fieldSphere(center(q), radius: 0.85, carve: true, material: nil, remesh: true) } }
         game.player.flying = true
         let feet = V3(Float(n.x) + 0.5, Float(n.y) - 0.99, Float(n.z) + 0.5)
         game.player.pos = feet
@@ -247,16 +249,37 @@ final class Playthrough {
         let feet = standBeside(p)
         let inp = game.input
         var ok = false
+        // PG2 rewrite: in a field world, what the aim meets (a failed mine there printed nothing to go on).
+        if world.fieldTerrain {
+            let eye = game.player.eye, d = simd_normalize(center(p) - eye)
+            let h = world.raycast(eye, d, maxDist: 6)
+            let fh = world.fieldHit
+            let raw = world.chunkAt(p.x, p.z).map { Blocks.key($0.blocks.raw(Chunk.index(mod(p.x, CS), p.y, mod(p.z, CS)))) } ?? "?"
+            let dens = world.chunkAt(p.x, p.z).map { Int($0.blocks.density(Chunk.index(mod(p.x, CS), p.y, mod(p.z, CS)))) } ?? 0
+            info(String(format: "field aim at %d %d %d (built layer %@, density %d): eye %.2f %.2f %.2f (field %.2f) meets ",
+                        p.x, p.y, p.z, raw, dens, eye.x, eye.y, eye.z, world.fieldDensity(at: eye))
+                 + (h.map { "\($0.hit.x) \($0.hit.y) \($0.hit.z)" } ?? "nothing")
+                 + (fh.map { String(format: " (field at %.2f %.2f %.2f, t %.2f)", $0.at.x, $0.at.y, $0.at.z, $0.t) } ?? ""))
+        }
+        var onTarget = 0, ticks = 0, drift: Float = 0, other: IVec3? = nil
         for i in 0..<Int(maxSeconds * 20) {
             aim(at: center(p))
             inp.leftDown = true
             if i == 0 { inp.leftClicked = true }
             game.tick(0.05)
             simSeconds += 0.05
+            ticks += 1
+            if game.target?.hit == p { onTarget += 1 } else if let t = game.target { other = t.hit }
+            drift = max(drift, simd_length(game.player.pos - feet))
             game.player.pos = feet; game.player.vel = .zero
             game.health = max(game.health, 20)
             handleDeath()
             if world.block(p.x, p.y, p.z) != b0 { ok = true; break }
+        }
+        if !ok && world.fieldTerrain {
+            info(String(format: "field mine at %d %d %d: on target %d of %d ticks, body moved up to %.2f in a tick, progress %.2f, ",
+                        p.x, p.y, p.z, onTarget, ticks, drift, game.mineProgress)
+                 + (other.map { "other target \($0.x) \($0.y) \($0.z) (\(key($0)))" } ?? "no other target"))
         }
         inp.leftDown = false
         game.tick(0.05)

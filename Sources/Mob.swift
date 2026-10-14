@@ -2368,7 +2368,7 @@ final class MobManager {
             m.update(dt, game: game)
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
-            let gnd: Float = SmoothTerrain.enabled && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
+            let gnd: Float = (SmoothTerrain.enabled || w.fieldTerrain) && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
                 ? w.smoothGroundOffset(m.pos, key: &m.groundKey, heights: &m.groundH) : 0
             m.easeStep(fromY: before.y, wasGround: wasGround, dt, ground: gnd)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload

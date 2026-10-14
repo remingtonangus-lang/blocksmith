@@ -1367,13 +1367,20 @@ final class World {
         var n = IVec3(0, 0, 0)
         var t: Float = 0
         fieldHit = nil
+        // A field world's ground seen from inside (an eye in a tight tunnel's rounded ceiling) is drawn from behind, so
+        // the ray looks past the ground it starts in, as the eye does.
+        var fieldFrom: Float = 0
+        if fieldTerrain && fieldDensity(at: origin) > 0 {
+            while fieldFrom < maxDist && fieldDensity(at: origin + dir * fieldFrom) > 0 { fieldFrom += 0.05 }
+        }
         while t <= maxDist {
             var b = block(x, y, z)
             // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
             // the cell it names is the ground cell there; built blocks are targeted as blocks.
             if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
-                if fieldNear(c, x, y, z, i), let h = fieldRaySegment(origin, dir, from: t, to: min(tmx, tmy, tmz, maxDist)) {
+                let end = min(tmx, tmy, tmz, maxDist)
+                if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, let h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
                     fieldHit = h
                     let g = fieldGradient(h.at)
                     let a = simd_abs(g)

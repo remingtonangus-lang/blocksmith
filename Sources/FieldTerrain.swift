@@ -53,11 +53,18 @@ enum FieldTerrain {
     static let statsOn = CommandLine.arguments.contains("--fieldstats")
     static let statsLock = NSLock()
     static var stats = [0, 0, 0]
+    // The cells rounded from cells, by what made them (harness): beside water, beside lava, ground the generator's field
+    // calls open (added: banks, fills), open where it calls ground (carved: ravines, sinkholes, ponds), the rest.
+    static var why = [Int](repeating: 0, count: 5)
     static func statsLine() -> String {
         statsLock.lock(); defer { statsLock.unlock() }
         let t = max(1, stats.reduce(0, +))
-        return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells",
-                      t, Double(stats[0]) * 100 / Double(t), Double(stats[1]) * 100 / Double(t), Double(stats[2]) * 100 / Double(t))
+        let r = max(1, why.reduce(0, +))
+        func pc(_ k: Int) -> Double { Double(why[k]) * 100 / Double(r) }
+        return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells"
+                      + " (of those: %.0f%% by water, %.0f%% by lava, %.0f%% added ground, %.0f%% carved, %.0f%% other)",
+                      t, Double(stats[0]) * 100 / Double(t), Double(stats[1]) * 100 / Double(t), Double(stats[2]) * 100 / Double(t),
+                      pc(0), pc(1), pc(2), pc(3), pc(4))
     }
 
     // Loose ground (soil, sand, gravel, mud): what a structure lays of it shapes the ground (a garden, a levelled yard, a
@@ -83,7 +90,33 @@ enum FieldTerrain {
     // field is just inside or outside.
     // `built` (StructWriter.mark): cells a structure built; their natural rock stays in the block array (a pyramid's
     // sandstone, a ruin's stone, an igloo's snow are built blocks, not ground).
-    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator, built: [UInt8]? = nil) -> FieldData {
+    // MARK: Carved shapes (WorldGen.generate's `carved` distances)
+
+    // The nearer of a cell's carved distance and d (NaN: none yet).
+    @inline(__always) static func carveMin(_ cd: UnsafeMutablePointer<Float>, _ i: Int, _ d: Float) {
+        let c = cd[i]
+        cd[i] = c.isNaN || d < c ? d : c
+    }
+
+    // A carver's rough edge in field worlds: world-stable smooth noise (-0.5...0.5, about 3 blocks across and a finer
+    // fifth on top) where the block world rolls a hash per cell, so the walls are rough rock, not cell-sized pits.
+    @inline(__always) static func roughEdge(_ x: Int, _ y: Int, _ z: Int, _ salt: UInt32) -> Float {
+        let p = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        return DetailMesh.noise(p, 0.33, salt) * 0.4 + DetailMesh.noise(p, 1.1, salt ^ 0x9E37) * 0.1
+    }
+
+    // Signed distance (blocks, + outside) from a point at (dx, dy, dz) off an ellipsoid's centre to its surface
+    // (horizontal radius r, vertical h, scaled by sqrt(k)): the normalized radius's excess over its gradient.
+    @inline(__always) static func ellipsoidDistance(_ dx: Float, _ dy: Float, _ dz: Float, _ r: Float, _ h: Float, _ k: Float) -> Float {
+        let ux = dx / (r * r), uy = dy / (h * h), uz = dz / (r * r)
+        let e = dx * dx / (r * r) + dy * dy / (h * h) + dz * dz / (r * r)
+        let q = e.squareRoot(), t = max(0.05, k).squareRoot()
+        guard q > 1e-3 else { return -min(r, h) * t }
+        let g = (ux * ux + uy * uy + uz * uz).squareRoot() / q
+        return max(-4, min(4, (q - t) / max(g, 1e-4)))
+    }
+
+    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator, built: [UInt8]? = nil, carved: [Float]? = nil) -> FieldData {
         let n = CSQ * CH
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
@@ -157,12 +190,34 @@ enum FieldTerrain {
                 }
                 guard edge else { continue }
                 var d: Float
-                if let F, y >= 1, F.solid(si) == s {
+                // The carvers' own shapes (lava pockets, ravines, sinkholes): the ground is the generator's field with
+                // them taken out (the nearer surface of the two).
+                let c = carved?[i] ?? .nan
+                let cg: Float = !c.isNaN && F != nil && y >= 1 ? min(F!.genDistance(si), c) : .nan
+                if !cg.isNaN && (cg > 0) == s {
+                    d = max(-1.5, min(1.5, cg)); st[0] += 1
+                } else if !c.isNaN, F == nil, (c > 0) == s {
+                    d = max(-1.5, min(1.5, c)); st[0] += 1
+                } else if let F, y >= 1, F.solid(si) == s {
                     d = max(-1.5, min(1.5, F.genDistance(si))); st[0] += 1
                 } else if let gd = genGround(lx, y, lz, i), (gd > 0) == s {
                     d = max(-1.5, min(1.5, gd)); st[0] += 1
                 } else {
                     st[2] += 1
+                    if statsOn {
+                        var k = 4
+                        func near(_ t: (BlockID) -> Bool) -> Bool {
+                            for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                                let x = lx + dx, yy = y + dy, z = lz + dz
+                                if x >= 0 && x < CS && z >= 0 && z < CS && yy >= 0 && yy < CH && t(b[x + z * CS + yy * CSQ]) { return true }
+                            }
+                            return false
+                        }
+                        if near({ Blocks.fluidKind[Int($0)] == 1 }) { k = 0 }
+                        else if near({ Blocks.fluidKind[Int($0)] == 2 }) { k = 1 }
+                        else if F != nil { k = s ? 2 : 3 }
+                        statsLock.lock(); why[k] += 1; statsLock.unlock()
+                    }
                     var cnt = 0, tot = 0
                     for dy in -1...1 { let yy = y + dy; guard yy >= 0 && yy < CH else { continue }
                         for dz in -1...1 { let zz = lz + dz; guard zz >= 0 && zz < CS else { continue }
@@ -277,7 +332,13 @@ extension TerrainGenerator {
     // it (marked, so their stone stays blocks), and the ground leaves the cells for the field: shaped by the
     // generator's own continuous fields (FieldTerrain.split), never kept as cells.
     func generateField(cx: Int, cz: Int) -> FieldChunk {
-        var b = generate(cx: cx, cz: cz)
+        var b: [BlockID]
+        var carved: [Float]? = nil
+        if let wg = self as? WorldGen {
+            var cd = [Float](repeating: .nan, count: CSQ * CH)
+            b = cd.withUnsafeMutableBufferPointer { wg.generate(cx: cx, cz: cz, carved: $0.baseAddress) }
+            carved = cd
+        } else { b = generate(cx: cx, cz: cz) }
         var mark = [UInt8](repeating: 0, count: b.count)
         var ents: [(IVec3, BlockEntity)] = [], mobs: [(String, V3)] = []
         if let st = structures {
@@ -285,7 +346,7 @@ extension TerrainGenerator {
         }
         ents += World.orphanEntities(b, ChunkKey(x: cx, z: cz), have: ents)
         _ = PlantSupport.dropFloating(&b)
-        let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark)
+        let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark, carved: carved)
         return FieldChunk(built: b, ground: ground, entities: ents, mobs: mobs)
     }
 }
@@ -321,7 +382,9 @@ extension World {
     // solidity was already set by the write.
     func fieldShape(_ x: Int, _ y: Int, _ z: Int, opened: Bool) {
         let ctr = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-        fieldSphere(ctr, radius: opened ? 0.72 : 0.62, carve: opened, material: nil, keepCell: IVec3(x, y, z))
+        // (An opened cell is a ball 0.8 across its middle: a shaft dug a cell at a time leaves the body room at the cells'
+        // floors and ceilings, where 0.72 squeezed it to 0.3 from the middle.)
+        fieldSphere(ctr, radius: opened ? 0.8 : 0.62, carve: opened, material: nil, keepCell: IVec3(x, y, z))
     }
 
     // Subtracts (carve) or adds a sphere to the field: d = min(d, |p - c| - r) or max(d, r - |p - c|). Cells whose
@@ -347,7 +410,11 @@ extension World {
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     let was = d0 > 0
-                    if carve && was && Blocks.hardness[Int(FieldMat.blocks[Int(c.blocks.material(i))])] < 0 { continue }   // (bedrock)
+                    // Bedrock and the Wardstone stay ground, but their surface gives way a little to a hollow beside them
+                    // (left whole, a cell dug out next to them kept a wall of their full density round the body: the
+                    // playthrough's miner, stood in a dug cell at the bottom of the world, was shoved out every tick).
+                    let unbreakable = carve && was && Blocks.hardness[Int(FieldMat.blocks[Int(c.blocks.material(i))])] < 0
+                    if unbreakable { q = max(q, 8) }
                     if keepSolid && was != (q > 0) { q = was ? 1 : -1 }
                     if q == c.blocks.density(i) { continue }
                     let now = q > 0
@@ -485,7 +552,7 @@ extension World {
             if prev > 0 { return nil }
             while y > p.y - 1.2 {
                 let d = w.fieldDensity(at: V3(p.x, y - 0.05, p.z))
-                if d > 0 { return y - 0.05 * d / (d - prev) }
+                if d > 0 { return y - 0.05 * prev / (prev - d) }
                 prev = d; y -= 0.05
             }
             return nil
@@ -510,6 +577,92 @@ extension World {
         g.player.pos = start
         return String(format: "fieldwalk: %d samples, mean |gap| %.3f (signed %.3f), worst %.3f; %.1f blocks walked, %d of 8 headings stalled",
                       n, sum / Float(max(1, n)), signed / Float(max(1, n)), worst, travelled, stalls)
+    }
+
+    // PG2 rewrite (harness, --fieldbodies): animals and dropped items let fall onto the field ground round the player,
+    // run for five seconds through their own updates; each one as drawn (its position and eased view offset) against the
+    // drawn surface under its middle. Nothing should sink or hover by more than an eighth of a block.
+    static func fieldBodiesCheck(_ g: Game) -> String {
+        let w = g.world
+        // The first entry into the ground going down a column from y0 (0.1 steps, then the linear crossing).
+        func surface(_ x: Float, _ z: Float, from y0: Float, to y1: Float) -> Float? {
+            var y = y0, prev = w.fieldDensity(at: V3(x, y, z))
+            while y > y1 {
+                let d = w.fieldDensity(at: V3(x, y - 0.1, z))
+                if d > 0 && prev <= 0 { return y - 0.1 * prev / (prev - d) }
+                prev = d; y -= 0.1
+            }
+            return nil
+        }
+        let kinds: [MobKind] = [.cow, .sheep, .pig, .chicken]
+        var mobs: [Mob] = [], items: [ItemEntity] = []
+        let c = g.player.pos
+        for k in 0..<16 {
+            let a = Float(k) * .pi / 8, r: Float = 4 + Float(k % 4) * 2
+            let x = c.x + cosf(a) * r, z = c.z + sinf(a) * r
+            // On the open ground (the view spot can be inside a hill or a cave: --at's default height).
+            let top = Float(w.gen.column(Int(floor(x)), Int(floor(z))).height)
+            guard let s = surface(x, z, from: top + 8, to: top - 8) else { continue }
+            let m = Mob(kinds[k % kinds.count], at: V3(x, s + 1, z))
+            m.persistent = true
+            g.mobs.mobs.append(m); mobs.append(m)
+            let e = ItemEntity(ItemStack(Items.id("cobblestone"), 1), at: V3(x + 0.6, s + 1.2, z - 0.6), vel: .zero, delay: 999)
+            g.drops.items.append(e); items.append(e)
+        }
+        let verbose = ProcessInfo.processInfo.environment["FIELDBODIES_VERBOSE"] != nil
+        let spawnY = mobs.map { $0.pos.y }
+        var hist = [[String]](repeating: [], count: mobs.count), told = [Bool](repeating: false, count: mobs.count)
+        for t in 0..<150 {
+            g.mobs.update(1.0 / 30, game: g)
+            _ = g.drops.update(1.0 / 30, game: g)
+            guard verbose else { continue }
+            // A body that drops well under where it was put (into the ground): its last ticks and the column it fell through.
+            for (k, m) in mobs.enumerated() {
+                let p = m.pos
+                hist[k].append(String(format: "t%d %.2f %.2f %.2f vel %.2f gnd %@ d %.2f", t, p.x, p.y, p.z, m.vel.y, m.onGround ? "1" : "0",
+                                      w.fieldDensity(at: p + V3(0, 0.05, 0))))
+                if hist[k].count > 8 { hist[k].removeFirst() }
+                guard !told[k] && p.y < spawnY[k] - 4 else { continue }
+                told[k] = true
+                var col: [String] = []
+                var y = spawnY[k] + 1, prev = w.fieldDensity(at: V3(p.x, y, p.z))
+                while y > p.y - 2 {
+                    let d = w.fieldDensity(at: V3(p.x, y - 0.25, p.z))
+                    if (d > 0) != (prev > 0) { col.append(String(format: "%@ at %.2f", d > 0 ? "in" : "out", y - 0.25)) }
+                    prev = d; y -= 0.25
+                }
+                print("fieldbodies: \(m.kind.key) fell from \(spawnY[k]): " + hist[k].joined(separator: "; ") + "\n  column: " + col.joined(separator: ", "))
+            }
+        }
+        var n = 0, sunk = 0, hover = 0, airborne = 0, other = 0
+        var sum: Float = 0, worst: Float = 0, rest: Float = 0
+        // Resting on something built or in water (a log, leaves, a pond) is not the field's to judge.
+        func onField(_ p: V3) -> Bool {
+            for dy: Float in [0.1, -0.2, -0.7] {
+                let x = Int(floor(p.x)), y = Int(floor(p.y + dy)), z = Int(floor(p.z))
+                guard y >= 0 && y < CH, let c = w.chunkAt(x, z) else { continue }
+                let r = c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS)))
+                if Blocks.collide[Int(r)] || Blocks.isLiquid(r) { return false }
+            }
+            return true
+        }
+        func score(_ p: V3, _ viewDY: Float, _ ground: Bool, _ what: String, _ vel: V3) {
+            let s = surface(p.x, p.z, from: p.y + 1, to: p.y - 1.5)
+            if verbose {
+                print(String(format: "fieldbodies: %@ at %.2f %.2f %.2f vel %.2f %.2f %.2f %@, drawn %+.2f, surface under it ", what, p.x, p.y, p.z,
+                             vel.x, vel.y, vel.z, ground ? "on ground" : "in the air", viewDY) + (s.map { String(format: "%.2f", $0) } ?? "none"))
+            }
+            guard onField(p) else { other += 1; return }
+            guard ground else { airborne += 1; return }
+            guard let s else { return }
+            let gap = p.y + viewDY - s
+            n += 1; sum += abs(gap); worst = max(worst, abs(gap)); rest += abs(p.y - s)
+            if gap < -0.125 { sunk += 1 } else if gap > 0.125 { hover += 1 }
+        }
+        for m in mobs where g.mobs.mobs.contains(where: { $0 === m }) { score(m.pos, m.viewDY, m.onGround, m.kind.key, m.vel) }
+        for e in items where g.drops.items.contains(where: { $0 === e }) { score(e.pos, e.viewDY, e.onGround, "item", e.vel) }
+        return String(format: "fieldbodies: %d animals, %d items; %d resting on the field: drawn mean |gap| %.3f, worst %.3f (bodies %.3f); %d sunk, %d hovering, %d still falling; %d in water or on built blocks",
+                      mobs.count, items.count, n, sum / Float(max(1, n)), worst, rest / Float(max(1, n)), sunk, hover, airborne, other)
     }
 }
 
@@ -572,16 +725,25 @@ extension World {
             for _ in 0..<6 { let m = (out + inT) * 0.5; if fieldDensity(at: o + d * m) > 0 { inT = m } else { out = m } }
         }
         let p = o + d * inT
-        return (fieldCell(p), p, inT)
+        return (fieldCell(p, along: d), p, inT)
     }
 
-    // The ground cell for a point on the field's surface.
-    func fieldCell(_ p: V3) -> IVec3 {
-        let bx = Int(floor(p.x)), by = Int(floor(p.y)), bz = Int(floor(p.z))
+    // The ground cell for a point on the field's surface: the cell holding it, else the first ground cell the ray goes on
+    // into (`along`: the ray's direction; the cell the crosshair is over), else the ground cell nearest it.
+    func fieldCell(_ p0: V3, along d: V3? = nil) -> IVec3 {
         func ground(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
             return c.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS)))
         }
+        var p = p0
+        if let d {
+            for k in 0..<4 {
+                let q = p0 + d * (Float(k) * 0.2)
+                if ground(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) }
+            }
+            p = p0 + d * 0.3
+        }
+        let bx = Int(floor(p.x)), by = Int(floor(p.y)), bz = Int(floor(p.z))
         if ground(bx, by, bz) { return IVec3(bx, by, bz) }
         var best = IVec3(bx, by, bz), bd = Float.greatestFiniteMagnitude
         for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where ground(bx + dx, by + dy, bz + dz) {
