@@ -296,9 +296,12 @@ final class DiceMenu: ListMenu {
         corner = "Wallet " + Money.format(game.money)
         return Dice.bets.map { b in
             Row(name: "Bet \(Money.format(b))", detail: last.isEmpty ? "Even money" : last, value: Money.format(b), enabled: game.money >= b)
-        }
+        } + [Row(name: "The Knife Game", detail: "A knife between the fingers", value: "Play"),          // D18
+             Row(name: "Five-Card Draw", detail: "Poker against the house", value: "Play")]
     }
     override func pressed(_ i: Int) {
+        if i == Dice.bets.count { game.switchMenu(to: KnifeGameMenu(game: game, keeper: keeper)); return }
+        if i == Dice.bets.count + 1 { game.switchMenu(to: PokerMenu(game: game, keeper: keeper)); return }
         guard i < Dice.bets.count, let (you, house, won) = Dice.play(game, bet: Dice.bets[i]) else { return }
         last = "You \(you), house \(house)"
         say(won ? "You rolled \(you) to \(house). You win \(Money.format(Dice.bets[i]))!" : "You rolled \(you) to \(house). The house wins.", good: won)
