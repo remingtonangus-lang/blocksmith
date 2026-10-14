@@ -278,7 +278,7 @@ enum TownBoard {
 final class NoticeBoardMenu: ListMenu {
     let town: String
     let anchor: IVec3
-    enum Item { case poster(String, Int), job(Int), contract(Int), gang, donate, emeralds, name, log(Int) }
+    enum Item { case poster(String, Int), job(Int), contract(Int), gang, deed(Int), donate, emeralds, name, log(Int) }
     var items: [Item] = []
     var gangWanted: (GangLeaders.Gang, Int, String)?
 
@@ -302,6 +302,7 @@ final class NoticeBoardMenu: ListMenu {
         for i in 0..<Contracts.slots { items.append(.contract(i)) }      // C11
         gangWanted = GangLeaders.wanted(g, from: anchor)                  // D26
         if gangWanted != nil { items.append(.gang) }
+        items.append(.deed(0)); items.append(.deed(1))                     // D28: the land office
         items.append(.donate)
         items.append(.emeralds)
         items.append(.name)
@@ -332,6 +333,11 @@ final class NoticeBoardMenu: ListMenu {
                 guard let (gg, d, dir) = gangWanted else { return Row(name: "", enabled: false) }
                 return Row(icon: ItemStack(Items.id(Guns.revolverKey), 1), name: "WANTED: \(gg.leader), boss of \(gg.gang)",
                            detail: "Hides out \(d) blocks \(dir) of here. Double if brought in alive", value: Money.format(gg.bounty), enabled: false, good: false)
+            case .deed(let i):
+                let key = i == 0 ? Property.townKey : Property.homeKey, price = i == 0 ? Property.townPrice : Property.homePrice
+                return Row(icon: Items.has(key) ? ItemStack(Items.id(key), 1) : .empty, name: i == 0 ? "Land office: a town house" : "Land office: a homestead",
+                           detail: i == 0 ? "A deed for an empty town building" : "Stake a cabin in open country",
+                           value: Money.format(price), enabled: g.money >= price)
             case .donate:
                 let left = Honour.capLeft(g, "donation")
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "Donate to the town fund",
@@ -359,6 +365,13 @@ final class NoticeBoardMenu: ListMenu {
         case .contract(let i):
             let r = Contracts.use(g, board: town, at: anchor, i)
             say(r.0, good: r.1)
+        case .deed(let i):
+            let key = i == 0 ? Property.townKey : Property.homeKey, price = i == 0 ? Property.townPrice : Property.homePrice
+            guard g.money >= price, Items.has(key) else { say("That's \(Money.format(price)).", good: false); return }
+            g.money -= price
+            let r = g.inventory.add(ItemStack(Items.id(key), 1)); if !r.isEmpty { g.dropItem(r) }
+            g.sfx(.villagerTrade, 0.6)
+            say(i == 0 ? "Stand inside an empty town building and use the deed." : "Ride out into open country and use the deed where you want your cabin.", good: true)
         case .donate:
             guard g.money >= TownBoard.donation else { say("You can't spare it.", good: false); return }
             g.money -= TownBoard.donation

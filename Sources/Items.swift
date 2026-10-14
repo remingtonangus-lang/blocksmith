@@ -454,6 +454,7 @@ final class ItemRegistry {
         Guns.register(self)
         registerPrinterParts()
         registerLasso()
+        registerDeeds()                                   // D28 (Property.swift)
         registerGunCare()
         registerThrownBlades()
         registerSaloonDrinks()
