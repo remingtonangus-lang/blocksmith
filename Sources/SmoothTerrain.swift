@@ -240,9 +240,25 @@ extension Mesher {
                         let i2 = cell0 + (c2 & 1) + (c2 >> 2) * N + ((c2 >> 1) & 1) * NN
                         let s1 = (mask >> c) & 1 == 1
                         let a = s1 ? i1 : i2, b = s1 ? i2 : i1
-                        if onField(a) && onField(b), let (tt, which) = F.crossing(a, b) {
+                        let oa = onField(a), ob = onField(b)
+                        if oa && ob, let (tt, which) = F.crossing(a, b) {
                             t = s1 ? tt : 1 - tt
                             if fnSeen & (1 << which) == 0 { fnSeen |= 1 << which; fn += F.outward(which, cell0) }
+                        } else if !oa || !ob {
+                            // PG1 ("not smoothed block cells"): a side the generator's field doesn't describe (built over,
+                            // dug before field edits were kept, a surface rule's bank or pond, a block being chipped) is
+                            // half a block past the surface, and the field side is bounded to match, so the surface sits
+                            // where the cells meet instead of relaxing round block steps. A chipped block's side shrinks
+                            // with each blow.
+                            var da: Float = oa ? min(F.distance(a), 0.5) : 0.35
+                            let db: Float = ob ? max(F.distance(b), -0.5) : -0.35
+                            if !oa, !dmg.isEmpty {
+                                let bx = a % N - SO, bz = (a / N) % N - SO, by = a / NN - SO
+                                if let dv = dmg[ri(bx, by, bz)] { da = 0.35 * (1 - 0.9 * Float(min(7, Int(dv & 31)) + 1) / 8) }
+                            }
+                            let ca = max(0.02, da), cb = min(-0.02, db)
+                            let tt = ca / (ca - cb)
+                            t = s1 ? tt : 1 - tt
                         } else {
                             t = 0.5; loose = true
                         }
