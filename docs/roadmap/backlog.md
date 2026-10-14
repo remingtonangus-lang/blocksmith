@@ -402,7 +402,7 @@ D7. [DONE] Working levers, bolts and revolver hammers; shotguns loaded shell by 
 D8. [DONE] Dual-wield revolvers.
 D9. [DONE] Suppressor attachment and gun cleaning at camp.
 D10. [DONE] Bandits and soldiers who block and parry; an off-hand kick or shove to break guards.
-D11. Throwing knife and tomahawk.
+D11. [DONE] Throwing knife and tomahawk.
 D12. Silent knife takedowns from behind.
 D13. Fist brawls in the saloon (non-lethal knockouts).
 D14. Frontier predators: cougars, rattlesnakes, alligators.

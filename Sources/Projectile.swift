@@ -246,12 +246,12 @@ final class ProjectileManager {
                 if let m = hitMob, m.kind == .enderman, a.trident == nil {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {
-                    if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
+                    if let t = a.trident { dmg = (ThrownBlades.damage(t) ?? 8) + Int(Enchant.damageBonus(t, against: m)) }   // D11: knives, tomahawks
                     let h0 = m.health
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch), iframes: true)
                     m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
-                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
+                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident.map { ThrownBlades.isBlade($0.item) ? "arrow_hit" : "trident_hit" } ?? "arrow_hit") }
                     else { m.lastHitBySkeleton = true }
                     if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
@@ -329,8 +329,9 @@ final class ProjectileManager {
             let light = max(0.1, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             // Two crossed quads along the flight direction; the sprite's diagonal is the shaft.
             let isTrident = a.trident != nil
-            let half: Float = isTrident ? 0.8 : 0.35
-            let lay = isTrident ? (Items.texLayer(Items.id("trident")) ?? layer) : layer
+            let blade = a.trident.map { ThrownBlades.isBlade($0.item) } ?? false
+            let half: Float = blade ? 0.3 : (isTrident ? 0.8 : 0.35)
+            let lay = isTrident ? (Items.texLayer(a.trident?.item ?? Items.id("trident")) ?? layer) : layer
             for n in [side, up] {
                 let tip = c + d * half, tail = c - d * half
                 wr.quad([tail - n * 0.1, tip - n * 0.1, tip + n * 0.1, tail + n * 0.1],
