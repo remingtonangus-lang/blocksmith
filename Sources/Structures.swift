@@ -693,6 +693,12 @@ enum Loot {
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
+        if table == BaseSafes.loot {                                     // P248
+            roll(c, BaseSafes.table.rolls, BaseSafes.table.entries, rng: &rng)
+            Loot.matchGuns(c, rng: &rng)
+            GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
+            return
+        }
         guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }

@@ -1674,6 +1674,7 @@ final class Game {
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
+            || k == BaseSafes.block
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1727,6 +1728,7 @@ final class Game {
             world.blockEntities[p] = be
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
+        case BaseSafes.block: useSafe(p)                                            // P248 (BaseSafes.swift)
         case "chest":
             boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.entity(p, .chest)

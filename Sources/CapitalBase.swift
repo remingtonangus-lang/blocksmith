@@ -264,6 +264,8 @@ enum CapitalBase {
             put(dx + 2, P1 + 1, dz, grey); put(dx + 2, P1 + 2, dz, grey); put(dx + 2, P1 + 3, dz, grey)
         } }
         w.chest(X(-12), P1 + 1, Z(-14), loot: "steelhold_supply", seed: rng.next(), facing: 1)
+        let safeSeed = seed ^ UInt64(bitPattern: Int64(cx &* 73856093 ^ cz &* 19349663))
+        w.safeKey(X(-12), P1 + 1, Z(-14), baseSeed: safeSeed)                          // P248: the vault safe's key
         // East armory: crate stacks, weapon chests, guns on the wall.
         for dz in stride(from: -12, through: 8, by: 5) { w.fill(X(22), P1 + 1, Z(dz), X(23), P1 + 2, Z(dz + 1), Cr) }
         for (i, dz) in [-10, -2, 6].enumerated() { w.chest(X(16), P1 + 1, Z(dz), loot: "steelhold_armory", seed: rng.next(), facing: i % 2 == 0 ? 2 : 3) }
@@ -286,6 +288,7 @@ enum CapitalBase {
         put(0, P1 + 1, 20, AIR)
         for (dx, dz) in [(-4, 12), (4, 12)] { w.chest(X(dx), P1 - 4, Z(dz), loot: "steelhold_vault", seed: rng.next(), facing: 1) }
         w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_command", seed: rng.next(), facing: 0)
+        w.safe(X(4), P1 - 4, Z(18), seed: safeSeed &+ 1, facing: 0)                    // P248 (BaseSafes.swift)
         w.fill(X(-5), P1 - 2, Z(15), X(5), P1 - 2, Z(15), L)
 
         // MARK: Roof garden on the hall

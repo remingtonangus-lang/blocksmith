@@ -508,6 +508,8 @@ enum Greywall {
             put(kx / 2, -5, kc - 1, mapTable)
             for dx in 2...(kx - 1) { put(dx, -5, kz0 + 1, dx % 2 == 0 ? term + BlockID(tf) : rack + 1) }
             w.chest(cx + kx - 1, S - 5, cz + kz1 - 1, loot: "greywall_command", seed: rng.next(), facing: 0)
+            let safeSeed = seed ^ UInt64(bitPattern: Int64(cx &* 73856093 ^ cz &* 19349663))
+            w.safeKey(cx + kx - 1, S - 5, cz + kz1 - 1, baseSeed: safeSeed)          // P248: the vault safe's key
             wallLamp(alarmPanel, 1, -4, kz1 - 1, wall: 1)
             wallLamp(alarm, kx - 1, -2, kz0 + 1, wall: 0)
             // Vault: steel floor, gold, two vault chests.
@@ -516,6 +518,7 @@ enum Greywall {
                 w.chest(cx - (kx - 1), S - 5, cz + dz, loot: "greywall_vault", seed: rng.next(), facing: 3)
                 put(-(kx - 1), -5, dz + (dz == kz0 + 1 ? 1 : -1), gold)
             }
+            w.safe(cx - (kx - 1), S - 5, cz + kc, seed: safeSeed &+ 1, facing: 3)          // P248 (BaseSafes.swift)
             wallLamp(alarm, -(kx - 1), -2, kc, wall: 2)
         }
 
