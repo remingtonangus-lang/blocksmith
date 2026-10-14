@@ -30,7 +30,7 @@ final class PauseMenu: Menu {
     var newSeed = ""
     var newSurvival = true
     var newDifficulty = 2
-    var newSmooth = Settings.shared.smoothTerrain   // Terrain: Smooth (test); the last choice is remembered
+    var newSmooth = true                            // Q2: every new world is the polygon world (PG6; no block option)
     var editing: Int? = nil        // 0 name, 1 seed, 2 rename, 3 host address
     private var slotsKept: [MenuSlot] = []   // the last layout's buttons (P201)
     var netAddr = ""                // C14 Play Together: a host typed by address
@@ -123,7 +123,7 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
-        "smooth": "This world only: natural ground (stone, dirt, sand, ores) is smooth polygons instead of cubes; built blocks stay cubic.",
+        "smooth": "This world was made with block terrain. On: its natural ground becomes the smooth polygon world, as every new world is.",
         "new_terrain": "Polygons: natural ground is smooth, rounded polygons instead of cubes; mining, building and saves work the same. Switch later in Options > Video.",
         "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
         "fx1": "Headset: leaves, vines and crops sway in the wind.", "fx2": "Headset: low mist settles in valleys at dawn, dusk and night.",
@@ -248,7 +248,7 @@ final class PauseMenu: Menu {
             case .video:
                 // (P84: the polygon terrain option second from the top, named the way players ask for it; it sat last
                 // as "Smooth Terrain (Test, This World)" and Remington never found it.)
-                rows = [(PauseMenu.rdLabel(g), "rd"), ("Polygon Terrain (This World): \(on(g.smoothTerrain))", "smooth"),
+                rows = [(PauseMenu.rdLabel(g), "rd"), ("Polygon Terrain (This World): \(on(g.smoothTerrain))", "smooth"),   // (old block worlds only, below)
                         ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
                         ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
@@ -358,10 +358,10 @@ final class PauseMenu: Menu {
                     ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
                     ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
-                    ("Terrain: \(newSmooth ? "Polygons (Smooth)" : "Blocks")", "new_terrain"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
         if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }
+        if g.smoothTerrain { rows.removeAll { $0.1 == "smooth" } }   // Q2: the polygon world has no way back to blocks
         layout()
     }
 
@@ -638,6 +638,7 @@ final class PauseMenu: Menu {
         case "chipping": st.chipping.toggle()
         case _ where id.hasPrefix("fx"): if let b = Int(id.dropFirst(2)) { st.shaderFX ^= b }
         case "smooth":
+            guard !g.smoothTerrain else { break }
             g.smoothTerrain.toggle(); SmoothTerrain.use(world: g.smoothTerrain, world: g.world)
             // R26 (Oct 13 evening: "his world loaded without smooth terrain after being smooth"): the switch lived only in
             // the game until the next autosave, so a headset taken off (the app killed, no quit save) reopened the world
