@@ -27,6 +27,7 @@ extension Game {
     func useGadget(useHeld: Bool, useNow: Bool) -> Bool {
         let k = Items.key(held.item)
         if k == "spyglass" && useHeld { scoping = true; return true }
+        if k == Lasso.key && useNow { return throwLasso() }                // D1 (Lasso.swift)
         if useNow && wearTroopSet() { return true }                      // P204
         if k == "goat_horn" && useNow {
             guard clock - lastHorn > 7 else { return true }
@@ -43,7 +44,10 @@ extension Game {
         if m.leashed {
             m.leashed = false
             m.knot = nil
-            if survival { let r = inventory.add(ItemStack(Items.id("lead"), 1)); if !r.isEmpty { dropItem(r) } }
+            m.roped = 0
+            let rope = m.lassoed ? Lasso.key : "lead"
+            m.lassoed = false
+            if survival { let r = inventory.add(ItemStack(Items.id(rope), 1)); if !r.isEmpty { dropItem(r) } }
             return true
         }
         guard Items.key(held.item) == "lead", m.leashable else { return false }
@@ -138,9 +142,10 @@ extension Mob {
         } else {
             anchor = g.coop.seatPlayer(leashSeat, g).pos              // the holder (not whoever's turn moves the mob)
         }
+        if lassoed { lassoTick(dt, g) }                      // D1
         let d = anchor - pos
         let len = simd_length(d)
-        if len > 10 { breakLeash(g); return }
+        if len > (lassoed ? 14 : 10) { breakLeash(g); return }
         if len > 6 {
             let k: Float = (len - 6) * 6 / len
             let pull = d * k
@@ -155,7 +160,10 @@ extension Mob {
         if hitched { g.unhitch(self); return }          // a rein, not a lead: nothing to drop
         leashed = false
         knot = nil
-        g.drops.spawn(ItemStack(Items.id("lead"), 1), at: pos + V3(0, height * 0.7, 0))
+        roped = 0
+        let rope = lassoed ? Lasso.key : "lead"
+        lassoed = false
+        g.drops.spawn(ItemStack(Items.id(rope), 1), at: pos + V3(0, height * 0.7, 0))
     }
 }
 
