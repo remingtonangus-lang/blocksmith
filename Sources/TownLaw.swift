@@ -80,6 +80,8 @@ enum TownLaw {
         var hot: [String: Int]? = nil
         var hotDay: Int? = nil
         var property: [[Int]]? = nil                 // D28 (Property.swift): your houses and homesteads
+        var orders: [[String]]? = nil                // D29 (MailOrder.swift): catalog orders [key, count, due day]
+        var ordersToasted: Bool? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -437,6 +439,7 @@ enum TownLaw {
         Strangers.tick(g)                                // D20
         GangLeaders.tick(g)                              // D26: gang bosses at their hideouts
         Fence.tick(g)                                    // D27: hot goods cool off
+        MailOrder.tick(g)                                // D29: parcels come in
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
