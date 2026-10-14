@@ -86,6 +86,14 @@ struct Livery {
             l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
             l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)
         }
+        // P230 (Oct 13 21:45, "why is the Capital pirating?"): the Corsairs are their own people, never in the Capital's
+        // white: salt-stained linen shirts, tarred dark breeches, a red sash, worn leather instead of plate, brass.
+        if m.faction == Faction.corsairs.rawValue {
+            l.cloth = V3(0.72, 0.66, 0.54); l.legs = V3(0.14, 0.15, 0.2); l.plate = V3(0.36, 0.24, 0.14)
+            l.trim = V3(0.62, 0.09, 0.08); l.accent = V3(0.78, 0.62, 0.28); l.metal = V3(0.42, 0.4, 0.37)
+            l.glove = l.skin; l.boots = V3(0.12, 0.08, 0.05); l.glow = V3(1.4, 1.0, 0.5)
+            if r == 4 { l.cloth = V3(0.3, 0.06, 0.07); l.trim = V3(0.8, 0.66, 0.3) }          // the captain's red coat
+        }
         // R21: bounty hunters (posse 3 on the soldier rig): trail-worn leather dusters, faded denim, a dull brass buckle.
         if m.posse == 3 {
             l.cloth = V3(0.42, 0.3, 0.19); l.legs = V3(0.24, 0.28, 0.36); l.plate = V3(0.3, 0.22, 0.14)
@@ -903,6 +911,14 @@ enum SoldierRig {
             return
         }
         if m.troop > 0 && m.troopSeg.x <= 0 { return }               // the helmet was shot off (TroopClasses.swift)
+        if m.faction == Faction.corsairs.rawValue {
+            // P230: a corsair wears a knotted head scarf in the sash's red, its tails hanging at the back, no helmet.
+            hb(-4.4, 28.4, -4.4, 8.8, 2.6, 8.8, lv.trim, Pat.cloth)
+            hb(-3.6, 31.0, -3.6, 7.2, 0.6, 7.2, lv.trim, Pat.cloth)
+            hb(-1.0, 28.6, 4.3, 2.0, 1.6, 0.9, lv.trim * 0.85, Pat.cloth)
+            hb(-1.6, 25.2, 4.6, 1.2, 3.4, 0.4, lv.trim * 0.8, Pat.cloth); hb(0.5, 25.6, 4.6, 1.2, 3.0, 0.4, lv.trim * 0.8, Pat.cloth)
+            return
+        }
         switch r {
         case 0:
             // Crested enamel helmet: dome, grey brow band, crest ridge, ear guards, chin strap, silver badge.
