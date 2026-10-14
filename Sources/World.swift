@@ -15,7 +15,7 @@ final class World {
     let save: SaveManager?
     // PG1 rewrite: natural terrain is a density field, not blocks (FieldTerrain.swift). Decided once per world: a root
     // save made as a field world keeps a marker (terrain-field.txt); its dimensions follow it (Game.dimensionState).
-    var fieldTerrain = false { didSet { save?.fieldWorld = fieldTerrain } }
+    var fieldTerrain = false { didSet { save?.fieldWorld = fieldTerrain; (gen as? HollowGen)?.fieldTops = fieldTerrain } }
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
     // Co-op over the network (NetCoop.swift): every block change is reported (unless it came from the other player,
@@ -113,6 +113,7 @@ final class World {
             else { fieldTerrain = FieldTerrain.unsaved }
         } else if save == nil { fieldTerrain = FieldTerrain.unsaved }
         save?.fieldWorld = fieldTerrain
+        (gen as? HollowGen)?.fieldTops = fieldTerrain
         if let wg = gen as? WorldGen {
             wg.terrain.fewerLakes = save?.newTerrain("terrain-p44-water.txt") ?? World.fewerLakesUnsaved
             wg.terrain.lessWater = save?.newTerrain("terrain-h8-water.txt") ?? World.lessWaterUnsaved   // H8

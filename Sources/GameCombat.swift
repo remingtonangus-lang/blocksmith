@@ -227,7 +227,11 @@ extension Game {
         } else {
             b.vel.y -= 20 * dt
             b.vel *= expf(-0.5 * dt)
-            if Blocks.collide[Int(cell)] { b.vel = .zero; b.pos.y = floor(b.pos.y) + 1 }
+            if Blocks.collide[Int(cell)] {
+                b.vel = .zero
+                // (PG2 rewrite: on a field world's ground it lies on the surface, not the cell's top.)
+                b.pos.y = world.fieldTerrain ? world.restHeight(b.pos, halfW: 0.05, up: 1, depth: 1) ?? floor(b.pos.y) + 1 : floor(b.pos.y) + 1
+            }
             if let h = mobs.raycast(b.pos, simd_normalize(b.vel + V3(0, 1e-4, 0)), maxDist: simd_length(b.vel) * dt + 0.2) {
                 b.hooked = h.0
                 h.0.hit(from: b.pos, damage: 0, knockback: 0)

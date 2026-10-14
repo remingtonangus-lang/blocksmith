@@ -1,5 +1,12 @@
 # Status
 
+> **Polygon rewrite (PG1, PG2, PG6, 2026-10-14, PRs #253-#260):** new worlds (Create New World and Quick New World) are
+> density-field worlds: the natural ground is a chunked density field (distance per cell at 1/32 block plus a material),
+> shaped by each dimension's own generator fields, saved as the field, meshed by dual contouring, carved by digging,
+> blasts and rounds, and met by every body's collision. Old block worlds stay block worlds. A field-world playthrough
+> runs spawn to the Deep's ending with 0 failed checks. How it works and what is still rounded:
+> docs/status/polygon-field.md. Headless checks only; not yet played on the headset.
+
 > **Backlog D39-D52 and the first Q2 passes (main thread, 2026-10-14, PRs #207-#222):** Meridian dockyards to raid
 > and trade at (NavalPort), gun crews and broadsides with grapple boarding, the Field Tank sight, vehicle presets from
 > blueprints, fuel pumps and the Vehicle Works garage, deer/elk/bison/boar herds with wind, tracks, bait and snares,

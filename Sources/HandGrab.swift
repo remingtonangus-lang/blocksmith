@@ -150,6 +150,12 @@ enum HandGrab {
             }
             return
         }
+        // PG2 rewrite: a field world's ground is met at its surface (a body set on a cell top hovered or sank).
+        if g.world.fieldTerrain {
+            guard let y = g.world.restHeight(V3(nx, m.pos.y, nz), halfW: min(0.3, m.halfW), up: 1.2, depth: 3) else { return }
+            m.pos = V3(nx, y, nz); m.yaw = atan2f(-step.x, -step.y)
+            return
+        }
         // The ground under the new spot: from a little above the body down to 3 below.
         let x = Int(floor(nx)), z = Int(floor(nz))
         var y = Int(floor(m.pos.y + 1.2))

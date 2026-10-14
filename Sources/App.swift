@@ -298,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
-            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: self.game.smoothTerrain)
+            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty, smooth: true)   // (PG6: a new world is Polygons, even from a block world)
             case _ where id.hasPrefix("netjoin:"):
                 self.switchWorld(name: "", seed: nil, survival: nil, difficulty: nil, join: String(id.dropFirst(8)))
             case "netleave":

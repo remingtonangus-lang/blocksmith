@@ -130,7 +130,7 @@ final class PauseMenu: Menu {
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
         "smooth": "This world was made with block terrain. On: its natural ground becomes the smooth polygon world, as every new world is.",
-        "new_terrain": "Polygons: natural ground is smooth, rounded polygons instead of cubes; mining, building and saves work the same. Switch later in Options > Video.",
+        "new_terrain": "Polygons: the natural ground is one smooth surface you dig, blast and build on, instead of cubes. Kept for the life of the world.",
         "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
         "fx1": "Headset: leaves, vines and crops sway in the wind.", "fx2": "Headset: low mist settles in valleys at dawn, dusk and night.",
         "fx4": "Headset: a soft glow round torches, lamps, lava and glowing ores.", "fx8": "Headset: colours warm at sunrise and sunset, cool at night, and follow the biome.",

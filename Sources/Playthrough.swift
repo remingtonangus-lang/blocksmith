@@ -374,11 +374,15 @@ final class Playthrough {
 
     // Melee swing at a mob with a full attack charge (real interact attack path). Without `feet` the player
     // follows the mob at `offset` (chasing it) while the swing charges.
+    var lastSword: String?
     func swing(at m: Mob, from feet: V3? = nil, offset: V3 = V3(2, 0, 0)) {
         // Swing the best sword carried (picking up loot can leave something else in the hand).
         if inv[game.selected].isEmpty || Items.def(inv[game.selected].item).tool != .sword {
-            for n in ["netherite_sword", "diamond_sword", "iron_sword", "stone_sword"] where hold(n) { break }
-        }
+            let swords = ["netherite_sword", "diamond_sword", "iron_sword", "stone_sword"]
+            if let n = swords.first(where: { hold($0) }) { lastSword = n }
+            // Lost on a death among the enemies (the Deep's last battle): the spare from home, as with the armour.
+            else if let n = lastSword { give(n, 1, bulk: "a spare sword, the last one was lost on a death"); _ = hold(n) }
+        } else { lastSword = Items.key(inv[game.selected].item) }
         let inp = game.input
         for _ in 0..<13 {
             frame(pin: feet ?? chaseSpot(m, offset))
@@ -646,14 +650,23 @@ final class Playthrough {
             }
             check(count("raw_titanium") >= 1, "mine: raw titanium with an iron pickaxe at y \(d.y - YOFF) (\(count("raw_titanium")), \(attempts) ore\(attempts == 1 ? "" : "s"))")
         }
-        // Raw titanium smelts into titanium ingots (save key "diamond") in the furnace from the iron step.
-        if let be = world.blockEntities[fp], count("raw_titanium") > 0 {
-            let n = count("raw_titanium")
-            be.container[0] = ItemStack(id("raw_titanium"), n); inv.remove(id("raw_titanium"), n)
-            be.container[1] = ItemStack(id(planks), 5); be.container[2] = .empty
-            _ = tick(30, pin: game.player.pos) { be.container[2].count >= n }
-            check(be.container[2].count >= n && Items.key(be.container[2].item) == "diamond", "smelt: \(be.container[2].count) titanium ingots from \(n) raw titanium")
-            game.inventory.add(be.container[2]); be.container[2] = .empty
+        // Raw titanium smelts into titanium ingots (save key "diamond"), and only in a blast furnace (H3): the furnace from
+        // the iron step refuses it, a blast furnace set down beside home makes the ingots.
+        if count("raw_titanium") > 0 {
+            let n = count("raw_titanium"), rt = id("raw_titanium")
+            check(Recipes.smelt(rt).map { !BlockEntity.allowed($0, rt, in: "furnace") && BlockEntity.allowed($0, rt, in: "blast_furnace") } ?? false,
+                  "rules: raw titanium smelts only in a blast furnace")
+            if count("blast_furnace") == 0 { give("blast_furnace", 1, bulk: "iron and smooth stone") }
+            if let bp = place("blast_furnace", at: IVec3(home.x - 3, fp.y, home.z)), case let be = world.entity(bp, .furnace) {
+                be.mob = "blast_furnace"; world.blockEntities[bp] = be
+                be.container[0] = ItemStack(rt, n); inv.remove(rt, n)
+                be.container[1] = ItemStack(id(planks), 5); be.container[2] = .empty
+                _ = tick(30, pin: game.player.pos) { be.container[2].count >= n }
+                check(be.container[2].count >= n && Items.key(be.container[2].item) == "diamond", "smelt: \(be.container[2].count) titanium ingots from \(n) raw titanium in a blast furnace")
+                game.inventory.add(be.container[2]); be.container[2] = .empty
+            } else {
+                check(false, "smelt: a blast furnace placed beside home for the raw titanium")
+            }
         }
         if count("diamond") < 5 { give("diamond", 5 - count("diamond"), bulk: "more diamonds") }
         craft(["DDD", " S ", " S "], ["D": "diamond", "S": "stick"], "diamond_pickaxe")
@@ -1255,7 +1268,8 @@ final class Playthrough {
         // A second trip goes straight home without credits.
     }
 
-    // Far islands: the nearest hollow spire, the glider wings in its ship, a glide off the top.
+    // Far islands: the nearest hollow spire, the jetpack in its ship's hold (P156: it replaced the glider wings), a
+    // climb off the spire's top.
     func spire(from lp: IVec3) {
         section("hollow spire")
         guard let city = world.gen.structures?.nearest("end_city", x: lp.x, z: lp.z, maxRegions: 4) else {
@@ -1270,42 +1284,51 @@ final class Playthrough {
         tick(1, pin: game.player.pos)
         let sentries = game.mobs.mobs.filter { $0.kind == .shulker && city.contains(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z))) }.count
         info("spire: \(sentries) shellsentries")
-        var wings: IVec3?
+        var hold: IVec3?
         for (p, be) in world.blockEntities where be.kind == .chest && city.contains(p.x, p.y, p.z) {
-            if be.container.slots.contains(where: { Items.key($0.item) == "elytra" }) { wings = p }
+            if be.container.slots.contains(where: { Items.key($0.item) == "jetpack" }) { hold = p }
         }
-        if city.pieces.count > 1 {
-            check(wings != nil, "spire: the ship's hold has glider wings")
+        if city.pieces.count > 1, let ship = city.pieces.last {
+            // The ship floats off the spire's far side: load round it before reading its hold.
+            if hold == nil {
+                let sc = V3(Float(ship.min.x + ship.max.x) / 2, Float(ship.min.y + ship.max.y) / 2, Float(ship.min.z + ship.max.z) / 2)
+                _ = world.loadSync(center: sc, radius: 3)
+                for (p, be) in world.blockEntities where be.kind == .chest && city.contains(p.x, p.y, p.z) {
+                    if be.container.slots.contains(where: { Items.key($0.item) == "jetpack" }) { hold = p }
+                }
+            }
+            check(hold != nil, "spire: the ship's hold has a jetpack")
         }
         makeRoom()
-        if let w = wings, let be = world.blockEntities[w] {
-            for i in 0..<be.container.count where Items.key(be.container[i].item) == "elytra" {
+        if let h = hold, let be = world.blockEntities[h] {
+            for i in 0..<be.container.count where Items.key(be.container[i].item) == "jetpack" {
                 game.inventory.add(be.container[i]); be.container[i] = .empty
             }
         }
-        if count("elytra") == 0 { give("elytra", 1, bulk: "no ship at this spire") }
-        // Wear them and glide off from high up: space while falling opens the wings.
-        if let i = (0..<36).first(where: { Items.key(inv[$0].item) == "elytra" }) { game.inventory.armor[1] = inv[i]; inv[i] = .empty }
-        let start = cc + V3(0, 40, 0)
+        if count("jetpack") == 0 { give("jetpack", 1, bulk: "no ship at this spire") }
+        // Wear it on the spire's roof and hold jump: the jetpack lifts the player off.
+        if let i = (0..<36).first(where: { Items.key(inv[$0].item) == "jetpack" }) { game.inventory.armor[1] = inv[i]; inv[i] = .empty }
+        let rx = Int(floor(cc.x)), rz = Int(floor(cc.z))
         game.player.flying = false
-        game.player.pos = start
+        game.player.pos = V3(cc.x + 0.5, Float(world.topY(rx, rz) + 1), cc.z + 0.5)
         game.player.vel = .zero
-        game.player.airPeak = start.y
-        game.player.yaw = 0
-        game.player.pitch = -0.35
-        tick(0.4)
-        game.input.pressed.insert(Key.space)
-        tick(0.05)
-        check(game.player.gliding, "wings: open with space while falling")
+        game.player.airPeak = game.player.pos.y
+        tick(0.5)
+        let y0 = game.player.pos.y
+        var top = y0
+        let jump = KeyBinds.key(.jump)
         let hp = game.health
-        game.health = 20
-        for _ in 0..<120 { game.player.pitch = -0.2; game.tick(0.05); simSeconds += 0.05; if !game.player.gliding { break } }
-        let flown = simd_length(V2(game.player.pos.x - start.x, game.player.pos.z - start.z))
-        let dropped = start.y - game.player.pos.y
-        check(flown > 30 && flown > dropped * 2, String(format: "wings: glided %.0f blocks while dropping %.0f", flown, dropped))
+        for i in 0..<180 {
+            game.input.keys.insert(jump); if i == 0 { game.input.pressed.insert(jump) }
+            game.tick(1.0 / 60); simSeconds += 1.0 / 60
+            top = max(top, game.player.pos.y)
+        }
+        game.input.keys.remove(jump)
+        check(top - y0 > 10, String(format: "jetpack: 3 s of jump held lifts the player %.0f blocks off the spire", top - y0))
+        game.player.flying = true
+        game.player.vel = .zero
         game.health = max(hp, game.health)
         game.inventory.armor[1] = .empty
-        game.player.gliding = false
     }
 
     // MARK: The Blight

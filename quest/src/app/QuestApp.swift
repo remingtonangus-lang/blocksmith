@@ -285,7 +285,7 @@ final class QuestApp {
         case _ where id.hasPrefix("play:"):
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
-            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: game?.smoothTerrain))
+            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty, smooth: true))   // (PG6: Polygons, even from a block world)
         case _ where id.hasPrefix("netjoin:"):
             switchWorld(WorldRequest(join: String(id.dropFirst(8))))
         case "netleave":
