@@ -98,6 +98,50 @@ extension World {
         }
     }
 
+    enum CarveMode {
+        case dig       // the sphere is gone: natural cells whose centre it takes are removed (`remove` decides drops)
+        case shape     // only the surface moves: blocks stay, the field round them is bounded (a blast's crater walls)
+        case dent      // shape, but shallow: a round's or a shell splinter's mark
+    }
+
+    // PG1: carves a ball of radius r at c out of the terrain field. Natural ground only: built blocks keep their shape
+    // (their surface pins). In .dig mode `remove` is called for every natural cell inside the ball before it goes (drops,
+    // debris) and the cell is set to air. Returns how many cells were removed.
+    @discardableResult
+    func carve(at c: V3, radius r: Float, mode: CarveMode, remove: ((IVec3, BlockID) -> Void)? = nil) -> Int {
+        guard keepsField, r > 0.05 else { return 0 }
+        let reach = r + 1.5
+        let lo = IVec3(Int(floor(c.x - reach)), max(0, Int(floor(c.y - reach))), Int(floor(c.z - reach)))
+        let hi = IVec3(Int(floor(c.x + reach)), min(CH - 1, Int(floor(c.y + reach))), Int(floor(c.z + reach)))
+        guard lo.y <= hi.y else { return 0 }
+        let natT = SmoothTerrain.natural, opaqueT = Blocks.opaque
+        var gone: [(IVec3, BlockID)] = []
+        var caps: [(IVec3, Float)] = []
+        for y in lo.y...hi.y { for z in lo.z...hi.z { for x in lo.x...hi.x {
+            let q = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+            var s = simd_length(q - c) - r
+            if mode == .dent { s = max(s, -0.4) * 0.6 }
+            guard s < 1.2 else { continue }
+            let b = block(x, y, z)
+            let solid = opaqueT[Int(b)]
+            if solid && !natT[Int(b)] { continue }
+            let p = IVec3(x, y, z)
+            if solid {
+                if mode == .dig && s < 0 && Blocks.hardness[Int(b)] >= 0 { gone.append((p, b)); caps.append((p, s)); continue }
+                caps.append((p, max(0.06, s)))
+            } else if s < 0 {
+                caps.append((p, s))
+            }
+        } } }
+        for (p, b) in gone {
+            remove?(p, b)
+            setBlockAsync(p.x, p.y, p.z, AIR)
+        }
+        for (p, v) in caps { fieldBound(p, cap: v) }
+        if !caps.isEmpty { fieldTouched(lo, hi) }
+        return gone.count
+    }
+
     // The edits a mesh job of chunk c needs.
     func fieldEditSet(_ c: Chunk) -> FieldEditSet {
         var s = FieldEditSet()

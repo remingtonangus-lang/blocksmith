@@ -254,6 +254,7 @@ final class Armory {
             let big: Float = s.kind == .bullet ? 1 : 1.6
             w.addBite(b, at: at, axis: SmoothTerrain.natural[Int(id)] ? -dir : nv, radius: 0.08 * big, depth: 0.06 * big, seed: seed, sync: false)
             g.debris.chips(id, cell: b, at: at, normal: nv, blow: dir, radius: 0.1 * big, seed: seed)
+            if SmoothTerrain.natural[Int(id)] { w.carve(at: at + dir * 0.1, radius: 0.3 * big, mode: .dent) }   // PG1: a lasting dent
         }
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),

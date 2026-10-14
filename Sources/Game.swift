@@ -1310,7 +1310,10 @@ final class Game {
                             let seed = hash3(t.hit.x, t.hit.y, t.hit.z, UInt32(truncatingIfNeeded: Int(clock * 60)) ^ 0xB4EA)
                             debris.shatter(b, cell: t.hit, impact: hitPoint(t), direction: player.look, count: 5, speed: 1.2, seed: seed)
                         }
+                        let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
                         breakBlock(t.hit, b, drop: true)
+                        // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
+                        if natural { world.carve(at: dug + player.look * 0.25, radius: 0.62, mode: .shape) }
                         if b == SEALROCK {
                             achieve("break_seal")
                             // Through the last layer: the same moment as a charge, and a way-up mark in the vault.
