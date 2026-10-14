@@ -16,8 +16,9 @@
 | Android NDK system libraries (libc, AAudio, android) | Platform | Platform-provided |
 | Platform entitlement loader (store builds, once enabled) | Ownership check | Platform SDK licence |
 
-Ship the Apache 2.0 licence text and the NOTICE files of these components in the app (an "Open source licences" page
-under Options). Before submission, check the APK's lib/ folder against this table.
+In the app: Options > Interface > About and Licences (Sources/AboutMenu.swift) lists these components with their
+licences and copyright lines, and where to read the full texts. Before submission, check the APK's lib/ folder against
+this table, add any NOTICE file text a component requires, and keep AboutMenu.parts in step with it.
 
 ## Assets
 No third-party textures, models, sounds or music. Every texture is painted procedurally in code (Textures.swift and
