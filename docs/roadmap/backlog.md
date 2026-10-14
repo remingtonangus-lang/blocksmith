@@ -409,7 +409,7 @@ D14. [DONE] Frontier predators: cougars, rattlesnakes, alligators.
 D15. [DONE] Monsters hear gunshots and investigate; night hordes that stalk and surround.
 D16. [DONE] Bandit gangs that use cover and flank.
 D17. [DONE] Saloon bartender with drinks (mild, comfort-safe) and a piano player.
-D18. The knife-between-the-fingers game and poker.
+D18. [DONE] The knife-between-the-fingers game and poker.
 D19. Hotel rooms: paid save, heal, bath.
 D20. Stranger side stories with recurring characters.
 D21. [DONE] Townsfolk react to his deeds and how he looks (bloody, armoured).
