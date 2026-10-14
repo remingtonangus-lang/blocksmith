@@ -16,7 +16,8 @@ func skeletonParts(_ m: Mob, swing: Float) -> [Part] {
     let glow: V3 = (frost ? V3(0.7, 1.1, 1.5) : (sun ? V3(1.4, 0.9, 0.4) : V3(1.0, 1.05, 1.2))) * (m.aggro ? 1.2 : 0.8)
     var p: [Part] = []
     // Legs: thigh and shin bones with a knee knob, a flat foot, swinging from the hip.
-    for side: Float in [-1, 1] {
+    let lost = m.lostBones                                            // P247: bones a blade broke off (SkeletonBreak.swift)
+    for side: Float in [-1, 1] where lost & (side < 0 ? 4 : 8) == 0 {
         let x = side * 2, pv = V3(x, 12, 0), r = side < 0 ? swing : -swing
         func lb(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3) -> Part {
             Part(mn: V3(x + x0, y0, z0), mx: V3(x + x1, y1, z1), pivot: pv, rotX: r, color: c, pattern: 5)
@@ -43,7 +44,7 @@ func skeletonParts(_ m: Mob, swing: Float) -> [Part] {
     let aim = m.aimHold > 0
     let armFwd: Float = aim ? 1.45 : 0
     let armAngle = armFwd + (aim ? 0 : swing)
-    for side: Float in [-1, 1] {
+    for side: Float in [-1, 1] where lost & (side < 0 ? 1 : 2) == 0 {
         let x = side * 5, sp = V3(x, 22.5, 0)
         let r = side < 0 ? armAngle : (aim ? armAngle : -armAngle)
         func ab(_ x0: Float, _ y0: Float, _ z0: Float, _ x1: Float, _ y1: Float, _ z1: Float, _ c: V3, _ pat: Float = 5) -> Part {
@@ -57,7 +58,7 @@ func skeletonParts(_ m: Mob, swing: Float) -> [Part] {
               ab(-0.8, 9.0, -0.8, 0.8, 10.6, 0.8, old)]              // wrist and palm
         for f in 0..<3 { p.append(ab(-0.75 + Float(f) * 0.55, 7.2 + Float(f % 2) * 0.4, -0.3, -0.4 + Float(f) * 0.55, 9.1, 0.25, bone)) }
     }
-    p += bowParts(x: 5, pivot: V3(5, 22.5, 0), handY: 9.5, rotX: armAngle)
+    if lost & 3 == 0 { p += bowParts(x: 5, pivot: V3(5, 22.5, 0), handY: 9.5, rotX: armAngle) }
     // The skull on a short neck: cranium, upper jaw, sockets with a cold pinprick, nose hole, cheekbones, teeth; the
     // lower jaw hinged behind and chattering (wider while it hunts).
     p += [box(-0.6, 24.2, -0.4, 1.2, 1.6, 1.2, old, 5)]
@@ -96,6 +97,10 @@ func skeletonParts(_ m: Mob, swing: Float) -> [Part] {
               Part(mn: V3(-1.0, 23.5, 2.2), mx: V3(-0.2, 26.0, 3.0), pivot: V3(0, 19, 3), rotZ: 0.35, color: V3(0.9, 0.88, 0.82)),
               Part(mn: V3(0.3, 23.5, 2.6), mx: V3(1.1, 25.4, 3.4), pivot: V3(0, 19, 3), rotZ: 0.35, color: V3(0.7, 0.2, 0.15)),
               box(-4.4, 12.6, -2.0, 1.2, 9.6, 0.4, quiver * 0.7)]                          // the quiver strap
+    }
+    // Both legs gone: the rest of it drags itself along the ground.
+    if lost & 12 == 12 {
+        for i in p.indices { p[i].mn.y -= 11; p[i].mx.y -= 11; p[i].pivot.y -= 11 }
     }
     return p
 }
