@@ -427,7 +427,7 @@ D32. [DONE] Upgrades that change behaviour (ricochet rounds, serrated bleed), no
 D33. [DONE] Wearable faction armour sets (Greywall, Capital, Ashguard).
 D34. [DONE] Base objectives: destroy the comms array, steal the plans, free a prisoner, for bonus loot or intel.
 D35. [DONE] Keycards, locked doors and security cameras.
-D36. Bodies found raise the alarm; stealth plays differently from going loud.
+D36. [DONE] Bodies found raise the alarm; stealth plays differently from going loud.
 D37. Disguise in a looted uniform to pass through base towns.
 D38. Lost bases counter-attack; alarm state survives a reload.
 D39. Naval ports and dockyards to raid; buy and repair hulls there.

@@ -452,6 +452,7 @@ extension Game {
 
     func greywallTake(_ site: inout GreywallAlarmState.Site, _ key: String) {
         let st = greywallAlarm
+        if !st.taken.contains(key) { ghostTake(key) }                 // D36: taken unseen
         st.taken.insert(key)
         FactionRaids.owe("base:" + key, .greywall, chance: 1.0 / 8, clock: clock)              // P236
         changeRep(.greywall, -30)                                    // O3: Greywall Command remembers (FactionRep.swift)

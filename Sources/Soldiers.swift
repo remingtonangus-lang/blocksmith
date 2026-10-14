@@ -902,6 +902,7 @@ extension Game {
     // Guns and ammo from a fallen soldier; deck guns burst into smoke and scrap.
     func soldierDied(_ m: Mob) {
         guard m.kind.steelhold else { return }
+        bodyLeft(m)                                                    // D36 (Bodies.swift)
         repSoldierKilled(m)                                            // O3: the faction remembers (FactionRep.swift)
         // P236: corsairs killed at sea (you or they aboard or by a sloop, or in the water) may come for your home once.
         if m.killedByPlayer && m.factionValue == .corsairs
