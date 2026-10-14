@@ -204,6 +204,9 @@ final class Ship {
     var breech: (V3, V3)?
     var crashSpeed: Float = 0         // H11: hardest contact closing speed since the last frame (VehicleDamage.swift)
     var crashAt = V3(0, 0, 0)
+    var crashN = V3(0, 1, 0)          // P262: that contact's normal (out of what it hit), whether it was the world,
+    var crashWorld = false            //       and the hull's velocity just before it (Momentum, VehicleDamage.swift)
+    var crashVel = V3(0, 0, 0)
     var crashCD: Float = 0            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []

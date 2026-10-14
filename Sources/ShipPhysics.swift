@@ -783,8 +783,8 @@ extension ShipManager {
             var v = s.vel + simd_cross(s.angVel, r)
             if let o = c.other { v -= o.vel + simd_cross(o.angVel, c.p - o.pos) }
             let closing: Float = -simd_dot(v, c.n)
-            if closing > s.crashSpeed { s.crashSpeed = closing; s.crashAt = c.p }
-            if let o = c.other, closing > o.crashSpeed { o.crashSpeed = closing; o.crashAt = c.p }
+            if closing > s.crashSpeed { s.crashSpeed = closing; s.crashAt = c.p; s.crashN = c.n; s.crashWorld = c.other == nil; s.crashVel = s.vel }
+            if let o = c.other, closing > o.crashSpeed { o.crashSpeed = closing; o.crashAt = c.p; o.crashWorld = false }
         }
         for _ in 0..<6 {
             for k in cs.indices {
