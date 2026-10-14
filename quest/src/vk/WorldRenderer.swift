@@ -165,11 +165,10 @@ final class WorldRenderer {
         u.clouds = V4(Float(cx), Float(cz), game.cloudCover, sk.flash)
         u.cloudFlash = V4(sk.flashDir, min(1, game.weather.rain * 0.55 + game.weather.thunder * 0.45))
         u.wind = V4(sk.wind.x, sk.wind.y, sk.haze, caveScale)
-        // SH1: the shader pieces switched on, and the valley mist: over open overworld sky, strongest from dusk through
-        // the night to an hour after sunrise, gone in rain (the weather fog takes over); its top a few blocks over the sea.
+        // SH1: the shader pieces switched on, and the valley mist over open overworld sky, its top a few blocks over the
+        // sea. P253: only in foggy weather (it lay in the low ground every dawn, dusk and night under a clear sky).
         let df = Float(game.dayFraction)
-        let lowSun: Float = df < 0.08 ? 1 - df / 0.08 : (df > 0.42 ? min(1, (df - 0.42) / 0.1) : 0)
-        let mist: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? lowSun * 0.55 * (1 - min(1, game.weather.rain * 2)) : 0
+        let mist: Float = hasSky && !underground && !underwater ? game.valleyMist : 0
         // Colour grade: warm round sunrise and sunset, cool through the night, nudged by the biome's temperature (deserts
         // warmer, snow cooler); none underground or out of the overworld's sky.
         let warmT: Float = df < 0.07 ? 0.8 * (1 - df / 0.07) : (df > 0.42 && df < 0.55 ? 0.8 * (1 - abs(df - 0.48) / 0.07) : 0)

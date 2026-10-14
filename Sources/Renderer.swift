@@ -880,13 +880,10 @@ final class Renderer: NSObject, MTKViewDelegate {
                 pp.sunCol = V4(lf.color * 1.6, lf.hazeStrength * caveScale)
             }
             if hasSky && !underwater && game.blindFog == nil {
-                // Morning and evening mist settles in the lowlands (sea level and a few blocks up); rain thickens it.
-                let tod = Float(game.dayFraction)
-                let morning = max(0, 1 - abs(tod - 0.03) / 0.09), evening = max(0, 1 - abs(tod - 0.5) / 0.08)
+                // Mist settles in the lowlands (sea level and a few blocks up) in foggy weather and rain; P253: none under a
+                // clear sky (it came every morning and evening).
                 let rain = min(1, game.weather.rain)
-                // Thinner than before: at sea level the evening mist veiled everything in lavender and burnt to white
-                // toward the sun (blind critic, run 364 lake_glint: 7 % of the frame clipped).
-                let dens: Float = (0.003 + 0.016 * max(morning, evening * 0.35) + 0.012 * rain) * caveScale
+                let dens: Float = (0.019 * WeatherWar.fogThick + 0.012 * rain) * caveScale
                 pp.mist = V4(fogColor * 0.95 + lf.color * 0.25, dens)
                 pp.mistH = V4(Float(SEA) - eye.y + 2, 9, 0, 0)
             }

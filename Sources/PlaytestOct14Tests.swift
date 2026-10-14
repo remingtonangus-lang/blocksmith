@@ -8,6 +8,7 @@ enum PlaytestOct14Tests {
         func on(_ id: String) -> Bool { only == nil || only == id }
         if on("P250") { p250(g, check: check) }
         if on("P251") { p251(g, render: render, check: check) }
+        if on("P253") { p253(g, check: check) }
     }
 
     // P250: (a) the render distance the player sets holds unless frames really suffer and comes back when they stop;
@@ -92,6 +93,39 @@ enum PlaytestOct14Tests {
         check(turned > 1 && k.flight?.kind == .heli && !k.rotors.isEmpty, String(format: "P251 (b): the rotor turns (%.0f rad in 6 s)", turned))
         render?("p251_kestrel", k.pos + V3(-9, 2, 9), atan2f(-9, 9), -0.12)
     }
+
+
+    // P253: (a) under a clear sky nothing fogs: no fog bank and no valley mist at dawn, dusk or night; (b) foggy weather
+    // overcasts the sky first and only then fogs.
+    static func p253(_ g: Game, check: (Bool, String) -> Void) {
+        let t0 = g.time, rain0 = g.weather.rain, raining0 = g.weather.raining
+        defer {
+            g.time = t0; g.weather.rain = rain0; g.weather.raining = raining0
+            WeatherWar.fogOn = false; WeatherWar.fog = 0; WeatherWar.fogTimer = 1200; g.weatherWarTick(0)
+        }
+        g.weather.rain = 0; g.weather.raining = false
+        WeatherWar.forceStorm = nil; WeatherWar.fogOn = false; WeatherWar.fog = 0; WeatherWar.fogTimer = 1e9
+        var clear: [String] = []
+        for (name, f) in [("dawn", 0.02), ("noon", 0.25), ("dusk", 0.48), ("night", 0.75)] as [(String, Double)] {
+            g.time = DAY_LENGTH * (40 + f)
+            g.weatherWarTick(1)
+            if g.weatherFogEnd != nil || g.valleyMist > 0 { clear.append(name) }
+        }
+        check(clear.isEmpty, "P253 (a): under a clear sky no fog bank and no valley mist at dawn, noon, dusk or night (fogged: \(clear.isEmpty ? "none" : clear.joined(separator: ", ")))")
+        // Foggy weather: the sky overcasts, then the fog comes in (once a second, as the HUD tick runs it).
+        g.time = DAY_LENGTH * 40.3
+        let cover0 = g.cloudCover
+        WeatherWar.fogOn = true
+        var coverAtFog: Float = -1, secs = 0, thick: Float = 999
+        for s in 1...240 {
+            g.weatherWarTick(1)
+            if coverAtFog < 0, g.weatherFogEnd != nil { coverAtFog = g.cloudCover; secs = s }
+            thick = g.weatherFogEnd ?? 999
+        }
+        check(coverAtFog > 0.9 && thick < 60 && g.valleyMist > 0.4,
+              String(format: "P253 (b): foggy weather clouds the sky over first (cover %.2f -> %.2f when the fog starts after %d s), then the view closes to %.0f blocks", cover0, coverAtFog, secs, thick))
+    }
+
 
 
 
