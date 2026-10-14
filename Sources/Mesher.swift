@@ -640,7 +640,7 @@ enum Mesher {
         sc.smValid = false
         if smooth {
             smoothQuads(R, sc, dmg: dmg, site: fieldOn ? nil : site, stored: fieldOn ? dens : nil, sy: sy, leafHoles: leafBlob, detailHoles: detail,
-                        crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                        world: fieldOn ? SIMD3<Int>(wox, sy * 16, woz) : nil, crater: craters, carveOut: det) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 // u = 31 projects the texture; v (+ 31 when the overlay bit is set) is the vertex normal code (< 49).
                 vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
