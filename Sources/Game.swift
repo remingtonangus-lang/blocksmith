@@ -1306,7 +1306,9 @@ final class Game {
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         // Realistic world: what was left of the block splits on the spot and falls as pieces.
-                        if World.realistic && Blocks.render[Int(b)] == RenderType.cube.rawValue && Blocks.fullCollide[Int(b)] {
+                        // (PG4: a round gourd comes off whole, as its item: ShapeOrganic draws it as one form.)
+                        if World.realistic && Blocks.render[Int(b)] == RenderType.cube.rawValue && Blocks.fullCollide[Int(b)]
+                            && ShapeClass.family[Int(b)] != .gourd {
                             let seed = hash3(t.hit.x, t.hit.y, t.hit.z, UInt32(truncatingIfNeeded: Int(clock * 60)) ^ 0xB4EA)
                             debris.shatter(b, cell: t.hit, impact: hitPoint(t), direction: player.look, count: 5, speed: 1.2, seed: seed)
                         }
@@ -1478,6 +1480,7 @@ final class Game {
             openBlock(t.hit)
             return
         }
+        if useNow && !(input.shift || p.b) && pickUpGourd(t.hit) { swing = 1; return }
         if useNow && useItemOnBlock(t) { return }
         if Items.key(h.item) == "redstone" {
             // Sparkstone dust goes on top of solid blocks.
@@ -1695,6 +1698,20 @@ final class Game {
             if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4 ^ h)) }
         }
         audioOpenable(shape: shape, base: base, opening: (flipped & 4) != 0, at: p)
+    }
+
+    // PG4 ("pumpkins are round, and can be picked up instead of breaking apart"): in a polygon world an empty hand
+    // lifts a gourd (a pumpkin, a melon, a carved one, a lantern) whole into the inventory.
+    func pickUpGourd(_ p: IVec3) -> Bool {
+        guard World.realistic && held.isEmpty else { return false }
+        let b = world.block(p.x, p.y, p.z)
+        guard ShapeClass.family[Int(b)] == .gourd, let it = Items.item(forBlock: b) else { return false }
+        guard inventory.add(ItemStack(it, 1)).isEmpty else { return false }
+        TownLaw.broke(self, p, b)
+        blockSound(audioBreakSound(b), at: p)
+        world.setBlock(p.x, p.y, p.z, AIR)
+        debris.blockChanged(p)
+        return true
     }
 
     func openBlock(_ p: IVec3) {
