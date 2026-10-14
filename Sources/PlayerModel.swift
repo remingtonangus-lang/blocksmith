@@ -6,10 +6,11 @@ import simd
 func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
     if BoatLooks.drawsRider(g) { return 0 }        // H9: seated in a boat, the boat's model draws the body (BoatLooks.swift)
     let p = g.player
+    let prone = p.prone || Partner.isDowned(g)          // Q2: a downed co-op partner lies on the ground
     let walk = sinf(g.walkBob) * 0.8 * g.walkAmount
     let sw = g.swing
     let hit = playerHitAngle(sw)
-    let parts = playerParts(g, pitch: p.prone ? p.pitch + .pi / 2 * 0.8 : p.pitch, walk: walk, hit: hit)
+    let parts = playerParts(g, pitch: prone ? p.pitch + .pi / 2 * 0.8 : p.pitch, walk: walk, hit: hit)
 
     let l = g.world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y + 1)), Int(floor(p.pos.z)))
     var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
@@ -19,11 +20,11 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let order = [0, 1, 2, 0, 2, 3]
     let cy = cosf(p.yaw), sy = sinf(p.yaw)
     let sneak: Float = p.sneaking && !p.flying ? -0.15 : 0
-    let base = p.pos + V3(0, (p.prone ? 0.3 : sneak) + p.viewDY, 0) - eye
+    let base = p.pos + V3(0, (prone ? 0.3 : sneak) + p.viewDY, 0) - eye
     // Swimming / crawling / gliding: the whole body lies along the view, head first.
-    let tilt: Float = p.prone ? -.pi / 2 : 0
+    let tilt: Float = prone ? -.pi / 2 : 0
     let ct = cosf(tilt), st = sinf(tilt)
-    let lift: Float = p.prone ? -0.9 : 0
+    let lift: Float = prone ? -0.9 : 0
     var n = 0
     for part in parts {
         if n + 36 > capacity { return n }
