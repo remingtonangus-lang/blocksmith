@@ -219,6 +219,7 @@ extension Game {
         borealAlarmTick(b, step)
         TickProf.mark("bases: boreal alarm")
         greywallAlarmTick(b, step)
+        baseObjectivesTick(b, step)                       // D34 (BaseObjectives.swift)
         TickProf.mark("bases: greywall alarm")
         stationOpsTick(b, step)
         TickProf.mark("bases: station ops")
