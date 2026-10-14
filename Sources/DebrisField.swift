@@ -231,10 +231,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         var t = Float(y + 1)
         for yy in (y - 1)...(y + 1) where Blocks.opaque[Int(block(x, yy, z))] && !Blocks.opaque[Int(block(x, yy + 1, z))] {
             t = Float(yy + 1)
-            if let g = gen, SmoothTerrain.natural[Int(block(x, yy, z))] {
-                let a = g.terrainDensity(x, yy, z), b = g.terrainDensity(x, yy + 1, z)
-                if a > 0 && b <= 0 { t = Float(yy) + 0.5 + a / (a - b) }
-            }
+            if let g = gen { t = world.drawnTop(g, x, yy, z) }
         }
         topKey[slot] = key; topVal[slot] = t
         return t
