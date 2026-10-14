@@ -260,14 +260,25 @@ P219. [DONE] [19:08] A direct rocket hit should kill a soldier outright.
 P220. [DONE] [19:08-19:14] Ship repair: the engine block and light panel requirements are unclear. The repair UI shows each missing part, its recipe and where it goes.
 Repeats in this session: R1 (left grip with a gun, 19:06; he also wants grip-left to scroll the toolbar past weapons, 19:14) and F1 (freezes at 18:48, 19:11). Praise, keep: Capital raids are exciting, the alarm panel, the Breach shotgun, the Capital Service Rifle, the stone look.
 
+## POLYGON REWRITE REOPENED (Remington, Oct 14 07:10): THE MAIN JOB, before any Q2 pass
+PG1, PG2 and PG6 were marked DONE overnight in about 400 lines and 30 minutes. They laid a sparse smooth-edit overlay on top of the block world ("the generator's distance clamped by edits", "a placed block a smooth mound"), so blocks are still the base. That is exactly what he said no to: "forget blocks, polygon shouldn't use them even as a base". This is a multi-day engine rewrite measured in thousands of lines. Do it in working steps, push and merge each, say in each DONE line what still remains, and do not mark PG1, PG2 or PG6 DONE until all of these hold:
+- In a polygon world, natural terrain is never stored or generated as a block grid: a chunked density field (sub-block resolution samples plus material ids) is the source of truth, generated directly by the world generator, saved and loaded as the field.
+- Meshing is dual contouring (or marching cubes) from the field, with blended materials. No block faces anywhere in natural terrain, near or far.
+- Digging, explosions and bullets subtract shapes from the field; broken pieces become rigid-body debris (the realistic-world fracture work).
+- Collision and physics for the player, mobs, animals, items and vehicles query the field/mesh, never the block grid. Caves are easy to move through; nothing sinks or hovers.
+- Player-built structures may still be placed blocks; natural terrain never is.
+- Ores, caves, water, lava, structures, towns, bases, Capital sites, hell and the Reich layers all generate into the field world, so a polygon world plays the whole game (PG6).
+- Existing block worlds keep loading and playing as they are.
+Q2 polish passes wait until this is done.
+
 ## THE POLYGON DIRECTION (Remington, Oct 13 22:05): the biggest item now, take right after P221-P251
 He played the polygon world on the 21:25 build and decided: "this will be the way forward, no more Minecrafty stuff." He loves the forests, fallen logs, caves and new village buildings. What is wrong comes from blocks still being the base under the smooth surface. A frozen block-world fallback build is kept on the Mac (git tag blocks-fallback-oct13); do NOT maintain a parallel block version, put the effort into the polygon game. Build these thoroughly; each is big, so split into several PRs (one per working piece), each pushed and merged.
-PG1. [DONE] No blocks underneath: the polygon world's terrain is a true smooth volumetric field (density/SDF data meshed with dual contouring or marching cubes, materials blended), not smoothed block cells. Digging, explosions and bullets carve the field and break pieces off procedurally (the realistic-world fracture work), including the ground itself. Saves store the field.
-PG2. [DONE] Physics on the surface: the player, creatures, items and vehicles collide with the mesh, not with block cells. Sheep and animals never sink into or hover over the ground; moving through caves is easy (capsule vs mesh, crouch to pass low gaps); ragdolls rest on the real surface.
+PG1. [REOPENED Oct 14: see POLYGON REWRITE REOPENED] No blocks underneath: the polygon world's terrain is a true smooth volumetric field (density/SDF data meshed with dual contouring or marching cubes, materials blended), not smoothed block cells. Digging, explosions and bullets carve the field and break pieces off procedurally (the realistic-world fracture work), including the ground itself. Saves store the field.
+PG2. [REOPENED Oct 14: see POLYGON REWRITE REOPENED] Physics on the surface: the player, creatures, items and vehicles collide with the mesh, not with block cells. Sheep and animals never sink into or hover over the ground; moving through caves is easy (capsule vs mesh, crouch to pass low gaps); ragdolls rest on the real surface.
 PG3. [DONE] Distance: far terrain is drawn as cheap smooth meshes that keep the real silhouette, never square blocks (with F4).
 PG4. [DONE] Objects as real shapes: tree trunks show their bark outside, never their inside; birch trees get real birch shapes (not random procedural sticks); fallen logs sit on the ground (none floating); pumpkins are round, and can be picked up instead of breaking apart; everything that looks boxy gets its real shape.
 PG5. [DONE] Roads on smooth ground blend into each other and into the terrain.
-PG6. [DONE] Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
+PG6. [REOPENED Oct 14: see POLYGON REWRITE REOPENED] Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
 PG7. [DONE] Creative mode: no damage to the player.
 
 ## PLAYTEST Oct 13 night (P221-P251): top priority with the polygon items
