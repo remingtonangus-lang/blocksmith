@@ -397,7 +397,7 @@ D2. [DONE] Wild horse herds, rare coats, a legendary horse.
 D3. [DONE] Hitching posts in towns. (built in the Oct 14 batch: Hitching.swift.)
 D4. [DONE] Wagons and stagecoaches: escort contracts and robberies.
 D5. [DONE] Melee from the saddle.
-D6. Holsters on the body; draw from hip or chest.
+D6. [DONE] Holsters on the body; draw from hip or chest.
 D7. Working levers, bolts and revolver hammers; shotguns loaded shell by shell (unblocks C5 in the cloud).
 D8. Dual-wield revolvers.
 D9. Suppressor attachment and gun cleaning at camp.
