@@ -325,6 +325,11 @@ enum Trains {
         let day = Int(g.time / DAY_LENGTH)
         guard tr.brake > 0.8 else { g.onToast?("The express car's strongbox: stop the train first"); return true }
         guard tr.robbedDay != day else { g.onToast?("The strongbox is empty"); return true }
+        // Q2: a bullion car's guards keep you off it while their gun still fires (D47).
+        if tr.bullion, tr.cars.count > 1, tr.cars[1].health > 0 {
+            g.onToast?("The guard car's gun covers the bullion car: silence it first (\(Int(tr.cars[1].health)) left)")
+            return true
+        }
         let tnt = Items.key(g.held.item) == "tnt"
         if tnt {
             tr.cracks = crackUses
