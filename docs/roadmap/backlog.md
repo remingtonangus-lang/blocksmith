@@ -290,7 +290,11 @@ P257. [12:04, repeat of R7] Taking a magazine from the hip is still too hard. (a
 P258. [12:43] Pick up a body (person or animal) by holding grip on it and drag or carry it (with H12).
 P259. [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
 P260. [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
-P261. [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
+P261. [CLAIMED console 2026-10-14] [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
+ (c) [console] Steering and throttle ease in and out (about a third of a second to full turn, half a second to full thrust), so the hull never lurches or whips round from a flick of the stick.
+ (d) [console] A hull nobody is turning holds its heading harder against bumps, scraping keels, waves and wind, so it does not turn on its own.
+ (e) [console] In the headset the deck's up-and-down jolts (bumps, a keel scraping ground, swell) reach the eyes smoothed, a few tenths of a block at most, while slow climbs and the deck itself stay where they are.
+ (f) [console] The vignette while at the controls also answers the deck heaving and starts at lower speeds (6 blocks a second instead of 12), scaled by the Comfort Vignette setting like the rest (Off still means off).
 P262. [DONE] [12:16] Momentum: a fast, heavy object (ship, vehicle, falling debris) breaks through blocks it hits, scaled by speed and mass.
  (a) His intent: a fast, heavy ship, vehicle or falling wreck breaks through the blocks it hits instead of stopping dead, more the heavier and faster it is.
  (b) [console] Scaled by momentum: the break budget grows with mass and with speed over a walking pace; a rowing boat at speed snaps leaves, glass and dirt; a laden ship or a crashing dropship ploughs through walls and trees; nothing breaks bedrock or obsidian-hard blocks.
