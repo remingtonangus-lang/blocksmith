@@ -393,7 +393,7 @@ H14. [DONE] Townsfolk have homes and beds.
 H15. [DONE] Snowballs clogging the inventory.
 
 D1. [DONE] Lasso: catch wild horses, rope outlaws.
-D2. Wild horse herds, rare coats, a legendary horse.
+D2. [DONE] Wild horse herds, rare coats, a legendary horse.
 D3. [DONE] Hitching posts in towns. (built in the Oct 14 batch: Hitching.swift.)
 D4. Wagons and stagecoaches: escort contracts and robberies.
 D5. Melee from the saddle.

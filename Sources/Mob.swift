@@ -2532,7 +2532,7 @@ final class MobManager {
         let std: [(MobKind, Int, Int, Int)] = [(.sheep, 12, 4, 4), (.pig, 10, 4, 4), (.chicken, 10, 4, 4), (.cow, 8, 4, 4)]
         var t: [(MobKind, Int, Int, Int)]
         switch b {
-        case .plains, .sunflowerPlains: t = std + [(.horse, 5, 2, 6), (.donkey, 1, 1, 3)]
+        case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3)]      // D2: herds of 3-7
         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
         case .snowyTaiga: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
