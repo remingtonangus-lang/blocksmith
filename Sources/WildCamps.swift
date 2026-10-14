@@ -281,8 +281,8 @@ enum WildCamps {
 
     // Levels the camp ground to the centre's height y (top solid block): soil cut down or built up, its surface kept as the column had it (grass, podzol, sand...), plants and snow cleared above; a worn
     // ring of coarse dirt and path round the middle.
-    static func level(_ w: inout StructWriter, _ x: Int, _ y: Int, _ z: Int, _ seed: UInt64) {
-        let r = radius, s32 = UInt32(truncatingIfNeeded: seed)
+    static func level(_ w: inout StructWriter, _ x: Int, _ y: Int, _ z: Int, _ seed: UInt64, r: Int = radius, flatR: Float = flat) {
+        let s32 = UInt32(truncatingIfNeeded: seed)
         let grass = Blocks.id("grass_block"), path = b("dirt_path", "coarse_dirt"), coarse = b("coarse_dirt", "dirt")
         for dz in -r...r { for dx in -r...r {
             let px = x + dx, pz = z + dz
@@ -300,7 +300,7 @@ enum WildCamps {
             // Flat out to `flat`, then eased back to the natural top by the radius (a hard-edged plateau stood out of
             // terraced hills: camp_prospectors, Oct 10).
             let d: Float = Float(d2).squareRoot()
-            let t: Float = max(0, min(1, (d - flat) / (Float(r) + 0.5 - flat)))
+            let t: Float = max(0, min(1, (d - flatR) / (Float(r) + 0.5 - flatR)))
             let gy: Int = y + Int((Float(top - y) * t).rounded())
             for yy in (gy + 1)...(y + 8) { w.set(px, yy, pz, AIR) }
             w.groundDown(px, gy - 1, pz, DIRT, minY: gy - 14)          // down to solid ground (caves, ledges: structcheck floating)

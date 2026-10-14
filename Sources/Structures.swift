@@ -252,6 +252,7 @@ final class StructureCache {
     var legacyGreywall: Set<Int64> = []           // ground saved before Greywall Command bases (A1, Greywall.swift)
     var legacySkyIsle: Set<Int64> = []            // ground saved before the sky isles (C7, SkyIsle.swift)
     var legacyPorts: Set<Int64> = []              // ground saved before the naval ports (D39, NavalPort.swift)
+    var legacySites: Set<Int64> = []              // ground saved before the frontier sites (D48, FrontierSites.swift)
     var legacyOverlap: Set<Int64> = []            // ground saved before small starts gave way to big ones (Q2, below)
     var legacyC1: Set<Int64> = []                 // ground saved before railways (C1, Railways.swift)
     var legacyC12: Set<Int64> = []                // ground saved before mining towns (C12, MiningTowns.swift)
@@ -711,7 +712,7 @@ enum Loot {
             GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
             return
         }
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] else { return }
+        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
         roll(c, t.rolls, t.entries, rng: &rng)
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }

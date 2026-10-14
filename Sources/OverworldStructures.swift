@@ -10,7 +10,7 @@ enum OverworldStructures {
         // its key and loot table stay registered; a gate a save already generated stays in its chunk (one chunk wide).
         // Wild camps (WildCamps.swift) are the small finds of the open country now.
         [Village.type(gen), temple(gen), outpost(gen), shipwreck(gen), buriedTreasure(gen), mineshaft(gen), desertWell(gen), WildCamps.type(gen),
-         NavalPort.type(gen)]                                   // D39: dockyards on deep-water coasts
+         NavalPort.type(gen), FrontierSites.type(gen)]          // D48: ghost towns, homesteads, stilt hamlets, pueblos                                   // D39: dockyards on deep-water coasts
     }
 
     static func piece(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ f: @escaping (inout StructWriter) -> Void) -> Piece {
