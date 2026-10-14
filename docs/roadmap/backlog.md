@@ -268,7 +268,7 @@ PG3. [DONE] Distance: far terrain is drawn as cheap smooth meshes that keep the 
 PG4. [DONE] Objects as real shapes: tree trunks show their bark outside, never their inside; birch trees get real birch shapes (not random procedural sticks); fallen logs sit on the ground (none floating); pumpkins are round, and can be picked up instead of breaking apart; everything that looks boxy gets its real shape.
 PG5. [DONE] Roads on smooth ground blend into each other and into the terrain.
 PG6. [DONE] Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
-PG7. Creative mode: no damage to the player.
+PG7. [DONE] Creative mode: no damage to the player.
 
 ## PLAYTEST Oct 13 night (P221-P251): top priority with the polygon items
 He played the 21:25 build (3148f425, before PR #112 merged the R/F/S batch) 21:27-22:02; notes in docs/playtests/2026-10-13/voice-notes.md after 21:27. Ragdolls (21:40), freezes (21:41, 21:57) and render-distance lag (21:52) may be covered by #112; check on the current build first.
