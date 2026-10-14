@@ -290,9 +290,9 @@ enum Mesher {
         // T17: leaf canopies as rounded blobs in field worlds (smoothQuads leaves pass).
         let leafBlob = smooth && site != nil && SmoothTerrain.leafBlobs
         let detail = smooth && Mesher.detailMeshes, detT = Mesher.detailT
-        // Far sections (lod 1) draw those blocks as cubes again (the most sections, the least seen); the ground still
-        // treats them as open everywhere so its surface agrees across the lod rings.
-        let detailDraw = detail && !far
+        // PG3: far sections (lod 1) draw them round too, with the fewest sides (ShapeTrunks, ShapeOrganic): a polygon
+        // world shows no square trunk at any distance.
+        let detailDraw = detail
         // Realistic world: built blocks near the eye get a 1/16 chamfer on their exposed edges (Mesher.bevelT).
         let bevel = detail && lod == 0, bevelT = Mesher.bevelT
         if !anyBlock && !(smooth && smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob)) { return SectionMesh(opaque: [], trans: [], light: nil) }

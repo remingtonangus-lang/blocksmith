@@ -133,9 +133,9 @@ enum ShapeTrunks {
         }
 
         // 3. Geometry for the owned logs.
-        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips (far ones draw cubes: Mesher).
-        let sides = ctx.lod == 0 ? 9 : 6
-        let limbSides = ctx.lod == 0 ? 6 : 5
+        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still.
+        let sides = ctx.lod == 0 ? 9 : (ctx.lod == 2 ? 6 : 5)
+        let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 2 ? 5 : 4)
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
