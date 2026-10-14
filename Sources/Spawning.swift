@@ -272,6 +272,7 @@ extension MobManager {
             mobs.append(m)
             placed += 1
         }
+        if kind == .horse && placed > 0 { HorseHerds.spawned(Array(mobs.suffix(placed))) }     // D2 (HorseHerds.swift)
     }
 
     func trySpawnPassive(_ game: Game) {

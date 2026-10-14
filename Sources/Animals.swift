@@ -89,6 +89,7 @@ extension Mob {
         // Being ridden: the rider steers (horses, camels, llamas with a carpet do not; pigs need the stick).
         if g.riding === self { return 0 }
         if kind == .copperGolem { return copperGolemAI(dt, g) }          // sorts chests (CopperGolem.swift)
+        if kind == .horse && !tamed && !leashed && aiTimer <= 0 { herdTick(g) }     // D2: herds (HorseHerds.swift)
         // Tamed pets follow the owner, sit on command, and fight what hurt the owner.
         if tamed && (kind == .wolf || kind == .cat || kind == .parrot) {
             if sitting { moving = false; return 0 }
@@ -541,18 +542,19 @@ func horseParts(_ m: Mob) -> [Part] {
     case .mule: c = V3(0.35, 0.25, 0.18)
     default:
         let coats: [V3] = [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)]
-        c = coats[m.variant % 5]
+        c = HorseHerds.colours(m)?.body ?? coats[m.variant % 5]           // D2: rare coats (HorseHerds.swift)
     }
     let bony = m.kind == .skeletonHorse
     let mk = HorseCoat.markings(m)
-    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : (mk.flaxen ? V3(0.86, 0.76, 0.52) : c * 0.42))
+    let rareCoat = HorseHerds.colours(m)
+    let mane: V3 = bony ? c * 0.78 : (m.kind == .donkey ? c * 0.55 : (rareCoat?.mane ?? (mk.flaxen ? V3(0.86, 0.76, 0.52) : c * 0.42)))
     let hoof: V3 = bony ? c * 0.68 : V3(0.17, 0.14, 0.12)
     let white = V3(0.9, 0.88, 0.84)
     let sock: V3 = c * 0.82
     let muzzle: V3 = c * 0.72 + V3(0.07, 0.07, 0.07)
     let dark = V3(0.05, 0.05, 0.05)
     // G9: a hair coat (12), dapples on greys (13), white patches on paints (14); the undead keep bone and rot.
-    let pat: Float = bony ? 5 : (m.kind == .zombieHorse ? 4 : (mk.dapple ? 13 : (mk.paint ? 14 : 12)))
+    let pat: Float = bony ? 5 : (m.kind == .zombieHorse ? 4 : (mk.dapple || rareCoat?.dapple == true ? 13 : (mk.paint ? 14 : 12)))
     let hairPat: Float = bony || m.kind == .zombieHorse ? pat : 15
 
     // Gait state from data already on the mob.
