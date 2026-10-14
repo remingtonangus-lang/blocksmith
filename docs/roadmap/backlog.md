@@ -296,7 +296,7 @@ P241. [DONE] [21:53] Rockets: he could not find how to make them; the crafting b
 P242. [DONE] [21:54] Specialty bases, like GoldenEye missions: e.g. an ammo depot that supplies ammo for good once found, and other one-of-a-kind bases with their own speciality.
 P243. [DONE] [21:55] A normal (non-futuristic) navy warship sailing the seas; also make sure the UNSC-like frigates can actually be found (he has never seen one).
 P244. [DONE] [21:56-21:57] Some ground material, granite and gravel look cheap and blurry. Add to docs/art/image-requests.md a ranked list "blocks that don't look pretty enough" at the top, so he knows what to make first.
-P245. [21:58] Gold is an easy currency in villages, with more uses; no platinum (titanium covers it).
+P245. [DONE] [21:58] Gold is an easy currency in villages, with more uses; no platinum (titanium covers it).
 P246. [21:59-22:00, with P79] Remove the spire for good (replaced by the duelling knight). Zombies look terrific; skeletons, golems and the creeper replacement need upgrades.
 P247. [22:00] Skeletons fall apart where the sword hits them.
 P248. [22:01] Safes in ground military bases, like GoldenEye: a key in a chest within about 100 blocks, or an ultra-rare reusable safe breaker (about 1 in 100 bases). Safes hold really good loot.
