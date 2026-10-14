@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.difficulty = d }
-            game.smoothTerrain = smooth ?? false
+            game.smoothTerrain = smooth ?? Settings.shared.smoothTerrain     // (PG6: a new world is Polygons unless chosen)
         }
         SmoothTerrain.use(world: game.smoothTerrain, world: game.world)
         if meta == nil { game.saveNow() }                     // P107: a new world's meta on disk from the start

@@ -267,7 +267,7 @@ PG2. [DONE] Physics on the surface: the player, creatures, items and vehicles co
 PG3. [DONE] Distance: far terrain is drawn as cheap smooth meshes that keep the real silhouette, never square blocks (with F4).
 PG4. [DONE] Objects as real shapes: tree trunks show their bark outside, never their inside; birch trees get real birch shapes (not random procedural sticks); fallen logs sit on the ground (none floating); pumpkins are round, and can be picked up instead of breaking apart; everything that looks boxy gets its real shape.
 PG5. [DONE] Roads on smooth ground blend into each other and into the terrain.
-PG6. Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
+PG6. [DONE] Port all content onto the polygon world: towns, bases, Capital sites, structures, caves, hell and the Reich layers, so a polygon world plays the whole game. Then make Polygon the default for new worlds.
 PG7. Creative mode: no damage to the player.
 
 ## PLAYTEST Oct 13 night (P221-P251): top priority with the polygon items
