@@ -117,6 +117,13 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
             if kind == .airship {
                 out.append(HudLine(text: String(format: "Lift %d%%", Int(ship.liftLevel * 100)), x: x, y: y0 + 43 * s, scale: s, color: V4(0.8, 0.9, 1, 1)))
+            } else if VehicleDepot.usesFuel(ship.root) {
+                // Q2: the land vehicle's tank (D44), on the panel where it can be seen in play.
+                let f = VehicleDepot.level(ship.root)
+                let fc = f <= VehicleDepot.fumes ? Settings.shared.badColor : (f < VehicleDepot.low ? V4(0.95, 0.75, 0.2, 1) : V4(0.85, 0.85, 0.85, 1))
+                out.append(HudLine(text: "Fuel", x: x, y: y0 + 43 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+                out.append(HudLine(text: "", x: x + 26 * s, y: y0 + 44 * s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(30 * s, 5 * s)))
+                out.append(HudLine(text: "", x: x + 26 * s, y: y0 + 44 * s, scale: s, bg: fc, box: V2(30 * s * max(0, min(1, f)), 5 * s)))
             }
             if VehicleControls.armed(g, ship) {
                 let loading = ship.reload > 0 || g.world.ships.turrets(of: ship).contains { $0.reload > 0 }
@@ -124,6 +131,12 @@ final class CombatHUD {
                 out.append(HudLine(text: t, x: x + w - Float(Font.width(t)) * s, y: y0 + 43 * s, scale: s,
                                    color: loading ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor))
             }
+        }
+        // Q2: the tank sight (D42) under the crosshair while a wheeled vehicle's gun is laid on it.
+        if let ship = g.world.ships.pilot, !ship.wheels.isEmpty, let p = TankSight.aim, g.menu == nil, VehicleControls.armed(g, ship) {
+            let t = String(format: "%.0f m  %@", simd_length(p - g.player.eye), TankSight.laid ? "LAID" : "traversing")
+            out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: cy + 22 * s, scale: s,
+                               color: TankSight.laid ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1)))
         }
         // Manned deck gun: reload bar under the crosshair.
         if Turrets.shared.active {
