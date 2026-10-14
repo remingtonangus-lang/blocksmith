@@ -271,6 +271,26 @@ PG1, PG2 and PG6 were marked DONE overnight in about 400 lines and 30 minutes. T
 - Existing block worlds keep loading and playing as they are.
 Q2 polish passes wait until this is done.
 
+## PLAYTEST Oct 14 midday (P250-P265): finish the current polygon rewrite step, then do these, then go back to the rewrite
+He played build 138bdc4b (installed 11:52) 11:57-12:20; notes in docs/playtests/2026-10-14/voice-notes.md. CHECKLIST RULE (Remington, Oct 14): every item below is split into parts (a), (b), (c)... The DONE line must name each part and say what was built for it. An item with any part not built stays open. Write your own extra parts first if the item needs more.
+P250. [11:57-11:58, 12:18, with F4/P229] Far rendering. (a) The render distance he sets (24) is what he gets: if the governor drops it (it showed "auto 14"), it only drops when frames really suffer and comes back up. (b) The far rings must look like the real world from a distance (block world: blocky columns of the right colours; polygon world: the real smooth silhouette), never smooth "slopes" that look wrong. (c) No visible seam or pop where near chunks meet the far ring. He did notice better performance and seeing far: keep that.
+P251. [11:58-11:59] Helicopter: (a) he can climb in and fly it in survival; (b) it has a visible spinning rotor.
+P252. [11:59] Air defence: (a) bases get flak guns; (b) flak and naval guns track and hit flying players accurately, so flying over a base gets you shot down; (c) give a short warning (tracer, sound) so it is fair.
+P253. [12:00, 12:16, repeat of P211] Fog still rolls in during clear weather on the device. (a) Find what still adds fog when the weather is clear (on the Quest render path) and remove it; (b) fog only in foggy weather.
+P254. [12:01-12:08] Base barrels and crates hold bulk building materials (stacks of stone, planks, bricks): not valuable, but a lot, so raiding a base gives blocks for building farms and bases.
+P255. [12:05-12:09] Small Greywall outposts: (a) keep them as a variant but never instead of the big bases; (b) make them a little bigger; (c) the lights' glare/gleam looks bad: fix it; (d) every tower has a gun on it; (e) a second floor where it fits.
+P256. [12:07, 12:08, repeat of R8/P216] Greywall chests and troops still hold Capital rounds and the Capital Service Rifle. (a) Greywall loot only has Greywall guns and their ammo; (b) Capital gear only at Capital sites.
+P257. [12:04, repeat of R7] Taking a magazine from the hip is still too hard. (a) A larger grab zone at the hip; (b) a haptic tick when the hand is in it; (c) the magazine snaps into the well when brought near.
+P258. [12:43] Pick up a body (person or animal) by holding grip on it and drag or carry it (with H12).
+P259. [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
+P260. [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
+P261. [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
+P262. [12:16] Momentum: a fast, heavy object (ship, vehicle, falling debris) breaks through blocks it hits, scaled by speed and mass.
+P263. [12:17-12:18, repeat of P225] Wreck repair still confusing: "lift plumes 0 of 10", "weighs 600 tons", and why lift is needed if it already drove. (a) The repair screen explains what each part does; (b) the part counts are sensible for the craft's size; (c) a craft that can already move says what is missing for flight specifically.
+P264. [12:18] Two chests placed side by side join into one double chest.
+P265. [12:19] The player figure in the inventory wears the armour he has equipped.
+Praise, keep: better performance and long view, camps look great, the new gun icons in the inventory, sword-fighting guards, Greywall Dispatch.
+
 ## THE POLYGON DIRECTION (Remington, Oct 13 22:05): the biggest item now, take right after P221-P251
 He played the polygon world on the 21:25 build and decided: "this will be the way forward, no more Minecrafty stuff." He loves the forests, fallen logs, caves and new village buildings. What is wrong comes from blocks still being the base under the smooth surface. A frozen block-world fallback build is kept on the Mac (git tag blocks-fallback-oct13); do NOT maintain a parallel block version, put the effort into the polygon game. Build these thoroughly; each is big, so split into several PRs (one per working piece), each pushed and merged.
 PG1. [REOPENED Oct 14: see POLYGON REWRITE REOPENED] No blocks underneath: the polygon world's terrain is a true smooth volumetric field (density/SDF data meshed with dual contouring or marching cubes, materials blended), not smoothed block cells. Digging, explosions and bullets carve the field and break pieces off procedurally (the realistic-world fracture work), including the ground itself. Saves store the field.
