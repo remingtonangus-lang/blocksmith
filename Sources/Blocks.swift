@@ -703,6 +703,7 @@ final class BlockRegistry {
         registerShipBlocks()
         registerVehicleWorks()
         registerMilitaryBlocks()
+        registerSafeBlocks()                          // P248 (BaseSafes.swift)
         registerCapitalBlocks()
         registerCapitalArchitecture()
         registerCapitalCityBlocks()

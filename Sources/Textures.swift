@@ -1068,6 +1068,7 @@ enum TextureGen {
         Magazines.painters(&p)
         ExplorerMaps.painters(&p)
         militaryPainters(&p)
+        safePainters(&p)
         capitalPainters(&p)
         capitalArchitecturePainters(&p)
         capitalCityPainters(&p)
