@@ -389,10 +389,15 @@ final class World {
                 let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
                 out.append((o + mn, o + mx)); return
             }
-            // PG2: natural ground under open air is walked on at its drawn surface, not its block top.
-            if SmoothTerrain.natural[b] && SmoothTerrain.enabled && SmoothTerrain.fromField && y + 1 < CH,
-               !Blocks.collide[Int(block(x, y + 1, z))], let g = gen as? WorldGen {
-                out.append((o, V3(o.x + 1, groundTop(g, x, y, z), o.z + 1))); return
+            // PG2: natural ground is met at its drawn surface, not its block faces: walked on at the drawn top under open
+            // air, and a roof over open air gives the headroom its drawn underside leaves.
+            if SmoothTerrain.natural[b] && SmoothTerrain.enabled && SmoothTerrain.fromField && y > 0 && y + 1 < CH,
+               let g = gen as? WorldGen {
+                let up = !Blocks.collide[Int(block(x, y + 1, z))], down = !Blocks.collide[Int(block(x, y - 1, z))]
+                if up || down {
+                    let lo = down ? ceilingBottom(g, x, y, z) : o.y, hi = up ? groundTop(g, x, y, z) : o.y + 1
+                    if hi - lo > 0.1 { out.append((V3(o.x, lo, o.z), V3(o.x + 1, hi, o.z + 1))); return }
+                }
             }
             out.append((o, o + 1)); return
         }

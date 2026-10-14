@@ -165,6 +165,20 @@ extension World {
         return Float(y) + 0.5 + a / (a - b)
     }
 
+    // PG2: the drawn underside of a natural cell y over open air (y - 1 open): an overhang's or a dug roof's surface, as
+    // drawnTop from below. The block bottom where the field made no surface there and nothing was carved.
+    func drawnBottom(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        guard SmoothTerrain.natural[Int(block(x, y, z))] else { return Float(y) }
+        var a: Float = 0.5, b: Float = -0.5
+        let da = g.terrainDensity(x, y, z), db = g.terrainDensity(x, y - 1, z)
+        if da > 0 && db <= 0 { let t = -db / (da - db); a = 1 - t; b = -t }
+        let ea = fieldEdit(x, y, z), eb = fieldEdit(x, y - 1, z)
+        if ea != FieldEdit.none { a = FieldEdit.apply(a, ea) }
+        if eb != FieldEdit.none { b = FieldEdit.apply(b, eb) }
+        a = max(a, 0.02); b = min(b, -0.02)
+        return Float(y) - 0.5 - b / (a - b)
+    }
+
     // PG2: the collision top of natural cell (x, y, z) under open air: its drawn surface (drawnTop) where that is below
     // the block top (never above: a body already standing at the block top would be inside a raised box, which sweeps
     // ignore; ground drawn higher stays a view offset, smoothGroundOffset), at most half a block down. Cached (field changes bump fieldStamp).
@@ -173,6 +187,17 @@ extension World {
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)
         if groundTopKey[slot] == key { return groundTopVal[slot] }
         let t = max(Float(y) + 0.5, min(Float(y) + 1, drawnTop(g, x, y, z)))
+        groundTopKey[slot] = key; groundTopVal[slot] = t
+        return t
+    }
+
+    // PG2: the collision bottom of natural cell (x, y, z) over open air (cave roofs, overhangs, dug ceilings): its drawn
+    // underside where that is above the block bottom (only ever more headroom), at most 0.45 up. Cached like groundTop.
+    func ceilingBottom(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | (((y | 512) & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
+        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)
+        if groundTopKey[slot] == key { return groundTopVal[slot] }
+        let t = min(Float(y) + 0.45, max(Float(y), drawnBottom(g, x, y, z)))
         groundTopKey[slot] = key; groundTopVal[slot] = t
         return t
     }
