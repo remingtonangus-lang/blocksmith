@@ -63,6 +63,8 @@ extension Game {
             // Long pause/options lists scroll when the cursor pushes past the first/last visible row.
             if let pm = m as? PauseMenu, menuCursor == before, my != 0 { pm.scrollList(my > 0 ? 1 : -1) }
             if let sm = m as? ShopMenu, menuCursor == before, my != 0 { sm.scrollBy(my > 0 ? 1 : -1) }
+            // P233: the pad cursor pushed past the crafting book's top or bottom row of tiles scrolls it a row.
+            if let cb = m as? CraftingBookMenu, menuCursor == before, my != 0, cb.isTile(menuCursor) { cb.scrollRows(my > 0 ? 1 : -1) }
             padMoved = true
             if menuCursor != before { sfx(.uiHover, 0.3) }
         }
@@ -112,7 +114,7 @@ extension Game {
             if tab != 0 { cb.switchTab(tab) }
             let page = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)
             if page != 0 { cb.flip(page) }
-            if scroll != 0 { cb.flip(scroll) }
+            if scroll != 0 { cb.scrollRows(scroll) }
             cb.padHold(p.a, dt)
         }
         // LB/RB in the inventory open its crafting book (2x2), whose grid button comes back.

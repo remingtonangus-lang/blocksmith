@@ -233,7 +233,10 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         refresh()
     }
 
-    var pages: Int { max(1, (list.count + CraftingBookMenu.perPage - 1) / CraftingBookMenu.perPage) }
+    // P233 (Oct 13 21:48, "I can't scroll the craftables"): `page` is the first row shown, not a page: the wheel and the
+    // right stick scroll a row at a time, LT / RT and the arrow buttons a screenful (flipping 15 tiles at a time read
+    // as nothing moving, and the last page could not be reached from the stick).
+    var pages: Int { max(1, (list.count + CraftingBookMenu.cols - 1) / CraftingBookMenu.cols - CraftingBookMenu.rows + 1) }
 
     func refresh() {
         pool = CraftBook.pool(game)
@@ -252,7 +255,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     override func changed() { refresh() }
 
     func recipe(at k: Int) -> Int? {
-        let i = page * CraftingBookMenu.perPage + k
+        let i = page * CraftingBookMenu.cols + k
         return i < list.count ? list[i] : nil
     }
 
@@ -266,7 +269,12 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         game.sfx(.click, 0.4)
     }
 
-    func flip(_ d: Int) {
+    func flip(_ d: Int) { scrollRows(d * CraftingBookMenu.rows) }
+    func isTile(_ i: Int) -> Bool {
+        guard slots.indices.contains(i), case .button(let id) = slots[i].kind else { return false }
+        return id >= CraftingBookMenu.tileBase && id < CraftingBookMenu.tileBase + CraftingBookMenu.perPage
+    }
+    func scrollRows(_ d: Int) {
         let np = max(0, min(pages - 1, page + d))
         if np != page { page = np; game.sfx(.uiHover, 0.5) }
     }
@@ -400,7 +408,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             if on { box(sl.x, sl.y + sl.h - 2, sl.w, 2, focus) }
             if Items.has(t.icon) { icon(ItemStack(Items.id(t.icon), 1), sl.x + 2, sl.y + 2) }
         }
-        label(query.isEmpty ? "\(tab.name)  -  \(page + 1)/\(pages)" : "\(list.count) found  -  \(page + 1)/\(pages)", 8, 40, ink, maxW: 102)
+        let shown = list.isEmpty ? "0" : "\(page * CraftingBookMenu.cols + 1)-\(min(list.count, (page + CraftingBookMenu.rows) * CraftingBookMenu.cols)) of \(list.count)"
+        label(query.isEmpty ? "\(tab.name)  \(shown)" : "Found \(shown)", 8, 40, ink, maxW: 102)
         // Search field: click to type (the Quest's keyboard / the pad keyboard opens), click again to clear.
         if let sb = slots.first(where: { if case .button(let id) = $0.kind { return id == CraftingBookMenu.searchBtn } else { return false } }) {
             box(sb.x, sb.y, sb.w, sb.h, hover === sb ? focus : (searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
