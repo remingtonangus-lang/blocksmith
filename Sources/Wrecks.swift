@@ -262,9 +262,16 @@ extension Wrecks {
             pages.append("\(l.1.uppercased())\n\nNeeded: \(l.3 - l.2) more\n\nRecipe: \(recipeText(l.0))\n\nWhere: \(l.4)")
         }
         if !flier { pages.append("OR SAILS\n\n" + mastHow) }
+        // P225: cannons need shot, and nothing said where it goes.
+        if !s.cannons.isEmpty { pages.append(cannonHow(s.cannons.count)) }
         return pages
     }
 
+    static func cannonHow(_ n: Int) -> String {
+        "CANNON SHOT\n\nThis hull carries \(n) cannon\(n == 1 ? "" : "s"). Each shot takes one Cannonball from the pack of whoever steers: "
+            + "there is no loading slot, keep them in your inventory.\n\nRecipe: \(recipeText(cannonball)) makes 4.\n\n"
+            + "Fire: attack while at the helm; every cannon that is ready fires and takes one ball."
+    }
     static let mastHow = "A mast: stand logs or fences upright on deck and hang wool on them - wool sails catch the wind while you steer (or fit a propeller and an engine)"
     static func hintTick(_ g: Game) {
         let st = Settings.shared
