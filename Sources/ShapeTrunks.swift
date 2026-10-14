@@ -326,15 +326,34 @@ enum ShapeTrunks {
 
     // MARK: Limbs
 
+    // The centre of window cell j.
+    @inline(__always) static func centre(_ j: Int) -> SIMD3<Float> {
+        SIMD3(Float(j % W - M) + 0.5, Float(j / (W * W) - M) + 0.5, Float((j / W) % W - M) + 0.5)
+    }
+
+    // U1 ("polygon trees with real round branches"; diagonal branches read as ladders): where a limb passes through a
+    // cell on its way out. A branch the generator stepped diagonally goes x, then y, then x... one face at a time, and a
+    // tube from each cell's centre to the next drew that staircase. A limb cell's joint is the midpoint between its
+    // centre and its parent's, so the joints of a staircase lie on its diagonal and the tubes between them run straight.
+    // On a trunk the joint is the trunk's (leaning) centre line.
+    static func joint(_ ctx: DetailContext, _ s: Scratch, _ j: Int) -> SIMD3<Float> {
+        var c = centre(j)
+        if s.col[j] == 1 || s.col[j] == 2 {
+            let l = lean(ctx, c.x, c.z, c.y, living: s.col[j] == 1)
+            c.x = l.x; c.z = l.y
+            return c
+        }
+        let p = Int(s.par[j])
+        guard p >= 0 else { return c }
+        let pc = s.col[p] == 1 || s.col[p] == 2 ? joint(ctx, s, p) : centre(p)
+        return (c + pc) * 0.5
+    }
+
     static func limb(_ ctx: DetailContext, _ s: Scratch, _ i: Int, _ x: Int, _ y: Int, _ z: Int, bark: Int, rings: Int, sides: Int) {
         let p = Int(s.par[i])
-        let px = p % W - M, pz = (p / W) % W - M, py = p / (W * W) - M
-        var a = SIMD3<Float>(Float(px) + 0.5, Float(py) + 0.5, Float(pz) + 0.5)
-        if s.col[p] == 1 {
-            let c = lean(ctx, a.x, a.z, a.y, living: true)
-            a.x = c.x; a.z = c.y
-        }
-        let b = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        let a = joint(ctx, s, p)
+        // Through the cell to its own joint, or (a twig's last cell, nothing growing on) to its centre.
+        let b = s.kids[i] > 0 ? joint(ctx, s, i) : SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         let ra = s.col[p] != 0 ? min(s.rad[p], s.rad[i] * 1.25) : s.rad[p]
         let rb = s.rad[i]
         tube(ctx, a, b, ra, rb, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i))
