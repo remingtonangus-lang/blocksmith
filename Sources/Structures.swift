@@ -35,9 +35,16 @@ struct StructWriter {
     func get(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
-    func set(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+    func set(_ x: Int, _ y: Int, _ z: Int, _ b0: BlockID) {
+        // PG5 ("roads on smooth ground blend into each other and into the terrain"): in a Polygons world the generators'
+        // paths are laid as packed earth, natural ground the smooth surface runs straight through, instead of the
+        // path block, a built shape the smooth ground had to stop at.
+        let b = b0 == StructWriter.pathID && SmoothTerrain.enabled ? StructWriter.roadID : b0
         if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b); unplant(x, y, z, b) }
     }
+    static let pathID: BlockID = Blocks.has("dirt_path") ? Blocks.id("dirt_path") : AIR
+    static let roadID: BlockID = Blocks.has("coarse_dirt") && SmoothTerrain.natural[Int(Blocks.id("coarse_dirt"))]
+        ? Blocks.id("coarse_dirt") : pathID
 
     // Grass, flowers and saplings need soil: a structure block written under one (paths, foundations, wells)
     // removes it (gencheck plant_soil: grass and bushes standing on village cobblestone).
