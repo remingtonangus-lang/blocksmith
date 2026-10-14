@@ -278,7 +278,7 @@ P223. [DONE] [21:37] Opening his world has a very long wait before the loading s
 P224. [DONE] [21:38, 21:41] Blocks of the dropship are hard to break off; make breaking craft blocks as reliable as terrain.
 P225. [DONE] [21:39-21:42] Wreck repair: "needs 299 lift balloons" is absurd. Size lift parts sensibly (a few balloons lift a craft), say where each part goes (propeller on the stern), and make cannon ammo obvious: where cannonballs load and how to get them.
 P226. [DONE] [21:40] Crouch lets him pass under low gaps (repeat of 13:10).
-P227. [21:43] The gun inspect view (the one that shows a gun's details) is far too big.
+P227. [DONE] [21:43] The gun inspect view (the one that shows a gun's details) is far too big.
 P228. [21:44] Strike-team ships make a loud, ominous engine sound heard from far away, as the warning that a strike is coming.
 P229. [21:44, with F4] In the block world the far chunks are too simple: they must still look like blocks from a distance (no mobs or detail needed).
 P230. [21:45] Pirates are their own faction, never the Capital.
