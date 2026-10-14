@@ -1128,6 +1128,14 @@ func deckGunParts(_ m: Mob) -> [Part] {
             box(-70, 82, 10, 34, 16, 30, mid), box(-66, 88, 8, 26, 6, 2, V3(0.2, 0.55, 0.75)),
         ]
     }
+    // H13: the gunhouse comes apart a plate at a time as it is hurt (NavalGuns.platesLost; the main box, the ring and
+    // the barrels stay to the end); each plate that goes is shed as debris (NavalGuns.hurtEffects).
+    let lost = NavalGuns.platesLost(m)
+    if lost > 0 && p.count > 4 {
+        let order = Array(3..<p.count).sorted { hashf($0, 13, 0, 1313) < hashf($1, 13, 0, 1313) }
+        let gone = Set(order.prefix(min(lost, order.count)))
+        p = p.indices.filter { !gone.contains($0) }.map { p[$0] }
+    }
     for x: Float in [-36, 36] {
         let pv = V3(x, ty, tz)
         pitch = hurt == 2 && x > 0 ? min(pitch0, -0.14) : pitch0
