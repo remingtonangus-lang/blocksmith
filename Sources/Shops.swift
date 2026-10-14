@@ -99,7 +99,7 @@ enum ShopKind: String, CaseIterable, Codable {
 
 // A paid service instead of an item (the doctor patching you up, a hot meal at the saloon).
 enum ShopService: String, CaseIterable {
-    case treatment, meal, treaty, room, bath
+    case treatment, meal, treaty, room, bath, fence
     var name: String {
         switch self {
         case .treatment: return "Patch Me Up"
@@ -107,6 +107,7 @@ enum ShopService: String, CaseIterable {
         case .treaty: return "Treaty of Alliance"
         case .room: return "A Room for the Night"
         case .bath: return "A Hot Bath"
+        case .fence: return "The Back Room"
         }
     }
     var icon: String {
@@ -116,6 +117,7 @@ enum ShopService: String, CaseIterable {
         case .treaty: return "writable_book"
         case .room: return "red_bed"
         case .bath: return "water_bucket"
+        case .fence: return "gold_nugget"
         }
     }
     var detail: String {
@@ -125,6 +127,7 @@ enum ShopService: String, CaseIterable {
         case .treaty: return "Ally with this country"
         case .room: return "Heal, sleep till sunrise, save the game"
         case .bath: return "Wash off the blood and the road"
+        case .fence: return "Hot goods bought, no questions asked"
         }
     }
 }
@@ -191,6 +194,7 @@ enum Economy {
         case .treaty: return Countries.treatyFee
         case .room: return 300                                             // D19 (Hotel.swift)
         case .bath: return 100
+        case .fence: return 0                                              // D27: pays you (Fence.offer)
         }
     }
 
@@ -252,7 +256,7 @@ enum Economy {
         .saloon: ["sweet_berries", "glow_berries", "cocoa_beans", "sugar", "honey_bottle", "wheat", "potato", "melon_slice",
                   "pumpkin", "cod", "salmon"],
     ]
-    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal, .room, .bath]]
+    static let services: [ShopKind: [ShopService]] = [.doctor: [.treatment], .saloon: [.meal, .room, .bath, .fence]]
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
@@ -454,13 +458,17 @@ final class ShopMenu: Menu, CustomDrawnMenu {
                 return (st, s.name, d, Money.format(price), ok && game.money >= price)
             }
             if s == .room || s == .bath { return (st, s.name, s.detail, Money.format(price), game.money >= price) }      // D19
+            if s == .fence {                                                                                                  // D27
+                let (n, pay) = Fence.offer(game)
+                return (st, s.name, n > 0 ? "\(n) stolen items, 60% of their worth" : s.detail, "+" + Money.format(pay), n > 0)
+            }
             let need = s == .treatment ? game.health < 20 : game.hunger < 20
             return (st, s.name, need ? s.detail : (s == .treatment ? "You're in good health" : "You're not hungry"),
                     Money.format(price), need && game.money >= price)
         case .sell(let it):
             let st = ItemStack(it, 1)
-            let n = have(it)
-            return (st, st.def.display, "You have \(n)", Money.format(Economy.sellPrice(it, p)), n > 0)
+            let n = have(it), hot = min(n, Fence.hot(it))                                                       // D27
+            return (st, st.def.display, hot > 0 ? "You have \(n) (\(hot) stolen)" : "You have \(n)", Money.format(Economy.sellPrice(it, p)), n > hot)
         case .exchange:
             let n = Exchange.count(game)
             let st = Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : ItemStack.empty
@@ -680,8 +688,14 @@ enum Shop {
         guard var v = m.villager, Economy.buysItem(k, item), Economy.value(of: item) != nil else { return ("", false) }
         var have = 0
         for j in 0..<36 where g.inventory.main[j].item == item && sellable(g.inventory.main[j]) { have += g.inventory.main[j].count }
-        let n = min(want, have)
         let name = ItemStack(item, 1).def.display
+        // D27: honest shops won't buy stolen goods (Fence.swift): only what you hold beyond the hot count.
+        let clean = max(0, have - Fence.hot(item))
+        if have > 0 && clean == 0 {
+            g.sfx(.villagerNo, 0.6, at: m.pos + V3(0, 1.6, 0))
+            return ("That \(name) is stolen goods. I won't touch it. Try the back room at the saloon.", false)
+        }
+        let n = min(want, clean)
         guard n > 0 else { return ("You have no \(name).", false) }
         let each = Economy.sellPrice(item, ShopPricing(reputation: v.reputation, hero: g.effects.level(.heroOfTheVillage), honour: Honour.value,
                                                                      town: TownConquest.standing(v.town), country: Countries.terms(g, town: v.town, at: m.pos)))
@@ -705,6 +719,7 @@ enum Shop {
 
     static func service(_ g: Game, _ m: Mob, _ s: ShopService) -> (String, Bool) {
         if s == .treaty { return Countries.signTreaty(g, m) }
+        if s == .fence { return Fence.sell(g, m) }                          // D27
         let price = Economy.price(s, g)
         switch s {
         case .treatment where g.health >= 20: return ("You look healthy to me.", false)
