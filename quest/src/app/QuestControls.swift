@@ -253,6 +253,8 @@ final class QuestControls {
             aimOrigin = rig.headWorld
             aimDir = simd_normalize(rig.toWorldDir(rig.headRot.act(V3(0, 0, -1))))
         }
+        // D8: the left hand's ray, for a second revolver in it (DualWield).
+        DualWield.leftAim = L.aimValid ? (rig.toWorld(L.aimPos), simd_normalize(rig.toWorldDir(L.aimRot.act(V3(0, 0, -1))))) : nil
         // P159: a long gun braced with the other hand on its front grip and that trigger held aims between the hands.
         // R6 (Oct 13, after P32/G21/P159/P82: "two-handed aiming doesn't work"): the brace only turned the shot, while the
         // drawn rifle stayed on the right hand's ray, and the next frame judged the front hand against that ray again, so

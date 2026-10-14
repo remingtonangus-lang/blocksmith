@@ -501,7 +501,7 @@ extension Game {
     @discardableResult
     func startReload(_ gi: Int) -> Bool {
         let gs = Guns.all[gi]
-        guard held.tag < Guns.magSize(held), ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
+        guard held.tag < Guns.magSize(held) || DualWield.offEmptyOrLow(self), ammoCount(gs.ammo) > 0, arms.reload <= 0 else { return false }
         arms.reload = Guns.reloadTime(held, gi) / (GunActions.shellByShell(gi) ? Float(max(1, Guns.magSize(held))) * 0.5 : 1)
         arms.reloadGun = gi
         arms.aim = 0
@@ -524,7 +524,8 @@ extension Game {
             GunActions.drawn()
         }
         a.cooldown -= dt
-        let aiming = aim && a.reload <= 0 && !player.sprinting
+        let dual = DualWield.tick(self, down: aim, dt: dt)                         // D8: the off trigger fires the other gun
+        let aiming = aim && !dual && a.reload <= 0 && !player.sprinting
         a.aim += ((aiming ? 1 : 0) - a.aim) * min(1, dt * 12)
         // D7: a trigger mid-way through loading shells fires what is in the tube.
         if a.reload > 0 && GunActions.shellByShell(gi) && firePressed && held.tag > 0 { a.reload = 0 }
@@ -534,7 +535,7 @@ extension Game {
                 if GunActions.shellByShell(gi) {
                     loadMagazine(gi, shells: 1)
                     if held.tag < Guns.magSize(held) { startReload(gi) }       // the next shell (stops with the pack empty)
-                } else { loadMagazine(gi) }
+                } else { loadMagazine(gi); DualWield.reloadOff(self) }
             }
             return true
         }
