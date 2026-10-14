@@ -401,7 +401,7 @@ D6. [DONE] Holsters on the body; draw from hip or chest.
 D7. [DONE] Working levers, bolts and revolver hammers; shotguns loaded shell by shell (unblocks C5 in the cloud).
 D8. [DONE] Dual-wield revolvers.
 D9. [DONE] Suppressor attachment and gun cleaning at camp.
-D10. Bandits and soldiers who block and parry; an off-hand kick or shove to break guards.
+D10. [DONE] Bandits and soldiers who block and parry; an off-hand kick or shove to break guards.
 D11. Throwing knife and tomahawk.
 D12. Silent knife takedowns from behind.
 D13. Fist brawls in the saloon (non-lethal knockouts).

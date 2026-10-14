@@ -61,6 +61,7 @@ final class QuestControls {
     private var bBlock = false                  // B went down in a menu: its release outside isn't a sneak / dismount
     private var sprintHinted = false            // the click-to-sprint hint was shown
     private var prevGripL = false, prevGripR = false
+    private var prevLRel: V3?                      // D10: the left hand against the head last frame (shoves)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -414,6 +415,14 @@ final class QuestControls {
             if rGrip && !prevGripR { game.select(game.selected + 1); app.input.haptic(aimHand, amplitude: 0.25, seconds: 0.02, frequency: 300) }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         }
+        // D10: the left hand thrust hard into a creature shoves it (and breaks a raised guard).
+        if L.gripValid {
+            let rel = rig.toWorld(L.gripPos) - rig.headWorld
+            if !inMenu, let pr = prevLRel, dt > 0, Guards.shove(game, hand: rig.toWorld(L.gripPos), vel: (rel - pr) / dt) {
+                app.input.haptic(moveHand, amplitude: 0.9, seconds: 0.07, frequency: 90)
+            }
+            prevLRel = rel
+        } else { prevLRel = nil }
         prevGripL = lGrip; prevGripR = rGrip
         // A stick click with the stick pushed out is the push itself clicking (Touch sticks click when shoved forward):
         // it sprints. Only a click with the stick near the centre sneaks (that click held sneaking, which blocks sprint).
