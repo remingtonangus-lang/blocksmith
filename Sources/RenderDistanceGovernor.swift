@@ -4,7 +4,7 @@ import Foundation
 // (QuestApp's FrameStats, every 5 s). Pure value type, no clocks or globals, so a synthetic frame-time trace can drive
 // it in a test (`Blocksmith --rdgovernortest`, QuestSim's rdgovernor case).
 //
-// Down: two windows in a row (10 s) that miss frames (> 5%) with the CPU or GPU near the budget (> 80%) take one step
+// Down: a window (5 s; P240, was two in a row) that misses frames (> 5%) with the CPU or GPU near the budget (> 80%) take one step
 // off, not below `floor`. A single hitch, a chunk-loading burst (fast flight, a raise's new ring), a menu, a pause or
 // a save is not evidence: those windows count neither way.
 // Up: once the frame has headroom for `hold` seconds (no missed frames, and the busier of CPU and GPU, scaled by the
@@ -34,7 +34,8 @@ struct RenderDistanceGovernor {
     let floor: Int
     // Tunables (seconds and budget fractions).
     static let missFrac = 0.05, busyFrac = 0.8, raiseFrac = 0.7, severeFrac = 1.6
-    static let badToDrop = 2, settle = 10.0, baseHold = 20.0, maxHold = 300.0, failWindow = 60.0, calmReset = 300.0
+    // P240 (Oct 13 21:52, lag and input lag before the distance came down): one bad window (5 s) is enough to step down.
+    static let badToDrop = 1, settle = 10.0, baseHold = 20.0, maxHold = 300.0, failWindow = 60.0, calmReset = 300.0
     private(set) var hold = RenderDistanceGovernor.baseHold
     private var badStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
 

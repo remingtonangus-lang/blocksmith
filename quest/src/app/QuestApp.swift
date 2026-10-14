@@ -563,7 +563,7 @@ final class FrameStats {
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
         print(lastLine)
-        // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): two windows in a row missing frames
+        // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): a window missing frames (P240)
         // with the CPU or GPU near the budget first drop a refresh rate above 72 Hz to 72 (the Oct 9 playtest at 90 Hz
         // ran ~10 ms CPU frames against 11.1 ms), then the render distance one step (not below 4); sustained headroom
         // brings it back a step at a time to the player's choice. Loading bursts, menus and saves count neither way
