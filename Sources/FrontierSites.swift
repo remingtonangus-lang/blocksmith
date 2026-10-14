@@ -331,6 +331,13 @@ enum FrontierSites {
     static var marked = Set<IVec3>()
     static var nightOf: [IVec3: Int] = [:]
     static var risen = 0                                   // (harness)
+    static var inside: IVec3?                              // Q2: the site you're in (an arrival line once per visit)
+    static let arrival: [String: [String]] = [
+        "ghost_town": ["Shutters bang in the wind. Nobody has lived here for years.", "The street is empty and the well is dry."],
+        "homestead": ["A homestead, fenced against the wild. Someone's home.", "A homestead. Fields, a barn, and a long way from town."],
+        "stilt_hamlet": ["Houses on stilts over the water, and nets drying on the rails.", "A stilt hamlet. The planks creak underfoot."],
+        "pueblo": ["Adobe walls warm in the sun, ladders up to the roofs.", "A pueblo. Cool rooms behind thick walls."],
+    ]
 
     static func sites(_ g: Game, near p: V3) -> [StructureStart] {
         guard let sc = g.world.gen.structures, let t = sc.types.first(where: { $0.name == kind }) else { return [] }
@@ -344,6 +351,11 @@ enum FrontierSites {
             let a = s.anchor
             let d = simd_length(V2(p.x - Float(a.x), p.z - Float(a.z)))
             guard d < 64 else { continue }
+            if d < 22 && inside != a {
+                inside = a
+                let lines = arrival[s.kind] ?? []
+                if !lines.isEmpty { g.onToast?(lines[Int(hashf(a.x, a.z, 0xA221, 7) * Float(lines.count)) % lines.count]) }
+            } else if d > 48 && inside == a { inside = nil }
             if !marked.contains(a) {
                 marked.insert(a)
                 MapCache.shared.discover(g, kind: s.kind, x: a.x, z: a.z, name: names[s.kind])
