@@ -6,7 +6,7 @@ import simd
 // lift, airfoils, wheel suspension), then sequential-impulse contacts against terrain and other ships.
 enum ShipTuning {
     static let g: Float = 12
-    static let balloonLift: Float = 2.0         // tonnes held up by one lift balloon
+    static let balloonLift: Float = 60.0        // tonnes held up by one lift balloon (P225: a few balloons lift a craft)
     static let ballastTrim: Float = 4.0         // tonnes one ballast tank can add or take off (flooded or blown)
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
