@@ -68,6 +68,11 @@ enum TownLaw {
         var impounded: [String: [ItemStack]]? = nil
         var prisoner: [String]? = nil
         var exchangeTip: Bool? = nil
+        // D20 strangers (Strangers.swift): story -> chapter * 10 + taken, kills / visits, ridge spots, last day seen.
+        var strangers: [String: Int]? = nil
+        var strangerCount: [String: Int]? = nil
+        var strangerAt: [String: [Int]]? = nil
+        var strangerDay: Int? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -419,6 +424,7 @@ enum TownLaw {
         Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
+        Strangers.tick(g)                                // D20
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
         // Heat cools; hostility runs out.
