@@ -172,7 +172,7 @@ extension Mesher {
         let FO = sc.smF
         let field: SmoothField? = site.map { site in
             let F = sc.field
-            F.prepare(site.gen, x0: site.cx * CS - SO, y0: sy * 16 - SO, z0: site.cz * CS - SO)
+            F.prepare(site.gen, x0: site.cx * CS - SO, y0: sy * 16 - SO, z0: site.cz * CS - SO, edits: site.edits)
             FO.initialize(repeating: 0, count: N * NN)
             return F
         }

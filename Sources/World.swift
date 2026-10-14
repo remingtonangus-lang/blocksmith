@@ -285,6 +285,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
+        if old != id { fieldBlockChanged(x, y, z, old, id) }             // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -354,6 +355,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
         c.blocks[Chunk.index(lx, y, lz)] = id
+        if old != id { fieldBlockChanged(x, y, z, old, id) }             // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
@@ -587,7 +589,7 @@ final class World {
     // P142: smooth sections of a world whose generator has continuous fields (the overworld) mesh those fields.
     func smoothSite(_ c: Chunk) -> SmoothSite? {
         guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return nil }
-        return SmoothSite(gen: g, cx: c.cx, cz: c.cz)
+        return SmoothSite(gen: g, cx: c.cx, cz: c.cz, edits: fieldEditSet(c))
     }
 
     // MARK: Progressive block damage
@@ -794,6 +796,7 @@ final class World {
             for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
                 && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
                 if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
+                if c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
@@ -920,6 +923,7 @@ final class World {
         var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
         var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
         var springs: [IVec3] = []            // fluid cells open to air (World.springs: flow once loaded)
+        var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
     }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
@@ -994,11 +998,12 @@ final class World {
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
             ents += World.orphanEntities(blocks, k, have: ents)
         }
+        let field = fromDisk && gen is WorldGen ? save?.loadFieldEdits(k) ?? [:] : [:]
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                        emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(blocks, k, heights))
+                        emitMask: BlockStore.emitMask(of: blocks), springs: World.springs(blocks, k, heights), field: field)
     }
 
     // A chunk for a co-op guest (NetCoop.swift, any thread): from disk or generated, with its containers.
@@ -1039,6 +1044,7 @@ final class World {
         c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.savedBlocks = c.blocks }
+        c.fieldEdits = p.field
         chunks[k] = c
         for t in p.tracked { redstone.tracked.insert(t) }
         // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
@@ -1163,6 +1169,7 @@ final class World {
             save?.saveChunkAsync(k, c.blocks)
             c.savedBlocks = c.blocks
         }
+        for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
         save?.saveBlockEntities(blockEntities, background: background)
         redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals))

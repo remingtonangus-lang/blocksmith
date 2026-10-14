@@ -68,6 +68,7 @@ extension World {
 struct SmoothSite {
     let gen: WorldGen
     let cx: Int, cz: Int
+    var edits = FieldEditSet()              // PG1: the terrain field's edits round the chunk (TerrainField.swift)
 }
 
 final class SmoothField {
@@ -97,14 +98,18 @@ final class SmoothField {
     // Cave lattice nodes: every 4 blocks on all axes, five noises.
     private static let KX = N / 4 + 3, KY = CH / 4 + 2
     private let kNode = UnsafeMutablePointer<Float>.allocate(capacity: KX * KX * KY * 5)
+    // PG1: field edits per sample (FieldEdit bounds; FieldEdit.none where there are none).
+    private let sE = UnsafeMutablePointer<UInt16>.allocate(capacity: SmoothField.NNN)
+    @exclusivity(unchecked) private(set) var hasEdits = false
 
     deinit {
+        sE.deallocate()
         sT.deallocate(); sK.deallocate(); spagT.deallocate()
         tNode.deallocate(); tCol.deallocate(); tColSet.deallocate(); kNode.deallocate()
     }
 
     // Starts a section: sample (ix, iy, iz) is world block (x0 + ix, y0 + iy, z0 + iz).
-    func prepare(_ g: WorldGen, x0: Int, y0: Int, z0: Int) {
+    func prepare(_ g: WorldGen, x0: Int, y0: Int, z0: Int, edits: FieldEditSet = FieldEditSet()) {
         let nan = Float.nan
         if g !== gen || x0 != ox || z0 != oz {
             spagT.initialize(repeating: nan, count: SmoothField.NN)
@@ -117,6 +122,55 @@ final class SmoothField {
         ox = x0; oy = y0; oz = z0
         sT.initialize(repeating: nan, count: SmoothField.NNN)
         sK.initialize(repeating: nan, count: SmoothField.NNN * 3)
+        hasEdits = false
+        if !edits.isEmpty {
+            let N = SmoothField.N
+            sE.initialize(repeating: FieldEdit.none, count: SmoothField.NNN)
+            for ch in edits.chunks {
+                let bx = ch.cx * CS - x0, bz = ch.cz * CS - z0
+                guard bx > -CS && bx < N && bz > -CS && bz < N else { continue }
+                for (k, v) in ch.edits {
+                    let i = Int(k)
+                    let ix = bx + (i & 15), iz = bz + ((i >> 4) & 15), iy = (i >> 8) - y0
+                    guard ix >= 0 && ix < N && iz >= 0 && iz < N && iy >= 0 && iy < N else { continue }
+                    sE[ix + iz * N + iy * SmoothField.NN] = v
+                    hasEdits = true
+                }
+            }
+        }
+    }
+
+    // MARK: PG1 field edits
+
+    @inline(__always) func edited(_ i: Int) -> Bool { hasEdits && sE[i] != FieldEdit.none }
+
+    // The generator's distance to the surface at sample i in blocks (+ in the ground): every field's value over the
+    // length of its gradient (central differences), the closest surface of the terrain and the three cave fields.
+    func genDistance(_ i: Int) -> Float {
+        let y = oy + i / SmoothField.NN
+        if y < 3 { return 4 }
+        var d = fieldDist(0, i)
+        if y >= 6 { for k in 1...3 { d = min(d, fieldDist(k, i)) } }
+        return max(-4, min(4, d))
+    }
+
+    private func fieldDist(_ which: Int, _ i: Int) -> Float {
+        let N = SmoothField.N, NN = SmoothField.NN
+        let v = value(which, i)
+        let ix = i % N, iz = (i / N) % N, iy = i / NN
+        func diff(_ step: Int, _ c: Int) -> Float {
+            if c > 0 && c < N - 1 { return (value(which, i + step) - value(which, i - step)) * 0.5 }
+            return c == 0 ? value(which, i + step) - v : v - value(which, i - step)
+        }
+        let gx = diff(1, ix), gy = diff(NN, iy), gz = diff(N, iz)
+        let l = (gx * gx + gy * gy + gz * gz).squareRoot()
+        return v / max(l, 1e-4)
+    }
+
+    // The field at sample i with its edits (blocks, + in the ground).
+    @inline(__always) func distance(_ i: Int) -> Float {
+        let d = genDistance(i)
+        return edited(i) ? FieldEdit.apply(d, sE[i]) : d
     }
 
     // Inside the world's height range (the field says nothing outside it).
@@ -229,6 +283,7 @@ final class SmoothField {
 
     // What the generator's fields alone make of sample i: solid ground or open (air, water, lava).
     func solid(_ i: Int) -> Bool {
+        if edited(i) { return distance(i) > 0 }
         let y = oy + i / SmoothField.NN
         if y < 3 { return true }                       // the hot rock floor is always solid
         if terrain(i) <= 0 { return false }
@@ -239,6 +294,11 @@ final class SmoothField {
     // Where the surface crosses the edge from solid sample a to open sample b (0 at a, 1 at b), and which field made it
     // (0 terrain, 1...3 a cave field); nil if no field crosses there (a rule of the generator, not a field).
     func crossing(_ a: Int, _ b: Int) -> (Float, Int)? {
+        // PG1: next to an edit the crossing comes from the edited distances (field 4).
+        if edited(a) || edited(b) {
+            let da = max(0.02, distance(a)), db = min(-0.02, distance(b))
+            return (max(0, min(1, da / (da - db))), 4)
+        }
         var t: Float = 2, which = -1
         let ta = terrain(a), tb = terrain(b)
         if ta > 0 && tb <= 0 { t = ta / (ta - tb); which = 0 }
@@ -257,7 +317,7 @@ final class SmoothField {
 
     // Field `which` as a solid-positive value at sample i (terrain as is, cave fields negated).
     @inline(__always) func value(_ which: Int, _ i: Int) -> Float {
-        which == 0 ? terrain(i) : -carve(which - 1, i)
+        which == 0 ? terrain(i) : (which == 4 ? distance(i) : -carve(which - 1, i))
     }
 
     // Outward surface direction of field `which` over the 2x2x2 samples from c0 (minus its gradient), normalized.
