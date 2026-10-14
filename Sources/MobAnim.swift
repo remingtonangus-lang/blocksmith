@@ -63,7 +63,7 @@ enum MobAnim {
 
     // Bodies that stand on two legs fall back; the rest (four legs, birds, fish, blobs) slump. By model, not by size:
     // a cow is as tall as it is long.
-    static let fourLegged: Set<MobKind> = [.cow, .mooshroom, .sheep, .pig, .chicken, .spider, .caveSpider, .hoglin, .zoglin, .strider,
+    static let fourLegged: Set<MobKind> = [.cow, .mooshroom, .sheep, .pig, .chicken, .hoglin, .zoglin, .strider,
         .ravager, .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .camelHusk, .goat,
         .panda, .polarBear, .turtle, .frog, .tadpole, .armadillo, .sniffer, .bee, .parrot, .bat, .allay, .axolotl, .squid,
         .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish, .skeletonHorse, .zombieHorse, .phantom, .guardian,

@@ -54,7 +54,7 @@ extension MobKind {
 
 extension Mob {
     // Whether this mob may go after the player right now (updates the sight memory).
-    static let forgiving: Set<MobKind> = [.zombifiedPiglin, .wolf, .polarBear, .llama, .traderLlama, .enderman, .spider, .caveSpider,
+    static let forgiving: Set<MobKind> = [.zombifiedPiglin, .wolf, .polarBear, .llama, .traderLlama, .enderman,
                                           .ironGolem, .panda, .goat, .dolphin, .bee]
 
     func senseTarget(_ g: Game, dist: Float, _ dt: Float) -> Bool {

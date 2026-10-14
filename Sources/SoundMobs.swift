@@ -48,8 +48,8 @@ enum MobVoice {
         case .witherSkeleton: return Profile(family: .rattle, f0: 2200, size: 1.4)
         case .skeletonHorse: return Profile(family: .rattle, f0: 1800, size: 1.6)
         case .creeper: return Profile(family: .hiss, f0: 4000, size: 1)
-        case .spider: return Profile(family: .hiss, f0: 4000, size: 1)
-        case .caveSpider: return Profile(family: .hiss, f0: 5200, size: 0.7)
+        case .spider: return Profile(family: .hum, f0: 104, size: 1.25)            // P246: the Gravesworn, a hollow voice in a helm
+        case .caveSpider: return Profile(family: .hum, f0: 128, size: 1.1)
         case .silverfish: return Profile(family: .click, f0: 3000, size: 0.5)
         case .endermite: return Profile(family: .click, f0: 3600, size: 0.4)
         case .enderman: return Profile(family: .warble, f0: 300, size: 1.2)

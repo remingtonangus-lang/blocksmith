@@ -870,7 +870,7 @@ struct Synth {
         case .mobPig: out = MobVoice.render(&self, .pig, .ambient, pitch: p)
         case .mobZombie: out = MobVoice.render(&self, .zombie, .ambient, pitch: p)
         case .mobSkeleton: out = MobVoice.render(&self, .skeleton, .ambient, pitch: p)
-        case .mobSpider: out = MobVoice.render(&self, .spider, .ambient, pitch: p)
+        case .mobSpider: out = MobVoice.render(&self, .silverfish, .ambient, pitch: p)   // (the spider is the Gravesworn now, P246)
         case .mobSlime: out = MobVoice.render(&self, .slime, .ambient, pitch: p)
         case .mobWailer: out = MobVoice.render(&self, .ghast, .ambient, pitch: p)
         case .mobCinderwisp: out = MobVoice.render(&self, .blaze, .ambient, pitch: p)

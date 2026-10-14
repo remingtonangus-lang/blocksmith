@@ -65,8 +65,11 @@ enum MobKind: Int, CaseIterable {
                                     burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
         case .creeper: return Spec(name: "Powderwight", halfW: 0.3, height: 1.7, health: 16, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
-        case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
-                                  drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
+        // P246 (Oct 13 21:59: "spiders have gotta go, we're replacing that with a knight"; Oct 12 17:33: "one I can sword
+        // fight"): the save keys "spider"/"cave_spider" are now the Gravesworn, dead men-at-arms in tarnished plate who
+        // fight as sword duellists (the Brand Order's guard, wind-ups, feints and charges; HellMobs.orderAI).
+        case .spider: return Spec(name: "Gravesworn Duellist", halfW: 0.3, height: 1.95, health: 30, speed: 2.7, behavior: .monster, attack: 5,
+                                  drops: [("string", 0, 2), ("iron_nugget", 0, 2)], xp: 7, call: .mob(self, .ambient))
         case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
                                     drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobVoidwalker)
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
@@ -95,7 +98,7 @@ enum MobKind: Int, CaseIterable {
                                    drops: [("shulker_shell", 0, 1)], xp: 5, call: .click, flying: true)
         case .villager: return Spec(name: "Townsperson", halfW: 0.3, height: 1.95, health: 20, speed: 1.6, behavior: .villager,
                                     drops: [], xp: 0, call: .mobVillager)
-        case .ironGolem: return Spec(name: "Iron Golem", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
+        case .ironGolem: return Spec(name: "Iron Sentinel", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
                                      drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
         case .minecart: return Spec(name: "Minecart", halfW: 0.49, height: 0.7, health: 6, speed: 0, behavior: .vehicle,
                                     drops: [("minecart", 1, 1)], xp: 0, call: .click)
@@ -109,8 +112,8 @@ enum MobKind: Int, CaseIterable {
                                  burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
         case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
-        case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
-                                      drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
+        case .caveSpider: return Spec(name: "Gravesworn Squire", halfW: 0.3, height: 1.85, health: 20, speed: 2.9, behavior: .monster, attack: 3,
+                                      drops: [("string", 0, 2), ("iron_nugget", 0, 1)], xp: 5, call: .mob(self, .ambient))
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.5, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
@@ -877,7 +880,7 @@ final class Mob {
                 speed = spec.speed * 1.4
                 if g.meleeStrike(self, reach: 2.2) {
                     attackCooldown = 1.25
-                    g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
+                    g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by an Iron Sentinel", knockback: 2)
                 }
             } else {
                 // Too far from home: walk back (wander() faced the stroll goal and this faced home, every tick: the
@@ -1243,8 +1246,7 @@ final class Mob {
             onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
         }
         if bumped && speed != 0 {
-            if kind == .spider || kind == .caveSpider { vel.y = 3.5 }     // climbs walls
-            else if onLadder { vel.y = 2.35 }
+            if onLadder { vel.y = 2.35 }
             // Hop up one block: gravity acts before the first move, so 7.4 left the ground at 6.0 and peaked 0.8 up,
             // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
             // minutes). The player's 8.6 peaks at 1.1.
@@ -1706,13 +1708,15 @@ private func parts(_ m: Mob) -> [Part] {
         return ashVehicleParts(m)
     case .ashMarshal, .ashChancellor:
         return soldierParts(m, swing: swing)
-    case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
+    case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower, .spider, .caveSpider:
         return hellParts(m, swing: swing)
     case .copperGolem:
         return copperGolemParts(m, swing: swing)
     case .zombie, .husk:
         return walkerParts(m, swing: swing)                  // P185: gaunt, hunched dead men (WalkerModel.swift)
-    case .skeleton, .enderman, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
+    case .skeleton, .stray, .parched:
+        return skeletonParts(m, swing: swing)                // P246: real bones (MonsterLooks.swift)
+    case .enderman, .drowned, .pillager, .vindicator, .witch, .illusioner:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
@@ -1862,30 +1866,7 @@ private func parts(_ m: Mob) -> [Part] {
             p.append(Part(mn: V3(x - 1.4, sy - 11, sz - 1.4), mx: V3(x + 1.4, sy + 0.5, sz + 1.4), pivot: V3(x, sy, sz), rotX: r, color: coat, pattern: 4))
             p.append(Part(mn: V3(x - 1.2, sy - 13.5, sz - 1.2), mx: V3(x + 1.2, sy - 10.8, sz + 1.2), pivot: V3(x, sy, sz), rotX: r, color: skin))
         }
-        return p
-    case .spider, .caveSpider:
-        let body = m.kind == .caveSpider ? V3(0.1, 0.22, 0.26) : V3(0.2, 0.17, 0.15)
-        let red = V3(0.9, 0.1, 0.1)
-        var p: [Part] = [
-            box(-5, 4, 0, 10, 8, 12, body, 4),
-            box(-3, 5, -4, 6, 6, 4, body, 4),
-            box(-4, 4, -12, 8, 8, 8, body, 4),
-            // Glowing eye cluster: two big eyes, a brow bar, four small ones; dark fangs below.
-            box(-3, 8, -12.2, 1.5, 1.5, 0.3, red, 9), box(1.5, 8, -12.2, 1.5, 1.5, 0.3, red, 9),
-            box(-1, 9.5, -12.2, 2, 1, 0.3, red, 9),
-            box(-3.5, 10.2, -12.15, 1, 1, 0.15, red, 9), box(2.5, 10.2, -12.15, 1, 1, 0.15, red, 9),
-            box(-2, 6.6, -12.15, 0.8, 0.8, 0.15, red, 9), box(1.2, 6.6, -12.15, 0.8, 0.8, 0.15, red, 9),
-            box(-2, 4, -12.6, 1, 2, 0.6, body * 0.45), box(1, 4, -12.6, 1, 2, 0.6, body * 0.45),
-        ]
-        for i in 0..<4 {
-            let z = -3 + Float(i) * 2
-            let wiggle = sinf(m.walkPhase * 2 + Float(i)) * 0.3 * m.walkAmount
-            p.append(Part(mn: V3(3, 7, z - 1), mx: V3(18, 9, z + 1), pivot: V3(3, 8, z), rotX: wiggle, rotZ: -0.5, color: body))
-            p.append(Part(mn: V3(-18, 7, z - 1), mx: V3(-3, 9, z + 1), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body))
-            // knee joints (same pivot and turn as the leg)
-            p.append(Part(mn: V3(10, 6.7, z - 1.25), mx: V3(11.6, 9.3, z + 1.25), pivot: V3(3, 8, z), rotX: wiggle, rotZ: -0.5, color: body * 0.6))
-            p.append(Part(mn: V3(-11.6, 6.7, z - 1.25), mx: V3(-10, 9.3, z + 1.25), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body * 0.6))
-        }
+        p += powderwightExtras(m, hip: hip, hunch: hunch, sy: sy, sz: sz, armRot: armRot, swing: swing, lit: lit)
         return p
     case .hoglin:
         let hide = V3(0.62, 0.42, 0.34), mane = V3(0.85, 0.65, 0.45)
@@ -2041,19 +2022,7 @@ private func parts(_ m: Mob) -> [Part] {
         // Townsfolk: jointed people dressed for their trade, carrying their tool or weapon (TownsfolkModel.swift).
         return townsfolkParts(m, swing: swing)
     case .ironGolem:
-        let iron = V3(0.82, 0.8, 0.76), vine = V3(0.3, 0.55, 0.2)
-        let armSwing = m.attackCooldown > 0.9 ? 1.4 : swing * 0.5
-        return [
-            Part(mn: V3(-7, 0, -3), mx: V3(-1, 16, 3), pivot: V3(-4, 16, 0), rotX: swing, color: iron, pattern: 4),
-            Part(mn: V3(1, 0, -3), mx: V3(7, 16, 3), pivot: V3(4, 16, 0), rotX: -swing, color: iron, pattern: 4),
-            box(-9, 16, -6, 18, 12, 11, iron, 4),
-            box(-4.5, 28, -2.5, 9, 5, 5, iron, 4),
-            Part(mn: V3(-13, 5, -3), mx: V3(-9, 33, 3), pivot: V3(-11, 32, 0), rotX: armSwing, color: iron, pattern: 4),
-            Part(mn: V3(9, 5, -3), mx: V3(13, 33, 3), pivot: V3(11, 32, 0), rotX: m.attackCooldown > 0.9 ? armSwing : -armSwing, color: iron, pattern: 4),     // both arms up to strike
-            box(-4, 33, -7.5, 8, 10, 8, iron, 4),
-            box(-1, 34, -9.5, 2, 4, 2, iron),
-            box(-9.2, 18, -4, 0.4, 6, 3, vine), box(5, 26, -6.2, 3, 4, 0.3, vine),
-        ] + eyes(38, -7.5, 1, 1.4, V3(0.7, 0.15, 0.1))
+        return ironSentinelParts(m, swing: swing)           // P246 (MonsterLooks.swift)
     case .silverfish:
         let c = V3(0.55, 0.57, 0.62)
         var p: [Part] = []
