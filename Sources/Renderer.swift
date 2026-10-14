@@ -800,7 +800,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         // 12 short of the render distance: at 6 the loaded world's edge (and half-fogged trees on it) showed as an arc
         // in aerial views (blind critic, tour_777_aerial; tour_mesa).
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
-        var fogStart: Float = underwater ? 1 : fogEnd * 0.62
+        var fogStart: Float = underwater ? 1 : fogEnd * (game.dim.dim == .overworld ? 0.94 : 0.62)    // P211 redo: no fog in clear air
         var fogColor = underwater ? game.underwaterFog : sky
         if p.headInLava {
             // Inside lava: a few blocks of glowing orange (a little more with fire resistance).

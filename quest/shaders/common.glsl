@@ -108,11 +108,10 @@ float vnoise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// Fog factor: the render-distance fog plus a gentle aerial haze that starts near (same maths as Shaders.swift fogAmount).
+// Fog factor: only the fog the renderer asks for (start..end). P211 redo (Oct 14, "no fog at all unless it's foggy
+// weather"): the aerial haze that greyed everything from a few blocks out is gone; clear air is clear.
 float fogAmount(float dist) {
-    float f = smoothstep(u.fogColor.w, u.params.x, dist);
-    float haze = u.params.w > 0.5 ? 0.0 : 0.3 * clamp(u.params.y, 0.0, 1.0) * (1.0 - exp(-dist * 1.6 / max(u.params.x, 1.0)));
-    return max(f, haze);
+    return smoothstep(u.fogColor.w, u.params.x, dist);
 }
 
 vec3 applyFog(vec3 c, float dist) {

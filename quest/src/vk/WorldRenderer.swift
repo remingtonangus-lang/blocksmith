@@ -115,7 +115,10 @@ final class WorldRenderer {
         let hasSky = game.dim.dim.hasSky
         let uwSee: Float = 18 + 38 * game.daylight * caveScale
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
-        var fogStart: Float = underwater ? 1 : fogEnd * 0.8       // P211: clear air out to the last fifth (was 0.62)
+        // P211 redo (Oct 14, "no fog at all unless it's foggy weather"): in clear air the fog is only a thin band at the
+        // very edge of the drawn world (the last 6 %), so the cut-off never shows and nothing nearer is greyed.
+        let clearStart: Float = 0.94
+        var fogStart: Float = underwater ? 1 : fogEnd * (game.dim.dim == .overworld ? clearStart : 0.8)
         var fogColor = underwater ? game.underwaterFog : (underground ? sky * min(1, 0.25 / max(caveScale, 0.25)) : sky)
         if p.headInLava { fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog }
         let vaultSky = game.inVaultSky && !underwater && !p.headInLava       // the Ash Vault's own sky (AshSky.swift)
@@ -135,7 +138,7 @@ final class WorldRenderer {
         farRingOn = FarRing.enabled && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
-        if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * 0.4 }
+        if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }
         let daylight = game.renderDaylight
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dimAmbient) * (1 - 0.85 * nv)
