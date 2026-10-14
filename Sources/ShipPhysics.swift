@@ -246,7 +246,7 @@ extension ShipManager {
                 s.propSpin = fmodf(s.propSpin + s.propRate * dt, 2 * .pi)
             }
         }
-        if let game { shipSounds(dt, game) }
+        if let game { shipSounds(dt, game); collisionDamage(dt, game) }        // H11: crashes break hulls (VehicleDamage.swift)
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
@@ -708,6 +708,15 @@ extension ShipManager {
         let invM = 1 / s.mass
         let iw = s.invInertiaWorld
         let mu: Float = 0.6
+        // H11: the hardest closing speed this step, for crash damage (VehicleDamage.swift).
+        for c in cs {
+            let r = c.p - s.pos
+            var v = s.vel + simd_cross(s.angVel, r)
+            if let o = c.other { v -= o.vel + simd_cross(o.angVel, c.p - o.pos) }
+            let closing: Float = -simd_dot(v, c.n)
+            if closing > s.crashSpeed { s.crashSpeed = closing; s.crashAt = c.p }
+            if let o = c.other, closing > o.crashSpeed { o.crashSpeed = closing; o.crashAt = c.p }
+        }
         for _ in 0..<6 {
             for k in cs.indices {
                 let c = cs[k]

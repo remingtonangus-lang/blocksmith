@@ -201,7 +201,10 @@ final class Ship {
     var blockCount = 0
     var fwd = V3(0, 0, -1)           // ship-space forward (from the helm)
     var helm: IVec3?
-    var breech: (V3, V3)?            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
+    var breech: (V3, V3)?
+    var crashSpeed: Float = 0         // H11: hardest contact closing speed since the last frame (VehicleDamage.swift)
+    var crashAt = V3(0, 0, 0)
+    var crashCD: Float = 0            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
     // Wheel parts (connected wheel cells, e.g. a 5x5 disc) drawn rolling about their own centres.
