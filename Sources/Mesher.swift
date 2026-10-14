@@ -24,6 +24,11 @@ struct SectionMesh {
 //   w1: u(5) v(5)<<5 layer(10)<<10 ao(2)<<20 sky(4)<<22 block(4)<<26 overlay(1)<<30   (cross plants: overlay = sways, ao = its phase)
 // 4 verts per quad (corners 0..3 CCW seen from outside), drawn with a shared index buffer.
 enum Mesher {
+    // P239: ice block states (their top faces carry the overlay bit, which the Quest's water.frag mirrors the sky on).
+    static let iceTable: [Bool] = (0..<Blocks.opaque.count).map { i in
+        let k = Blocks.key(Blocks.groupBase[i])
+        return k == "ice" || k.hasPrefix("frosted_ice")
+    }
     // Water top faces carry the water depth in their AO bits (Quest only: its water shader reads it; the Mac's water
     // shaders shade water by AO-free rules and the Fancy path measures depth from the scene).
     #if os(macOS)
@@ -270,6 +275,7 @@ enum Mesher {
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
+        let iceT = Mesher.iceTable
         let y0 = sy * 16 - 16
 
         // Quick exit: an all-air section has no geometry of its own.
@@ -1003,7 +1009,8 @@ enum Mesher {
                             waterMask[ly * 256 + lx + lz * 16] = Int32(1 + (aos[0] | ((lit[0] & 255) << 2) | (layer << 10)))
                             continue
                         }
-                        let overlay = tintB == 3 && f != 2 && f != 3
+                        // P239: the top of ice carries the overlay bit: the Quest's translucent shader mirrors the sky there.
+                        let overlay = (tintB == 3 && f != 2 && f != 3) || (f == 2 && isTrans && iceT[bi])
                         let tintF = (tintB == 3 && f == 3) ? 0 : tintV
                         if bevel && bevelT[bi] && rt == rCube {
                             // Exposed sides of this block (the faces the loop draws); an edge between two of them is chamfered.

@@ -38,7 +38,31 @@ void main() {
     vec3 rgb = c.rgb * oTint * max(oShade, vec3(0.05));
     float f = smoothstep(u.fogColor.w, u.params.x, oDist);
     if (oWDepth < 0.0) {
-        // Glass, ice and other translucent blocks: as before.
+        if (oOverlay > 0.5 && oFace > 1.5 && oFace < 2.5) {
+            // P239 (Oct 13 21:52, "ice should be like a mirror"): the top of ice (Mesher marks it with the overlay bit)
+            // mirrors the sky like polished glass: a strong Fresnel reflection over the ice's own colour, a faint
+            // frosted wobble so it isn't a perfect plane, and a sharp sun glint.
+            vec3 v = normalize(oRel);
+            vec3 wp = oRel + u.eye.xyz;
+            vec2 fr = (vec2(vnoise(wp.xz * 1.7), vnoise(wp.xz * 1.7 + 5.1)) - 0.5) * 0.035 * (1.0 - smoothstep(16.0, 64.0, oDist));
+            vec3 n = normalize(vec3(fr.x, 1.0, fr.y));
+            float lit = max(oShade.x, max(oShade.y, oShade.z));
+            float skyVis = clamp(lit / max(0.3, u.params.y), 0.0, 1.0);
+            float cosT = clamp(dot(-v, n), 0.0, 1.0);
+            float fres = 0.06 + 0.94 * pow(1.0 - cosT, 5.0);
+            vec3 r = reflect(v, n); r.y = abs(r.y);
+            vec3 refl = skyAlong(r) * mix(0.2, 1.0, skyVis);
+            float k = clamp(0.38 + 0.62 * fres, 0.0, 1.0) * mix(0.35, 1.0, skyVis);
+            vec3 col = mix(rgb, refl, k);
+            float sunVis = smoothstep(-0.04, 0.12, u.sunDir.y) * skyVis;
+            vec3 hv = normalize(u.sunDir.xyz - v);
+            float nh = clamp(dot(n, hv), 0.0, 1.0);
+            col += vec3(1.0, 0.95, 0.85) * (pow(nh, 900.0) * 6.0 + pow(nh, 90.0) * 0.12) * sunVis;
+            float a = max(c.a, k * 0.9 + 0.1);
+            outColor = worldColor(vec4(mix(col, fogColorAlong(oRel), f), mix(a, 1.0, f * 0.8)));
+            return;
+        }
+        // Glass and other translucent blocks: as before.
         outColor = worldColor(vec4(mix(rgb, fogColorAlong(oRel), f), mix(c.a, 1.0, f * 0.8)));
         return;
     }
