@@ -112,6 +112,19 @@ enum Waymarks {
         return (rel, label, MapCache.style(t.kind).1)
     }
 
+    // Q2: which way a point lies as you face (the Track a Target list).
+    static func side(_ g: Game, _ at: V3) -> String {
+        var rel = atan2f(at.x - g.player.pos.x, -(at.z - g.player.pos.z)) + g.player.yaw
+        rel = rel.truncatingRemainder(dividingBy: 2 * .pi)
+        if rel > .pi { rel -= 2 * .pi } else if rel < -.pi { rel += 2 * .pi }
+        let a = abs(rel), lr = rel > 0 ? "right" : "left"
+        if a < .pi / 8 { return "ahead" }
+        if a > .pi * 7 / 8 { return "behind you" }
+        if a < .pi * 3 / 8 { return "ahead to your \(lr)" }
+        if a < .pi * 5 / 8 { return "to your \(lr)" }
+        return "behind to your \(lr)"
+    }
+
     // Once a second (TownLaw.tick): the beacon over the target, and the map's moving marks every five seconds.
     static func tick(_ g: Game) {
         guard g.dim.dim == .overworld else { return }
@@ -172,7 +185,8 @@ final class TrackMenu: ListMenu {
             acts.append(.track(t))
             let on = cur?.kind == t.kind && cur?.key == t.key
             let d = Int(simd_length(V2(t.pos.x - p.x, t.pos.z - p.z)))
-            out.append(Row(name: t.name, detail: on ? "Tracking" : "\(d) m", value: "", enabled: true, good: on))
+            let way = d > 4 ? ", " + Waymarks.side(game, t.pos) : ""
+            out.append(Row(name: t.name, detail: (on ? "Tracking: " : "") + "\(d) m\(way)", value: "", enabled: true, good: on))
         }
         if Waymarks.trackedKey != nil {
             acts.append(.track(nil))
