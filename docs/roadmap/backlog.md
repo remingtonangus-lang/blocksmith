@@ -381,7 +381,7 @@ H2. [DONE] Ravines and more cave styles.
 H3. [DONE] Titanium needs a blast furnace.
 H4. [DONE] Salvage the frigate's gun.
 H5. [DONE] A Capital weapon printer built from parts taken at several bases.
-H6. City buildings with a readable purpose; copper and power in cities.
+H6. [DONE] City buildings with a readable purpose; copper and power in cities.
 H7. [DONE] The shock weapon is as strong as it looks.
 H8. [DONE] Less surface water.
 H9. Boats: see yourself in the boat, the boat model matches its icon, storms at sea.
