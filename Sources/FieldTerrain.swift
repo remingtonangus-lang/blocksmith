@@ -48,20 +48,22 @@ enum FieldTerrain {
     // Worlds with no save (harness, tests): `--field` makes them field worlds; a co-op guest takes the host's choice.
     static var unsaved = CommandLine.arguments.contains("--field")
 
-    // A saved built layer's natural cells (stamped in as it loaded, or saved by a build that kept them) go into the field.
-    static func absorb(_ b: inout [BlockID], into f: inout FieldData) {
-        let idx = FieldMat.index
-        if f.fd.count < b.count {
-            f.fd.append(contentsOf: repeatElement(outside, count: b.count - f.fd.count))
-            f.fm.append(contentsOf: repeatElement(0, count: b.count - f.fm.count))
-        }
-        for i in 0..<b.count {
-            let m = idx[Int(b[i])]
-            guard m != 0 else { continue }
-            b[i] = AIR
-            f.fm[i] = m
-            if f.fd[i] <= 0 { f.fd[i] = cellIn }
-        }
+    // Harness (`--fieldstats`): the surface cells split has shaped, by where the distance came from: the generator's own
+    // continuous fields, a rule's shape, or rounded from the cells round it.
+    static let statsOn = CommandLine.arguments.contains("--fieldstats")
+    static let statsLock = NSLock()
+    static var stats = [0, 0, 0]
+    static func statsLine() -> String {
+        statsLock.lock(); defer { statsLock.unlock() }
+        let t = max(1, stats.reduce(0, +))
+        return String(format: "fieldstats: %d surface cells: %.1f%% generator field, %.1f%% rule shapes, %.1f%% rounded from cells",
+                      t, Double(stats[0]) * 100 / Double(t), Double(stats[1]) * 100 / Double(t), Double(stats[2]) * 100 / Double(t))
+    }
+
+    // Loose ground (soil, sand, gravel, mud): what a structure lays of it shapes the ground (a garden, a levelled yard, a
+    // track) and joins the field; the rock, sandstone, terracotta and snow it builds with stay its blocks.
+    static let loose: [Bool] = (0..<Blocks.count).map { i in
+        [.dirt, .grass, .sand, .gravel, .mud, .soul].contains(Blocks.def(BlockID(i)).sound)
     }
 
     // What the cells read as: the built layer with the ground under it.
@@ -79,15 +81,19 @@ enum FieldTerrain {
     // cleared ground on its own (banks, ponds, ravines, dungeons, structures) and in the other dimensions, the distance
     // comes from the ground round the cell (half the cell, half its 3x3x3 neighbourhood). Away from the surface the
     // field is just inside or outside.
-    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator) -> FieldData {
+    // `built` (StructWriter.mark): cells a structure built; their natural rock stays in the block array (a pyramid's
+    // sandstone, a ruin's stone, an igloo's snow are built blocks, not ground).
+    static func split(_ b: inout [BlockID], cx: Int, cz: Int, gen: TerrainGenerator, built: [UInt8]? = nil) -> FieldData {
         let n = CSQ * CH
         var fd = [Int8](repeating: outside, count: n)
         var fm = [UInt8](repeating: 0, count: n)
-        let idx = FieldMat.index
+        let idx = FieldMat.index, looseT = loose
         var top = 0
         for i in 0..<n {
             let m = idx[Int(b[i])]
-            if m != 0 { fm[i] = m; fd[i] = inside; b[i] = AIR; top = i }
+            guard m != 0 else { continue }
+            if let built, built[i] != 0 && !looseT[Int(b[i])] { continue }
+            fm[i] = m; fd[i] = inside; b[i] = AIR; top = i
         }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
@@ -117,6 +123,7 @@ enum FieldTerrain {
         }
         let N = SmoothField.N, NN = SmoothField.NN, SO = (N - 16) / 2
         @inline(__always) func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { fd[x + z * CS + y * CSQ] > 0 }
+        var st = [Int](repeating: 0, count: 3)
         for sy in 0..<NSEC {
             let y0 = sy * 16
             if y0 > topY { break }
@@ -151,10 +158,11 @@ enum FieldTerrain {
                 guard edge else { continue }
                 var d: Float
                 if let F, y >= 1, F.solid(si) == s {
-                    d = max(-1.5, min(1.5, F.genDistance(si)))
+                    d = max(-1.5, min(1.5, F.genDistance(si))); st[0] += 1
                 } else if let gd = genGround(lx, y, lz, i), (gd > 0) == s {
-                    d = max(-1.5, min(1.5, gd))
+                    d = max(-1.5, min(1.5, gd)); st[0] += 1
                 } else {
+                    st[2] += 1
                     var cnt = 0, tot = 0
                     for dy in -1...1 { let yy = y + dy; guard yy >= 0 && yy < CH else { continue }
                         for dz in -1...1 { let zz = lz + dz; guard zz >= 0 && zz < CS else { continue }
@@ -167,6 +175,7 @@ enum FieldTerrain {
                 fd[i] = q(d)
             } } }
         }
+        if statsOn { statsLock.lock(); for k in 0..<3 { stats[k] += st[k] }; statsLock.unlock() }
         return FieldData(fd: fd, fm: fm)
     }
 
@@ -250,6 +259,35 @@ extension SaveManager {
 
     // A world marker that is only read (never written).
     func hasMarker(_ marker: String) -> Bool { FileManager.default.fileExists(atPath: dir.appendingPathComponent(marker).path) }
+}
+
+// MARK: The generator's field chunk
+
+// A field world's chunk as the generator makes it: the ground as its density field and its materials, and what is
+// built on and in it as blocks (structures, trees, plants, fluids), with the structures' containers and mobs.
+struct FieldChunk {
+    var built: [BlockID]
+    var ground: FieldData
+    var entities: [(IVec3, BlockEntity)]
+    var mobs: [(String, V3)]
+}
+
+extension TerrainGenerator {
+    // PG1 rewrite: the generator lays its chunk down (terrain, caves, ores, fluids, trees), its structures are built into
+    // it (marked, so their stone stays blocks), and the ground leaves the cells for the field: shaped by the
+    // generator's own continuous fields (FieldTerrain.split), never kept as cells.
+    func generateField(cx: Int, cz: Int) -> FieldChunk {
+        var b = generate(cx: cx, cz: cz)
+        var mark = [UInt8](repeating: 0, count: b.count)
+        var ents: [(IVec3, BlockEntity)] = [], mobs: [(String, V3)] = []
+        if let st = structures {
+            (ents, mobs) = mark.withUnsafeMutableBufferPointer { m in st.place(into: &b, cx: cx, cz: cz, mark: m.baseAddress) }
+        }
+        ents += World.orphanEntities(b, ChunkKey(x: cx, z: cz), have: ents)
+        _ = PlantSupport.dropFloating(&b)
+        let ground = FieldTerrain.split(&b, cx: cx, cz: cz, gen: self, built: mark)
+        return FieldChunk(built: b, ground: ground, entities: ents, mobs: mobs)
+    }
 }
 
 // MARK: The field in the world
