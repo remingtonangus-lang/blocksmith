@@ -25,6 +25,10 @@ struct StructWriter {
     // `off`: pieces built without the fill (the town row beside a citadel builds its own foundations, GarrisonTown).
     final class Low { var y = [Int](repeating: Int.max, count: CS * CS); var off = false }
     let low = Low()
+    // PG6 field worlds: a mark per cell the structure built (set, fill, pillarDown), so its stone, sandstone and snow stay
+    // blocks instead of joining the ground's field (FieldTerrain.split). The foundations, banks and roads that shape the
+    // ground (fillUnder, berm, packed earth) are ground and are not marked.
+    var mark: UnsafeMutablePointer<UInt8>? = nil
     @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
         if Blocks.collide[Int(b)] && !low.off { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
     }
@@ -39,8 +43,12 @@ struct StructWriter {
         // PG5 ("roads on smooth ground blend into each other and into the terrain"): in a Polygons world the generators'
         // paths are laid as packed earth, natural ground the smooth surface runs straight through, instead of the
         // path block, a built shape the smooth ground had to stop at.
-        let b = b0 == StructWriter.pathID && SmoothTerrain.enabled ? StructWriter.roadID : b0
-        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b); unplant(x, y, z, b) }
+        let b = b0 == StructWriter.pathID && (SmoothTerrain.enabled || mark != nil) ? StructWriter.roadID : b0
+        if inside(x, y, z) {
+            let i = Chunk.index(x - bx, y, z - bz)
+            blocks[i] = b; note(x, y, z, b); unplant(x, y, z, b)
+            if let m = mark, b == b0 { m[i] = 1 }
+        }
     }
     static let pathID: BlockID = Blocks.has("dirt_path") ? Blocks.id("dirt_path") : AIR
     static let roadID: BlockID = Blocks.has("coarse_dirt") && SmoothTerrain.natural[Int(Blocks.id("coarse_dirt"))]
@@ -66,6 +74,7 @@ struct StructWriter {
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
+        if let m = mark { for y in ya...yb { for z in za...zb { for x in xa...xb { m[Chunk.index(x - bx, y, z - bz)] = 1 } } } }
         for z in za...zb { for x in xa...xb { note(x, ya, z, b); unplant(x, yb, z, b) } }
     }
 
@@ -139,6 +148,7 @@ struct StructWriter {
             // tunnel stood on it with no floor, so its room was unreachable (structcheck igloo, run 509).
             if Blocks.opaque[Int(cur)] && Blocks.collide[Int(cur)] && cur != b { break }
             blocks[Chunk.index(x - bx, yy, z - bz)] = b
+            mark?[Chunk.index(x - bx, yy, z - bz)] = 1
             yy -= 1
         }
     }
@@ -436,11 +446,14 @@ final class StructureCache {
     // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
 
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
-    func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
+    // `mark` (field worlds): set for each cell a structure built (StructWriter.mark).
+    func place(into blocks: inout [BlockID], cx: Int, cz: Int, mark: UnsafeMutablePointer<UInt8>? = nil)
+        -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
         var ents: [(IVec3, BlockEntity)] = []
         var mobs: [(String, V3)] = []
         blocks.withUnsafeMutableBufferPointer { buf in
             var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
+            w.mark = mark
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }

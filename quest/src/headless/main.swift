@@ -100,6 +100,16 @@ if let out = arg("--view"), let ctx = vkctx {
             x += dx; z += dz
         }
     }
+    // --near KIND: the eye --off blocks (22) off the nearest structure of that kind from --at, looking at it (PG6 checks).
+    var nearYaw: Float? = nil
+    if let kind = arg("--near"), let st = vw.gen.structures?.nearest(kind, x: Int(at[0]), z: Int(at[2]), maxRegions: 16) {
+        let off = Float(arg("--off") ?? "") ?? 22
+        vg.player.pos = V3(Float(st.anchor.x) + off * 0.7, at[1], Float(st.anchor.z) + off * 0.7)
+        nearYaw = .pi / 4
+        // --inside: at the anchor's own height (structures underground: cities, chambers, keeps, the Vault's sites).
+        if CommandLine.arguments.contains("--inside") { vg.player.pos.y = Float(st.anchor.y) + 2 }
+        print("view: \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z)")
+    }
     // --up N: the eye N blocks over the ground (or the sea) under it.
     if let up = Float(arg("--up") ?? "") {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
@@ -107,7 +117,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     // The note's "facing" yaw is the player's yaw negated (VoiceNoteCore).
-    var yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180
+    var yaw = (nearYaw ?? 0) - look[0] * .pi / 180, pitch = look[1] * .pi / 180
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
     if CommandLine.arguments.contains("--cave") {
         let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))
@@ -127,6 +137,7 @@ if let out = arg("--view"), let ctx = vkctx {
     // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
     // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.
     if CommandLine.arguments.contains("--fieldwalk") { print(World.fieldWalkCheck(vg)) }     // (PG2 rewrite)
+    if FieldTerrain.statsOn { print(FieldTerrain.statsLine()) }
     // --fieldblast: a power-4 blast on the ground 8 blocks ahead, then the frame (PG1 rewrite: the crater in the field).
     if CommandLine.arguments.contains("--fieldblast") {
         let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8

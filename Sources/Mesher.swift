@@ -355,6 +355,9 @@ enum Mesher {
             }
         }
         let R = region
+        // Natural ground at region index j: in a field world only the field's ground (a structure's sandstone or stone in
+        // the built layer is a block, drawn and culled as one).
+        @inline(__always) func natAt(_ j: Int) -> Bool { natT[Int(R[j])] && (!fieldOn || dens[j] > 0) }
 
         // Fully buried section (all opaque, and so is the 1-block shell around it): nothing visible.
         var buried = true
@@ -432,7 +435,7 @@ enum Mesher {
         func smoothOpen(_ j: Int) -> Bool {
             if leafBlob && leafT[Int(R[j])] { return true }      // (a blob rounds away from a log or a built block)
             if detailDraw && detT[Int(R[j])] { return true }     // (a round trunk doesn't fill its block)
-            guard smooth && natT[Int(R[j])] else { return false }
+            guard smooth && natAt(j) else { return false }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !opaqueT[Int(R[j + dx + dz * RW + dy * RL])] { return true } } }
             return false
         }
@@ -442,7 +445,7 @@ enum Mesher {
         func plantOnNatural(_ i: Int) -> Bool {
             var g = -1, j = i - RL
             while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
-            return natT[Int(R[j])]
+            return natAt(j)
         }
         // Packed sky | blk << 4, or -1 for solid cells (excluded from smoothing).
         func light(_ x: Int, _ y: Int, _ z: Int) -> Int {
@@ -653,7 +656,7 @@ enum Mesher {
                     let bi = Int(b)
                     let rt = renderT[bi]
                     if rt == rNone { continue }
-                    if smooth && natT[bi] {                             // (chipped too: it shrinks in the smooth surface, P106)
+                    if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
                         if smoothWater { shoreWater(i, ly) }
                         continue
                     }
@@ -688,7 +691,7 @@ enum Mesher {
                     }
                     // A snow layer on smooth ground: the ground under it shows snow instead (smoothQuads); its slab drew a
                     // white sawtooth of block steps over every snowy slope (P142).
-                    if smooth && (site != nil || fieldOn) && bi == snowLayerID && natT[Int(R[i - RL])] { continue }
+                    if smooth && (site != nil || fieldOn) && bi == snowLayerID && natAt(i - RL) { continue }
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -763,7 +766,7 @@ enum Mesher {
                         if sc.smValid {
                             var g = ly - 1, j = i - RL
                             while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
-                            if natT[Int(R[j])], let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
+                            if natAt(j), let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
                                 dy16 = max(-by16, max(-12, min(12, Int(((top - Float(g + 1)) * 16).rounded()))))
                             }
                         }
@@ -942,7 +945,7 @@ enum Mesher {
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
                             // P175: no water walls against natural ground (the shore plane above carries the water on).
-                            if smoothWater && fk == 1 && NT[f * 3 + 1] == 0 && natT[Int(nb)] { continue }
+                            if smoothWater && fk == 1 && NT[f * 3 + 1] == 0 && natAt(i + offs[f]) { continue }
                             // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
                             // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
                             // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).

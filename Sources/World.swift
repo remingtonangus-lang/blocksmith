@@ -293,8 +293,9 @@ final class World {
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
+        let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         c.blocks[Chunk.index(lx, y, lz)] = id
-        if old != id { fieldBlockChanged(x, y, z, old, id) }             // PG1 (TerrainField.swift)
+        if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if old != id, let e = netEdit, !World.netQuiet { e(x, y, z, id) }
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
@@ -363,8 +364,9 @@ final class World {
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         let id = World.storedState(id0, replacing: old)
+        let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         c.blocks[Chunk.index(lx, y, lz)] = id
-        if old != id { fieldBlockChanged(x, y, z, old, id) }             // PG1 (TerrainField.swift)
+        if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
@@ -407,7 +409,7 @@ final class World {
             }
             // PG2: natural ground is met at its drawn surface, not its block faces: walked on at the drawn top under open
             // air, and a roof over open air gives the headroom its drawn underside leaves.
-            if SmoothTerrain.natural[b] && SmoothTerrain.enabled && SmoothTerrain.fromField && y > 0 && y + 1 < CH,
+            if SmoothTerrain.natural[b] && SmoothTerrain.enabled && SmoothTerrain.fromField && !fieldTerrain && y > 0 && y + 1 < CH,
                let g = gen as? WorldGen {
                 let up = !Blocks.collide[Int(block(x, y + 1, z))], down = !Blocks.collide[Int(block(x, y - 1, z))]
                 if up || down {
@@ -1070,18 +1072,13 @@ final class World {
         if let r = remoteChunk, let got = r(k) { blocks = got.0; ents = got.1 }        // a co-op guest: the host's chunk
         else if let saved = save?.loadChunk(k) {
             blocks = saved; fromDisk = true
-            if fieldTerrain {
-                // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under
-                // the saved built layer (what was dug stays dug only where something was built there since).
-                if let f = save?.loadField(k) { ground = f }
-                else {
-                    var gb = gen.generate(cx: k.x, cz: k.z)
-                    if let st = gen.structures { _ = st.place(into: &gb, cx: k.x, cz: k.z) }
-                    let f = FieldTerrain.split(&gb, cx: k.x, cz: k.z, gen: gen)
-                    ground = f
-                }
-                FieldTerrain.absorb(&blocks, into: &ground!)
-            }
+            // PG1: the saved built layer and the saved ground. A lost ground file comes back from the seed under the saved
+            // built layer (what was dug stays dug only where something was built there since).
+            if fieldTerrain { ground = save?.loadField(k) ?? gen.generateField(cx: k.x, cz: k.z).ground }
+        } else if fieldTerrain {
+            // PG1: the generator makes the chunk as a field: the ground's density field, and what is built on and in it.
+            let fc = gen.generateField(cx: k.x, cz: k.z)
+            blocks = fc.built; ground = fc.ground; ents = fc.entities; mobs = fc.mobs
         } else {
             blocks = gen.generate(cx: k.x, cz: k.z)
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
@@ -1089,7 +1086,7 @@ final class World {
         }
         let field = fromDisk && keepsField ? save?.loadFieldEdits(k) ?? [:] : [:]
         if let g = ground {
-            // A loaded field chunk: heights, springs and circuits from the merged cells.
+            // A field chunk: heights, springs and light emitters from the merged cells.
             var merged = blocks
             FieldTerrain.merge(&merged, g)
             let heights = Chunk.computeHeights(merged)
@@ -1103,7 +1100,7 @@ final class World {
         let springs = World.springs(blocks, k, heights)
         let tracked = Circuit.trackedCells(blocks, cx: k.x, cz: k.z)
         if fieldTerrain {
-            // PG1: the generated (or the host's) chunk becomes the field and the built layer.
+            // PG1: the host's chunk (a co-op guest of a field world) becomes the field and the built layer.
             let merged = blocks
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),

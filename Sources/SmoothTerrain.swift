@@ -482,6 +482,7 @@ extension Mesher {
                 let si = ri(s[0], s[1], s[2])
                 let blockID = Int(R[si])
                 if !nat[blockID] { continue }
+                if !leaves, let E = stored, E[si] <= 0 { continue }       // (field worlds: a built block of rock: a cube)
                 // Dual cells around the edge, counter-clockwise seen from the open side.
                 for k in 0..<4 {
                     var d = p
