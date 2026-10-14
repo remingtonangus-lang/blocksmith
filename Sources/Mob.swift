@@ -31,6 +31,7 @@ enum MobKind: Int, CaseIterable {
     case ashTank, ashHalftrack, ashArtillery, ashTruck, ashMarshal     // the Ashguard in the Ash Vault (AshUnits.swift)
     case brandSquire, brandKnight, brandChampion, brandCommander, searwing, scorchling, slagthrower   // hell's own (HellMobs.swift)
     case ashBehemoth, ashChancellor    // the last war (AshFinal.swift): the super-heavy tank and the Ash Chancellor
+    case cougar, rattlesnake, alligator   // D14 frontier predators (Predators.swift)
 
     struct Spec {
         var name: String
@@ -144,6 +145,8 @@ enum MobKind: Int, CaseIterable {
             return militarySpec
         case .ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashMarshal, .ashBehemoth, .ashChancellor:
             return ashSpec
+        case .cougar, .rattlesnake, .alligator:
+            return predatorSpec
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower:
             return hellSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
@@ -255,6 +258,7 @@ enum MobKind: Int, CaseIterable {
         .ashBehemoth: "ash_behemoth", .ashChancellor: "ash_chancellor",
         .brandSquire: "brand_squire", .brandKnight: "brand_knight", .brandChampion: "brand_champion", .brandCommander: "brand_commander",
         .searwing: "searwing", .scorchling: "scorchling", .slagthrower: "slagthrower",
+        .cougar: "cougar", .rattlesnake: "rattlesnake", .alligator: "alligator",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -1725,6 +1729,8 @@ private func parts(_ m: Mob) -> [Part] {
         return soldierParts(m, swing: swing)
     case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower, .spider, .caveSpider:
         return hellParts(m, swing: swing)
+    case .cougar, .rattlesnake, .alligator:
+        return predatorParts(m, swing: swing)
     case .copperGolem:
         return copperGolemParts(m, swing: swing)
     case .zombie, .husk:
@@ -2538,24 +2544,24 @@ final class MobManager {
         switch b {
         case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3)]      // D2: herds of 3-7
         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
-        case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
+        case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4), (.cougar, 1, 1, 1)]
         case .snowyTaiga: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
         case .snowyPlains, .iceSpikes: t = [(.rabbit, 10, 2, 3), (.polarBear, 1, 1, 2)]
         case .snowySlopes, .jaggedPeaks, .frozenPeaks: t = [(.goat, 5, 1, 3)]
         case .grove: t = [(.wolf, 1, 1, 1), (.rabbit, 8, 2, 3), (.fox, 4, 2, 4)]
         case .meadow: t = [(.donkey, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
         case .cherryGrove: t = [(.pig, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
-        case .desert: t = [(.rabbit, 4, 2, 3)]
-        case .savanna, .savannaPlateau: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)] + (b == .savannaPlateau ? [(.llama, 8, 4, 4), (.wolf, 8, 4, 8)] : [])
+        case .desert: t = [(.rabbit, 4, 2, 3), (.rattlesnake, 2, 1, 2)]                                      // D14
+        case .savanna, .savannaPlateau: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3), (.cougar, 1, 1, 1)] + (b == .savannaPlateau ? [(.llama, 8, 4, 4), (.wolf, 8, 4, 8)] : [])
         case .windsweptSavanna: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)]
-        case .windsweptHills, .windsweptGravellyHills, .windsweptForest: t = std + [(.llama, 5, 4, 6)]
+        case .windsweptHills, .windsweptGravellyHills, .windsweptForest: t = std + [(.llama, 5, 4, 6), (.cougar, 1, 1, 1)]
         case .jungle, .sparseJungle: t = std + [(.parrot, 40, 1, 2), (.ocelot, 2, 1, 3)] + (b == .jungle ? [(.panda, 1, 1, 2)] : [(.wolf, 8, 2, 4)])
         case .bambooJungle: t = std + [(.parrot, 40, 1, 2), (.panda, 80, 1, 2), (.ocelot, 2, 1, 1)]
-        case .swamp: t = std + [(.frog, 10, 2, 5)]
-        case .mangroveSwamp: t = [(.frog, 10, 2, 5)]
+        case .swamp: t = std + [(.frog, 10, 2, 5), (.alligator, 2, 1, 2)]
+        case .mangroveSwamp: t = [(.frog, 10, 2, 5), (.alligator, 3, 1, 2)]
         case .mushroomFields: t = [(.mooshroom, 8, 4, 8)]
         case .beach: t = [(.turtle, 5, 2, 5)]
-        case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2)] + (b == .woodedBadlands ? [(.wolf, 2, 4, 8)] : [])
+        case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2), (.rattlesnake, 3, 1, 2), (.cougar, 1, 1, 1)] + (b == .woodedBadlands ? [(.wolf, 2, 4, 8)] : [])
         default: return nil
         }
         let total = t.reduce(0) { $0 + $1.1 }
@@ -2572,8 +2578,8 @@ final class MobManager {
         switch k {
         case .turtle: ok = g == "sand"
         case .mooshroom: ok = g == "mycelium"
-        case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
-        case .frog: ok = ["grass_block", "mud", "mangrove_roots", "muddy_mangrove_roots"].contains(g)
+        case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel, .cougar, .rattlesnake: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
+        case .frog, .alligator: ok = ["grass_block", "mud", "mangrove_roots", "muddy_mangrove_roots"].contains(g)
         case .parrot, .panda, .ocelot: ok = ["grass_block", "podzol"].contains(g) || g.hasSuffix("_leaves")
         default: ok = g == "grass_block" || g == "snowy_grass_block"
         }

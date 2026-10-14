@@ -501,6 +501,8 @@ extension Mob {
             return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower, .spider, .caveSpider:
             return hellAI(dt, g, dist: dist, canTarget: canTarget)
+        case .cougar, .rattlesnake, .alligator:
+            return predatorAI(dt, g, dist: dist, canTarget: canTarget)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
             if faction == Faction.ashguard.rawValue { return ashSoldierAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory) }
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget && !GarrisonTown.shelters(g, self))   // P48
