@@ -23,6 +23,7 @@ final class GreywallAlarmState {
         var squadT: Float = 0, squads = 0
         var panelsDown = false
         var consoles: [IVec3] = [], turrets: [IVec3] = [], flags: [IVec3] = []
+        var cameras: [IVec3] = []                   // D35 security cameras (BaseSecurity.swift)
         var hold: Float = 0                         // seconds a player has held the command console of a cleared base
     }
     // A truck bringing a squad (in memory: a reload finds the road empty).
@@ -83,13 +84,14 @@ extension Greywall {
             case 2: site.panels.append(IVec3(x, y, z))
             case 3: site.consoles.append(IVec3(x, y, z))
             case 4: site.turrets.append(IVec3(x, y, z))
+            case 6: site.cameras.append(IVec3(x, y, z))
             default: site.flags.append(IVec3(x, y, z))
             }
         }
         return true
     }
 
-    // Per block state: 0 nothing, 1 alarm lamp, 2 alarm panel, 3 console or terminal, 4 wall turret, 5 flag.
+    // Per block state: 0 nothing, 1 alarm lamp, 2 alarm panel, 3 console or terminal, 4 wall turret, 5 flag, 6 camera.
     static let scanKinds: [UInt8] = {
         var t = [UInt8](repeating: 0, count: Blocks.count)
         func mark(_ key: String, _ v: UInt8, group: Bool = true) {
@@ -103,6 +105,7 @@ extension Greywall {
         mark("command_console", 3); mark("greywall_terminal", 3)                      // (P68)
         mark("wall_turret", 4); mark("wall_turret_damaged", 4)
         mark("greywall_flag", 5, group: false); mark("taken_flag", 5, group: false)
+        mark(BaseSecurity.camera, 6)                                                  // D35
         return t
     }()
     static func scanOld(_ world: World, _ site: inout GreywallAlarmState.Site) -> Bool {

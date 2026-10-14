@@ -922,6 +922,9 @@ extension Game {
         if m.factionValue == .greywall && m.kind == .soldierOfficer && m.leash != nil && Items.has("greywall_codebook") {
             drops.spawn(ItemStack(Items.id("greywall_codebook"), 1), at: at)
         }
+        if m.factionValue == .greywall && m.kind == .soldierOfficer && Items.has(BaseSecurity.card) {            // D35
+            drops.spawn(ItemStack(Items.id(BaseSecurity.card), 1), at: at)
+        }
         let b = m.soldierBrain
         guard b.gun >= 0, b.gun < Guns.all.count else { return }
         let gs = Guns.all[b.gun]

@@ -1740,7 +1740,10 @@ final class Game {
     func openBlock(_ p: IVec3) {
         TownLaw.opening(self, p)
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
-        if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
+        if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) {
+            if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
+            toggleOpenable(p); return
+        }
         switch k {
         case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away

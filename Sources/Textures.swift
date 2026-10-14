@@ -1087,6 +1087,7 @@ enum TextureGen {
         deepGatePainters(&p)
         hellPainters(&p)
         greywallPainters(&p)
+        securityCameraPainters(&p)                        // D35
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         rotatedPainters(&p)

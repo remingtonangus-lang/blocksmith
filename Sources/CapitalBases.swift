@@ -218,6 +218,7 @@ extension Game {
         TickProf.mark("bases: gate")
         borealAlarmTick(b, step)
         TickProf.mark("bases: boreal alarm")
+        BaseSecurity.tick(self, b)                        // D35: cameras (before the alarm reads the noises)
         greywallAlarmTick(b, step)
         baseObjectivesTick(b, step)                       // D34 (BaseObjectives.swift)
         TickProf.mark("bases: greywall alarm")
