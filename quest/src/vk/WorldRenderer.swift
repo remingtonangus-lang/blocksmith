@@ -169,7 +169,13 @@ final class WorldRenderer {
         let df = Float(game.dayFraction)
         let lowSun: Float = df < 0.08 ? 1 - df / 0.08 : (df > 0.42 ? min(1, (df - 0.42) / 0.1) : 0)
         let mist: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? lowSun * 0.55 * (1 - min(1, game.weather.rain * 2)) : 0
-        u.fx = V4(Float(Settings.shared.shaderFX), mist, Float(SEA + 8), 0)
+        // Colour grade: warm round sunrise and sunset, cool through the night, nudged by the biome's temperature (deserts
+        // warmer, snow cooler); none underground or out of the overworld's sky.
+        let warmT: Float = df < 0.07 ? 0.8 * (1 - df / 0.07) : (df > 0.42 && df < 0.55 ? 0.8 * (1 - abs(df - 0.48) / 0.07) : 0)
+        let nightT: Float = df > 0.52 && df < 0.98 ? -0.55 * min(1, min(df - 0.52, 0.98 - df) / 0.06) : 0
+        let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
+        let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
+        u.fx = V4(Float(Settings.shared.shaderFX), mist, Float(SEA + 8), grade)
         let skyKind: Float = underwater || underground || game.blindFog != nil ? 0 : (hasSky || vaultSky ? 1 : (game.dim.dim == .end ? 2 : 0))
         // Eye darkness: skylight 13.5+ around the eye (daylight, near the surface) 0 ... 4.5 or less (caves, deep dives) 1;
         // a wide ramp so the fill grows in step with the walls darkening.
