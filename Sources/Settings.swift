@@ -76,7 +76,9 @@ final class Settings {
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
-    @Pref("smoothTerrain") var smoothTerrain = false   // Create New World > Terrain default (the world option lives in the save)
+    // Create New World > Terrain default (the world option lives in the save). PG6: Polygons is the main direction and
+    // the default for new worlds; a new key, so a "Blocks" remembered from before starts over on Polygons.
+    @Pref("smoothTerrainPG6") var smoothTerrain = true
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
     @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom
@@ -102,7 +104,7 @@ final class Settings {
         musicSource = 0; musicShuffle = true; customMusicVolume = 1
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
-        display = ""; smoothTerrain = false; chipping = true; bugNotes = 0   // (tutorialStep is progress, not an option)
+        display = ""; smoothTerrain = true; chipping = true; bugNotes = 0   // (tutorialStep is progress, not an option)
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
