@@ -442,7 +442,7 @@ D47. [DONE] Vault side objectives, the armoured train robbery, a boss bar on the
 D48. [DONE] Landmarks: canyons, ghost towns, homesteads; biome-specific settlements.
 D49. [DONE] Blizzards and sandstorms that cut visibility, body temperature, lightning risk to riders.
 D50. [DONE] Ride train roofs and climb between cars; defend against holdups.
-D51. Track one objective with a HUD marker and an in-world beacon; contract and bounty markers; horse, ship and vehicle markers; notes stamped on the map.
+D51. [DONE] Track one objective with a HUD marker and an in-world beacon; contract and bounty markers; horse, ship and vehicle markers; notes stamped on the map.
 D52. Co-op: share a horse or vehicle with gun seats, shared contracts and bounties, revive a downed partner.
 
 

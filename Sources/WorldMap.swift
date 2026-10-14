@@ -183,6 +183,32 @@ final class MapCache {
         saveMarks(g)
     }
 
+    // D51 (Waymarks.swift): marks the game keeps current (contracts, bounties, your horse, ships, vehicles), one kind at a
+    // time; written out only when they change.
+    func setMarks(_ g: Game, kind: String, _ list: [Mark]) {
+        loadMarks(g)
+        guard marks.filter({ $0.kind == kind }) != list else { return }
+        marks.removeAll { $0.kind == kind }
+        marks += list
+        saveMarks(g)
+    }
+    // D51: a note stamped on the map (up to 48), and the notes within `near` blocks taken off again.
+    func addNote(_ g: Game, x: Int, z: Int, name: String) {
+        loadMarks(g)
+        marks.removeAll { $0.kind == "note" && abs($0.x - x) <= 4 && abs($0.z - z) <= 4 }
+        if marks.filter({ $0.kind == "note" }).count >= 48, let i = marks.firstIndex(where: { $0.kind == "note" }) { marks.remove(at: i) }
+        marks.append(Mark(kind: "note", x: x, z: z, name: name))
+        saveMarks(g)
+    }
+    @discardableResult
+    func removeNotes(_ g: Game, x: Int, z: Int, near: Int) -> Int {
+        loadMarks(g)
+        let n = marks.count
+        marks.removeAll { ($0.kind == "note" || $0.kind == "pin") && abs($0.x - x) <= near && abs($0.z - z) <= near }
+        if marks.count != n { saveMarks(g) }
+        return n - marks.count
+    }
+
     // Y6: the spine's next objective (Spine.track / Spine.lead), one marker replaced as the goal moves on; nil clears it.
     func setObjective(_ g: Game, x: Int?, z: Int?, name: String?) {
         loadMarks(g)
@@ -230,6 +256,12 @@ final class MapCache {
         case "station": return ("R", V4(0.85, 0.55, 0.3, 1), "Railway station")
         case "property": return ("H", V4(0.35, 0.85, 0.95, 1), "Your property")             // D28
         case "naval_port": return ("D", V4(0.3, 0.55, 0.85, 1), "Meridian dockyard")       // D39
+        case "contract": return ("$", V4(0.95, 0.75, 0.25, 1), "Contract")                 // D51 (Waymarks.swift)
+        case "bounty": return ("X", V4(0.9, 0.25, 0.2, 1), "Bounty")
+        case "my_horse": return ("Y", V4(0.85, 0.65, 0.4, 1), "Your horse")
+        case "my_ship": return ("^", V4(0.4, 0.75, 1, 1), "Your ship")
+        case "my_vehicle": return ("=", V4(0.7, 0.75, 0.5, 1), "Your vehicle")
+        case "note": return ("*", V4(0.95, 0.95, 0.85, 1), "Note")
         case "ghost_town": return ("G", V4(0.7, 0.62, 0.5, 1), "Ghost town")                // D48 (FrontierSites.swift)
         case "homestead": return ("h", V4(0.75, 0.85, 0.4, 1), "Homestead")
         case "stilt_hamlet": return ("s", V4(0.45, 0.7, 0.55, 1), "Stilt hamlet")

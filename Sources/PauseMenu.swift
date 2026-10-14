@@ -203,7 +203,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
+            rows = [("Back to Game", "resume"), ("Journal (orders, logs, notes)", "journal"), ("Options...", "options"), (PauseMenu.rdLabel(g), "rd"), ("World Map", "worldmap"), ("Track a Target...", "track"), ("Advancements", "advancements"), ("Commands...", "commands"), ("Shortcuts...", "shortcuts"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty]) (locked)", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
@@ -212,7 +212,7 @@ final class PauseMenu: Menu {
             if g.coop.current > 0 {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
                 subtitle = "Player 2"
-                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
+                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), ("Track a Target...", "track"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
             } else if g.coop.active {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
@@ -591,6 +591,7 @@ final class PauseMenu: Menu {
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "journal": g.closeMenu(); g.openJournal()
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
+        case "track": g.closeMenu(); g.openTrackMenu()               // D51 (Waymarks.swift)
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
         case "coop":
             if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }
