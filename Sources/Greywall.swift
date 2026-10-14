@@ -562,12 +562,16 @@ enum Greywall {
                 for y in 1...4 { put(dx, y, dz, post ? steel : AIR) }
                 put(dx, 5, dz, (dx + dz) % 4 == 0 ? panel : grate)
             } }
-            for dz in stride(from: -5, through: 5, by: 5) { put(x1, 1, dz, crate); put(x1, 2, dz, crate); w.sundryBarrel(cx + x1 - 1, S + 1, cz + dz, seed: seed) }
+            for dz in stride(from: -5, through: 5, by: 5) {
+                put(x1, 1, dz, crate); put(x1, 2, dz, crate); w.sundryBarrel(cx + x1 - 1, S + 1, cz + dz, seed: seed)
+                w.materials(cx + x1, S + 1, cz + dz + 1, seed: seed)                                   // P254: a store barrel
+            }
         }
         for (sx, sz) in [(-1, -1), (1, 1)] {
             let x = sx * (H - 4), z = sz * (H - 5)
             if t.towers.contains(where: { $0.0 == sx && $0.1 == sz }) { continue }
             put(x, 1, z, crate); w.sundryBarrel(cx + x + sx, S + 1, cz + z, seed: seed); put(x, 2, z, crate)
+            w.materials(cx + x, S + 1, cz + z - sz, seed: seed)                                        // P254: a store barrel
         }
         for k in [-(H / 2), H / 2] { put(k, 1, H - 3, steel); put(k, 2, H - 3, steel); put(k, 3, H - 3, panel) }
 

@@ -267,7 +267,10 @@ enum CapitalBase {
         let safeSeed = seed ^ UInt64(bitPattern: Int64(cx &* 73856093 ^ cz &* 19349663))
         w.safeKey(X(-12), P1 + 1, Z(-14), baseSeed: safeSeed)                          // P248: the vault safe's key
         // East armory: crate stacks, weapon chests, guns on the wall.
-        for dz in stride(from: -12, through: 8, by: 5) { w.fill(X(22), P1 + 1, Z(dz), X(23), P1 + 2, Z(dz + 1), Cr) }
+        for dz in stride(from: -12, through: 8, by: 5) {
+            w.fill(X(22), P1 + 1, Z(dz), X(23), P1 + 2, Z(dz + 1), Cr)
+            w.materials(X(21), P1 + 1, Z(dz), seed: seed)                                     // P254: a store barrel by each stack
+        }
         for (i, dz) in [-10, -2, 6].enumerated() { w.chest(X(16), P1 + 1, Z(dz), loot: "steelhold_armory", seed: rng.next(), facing: i % 2 == 0 ? 2 : 3) }
         for dz in stride(from: -8, through: 8, by: 2) where rng.chance(0.7) {
             let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.shotgun, Guns.shotgun, Guns.arc, Guns.sniper]   // (P217)
