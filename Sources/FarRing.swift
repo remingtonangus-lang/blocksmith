@@ -76,12 +76,13 @@ final class FarRing {
         let n = builds
         lock.unlock()
         let cx = kx * FarRing.cell + FarRing.cell / 2, cz = kz * FarRing.cell + FarRing.cell / 2
+        let blocky = !SmoothTerrain.enabled && !g.world.fieldTerrain          // (PG1 rewrite: a field world is never blocks)
         let work = { [weak self] in
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
             var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n)
-            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: !SmoothTerrain.enabled)
+            out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky)
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             self.lock.lock()
             // A build for a world left meanwhile is dropped (the next request starts the new world's).

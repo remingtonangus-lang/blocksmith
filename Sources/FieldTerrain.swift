@@ -92,6 +92,29 @@ enum FieldTerrain {
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
         let F: SmoothField? = wg != nil ? SmoothField() : nil
+        // The other dimensions' own continuous ground (TerrainGenerator.groundField), made distances by its gradient.
+        let G: [Float]? = wg == nil ? gen.groundField(cx: cx, cz: cz) : nil
+        func genGround(_ lx: Int, _ y: Int, _ lz: Int, _ i: Int) -> Float? {
+            guard let G else { return nil }
+            let v = G[i]
+            guard !v.isNaN else { return nil }
+            func g(_ dx: Int, _ dy: Int, _ dz: Int) -> Float? {
+                let x = lx + dx, yy = y + dy, z = lz + dz
+                guard x >= 0 && x < CS && z >= 0 && z < CS && yy >= 0 && yy < CH else { return nil }
+                let w = G[x + z * CS + yy * CSQ]
+                return w.isNaN ? nil : w
+            }
+            func diff(_ a: Float?, _ b: Float?) -> Float? {
+                if let a, let b { return (a - b) * 0.5 }
+                if let a { return a - v }
+                if let b { return v - b }
+                return nil
+            }
+            guard let gx = diff(g(1, 0, 0), g(-1, 0, 0)), let gy = diff(g(0, 1, 0), g(0, -1, 0)), let gz = diff(g(0, 0, 1), g(0, 0, -1))
+            else { return nil }
+            let l = (gx * gx + gy * gy + gz * gz).squareRoot()
+            return l > 1e-4 ? v / l : nil
+        }
         let N = SmoothField.N, NN = SmoothField.NN, SO = (N - 16) / 2
         @inline(__always) func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { fd[x + z * CS + y * CSQ] > 0 }
         for sy in 0..<NSEC {
@@ -129,6 +152,8 @@ enum FieldTerrain {
                 var d: Float
                 if let F, y >= 1, F.solid(si) == s {
                     d = max(-1.5, min(1.5, F.genDistance(si)))
+                } else if let gd = genGround(lx, y, lz, i), (gd > 0) == s {
+                    d = max(-1.5, min(1.5, gd))
                 } else {
                     var cnt = 0, tot = 0
                     for dy in -1...1 { let yy = y + dy; guard yy >= 0 && yy < CH else { continue }
@@ -485,5 +510,67 @@ extension World {
             scheduleFluid(around: p)
         }
         return flipped.count
+    }
+
+    // MARK: Rays (PG2 rewrite)
+
+    // Where a ray first enters the field's ground between t0 and t1 (sampled every 0.1 block, then halved down to a
+    // hundredth), and the ground cell there: the cell holding the point, or the ground cell nearest it.
+    func fieldRaySegment(_ o: V3, _ d: V3, from t0: Float, to t1: Float) -> (cell: IVec3, at: V3, t: Float)? {
+        guard t1 >= t0 else { return nil }
+        var out = t0, hit: Float?
+        if fieldDensity(at: o + d * t0) > 0 { hit = t0 }
+        else {
+            var t = t0
+            while hit == nil {
+                let tn = min(t1, t + 0.1)
+                if fieldDensity(at: o + d * tn) > 0 { hit = tn; out = t; break }
+                if tn >= t1 { break }
+                t = tn
+            }
+        }
+        guard var inT = hit else { return nil }
+        if inT > out {
+            for _ in 0..<6 { let m = (out + inT) * 0.5; if fieldDensity(at: o + d * m) > 0 { inT = m } else { out = m } }
+        }
+        let p = o + d * inT
+        return (fieldCell(p), p, inT)
+    }
+
+    // The ground cell for a point on the field's surface.
+    func fieldCell(_ p: V3) -> IVec3 {
+        let bx = Int(floor(p.x)), by = Int(floor(p.y)), bz = Int(floor(p.z))
+        func ground(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+            return c.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS)))
+        }
+        if ground(bx, by, bz) { return IVec3(bx, by, bz) }
+        var best = IVec3(bx, by, bz), bd = Float.greatestFiniteMagnitude
+        for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where ground(bx + dx, by + dy, bz + dz) {
+            let q = V3(Float(bx + dx) + 0.5, Float(by + dy) + 0.5, Float(bz + dz) + 0.5)
+            let dd = simd_length_squared(q - p)
+            if dd < bd { bd = dd; best = IVec3(bx + dx, by + dy, bz + dz) }
+        } } }
+        return best
+    }
+
+    // The field's gradient at p (points into the ground).
+    func fieldGradient(_ p: V3) -> V3 {
+        let h: Float = 0.25
+        return V3(fieldDensity(at: p + V3(h, 0, 0)) - fieldDensity(at: p - V3(h, 0, 0)),
+                  fieldDensity(at: p + V3(0, h, 0)) - fieldDensity(at: p - V3(0, h, 0)),
+                  fieldDensity(at: p + V3(0, 0, h)) - fieldDensity(at: p - V3(0, 0, h)))
+    }
+
+    // A new world made as Polygons (WorldRequest.setUp, App.makeGame) becomes a field world before its first chunk: the
+    // choice is kept in the save as terrain-field.txt and never changes for that world.
+    func makeFieldWorld() {
+        guard chunks.isEmpty, FieldTerrain.newWorlds else { return }
+        fieldTerrain = true
+        if let save {
+            try? FileManager.default.createDirectory(at: save.dir, withIntermediateDirectories: true)
+            try? "natural terrain is a density field (PG1 rewrite, Oct 14)\n".write(to: save.dir.appendingPathComponent("terrain-field.txt"),
+                                                                                     atomically: true, encoding: .utf8)
+        }
     }
 }

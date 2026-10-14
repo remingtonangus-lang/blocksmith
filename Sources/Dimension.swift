@@ -42,10 +42,15 @@ protocol TerrainGenerator: AnyObject {
     func tints(cx: Int, cz: Int) -> [UInt32]
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome)
     var structures: StructureCache? { get }
+    // PG1 rewrite: the generator's own continuous ground over a chunk, one value per cell centre (index Chunk.index),
+    // > 0 in the ground, in any units (FieldTerrain.split turns it into distances by its gradient); NaN where the
+    // generator has no continuous shape there (the split rounds the cells there). nil: none at all.
+    func groundField(cx: Int, cz: Int) -> [Float]?
 }
 
 extension TerrainGenerator {
     var structures: StructureCache? { nil }
+    func groundField(cx: Int, cz: Int) -> [Float]? { nil }
 }
 
 final class DimensionState {

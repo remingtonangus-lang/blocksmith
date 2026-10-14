@@ -1685,6 +1685,7 @@ final class Game {
     // Exact point where the look ray meets the targeted face.
     func hitPoint(_ t: (hit: IVec3, normal: IVec3)) -> V3 {
         let o = player.eye, d = player.look
+        if let fh = world.fieldHit, fh.cell == t.hit, simd_length(o + d * fh.t - fh.at) < 0.05 { return fh.at }    // (PG2 rewrite)
         let bmin = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z))
         var best: Float = .greatestFiniteMagnitude
         for (mn, mx) in world.selectionBoxes(world.block(t.hit.x, t.hit.y, t.hit.z)) {

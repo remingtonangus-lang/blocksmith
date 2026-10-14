@@ -108,6 +108,39 @@ final class EmberGen: TerrainGenerator {
         decorate(&b, cx, cz)
     }
 
+    // PG1 rewrite: the band's lattice density (the same interpolation as fill), the caps solid.
+    func groundField(cx: Int, cz: Int) -> [Float]? {
+        var g = [Float](repeating: .nan, count: CSQ * CH)
+        bandField(&g, cx: cx, cz: cz)
+        return g
+    }
+
+    func bandField(_ g: inout [Float], cx: Int, cz: Int) {
+        let bx = cx * CS, bz = cz * CS
+        let H = height
+        let lx = 5, ly = H / 8 + 1, lz = 5
+        var lat = [Float](repeating: 0, count: lx * ly * lz)
+        for k in 0..<lz { for j in 0..<ly { for i in 0..<lx {
+            lat[i + j * lx + k * lx * ly] = density(Float(bx + i * 4), Float(j * 8), Float(bz + k * 4))
+        } } }
+        func L(_ i: Int, _ j: Int, _ k: Int) -> Float { lat[i + j * lx + k * lx * ly] }
+        for z in 0..<CS { for x in 0..<CS {
+            let i0 = x / 4, k0 = z / 4
+            let fx = Float(x % 4) / 4, fz = Float(z % 4) / 4
+            for y in 0..<H {
+                let j0 = min(ly - 2, y / 8)
+                let fy = Float(y - j0 * 8) / 8
+                let c00 = L(i0, j0, k0) + (L(i0 + 1, j0, k0) - L(i0, j0, k0)) * fx
+                let c10 = L(i0, j0 + 1, k0) + (L(i0 + 1, j0 + 1, k0) - L(i0, j0 + 1, k0)) * fx
+                let c01 = L(i0, j0, k0 + 1) + (L(i0 + 1, j0, k0 + 1) - L(i0, j0, k0 + 1)) * fx
+                let c11 = L(i0, j0 + 1, k0 + 1) + (L(i0 + 1, j0 + 1, k0 + 1) - L(i0, j0 + 1, k0 + 1)) * fx
+                let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
+                let d = c0 + (c1 - c0) * fz
+                g[Chunk.index(x, base + y, z)] = (y < 5 || y > H - 6) ? .nan : d       // (the ragged caps: rounded)
+            }
+        } }
+    }
+
     private func decorate(_ b: inout [BlockID], _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
         let netherrack = NETHERRACK
@@ -255,6 +288,12 @@ final class HollowGen: TerrainGenerator {
 
     // Island top (internal y) at a column, nil over the void; `depth` is how far the island hangs down.
     func island(_ x: Int, _ z: Int) -> (top: Int, depth: Int)? {
+        guard let f = islandF(x, z) else { return nil }
+        return (YOFF + 58 + (f.outer ? Int(f.top) : Int(f.top.rounded())), Int(f.depth))
+    }
+
+    // The island's top over YOFF + 58 before rounding, and its depth (PG1 rewrite: the continuous ground).
+    func islandF(_ x: Int, _ z: Int) -> (top: Float, depth: Float, outer: Bool)? {
         let wx = Float(x), wz = Float(z)
         let d = (wx * wx + wz * wz).squareRoot()
         if d < 130 {
@@ -264,8 +303,7 @@ final class HollowGen: TerrainGenerator {
             // Mostly flat top with gentle bumps; the edge rolls off over the last few blocks.
             let bump = n.noise2(wx / 40, wz / 40) * 2.5 + n.noise2(wx / 13, wz / 13) * 1.2
             let rim = min(1, k * 6)
-            let top = YOFF + 58 + Int((bump + rim * 3 - 3).rounded())
-            return (top, Int(k * k * 50) + 3)
+            return (bump + rim * 3 - 3, Float(Int(k * k * 50) + 3), false)
         }
         if d < 1000 { return nil }
         // Outer islands: blobs from low-frequency noise, thicker in the middle.
@@ -273,11 +311,32 @@ final class HollowGen: TerrainGenerator {
         let t: Float = 0.22
         if v < t { return nil }
         let k = min(1, (v - t) * 4)
-        let top = YOFF + 58 + Int(n.noise2(wx / 60, wz / 60) * 6 + k * 6)
-        return (top, Int(k * 30) + 2)
+        return (n.noise2(wx / 60, wz / 60) * 6 + k * 6, Float(Int(k * 30) + 2), true)
     }
 
     func surface(_ x: Int, _ z: Int) -> Int? { island(x, z)?.top }
+
+    // PG1 rewrite: the islands' ground as heights (blocks over or under the top and the underside) and, for the main
+    // island, the distance in from its rim.
+    func groundField(cx: Int, cz: Int) -> [Float]? {
+        var g = [Float](repeating: .nan, count: CSQ * CH)
+        for z in -1...CS { for x in -1...CS where x >= 0 && x < CS && z >= 0 && z < CS {
+            let wx = cx * CS + x, wz = cz * CS + z
+            guard let i = island(wx, wz), let f = islandF(wx, wz) else { continue }
+            let topF = Float(YOFF + 58) + f.top
+            let fx = Float(wx), fz = Float(wz)
+            let r = (fx * fx + fz * fz).squareRoot()
+            var rim: Float = 4
+            if r < 130 { rim = (92 + n.noise2(fx / 30, fz / 30) * 10) - r }
+            let lo = max(0, i.top - i.depth - 2), hi = min(CH - 1, i.top + 2)
+            for y in lo...hi {
+                let yc = Float(y)
+                let v = min(topF + 0.5 - yc, yc - Float(i.top - i.depth) + 0.5, rim)
+                g[Chunk.index(x, y, z)] = v
+            }
+        } }
+        return g
+    }
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
