@@ -104,6 +104,7 @@ enum ShipParts {
             case .none: break
             }
             if key == "capital_airframe" || key == "capital_canopy" { d = 0.3 }          // light alloy / canopy (FlightModel)
+            if key == NavalPatrol.hull { d = 0.45 }                                      // P243: thin plate over a frame
             // Partial blocks weigh their volume.
             if !Blocks.collide[i] { d = min(d, 0.05) }
             else if !Blocks.fullCollide[i] {
