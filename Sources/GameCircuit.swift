@@ -257,12 +257,80 @@ extension Game {
                 world.blockEntities[front] = be
                 take()
             }
-        case "minecart" where Rails.isRail(fb):
-            mobs.mobs.append(Mob(.minecart, at: V3(Float(front.x) + 0.5, Float(front.y) + 0.0625, Float(front.z) + 0.5))); take()
+        case _ where Carts.variant(of: key) != nil:
+            // W8: every minecart type goes onto a rail in front (or the rail just below it), else out as an item.
+            let below = world.block(front.x, front.y - 1, front.z)
+            let y: Int? = Rails.isRail(fb) ? front.y : (fb == AIR && Rails.isRail(below) ? front.y - 1 : nil)
+            if let y = y {
+                let cart = Mob(.minecart, at: V3(Float(front.x) + 0.5, Float(y) + 0.0625, Float(front.z) + 0.5))
+                cart.variant = Carts.variant(of: key) ?? 0
+                cart.yaw = [0, 0, Float.pi, 0, Float.pi / 2, -Float.pi / 2][dir]
+                mobs.mobs.append(cart); take()
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
         case "arrow": projectiles.shoot(from: from, dir: simd_normalize(fd + V3(0, 0.1, 0)), speed: 22, fromPlayer: true, damage: 2); take(); sfx(.bow, 0.6, at: from)
+        case _ where key == "spectral_arrow" || (Potions.potion(of: stack.item).map { $0.form == 3 } ?? false):
+            // W8: spectral and tipped arrows fly like plain ones and carry their effect.
+            let a = projectiles.shoot(from: from, dir: aim, speed: 22, fromPlayer: true, damage: 2)
+            a.tip = stack.item
+            take(); sfx(.bow, 0.6, at: from)
+        case "firework_rocket":
+            // W8: launched along the dispenser's facing.
+            rockets.append(Rocket(at: from, dir: fd, flight: stack.tag, stars: stack.contents ?? []))
+            take(); sfx(.fireworkLaunch, 1, at: from)
+        case "honeycomb":
+            // W8: waxes the copper block in front.
+            if case let (_, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(fb)])], !waxed,
+               let t = Copper.convert(fb, stage: stage, waxed: true) {
+                copperSet(front, fb, t); take(); sfx(.waxOn, 0.8, at: from)
+            }
+        case "carved_pumpkin", "jack_o_lantern", "wither_skeleton_skull":
+            // W8: set in front, finishing a golem or a Blight body built there; otherwise out as an item (reference).
+            if Blocks.replaceable[Int(fb)] && Blocks.has(key) {
+                world.setBlock(front.x, front.y, front.z, Blocks.id(key)); take()
+                if key == "wither_skeleton_skull" { trySummonBlight(front) }
+                else if !trySummonCopperGolem(front) { trySummonGolem(front) }
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
+        case "armor_stand":
+            // W8: stands up in front, facing away from the dispenser.
+            let below = world.block(front.x, front.y - 1, front.z)
+            if !Blocks.collide[Int(fb)] && !Blocks.collide[Int(world.block(front.x, front.y + 1, front.z))] {
+                let y = Blocks.collide[Int(below)] ? Float(front.y) : Float(front.y) - 0.5
+                let m = Mob(.armorStand, at: V3(Float(front.x) + 0.5, y, Float(front.z) + 0.5))
+                m.yaw = [0, 0, Float.pi, 0, Float.pi / 2, -Float.pi / 2][dir]
+                m.persistent = true
+                mobs.mobs.append(m); take()
+            }
+        case _ where key == "saddle" || MountMenu.armorTier(key) != nil:
+            // W8: saddles a tamed horse (or any pig or strider) in front; horse armour onto a tamed horse.
+            let box = V3(Float(front.x) + 0.5, Float(front.y), Float(front.z) + 0.5)
+            let near = mobs.mobs.filter { abs($0.pos.x - box.x) < 1 && abs($0.pos.z - box.z) < 1 && abs($0.pos.y - box.y) < 1.5 && !$0.baby }
+            let saddleable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
+            if key == "saddle", let m = near.first(where: { saddleable.contains($0.kind) && !$0.saddled && ($0.tamed || $0.kind == .pig || $0.kind == .strider) }) {
+                m.saddled = true; m.persistent = true; take(); sfx(.place(.wood), 0.6, at: m.pos)
+            } else if let t = MountMenu.armorTier(key), let m = near.first(where: { $0.kind == .horse && $0.tamed && $0.armorTier == 0 }) {
+                m.armorTier = t; take(); sfx(.place(.stone), 0.6, at: m.pos)
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
+        case "glowstone" where Blocks.key(Blocks.groupBase[Int(fb)]) == "respawn_anchor":
+            // W8: charges a rebirth anchor in front, one glowstone a pulse up to four.
+            let st = Int(fb - Blocks.groupBase[Int(fb)])
+            if st < 4 {
+                world.setBlock(front.x, front.y, front.z, fb + 1); take()
+                sfx(.respawnAnchorCharge, 0.8, at: V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)
+            }
+        case "powder_snow_bucket":
+            if Blocks.replaceable[Int(fb)] && Blocks.has("powder_snow") {
+                world.setBlock(front.x, front.y, front.z, Blocks.id("powder_snow")); c[slot] = ItemStack(Items.id("bucket"), 1)
+                sfx(.bucketEmpty, 0.8, at: from)
+            }
+        case _ where Game.bucketMob(key) != nil:
+            // W8: fish, axolotl and tadpole buckets pour their water and the creature in front.
+            if releaseBucketMob(key, at: front) { c[slot] = ItemStack(Items.id("bucket"), 1) }
         case "fire_charge": projectiles.fireball(from: from, dir: fd, big: false, byPlayer: true); take(); sfx(.fireball, 0.5, at: from)
         case "water_bucket", "lava_bucket":
             if Blocks.replaceable[Int(fb)] { world.setBlock(front.x, front.y, front.z, key == "water_bucket" ? WATER : LAVA); c[slot] = ItemStack(Items.id("bucket"), 1) }
+        case "bucket" where Blocks.key(fb) == "powder_snow":
+            world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id("powder_snow_bucket"), 1)
+            sfx(.bucketFill, 0.8, at: from)
         case "bucket":
             if fb == WATER || fb == LAVA { world.setBlock(front.x, front.y, front.z, AIR); c[slot] = ItemStack(Items.id(fb == WATER ? "water_bucket" : "lava_bucket"), 1) }
         case "flint_and_steel":
@@ -281,6 +349,26 @@ extension Game {
             }
         }
         sfx(.click, 0.5, at: from)
+    }
+
+    // W8: the creature a filled bucket holds (cod, salmon, tropical fish, pufferfish, axolotl, tadpole).
+    static func bucketMob(_ key: String) -> MobKind? {
+        guard key.hasSuffix("_bucket"), let k = MobKind.named(String(key.dropLast(7))),
+              [MobKind.cod, .salmon, .tropicalFish, .pufferfish, .axolotl, .tadpole].contains(k) else { return nil }
+        return k
+    }
+
+    // Pours a creature bucket at `at`: its water (not in the Emberdeep) and the creature. Returns true when emptied.
+    func releaseBucketMob(_ key: String, at: IVec3) -> Bool {
+        guard let kind = Game.bucketMob(key) else { return false }
+        let b = world.block(at.x, at.y, at.z)
+        guard Blocks.replaceable[Int(b)] || Blocks.fluidKind[Int(b)] == 1 else { return false }
+        if !dim.dim.ultrawarm { world.setBlock(at.x, at.y, at.z, WATER) }
+        let m = Mob(kind, at: V3(Float(at.x) + 0.5, Float(at.y) + 0.2, Float(at.z) + 0.5))
+        m.persistent = true
+        mobs.mobs.append(m)
+        sfx(.bucketEmpty, 0.8, at: m.pos)
+        return true
     }
 
     static let hopperOut: [IVec3] = [IVec3(0, -1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]

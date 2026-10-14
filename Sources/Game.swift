@@ -1936,6 +1936,11 @@ final class Game {
     // Buckets: pick up a water or lava source / pour it out.
     private func useBucket() -> Bool {
         let k = Items.key(held.item)
+        // W8: a creature bucket pours its water and the creature where it points (players could not empty one before).
+        if Game.bucketMob(k) != nil, let tg = target {
+            if releaseBucketMob(k, at: tg.hit + tg.normal), survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
+            return true
+        }
         guard k == "bucket" || k == "water_bucket" || k == "lava_bucket" else { return false }
         var fluidHit: IVec3?
         var lastAir: IVec3?

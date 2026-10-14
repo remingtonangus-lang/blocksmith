@@ -373,7 +373,7 @@ W4. [DONE] Comparator readings: crafter (filled or disabled slots), double chest
 W5. [DONE] Pistons with a 2-tick moving block so flying machines, piston doors and block spitting work; pistons push item entities; slime bounces, honey slows; glazed terracotta does not stick; copper doors break when pushed; world height limits respected. (built in the Oct 14 batch: Circuit.swift.)
 W6. [DONE] Rails: powered T-junction switching, connected rails keep their shape, junction priority; hopper minecart pulls from containers above and empties into hoppers below; activator rails disable hopper carts and eject riders. (built in the Oct 14 batch: Rails.swift, MinecartVariants.swift.)
 W7. [DONE] Crafter: disabled-slot toggling, hoppers fill slots evenly, output into any container, bottle and bucket leftovers. (built in the Oct 14 batch: Crafter.swift.)
-W8. Dispenser behaviours: fireworks, tipped/spectral arrows, waxing copper, golem building, armour stands, saddles and horse armour, respawn-anchor charging, fish and powder-snow buckets, every minecart type.
+W8. [DONE] Dispenser behaviours: fireworks, tipped/spectral arrows, waxing copper, golem building, armour stands, saddles and horse armour, respawn-anchor charging, fish and powder-snow buckets, every minecart type.
 W9. [DONE] Sensor (sculk equivalent): vibration frequencies, the calibrated sensor, wool blocking, comparator frequency output. (built in the Oct 14 batch: Circuit.swift.)
 
 H1. [DONE] Cave mobs spawn about 10 blocks farther away.
