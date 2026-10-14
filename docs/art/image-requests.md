@@ -1,5 +1,24 @@
 # Blocksmith image requests (IMG1)
 
+## Blocks that don't look pretty enough (make these first)
+
+Ranked from Remington's Oct 13 night playtest (P244, 21:56-21:57: "some ground material, granite and gravel look cheap
+and blurry"). Each is a ground block seen everywhere, so it repays the work most. All are block faces (`tile`, 1024 px,
+seamless); drop them as `assets/gemini/<name>.png` and import as in How to use below.
+
+1. `granite`: the current import is soft and smeared at 128 px. Wanted: speckled pink-orange feldspar with dark mica
+   flecks and pale quartz, crisp grains a few texels across, no large blotches.
+2. `gravel`: reads as blur. Wanted: distinct rounded pebbles of mixed greys and browns, each with a lit top and a shadowed
+   underside, packed with dark gaps, pebbles 6-12 texels wide at 128 px.
+3. `andesite`: flat grey mush. Wanted: fine-grained mid-grey stone with scattered small light and dark crystals.
+4. `diorite`: too even. Wanted: salt-and-pepper white stone with sharp black specks and a little grey veining.
+5. `coarse_dirt`: no texture at a distance. Wanted: dry brown earth with small stones and grit showing clearly.
+6. `tuff`: muddy. Wanted: grey-green volcanic ash rock with pale pumice inclusions.
+7. `dirt`: plain. Wanted: moist brown soil, small clods and a few pebbles and roots, still calm enough to tile.
+8. `red_sand` and `sand`: grain too fine to see. Wanted: visible sand grains with a gentle ripple, warm red / pale gold.
+9. `clay`: flat. Wanted: smooth blue-grey clay with faint drying cracks.
+10. `stone`: acceptable, but the same treatment (crisper grain, small fractures) would lift every cave.
+
 Every image the game still wants, one line each, for Remington's Gemini account (gemini.google.com image generation).
 Written 2026-10-14 from the working tree at `d2731fab` (including uncommitted work: `Sources/Spine.swift` adds the last three readables). Nothing here is generated yet. The Mac drops the results in and imports them.
 
