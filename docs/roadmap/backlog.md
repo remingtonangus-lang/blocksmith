@@ -415,7 +415,7 @@ D20. [DONE] Stranger side stories with recurring characters.
 D21. [DONE] Townsfolk react to his deeds and how he looks (bloody, armoured).
 D22. [DONE] Bandana mask: masked crimes cannot be pinned on him.
 D23. [DONE] Catch a fleeing witness before they reach the sheriff.
-D24. Bring bounties in alive (lasso, hogtie) for double pay.
+D24. [DONE] Bring bounties in alive (lasso, hogtie) for double pay.
 D25. [DONE] Arrest, jail time and an escape option.
 D26. Named gang leaders with hideouts.
 D27. A fence for stolen goods; shops refuse flagged items.

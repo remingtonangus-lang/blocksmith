@@ -23,7 +23,7 @@ import simd
 //     your things stay locked up until you settle with that town's law.
 //   - Captured outlaws: an outlaw from a notice-board job who is beaten down to under 30% of his health gives up; take
 //     him to any town with a jail and he is put in a cell there (he stays in it, a prisoner of the town), for the
-//     reward and half again.
+//     reward and half again. Roped with the lasso and hogtied (use him while the rope holds), he's worth double.
 // The geometry of a town's office is kept on its start (StructureStart.info "jail*", Village.layout), so the cell,
 // its door and the strongbox are found again after a load without searching the world.
 enum Jail {
@@ -300,9 +300,40 @@ enum Jail {
         }
     }
 
+    // D24: use a roped outlaw (Lasso.swift) to hogtie him. The wanted man of a notice-board job you hold becomes your
+    // prisoner in tow, worth double at a jail (TownLaw.state.prisoner gets a third "tied" mark); one of his gang is
+    // trussed for two minutes. The lasso comes back to the pack either way.
+    static func hogtie(_ g: Game, _ m: Mob) -> Bool {
+        guard m.roped > 0, m.outlaw, m.health > 0 else { return false }
+        func rope() {
+            m.leashed = false; m.lassoed = false; m.knot = nil
+            if g.survival { let r = g.inventory.add(ItemStack(Items.id(Lasso.key), 1)); if !r.isEmpty { g.dropItem(r) } }
+        }
+        g.swing = 1
+        g.sfx(.armorEquip(0), 0.8, at: m.pos)
+        if m.posse == 1, TownLaw.state.prisoner == nil, let n = m.customName,
+           let hit = (TownLaw.state.jobs ?? [:]).first(where: { $0.value.kind == "outlaw" && $0.value.outlaw == n && $0.value.taken && !$0.value.done }) {
+            rope()
+            g.mobs.mobs.removeAll { $0 === m }
+            for o in g.mobs.mobs where o.posse == 2 && o.customName == "\(n)'s Gang" { o.aggro = false; o.panic = max(o.panic, 10) }
+            TownLaw.state.prisoner = [n, hit.key, "tied"]
+            caught += 1
+            hogties += 1
+            g.onToast?("\(n) is hogtied and slung over your saddle. Take him to a town jail alive for double the reward.")
+            return true
+        }
+        rope()
+        m.roped = 120
+        m.aggro = false
+        hogties += 1
+        g.onToast?("Hogtied. He won't work loose for a good while")
+        return true
+    }
+    static var hogties = 0
+
     // Once a second: a prisoner in tow is put in a cell when you reach a town with a jail.
     static func deliverPrisoner(_ g: Game) {
-        guard let pr = TownLaw.state.prisoner, pr.count == 2, g.alive, TownLaw.inTown != nil,
+        guard let pr = TownLaw.state.prisoner, pr.count >= 2, g.alive, TownLaw.inTown != nil,
               let site = site(g, near: g.player.pos), !TownLaw.isHostile(site.town) else { return }
         let f = site.front
         guard simd_length(V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5) - g.player.pos) < 40 else { return }
@@ -326,9 +357,10 @@ enum Jail {
         TownLaw.state.prisoner = nil
         if var j = TownLaw.state.jobs?[pr[1]] {
             j.done = true; j.progress = 1
-            j.pay += j.pay / 2
+            let tied = pr.count > 2                                     // D24: hogtied off the lasso pays double
+            j.pay += tied ? j.pay : j.pay / 2
             TownLaw.state.jobs?[pr[1]] = j
-            g.onToast?("\(pr[0]) is behind bars in \(site.town). Collect \(Money.format(j.pay)) at the notice board (half again for bringing him in alive).")
+            g.onToast?("\(pr[0]) is behind bars in \(site.town). Collect \(Money.format(j.pay)) at the notice board (\(tied ? "double" : "half again") for bringing him in alive).")
         } else {
             g.onToast?("\(pr[0]) is behind bars in \(site.town).")
         }
