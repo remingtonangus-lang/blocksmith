@@ -2428,13 +2428,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
                 }
-                let tw = lines.map { textWidth($0.0, s) }.max() ?? 0
-                let lh = 10 * s
-                let th = Float(lines.count) * lh + 3 * s
+                // P227 (Oct 13 21:43, a gun's details "way too big"): the name keeps the menu's scale, the detail lines
+                // under it are smaller and wrap at a fixed width, so a gun's six lines of stats stay a small card.
+                let ds = s >= 2 ? max(1, (s * 0.7).rounded(.down)) : s
+                var rows: [(String, V4, Float)] = [(lines[0].0, lines[0].1, s)]
+                for l in lines.dropFirst() { for w in wrapLines(l.0, maxW: 130 * s, ds, maxLines: 3) { rows.append((w, l.1, ds)) } }
+                let tw = rows.map { textWidth($0.0, $0.2) }.max() ?? 0
+                let th = rows.reduce(Float(0)) { $0 + 10 * $1.2 } + 3 * s
                 let tx = min(cursorPos.x + 12 * s, W - tw - 6 * s), ty = cursorPos.y - 12 * s
                 rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, th, V4(0.063, 0, 0.063, 0.94))
                 frame(tx - 2 * s, ty - 2 * s, tw + 4 * s, th - 2 * s, s, V4(0.31, 0, 1, 0.5))
-                for (i, l) in lines.enumerated() { text(l.0, tx, ty + Float(i) * lh, s, l.1) }
+                var ly = ty
+                for r in rows { text(r.0, tx, ly, r.2, r.1); ly += 10 * r.2 }
             }
             return v
         }
