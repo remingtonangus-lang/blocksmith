@@ -854,6 +854,11 @@ final class QuestControls {
 
     private func roomScale() {
         let rig = app.rig
+        // P226 (Oct 13 21:40, "I can't get crouch under here"): ducking for real (the head 40 cm or more below standing
+        // eye height) crouches the body too, so it fits under a low gap as the stick's sneak does, and drops to a crawl
+        // into one lower still (Player.update, P179). Seated play has no real duck.
+        game.player.ducking = !QuestSettings.seated && !QuestSettings.reclined && game.riding == nil
+            && rig.trackingHead.y + rig.heightOffset < QuestRig.eyeHeight - 0.4
         if QuestSettings.seated || QuestSettings.reclined {
             // Seated: leaning moves only the view (up to 35 cm from the centre), never the player.
             var d = rig.trackingHead - rig.anchor

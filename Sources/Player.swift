@@ -29,6 +29,7 @@ final class Player {
     var headInWater = false
     var headAt: V3?                // the headset's eye in the world (VR), for headInWater (P188)
     var sneaking = false
+    var ducking = false            // VR: the user physically crouched (QuestControls.roomScale): counts as sneaking
     var sprinting = false
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
     var lastUpdatePos = V3(0, 0, 0)  // where the last update left the body (a jump of 6+ blocks is a teleport)
@@ -168,9 +169,12 @@ final class Player {
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
         // P179 (Oct 13: "crouching down should make it so I can get through caves easier"): sneaking into a gap too low
         // to sneak through (under 1.5 but at least 0.6 high) drops to a crawl at its mouth, so it can be entered.
-        if !crawling && sneaking && !flying && !swimming && !gliding && onGround && input.forward > 0 {
-            let f = V3(-sinf(yaw), 0, -cosf(yaw)) * 0.45
-            let q = pos + f
+        // P226: the probe follows the stick's direction (VR: relative to the head, strafing too), and a real duck counts.
+        let stick = input.forward * input.forward + input.strafe * input.strafe
+        if !crawling && (sneaking || ducking || input.sneak) && !flying && !swimming && !gliding && onGround && stick > 0.04 {
+            let my0 = moveYaw ?? yaw
+            let dir = V3(-sinf(my0), 0, -cosf(my0)) * input.forward + V3(cosf(my0), 0, -sinf(my0)) * input.strafe
+            let q = pos + simd_normalize(dir) * 0.45
             func fitsAhead(_ h: Float) -> Bool { !w.collides(V3(q.x - halfW, q.y, q.z - halfW), V3(q.x + halfW, q.y + h, q.z + halfW)) }
             if fitsAhead(0.6) && !fitsAhead(1.5) { crawling = true }
         }
@@ -219,7 +223,7 @@ final class Player {
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
 
-        sneaking = (input.sneak || forcedCrouch) && !flying && !prone
+        sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone
         // VR (moveYaw set): sprint in any stick direction, at full sprint speed however far the stick is pushed (the
         // Touch stick's round gate rarely gives full deflection, so sprinting at a partial push was barely faster than a
         // full walk, Quest round 4).
