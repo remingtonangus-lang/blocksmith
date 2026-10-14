@@ -280,7 +280,7 @@ P225. [DONE] [21:39-21:42] Wreck repair: "needs 299 lift balloons" is absurd. Si
 P226. [DONE] [21:40] Crouch lets him pass under low gaps (repeat of 13:10).
 P227. [DONE] [21:43] The gun inspect view (the one that shows a gun's details) is far too big.
 P228. [DONE] [21:44] Strike-team ships make a loud, ominous engine sound heard from far away, as the warning that a strike is coming.
-P229. [21:44, with F4] In the block world the far chunks are too simple: they must still look like blocks from a distance (no mobs or detail needed).
+P229. [DONE] [21:44, with F4] In the block world the far chunks are too simple: they must still look like blocks from a distance (no mobs or detail needed).
 P230. [DONE] [21:45] Pirates are their own faction, never the Capital.
 P231. [DONE] [21:46] All random encounters (raids, strike teams, pirates, bounty hunters, convoys) are ultra rare: something a player sees after a long time and goes "wow, I've never seen that", never something to get used to. One global rarity pass.
 P232. [DONE] [21:47] A Capital gun's inventory icon renders black.
