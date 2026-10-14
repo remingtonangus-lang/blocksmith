@@ -1598,6 +1598,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if let a = game.hellBossBar() { bars.append((a.0, a.1, V4(0.55, 0.06, 0.14, 1))) }
             if let a = game.ashAlarmBar() { bars.append(a) }
             bars += game.huntedBars()               // D47
+            if let b = Partner.bar(game) { bars.insert(b, at: 0) }          // D52: downed, reviving
             for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             Goals.bars = bars.count + (game.deepWayUpHUD() != nil ? 1 : 0) + (Waymarks.hud(game) != nil ? 2 : 0)
             // The way up out of the Deep (DeepWayUp.swift), under the bars.

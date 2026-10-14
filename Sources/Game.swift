@@ -967,6 +967,7 @@ final class Game {
         if bumpersFree && padHotbarScroll && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
         if bumpersFree && padHotbarScroll && p.lb && !q.lb { select(selected - 1) }
 
+        Partner.tick(self, fdt)                                          // D52: downed, revives, riding pillion
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos
         if !mi.sneak { sneakHeldFromMenu = false }
@@ -2381,8 +2382,10 @@ final class Game {
         audioHurt(type)
         if bulletHit && absorption <= 0 && amount >= 2 { dmg = max(dmg, 1) }      // a round that lands always hurts a little
         guard dmg >= 0.5 else { return }
+        if Partner.isDowned(self) { return }                            // D52: down and out of the fight
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
+        if health <= 0 && Partner.goDown(self, cause) { return }        // D52: a partner can get you up
         if health <= 0 { die(cause) }
     }
 
