@@ -454,6 +454,7 @@ final class ItemRegistry {
         Guns.register(self)
         registerPrinterParts()
         registerGunParts()                                // D31 (GunsmithBench.swift)
+        registerFactionArmour()                           // D33 (FactionArmour.swift)
         registerLasso()
         registerDeeds()                                   // D28 (Property.swift)
         registerGunCare()

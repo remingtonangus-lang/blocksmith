@@ -409,7 +409,8 @@ enum Enchant {
         let k = Items.key(item)
         for (pre, mat) in [("wooden_", "oak_planks"), ("stone_", "cobblestone"), ("iron_", "iron_ingot"), ("golden_", "gold_ingot"),
                            ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot"), ("copper_", "copper_ingot"), ("steel_", "steel_ingot"),
-                           ("regular_", "steel_ingot"), ("specops_", "steel_ingot"), ("hannibal_", "steel_ingot")] where k.hasPrefix(pre) {
+                           ("regular_", "steel_ingot"), ("specops_", "steel_ingot"), ("hannibal_", "steel_ingot"),
+                           ("greywall_kit_", "steel_ingot"), ("capital_kit_", "steel_ingot"), ("ashguard_kit_", "steel_ingot")] where k.hasPrefix(pre) {     // (D33: faction kits)
             return mat
         }
         if k == "turtle_helmet" { return "turtle_scute" }

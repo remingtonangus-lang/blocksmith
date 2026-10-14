@@ -440,6 +440,7 @@ enum TownLaw {
         GangLeaders.tick(g)                              // D26: gang bosses at their hideouts
         Fence.tick(g)                                    // D27: hot goods cool off
         MailOrder.tick(g)                                // D29: parcels come in
+        FactionArmour.tick(g)                            // D33: a full faction set's edge
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
