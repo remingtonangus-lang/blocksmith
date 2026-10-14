@@ -437,6 +437,11 @@ extension Game {
                     damageHeld(1)
                 }
                 if ships.pilot === s && s.helm == cell { leaveHelm() }
+                if let part = ships.salvageMainGun(s, cell: cell) {
+                    drops.spawn(part, at: centre)
+                    onToast?("Salvaged the \(MainGun.name)'s breech: set it on a ship of your own and attack from the helm to fire it")
+                    sfx(.anvil, 0.8, at: centre)
+                }
                 ships.setBlock(s, cell, AIR)
                 ships.mineCell = nil
             }

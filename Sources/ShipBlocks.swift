@@ -122,6 +122,15 @@ extension BlockRegistry {
             }
         }
 
+        // H4: the Tidebreaker's breech, salvaged from a Meridian frigate's main gun (ShipManager.salvageMainGun). Set on
+        // a ship of your own, it gives the helm the main gun, firing out of the side opposite its front like a cannon.
+        var breech = BlockDef("tidebreaker_breech", "Tidebreaker Breech")
+        breech.tex = ["ship_metal"]; breech.render = .model; breech.layer = .cutout; breech.opaque = false; breech.hardness = 6
+        breech.tool = .pickaxe; breech.requiresTool = true; breech.sound = .stone; breech.skyStop = false; breech.resistance = 12
+        breech.emit = 7
+        facing4(breech, [Box(1, 0, 1, 15, 6, 15, tex: t6("ship_metal")), Box(3, 6, 4, 13, 14, 16, tex: barrel),
+                         Box(2, 7, 7, 14, 13, 9, tex: brass), Box(2, 7, 12, 14, 13, 14, tex: brass), Box(5, 8, 0, 11, 12, 4, tex: barrel)])
+
         // Wheel: a disc rolling along the facing axis (north/south roll along Z, west/east along X).
         var wheel = BlockDef("ship_wheel", "Wheel")
         wheel.tex = ["ship_tyre"]; wheel.render = .model; wheel.opaque = false; wheel.hardness = 1.5; wheel.tool = .axe; wheel.sound = .wood

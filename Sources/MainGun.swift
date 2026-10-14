@@ -543,7 +543,7 @@ extension ShipManager {
     // loaded (it fires 2.6 s later along the bow, raised or lowered with the view). False when it can't (reloading,
     // already charging, not a Meridian frigate): attack then fires the point-defence guns.
     func playerMainGun(_ s: Ship, pitch: Float, game g: Game) -> Bool {
-        guard s.role == "capfrigate", let st = capState[s.id], st.mainGunCD <= 0, st.gunCharge < 0 else { return false }
+        guard let st = gunState(s), st.mainGunCD <= 0, st.gunCharge < 0 else { return false }
         st.gunPitch = pitch
         startMainGunCharge(s, st, g, byPlayer: true)
         return true
@@ -552,7 +552,7 @@ extension ShipManager {
     // The helm's readout (nil for ships without a Tidebreaker): a short state ("READY", "63%" while charging, "14 s"
     // while reloading) and the gauge's fill.
     func mainGunStatus(_ s: Ship) -> (state: String, fill: Float, ready: Bool)? {
-        guard s.role == "capfrigate", let st = capState[s.id] else { return nil }
+        guard let st = gunState(s) else { return nil }
         if st.gunCharge >= 0 {
             let k = min(1, st.gunCharge / MainGun.chargeTime)
             return ("\(Int(k * 100))%", k, false)
@@ -566,8 +566,47 @@ extension ShipManager {
 
     // Seconds until the Tidebreaker can fire again (nil: not a Meridian frigate).
     func mainGunCooldown(_ s: Ship) -> Float? {
-        guard s.role == "capfrigate", let st = capState[s.id] else { return nil }
+        guard let st = gunState(s) else { return nil }
         return max(0, st.mainGunCD)
+    }
+
+    // H4: the main gun a ship carries: a Meridian frigate's own (until its breech is salvaged), or a salvaged breech
+    // set on a ship of your own (its state made on first use; it fires from the breech along its muzzle direction).
+    func gunState(_ s: Ship) -> CapitalState? {
+        if s.role == "capfrigate" { return capState[s.id].flatMap { $0.gunSalvaged ? nil : $0 } }
+        guard s.role == nil, let (p, d) = s.breech else { return nil }
+        let st: CapitalState
+        if let o = salvagedGuns[s.id] { st = o } else { st = CapitalState(); st.mainGunCD = 0; salvagedGuns[s.id] = st }
+        st.mainGunMuzzle = p + d * 0.6
+        st.mainGunDir = d
+        st.mainGunLength = 1
+        return st
+    }
+
+    // Charges, fires and reloads the salvaged guns (ships of the player's own; a ship that lost its breech drops it).
+    func salvagedGunsTick(_ dt: Float, _ g: Game) {
+        guard !salvagedGuns.isEmpty else { return }
+        for (id, st) in Array(salvagedGuns) {
+            guard let s = list.first(where: { $0.id == id }), s.breech != nil, gunState(s) === st else { salvagedGuns[id] = nil; continue }
+            st.mainGunCD -= dt
+            mainGunTick(s, st, dt, g)
+            if pilot === s { mainGunAimTick(s, st, dt, g) }
+        }
+    }
+
+    // H4: breaking the barrel of a commandeered or wrecked Meridian frigate (within 4 blocks of the barrel's line)
+    // frees the Tidebreaker's breech, once a frigate. Returns the item to drop, or nil.
+    func salvageMainGun(_ s: Ship, cell: IVec3) -> ItemStack? {
+        guard s.role == "capfrigate", s.captured || s.wrecked, let st = capState[s.id], !st.gunSalvaged,
+              st.gunCharge < 0, Items.has("tidebreaker_breech") else { return nil }
+        let c = V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5
+        let a = st.mainGunMuzzle, b = st.mainGunMuzzle - st.mainGunDir * max(1, st.mainGunLength)
+        let ab = b - a
+        let k = max(0, min(1, simd_dot(c - a, ab) / max(1e-4, simd_dot(ab, ab))))
+        guard simd_length(c - (a + ab * k)) < 4 else { return nil }
+        st.gunSalvaged = true
+        st.mainGunCD = .greatestFiniteMagnitude
+        return ItemStack(Items.id("tidebreaker_breech"), 1)
     }
 }
 

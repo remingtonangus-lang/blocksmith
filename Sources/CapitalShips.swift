@@ -54,6 +54,7 @@ final class CapitalState {
     var mainGunMuzzle = V3(0, 0, 0)    // ship space (grid coordinates)
     var mainGunDir = V3(0, 0, -1)
     var mainCharge: Float = 0
+    var gunSalvaged = false            // H4: the Tidebreaker's breech was taken out of this frigate
     var mainGunLength: Float = 0       // barrel length back from the muzzle along -mainGunDir (the Tidebreaker's glow)
     var gunCharge: Float = -1          // the Tidebreaker: seconds charged (>= 0 while charging; MainGun.swift)
     var gunByPlayer = false            // the charge was started from the helm (fires along the view pitch)
@@ -952,6 +953,7 @@ extension ShipManager {
         capitalLock.unlock()
         for b in ready { installCapital(b) }
         guard dt > 0 else { return }
+        salvagedGunsTick(dt, g)
         for s in capitals {
             guard let st = capState[s.id] else { continue }
             let pd = boundsDistance(s, g.player.pos)
