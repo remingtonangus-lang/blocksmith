@@ -192,4 +192,12 @@ vec3 filmic(vec3 c) {
     float lime = clamp((c.g - max(c.r, c.b)) * 1.6, 0.0, 1.0);
     return max(l + (c - l) * (1.0 - 0.28 * lime), vec3(0.0));
 }
-vec4 worldColor(vec4 c) { return finalColor(vec4(filmic(c.rgb), c.a)); }
+// SH1 colour grading (u.fx.w, WorldRenderer: time of day and biome): warm gold at sunrise and sunset and in hot lands,
+// cool blue at night and in the cold, nothing at noon in a temperate biome.
+vec3 grade(vec3 c) {
+    float w = u.fx.w;
+    if (w == 0.0 || !fxOn(8)) { return c; }
+    vec3 k = w > 0.0 ? mix(vec3(1.0), vec3(1.07, 0.98, 0.86), w) : mix(vec3(1.0), vec3(0.88, 0.95, 1.1), -w);
+    return c * k;
+}
+vec4 worldColor(vec4 c) { return finalColor(vec4(grade(filmic(c.rgb)), c.a)); }
