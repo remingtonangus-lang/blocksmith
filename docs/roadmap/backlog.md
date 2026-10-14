@@ -291,7 +291,13 @@ P258. [12:43] Pick up a body (person or animal) by holding grip on it and drag o
 P259. [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
 P260. [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
 P261. [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
-P262. [12:16] Momentum: a fast, heavy object (ship, vehicle, falling debris) breaks through blocks it hits, scaled by speed and mass.
+P262. [CLAIMED console 2026-10-14] [12:16] Momentum: a fast, heavy object (ship, vehicle, falling debris) breaks through blocks it hits, scaled by speed and mass.
+ (a) His intent: a fast, heavy ship, vehicle or falling wreck breaks through the blocks it hits instead of stopping dead, more the heavier and faster it is.
+ (b) [console] Scaled by momentum: the break budget grows with mass and with speed over a walking pace; a rowing boat at speed snaps leaves, glass and dirt; a laden ship or a crashing dropship ploughs through walls and trees; nothing breaks bedrock or obsidian-hard blocks.
+ (c) [console] It keeps going: what it breaks through gives back part of the speed the hit took, so a heavy hull ploughs on, while a wall it cannot break stops it as before.
+ (d) [console] Looks and sounds like it: break particles and the block's own breaking sound, flying debris pieces in realistic worlds, a debris rain sound for a big breach; some of the broken blocks drop as items, container contents spill out.
+ (e) [console] The hull suffers less when the obstacle gives way (its own crash damage is softer), so ramming is a choice, not suicide; it still crashes hard against what does not break.
+ (f) [console] Works the same on Polygon worlds (the natural ground takes a bowl, as a blast does) and only for hits on the world (two hulls colliding are left to the hull damage).
 P263. [DONE] [12:17-12:18, repeat of P225] Wreck repair still confusing: "lift plumes 0 of 10", "weighs 600 tons", and why lift is needed if it already drove. (a) The repair screen explains what each part does; (b) the part counts are sensible for the craft's size; (c) a craft that can already move says what is missing for flight specifically.
  (d) [console] The guide's first page shows what the hull already has (helm, propellers, engines and how many propellers they can drive, wheels, sails, balloons, rotor), so he sees progress, then each missing part's page: what it does, how many more, its recipe and where it goes.
  (e) [console] Weight in plain words: "600 blocks (each block weighs about a tonne)", with the tip that breaking off loose blocks lowers the lift needed, and the numbers the guide gives are the same rule the physics uses.
