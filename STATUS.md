@@ -9,6 +9,14 @@
 > shared pay and downed/revive (CoopPartner). Q2 so far: sight and fuel on the real vehicle panel, a downed partner is
 > out of the fight, frontier folk trade by biome. Typechecked on the Linux Quest host check only; not yet played.
 
+> **Q2 polish passes (main thread, 2026-10-14, PRs #223-#240):** new worlds are always the polygon world (Create New
+> World has no terrain row; an old block world can convert once from Video, never back). A downed co-op partner lies on
+> the ground (split screen and Play Together) and bleeds out 4 s faster per hit. Train hold-ups show a bar with the
+> robbers left and the time. Tracking: glowing beacon, an arrival chime, and a toast when the target is gone. Settlement
+> arrival lines; the hunting wind hint says in your face / at your back / left / right. Gun seats show their reload, and
+> the bullion car can't be cracked while the guard car still fights. On screen, "hell band" is now the fire band. Store
+> listing, IARC (simulated gambling: saloon games) and comfort drafts match the game. Typechecked only; not yet played.
+
 > **Art gaps (25b4zzz, 2026-10-11, done):** style 3 now covers 1221 of 1489 layers (82%, was 61%): doors/trapdoors
 > (all woods, copper, iron), glass + stained glass, beds, candles, shulkers, glazed terracotta, torches, lanterns, rails,
 > tall plants, vines, lily pads, ancient debris, gilded blackstone; every item icon; 39 effect icons + XP bar; bigger gold
