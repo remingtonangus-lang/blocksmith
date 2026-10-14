@@ -275,7 +275,7 @@ He played the 21:25 build (3148f425, before PR #112 merged the R/F/S batch) 21:2
 P221. [DONE] [21:29] Explosions kill everyone inside the blast radius; nobody walks out of a rocket or shell hit.
 P222. [DONE] [21:29-21:30] Capital tower base guns: too big for the base. Use a large variety of smaller naval/AA guns (he loved the small one at 21:30; do not just scale down the big gun). Some guns spawn without their top, half generated: fix the generation. Put a helicopter on a tower landing pad that he can steal.
 P223. [DONE] [21:37] Opening his world has a very long wait before the loading screen: show the loading screen at once and cut the wait.
-P224. [21:38, 21:41] Blocks of the dropship are hard to break off; make breaking craft blocks as reliable as terrain.
+P224. [DONE] [21:38, 21:41] Blocks of the dropship are hard to break off; make breaking craft blocks as reliable as terrain.
 P225. [21:39-21:42] Wreck repair: "needs 299 lift balloons" is absurd. Size lift parts sensibly (a few balloons lift a craft), say where each part goes (propeller on the stern), and make cannon ammo obvious: where cannonballs load and how to get them.
 P226. [21:40] Crouch lets him pass under low gaps (repeat of 13:10).
 P227. [21:43] The gun inspect view (the one that shows a gun's details) is far too big.

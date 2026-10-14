@@ -351,6 +351,11 @@ extension Game {
         }
         guard let hit = best else {
             ships.target = nil
+            if let (ps, pc) = ships.mineCell, ships.mineProgress > 0 {         // (P224: a frame off the hull keeps the block's progress)
+                ships.mineMemory.removeAll { $0.ship == ObjectIdentifier(ps) && $0.cell == pc }
+                ships.mineMemory.append((ObjectIdentifier(ps), pc, ships.mineProgress, clock))
+                if ships.mineMemory.count > 6 { ships.mineMemory.removeFirst() }
+            }
             ships.mineCell = nil
             // Using a loose helm assembles the structure around it.
             if useNow && !sneak, let tg = target, ShipParts.kinds[Int(world.block(tg.hit.x, tg.hit.y, tg.hit.z))] == .helm {
@@ -363,8 +368,14 @@ extension Game {
             return false
         }
         let (s, cell, normal, t) = hit
-        // Something nearer in the world, or a mob in front: not ours.
-        if let tg = target, simd_length(hitPoint(tg) - eye) < t { ships.target = nil; return false }
+        // Something nearer in the world, or a mob in front: not ours. P224 (Oct 13 21:38, "it's hard to break blocks
+        // off the dropship"): a wreck resting in the ground has terrain cells inside its own blocks; a world hit that
+        // lies inside one of the craft's blocks is the craft's, so the hull can be mined like terrain.
+        if let tg = target, simd_length(hitPoint(tg) - eye) < t {
+            let l = s.toLocal(hitPoint(tg) + look * 0.02)
+            let inside = s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR
+            if !inside { ships.target = nil; return false }
+        }
         if let mh = mobs.raycast(eye, look, maxDist: 3.5), mh.1 < t { ships.target = nil; return false }
         ships.target = (s, cell, normal)
         target = nil
@@ -379,8 +390,19 @@ extension Game {
                 if breakNow || ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.3 }
             } else {
                 if ships.mineCell == nil || ships.mineCell!.0 !== s || ships.mineCell!.1 != cell {
+                    // P224: the cell left behind keeps its progress for a few seconds (the controller's ray wobbles
+                    // across a cell edge on the headset, and every wobble started the block over).
+                    if let (ps, pc) = ships.mineCell, ships.mineProgress > 0 {
+                        ships.mineMemory.removeAll { $0.ship == ObjectIdentifier(ps) && $0.cell == pc }
+                        ships.mineMemory.append((ObjectIdentifier(ps), pc, ships.mineProgress, clock))
+                        if ships.mineMemory.count > 6 { ships.mineMemory.removeFirst() }
+                    }
                     ships.mineCell = (s, cell)
                     ships.mineProgress = Float(Int(s.damage[cell] ?? 0) & 31) / 8      // a chipped plate picks up where it was left
+                    if let i = ships.mineMemory.firstIndex(where: { $0.ship == ObjectIdentifier(s) && $0.cell == cell && clock - $0.at < 4 }) {
+                        ships.mineProgress = max(ships.mineProgress, ships.mineMemory[i].progress)
+                        ships.mineMemory.remove(at: i)
+                    }
                 }
                 let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater, mul: miningSpeedMul)
                 if secs.isFinite {
@@ -405,6 +427,7 @@ extension Game {
                 }
             }
             if done {
+                ships.mineMemory.removeAll { $0.ship == ObjectIdentifier(s) && $0.cell == cell }
                 if breakNow || !survival { swing = 1 }
                 sfx(.breakBlock(soundMat(b)), at: centre)
                 particles.blockBreak(b, at: IVec3(Int(floor(centre.x)), Int(floor(centre.y)), Int(floor(centre.z))))
