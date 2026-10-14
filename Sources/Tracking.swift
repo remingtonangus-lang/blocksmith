@@ -45,6 +45,19 @@ enum Tracking {
         return names[((i % 8) + 8) % 8]
     }
 
+    // Q2: where the wind comes from as you face (a compass point means little in a headset).
+    static func relative(_ g: Game) -> String {
+        let w = g.sky.wind
+        guard simd_length(w) > 0.01 else { return "" }
+        let u = -simd_normalize(w)
+        let yaw = g.player.yaw
+        let fwd = V2(-sinf(yaw), -cosf(yaw)), right = V2(cosf(yaw), -sinf(yaw))
+        let f = simd_dot(u, fwd), r = simd_dot(u, right)
+        if f > 0.7 { return ", in your face" }
+        if f < -0.7 { return ", at your back" }
+        return r > 0 ? ", from your right" : ", from your left"
+    }
+
     // MARK: Prints (animalAI)
 
     static func step(_ m: Mob, _ g: Game, _ dt: Float) {
@@ -89,7 +102,7 @@ enum Tracking {
            g.mobs.mobs.contains(where: { $0.kind.herdGame && $0.health > 0 && simd_length($0.pos - p) < 48 }) {
             windToldAt = now
             let from = compass(-g.sky.wind)
-            g.onToast?("The wind's from the \(from): stay downwind of the game")
+            g.onToast?("The wind's from the \(from)\(relative(g)): stay downwind of the game")
         }
         wasSneaking = sneak
     }
