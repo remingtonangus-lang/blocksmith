@@ -591,7 +591,7 @@ enum Loot {
                             ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2),
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
         // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
-        "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
+        "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 12), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
                                      ("capital_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
                                      ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3),
                                      ("firing_mechanism", 1, 2, 7)]),
@@ -619,7 +619,7 @@ enum Loot {
         "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
                                          ("enchanted_golden_apple", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
-        "ash_armory": (3...6, [("gun_kessel", 1, 1, 8), ("gun_hagel", 1, 1, 8), ("gun_sturmwind", 1, 1, 7), ("gun_ashsaw", 1, 1, 3),
+        "ash_armory": (3...6, [("gun_kessel", 1, 1, 10), ("gun_sturmwind", 1, 1, 10),
                                ("gun_launcher", 1, 1, 4), ("rifle_rounds", 16, 48, 20),
                                ("heavy_rounds", 6, 16, 10), ("rocket_ammo", 2, 6, 12), ("shotgun_shells", 6, 18, 6), ("tnt", 2, 6, 8),
                                ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("golden_apple", 1, 1, 3)]),
@@ -629,7 +629,7 @@ enum Loot {
         "ash_fuel": (3...6, [("coal_block", 1, 4, 12), ("blaze_powder", 2, 6, 8), ("gunpowder", 4, 12, 12), ("tnt", 2, 6, 8),
                              ("fire_charge", 2, 6, 8), ("rocket_ammo", 2, 4, 6), ("iron_ingot", 2, 6, 8)]),
         "ash_command": (5...9, [("ashguard_journal", 1, 1, 5), ("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 6), ("gun_launcher", 1, 1, 6),
-                                ("gun_sturmwind", 1, 1, 6), ("gun_ashsaw", 1, 1, 4),
+                                ("gun_sturmwind", 1, 1, 8),
                                 ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 10, 10), ("arc_cell", 6, 14, 6), ("netherite_scrap", 1, 3, 4),
                                 ("diamond_chestplate@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2), ("experience_bottle", 4, 10, 6)]),
         "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
@@ -702,13 +702,12 @@ enum Loot {
         GunGrade.gradeChest(c, table: table, rng: &rng)                  // T7
     }
 
-    // P216/P217: retired guns in a table come out as their replacement, and a chest with a gun in it also holds a
-    // magazine or two of that gun's ammunition (loot that matches the guns found with it).
+    // P216: a chest with a gun in it also holds a magazine or two of that gun's ammunition (loot that matches the guns
+    // found with it).
     static func matchGuns(_ c: ItemContainer, rng: inout SRng) {
         var need: [String] = []
         for i in 0..<c.count where !c[i].isEmpty {
             let k = Items.key(c[i].item)
-            if let r = Guns.retiredKeys[k], Items.has(r) { var s = c[i]; s.item = Items.id(r); c[i] = s }
             if let gi = Guns.index(c[i].item) { need.append(Guns.all[gi].ammo) }
         }
         for a in Set(need) where Items.has(a) {

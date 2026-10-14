@@ -5,9 +5,8 @@ import simd
 // under invented names. Gun pixels like CapitalArms (barrel toward -Z, y up); no part uses the enamel pattern, so a
 // soldier's livery never repaints them.
 //   Kessel Bolt Rifle      long walnut stock, turned-down bolt, barrel bands, hooded front sight; five rounds
-//   Hagel Machine Pistol   steel tube receiver, long straight stick magazine, folding stock, bakelite grip
 //   Sturmwind Carbine      stamped receiver, curved magazine, walnut butt, pistol grip
-//   Ashsaw Machine Gun     square perforated barrel jacket, muzzle booster, bipod, belt drum, bakelite stock
+// (P217, Oct 14: the machine pistol and the machine gun are gone; their keys load as the carbine.)
 enum AshArms {
     static let walnut = V3(0.36, 0.2, 0.1), blued = V3(0.11, 0.115, 0.13), steel = V3(0.2, 0.21, 0.23)
     static let bakelite = V3(0.16, 0.09, 0.06), brass = V3(0.72, 0.55, 0.24), bore = V3(0.02, 0.02, 0.02)
@@ -40,28 +39,7 @@ enum AshArms {
             ]
             return GunModel(parts: p, mag: [], grip: V3(0, -1.0, 2.2), fore: V3(0, -0.6, -12), butt: V3(0, -0.6, 12.4),
                             muzzle: V3(0, 1.4, -27.2), magAt: V3(0, 1.8, -3), bolt: V3(2.1, 0.7, -1.2), scale: 0.56)
-        case Guns.hagel:
-            var p: [Part] = [
-                b(-0.8, -0.2, -7, 1.6, 1.8, 10, blued, pMetal),                    // receiver tube
-                b(-0.9, -1.6, -3, 1.8, 1.4, 5, blued, pMetal),                     // lower housing
-                b(-0.4, 0.3, -12, 0.8, 0.8, 5, blued, pMetal),                     // barrel
-                b(-0.5, -0.6, -11.8, 1.0, 0.8, 1.4, steel, pMetal),                // barrel rest
-                b(-0.2, 1.0, -11.5, 0.4, 0.7, 0.4, steel, pMetal),                 // front sight
-                b(-0.3, 1.6, -1, 0.6, 0.5, 0.6, steel, pMetal),                    // rear sight
-                b(-0.2, 0.5, -12.1, 0.4, 0.4, 0.12, bore, 0),
-                b(-0.7, -4.6, 0.2, 1.4, 3.2, 1.8, bakelite, pWood),                // grip
-                b(-0.25, -2.0, -2.0, 0.5, 0.3, 2.0, blued, pMetal),                // trigger guard
-                b(-0.7, -0.6, 3, 0.3, 0.5, 7.5, steel, pMetal),                    // stock struts
-                b(0.4, -0.6, 3, 0.3, 0.5, 7.5, steel, pMetal),
-                b(-0.8, -2.0, 10, 1.6, 2.4, 0.5, steel, pMetal),                   // butt plate
-                b(-1.6, 0.6, -3, 0.8, 0.4, 0.4, steel, pMetal),                    // bolt handle (left)
-                b(-0.7, -2.4, -5.4, 1.4, 1.0, 2, blued, pMetal),                   // magazine well
-            ]
-            let m = p.count
-            p += [b(-0.55, -7.6, -5.2, 1.1, 5.4, 1.6, blued, pMetal)]              // stick magazine
-            return GunModel(parts: p, mag: [m], grip: V3(0, -2.6, 1.0), fore: V3(0, -3.2, -4.4), butt: V3(0, -0.8, 10.4),
-                            muzzle: V3(0, 0.7, -12.2), magAt: V3(0, -3.6, -4.4), bolt: V3(-1.8, 0.8, -2.8), scale: 0.64)
-        case Guns.sturmwind:
+        default:
             var p: [Part] = [
                 b(-0.9, -0.3, -7, 1.8, 2.4, 10, blued, pMetal),                    // stamped receiver
                 b(-0.8, 0.3, -13, 1.6, 1.6, 6, blued, pMetal),                     // gas tube / handguard
@@ -81,28 +59,6 @@ enum AshArms {
             p += [b(-0.6, -4.0, -6.2, 1.2, 3.8, 1.8, blued, pMetal), b(-0.6, -6.6, -6.9, 1.2, 2.8, 1.8, blued, pMetal)]   // curved magazine
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -2.0, 1.5), fore: V3(0, -0.4, -10.5), butt: V3(0, -0.4, 11.4),
                             muzzle: V3(0, 1.0, -17.5), magAt: V3(0, -2.8, -5.2), bolt: V3(-1.6, 1.2, -4.8), scale: 0.6)
-        default:
-            var p: [Part] = [
-                b(-1.0, -0.4, -8, 2.0, 2.8, 11, blued, pMetal),                    // receiver
-                b(-1.1, 2.4, -6, 2.2, 0.6, 6, steel, pMetal),                      // feed cover
-                b(-0.9, 0.0, -22, 1.8, 2.0, 14, blued, pMetal),                    // barrel jacket
-                b(-0.7, 0.2, -24.5, 1.4, 1.6, 2.5, steel, pMetal),                 // muzzle booster
-                b(-0.25, 0.75, -24.6, 0.5, 0.5, 0.12, bore, 0),
-                b(-0.2, 2.0, -21.6, 0.4, 1.2, 0.4, steel, pMetal),                 // front sight post
-                b(-0.3, 2.9, -3, 0.6, 0.8, 0.8, steel, pMetal),                    // rear sight
-                b(-1.0, -2.8, -21, 0.3, 2.8, 0.3, steel, pMetal),                  // bipod legs
-                b(0.7, -2.8, -21, 0.3, 2.8, 0.3, steel, pMetal),
-                b(-0.6, -3.6, 0.4, 1.2, 3.4, 1.6, bakelite, pWood),                // pistol grip
-                b(-0.25, -1.8, -2.2, 0.5, 0.3, 2.0, blued, pMetal),                // trigger guard
-                b(-0.8, -1.6, 3, 1.6, 2.8, 8, bakelite, pWood),                    // stock
-                b(-0.85, -2.4, 11, 1.7, 3.6, 0.5, steel, pMetal),                  // butt plate
-                b(1.0, 0.6, -5, 0.8, 0.5, 0.5, steel, pMetal),                     // charging handle (right)
-                b(-1.4, 0.6, -5.8, 0.5, 0.5, 2.6, brass, pMetal),                  // belt into the feed
-            ]
-            let m = p.count
-            p += [b(-3.4, -2.6, -6.8, 2.4, 3.2, 3.2, blued, pMetal)]               // belt drum
-            return GunModel(parts: p, mag: [m], grip: V3(0, -2.0, 1.2), fore: V3(0, -0.6, -12), butt: V3(0, -0.6, 11.5),
-                            muzzle: V3(0, 1.0, -24.6), magAt: V3(-2.2, -1.0, -5.2), bolt: V3(1.6, 0.8, -5), scale: 0.55)
         }
     }
 
@@ -110,19 +66,20 @@ enum AshArms {
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
         switch i {
-        case Guns.ashsaw:
-            // (kept few: with upgrade parts every gun fits the first-person arm buffer, UpgradesTests)
-            for z: Float in [-19.4, -15.4, -11.4] {
-                p.append(b(-0.96, 0.5, z, 0.08, 1.0, 2.0, bore, 0))
-                p.append(b(0.88, 0.5, z, 0.08, 1.0, 2.0, bore, 0))
-            }
         case Guns.kessel:
             p.append(b(-0.2, -1.6, -19.8, 0.4, 0.4, 0.6, steel, pMetal))
             p.append(b(-0.2, -3.7, 9.0, 0.4, 0.4, 0.8, steel, pMetal))
-        case Guns.sturmwind:
-            for k in 0..<3 { p.append(b(-0.85, 0.6 + Float(k) * 0.4, -12.5, 0.06, 0.2, 5, steel * 0.8, pMetal)) }
+            // P217 redo (Oct 14, "frontier guns look like their real-world counterparts"): the classic bolt-action
+            // service rifle's tells: the cleaning rod under the muzzle, the bayonet lug, the sling slot through the
+            // butt, the bolt's flat sleeve behind the handle and the stock's pistol-grip wrist.
+            p.append(b(-0.12, 0.45, -26.4, 0.24, 0.24, 6.6, steel, pMetal))      // cleaning rod
+            p.append(b(-0.2, 0.15, -21.6, 0.4, 0.45, 1.3, steel, pMetal))        // bayonet lug
+            p.append(b(-0.92, -2.2, 7.4, 0.06, 0.5, 1.6, bore, 0))               // sling slot (left)
+            p.append(b(0.86, -2.2, 7.4, 0.06, 0.5, 1.6, bore, 0))                // (right)
+            p.append(b(-0.45, 1.2, 0.6, 0.9, 0.75, 1.6, steel, pMetal))          // bolt sleeve and safety
+            p.append(b(-0.7, -2.6, 0.8, 1.4, 1.2, 2.0, walnut * 0.92, pWood))   // pistol-grip wrist
         default:
-            for k in 0..<4 { p.append(b(-0.82, 0.0, -6 + Float(k) * 2, 0.06, 1.4, 0.4, steel * 0.8, pMetal)) }   // receiver ribs
+            for k in 0..<3 { p.append(b(-0.85, 0.6 + Float(k) * 0.4, -12.5, 0.06, 0.2, 5, steel * 0.8, pMetal)) }
         }
         return p
     }
@@ -131,14 +88,8 @@ enum AshArms {
         "gun_kessel": ["................", "................", "................", "................", "................",
                        "............1...", "11111111111m1...", "1mmmmmmmmmmmm11.", ".1aaaaaaaaa1aaa1", "..111111111.1aa1",
                        "............1aa1", ".............111", "................", "................", "................", "................"],
-        "gun_hagel": ["................", "................", "................", "................", "................",
-                      "......1.....1...", "111111111111111.", "1mmmmmmmmmmmmm1.", ".111ddd1dddd11..", "....1d1..1dd1...",
-                      "....1d1...1d1...", "....1d1...111...", "....1d1.........", "....111.........", "................", "................"],
         "gun_sturmwind": ["................", "................", "................", "................", "................",
                           "................", "........11......", "11111111mm111111", "1mmmmmmmmmmm1aa1", ".1111dd1d1111aa1",
                           "....1dd11a1..111", "....1dd1.1a1....", ".....1dd1.11....", "......111.......", "................", "................"],
-        "gun_ashsaw": ["................", "................", "................", "................", "................",
-                       "..............1.", "111111111111111.", "1d1d1d1dmmmmm1a1", "1mmmmmmmmmmmm1a1", ".11.1111yd11.1a1",
-                       ".1...1yyyd1a1...", ".1....111.1a1...", "..........111...", "................", "................", "................"],
     ]
 }

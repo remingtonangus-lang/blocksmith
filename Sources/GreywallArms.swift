@@ -5,14 +5,11 @@ import simd
 // the handling spread across the pistols and rifles (P105, 12:18: "at least three pistol types... the better guns
 // are harder to handle because of their recoil"). Slate-grey polymer and dark steel with a hazard-yellow mark, under
 // invented names, on Slate Rounds (never sold or crafted: taken from Greywall troops and bases).
-//   Slatefall Carbine   squared receiver, top sensor rail, short shrouded barrel, skeleton stock (the line rifle)
-//   Longwatch Rifle     long fluted barrel, a big optic, a bipod folded under (the marksman's)
-//   Wren Pistol         slim slab-sided pistol, long magazine, light and soft (the crews')
-//   Breaker Revolver    a heavy top-break hand cannon on heavy rounds: hits like a rifle, kicks like a mule (officers)
+//   Slatefall Carbine   a bullpup: magazine behind the grip, carry rail and sensor sight (the line rifle)
 //   Slate Repeater      box-fed light machine gun with a carry handle and a heat shield (heavy troopers)
-// Handling ladder, pistols: Needle (3, kick 0.014) < Capital Sidearm (4, 0.03) < Six-Iron (7, 0.065) < Breaker (12,
-// 0.14); rifles: Service Rifle / Sturmwind (~5, 0.013) < Slatefall (5.5, 0.02) < Kessel (16, 0.08) < Longwatch (20,
-// 0.085) < Farsight (24, 0.09). A soldier's aim is wider by its gun's kick on every shot (Mob.aimKick: recoil x 0.6),
+// (P217, Oct 14: the Longwatch, Wren and Breaker are gone; marksmen carry the Kessel, officers and crews the six-iron.)
+// Handling ladder, pistols: Falke (4, kick 0.03) < Six-Iron (7, 0.065); rifles: Service Rifle / Sturmwind (~5, 0.013)
+// < Slatefall (5.5, 0.02) < Kessel (16, 0.08) < Farsight (24, 0.09). A soldier's aim is wider by its gun's kick on every shot (Mob.aimKick: recoil x 0.6),
 // except a Hannibal trooper's: the power suit takes it.
 enum GreywallArms {
     static let slate = V3(0.3, 0.34, 0.38), dark = V3(0.12, 0.13, 0.15), steel = V3(0.22, 0.23, 0.25)
@@ -45,12 +42,12 @@ enum GreywallArms {
     // Greywall's loadouts by rank and troop class.
     static func pickGun(_ c: TroopClass, _ k: MobKind, roll r: Float) -> Int {
         switch k {
-        case .soldierOfficer: return Guns.breaker
+        case .soldierOfficer: return Guns.revolver
         // P216 (Oct 13 19:01, "nothing fires arc cells or heavy rounds, shotguns are rare, everything takes slate"):
-        // the crews' sidearm is the Breaker (heavy rounds), the marksmen's Longwatch takes heavy rounds, a third of
-        // the heavies carry the arc gun, and troopers carry shotguns too.
-        case .soldierCrew: return Guns.breaker
-        case .soldierMarksman: return c == .regular && r < 0.4 ? Guns.slatefall : Guns.longwatch
+        // a third of the heavies carry the arc gun, and troopers carry shotguns too. P217 (Oct 14): the Breaker and
+        // Longwatch are gone; officers and crews carry the six-iron, marksmen the Kessel (heavy rounds).
+        case .soldierCrew: return Guns.revolver
+        case .soldierMarksman: return c == .regular && r < 0.4 ? Guns.slatefall : Guns.kessel
         case .soldierIronclad: return r < 0.35 ? Guns.arc : Guns.repeater
         case .soldierTrooper: return c == .regular && r < 0.2 ? Guns.repeater : (r > 0.7 ? Guns.shotgun : Guns.slatefall)
         default: return r < 0.7 ? Guns.slatefall : Guns.shotgun
@@ -60,64 +57,35 @@ enum GreywallArms {
     static func model(_ i: Int) -> GunModel {
         switch i {
         case Guns.slatefall:
+            // P217 redo (Oct 14, "fewer, clearly different guns"): a bullpup, so it no longer reads as a third copy of
+            // the Service Rifle: the action and magazine sit in the stock behind the pistol grip, a short overall
+            // length, a long handguard, a carry rail with the sensor sight, a squared cheek piece and a butt pad
+            // straight behind the magazine (like the real bullpup carbines).
             var p: [Part] = [
-                b(-1.0, -0.3, -7, 2.0, 2.8, 11, slate, pPoly),                   // squared receiver
-                b(-0.7, 2.5, -7, 1.4, 0.45, 10, dark, pMetal),                    // top rail
-                b(-0.6, 2.95, -3.6, 1.2, 1.1, 2.6, dark, pMetal),                 // sensor sight
-                b(-0.4, 3.2, -3.7, 0.8, 0.7, 0.12, lens, pGlass),
-                b(-0.95, 0.2, -13.5, 1.9, 2.0, 6.5, slate * 0.9, pPoly),          // shroud
-                b(-0.4, 0.8, -17.2, 0.8, 0.8, 3.8, steel, pMetal),                // barrel
-                b(-0.2, 1.0, -17.3, 0.4, 0.4, 0.12, bore, 0),
-                b(-1.02, 0.9, -6, 0.1, 0.5, 2.2, hazard, pPoly),                   // hazard mark
-                b(-0.6, -3.4, 0.6, 1.2, 3.2, 1.6, dark, pPoly),                   // grip
-                b(-0.25, -1.5, -2.4, 0.5, 0.3, 2.2, dark, pMetal),                // trigger guard
-                b(-0.6, -0.2, 4, 0.4, 0.6, 7, dark, pMetal),                      // skeleton stock struts
-                b(0.2, -0.2, 4, 0.4, 0.6, 7, dark, pMetal),
-                b(-0.9, -1.6, 10.6, 1.8, 3.4, 0.7, dark, pPoly),                  // butt pad
+                b(-1.05, -1.6, -6.5, 2.1, 3.6, 15.5, slate, pPoly),               // body: receiver and stock in one
+                b(-1.1, 1.2, -1.5, 2.2, 0.8, 9.5, slate * 0.85, pPoly),            // cheek piece
+                b(-0.95, -0.4, -14.5, 1.9, 2.3, 8.0, slate * 0.9, pPoly),          // handguard
+                b(-0.4, 0.4, -18.4, 0.8, 0.8, 3.9, steel, pMetal),                 // barrel
+                b(-0.55, 0.25, -19.2, 1.1, 1.1, 0.9, dark, pMetal),                // flash hider
+                b(-0.2, 0.6, -19.28, 0.4, 0.4, 0.1, bore, 0),
+                b(-0.6, 2.0, -9.5, 1.2, 0.45, 12.5, dark, pMetal),                 // carry rail
+                b(-0.6, 2.45, -6.2, 1.2, 1.2, 3.0, dark, pMetal),                  // sensor sight
+                b(-0.4, 2.7, -6.32, 0.8, 0.75, 0.12, lens, pGlass),
+                b(-0.15, 1.9, -14.2, 0.3, 0.9, 0.4, dark, pMetal),                 // front sight post
+                b(-1.12, 0.3, 2.0, 0.1, 0.55, 2.4, hazard, pPoly),                 // hazard mark
+                b(-0.6, -5.0, -6.0, 1.2, 3.5, 1.6, dark, pPoly),                   // pistol grip, forward
+                b(-0.25, -2.0, -8.6, 0.5, 0.3, 3.0, dark, pMetal),                 // long trigger guard
+                b(-0.1, -1.95, -7.6, 0.2, 0.75, 0.3, steel, pMetal),               // trigger
+                b(-1.2, 0.6, 1.2, 0.14, 0.5, 1.2, dark, pMetal),                   // charging handle (left)
+                b(1.06, 0.2, 0.8, 0.08, 0.9, 2.8, dark, pMetal),                   // ejection port (right)
+                b(-1.1, -1.9, 8.9, 2.2, 4.2, 0.8, dark, pPoly),                    // butt pad
+                b(-0.8, -2.1, -14.0, 1.6, 0.4, 5.0, dark, pPoly),                  // handguard grip ribs
             ]
             let m = p.count
-            p += [b(-0.6, -4.4, -5.4, 1.2, 4.2, 2.0, dark, pPoly)]                  // magazine
-            return GunModel(parts: p, mag: [m], grip: V3(0, -1.8, 1.4), fore: V3(0, -0.2, -10.5), butt: V3(0, -0.2, 11.2),
-                            muzzle: V3(0, 1.2, -17.3), magAt: V3(0, -2.6, -4.4), bolt: V3(-1.4, 1.2, -4.5), scale: 0.6)
-        case Guns.longwatch:
-            var p: [Part] = [
-                b(-0.9, -0.6, -6, 1.8, 2.4, 10, slate, pPoly),                    // receiver
-                b(-0.45, 0.6, -26, 0.9, 0.9, 20, steel, pMetal),                  // long barrel
-                b(-0.5, 1.45, -24, 1.0, 0.12, 16, dark, pMetal),                  // flutes
-                b(-0.25, 0.85, -26.1, 0.5, 0.5, 0.12, bore, 0),
-                b(-0.7, 0.4, -26.8, 1.4, 1.3, 1.6, dark, pMetal),                  // muzzle brake
-                b(-0.9, 2.0, -7, 1.8, 0.4, 8, dark, pMetal),                      // rail
-                b(-0.8, 2.4, -6.2, 1.6, 1.8, 6.4, dark, pMetal),                  // optic
-                b(-0.55, 2.65, -6.3, 1.1, 1.3, 0.12, lens, pGlass),
-                b(-0.85, -0.9, -14, 1.7, 1.6, 8, slate * 0.9, pPoly),             // fore-end
-                b(-0.2, -1.6, -13.5, 0.4, 0.7, 5, dark, pMetal),                  // folded bipod
-                b(-0.6, -3.6, 0.6, 1.2, 3.2, 1.6, dark, pPoly),                   // grip
-                b(-0.25, -1.7, -2.4, 0.5, 0.3, 2.2, dark, pMetal),
-                b(-0.85, -1.8, 4, 1.7, 3.6, 7.8, slate, pPoly),                   // stock
-                b(-0.9, -2.0, 11.8, 1.8, 4.2, 0.6, dark, pPoly),
-                b(-0.92, 1.0, -4, 0.1, 0.5, 2.0, hazard, pPoly),
-            ]
-            let m = p.count
-            p += [b(-0.55, -2.6, -4.6, 1.1, 2.2, 2.6, dark, pPoly)]
-            return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 1.4), fore: V3(0, -0.9, -11), butt: V3(0, -0.2, 12.1),
-                            muzzle: V3(0, 1.05, -26.8), magAt: V3(0, -1.8, -3.4), bolt: V3(1.5, 0.9, -1.5), scale: 0.56)
-        case Guns.breaker:
-            // A top-break hand cannon: a deep frame, a six-round cylinder, a long ribbed barrel, a rubber grip.
-            let p: [Part] = [
-                b(-0.55, 0.25, -9.5, 1.1, 1.1, 7, steel, pMetal),                 // barrel
-                b(-0.3, 1.35, -9.4, 0.6, 0.35, 6.8, dark, pMetal),                // rib
-                b(-0.25, 0.55, -9.62, 0.5, 0.5, 0.12, bore, 0),
-                b(-0.95, -0.6, -2.6, 1.9, 1.9, 2.4, dark, pMetal),                // cylinder
-                b(-0.7, -0.8, -0.2, 1.4, 2.1, 1.8, steel, pMetal),               // frame
-                b(-0.25, 1.1, 1.1, 0.5, 0.6, 0.8, dark, pMetal),                  // hammer
-                b(-0.3, -1.5, -1.8, 0.6, 0.3, 1.7, dark, pMetal),                 // trigger guard
-                b(-0.6, -2.5, 0.4, 1.2, 1.8, 1.5, dark, pPoly),                   // grip
-                b(-0.6, -3.8, 0.9, 1.2, 1.4, 1.5, dark, pPoly),
-                b(-0.98, 0.3, -2.0, 0.1, 0.6, 1.2, hazard, pPoly),
-            ]
-            return GunModel(parts: p, mag: [], grip: V3(0, -1.6, 0.9), fore: V3(-0.4, -2.6, 1.2), butt: V3(0, -1.6, 0.9),
-                            muzzle: V3(0, 0.8, -9.7), magAt: V3(0, -0.4, -1.4), bolt: V3(0, 1.3, 1.2), scale: 0.68, shouldered: false)
-        case Guns.repeater:
+            p += [b(-0.6, -5.2, 2.0, 1.2, 3.8, 2.2, dark, pPoly), b(-0.62, -5.5, 1.9, 1.24, 0.4, 2.4, steel, pMetal)]   // magazine behind the grip
+            return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -3.2, -5.2), fore: V3(0, -1.2, -11.5), butt: V3(0, 0.2, 9.7),
+                            muzzle: V3(0, 0.8, -19.3), magAt: V3(0, -3.4, 3.1), bolt: V3(-1.4, 0.85, 1.8), scale: 0.6)
+        default:
             var p: [Part] = [
                 b(-1.2, -0.6, -8, 2.4, 3.2, 13, slate, pPoly),                    // receiver
                 b(-0.5, 0.6, -22, 1.0, 1.0, 14, steel, pMetal),                   // barrel
@@ -137,49 +105,18 @@ enum GreywallArms {
             p += [b(-2.9, -2.8, -6.8, 1.9, 3.0, 3.6, dark, pPoly)]                  // box magazine on the left
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 1.6), fore: V3(0, -0.6, -12), butt: V3(0, -0.2, 11.5),
                             muzzle: V3(0, 1.1, -22.1), magAt: V3(-2.0, -1.2, -5), bolt: V3(1.5, 0.8, -5), scale: 0.55)
-        default:
-            // Wren Pistol: a slim slab slide, a long magazine below the grip.
-            var p: [Part] = [
-                b(-0.55, 0.0, -6.8, 1.1, 1.2, 8.2, slate, pPoly),                 // slide
-                b(-0.5, -0.6, -6.2, 1.0, 0.6, 7.2, dark, pPoly),                  // frame
-                b(-0.2, 0.35, -6.92, 0.4, 0.4, 0.12, bore, 0),
-                b(-0.12, 1.2, -6.3, 0.24, 0.25, 0.3, steel, pMetal), b(-0.3, 1.2, 0.8, 0.6, 0.25, 0.4, steel, pMetal),
-                b(-0.25, -1.3, -2.2, 0.5, 0.3, 1.8, dark, pMetal),
-                b(-0.57, 0.5, -5.5, 0.06, 0.4, 1.4, hazard, pPoly),
-            ]
-            p += [b(-0.55, -2.4, -0.1, 1.1, 1.8, 1.5, dark, pPoly)]
-            let m = p.count
-            p += [b(-0.45, -4.4, 0.3, 0.9, 2.1, 1.3, dark, pPoly)]
-            return GunModel(parts: p, mag: [m], grip: V3(0, -1.5, 0.6), fore: V3(-0.4, -2.4, 0.9), butt: V3(0, -1.5, 0.6),
-                            muzzle: V3(0, 0.55, -7.0), magAt: V3(0, -3.6, 0.9), bolt: V3(0, 0.6, -1), scale: 0.68, shouldered: false)
         }
     }
 
     static func details(_ i: Int) -> [Part] {
         switch i {
-        case Guns.slatefall: return (0..<3).map { k in b(-0.98, 0.0 + Float(k) * 0.5, -12, 0.06, 0.25, 4, dark, pMetal) }   // shroud slots
+        case Guns.slatefall: return (0..<3).map { k in b(-0.98, 0.2 + Float(k) * 0.5, -13.5, 0.06, 0.25, 4.5, dark, pMetal) } // handguard slots
         case Guns.repeater: return (0..<3).map { k in b(-0.78, 0.6, -17 + Float(k) * 2.4, 0.06, 1.0, 1.2, bore, 0) }      // shield vents
-        case Guns.longwatch: return [b(-0.3, 4.2, -3.4, 0.6, 0.5, 0.8, steel, pMetal)]                                      // turret
         default: return []
         }
     }
 
     static let icons: [String: [String]] = [
-        "gun_slatefall": ["................", "................", "................", "................", "......111.......",
-                          "......1g1.......", "11111111111111..", "1aaaaaaaammmmm11", "1a1aaaaaa1111...", "11.1d1dd1.......",
-                          "....1d11d1......", "....1d1.d1......", ".....1..11......", "................", "................", "................"],
-        "gun_longwatch": ["................", "................", "................", "......11111.....", ".....1dddg1.....",
-                          "......11111.....", "111..11aa1......", "1aa11aaaaa111111", "1aaaaaaaammmmmd1", ".1a1d1d1111111..",
-                          "..1.1d11.1......", "....1d1..1......", ".....1...1......", "................", "................", "................"],
-        "gun_needle": ["................", "................", "................", "................", "................",
-                       ".111111111111...", ".1aaaaaaaaaay1..", ".1111111111111..", "......1d1d1.....", ".....1dd111.....",
-                       ".....1dd1.......", ".....1dd1.......", ".....1dd1.......", ".....1111.......", "................", "................"],
-        "gun_breaker": ["................", "................", "................", "................", ".1............1.",
-                        "..111111111111..", ".1mm1mmmmmmmmm1.", ".1mmmm11111111..", "..1mmmm1.1......", "..1dd111y1......",
-                        ".1ddd1.11.......", ".1ddd1..........", "1ddd1...........", "1111............", "................", "................"],
-        "gun_repeater": ["................", "................", "................", "................", ".....111111.....",
-                         ".....1....1.....", "1111111111111111", "1aaaaaaammmmmmm1", "1a1aaaaaa11111..", "11.1ddd1d1......",
-                         "...1ddd11d1.....", "...11111.d1.....", ".........11.....", "................", "................", "................"],
         "greywall_rounds": ["................", "................", "................", "....g.....g.....", "...ggg...ggg....",
                             "...ggg...ggg..g.", "...mmm...mmm.ggg", "...mmm...mmm.ggg", "...mmm...mmm.mmm", "...mmm...mmm.mmm",
                             "...mmm...mmm.mmm", "...ddd...ddd.mmm", ".............mmm", ".............ddd", "................", "................"],
@@ -193,7 +130,7 @@ extension Mob {
 
     // A Greywall soldier saved with a Capital gun (before P104) takes its own on load, like the Ashguard's.
     func greyRearm() {
-        guard factionValue == .greywall, Soldier.rank(kind) != nil, !Guns.isGreyArm(variant) else { return }
+        guard factionValue == .greywall, Soldier.rank(kind) != nil, !Guns.isGreyArm(variant) || Guns.isRetired(variant) else { return }
         let c = TroopClass(rawValue: Int(troop)) ?? .regular
         variant = GreywallArms.pickGun(c, kind, roll: hashf(Int(pos.x * 7), Int(pos.y * 3), Int(pos.z * 5), 8101))
         if let b = brain { b.gun = variant; b.mag = Guns.all[variant].mag }

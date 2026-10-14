@@ -133,23 +133,23 @@ enum Soldier {
     static func pickGun(_ k: MobKind) -> Int {
         let r = Rand.float(in: 0..<1)
         switch k {
-        case .soldierRecruit: return r < 0.6 ? Guns.rifle : Guns.smg
+        case .soldierRecruit: return Guns.rifle
         case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
         case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
         case .soldierOfficer: return Guns.pistol
         case .ashMarshal: return Guns.sturmwind
         case .ashChancellor: return Guns.sturmwind
-        case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
+        case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.rifle
         default: return r < 0.5 ? Guns.launcher : Guns.arc
         }
     }
 
     // The Ashguard's loadouts (AshArms.swift): riflemen a bolt rifle or carbine, stormers a carbine or machine pistol,
-    // sharpshooters the bolt rifle, heavies the Ashsaw, officers and drivers a machine pistol, the Marshal a carbine.
+    // sharpshooters the bolt rifle, everyone else the carbine (P217: the machine pistol and machine gun are gone).
     static func ashGun(_ k: MobKind, roll r: Float) -> Int {
         switch k {
         case .soldierRecruit: return r < 0.6 ? Guns.kessel : Guns.sturmwind
-        case .soldierTrooper: return r < 0.55 ? Guns.sturmwind : Guns.hagel
+        case .soldierTrooper: return Guns.sturmwind
         case .soldierMarksman: return Guns.kessel
         case .soldierIronclad: return Guns.kessel
         case .ashMarshal: return Guns.sturmwind
@@ -162,15 +162,10 @@ enum Soldier {
     static func band(_ rank: Int, _ gun: Int) -> (Float, Float) {
         switch gun {
         case Guns.kessel: return rank == 2 ? (16, 40) : (12, 28)
-        case Guns.hagel, Guns.needle: return (5, 11)
         case Guns.slatefall: return (8, 20)
         case Guns.repeater: return (10, 24)
-        case Guns.longwatch: return (16, 40)
-        case Guns.breaker: return (4, 12)
         case Guns.sturmwind: return (8, 18)
-        case Guns.ashsaw: return (10, 26)
         case Guns.shotgun: return (2.5, 6)
-        case Guns.smg: return (5, 10)
         case Guns.launcher: return (10, 26)
         case Guns.arc: return (6, 18)
         case Guns.pistol: return (4, 12)
@@ -530,7 +525,7 @@ extension Mob {
         } else {
             b.aimTime = 0
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
-            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || b.gun == Guns.sturmwind || b.gun == Guns.hagel || b.gun == Guns.slatefall || b.gun == Guns.repeater || r == 3,
+            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.sturmwind || b.gun == Guns.slatefall || b.gun == Guns.repeater || r == 3,
                b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
                 suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
             }

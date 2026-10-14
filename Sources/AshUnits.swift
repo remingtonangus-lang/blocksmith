@@ -31,7 +31,7 @@ extension MobKind {
                         call: .gun(12), fireImmune: true)
         case .ashChancellor:
             return Spec(name: "The Ash Chancellor", halfW: 0.36, height: 2.0, health: 420, speed: 2.8, behavior: .monster,
-                        drops: [("diamond", 4, 9), ("gold_ingot", 8, 16), ("netherite_scrap", 2, 4), ("gun_hagel", 1, 1)], xp: 500,
+                        drops: [("diamond", 4, 9), ("gold_ingot", 8, 16), ("netherite_scrap", 2, 4), ("gun_sturmwind", 1, 1)], xp: 500,
                         call: .gun(11), fireImmune: true)
         default:
             return Spec(name: "The Ash Marshal", halfW: 0.38, height: 2.1, health: 380, speed: 3.0, behavior: .monster,

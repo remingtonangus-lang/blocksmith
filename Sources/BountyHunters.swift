@@ -161,7 +161,7 @@ enum BountyHunters {
     static let roster: [(MobKind, [Int])] = [
         (.soldierOfficer, [Guns.revolver]),
         (.soldierTrooper, [Guns.shotgun, Guns.repeater]),
-        (.soldierMarksman, [Guns.longwatch]),
+        (.soldierMarksman, [Guns.kessel]),
         (.soldierRecruit, [Guns.repeater, Guns.revolver]),
     ]
 

@@ -17,8 +17,8 @@ enum HuntWeapon: Int {
         let k = Items.key(s.item)
         switch k {
         case "bow", "crossbow": return .arrow
-        case "gun_sidearm", "gun_revolver", "gun_smg", "gun_needle", "gun_breaker": return .pistol
-        case "gun_rifle", "gun_sniper", "gun_slatefall", "gun_longwatch", "gun_repeater": return .rifle
+        case "gun_sidearm", "gun_revolver": return .pistol
+        case "gun_rifle", "gun_sniper", "gun_slatefall", "gun_kessel", "gun_sturmwind", "gun_repeater": return .rifle
         case "gun_shotgun": return .shotgun
         case "gun_launcher", "gun_arc": return .heavy
         case "trident": return .spear

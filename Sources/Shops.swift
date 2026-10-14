@@ -191,7 +191,7 @@ enum Economy {
 
     static func value(of item: ItemID) -> Int? { value[Items.key(item)] }
     // P40: sold only by gunsmiths in a Capital city, their rounds too (R8: Capital guns bought there had nothing to fire).
-    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "gun_smg", "capital_rounds"]
+    static let capitalOnly: Set<String> = ["gun_sidearm", "gun_rifle", "capital_rounds"]
     // P42: the doctor doesn't carry every tonic. These turn up only in some shops (the chance a given keeper stocks it,
     // fixed per keeper), so finding one is worth the ride.
     static let rare: [String: Float] = ["potion_regeneration": 0.35, "potion_fire_resistance": 0.3, "potion_night_vision": 0.4,

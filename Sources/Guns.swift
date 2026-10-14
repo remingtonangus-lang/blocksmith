@@ -53,7 +53,7 @@ enum Guns {
         // jumps on to two more targets nearby (Armory.beam).
         GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 22, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
-                shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
+                shot: .beam, sound: 5, accent: V3(0.9, 0.9, 0.88)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
         GunSpec(key: "gun_sidearm", name: "Falke Pistol", ammo: "capital_rounds", mag: 18, interval: 0.22, auto: false, damage: 4, pellets: 1,
                 spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
@@ -83,19 +83,27 @@ enum Guns {
     static func isAshArm(_ gi: Int) -> Bool { gi >= kessel && gi <= ashsaw }
     static let slatefall = 12, longwatch = 13, needle = 14, breaker = 15, repeater = 16      // Greywall's (GreywallArms.swift)
     static func isGreyArm(_ gi: Int) -> Bool { gi >= slatefall && gi <= repeater }
-    // P217 (Oct 13 19:02, "several guns look identical; cut the roster to fewer, clearly different guns"): the
-    // Hummel (a second Capital rifle), the Wren (a second pistol), the Hagel (a second machine pistol) and the
-    // Kettensturm (a second machine gun) are retired: no soldier, chest, shop or recipe hands them out. Ones already
-    // owned still work (their item keys are save IDs). One ammunition each, spread so every type has a use:
+    // P217 (Oct 13 19:02, "several guns look identical; cut the roster to fewer, clearly different guns"; redone Oct 14:
+    // "fewer, clearly different guns, not remapping"): eleven guns, one of each kind:
+    //   Capital (white enamel)  Service Rifle (assault rifle), Brecher (pump shotgun), Fernblick (scoped marksman
+    //                           rifle), Himmelsturm (rocket launcher), Blitzlanze (arc gun), Falke (service automatic)
+    //   frontier / Ashguard     Sechser six-iron (single-action revolver), Kessel (bolt-action rifle), Sturmwind
+    //                           (assault carbine with a curved magazine)
+    //   Greywall                Slatefall (bullpup carbine), Slate Repeater (light machine gun)
+    // The Hummel, Wren, Hagel, Kettensturm, Longwatch and Breaker are gone: they are no longer items at all (not in
+    // creative, chests, shops, drops or recipes). Their keys stay save IDs: a stack saved with one loads as its
+    // replacement (SaveMigration.itemAliases), and a soldier saved carrying one is issued the replacement.
     //   capital rounds: Service Rifle, Falke Pistol          slate rounds: Slatefall Carbine, Slate Repeater
-    //   heavy rounds: Fernblick, Longwatch, Kessel, Breaker  rifle rounds: Six-Iron, Sturmwind Carbine
+    //   heavy rounds: Fernblick, Kessel                      rifle rounds: Six-Iron, Sturmwind Carbine
     //   shotgun shells: Brecher Shotgun                      arc cells: Blitzlanze Arc Gun     rockets: launcher
-    static let retired: [Int: Int] = [smg: rifle, needle: breaker, hagel: sturmwind, ashsaw: sturmwind]
+    static let retired: [Int: Int] = [smg: rifle, needle: revolver, hagel: sturmwind, ashsaw: sturmwind, longwatch: kessel, breaker: revolver]
     static func current(_ gi: Int) -> Int { retired[gi] ?? gi }
-    static let retiredKeys: [String: String] = ["gun_smg": "gun_rifle", "gun_needle": "gun_breaker", "gun_hagel": "gun_sturmwind", "gun_ashsaw": "gun_sturmwind"]
+    static let retiredKeys: [String: String] = ["gun_smg": "gun_rifle", "gun_needle": "gun_revolver", "gun_hagel": "gun_sturmwind",
+                                                "gun_ashsaw": "gun_sturmwind", "gun_longwatch": "gun_kessel", "gun_breaker": "gun_revolver"]
+    static func isRetired(_ gi: Int) -> Bool { retired[gi] != nil }
     static let revolverKey = "gun_revolver"
     // Held in one hand on the march, two when aimed (soldier rig, pose checks).
-    static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver || gi == needle || gi == breaker }
+    static func isHandgun(_ gi: Int) -> Bool { gi == pistol || gi == revolver }
     // capital_rounds (P40): the Capital's service rifle, Chatter Gun and sidearm fire their own rounds, never sold (looted
     // from Capital soldiers and citadels); rifle rounds are the frontier's (the six-iron, the Ashguard's arms).
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
@@ -113,7 +121,8 @@ enum Guns {
             d.maxStack = n == "rocket_ammo" ? 16 : 64
             reg.add(d)
         }
-        for (i, g) in all.enumerated() where !reg.has(g.key) {
+        for (k, to) in retiredKeys { SaveMigration.itemAliases[k] = to }
+        for (i, g) in all.enumerated() where !reg.has(g.key) && !isRetired(i) {
             var d = ItemDef(g.key, g.name)
             d.texKey = "item_" + g.key
             d.maxStack = 1
@@ -202,7 +211,7 @@ enum Guns {
     // The Capital finish models (CapitalArms.swift), shared with the soldiers' hands.
     static let models: [[Part]] = CapitalArms.models.map { $0.parts }
     static let magParts: [Set<Int>] = CapitalArms.models.map { Set($0.mag) }
-    // Ammo light on the left of the receiver (the shooter's side): cyan with rounds in, red when empty.
+    // Ammo light on the left of the receiver (the shooter's side): warm white with rounds in, red when empty.
     static let indicator: [Part] = CapitalArms.models.map { m in
         let r = m.parts[0]
         let y = r.mn.y + (r.mx.y - r.mn.y) * 0.62
@@ -344,8 +353,57 @@ enum Guns {
         return img
     }
 
+    // P217 redo (Oct 14, "the held model matches the icon"): at the GPU's texture size (128 px) the icon is drawn from
+    // the held model itself instead of upscaling the 16 px one: every box side on in its own colour and finish, near
+    // over far, lit from above (a bright top edge, a darker underside, grain on wood, a sheen on metal), outlined.
+    // Even the trigger, sights and screws of the gun in the hand show in the hotbar.
+    static func iconHD(_ gi: Int, _ n: Int) -> HDTex.Img {
+        var img = HDTex.Img(n, V4(0, 0, 0, 0))
+        let parts = models[gi]
+        var lo = V2(1e9, 1e9), hi = V2(-1e9, -1e9)
+        for q in parts { lo = simd_min(lo, V2(q.mn.z, q.mn.y)); hi = simd_max(hi, V2(q.mx.z, q.mx.y)) }
+        guard hi.x > lo.x, hi.y > lo.y else { return img }
+        let nf = Float(n)
+        let edge = max(1, n / 48)
+        let span: Float = max(hi.x - lo.x, hi.y - lo.y)
+        let k: Float = (nf - Float(edge * 2 + 2)) / span
+        let ox: Float = (nf - (hi.x - lo.x) * k) / 2, oy: Float = (nf - (hi.y - lo.y) * k) / 2
+        for q in parts.sorted(by: { $0.mn.x > $1.mn.x }) {                 // seen from -x: barrel left, the near side last
+            let fx0: Float = (q.mn.z - lo.x) * k + ox, fx1: Float = (q.mx.z - lo.x) * k + ox
+            let fy0: Float = (hi.y - q.mx.y) * k + oy, fy1: Float = (hi.y - q.mn.y) * k + oy
+            let x0 = Int(fx0.rounded(.down)), x1 = max(x0, Int(fx1.rounded(.up)) - 1)
+            let y0 = Int(fy0.rounded(.down)), y1 = max(y0, Int(fy1.rounded(.up)) - 1)
+            let base = simd_min(q.color, V3(1, 1, 1))
+            let rows = Float(max(1, y1 - y0))
+            for y in max(0, y0)...min(n - 1, max(0, y1)) {
+                let t = Float(y - y0) / rows                                   // 0 top .. 1 bottom
+                var shade: Float = 1.06 - 0.22 * t
+                if y - y0 < edge { shade = 1.22 }                              // lit top edge
+                if y1 - y < edge && y1 - y0 > edge * 3 { shade *= 0.72 }       // underside in shadow
+                for x in max(0, x0)...min(n - 1, max(0, x1)) {
+                    var s = shade
+                    if q.pattern == 10 { s *= 0.9 + 0.12 * sinf(Float(x) * 0.21 + sinf(Float(y) * 0.9) * 1.6) }   // wood grain
+                    if q.pattern == 8 && abs(t - 0.3) < 0.08 { s *= 1.12 }                                          // metal sheen
+                    if q.pattern == 7 { s *= 0.98 + 0.04 * hashf(x / 3, y / 3, gi, 77) }                             // enamel
+                    img[x, y] = V4(simd_min(base * s, V3(1, 1, 1)), 1)
+                }
+            }
+        }
+        // Outline: a dark rim round the silhouette, `edge` texels thick.
+        let filled = img.px.map { $0.w > 0 }
+        for y in 0..<n { for x in 0..<n where !filled[y * n + x] {
+            var near = false
+            for dy in -edge...edge where !near { for dx in -edge...edge {
+                let xx = x + dx, yy = y + dy
+                if xx >= 0, xx < n, yy >= 0, yy < n, filled[yy * n + xx] { near = true; break }
+            } }
+            if near { img[x, y] = V4(0.05, 0.05, 0.06, 1) }
+        } }
+        return img
+    }
+
     static func painters(_ p: inout [String: TextureGen.Painter]) {
-        for (gi, g) in all.enumerated() {
+        for (gi, g) in all.enumerated() where !isRetired(gi) {
             let img = modelIcon(gi)
             p["item_" + g.key] = { x, y in
                 guard y >= 0, y < 16, x >= 0, x < 16, img[y][x].w > 0 else { return TextureGen.clear }
@@ -366,9 +424,9 @@ enum Guns {
                 case "d": return V4(0.18 * h, 0.18 * h, 0.2 * h, 1)
                 case "m": return V4(0.42 * h, 0.44 * h, 0.47 * h, 1)
                 case "a": return V4(accent.x * h, accent.y * h, accent.z * h, 1)
-                case "g": return V4(0.45, 0.95, 1, 1)
+                case "g": return V4(1, 0.93, 0.72, 1)                         // (P217: warm glow, no cyan)
                 case "y": return V4(0.86 * h, 0.68 * h, 0.25 * h, 1)
-                case "w": return V4(0.8 * h, 0.83 * h, 0.88 * h, 1)              // the Capital's steel cases
+                case "w": return V4(0.85 * h, 0.85 * h, 0.83 * h, 1)             // the Capital's white cases
                 case "b": return V4(0.72 * h, 0.5 * h, 0.3 * h, 1)
                 case "r": return V4(0.7 * h, 0.14 * h, 0.12 * h, 1)
                 default: return TextureGen.clear
