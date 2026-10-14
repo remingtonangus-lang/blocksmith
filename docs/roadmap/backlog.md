@@ -289,7 +289,12 @@ P256. [CLAIMED console 2026-10-14] [12:07, 12:08, repeat of R8/P216] Greywall ch
 P257. [12:04, repeat of R7] Taking a magazine from the hip is still too hard. (a) A larger grab zone at the hip; (b) a haptic tick when the hand is in it; (c) the magazine snaps into the well when brought near.
 P258. [12:43] Pick up a body (person or animal) by holding grip on it and drag or carry it (with H12).
 P259. [12:14] Calling the horse: (a) if the horse is dead, say so when called; (b) show where it is or died on the map.
-P260. [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
+P260. [CLAIMED console 2026-10-14] [12:16, 12:17] No guns or swords while piloting a ship or vehicle: the hands hold the helm or controls.
+ (a) His intent: at the helm or the controls of any ship or vehicle (boats, airships, crawlers, carriages, helicopters, planes) his hands are on the controls: no gun, sword or tool in them.
+ (b) [console] Nothing in hand works while steering: no shots, no sword or tool swings, no blade hits in VR, no reloading or magazine grabs; the attack button stays the helm's (the cannons), as before.
+ (c) [console] In the headset each hand holds a control instead: a throttle lever in the moving hand, a helm grip in the aiming hand (dark grips with brass caps on the controllers), so the empty hands read as steering, not as a bug.
+ (d) [console] Letting go of the helm gives the held item back at once, in the same slot; nothing is moved in the inventory.
+ (e) [console] Feedback: the first time he takes the controls with a weapon or tool in hand a short toast says it is stowed while he steers.
 P261. [DONE] [12:16] Ship motion made him slightly sick: (a) smooth, predictable ship motion (no sudden jerks or turns he did not steer); (b) the comfort vignette also applies while piloting.
  (c) [console] Steering and throttle ease in and out (about a third of a second to full turn, half a second to full thrust), so the hull never lurches or whips round from a flick of the stick.
  (d) [console] A hull nobody is turning holds its heading harder against bumps, scraping keels, waves and wind, so it does not turn on its own.
