@@ -694,6 +694,10 @@ enum Loot {
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
         "greywall_command": [(1...1, [("radar_module", 1, 1, 1)])],
         "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
+        // D33: each army's armour kit, one armoury chest in three (FactionArmour.swift).
+        "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
+        "steelhold_armory": [(1...1, [("capital_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
+        "ash_armory": [(1...1, [("ashguard_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],
         "steelhold_vault": [(1...1, [("ember_charge", 1, 2, 1)])],
         "shipwreck_treasure": [(2...5, [("iron_nugget", 1, 10, 50), ("gold_nugget", 1, 10, 10), ("lapis_lazuli", 1, 10, 20)])],
     ]
