@@ -307,6 +307,7 @@ extension Snd {
         case .airshipWindLoop: return "Wind in the rigging"
         case .wingRushLoop: return "Air rushes past"
         case .frigateDroneLoop: return "Warship engines drone"
+        case .strikeRoarLoop: return "Dropship engines roar"
         case .carriageTreadLoop: return "Heavy treads clank"
         case .wheelRollLoop: return "Wheels rumble"
         case .hullWaterLoop: return "Water laps the hull"

@@ -88,7 +88,7 @@ enum Snd: Hashable {
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
-    case wingRushLoop, frigateDroneLoop, carriageTreadLoop
+    case wingRushLoop, frigateDroneLoop, carriageTreadLoop, strikeRoarLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
     case trainWhistle, steamChuff                   // C1 steam trains (VehicleAudio.swift)
     case shipCannon, turretTraverseLoop
@@ -134,7 +134,7 @@ enum Snd: Hashable {
         case .ashSiren: return .hostile
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
+             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
              .trainWhistle, .steamChuff,
              .mainGunCharge, .mainGunFire, .mainGunRumble: return .blocks
@@ -162,6 +162,7 @@ enum Snd: Hashable {
         case .shellIncoming: return 64
         case .ashSiren: return 400
         case .frigateDroneLoop: return 160
+        case .strikeRoarLoop: return 380          // P228: heard well before the dropship arrives
         case .carriageTreadLoop: return 96
         case .waterfallLoop: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
@@ -182,7 +183,7 @@ enum Snd: Hashable {
              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .ashVaultLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop, .stationHumLoop,
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
+             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
              .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop:
             return true
@@ -307,7 +308,7 @@ final class SoundBank {
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
               .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
               .trainWhistle, .steamChuff,
-              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .mainGunCharge, .mainGunFire, .mainGunRumble]
+              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop, .mainGunCharge, .mainGunFire, .mainGunRumble]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall, .volcanoRumble]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
@@ -330,7 +331,7 @@ final class SoundBank {
     static var vehicleSounds: [Snd] {
         [.mainGunCharge, .mainGunFire, .mainGunRumble,            // first: long renders, wanted the moment a frigate fires
          .engineStart, .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-         .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake,
+         .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .strikeRoarLoop, .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake,
          .shipCannon, .turretTraverseLoop, .shellFlightLoop, .explodeLarge]
     }
 
