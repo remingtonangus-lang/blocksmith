@@ -354,6 +354,7 @@ extension Game {
         } || (b.patrols[r.key] ?? []).contains { $0.health > 0 } || (b.crews[r.key] ?? []).contains { $0.health > 0 }
         guard !alive else { return }
         r.cleared = true
+        FactionRaids.owe("base:" + r.key, .steelhold, chance: 1.0 / 8, clock: clock)        // P236
         r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key)
         b.note("\(r.key) cleared")
         if simd_length(player.pos - r.centre) < 140 { onToast?("The citadel is cleared") }

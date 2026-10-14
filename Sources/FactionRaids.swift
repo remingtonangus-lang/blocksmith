@@ -43,8 +43,35 @@ enum FactionRaids {
     struct Gun { var cool: Float = 0, look: Float = 0, shots = 0, gap: Float = 0, foe: Mob? = nil }
     static var guns: [IVec3: Gun] = [:]
 
-    static func encode() -> String { "\(Int(max(0, next)))" }
-    static func decode(_ s: String) { next = Double(s) ?? 0; active = nil; guns = [:] }
+    // P236 (Oct 13 21:50): retaliation, once each. Killing corsairs at sea gives a one-in-two chance they raid your home
+    // once; clearing or taking a base a one-in-eight chance its faction does. Each cause is rolled only the first time
+    // (`settled`), and an owed raid comes 15-40 minutes later, the next time you are home.
+    static var owed: [String: (faction: Int, due: Double)] = [:]
+    static var settled: Set<String> = []
+    static func owe(_ key: String, _ f: Faction, chance: Float, clock: Double) {
+        guard !settled.contains(key) else { return }
+        settled.insert(key)
+        guard Rand.float(in: 0..<1) < chance else { return }
+        owed[key] = (f.rawValue, clock + Double(Rand.float(in: 900..<2400)))
+    }
+
+    static func encode() -> String {
+        let o = owed.map { "\($0.key),\($0.value.faction),\(Int($0.value.due))" }.joined(separator: ";")
+        return "\(Int(max(0, next)))|\(o)|\(settled.joined(separator: ";"))"
+    }
+    static func decode(_ s: String) {
+        let parts = s.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        next = Double(parts.first ?? "") ?? 0; active = nil; guns = [:]
+        owed = [:]; settled = []
+        if parts.count > 1 {
+            for e in parts[1].split(separator: ";") {
+                let f = e.split(separator: ",").map(String.init)
+                guard f.count >= 3, let fr = Int(f[f.count - 2]), let due = Double(f[f.count - 1]) else { continue }
+                owed[f[0..<(f.count - 2)].joined(separator: ","), default: (fr, due)] = (fr, due)
+            }
+        }
+        if parts.count > 2 { settled = Set(parts[2].split(separator: ";").map(String.init)) }
+    }
 
     static func angered() -> Faction? {
         FactionRep.tracked.filter { FactionRep.of($0) <= angeredAt }.min { FactionRep.of($0) < FactionRep.of($1) }
@@ -93,6 +120,15 @@ extension Game {
             }
             if clock >= r.scanAt { r.turrets = raidTurrets(around: r.target); r.scanAt = clock + 20 }
             FactionRaids.active = r
+            return
+        }
+        // P236: an owed retaliation falls on your home once you are there.
+        if let (k, o) = FactionRaids.owed.first(where: { clock >= $0.value.due }), let f = Faction(rawValue: o.faction),
+           simd_length(spawnPoint - player.pos) < FactionRaids.reach, world.ships.pilot == nil {
+            FactionRaids.owed[k] = nil
+            onToast?(f == .corsairs ? "The corsairs haven't forgotten the men you sank: they're coming for your home!"
+                                    : "\(f.name) wants payback for its base: they're coming for your home!")
+            startRaid(f, at: spawnPoint, place: "your home")
             return
         }
         if FactionRaids.next == 0 { FactionRaids.next = clock + FactionRaids.every; return }
