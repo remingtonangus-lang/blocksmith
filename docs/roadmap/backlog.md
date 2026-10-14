@@ -417,7 +417,7 @@ D22. [DONE] Bandana mask: masked crimes cannot be pinned on him.
 D23. [DONE] Catch a fleeing witness before they reach the sheriff.
 D24. [DONE] Bring bounties in alive (lasso, hogtie) for double pay.
 D25. [DONE] Arrest, jail time and an escape option.
-D26. Named gang leaders with hideouts.
+D26. [DONE] Named gang leaders with hideouts.
 D27. A fence for stolen goods; shops refuse flagged items.
 D28. Buy a homestead or a town house.
 D29. Mail-order catalog for rare items.
