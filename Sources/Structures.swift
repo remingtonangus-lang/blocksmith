@@ -719,6 +719,7 @@ enum Loot {
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         if table == "base_sundries" { roll(c, BaseSundries.barrel.rolls, BaseSundries.barrel.entries, rng: &rng); return }
+        if table == BaseMaterials.loot { roll(c, BaseMaterials.table.rolls, BaseMaterials.table.entries, rng: &rng); return }   // P254
         if table == BaseSafes.loot {                                     // P248
             roll(c, BaseSafes.table.rolls, BaseSafes.table.entries, rng: &rng)
             Loot.matchGuns(c, rng: &rng)

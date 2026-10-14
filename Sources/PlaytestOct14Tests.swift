@@ -9,6 +9,7 @@ enum PlaytestOct14Tests {
         if on("P250") { p250(g, check: check) }
         if on("P251") { p251(g, render: render, check: check) }
         if on("P253") { p253(g, check: check) }
+        if on("P254") { p254(g, check: check) }
     }
 
     // P250: (a) the render distance the player sets holds unless frames really suffer and comes back when they stop;
@@ -126,6 +127,56 @@ enum PlaytestOct14Tests {
               String(format: "P253 (b): foggy weather clouds the sky over first (cover %.2f -> %.2f when the fog starts after %d s), then the view closes to %.0f blocks", cover0, coverAtFog, secs, thick))
     }
 
+    // P254: base crates and barrels hold bulk building materials.
+    static func p254(_ g: Game, check: (Bool, String) -> Void) {
+        let building = Set(BaseMaterials.table.entries.map { $0.0 })
+        func blocks(_ c: ItemContainer) -> Int { c.slots.filter { !$0.isEmpty && building.contains(Items.key($0.item)) }.reduce(0) { $0 + $1.count } }
+        // The layouts: store barrels of building blocks and the crate stacks in Greywall yards and a Capital armoury.
+        let crate = Blocks.id(BaseMaterials.crate)
+        func count(_ span: ClosedRange<Int>, _ build: (inout StructWriter) -> Void) -> (barrels: Int, blocks: Int, crates: Int) {
+            var barrels = 0, n = 0, crates = 0
+            for cz in span { for cx in span {
+                var buf = [BlockID](repeating: AIR, count: CS * CS * CH)
+                buf.withUnsafeMutableBufferPointer { b in
+                    var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+                    build(&w)
+                    for (_, be) in w.entities where be.kind == .chest {
+                        let k = blocks(be.container)
+                        if k >= 150 { barrels += 1; n += k }
+                    }
+                }
+                crates += buf.filter { $0 == crate }.count
+            } }
+            return (barrels, n, crates)
+        }
+        let garrison = count(-3...2) { Greywall.build(&$0, 0, 100, 0, .garrison, 4242) }
+        let fortress = count(-3...2) { Greywall.build(&$0, 0, 100, 0, .fortress, 4242) }
+        let capital = count(-4...3) { CapitalBase.build(&$0, 0, 100, 0, 4242) }
+        check(garrison.barrels >= 1 && fortress.barrels >= 3 && capital.barrels >= 5 && capital.blocks / max(1, capital.barrels) >= 300,
+              "P254: store barrels of building blocks: a Greywall garrison \(garrison.barrels) (\(garrison.blocks) blocks, \(garrison.crates) crates), a fortress \(fortress.barrels) (\(fortress.blocks), \(fortress.crates) crates), a Capital citadel \(capital.barrels) (\(capital.blocks), \(capital.crates) crates)")
+        // A base's crate in the world opens with a few hundred blocks in it, the same every time; broken, it spills them
+        // and leaves no crate to place again.
+        let w = g.world
+        let p = IVec3(Int(floor(g.player.pos.x)) + 3, Int(floor(g.player.pos.y)) + 2, Int(floor(g.player.pos.z)))
+        let was = w.block(p.x, p.y, p.z), surv = g.survival
+        defer { w.blockEntities[p] = nil; w.setBlock(p.x, p.y, p.z, was); g.closeMenu(); g.drops.items.removeAll(); g.survival = surv }
+        w.setBlock(p.x, p.y, p.z, crate); w.blockEntities[p] = nil
+        let opens = g.isInteractive(p)
+        g.openBlock(p)
+        let title = g.menu?.title ?? "none", inside = blocks(g.crateEntity(p).container)
+        g.closeMenu()
+        g.openBlock(p)
+        let again = blocks(g.crateEntity(p).container)
+        g.closeMenu()
+        g.drops.items.removeAll()
+        g.survival = true
+        g.breakBlock(p, crate, drop: true)
+        let spilled = g.drops.items.filter { building.contains(Items.key($0.stack.item)) }.reduce(0) { $0 + $1.stack.count }
+        let crateDrop = g.drops.items.contains { Items.key($0.stack.item) == BaseMaterials.crate }
+        check(opens && title == "Supply Crate" && inside >= 250 && again == inside && spilled == inside && !crateDrop
+              && Blocks.def(crate).display == "Supply Crate",
+              "P254: a base's Supply Crate opens with \(inside) building blocks (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
+    }
 
 
 

@@ -21,7 +21,7 @@ extension BlockRegistry {
         steel("hazard_plating", "Hazard Plating")
         steel("light_panel", "Light Panel", h: 3, emit: 15)
         steel("command_console", "Command Console", side: "command_console_side", top: "command_console_top", h: 6, emit: 7)
-        steel("ammo_crate", "Ammo Crate", side: "ammo_crate_side", top: "ammo_crate_top", h: 4)
+        steel("ammo_crate", "Supply Crate", side: "ammo_crate_side", top: "ammo_crate_top", h: 4)       // (P254: it opens)
         if !has("armored_glass") {
             var d = BlockDef("armored_glass", "Armored Glass")
             d.tex = ["armored_glass"]; d.opaque = false; d.layer = .cutout; d.cullSame = true

@@ -1706,7 +1706,7 @@ final class Game {
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
-            || k == BaseSafes.block
+            || k == BaseSafes.block || k == BaseMaterials.crate
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1765,6 +1765,8 @@ final class Game {
             let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
+        case BaseMaterials.crate:                                        // P254 (BaseMaterials.swift)
+            openMenu(ChestMenu(game: self, container: crateEntity(p).container, title: "Supply Crate"))
         case "bell":
             sfx(.bell, 1.5, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
             ringBell(p)
@@ -1932,6 +1934,7 @@ final class Game {
                 y += 1
             }
         }
+        if drop && Blocks.key(Blocks.groupBase[Int(b)]) == BaseMaterials.crate { _ = crateEntity(p) }     // P254: its contents spill
         if let be = world.blockEntities.removeValue(forKey: p) {
             if be.kind == .banner {
                 var s = ItemStack(Items.item(forBlock: b) ?? 0, 1)
