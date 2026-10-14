@@ -87,14 +87,30 @@ final class QuestApp {
         let t = Thread { [weak self] in
             // F3 (Oct 13 evening: quit and world switches froze the view while the save flushed): the old world, no
             // longer ticked or drawn, is saved here with the loading scene up and saying so.
+            // P223 (Oct 13 21:37, "a very long wait to get onto my world"): on a switch the old world is saved the
+            // autosave's way (snapshots now, the files written on the save queue) while the new world opens and
+            // generates; the new world is handed over once the old one is on disk. A quit still saves first.
             if let g = old {
                 self?.status("Saving the world", 0.02)
-                g.saveNow()
-                SaveIO.flush()
-                print("save: world saved")
+                let a = CFAbsoluteTimeGetCurrent()
+                if quitting {
+                    g.saveNow()
+                    SaveIO.flush()
+                } else {
+                    g.saveNow(background: true)
+                    MapFog.shared.save(g, background: true)
+                    // Reopening the same world (leaving a co-op game, a restore): its files are read first, so on disk now.
+                    let target = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? ""
+                    if req.join == nil && WorldStore.url(target).lastPathComponent == g.save?.dir.lastPathComponent { SaveIO.flush() }
+                }
+                print(String(format: "save: world snapshot %.2f s", CFAbsoluteTimeGetCurrent() - a))
             }
             if quitting { self?.loadLock.lock(); self?.saveDone = true; self?.loadLock.unlock(); return }
-            self?.load(req)
+            self?.load(req, before: {
+                let a = CFAbsoluteTimeGetCurrent()
+                SaveIO.flush()
+                print(String(format: "save: old world on disk (waited %.2f s at the hand-over)", CFAbsoluteTimeGetCurrent() - a))
+            })
         }
         t.stackSize = 8 << 20
         t.qualityOfService = .userInitiated
@@ -105,7 +121,7 @@ final class QuestApp {
 
     private var texturesUploaded = false
 
-    private func load(_ req: WorldRequest) {
+    private func load(_ req: WorldRequest, before handOver: () -> Void = {}) {
         var tex: [[UInt8]] = []
         if !texturesUploaded {
             status("Painting textures", 0.05)
@@ -154,6 +170,7 @@ final class QuestApp {
         // F4: the middle ring's first build (~17k terrain columns) here too, not on the first world frame.
         FarRing.shared.request(game, eye: game.player.eye)
         QuestWarmup.run()
+        handOver()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
     }
@@ -285,6 +302,8 @@ final class QuestApp {
     // Saves and closes the current world, then loads another behind the loading scene.
     private func switchWorld(_ req: WorldRequest) {
         print("world: switching to \(req.name ?? req.join ?? "?")")
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { print(String(format: "world: switch took %.1f ms on the frame thread", (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
         savingGame = game                    // saved on the loading thread (startLoading), behind "Saving the world"
         if let g = game { g.netHost?.stop(g); g.netHost = nil; if let gu = g.netGuest { gu.detach(g); g.netGuest = nil } }
         scene.waitIdle()
