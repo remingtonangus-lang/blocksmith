@@ -357,6 +357,12 @@ final class QuestControls {
                 bagGrip = true
             }
         }
+        // D6: the gun hand at a holster (hip or chest) and gripped draws or holsters a handgun (Holsters.swift).
+        if !inMenu && !bagGrip && !handGrab && rGrip && !prevGripR && R.gripValid && game.alive,
+           Holsters.grip(game, Holsters.zone(head: rig.headWorld, yaw: rig.headYaw, hand: rig.toWorld(R.gripPos))) {
+            app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
+            bagGrip = true
+        }
         // P56: with a gun out, the off hand at the hip takes a magazine and slots it into the gun (VRReload); that grip
         // doesn't step the hotbar.
         var magGrip = false
