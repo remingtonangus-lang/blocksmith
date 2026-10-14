@@ -63,6 +63,13 @@ void main() {
         vec3 wp = rel + u.eye.xyz;
         if (wp.y > 124.5 && wp.y < 127.5) rel.y += oceanWave(wp.xz, u.params.z).x * waveK[ao];
     }
+    // SH1: leaves and vines (foliage-tinted cube and smooth corners) stir in the wind. The offset is a function of the
+    // corner's world position only, so leaf blocks that share a corner move it together and no crack opens.
+    else if (tintMode == 2u && face < 6u && fxOn(1)) {
+        vec3 wp = rel + u.eye.xyz;
+        rel.xz += plantSway(wp, 0.0) * 0.3;
+        rel.y += 0.012 * sin(u.params.z * 2.1 + wp.x * 0.9 + wp.z * 0.7);
+    }
     // Plants bend in the wind (L3): Mesher marks the crosses that sway with the overlay bit and their phase in the AO
     // bits. Only top corners move (v = 0), so the stem stays planted; a slow gust wave rolls downwind across a meadow.
     bool sway = face == 6u && ((w1 >> 30) & 1u) == 1u;

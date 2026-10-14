@@ -76,7 +76,7 @@ final class PauseMenu: Menu {
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
 
     static func isValue(_ id: String) -> Bool {
-        valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
+        valueIDs.contains(id) || id.hasPrefix("vol:") || id.hasPrefix("fx") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
             || hostValues.contains(id)
     }
 
@@ -126,6 +126,9 @@ final class PauseMenu: Menu {
         "smooth": "This world only: natural ground (stone, dirt, sand, ores) is smooth polygons instead of cubes; built blocks stay cubic.",
         "new_terrain": "Polygons: natural ground is smooth, rounded polygons instead of cubes; mining, building and saves work the same. Switch later in Options > Video.",
         "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
+        "fx1": "Headset: leaves, vines and crops sway in the wind.", "fx2": "Headset: low mist settles in valleys at dawn, dusk and night.",
+        "fx4": "Headset: a soft glow round torches, lamps, lava and glowing ores.", "fx8": "Headset: colours warm at sunrise and sunset, cool at night, and follow the biome.",
+        "fx16": "Headset: metal, ice and wet surfaces catch the sun.",
         "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
@@ -255,6 +258,7 @@ final class PauseMenu: Menu {
                         ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
                         ("Block Chipping: \(on(st.chipping))", "chipping")]
+                rows += ShaderFX.names.map { ("\($0.1): \(on(ShaderFX.on($0.0)))", "fx\($0.0)") }      // SH1 (headset shaders)
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
                 rows = audioRows().filter { $0.1 != "audio_back" }
@@ -631,6 +635,7 @@ final class PauseMenu: Menu {
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()
         case "chipping": st.chipping.toggle()
+        case _ where id.hasPrefix("fx"): if let b = Int(id.dropFirst(2)) { st.shaderFX ^= b }
         case "smooth":
             g.smoothTerrain.toggle(); SmoothTerrain.use(world: g.smoothTerrain, world: g.world)
             // R26 (Oct 13 evening: "his world loaded without smooth terrain after being smooth"): the switch lived only in

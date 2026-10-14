@@ -20,6 +20,7 @@ struct FrameUniforms {
     var clouds = V4(0, 0, 0.45, 0)   // clouds.frag: eye in cloud space (xz), cover, storm flash (SkyLook.swift)
     var cloudFlash = V4(0, 0.3, 1, 0) // flash direction, storm darkness
     var wind = V4(1, 0, 0, 1)        // wind direction (xz), biome haze, cave dimming
+    var fx = V4(Float(ShaderFX.all), 0, 0, 0)   // SH1: piece bits (ShaderFX), valley mist strength, mist top (world y), grade
 }
 
 // One frame's camera: the head centre in world space and each eye's camera-relative view-projection.
