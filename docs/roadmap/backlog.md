@@ -283,7 +283,7 @@ P228. [DONE] [21:44] Strike-team ships make a loud, ominous engine sound heard f
 P229. [21:44, with F4] In the block world the far chunks are too simple: they must still look like blocks from a distance (no mobs or detail needed).
 P230. [DONE] [21:45] Pirates are their own faction, never the Capital.
 P231. [DONE] [21:46] All random encounters (raids, strike teams, pirates, bounty hunters, convoys) are ultra rare: something a player sees after a long time and goes "wow, I've never seen that", never something to get used to. One global rarity pass.
-P232. [21:47] A Capital gun's inventory icon renders black.
+P232. [DONE] [21:47] A Capital gun's inventory icon renders black.
 P233. [21:48] He could not scroll the craftables list.
 P234. [21:49] The titanium shovel digs faster (efficiency like a top-tier shovel).
 P235. [21:49] Dirt next to grass grows grass over time.
