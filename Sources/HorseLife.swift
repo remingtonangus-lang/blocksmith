@@ -319,7 +319,7 @@ enum RideComfort {
 // frigate's 42 b/s top speed (a steady cruise is mostly comfortable; the turn and acceleration terms add to it).
 enum ShipComfort {
     static func vignette(speed: Float) -> Float {
-        return min(0.55, max(0, speed - 12) / 30 * 0.55)
+        return min(0.55, max(0, speed - 6) / 30 * 0.55)          // P261: from 6 b/s (was 12)
     }
 }
 

@@ -645,7 +645,7 @@ final class QuestControls {
             shipTurnRate = 0
             carryVel = ship?.velocity(at: game.player.pos) ?? .zero
         }
-        rig.smoothSteps(game: game, dt: dt)
+        rig.smoothSteps(game: game, dt: dt, aboard: ship != nil)
         carryShip = ship
         carryYaw = ship?.yaw ?? 0
         carryRot = ship?.rot ?? simd_quatf()
@@ -672,6 +672,8 @@ final class QuestControls {
         if ship != nil {
             want = max(want, min(1, shipTurnRate * 2.5), min(1, max(0, shipAccel - 0.5) / 6))
             let shipSpeed = simd_length(carryVel)
+            // P261 (b): the deck heaving under him (the vignette while piloting answers it too).
+            if game.world.ships.pilot != nil { want = max(want, min(0.6, max(0, abs(carryVel.y) - 0.4) * 0.35)) }
             // At the helm of a fast ship (the frigate cruises at 42 b/s) the ground streaming past narrows the view too
             // (audit 25b6 #5); scaled by the Comfort Vignette setting like every other term (0 = off).
             if game.world.ships.pilot != nil { want = max(want, ShipComfort.vignette(speed: shipSpeed)) }

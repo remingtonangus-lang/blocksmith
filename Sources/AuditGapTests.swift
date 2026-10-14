@@ -6,9 +6,9 @@ import simd
 enum AuditGapTests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
         padSwell(game, check)
-        // #5 The helm's speed vignette: none at sailing speeds, rising to about half at the frigate's 42 b/s.
+        // #5 The helm's speed vignette: light at sailing speeds (P261: from 6 b/s), rising to about half at the frigate's 42 b/s.
         let v = [8, 12, 20, 30, 42, 60].map { ShipComfort.vignette(speed: Float($0)) }
-        check(v[0] == 0 && v[1] == 0 && zip(v.dropFirst(), v.dropFirst(2)).allSatisfy { $0.0 < $0.1 || $0.1 == 0.55 } && abs(v[4] - 0.55) < 0.01,
+        check(v[0] < 0.1 && v[1] < 0.15 && zip(v.dropFirst(), v.dropFirst(2)).allSatisfy { $0.0 < $0.1 || $0.1 == 0.55 } && abs(v[4] - 0.55) < 0.01,
               "ship helm speed vignette: \(v.map { String(format: "%.2f", $0) }) at 8/12/20/30/42/60 b/s (x the Comfort Vignette setting)")
         thinning(game, check)
         swamps(check)

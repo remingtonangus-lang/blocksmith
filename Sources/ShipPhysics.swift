@@ -434,6 +434,11 @@ extension ShipManager {
         var F = V3(0, -s.mass * g, 0)
         var T = V3(0, 0, 0)
         @inline(__always) func apply(_ f: V3, at w: V3) { F += f; T += simd_cross(w - s.pos, f) }
+        // P261 (Oct 14 12:16, "the ship is moving ways I don't expect"): the helm's steering and throttle ease in and
+        // out (about 0.3 s to a full turn, 0.5 s to full thrust) instead of jumping with the stick.
+        s.steerEase += (s.steer - s.steerEase) * min(1, h * 3.5)
+        s.throttleEase += (s.throttle - s.throttleEase) * min(1, h * 2.2)
+        if abs(s.throttleEase) < 0.004 && s.throttle == 0 { s.throttleEase = 0 }
 
         // Buoyancy and water drag per bucket.
         let fwdAxis = abs(s.fwd.x) > 0.5 ? 0 : 2
@@ -483,11 +488,11 @@ extension ShipManager {
         let heli = s.flight?.kind == .heli
         // Propellers (applied at the propeller, level with the centre of mass so they don't pitch the hull; a
         // helicopter's tail rotor is part of its flight model).
-        if piloted && s.throttle != 0 && power > 0 && !heli {
+        if piloted && s.throttleEase != 0 && power > 0 && !heli {
             for (p, d) in s.props {
                 var at = p
                 at.y = s.com.y
-                apply(s.dirToWorld(d) * (s.throttle * ShipTuning.propThrust * power), at: s.toWorld(at))
+                apply(s.dirToWorld(d) * (s.throttleEase * ShipTuning.propThrust * power), at: s.toWorld(at))
             }
         }
         // Sails (wool): pushed by the wind relative to the ship while someone steers (furled otherwise).
@@ -508,8 +513,8 @@ extension ShipManager {
             }
         }
         // Helm paddling in water.
-        if piloted && s.throttle != 0 && sub > 0 && s.helm != nil {
-            F += fwdW * (s.throttle * ShipTuning.paddleThrust * (s.throttle < 0 ? 0.5 : 1))
+        if piloted && s.throttleEase != 0 && sub > 0 && s.helm != nil {
+            F += fwdW * (s.throttleEase * ShipTuning.paddleThrust * (s.throttleEase < 0 ? 0.5 : 1))
         }
 
         // Lift balloons: hold an altitude, climb or sink on command.
@@ -600,9 +605,9 @@ extension ShipManager {
                 let vs = simd_dot(v, side), vf = simd_dot(v, fh)
                 let lat = max(-grip, min(grip, -vs * share * 12))
                 var long: Float
-                if piloted && s.throttle != 0 && power > 0 {
-                    let fade = s.throttle * vf > 0 ? max(0, 1 - abs(vf) / 16) : 1
-                    long = s.throttle * share * ShipTuning.wheelAccel * power * fade - vf * share * 0.3
+                if piloted && s.throttleEase != 0 && power > 0 {
+                    let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / 16) : 1
+                    long = s.throttleEase * share * ShipTuning.wheelAccel * power * fade - vf * share * 0.3
                 } else {
                     long = -vf * share * (piloted ? 0.6 : 8)       // rolling resistance / parking brake
                 }
@@ -620,9 +625,11 @@ extension ShipManager {
             var rate: Float = 0.6
             if s.grounded { rate = 0.9 }
             else if sub > 0 && s.balloons == 0 { rate = 0.55 * max(0.3, min(1, speed / 4)) }
-            let target = -s.steer * rate
+            let target = -s.steerEase * rate
             let wy = simd_dot(s.angVel, up)
-            T += up * (I.y * 4 * (target - wy))
+            // P261: with the stick centred the hull holds its heading harder (bumps, a scraping keel, waves, wind).
+            let hold: Float = abs(s.steerEase) < 0.05 ? 7 : 4
+            T += up * (I.y * hold * (target - wy))
         }
 
         // Keep upright (aircraft: roll toward the bank the pilot asks for, pitch free; pitch by climb input).

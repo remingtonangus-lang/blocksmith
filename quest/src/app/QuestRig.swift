@@ -122,9 +122,20 @@ final class QuestRig {
     // body in one tick; the camera follows the shared eased offset (ViewStep.swift, Game.updateViewStep), the same one
     // the Mac camera and the drawn mount/rider use, so the world never jumps under the user.
     private(set) var stepOffset: Float = 0
-    func smoothSteps(game: Game, dt: Float) {
+    func smoothSteps(game: Game, dt: Float, aboard: Bool = false) {
         stepOffset = game.player.viewDY
+        // P261: aboard a moving hull the deck's up-and-down jolts (bumps, a keel scraping ground, swell) reach the eyes
+        // smoothed (about 0.17 s), at most 0.35 blocks off; slow climbs and the deck itself are followed.
+        let y = game.player.pos.y
+        if aboard, let hy = heaveY, abs(y - hy) < 3 {
+            let nh = hy + (y - hy) * min(1, dt * 6)
+            heaveY = nh
+            stepOffset += max(-0.35, min(0.35, nh - y))
+        } else {
+            heaveY = aboard ? y : nil
+        }
     }
+    private var heaveY: Float?
 
     // Loading scene: raw tracking space (no player yet).
     func updateLoading(xr: XRInput) {
