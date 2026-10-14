@@ -453,6 +453,7 @@ final class ItemRegistry {
         SpawnEggs.register(self)
         Guns.register(self)
         registerPrinterParts()
+        registerGunParts()                                // D31 (GunsmithBench.swift)
         registerLasso()
         registerDeeds()                                   // D28 (Property.swift)
         registerGunCare()
