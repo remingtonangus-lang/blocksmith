@@ -1556,6 +1556,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3       // Accessibility > Screen Flashes
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3) * fx)) }
+        if Partner.isDowned(game) { rect(0, 0, W, H, V4(0.3, 0, 0, (0.32 + 0.1 * sinf(Float(game.clock) * 2.5)) * max(fx, 0.6))) }   // Q2: down (D52)
         if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7) * fx)) }
         if game.onFire > 0 && game.menu == nil {
             // Flickering flames along the bottom of the view.

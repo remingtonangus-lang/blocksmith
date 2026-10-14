@@ -994,7 +994,7 @@ final class Game {
         survivalTick(dt, from: before)
         TickProf.mark("survival")
 
-        interact(p, q, dt)
+        if Partner.isDowned(self) { mining = nil } else { interact(p, q, dt) }   // Q2: a downed player can't fight (D52)
         updateFov(Float(dt))
         if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
         TickProf.mark("interact")
