@@ -165,11 +165,9 @@ static float3 waterAmbient(float3 lit, float3 albedo, constant Uniforms& u) {
     return u.params.w > 0.5 ? max(lit, albedo * u.fogColor.rgb * 2.2) : lit;
 }
 
-// Fog factor: the render-distance fog plus a gentle aerial haze that starts near (depth, not a wall at the edge).
+// Fog factor: only the fog the renderer asks for (P211 redo: no aerial haze in clear weather).
 static float fogAmount(float dist, constant Uniforms& u) {
-    float f = smoothstep(u.fogColor.w, u.params.x, dist);
-    float haze = u.params.w > 0.5 ? 0.0 : 0.3 * saturate(u.params.y) * (1.0 - exp(-dist * 1.6 / max(u.params.x, 1.0)));
-    return max(f, haze);
+    return smoothstep(u.fogColor.w, u.params.x, dist);
 }
 
 static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
