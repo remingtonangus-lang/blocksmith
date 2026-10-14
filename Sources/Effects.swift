@@ -436,6 +436,7 @@ extension Game {
         if !greywallAlarm.squadsSent.isEmpty { d["greywallSquads"] = greywallAlarm.squadsSent.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";") }   // P203
         d["factionRep"] = FactionRep.encode()                                       // O3 (FactionRep.swift)
         d["factionRaids"] = FactionRaids.encode()                                   // O5 (FactionRaids.swift)
+        d["baseSpecials"] = BaseSpecialties.encode()                               // P242 (BaseSpecialties.swift)
         d["trophies"] = Trophies.encode()                                           // O6 (Trophies.swift)
         let rs = radio.saved
         if !rs.0.isEmpty { d["radioSus"] = rs.0 }
@@ -520,6 +521,7 @@ extension Game {
         }
         FactionRep.decode(d["factionRep"] ?? "")
         FactionRaids.decode(d["factionRaids"] ?? "")
+        BaseSpecialties.decode(d["baseSpecials"] ?? "")
         Trophies.decode(d["trophies"] ?? "")
         radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")
         radio.loadFlight(d["radioAlert"] ?? "", d["radioDrops"] ?? "", clock: clock)
