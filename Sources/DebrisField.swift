@@ -200,7 +200,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
     private var lastKey = ChunkKey(x: Int.min, z: Int.min)
     private var lastChunk: Chunk?
     // Column tops: direct-mapped cache (x, z, from y) -> drawn top (the field's crossing costs a few generator noise
-    // reads); kept until a block changes (blockChanged), since the fields never do.
+    // reads); kept until a block changes (blockChanged) or the terrain field does (World.fieldStamp: blasts, dents).
     private var topKey = [Int](repeating: Int.min, count: 4096)
     private var topVal = [Float](repeating: 0, count: 4096)
     private var boxes: [(V3, V3)] = []
@@ -225,7 +225,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
 
     // The drawn top of column (x, z) at or near y: the block top, or the field's crossing over natural ground.
     private func top(_ x: Int, _ z: Int, _ y: Int) -> Float {
-        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40)
+        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((world.fieldStamp & 0x1FFF) << 50)
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)     // (top 12 bits of a Fibonacci hash: 4096 slots)
         if topKey[slot] == key { return topVal[slot] }
         var t = Float(y + 1)
