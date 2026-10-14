@@ -1225,6 +1225,7 @@ extension Mob {
         .meridian: ["Meridian Rating", "Meridian Marine", "Meridian Gunner", "Aegis Marine", "Meridian Lieutenant", "Meridian Helmsman"],
         .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
         .greywall: ["Greywall Sentry", "Greywall Rifleman", "Greywall Marksman", "Greywall Heavy", "Greywall Officer", "Greywall Crewman"],
+        .corsairs: ["Corsair Deckhand", "Corsair Cutthroat", "Corsair Sharpshot", "Corsair Brute", "Corsair Captain", "Corsair Helmsman"],
         .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],
     ]
 
