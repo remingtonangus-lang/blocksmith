@@ -84,6 +84,8 @@ enum TownLaw {
         var ordersToasted: Bool? = nil
         var baseObj: [String: Int]? = nil            // D34 (BaseObjectives.swift): base key -> objectives done
         var loudBases: [String]? = nil               // D36 (Bodies.swift): bases whose alarm has sounded
+        var alarms: [String]? = nil                  // D38 (BaseCounter.swift): bases whose alarm was up at the save
+        var counter: [String: Int]? = nil            // D38: base key -> the day it fell or was last counter-attacked
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()

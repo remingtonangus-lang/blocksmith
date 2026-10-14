@@ -158,7 +158,10 @@ extension Game {
             guard st.sites[key] == nil, simd_length(V2(pp.x - Float(cx), pp.z - Float(cz))) < 160 else { continue }
             var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: Greywall.yardY(s), tier: Greywall.Tier.of(s))
             if greywallScan(&site) {
-                if site.lamps.contains(where: { world.block($0.x, $0.y, $0.z) >= Blocks.id("alarm_lamp_lit") && world.block($0.x, $0.y, $0.z) < Blocks.id("alarm_lamp_lit") + 4 }) {
+                if (TownLaw.state.alarms ?? []).contains(key) && !st.taken.contains(key) {          // D38: still up after a reload
+                    site.on = true; site.quiet = 0; site.src = V3(Float(cx) + 0.5, Float(site.S + 1), Float(cz) + 0.5)
+                    greywallLamps(&site, lit: true)
+                } else if site.lamps.contains(where: { world.block($0.x, $0.y, $0.z) >= Blocks.id("alarm_lamp_lit") && world.block($0.x, $0.y, $0.z) < Blocks.id("alarm_lamp_lit") + 4 }) {
                     greywallLamps(&site, lit: false)           // saved mid-alarm: quiet again
                 }
                 st.sites[key] = site
