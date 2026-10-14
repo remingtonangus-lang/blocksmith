@@ -82,6 +82,7 @@ enum TownLaw {
         var property: [[Int]]? = nil                 // D28 (Property.swift): your houses and homesteads
         var orders: [[String]]? = nil                // D29 (MailOrder.swift): catalog orders [key, count, due day]
         var ordersToasted: Bool? = nil
+        var baseObj: [String: Int]? = nil            // D34 (BaseObjectives.swift): base key -> objectives done
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
