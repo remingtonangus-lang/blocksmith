@@ -79,6 +79,11 @@ enum Waymarks {
         if let k = trackedKey {
             let parts = k.split(separator: "|", maxSplits: 1).map(String.init)
             if parts.count == 2 { t = all.first { $0.kind == parts[0] && $0.key == parts[1] } }
+            // Q2: the target is gone (contract paid, bounty settled, note cleared): say so and go back to the story.
+            if t == nil && g.dim.dim == .overworld && parts.first != "my_horse" {     // (the horse you ride drops off the list)
+                trackedKey = nil
+                g.onToast?("Target gone from the list. Back to the story's objective")
+            }
         }
         if t == nil { t = all.first { $0.kind == "objective" } }
         cache = (g.clock, t)
