@@ -613,6 +613,9 @@ extension ShipManager {
         var i = phase
         let hull = s.hull
         let stepUp = !s.wheels.isEmpty && s.grounded
+        // PG2: hulls and wheels meet natural ground at its drawn surface (World.groundTop), like bodies do.
+        let fieldGen = SmoothTerrain.enabled && SmoothTerrain.fromField ? rd.w.gen as? WorldGen : nil
+        let natural = SmoothTerrain.natural
         while i < hull.count {
             let w = s.toWorld(hull[i])
             i += stride
@@ -629,6 +632,8 @@ extension ShipManager {
                     var top: Float = 0
                     for bx in Blocks.boxes[Int(b)] { top = max(top, Float(bx.y1) / 16) }
                     mx.y = mn.y + max(0.125, min(1, top))
+                } else if let g = fieldGen, natural[Int(b)] && y + 1 < CH && !collide[Int(rd.get(x, y + 1, z))] {
+                    mx.y = rd.w.groundTop(g, x, y, z)
                 }
                 let q = simd_clamp(w, mn, mx)
                 let d = w - q
