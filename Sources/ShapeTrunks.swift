@@ -259,11 +259,14 @@ enum ShapeTrunks {
                     let n10 = simd_normalize(ns[a] + SIMD3(0, slope, 0)), n11 = simd_normalize(ns[a + 1] + SIMD3(0, slope, 0))
                     let top = h > y1 + 0.01 && !above
                     let lay = top && h - h0 < 0.12 && !living ? rings : bark
-                    // Counter-clockwise from outside: bottom a, bottom a+1, top a+1, top a.
-                    ctx.vertex(prev[a], n00, SIMD2(u0, -h0), layer: lay)
+                    // Counter-clockwise from outside (the angle runs clockwise seen from outside, so a+1 comes first):
+                    // bottom a+1, bottom a, top a, top a+1. PG4 (Oct 13 21:34, "it's constantly showing you the inside
+                    // of the trunk"): these went round the other way, so back-face culling kept each trunk's far inside
+                    // wall and dropped its near bark.
                     ctx.vertex(prev[a + 1], n01, SIMD2(u1, -h0), layer: lay)
-                    ctx.vertex(ps[a + 1], n11, SIMD2(u1, -h), layer: lay)
+                    ctx.vertex(prev[a], n00, SIMD2(u0, -h0), layer: lay)
                     ctx.vertex(ps[a], n10, SIMD2(u0, -h), layer: lay)
+                    ctx.vertex(ps[a + 1], n11, SIMD2(u1, -h), layer: lay)
                 }
             }
             prev = ps; prevN = ns
@@ -359,10 +362,11 @@ enum ShapeTrunks {
                 let t0 = Float(k) / Float(sides) * 2 * .pi, t1 = Float(k + 1) / Float(sides) * 2 * .pi
                 func pt(_ ph: Float, _ th: Float) -> SIMD3<Float> { SIMD3(cosf(ph) * cosf(th), sinf(ph), cosf(ph) * sinf(th)) }
                 let a = pt(p0, t0), b = pt(p0, t1), cc = pt(p1, t1), d = pt(p1, t0)
-                ctx.vertex(c + a * r, a, SIMD2(Float(k) * 0.3, p0), layer: bark)
+                // (Counter-clockwise from outside, as the trunk walls: PG4.)
                 ctx.vertex(c + b * r, b, SIMD2(Float(k + 1) * 0.3, p0), layer: bark)
-                ctx.vertex(c + cc * r, cc, SIMD2(Float(k + 1) * 0.3, p1), layer: bark)
+                ctx.vertex(c + a * r, a, SIMD2(Float(k) * 0.3, p0), layer: bark)
                 ctx.vertex(c + d * r, d, SIMD2(Float(k) * 0.3, p1), layer: bark)
+                ctx.vertex(c + cc * r, cc, SIMD2(Float(k + 1) * 0.3, p1), layer: bark)
             }
         }
     }
