@@ -1675,7 +1675,7 @@ final class Game {
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
-        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
+        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == WeaponPrinter.key || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
@@ -1771,6 +1771,7 @@ final class Game {
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(UpgradeBenchMenu(game: self))           // the Upgrade Bench (Upgrades.swift)
         case "smithing_table": openMenu(SmithingMenu(game: self))
+        case WeaponPrinter.key: openMenu(WeaponPrinterMenu(game: self))           // H5 (WeaponPrinter.swift)
         case VehicleWorks.key: VehicleWorks.use(self, p)                            // P54 (VehicleWorks.swift)
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))

@@ -77,6 +77,7 @@ extension Game {
         guard alive, dim.dim == .overworld else { return }
         let pp = player.pos
         for (key, c, mine) in specialtyBases() {
+            if mine { printerPartTick(key, c) }                 // H5 (WeaponPrinter.swift)
             let sp = BaseSpecialties.of(key)
             guard sp != .none else { continue }
             let d = simd_length(V2(c.x - pp.x, c.z - pp.z))
