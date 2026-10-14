@@ -105,7 +105,10 @@ enum Roads {
         let segs = near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1).filter { distance($0, mid).0 < 14 }
         guard !segs.isEmpty, Blocks.has("dirt_path") else { return }
         let path = Blocks.id("dirt_path")
-        let sandPath = Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : path
+        // (PG5: Polygons worlds pave with natural ground, so the smooth surface runs on along the road: StructWriter.set
+        // turns the path into packed earth; a sand road is sandstone, not the cut stone a block world's road gets.)
+        let sandPath = SmoothTerrain.enabled && Blocks.has("sandstone") ? Blocks.id("sandstone")
+            : (Blocks.has("smooth_sandstone") ? Blocks.id("smooth_sandstone") : path)
         for lz in 0..<CS { for lx in 0..<CS {
             let x = bx + lx, z = bz + lz
             let p = V2(Float(x) + 0.5, Float(z) + 0.5)
