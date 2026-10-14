@@ -453,6 +453,7 @@ final class ItemRegistry {
         SpawnEggs.register(self)
         Guns.register(self)
         registerPrinterParts()
+        registerLasso()
         Magazines.register(self)
         registerDeepExpansionItems()
         registerDeepGateItems()

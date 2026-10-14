@@ -276,6 +276,9 @@ final class Mob {
     var viewGround: Float = 0, groundKey = Int.min, groundH = SIMD4<Float>(repeating: 0)
     var ragdoll: MobRagdoll?        // realistic world: a dead body falling as a ragdoll (MobRagdoll.swift)
     var health: Int
+    var lassoed = false              // D1: the rope on it is a lasso, not a lead (Lasso.swift)
+    var roped: Float = 0             // D1: an outlaw tied up by the lasso (seconds left)
+    var lassoCalm: Float = 0
     var platesShed = 0               // deck guns: gunhouse plates already shed as debris (H13, NavalGuns.swift)
     var boatRock = V2(0, 0)          // boats: drawn pitch and roll on the waves (H9, SeaStorms.swift)
     var boatWear: Float = 0         // boats: wear toward the next lost health point (Boats.updateBoat)
@@ -676,6 +679,9 @@ final class Mob {
 
         // P247: a skeleton without both arms can't draw its bow; it closes in and claws.
         switch spec.behavior == .ranged && lostBones & 3 != 0 ? .melee : spec.behavior {
+        case _ where roped > 0:
+            ropedTick(dt, g)                          // D1: tied up by the lasso: no fighting, no running
+            speed = 0
         case _ where fleeFrom != nil:
             // Avoid-entity goal: run to a spot 8 blocks away from the threat, re-aimed about once a second (a point
             // re-aimed every tick moved with the mob and replanned its path each time: behaviour sim, fleeing rabbits).
