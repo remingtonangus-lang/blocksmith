@@ -591,12 +591,15 @@ extension Game {
         let pierce = Int8(Enchant.level(.penetration, st))
         let fiery = Enchant.level(.incendiary, st) > 0
         let muzzle = vrAim.map { $0.origin + $0.dir * 0.3 } ?? player.eye + look * 0.3
+        let quiet = GunCare.suppressed(st)                              // D9: a suppressor fitted
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
                 let d = Guns.scatter(look, spread)
-                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * Legendaries.gunScale(st) * GunGrade.damage(st), fromPlayer: true, shooter: nil, by: "Player",
-                             life: gs.range / gs.speed, gravity: 1.5)
+                let dmg0: Float = gs.damage * Legendaries.gunScale(st) * GunGrade.damage(st)
+                let life0: Float = gs.range / gs.speed
+                var s = Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: quiet ? dmg0 * GunCare.damageScale : dmg0, fromPlayer: true, shooter: nil, by: "Player",
+                             life: quiet ? life0 * GunCare.rangeScale : life0, gravity: 1.5)
                 s.pierce = pierce
                 s.incendiary = fiery
                 a.spawn(s)
@@ -626,14 +629,17 @@ extension Game {
         a.cooldown = gs.interval
         a.sinceShot = 0
         a.shotsFired += 1
-        sfx(.gun(gs.sound), 1)
-        baseNoise(at: player.pos, kind: .gunshot)                 // citadels within earshot send a patrol (CapitalBases.swift)
-        TownLaw.gunfire(self, at: player.pos)                       // townsfolk come to see what the shooting was (P63)
-        addFlash(at: muzzle + look * 0.4, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // muzzle light (Fancy)
+        sfx(.gun(gs.sound), quiet ? GunCare.volume : 1)
+        if !quiet {
+            baseNoise(at: player.pos, kind: .gunshot)                 // citadels within earshot send a patrol (CapitalBases.swift)
+            TownLaw.gunfire(self, at: player.pos)                       // townsfolk come to see what the shooting was (P63)
+        }
+        addFlash(at: muzzle + look * 0.4, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: quiet ? 1.5 : 6, life: 0.06)   // muzzle light (Fancy)
         // Gunfire carries: Steelhold soldiers within 32 blocks come to investigate.
         if survival && clock - a.lastNoise > 0.5 {
             a.lastNoise = clock
-            for m in mobs.mobs where m.kind.steelhold && m.health > 0 && simd_length(m.pos - player.pos) < 32 {
+            let earshot: Float = quiet ? GunCare.soldiersHear : 32
+            for m in mobs.mobs where m.kind.steelhold && m.health > 0 && simd_length(m.pos - player.pos) < earshot {
                 let b = m.soldierBrain
                 if !m.aggro { m.aggro = true; b.react = max(b.react, 0.8) }
                 if !b.sees { b.lastSeen = player.pos; b.seenAgo = min(b.seenAgo, 1) }
