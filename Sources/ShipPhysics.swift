@@ -80,6 +80,7 @@ extension ShipManager {
             let a = Float((game.time / 900).truncatingRemainder(dividingBy: 2 * .pi)) + Float(world.seed % 628) / 100
             let strength: Float = 5 + 4 * game.weather.rain + 5 * game.weather.thunder
             wind = V3(cosf(a), 0, sinf(a)) * strength
+            SeaStorms.tick(game, dt)                   // H9: storm sea state, crest spray (SeaStorms.swift)
         }
         if encounters, let game { encounterTick(dt, game: game) }
         if let game { capitalTick(dt, game: game) }
@@ -382,7 +383,8 @@ extension ShipManager {
         var sub: Float = 0
         for b in s.buckets {
             let wp = s.toWorld(b.centre)
-            guard let top = rd.waterTop(wp) else { continue }
+            guard let flat = rd.waterTop(wp) else { continue }
+            let top: Float = flat + SeaStorms.waveLift(wp, top: flat)      // H9: the storm swell under this bucket
             let f = min(1, max(0, (top - (wp.y - b.height * 0.5)) / b.height))
             if f <= 0 { continue }
             let v = b.volume * f
@@ -406,6 +408,7 @@ extension ShipManager {
         // fuselage alone meets the air head-on.
         airLocal[fwdAxis] *= s.flight?.kind == .plane ? 0.15 : 0.6
         F -= s.dirToWorld(airLocal)
+        F += SeaStorms.windForce(s, wind: wind, submerged: sub)          // H9: a gale pushes a floating hull downwind
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
         let up = s.dirToWorld(V3(0, 1, 0))

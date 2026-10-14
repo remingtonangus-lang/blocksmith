@@ -384,7 +384,7 @@ H5. [DONE] A Capital weapon printer built from parts taken at several bases.
 H6. [DONE] City buildings with a readable purpose; copper and power in cities.
 H7. [DONE] The shock weapon is as strong as it looks.
 H8. [DONE] Less surface water.
-H9. Boats: see yourself in the boat, the boat model matches its icon, storms at sea.
+H9. [DONE] Boats: see yourself in the boat, the boat model matches its icon, storms at sea.
 H10. [DONE] Horse bonding raises stamina and health, with RDR2-style cores in the UI.
 H11. Vehicle damage physics.
 H12. Hands can grab and move anything physical, not only small animals and carcasses.
