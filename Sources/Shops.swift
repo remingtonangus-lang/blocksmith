@@ -149,6 +149,7 @@ enum Economy {
         // Food
         "requisition_form": 2, "duty_roster": 2, "boot_polish": 4, "radio_valve": 6, "typewriter_ribbon": 3, "rubber_stamp": 5,
         "empty_sandbag": 3, "tent_pegs": 2, "mess_tin": 5, "spent_casings": 1,                       // P133 base sundries
+        "vehicle_blueprint": 400,                                                                      // D43
         "upgrade_blueprint": 150,                                                                      // P138
         "bread": 30, "capital_ration": 90, "baked_potato": 25, "cookie": 10, "pumpkin_pie": 70, "beetroot_soup": 50, "mushroom_stew": 50,
         "rabbit_stew": 90, "cooked_beef": 45, "cooked_porkchop": 45, "cooked_chicken": 35, "cooked_mutton": 40,

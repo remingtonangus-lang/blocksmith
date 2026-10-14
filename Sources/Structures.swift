@@ -716,6 +716,7 @@ enum Loot {
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
         Blueprints.addToChest(c, table: table, rng: &rng)                // P138
+        VehiclePresets.addToChest(c, table: table, rng: &rng)            // D43
         Loot.matchGuns(c, rng: &rng)                                     // P216/P217
         GunGrade.gradeChest(c, table: table, rng: &rng)                  // T7
     }

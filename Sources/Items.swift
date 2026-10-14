@@ -438,6 +438,7 @@ final class ItemRegistry {
         item("radar_set", "Radar Set", "radar", 0x6A7078, ["c": 0x58E07A, "d": 0x0C1A10], stack: 1)
         item("intercepted_orders", "Intercepted Orders", "orders", 0xE8E0C8, ["c": 0xA02A20, "d": 0x3A3A3A], stack: 16)
         item("upgrade_blueprint", "Blueprint", "paper", 0x3A6AB8, [:], stack: 16)                 // P138 (Blueprints.swift)
+        item("vehicle_blueprint", "Vehicle Blueprint", "paper", 0x8A6A2E, [:], stack: 16)         // D43 (VehiclePresets.swift)
         for s in BaseSundries.all { item(s.key, s.name, s.mask, s.color, s.extras, stack: s.key == "spent_casings" ? 64 : 16) }   // P133
         item("greywall_codebook", "Greywall Code Book", "book", 0x4A5560, [:], stack: 1)              // P206
         // The gap pass (HorseLife.swift): brings a downed horse of yours back to its feet. Sold by stables and doctors.
