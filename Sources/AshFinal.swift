@@ -135,6 +135,7 @@ final class LastWar {
     var inBunker: Float = 0
     var voice: Float = 0                // seconds to the Chancellor's loudspeaker line at the battle's start
     var vanished = 0                    // wave units gone without dying (unloaded: the player left, died or ran off)
+    var stragglers: Float = 0           // seconds the wave has been down to its last few
     var spawnedWaves = 0                // harness counter
 }
 
@@ -228,8 +229,20 @@ extension Game {
             onToast?("The Ashguard regroups: wave \(ashWave + 1) is coming again")
             return
         }
+        // P249 (Oct 13 22:02, before the endgame): the last few of a wave can be stuck in a trench or behind a bunker
+        // far off, and the battle waits on them. After 25 s down to its last few they glow and the toast says where.
+        if !beaten && left <= (ashWave == 2 ? 4 : 6) {
+            lw.stragglers += s
+            if lw.stragglers >= 25 && Int(lw.stragglers) % 20 == 5, let u = lw.wave.min(by: { simd_length_squared($0.pos - player.pos) < simd_length_squared($1.pos - player.pos) }) {
+                for m in lw.wave { m.applyEffect(.glowing, amp: 0, seconds: 21, game: self) }
+                onToast?("\(lw.wave.count) of the wave still stand: the nearest \(radarBearing(RadarContact(name: "", kind: "", x: Int(u.pos.x), z: Int(u.pos.z))))")
+            }
+        } else {
+            lw.stragglers = 0
+        }
         guard beaten else { return }
         lw.vanished = 0
+        lw.stragglers = 0
         ashWave += 1
         lw.spawned = false
         lw.wave.removeAll()
