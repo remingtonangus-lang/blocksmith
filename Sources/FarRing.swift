@@ -115,7 +115,48 @@ final class FarRing {
         let vw: Float = k.vol > 0.05 ? min(1, k.vol * 3) : 0
         let rw: Float = max(0, vw * 2 - 1)
         if rw > 0 { c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: rw)) }      // volcano rock (HorizonRing)
-        return Sample(y: Float(YOFF) + k.h + 1, c: c, kind: 0)
+        // P250 (b, c): woods stand as their canopy, in leaf colours (a forest was a bare green slope past the chunks,
+        // and the trees stopped at the loaded edge).
+        let w = canopy(gen, b, x, z, ground: k.h)
+        c = simd_mix(c, w.leaf, V3(repeating: w.cover * (1 - rw)))
+        return Sample(y: Float(YOFF) + k.h + 1 + w.height * (1 - rw), c: c, kind: 0)
+    }
+
+    // P250: a column's woods as seen from afar: how much of the ground the crowns cover (0 ... 1), how far the canopy's
+    // top stands over the ground where it does, and the leaves' colour. From the tree pass's own odds per biome
+    // (TreePlacer: one candidate every 3x3 blocks, a crown about 5x5) and its glades, so a wood far off covers what the
+    // chunks grow there.
+    static func canopy(_ gen: WorldGen, _ b: Biome, _ x: Int, _ z: Int, ground: Float) -> (cover: Float, height: Float, leaf: V3) {
+        func rgb(_ v: UInt32) -> V3 { V3(Float((v >> 16) & 255), Float((v >> 8) & 255), Float(v & 255)) / 255 }
+        var p: Float = 0, h: Float = 0
+        var leaf = rgb(b.info.foliage)
+        switch b {
+        case .forest: p = 0.35; h = 7
+        case .flowerForest: p = 0.16; h = 7
+        case .birchForest: p = 0.35; h = 7; leaf = rgb(0x80A755)
+        case .oldGrowthBirchForest: p = 0.35; h = 11; leaf = rgb(0x80A755)
+        case .darkForest: p = 0.62; h = 8
+        case .taiga, .snowyTaiga, .grove: p = b == .grove ? 0.3 : 0.35; h = 9; leaf = rgb(0x619961)
+        case .windsweptForest: p = 0.15; h = 8
+        case .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: p = 0.35; h = 14; leaf = rgb(0x619961)
+        case .savanna, .windsweptSavanna: p = 0.05; h = 7
+        case .savannaPlateau: p = 0.07; h = 7
+        case .jungle: p = 0.7; h = 12
+        case .sparseJungle: p = 0.1; h = 9
+        case .bambooJungle: p = 0.35; h = 9
+        case .woodedBadlands: p = ground > 94 ? 0.15 : 0; h = 5
+        case .cherryGrove: p = 0.18; h = 8; leaf = rgb(0xE7A8C7)
+        case .paleGarden: p = 0.32; h = 9; leaf = rgb(0xA3ABA0)
+        case .swamp: p = 0.07; h = 7
+        case .mangroveSwamp: p = 0.35; h = 9
+        default: return (0, 0, leaf)
+        }
+        let glade = gen.flora.noise2(Float(x) / 70 + 300, Float(z) / 70)
+        let odds = min(0.7, p * max(0.3, 0.8 + 0.9 * glade))
+        let cover = 1 - expf(-odds * 25 / 9)
+        // Snow on the conifers of the cold woods; leaf art is darker than its tint (holes, shading).
+        if b == .snowyTaiga || b == .grove { leaf = simd_mix(leaf, V3(0.93, 0.95, 0.97), V3(repeating: 0.45)) }
+        return (cover, h * min(1, cover * 1.4), leaf * 0.62)
     }
 
     // The quads, band by band (squares round the centre, 8 / 16 / 32 blocks apart), cut to a disc of `outer` and with
