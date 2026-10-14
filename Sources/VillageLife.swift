@@ -39,7 +39,8 @@ extension Mob {
         guard var v = villager else { return }
         let w = g.world
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
-        // Beds: claim the nearest unclaimed bed head within 16 blocks.
+        // Beds: claim the nearest unclaimed bed head within 20 blocks (H14: a frontier town's houses can be a street
+        // away from where its folk were placed); the house it stands in becomes the townsperson's home.
         if let b = v.bed {
             let k = Blocks.key(Blocks.groupBase[Int(w.block(b[0], b[1], b[2]))])
             if !k.hasSuffix("_bed_head") && !k.hasSuffix("_bed") { v.bed = nil }
@@ -49,7 +50,7 @@ extension Mob {
             // The first in ring order (ring 1...12, then dy, dz, dx), as the ring-by-ring scan this replaced.
             var bk = (Int.max, 0, 0, 0)
             var found: IVec3?
-            w.forEachBlock(around: c, r: 12, ry: 3) { b, x, y, z in
+            w.forEachBlock(around: c, r: 20, ry: 3) { b, x, y, z in
                 guard VillageLife.isBedHead(b) else { return }
                 let dx = x - c.x, dy = y - c.y, dz = z - c.z
                 let k = (max(abs(dx), abs(dz)), dy, dz, dx)
@@ -58,6 +59,7 @@ extension Mob {
             }
             if let q = found { v.bed = [q.x, q.y, q.z] }
         }
+        if let b = v.bed, v.role != "shopkeeper" { home = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5) }      // H14
         // Food lying nearby is picked up.
         for e in g.drops.items where e.pickupDelay <= 0 && simd_length(e.pos - pos) < 1.5 {
             if let pts = VillageLife.foodPoints[Items.key(e.stack.item)] {

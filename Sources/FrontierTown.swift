@@ -89,6 +89,8 @@ extension Village {
         for u in 1...(l.w - 2) where u % 2 == 1 && !(u == du && cv + 1 == l.d - 2) { b.set(&w, u, 0, l.d - 2, blk(u % 4 == 1 ? "gold_block" : "iron_block", stone)) }
         b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
         b.set(&w, l.w - 2, 2, 1, b.wallTorch(facing: 3))
+        // H14: the banker's cot behind the counter, clear of the strongroom's bars and the walk-behind gap (a deep bank).
+        if l.d >= 6, let u = stride(from: 2, through: l.w - 3, by: 2).first(where: { $0 != du }) { bed(&w, b, m, u: u, v: cv + 1) }
         let (x, z) = world(l, du, cv + 1)
         w.mob("villager:banker", V3(Float(x) + 0.5, Float(l.y), Float(z) + 0.5))
     }
