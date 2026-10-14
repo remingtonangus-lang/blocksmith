@@ -1260,10 +1260,32 @@ final class QuestControls {
             let rot = rig.toWorldRot(hd.gripRot)
             let base = h == aimHand ? V3(0.25, 0.27, 0.32) : V3(0.3, 0.3, 0.34)
             // A magazine in the off hand (VRReload): a dark steel box under the grip.
-            let parts = h == moveHand && game.arms.magInHand ? 4 : 3
-            for pi in 0..<parts {
-                let (c, half) = pi < 3 ? QuestControls.controllerParts[pi] : (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
-                let col = pi == 0 ? base : (pi == 1 ? base * 1.4 : (pi == 2 ? V3(0.12, 0.12, 0.14) : V3(0.2, 0.2, 0.22)))
+            // P260 (c): at the controls each hand holds one: a throttle lever (moving hand) or a helm grip (aiming hand),
+            // a dark grip rising out of the fist with a brass cap.
+            let pilot = game.world.ships.pilot != nil, lever = h == moveHand
+            for pi in 0..<6 {
+                let c: V3, half: V3
+                switch pi {
+                case 0, 1, 2: (c, half) = QuestControls.controllerParts[pi]
+                case 3:
+                    guard lever && game.arms.magInHand else { continue }
+                    (c, half) = (V3(0, -0.05, -0.01), V3(0.014, 0.045, 0.024))
+                case 4:
+                    guard pilot else { continue }
+                    (c, half) = (V3(0, lever ? 0.07 : 0.055, -0.012), V3(lever ? 0.009 : 0.013, lever ? 0.075 : 0.06, lever ? 0.009 : 0.013))
+                default:
+                    guard pilot else { continue }
+                    (c, half) = (V3(0, lever ? 0.15 : 0.12, -0.012), V3(lever ? 0.017 : 0.022, 0.011, lever ? 0.017 : 0.022))
+                }
+                let col: V3
+                switch pi {
+                case 0: col = base
+                case 1: col = base * 1.4
+                case 2: col = V3(0.12, 0.12, 0.14)
+                case 3: col = V3(0.2, 0.2, 0.22)
+                case 4: col = V3(0.16, 0.12, 0.09)
+                default: col = V3(0.78, 0.6, 0.26)
+                }
                 for f in 0..<6 {
                     for k in QuestControls.quadOrder {
                         let ci = (f * 4 + k) * 3

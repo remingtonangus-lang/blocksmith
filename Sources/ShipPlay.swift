@@ -289,6 +289,8 @@ extension Game {
         if first { onToast?("You have taken command of the \(s.name)! \(Prompt.g(.sneak)) leaves the helm") }
     }
 
+    static var handsTold = false
+
     // The zone prompt: a toast each time the player comes within reach of a helm they can take.
     func commandeerHintTick() {
         let s = commandeerable()
@@ -298,6 +300,12 @@ extension Game {
 
     func startPiloting(_ s: Ship) {
         let ships = world.ships
+        // P260 (e): the first time he takes the controls with something in hand, say where it went.
+        let inHand = inventory.held
+        if !inHand.isEmpty && !Game.handsTold && (Guns.index(inHand.item) != nil || inHand.def.durability > 0) {
+            Game.handsTold = true
+            onToast?("Hands on the controls: your \(inHand.def.display) is stowed while you steer")
+        }
         ships.pilot = s
         ships.aboard = s
         s.piloted = true

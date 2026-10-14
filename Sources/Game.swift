@@ -648,7 +648,10 @@ final class Game {
 
     // MARK: Hotbar / items
 
-    var held: ItemStack { inventory.held }
+    // P260 (Oct 14 12:16-12:17, "no guns or swords while piloting: the hands hold the helm or controls"): at the
+    // controls of any ship or vehicle nothing is in hand (no shots, swings, blade hits, reloads; the attack button stays
+    // the helm's cannons); the item stays in its slot and is back the moment he lets go.
+    var held: ItemStack { world.ships.pilot != nil ? .empty : inventory.held }
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
