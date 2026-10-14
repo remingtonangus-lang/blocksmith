@@ -17,6 +17,7 @@ extension BlockRegistry {
         }
         steel("steel_plating", "Steel Plating")
         steel("steel_grating", "Steel Floor Plate")
+        steel("naval_hull", "Naval Hull Plate", side: "steel_plating", h: 6)          // P243 (NavalPatrol.swift)
         steel("hazard_plating", "Hazard Plating")
         steel("light_panel", "Light Panel", h: 3, emit: 15)
         steel("command_console", "Command Console", side: "command_console_side", top: "command_console_top", h: 6, emit: 7)

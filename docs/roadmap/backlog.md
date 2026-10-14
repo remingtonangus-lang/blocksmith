@@ -294,7 +294,7 @@ P239. [DONE] [21:52, with SH1] Ice looks beautiful: mirror-like reflections.
 P240. [DONE] [21:52] Input lag and general lag at render distance 17: performance must improve (with F1-F5).
 P241. [DONE] [21:53] Rockets: he could not find how to make them; the crafting book shows rockets and their ammo clearly.
 P242. [DONE] [21:54] Specialty bases, like GoldenEye missions: e.g. an ammo depot that supplies ammo for good once found, and other one-of-a-kind bases with their own speciality.
-P243. [21:55] A normal (non-futuristic) navy warship sailing the seas; also make sure the UNSC-like frigates can actually be found (he has never seen one).
+P243. [DONE] [21:55] A normal (non-futuristic) navy warship sailing the seas; also make sure the UNSC-like frigates can actually be found (he has never seen one).
 P244. [DONE] [21:56-21:57] Some ground material, granite and gravel look cheap and blurry. Add to docs/art/image-requests.md a ranked list "blocks that don't look pretty enough" at the top, so he knows what to make first.
 P245. [21:58] Gold is an easy currency in villages, with more uses; no platinum (titanium covers it).
 P246. [21:59-22:00, with P79] Remove the spire for good (replaced by the duelling knight). Zombies look terrific; skeletons, golems and the creeper replacement need upgrades.

@@ -194,10 +194,12 @@ enum Vessels {
         let x = rx * region + 256 + Int(hashf(rx, rz, 4112, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let z = rz * region + 256 + Int(hashf(rx, rz, 4113, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let col = gen.column(x, z)
-        // Faction warships (task 23: rare, and only after the end game, ShipManager.encounterTick): 3 % of regions a
-        // Meridian frigate, 1.5 % a Stormwarden Frigate, 1.5 % an Ironback Crawler on land, 0.7 % the two at war.
-        if h < 0.03 { return ("frigate", IVec3(x, max(col.height, SEA) + 45, z)) }
+        // Faction warships (task 23: rare, ShipManager.encounterTick): 6 % of regions a Meridian frigate (P243: they
+        // sail from the start, 3 % before), 1.5 % a Stormwarden Frigate, 1.5 % an Ironback Crawler on land, 0.7 % the
+        // two at war; P243: 4 % a Tidewatch Destroyer where the region's point is open sea.
+        if h < 0.06 { return ("frigate", IVec3(x, max(col.height, SEA) + 45, z)) }
         if h < 0.08 { return nil }
+        if h >= 0.12 && h < 0.16 && (col.biome.isOcean || col.height < SEA - 4) { return (NavalPatrol.role, IVec3(x, SEA + 1, z)) }
         if h >= 0.16 && h < 0.175 { return ("warfrigate", IVec3(x, max(col.height, SEA), z)) }
         if h >= 0.175 && h < 0.19 { return nil }
         if col.biome.isOcean || col.height < SEA { return nil }
@@ -210,7 +212,7 @@ enum Vessels {
 }
 
 extension Ship {
-    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" || role == "sloop" }
+    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" || role == "sloop" || role == NavalPatrol.role }
 }
 
 extension ShipManager {
@@ -235,7 +237,9 @@ extension ShipManager {
                 // survives in old saves).
                 let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle" || kind == "frigate"
                 if capital {
-                    if !g.fleetSails { continue }                  // they sail once a Greywall Fortress falls (Y3; the key stays free)
+                    // They sail once a Greywall Fortress falls (Y3; the key stays free), but the Meridian frigates sail from
+                    // the start (P243: he had never seen one).
+                    if !g.fleetSails && kind != "frigate" { continue }
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
                     spawnedRegions.insert(key)
                     let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100
@@ -261,7 +265,13 @@ extension ShipManager {
     func spawnVessel(_ kind: String, home: IVec3, game g: Game?, yaw: Float? = nil) -> Ship {
         let homeV = V3(Float(home.x) + 0.5, Float(home.y), Float(home.z) + 0.5)
         let s: Ship
-        if kind == "sloop" {
+        if kind == NavalPatrol.role {
+            // P243: afloat with her keel two blocks under the surface (home.y is the block over the water).
+            s = spawn(NavalPatrol.destroyer(), at: homeV + V3(0, 3, 0), yaw: yaw ?? Float(abs(home.x + home.z) % 628) / 100, name: NavalPatrol.name, role: kind)
+            s.pos.y += Float(home.y) - 2.6 - s.toWorld(V3(0, s.localMin.y, 0)).y
+            s.prevPos = s.pos
+            s.updateBounds()
+        } else if kind == "sloop" {
             // T15: afloat with her keel a block under the surface (home.y is the block over the water).
             s = spawn(Corsairs.sloop(), at: homeV + V3(0, 2, 0), yaw: yaw ?? 0, name: Corsairs.sloopName, role: kind)
             s.pos.y += Float(home.y) - 1.6 - s.toWorld(V3(0, s.localMin.y, 0)).y
@@ -288,12 +298,14 @@ extension ShipManager {
             // on the frigate's decks, a trooper and an ironclad on the carriage.
             let ranks: [MobKind] = kind == "frigate" ? [.soldierMarksman, .soldierTrooper, .soldierTrooper, .soldierMarksman]
                                  : kind == "sloop" ? [.soldierTrooper, .soldierMarksman, .soldierTrooper]
+                                 : kind == NavalPatrol.role ? [.soldierTrooper, .soldierMarksman, .soldierTrooper, .soldierTrooper, .soldierMarksman]
                                                    : [.soldierTrooper, .soldierIronclad]
             for (i, st) in s.crewStations.enumerated() {
                 let m = Mob(ranks[i % ranks.count], at: s.toWorld(st + V3(0, 0.1, 0)))
                 if m.kind == .soldierTrooper { m.variant = Guns.rifle }      // stations fight at range: no shotguns
                 if m.kind == .soldierIronclad { m.variant = Guns.arc }       // no rockets bursting on their own rails
                 if kind == "sloop" { Corsairs.dress(m) }
+                if kind == NavalPatrol.role { m.faction = Faction.meridian.rawValue }
                 m.persistent = true
                 g.mobs.mobs.append(m)
             }
@@ -306,6 +318,7 @@ extension ShipManager {
     func gunsEngage(_ s: Ship, _ g: Game) -> Bool {
         let pp = g.player.pos + V3(0, 1, 0)
         guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80) else { return false }   // (P98: at peace)
+        if s.role == NavalPatrol.role && FactionRep.of(.meridian) >= 0 { return false }      // P243: a navy, not pirates
         if aboard?.root === s || standing(on: g.player.pos)?.root === s { return false }
         return true
     }
@@ -349,7 +362,7 @@ extension ShipManager {
             let f = s.dirToWorld(s.fwd)
             let fh = simd_normalize(V2(f.x, f.z) + V2(1e-5, 0))
             // Circle the home point (steer toward a point ahead on the circle).
-            let r: Float = s.role == "frigate" ? 70 : (s.role == "sloop" ? 12 : 30)
+            let r: Float = s.role == "frigate" ? 70 : (s.role == "sloop" ? 12 : (s.role == NavalPatrol.role ? 140 : 30))
             let dist = simd_length(toHome)
             let tangent = V2(-toHome.y, toHome.x) / max(1, dist)
             let pull: Float = (dist - r) / (r * max(1, dist))
@@ -362,7 +375,7 @@ extension ShipManager {
                 let top = world.topY(ax, az)
                 if s.role == "frigate", let base = s.home?.y {
                     s.hoverY = max(base + 6, Float(top) + 25)        // never below its spawn altitude (home + 6)
-                } else if s.role == "sloop" && !Blocks.isLiquid(world.rawBlock(ax, top, az)) {
+                } else if (s.role == "sloop" || s.role == NavalPatrol.role) && !Blocks.isLiquid(world.rawBlock(ax, top, az)) {
                     cross = cross >= 0 ? 1 : -1                     // land ahead: put the helm hard over
                 } else if s.role == "carriage" && Blocks.isLiquid(world.rawBlock(ax, top, az)) {
                     let back = simd_normalize(toHome + V2(1e-3, 0))

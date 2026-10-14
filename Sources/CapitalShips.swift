@@ -695,6 +695,7 @@ extension Ship {
         case "warfrigate": return .stormwarden
         case "crawler": return .ironback
         case "sloop": return .corsairs                   // T15 (Pirates.swift)
+        case NavalPatrol.role: return .meridian          // P243 (NavalPatrol.swift)
         default: return .none
         }
     }
