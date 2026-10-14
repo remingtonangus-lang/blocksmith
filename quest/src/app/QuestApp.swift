@@ -17,12 +17,17 @@ final class QuestApp {
     private var worldRenderer: WorldRenderer?
     private var save: SaveManager?
     let rig = QuestRig()
+    let handed: HandedInput                        // S7/S8: the hands as the controls read them (QuestHands.swift)
     var controls: QuestControls?
     private var loadThread: Thread?
     private var hudPanel: HudPanel?
     private let loadLock = NSLock()
     private var loaded: (Game, SaveManager?, [[UInt8]])?
     private var joinFailed: String?
+    // F3: a world being saved behind the loading scene ("Saving the world"), and a quit waiting for that save.
+    private var savingGame: Game?
+    private var exitWhenSaved = false
+    private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
     private var loadStart = CFAbsoluteTimeGetCurrent()
@@ -32,6 +37,7 @@ final class QuestApp {
 
     init(xr: XRSession) throws {
         self.xr = xr
+        handed = HandedInput(raw: xr)
         setenv("BLOCKSMITH_TEXRES", "\(QuestSettings.textureRes)", 1)
         device = QuestDevice(xr.vk)
         sharedSystemDevice = device
@@ -43,7 +49,12 @@ final class QuestApp {
             let dm = xr.foveated && i < xr.densityMaps.count ? xr.densityMaps[i] : nil
             targets.append(try scene.makeTarget(image: img, width: xr.width, height: xr.height, densityMap: dm))
         }
-        xr.onRecenter = { [weak self] in self?.rig.needsRecenter = true }
+        // S8: the runtime moved the reference space (a recentre from the system button, the boundary redrawn): the rig
+        // re-anchors on the next frame and the HUD and menus re-place themselves (QuestControls watches rig.recenters).
+        xr.onRecenter = { [weak self] in
+            self?.rig.needsRecenter = true
+            self?.game?.onToast?(QuestSettings.reclined ? "View levelled to your gaze" : "View recentred")
+        }
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
         World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
         // Far detail (merged faces, no grass/flowers, fast leaves) from 5 chunks out instead of 8: rd 16 Quest-proxy
@@ -70,7 +81,21 @@ final class QuestApp {
     private func startLoading(_ req: WorldRequest = WorldRequest()) {
         loadStart = CFAbsoluteTimeGetCurrent()
         loadLock.lock(); loadProgress = 0; loadStatus = "Starting"; loadLock.unlock()
-        let t = Thread { [weak self] in self?.load(req) }
+        let old = savingGame
+        savingGame = nil
+        let quitting = exitWhenSaved
+        let t = Thread { [weak self] in
+            // F3 (Oct 13 evening: quit and world switches froze the view while the save flushed): the old world, no
+            // longer ticked or drawn, is saved here with the loading scene up and saying so.
+            if let g = old {
+                self?.status("Saving the world", 0.02)
+                g.saveNow()
+                SaveIO.flush()
+                print("save: world saved")
+            }
+            if quitting { self?.loadLock.lock(); self?.saveDone = true; self?.loadLock.unlock(); return }
+            self?.load(req)
+        }
         t.stackSize = 8 << 20
         t.qualityOfService = .userInitiated
         t.name = "blocksmith.load"
@@ -96,6 +121,7 @@ final class QuestApp {
                 status("Receiving \(gu.worldName)", 0.55)
                 _ = game.world.loadSync(center: game.player.pos, radius: min(2, game.world.renderDistance))
                 HorizonRing.shared.request(game, eye: game.player.eye)
+                FarRing.shared.request(game, eye: game.player.eye)
                 status("Ready", 1)
                 loadLock.lock(); loaded = (game, nil, tex); loadLock.unlock()
                 return
@@ -125,6 +151,8 @@ final class QuestApp {
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
         // world frame (HorizonRing samples synchronously when it has no ring yet).
         HorizonRing.shared.request(game, eye: game.player.eye)
+        // F4: the middle ring's first build (~17k terrain columns) here too, not on the first world frame.
+        FarRing.shared.request(game, eye: game.player.eye)
         QuestWarmup.run()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
@@ -135,6 +163,7 @@ final class QuestApp {
     // textures, then the HUD panel, then the game itself. Each step's time is logged.
     private var adoptStep = 0
     private var wasFocused = false
+    private var awayFor = 0.0, savedAway = false, headLostFor = 0.0      // S8
     private var firstWorldFrames = 0
 
     private func adoptLoaded() {
@@ -184,7 +213,14 @@ final class QuestApp {
             recenter: { [weak self] in self?.rig.needsRecenter = true },
             rates: { xrs.availableRates }, currentRate: { xrs.refreshRate },
             setRate: { r in if xrs.setRefreshRate(r) { print("xr: refresh rate \(xrs.refreshRate) Hz") } },
-            foveated: { xrs.foveated }, setFoveation: { xrs.applyFoveation(level: $0) }))
+            foveated: { xrs.foveated }, setFoveation: { xrs.applyFoveation(level: $0) },
+            headHeight: { xrs.floorSpace && xrs.headTracked ? xrs.headPos.y : nil },
+            finishSetup: { [weak self] in
+                guard let g = self?.game else { return }
+                if g.menu is PauseMenu { g.closeMenu() }
+                g.paused = false
+            },
+            toast: { [weak self] t in self?.game?.onToast?(t) }))
         PadManager.shared.haptic = { [weak self] k, secs, sharp in
             guard let self else { return }
             let f: Float = 80 + 240 * sharp
@@ -195,6 +231,13 @@ final class QuestApp {
         if let why = joinFailed { joinFailed = nil; game.onToast?(why) }
         rig.needsRecenter = true
         rig.bodyYaw = game.player.yaw
+        // S6: the first launch opens the setup panel (play position, comfort, dominant hand, controls, height) over the
+        // world, once; VR Comfort & Controls > First-Launch Setup opens it again.
+        if !QuestSettings.setupShown {
+            QuestSettings.setupShown = true
+            game.paused = true
+            if let pm = game.menu as? PauseMenu { pm.hostPageID = "setup"; pm.build() }
+        }
         print(String(format: "load: world ready in %.1f s (seed %llu, render distance %d)", CFAbsoluteTimeGetCurrent() - loadStart,
                      game.world.seed, game.world.renderDistance))
     }
@@ -203,8 +246,25 @@ final class QuestApp {
     private func appAction(_ id: String) {
         switch id {
         case "quit":
-            saveNow()
-            xr.requestExit()
+            exitWhenSaved = true
+            switchWorld(WorldRequest())
+        case "restorebackup":
+            // S4: the open world is closed without saving (it is what crashed), its newest backup copied back, reopened.
+            guard let g = game, let dir = g.save?.dir else { break }
+            let name = dir.lastPathComponent
+            savingGame = nil
+            if let gu = g.netGuest { gu.detach(g); g.netGuest = nil }
+            g.netHost?.stop(g); g.netHost = nil
+            scene.waitIdle()
+            g.sound?.stopAll()
+            QuestAudioOutput.shared.stop()
+            PadManager.shared.touch = nil
+            controls = nil; worldRenderer = nil; game = nil; save = nil
+            SaveIO.flush()
+            let ok = CrashGuard.restore(dir: dir)
+            print("restore backup of \(name): \(ok)")
+            if !ok { joinFailed = "No backup copy of this world yet" }
+            startLoading(WorldRequest(name: name))
         case _ where id.hasPrefix("play:"):
             switchWorld(WorldRequest(name: String(id.dropFirst(5))))
         case "newworld":
@@ -225,7 +285,7 @@ final class QuestApp {
     // Saves and closes the current world, then loads another behind the loading scene.
     private func switchWorld(_ req: WorldRequest) {
         print("world: switching to \(req.name ?? req.join ?? "?")")
-        saveNow()
+        savingGame = game                    // saved on the loading thread (startLoading), behind "Saving the world"
         if let g = game { g.netHost?.stop(g); g.netHost = nil; if let gu = g.netGuest { gu.detach(g); g.netGuest = nil } }
         scene.waitIdle()
         game?.sound?.stopAll()
@@ -245,8 +305,26 @@ final class QuestApp {
     // One display frame. Returns false when the app should exit.
     func frame() -> Bool {
         guard xr.pollEvents() else { return false }
-        guard xr.running else { Thread.sleep(forTimeInterval: 0.02); return true }
-        if game == nil { adoptLoaded() }
+        guard xr.running else {
+            // S8: the session stopped (headset off long enough to sleep, the app sent to the background, Quit from the
+            // system menu): the world is paused and saved once, before anything else can end the process.
+            if let g = game, !savedAway {
+                savedAway = true
+                if g.menu == nil && g.credits == nil { g.paused = true }
+                saveNow()
+            }
+            Thread.sleep(forTimeInterval: 0.02); return true
+        }
+        QuestEntitlement.poll()                                   // S5 (off until the store app ID is set)
+        if QuestEntitlement.denied && !exitWhenSaved {
+            game?.onToast?("This copy of Blocksmith isn't linked to your account. Buy it from the store to play.")
+            exitWhenSaved = true
+            switchWorld(WorldRequest())
+        }
+        if exitWhenSaved {
+            loadLock.lock(); let done = saveDone; loadLock.unlock()
+            if done { xr.requestExit() }
+        } else if game == nil { adoptLoaded() }
         let f: XRSession.Frame
         do { f = try xr.beginFrame() } catch { print("xr frame: \(error)"); return !xr.exitRequested }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -266,8 +344,18 @@ final class QuestApp {
             // when the user comes back, so nothing happens to them meanwhile.
             if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { g.paused = true }
             wasFocused = xr.focused
+            // S8: away (the boundary or the system menu up, the headset taken off) for two seconds: saved once.
+            awayFor = xr.focused ? 0 : awayFor + dt
+            if xr.focused { savedAway = false } else if awayFor > 2 && !savedAway { savedAway = true; saveNow() }
+            // S8: head tracking lost (XRSession.headTracked; the view holds the last tracked pose): no ticks, and after
+            // a moment the pause menu, so nothing happens to the player in the dark.
+            headLostFor = xr.headTracked ? 0 : headLostFor + dt
+            if headLostFor > 0.3 && !g.paused && g.menu == nil && g.credits == nil {
+                g.paused = true
+                g.onToast?("Headset tracking lost: paused")
+            }
             // Game.tick streams the world first thing; unfocused, keep chunks arriving without ticking.
-            if xr.focused { g.tick(dt) } else { g.world.update(center: g.player.pos) }
+            if xr.focused && xr.headTracked { g.tick(dt) } else { g.world.update(center: g.player.pos) }
             controls?.afterTick(dt: Float(dt))
             tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
         }
@@ -296,16 +384,37 @@ final class QuestApp {
             firstWorldFrames -= 1
             print(String(format: "first world frame: cpu %.1f ms (tick %.1f, record %.1f)", (now - t0) * 1000, tickMs, recordMs))
         }
+        // F1: a frame over 250 ms goes to hitches.log on the headset (time, split, the tick's slowest stages), so a
+        // freeze can be matched to a voice note's timestamp.
+        if now - lastFrameTime > 0.25 && game != nil && firstWorldFrames == 0 { logHitch(ms: (now - lastFrameTime) * 1000, tick: tickMs, record: recordMs) }
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
                   target: f.period, scene: scene, game: game, rate: xr.refreshRate)
         lastFrameTime = now
         return !xr.exitRequested
     }
 
+    private func logHitch(ms: Double, tick: Double, record: Double) {
+        let stage = TickProf.summary()
+        let split = String(format: "frame %.0f ms (tick %.1f, record %.1f)", ms, tick, record)
+        let line = ISO8601DateFormatter().string(from: Date()) + " " + split + " slowest: " + stage + "\n"
+        print("hitch: " + line, terminator: "")
+        let path = QuestPaths.root + "/hitches.log"
+        DispatchQueue.global(qos: .utility).async {
+            if let h = FileHandle(forWritingAtPath: path) {
+                h.seekToEndOfFile(); h.write(line.data(using: .utf8) ?? Data()); h.closeFile()
+            } else {
+                try? line.write(toFile: path, atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
     var farPlane: Float {
         let rd = Float(game?.world.renderDistance ?? 4)
         let ships = game?.world.ships.list.contains { $0.kinematic } ?? false
-        return max(rd * 16 + 96, ships ? 1000 : 0)
+        // F4: the middle ring (Sources/FarRing.swift) reaches FarRing.outer in the overworld; the horizon shell and the
+        // landmark impostors sit just inside the far plane, behind it.
+        let ring: Float = FarRing.enabled && game?.dim.dim == .overworld ? FarRing.outer + 96 : 0
+        return max(rd * 16 + 96, ships ? 1000 : 0, ring)
     }
 
     // Saves the world (activity paused / exiting).
@@ -318,6 +427,7 @@ final class QuestApp {
 
     func shutdown() {
         saveNow()
+        CrashGuard.mark(false)
         QuestAudioOutput.shared.stop()
         scene.waitIdle()
     }

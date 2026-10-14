@@ -15,6 +15,37 @@ final class MapData: Codable {
         self.cx = cx; self.cz = cz; self.scale = scale; self.dim = dim
         colors = [UInt32](repeating: 0, count: 128 * 128)
     }
+    func snapshot() -> MapData {
+        let m = MapData(cx: cx, cz: cz, scale: scale, dim: dim)
+        m.colors = colors; m.locked = locked; m.marker = marker
+        return m
+    }
+    // F1: the 16,384 pixels were written as a JSON number list (~150 KB a map, encoded on the frame thread every
+    // autosave); now as base64 of their bytes ("px"). Maps saved before still load from "colors".
+    enum CodingKeys: String, CodingKey { case cx, cz, scale, dim, colors, px, locked, marker }
+    required init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        cx = try c.decode(Int.self, forKey: .cx); cz = try c.decode(Int.self, forKey: .cz)
+        scale = try c.decode(Int.self, forKey: .scale); dim = try c.decode(String.self, forKey: .dim)
+        locked = (try? c.decode(Bool.self, forKey: .locked)) ?? false
+        marker = try? c.decode([Int].self, forKey: .marker)
+        if let s = try? c.decode(String.self, forKey: .px), let data = Data(base64Encoded: s), data.count == 128 * 128 * 4 {
+            var px = [UInt32](repeating: 0, count: 128 * 128)
+            _ = px.withUnsafeMutableBytes { data.copyBytes(to: $0) }
+            colors = px.map { UInt32(littleEndian: $0) }
+        } else {
+            colors = (try? c.decode([UInt32].self, forKey: .colors)) ?? [UInt32](repeating: 0, count: 128 * 128)
+        }
+    }
+    func encode(to e: Encoder) throws {
+        var c = e.container(keyedBy: CodingKeys.self)
+        try c.encode(cx, forKey: .cx); try c.encode(cz, forKey: .cz); try c.encode(scale, forKey: .scale); try c.encode(dim, forKey: .dim)
+        if locked { try c.encode(locked, forKey: .locked) }
+        if let m = marker { try c.encode(m, forKey: .marker) }
+        let le = colors.map { $0.littleEndian }
+        let data = le.withUnsafeBytes { Data($0) }
+        try c.encode(data.base64EncodedString(), forKey: .px)
+    }
 }
 
 enum MapColors {

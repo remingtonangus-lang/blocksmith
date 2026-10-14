@@ -51,6 +51,8 @@ mkdir -p "$STAGE/assets"
 [ -f Resources/texpack.bin ] && cp Resources/texpack.bin "$STAGE/assets/"
 # Townsfolk voice takes (tools/townvoice_gen.py; TownVoice.load reads them at launch).
 [ -f Resources/voices.bin ] && cp Resources/voices.bin "$STAGE/assets/"
+# Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md; AndroidMain lists assets/sounds/real).
+if ls Resources/Sounds/real/*.wav >/dev/null 2>&1; then mkdir -p "$STAGE/assets/sounds/real"; cp Resources/Sounds/real/*.wav "$STAGE/assets/sounds/real/"; fi
 
 echo "== package"
 for m in simd os Metal; do mkdir -p "$PKG/Sources/$m"; cp quest/shims/$m/*.swift "$PKG/Sources/$m/"; done

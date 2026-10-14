@@ -530,6 +530,7 @@ final class WorldGen: TerrainGenerator {
         var aquifer: [Int32] = []
         carveCaves(&b, caves, bx, bz, tops, wls, cols, &aquifer)
         carveRavines(&b, bx, bz, tops, wls, &aquifer)
+        if terrain.lessWater { carveSinkholes(&b, bx, bz, tops, wls) }
         drainAquifers(&b, aquifer)
         lavaPockets(&b, bx, bz)
         floorLava(&b, bx, bz)
@@ -959,12 +960,21 @@ final class WorldGen: TerrainGenerator {
         for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
             for rx in (floorDiv(bx, rsz) - 1)...(floorDiv(bx + CS - 1, rsz) + 1) {
                 var rng = SRng(UInt64(hash3(rx, 0x7A1, rz, s32 ^ 0x5A5A)) | 1)
-                guard rng.int(3) == 0 else { continue }
+                // H2 (worlds made since Oct 14): one region in two holds a ravine, and two in five of those are open
+                // to the sky: they start just under the ground and keep to it, a crack you find walking.
+                let h2 = terrain.lessWater
+                let roll = rng.int(6)
+                guard h2 ? roll < 3 : roll % 3 == 0 else { continue }
                 var px = Float(rx * rsz + rng.range(16, rsz - 16)), pz = Float(rz * rsz + rng.range(16, rsz - 16))
                 var py = Float(YOFF + rng.range(-20, 50))
                 var yaw = rng.float() * 2 * .pi, pitch = (rng.float() - 0.5) * 0.25
                 let len = rng.range(70, 120)
                 let wmax = 2.2 + rng.float() * 2.8
+                var open = false
+                if h2 && rng.int(5) < 2 {
+                    let k = terrain.column(Int(px), Int(pz))
+                    if k.h > SEA_D + 4 && k.wl <= k.h { open = true; py = Float(YOFF) + k.h - 10; pitch = 0 }
+                }
                 var dyaw: Float = 0, dpitch: Float = 0
                 for k in 0..<len {
                     let t = Float(k) / Float(len)
@@ -974,6 +984,10 @@ final class WorldGen: TerrainGenerator {
                     dyaw = dyaw * 0.5 + (rng.float() - 0.5) * 0.25
                     dpitch = dpitch * 0.8 + (rng.float() - 0.5) * 0.08
                     yaw += dyaw * 0.25; pitch = pitch * 0.7 + dpitch
+                    if open {               // keep under the land, so the crack stays open along its length
+                        pitch = 0
+                        if k % 4 == 0 { py += (Float(YOFF) + terrain.column(Int(px), Int(pz)).h - 10 - py) * 0.5 }
+                    }
                     let ir = Int(r) + 1
                     let cx = Int(floorf(px)), cz = Int(floorf(pz))
                     if cx + ir < bx || cx - ir >= bx + CS || cz + ir < bz || cz - ir >= bz + CS { continue }
@@ -998,6 +1012,60 @@ final class WorldGen: TerrainGenerator {
                                 // Aquifers, as in the cave carver (drainAquifers keeps only basins).
                                 if aquiferWet(x, y, z) { b[i] = WATER; aquifer.append(Int32(i)); continue }
                                 b[i] = AIR
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // H2: sinkholes, a second cave style you meet on the surface. One 96-block region in five drops a round shaft
+    // (3-6 blocks across, wandering a little) 25-55 blocks down into a domed chamber. Path from the region only.
+    private func carveSinkholes(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int]) {
+        let rsz = 96
+        let lavaLevel = YOFF - 55
+        for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
+            for rx in (floorDiv(bx, rsz) - 1)...(floorDiv(bx + CS - 1, rsz) + 1) {
+                var rng = SRng(UInt64(hash3(rx, 0x51F, rz, s32 ^ 0x3C3C)) | 1)
+                guard rng.int(5) == 0 else { continue }
+                var px = Float(rx * rsz + rng.range(20, rsz - 20)), pz = Float(rz * rsz + rng.range(20, rsz - 20))
+                let k = terrain.column(Int(px), Int(pz))
+                guard k.h > SEA_D + 3 && k.wl <= k.h && k.slope < 1.2 else { continue }
+                let r0 = 1.5 + rng.float() * 1.5
+                let topY = Float(YOFF) + k.h + 2
+                let depth = Float(rng.range(25, 55))
+                let cr = 5 + rng.float() * 4                     // the chamber
+                var steps: [(Float, Float, Float, Float)] = []   // x, y, z, r
+                var y = topY
+                let ax = (rng.float() - 0.5) * 0.3, az = (rng.float() - 0.5) * 0.3
+                while y > topY - depth {
+                    let t = (topY - y) / depth
+                    steps.append((px, y, pz, r0 * (1 + 0.25 * sinf(t * 9))))
+                    px += ax; pz += az; y -= 1
+                }
+                steps.append((px, y - cr * 0.3, pz, cr))
+                for (cx, cy, cz, r) in steps {
+                    let ir = Int(r) + 1
+                    let ix = Int(floorf(cx)), iz = Int(floorf(cz))
+                    if ix + ir < bx || ix - ir >= bx + CS || iz + ir < bz || iz - ir >= bz + CS { continue }
+                    let dome = r > r0 * 2
+                    let y0 = max(6, Int(cy - (dome ? r * 0.6 : 0.5))), y1 = min(CH - 2, Int(cy + (dome ? r * 0.8 : 0.5)))
+                    guard y0 <= y1 else { continue }
+                    for z in max(bz, iz - ir)...min(bz + CS - 1, iz + ir) {
+                        for x in max(bx, ix - ir)...min(bx + CS - 1, ix + ir) {
+                            let lx = x - bx, lz = z - bz
+                            if tops[lx + lz * CS] < wls[lx + lz * CS] + 2 { continue }      // never under water
+                            let dx = Float(x) + 0.5 - cx, dz = Float(z) + 0.5 - cz
+                            let jag = (hashf(x, Int(cy), z, s32 ^ 0x3C3D) - 0.5) * 0.35
+                            for yy in y0...y1 {
+                                let dy = dome ? (Float(yy) + 0.5 - cy) / (r * 0.7) : 0
+                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
+                                let i = Chunk.index(lx, yy, lz)
+                                let cur = b[i]
+                                if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
+                                if yy + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
+                                b[i] = yy <= lavaLevel ? LAVA : AIR
                             }
                         }
                     }
@@ -1164,6 +1232,13 @@ final class WorldGen: TerrainGenerator {
     }
 
     // Amethyst geode: 1 in 24 chunks, y -58...30.
+    // R22 (Oct 13 evening, "floating amethyst", again after P121): the geode was laid after the caves and ravines had
+    // been carved, skipping the cells they had opened and hollowing its middle wherever it stood. Where a cave ran past
+    // or through it, the hollow and the cave together left pieces of shell (amethyst, calcite, basalt, with buds on
+    // them) joined to nothing, and P121's pass only drops the buds. Now a geode whose shell would meet carved air or
+    // water in this chunk is not laid at all (the reference keeps geodes out of carved space the same way), and the
+    // clusters stand on the shell's floor. The random draws are the same either way, so the dungeons and cave
+    // decoration after it are unchanged.
     private func placeGeode(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng) {
         guard rng.int(24) == 0 else { return }
         let cxr = rng.range(5, 10), czr = rng.range(5, 10), cy = YOFF + rng.range(-58, 30)
@@ -1171,24 +1246,45 @@ final class WorldGen: TerrainGenerator {
         let g = Blocks.id
         let crack = rng.chance(0.95)
         let crackDir = rng.int(4)
-        for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
+        @inline(__always) func dist(_ lx: Int, _ y: Int, _ lz: Int, _ dx: Int, _ dy: Int, _ dz: Int) -> Float {
+            let d2 = Float(dx * dx + dy * dy + dz * dz)
+            let jitter: Float = (hashf(bx + lx, y, bz + lz, s32 ^ 0x6E0) - 0.5) * 0.8
+            return d2.squareRoot() + jitter
+        }
+        // Carved space anywhere in the shell (one block past it, so no cave wall is a single calcite skin): no geode.
+        var open = false
+        scan: for dy in -7...7 { for dz in -7...7 { for dx in -7...7 {
             let lx = cxr + dx, lz = czr + dz, y = cy + dy
             guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && y > 5 && y < CH - 1 else { continue }
-            let d = (Float(dx * dx + dy * dy + dz * dz)).squareRoot() + (hashf(bx + lx, y, bz + lz, s32 ^ 0x6E0) - 0.5) * 0.8
-            let i = Chunk.index(lx, y, lz)
-            if d > r + 1.6 { continue }
-            if b[i] == AIR || Blocks.isLiquid(b[i]) { continue }
-            if d > r + 0.8 { b[i] = g("smooth_basalt") }
-            else if d > r { b[i] = g("calcite") }
-            else if d > r - 0.9 { b[i] = hashf(bx + lx, y, bz + lz, s32 ^ 0x6E1) < 0.08 ? g("budding_amethyst") : g("amethyst_block") }
-            else { b[i] = AIR }
+            guard dist(lx, y, lz, dx, dy, dz) <= r + 2.1 else { continue }
+            let c = b[Chunk.index(lx, y, lz)]
+            if c == AIR || Blocks.isLiquid(c) { open = true; break scan }
         } } }
-        // Clusters on the inner wall, and a crack to one side.
-        for _ in 0..<6 {
-            let lx = cxr + rng.range(-2, 2), lz = czr + rng.range(-2, 2), y = cy - Int(r) + 2
-            if lx >= 0 && lx < CS && lz >= 0 && lz < CS && b[Chunk.index(lx, y, lz)] == AIR { b[Chunk.index(lx, y, lz)] = g("amethyst_cluster") }
+        if !open {
+            for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
+                let lx = cxr + dx, lz = czr + dz, y = cy + dy
+                guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && y > 5 && y < CH - 1 else { continue }
+                let d = dist(lx, y, lz, dx, dy, dz)
+                let i = Chunk.index(lx, y, lz)
+                if d > r + 1.6 { continue }
+                if b[i] == AIR || Blocks.isLiquid(b[i]) { continue }
+                if d > r + 0.8 { b[i] = g("smooth_basalt") }
+                else if d > r { b[i] = g("calcite") }
+                else if d > r - 0.9 { b[i] = hashf(bx + lx, y, bz + lz, s32 ^ 0x6E1) < 0.08 ? g("budding_amethyst") : g("amethyst_block") }
+                else { b[i] = AIR }
+            } } }
         }
-        if crack {
+        // Clusters on the inner floor (each dropped to the shell under it), and a crack to one side.
+        let shell: Set<BlockID> = [g("amethyst_block"), g("budding_amethyst")]
+        for _ in 0..<6 {
+            let lx = cxr + rng.range(-2, 2), lz = czr + rng.range(-2, 2)
+            guard !open, lx >= 0 && lx < CS && lz >= 0 && lz < CS else { continue }
+            var y = cy - Int(r) + 2
+            guard b[Chunk.index(lx, y, lz)] == AIR else { continue }
+            while y > cy - Int(r) - 1 && b[Chunk.index(lx, y - 1, lz)] == AIR { y -= 1 }
+            if shell.contains(b[Chunk.index(lx, y - 1, lz)]) { b[Chunk.index(lx, y, lz)] = g("amethyst_cluster") }
+        }
+        if crack && !open {
             let (ddx, ddz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][crackDir]
             for k in Int(r - 1)...Int(r + 2) { for dy in -1...1 {
                 let lx = cxr + ddx * k, lz = czr + ddz * k, y = cy + dy

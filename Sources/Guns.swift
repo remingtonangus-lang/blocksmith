@@ -49,7 +49,9 @@ enum Guns {
         GunSpec(key: "gun_launcher", name: "Himmelsturm Launcher", ammo: "rocket_ammo", mag: 2, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.02, aimSpread: 0.008, speed: 34, recoil: 0.12, reload: 2.6, range: 160, durability: 150, zoom: 0.85,
                 shot: .rocket, sound: 4, accent: V3(0.9, 0.9, 0.88)),
-        GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 14, pellets: 1,
+        // H7 ("the shock weapon is as strong as it looks"): 22 a bolt (was 14, under a rifle's two shots), and the bolt
+        // jumps on to two more targets nearby (Armory.beam).
+        GunSpec(key: "gun_arc", name: "Blitzlanze Arc Gun", ammo: "arc_cell", mag: 12, interval: 0.9, auto: false, damage: 22, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
         // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
@@ -159,7 +161,7 @@ enum Guns {
         switch key {
         case "rifle_rounds": return "any town gunsmith; Ashguard soldiers"
         case "shotgun_shells", "heavy_rounds": return "any town gunsmith; military crates"
-        case "capital_rounds": return "Capital soldiers and citadel crates (never sold)"
+        case "capital_rounds": return "Capital soldiers, citadel crates and Capital city gunsmiths"
         case "rocket_ammo", "arc_cell": return "military base and citadel crates"
         case GreywallArms.ammo: return "any town gunsmith; Greywall soldiers and their armouries"
         default: return "military crates"
@@ -225,9 +227,13 @@ enum Guns {
         var n = 0
         var ind = indicator[gi]
         if rounds <= 0 { ind.color = V3(1.9, 0.25, 0.18) }
+        // R9 (Oct 13: "the six-iron looks nothing like one; not futuristic"): the glowing ammo light is the Capital's
+        // (its energy-era arms only). On the six-iron it sat as a lit strip down the barrel's side, and the frontier,
+        // Ashguard and Greywall guns carried it too; they show their state by the magazine alone.
+        let lit = gi <= Guns.pistol && gi != Guns.revolver
         // Upgrades show (Upgrades.gunParts: a scope, a longer magazine, a band for special rounds, a loader lever).
         let extra = upgradeParts(gi, upgrades, magOut: rounds <= 0)
-        for (pi, p0) in (models[gi] + extra + [ind]).enumerated() {
+        for (pi, p0) in (models[gi] + extra + (lit ? [ind] : [])).enumerated() {
             if rounds <= 0 && magParts[gi].contains(pi) { continue }            // empty: the magazine is out
             let p = p0
             let size = p.mx - p.mn

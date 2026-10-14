@@ -90,6 +90,14 @@ enum QuestSettings {
     static var swingTutorialShown: Bool { get { bool("quest.swingTutorial", false) } set { store(newValue, "quest.swingTutorial") } }
     static var reclinedTutorialShown: Bool { get { bool("quest.reclinedTutorial", false) } set { store(newValue, "quest.reclinedTutorial") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
+    // S7: controller preset: 0 Default, 1 Classic (stick walks, snap turns: no teleport, no smooth turning), 2 One Hand
+    // (the dominant stick also walks; HandedInput). Dominant Hand (leftHanded) swaps the hands under any preset.
+    static var controlPreset: Int { get { int("quest.controlPreset", 0) } set { store(newValue, "quest.controlPreset") } }
+    // S6: the standing eye height measured in the first-launch setup (metres above the floor; 0 not measured). Standing
+    // play recentres to it, so a recentre while crouched or leaning still puts the view at a standing height.
+    static var standHeight: Float { get { float("quest.standHeight", 0) } set { store(newValue, "quest.standHeight") } }
+    // S6: the first-launch setup panel was shown (progress, not an option: Reset Options doesn't bring it back).
+    static var setupShown: Bool { get { bool("quest.setupShown", false) } set { store(newValue, "quest.setupShown") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     // The held item's size (VR option "Held Item Size", audit 25b6 #4): multiplies swords, tools, blocks and guns.
     static var heldScale: Float { get { max(0.8, min(1.5, float("quest.heldScale", 1))) } set { store(newValue, "quest.heldScale") } }
@@ -127,7 +135,7 @@ extension QuestSettings {
          ("quest.smoothTurnSpeed", smoothTurnSpeed), ("quest.vignette", vignette), ("quest.steadySaddle", steadySaddle),
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.swingBeforeReclined", swingBeforeReclined),
-         ("quest.leftHanded", leftHanded), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
+         ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
          ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.hudDrop", hudDrop),
          ("quest.foveation", foveation), ("quest.textureRes", textureRes)]
     }

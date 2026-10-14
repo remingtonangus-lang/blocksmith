@@ -34,27 +34,83 @@ enum Rails {
         return nil
     }
 
-    // Picks the shape for the rail at p from the rails around it, then lets the neighbours turn to it.
-    static func autoShape(_ w: World, _ p: IVec3, recurse: Bool = true) {
+    // Does the rail at n have an exit pointing at q's column?
+    static func pointsTo(_ w: World, _ n: IVec3, _ q: IVec3) -> Bool {
+        let nb = w.block(n.x, n.y, n.z)
+        guard isRail(nb) else { return false }
+        for e in exits[shape(nb)] where n.x + e.0 == q.x && n.z + e.2 == q.z { return true }
+        return false
+    }
+
+    // Both ends of the rail at n already run into rails that run back into it (reference canConnectTo: such a rail
+    // keeps its shape when a rail is laid beside it).
+    static func full(_ w: World, _ n: IVec3) -> Bool {
+        let nb = w.block(n.x, n.y, n.z)
+        guard isRail(nb) else { return false }
+        var c = 0
+        for e in exits[shape(nb)] {
+            if let m = neighbour(w, n, e.0, e.2), pointsTo(w, m, n) { c += 1 }
+        }
+        return c >= 2
+    }
+
+    // Picks the shape for the rail at p from the rails around it, then lets the neighbours turn to it (W6, reference
+    // RailState): only rails already pointing at it or with a free end connect (connected rails keep their shape); a
+    // plain rail at a T or a cross takes the south-east curve first, or north-west first while powered; slopes rise
+    // to a rail one block up.
+    static func autoShape(_ w: World, _ p: IVec3, recurse: Bool = true, powered: Bool? = nil) {
         let b = w.block(p.x, p.y, p.z)
         guard isRail(b) else { return }
         let dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)]       // N S W E
-        var conn: [Int] = []
-        for (k, d) in dirs.enumerated() where neighbour(w, p, d.0, d.1) != nil { conn.append(k) }
-        var shape = shape(b)
-        func up(_ k: Int) -> Bool { let d = dirs[k]; return isRail(w.block(p.x + d.0, p.y + 1, p.z + d.1)) }
-        let ns = conn.contains(0) || conn.contains(1), ew = conn.contains(2) || conn.contains(3)
-        if conn.count >= 2 && plain(b) && ns && ew {
-            let n = conn.contains(0), s = conn.contains(1), wv = conn.contains(2), e = conn.contains(3)
-            if s && e { shape = 6 } else if s && wv { shape = 7 } else if n && wv { shape = 8 } else if n && e { shape = 9 }
-        } else if ns && !ew || (ns && !plain(b)) {
-            shape = up(0) ? 4 : (up(1) ? 5 : 0)
-        } else if ew {
-            shape = up(3) ? 2 : (up(2) ? 3 : 1)
+        var link = [false, false, false, false]
+        for (k, d) in dirs.enumerated() {
+            if let q = neighbour(w, p, d.0, d.1), pointsTo(w, q, p) || !full(w, q) { link[k] = true }
         }
-        let nb = with(b, shape: shape)
+        let n = link[0], s = link[1], wv = link[2], e = link[3]
+        let isPlain = plain(b)
+        let on = powered ?? (w.redstone.received(p) > 0)
+        func up(_ k: Int) -> Bool { let d = dirs[k]; return isRail(w.block(p.x + d.0, p.y + 1, p.z + d.1)) }
+        let ns = n || s, ew = wv || e
+        var shape: Int?
+        if ns && !ew { shape = 0 }
+        if ew && !ns { shape = 1 }
+        if isPlain {
+            if s && e && !n && !wv { shape = 6 }
+            if s && wv && !n && !e { shape = 7 }
+            if n && wv && !s && !e { shape = 8 }
+            if n && e && !s && !wv { shape = 9 }
+            if shape == nil {
+                // Junction priority: each later match wins.
+                if on {
+                    if s && e { shape = 6 }; if s && wv { shape = 7 }; if n && e { shape = 9 }; if n && wv { shape = 8 }
+                } else {
+                    if n && wv { shape = 8 }; if n && e { shape = 9 }; if s && wv { shape = 7 }; if s && e { shape = 6 }
+                }
+            }
+        } else if shape == nil && ns && ew {
+            // A straight-only rail at a junction keeps its axis (north-south if it had none).
+            shape = Rails.shape(b) == 1 || Rails.shape(b) == 2 || Rails.shape(b) == 3 ? 1 : 0
+        }
+        if shape == 0 { shape = up(0) ? 4 : (up(1) ? 5 : 0) }
+        if shape == 1 { shape = up(3) ? 2 : (up(2) ? 3 : 1) }
+        let nb = with(b, shape: shape ?? Rails.shape(b))
         if nb != b { w.setBlock(p.x, p.y, p.z, nb) }
-        if recurse { for d in dirs { if let q = neighbour(w, p, d.0, d.1) { autoShape(w, q, recurse: false) } } }
+        guard recurse else { return }
+        // The rails it now runs into turn toward it if they have a free end.
+        for ex in exits[Rails.shape(nb)] {
+            if let q = neighbour(w, p, ex.0, ex.2), !pointsTo(w, q, p), !full(w, q) { autoShape(w, q, recurse: false) }
+        }
+    }
+
+    // W6: power reaching or leaving a plain rail with three rails around it swaps the junction's curve (reference
+    // RailBlock.updateState).
+    static func junctionSwitch(_ w: World, _ p: IVec3, powered: Bool) {
+        let b = w.block(p.x, p.y, p.z)
+        guard plain(b) else { return }
+        var around = 0
+        for d in [(0, -1), (0, 1), (-1, 0), (1, 0)] where neighbour(w, p, d.0, d.1) != nil { around += 1 }
+        guard around == 3 else { return }
+        autoShape(w, p, recurse: false, powered: powered)
     }
 }
 

@@ -129,6 +129,11 @@ enum Townsfolk {
             v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]
         } else if tag == "deputy" {
             v.role = "deputy"; v.locked = true; v.profession = "none"
+        } else if tag == "prisoner" {
+            // An outlaw brought in alive (TownJail.swift): he stays in the cell he was put in.
+            v.role = "prisoner"; v.locked = true; v.profession = "none"
+            let p = m.pos
+            v.jobSite = [Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))]
         } else if tag.hasPrefix("citizen") {
             // A Capital citizen (CapitalTown): "citizen@x,y,z" is the office desk they work at.
             v.role = "citizen"; v.locked = true; v.profession = "none"
@@ -156,7 +161,7 @@ enum Townsfolk {
         case "farmer": return .pitchfork
         case "miner": return .shovel
         case "posse": return .revolver                                  // P51: posses and bounty hunters
-        case "elder", "child", "citizen", "banker", "rider": return .none     // citizens: the Capital's soldiers keep the streets
+        case "elder", "child", "citizen", "banker", "rider", "prisoner": return .none     // citizens: the Capital's soldiers keep the streets
         case "shopkeeper":
             switch v.shopKind {
             case .blacksmith?: return .hammer

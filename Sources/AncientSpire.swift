@@ -78,7 +78,7 @@ enum AncientSpire {
             let r = Float(dx * dx + dz * dz).squareRoot()
             guard r < 28 else { return }
             let x = cx + dx, z = cz + dz
-            w.pillarDown(x, y0 - 1, z, STONE, minY: y0 - 20)
+            w.groundDown(x, y0 - 1, z, STONE, minY: y0 - 20)
             // Under the tower itself: fill every cave pocket within 24 below (structcheck: the floor hung over a cave).
             if inside(dx, dz, a + 1) {
                 for y in stride(from: y0 - 2, through: y0 - 24, by: -1) where !Blocks.opaque[Int(w.get(x, y, z))] { w.set(x, y, z, STONE) }

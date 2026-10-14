@@ -87,7 +87,11 @@ final class Playthrough {
         let back = zip(idx, idx.dropFirst()).filter { $1 < $0 }.count
         info("goals in order: " + goals.map { "\($0.0) \(Int($0.1))s" }.joined(separator: ", "))
         check(back == 0, "first hour: the next goal only moves forward along the path (\(goals.count) goals seen, \(back) steps back)")
-        if full { check(goals.last?.0 == "(none)" || idx.last.map { $0 >= Goals.all.count - 1 } == true, "first hour: the run ends with the path walked (last goal \(goals.last?.0 ?? "-"))") }
+        // Y1: the script walks the story through hell to the Ash Chancellor; the spine's last stage (the Capital's
+        // citadels) and the overworld conquests (towns, Greywall, the fleet) aren't scripted, so a full run ends with the
+        // goal on the Capital stage.
+        let capital = Goals.all.firstIndex { $0.stage == Spine.stages.count - 1 } ?? Goals.all.count - 1
+        if full { check(goals.last?.0 == "(none)" || idx.last.map { $0 >= capital } == true, "first hour: the run ends with the path walked to the Capital stage (last goal \(goals.last?.0 ?? "-"))") }
     }
 
     // The death screen: log what killed the player, get up where they fell and pick their things back up.

@@ -106,6 +106,10 @@ void main() {
         float path = oWDepth / max(0.12, abs(v.y));
         vec3 absorb = exp(-path * vec3(0.42, 0.15, 0.09));
         float T = dot(absorb, vec3(0.3, 0.5, 0.2));
+        // F5 (open ocean the cheapest view): deep water (the mesher's 5+ band) past the near ring shows none of its bed,
+        // so the far sections under 16+ blocks of water are not drawn at all (SceneRenderer.cull); from high up the
+        // bed's last tenth or so of transmittance would otherwise show the sky through.
+        if (oWDepth > 10.0) { T *= 1.0 - smoothstep(60.0, 76.0, oDist); }
         fres = min(1.0, fres * 1.1);
         A = 1.0 - (1.0 - fres) * T;
         pm = refl * fres + deep * (1.0 - fres) * (1.0 - T);

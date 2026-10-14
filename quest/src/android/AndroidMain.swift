@@ -66,12 +66,14 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
         state.resumed = true
         QuestAudioOutput.shared.pause(false)
         BugNotes.shared.setPaused(false)
+        CrashGuard.mark(true)                     // S4
         print("android: resumed")
     case Int32(APP_CMD_PAUSE):
         state.resumed = false
         QuestAudioOutput.shared.pause(true)
         BugNotes.shared.setPaused(true)
         state.app?.saveNow()
+        CrashGuard.mark(false)                    // S4: a paused app may be ended by the system: not a crash
         print("android: paused")
     case Int32(APP_CMD_SAVE_STATE):
         state.app?.saveNow()
@@ -143,12 +145,18 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     }
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
+    CrashGuard.begin(root: dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     // Imported textures (assets/texpack.bin, tools/texpack.py); read before the loading thread paints the layers.
     if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
     // Townsfolk voice takes (assets/voices.bin, tools/townvoice_gen.py).
     if TownVoice.loaded == 0 { TownVoice.load(readAsset(activity.pointee.assetManager, "voices.bin")) }
+    // Recorded sounds that replace synthesized ones (RealSounds.swift): assets/sounds/real/*.wav (Resources/Sounds/real),
+    // then side-loaded files, which win: adb push step_grass.wav /sdcard/Android/data/com.blocksmith.quest/files/Sounds/
+    registerRealSounds(activity.pointee.assetManager)
+    RealSounds.addFolder(dataPath + "/Sounds")
+    if let ext = extPath { RealSounds.addFolder(ext + "/Sounds") }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
     if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
@@ -177,6 +185,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
                 let x = try XRSession(platform: platform)
                 xr = x
                 state.app = try QuestApp(xr: x)
+                QuestEntitlement.start(vm: UnsafeMutableRawPointer(activity.pointee.vm), activity: UnsafeMutableRawPointer(activity.pointee.clazz))   // S5
             } catch {
                 print("FATAL: OpenXR / Vulkan setup failed: \(error)")
                 failed = true
@@ -204,6 +213,16 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
 }
 
 // A file from the APK's assets/ folder, or nil.
+// Lists assets/sounds/real (names only); RealSounds reads each file when its sound first loads (off the audio thread).
+private func registerRealSounds(_ mgr: OpaquePointer?) {
+    guard let mgr, let dir = AAssetManager_openDir(mgr, "sounds/real") else { return }
+    var names: [String] = []
+    while let n = AAssetDir_getNextFileName(dir) { names.append(String(cString: n)) }
+    AAssetDir_close(dir)
+    if names.isEmpty { return }
+    RealSounds.setAssets(names) { name in readAsset(mgr, "sounds/real/" + name) }
+}
+
 private func readAsset(_ mgr: OpaquePointer?, _ name: String) -> Data? {
     guard let mgr, let a = AAssetManager_open(mgr, name, Int32(AASSET_MODE_BUFFER)) else { return nil }
     defer { AAsset_close(a) }

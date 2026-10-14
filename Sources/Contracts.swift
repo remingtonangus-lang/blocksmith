@@ -160,6 +160,7 @@ enum Contracts {
             p.pages = ["parcel:\(board)#\(slot)"]
             if !g.inventory.main.add(p).isEmpty { return ("Make room for the parcel first.", false) }
             save(board, slot, c)
+            fileOrders(g, board, slot, c)
             return ("Here's the parcel. Hand it over in \(c.dest ?? "town") yourself.", true)
         case "escort":
             let m = Mob(.villager, at: g.world.freeSpawn(g.player.pos + V3(1.5, 0, 1.5)))
@@ -168,14 +169,40 @@ enum Contracts {
             g.mobs.mobs.append(m)
             if let t = c.destAt { c.count = Int(simd_length(V2(Float(t[0]) - g.player.pos.x, Float(t[1]) - g.player.pos.z))) }
             save(board, slot, c)
+            fileOrders(g, board, slot, c)
             return ("\(c.who ?? "The traveller") will follow you to \(c.dest ?? "town").", true)
         case "defend":
             save(board, slot, c)
+            fileOrders(g, board, slot, c)
             return ("Be in \(board) after dark. They'll come.", true)
         default:
             save(board, slot, c)
+            fileOrders(g, board, slot, c)
             return ("The camp is \(describe(g, c).1.components(separatedBy: "camp is ").last ?? "out there").", true)
         }
+    }
+
+    // R24: a contract taken is filed in the Journal (Orders) with its terms, once.
+    static func fileOrders(_ g: Game, _ board: String, _ slot: Int, _ c: Contract) {
+        let what = describe(g, c).0
+        var body = "Patron: \(patron(g, board)).\nPay: \(Money.format(c.pay)) and honour on completion.\n\n"
+        switch c.kind {
+        case "courier":
+            body += "Carry the sealed parcel to \(c.dest ?? "the town") and hand it over there yourself."
+        case "escort":
+            body += "\(c.who ?? "A traveller") walks with you to \(c.dest ?? "town"). Keep them alive: bandits wait on the road."
+        case "camp":
+            var far = "out in the wilds"
+            if let t = c.target, t.count == 2 {
+                let d = V2(Float(t[0]) + 0.5 - g.player.pos.x, Float(t[1]) + 0.5 - g.player.pos.z)
+                far = "\(Int(simd_length(d))) blocks \(TownBoard.direction(d.x, d.y)) of the board"
+            }
+            body += "A bandit camp of \(c.count) stands \(far). Clear it, then collect your pay at the board."
+        default:
+            body += "Raiders ride on \(board) tonight. Be in town after dark and beat them off."
+        }
+        body += "\n\nTaken on day \(c.day + 1). It lapses if not done within three days."
+        g.logDocument("Contract: \(what)", [body], cat: .orders, id: "contract:\(board)#\(slot)#\(c.day)")
     }
 
     @discardableResult
@@ -187,7 +214,7 @@ enum Contracts {
         Honour.earn(g, c.honour, source: "job", "a contract for \(patron(g, board))")
         if !isBase(board), let k = Countries.ofKnown(g, town: board) { Countries.change(g, k, 3) }
         completed += 1
-        g.onToast?("Contract done: \(Money.format(c.pay)) from \(patron(g, board))")
+        g.onToast?("Contract done: \(Money.format(c.pay)) from \(patron(g, board))." + Spine.lead(g, from: "Your patron"))   // Y6
         return ("Paid \(Money.format(c.pay)).", true)
     }
 

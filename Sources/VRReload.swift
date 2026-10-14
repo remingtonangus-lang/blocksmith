@@ -14,6 +14,7 @@ enum VRReload {
     static let wellReach: Float = 0.26          // m from the gun (was 0.16 from the gun hand only)
     static let barrelReach: Float = 0.4
     static let holdFor: Double = 6
+    static let wellSnap: Float = 0.3            // R7: m from the drawn magazine well
     static var takenAt: Double = 0
 
     // Low beside the body: 0.4-1.2 m under the head and within 0.5 m of it sideways, and not out in front of the body
@@ -37,11 +38,14 @@ enum VRReload {
         return simd_length(hand - (gunHand + f * t))
     }
 
-    static func tick(_ g: Game, offHand: V3, gunHand: V3, head: V3, grip: Bool, gripWas: Bool, gunForward: V3? = nil) -> Event {
+    static func tick(_ g: Game, offHand: V3, gunHand: V3, head: V3, grip: Bool, gripWas: Bool, gunForward: V3? = nil, resting: Bool = false, well: V3? = nil) -> Event {
         let a = g.arms
         guard let gi = g.heldGun, g.alive else { a.magInHand = false; return .none }
         if a.magInHand {
-            let near = toGun(offHand, gunHand: gunHand, forward: gunForward) < wellReach
+            // R7 (Oct 13: "loading a magazine from the hip is too hard"): the drawn gun is 3.2x, so its magazine well hangs
+            // well away from the hand and the barrel segment; a magazine brought to the well as drawn seats too (within
+            // `wellSnap` of it), with a heavy click in both hands and the gun's latch sound.
+            let near = toGun(offHand, gunHand: gunHand, forward: gunForward) < wellReach || well.map { simd_length(offHand - $0) < wellSnap } == true
             if (grip && !gripWas && !near) || g.clock - takenAt > holdFor { a.magInHand = false; return .dropped }
             if near {
                 a.magInHand = false
@@ -53,7 +57,8 @@ enum VRReload {
             return .none
         }
         let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
-        guard grip && !gripWas && atHip(head: head, hand: offHand, forward: fwd) else { return .none }
+        // R1: a hand resting at the side (the relaxed arm) is not a reach for the pouch; its grip is the hotbar's.
+        guard grip && !gripWas && !resting && atHip(head: head, hand: offHand, forward: fwd) else { return .none }
         let gs = Guns.all[gi]
         // A full gun: the grip is the hotbar's (no toast; P74).
         if g.held.tag >= Guns.magSize(g.held) { return .none }

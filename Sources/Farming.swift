@@ -303,6 +303,7 @@ extension Game {
             if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("tripwire")); consumeHeld(); swing = 1; return true }
         }
         if launchRocket(t) { return true }
+        if bkey.hasSuffix("_fence") && hitchAt(t.hit) { swing = 1; return true }           // D3 (Hitching.swift)
         if bkey.hasSuffix("_fence") && useFenceLeash(t.hit) { swing = 1; return true }
         // Candles: add one more (up to four) or light them.
         if bkey.hasSuffix("candle") {

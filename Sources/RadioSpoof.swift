@@ -328,6 +328,7 @@ final class RadioMenu: ListMenu {
         case 1, 2:
             let r = game.radioRequest(net, strike: i == 2)
             say(r.text, good: r.ok)
+            game.logMessage("\(title): \(r.text)")      // R24: radio replies kept in the Journal (Messages)
         default: break
         }
     }

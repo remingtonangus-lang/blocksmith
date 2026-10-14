@@ -1,18 +1,23 @@
 import Foundation
 
-// First hour checks (Sources/Goals.swift; `questcheck --firsthour-only`, and part of every questcheck run): a fresh
-// survival player past the tips always has one next goal, each step's goal moves on once it is met and never goes back,
-// the path ends at the Blight, every goal names things by their Blocksmith names and fits the headset's HUD panel, the
-// banner shows a new goal and fades, the inventory screen keeps it, and creative or hints off show nothing.
+// First hour and spine checks (Sources/Goals.swift, Spine.swift; `questcheck --firsthour-only`, and part of every
+// questcheck run): a fresh survival player past the tips always has one next goal, each step's goal moves on once it is
+// met and never goes back, the path walks the spine's six stages in order (iron, a town, Greywall, the fleet, hell, the
+// Capital) with none of the reference chain on it, every goal names things by their Blocksmith names and fits the
+// headset's HUD panel, the fleet sails once a Greywall Fortress falls, the banner shows a new goal and fades, the
+// inventory screen keeps it, and creative or hints off show nothing.
 enum GoalTests {
     // What meets a step that isn't an advancement: carrying the thing.
-    static let carry: [String: String] = ["wood": "oak_log", "pickaxe": "wooden_pickaxe", "furnace": "furnace", "eyes": "ender_eye", "ember_charge": "ember_charge"]
+    static let carry: [String: String] = ["wood": "oak_log", "pickaxe": "wooden_pickaxe", "furnace": "furnace"]
 
     static func run(game g: Game, check: (Bool, String) -> Void) {
         let st = Settings.shared
         let pos0 = g.player.pos, fly0 = g.player.flying, time0 = g.time, surv0 = g.survival, paused0 = g.paused, adv0 = g.advancements, step0 = st.tutorialStep, hints0 = st.tutorialHints, menu0 = g.menu
         let main0 = g.inventory.main.slots, armor0 = g.inventory.armor.slots, off0 = g.inventory.offhand.slots, en0 = HudExtras.enabled
+        let dragon0 = g.dragonKilled, ash0 = g.ashVictory
+        Spine.paused = true                // (the walk sets advancements by hand; the world's own state stays out of it)
         defer {
+            Spine.paused = false; g.dragonKilled = dragon0; g.ashVictory = ash0
             g.survival = surv0; g.paused = paused0; g.advancements = adv0; st.tutorialStep = step0; st.tutorialHints = hints0
             for i in 0..<main0.count { g.inventory.main[i] = main0[i] }
             for i in 0..<armor0.count { g.inventory.armor[i] = armor0[i] }
@@ -43,32 +48,48 @@ enum GoalTests {
         let unknown = Goals.all.compactMap { goal -> String? in Advancements.index[goal.id] == nil && carry[goal.id] == nil ? goal.id : nil }
         check(unknown.isEmpty, "first hour: every goal is met by an advancement or by carrying an item\(unknown.isEmpty ? "" : ": " + unknown.joined(separator: ", "))")
 
-        // Walk the path, on new ground (no Hollow Gate since G20) and on ground saved with the gate.
-        let g20 = G20Guard.overworld
-        defer { G20Guard.overworld = g20 }
-        for legacy in [false, true] {
-            G20Guard.overworld = legacy ? [StructureCache.key(0, 0)] : []
-            g.advancements = []
-            for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
-            let path = Goals.path(g)
-            var order: [String] = [], stuck: [String] = [], back: [String] = []
-            for (i, goal) in path.enumerated() {
-                guard let n = Goals.next(g) else { stuck.append("no goal before \(goal.id)"); break }
-                order.append(n.id)
-                if n.id != goal.id { stuck.append("\(n.id) instead of \(goal.id)"); break }
-                if let k = carry[goal.id] { g.inventory.main[i % g.inventory.main.slots.count] = ItemStack(Items.id(k), 1) }
-                else { g.advancements.insert(goal.id) }
-                if let m = Goals.next(g), let j = path.firstIndex(where: { $0.id == m.id }), j <= i { back.append("\(goal.id) -> \(m.id)") }
-            }
-            let hollowSteps = path.filter { $0.hollow }.count
-            check(stuck.isEmpty && back.isEmpty && order.count == path.count && Goals.next(g) == nil && (legacy ? hollowSteps > 0 : hollowSteps == 0),
-                  "first hour (\(legacy ? "ground saved with the Hollow Gate" : "new ground, no Hollow")): a next goal at every step, each moves on once met (\(order.count)/\(path.count), \(hollowSteps) in the Hollow: \(order.first ?? "-") ... \(order.last ?? "-"), then none)"
-                  + (stuck.isEmpty ? "" : "; stuck: " + stuck.joined(separator: ", ")) + (back.isEmpty ? "" : "; went back: " + back.joined(separator: ", ")))
-            // Carried items dropped after the next advancement: no step comes back.
-            for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
-            if !legacy { check(Goals.next(g) == nil, "first hour: dropping the carried items later doesn't bring old goals back (next: \(Goals.next(g)?.id ?? "none"))") }
+        // Walk the path.
+        g.advancements = []
+        for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
+        let path = Goals.path(g)
+        var order: [String] = [], stuck: [String] = [], back: [String] = []
+        for (i, goal) in path.enumerated() {
+            guard let n = Goals.next(g) else { stuck.append("no goal before \(goal.id)"); break }
+            order.append(n.id)
+            if n.id != goal.id { stuck.append("\(n.id) instead of \(goal.id)"); break }
+            if let k = carry[goal.id] { g.inventory.main[i % g.inventory.main.slots.count] = ItemStack(Items.id(k), 1) }
+            else { g.advancements.insert(goal.id) }
+            if let m = Goals.next(g), let j = path.firstIndex(where: { $0.id == m.id }), j <= i { back.append("\(goal.id) -> \(m.id)") }
         }
-        G20Guard.overworld = g20
+        check(stuck.isEmpty && back.isEmpty && order.count == path.count && Goals.next(g) == nil,
+              "first hour: a next goal at every step, each moves on once met (\(order.count)/\(path.count): \(order.first ?? "-") ... \(order.last ?? "-"), then none)"
+              + (stuck.isEmpty ? "" : "; stuck: " + stuck.joined(separator: ", ")) + (back.isEmpty ? "" : "; went back: " + back.joined(separator: ", ")))
+        // Carried items dropped after the next advancement: no step comes back.
+        for i in 0..<g.inventory.main.slots.count { g.inventory.main[i] = .empty }
+        check(Goals.next(g) == nil, "first hour: dropping the carried items later doesn't bring old goals back (next: \(Goals.next(g)?.id ?? "none"))")
+
+        // Y1: the spine's six stages in order, each with a step, the reference chain off the main path.
+        let stages = path.map { $0.stage }
+        let ordered = zip(stages, stages.dropFirst()).allSatisfy { $0 <= $1 } && Set(stages) == Set(0..<Spine.stages.count)
+        let chain = ["nether/find_fortress", "nether/obtain_blaze_rod", "eyes", "follow_ender_eye", "enter_the_end", "end/kill_dragon",
+                     "nether/summon_wither", "enter_the_nether", "form_obsidian"]
+        let onPath = path.filter { chain.contains($0.id) }.map { $0.id }
+        let lastStage = path.last.map { Spine.stages[$0.stage] } ?? "-"
+        check(ordered && onPath.isEmpty && lastStage == "The Capital",
+              "spine: the goals walk \(Spine.stages.joined(separator: ", ")) in order (ends at \(lastStage)), no reference-chain step on the path\(onPath.isEmpty ? "" : ": " + onPath.joined(separator: ", "))")
+        // Y2: each stage's goal names the key it hands over; Y3: the fleet sails once a Greywall Fortress falls.
+        func text(_ id: String) -> String { path.first { $0.id == id }?.text ?? "" }
+        let keys = text("spine/greywall_base").contains("dispatch") && text("spine/greywall_top").contains("orders")
+            && text("spine/flagship").contains(Goals.name("ember_charge"))
+        g.dragonKilled = false; g.ashVictory = false
+        g.advancements = ["spine/greywall_base"]
+        let before = g.fleetSails
+        g.advancements.insert("spine/greywall_top")
+        let after = g.fleetSails
+        let items = ["greywall_dispatch", "naval_orders", "chancellor_ledger"].filter { Items.has($0) }.count
+        check(keys && !before && after && items == 3,
+              "spine: each stage hands over the next key (dispatch, naval orders, Ember Charge: \(keys); \(items)/3 items), the fleet sails once a Fortress falls (before \(before), after \(after))")
+        g.advancements = []
 
         // The banner and the inventory line, with nothing left around from earlier checks that could kill the player
         // during the ten seconds (the full run: a DeathMenu took the banner).

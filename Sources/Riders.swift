@@ -163,13 +163,15 @@ enum Riders {
     @discardableResult
     static func sendPosse(_ g: Game, from town: String) -> Int {
         let w = g.world
+        // R21: never into a cave or a mine after him (the bounty stands; the hunters come for it later, on the surface).
+        if BountyHunters.below(g) { return 0 }
         var placed = 0
         for k in 0..<30 where placed < 3 {
             let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 26...34)
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }
             let y = w.topY(x, z) + 1
-            guard !Blocks.isLiquid(w.block(x, y - 1, z)) else { continue }
+            guard !Blocks.isLiquid(w.block(x, y - 1, z)), w.lightAt(x, y, z).sky >= 12, abs(Float(y) - g.player.pos.y) < 12 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if k < 20 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
             let m = gunman(g, at: w.freeSpawn(at), role: "posse", name: "\(town) Posse")

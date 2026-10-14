@@ -399,6 +399,13 @@ enum Mesher {
             return false
         }
         func occ(_ x: Int, _ y: Int, _ z: Int) -> Int { aoT[Int(R[x + z * RW + y * RL])] ? 1 : 0 }
+        // R22: a plant (or a stack of up to four) at region index i standing on natural ground: in smooth worlds one in a
+        // section's first row is drawn by the section below (the pass after the main loop), which can lower it.
+        func plantOnNatural(_ i: Int) -> Bool {
+            var g = -1, j = i - RL
+            while g > -SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
+            return natT[Int(R[j])]
+        }
         // Packed sky | blk << 4, or -1 for solid cells (excluded from smoothing).
         func light(_ x: Int, _ y: Int, _ z: Int) -> Int {
             let i = x + z * RW + y * RL
@@ -707,6 +714,10 @@ enum Mesher {
                     }
                     if far && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
+                        // R22 (Oct 13, "floating grass in the polygon world"): vertex heights can't go under the section's
+                        // floor, so a plant in its first row over a dip stayed up to 3/4 block over the drawn ground: the
+                        // section below draws it (after the main loop).
+                        if smooth && ly == 0 && plantOnNatural(i) { continue }
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
@@ -1051,6 +1062,55 @@ enum Mesher {
                     }
                 }
             }
+        }
+        // R22: the plants of the section above's first row that stand on natural ground (see plantOnNatural), drawn here
+        // 16 blocks up and lowered onto this section's drawn ground, as the main loop does for its own.
+        if smooth && !far {
+            let y = C0 + 16
+            for z in C0..<(C0 + 16) { for x in C0..<(C0 + 16) {
+                let i = x + z * RW + y * RL
+                let b = R[i]
+                guard b != AIR else { continue }
+                let bi = Int(b)
+                guard renderT[bi] == rCross, plantOnNatural(i) else { continue }
+                let lx = x - C0, lz = z - C0
+                var dy16 = 0
+                if sc.smValid {
+                    var g = 15, j = i - RL
+                    while g > 16 - SmoothTerrain.maxRelax && renderT[Int(R[j])] == rCross { g -= 1; j -= RL }
+                    if let top = Mesher.smoothGroundTop(sc, lx, g, lz) {
+                        let want: Float = (top - Float(g + 1)) * 16
+                        dy16 = max(-12, min(12, Int(want.rounded())))
+                    }
+                }
+                let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                let tintB = Int(tintT[bi])
+                let tintV = tintB == 3 ? 1 : tintB
+                let isTrans = layerT[bi] == translucent
+                curCut = true
+                let layer = Int(texT[bi * 6 + 2])
+                let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
+                let sway = swayOn && swayT[bi]
+                let aoC = sway ? (x &* 5 &+ z &* 3 &+ y) & 3 : 3
+                var flipV = false
+                if b == Mesher.pointedDrip {
+                    var j = i, hangs = false
+                    for _ in 0..<4 {
+                        let up = R[j + RL]
+                        if up == b { j += RL; continue }
+                        hangs = opaqueT[Int(up)]; break
+                    }
+                    flipV = !hangs
+                }
+                let bx16 = lx * 16, by16 = 16 * 16 + dy16, bz16 = lz * 16
+                for q in 0..<4 {
+                    for k in 0..<4 {
+                        let ci = (q * 4 + k) * 3
+                        vert(isTrans, bx16 + ci0 + PTab[ci] * cs, by16 + PTab[ci + 1] * cs, bz16 + ci0 + PTab[ci + 2] * cs,
+                             6, tintV, cornerU[k], flipV ? 16 - cornerV[k] : cornerV[k], layer, aoC, l, sway)
+                    }
+                }
+            } }
         }
         // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
         // (ShapeOrganic), into the detail stream.

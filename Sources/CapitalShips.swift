@@ -199,22 +199,70 @@ enum Capital {
 
     // MARK: Turrets
 
-    // A twin naval gun: armoured housing, two long barrels, cannons at the muzzles. `hang` builds it upside down
-    // under the hull (ventral turrets).
-    static func navalTurret(hang: Bool, size: Int = 3) -> Blueprint {
+    // A naval gun mount: armoured housing, barrels, cannons at the muzzles. `hang` builds it upside down under the hull
+    // (ventral turrets). R10 (Oct 13, again after P70: "every naval gun is the same copy-pasted model"): each mount
+    // takes one of four builds by `style`, and fires to match (`spec(style, base)`):
+    //   0 twin      two long barrels, the gunhouse with a stripe (the old one)
+    //   1 triple    three barrels from a wider, sloped-faced house: a three-round salvo, a slower reload
+    //   2 heavy     one very long barrel with a muzzle brake and a raised rangefinder: hits harder, reloads slowest
+    //   3 quad      four short barrels in a low box with an open top: light quick shells, steeper elevation
+    static func navalTurret(hang: Bool, size: Int = 3, style: Int = 0) -> Blueprint {
         let t = Blueprint()
         let s = size
+        let up = hang ? -1 : 1
         let y0 = hang ? -3 : 0, y1 = hang ? -1 : 2
-        t.box(-s, s, y0, y1, -s, s, "warship_hull", hollow: true)
-        let roof = hang ? -4 : 3
-        t.box(-s + 1, s - 1, roof, roof, -s + 1, s - 1, "warship_panel")
+        func yy(_ k: Int) -> Int { hang ? -1 - k : k }                    // k up from the ring's floor (or down, hung)
         let by = hang ? -2 : 1
-        for bx in [-1, 1] {
-            for z in (-s - 8)...(-s - 1) { t.set(bx, by, z, "iron_block") }
-            t.set(bx, by, -s - 9, "ship_cannon[south]")
+        switch style % 4 {
+        case 1:
+            t.box(-s - 1, s + 1, y0, y1, -s, s, "warship_hull", hollow: true)
+            let roof = hang ? -4 : 3
+            t.box(-s, s, roof, roof, -s + 1, s - 1, "warship_panel")
+            for x in (-s)...s { t.set(x, yy(2), -s - 1, "warship_panel") }        // the sloped face's lip
+            for bx in [-2, 0, 2] {
+                for z in (-s - 8)...(-s - 1) { t.set(bx, by, z, "iron_block") }
+                t.set(bx, by, -s - 9, "ship_cannon[south]")
+            }
+            t.set(-s - 1, yy(1) + up, s, "warship_stripe"); t.set(s + 1, yy(1) + up, s, "warship_stripe")
+        case 2:
+            t.box(-s, s, y0, y1, -s, s, "warship_hull", hollow: true)
+            let roof = hang ? -4 : 3
+            t.box(-s + 1, s - 1, roof, roof, -s + 1, s - 1, "warship_panel")
+            for z in (-s - 13)...(-s - 1) { t.set(0, by, z, "iron_block") }
+            t.set(-1, by, -s - 12, "iron_block"); t.set(1, by, -s - 12, "iron_block")   // muzzle brake
+            t.set(0, by, -s - 14, "ship_cannon[south]")
+            // The rangefinder: a bar across the roof, standing off on two posts.
+            for x in (-s - 2)...(s + 2) { t.set(x, roof + up * 2, 1, "warship_panel") }
+            t.set(-s, roof + up, 1, "iron_block"); t.set(s, roof + up, 1, "iron_block")
+        case 3:
+            t.box(-s, s, y0, hang ? -2 : 1, -s, s, "warship_hull", hollow: true)
+            for bx in [-2, -1, 1, 2] {
+                for z in (-s - 4)...(-s - 1) { t.set(bx, by, z, "iron_block") }
+                t.set(bx, by, -s - 5, "ship_cannon[south]")
+            }
+            t.set(0, hang ? -2 : 1, s, "warship_stripe")
+        default:
+            t.box(-s, s, y0, y1, -s, s, "warship_hull", hollow: true)
+            let roof = hang ? -4 : 3
+            t.box(-s + 1, s - 1, roof, roof, -s + 1, s - 1, "warship_panel")
+            for bx in [-1, 1] {
+                for z in (-s - 8)...(-s - 1) { t.set(bx, by, z, "iron_block") }
+                t.set(bx, by, -s - 9, "ship_cannon[south]")
+            }
+            t.set(0, hang ? -1 : 2, s, "warship_stripe")
         }
-        t.set(0, hang ? -1 : 2, s, "warship_stripe")
         return t
+    }
+    // How each build fires (R10), from the mount's base spec.
+    static func spec(_ style: Int, _ b: GunSpec2) -> GunSpec2 {
+        var g = b
+        switch style % 4 {
+        case 1: g.reload *= 1.3; g.power *= 0.95
+        case 2: g.reload *= 1.8; g.power *= 1.9; g.speed *= 1.25; g.scatter *= 0.5
+        case 3: g.reload *= 0.45; g.power *= 0.5; g.pitchMax = max(g.pitchMax, 1.0); g.scatter *= 2
+        default: break
+        }
+        return g
     }
 
     // A small autocannon sponson (crawlers): fast, light shells, steep elevation.
@@ -373,24 +421,24 @@ enum Capital {
         for (x, y, z) in [(-10, 27, 200), (10, 27, 250), (0, 27, 310), (-15, 47, 180), (15, 47, 260), (0, 47, 340)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-4, 77, 320), (4, 77, 312), (-20, 21, 420), (20, 21, 455)] { hb.post(x, y, z, .troop) }
         // Turrets: six dorsal, six ventral, four on the flank skirts.
-        for z in [34, 72, 170, 215, 262, 405] {
+        for (ti, z) in [34, 72, 170, 215, 262, 405].enumerated() {
             let (_, _, yt) = frigateSection(z)
             var top = Int(yt) + 4                                   // over the dorsal spine where it runs
             while top > 0 && !frigateInside(0, top, z) { top -= 1 }
             hb.set(0, top, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 4), naval))
+            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 4, style: [2, 1, 0, 1, 0, 2][ti]), spec([2, 1, 0, 1, 0, 2][ti], naval)))
         }
-        for z in [40, 80, 150, 350, 410, 450] {
+        for (ti, z) in [40, 80, 150, 350, 410, 450].enumerated() {
             var bot = 0
             while bot < 90 && !frigateInside(0, bot, z) { bot += 1 }
             // The ring sits in the bottom plate; the hung turret's cells are below the cell above the ring.
             hb.set(0, bot, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, bot, z), navalTurret(hang: true), navalHung))
+            hb.turrets.append((hb.grid(0, bot, z), navalTurret(hang: true, style: ti % 2 == 0 ? 3 : 0), spec(ti % 2 == 0 ? 3 : 0, navalHung)))
         }
         for sx in [-1, 1] { for z in [205, 295] {
             let x = sx * 38
             hb.set(x, 42, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(x, 42, z), navalTurret(hang: false, size: 2), naval))
+            hb.turrets.append((hb.grid(x, 42, z), navalTurret(hang: false, size: 2, style: z == 205 ? 3 : 1), spec(z == 205 ? 3 : 1, naval)))
         } }
         // Missile pods along the upper flanks.
         for sx in [-1, 1] { for z in [120, 240, 340, 420] {
@@ -489,11 +537,11 @@ enum Capital {
             hb.post(x, y, z, .troop)
         }
         // Turrets: two heavy twins on the superstructure, four autocannon sponsons at the chassis corners.
-        for z in [54, 63] {
+        for (ti, z) in [54, 63].enumerated() {
             var top = 28
             while top > 20 && !inside(0, top, z) { top -= 1 }
             hb.set(0, top, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 3), heavy))
+            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 3, style: ti == 0 ? 2 : 1), spec(ti == 0 ? 2 : 1, heavy)))
         }
         for sx in [-1, 1] { for z in [14, 70] {
             var top = 20
@@ -660,6 +708,7 @@ extension Ship {
 extension Mob {
     var factionValue: Faction {
         if kind.ash { return .ashguard }
+        if posse == 3 { return .none }        // R21: a bounty hunter on the soldier AI belongs to no faction (BountyHunters)
         guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
         return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold) : .steelhold
     }
@@ -1703,6 +1752,7 @@ extension ShipManager {
     @discardableResult
     func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false, troops: Int = 4, rocketeer: Bool = false) -> Bool {
         if g.stormGrounds { return false }                          // O7: a storm grounds flyers (WeatherWar.swift)
+        if g.foreignBase(p, for: faction) { return false }          // R23: never into a rival faction's base (Soldiers.swift)
         let ids = (0..<2).map { _ in newId() }
         let work = { () -> ([Ship], CapitalState) in
             let hb = Capital.dropship()

@@ -210,6 +210,7 @@ enum PlaytestOct12PMTests {
         TownLaw.inTown = nil; TownLaw.state.huntersDay = nil
         Honour.value = -90
         BountyHunters.chancePerSecond = 1
+        BountyHunters.lastPosse = -1e9
         let x = Int(floor(pos0.x)), z = Int(floor(pos0.z))
         _ = g.world.loadSync(center: pos0, radius: 3)
         let top = g.world.topY(x, z)
@@ -244,7 +245,7 @@ enum PlaytestOct12PMTests {
         BountyHunters.tick(g)
         let held = BountyHunters.party.map { abs($0.x - (p0.x + 300)) < 0.01 } ?? false
         TownLaw.state.trackers = nil
-        check(none && set != nil && nobodyYet && d0 >= 440 && abs(d0 - d1 - 60) < 2 && n >= 5 && east >= n - 1 && spent && wait && held && chance0 <= 1.0 / 600,
+        check(none && set != nil && nobodyYet && d0 >= 440 && abs(d0 - d1 - 60) < 2 && n >= 3 && n <= 4 && east >= n - 1 && spent && wait && held && chance0 <= 1.0 / 600,
               String(format: "P115/O8 bounty hunters: none sent underground %@; on the surface a party sets out %.0f blocks off and tracks in (%.0f after 10 s); at 50 blocks %d ride in (%d from their side); not again two days later %@; underground the party waits %@",
                      "\(none)", d0, d1, n, east, "\(wait)", "\(held)"))
     }
@@ -308,9 +309,13 @@ enum PlaytestOct12PMTests {
         let back = g.journal.map { $0.text } == kept
         let pages = g.journalPages
         g.openJournal()
-        let opened = (g.menu as? BookMenu)?.title == "Journal"
-        check(kept.count == 3 && kept.last?.hasPrefix("Orders: March") == true && back && pages.first?.contains("Orders") == true && opened,
-              "P116 journal: \(kept.count) entries kept (\(kept.map { String($0.prefix(24)) })), through a save \(back), newest first, opens as a book \(opened)")
+        // R24: the Journal screen: the order on the Orders shelf, read whole in the pane; the toast says it was added.
+        let jm = g.menu as? JournalMenu
+        jm?.switchTab(1)
+        let opened = jm != nil && jm?.shown.count == 1 && jm?.lines.first == "March on the ford at dawn."
+        let shelf = g.journal.last.map { Journal.cat($0) } == .orders && g.journal.last?.place != nil
+        check(kept.count == 3 && kept.last == "Read: Orders" && back && pages.first?.contains("Orders") == true && opened && shelf,
+              "P116/R24 journal: \(kept.count) entries kept (\(kept.map { String($0.prefix(24)) })), through a save \(back), the Journal screen shows the order on its shelf \(opened), filed with a place \(shelf)")
     }
 
     // P119: 30 loose Capital rounds and an iron nugget pack into a magazine in the crafting book (16 to a slot); a gun
@@ -1031,7 +1036,7 @@ enum PlaytestOct12PMTests {
         g.survival = true
         for i in 0..<g.inventory.main.count { g.inventory.main[i] = .empty }
         let p = Goals.path(g)
-        guard let k = p.firstIndex(where: { $0.id == "ember_charge" }) else { check(false, "P139: no Ember Charge step"); return }
+        guard let k = p.firstIndex(where: { $0.id == "spine/flagship" }) else { check(false, "P139: no Ember Charge step"); return }
         g.advancements = Set(p[..<k].map { $0.id } + ["goal/wood", "goal/pickaxe", "goal/furnace"])
         let before = Goals.next(g)
         g.inventory.main[0] = ItemStack(Items.id("ember_charge"), 1)
@@ -1042,7 +1047,7 @@ enum PlaytestOct12PMTests {
         g.wardHint()
         let hint = toasts.last ?? "-"
         let marked = MapCache.shared.marks.contains { $0.kind == "military_base" }
-        check(before?.id == "ember_charge" && before?.text.contains("Ember Charge") == true && after?.id == "enter_the_nether"
+        check(before?.id == "spine/flagship" && before?.text.contains("Ember Charge") == true && after?.id == "adventure/break_ward"
               && hint.contains("no pickaxe, ore") && hint.contains("marked on your map") && marked,
               "P139 next step: after Obsidian the goal is \"\(before?.text ?? "-")\", then \"\(after?.text ?? "-")\"; hitting Wardstone: \"\(hint)\" (citadel on the map \(marked))")
     }

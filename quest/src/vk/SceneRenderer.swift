@@ -459,6 +459,8 @@ final class SceneRenderer {
             "body": PipeDesc(vert: "body.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "simple": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
             "simpleSolid": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, cull: none),
+            // F4 middle ring (Sources/FarRing.swift): opaque, depth-tested and depth-writing, behind the loaded chunks.
+            "far": PipeDesc(vert: "far.vert", frag: "simple.frag", input: .simple, cull: none),
             "lines": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none,
                               topology: VK_PRIMITIVE_TOPOLOGY_LINE_LIST),
             "mob": PipeDesc(vert: "mob.vert", frag: "mob.frag", input: .mob, cull: none),
@@ -829,6 +831,7 @@ final class SceneRenderer {
     func cull(_ world: World, eye: V3, frustum: Frustum) {
         let t0 = CFAbsoluteTimeGetCurrent()
         visible.removeAll(keepingCapacity: true)
+        deepSeaSkipped = 0
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
         let pSec = Int(floor(eye.y / 16))
         if caveCulling, let startC = world.chunks[ChunkKey(x: pcx, z: pcz)], pSec >= 0 && pSec < NSEC, startC.meshedOnce {
@@ -868,6 +871,7 @@ final class SceneRenderer {
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
                     if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) || pastFog(nmn, eye) { continue }
                     guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
+                    if underDeepWater(nc, nsy) { continue }
                     visitGen[vi] = gen
                     bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
                 }
@@ -880,7 +884,7 @@ final class SceneRenderer {
                 if !frustum.visible(min: cmn, max: cmn + V3(16, Float(CH), 16)) { continue }
                 for (sy, sec) in c.sections.enumerated() where !sec.empty && sy < maxSection {
                     let mn = V3(cmn.x, Float(sy * 16), cmn.z)
-                    if !frustum.visible(min: mn, max: mn + V3(16, 16, 16)) || pastFog(mn, eye) { continue }
+                    if !frustum.visible(min: mn, max: mn + V3(16, 16, 16)) || pastFog(mn, eye) || underDeepWater(c, sy) { continue }
                     visible.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
                 }
             }
@@ -888,6 +892,26 @@ final class SceneRenderer {
         visible.sort { $0.2 < $1.2 }
         visibleCount = visible.count
         cullMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+    }
+
+    // F5 (Oct 13 evening: over open ocean the view must be the cheapest case): a far (LOD 1) section with a whole
+    // section of water over it is under 16+ blocks of deep water, which water.frag draws with no transmittance past the
+    // near ring, so its seabed (the bumpy, unmergeable part of far ocean) is neither drawn nor walked through, and the
+    // walk stops at the first all-water section instead of descending through every one to the bed. A meshed section
+    // with no faces and water in it is all water (any other block next to water has a face). BS_DEEPSEA=0 turns it off.
+    static var deepSeaCull = ProcessInfo.processInfo.environment["BS_DEEPSEA"] != "0"
+    private(set) var deepSeaSkipped = 0
+    private lazy var fluidKindT: [UInt8] = Blocks.fluidKind     // (the block registry is complete by the first cull)
+    @inline(__always) private func underDeepWater(_ c: Chunk, _ sy: Int) -> Bool {
+        guard SceneRenderer.deepSeaCull, c.lod == 1, sy + 1 < NSEC else { return false }
+        let above = c.sections[sy + 1]
+        guard above.empty, above.meshedVersion != -1 else { return false }
+        let y = (sy + 1) * 16
+        let fk = fluidKindT
+        guard fk[Int(c.blocks[Chunk.index(8, y + 8, 8)])] == 1, fk[Int(c.blocks[Chunk.index(0, y, 0)])] == 1,
+              fk[Int(c.blocks[Chunk.index(15, y + 15, 15)])] == 1 else { return false }
+        deepSeaSkipped &+= 1
+        return true
     }
 
     // Writes the section records for the culled list (camera-relative origins) into the slot.
@@ -948,6 +972,7 @@ final class SceneRenderer {
         let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
         let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
         var used = 0
+        defer { indirectUsed = used }             // the far water batch (drawTranslucent) writes after these
         for pass in 0..<4 {
             // Passes: terrain solid, terrain cutout, then the realistic world's round shapes (16-byte vertices) solid and cutout.
             let detail = pass >= 2
@@ -1010,7 +1035,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; batchedSections = 0
+        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0
         bindTerrainBuffers(s)
         anyDetail = false
         for i in 0..<nRec { let (c, sy, _) = visible[i]; if c.sections[sy].detailQuads > 0 { anyDetail = true; break } }
@@ -1034,15 +1059,103 @@ final class SceneRenderer {
     private var anyDetail = false
 
     // Water and other translucent faces, far to near.
+    // F5 (Oct 13 evening: "the render distance struggles on the water"): over open sea every section at the surface
+    // has water faces, and they were one vkCmdDrawIndexed each, the only terrain pass left unbatched (P146): ~1000 draw
+    // records a frame at distance 20, the CPU cost that made the ocean the dearest view instead of the cheapest. Far
+    // (LOD 1) sections' translucent faces now go out as indirect batches first (grouped by vertex and tint slab, far to
+    // near within each group; far water is merged flat sea surface, which never overlaps itself, so the order between
+    // groups does not show), then the near ones one by one, far to near, as before. `batchFarWater` off: all per section.
+    static var batchFarWater = ProcessInfo.processInfo.environment["BS_WATERBATCH"] != "0"
+    private var indirectUsed = 0
+    private(set) var batchedWater = 0
     func drawTranslucent(_ s: Slot, underwater: Bool = false) {
         bindTerrainBuffers(s)
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(underwater ? "waterUnder" : "water"))
+        let farBatched = !underwater && SceneRenderer.batchFarWater && SceneRenderer.batchDraws && batchable && s.indirect != nil
+            && drawFarTranslucentBatched(s)
         for i in stride(from: nRec - 1, through: 0, by: -1) {
             let (c, sy, _) = visible[i]
+            if farBatched && c.lod == 1 { continue }
             let sec = c.sections[sy]
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
             drawSection(s, i, buf, tb, first: 0, count: min(sec.transQuads, SceneRenderer.maxQuads))
         }
+    }
+
+    // The far sections' translucent faces as indirect draws; false (nothing drawn) when they don't fit the buffer.
+    private func drawFarTranslucentBatched(_ s: Slot) -> Bool {
+        batchedWater = 0
+        let cmdStride = MemoryLayout<VkDrawIndexedIndirectCommand>.stride
+        let cap = s.indirect.size / cmdStride
+        let maxPer = max(1, Int(ctx.props.limits.maxDrawIndirectCount))
+        let cmds = s.indirect.mapped!.bindMemory(to: VkDrawIndexedIndirectCommand.self, capacity: cap)
+        batchKeys.removeAll(keepingCapacity: true); batchCount.removeAll(keepingCapacity: true)
+        pendingDraws.removeAll(keepingCapacity: true)
+        var quads = 0
+        for i in stride(from: nRec - 1, through: 0, by: -1) {
+            let (c, sy, _) = visible[i]
+            guard c.lod == 1 else { continue }
+            let sec = c.sections[sy]
+            guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf,
+                  let vb = buf.buffer as? QuestBuffer, let tbuf = tb.buffer as? QuestBuffer else { continue }
+            let count = min(sec.transQuads, SceneRenderer.maxQuads)
+            var k = 0
+            while k < batchKeys.count && !(batchKeys[k].0 === vb && batchKeys[k].1 === tbuf) { k += 1 }
+            if k == batchKeys.count { batchKeys.append((vb, tbuf)); batchCount.append(0) }
+            batchCount[k] += 1
+            pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(count * 6), instanceCount: 1, firstIndex: 0,
+                                                                 vertexOffset: Int32(buf.offset / 8), firstInstance: UInt32(i))))
+            quads += count
+        }
+        if pendingDraws.isEmpty { return true }
+        let used = indirectUsed
+        guard used + pendingDraws.count <= cap else { return false }
+        batchStart.removeAll(keepingCapacity: true)
+        var at = used
+        for n in batchCount { batchStart.append(at); at += n }
+        for (k, cmd) in pendingDraws { cmds[batchStart[k]] = cmd; batchStart[k] += 1 }
+        var start = used
+        for k in 0..<batchKeys.count {
+            let (vb, tbuf) = batchKeys[k]
+            if tbuf !== boundTints, let set = tintSet(tbuf) {
+                var ss: VkDescriptorSet? = set
+                vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 1, 1, &ss, 0, nil)
+                boundTints = tbuf
+            }
+            if vb !== boundVerts {
+                var b: VkBuffer? = vb.vkBuffer
+                var o: VkDeviceSize = 0
+                vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+                boundVerts = vb
+            }
+            var left = batchCount[k], off = start
+            while left > 0 {
+                let n = min(left, maxPer)
+                vkCmdDrawIndexedIndirect(s.cmd, s.indirect.buffer, VkDeviceSize(off * cmdStride), UInt32(n), UInt32(cmdStride))
+                drawCalls += 1
+                left -= n; off += n
+            }
+            start += batchCount[k]
+        }
+        indirectUsed = at
+        drawnQuads += quads
+        batchedWater = pendingDraws.count
+        return true
+    }
+
+    // F4 middle ring (Sources/FarRing.swift, WorldRenderer.drawFarRing): `quads` quads from a host-visible buffer of
+    // SimpleVert (4 per quad, the shared quad index), with the ring's push constants (quest/shaders/far.vert).
+    func drawFar(_ s: Slot, _ buf: VkBuf, quads: Int, params: float4x4) {
+        guard quads > 0 else { return }
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("far"))
+        pushConstants(s, model: params, extra: V4(0, 0, 0, 0))
+        var b: VkBuffer? = buf.buffer
+        var o: VkDeviceSize = 0
+        vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+        vkCmdBindIndexBuffer(s.cmd, quadIndex.buffer, 0, VK_INDEX_TYPE_UINT32)
+        vkCmdDrawIndexed(s.cmd, UInt32(min(quads, SceneRenderer.maxQuads) * 6), 1, 0, 0, 0)
+        drawCalls += 1
+        boundVerts = nil
     }
 
     func pushShip(_ s: Slot, model: float4x4, origin: V4, fog: V4) {

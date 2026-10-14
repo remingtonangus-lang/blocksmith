@@ -182,6 +182,7 @@ extension Game {
     // The noise bus: guns, cannon, turrets and explosions report here; citadels within hearing react.
     func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true) {
         horseHears(at: p, kind: kind, power: power)        // a ridden horse spooks (HorseFeel.swift)
+        monstersHear(at: p, kind: kind, power: power)      // D15: monsters come to look (MonsterHearing.swift)
         let b = bases
         if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet)) }
     }
@@ -378,7 +379,7 @@ extension Game {
                        + (b.workers[r.key] ?? []).map { ObjectIdentifier($0) })
         return mobs.mobs.filter { m in
             m.kind.steelhold && m.kind != .deckGun && m.health > 0 && r.inside(m.pos) && !busy.contains(ObjectIdentifier(m))
-                && (m.faction == 0 || m.faction == Faction.steelhold.rawValue) && m.deck == nil
+                && (m.faction == 0 || m.faction == Faction.steelhold.rawValue) && m.posse == 0 && m.deck == nil   // (R21: not bounty hunters)
                 && m.brain?.gunPost == nil                      // P194: a gun's own gunner stays at his gun
         }
     }
@@ -393,7 +394,18 @@ extension Game {
             let br = m.soldierBrain
             br.ready = true
             if !m.aggro { m.aggro = true; br.react = max(br.react, 0.5) }
-            if !br.sees { br.lastSeen = src; br.seenAgo = min(br.seenAgo, 2) }
+            // R23 (Oct 13 evening, "spinning in place instead of hunting him"): sent to a noise once, when it is new to
+            // this soldier, at its own spot round it. Every second this pointed the whole garrison back at the one
+            // noise cell, undoing the hunt each soldier had moved on to (Soldiers.swift): they turned between the two
+            // goals and bunched on the cell.
+            let fresh = br.alarmSrc.map { simd_length($0 - src) > 4 } ?? true
+            if fresh && !br.sees {
+                br.alarmSrc = src
+                let h = ObjectIdentifier(m).hashValue
+                let a: Float = Float(h & 1023) / 1023 * 2 * .pi
+                let rr: Float = 2 + Float((h >> 10) & 7)
+                br.lastSeen = src + V3(cosf(a) * rr, 0, sinf(a) * rr); br.seenAgo = min(br.seenAgo, 2)
+            }
             m.lockTime = max(m.lockTime, 30)
         }
         // Crews run to the turrets: two soldiers at the back of each barbette, in the gunner stance.

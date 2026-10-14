@@ -112,6 +112,7 @@ enum Mining {
         if !canHarvest(b, tool) { return [] }
         let key = Blocks.key(b)
         let shears = !tool.isEmpty && tool.def.tool == .shears
+        let shovel = !tool.isEmpty && tool.def.tool == .shovel
         func one(_ n: String, _ c: Int = 1) -> [ItemStack] { [ItemStack(item(n), c)] }
         func rnd(_ a: Int, _ b: Int) -> Int { Rand.int(in: a...b) }
         // Crops: drops by growth stage (seeds roll binomially at full growth, as in the reference game).
@@ -161,7 +162,9 @@ enum Mining {
         case "lapis_ore", "deepslate_lapis_ore": return one("lapis_lazuli", rnd(4, 9))
         case "glowstone": return one("glowstone_dust", rnd(2, 4))
         case "clay": return one("clay_ball", 4)
-        case "snow_block": return one("snowball", 4)
+        // H15: snow gives snowballs only to a shovel, as in the reference (digging through a snowfield with a pick or
+        // bare hands filled the pack with snowballs).
+        case "snow_block": return shovel ? one("snowball", 4) : []
         case "glass", "spawner", "glass_pane": return []
         case "sealrock": return one("sealrock_shard", 1)            // the seal's trophy (DeepGates.swift)
         case "sunderite_ore": return one("raw_sunderite", 1)
@@ -181,7 +184,7 @@ enum Mining {
         case "budding_amethyst", "reinforced_deepslate", "sculk_shrieker": return []
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
-        case "snow": return one("snowball", 1)
+        case "snow": return shovel ? one("snowball", 1) : []
         case "brown_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("brown_mushroom", n) : []     // reference: 0-2, 1/9 each
         case "red_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("red_mushroom", n) : []
         case _ where key.hasPrefix("redstone_wire"): return one("redstone")

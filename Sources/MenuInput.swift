@@ -101,6 +101,13 @@ extension Game {
             if scroll != 0 { pm.scrollList(scroll) }
         }
         if let bm = m as? BookMenu, tab != 0, !bm.signing { bm.buttonPressed(tab > 0 ? 1 : 0); sfx(.click, 0.4) }
+        // R24: the Journal: LB/RB shelves, wheel / right stick the list, LT/RT the pages.
+        if let jm = m as? JournalMenu {
+            if tab != 0 { jm.switchTab(tab) }
+            if scroll != 0 { jm.scrollBy(scroll) }
+            let turn = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)
+            if turn != 0 { jm.turn(turn) }
+        }
         if let cb = m as? CraftingBookMenu {
             if tab != 0 { cb.switchTab(tab) }
             let page = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)

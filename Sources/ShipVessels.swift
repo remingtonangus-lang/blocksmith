@@ -235,7 +235,7 @@ extension ShipManager {
                 // survives in old saves).
                 let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle" || kind == "frigate"
                 if capital {
-                    if !g.postGame { continue }                    // they sail after the end game (the key stays free)
+                    if !g.fleetSails { continue }                  // they sail once a Greywall Fortress falls (Y3; the key stays free)
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
                     spawnedRegions.insert(key)
                     let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100

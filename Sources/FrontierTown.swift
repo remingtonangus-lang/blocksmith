@@ -9,7 +9,7 @@ import Foundation
 // save like the other structure guards), so no house is finished half as an office across a chunk border.
 extension Village {
     // Called by layout once the lots are placed (no random numbers drawn, so a town's streets and lots stay the same).
-    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true) {
+    static func frontierLots(_ lots: inout [Lot], ox: Int, oz: Int, bank: Bool = true, r20: Bool = false) {
         for i in lots.indices { lots[i].frontier = true }
         func d2(_ l: Lot) -> Int {
             let (x0, z0, x1, z1) = bounds(l)
@@ -17,12 +17,14 @@ extension Village {
             return cx * cx + cz * cz
         }
         // A medium house if the town has one, else a big one, else a small one (never a shop, farm or job hut).
-        let rank: [Kind: Int] = [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
+        // (R20: the stone jail wants room for two proper cells, so a big house first.)
+        let rank: [Kind: Int] = r20 ? [.bigHouse: 0, .mediumHouse: 1, .smallHouse: 2] : [.mediumHouse: 0, .bigHouse: 1, .smallHouse: 2]
         guard let i = lots.indices.filter({ rank[lots[$0].kind] != nil })
                 .min(by: { (rank[lots[$0].kind]!, d2(lots[$0])) < (rank[lots[$1].kind]!, d2(lots[$1])) }) else { return }
         let l = lots[i]
         var office = Lot(kind: .office, ax: l.ax, az: l.az, face: l.face, w: l.w, d: l.d, y: l.y, seed: l.seed, job: "sheriff")
         office.frontier = true
+        office.r20 = r20
         lots[i] = office
         // The bank: the next house nearest the square, at least 5 wide (TownServices.swift: emerald exchange, savings).
         guard bank else { return }
@@ -71,8 +73,8 @@ extension Village {
         falseFront(&w, b, m, wallH: wallH, band: blk("yellow_terracotta", stone))
         boardwalk(&w, b, m, wallH: wallH)
         sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "BANK", "Savings and", "Exchange"])
-        // (G14) The exchange spelled out at the door, beside the window (the same column as the office's notices).
-        sign(&w, b, u: 1, dy: 1, v: -1, lines: ["EMERALDS", "bought and sold", "at the teller", "inside"])
+        // (G14, R20) The exchange spelled out at the door, beside the window, with its rate (Exchange, TownServices).
+        sign(&w, b, u: 1, dy: 1, v: -1, lines: Exchange.signLines)
         // The teller's counter across the room, bars over it, always a clear row in from the door (a small bank puts the
         // counter one row nearer the strongroom), a gap at the door's line to reach the teller and one at the wall side to
         // walk behind it; the lamp stands on its end, never in the way in.
@@ -92,6 +94,7 @@ extension Village {
     }
 
     static func officeLot(_ w: inout StructWriter, _ b: LB, _ m0: Mats) {
+        if b.l.r20 { jailLot(&w, b, m0); return }                  // R20's stone jail (TownJail.swift)
         let l = b.l
         let m = varied(m0, l)
         let wallH = 5
@@ -102,7 +105,7 @@ extension Village {
         for u in 1...(l.w - 2) where u != du { for dy in 1..<wallH where !(dy == 1 && u % 2 == 0) { b.set(&w, u, dy, 0, stone) } }
         falseFront(&w, b, m, wallH: wallH, band: blk("light_gray_terracotta", stone))
         boardwalk(&w, b, m, wallH: wallH)
-        sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "Sheriff", "and Jail", ""])
+        sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "JAIL", "Sheriff's Office", ""])
         sign(&w, b, u: 1, dy: 1, v: -1, lines: ["WANTED", "Dead or Alive", "Reward", "$50"])
         sign(&w, b, u: l.w - 2, dy: 1, v: -1, lines: ["NOTICE", "No guns drawn", "in town", "- The Law"])
         // The sheriff's desk by the window with his chair behind it (a small office has no room for the chair), a lamp, a filing shelf.
@@ -138,18 +141,21 @@ extension Village {
             for dy in 0...2 {
                 if u == split { b.set(&w, u, dy, cellV, stone); continue }
                 if doors.contains(u) {
-                    let f = dir(l, 1)                              // facing the street like the front door, swung open
-                    b.set(&w, u, dy, cellV, dy == 0 ? ironDoor + BlockID(f + 4) : (dy == 1 ? ironDoor + BlockID(f + 4 + 8) : bars))
+                    // Facing the street like the front door, shut (R20: an open cell read as a stall; nobody walks into
+                    // one by mistake, and an arrest shuts the player in: TownJail.swift opens it on release).
+                    let f = dir(l, 1)
+                    b.set(&w, u, dy, cellV, dy == 0 ? ironDoor + BlockID(f) : (dy == 1 ? ironDoor + BlockID(f + 8) : bars))
                 } else { b.set(&w, u, dy, cellV, bars) }
             }
             if u == split { for v in (cellV + 1)..<(l.d - 1) { for dy in 0..<wallH { b.set(&w, u, dy, v, stone) } } }
         }
         // In each cell: a bunk under the window and a chain hanging from the ceiling over it; a deeper cell gets a
-        // bucket too (a one-row cell keeps its floor clear inside the door).
+        // bucket too (a one-row cell keeps its floor clear inside the door). (R20: the bucket went at l.d - 3, which is
+        // the bar row itself here, so every cell front had a cauldron in its bars.)
         for (u, cell) in [(1, 0), (l.w - 2, 1)] where split > 0 || cell == 0 {
             b.set(&w, u, 0, l.d - 2, m.slab)
             for dy in 3..<wallH { b.set(&w, u, dy, l.d - 2, blk("chain", AIR)) }
-            if cellV < l.d - 2 { b.set(&w, u, 0, l.d - 3, blk("cauldron", AIR)) }
+            if cellV < l.d - 3 { b.set(&w, u, 0, l.d - 3, blk("cauldron", AIR)) }
         }
         b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
         b.set(&w, l.w - 2, 2, cellV - 1, b.wallTorch(facing: 3))
@@ -160,5 +166,50 @@ extension Village {
             var rng = SRng(l.seed &+ 0x5E1F)
             w.chest(x, l.y, z, loot: "sheriff_locker", seed: rng.next(), facing: dir(l, 3))
         }
+    }
+}
+
+// R20 streets (Village.layout): soft ground cut back over a street, and a walk from each door to the street where a
+// shoulder gave out on a slope.
+extension Village {
+    static let streetCut: Set<BlockID> = {
+        var s: Set<BlockID> = [GRASS, DIRT, SAND, GRAVEL, SNOW, SNOWY_GRASS]
+        for n in ["coarse_dirt", "podzol", "snow", "rooted_dirt", "red_sand", "mud"] where Blocks.has(n) { s.insert(Blocks.id(n)) }
+        return s
+    }()
+
+    static func doorWalks(_ gen: WorldGen, _ lots: [Lot], pathCols: [(Int, Int, Int)], shoulders: [IVec2Key: [(Int, Int, Int)]],
+                          _ m: Mats) -> [Piece] {
+        var road = Set<IVec2Key>()
+        for c in pathCols { road.insert(IVec2Key(c.0, c.1)) }
+        for (_, list) in shoulders { for c in list { road.insert(IVec2Key(c.0, c.1)) } }
+        var out: [Piece] = []
+        for l in lots where l.kind != .farm {
+            // Out from the door's step (v -1, the house's own) toward the street, until a street column.
+            var cols: [(Int, Int)] = []
+            var reached = false
+            for k in 2...6 {
+                let (x, z) = world(l, l.w / 2, -k)
+                if road.contains(IVec2Key(x, z)) { reached = true; break }
+                cols.append((x, z))
+            }
+            guard reached, !cols.isEmpty else { continue }
+            let y = l.kind == .smithy ? l.y : l.y - 1            // the street's level (the smithy's floor is its bottom layer)
+            let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }
+            let walk = cols
+            out.append(Piece(min: IVec3(xs.min()!, y - 4, zs.min()!), max: IVec3(xs.max()!, y + 3, zs.max()!)) { w in
+                for (x, z) in walk where w.inside(x, y, z) {
+                    let cur = w.get(x, y, z)
+                    if Blocks.isLiquid(cur) { continue }
+                    w.pillarDown(x, y - 1, z, m.foundation, minY: y - 4)
+                    w.set(x, y, z, m.path)
+                    for k in 1...3 {
+                        let b = w.get(x, y + k, z)
+                        if (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b)) || streetCut.contains(b) { w.set(x, y + k, z, AIR) }
+                    }
+                }
+            })
+        }
+        return out
     }
 }

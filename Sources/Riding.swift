@@ -164,13 +164,15 @@ extension Game {
             let golden = key == "golden_carrot" || key.hasSuffix("golden_apple")
             if golden && m.tamed && !m.baby && m.kind != .mule && m.breedCooldown <= 0 && m.inLove <= 0 {
                 m.inLove = 30
-            } else if m.health >= 30 && !m.baby && (m.tamed || t.temper == 0) {
-                // Full health: a tamed horse still takes it for its wind (stamina, HorseFeel.swift).
-                guard horseTreat(m, key) else { return false }
+            } else if m.health >= m.horseMaxHealth && !m.baby && (m.tamed || t.temper == 0) {
+                // Full health: a tamed horse still takes it for its wind (stamina, HorseFeel.swift) and its cores (H10).
+                let cores = m.gaited && m.tamed && m.feedCores(HorseCores.food[key]?.0 ?? 0, HorseCores.food[key]?.1 ?? 0)
+                guard horseTreat(m, key) || cores else { return false }
                 consumeHeld(); particles.hearts(at: pos); return true
             }
             _ = horseTreat(m, key)
-            m.health = min(30, m.health + t.heal)
+            if m.gaited && m.tamed { m.feedCores(HorseCores.food[key]?.0 ?? 0, HorseCores.food[key]?.1 ?? 0) }
+            m.health = min(m.horseMaxHealth, m.health + t.heal)
             if m.baby { m.age += t.grow }
             if !m.tamed { m.temper = min(100, m.temper + t.temper) }
             consumeHeld()
@@ -250,6 +252,7 @@ extension Game {
         guard let h = horse else { onToast?("Your horse doesn't answer (it may have died)"); horseBond = 0; return true }
         if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Saddle Salve"); return true }
         let d = simd_length(h.pos - player.pos)
+        if h.hitched { unhitch(h) }                             // D3: a call unties it
         h.stayAt = nil
         h.hs.callStuck = 0; h.hs.callWas = h.pos
         if d > 160 || !world.isLoaded(Int(floor(h.pos.x)), Int(floor(h.pos.z))) {
@@ -391,7 +394,8 @@ extension Mob {
         let groundedBefore = onGround
         // P164: at a canter or faster it runs straight through low bushes (leaf blocks within two blocks of the
         // ground, no log among them) instead of stopping at them: they are trampled.
-        if gaitedRide && self.hs.speed > 3 { trampleBushes(g, bodyW) }
+        // R14: at any pace (a walk too): small bushes give way to a horse pushing into them.
+        if gaitedRide && self.hs.speed > 0.6 { trampleBushes(g, bodyW) }
         let hit = w.moveBody(&pos, halfW: bodyW, height: height, vel * dt, step: swim ? 1.6 : 1.05, onGround: onGround || swim)
         // P49: riding into a canopy put the rider's eyes inside the leaves (a black screen): leaves at head height stop
         // the horse like a wall.
@@ -402,6 +406,21 @@ extension Mob {
             }
             if leafy(pos) && !leafy(start) {             // (already in leaves: let it ride out)
                 pos.x = start.x; pos.z = start.z; vel.x = 0; vel.z = 0
+            }
+        }
+        // R14 (Oct 13: "climb out of water onto equal-height land"): a swimming horse pressing into a bank whose top is
+        // within two blocks of its back lunges up onto it (a floating horse's feet sit deeper than the 1.6 step).
+        if swim && (hit.x || hit.z) && g.riding === self {
+            let ahead = pos + V3(forward.x, 0, forward.z) * (halfW + 0.6)
+            for up in 0...2 {
+                let y = Int(floor(pos.y)) + up
+                let b = w.block(Int(floor(ahead.x)), y, Int(floor(ahead.z)))
+                let above = w.block(Int(floor(ahead.x)), y + 1, Int(floor(ahead.z))), above2 = w.block(Int(floor(ahead.x)), y + 2, Int(floor(ahead.z)))
+                if Blocks.collide[Int(b)] && !Blocks.collide[Int(above)] && !Blocks.collide[Int(above2)] && !Blocks.isLiquid(above) {
+                    vel.y = max(vel.y, sqrtf(2 * 28 * (Float(y + 1) - pos.y + 0.3)))
+                    vel.x += forward.x * 1.5; vel.z += forward.z * 1.5
+                    break
+                }
             }
         }
         var landed = false
@@ -420,7 +439,11 @@ extension Mob {
         }
         if gaitedRide { gaitAfterMove(g, moved: pos - start, hitWall: hit.x || hit.z, dt: dt) }
         let hs = simd_length(V2(vel.x, vel.z))
-        walkPhase += hs * dt * 3
+        // R13: the real cause of the "one-cylinder" gallop: a ridden mount stepped its stride at 3 x speed (a gallop at
+        // 14 b/s ran 6.7 strides a second, legs, body and hooves buzzing). A ridden horse keeps a horse's rhythm, about
+        // one stride a second at the walk up to ~2.3 at the gallop (Mob.update's free-roaming rate).
+        let fam = kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse
+        if fam { walkPhase += 2 * .pi * min(2.3, 0.85 + 0.105 * hs) * dt * min(1, hs / 0.6) } else { walkPhase += hs * dt * 3 }
         walkAmount += (min(1, hs / 2) - walkAmount) * min(1, dt * 8)
         // P164: under a low overhang (a 2-block-high passage) the rider leans down over the neck instead of putting
         // their head into the block above.
@@ -432,7 +455,9 @@ extension Mob {
             }
             self.hs.duck += (want - self.hs.duck) * min(1, dt * (want > self.hs.duck ? 14 : 4))
         }
-        g.player.pos = pos + V3(0, height * 0.75 - (gaited ? self.hs.duck : 0), 0)
+        // R13: the saddle rises and falls with the stride (horseBob, 1/16 block), so the rider moves with the horse.
+        let lift: Float = fam ? horseBob(self) / 16 : 0
+        g.player.pos = pos + V3(0, height * 0.75 - (gaited ? self.hs.duck : 0) + lift, 0)
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
     }

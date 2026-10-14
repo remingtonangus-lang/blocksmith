@@ -61,6 +61,11 @@ enum QuestTouchMatrix {
         let sim = host.sim, rig = host.rig
         let qc = QuestControls(app: host, game: g, panel: try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH))
         host.controls = qc
+        // The matrix describes the default layout: right-handed, Default controller preset (S7; HandedInput applies the
+        // Dominant Hand swap and the One Hand stick below QuestControls).
+        let keepLeft = QuestSettings.leftHanded, keepPreset = QuestSettings.controlPreset
+        QuestSettings.leftHanded = false; QuestSettings.controlPreset = 0
+        defer { QuestSettings.leftHanded = keepLeft; QuestSettings.controlPreset = keepPreset }
         let w = g.world
         let keepSurvival = g.survival, keepPos = g.player.pos, keepSel = g.selected
         let keep0 = g.inventory.main[0]
@@ -185,6 +190,73 @@ enum QuestTouchMatrix {
                 row.append("\(cname): " + parts.joined(separator: "; "))
             }
             rows.append("\(name) | " + row.joined(separator: " | "))
+        }
+        // R1 (Oct 11-13: "the left grip and the left stick are dead while I hold a gun", five times after P74/P109/
+        // P162/P176): a gun in hand, hands where a player holds them (the off hand low at the side, then on the
+        // front grip), the left stick walks and the left grip steps the hotbar.
+        do {
+            reset()
+            let rifle = ItemStack(Items.id(Guns.all[Guns.rifle].key), 1)
+            var loaded = rifle; loaded.tag = Guns.magSize(rifle)
+            g.inventory.main[0] = loaded; g.inventory.main[1] = ItemStack(Items.id("cobblestone"), 4)
+            g.inventory.add(ItemStack(Items.id(Guns.all[Guns.rifle].ammo), 30))
+            g.selected = 0
+            for _ in 0..<5 { frame() }
+            var base: Float = 0
+            do {
+                g.selected = 1; g.player.pos = start; g.player.vel = .zero
+                for _ in 0..<10 { frame() }
+                let b0 = g.player.pos
+                for _ in 0..<40 { frame { l, _ in l.stick = V2(0, 1) } }
+                base = simd_length(V2(g.player.pos.x - b0.x, g.player.pos.z - b0.z))
+            }
+            let poses: [(String, V3)] = [("at the side", V3(-0.25, -0.6, 0.05)), ("on the front grip", V3(0.05, -0.3, -0.55)),
+                                         ("at the chest", V3(-0.15, -0.35, -0.25))]
+            for half in [false, true] { for (pname0, off) in poses {
+                let pname = pname0 + (half ? ", magazine half empty" : "")
+                g.inventory.main[0].tag = half ? Guns.magSize(rifle) / 2 : Guns.magSize(rifle)
+                func hold(_ l: inout XRHand, _ r: inout XRHand) {
+                    l.aimPos = sim.headPos + off; l.gripPos = l.aimPos
+                    l.aimRot = simd_quatf(angle: 0, axis: V3(1, 0, 0)); l.gripRot = l.aimRot
+                    r.aimPos = sim.headPos + V3(0.15, -0.3, -0.35); r.gripPos = r.aimPos
+                    r.aimRot = simd_quatf(angle: 0, axis: V3(1, 0, 0)); r.gripRot = r.aimRot
+                }
+                g.selected = 0; g.player.pos = start; g.player.vel = .zero
+                for _ in 0..<10 { frame { l, r in hold(&l, &r) } }
+                let p0 = g.player.pos
+                for _ in 0..<40 { frame { l, r in hold(&l, &r); l.stick = V2(0, 1) } }
+                let walked = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
+                for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
+                let sel0 = g.selected
+                for _ in 0..<3 { frame { l, r in hold(&l, &r); l.squeeze = 1 } }
+                for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
+                // (On the front grip the squeeze holds the rifle braced, R6: it doesn't step the hotbar there.)
+                let front = pname0 == "on the front grip"
+                let stepped = front ? g.selected == sel0 : g.selected != sel0
+                check(walked > base * 0.9 && base > 0.1 && stepped, "R1: gun in hand, off hand \(pname): the left stick walks (\(String(format: "%.1f", walked)) blocks, \(String(format: "%.1f", base)) without the gun) and the left grip steps the hotbar (\(sel0) -> \(g.selected))")
+            } }
+        }
+        // S7: Dominant Hand Left mirrors every per-hand binding: each control pressed on the other controller does on foot
+        // what it does right-handed (the Menu button stays on the left controller, the only one that has it).
+        do {
+            func tap(_ press: @escaping (inout XRHand, inout XRHand) -> Void) -> [String] {
+                reset()
+                let s0 = state(g)
+                for _ in 0..<2 { frame(press) }
+                for _ in 0..<12 { frame() }
+                return diff(s0, state(g), swimming: false)
+            }
+            var mism: [String] = []
+            for (name, press) in controls where name != "menu" {
+                QuestSettings.leftHanded = false
+                let want = tap(press)
+                QuestSettings.leftHanded = true
+                let got = tap { l, r in press(&r, &l) }
+                if want != got { mism.append("\(name): \(want) vs \(got)") }
+            }
+            QuestSettings.leftHanded = false
+            reset()
+            check(mism.isEmpty, "S7: the left-handed swap mirrors every Touch control on foot" + (mism.isEmpty ? "" : ": " + mism.joined(separator: "; ")))
         }
         for r in rows { print("touchmatrix " + r) }
         for c in conflicts { print("touchmatrix CONFLICT: " + c) }

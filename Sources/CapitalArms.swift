@@ -41,7 +41,7 @@ enum CapitalArms {
     // barrel vents, slide serrations, muzzle devices.
     static func details(_ i: Int) -> [Part] {
         var p: [Part] = []
-        if i != Guns.launcher { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade
+        if i != Guns.launcher && i != Guns.revolver { p.append(b(-0.12, -1.15, -1.9, 0.24, 0.95, 0.3, silver, pMetal)) }       // trigger blade (the six-iron has its own)
         switch i {
         case Guns.rifle:
             for z: Float in [-6.1, -5.1, 0.1, 1.1, 2.1] { p.append(b(-0.72, 3.25, z, 1.44, 0.22, 0.45, grey, pMetal)) }
@@ -123,6 +123,17 @@ enum CapitalArms {
                 b(-0.25, -2.6, 1.6, 0.5, 1.0, 0.25, brass, pMetal),
                 b(-0.25, -3.6, 2.05, 0.5, 0.9, 0.25, brass, pMetal),
                 b(-0.6, -2.6, 0.8, 1.2, 0.18, 0.18, silver, pMetal),              // grip screw
+                // R9: the chambers show on the cylinder's front face (six dark mouths round the pin), the base pin
+                // under the barrel's root, and the barrel's top flat catches the light.
+                b(-0.12, -0.27, -2.66, 0.24, 0.24, 0.08, silver, pMetal),         // cylinder pin
+                b(-0.62, 0.15, -2.66, 0.38, 0.38, 0.08, black, 0),                // chambers
+                b(0.24, 0.15, -2.66, 0.38, 0.38, 0.08, black, 0),
+                b(-0.62, -0.75, -2.66, 0.38, 0.38, 0.08, black, 0),
+                b(0.24, -0.75, -2.66, 0.38, 0.38, 0.08, black, 0),
+                b(-0.19, 0.42, -2.66, 0.38, 0.32, 0.08, black, 0),
+                b(-0.19, -1.0, -2.66, 0.38, 0.3, 0.08, black, 0),
+                b(-0.22, 1.17, -8.4, 0.44, 0.04, 5.8, blued * 1.6, pMetal),      // top flat highlight
+                b(-0.3, -0.62, -2.9, 0.6, 0.3, 0.3, blued, pMetal),               // base pin head
             ]
             return GunModel(parts: p, mag: [], grip: V3(0, -2.2, 0.9), fore: V3(-0.4, -3.0, 1.3), butt: V3(0, -2.2, 0.9),
                             muzzle: V3(0, 0.77, -8.8), magAt: V3(0, -0.4, -1.4), bolt: V3(0, 1.5, 1.2), scale: 0.68, shouldered: false)

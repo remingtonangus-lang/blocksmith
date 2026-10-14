@@ -188,7 +188,9 @@ extension MobManager {
         m.onGround = m.onGround && m.vel.y <= 0
         m.hurt = 0.3
         m.strikeT = 0                                       // no frozen lunge in the fall
-        if World.realistic { MobRagdolls.start(m, in: g.debris.ragdolls) }
+        // R15 (Oct 13: "ragdolls for every creature and person in the block world too"): every world, not only the
+        // realistic one (WorldGround falls back to the collision boxes there).
+        MobRagdolls.start(m, in: g.debris.ragdolls)
         corpses.append(m)
     }
 

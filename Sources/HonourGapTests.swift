@@ -17,11 +17,12 @@ import simd
 extension TownTests {
     static func honourGap(_ g: Game, _ check: (Bool, String) -> Void) {
         let savedMobs = g.mobs.mobs, savedPos = g.player.pos, savedMoney = g.money, savedTime = g.time
+        let savedChance = BountyHunters.chancePerSecond
         defer {
             g.mobs.mobs = savedMobs; g.player.pos = savedPos; g.money = savedMoney; g.time = savedTime
             if g.menu != nil { g.closeMenu() }
             TownLaw.forceTown = nil; TownLaw.reset()
-            Honour.tipChance = 0.25; Honour.giftChance = 0.5; BountyHunters.chancePerSecond = 1.0 / 240
+            Honour.tipChance = 0.25; Honour.giftChance = 0.5; BountyHunters.chancePerSecond = savedChance   // (R21: was left at 1/240)
         }
         TownLaw.reset(); TownLaw.forceTown = true; g.survival = true
         let base = groundSpot(g)
@@ -274,6 +275,7 @@ extension TownTests {
         g.player.pos = base
         TownLaw.inTown = nil
         BountyHunters.chancePerSecond = 1
+        BountyHunters.lastPosse = -1e9
         BountyHunters.tick(g)
         check(!g.mobs.mobs.contains { $0.customName == BountyHunters.name }, "honour gap: no hunters for someone with a clean name")
         Honour.value = -90
@@ -282,10 +284,13 @@ extension TownTests {
         // checks, PR #26, drew a few more numbers).
         Rand.seed(12345)
         BountyHunters.tick(g)
+        // (O8: the first tick sets a party on the trail far off; brought to 50 blocks, the posse rides in.)
+        if BountyHunters.party != nil { TownLaw.state.trackers = [g.player.pos.x + 50, g.player.pos.z, 600]; BountyHunters.tick(g) }
         let hunters = g.mobs.mobs.filter { $0.customName == BountyHunters.name }
         // (P88: a bigger posse, from 30-42 blocks out, so it rides in.)
-        let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 44 && $0.lockTime > 0 }
-        check(hunters.count >= 4 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail")
+        // (R21: two to four on the soldier AI, riding in on an order to where he is.)
+        let near = hunters.allSatisfy { simd_length($0.pos - g.player.pos) < 50 && $0.brain?.order != nil }
+        check(hunters.count >= 2 && near, "honour gap: an outlaw in the wild gets \(hunters.count) bounty hunters within 44 blocks, already on the trail")
         let n0 = g.mobs.mobs.count
         BountyHunters.tick(g)
         check(g.mobs.mobs.count == n0, "honour gap: at most one posse a day")

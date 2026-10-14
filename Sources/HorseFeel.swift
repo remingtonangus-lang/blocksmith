@@ -43,6 +43,9 @@ final class HorseState {
     var callStuck: Float = 0         // s a called horse has made no headway (then it's brought round behind you)
     var callWas = V3(0, -9999, 0)
     var tricks = 0                   // rears on command (HorseTests)
+    var healthCore: Float = 100      // H10 cores (HorseCores.swift), saved
+    var staminaCore: Float = 100
+    var healAccum: Float = 0
 }
 
 enum HorseFeel {
@@ -62,7 +65,8 @@ enum HorseFeel {
     static let accelBase: Float = 3, accelPerTop: Float = 0.4      // b/s^2 = 3 + 0.4 x top speed
     static let brake: Float = 12                                   // b/s^2 with the stick let go
     static let ease: Float = 6                                     // b/s^2 slowing to a lower gait
-    static let refuseDrop = 5                                      // blocks: a drop this deep or more is refused
+    // R14 (Oct 13: "let horses drop down two or more blocks"): only a fall that would really hurt it is refused.
+    static let refuseDrop = 7                                      // blocks: a drop this deep or more is refused
     static let crashSpeed: Float = 11                              // b/s into a wall: a stumble
     static var controlWas = false                                  // the keyboard sprint key last tick (spur = a fresh press)
     // Treats: stamina they give (also bond, at most every 10 s).
@@ -106,7 +110,7 @@ extension Mob {
         h.bondXP = max(0, h.bondXP + pts)
         let now = bondLevel
         guard now > before else { return }
-        let perk = ["", "", "more stamina, tougher", "steadier nerves", "never throws you"][now]
+        let perk = ["", "", "more stamina and health, tougher", "steadier nerves, more health", "never throws you, most health"][now]
         g.onToast?("Bond with your horse: level \(now) (\(perk))")
         g.particles.hearts(at: pos + V3(0, height, 0))
     }
@@ -169,9 +173,11 @@ extension Mob {
         // Stamina: a gallop drains it (about 35 s fresh, 75 s at bond level 4: P83, "stamina far too short" at 21 s), a
         // canter barely, a trot or walk refills it.
         let frac = now / max(top, 1)
+        let regenK = HorseCores.regenScale(h.staminaCore)       // H10: an empty stamina core refills slowly
         let rateS: Float = frac > 0.85 ? -4.2 * HorseFeel.drain[lvl - 1]
-            : (frac > 0.6 ? -0.5 * HorseFeel.drain[lvl - 1] : (12 - 12 * frac) * HorseFeel.regen[lvl - 1])
+            : (frac > 0.6 ? -0.5 * HorseFeel.drain[lvl - 1] : (12 - 12 * frac) * HorseFeel.regen[lvl - 1] * regenK)
         stamina += rateS * dt
+        coreTick(dt, ridden: true, galloping: frac > 0.85)
         if h.stamina <= 0 && !h.spent { h.spent = true; g.onToast?("Your horse is blown: ease off to a trot") }
         // Nerves: a hostile monster right beside the horse.
         h.monsterScan -= dt
@@ -250,7 +256,8 @@ extension Mob {
             while y >= ground - HorseFeel.refuseDrop + 1 {
                 let b = w.block(x, y, z)
                 let i = Int(b)
-                if Blocks.fluidKind[i] == 2 || Blocks.contactDamage[i] > 0 { return s }
+                // R14: a prickly plant (a berry bush) is pushed through, not refused like fire, magma or a cactus.
+                if Blocks.fluidKind[i] == 2 || (Blocks.contactDamage[i] > 0 && (Blocks.render[i] != RenderType.cross.rawValue || Blocks.emit[i] > 0)) { return s }
                 if Blocks.collide[i] || Blocks.isLiquid(b) { found = y; break }
                 y -= 1
             }
@@ -357,7 +364,8 @@ extension Game {
         guard h.brushCool <= 0 else { onToast?("Your horse is already groomed"); return }
         h.brushCool = HorseFeel.brushCool
         m.addBond(HorseFeel.brushBond, self)
-        m.health = min(max(m.spec.health, 30), m.health + 2)
+        m.health = min(m.horseMaxHealth, m.health + 2)
+        m.feedCores(HorseCores.brush.0, HorseCores.brush.1)
         particles.hearts(at: m.pos + V3(0, m.height, 0))
         damageHeld(1)
         onToast?("You brush your horse")

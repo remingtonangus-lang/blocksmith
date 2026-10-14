@@ -418,6 +418,10 @@ final class ItemRegistry {
         turtle.sprite = Sprite(mask: "helmet", base: 0x4A9A3A, extras: [:])
         turtle.maxStack = 1; turtle.armorSlot = .head; turtle.armor = 2; turtle.durability = 275
         add(turtle)
+        var band = ItemDef("bandana", "Bandana")          // D22 (Bandana.swift): masked crimes aren't pinned on you
+        band.sprite = Sprite(mask: "bandana", base: 0xA8282C, extras: ["w": 0xE8D8C8])
+        band.maxStack = 1; band.armorSlot = .head; band.armor = 0; band.durability = 200
+        add(band)
         var ely = ItemDef("elytra", "Glider Wings")
         ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
         ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
@@ -461,6 +465,7 @@ final class ItemRegistry {
         registerDeepJournalItems()
         ExplorerMaps.register(self)
         Hunting.register(self)
+        registerSpineItems()                          // Y2 (Spine.swift): the dispatch, the naval orders, the ledger
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
         for n in ["honey_bottle", "ominous_bottle"] { defs[Int(id(n))].drink = true }
         Enchant.assignEnchantability(self)

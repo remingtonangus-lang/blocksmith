@@ -24,7 +24,9 @@ final class SimHost: QuestHost {
     let sim = SimXR()
     let rig = QuestRig()
     let scene: SceneRenderer
-    var input: XRInput { sim }
+    // The controls read the hands through the same layer as the headset (Dominant Hand swap, lost controllers).
+    private(set) lazy var handed = HandedInput(raw: sim)
+    var input: XRInput { handed }
     var fps: Double { 72 }
     init(scene: SceneRenderer) { self.scene = scene }
 }

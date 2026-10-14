@@ -416,7 +416,7 @@ enum Countries {
         state.allies.append(c.key)
         g.sfx(.bell, 0.7, at: m.pos)
         g.achieve("trade")
-        return ("Signed. \(c.name) is your ally.", true)
+        return ("Signed. \(c.name) is your ally." + Spine.lead(g, from: "Its envoy"), true)     // Y6: allies share what they know
     }
 
     // MARK: Every second (HudExtras.tick)

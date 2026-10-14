@@ -95,6 +95,7 @@ enum Stable {
         g.money -= fee
         g.mobs.mobs.append(m)
         g.makeCurrentHorse(m)
+        m.feedCores(100, 100); m.health = max(m.health, m.horseMaxHealth)     // H10: rested and fed at the stable
         takenOut += 1
         return (fee > 0 ? "\(name(s)) came over from \(s.town) (\(Money.format(fee))): waiting outside." : "\(name(s)) is waiting outside.", true)
     }

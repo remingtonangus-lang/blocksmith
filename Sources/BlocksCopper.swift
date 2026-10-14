@@ -100,12 +100,24 @@ extension BlockRegistry {
                 chain.tex = ["\(st.prefix)copper_chain"]; chain.render = .model; chain.layer = .cutout; chain.opaque = false; chain.boxes = [Box(7, 0, 7, 9, 16, 9)]
                 chain.hardness = 5; chain.tool = .pickaxe; chain.skyStop = false; chain.randomTicks = !waxed && s < 3
                 add(chain)
-                // Lightning rod: draws strikes within 64 blocks (Weather.swift); a strike scrapes its copper clean.
-                var rod = BlockDef(Copper.name("lightning_rod", stage: s, waxed: waxed), "\(w)\(st.disp)Lightning Rod")
-                rod.tex = [tex]; rod.render = .model; rod.layer = .cutout; rod.opaque = false; rod.skyStop = false
-                rod.boxes = [Box(7, 0, 7, 9, 12, 9), Box(6, 12, 6, 10, 16, 10)]; rod.hardness = 3; rod.tool = .pickaxe
-                rod.randomTicks = !waxed && s < 3
-                add(rod)
+                // Lightning rod: draws strikes within 128 blocks (Weather.swift, Circuit.nearestRod); a strike scrapes its copper
+                // clean and gives an 8-tick signal.
+                // W3: six facings (state 0 up as before, 1 down, 2 north, 3 south, 4 west, 5 east: the way the tip points;
+                // placed against a face it points away from it). Circuit.rodDir maps them.
+                let rn = Copper.name("lightning_rod", stage: s, waxed: waxed)
+                let rodBoxes: [[Box]] = [
+                    [Box(7, 0, 7, 9, 12, 9), Box(6, 12, 6, 10, 16, 10)], [Box(7, 4, 7, 9, 16, 9), Box(6, 0, 6, 10, 4, 10)],
+                    [Box(7, 7, 4, 9, 9, 16), Box(6, 6, 0, 10, 10, 4)], [Box(7, 7, 0, 9, 9, 12), Box(6, 6, 12, 10, 10, 16)],
+                    [Box(4, 7, 7, 16, 9, 9), Box(0, 6, 6, 4, 10, 10)], [Box(0, 7, 7, 12, 9, 9), Box(12, 6, 6, 16, 10, 10)],
+                ]
+                for f in 0..<6 {
+                    var rod = BlockDef(f == 0 ? rn : "\(rn)[d\(f)]", "\(w)\(st.disp)Lightning Rod")
+                    rod.tex = [tex]; rod.render = .model; rod.layer = .cutout; rod.opaque = false; rod.skyStop = false
+                    rod.boxes = rodBoxes[f]; rod.hardness = 3; rod.tool = .pickaxe
+                    rod.group = rn; rod.hidden = f != 0; rod.shape = "rod"
+                    rod.randomTicks = !waxed && s < 3
+                    add(rod)
+                }
                 // Copper door and trapdoor: open by hand like wooden ones.
                 let dn = Copper.name("copper_door", stage: s, waxed: waxed), tn = Copper.name("copper_trapdoor", stage: s, waxed: waxed)
                 for k in 0..<32 {
@@ -224,7 +236,7 @@ extension Game {
             if target != nil { damageHeld(1) }
         }
         guard let t = target else { return false }
-        world.setBlock(p.x, p.y, p.z, t)
+        copperSet(p, b, t)
         sfx(key == "honeycomb" ? .waxOn : (waxed ? .waxOff : .scrape), 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         swing = 1
         return true
@@ -237,7 +249,7 @@ extension Game {
             let b = world.block(q.x, q.y, q.z)
             guard case let (_, st, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], st > 0,
                   let t = Copper.convert(b, stage: stage(st), waxed: waxed) else { return }
-            world.setBlock(q.x, q.y, q.z, t)
+            copperSet(q, b, t)
         }
         guard Copper.index[Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])] != nil else { return }
         clean(p) { _ in 0 }
@@ -251,7 +263,9 @@ extension Game {
     // Any less-aged neighbour holds it back; otherwise chance f^2 (x0.75 when fresh), f = (older + 1) / (others + 1).
     // It was a flat 2 %, ignoring neighbours.
     func copperAge(_ p: IVec3, _ b: BlockID) {
-        guard case let (_, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], !waxed, stage < 3 else { return }
+        guard case let (form, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], !waxed, stage < 3 else { return }
+        // W2: a door ages as one: its lower half rolls and takes the upper with it (reference).
+        if form == "copper_door" && (Int(b - Blocks.groupBase[Int(b)]) & 8) != 0 { return }
         guard Rand.float(in: 0..<1) < 0.0569 else { return }
         var same = 0, older = 0
         for dy in -4...4 { for dz in -4...4 { for dx in -4...4 where abs(dx) + abs(dy) + abs(dz) <= 4 && (dx != 0 || dy != 0 || dz != 0) {
@@ -262,6 +276,19 @@ extension Game {
         } } }
         let f = Float(older + 1) / Float(older + same + 1)
         guard Rand.float(in: 0..<1) < f * f * (stage == 0 ? 0.75 : 1) else { return }
-        if let t = Copper.convert(b, stage: stage + 1, waxed: false) { world.setBlock(p.x, p.y, p.z, t) }
+        if let t = Copper.convert(b, stage: stage + 1, waxed: false) { copperSet(p, b, t) }
+    }
+
+    // W2: changes a copper block's stage or wax; the other half of a copper door goes with it (aged, waxed or scraped
+    // halves used to come apart: an oxidized top on a fresh bottom).
+    func copperSet(_ p: IVec3, _ old: BlockID, _ t: BlockID) {
+        world.setBlock(p.x, p.y, p.z, t)
+        guard case let ("copper_door", stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(t)])] else { return }
+        let s = Int(old - Blocks.groupBase[Int(old)])
+        let o = IVec3(p.x, p.y + ((s & 8) != 0 ? -1 : 1), p.z)
+        let ob = world.block(o.x, o.y, o.z)
+        guard case ("copper_door", _, _)? = Copper.index[Blocks.key(Blocks.groupBase[Int(ob)])],
+              let ot = Copper.convert(ob, stage: stage, waxed: waxed), ot != ob else { return }
+        world.setBlock(o.x, o.y, o.z, ot)
     }
 }

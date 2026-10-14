@@ -963,7 +963,7 @@ final class ShipManager {
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
 
-    func save() {
+    func save(background: Bool = false) {
         guard let url else { return }
         // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
         let afloat = Set(capState.compactMap { (id, st) -> String? in
@@ -976,11 +976,64 @@ final class ShipManager {
         if let r = world.save?.dir.appendingPathComponent("navyparties.json"), !navyParties.isEmpty, let d = try? JSONEncoder().encode(navyParties) {
             try? d.write(to: r, options: .atomic)
         }
-        guard let d = encode() else {
-            if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
-            return
+        // F1: the autosave takes copies here (grids are arrays: copy on write) and packs and encodes them on the save
+        // queue; ship grids' palettes, lzfse and JSON ran on the frame thread.
+        let snaps = snapshots(nil)
+        let write = {
+            guard let d = ShipManager.encode(snaps) else {
+                if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
+                return
+            }
+            try? d.write(to: url, options: .atomic)
         }
-        try? d.write(to: url, options: .atomic)
+        if background { SaveIO.run(write) } else { write() }
+    }
+
+    // What encoding a ship needs, copied (no reference the frame thread keeps changing).
+    private struct Snap {
+        var id: Int, name: String, pos: V3, rot: V4, vel: V3, angVel: V3, sx: Int, sy: Int, sz: Int, blocks: [BlockID]
+        var liftLevel: Float, hoverY: Float?, entities: [String: BlockEntity], parent: Int?, mount: V3, pivot: V3
+        var turretYaw: Float, role: String?, home: V3?, captured: Bool, initial: Int?, wrecked: Bool
+    }
+    private func snapshots(_ only: [Ship]?) -> [Snap] {
+        var out: [Snap] = []
+        // Capital ships aren't saved (a 5-million-cell grid per save): their region brings them back.
+        for s in (only ?? list) where !s.root.kinematic {
+            var ents: [String: BlockEntity] = [:]
+            for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v.snapshot() }
+            out.append(Snap(id: s.id, name: s.name, pos: s.pos, rot: s.rot.vector, vel: s.vel, angVel: s.angVel,
+                            sx: s.grid.sx, sy: s.grid.sy, sz: s.grid.sz, blocks: s.grid.blocks, liftLevel: s.liftLevel,
+                            hoverY: s.hoverY, entities: ents, parent: s.parent?.id, mount: s.mountLocal, pivot: s.pivot,
+                            turretYaw: s.turretYaw, role: s.role, home: s.home, captured: s.captured, initial: s.initialBlocks,
+                            wrecked: s.wrecked))
+        }
+        return out
+    }
+    private static func encode(_ snaps: [Snap]) -> Data? {
+        var out: [Saved] = []
+        for s in snaps {
+            var map: [BlockID: UInt16] = [:]
+            var names: [String] = []
+            var idx = [UInt16](repeating: 0, count: s.blocks.count)
+            for (i, b) in s.blocks.enumerated() {
+                if let m = map[b] { idx[i] = m; continue }
+                let m = UInt16(names.count)
+                map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
+            }
+            let raw = idx.withUnsafeBytes { Data($0) }
+            let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw
+            let q = s.rot
+            out.append(Saved(id: s.id, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w],
+                             vel: [s.vel.x, s.vel.y, s.vel.z], angVel: [s.angVel.x, s.angVel.y, s.angVel.z],
+                             size: [s.sx, s.sy, s.sz], palette: names, cells: packed,
+                             liftLevel: s.liftLevel, hoverY: s.hoverY, entities: s.entities,
+                             parent: s.parent, mount: [s.mount.x, s.mount.y, s.mount.z],
+                             pivot: [s.pivot.x, s.pivot.y, s.pivot.z], turretYaw: s.turretYaw,
+                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initial,
+                             wrecked: s.wrecked ? true : nil))
+        }
+        if out.isEmpty { return nil }
+        return try? JSONEncoder().encode(out)
     }
 
     private func load() {

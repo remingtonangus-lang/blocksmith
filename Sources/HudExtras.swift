@@ -166,33 +166,16 @@ final class Subtitles {
 enum ContextPrompts {
     // What the triggers and face buttons do right now (at most four), e.g. "RT Mine   LT Place".
     static func items(_ g: Game) -> [String] {
+        // R2 (Oct 13, sixth report after P53/P85/P108/P143/P160): in the headset no control hint is drawn in play at
+        // all, not at a helm or a deck gun either (those returned before the headset check, so the right-hand stack
+        // came back whenever he steered or manned a gun). The controls are taught by the tutorial and one-time toasts.
+        if g.vrHead != nil { vrLessons(g); return [] }
         // Vehicles and guns have their own layouts (VehicleControls.swift, Guns.swift).
         if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }
         if Turrets.shared.active { return Turrets.shared.prompts() }
         var out: [(Prompt.Act, String)] = []
         if g.riding != nil { out.append((.sneak, "Dismount")) }
         let held = g.held
-        // P143/P160 (Oct 12 20:55, Oct 13 09:43): in the headset the right-hand hints (fire, aim, hold, wheel) are gone
-        // from the HUD; a one-time lesson teaches them the first time a gun is in hand, and only an empty gun still
-        // says how to load it. The other control hints are taught by the tips and the lesson, not shown all the time.
-        if g.vrHead != nil {
-            if let gi = g.heldGun {
-                if !Settings.shared.gunLesson {
-                    Settings.shared.gunLesson = true
-                    g.onToast?("Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel")
-                }
-                if held.tag <= 0 && Guns.all[gi].mag > 0 {
-                    // P158: which rounds it takes, and (with none on you) where they come from.
-                    let a = Guns.all[gi].ammo
-                    let name = Items.has(a) ? Items.def(Items.id(a)).display : a
-                    let have = Items.has(a) && g.inventory.main.countOf(Items.id(a)) > 0
-                    return [Prompt.g(.reload) + " Load: bring \(name) to the gun" + (have ? "" : " (none on you: " + Guns.ammoSource(a) + ")")]
-                }
-                return []
-            }
-            if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }
-            return g.riding != nil ? [Prompt.g(.sneak) + " Dismount"] : []
-        }
         if let gi = g.heldGun {
             out = g.vrAim != nil ? [(.attack, "Fire"), (.use, "Aim")] : [(.attack, "Fire"), (.use, "Aim"), (.reload, "Reload")]
             if Guns.all[gi].auto { out[0].1 = "Fire (hold)" }
@@ -228,6 +211,100 @@ enum ContextPrompts {
         return out.prefix(4).map { Prompt.g($0.0) + " " + $0.1 }
     }
 
+    // The headset's one-time lessons in place of the prompts: guns (P143), an empty gun's rounds (P158, once per gun
+    // kind a session), the helm and deck guns.
+    // S6: the headset's lessons replace the flat-screen tips (Tutorial): the basics once the first-launch setup is
+    // closed, then one short line the first time each part of the game comes up: a gun in hand, a horse ridden, honour
+    // changing (a crime seen, a good deed), a town (shops and money), a notice board's contracts. Each once ever
+    // (UserDefaults "vrLessons", a bit per lesson), the button named as the player holds the controllers.
+    private static var emptyTold = Set<Int>(), helmTold = false, turretTold = false
+    static var vrMirror = false                     // Dominant Hand: Left (set by the Quest controls each frame)
+    private static var lessonBits = -1
+    private static var boardSeen = false
+    private static var honourSeenAt: Double = 0
+    enum VRLesson: Int { case basics = 0, horse, honour, town, contracts }
+    static func lessonDone(_ l: VRLesson) -> Bool {
+        if lessonBits < 0 { lessonBits = UserDefaults.standard.integer(forKey: "vrLessons") }
+        return lessonBits & (1 << l.rawValue) != 0
+    }
+    private static func teach(_ g: Game, _ l: VRLesson, _ text: String) {
+        _ = lessonDone(l)                           // (loads the saved bits first)
+        lessonBits |= 1 << l.rawValue
+        UserDefaults.standard.set(lessonBits, forKey: "vrLessons")
+        g.onToast?(vrMirror ? mirrorHands(text) : text)
+    }
+    // "Right" <-> "Left", "R" <-> "L", A <-> X and B <-> Y as whole words: what a left-handed player presses.
+    static func mirrorHands(_ s: String) -> String {
+        var out = "", word = ""
+        func flush() {
+            switch word {
+            case "Right": out += "Left"
+            case "Left": out += "Right"
+            case "right": out += "left"
+            case "left": out += "right"
+            case "R": out += "L"
+            case "L": out += "R"
+            case "A": out += "X"
+            case "X": out += "A"
+            case "B": out += "Y"
+            case "Y": out += "B"
+            default: out += word
+            }
+            word = ""
+        }
+        for c in s { if c.isLetter { word.append(c) } else { flush(); out.append(c) } }
+        flush()
+        return out
+    }
+    static func vrLessons(_ g: Game) {
+        // The contracts lesson follows a notice board's screen (read once it closes, not under the open panel).
+        if g.menu is NoticeBoardMenu || g.menu is BaseContractsMenu { boardSeen = true }
+        guard g.menu == nil, !g.paused, g.alive else { return }
+        if !lessonDone(.basics) {
+            teach(g, .basics, "Left stick walks, right stick turns. A jumps. Right trigger mines, left trigger places and uses. Grips step the hotbar, hold Y for the inventory, Menu pauses")
+            return
+        }
+        if boardSeen && !lessonDone(.contracts) {
+            teach(g, .contracts, "Contracts: point at one on the board and pull the trigger to take it. Taken ones wait in your Journal (right hand to the chest pocket, grip). Each pays money and honour")
+            return
+        }
+        if let h = g.riding, h.kind == .horse, !lessonDone(.horse) {
+            teach(g, .horse, "Riding: the left stick steers; click it while pushing to spur up a gait. B gets off. Reach behind the saddle and grip for the saddlebags")
+            return
+        }
+        if Honour.changedAt > honourSeenAt && g.clock - Honour.changedAt < 6 && !lessonDone(.honour) {
+            honourSeenAt = Honour.changedAt
+            teach(g, .honour, "Honour: good deeds raise it; stealing or hurting townsfolk lowers it and calls the sheriff. Low honour raises prices and puts a bounty on you")
+            return
+        }
+        if TownLaw.inTown != nil && !lessonDone(.town) {
+            teach(g, .town, "A town: point at a shopkeeper and pull the left trigger to buy and sell. Your money and honour show on the HUD while you're here")
+            return
+        }
+        if let gi = g.heldGun {
+            if !Settings.shared.gunLesson {
+                Settings.shared.gunLesson = true
+                let t = "Guns: right trigger fires, left trigger aims. Hold the left hand on the front grip to steady it. Bring a magazine to the gun to load. Click the right stick: weapon wheel"
+                g.onToast?(vrMirror ? mirrorHands(t) : t)
+            }
+            if g.held.tag <= 0 && Guns.all[gi].mag > 0 && !emptyTold.contains(gi) {
+                emptyTold.insert(gi)
+                let a = Guns.all[gi].ammo
+                let name = Items.has(a) ? Items.def(Items.id(a)).display : a
+                let have = Items.has(a) && g.inventory.main.countOf(Items.id(a)) > 0
+                g.onToast?("Empty: bring \(name) from your hip to the gun" + (have ? "" : " (none on you: " + Guns.ammoSource(a) + ")"))
+            }
+        }
+        if let s = g.world.ships.pilot, !helmTold {
+            helmTold = true
+            g.onToast?(VehicleControls.prompts(g, s).joined(separator: ", "))
+        }
+        if Turrets.shared.active && !turretTold {
+            turretTold = true
+            g.onToast?(Turrets.shared.prompts().joined(separator: ", "))
+        }
+    }
+
     // P53 (Oct 11 evening playtest: "players won't need to know that after they've been playing a while"): the
     // in-game button prompts show for the first three hours of play, then retire (once, with a toast). Button Hints
     // in Options turns them off sooner, or on again for another three hours. Menu legends are unaffected.
@@ -247,6 +324,7 @@ enum ContextPrompts {
     }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        if g.vrHead != nil { if g.alive { vrLessons(g) }; return [] }       // (vrLessons: in play only, and the board's screen)
         guard shown, g.menu == nil, g.alive else { return [] }
         let list = items(g)
         let s = L.s
@@ -296,6 +374,9 @@ enum Tutorial {
     static func tick(_ g: Game) {
         let st = Settings.shared
         guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps else { return }
+        // S6: no flat-screen tips in the headset (its lessons replace them: ContextPrompts.vrLessons); the tips count
+        // as done so the next-goal line (Goals) comes up as it does after them on the Mac.
+        if g.vrHead != nil { st.tutorialStep = steps; return }
         let p = g.player
         let dLook = abs(p.yaw - lastYaw) + abs(p.pitch - lastPitch)
         if dLook < 1 { lookAccum += dLook }
@@ -339,7 +420,7 @@ enum Tutorial {
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         let st = Settings.shared
         guard ownSeat(g) else { return [] }
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive, !WeaponWheel.shared.open else { return [] }
+        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive, !WeaponWheel.shared.open, g.vrHead == nil else { return [] }
         let s = L.s
         let t = text(st.tutorialStep)
         let head = "Tip \(st.tutorialStep + 1)/\(steps)"

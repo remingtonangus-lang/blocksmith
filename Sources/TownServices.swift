@@ -16,9 +16,10 @@ import simd
 // MARK: The bank
 
 enum Bank {
-    // Cents, the exchange (Economy: an emerald is worth $1). The bank buys back below the lowest price any general store
-    // sells one at (minBuyMult, with every discount), so buying at a store and selling to the bank never pays.
-    static let buyEmerald = 120, sellEmerald = Int((100 * Economy.minBuyMult).rounded(.down)) - 5
+    // Cents, the exchange (Economy: an emerald is worth $1). R20: the bank pays the one exchange rate every counter pays
+    // ($1.00, Exchange.rate; it paid 80 cents, under the general store's dollar, so the "exchange" was the worst place to
+    // sell). Stores sell emeralds at a fixed $1.20 whatever the discounts (Economy.buyPrice), so no loop pays.
+    static let buyEmerald = 120, sellEmerald = Exchange.rate
     static let rate: Float = 0.01, dailyCap = 200, maxDays = 7
 
     static var balance: Int {
@@ -83,23 +84,27 @@ final class BankMenu: ListMenu {
         let who = m.villager?.person.flatMap { $0.split(separator: " ").last }.map { "\($0)'s " } ?? ""
         super.init(who + "Bank", game: g)
         let interest = Bank.accrue(g)
-        subtitle = [m.villager?.person, m.villager?.town].compactMap { $0 }.joined(separator: " of ")
+        bankOf = [m.villager?.person, m.villager?.town].compactMap { $0 }.joined(separator: " of ")
+        subtitle = bankOf
         say(interest > 0 ? "Interest paid while you were away: \(Money.format(interest))." : "Welcome. Your money's safe with us.", good: true)
         TownVoice.speakSoon(g, m, .greet)
         BankMenu.opened += 1
     }
     static var opened = 0
+    var bankOf = ""
     override func onClose() { if let m = banker, m.health > 0 { TownVoice.speakSoon(game, m, .bye) } }
 
     override var rows: [Row] {
         corner = "Wallet " + Money.format(game.money)
         let em = ItemStack(Items.id("emerald"), 1)
-        let gold = Items.has("gold_ingot") ? ItemStack(Items.id("gold_ingot"), 1) : ItemStack.empty
         let has = game.inventory.main.countOf(em.item)
+        // R20: the exchange leads (the savings line moved into the subtitle).
+        subtitle = "Savings \(Money.format(Bank.balance)), 1% a day   " + bankOf
         return [
-            Row(icon: gold, name: "Savings: \(Money.format(Bank.balance))", detail: "1% a day, up to \(Money.format(Bank.dailyCap)) a day", value: "", enabled: false),
+            Row(icon: em, name: Exchange.rowName(has), detail: Exchange.rowDetail(has), value: has > 0 ? "+" + Money.format(has * Exchange.rate) : Money.format(Exchange.rate),
+                enabled: has > 0),
             Row(icon: em, name: "Buy an emerald", detail: "The exchange", value: Money.format(Bank.buyEmerald), enabled: game.money >= Bank.buyEmerald),
-            Row(icon: em, name: "Sell an emerald", detail: "You have \(has)", value: Money.format(Bank.sellEmerald), enabled: has > 0),
+            Row(icon: em, name: "Sell one emerald", detail: "You have \(has)", value: Money.format(Bank.sellEmerald), enabled: has > 0),
             Row(name: "Deposit $1", detail: "From your wallet", value: "$1.00", enabled: game.money >= 100),
             Row(name: "Deposit $10", detail: "From your wallet", value: "$10.00", enabled: game.money >= 1000),
             Row(name: "Deposit all", detail: "Everything in your wallet", value: Money.format(game.money), enabled: game.money > 0),
@@ -112,6 +117,7 @@ final class BankMenu: ListMenu {
     override func pressed(_ i: Int) {
         let r: (String, Bool)
         switch i {
+        case 0: r = Exchange.sellAll(game)
         case 1: r = Bank.buy(game)
         case 2: r = Bank.sell(game)
         case 3: r = Bank.deposit(game, 100)
@@ -129,6 +135,37 @@ final class BankMenu: ListMenu {
         super.tick()
         if !BankMenu.open(game.dayFraction) { if let m = banker { TownVoice.speak(game, m, .closed) }; game.closeMenu() }
     }
+}
+
+// MARK: The exchange (R20)
+
+// Emeralds for dollars, at one rate everywhere ($1.00, Economy.emeraldSell): the bank's first row, and the first row of
+// every shop counter's Buy tab while you carry emeralds (ShopMenu), so every town with money has it in plain sight;
+// the bank and the general store say so on a sign by the door, with the rate. What was wrong (G14 was marked done): the
+// exchange was a one-at-a-time row in the middle of the bank's list at 80 cents (less than the general store's dollar
+// on its Sell tab), only in towns with a bank, and the one-time tip fired when the first emerald was picked up, usually
+// nowhere near a town.
+enum Exchange {
+    static var rate: Int { Economy.emeraldSell }
+    static let signLines = ["EXCHANGE", "Emeralds for", "dollars", "$1.00 each"]
+    static var hint: String {
+        "Emeralds trade for \(Money.format(rate)) each: any shop counter (Exchange, top of the list) or the BANK teller"
+    }
+    static func rowName(_ n: Int) -> String { "Exchange: emeralds for dollars" }
+    static func rowDetail(_ n: Int) -> String { n > 0 ? "You have \(n), \(Money.format(rate)) each" : "\(Money.format(rate)) each. You have none" }
+    static func count(_ g: Game) -> Int { Items.has("emerald") ? g.inventory.main.countOf(Items.id("emerald")) : 0 }
+
+    // Every emerald you carry, at the rate.
+    static func sellAll(_ g: Game) -> (String, Bool) {
+        let n = count(g)
+        guard n > 0 else { return ("You have no emeralds.", false) }
+        _ = g.inventory.main.remove(Items.id("emerald"), n)
+        g.money += n * rate
+        g.sfx(.villagerTrade, 0.6)
+        exchanged += n
+        return ("\(n) emerald\(n == 1 ? "" : "s") exchanged for \(Money.format(n * rate)).", true)
+    }
+    static var exchanged = 0                  // (tests)
 }
 
 // MARK: The gunsmith's upgrades

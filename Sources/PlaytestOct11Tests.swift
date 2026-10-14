@@ -544,11 +544,11 @@ enum PlaytestOct11Tests {
     static func capitalAmmo(_ check: (Bool, String) -> Void) {
         let capGuns = ["gun_rifle", "gun_smg", "gun_sidearm"]
         let usesOwn = capGuns.allSatisfy { k in Guns.all.first { $0.key == k }?.ammo == "capital_rounds" }
-        let sold = Economy.stock.values.contains { $0.contains { $0.0 == "capital_rounds" } }
+        let sold = Economy.stock.values.contains { $0.contains { $0.0 == "capital_rounds" } } && !Economy.capitalOnly.contains("capital_rounds")      // R8: Capital cities sell them
         let price = Economy.value["rifle_rounds"] ?? 0
         let gated = capGuns.allSatisfy { Economy.capitalOnly.contains($0) }
         check(usesOwn && !sold && price >= 25 && gated && Items.has("capital_rounds"),
-              "P40 ammo: Capital guns load capital rounds (\(usesOwn)), never sold (\(!sold)); rifle rounds cost \(Money.format(price)) each; Capital guns only in Capital towns (\(gated))")
+              "P40 ammo: Capital guns load capital rounds (\(usesOwn)), sold only in Capital cities (\(!sold)); rifle rounds cost \(Money.format(price)) each; Capital guns only in Capital towns (\(gated))")
     }
 
     // P44: with the real shares, Capital city and citadel regions that keep a site come to about one each per 4,000 x
@@ -925,7 +925,7 @@ enum PlaytestOct11Tests {
         BountyHunters.chancePerSecond = 1
         BountyHunters.send(g)
         BountyHunters.chancePerSecond = chance0
-        let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && $0.townWeapon == .revolver }
+        let gunHunter = g.mobs.mobs.contains { $0.customName == BountyHunters.name && ($0.brain?.gun ?? -1) == Guns.revolver }   // (R21: the leader)
         check(segs.count >= 3 && cols > 0 && paved * 10 >= cols * 6 && mounted && robbedOK && posse >= 2 && gunmen && collected && gunHunter,
               "P51 roads and riders: \(segs.count) roads near the origin, \(paved) of \(cols) road columns paved; a rider on horseback (\(mounted)) held up throws down the satchel and a bounty (\(robbedOK)\(robWhy.isEmpty ? "" : ": " + robWhy)); a posse of \(posse) with six-irons (\(gunmen)); dying to them pays it off (\(collected)); a hunter with a gun (\(gunHunter))")
     }

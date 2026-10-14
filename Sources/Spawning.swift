@@ -386,7 +386,9 @@ extension MobManager {
                 guard w.isLoaded(x, z) else { continue }
                 let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                 let d = simd_length(at - pp)
-                if d < 24 || d > 128 { continue }
+                // H1 (Remington: "cave mobs spawn about 10 blocks farther away"): underground, where tunnels bring a
+                // spawn 24 blocks off round the next corner, the nearest is 34.
+                if d < (underground ? 34 : 24) || d > 128 { continue }
                 let b = Spawns.biome(w, x, y, z)
                 if entry == nil {
                     guard let e = Spawns.pick(Spawns.monsters(b)) else { break }
@@ -619,10 +621,17 @@ extension MobManager {
 
     // MARK: Chunk population bookkeeping (saved next to mobs.json)
 
-    func savePopulated(to s: SaveManager?) {
+    func savePopulated(to s: SaveManager?, background: Bool = false) {
         guard let s = s else { return }
-        let flat = populated.flatMap { [$0.x, $0.z] }
-        if let d = try? JSONEncoder().encode(flat) { try? d.write(to: s.dir.appendingPathComponent("populated.json"), options: .atomic) }
+        // F1: the set (it grows with every chunk ever populated) is flattened and encoded on the save queue.
+        let set = populated, url = s.dir.appendingPathComponent("populated.json")
+        let write = {
+            var flat: [Int] = []
+            flat.reserveCapacity(set.count * 2)
+            for k in set { flat.append(k.x); flat.append(k.z) }
+            if let d = try? JSONEncoder().encode(flat) { try? d.write(to: url, options: .atomic) }
+        }
+        if background { SaveIO.run(write) } else { write() }
     }
 
     func loadPopulated(from s: SaveManager?) {

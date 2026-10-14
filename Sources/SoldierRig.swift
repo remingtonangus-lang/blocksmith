@@ -86,6 +86,13 @@ struct Livery {
             l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
             l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)
         }
+        // R21: bounty hunters (posse 3 on the soldier rig): trail-worn leather dusters, faded denim, a dull brass buckle.
+        if m.posse == 3 {
+            l.cloth = V3(0.42, 0.3, 0.19); l.legs = V3(0.24, 0.28, 0.36); l.plate = V3(0.3, 0.22, 0.14)
+            l.trim = V3(0.16, 0.11, 0.07); l.metal = V3(0.5, 0.46, 0.38); l.accent = V3(0.72, 0.58, 0.3)
+            l.glove = V3(0.33, 0.23, 0.14); l.boots = V3(0.2, 0.13, 0.08); l.glow = V3(1.6, 1.1, 0.5)
+            if r == 4 { l.cloth = V3(0.16, 0.14, 0.12); l.trim = V3(0.6, 0.5, 0.3) }      // the leader in black
+        }
         // Troop classes (TroopClasses.swift): Spec Ops blacked out with red lenses, Hannibal gunmetal plate with brass
         // trim; a cracked vest goes dull.
         if let c = m.troopClass {

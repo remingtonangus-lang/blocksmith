@@ -5,7 +5,8 @@ import simd
 //   the Deep's hell band  the surface's bottom three layers are Wardstone, which nothing breaks (pickaxe, blast, frigate
 //                         shell, piston, mob); an Ember Charge pressed onto it blasts a 3x3 shaft through to the Deep.
 //   the Emberdeep         a portal frame on the surface no longer lights with flint and steel; an Ember Charge wakes it.
-// Ember Charges are base loot only (every command chest holds one, a vault one or two: Loot.extraPools), never crafted.
+// Ember Charges are never crafted: base loot (every command chest holds one, a vault one or two: Loot.extraPools) and,
+// on the spine (Spine.swift), the strongroom of a fleet frigate sunk or seized.
 // Saved surface chunks get the floor stamped in as they load (SaveManager.load), portals already lit stay lit, and the
 // way up out of the Deep cuts through the floor (DeepSeam.crossSeam).
 let WARDSTONE = Blocks.id("wardstone")
@@ -129,7 +130,7 @@ extension Game {
     func coldFrameHint() {
         guard clock - hell.hintAt > 20 else { return }
         hell.hintAt = clock
-        onToast?("The frame stays cold. Only an Ember Charge wakes it: Capital citadels keep them in their command rooms" + citadelPointer())
+        onToast?("The frame stays cold. Only an Ember Charge wakes it: fleet frigates carry them, Capital citadels keep them in their command rooms" + citadelPointer())
     }
 
     // P139 (Oct 12 PM, 15:27 "I'm going to assume there's a certain ore type that I have to find... until I find it, I
@@ -137,7 +138,7 @@ extension Game {
     func wardHint() {
         guard clock - hell.hintAt > 60 else { return }
         hell.hintAt = clock
-        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Capital citadels keep them in their command rooms" + citadelPointer())
+        onToast?("Wardstone: no pickaxe, ore or blast breaks it, only an Ember Charge. Fleet frigates carry them, Capital citadels keep them in their command rooms" + citadelPointer())
         HellGate.wardHints += 1
     }
 

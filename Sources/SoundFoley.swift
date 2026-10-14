@@ -305,10 +305,51 @@ extension Synth {
             f.tex *= 1.35; f.texLo *= 1.25
         }
         let ring: Float = m == .metal ? 0.25 : 0.5
+        if let c = Synth.crunchy(m) {
+            // R19 (Oct 13 evening, again: "footsteps sound like mud", "gravel sounds like punching water"): the real
+            // cause was the grain texture itself. Each grain is noise through a resonator tuned 300-3400 Hz, so every
+            // grain rang as a small pitched bloop: a dense run of them is bubbling water or mud, whatever the levels.
+            // Dry ground now steps with unpitched grains (band-passed clicks with no ring) over a light, short press.
+            var g = f
+            g.tex = 0; g.swish *= 0.6; g.modes = []; g.squelch = 0
+            g.thump *= 0.45; g.thumpF = max(g.thumpF, 130)
+            var heel = foleyContact(g, p: p, force: 1, ring: ring, texLen: f.texLen, texScale: 1)
+            heel = Synth.mix(heel, crunch(c.len, grains: c.grains, lo: c.lo * p, hi: c.hi * p, gain: c.gain))
+            var toe = foleyContact(g, p: p * 1.06, force: rnd(0.35, 0.5), ring: ring * 0.8, texLen: f.texLen * 0.8, texScale: 0.6)
+            toe = Synth.mix(toe, crunch(c.len * 0.7, grains: max(2, c.grains / 2), lo: c.lo * p, hi: c.hi * p, gain: c.gain * 0.55))
+            let out = Synth.mix(heel, toe, at: frames(rnd(0.05, 0.08)))
+            return Synth.trimTail(Synth.room(out, mix: 0.04), below: 0.002)
+        }
         let heel = foleyContact(f, p: p, force: 1, ring: ring, texLen: f.texLen, texScale: 1)
         let toe = foleyContact(f, p: p * 1.06, force: rnd(0.45, 0.62), ring: ring * 0.8, texLen: f.texLen * 0.8, texScale: 0.8)
         let out = Synth.mix(heel, toe, at: frames(rnd(0.045, 0.075)))
         return Synth.trimTail(Synth.room(out, mix: 0.06), below: 0.002)
+    }
+
+    // Dry ground grit per material: grain count, length, band and level (nil: the material keeps its own texture).
+    static func crunchy(_ m: SoundMat) -> (grains: Int, len: Float, lo: Float, hi: Float, gain: Float)? {
+        switch m {
+        case .grass: return (14, 0.07, 1800, 7500, 0.5)
+        case .dirt: return (12, 0.06, 1100, 5200, 0.55)
+        case .gravel: return (20, 0.09, 1500, 7000, 0.75)
+        case .sand: return (22, 0.09, 2200, 9000, 0.4)
+        case .snow: return (18, 0.1, 1000, 4200, 0.5)
+        case .netherrack, .soul: return (12, 0.07, 1200, 5000, 0.5)
+        default: return nil
+        }
+    }
+
+    // Unpitched grit: short band-passed noise clicks scattered over `len`, front-loaded, random levels. No resonator,
+    // so nothing rings (a resonated grain is a tiny drop of water).
+    mutating func crunch(_ len: Float, grains: Int, lo: Float, hi: Float, gain: Float) -> [Float] {
+        var out = [Float](repeating: 0, count: frames(len + 0.02))
+        for _ in 0..<grains {
+            let t = len * powf(rnd(), 1.6)
+            let c = burst(rnd(0.003, 0.007), lp: min(16000, hi * rnd(0.7, 1.1)), hp: lo * rnd(0.8, 1.3), attack: 0.0002, decay: rnd(0.0008, 0.0022),
+                          gain: gain * (0.35 + 0.65 * powf(rnd(), 2)) * 2.2)
+            out = Synth.mix(out, c, at: frames(t))
+        }
+        return out
     }
 
     // Mining tap: a light, short contact (it repeats ~4 times a second, so it must not tire the ear).
@@ -342,7 +383,8 @@ extension Synth {
 
     // Placing a block: a firm set-down plus a small settle.
     mutating func foleyPlace(_ m: SoundMat, p: Float) -> [Float] {
-        let f = FoleyMat.of(m)
+        var f = FoleyMat.of(m)
+        if m == .gravel { f.tex = 0.15 }         // R19 (see foleyBreak)
         var g = f
         g.thumpF *= 0.92; g.swish *= 0.6; g.click *= 0.45
         var out = Synth.mix(foleyContact(g, p: p, force: 0.8, ring: 0.8, texLen: max(0.04, f.texLen * 0.6), texScale: 0.6), blockBody(f, p: p, force: 1))
@@ -359,10 +401,12 @@ extension Synth {
 
     // Breaking a block: impact, fracture crack, then debris falling and settling.
     mutating func foleyBreak(_ m: SoundMat, p: Float) -> [Float] {
-        let f = FoleyMat.of(m)
+        var f = FoleyMat.of(m)
+        if m == .gravel { f.tex = 0.2 }          // R19: its ringing grains read as water; the crunch below carries it
         var g = f
         g.click *= 0.5
-        var out = Synth.mix(foleyContact(g, p: p * 0.95, force: 1.0, ring: 1.2, texLen: max(0.08, f.texLen * 1.5), texScale: 1.1), blockBody(f, p: p * 0.95, force: 1.1))
+        var out = m == .gravel ? crunch(0.22, grains: 34, lo: 1200 * p, hi: 6500 * p, gain: 0.8) : [Float](repeating: 0, count: 1)
+        out = Synth.mix(out, Synth.mix(foleyContact(g, p: p * 0.95, force: 1.0, ring: 1.2, texLen: max(0.08, f.texLen * 1.5), texScale: 1.1), blockBody(f, p: p * 0.95, force: 1.1)))
         if f.tex > 0.3 && f.texLo < 1300 {   // crunch: a dense low-mid grain burst as the block gives way
             out = Synth.mix(out, texture(0.07, rate: 3500, lo: 280 * p, hi: 2400 * p, grain: 0.003, gain: 0.9 * f.tex) { x in 1 - x }, at: frames(0.006))
         }

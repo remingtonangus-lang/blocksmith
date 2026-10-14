@@ -272,7 +272,7 @@ enum Greywall {
         columns(-E, E, -E, E) { dx, dz in
             let x = cx + dx, z = cz + dz
             w.fill(x, S + 1, z, x, S + W + 16, z, AIR)
-            w.pillarDown(x, S - 1, z, DIRT, minY: S - 30)
+            w.groundDown(x, S - 1, z, DIRT, minY: S - 30)
             w.set(x, S, z, yardB)
         }
         let ring = H + margin
@@ -304,7 +304,7 @@ enum Greywall {
             let k = dz - E
             let h = S + max(-k, min(k, top - S))
             w.fill(x, h + 1, z, x, S + 16, z, AIR)
-            w.pillarDown(x, h - 1, z, DIRT, minY: h - 14)
+            w.groundDown(x, h - 1, z, DIRT, minY: h - 14)
             w.set(x, h, z, abs(dx) <= 1 ? path : DIRT)
         }
 

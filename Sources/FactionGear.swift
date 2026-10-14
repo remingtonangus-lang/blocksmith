@@ -9,7 +9,8 @@ import simd
 //   frigates, Ironback crawlers - with distance and bearing. Use: marks them all on the map.
 // - Intercepted Orders (citadel command rooms and vaults): use to read them; after the end game they give a faction
 //   warship's patrol, before it the nearest Capital city or citadel not yet on your map; marked on the map.
-// Faction warships sail only after the end game, and rarely (ShipVessels: 3 % of 2048-block regions a Meridian
+// Faction warships sail once a Greywall Fortress falls (Y3, Spine.swift: Game.fleetSails; until then only after the end
+// game), and rarely (ShipVessels: 3 % of 2048-block regions a Meridian
 // frigate, 1.5 % a Stormwarden frigate, 1.5 % an Ironback crawler, 0.7 % the two at war).
 extension Game {
     var postGame: Bool { dragonKilled || ashVictory }
@@ -21,12 +22,12 @@ extension Game {
         var out: [RadarContact] = []
         guard dim.dim == .overworld, let sc = world.gen.structures else { return out }
         let px = Int(player.pos.x), pz = Int(player.pos.z)
-        for (k, n) in [("military_base", "Capital Citadel"), ("capital_city", "Capital City"), (Greywall.kind, "Greywall Base")] {
+        for (k, n) in [("military_base", "Capital Citadel (enemy)"), ("capital_city", "Capital City"), (Greywall.kind, "Greywall Base")] {
             if let s = sc.nearest(k, x: px, z: pz, maxRegions: 4) {
                 out.append(RadarContact(name: n, kind: k, x: (s.min.x + s.max.x) / 2, z: (s.min.z + s.max.z) / 2))
             }
         }
-        if postGame, let w = nearestWarship() { out.append(w) }
+        if fleetSails, let w = nearestWarship() { out.append(w) }
         return out
     }
 
@@ -90,6 +91,7 @@ extension Game {
         if submarineUse() { return true }              // C8 (Submarines.swift)
         if sundryUse() { return true }                 // P133 (BaseSundries.swift)
         if blueprintUse() { return true }              // P138 (Blueprints.swift)
+        if spineItemUse() { return true }              // Y2 (Spine.swift): dispatch, naval orders, ledger
         let k = Items.key(held.item)
         if k == "radar_set" {
             let cs = radarContacts()
@@ -102,7 +104,7 @@ extension Game {
         if k == "intercepted_orders" {
             var target: RadarContact?
             var text = ""
-            if postGame, let w = nearestWarship() {
+            if fleetSails, let w = nearestWarship() {
                 target = w; text = "The orders give a \(w.name)'s patrol"
             } else if let sc = world.gen.structures {
                 // The nearest Capital city or citadel not on the map yet (or the nearest one if all are).
@@ -142,6 +144,7 @@ extension Game {
             if inventory.main[inventory.selected].isEmpty { inventory.main[inventory.selected] = doc }
             else { let rest = inventory.add(doc); if !rest.isEmpty { dropItem(rest) } }
             if menu == nil { openMenu(BookMenu(game: self, stack: doc, source: .hand(inventory.selected))) }
+            else { logDocument("Intercepted Orders", doc.pages ?? [], cat: .orders) }   // R24: filed even unread
             return true
         }
         return false
@@ -211,13 +214,17 @@ extension Game {
         }
         let s = L.s
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }
-        let head = ship ? "Frigate radar (1,500 m)" : console ? "Citadel console" : (postGame ? "Radar" : "Radar (fleets sail after the end game)")
+        let head = ship ? "Frigate radar (1,500 m)" : console ? "Citadel console" : (fleetSails ? "Radar" : "Radar (the fleet sails once a Greywall Fortress falls)")
         let w = Float(([head] + rows).map { Font.width($0) }.max() ?? 40) * s + 8 * s
         let x = floor(L.W / 2 - w / 2), y = L.hotbarY0 - Float(rows.count + 1) * 10 * s - 30 * s
         var out = [HudLine(text: "", x: x, y: y - 3 * s, scale: s, bg: V4(0.02, 0.08, 0.04, 0.6), box: V2(w, Float(rows.count + 1) * 10 * s + 5 * s))]
         out.append(HudLine(text: head, x: x + 4 * s, y: y, scale: s, color: V4(0.45, 1, 0.55, 1)))
+        // Y4: the Capital (the enemy over everything) in red, Greywall Command (the proving ground) in its blue-grey.
+        let list = Game.radarCache.list
         for (i, r) in rows.enumerated() {
-            out.append(HudLine(text: r, x: x + 4 * s, y: y + Float(i + 1) * 10 * s, scale: s, color: V4(0.8, 1, 0.82, 1)))
+            let k = i < list.count ? list[i].kind : ""
+            let c = k == "military_base" || k == "capital_city" ? V4(1, 0.62, 0.55, 1) : k == Greywall.kind ? V4(0.7, 0.8, 0.95, 1) : V4(0.8, 1, 0.82, 1)
+            out.append(HudLine(text: r, x: x + 4 * s, y: y + Float(i + 1) * 10 * s, scale: s, color: c))
         }
         return out
     }

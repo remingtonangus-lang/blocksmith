@@ -24,6 +24,6 @@ protocol QuestHost: AnyObject {
 }
 
 extension QuestApp: QuestHost {
-    var input: XRInput { xr }
+    var input: XRInput { handed }                 // S7/S8: the swapped / tracking-filtered hands (QuestHands.swift)
     var fps: Double { stats.fps }
 }

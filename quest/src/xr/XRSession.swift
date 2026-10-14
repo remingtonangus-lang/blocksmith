@@ -91,6 +91,14 @@ final class XRSession {
     private(set) var predictedTime: XrTime = 0
     private(set) var headPos = V3.zero
     private(set) var headRot = simd_quatf()
+    // S8: the head's position and orientation both valid this frame. When the runtime loses them, the frame is drawn
+    // from the last tracked views (the view holds still instead of the app showing nothing) and QuestApp pauses.
+    private(set) var headTracked = true
+    private var goodViews = [XrView](repeating: XrView(), count: 2)
+    private var haveGoodViews = false
+    // S8: a reference space change (recentre, boundary redrawn) takes effect at its changeTime: the rig re-anchors
+    // on the first frame at or after it (poses before it are still in the old space).
+    private var recenterAt: XrTime?
 
     // MARK: Setup
 
@@ -495,7 +503,7 @@ final class XRSession {
 
     // Syncs the actions and reads both controllers for the predicted display time.
     func pollInput() {
-        guard running, focused else { hands = [XRHand(), XRHand()]; return }
+        guard running, focused else { hands[0] = XRHand(); hands[1] = XRHand(); return }   // (no allocation)
         var active = XrActiveActionSet(actionSet: actionSet, subactionPath: 0)
         var si = XrActionsSyncInfo()
         si.type = XR_TYPE_ACTIONS_SYNC_INFO
@@ -569,7 +577,10 @@ final class XRSession {
                 default: break
                 }
             case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
-                onRecenter?()
+                let ev = withUnsafeBytes(of: &buf) { $0.load(as: XrEventDataReferenceSpaceChangePending.self) }
+                print("xr: reference space \(ev.referenceSpaceType.rawValue) changes at \(ev.changeTime)")
+                if ev.changeTime <= predictedTime || predictedTime == 0 { recenterAt = nil; onRecenter?() }
+                else { recenterAt = ev.changeTime }
             default: break
             }
         }
@@ -653,8 +664,17 @@ final class XRSession {
             for i in 0..<2 { views[i].type = XR_TYPE_VIEW; views[i].next = nil }
             let r = xrLocateViews(session, &li, &vs, 2, &n, &views)
             let need = XrViewStateFlags(XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)
-            if r.rawValue < 0 || vs.viewStateFlags & need != need { f.shouldRender = false }
+            if r.rawValue >= 0 && vs.viewStateFlags & need == need {
+                if !headTracked { print("xr: head tracking back") }
+                headTracked = true
+                goodViews[0] = views[0]; goodViews[1] = views[1]; haveGoodViews = true
+            } else {
+                if headTracked { print("xr: head tracking lost (view state \(vs.viewStateFlags))") }
+                headTracked = false
+                if haveGoodViews { views[0] = goodViews[0]; views[1] = goodViews[1] } else { f.shouldRender = false }
+            }
         }
+        if let t = recenterAt, fs.predictedDisplayTime >= t { recenterAt = nil; onRecenter?() }
         if f.shouldRender {
             let p0 = views[0].pose, p1 = views[1].pose
             headPos = (V3(p0.position.x, p0.position.y, p0.position.z) + V3(p1.position.x, p1.position.y, p1.position.z)) * 0.5

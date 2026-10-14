@@ -74,6 +74,22 @@ final class SoldierBrain {
     weak var patient: Mob?
     var leg: (V3, V3)?
     var spun = false                 // Ashsaw gunner: the bolt is racked for the next burst (a readable click first)
+    // R23 (Oct 13 evening: "factions kept apart and fighting each other; base troops hunting him instead of spinning in
+    // place"): a rival faction's soldier or vessel in range (looked for a few times a second, not every frame) and
+    // whether it is in sight; the search for a player out of sight (the spot being searched, how many so far, seconds
+    // on this one); the alarm source this soldier was last sent to (a citadel lockdown sends it once, not every
+    // second); and a sentry's watch heading (glances round it instead of turning a little further every few seconds).
+    var foe: CapTarget?
+    var foeSees = false
+    var foeTimer: Float = Rand.float(in: 0..<0.5)
+    var hunt: V3?
+    var huntP = V3(0, 0, 0)          // where the player was when that spot was picked
+    var huntN = 0
+    var huntT: Float = 0
+    var huntWait: Float = 0          // seconds left looking round a reached spot
+    var huntArrived = false
+    var alarmSrc: V3?
+    var watchYaw: Float?
     init(gun: Int) { let g = Guns.current(gun); self.gun = g; mag = g >= 0 ? Guns.all[g].mag : 0 }
 }
 
@@ -239,7 +255,7 @@ extension Mob {
     func alertGarrison(_ g: Game, _ at: V3, radius r: Float = 24) {
         // Only its own side wakes (T6: a Greywall alert roused every faction's soldiers near the base, the Capital's
         // crawler crew and the navy's marines alike).
-        for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && m.faction == faction && simd_length(m.pos - pos) < r {
+        for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && m.faction == faction && m.posse == posse && simd_length(m.pos - pos) < r {
             let b = m.soldierBrain
             if !m.aggro { m.aggro = true; b.react = max(b.react, 0.6) }
             if kind == .soldierOfficer { b.react = min(b.react, 0.35) }      // an officer's call: quicker to fire
@@ -251,7 +267,12 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         if hired { return companionAI(dt, g) }                       // O2: a companion (Companions.swift)
-        let canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
+        var canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
+        // R23: an alerted soldier (an alarm, a lockdown, a comrade's call: lockTime) hunts the player out to 64 blocks;
+        // senseTarget lets go past the rank's follow range (26-40), and the alerted garrison stood at its posts.
+        if !canTarget && aggro && lockTime > 0 && dist < 64 && g.survival && g.alive && !g.repAllied(self)
+            && faction != Faction.ashguard.rawValue { canTarget = true }      // (the Ashguard stand down on their own: ashVictory)
+        if posse == 3 && BountyHunters.holdOff { canTarget = false }  // R21: bounty hunters wait on the surface while he's below
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
         var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
         if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
@@ -321,11 +342,29 @@ extension Mob {
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
         // P163 (Oct 13: "two different bases beside each other, and they're not attacking each other"): rival soldiers
         // are noticed out to 64 blocks (was 1.5 x the rank's sight, 30-45); one beyond firing range is advanced on.
-        if !sees, let foe = w.ships.nearestFoe(of: factionValue, near: pos, range: max(rank.sight * 1.5, 64), game: g), foe.ship != nil || foe.mob != nil {
+        // R23: the search runs a few times a second (it scanned every ship and mob every frame for every soldier), and
+        // a rival nearer than the player is fought even with the player in sight: troops of two factions that meet
+        // round him fight each other first instead of only ever turning on him together. One out of sight is closed on
+        // (the path finder takes it round the wall) rather than stared at.
+        b.foeTimer -= dt
+        if b.foeTimer <= 0 && factionValue != .none {          // (bounty hunters, posse 3, belong to no faction)
+            b.foeTimer = 0.4 + Rand.float(in: 0..<0.2)
+            let f = w.ships.nearestFoe(of: factionValue, near: pos, range: max(rank.sight * 1.5, 64), game: g)
+            b.foe = (f?.ship != nil || f?.mob != nil) ? f : nil
+            if let fp = b.foe?.point { b.foeSees = w.canSee(eye, fp) }
+        }
+        if let fm = b.foe?.mob, fm.health <= 0 { b.foe = nil; b.foeTimer = min(b.foeTimer, 0.1) }
+        if b.foe?.ship == nil && b.foe?.mob == nil { b.foe = nil }
+        if var foe = b.foe {
+            if let fm = foe.mob { foe.point = fm.pos + V3(0, fm.height * 0.6, 0) }
+            let fd: Float = simd_length(foe.point - eye)
+            if !sees || fd + 4 < dist { b.foe = foe } else { b.foe = nil; b.foeTimer = max(b.foeTimer, 0.3) }
+        }
+        if let foe = b.foe {
             aggro = true
             b.react -= dt
             face(foe.point)
-            if foe.mob != nil && simd_length(foe.point - eye) > rank.sight * 0.9 { return spec.speed * 0.85 }
+            if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) { return spec.speed * 0.85 }
             let tp = foe.point - eye
             b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
             soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)
@@ -349,7 +388,7 @@ extension Mob {
                 b.seenAgo = 0
             }
         }
-        if hurt > 0.35 && !aggro { aggro = true; alertGarrison(g, g.player.pos) }
+        if hurt > 0.35 && !aggro { aggro = true; if b.foe == nil { alertGarrison(g, g.player.pos) } }   // (R23: a rival's round isn't the player's)
         // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift). Passengers
         // with a long arm are door gunners: turned in the seat (FlightCrew), they fire at the player in sight.
         if b.station == .seated || b.station == .passenger {
@@ -367,6 +406,10 @@ extension Mob {
         if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
         guard aggro && canTarget else {
             b.aimTime = 0; b.glinted = false
+            b.hunt = nil
+            // R23: lost him for good (no sighting for 45 s, nobody calling it in): stand down, so the next sighting is
+            // called out again and the post duty below walks it back to its post.
+            if aggro && lockTime <= 0 && b.seenAgo > 45 && b.order == nil { aggro = false; b.lastSeen = nil }
             if let sp = followOrder(g) { return sp }
             // Garrison duty: stroll near the post; marksmen keep watch, and so does a vehicle's crew at its post in the
             // hull's frame (a stroll round `home`, where it spawned in the world, pulled it off its post as the vehicle
@@ -374,19 +417,30 @@ extension Mob {
             let aboard = crewPost != nil && deck != nil
             if r == 2 || aboard {
                 if aboard { wanderGoal = nil; moving = false }
-                if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
+                if aiTimer <= 0 {
+                    aiTimer = Rand.float(in: 2...5)
+                    // R23: a sentry glances round its watch heading; adding a random turn to the last one walked its
+                    // heading round and round (a marksman on a tower turning in place all day).
+                    if aboard { yaw += Rand.float(in: -1.2...1.2) } else {
+                        if b.watchYaw == nil { b.watchYaw = yaw }
+                        yaw = (b.watchYaw ?? yaw) + Rand.float(in: -0.7...0.7)
+                    }
+                }
                 return 0
             }
             // Strolls stay within 7 of the post; one who strayed past 12 (a chase, a push) walks back to within 5. A
             // stroll goal out past the old 10-block line flipped it between the goal and home every tick (behaviour
             // sim on a citadel: 19 of 42 soldiers spinning).
+            // R23: about one trooper post in three walks a wider beat (14 round the post) so the base is patrolled
+            // between the posts, not just stood at them.
             if let h = home {
-                strollArea = (h, 7)
+                let beat = (r == 0 || r == 1) && hash3(Int(floor(h.x)), Int(floor(h.y)), Int(floor(h.z)), 0xBEA7) % 3 == 0
+                strollArea = (h, beat ? 14 : 7)
                 let off = simd_length(V2(h.x - pos.x, h.z - pos.z))
-                if off > 12 { b.homing = true }
+                if off > (beat ? 20 : 12) { b.homing = true }
                 if b.homing && gaveUp(h) { b.homing = false; home = pos }        // can't get back: this is the post now
                 if b.homing {
-                    if off > 5 { wanderGoal = nil; moving = true; face(h); return spec.speed * 0.5 }
+                    if off > (beat ? 8 : 5) { wanderGoal = nil; moving = true; face(h); return spec.speed * 0.5 }
                     b.homing = false; moving = false; aiTimer = Rand.float(in: 1...3)
                 }
             }
@@ -480,6 +534,8 @@ extension Mob {
                b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
                 suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
             }
+            // A last sighting it can't get to (the path finder gave it up) is dropped for the search below.
+            if let ls = b.lastSeen, gaveUp(ls) { b.lastSeen = nil }
             if let ls = b.lastSeen, b.seenAgo < 14 {
                 // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
                 let d = simd_length(ls - pos)
@@ -489,24 +545,55 @@ extension Mob {
                 }
                 face(ls)
                 speed = d > 2 ? spec.speed : 0
-                if d <= 2 { b.lastSeen = nil }
+                if d <= 2 { b.lastSeen = nil; b.hunt = nil }
             } else if lockTime > 0 && dist < 64 && canTarget {
                 // P197 (Oct 13: "the men are just spinning around... bunched at the front"): an alerted garrison
                 // hunts the raider the whole time instead of milling round the last sighting: each soldier heads for
                 // its own spot a few blocks round where the player is now (spread by who it is), then the next.
-                let h = ObjectIdentifier(self).hashValue
-                let a = Float(h & 1023) / 1023 * 2 * .pi + Float(b.clock / 9).rounded(.down)
-                let rr: Float = 3 + Float((h >> 10) & 7)
-                b.lastSeen = g.player.pos + V3(cosf(a) * rr, 0, sinf(a) * rr)
-                b.seenAgo = max(b.seenAgo, 5)
-                face(b.lastSeen!)
+                // R23 (reported again): the search spot was written into lastSeen and only moved on every 9 s of the
+                // clock, so a soldier that reached it dropped it (d <= 2), had the same spot handed straight back,
+                // and walked through it and back (yaw flipping 180 degrees) until the 9 s ran out: spinning in place.
+                // Now the spot is its own, and reaching it (or giving it up, or 12 s on it, or the player moving 12
+                // blocks since) moves the search on to the next spot round the player, a golden-angle step further round.
+                b.lastSeen = nil
+                b.huntT += dt
+                let pp = g.player.pos
+                var next = b.hunt == nil || b.huntT > 12
+                if let hs = b.hunt {
+                    let here: Float = simd_length(V2(hs.x - pos.x, hs.z - pos.z))
+                    let moved: Float = simd_length(V2(b.huntP.x - pp.x, b.huntP.z - pp.z))
+                    // At the spot: a second or so looking round it (standing, no turning to a point at its feet), then on.
+                    if here < 1.8 && !b.huntArrived { b.huntArrived = true; b.huntWait = Rand.float(in: 0.8...1.6) }
+                    if b.huntArrived { b.huntWait -= dt; if b.huntWait <= 0 { next = true } }
+                    if moved > 12 || gaveUp(hs) { next = true }
+                }
+                if !next && b.huntArrived { return 0 }
+                if next {
+                    b.huntArrived = false
+                    b.huntT = 0
+                    b.huntP = pp
+                    let h = ObjectIdentifier(self).hashValue
+                    let a0: Float = Float(h & 1023) / 1023 * 2 * .pi
+                    // (a spot at least 3 blocks off, so it is walked to: one at its feet was re-picked every tick)
+                    for _ in 0..<4 {
+                        b.huntN += 1
+                        let a: Float = a0 + Float(b.huntN) * 2.39996
+                        let rr: Float = (3 + Float((h >> 10) & 7)) * (b.huntN % 3 == 0 ? 0.5 : 1)
+                        let c = V3(pp.x + cosf(a) * rr, pp.y, pp.z + sinf(a) * rr)
+                        b.hunt = c
+                        if simd_length(V2(c.x - pos.x, c.z - pos.z)) >= 3 { break }
+                    }
+                    if b.huntN % 4 == 1 && Rand.float(in: 0..<1) < 0.5 { shout(g, .soldier(Soldier.voice(r), .alert), 0.8, at: eye) }   // "search the area!"
+                }
+                if let hs = b.hunt { face(hs) }
                 speed = spec.speed * 0.9
             } else {
+                b.hunt = nil
                 wander()
                 speed = moving ? spec.speed * 0.5 : 0
             }
         }
-        return speed
+        return speed * vary.speed                                    // R16: this soldier's own stride
     }
 
     func soldierFire(_ dt: Float, _ g: Game, _ b: SoldierBrain, _ gs: GunSpec, rank r: Int, dist: Float, target: V3) {
@@ -554,14 +641,15 @@ extension Mob {
         // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a
         // tighter group than the same rank on the surface.
         let veteran = faction == Faction.ashguard.rawValue
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1) * (veteran ? 1.6 : 1)
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1) * (veteran ? 1.6 : 1) * vary.damage
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
                 // P105: a gun's kick opens the aim (a heavy pistol or marksman's rifle more than a carbine), except for
                 // a Hannibal trooper: the power suit takes it.
                 let kick = aimKick(gs)
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1))
+                let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
+                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : 1) * hunter)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -825,6 +913,7 @@ extension Game {
             return
         }
         m.troopLoot(self)                                              // the plate it still wore (TroopClasses.swift)
+        BountyHunters.loot(self, m, at: at)                            // R21: a bounty hunter's poster and purse
         // P206 (Oct 13 18:42, "I never found the key to unlock the computer on the second floor"): a Greywall base's
         // officer carries its code book, which opens the keep's map table without taking the base.
         if m.factionValue == .greywall && m.kind == .soldierOfficer && m.leash != nil && Items.has("greywall_codebook") {
@@ -1060,5 +1149,24 @@ extension Mob {
     func crewSetup() {
         guard !kind.ash, faction != Faction.ashguard.rawValue, let r = Soldier.rank(kind) else { return }
         if let names = Mob.crewNames[factionValue] { spec.name = names[r] } else { spec.name = kind.spec.name }
+    }
+}
+
+extension Game {
+    // R23 (Oct 13 evening, "factions kept apart"): whether `p` is in, or within `pad` of, another faction's base: a
+    // Capital citadel (not cleared) for anyone but the Capital, a Greywall base (not one the player took) for anyone but
+    // Greywall. Troops of `f` are never set down there (ShipManager.callDropship, front battles), so a base's garrison
+    // is never mixed with a rival's dropship squad standing among it.
+    func foreignBase(_ p: V3, for f: Faction, pad: Float = 24) -> Bool {
+        let b = bases
+        if f != .steelhold {
+            let half = Float(CapitalBase.A) + pad
+            for r in b.records.values where r.cleared != true && abs(p.x - Float(r.cx)) < half && abs(p.z - Float(r.cz)) < half { return true }
+        }
+        if f != .greywall {
+            let st = b.greywall
+            for (key, s) in st.sites where !st.taken.contains(key) && Greywall.inside(s, p, pad: pad) { return true }
+        }
+        return false
     }
 }
