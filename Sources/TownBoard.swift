@@ -184,6 +184,7 @@ enum TownBoard {
     static func mobDied(_ g: Game, _ m: Mob) {
         Contracts.mobDied(g, m)                          // C11: camp bandits
         Strangers.mobDied(g, m)                          // D20
+        GangLeaders.mobDied(g, m)                        // D26
         Stagecoach.mobDied(g, m)                         // D4: a guarded coach's driver
         guard var all = TownLaw.state.jobs else { return }
         var changed = false
@@ -277,8 +278,9 @@ enum TownBoard {
 final class NoticeBoardMenu: ListMenu {
     let town: String
     let anchor: IVec3
-    enum Item { case poster(String, Int), job(Int), contract(Int), donate, emeralds, name, log(Int) }
+    enum Item { case poster(String, Int), job(Int), contract(Int), gang, donate, emeralds, name, log(Int) }
     var items: [Item] = []
+    var gangWanted: (GangLeaders.Gang, Int, String)?
 
     init(game: Game, town: String, anchor: IVec3) {
         self.town = town
@@ -298,6 +300,8 @@ final class NoticeBoardMenu: ListMenu {
         if Honour.isOutlaw && g.survival { items.append(.poster("", 0)) }
         for i in 0..<2 { items.append(.job(i)) }
         for i in 0..<Contracts.slots { items.append(.contract(i)) }      // C11
+        gangWanted = GangLeaders.wanted(g, from: anchor)                  // D26
+        if gangWanted != nil { items.append(.gang) }
         items.append(.donate)
         items.append(.emeralds)
         items.append(.name)
@@ -324,6 +328,10 @@ final class NoticeBoardMenu: ListMenu {
                 let (name, detail) = Contracts.describe(g, c)
                 let icon = Items.has(c.kind == "courier" ? "paper" : "iron_sword") ? ItemStack(Items.id(c.kind == "courier" ? "paper" : "iron_sword"), 1) : .empty
                 return Row(icon: icon, name: name, detail: detail, value: Money.format(c.pay), enabled: !c.paid && !c.failed)
+            case .gang:
+                guard let (gg, d, dir) = gangWanted else { return Row(name: "", enabled: false) }
+                return Row(icon: ItemStack(Items.id(Guns.revolverKey), 1), name: "WANTED: \(gg.leader), boss of \(gg.gang)",
+                           detail: "Hides out \(d) blocks \(dir) of here. Double if brought in alive", value: Money.format(gg.bounty), enabled: false, good: false)
             case .donate:
                 let left = Honour.capLeft(g, "donation")
                 return Row(icon: Items.has("emerald") ? ItemStack(Items.id("emerald"), 1) : .empty, name: "Donate to the town fund",

@@ -311,6 +311,10 @@ enum Jail {
         }
         g.swing = 1
         g.sfx(.armorEquip(0), 0.8, at: m.pos)
+        if GangLeaders.isLeader(m) != nil {                                       // D26: a gang boss pays on the spot
+            rope()
+            if GangLeaders.captured(g, m) { hogties += 1; return true }
+        }
         if m.posse == 1, TownLaw.state.prisoner == nil, let n = m.customName,
            let hit = (TownLaw.state.jobs ?? [:]).first(where: { $0.value.kind == "outlaw" && $0.value.outlaw == n && $0.value.taken && !$0.value.done }) {
             rope()

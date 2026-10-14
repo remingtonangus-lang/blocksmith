@@ -73,6 +73,9 @@ enum TownLaw {
         var strangerCount: [String: Int]? = nil
         var strangerAt: [String: [Int]]? = nil
         var strangerDay: Int? = nil
+        // D26 gang leaders (GangLeaders.swift): bosses beaten, hideouts whose gang has turned up.
+        var gangsBeaten: [String]? = nil
+        var gangsMet: [String]? = nil
     }
     static var state = Saved()
     static var placedSet = Set<IVec3>()
@@ -97,6 +100,7 @@ enum TownLaw {
         offences = 0; lastTick = -1; sleptBeds = [:]
         lastShot = nil; Jail.passPack = false; TownLines.forget()          // R20
         TownConquest.reset(); TownConquest.wary = []
+        GangLeaders.spawnedHere = []                    // D26
     }
     // Keeps the newest `n` remembered blocks that are still the player's.
     static func compactPlaced(_ n: Int) {
@@ -425,6 +429,7 @@ enum TownLaw {
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
         Strangers.tick(g)                                // D20
+        GangLeaders.tick(g)                              // D26: gang bosses at their hideouts
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
         // Heat cools; hostility runs out.
