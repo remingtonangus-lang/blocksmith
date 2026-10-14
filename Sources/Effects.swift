@@ -449,6 +449,7 @@ extension Game {
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
+        if let gr = horseGrave, let e = try? JSONEncoder().encode(gr), let str = String(data: e, encoding: .utf8) { d["horseGrave"] = str }   // P259
         if journalTold { d["journalTold"] = "1" }
         if !journal.isEmpty, let e = try? JSONEncoder().encode(journal), let str = String(data: e, encoding: .utf8) { d["journal"] = str }
         if let l = lastDeath { d["lastDeath"] = "\(l.x),\(l.y),\(l.z)" }
@@ -460,6 +461,7 @@ extension Game {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
         horseBond = d["horseBond"].flatMap { Float($0) } ?? 0
+        horseGrave = d["horseGrave"].flatMap { $0.data(using: .utf8) }.flatMap { try? JSONDecoder().decode(HorseGrave.self, from: $0) }
         if let b = d["blueprints"] { Blueprints.known = Set(b.split(separator: ",").map(String.init)); Blueprints.seedPending = false }
         else { Blueprints.known = []; Blueprints.seedPending = true }         // saved before blueprints (P138)
         journalTold = d["journalTold"] == "1"

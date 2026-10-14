@@ -210,9 +210,10 @@ extension Mob {
         if downed <= 0 {
             downed = 0
             health = 0
-            if bond == g.horseBond { g.horseBond = 0 }
+            let mine = bond == g.horseBond && bond != 0
+            if mine { g.horseBond = 0; g.horseDied(self) }                       // P259
             bond = 0                                      // (no "goes down" again on the death sweep)
-            g.onToast?("\(customName ?? "Your horse") is gone")
+            g.onToast?("\(customName ?? "Your horse") is gone" + (mine ? ". Where it fell is marked on your map" : ""))
         }
     }
 
@@ -255,6 +256,7 @@ extension Game {
     func makeCurrentHorse(_ m: Mob) {
         if m.bond == 0 { m.bond = Float(Rand.int(in: 1...16_000_000)) }
         horseBond = m.bond
+        horseGrave = nil                                   // P259: a new horse; the old grave marker goes
         m.persistent = true
         m.stayAt = nil
         if m.customName == nil { m.customName = HorseLife.names[Rand.int(in: 0..<HorseLife.names.count)] }

@@ -43,6 +43,9 @@ enum Waymarks {
             out.append(Target(kind: "bounty", key: gg.leader, name: "Bounty: \(gg.leader) (\(Money.format(gg.bounty)))", pos: p))
         }
         if let h = horsePos(g) { out.append(Target(kind: "my_horse", key: "horse", name: "Your horse", pos: h.1)) }
+        if g.horseBond == 0, let gr = g.horseGrave, gr.dim == Dim.overworld.rawValue {          // P259: where it fell
+            out.append(Target(kind: "horse_grave", key: "grave", name: "Where \(gr.name) fell", pos: v(gr.x, gr.z, py)))
+        }
         for s in g.world.ships.list where g.world.ships.isYours(s) && !s.wrecked {
             let land = VehicleDepot.usesFuel(s)
             out.append(Target(kind: land ? "my_vehicle" : "my_ship", key: "\(s.id)", name: (land ? "Vehicle: " : "Ship: ") + s.name, pos: s.pos))
@@ -157,7 +160,7 @@ enum Waymarks {
         marksAt = g.clock
         func q(_ f: Float) -> Int { Int(floor(f / 8)) * 8 + 4 }        // to 8 blocks (fewer map writes as things move)
         let all = candidates(g)
-        for kind in ["contract", "bounty", "my_horse", "my_ship", "my_vehicle", "director"] {
+        for kind in ["contract", "bounty", "my_horse", "my_ship", "my_vehicle", "director", "horse_grave"] {
             let list = all.filter { $0.kind == kind }.prefix(12).map { t in
                 MapCache.Mark(kind: kind, x: q(t.pos.x), z: q(t.pos.z), name: t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) })
             }

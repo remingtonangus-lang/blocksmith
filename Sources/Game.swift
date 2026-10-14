@@ -295,6 +295,7 @@ final class Game {
     var attackQueued: Float = 0
     weak var commandeerHint: Ship?     // the vessel whose "take command" toast was shown (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
+    var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
     var journalLast: Double = 0
     var journalTold = false             // P207: the one tip saying where the journal is (saved)
@@ -2051,6 +2052,12 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
+        // P259 (f): the bonded horse killed outright (not down first): remembered and marked.
+        if m.bond != 0 && m.bond == horseBond {
+            horseBond = 0
+            horseDied(m)
+            onToast?("\(m.customName ?? "Your horse") has died. Where it fell is marked on your map")
+        }
         if dim.dim == .deep { ashUnitDied(m); wardenDied(m) }
         if m.kind.hellOwn { hellDied(m) }
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).

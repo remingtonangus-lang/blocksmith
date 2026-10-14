@@ -214,13 +214,38 @@ extension Game {
 // button in survival (Quest: tap Y; pad: D-pad up; keys: the fly key) calls it: loaded within 64 blocks it gallops over;
 // farther away, or stored with its chunk thousands of blocks off, it is brought to a spot ~14 blocks behind the player
 // and runs up.
+struct HorseGrave: Codable {
+    var name: String
+    var x: Int, z: Int
+    var day: Int
+    var place: String
+    var dim: String
+}
+
 extension Game {
     // (The gap pass: other horses of yours keep their bond and id; this one becomes the one that's called.)
     func bondHorse(_ m: Mob) { makeCurrentHorse(m) }
 
+    // P259 (Oct 14 12:14): the bonded horse died: remember it (the call says so, the map marks the spot).
+    func horseDied(_ m: Mob) {
+        let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+        let name = m.customName ?? "Your horse"
+        let place = dim.dim == .overworld ? journalPlace() : dim.dim.displayName
+        horseGrave = HorseGrave(name: name, x: x, z: z, day: Int(time / DAY_LENGTH), place: place, dim: dim.dim.rawValue)
+        Waymarks.marksAt = -1e9
+    }
+
     // Returns false when there is no bonded horse (the fly button keeps its "no flying" toast).
     func callHorse() -> Bool {
-        guard horseBond != 0 else { return false }
+        guard horseBond != 0 else {
+            // P259 (a): a dead horse can't come; say which, when and where (the spot is on the map).
+            guard let gr = horseGrave else { return false }
+            let ago = Int(time / DAY_LENGTH) - gr.day
+            let when = ago <= 0 ? "today" : (ago == 1 ? "yesterday" : "\(ago) days ago")
+            onToast?("\(gr.name) died \(when) at \(gr.place) (\(gr.x), \(gr.z)). Where it fell is marked on your map")
+            sfx(.mob(.horse, .ambient), 0.25, at: player.pos + V3(0, 2, 0))
+            return true
+        }
         if riding?.bond == horseBond { return true }
         // P117 (Oct 12 PM: "the horse must not come when called from underground"): below ground the call doesn't
         // carry; a call already answered is dropped too (bondedHorseAI).
@@ -250,6 +275,9 @@ extension Game {
             return true
         }
         guard let h = horse else { onToast?("Your horse doesn't answer (it may have died)"); horseBond = 0; return true }
+        // P259 (e): how far and which way it is, while it runs to him.
+        let off = h.pos - player.pos
+        let far = simd_length(V2(off.x, off.z))
         if h.downed > 0 { onToast?("\(h.customName ?? "Your horse") is down and can't come: it needs a Saddle Salve"); return true }
         let d = simd_length(h.pos - player.pos)
         if h.hitched { unhitch(h) }                             // D3: a call unties it
@@ -266,7 +294,9 @@ extension Game {
         }
         horseCall = 25
         sfx(.mob(h.kind, .ambient), 1.2, at: h.pos)
-        onToast?("You call \(h.customName ?? "your horse")")
+        let wayOff = far > 160 ? " (it was \(Int(far / 10) * 10) blocks \(TownBoard.direction(off.x, off.z)), it's catching up)"
+                               : (far > 12 ? " (\(Int(far)) blocks, \(Waymarks.side(self, h.pos)))" : "")
+        onToast?("You call \(h.customName ?? "your horse")" + wayOff)
         return true
     }
 }
