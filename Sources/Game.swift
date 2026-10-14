@@ -1379,6 +1379,7 @@ final class Game {
         if useHeld && shieldInHand && Items.key(held.item) == "shield" { return }
         if crossbowUse(useHeld, useNow, fdt) { return }
         if tridentUse(useHeld, fdt) { return }
+        if throwBlade(useNow) { return }                                   // D11
         if spearUse(useHeld, fdt) { return }
         if fishingUse(useNow, useHeld) { return }
         // Bow: hold to draw, release to shoot.

@@ -455,6 +455,7 @@ final class ItemRegistry {
         registerPrinterParts()
         registerLasso()
         registerGunCare()
+        registerThrownBlades()
         Magazines.register(self)
         registerDeepExpansionItems()
         registerDeepGateItems()

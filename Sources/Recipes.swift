@@ -361,6 +361,8 @@ enum Recipes {
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
         r.append(shaped(["SSS", "SLS", "SSS"], ["S": "string", "L": "lead"], "lasso"))                      // D1 (Lasso.swift)
+        r.append(shaped(["I", "S"], ["I": "iron_ingot", "S": "stick"], ThrownBlades.knife, 4))                    // D11 (ThrownBlades.swift)
+        r.append(shaped(["II", " S"], ["I": "iron_ingot", "S": "stick"], ThrownBlades.tomahawk))
         r.append(shaped(["NWN", "NIN", "NWN"], ["N": "iron_nugget", "W": "white_wool", "I": "iron_ingot"], "suppressor"))   // D9 (GunCare.swift)
         r.append(shaped(["LLL", "LIL"], ["L": "leather", "I": "iron_ingot"], "saddle", 1))      // newer reference recipe
         r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
