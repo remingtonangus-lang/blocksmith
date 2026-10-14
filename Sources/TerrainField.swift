@@ -116,6 +116,7 @@ extension World {
     // debris) and the cell is set to air. Returns how many cells were removed.
     @discardableResult
     func carve(at c: V3, radius r: Float, mode: CarveMode, remove: ((IVec3, BlockID) -> Void)? = nil) -> Int {
+        if fieldTerrain { return fieldCarve(at: c, radius: r, mode: mode, remove: remove) }      // (FieldTerrain.swift)
         guard keepsField, r > 0.05 else { return 0 }
         let reach = r + 1.5
         let lo = IVec3(Int(floor(c.x - reach)), max(0, Int(floor(c.y - reach))), Int(floor(c.z - reach)))

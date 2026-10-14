@@ -101,7 +101,7 @@ enum Explosion {
         for b in destroyed { w.scheduleFluid(around: b) }
         // PG1: the crater is a bowl in the terrain field, not the blocks the rays took: its walls are bounded by a ball
         // the size of most of what broke (TerrainField.swift).
-        if w.keepsField && !destroyed.isEmpty {
+        if (w.keepsField || w.fieldTerrain) && !destroyed.isEmpty {
             let ds = destroyed.map { simd_length(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5 - c) }.sorted()
             w.carve(at: c, radius: ds[min(ds.count - 1, ds.count * 3 / 4)] + 0.3, mode: .shape)
         }

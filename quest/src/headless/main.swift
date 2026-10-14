@@ -126,6 +126,15 @@ if let out = arg("--view"), let ctx = vkctx {
     // and quads of each (P142 cost on the mesh workers; single thread, this build's optimization level).
     // --groundline: the smooth ground offset (World.smoothGroundOffset, the view follows it) at 12 standing spots ahead.
     if CommandLine.arguments.contains("--fieldwalk") { print(World.fieldWalkCheck(vg)) }     // (PG2 rewrite)
+    // --fieldblast: a power-4 blast on the ground 8 blocks ahead, then the frame (PG1 rewrite: the crater in the field).
+    if CommandLine.arguments.contains("--fieldblast") {
+        let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8
+        var fy = Int(vg.player.pos.y) + 6
+        while fy > 1 && !Blocks.collide[Int(vw.block(Int(floor(fx)), fy, Int(floor(fz))))] { fy -= 1 }
+        Explosion.explode(at: V3(fx, Float(fy) + 0.6, fz), power: 4, game: vg, decay: true)
+        vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: fy - 12, y1: fy + 12)
+        print("fieldblast: at \(Int(fx)) \(fy) \(Int(fz))")
+    }
     if CommandLine.arguments.contains("--groundline") {
         var out: [String] = []
         for k in 1...12 {
