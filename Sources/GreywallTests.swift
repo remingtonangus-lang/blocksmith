@@ -54,12 +54,13 @@ enum GreywallTests {
         }
         let frac = Float(bases) / Float(max(1, regions))
         let tiers = Greywall.Tier.allCases.map { "\($0): \(byTier[$0] ?? 0)" }.joined(separator: ", ")
-        check(frac > 0.3 && frac < 0.8 && nearSpawn == 0 && tooClose.isEmpty && nearest < 3000,
+        check(frac > 0.3 && frac < 0.95 && nearSpawn == 0 && tooClose.isEmpty && nearest < 3000,
               String(format: "greywall rarity: %d bases in %d regions of 64x64 chunks (%.0f%%), nearest to spawn %d blocks, none closer than its tier allows (%@); %@ (%.1f s)",
                      bases, regions, frac * 100, nearest, tooClose.isEmpty ? "ok" : tooClose.joined(separator: ", "), tiers, CFAbsoluteTimeGetCurrent() - t0))
         let counts = Greywall.Tier.allCases.map { byTier[$0] ?? 0 }
-        check(counts.allSatisfy { $0 > 0 } && counts[0] > counts[1] && counts[1] > counts[3],
-              "greywall rarity: every tier is found and the bigger ones are rarer (\(tiers))")
+        // (P255: outposts are an extra variant, not most of the bases: garrisons are the commonest.)
+        check(counts.allSatisfy { $0 > 0 } && counts[1] > counts[0] && counts[1] > counts[3],
+              "greywall rarity: every tier is found, garrisons the commonest and the bigger ones rarer (\(tiers))")
 
         PathFinder.doors = true
         defer { PathFinder.doors = false }

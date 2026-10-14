@@ -10,6 +10,7 @@ enum PlaytestOct14Tests {
         if on("P251") { p251(g, render: render, check: check) }
         if on("P253") { p253(g, check: check) }
         if on("P254") { p254(g, check: check) }
+        if on("P255") { p255(g, check: check) }
     }
 
     // P250: (a) the render distance the player sets holds unless frames really suffer and comes back when they stop;
@@ -178,6 +179,75 @@ enum PlaytestOct14Tests {
               "P254: a base's Supply Crate opens with \(inside) building blocks (\(title)), keeps them, and broken spills \(spilled) with no crate to place again")
     }
 
+    // P255: small Greywall outposts: (a) an extra variant, never instead of a big base; (b) a little bigger; (c) no glare
+    // off the lights; (d) a gun on every tower; (e) a second floor.
+    static func p255(_ g: Game, check: (Bool, String) -> Void) {
+        // (a) The regions round spawn: the big bases' regions roll garrison, fortress or command only; outposts come in
+        // regions of their own.
+        var never = true
+        for i in 0..<2000 { if Greywall.tier(roll: Float(i) / 2000, dist: 600 + (i * 37) % 4000) == .outpost { never = false } }
+        var byTier: [Greywall.Tier: Int] = [:]
+        if let sc = g.world.gen.structures, let type = sc.types.first(where: { $0.name == Greywall.kind }) {
+            let o = Game.spawnOrigin(seed: g.world.seed)
+            let orx = floorDiv(floorDiv(o.0, CS), Greywall.spacing), orz = floorDiv(floorDiv(o.1, CS), Greywall.spacing)
+            for rz in (orz - 5)...(orz + 5) { for rx in (orx - 5)...(orx + 5) {
+                if let s = sc.start(type, regionX: rx, regionZ: rz) { byTier[Greywall.Tier.of(s), default: 0] += 1 }
+            } }
+        }
+        let outposts = byTier[.outpost] ?? 0, big = (byTier[.garrison] ?? 0) + (byTier[.fortress] ?? 0) + (byTier[.command] ?? 0)
+        check(never && outposts > 0 && Float(big) > Float(outposts) * 1.5,
+              "P255 (a): outposts are an extra variant: a big base's region never rolls one; round spawn \(big) big bases (still the most) and \(outposts) outposts (\(Greywall.Tier.allCases.map { "\($0) \(byTier[$0] ?? 0)" }.joined(separator: ", ")))")
+        // (b) A little bigger.
+        let t = Greywall.Tier.outpost
+        check(t.half == 18 && t.keepX == 7 && t.keepZ == 7 && t.wallH == 6 && t.troops == 8,
+              "P255 (b): an outpost is a little bigger: walls \(t.half * 2) blocks across (was 28), keep \(t.keepX * 2 + 1) x \(t.keepZ * 2 + 1) (was 13 x 13), \(t.troops) troops (was 6)")
+        // (c) No halo off the bases' flat electric lights; flames keep theirs.
+        let flat = ["light_panel", "corner_lamp", "alarm_lamp", "alarm_lamp_lit", "greywall_terminal"].filter { Blocks.has($0) }
+        let haloed = flat.filter { LightHalos.color[Int(Blocks.id($0))] != .zero }
+        let flames = ["torch", "lantern"].filter { Blocks.has($0) && LightHalos.color[Int(Blocks.id($0))] != .zero }
+        check(haloed.isEmpty && flames.count == 2, "P255 (c): no glare disc on the bases' lights (\(flat.count) checked, haloed: \(haloed.isEmpty ? "none" : haloed.joined(separator: ", "))); torches and lanterns keep theirs")
+        // (d, e) Laid out: a gun on each tower roof, and an upper floor up a stair with a watch room.
+        let S = 100
+        var mobs: [(String, V3)] = [], chestsUp = 0, upper = 0, stairs = 0
+        let stairID = Blocks.groupBase[Int(Blocks.id("bunker_concrete_stairs[west]"))]
+        for cz in -2...1 { for cx in -2...1 {
+            var buf = [BlockID](repeating: AIR, count: CS * CS * CH)
+            buf.withUnsafeMutableBufferPointer { b in
+                var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+                Greywall.build(&w, 0, S, 0, .outpost, 777)
+                mobs += w.mobs
+                chestsUp += w.entities.filter { $0.0.y == S + 6 && $0.1.kind == .chest }.count
+            }
+            for lz in 0..<CS { for lx in 0..<CS {
+                let x = cx * CS + lx, z = cz * CS + lz
+                guard abs(x) < t.keepX, z > t.keepC - t.keepZ, z < t.keepC + t.keepZ else { continue }
+                if buf[Chunk.index(lx, S + 5, lz)] != AIR { upper += 1 }
+                for y in (S + 1)...(S + 4) where Blocks.groupBase[Int(buf[Chunk.index(lx, y, lz)])] == stairID { stairs += 1 }
+            } }
+        } }
+        let towerGuns = t.towers.filter { tw in
+            let c = Greywall.tower(t, tw.0, tw.1)
+            return mobs.contains { $0.0.hasPrefix("deck_gun") && abs($0.1.x - Float(c.x) - 0.5) < 1 && abs($0.1.z - Float(c.z) - 0.5) < 1 }
+        }.count
+        let garrisonGuns: Int = {
+            var n = 0
+            let gt = Greywall.Tier.garrison
+            for cz in -3...2 { for cx in -3...2 {
+                var buf = [BlockID](repeating: AIR, count: CS * CS * CH)
+                buf.withUnsafeMutableBufferPointer { b in
+                    var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: b.baseAddress!)
+                    Greywall.build(&w, 0, S, 0, gt, 777)
+                    n += w.mobs.filter { m in m.0.hasPrefix("deck_gun:light") && gt.towers.contains { tw in let c = Greywall.tower(gt, tw.0, tw.1); return abs(m.1.x - Float(c.x) - 0.5) < 1 && abs(m.1.z - Float(c.z) - 0.5) < 1 } }.count
+                }
+            } }
+            return n
+        }()
+        check(towerGuns == t.towers.count && garrisonGuns == Greywall.Tier.garrison.towers.count,
+              "P255 (d): a gun on every tower (outpost \(towerGuns) of \(t.towers.count), garrison \(garrisonGuns) of \(Greywall.Tier.garrison.towers.count))")
+        let inner = (t.keepX * 2 - 1) * (t.keepZ * 2 - 1)
+        check(t.floors == 2 && upper * 10 >= inner * 8 && stairs >= 6 && chestsUp >= 1,
+              "P255 (e): the outpost's keep has a second floor (\(upper) of \(inner) cells floored, \(stairs) stair blocks up, \(chestsUp) chest upstairs)")
+    }
 
 
 
