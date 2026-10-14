@@ -44,6 +44,7 @@ final class WorldRenderer {
     private var farUsed = [-10, -10]
     private var farOrigin = (0, 0), farSeed: UInt64 = 0
     private(set) var farRingQuads = 0            // drawn last frame (perf lines)
+    private var farCover: Float = 0              // P250 (c): the meshed radius the ring sinks inside (every 6 frames)
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -273,7 +274,13 @@ final class WorldRenderer {
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
         let ox: Float = Float(farOrigin.0) - eye.x, oz: Float = Float(farOrigin.1) - eye.z
         let lx: Float = Float(pcx * CS + CS / 2) - eye.x, lz: Float = Float(pcz * CS + CS / 2) - eye.z
-        let rin = FarRing.loadedRadius(game.world.renderDistance)
+        // P250 (c): sunk only inside the chunks that are meshed now, not the nominal render distance: while chunks
+        // stream in (fast flight, a distance raised, a world opening) the ring keeps its true height where they are
+        // still missing, instead of a 12-block pit with sloped walls showing through the gap (his 11:58 "slopes").
+        if farFrame % 6 == 1 || farCover <= 0 {
+            farCover = FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
+        }
+        let rin = farCover
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: farQuads, params: params)
         farRingQuads = farQuads

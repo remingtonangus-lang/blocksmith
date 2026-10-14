@@ -215,6 +215,19 @@ final class World {
         dx * dx + dz * dz <= renderDistance * renderDistance + renderDistance
     }
 
+    // P250 (c): how far round chunk `center` every chunk is meshed, as the squared chunk distance of the nearest chunk
+    // in the mesh disc that is missing or not meshed yet (rd^2 + rd + 1 when the whole disc is in). The far ring
+    // (FarRing, far.vert) sinks only inside this disc, so while chunks stream in it stays at its true height where
+    // they are missing instead of showing a sunk pit. Walks the nearest-first offsets up to the first gap.
+    func meshedReach(_ center: ChunkKey) -> Int {
+        let full = renderDistance * renderDistance + renderDistance
+        for (dx, dz, d2) in offsets {
+            if d2 > full { break }
+            guard let c = chunks[ChunkKey(x: center.x + dx, z: center.z + dz)], c.meshedOnce else { return d2 }
+        }
+        return full + 1
+    }
+
     // MARK: Block access
 
     @inline(__always) func chunkAt(_ x: Int, _ z: Int) -> Chunk? {

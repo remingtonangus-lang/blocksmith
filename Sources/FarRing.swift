@@ -30,16 +30,19 @@ final class FarRing {
         var cx = 0, cz = 0                         // world position of the vertices' origin
         var rd = 0                                 // render distance it was cut for
         var gen = 0                                // build counter (the renderer uploads each one once)
+        var blocky = false                         // terraced block columns (block world) or the smooth field
         var verts: [SimpleVert] = []
         var quads: Int { verts.count / 4 }
     }
 
-    struct Sample { var y: Float; var c: V3; var kind: Float }      // kind: 0 ground, 1 water, 2 lava
+    // kind: 0 ground, 1 water, 2 lava. `side`: the colour of the ground's flanks seen from the side in a block world
+    // (dirt under grass, rock on cliffs: P250 b).
+    struct Sample { var y: Float; var c: V3; var kind: Float; var side: V3 = V3(0, 0, 0) }
 
     private let lock = NSLock()
     private var mesh: Mesh?
     private var building = false
-    private var want = (Int.min, Int.min, -1)
+    private var want = (Int.min, Int.min, -1, false)
     private var seed: UInt64 = 0
     private var builds = 0
     private var memo: [Int64: Sample] = [:]        // touched only by the one build running (`building`)
@@ -59,34 +62,44 @@ final class FarRing {
         return 16 * r2.squareRoot() - 12
     }
 
+    // P250 (c): the radius (blocks, round the player chunk's centre) that is meshed right now: the loaded radius, cut
+    // to the nearest chunk still missing or unmeshed (World.meshedReach) while chunks stream in. A point within 11.3
+    // blocks of a chunk's centre lies in that chunk, so everything inside 16 * sqrt(gap) - 12 is in meshed chunks.
+    static func meshedRadius(_ w: World, _ rd: Int, center: ChunkKey) -> Float {
+        let gap = w.meshedReach(center)
+        return min(loadedRadius(rd), max(0, 16 * Float(gap).squareRoot() - 12))
+    }
+
     // Starts a build when the player has moved into another cell, the render distance changed or the world changed.
     func request(_ g: Game, eye: V3) {
         guard FarRing.enabled, let gen = g.world.gen as? WorldGen else { return }
         let kx = Int(floor(eye.x / Float(FarRing.cell))), kz = Int(floor(eye.z / Float(FarRing.cell)))
         let rd = g.world.renderDistance
+        // A block world's ring is terraced columns, a Polygons world's the smooth field (PG1 rewrite: a field world is
+        // never blocks). Part of the key (P250 b): toggling Smooth Terrain, or another world with the same seed, rebuilds.
+        let blocky = !SmoothTerrain.enabled && !g.world.fieldTerrain
         lock.lock()
-        let same = want == (kx, kz, rd) && seed == g.world.seed
+        let same = want == (kx, kz, rd, blocky) && seed == g.world.seed
         if same || building { lock.unlock(); return }
         building = true
-        want = (kx, kz, rd)
+        want = (kx, kz, rd, blocky)
         seed = g.world.seed
-        let fresh = mesh?.seed != seed
+        let fresh = mesh?.seed != seed || mesh?.blocky != blocky
         let sd = seed
         builds += 1
         let n = builds
         lock.unlock()
         let cx = kx * FarRing.cell + FarRing.cell / 2, cz = kz * FarRing.cell + FarRing.cell / 2
-        let blocky = !SmoothTerrain.enabled && !g.world.fieldTerrain          // (PG1 rewrite: a field world is never blocks)
         let work = { [weak self] in
             guard let self else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
-            var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n)
+            var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n, blocky: blocky)
             out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky)
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             self.lock.lock()
             // A build for a world left meanwhile is dropped (the next request starts the new world's).
-            if sd == self.seed { self.mesh = out } else { self.want = (Int.min, Int.min, -1) }
+            if sd == self.seed { self.mesh = out } else { self.want = (Int.min, Int.min, -1, false) }
             self.lastBuildMs = ms
             self.building = false
             self.lock.unlock()
@@ -106,20 +119,56 @@ final class FarRing {
         if k.vol > 0.2 && k.lava > k.h {
             return Sample(y: Float(YOFF) + floorf(k.lava) + 1, c: V3(0.95, 0.42, 0.1), kind: 2)
         }
+        // P250 (b, c): the generator's final freeze (WorldGen.freeze) puts snow on the ground and ice on still water
+        // wherever the surface temperature is cold enough, whatever the biome; the ring showed green grass and open sea
+        // past snowy, iced chunks (a hard seam at the loaded edge on his 11:58 flight). Same test, without the dither.
+        func cold(_ y: Int) -> Bool {
+            guard k.lava <= 0 && k.flow <= 0.3 && k.vol <= 0.3 else { return false }     // volcano heat
+            let t = gen.terrain.temperature(k, Float(y + 1 - YOFF))
+            return t < -0.25 || (b.snows(at: y + 1) && t < -0.15)
+        }
         if wl > top {
+            if cold(wl) { return Sample(y: Float(wl) + 1, c: FarRing.ice, kind: 0, side: FarRing.ice * 0.92) }
             return Sample(y: Float(wl) + 0.875, c: rgb(b.info.water), kind: 1)
         }
         // Map colours are the raw biome tints; the blocks' own textures darken them (grass, sand and stone art average
         // about 0.8), so the ring matches the textured ground at the seam.
         var c = rgb(MapCache.shade(b, height: top)) * 0.8
+        // P250 (b): the flanks of a terrace. Grass, mycelium, petals and snow over soil show dirt from the side (with
+        // a little of the top's fringe); sand, stone, terracotta and peaks are the same material all the way down.
+        let soil = !(b.isOcean || b.isRiver || b.isBeach || b == .desert || b.isBadlands || b == .stonyPeaks
+                     || b == .windsweptGravellyHills || b.isPeak || b == .iceSpikes)
+        var side = soil ? simd_mix(dirt, c, V3(repeating: 0.25)) : c * 0.92
+        // Cliffs and steep mountain faces are bare rock, as the generator places them (WorldGen.surface: a rise of 7
+        // over two blocks anywhere but badlands and sand, 4 in the mountain biomes), instead of green slopes. k.slope is
+        // the smooth pre-erosion slope (over 3 blocks, on a 4-block grid), gentler than the blocks' local rise, so the
+        // thresholds sit lower: 2 anywhere, 1.3 in the mountain biomes, 1.2 for a bank's rock walls.
+        let mountain: Bool
+        switch b {
+        case .windsweptHills, .windsweptForest, .stonyPeaks, .jaggedPeaks, .frozenPeaks, .grove, .snowySlopes: mountain = true
+        default: mountain = false
+        }
+        if k.slope >= 2 && !b.isBadlands && b != .desert && !b.isBeach || k.slope >= 1.3 && mountain {
+            c = rock; side = rock * 0.92
+        } else {
+            if k.slope >= 1.2 && soil { side = rock * 0.95 }        // a steep bank: the terrace walls cut into rock
+            // Snow on the ground (steep rock faces shed it, as in the freeze); snowy grass shows dirt under a white rim.
+            if cold(top) {
+                c = snow
+                if soil { side = simd_mix(side, snow, V3(repeating: 0.3)) }
+            }
+        }
         let vw: Float = k.vol > 0.05 ? min(1, k.vol * 3) : 0
         let rw: Float = max(0, vw * 2 - 1)
-        if rw > 0 { c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: rw)) }      // volcano rock (HorizonRing)
+        if rw > 0 {                                                                 // volcano rock (HorizonRing)
+            c = simd_mix(c, V3(0.2, 0.19, 0.19), V3(repeating: rw)); side = simd_mix(side, V3(0.2, 0.19, 0.19), V3(repeating: rw))
+        }
         // P250 (b, c): woods stand as their canopy, in leaf colours (a forest was a bare green slope past the chunks,
         // and the trees stopped at the loaded edge).
         let w = canopy(gen, b, x, z, ground: k.h)
         c = simd_mix(c, w.leaf, V3(repeating: w.cover * (1 - rw)))
-        return Sample(y: Float(YOFF) + k.h + 1 + w.height * (1 - rw), c: c, kind: 0)
+        side = simd_mix(side, w.leaf * 0.9, V3(repeating: w.cover * (1 - rw)))     // a wood's terrace walls are leaves
+        return Sample(y: Float(YOFF) + k.h + 1 + w.height * (1 - rw), c: c, kind: 0, side: side)
     }
 
     // P250: a column's woods as seen from afar: how much of the ground the crowns cover (0 ... 1), how far the canopy's
@@ -158,6 +207,10 @@ final class FarRing {
         if b == .snowyTaiga || b == .grove { leaf = simd_mix(leaf, V3(0.93, 0.95, 0.97), V3(repeating: 0.45)) }
         return (cover, h * min(1, cover * 1.4), leaf * 0.62)
     }
+    static let dirt = V3(0.525, 0.376, 0.263) * 0.8        // the dirt texture's average, darkened like the map colours
+    static let rock = V3(0.6, 0.6, 0.59) * 0.8             // stone (0x9A9A96, the map's peak colour)
+    static let snow = V3(0.93, 0.95, 0.96) * 0.92          // snow (0xEEF2F6; its art is brighter than grass or stone)
+    static let ice = V3(0.62, 0.76, 0.95) * 0.8            // ice
 
     // The quads, band by band (squares round the centre, 8 / 16 / 32 blocks apart), cut to a disc of `outer` and with
     // the cells deep inside the loaded disc (whatever the player's offset from the centre within the cell) left out.
@@ -170,8 +223,10 @@ final class FarRing {
         let e1 = max(e0 + 128, a32(rin + 320), 640)
         let e2 = a32(FarRing.outer)
         let edges = [e0, e1, max(e2, e1 + 64)]
-        // The player is within 64 blocks (each axis) of the centre: cells within rin - 91 are always under chunks.
-        let skip: Float = rin - 100
+        // The player is within 64 blocks (each axis) of the centre: cells within rin - 91 are always under chunks. P250
+        // (c): the ring reaches in to 55% of the loaded radius anyway, so when the governor lowers the distance and the
+        // outer chunks unload before the next ring is built, the old ring still covers the gap (24 -> 14 is 0.58).
+        let skip: Float = min(rin - 100, rin * 0.55)
         let rim: Float = FarRing.outer
         func S(_ x: Int, _ z: Int) -> Sample {
             let key = (Int64(x) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
@@ -197,8 +252,9 @@ final class FarRing {
             out.append(SimpleVert(pos: V4(fx0, t.y, fz0, up), color: c)); out.append(SimpleVert(pos: V4(fx1, t.y, fz0, up), color: c))
             out.append(SimpleVert(pos: V4(fx1, t.y, fz1, up), color: c)); out.append(SimpleVert(pos: V4(fx0, t.y, fz1, up), color: c))
             guard t.kind == 0 else { return }
-            // Sides down to each lower neighbour (2 blocks further, so a coarser neighbour never leaves a slit).
-            let side = V4(t.c * 0.92, 0)
+            // Sides down to each lower neighbour (2 blocks further, so a coarser neighbour never leaves a slit), in the
+            // column's flank colour (dirt under grass, rock on cliffs).
+            let side = V4(t.side, 0)
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                 let nb = top(x0 + dx * s, z0 + dz * s, s)
                 guard nb.y < t.y else { continue }
