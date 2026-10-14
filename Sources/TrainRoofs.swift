@@ -124,6 +124,7 @@ extension Trains {
             m.persistent = false
             m.aggro = true
             m.lockTime = 20
+            m.posse = Contracts.banditPosse                     // Q2: they fight as a gang (GangTactics: cover, flanks)
             g.mobs.mobs.append(m)
             tr.raid.append(m)
         }
