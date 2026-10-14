@@ -158,6 +158,14 @@ enum Explosion {
                 var dmg = ((k * k + k) / 2 * 7 * radius + 1).rounded()
                 // A soldier's vest takes the blast first (TroopClasses.swift, T7): its plate soaks a share and wears.
                 if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: 1, g).rounded() }
+                // P221 (Oct 13 21:29, "nobody walks out of a rocket or shell hit"): inside the inner half of the blast,
+                // in the open, a body is killed outright, plate or not. Bosses and armour (tanks, golems, the Behemoth,
+                // the wyrm...) still only take the damage.
+                let lethal = power * 1.1
+                if power >= 2, simd_length(m.pos + V3(0, m.height * 0.5, 0) - c) <= lethal, w.canSee(c, m.pos + V3(0, m.height * 0.5, 0)),
+                   !Explosion.blastProof(m.kind) {
+                    dmg = max(dmg, 9999)                                   // (past shields, plate and difficulty scaling)
+                }
                 m.hit(from: c, damage: Int(dmg), knockback: 0)
                 m.vel += dir * k * 12
             }
@@ -179,6 +187,12 @@ enum Explosion {
 }
 
 extension Explosion {
+    // Who survives standing in a blast's heart (P221): bosses, armoured vehicles, golems and deck guns.
+    static func blastProof(_ k: MobKind) -> Bool {
+        k.ashVehicle || k == .ironGolem || k == .deckGun || k == .enderDragon || k == .wither || k == .warden || k == .elderGuardian
+            || k == .ashMarshal || k == .ashChancellor
+    }
+
     // A Tidebreaker slug's impact (task 23; MainGun.swift): a bowl-shaped crater of radius r (ragged rim) through every
     // breakable block, citadel walls included; ship hulls in reach torn (ShipManager.blast); a few drops; a power-8
     // blast for damage, sound and flash without its own block breaking. At most `cap` blocks go: cells are taken
