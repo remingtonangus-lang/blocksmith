@@ -101,6 +101,7 @@ enum Trains {
         var wrecked = false
         var gunCool: Float = 2
         var bullion = false                     // D47: today's run is a bullion train (VaultObjectives.swift)
+        var gunSilenced = false                 // Q2: the guard car's fall was announced
         var raid: [Mob] = []                    // D50 (TrainRoofs.swift): robbers holding the train up
         var raidT: Float = 0
         var raidedDay = -1
@@ -377,6 +378,13 @@ enum Trains {
             return
         }
         let gun = tr.cars[1]
+        // Q2: the guard car going quiet is a moment: a bang at its turret and a word on what's next.
+        if tr.bullion && gun.health <= 0 && !tr.gunSilenced {
+            tr.gunSilenced = true
+            g.sfx(.explodeSmall, 0.9, at: gun.pos + V3(0, 2.6, 0))
+            g.sfx(.levelUp, 0.6)
+            g.onToast?("The guard car falls silent. Crack the bullion car")
+        }
         guard gun.health > 0, g.alive, g.survival, tr.bullion || !g.ashVictory else { return }
         let muzzle = gun.pos + V3(0, 2.6, 0)
         let to = g.player.eye - muzzle, d = simd_length(to)
