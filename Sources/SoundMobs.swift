@@ -121,6 +121,9 @@ enum MobVoice {
         case .scorchling: return Profile(family: .squeak, f0: 1900, size: 0.45)
         case .slagthrower: return Profile(family: .rumble, f0: 80, size: 1.6)
         case .copperGolem: return Profile(family: .click, f0: 900, size: 0.7)
+        case .cougar: return Profile(family: .growl, f0: 210, size: 1.0)
+        case .rattlesnake: return Profile(family: .rattle, f0: 2400, size: 0.4)
+        case .alligator: return Profile(family: .hiss, f0: 90, size: 1.5)
         }
     }
 
