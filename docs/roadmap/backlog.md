@@ -439,7 +439,7 @@ D44. [DONE] Fuel depots; recall or garage a vehicle.
 D45. [DONE] Deer, elk, bison herds and boar.
 D46. [DONE] Bait and wind, tracks and blood trails, snares.
 D47. [DONE] Vault side objectives, the armoured train robbery, a boss bar on the Quest HUD.
-D48. Landmarks: canyons, ghost towns, homesteads; biome-specific settlements.
+D48. [DONE] Landmarks: canyons, ghost towns, homesteads; biome-specific settlements.
 D49. [DONE] Blizzards and sandstorms that cut visibility, body temperature, lightning risk to riders.
 D50. Ride train roofs and climb between cars; defend against holdups.
 D51. Track one objective with a HUD marker and an in-world beacon; contract and bounty markers; horse, ship and vehicle markers; notes stamped on the map.

@@ -452,6 +452,7 @@ enum TownLaw {
         FactionArmour.tick(g)                            // D33: a full faction set's edge
         Disguise.tick(g, dt)                             // D37: a close look through a disguise
         NavalPort.tick(g)                                // D39: dockyard garrisons and harbourmasters
+        FrontierSites.tick(g)                            // D48: frontier sites on the map, the ghost town's dead
         Tracking.tick(g)                                 // D46: tracks, blood trails, the wind
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player

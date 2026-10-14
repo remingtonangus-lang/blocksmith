@@ -230,6 +230,10 @@ final class MapCache {
         case "station": return ("R", V4(0.85, 0.55, 0.3, 1), "Railway station")
         case "property": return ("H", V4(0.35, 0.85, 0.95, 1), "Your property")             // D28
         case "naval_port": return ("D", V4(0.3, 0.55, 0.85, 1), "Meridian dockyard")       // D39
+        case "ghost_town": return ("G", V4(0.7, 0.62, 0.5, 1), "Ghost town")                // D48 (FrontierSites.swift)
+        case "homestead": return ("h", V4(0.75, 0.85, 0.4, 1), "Homestead")
+        case "stilt_hamlet": return ("s", V4(0.45, 0.7, 0.55, 1), "Stilt hamlet")
+        case "pueblo": return ("p", V4(0.9, 0.55, 0.35, 1), "Pueblo")
         case "camp_freed": return ("O", V4(0.4, 0.9, 0.45, 1), "Freed camp (fast travel)")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
         }
