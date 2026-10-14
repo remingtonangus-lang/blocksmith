@@ -704,6 +704,7 @@ final class BlockRegistry {
         registerVehicleWorks()
         registerWeaponPrinter()
         registerGunsmithBench()                           // D31
+        registerSecurityCamera()                          // D35
         registerMilitaryBlocks()
         registerSafeBlocks()                          // P248 (BaseSafes.swift)
         registerCapitalBlocks()

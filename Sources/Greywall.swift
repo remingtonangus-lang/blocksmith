@@ -405,6 +405,12 @@ enum Greywall {
         for y in 1...2 { put(-1, y, kz1, con); put(1, y, kz1, con) }
         put(0, 3, kz1 + 1, lamp + 1)
         wallLamp(alarm, -2, 4, kz1 + 1, wall: 0); wallLamp(alarm, 2, 4, kz1 + 1, wall: 0)
+        // D35: security cameras over the entrance and down the corridor (BaseSecurity.swift).
+        if Blocks.has(BaseSecurity.camera) {
+            let cam = Blocks.id(BaseSecurity.camera)
+            wallLamp(cam, -4, 4, kz1 + 1, wall: 0); wallLamp(cam, 4, 4, kz1 + 1, wall: 0)
+            wallLamp(cam, kx - 1, 3, kc, wall: 3)
+        }
         // The corridor: an alarm panel by the entrance, red lamps at both ends, blue lamps along it.
         wallLamp(alarmPanel, -4, 2, kc + 1, wall: 1)
         wallLamp(alarm, -(kx - 1), 4, kc, wall: 2); wallLamp(alarm, kx - 1, 4, kc + 1, wall: 3)

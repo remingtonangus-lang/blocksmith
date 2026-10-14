@@ -692,7 +692,7 @@ enum Loot {
         "camp_traders": [(1...1, [("intercepted_orders", 1, 1, 1)])],
         "steelhold_command": [(1...1, [("ember_charge", 1, 1, 1)])],
         // Greywall Command (Greywall.swift): every command chest holds a radar module (the radar network), every vault gold.
-        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)])],
+        "greywall_command": [(1...1, [("radar_module", 1, 1, 1)]), (1...1, [("greywall_keycard", 1, 1, 1)])],   // (+ D35 keycard)
         "greywall_vault": [(1...1, [("gold_block", 1, 2, 1)])],
         // D33: each army's armour kit, one armoury chest in three (FactionArmour.swift).
         "greywall_armory": [(1...1, [("greywall_armour_kit", 1, 1, 1), ("empty", 1, 1, 2)])],

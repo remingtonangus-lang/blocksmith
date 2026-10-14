@@ -426,7 +426,7 @@ D31. [DONE] Gunsmith bench that assembles guns from parts (receiver, barrel, sto
 D32. [DONE] Upgrades that change behaviour (ricochet rounds, serrated bleed), not just stats.
 D33. [DONE] Wearable faction armour sets (Greywall, Capital, Ashguard).
 D34. [DONE] Base objectives: destroy the comms array, steal the plans, free a prisoner, for bonus loot or intel.
-D35. Keycards, locked doors and security cameras.
+D35. [DONE] Keycards, locked doors and security cameras.
 D36. Bodies found raise the alarm; stealth plays differently from going loud.
 D37. Disguise in a looted uniform to pass through base towns.
 D38. Lost bases counter-attack; alarm state survives a reload.

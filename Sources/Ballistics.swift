@@ -244,7 +244,7 @@ final class Armory {
         let id = w.block(b.x, b.y, b.z)
         // Player rounds shatter glass; everything kicks up a little dust and a spark.
         let key = Blocks.key(Blocks.groupBase[Int(id)])
-        if s.fromPlayer && (key.hasSuffix("glass") || key.hasSuffix("glass_pane")) && !key.hasPrefix("tinted") && !key.hasPrefix("armored") {
+        if s.fromPlayer && ((key.hasSuffix("glass") || key.hasSuffix("glass_pane")) && !key.hasPrefix("tinted") && !key.hasPrefix("armored") || key == BaseSecurity.camera) {   // (+ D35 cameras)
             w.setBlock(b.x, b.y, b.z, AIR)
             g.sfx(.glassBreak, 0.8, at: at)
             g.particles.blockBreak(id, at: b)
