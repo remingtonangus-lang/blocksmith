@@ -290,10 +290,15 @@ extension ShipManager {
         }
         for s in list {
             s.mesh.apply(device: world.device)
+            // P252: flak damage trails smoke and wears off once the craft has been down on the ground a while.
+            if s.flakHits > 0 {
+                if let game { AirDefence.smoke(s, dt, game) }
+                if s.terrainClear < 1.5 { s.flakHits = max(0, min(1.2, s.flakHits) - dt * 0.02) }
+            }
             if !s.wheelParts.isEmpty { s.rollDist += simd_dot(s.vel, s.dirToWorld(s.fwd)) * dt }
             // Propellers spin up with the throttle when engines drive them, and run down slowly.
             if !s.props.isEmpty {
-                let want: Float = s.piloted && s.engines > 0 ? s.throttle * 30 : 0
+                let want: Float = s.piloted && s.engines > 0 && s.flakHits < 1 ? s.throttle * 30 : 0
                 s.propRate += (want - s.propRate) * min(1, dt * (abs(want) > abs(s.propRate) ? 2.5 : 0.8))
                 s.propSpin = fmodf(s.propSpin + s.propRate * dt, 2 * .pi)
             }
@@ -468,7 +473,7 @@ extension ShipManager {
         let props = s.props.count, wheels = s.wheels.count
         // Drive units: each propeller, and wheels by the square root of their cells (big wheels are made of many).
         let drives = props + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
-        let power: Float = s.engines > 0 && drives > 0 ? min(1, Float(s.engines * ShipTuning.perEngine) / Float(drives)) : 0
+        let power: Float = s.engines > 0 && drives > 0 && s.flakHits < 1 ? min(1, Float(s.engines * ShipTuning.perEngine) / Float(drives)) : 0
         let aircraft = s.wings.count >= 4 && s.balloons == 0
         let piloted = s.piloted
 

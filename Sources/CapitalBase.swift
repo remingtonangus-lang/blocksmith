@@ -316,6 +316,12 @@ enum CapitalBase {
             w.fill(X(dx - 2), P2 + 1, Z(dz - 2), X(dx + 2), P2 + 1, Z(dz + 2), grey)
             w.mob(dz > 0 ? "deck_gun:pompom" : "deck_gun:aa", V3(Float(X(dx)) + 0.5, Float(P2 + 2), Float(Z(dz)) + 0.5))
         }
+        // P252: two flak guns on the lawns east and west of the hall's roof, facing out (their gunners stand on the walk
+        // behind them).
+        for sx in [-1, 1] {
+            w.fill(X(sx * 23 - 2), P2 + 1, Z(-2), X(sx * 23 + 2), P2 + 1, Z(2), grey)
+            w.mob("deck_gun:flak^\(sx * 90)", V3(Float(X(sx * 23)) + 0.5, Float(P2 + 2), Float(Z(0)) + 0.5))
+        }
 
         // MARK: Towers
         // One tower: rounded plan of half-size `a` (smaller above `setY`), floors every 6 from `y0t`, white piers and

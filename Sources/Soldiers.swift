@@ -38,6 +38,8 @@ final class SoldierBrain {
     var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
     var ashCalls = 0                // ... and how often he has called his guard
     var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
+    var airWarn: Float = -1         // deck gun: seconds since it warned a flying player it is tracking them (P252), -1 none
+    var rangeShots = 0              // ... ranging rounds fired at them since
     var cover: V3?                  // a spot out of the player's sight to reload in
     var coverSearch: Float = 0
     var flank: V3?                  // where a flanking trooper / relocating marksman is heading
@@ -759,18 +761,22 @@ extension Mob {
         b.reload -= dt
         b.kick = max(0, b.kick - dt * 1.5)
         // P210: a Greywall base's guns placed before the small tower gun are swapped for it.
-        if factionValue == .greywall && variant != HeavyTurret.lightVariant { variant = HeavyTurret.lightVariant }
+        if factionValue == .greywall && variant != HeavyTurret.lightVariant && variant != HeavyTurret.flak { variant = HeavyTurret.lightVariant }
         // P222 (Oct 13 21:29, "the tower base guns are too big for the base"): a Capital citadel's battleship turrets
         // (placed before the small guns) become one of the small guns, by the look they had.
         if factionValue == .steelhold && deck == nil && (1...3).contains(variant) { variant = HeavyTurret.small[(variant - 1) % 3] }
         let light = HeavyTurret.scale(self) != 1
+        let flak = HeavyTurret.isFlak(self)
         let pivot = pos + V3(0, HeavyTurret.trunnionY * HeavyTurret.scale(self), 0)
         let player = g.player.eye - V3(0, 0.6, 0)
         let to = player - pivot
         let dist = simd_length(to)
         // Unprovoked the turrets guard the citadel's grounds; provoked (hit, or the garrison alerted) they reach their full
         // range. They shelled players 220 blocks off in a nearby village without a reason (agent bots died, run 482).
-        let engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
+        // P252: a flying player is fair game further out (flying over a base gets you shot down).
+        let air = AirDefence.airborne(g)
+        var engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
+        if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
         let canTarget = g.survival && g.alive && dist < engage
         b.losTimer -= dt
         if b.losTimer <= 0 {
@@ -794,43 +800,73 @@ extension Mob {
         }
         // Spotting still raises the alarm (above), but only a live gunner lays and fires the gun: an empty turret kept
         // shelling the player after the whole garrison was dead (Quest round 4).
-        guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
-        // Ballistic solution (low arc) for the heavy shells, half-leading the target.
-        let v: Float = HeavyTurret.speed, grav: Float = HeavyTurret.gravity
-        var aimP = tgt
-        let flat0 = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
-        aimP += g.player.vel * (flat0 / v) * 0.5
-        let dx = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z)), dy = aimP.y - pivot.y
-        let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
-        var wantPitch: Float = 0.75
-        if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
-        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchMax, wantPitch))
-        let wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
+        guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; if b.seenAgo > 6 { b.airWarn = -1 }; return }
+        let v: Float = flak ? AirDefence.flakSpeed : HeavyTurret.speed, grav: Float = HeavyTurret.gravity
+        var wantPitch: Float = 0.75, wantYaw: Float
+        var dx: Float
+        // P252: a flying player in sight is led by the true intercept (the target's own velocity, the shell's drop) and
+        // the shell is fuzed to burst beside them; the first rounds after the warning are ranging shots.
+        let airShot = air && b.sees && b.seenAgo < 0.5
+        var fuse: Float = 0
+        if airShot {
+            let sol = AirDefence.intercept(from: pivot, speed: v, gravity: grav, target: tgt, vel: AirDefence.targetVel(g))
+            wantPitch = asinf(max(-1, min(1, sol.dir.y)))
+            wantYaw = atan2f(-sol.dir.x, -sol.dir.z)
+            fuse = sol.t
+            dx = simd_length(tgt - pivot)
+            if b.airWarn < 0 { b.airWarn = 0; b.rangeShots = 0; AirDefence.warn(self, g) }
+            b.airWarn += dt
+        } else {
+            // Ballistic solution (low arc) for the heavy shells, half-leading the target.
+            var aimP = tgt
+            let flat0 = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
+            aimP += g.player.vel * (flat0 / v) * 0.5
+            dx = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
+            let dy = aimP.y - pivot.y
+            let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
+            if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
+            wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
+            if !air { b.airWarn = -1 }
+        }
+        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchTop(self), wantPitch))
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
-        let turn: Float = HeavyTurret.traverse * dt * (light ? 4 : 1)   // a 1,000-tonne gunhouse traverses slowly
+        // A 1,000-tonne gunhouse traverses slowly; a flak gun lays fast enough to follow a helicopter.
+        let turn: Float = (flak ? 1.6 : HeavyTurret.traverse * (light ? 4 : 1)) * dt
+        let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : 0.15)) * dt
         yaw += max(-turn, min(turn, dyaw))
-        b.pitch += max(-0.15 * dt, min(0.15 * dt, wantPitch - b.pitch))
+        b.pitch += max(-elevate, min(elevate, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
-        let aligned = abs(dyaw) < 0.04 && abs(wantPitch - b.pitch) < 0.03 && dx > 24
+        let tol: Float = airShot ? 0.05 : 0.04
+        let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && dx > (airShot ? 12 : 24)
+            && (!airShot || b.airWarn >= AirDefence.warnDelay)
         if aligned && b.reload <= 0 {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
-            if b.charge >= (light ? 0.4 : 1.2) {
+            if b.charge >= (flak ? 0.25 : (light ? 0.4 : 1.2)) {
                 b.charge = 0
-                b.reload = (g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload) * (light ? 0.25 : 1)
+                b.reload = (g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload) * (flak ? 0.14 : (light ? 0.25 : 1))
                 let fwd = V3(-sinf(yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(yaw) * cosf(b.pitch))
-                for sx: Float in [-1, 1] {
+                let ranging = airShot && b.rangeShots < AirDefence.rangingShots
+                for sx: Float in flak ? [0] : [-1, 1] {
                     let muzzle = HeavyTurret.muzzle(self, sx)
-                    var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
-                                 shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
-                    HeavyTurret.arm(&s)
-                    if light { s.power = 1.1 }
-                    g.arms.spawn(s)
+                    if airShot {
+                        var s = AirDefence.shell(self, at: muzzle, dir: fwd, speed: v, fuse: fuse - simd_length(muzzle - pivot) / v, ranging: ranging)
+                        if !light { s.power = HeavyTurret.power }
+                        g.arms.spawn(s)
+                    } else {
+                        var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
+                                     shooter: ObjectIdentifier(self), by: spec.name, life: 3.5, gravity: grav)   // ~900 blocks at 260 m/s, then it's gone
+                        HeavyTurret.arm(&s)
+                        if light { s.power = 1.1 }
+                        if flak { s.tracer = true }
+                        g.arms.spawn(s)
+                    }
                     HeavyTurret.flash(g, muzzle, fwd, smoke: light ? 2 : 6)
                 }
-                g.sfx(.gun(9), 2, at: pivot)
+                if airShot { b.rangeShots += 1 }
+                g.sfx(.gun(9), flak ? 1.4 : 2, at: pivot)
                 b.kick = 1; b.kickSide = 0
             }
         } else if !aligned {
@@ -1002,8 +1038,22 @@ enum HeavyTurret {
     // a ring sight), a quad pom-pom (four water-jacketed barrels, ammunition trays on top) and an enclosed
     // dual-purpose mount (a small rounded gunhouse with a roof rangefinder).
     static let aaTwin = 10, pompom = 11, dpMount = 12
-    static let small = [aaTwin, pompom, dpMount]
-    static let smallTags: [String: Int] = ["aa": aaTwin, "pompom": pompom, "dp": dpMount]
+    // P252: the flak gun (AirDefence.swift), at the small guns' scale.
+    static let flak = 13
+    static let small = [aaTwin, pompom, dpMount, flak]
+    static let smallTags: [String: Int] = ["aa": aaTwin, "pompom": pompom, "dp": dpMount, "flak": flak]
+    static func isFlak(_ m: Mob) -> Bool { m.kind == .deckGun && m.variant == flak }
+    // The highest elevation of each gun (P252): the flak gun nearly vertical, the AA mounts high, the dual-purpose
+    // mount and the light quick-firer high enough for aircraft, the heavy gun +30 degrees.
+    static func pitchTop(_ m: Mob) -> Float {
+        switch m.variant {
+        case flak: return 1.45
+        case aaTwin, pompom: return 1.4
+        case dpMount: return 1.25
+        case lightVariant: return 1.0
+        default: return pitchMax
+        }
+    }
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
         let k = scale(m)
@@ -1032,9 +1082,10 @@ enum HeavyTurret {
 // with a roof rangefinder bar and an anti-air mount, an open casemate with a sloped shield and an exposed breech deck)
 // and Greywall's own (a low faceted slate turret with a sensor mast, hazard bands and muzzle-braked barrels). The
 // barrels, their pivots and muzzles are the same in every look (HeavyTurret.muzzle).
-enum DeckGunLook: Int { case turret = 0, monitor, casemate, greywall, aaTwin, pompom, dpMount }
+enum DeckGunLook: Int { case turret = 0, monitor, casemate, greywall, aaTwin, pompom, dpMount, flak }
 
 func deckGunLook(_ m: Mob) -> DeckGunLook {
+    if m.variant == HeavyTurret.flak { return .flak }
     if m.factionValue == .greywall { return .greywall }
     switch m.variant {
     case HeavyTurret.aaTwin: return .aaTwin
@@ -1049,7 +1100,7 @@ func deckGunLook(_ m: Mob) -> DeckGunLook {
 func deckGunParts(_ m: Mob) -> [Part] {
     let look = deckGunLook(m)
     var grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
-    if look == .greywall { grey = V3(0.33, 0.37, 0.41); mid = V3(0.25, 0.28, 0.31); dark = V3(0.12, 0.13, 0.15); deck = V3(0.22, 0.24, 0.26) }
+    if look == .greywall || look == .flak && m.factionValue == .greywall { grey = V3(0.33, 0.37, 0.41); mid = V3(0.25, 0.28, 0.31); dark = V3(0.12, 0.13, 0.15); deck = V3(0.22, 0.24, 0.26) }
     if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
     // P102: a hurt gun's plate blackens (smoking, then burning: NavalGuns.state) and its right barrel droops.
     let hurt = NavalGuns.state(m)
@@ -1061,8 +1112,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     let kick0 = (m.brain?.kick ?? 0) * 19               // 1.2 m recoil after a salvo
     let kickSide = m.brain?.kickSide ?? 0
     let tz: Float = HeavyTurret.trunnionZ * 16, ty: Float = HeavyTurret.trunnionY * 16
-    if look == .aaTwin || look == .pompom || look == .dpMount {
-        var q = smallGunParts(look, grey: grey, mid: mid, dark: dark, deck: deck, pitch: pitch0, hurt: hurt, kick: kick0, tz: tz, ty: ty)
+    if look == .aaTwin || look == .pompom || look == .dpMount || look == .flak {
+        var q = smallGunParts(look, grey: grey, mid: mid, dark: dark, deck: deck, pitch: pitch0, hurt: hurt, kick: kick0, tz: tz, ty: ty, base: -m.yaw)
         let k = HeavyTurret.scale(m)
         for i in q.indices { q[i].mn *= k; q[i].mx *= k; q[i].pivot *= k }
         return q
@@ -1116,7 +1167,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
             box(-90, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)), box(50, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)),
             box(-10, 18, 60, 20, 14, 20, dark),
         ]
-    case .greywall, .aaTwin, .pompom, .dpMount:          // (the small guns return earlier: smallGunParts)
+    case .greywall, .aaTwin, .pompom, .dpMount, .flak:        // (the small guns return earlier: smallGunParts)
         p += [
             // A low faceted gunhouse: four plates sloping back to a flat roof, panel seams, a slab rear.
             box(-110, 8, -90, 220, 52, 226, grey),
@@ -1175,7 +1226,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
 // P222: the Capital's small guns, drawn in the big gun's units (1/16 block before HeavyTurret.scale) round the same
 // trunnions and muzzles (x = +-36 at ty, tz; muzzles 340 ahead), so aiming, flashes and shells line up.
 func smallGunParts(_ look: DeckGunLook, grey: V3, mid: V3, dark: V3, deck: V3, pitch: Float, hurt: Int, kick: Float,
-                   tz: Float, ty: Float) -> [Part] {
+                   tz: Float, ty: Float, base: Float = 0) -> [Part] {
     var p: [Part] = []
     let white = V3(0.86, 0.87, 0.86), brass = V3(0.62, 0.5, 0.24), black = V3(0.03, 0.03, 0.04)
     func gun(_ mn: V3, _ mx: V3, _ c: V3, _ x: Float) -> Part {
@@ -1202,6 +1253,35 @@ func smallGunParts(_ look: DeckGunLook, grey: V3, mid: V3, dark: V3, deck: V3, p
         }
         p.append(gun(V3(-6, ty + 20, tz - 60), V3(6, ty + 50, tz - 56), dark, 0))                                // ring sight post
         p.append(gun(V3(-26, ty + 50, tz - 60), V3(26, ty + 54, tz - 56), dark, 0))
+    case .flak:
+        // P252: a heavy flak gun: a cross-shaped platform on four outriggers with levelling jacks and a pedestal (all
+        // fixed to the ground: `base` turns them back against the gun's yaw), and on it the turning carriage: a
+        // turntable, two trunnion cheeks, one long barrel with a slotted muzzle brake and a recuperator over it, a
+        // narrow shield, a fuze-setter box on the left and a rack of ready rounds behind.
+        let hz = V3(0.8, 0.62, 0.14)
+        func fixed(_ q: Part) -> Part { var q = q; q.rotY = base; return q }
+        p += [box(-170, -4, -14, 340, 10, 28, dark), box(-14, -4, -170, 28, 10, 340, dark),
+              box(-120, 6, -10, 14, 2, 20, hz), box(106, 6, -10, 14, 2, 20, hz),
+              box(-10, 6, -120, 20, 2, 14, hz), box(-10, 6, 106, 20, 2, 14, hz),
+              box(-46, 6, -46, 92, 20, 92, grey)].map(fixed)
+        for (x, z) in [(-176, -12), (152, -12), (-12, -176), (-12, 152)] as [(Float, Float)] {
+            p.append(fixed(box(x, -6, z, 24, 6, 24, mid))); p.append(fixed(box(x + 8, 0, z + 8, 8, 16, 8, grey)))
+        }
+        p += [box(-66, 26, -140, 132, 6, 190, mid),
+              box(-40, 32, -128, 14, 40, 64, grey), box(26, 32, -128, 14, 40, 64, grey),
+              box(-74, 32, -110, 20, 24, 22, dark), box(-78, 56, -106, 28, 4, 14, white),
+              box(-30, 32, 20, 60, 30, 10, dark)]
+        for k in 0..<4 { p.append(box(-26 + Float(k) * 14, 62, 22, 10, 22, 6, brass)) }
+        let k = kick * 0.6
+        p.append(gun(V3(-16, ty - 14, tz - 60 + k), V3(16, ty + 14, tz + 14 + k), grey, 0))                // breech / cradle
+        p.append(gun(V3(-8, ty + 14, tz - 150 + k), V3(8, ty + 26, tz + 4 + k), mid, 0))                  // recuperator
+        p.append(gun(V3(-9, ty - 9, tz - 170 + k), V3(9, ty + 9, tz - 60 + k), mid, 0))                   // barrel jacket
+        p.append(gun(V3(-6, ty - 6, tz - 318 + k), V3(6, ty + 6, tz - 170 + k), mid * 0.9, 0))            // barrel
+        p.append(gun(V3(-11, ty - 11, tz - 342 + k), V3(11, ty + 11, tz - 318 + k), dark, 0))             // muzzle brake
+        p.append(gun(V3(-12, ty - 3, tz - 336 + k), V3(12, ty + 3, tz - 326 + k), black, 0))              // (its slots)
+        p.append(gun(V3(-4, ty - 4, tz - 342.5 + k), V3(4, ty + 4, tz - 341.5 + k), black, 0))
+        p.append(gun(V3(-56, ty - 4, tz - 70), V3(56, ty + 40, tz - 62), grey * 0.95, 0))                 // shield
+        p.append(gun(V3(-56, ty + 40, tz - 70), V3(56, ty + 43, tz - 62), hz, 0))
     case .pompom:
         // A boxy mount on a low drum: four water-jacketed barrels in a square, big ammunition trays over them, a
         // layer's shield in front, a white band.

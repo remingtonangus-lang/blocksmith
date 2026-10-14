@@ -128,8 +128,10 @@ final class FlightModel {
 
     private func heliForces(_ s: Ship, _ h: Float, _ F: inout V3, _ T: inout V3, power: Float, ground: Float, g: Float) {
         // The rotor spins up over a few seconds while an engine drives it.
+        // Shot down (P252, Ship.flakHits past 1): the engine is gone and the rotor runs down within a second.
         let want: Float = power > 0 && (s.piloted || hold != nil) ? 1 : 0
-        rpm += (want - rpm) * min(1, h * (want > rpm ? 0.45 : 0.15))
+        let down: Float = s.flakHits >= 1 ? 0.8 : 0.15
+        rpm += (want - rpm) * min(1, h * (want > rpm ? 0.45 : down))
         spin = fmodf(spin + rpm * 28 * h, 2 * .pi)
         guard let hubL = s.rotors.first else { return }
         // The mast stands over the centre of mass (as a helicopter is built): thrust there doesn't pitch the hull.

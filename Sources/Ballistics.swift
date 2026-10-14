@@ -30,6 +30,9 @@ struct Slug {
     var pulse = false             // a Pulse Charge: bursts shields instead of exploding (Navy.swift)
     var side: Faction?            // the shooter's side, taken on its first tick (its blast spares that side after the shooter dies)
     var homing: Float = 0         // a small missile's turn toward the player, radians a second (SmallMissiles.swift)
+    var fuse: Float = 0           // P252: an anti-aircraft shell's time fuze (seconds to its air burst; 0 none)
+    var prox: Float = 0           // ... and its proximity fuze (bursts passing this near the player)
+    var tracer = false            // ... drawn as a red tracer (AirDefence.swift)
 }
 
 struct Beam {
@@ -143,6 +146,11 @@ final class Armory {
                 if s.kind == .grenade || s.kind == .rocket { detonate(s, at: s.pos, g) }
                 s.dead = true; slugs[i] = s; continue
             }
+            // P252: a fuzed shell bursts in the air when its time is up.
+            if s.fuse > 0 {
+                s.fuse -= dt
+                if s.fuse <= 0 { s.dead = true; slugs[i] = s; detonate(s, at: s.pos, g); continue }
+            }
             s.vel.y -= s.gravity * dt
             if s.homing > 0 { SmallMissiles.steer(&s, dt, g) }
             if s.kind == .grenade { s.vel *= expf(-0.4 * dt) }
@@ -150,6 +158,7 @@ final class Armory {
             let len = simd_length(step)
             if len < 1e-5 { slugs[i] = s; continue }
             let dir = step / len
+            if let near = AirDefence.proximity(s, dir, len, g) { s.dead = true; slugs[i] = s; detonate(s, at: near, g); continue }
             var hitT = Float.greatestFiniteMagnitude
             var mob: Mob?
             var player = false
@@ -344,6 +353,7 @@ final class Armory {
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks,
                           resistCap: s.breach)
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
+        if s.tracer { AirDefence.burst(at: at, g) }                                         // P252: flak by a craft
         g.bases.quiet = false
     }
 
@@ -443,7 +453,11 @@ final class Armory {
                 let big = s.kind == .shell
                 wr.sprite(center: c, half: big ? 0.22 : 0.12, right: side, up: up, layer: smoke, light: 1,
                           tint: big ? V3(0.25, 0.22, 0.2) : V3(0.22, 0.3, 0.16))
-                if big { streak(s.pos - d * 2, s.pos, 0.07, V4(2.0, 1.2, 0.5, 0.8)) }
+                if s.tracer {
+                    // P252: a red tracer, long enough to read the gun's lay from the cockpit.
+                    let tail = min(s.traveled, 7)
+                    streak(s.pos - d * tail, s.pos, 0.11, V4(3.2, 0.5, 0.25, 0.95))
+                } else if big { streak(s.pos - d * 2, s.pos, 0.07, V4(2.0, 1.2, 0.5, 0.8)) }
             }
         }
         for b in beams {
