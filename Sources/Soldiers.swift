@@ -760,6 +760,9 @@ extension Mob {
         b.kick = max(0, b.kick - dt * 1.5)
         // P210: a Greywall base's guns placed before the small tower gun are swapped for it.
         if factionValue == .greywall && variant != HeavyTurret.lightVariant { variant = HeavyTurret.lightVariant }
+        // P222 (Oct 13 21:29, "the tower base guns are too big for the base"): a Capital citadel's battleship turrets
+        // (placed before the small guns) become one of the small guns, by the look they had.
+        if factionValue == .steelhold && deck == nil && (1...3).contains(variant) { variant = HeavyTurret.small[(variant - 1) % 3] }
         let light = HeavyTurret.scale(self) != 1
         let pivot = pos + V3(0, HeavyTurret.trunnionY * HeavyTurret.scale(self), 0)
         let player = g.player.eye - V3(0, 0.6, 0)
@@ -979,9 +982,19 @@ enum HeavyTurret {
     // guns are smaller still (0.26: a 3.3-block gunhouse with 5.5-block barrels), sized for a 7-block tower roof and
     // the wall walk; every Greywall tower carries one of those instead of the 13-block battleship turret.
     static func scale(_ m: Mob) -> Float {
-        guard m.kind == .deckGun && m.variant == lightVariant else { return 1 }
+        guard m.kind == .deckGun else { return 1 }
+        if small.contains(m.variant) { return 0.24 }
+        guard m.variant == lightVariant else { return 1 }
         return m.factionValue == .greywall ? 0.26 : 0.4
     }
+    // P222 (Oct 13 21:29-21:30, "a large variety of smaller naval/AA guns... don't make them all just smaller versions
+    // of the big gun"): the Capital's own small guns, each its own design (deckGunParts), at about a quarter of the big
+    // gun's size and the light gun's quick fire: a twin 40 mm-style AA mount (open, long thin barrels, side seats and
+    // a ring sight), a quad pom-pom (four water-jacketed barrels, ammunition trays on top) and an enclosed
+    // dual-purpose mount (a small rounded gunhouse with a roof rangefinder).
+    static let aaTwin = 10, pompom = 11, dpMount = 12
+    static let small = [aaTwin, pompom, dpMount]
+    static let smallTags: [String: Int] = ["aa": aaTwin, "pompom": pompom, "dp": dpMount]
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
         let k = scale(m)
@@ -1010,10 +1023,16 @@ enum HeavyTurret {
 // with a roof rangefinder bar and an anti-air mount, an open casemate with a sloped shield and an exposed breech deck)
 // and Greywall's own (a low faceted slate turret with a sensor mast, hazard bands and muzzle-braked barrels). The
 // barrels, their pivots and muzzles are the same in every look (HeavyTurret.muzzle).
-enum DeckGunLook: Int { case turret = 0, monitor, casemate, greywall }
+enum DeckGunLook: Int { case turret = 0, monitor, casemate, greywall, aaTwin, pompom, dpMount }
 
 func deckGunLook(_ m: Mob) -> DeckGunLook {
     if m.factionValue == .greywall { return .greywall }
+    switch m.variant {
+    case HeavyTurret.aaTwin: return .aaTwin
+    case HeavyTurret.pompom: return .pompom
+    case HeavyTurret.dpMount: return .dpMount
+    default: break
+    }
     if m.variant == 0 { m.variant = 1 + Int(hashf(Int(floor(m.pos.x)), Int(floor(m.pos.z)), 7070, 0xDEC) * 2.999) }
     return DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret
 }
@@ -1033,6 +1052,12 @@ func deckGunParts(_ m: Mob) -> [Part] {
     let kick0 = (m.brain?.kick ?? 0) * 19               // 1.2 m recoil after a salvo
     let kickSide = m.brain?.kickSide ?? 0
     let tz: Float = HeavyTurret.trunnionZ * 16, ty: Float = HeavyTurret.trunnionY * 16
+    if look == .aaTwin || look == .pompom || look == .dpMount {
+        var q = smallGunParts(look, grey: grey, mid: mid, dark: dark, deck: deck, pitch: pitch0, hurt: hurt, kick: kick0, tz: tz, ty: ty)
+        let k = HeavyTurret.scale(m)
+        for i in q.indices { q[i].mn *= k; q[i].mx *= k; q[i].pivot *= k }
+        return q
+    }
     var p: [Part] = [
         // Barbette ring skirt and the turret's rotating base.
         box(-100, -6, -100, 200, 8, 200, deck),
@@ -1082,7 +1107,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
             box(-90, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)), box(50, 18, 80, 40, 24, 30, V3(0.3, 0.27, 0.2)),
             box(-10, 18, 60, 20, 14, 20, dark),
         ]
-    case .greywall:
+    case .greywall, .aaTwin, .pompom, .dpMount:          // (the small guns return earlier: smallGunParts)
         p += [
             // A low faceted gunhouse: four plates sloping back to a flat roof, panel seams, a slab rear.
             box(-110, 8, -90, 220, 52, 226, grey),
@@ -1127,6 +1152,68 @@ func deckGunParts(_ m: Mob) -> [Part] {
     // A light coastal gun (T6) is the same gun built at 0.4 scale.
     let k = HeavyTurret.scale(m)
     if k != 1 { for i in p.indices { p[i].mn *= k; p[i].mx *= k; p[i].pivot *= k } }
+    return p
+}
+
+// P222: the Capital's small guns, drawn in the big gun's units (1/16 block before HeavyTurret.scale) round the same
+// trunnions and muzzles (x = +-36 at ty, tz; muzzles 340 ahead), so aiming, flashes and shells line up.
+func smallGunParts(_ look: DeckGunLook, grey: V3, mid: V3, dark: V3, deck: V3, pitch: Float, hurt: Int, kick: Float,
+                   tz: Float, ty: Float) -> [Part] {
+    var p: [Part] = []
+    let white = V3(0.86, 0.87, 0.86), brass = V3(0.62, 0.5, 0.24), black = V3(0.03, 0.03, 0.04)
+    func gun(_ mn: V3, _ mx: V3, _ c: V3, _ x: Float) -> Part {
+        let pv = V3(x, ty, tz)
+        let pt = hurt == 2 && x > 0 ? min(pitch, -0.14) : pitch
+        return Part(mn: mn, mx: mx, pivot: pv, rotX: pt, color: c)
+    }
+    switch look {
+    case .aaTwin:
+        // An open mount: a round deck plate, a pedestal, the cradle between the barrels, two layers' seats with their
+        // hand wheels, and thin shields either side.
+        p += [box(-90, -4, -90, 180, 8, 180, deck), box(-34, 4, -30, 68, 30, 64, dark), box(-60, 34, -50, 120, 10, 110, grey),
+              box(-118, 34, -40, 16, 60, 100, white), box(102, 34, -40, 16, 60, 100, white),
+              box(-100, 44, 20, 26, 18, 26, dark), box(74, 44, 20, 26, 18, 26, dark),
+              box(-104, 62, 22, 34, 4, 4, mid), box(70, 62, 22, 34, 4, 4, mid)]
+        for x: Float in [-36, 36] {
+            let k = kick * 0.4
+            p.append(gun(V3(x - 14, ty - 16, tz - 20 + k), V3(x + 14, ty + 14, tz + 50 + k), grey, x))            // breech
+            p.append(gun(V3(x - 10, ty + 14, tz - 10 + k), V3(x + 10, ty + 40, tz + 20 + k), brass, x))           // clip in the loader
+            p.append(gun(V3(x - 7, ty - 7, tz - 120 + k), V3(x + 7, ty + 7, tz - 20 + k), mid, x))                // barrel jacket
+            p.append(gun(V3(x - 4.5, ty - 4.5, tz - 310 + k), V3(x + 4.5, ty + 4.5, tz - 120 + k), mid * 0.9, x)) // thin barrel
+            p.append(gun(V3(x - 9, ty - 9, tz - 340 + k), V3(x + 9, ty + 9, tz - 310 + k), dark, x))              // flash hider
+            p.append(gun(V3(x - 3, ty - 3, tz - 340.5 + k), V3(x + 3, ty + 3, tz - 339.5 + k), black, x))
+        }
+        p.append(gun(V3(-6, ty + 20, tz - 60), V3(6, ty + 50, tz - 56), dark, 0))                                // ring sight post
+        p.append(gun(V3(-26, ty + 50, tz - 60), V3(26, ty + 54, tz - 56), dark, 0))
+    case .pompom:
+        // A boxy mount on a low drum: four water-jacketed barrels in a square, big ammunition trays over them, a
+        // layer's shield in front, a white band.
+        p += [box(-100, -4, -100, 200, 12, 200, deck), box(-70, 8, -60, 140, 40, 130, grey), box(-72, 30, -62, 144, 6, 134, white),
+              box(-110, 8, -80, 220, 70, 10, grey * 0.95)]
+        for x: Float in [-36, 36] { for dy: Float in [-12, 14] {
+            let k = kick * 0.3
+            p.append(gun(V3(x - 12, ty + dy - 10, tz - 40 + k), V3(x + 12, ty + dy + 10, tz + 60 + k), dark, x))       // breech block
+            p.append(gun(V3(x - 8, ty + dy - 8, tz - 230 + k), V3(x + 8, ty + dy + 8, tz - 40 + k), mid, x))           // water jacket
+            p.append(gun(V3(x - 4, ty + dy - 4, tz - 300 + k), V3(x + 4, ty + dy + 4, tz - 230 + k), mid * 0.85, x))
+            p.append(gun(V3(x - 7, ty + dy - 7, tz - 340 + k), V3(x + 7, ty + dy + 7, tz - 300 + k), dark, x))         // muzzle cone
+        } }
+        p.append(gun(V3(-60, ty + 26, tz - 30), V3(60, ty + 46, tz + 50), brass * 0.9, 0))                           // ammunition trays
+        p.append(gun(V3(-3, ty - 3, tz - 340.5), V3(3, ty + 3, tz - 339.5), black, -36))
+    default:
+        // An enclosed dual-purpose mount: a small rounded gunhouse with a sloped face, a roof rangefinder, two barrels
+        // in sleeves, a white band round its waist.
+        p += [box(-90, -4, -90, 180, 8, 180, deck), box(-80, 4, -70, 160, 60, 160, grey), box(-74, 64, -60, 148, 8, 140, mid),
+              box(-70, 4, -96, 140, 40, 26, grey * 0.97), box(-62, 44, -84, 124, 18, 16, grey * 0.95),
+              box(-82, 28, -72, 164, 6, 164, white), box(-50, 72, 20, 100, 10, 14, dark), box(-58, 70, 18, 10, 14, 18, mid),
+              box(48, 70, 18, 10, 14, 18, mid), box(-12, 72, 50, 24, 14, 24, mid)]
+        for x: Float in [-36, 36] {
+            let k = kick * 0.5
+            p.append(gun(V3(x - 14, ty - 14, tz - 110 + k), V3(x + 14, ty + 14, tz - 30 + k), dark, x))           // sleeve
+            p.append(gun(V3(x - 7, ty - 7, tz - 320 + k), V3(x + 7, ty + 7, tz - 110 + k), mid, x))
+            p.append(gun(V3(x - 9, ty - 9, tz - 340 + k), V3(x + 9, ty + 9, tz - 320 + k), dark, x))
+            p.append(gun(V3(x - 3.5, ty - 3.5, tz - 340.5 + k), V3(x + 3.5, ty + 3.5, tz - 339.5 + k), black, x))
+        }
+    }
     return p
 }
 

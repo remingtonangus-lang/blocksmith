@@ -61,6 +61,8 @@ struct BaseRecord: Codable {
     var airT: Float? = nil
     var airShip: Int? = nil
     var airCD: Float? = nil
+    var parked: Int? = nil                  // the Kestrel standing on the pad, uncrewed (P222; CapitalAir.swift)
+    var kestrelTaken: Bool? = nil           // the player flew it off: the citadel has no aircraft left
     var strikes: Int? = nil                 // Tidebreaker hits on the citadel (MainGunStrikes.swift)
     var lost: Int? = nil                    // garrison killed by them
     var broken: Bool? = nil                 // broken by the Tidebreaker: no reinforcements, its walls stay down
@@ -247,6 +249,7 @@ extension Game {
             TickProf.mark("bases: patrol")
             baseCrawler(&r, b, step)
             TickProf.mark("bases: crawler")
+            baseParked(&r, b)
             baseAir(&r, b, step)
             TickProf.mark("bases: air")
             baseRebuild(&r, b, step, away: Float(away))

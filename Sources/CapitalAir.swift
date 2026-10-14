@@ -55,6 +55,35 @@ extension Game {
         return nil
     }
 
+    // P222 (Oct 13 21:30, "put a helicopter on a tower landing pad that he can steal"): while no sortie is up, the
+    // citadel's Kestrel stands on the pad with nobody in it (built when the player comes within 160 blocks). Climb in
+    // and fly it off and it is the player's: the citadel goes to alert and never flies again. A launch takes the parked
+    // one away (the crewed one is built in its place) and a stowed sortie leaves it parked again.
+    func baseParked(_ r: inout BaseRecord, _ b: BaseWatch) {
+        guard r.kestrelTaken != true else { return }
+        let ships = world.ships
+        let pad = r.pad
+        let k = r.parked.flatMap { id in ships.list.first { $0.id == id && $0.role == "kestrel" } }
+        if let k = k {
+            if ships.pilot === k || simd_length(V2(k.pos.x - pad.x, k.pos.z - pad.z)) > 12 {
+                r.kestrelTaken = true
+                r.parked = nil
+                r.air = nil; r.airShip = nil
+                raiseAlert(&r, b)
+                b.note("\(r.key) parked kestrel taken by the player")
+                return
+            }
+            if r.air != nil { ships.remove(k); r.parked = nil }          // the crewed one goes up in its place
+            return
+        }
+        r.parked = nil
+        guard r.air == nil, simd_length(player.pos - pad) < 160, padProblem(r) == nil else { return }
+        let s = Aircraft.spawn("kestrel", at: pad + V3(0, 3, 0), yaw: Float.pi, game: self, crewed: false)
+        s.home = pad
+        r.parked = s.id
+        b.note("\(r.key) kestrel parked on the pad")
+    }
+
     func baseAir(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
         if let cd = r.airCD, cd > 0 { r.airCD = cd - dt }
         guard let ga = r.air, ga.count == 3 else { return }

@@ -224,7 +224,9 @@ enum CapitalBase {
             }
             // Steps up to the barbette top on its inner side.
             for i in 0..<4 { put(bx - sx * (8 + 3 - i), P1 + 1 + i, bz, grey); put(bx - sx * (8 + 3 - i), P1 + 1 + i, bz + 1, grey) }
-            w.mob("deck_gun", V3(Float(X(bx)) + 0.5, Float(P1 + 5), Float(Z(bz)) + 0.5))
+            // P222: a small gun on each barbette (the twin AA mount west, the dual-purpose mount east), not a 13-block
+            // battleship turret.
+            w.mob(sx < 0 ? "deck_gun:aa" : "deck_gun:dp", V3(Float(X(bx)) + 0.5, Float(P1 + 5), Float(Z(bz)) + 0.5))
         }
 
         // MARK: Hall
@@ -302,6 +304,12 @@ enum CapitalBase {
             let a = Float(k) / 8 * 2 * .pi + 0.39
             tree(Int((17 * cosf(a)).rounded()), P2 + 1, Int((17 * sinf(a)).rounded()), 4)
         }
+        // P222: four small guns at the roof garden's corners (pom-poms to the south, twin AA mounts to the north), each
+        // on a grey gun pit.
+        for (dx, dz) in [(-20, 20), (20, 20), (-20, -20), (20, -20)] {
+            w.fill(X(dx - 2), P2 + 1, Z(dz - 2), X(dx + 2), P2 + 1, Z(dz + 2), grey)
+            w.mob(dz > 0 ? "deck_gun:pompom" : "deck_gun:aa", V3(Float(X(dx)) + 0.5, Float(P2 + 2), Float(Z(dz)) + 0.5))
+        }
 
         // MARK: Towers
         // One tower: rounded plan of half-size `a` (smaller above `setY`), floors every 6 from `y0t`, white piers and
@@ -346,7 +354,10 @@ enum CapitalBase {
                 let rim = !CapitalBase.rounded(lx, dz, 5.5)
                 if rim { put(dx, P1 + 38, dz, grey) } else if lx * lx + dz * dz >= 9 { put(dx, P1 + 38, dz, grass) }
             }
-            tree(sx * 36 + 2, P1 + 39, 2, 3)
+            tree(sx * 36 + 3, P1 + 39, -3, 3)
+            // P222: a dual-purpose mount on each side tower's roof garden.
+            w.fill(X(sx * 36 - 2), P1 + 38, Z(1), X(sx * 36 + 2), P1 + 38, Z(4), grey)
+            w.mob("deck_gun:dp", V3(Float(X(sx * 36)) + 0.5, Float(P1 + 39), Float(Z(3)) + 0.5))
             // The ladder carries on through the roof onto the garden.
             put(sx * 36, P1 + 37, -4, ladder + 1); put(sx * 36, P1 + 38, -4, ladder + 1); put(sx * 36, P1 + 38, -5, white)
             put(sx * 36, P1 + 39, -4, AIR)
