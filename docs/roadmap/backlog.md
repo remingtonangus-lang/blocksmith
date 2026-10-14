@@ -388,7 +388,7 @@ H9. [DONE] Boats: see yourself in the boat, the boat model matches its icon, sto
 H10. [DONE] Horse bonding raises stamina and health, with RDR2-style cores in the UI.
 H11. [DONE] Vehicle damage physics.
 H12. [DONE] Hands can grab and move anything physical, not only small animals and carcasses.
-H13. Base guns built of blocks, with a gunner already seated under the gun (kill him to take the seat), destroyed block by block; leaving the seat never drops you outside the base.
+H13. [DONE] Base guns built of blocks, with a gunner already seated under the gun (kill him to take the seat), destroyed block by block; leaving the seat never drops you outside the base.
 H14. Townsfolk have homes and beds.
 H15. [DONE] Snowballs clogging the inventory.
 

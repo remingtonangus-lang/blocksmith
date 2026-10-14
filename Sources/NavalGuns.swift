@@ -56,8 +56,30 @@ enum NavalGuns {
         return f < 1.0 / 3 ? 2 : (f < 2.0 / 3 ? 1 : 0)
     }
 
+    // H13: gunhouse plates knocked off so far (one a tenth of its health lost).
+    static func platesLost(_ m: Mob) -> Int {
+        guard m.health > 0 else { return 0 }
+        return max(0, min(10, Int((1 - Float(m.health) / Float(max(1, m.spec.health))) * 10)))
+    }
+
     // Smoke and fire from a hurt gunhouse (once a frame from its update, manned or not).
     static func hurtEffects(_ m: Mob, _ dt: Float, _ g: Game) {
+        // H13: each plate knocked off goes as debris, now and then a piece of plating worth picking up.
+        let lost = platesLost(m)
+        if lost > m.platesShed {
+            let side = V3(cosf(m.yaw), 0, -sinf(m.yaw)), fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
+            let k = HeavyTurret.scale(m)
+            for _ in m.platesShed..<lost {
+                let at = m.pos + V3(0, 3 * k, 0) + side * Rand.float(in: -5...5) * k + fwd * Rand.float(in: -4...5) * k
+                let plate = Blocks.has("steel_plating") ? Blocks.id("steel_plating") : STONE
+                g.particles.blockBreak(plate, at: IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z))))
+                g.sfx(.breakBlock(.stone), 0.9, at: at)
+                if Rand.float(in: 0..<1) < 0.4 && Items.has("steel_plating") {
+                    g.drops.spawn(ItemStack(Items.id("steel_plating"), 1), at: at, vel: side * Rand.float(in: -3...3) + V3(0, 4, 0), delay: 1)
+                }
+            }
+        }
+        m.platesShed = lost
         let st = state(m)
         guard st > 0, Rand.float(in: 0..<1) < dt * (st == 2 ? 14 : 5) else { return }
         let side = V3(cosf(m.yaw), 0, -sinf(m.yaw)), fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
