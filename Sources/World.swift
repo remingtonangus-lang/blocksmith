@@ -389,7 +389,14 @@ final class World {
 
     // World-space collision boxes of the block at a cell.
     @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
-        let b = Int(block(x, y, z))
+        var b = Int(block(x, y, z))
+        // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
+        // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
+        if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
+            let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+            if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
+            b = Int(c.blocks.raw(i))
+        }
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
@@ -425,11 +432,20 @@ final class World {
     // (questcheck's allocation trace; sweep keeps its own, sweepScratch).
     private var boxScratch: [(V3, V3)] = []
 
+    // PG2 rewrite: collides and sweep take the field's boxes apart (fieldSink) and meet them as a body stands on ground:
+    // on its centre, not its corners. Falling, only the field under the middle of the body holds it up (a box on a slope
+    // otherwise hangs on its uphill corner, hovering up to half a block over the ground under its feet); the feet may
+    // sink into a slope's uphill side up to half a block (collides ignores the field's ground in the body's lowest part).
+    var fieldSplit = false
+    var fieldSink: [(V3, V3)] = []
+
     func collides(_ mn: V3, _ mx: V3) -> Bool {
         let eps: Float = 1e-4
         var boxes = boxScratch
         boxScratch = []
-        defer { boxes.removeAll(keepingCapacity: true); boxScratch = boxes }
+        defer { boxes.removeAll(keepingCapacity: true); boxScratch = boxes; fieldSplit = false }
+        fieldSplit = fieldTerrain
+        fieldSink.removeAll(keepingCapacity: true)
         for y in Int(floor(mn.y))...Int(floor(mx.y - eps)) {
             for z in Int(floor(mn.z))...Int(floor(mx.z - eps)) {
                 for x in Int(floor(mn.x))...Int(floor(mx.x - eps)) {
@@ -439,6 +455,12 @@ final class World {
                         return true
                     }
                 }
+            }
+        }
+        if !fieldSink.isEmpty {
+            let lo = mn.y + min(0.5, (mx.y - mn.y) * 0.4)
+            for (a, b) in fieldSink where a.x < mx.x - eps && b.x > mn.x + eps && a.y < mx.y - eps && b.y > lo + eps && a.z < mx.z - eps && b.z > mn.z + eps {
+                return true
             }
         }
         if frame == nil && !ships.isEmpty && ships.overlaps(mn, mx) { return true }
@@ -458,6 +480,9 @@ final class World {
     // Main thread only, like sweep's scratch.
     var groundTopKey = [Int](repeating: Int.min, count: 4096)
     var groundTopVal = [Float](repeating: 0, count: 4096)
+    // PG2 rewrite: the field's collision columns per cell (World.fieldBoxes), direct-mapped like groundTop: 16 (lo, hi).
+    var fieldColKey = [Int](repeating: Int.min, count: 2048)
+    var fieldColVal = [Float](repeating: 0, count: 2048 * 32)
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx
@@ -469,7 +494,9 @@ final class World {
         var boxes = sweepScratch
         sweepScratch = []
         boxes.removeAll(keepingCapacity: true)
-        defer { sweepScratch = boxes }
+        defer { sweepScratch = boxes; fieldSplit = false }
+        fieldSplit = fieldTerrain
+        fieldSink.removeAll(keepingCapacity: true)
         let y0 = Int(floor(lo.y - 0.5)), y1 = Int(floor(hi.y))     // -0.5: fences etc. poke up to 1.5
         let plain = frame == nil
         for z in Int(floor(lo.z))...Int(floor(hi.z - eps)) {
@@ -481,8 +508,13 @@ final class World {
                         continue
                     }
                     let lx = mod(x, CS), lz = mod(z, CS)
+                    let fieldC = fieldTerrain && c.blocks.isField
                     for y in y0...y1 {
-                        if y >= 0 && y < CH && !Blocks.collide[Int(c.blocks[Chunk.index(lx, y, lz)])] { continue }
+                        if y >= 0 && y < CH {
+                            let i = Chunk.index(lx, y, lz)
+                            if fieldC { if !Blocks.collide[Int(c.blocks.raw(i))] && !fieldNear(c, x, y, z, i) { continue } }
+                            else if !Blocks.collide[Int(c.blocks[i])] { continue }
+                        }
                         collisionBoxes(x, y, z, &boxes)
                     }
                 } else {
@@ -498,6 +530,20 @@ final class World {
             if bmn[b2] >= mx[b2] - eps || bmx[b2] <= mn[b2] + eps { continue }
             if dd > 0 && bmn[a] >= mx[a] - eps { dd = min(dd, bmn[a] - mx[a]) }
             if dd < 0 && bmx[a] <= mn[a] + eps { dd = max(dd, bmx[a] - mn[a]) }
+        }
+        if !fieldSink.isEmpty {
+            var fmn = mn, fmx = mx
+            if a == 1 && d < 0 {
+                let cx = (mn.x + mx.x) * 0.5, cz = (mn.z + mx.z) * 0.5
+                let fr = min(0.05, (mx.x - mn.x) * 0.5, (mx.z - mn.z) * 0.5)
+                fmn.x = cx - fr; fmx.x = cx + fr; fmn.z = cz - fr; fmx.z = cz + fr
+            }
+            for (bmn, bmx) in fieldSink {
+                if bmn[b1] >= fmx[b1] - eps || bmx[b1] <= fmn[b1] + eps { continue }
+                if bmn[b2] >= fmx[b2] - eps || bmx[b2] <= fmn[b2] + eps { continue }
+                if dd > 0 && bmn[a] >= fmx[a] - eps { dd = min(dd, bmn[a] - fmx[a]) }
+                if dd < 0 && bmx[a] <= fmn[a] + eps { dd = max(dd, bmx[a] - fmn[a]) }
+            }
         }
         return dd
     }
@@ -1100,6 +1146,7 @@ final class World {
     }
 
     private func install(_ k: ChunkKey, _ p: Produced) {
+        if p.ground != nil { fieldStamp &+= 1 }              // (cached field collision at its border reads it now)
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
         c.world = self
         c.blocks.emitMask = p.emitMask

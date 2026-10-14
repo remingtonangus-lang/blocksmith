@@ -42,7 +42,8 @@ extension World {
 
     // The same with the 4 column heights cached by the caller (mobs): recomputed only when the cell changes.
     func smoothGroundOffset(_ pos: V3, key: inout Int, heights h: inout SIMD4<Float>) -> Float {
-        guard SmoothTerrain.enabled && SmoothTerrain.fromField, let g = gen as? WorldGen else { return 0 }
+        // (PG2 rewrite: a field world's bodies already stand on the field's surface.)
+        guard SmoothTerrain.enabled && SmoothTerrain.fromField, !fieldTerrain, let g = gen as? WorldGen else { return 0 }
         let fy = Int(floor(pos.y - 0.01))
         let fb = Int(block(Int(floor(pos.x)), fy, Int(floor(pos.z))))
         guard SmoothTerrain.natural[fb] || (!Blocks.collide[fb] && SmoothTerrain.natural[Int(block(Int(floor(pos.x)), fy - 1, Int(floor(pos.z))))])

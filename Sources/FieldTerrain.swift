@@ -327,4 +327,128 @@ extension World {
         for (m, c) in seen where c > n { best = m; n = c }
         return best
     }
+
+    // MARK: Collision (PG2 rewrite)
+
+    // Might the field's ground reach into cell (x, y, z) (local index i in chunk c)? It or one of its six neighbours is
+    // inside the ground.
+    @inline(__always) func fieldNear(_ c: Chunk, _ x: Int, _ y: Int, _ z: Int, _ i: Int) -> Bool {
+        let st = c.blocks
+        guard st.isField else { return false }
+        if st.ground(i) || (y > 0 && st.ground(i - CSQ)) || (y < CH - 1 && st.ground(i + CSQ)) { return true }
+        let lx = i & 15, lz = (i >> 4) & 15
+        if lx > 0 { if st.ground(i - 1) { return true } } else if let n = chunkAt(x - 1, z), n.blocks.ground(i + 15) { return true }
+        if lx < 15 { if st.ground(i + 1) { return true } } else if let n = chunkAt(x + 1, z), n.blocks.ground(i - 15) { return true }
+        if lz > 0 { if st.ground(i - CS) { return true } } else if let n = chunkAt(x, z - 1), n.blocks.ground(i + 15 * CS) { return true }
+        if lz < 15 { if st.ground(i + CS) { return true } } else if let n = chunkAt(x, z + 1), n.blocks.ground(i - 15 * CS) { return true }
+        return false
+    }
+
+    // The field's ground inside cell (x, y, z) as collision boxes: the cell in 4 x 4 quarter-block columns, each solid
+    // from the lowest to the highest point of its centre line where the field (trilinear between cell centres, as the
+    // mesh draws it) is inside the ground. A buried cell is one box; under open air the columns' tops follow the drawn
+    // slope to within an eighth of a block, so bodies stand on the surface they see. Cached per cell (fieldStamp).
+    func fieldBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
+        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
+        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 53)
+        let base = slot * 32
+        if fieldColKey[slot] != key {
+            fieldColKey[slot] = key
+            withUnsafeTemporaryAllocation(of: Float.self, capacity: 27) { D in
+                for dz in -1...1 { for dx in -1...1 {
+                    let c = chunkAt(x + dx, z + dz)
+                    for dy in -1...1 {
+                        let yy = y + dy
+                        var d: Float
+                        if yy < 0 { d = 4 } else if yy >= CH { d = -4 }
+                        else if let c, c.blocks.isField { d = FieldTerrain.f(c.blocks.density(Chunk.index(mod(x + dx, CS), yy, mod(z + dz, CS)))) }
+                        else { d = -4 }
+                        D[(dx + 1) + (dz + 1) * 3 + (dy + 1) * 9] = d
+                    }
+                } }
+                for v in 0..<4 { for u in 0..<4 {
+                    let px = (Float(u) + 0.5) / 4 - 0.5, pz = (Float(v) + 0.5) / 4 - 0.5
+                    let ix = px < 0 ? 0 : 2, iz = pz < 0 ? 0 : 2
+                    let wx = abs(px), wz = abs(pz)
+                    func lv(_ l: Int) -> Float {
+                        let o = l * 9
+                        let a = D[1 + 3 + o] * (1 - wx) + D[ix + 3 + o] * wx
+                        let b = D[1 + iz * 3 + o] * (1 - wx) + D[ix + iz * 3 + o] * wx
+                        return a * (1 - wz) + b * wz
+                    }
+                    let dm = lv(0), d0 = lv(1), dp = lv(2)
+                    let v0 = (dm + d0) * 0.5, v1 = d0, v2 = (d0 + dp) * 0.5      // at the cell's bottom, middle, top
+                    var lo: Float = -1, hi: Float = -1
+                    if v0 > 0 { lo = 0 } else if v1 > 0 { lo = 0.5 * v0 / (v0 - v1) } else if v2 > 0 { lo = 0.5 + 0.5 * v1 / (v1 - v2) }
+                    if v2 > 0 { hi = 1 } else if v1 > 0 { hi = 0.5 + 0.5 * v1 / (v1 - v2) } else if v0 > 0 { hi = 0.5 * v0 / (v0 - v1) }
+                    let k = base + (u + v * 4) * 2
+                    fieldColVal[k] = lo; fieldColVal[k + 1] = hi
+                } }
+            }
+        }
+        var full = true
+        for k in 0..<16 where fieldColVal[base + k * 2] != 0 || fieldColVal[base + k * 2 + 1] != 1 { full = false; break }
+        let o = V3(Float(x), Float(y), Float(z))
+        if full { out.append((o, o + 1)); return }
+        for v in 0..<4 {
+            var u = 0
+            while u < 4 {
+                let k = base + (u + v * 4) * 2
+                let lo = fieldColVal[k], hi = fieldColVal[k + 1]
+                var u1 = u + 1
+                while u1 < 4 && fieldColVal[base + (u1 + v * 4) * 2] == lo && fieldColVal[base + (u1 + v * 4) * 2 + 1] == hi { u1 += 1 }
+                if lo >= 0 && hi - lo > 0.01 {
+                    out.append((o + V3(Float(u) * 0.25, lo, Float(v) * 0.25), o + V3(Float(u1) * 0.25, hi, Float(v + 1) * 0.25)))
+                }
+                u = u1
+            }
+        }
+    }
+
+    // Harness (`--view ... --field --fieldwalk`): the player dropped at the view spot walks 4 s along each of 8 headings
+    // from there; reports how far the feet stood from the field's surface under them and the headings that stalled.
+    static func fieldWalkCheck(_ g: Game) -> String {
+        let w = g.world
+        let start = g.player.pos
+        var worst: Float = 0, sum: Float = 0, signed: Float = 0, n = 0, stalls = 0, travelled: Float = 0
+        func surface(_ p: V3) -> Float? {
+            var y = p.y + 1.2, prev = w.fieldDensity(at: V3(p.x, y, p.z))
+            if prev > 0 { return nil }
+            while y > p.y - 1.2 {
+                let d = w.fieldDensity(at: V3(p.x, y - 0.05, p.z))
+                if d > 0 { return y - 0.05 * d / (d - prev) }
+                prev = d; y -= 0.05
+            }
+            return nil
+        }
+        for k in 0..<8 {
+            g.player.pos = start; g.player.vel = .zero; g.player.flying = false
+            g.player.yaw = Float(k) * .pi / 4
+            for _ in 0..<60 { g.player.update(dt: 1.0 / 30, input: MoveInput(), world: w) }
+            let p0 = g.player.pos
+            for f in 0..<120 {
+                g.player.update(dt: 1.0 / 30, input: MoveInput(forward: 1), world: w)
+                if f % 3 == 0, g.player.onGround, !Blocks.collide[Int(w.block(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y - 0.3)), Int(floor(g.player.pos.z))))] || w.fieldNear(g.player.pos),
+                   let s = surface(g.player.pos) {
+                    let gap = g.player.pos.y - s
+                    worst = max(worst, abs(gap)); sum += abs(gap); signed += gap; n += 1
+                }
+            }
+            let moved = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
+            travelled += moved
+            if moved < 6 { stalls += 1 }
+        }
+        g.player.pos = start
+        return String(format: "fieldwalk: %d samples, mean |gap| %.3f (signed %.3f), worst %.3f; %.1f blocks walked, %d of 8 headings stalled",
+                      n, sum / Float(max(1, n)), signed / Float(max(1, n)), worst, travelled, stalls)
+    }
+}
+
+extension World {
+    // Is the cell under a point inside or beside the field's ground? (harness)
+    func fieldNear(_ p: V3) -> Bool {
+        let x = Int(floor(p.x)), y = Int(floor(p.y - 0.3)), z = Int(floor(p.z))
+        guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        return fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS)))
+    }
 }

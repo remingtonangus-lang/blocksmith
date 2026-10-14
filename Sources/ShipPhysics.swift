@@ -30,6 +30,58 @@ struct ShipBlockReader {
         guard let c = chunk else { return AIR }
         return c.blocks[(x & 15) + (z & 15) * 16 + y * 256]
     }
+    // PG2 rewrite (field worlds): the built layer alone, and the ground's density (blocks, + inside).
+    @inline(__always) mutating func raw(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if y < 0 { return BEDROCK }
+        if y >= CH { return AIR }
+        let cx = x >> 4, cz = z >> 4
+        if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
+        guard let c = chunk else { return AIR }
+        return c.blocks.raw((x & 15) + (z & 15) * 16 + y * 256)
+    }
+    @inline(__always) mutating func density(_ x: Int, _ y: Int, _ z: Int) -> Float {
+        if y < 0 { return 4 }
+        if y >= CH { return -4 }
+        let cx = x >> 4, cz = z >> 4
+        if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
+        guard let c = chunk else { return -4 }
+        return FieldTerrain.f(c.blocks.density((x & 15) + (z & 15) * 16 + y * 256))
+    }
+    // Trilinear between the cell centres (as the mesh draws it).
+    mutating func density(at p: V3) -> Float {
+        let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
+        let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
+        let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
+        let a0 = density(x0, y0, z0) * (1 - tx) + density(x0 + 1, y0, z0) * tx
+        let b0 = density(x0, y0 + 1, z0) * (1 - tx) + density(x0 + 1, y0 + 1, z0) * tx
+        let a1 = density(x0, y0, z0 + 1) * (1 - tx) + density(x0 + 1, y0, z0 + 1) * tx
+        let b1 = density(x0, y0 + 1, z0 + 1) * (1 - tx) + density(x0 + 1, y0 + 1, z0 + 1) * tx
+        let e0 = a0 * (1 - ty) + b0 * ty, e1 = a1 * (1 - ty) + b1 * ty
+        return e0 * (1 - tz) + e1 * tz
+    }
+    // The outward direction of the ground at p (minus the density's gradient), unit.
+    mutating func fieldNormal(_ p: V3) -> V3 {
+        let h: Float = 0.25
+        let g = V3(density(at: p + V3(h, 0, 0)) - density(at: p - V3(h, 0, 0)),
+                   density(at: p + V3(0, h, 0)) - density(at: p - V3(0, h, 0)),
+                   density(at: p + V3(0, 0, h)) - density(at: p - V3(0, 0, h)))
+        let l = simd_length(g)
+        return l > 1e-5 ? -g / l : V3(0, 1, 0)
+    }
+    // The ground's surface height under p (searching down `depth`), nil if there is none.
+    mutating func fieldTop(_ p: V3, depth: Float) -> Float? {
+        var y = p.y + 0.55
+        var prev = density(at: V3(p.x, y, p.z))
+        if prev > 0 { return nil }                      // (buried: the hull contacts push it out)
+        let stop = p.y - depth
+        while y > stop {
+            let y2 = y - 0.25
+            let d = density(at: V3(p.x, y2, p.z))
+            if d > 0 { return y2 + 0.25 * d / (d - prev) }
+            prev = d; y = y2
+        }
+        return nil
+    }
     @inline(__always) mutating func loaded(_ x: Int, _ z: Int) -> Bool {
         let cx = x >> 4, cz = z >> 4
         if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
@@ -515,12 +567,15 @@ extension ShipManager {
                 let x = Int(floor(wp.x)), z = Int(floor(wp.z))
                 var top: Float?
                 var y = Int(floor(wp.y))
+                let fieldW = rd.w.fieldTerrain
+                if fieldW { top = rd.fieldTop(wp, depth: 1.3) }       // PG2 rewrite: the ground's own surface
                 while y >= Int(floor(wp.y - 1.3)) {
-                    let b = rd.get(x, y, z)
+                    let b = fieldW ? rd.raw(x, y, z) : rd.get(x, y, z)
+                    if fieldW, let t = top, Float(y + 1) <= t { break }
                     if Blocks.collide[Int(b)] {
                         var t: Float = 1
                         if !Blocks.fullCollide[Int(b)] { t = 0; for bx in Blocks.boxes[Int(b)] { t = max(t, Float(bx.y1) / 16) } }
-                        top = Float(y) + t
+                        top = max(top ?? -1e9, Float(y) + t)
                         break
                     }
                     y -= 1
@@ -617,7 +672,8 @@ extension ShipManager {
         let hull = s.hull
         let stepUp = !s.wheels.isEmpty && s.grounded
         // PG2: hulls and wheels meet natural ground at its drawn surface (World.groundTop), like bodies do.
-        let fieldGen = SmoothTerrain.enabled && SmoothTerrain.fromField ? rd.w.gen as? WorldGen : nil
+        let fieldW = rd.w.fieldTerrain
+        let fieldGen = SmoothTerrain.enabled && SmoothTerrain.fromField && !fieldW ? rd.w.gen as? WorldGen : nil
         let natural = SmoothTerrain.natural
         while i < hull.count {
             let w = s.toWorld(hull[i])
@@ -626,8 +682,14 @@ extension ShipManager {
             let y0 = Int(floor(w.y - r)), y1 = Int(floor(w.y + r))
             let z0 = Int(floor(w.z - r)), z1 = Int(floor(w.z + r))
             var best: (V3, Float)?
+            // PG2 rewrite: a hull cell's sphere against the ground's field: the density at its centre is about the signed
+            // distance to the surface, so it overlaps by r + d along the surface's outward direction.
+            if fieldW {
+                let d = rd.density(at: w)
+                if d > -r { best = (rd.fieldNormal(w), min(r + d, 1.5)) }
+            }
             for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
-                let b = rd.get(x, y, z)
+                let b = fieldW ? rd.raw(x, y, z) : rd.get(x, y, z)
                 if !collide[Int(b)] { continue }
                 let mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1
